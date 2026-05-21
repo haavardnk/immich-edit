@@ -15,8 +15,3 @@ rawler = "0.7"
 turbojpeg = "1"
 sha2 = "0.10"
 hex = "0.4"
-wgpu = "22"
-bytemuck = { version = "1", features = ["derive"] }
-pollster = "0.3"
-parking_lot = "0.12"
-lru = "0.12"
