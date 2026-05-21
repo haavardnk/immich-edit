@@ -34,6 +34,7 @@ pub fn router(state: AppState) -> Router {
                 .put(routes::edits::put)
                 .delete(routes::edits::delete),
         )
+        .route("/assets/{id}/edits/auto", post(routes::edits::auto))
         .route(
             "/assets/{id}/preview",
             get(routes::preview::get_preview).post(routes::preview::post_preview),

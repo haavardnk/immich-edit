@@ -1,3 +1,4 @@
+pub mod auto;
 pub mod cancel;
 pub mod cpu;
 pub mod decode;

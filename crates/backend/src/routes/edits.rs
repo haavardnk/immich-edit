@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use raw_pipeline::edit_manifest::EditManifest;
+use raw_pipeline::edits::Edits;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -48,6 +49,23 @@ pub async fn delete(
 ) -> Result<StatusCode, AppError> {
     state.edits.delete(id).await.map_err(map_err)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn auto(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Edits>, AppError> {
+    let frame = state.render.frame(id).await.map_err(|e| match e {
+        crate::services::render::RenderError::Upstream(u) => u.into(),
+        crate::services::render::RenderError::Pipeline(p) => {
+            tracing::error!(error = %p, "auto-adjust decode");
+            AppError::Internal
+        }
+    })?;
+    let edits = tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame))
+        .await
+        .map_err(|_| AppError::Internal)?;
+    Ok(Json(edits))
 }
 
 fn map_err(err: EditsStoreError) -> AppError {
