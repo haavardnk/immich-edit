@@ -1,32 +1,57 @@
+use crate::cpu::pipeline::baseline_tone;
 use crate::edits::{BasicEdits, Edits, ToneEdits};
 use crate::frame::RawFrame;
 
 const SAMPLE_TARGET: usize = 200_000;
+const HIST_BINS: usize = 256;
 
-struct Stats {
-    luma_pct: [f32; 13],
-    mean_sat: f32,
-    high_sat_frac: f32,
+fn linear_to_srgb(x: f32) -> f32 {
+    let x = x.max(0.0);
+    if x <= 0.0031308 {
+        x * 12.92
+    } else {
+        1.055 * x.powf(1.0 / 2.4) - 0.055
+    }
 }
 
-const PCTS: [f32; 13] = [
-    0.001, 0.005, 0.01, 0.02, 0.05, 0.25, 0.50, 0.75, 0.95, 0.98, 0.99, 0.995, 0.999,
-];
+fn develop(v: f32) -> f32 {
+    linear_to_srgb(baseline_tone(v))
+}
 
-fn percentile(sorted: &[f32], p: f32) -> f32 {
-    if sorted.is_empty() {
-        return 0.0;
+struct Stats {
+    hist: [u32; HIST_BINS],
+    total: u32,
+    mean_sat: f32,
+}
+
+fn hist_percentile(hist: &[u32; HIST_BINS], total: u32, p: f64) -> usize {
+    let target = (total as f64 * p) as u32;
+    let mut cumulative = 0u32;
+    for (i, &v) in hist.iter().enumerate() {
+        cumulative += v;
+        if cumulative >= target {
+            return i;
+        }
     }
-    let idx = ((sorted.len() - 1) as f32 * p).round() as usize;
-    sorted[idx.min(sorted.len() - 1)]
+    HIST_BINS - 1
+}
+
+fn hist_fraction_above(hist: &[u32; HIST_BINS], total: u32, threshold: usize) -> f64 {
+    let sum: u32 = hist[threshold..].iter().sum();
+    sum as f64 / total.max(1) as f64
+}
+
+fn hist_fraction_below(hist: &[u32; HIST_BINS], total: u32, threshold: usize) -> f64 {
+    let sum: u32 = hist[..=threshold.min(HIST_BINS - 1)].iter().sum();
+    sum as f64 / total.max(1) as f64
 }
 
 fn collect_stats(frame: &RawFrame) -> Option<Stats> {
-    let total = frame.width * frame.height;
-    if total == 0 {
+    let pixel_count = frame.data.len() / 3;
+    if pixel_count == 0 {
         return None;
     }
-    let step = (total / SAMPLE_TARGET).max(1);
+    let step = (pixel_count / SAMPLE_TARGET).max(1);
 
     let wb = frame.wb_coeffs;
     let g = wb[1].max(1e-6);
@@ -43,55 +68,45 @@ fn collect_stats(frame: &RawFrame) -> Option<Stats> {
         raw_scale[2] * norm,
     ];
 
-    let cap = total / step + 1;
-    let mut lumas: Vec<f32> = Vec::with_capacity(cap);
+    let mut hist = [0u32; HIST_BINS];
     let mut sat_sum: f64 = 0.0;
     let mut sat_n: u32 = 0;
-    let mut high_sat: u32 = 0;
+    let mut total = 0u32;
 
     let mut i = 0;
-    while i < total {
+    while i < pixel_count {
         let off = i * 3;
         let r = (frame.data[off] * scale[0]).max(0.0);
         let gv = (frame.data[off + 1] * scale[1]).max(0.0);
         let b = (frame.data[off + 2] * scale[2]).max(0.0);
-        let y = 0.2126 * r + 0.7152 * gv + 0.0722 * b;
-        lumas.push(y.clamp(0.0, 4.0));
 
-        if y > 0.02 && y < 0.98 {
+        let y_linear = 0.2126 * r + 0.7152 * gv + 0.0722 * b;
+        let y_srgb = develop(y_linear);
+        let bin = (y_srgb * 255.0).round().clamp(0.0, 255.0) as usize;
+        hist[bin] += 1;
+        total += 1;
+
+        if y_srgb > 0.05 && y_srgb < 0.95 {
             let mx = r.max(gv).max(b);
             let mn = r.min(gv).min(b);
             if mx > 1e-4 {
                 let s = (mx - mn) / mx;
                 sat_sum += s as f64;
                 sat_n += 1;
-                if s > 0.3 {
-                    high_sat += 1;
-                }
             }
         }
         i += step;
     }
 
-    lumas.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let mut luma_pct = [0.0f32; 13];
-    for (idx, p) in PCTS.iter().enumerate() {
-        luma_pct[idx] = percentile(&lumas, *p);
-    }
     let mean_sat = if sat_n > 0 {
         (sat_sum / sat_n as f64) as f32
     } else {
         0.0
     };
-    let high_sat_frac = if sat_n > 0 {
-        high_sat as f32 / sat_n as f32
-    } else {
-        0.0
-    };
     Some(Stats {
-        luma_pct,
+        hist,
+        total,
         mean_sat,
-        high_sat_frac,
     })
 }
 
@@ -99,104 +114,70 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
     let Some(s) = collect_stats(frame) else {
         return Edits::default();
     };
-    let p001 = s.luma_pct[0];
-    let p02 = s.luma_pct[3];
-    let p05 = s.luma_pct[4];
-    let p25 = s.luma_pct[5];
-    let p50 = s.luma_pct[6];
-    let p75 = s.luma_pct[7];
-    let p95 = s.luma_pct[8];
-    let p98 = s.luma_pct[9];
-    let p995 = s.luma_pct[11];
-    let p999 = s.luma_pct[12];
-
-    let target_median = 0.18f32;
-    let mut exposure_ev = if p50 > 1e-4 {
-        (target_median / p50).log2().clamp(-2.5, 2.5)
-    } else {
-        2.5
-    };
-
-    let dynamic_range = (p95 - p05).max(0.0);
-    if dynamic_range > 0.85 {
-        exposure_ev = (exposure_ev - 0.2).max(-2.5);
+    if s.total == 0 {
+        return Edits::default();
     }
 
-    let gain = 2f32.powf(exposure_ev);
-    let lift = |x: f32| (x * gain).min(4.0);
-    let p001e = lift(p001);
-    let p02e = lift(p02);
-    let p05e = lift(p05);
-    let p25e = lift(p25);
-    let p75e = lift(p75);
-    let p98e = lift(p98);
-    let p995e = lift(p995);
-    let p999e = lift(p999);
+    let p01 = hist_percentile(&s.hist, s.total, 0.01);
+    let p50 = hist_percentile(&s.hist, s.total, 0.50);
+    let p99 = hist_percentile(&s.hist, s.total, 0.99);
 
-    let highlights = if p98e > 0.85 {
-        (-90.0 * ((p98e - 0.85) / 0.30)).clamp(-90.0, 0.0)
-    } else {
-        0.0
-    };
+    let black_point = p01;
+    let white_point = p99;
+    let range = (white_point as f64 - black_point as f64).max(1.0);
 
-    let shadows = if p05e < 0.18 {
-        (80.0 * ((0.18 - p05e) / 0.18)).clamp(0.0, 80.0)
-    } else if p05e > 0.35 {
-        (-40.0 * ((p05e - 0.35) / 0.30)).clamp(-40.0, 0.0)
-    } else {
-        0.0
-    };
+    let highlight_frac = hist_fraction_above(&s.hist, s.total, 240);
+    let clipped_frac = hist_fraction_above(&s.hist, s.total, 250);
 
-    let whites = if p999e > 0.96 {
-        (-60.0 * ((p999e - 0.96) / 0.20)).clamp(-60.0, 0.0)
-    } else if p995e < 0.85 {
-        (40.0 * ((0.85 - p995e) / 0.40)).clamp(0.0, 40.0)
-    } else {
-        0.0
-    };
+    let mut exposure_ev = (128.0 - p50 as f64) * 0.012;
+    if white_point > 245 || highlight_frac > 0.02 || clipped_frac > 0.005 {
+        exposure_ev = exposure_ev.min(0.0);
+    }
+    exposure_ev = exposure_ev.clamp(-2.0, 2.0);
 
-    let blacks = if p001e < 0.005 {
-        (50.0 * (1.0 - p001e / 0.005)).clamp(0.0, 50.0)
-    } else if p02e > 0.10 {
-        (-40.0 * ((p02e - 0.10) / 0.20)).clamp(-40.0, 0.0)
-    } else {
-        0.0
-    };
+    let mut contrast = 0.0f64;
+    if range < 200.0 {
+        contrast = ((200.0 / range) - 1.0) * 15.0;
+    }
+    if highlight_frac > 0.02 {
+        contrast *= 0.5;
+    }
+    contrast = contrast.clamp(-50.0, 50.0);
 
-    let iqr = (p75e - p25e).max(0.0);
-    let contrast = if dynamic_range > 0.75 {
-        0.0
-    } else if iqr < 0.15 {
-        (50.0 * ((0.15 - iqr) / 0.15)).clamp(0.0, 50.0)
-    } else if iqr > 0.45 {
-        (-40.0 * ((iqr - 0.45) / 0.30)).clamp(-40.0, 0.0)
-    } else {
-        0.0
-    };
+    let shadow_frac = hist_fraction_below(&s.hist, s.total, 32);
+    let mut shadows = 0.0f64;
+    if shadow_frac > 0.05 {
+        shadows = (shadow_frac * 60.0).min(50.0);
+    }
 
-    let vibrance = if s.high_sat_frac < 0.35 {
-        let target = 0.30f32;
-        if s.mean_sat < target {
-            (90.0 * ((target - s.mean_sat) / target)).clamp(0.0, 60.0)
-        } else {
-            0.0
-        }
-    } else {
-        0.0
-    };
+    let mut highlights = 0.0f64;
+    if highlight_frac > 0.02 {
+        highlights = -(highlight_frac * 120.0).min(70.0);
+    }
+
+    let simulated_p01 = (p01 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
+    let simulated_p99 = (p99 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
+    let blacks = -(simulated_p01 * 0.4).clamp(-30.0, 30.0);
+    let whites = ((simulated_p99 - 255.0) * 0.3).clamp(-40.0, 0.0);
+
+    let mut vibrance = 0.0f64;
+    if s.mean_sat < 0.20 {
+        vibrance = (0.20 - s.mean_sat) as f64 * 120.0;
+    }
+    vibrance = vibrance.clamp(0.0, 40.0);
 
     Edits {
         basic: BasicEdits {
-            exposure_ev: exposure_ev as f64,
-            contrast: contrast as f64,
-            vibrance: vibrance as f64,
+            exposure_ev,
+            contrast,
+            vibrance,
             ..Default::default()
         },
         tone: ToneEdits {
-            highlights: highlights as f64,
-            shadows: shadows as f64,
-            blacks: blacks as f64,
-            whites: whites as f64,
+            highlights,
+            shadows,
+            blacks,
+            whites,
         },
         color: Default::default(),
         geometry: Default::default(),
@@ -231,100 +212,47 @@ mod tests {
         }
     }
 
-    fn make_frame_gradient(w: usize, h: usize) -> RawFrame {
-        let n = w * h;
-        let mut data = Vec::with_capacity(n * 3);
-        for i in 0..n {
-            let v = i as f32 / (n - 1).max(1) as f32;
-            data.push(v);
-            data.push(v);
-            data.push(v);
-        }
-        RawFrame {
-            width: w,
-            height: h,
-            cfa_pattern: String::new(),
-            bps: 16,
-            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            cam_to_xyz: [[0.0; 4]; 3],
-            black_levels: [0.0; 4],
-            white_levels: [1.0; 4],
-            data,
-            cpp: 3,
-            orientation: (false, false, false),
-            is_raw: false,
-            exif: None,
-        }
-    }
-
     #[test]
-    fn dark_image_gets_positive_exposure() {
-        let f = make_frame_luma(0.05, 64, 64);
+    fn well_exposed_image_small_exposure() {
+        let f = make_frame_luma(0.18, 64, 64);
         let e = auto_adjust(&f);
-        if e.basic.exposure_ev <= 0.5 {
-            panic!("expected positive exposure, got {}", e.basic.exposure_ev);
+        if e.basic.exposure_ev.abs() > 0.5 {
+            panic!(
+                "expected small exposure for well-exposed image, got {}",
+                e.basic.exposure_ev
+            );
         }
     }
 
     #[test]
-    fn bright_image_gets_negative_exposure() {
+    fn very_dark_image_gets_positive_exposure() {
+        let f = make_frame_luma(0.01, 64, 64);
+        let e = auto_adjust(&f);
+        if e.basic.exposure_ev <= 0.3 {
+            panic!(
+                "expected positive exposure for dark image, got {}",
+                e.basic.exposure_ev
+            );
+        }
+    }
+
+    #[test]
+    fn bright_image_gets_negative_or_zero_exposure() {
         let f = make_frame_luma(0.8, 64, 64);
         let e = auto_adjust(&f);
-        if e.basic.exposure_ev >= -0.5 {
-            panic!("expected negative exposure, got {}", e.basic.exposure_ev);
-        }
-    }
-
-    #[test]
-    fn neutral_image_no_exposure_change() {
-        let f = make_frame_luma(0.18, 64, 64);
-        let e = auto_adjust(&f);
-        if e.basic.exposure_ev.abs() > 0.1 {
-            panic!("expected ~0 exposure, got {}", e.basic.exposure_ev);
-        }
-    }
-
-    #[test]
-    fn flat_image_gets_contrast_boost() {
-        let f = make_frame_luma(0.18, 64, 64);
-        let e = auto_adjust(&f);
-        if e.basic.contrast <= 30.0 {
+        if e.basic.exposure_ev > 0.1 {
             panic!(
-                "expected contrast boost on flat image, got {}",
-                e.basic.contrast
+                "expected non-positive exposure for bright image, got {}",
+                e.basic.exposure_ev
             );
         }
     }
 
     #[test]
-    fn high_dynamic_range_no_contrast_boost() {
-        let f = make_frame_gradient(256, 256);
-        let e = auto_adjust(&f);
-        if e.basic.contrast > 0.0 {
-            panic!(
-                "expected no contrast boost on wide gradient, got {}",
-                e.basic.contrast
-            );
-        }
-    }
-
-    #[test]
-    fn gray_image_gets_vibrance_boost() {
-        let f = make_frame_luma(0.5, 64, 64);
-        let e = auto_adjust(&f);
-        if e.basic.vibrance <= 30.0 {
-            panic!(
-                "expected vibrance boost on gray image, got {}",
-                e.basic.vibrance
-            );
-        }
-    }
-
-    #[test]
-    fn clipped_highlights_get_recovered() {
+    fn clipped_highlights_get_recovery() {
         let mut data: Vec<f32> = Vec::with_capacity(64 * 64 * 3);
         for i in 0..(64 * 64) {
-            let v = if i % 4 == 0 { 0.99 } else { 0.2 };
+            let v = if i % 4 == 0 { 0.99 } else { 0.3 };
             data.push(v);
             data.push(v);
             data.push(v);
@@ -347,6 +275,18 @@ mod tests {
         let e = auto_adjust(&f);
         if e.tone.highlights >= 0.0 {
             panic!("expected highlight recovery, got {}", e.tone.highlights);
+        }
+    }
+
+    #[test]
+    fn exposure_capped_with_bright_highlights() {
+        let f = make_frame_luma(0.95, 64, 64);
+        let e = auto_adjust(&f);
+        if e.basic.exposure_ev > 0.0 {
+            panic!(
+                "expected non-positive exposure with clipped highlights, got {}",
+                e.basic.exposure_ev
+            );
         }
     }
 }

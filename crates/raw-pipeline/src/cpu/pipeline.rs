@@ -34,7 +34,7 @@ pub fn render_with_cancel(
     let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
 
     let mut image = LinearImage::new(rgb, w, h);
-    let cam_to_srgb = if frame.is_raw {
+    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&frame.cam_to_xyz) {
         crate::color::cam_to_srgb_matrix(frame.cam_to_xyz)
     } else {
         crate::color::identity_3x3()
