@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::{GpuRenderer, PipelineError, RenderedImage};
@@ -79,13 +80,14 @@ impl RenderService {
         asset_id: Uuid,
         edits: Edits,
         max_edge: u32,
+        cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = self.frame(asset_id).await?;
         let opts = RenderOptions { max_edge };
         let gpu = self.gpu.clone();
         let active = self.active;
         let result = tokio::task::spawn_blocking(move || {
-            render_blocking(active, gpu, &frame, &edits, &opts)
+            render_blocking(active, gpu, &frame, &edits, &opts, cancel.as_ref())
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
@@ -120,18 +122,20 @@ fn render_blocking(
     frame: &RawFrame,
     edits: &Edits,
     opts: &RenderOptions,
+    cancel: Option<&CancelToken>,
 ) -> Result<RenderedImage, PipelineError> {
     if active == ActiveRenderer::Gpu {
         if let Some(g) = gpu.as_ref() {
-            match g.render(frame, edits, opts) {
+            match g.render_with_cancel(frame, edits, opts, cancel) {
                 Ok(r) => return Ok(r),
+                Err(PipelineError::Cancelled) => return Err(PipelineError::Cancelled),
                 Err(e) => {
                     tracing::warn!(error = %e, "gpu render failed; falling back to cpu");
                 }
             }
         }
     }
-    raw_pipeline::cpu::render(frame, edits, opts)
+    raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel)
 }
 
 async fn decode_blocking(bytes: Bytes) -> Result<RawFrame, PipelineError> {

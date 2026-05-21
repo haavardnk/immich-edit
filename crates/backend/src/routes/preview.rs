@@ -67,7 +67,9 @@ async fn render_to_response(
     max_edge: u32,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
-    let work = render.render(asset_id, edits, max_edge);
+    let tracker = state.queue.tracker(asset_id).await;
+    let token = tracker.next();
+    let work = render.render(asset_id, edits, max_edge, Some(token));
     let result = state
         .queue
         .enqueue::<_, _, RenderError>(asset_id, work)
@@ -115,6 +117,7 @@ fn map_render_err(err: RenderError) -> AppError {
         RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
             AppError::UnsupportedFormat(msg)
         }
+        RenderError::Pipeline(raw_pipeline::PipelineError::Cancelled) => AppError::Superseded,
         RenderError::Pipeline(_) => {
             tracing::error!(error = %err, "render pipeline");
             AppError::Internal

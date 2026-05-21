@@ -41,7 +41,7 @@ pub async fn post_export(
 async fn export(state: AppState, id: Uuid, edits: Edits) -> Result<Response, AppError> {
     let rendered = state
         .render
-        .render(id, edits, EXPORT_MAX_EDGE)
+        .render(id, edits, EXPORT_MAX_EDGE, None)
         .await
         .map_err(map_render_err)?;
 

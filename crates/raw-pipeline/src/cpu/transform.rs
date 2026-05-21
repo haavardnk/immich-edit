@@ -125,11 +125,8 @@ pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, u
         Err(_) => return (pixels.to_vec(), w, h),
     };
 
-    let mut dst_image = fast_image_resize::images::Image::new(
-        new_w,
-        new_h,
-        fast_image_resize::PixelType::F32x3,
-    );
+    let mut dst_image =
+        fast_image_resize::images::Image::new(new_w, new_h, fast_image_resize::PixelType::F32x3);
 
     let mut resizer = fast_image_resize::Resizer::new();
     if resizer
@@ -137,9 +134,7 @@ pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, u
             &src_image,
             &mut dst_image,
             Some(&fast_image_resize::ResizeOptions::new().resize_alg(
-                fast_image_resize::ResizeAlg::Convolution(
-                    fast_image_resize::FilterType::Lanczos3,
-                ),
+                fast_image_resize::ResizeAlg::Convolution(fast_image_resize::FilterType::Lanczos3),
             )),
         )
         .is_err()

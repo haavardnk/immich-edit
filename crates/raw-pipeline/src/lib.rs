@@ -1,3 +1,4 @@
+pub mod cancel;
 pub mod cpu;
 pub mod decode;
 pub mod edit_manifest;
@@ -20,6 +21,8 @@ pub enum PipelineError {
     Render(String),
     #[error("unsupported: {0}")]
     Unsupported(String),
+    #[error("cancelled")]
+    Cancelled,
 }
 
 pub type PipelineResult<T> = Result<T, PipelineError>;
@@ -28,6 +31,7 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+pub use cancel::{CancelToken, CancelTracker};
 pub use frame::{RawFrame, RenderOptions, RenderedImage};
 pub use gpu::GpuRenderer;
 pub use gpu::context::GpuContext;

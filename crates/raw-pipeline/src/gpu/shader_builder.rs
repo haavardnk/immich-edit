@@ -55,6 +55,13 @@ fn srgb_encode(v: f32) -> f32 {{
     return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }}
 
+fn highlight_rolloff(v: f32) -> f32 {{
+    let knee: f32 = 0.85;
+    if (v <= knee) {{ return v; }}
+    let headroom = 1.0 - knee;
+    return 1.0 - headroom * exp(-(v - knee) / headroom);
+}}
+
 {functions}
 fn process_color(c0: vec3<f32>) -> vec3<f32> {{
     var lin = c0;
@@ -97,7 +104,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let rgb = textureSampleLevel(src_tex, src_samp, vec2<f32>(su, sv), 0.0).rgb;
     let outc_lin = process_color(rgb);
-    let outc = vec3<f32>(srgb_encode(outc_lin.r), srgb_encode(outc_lin.g), srgb_encode(outc_lin.b));
+    let r1 = vec3<f32>(highlight_rolloff(outc_lin.r), highlight_rolloff(outc_lin.g), highlight_rolloff(outc_lin.b));
+    let outc = vec3<f32>(srgb_encode(r1.r), srgb_encode(r1.g), srgb_encode(r1.b));
     textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
 }}
 "#

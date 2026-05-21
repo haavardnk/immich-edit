@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use raw_pipeline::CancelTracker;
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
@@ -8,6 +9,7 @@ use uuid::Uuid;
 pub struct RenderQueue {
     semaphore: Arc<Semaphore>,
     latest: Arc<Mutex<HashMap<Uuid, u64>>>,
+    trackers: Arc<Mutex<HashMap<Uuid, CancelTracker>>>,
 }
 
 impl RenderQueue {
@@ -15,7 +17,13 @@ impl RenderQueue {
         Self {
             semaphore: Arc::new(Semaphore::new(max_concurrency.max(1))),
             latest: Arc::new(Mutex::new(HashMap::new())),
+            trackers: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub async fn tracker(&self, asset_id: Uuid) -> CancelTracker {
+        let mut map = self.trackers.lock().await;
+        map.entry(asset_id).or_default().clone()
     }
 
     pub async fn enqueue<F, T, E>(&self, asset_id: Uuid, work: F) -> Option<Result<T, E>>

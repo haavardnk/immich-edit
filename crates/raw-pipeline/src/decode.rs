@@ -102,7 +102,10 @@ fn decode_image(data: &[u8]) -> crate::PipelineResult<RawFrame> {
         .decompress(data, image)
         .map_err(|e| PipelineError::Decode(format!("jpeg decompress: {e}")))?;
 
-    let linear: Vec<f32> = rgb_buf.iter().map(|&v| srgb_to_linear(v as f32 / 255.0)).collect();
+    let linear: Vec<f32> = rgb_buf
+        .iter()
+        .map(|&v| srgb_to_linear(v as f32 / 255.0))
+        .collect();
 
     Ok(RawFrame {
         width,
@@ -110,7 +113,11 @@ fn decode_image(data: &[u8]) -> crate::PipelineResult<RawFrame> {
         cfa_pattern: String::new(),
         bps: 8,
         wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        cam_to_xyz: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]],
+        cam_to_xyz: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data: linear,

@@ -405,8 +405,22 @@ impl GpuRenderer {
         edits: &Edits,
         options: &RenderOptions,
     ) -> PipelineResult<RenderedImage> {
+        self.render_with_cancel(frame, edits, options, None)
+    }
+
+    pub fn render_with_cancel(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<RenderedImage> {
+        crate::cancel::check(cancel)?;
         let cached = self.get_or_demosaic(frame)?;
-        self.process(&cached, frame, edits, options)
+        crate::cancel::check(cancel)?;
+        let out = self.process(&cached, frame, edits, options)?;
+        crate::cancel::check(cancel)?;
+        Ok(out)
     }
 }
 
