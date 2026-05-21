@@ -4,8 +4,31 @@
 
   let {
     assets,
-    activeId = null
-  }: { assets: AssetSummary[]; activeId?: string | null } = $props();
+    activeId = null,
+    loadingMore = false,
+    onLoadMore
+  }: {
+    assets: AssetSummary[];
+    activeId?: string | null;
+    loadingMore?: boolean;
+    onLoadMore?: () => void;
+  } = $props();
+
+  let sentinel: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    if (!sentinel || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingMore) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  });
 </script>
 
 <div
@@ -16,3 +39,9 @@
     <AssetTile {asset} active={asset.id === activeId} />
   {/each}
 </div>
+{#if onLoadMore}
+  <div bind:this={sentinel} class="h-1"></div>
+{/if}
+{#if loadingMore}
+  <div class="py-4 text-center text-xs text-immich-dark-fg/30">loading…</div>
+{/if}

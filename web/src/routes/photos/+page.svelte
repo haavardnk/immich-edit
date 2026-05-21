@@ -7,13 +7,26 @@
 
   let assets = $state<AssetSummary[]>([]);
   let loading = $state(true);
+  let loadingMore = $state(false);
+  let nextPage = $state<string | null>(null);
 
   onMount(async () => {
     editor.unload();
-    const result = await searchMetadata({ size: 1000 });
+    const result = await searchMetadata({ size: 500 });
     assets = result.items;
+    nextPage = result.nextPage;
     loading = false;
   });
+
+  function loadMore(): void {
+    if (loadingMore || !nextPage) return;
+    loadingMore = true;
+    searchMetadata({ size: 500, page: nextPage }).then((result) => {
+      assets = [...assets, ...result.items];
+      nextPage = result.nextPage;
+      loadingMore = false;
+    });
+  }
 </script>
 
 {#if loading}
@@ -25,6 +38,6 @@
     <span>{assets.length} assets</span>
   </div>
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid {assets} />
+    <AssetGrid {assets} {loadingMore} onLoadMore={nextPage ? loadMore : undefined} />
   </div>
 {/if}

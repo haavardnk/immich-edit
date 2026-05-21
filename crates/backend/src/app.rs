@@ -26,6 +26,7 @@ pub fn router(state: AppState) -> Router {
         .route("/folders/paths", get(routes::folders::paths))
         .route("/folders/assets", get(routes::folders::assets))
         .route("/search/metadata", post(routes::search::metadata))
+        .route("/assets/statistics", get(routes::assets::statistics))
         .route("/edits", get(routes::edits::list))
         .route("/assets/{id}", get(routes::assets::detail))
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))

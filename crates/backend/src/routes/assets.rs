@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::client::ThumbSize;
-use crate::immich::dto::AssetDetail;
+use crate::immich::dto::{AssetDetail, AssetStatistics};
 use crate::state::AppState;
 
 pub async fn detail(
@@ -44,4 +44,12 @@ pub async fn thumbnail(
         HeaderValue::from_str(&content_type).unwrap_or(HeaderValue::from_static("image/jpeg")),
     );
     Ok(resp.into_response())
+}
+
+pub async fn statistics(
+    State(state): State<AppState>,
+    Query(params): Query<Vec<(String, String)>>,
+) -> Result<Json<AssetStatistics>, AppError> {
+    let stats = state.immich.asset_statistics(&params).await?;
+    Ok(Json(stats))
 }

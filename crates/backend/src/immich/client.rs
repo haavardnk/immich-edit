@@ -7,8 +7,8 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, PeopleResponse, PersonSummary, SearchAssets,
-    SearchResponse, TagSummary,
+    AlbumDetail, AlbumSummary, AssetDetail, AssetStatistics, PeopleResponse, PersonSummary,
+    SearchAssets, SearchResponse, TagSummary,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -142,6 +142,15 @@ impl ImmichClient {
         let bytes = send_post_json(&self.http, url, body).await?;
         let resp: SearchResponse = parse_json(&bytes)?;
         Ok(resp.assets)
+    }
+
+    pub async fn asset_statistics(&self, query: &[(String, String)]) -> ImmichResult<AssetStatistics> {
+        let mut url = self.url("api/assets/statistics")?;
+        for (k, v) in query {
+            url.query_pairs_mut().append_pair(k, v);
+        }
+        let bytes = send(&self.http, self.http.get(url)).await?;
+        parse_json(&bytes)
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {

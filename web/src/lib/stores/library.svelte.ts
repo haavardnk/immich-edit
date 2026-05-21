@@ -3,7 +3,7 @@ import { listPeople, type PersonSummary } from '$lib/api/people';
 import { listTags, type TagSummary } from '$lib/api/tags';
 import { folderPaths } from '$lib/api/folders';
 import { listEditedAssetIds } from '$lib/api/edits';
-import { searchMetadata } from '$lib/api/search';
+import { assetStatistics } from '$lib/api/search';
 import type { AlbumSummary } from '$lib/types/album';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
@@ -92,17 +92,17 @@ class LibraryStore {
   async loadCounts(): Promise<void> {
     if (this.countsLoaded) return;
     this.countsLoaded = true;
-    const [photos, favs, albums, people, tags, paths, editedIds] = await Promise.all([
-      searchMetadata({ size: 1 }).catch(() => null),
-      searchMetadata({ isFavorite: true, size: 1 }).catch(() => null),
+    const [stats, favStats, albums, people, tags, paths, editedIds] = await Promise.all([
+      assetStatistics().catch(() => null),
+      assetStatistics({ isFavorite: 'true' }).catch(() => null),
       listAlbums().catch(() => [] as AlbumSummary[]),
       listPeople().catch(() => [] as PersonSummary[]),
       listTags().catch(() => [] as TagSummary[]),
       folderPaths().catch(() => [] as string[]),
       listEditedAssetIds().catch(() => [] as string[]),
     ]);
-    if (photos) this.photosCount = photos.total;
-    if (favs) this.favoritesCount = favs.total;
+    if (stats) this.photosCount = stats.total;
+    if (favStats) this.favoritesCount = favStats.total;
     if (!this.loaded.has('albums')) {
       this.albums = albums;
       this.loaded.add('albums');

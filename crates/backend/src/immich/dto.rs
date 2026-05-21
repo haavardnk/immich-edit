@@ -93,6 +93,13 @@ pub struct TagSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetStatistics {
+    pub images: u32,
+    pub videos: u32,
+    pub total: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
     pub assets: SearchAssets,
 }
@@ -101,6 +108,8 @@ pub struct SearchResponse {
 pub struct SearchAssets {
     #[serde(default)]
     pub items: Vec<AssetSummary>,
+    #[serde(default)]
+    pub count: u32,
     #[serde(default)]
     pub total: u32,
     #[serde(rename = "nextPage", default)]

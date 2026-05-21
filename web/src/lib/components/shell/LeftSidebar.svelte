@@ -160,6 +160,7 @@
           {#if library.photosCount != null}
             <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.photosCount}</span>
           {/if}
+          <span class="w-4"></span>
         </a>
 
         <!-- People -->
@@ -193,6 +194,7 @@
             {#if library.favoritesCount != null}
               <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.favoritesCount}</span>
             {/if}
+            <span class="w-4"></span>
           </a>
         </div>
 
@@ -267,6 +269,7 @@
             {#if library.editedCount != null && library.editedCount > 0}
               <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.editedCount}</span>
             {/if}
+            <span class="w-4"></span>
           </a>
         </div>
       </div>

@@ -9,12 +9,25 @@
   const id = $derived(page.params.id as string);
   let assets = $state<AssetSummary[]>([]);
   let loading = $state(false);
+  let loadingMore = $state(false);
+  let nextPage = $state<string | null>(null);
 
   async function loadTag(tagId: string): Promise<void> {
     loading = true;
     const result = await searchMetadata({ tagIds: [tagId], size: 500 });
     assets = result.items;
+    nextPage = result.nextPage;
     loading = false;
+  }
+
+  function loadMore(): void {
+    if (loadingMore || !nextPage) return;
+    loadingMore = true;
+    searchMetadata({ tagIds: [id], size: 500, page: nextPage }).then((result) => {
+      assets = [...assets, ...result.items];
+      nextPage = result.nextPage;
+      loadingMore = false;
+    });
   }
 
   $effect(() => {
@@ -36,6 +49,6 @@
     <span>{assets.length} assets</span>
   </div>
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid {assets} />
+    <AssetGrid {assets} {loadingMore} onLoadMore={nextPage ? loadMore : undefined} />
   </div>
 {/if}
