@@ -9,8 +9,17 @@ import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
 
-const MAX_EDGE = 1600;
+const LIVE_EDGE = 1600;
+const MAX_EDGE = 4096;
+const HIRES_DEBOUNCE_MS = 300;
 const MAX_HISTORY = 50;
+
+function computeHiresEdge(zoom: number): number {
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+  const vp = typeof window !== 'undefined' ? Math.max(window.innerWidth, window.innerHeight) : 1600;
+  const needed = Math.ceil(vp * dpr * Math.max(1, zoom / 100));
+  return Math.min(needed, MAX_EDGE);
+}
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -30,18 +39,22 @@ class EditorStore {
   private skipHistory = false;
 
   private initialised = false;
-  private flight = new SingleFlight<{ edits: Edits }, { url: string; metaId: string | null }>(
+  private hiresTimer: ReturnType<typeof setTimeout> | null = null;
+  private renderedEdge = 0;
+
+  private flight = new SingleFlight<{ edits: Edits; maxEdge: number }, { url: string; metaId: string | null }>(
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       this.pending = true;
-      const { blob, metaId } = await livePreview(this.assetId, args.edits, MAX_EDGE, signal);
+      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, signal);
       return { url: makeObjectUrl(blob), metaId };
     },
-    (_args, result) => {
+    (args, result) => {
       const prev = this.previewUrl;
       this.previewUrl = result.url;
       if (prev?.startsWith('blob:')) revoke(prev);
       this.pending = false;
+      this.renderedEdge = args.maxEdge;
       if (result.metaId) void this.loadMeta(result.metaId);
     },
     (err) => {
@@ -61,7 +74,8 @@ class EditorStore {
       this.edits = manifestToEdits(s.manifest);
       this.initialised = true;
       this.pushHistory();
-      this.flight.submit({ edits: $state.snapshot(this.edits) });
+      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
+      this.scheduleHires();
     } catch (e) {
       this.error = (e as Error).message;
     }
@@ -69,6 +83,7 @@ class EditorStore {
 
   unload(): void {
     this.flight.cancel();
+    if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
     if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
     this.previewUrl = null;
     this.asset = null;
@@ -79,6 +94,7 @@ class EditorStore {
     this.history = [];
     this.historyCursor = -1;
     this.showingOriginal = false;
+    this.renderedEdge = 0;
   }
 
   private pushHistory(): void {
@@ -124,12 +140,13 @@ class EditorStore {
 
   showOriginal(): void {
     if (!this.initialised) return;
-    this.flight.submit({ edits: neutralEdits() });
+    this.flight.submit({ edits: neutralEdits(), maxEdge: this.renderedEdge || LIVE_EDGE });
   }
 
   onLive = (): void => {
     if (!this.initialised) return;
-    this.flight.submit({ edits: $state.snapshot(this.edits) });
+    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
+    this.scheduleHires();
   };
 
   onCommit = async (): Promise<void> => {
@@ -195,6 +212,24 @@ class EditorStore {
     } finally {
       this.exporting = false;
     }
+  };
+
+  private scheduleHires(zoom = 100): void {
+    if (this.hiresTimer) clearTimeout(this.hiresTimer);
+    this.hiresTimer = setTimeout(() => {
+      this.hiresTimer = null;
+      if (!this.initialised) return;
+      const edge = computeHiresEdge(zoom);
+      if (edge <= this.renderedEdge) return;
+      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: edge });
+    }, HIRES_DEBOUNCE_MS);
+  }
+
+  onZoomChange = (zoom: number): void => {
+    if (!this.initialised) return;
+    const edge = computeHiresEdge(zoom);
+    if (edge <= this.renderedEdge) return;
+    this.scheduleHires(zoom);
   };
 
   private async loadMeta(metaId: string): Promise<void> {

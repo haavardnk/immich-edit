@@ -33,6 +33,10 @@
     const delta = e.deltaY > 0 ? -10 : 10;
     ui.setZoom(ui.zoom + delta);
   }
+
+  $effect(() => {
+    editor.onZoomChange(ui.zoom);
+  });
 </script>
 
 <div
