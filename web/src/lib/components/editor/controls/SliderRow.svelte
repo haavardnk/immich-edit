@@ -7,7 +7,8 @@
     step = 0.1,
     onLive,
     onCommit,
-    format = (v: number): string => v.toFixed(2)
+    format = (v: number): string => v.toFixed(2),
+    gradient
   }: {
     label: string;
     value: number;
@@ -17,6 +18,7 @@
     onLive: () => void;
     onCommit: () => void;
     format?: (v: number) => string;
+    gradient?: string;
   } = $props();
 
   const isDefault = $derived(value === 0);
@@ -45,12 +47,14 @@
   <input
     type="range"
     class="slider-range"
+    style:background={gradient}
     {min}
     {max}
     {step}
     bind:value
     oninput={onLive}
     onchange={onCommit}
+    ondblclick={reset}
   />
 </div>
 
