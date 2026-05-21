@@ -120,3 +120,54 @@ fn gpu_rotate_swaps_dims() {
         );
     }
 }
+
+#[test]
+fn gpu_exif_orientation_matches_cpu() {
+    use raw_pipeline::frame::RawFrame;
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions { max_edge: 256 };
+    let w: usize = 40;
+    let h: usize = 30;
+    let data = vec![0.5f32; w * h * 3];
+
+    let orientations: &[((bool, bool, bool), &str)] = &[
+        ((false, false, false), "Normal"),
+        ((false, true, false), "HorizontalFlip"),
+        ((false, false, true), "VerticalFlip"),
+        ((false, true, true), "Rotate180"),
+        ((true, false, false), "Transpose"),
+        ((true, false, true), "Rotate90"),
+        ((true, true, false), "Rotate270"),
+        ((true, true, true), "Transverse"),
+    ];
+
+    for &(orient, label) in orientations {
+        let frame = RawFrame {
+            width: w,
+            height: h,
+            cfa_pattern: String::new(),
+            bps: 16,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            cam_to_xyz: [[0.0; 4]; 3],
+            black_levels: [0.0; 4],
+            white_levels: [1.0; 4],
+            data: data.clone(),
+            cpp: 3,
+            orientation: orient,
+            exif: None,
+        };
+
+        let gpu_out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let cpu_out = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+
+        if gpu_out.width != cpu_out.width || gpu_out.height != cpu_out.height {
+            panic!(
+                "{label}: GPU {}x{} != CPU {}x{}",
+                gpu_out.width, gpu_out.height, cpu_out.width, cpu_out.height
+            );
+        }
+    }
+}

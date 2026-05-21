@@ -42,13 +42,13 @@ impl EditOperator for VibranceOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "vibrance",
-            functions: "fn vibrance_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let mx = max(max(c.r, c.g), c.b); let mn = min(min(c.r, c.g), c.b); let sat = clamp(mx - mn, 0.0, 1.0); let f = 1.0 + p.x * (1.0 - sat); let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
-            apply: "lin = vibrance_apply(lin, p.vibrance);",
-        })
+        Some(GpuOp::new(
+            "vibrance",
+            "fn vibrance_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let mx = max(max(c.r, c.g), c.b); let mn = min(min(c.r, c.g), c.b); let sat = clamp(mx - mn, 0.0, 1.0); let f = 1.0 + p.x * (1.0 - sat); let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
+            "lin = vibrance_apply(lin, p.vibrance);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = edits.basic.vibrance as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

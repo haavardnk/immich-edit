@@ -35,13 +35,13 @@ impl EditOperator for SaturationOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "saturation",
-            functions: "fn saturation_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let f = 1.0 + p.x; let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
-            apply: "lin = saturation_apply(lin, p.saturation);",
-        })
+        Some(GpuOp::new(
+            "saturation",
+            "fn saturation_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let f = 1.0 + p.x; let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
+            "lin = saturation_apply(lin, p.saturation);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = edits.basic.saturation as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

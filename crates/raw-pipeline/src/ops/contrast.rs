@@ -33,13 +33,13 @@ impl EditOperator for ContrastOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "contrast",
-            functions: "fn contrast_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let f = 1.0 + p.x; return (c - vec3<f32>(0.5)) * f + vec3<f32>(0.5); }",
-            apply: "lin = contrast_apply(lin, p.contrast);",
-        })
+        Some(GpuOp::new(
+            "contrast",
+            "fn contrast_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let f = 1.0 + p.x; return (c - vec3<f32>(0.5)) * f + vec3<f32>(0.5); }",
+            "lin = contrast_apply(lin, p.contrast);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = edits.basic.contrast as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

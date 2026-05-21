@@ -310,10 +310,11 @@ impl GpuRenderer {
         );
         for slot in &built.color_ops {
             let op = &registry.ops()[slot.op_index];
-            let mut buf = [0.0f32; 4];
+            let mut buf = vec![0.0f32; slot.vec4_count * 4];
             op.write_gpu_uniform(&edits, &ctx_op, &mut buf);
             let off = slot.uniform_offset;
-            uniform_bytes[off..off + 16].copy_from_slice(bytemuck::cast_slice(&buf));
+            let bytes = slot.vec4_count * 16;
+            uniform_bytes[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
         }
 
         let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {

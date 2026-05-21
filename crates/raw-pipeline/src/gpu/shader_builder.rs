@@ -7,6 +7,7 @@ pub const HEADER_BYTES: usize = 48;
 pub struct ColorOpSlot {
     pub op_index: usize,
     pub uniform_offset: usize,
+    pub vec4_count: usize,
 }
 
 pub struct BuiltProcessShader {
@@ -20,21 +21,33 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     let mut functions = String::new();
     let mut apply_calls = String::new();
     let mut color_ops: Vec<ColorOpSlot> = Vec::new();
+    let mut used_vec4s: usize = 0;
 
     for (idx, op) in registry.ops().iter().enumerate() {
         let Some(gpu_op) = op.gpu() else { continue };
-        let offset = HEADER_BYTES + color_ops.len() * 16;
-        writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
+        let offset = HEADER_BYTES + used_vec4s * 16;
+        if gpu_op.vec4_count == 1 {
+            writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
+        } else {
+            writeln!(
+                struct_fields,
+                "    {}: array<vec4<f32>, {}>,",
+                gpu_op.field_name, gpu_op.vec4_count
+            )
+            .unwrap();
+        }
         functions.push_str(gpu_op.functions);
         functions.push('\n');
         writeln!(apply_calls, "    {}", gpu_op.apply).unwrap();
         color_ops.push(ColorOpSlot {
             op_index: idx,
             uniform_offset: offset,
+            vec4_count: gpu_op.vec4_count,
         });
+        used_vec4s += gpu_op.vec4_count;
     }
 
-    let uniform_size = HEADER_BYTES + color_ops.len() * 16;
+    let uniform_size = HEADER_BYTES + used_vec4s * 16;
 
     let wgsl = format!(
         r#"struct ProcessParams {{

@@ -57,13 +57,13 @@ impl EditOperator for ToneRegionsOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "tone_regions",
-            functions: "fn tone_regions_weights(x: f32) -> vec4<f32> { let bk = clamp((0.2 - x) / 0.2, 0.0, 1.0); let sh = clamp(1.0 - abs(x - 0.25) / 0.4, 0.0, 1.0); let hl = clamp(1.0 - abs(x - 0.75) / 0.4, 0.0, 1.0); let wh = clamp((x - 0.8) / 0.2, 0.0, 1.0); return vec4<f32>(hl, sh, bk, wh); } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let xc = clamp(c[i], 0.0, 2.0); let w = tone_regions_weights(min(xc, 1.0)); let delta = p.x * w.x * max(1.0 - xc, -1.0) * 0.5 + p.y * w.y * xc * 0.5 + p.z * w.z * 0.2 + p.w * w.w * max(1.0 - xc, -1.0) * 0.5; out_v[i] = xc + delta; } return out_v; }",
-            apply: "lin = tone_regions_apply(lin, p.tone_regions);",
-        })
+        Some(GpuOp::new(
+            "tone_regions",
+            "fn tone_regions_weights(x: f32) -> vec4<f32> { let bk = clamp((0.2 - x) / 0.2, 0.0, 1.0); let sh = clamp(1.0 - abs(x - 0.25) / 0.4, 0.0, 1.0); let hl = clamp(1.0 - abs(x - 0.75) / 0.4, 0.0, 1.0); let wh = clamp((x - 0.8) / 0.2, 0.0, 1.0); return vec4<f32>(hl, sh, bk, wh); } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let xc = clamp(c[i], 0.0, 2.0); let w = tone_regions_weights(min(xc, 1.0)); let delta = p.x * w.x * max(1.0 - xc, -1.0) * 0.5 + p.y * w.y * xc * 0.5 + p.z * w.z * 0.2 + p.w * w.w * max(1.0 - xc, -1.0) * 0.5; out_v[i] = xc + delta; } return out_v; }",
+            "lin = tone_regions_apply(lin, p.tone_regions);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = edits.tone.highlights as f32 / 100.0;
         dst[1] = edits.tone.shadows as f32 / 100.0;
         dst[2] = edits.tone.blacks as f32 / 100.0;

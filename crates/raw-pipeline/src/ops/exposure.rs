@@ -30,13 +30,13 @@ impl EditOperator for ExposureOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "exposure",
-            functions: "fn exposure_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { return c * p.x; }",
-            apply: "lin = exposure_apply(lin, p.exposure);",
-        })
+        Some(GpuOp::new(
+            "exposure",
+            "fn exposure_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { return c * p.x; }",
+            "lin = exposure_apply(lin, p.exposure);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = 2.0f32.powf(edits.basic.exposure_ev as f32);
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

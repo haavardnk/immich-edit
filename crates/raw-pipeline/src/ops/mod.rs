@@ -46,6 +46,22 @@ pub struct GpuOp {
     pub field_name: &'static str,
     pub functions: &'static str,
     pub apply: &'static str,
+    pub vec4_count: usize,
+}
+
+impl GpuOp {
+    pub const fn new(
+        field_name: &'static str,
+        functions: &'static str,
+        apply: &'static str,
+    ) -> Self {
+        Self {
+            field_name,
+            functions,
+            apply,
+            vec4_count: 1,
+        }
+    }
 }
 
 pub trait EditOperator: Send + Sync {
@@ -64,7 +80,7 @@ pub trait EditOperator: Send + Sync {
     fn gpu(&self) -> Option<GpuOp> {
         None
     }
-    fn write_gpu_uniform(&self, _edits: &Edits, _ctx: &OpContext, _dst: &mut [f32; 4]) {}
+    fn write_gpu_uniform(&self, _edits: &Edits, _ctx: &OpContext, _dst: &mut [f32]) {}
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
         None
     }

@@ -50,13 +50,13 @@ impl EditOperator for WhiteBalanceOp {
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "white_balance",
-            functions: "fn white_balance_apply(c: vec3<f32>, w: vec4<f32>) -> vec3<f32> { return vec3<f32>(c.r * w.r, c.g * w.g, c.b * w.b); }",
-            apply: "lin = white_balance_apply(lin, p.white_balance);",
-        })
+        Some(GpuOp::new(
+            "white_balance",
+            "fn white_balance_apply(c: vec3<f32>, w: vec4<f32>) -> vec3<f32> { return vec3<f32>(c.r * w.r, c.g * w.g, c.b * w.b); }",
+            "lin = white_balance_apply(lin, p.white_balance);",
+        ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32; 4]) {
+    fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
         let c = compute_wb(ctx.wb_coeffs, edits.basic.wb_temp, edits.basic.wb_tint);
         dst[0] = c[0];
         dst[1] = c[1];
