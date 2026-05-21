@@ -161,6 +161,20 @@ impl EditsStore {
         })
     }
 
+    pub async fn list_asset_ids(&self) -> Result<Vec<Uuid>, EditsStoreError> {
+        let rows = sqlx::query("SELECT asset_id FROM edits ORDER BY updated_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut ids = Vec::with_capacity(rows.len());
+        for row in rows {
+            let s: String = row.try_get("asset_id")?;
+            if let Ok(id) = Uuid::parse_str(&s) {
+                ids.push(id);
+            }
+        }
+        Ok(ids)
+    }
+
     pub async fn delete(&self, asset_id: Uuid) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
             .bind(asset_id.to_string())

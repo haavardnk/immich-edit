@@ -9,6 +9,11 @@ use crate::error::AppError;
 use crate::services::edits_store::{EditRecord, EditsStoreError, RENDERER_VERSION};
 use crate::state::AppState;
 
+pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<Uuid>>, AppError> {
+    let ids = state.edits.list_asset_ids().await.map_err(map_err)?;
+    Ok(Json(ids))
+}
+
 pub async fn get(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,

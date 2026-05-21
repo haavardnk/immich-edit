@@ -2,6 +2,10 @@ import { getJson, sendJson } from './client';
 import type { Edits, EditRecord } from '$lib/types/edits';
 import { editsToManifest } from '$lib/types/edits';
 
+export function listEditedAssetIds(): Promise<string[]> {
+  return getJson('/api/edits');
+}
+
 export function getEdits(assetId: string): Promise<EditRecord> {
   return getJson(`/api/assets/${assetId}/edits`);
 }
