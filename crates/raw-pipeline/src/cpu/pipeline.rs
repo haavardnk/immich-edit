@@ -35,8 +35,17 @@ pub fn render_with_cancel(
     let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
 
     let mut image = LinearImage::new(rgb, w, h);
-    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&frame.xyz_to_cam) {
-        crate::color::cam_to_srgb_matrix(frame.xyz_to_cam)
+    let xyz_to_cam = if frame.color_matrices.len() >= 2 {
+        let cct = crate::color::estimate_scene_cct(
+            frame.wb_coeffs,
+            &frame.color_matrices.last().unwrap().1,
+        );
+        crate::color::interpolate_xyz_to_cam(&frame.color_matrices, cct)
+    } else {
+        frame.xyz_to_cam
+    };
+    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
+        crate::color::cam_to_srgb_matrix(xyz_to_cam)
     } else {
         crate::color::identity_3x3()
     };

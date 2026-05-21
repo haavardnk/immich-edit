@@ -97,6 +97,50 @@ pub fn user_wb_matrix(temp: f64, tint: f64) -> [[f32; 3]; 3] {
     mat3_mul(&XYZ_TO_SRGB_D65, &tmp)
 }
 
+pub fn estimate_scene_cct(wb_coeffs: [f32; 4], xyz_to_cam: &[[f32; 3]; 4]) -> f32 {
+    let neutral = [
+        1.0 / wb_coeffs[0].max(1e-6),
+        1.0 / wb_coeffs[1].max(1e-6),
+        1.0 / wb_coeffs[2].max(1e-6),
+    ];
+    let cam_3x3: [[f32; 3]; 3] = [xyz_to_cam[0], xyz_to_cam[1], xyz_to_cam[2]];
+    if let Some(xyz_from_cam) = inverse_3x3(cam_3x3) {
+        let xyz = mat3_vec(&xyz_from_cam, neutral);
+        let sum = xyz[0] + xyz[1] + xyz[2];
+        if sum > 1e-6 {
+            let x = xyz[0] / sum;
+            let y = xyz[1] / sum;
+            let n = (x - 0.3320) / (0.1858 - y);
+            let cct = 449.0 * n * n * n + 3525.0 * n * n + 6823.3 * n + 5520.33;
+            return cct.clamp(2000.0, 25000.0);
+        }
+    }
+    6504.0
+}
+
+pub fn interpolate_xyz_to_cam(matrices: &[(f32, [[f32; 3]; 4])], scene_cct: f32) -> [[f32; 3]; 4] {
+    if matrices.len() < 2 {
+        return matrices.first().map(|m| m.1).unwrap_or([[0.0; 3]; 4]);
+    }
+    let (cct_lo, m_lo) = matrices[0];
+    let (cct_hi, m_hi) = matrices[matrices.len() - 1];
+    let inv_lo = 1.0 / cct_lo;
+    let inv_hi = 1.0 / cct_hi;
+    let inv_scene = 1.0 / scene_cct.clamp(cct_lo, cct_hi);
+    let t = if (inv_lo - inv_hi).abs() > 1e-9 {
+        (inv_scene - inv_hi) / (inv_lo - inv_hi)
+    } else {
+        0.5
+    };
+    let mut result = [[0.0f32; 3]; 4];
+    for i in 0..4 {
+        for j in 0..3 {
+            result[i][j] = m_lo[i][j] * t + m_hi[i][j] * (1.0 - t);
+        }
+    }
+    result
+}
+
 fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
@@ -155,4 +199,87 @@ pub fn is_unusable_matrix(m: &[[f32; 3]; 4]) -> bool {
         || m.iter()
             .take(3)
             .all(|row| row.iter().all(|v| v.abs() < 1e-6))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MATRIX_A: [[f32; 3]; 4] = [
+        [0.8, 0.1, 0.1],
+        [0.05, 0.9, 0.05],
+        [0.1, 0.2, 0.7],
+        [0.0, 0.0, 0.0],
+    ];
+    const MATRIX_D65: [[f32; 3]; 4] = [
+        [0.6, 0.3, 0.1],
+        [0.1, 0.8, 0.1],
+        [0.05, 0.1, 0.85],
+        [0.0, 0.0, 0.0],
+    ];
+
+    #[test]
+    fn interpolate_at_low_cct_returns_warm_matrix() {
+        let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
+        let result = interpolate_xyz_to_cam(&matrices, 2856.0);
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!(
+                    (result[i][j] - MATRIX_A[i][j]).abs() < 1e-5,
+                    "mismatch at [{i}][{j}]"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn interpolate_at_high_cct_returns_cool_matrix() {
+        let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
+        let result = interpolate_xyz_to_cam(&matrices, 6504.0);
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!(
+                    (result[i][j] - MATRIX_D65[i][j]).abs() < 1e-5,
+                    "mismatch at [{i}][{j}]"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn interpolate_midpoint_blends() {
+        let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
+        let mid_cct = 4000.0;
+        let result = interpolate_xyz_to_cam(&matrices, mid_cct);
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!(
+                    result[i][j] > MATRIX_A[i][j].min(MATRIX_D65[i][j]) - 1e-5
+                        && result[i][j] < MATRIX_A[i][j].max(MATRIX_D65[i][j]) + 1e-5,
+                    "out of range at [{i}][{j}]: {}",
+                    result[i][j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn interpolate_single_matrix_returns_it() {
+        let matrices = vec![(6504.0, MATRIX_D65)];
+        let result = interpolate_xyz_to_cam(&matrices, 4000.0);
+        assert_eq!(result, MATRIX_D65);
+    }
+
+    #[test]
+    fn estimate_cct_returns_valid_range() {
+        let matrix: [[f32; 3]; 4] = [
+            [0.8, 0.1, 0.1],
+            [0.05, 0.9, 0.05],
+            [0.1, 0.2, 0.7],
+            [0.0, 0.0, 0.0],
+        ];
+        let wb = [2.0, 1.0, 1.5, 1.0];
+        let cct = estimate_scene_cct(wb, &matrix);
+        assert!((2000.0..=25000.0).contains(&cct), "cct={cct} out of range");
+    }
 }

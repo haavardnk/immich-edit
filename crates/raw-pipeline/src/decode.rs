@@ -37,18 +37,69 @@ pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     }
 }
 
+type ExtractedMeta = (
+    [f32; 4],
+    [[f32; 3]; 4],
+    Vec<(f32, [[f32; 3]; 4])>,
+    crate::frame::OrientFlips,
+);
+
 fn extract_common(
     raw_image: &mut rawler::RawImage,
     exif: &Option<little_exif::metadata::Metadata>,
-) -> ([f32; 4], [[f32; 3]; 4], crate::frame::OrientFlips) {
+) -> ExtractedMeta {
     let wb_coeffs = raw_image.wb_coeffs;
+    let color_matrices = extract_color_matrices(raw_image);
     populate_xyz_to_cam_from_color_matrix(raw_image);
     let xyz_to_cam = raw_image.xyz_to_cam;
     let orientation = exif
         .as_ref()
         .and_then(crate::exif::orientation)
         .unwrap_or_else(|| raw_image.orientation.to_flips());
-    (wb_coeffs, xyz_to_cam, orientation)
+    (wb_coeffs, xyz_to_cam, color_matrices, orientation)
+}
+
+fn illuminant_to_cct(illu: &rawler::imgop::xyz::Illuminant) -> f32 {
+    use rawler::imgop::xyz::Illuminant::*;
+    match illu {
+        A | Tungsten => 2856.0,
+        B => 4874.0,
+        C => 6774.0,
+        D50 => 5003.0,
+        D55 => 5503.0,
+        D65 => 6504.0,
+        D75 => 7504.0,
+        Daylight | FineWeather | Flash => 5500.0,
+        Fluorescent => 4150.0,
+        CloudyWeather => 6500.0,
+        Shade => 7500.0,
+        DaylightFluorescent => 6430.0,
+        DaylightWhiteFluorescent => 5000.0,
+        CoolWhiteFluorescent => 4150.0,
+        WhiteFluorescent => 3450.0,
+        IsoStudioTungsten => 3200.0,
+        Unknown => 6504.0,
+    }
+}
+
+fn extract_color_matrices(raw_image: &rawler::RawImage) -> Vec<(f32, [[f32; 3]; 4])> {
+    let mut result = Vec::new();
+    for (illu, matrix) in &raw_image.color_matrix {
+        if matrix.len() % 3 != 0 {
+            continue;
+        }
+        let components = (matrix.len() / 3).min(4);
+        let mut xyz_to_cam = [[0.0f32; 3]; 4];
+        for i in 0..components {
+            for j in 0..3 {
+                xyz_to_cam[i][j] = matrix[i * 3 + j];
+            }
+        }
+        let cct = illuminant_to_cct(illu);
+        result.push((cct, xyz_to_cam));
+    }
+    result.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    result
 }
 
 fn populate_xyz_to_cam_from_color_matrix(raw_image: &mut rawler::RawImage) {
@@ -93,7 +144,8 @@ fn decode_raw_fast(
         _ => return decode_raw_quality(raw_image, exif),
     };
 
-    let (wb_coeffs, xyz_to_cam, orientation) = extract_common(&mut raw_image, &exif);
+    let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
+        extract_common(&mut raw_image, &exif);
 
     let develop = RawDevelop {
         steps: vec![ProcessingStep::Rescale],
@@ -126,6 +178,7 @@ fn decode_raw_fast(
         bps: 16,
         wb_coeffs,
         xyz_to_cam,
+        color_matrices,
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data,
@@ -140,7 +193,8 @@ fn decode_raw_quality(
     mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
-    let (wb_coeffs, xyz_to_cam, orientation) = extract_common(&mut raw_image, &exif);
+    let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
+        extract_common(&mut raw_image, &exif);
 
     let develop = RawDevelop {
         steps: vec![
@@ -189,6 +243,7 @@ fn decode_raw_quality(
         bps: 16,
         wb_coeffs,
         xyz_to_cam,
+        color_matrices,
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data,
@@ -240,6 +295,7 @@ fn decode_image(
             [0.0, 0.0, 1.0],
             [0.0, 0.0, 0.0],
         ],
+        color_matrices: Vec::new(),
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data: linear,
