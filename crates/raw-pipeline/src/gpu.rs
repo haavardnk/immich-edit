@@ -23,7 +23,10 @@ use crate::{PipelineError, PipelineResult};
 
 use context::GpuContext;
 use pipeline::GpuPipelines;
-use readback::{copy_texture_to_buffer, make_readback_buffer, read_rgba8};
+use readback::{
+    copy_texture_to_buffer, make_readback_buffer, make_readback_buffer_f16, read_rgba8,
+    read_rgba16f_as_rgb,
+};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -46,6 +49,8 @@ struct CachedFrame {
 struct OutputPool {
     texture: Texture,
     readback: Buffer,
+    linear_texture: Texture,
+    linear_readback: Buffer,
     alloc_w: u32,
     alloc_h: u32,
 }
@@ -385,12 +390,30 @@ impl GpuRenderer {
                     view_formats: &[],
                 }),
                 readback: make_readback_buffer(device, need_w, need_h),
+                linear_texture: device.create_texture(&TextureDescriptor {
+                    label: Some("linear-output"),
+                    size: Extent3d {
+                        width: need_w,
+                        height: need_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba16Float,
+                    usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                    view_formats: &[],
+                }),
+                linear_readback: make_readback_buffer_f16(device, need_w, need_h),
                 alloc_w: need_w,
                 alloc_h: need_h,
             });
         }
         let p = pool.as_ref().expect("pool populated");
         let out_view = p.texture.create_view(&TextureViewDescriptor::default());
+        let linear_view = p
+            .linear_texture
+            .create_view(&TextureViewDescriptor::default());
 
         let bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("process-bg"),
@@ -412,6 +435,10 @@ impl GpuRenderer {
                     binding: 3,
                     resource: BindingResource::TextureView(&out_view),
                 },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: BindingResource::TextureView(&linear_view),
+                },
             ],
         });
 
@@ -430,13 +457,26 @@ impl GpuRenderer {
             pass.dispatch_workgroups(gx, gy, 1);
         }
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
+        copy_texture_to_buffer(
+            &mut encoder,
+            &p.linear_texture,
+            &p.linear_readback,
+            out_w,
+            out_h,
+        );
         queue.submit(Some(encoder.finish()));
 
         let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h)?;
+        let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h)?;
         drop(pool);
 
-        let (histogram, jpeg) = rayon::join(
-            || Histogram::from_rgba8(&rgba),
+        let ((histogram, linear_histogram), jpeg) = rayon::join(
+            || {
+                rayon::join(
+                    || Histogram::from_rgba8(&rgba),
+                    || Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize),
+                )
+            },
             || encode_jpeg_rgba(&rgba, out_w, out_h, 85),
         );
         let jpeg = jpeg?;
@@ -444,7 +484,7 @@ impl GpuRenderer {
         Ok(RenderedImage {
             jpeg,
             histogram,
-            linear_histogram: None,
+            linear_histogram: Some(linear_histogram),
             width: out_w,
             height: out_h,
             renderer: "gpu".into(),
