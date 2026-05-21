@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
+use rayon::prelude::*;
 
 pub struct ContrastOp;
 
@@ -25,9 +26,10 @@ impl EditOperator for ContrastOp {
         edits: &Edits,
     ) -> PipelineResult<()> {
         let factor = 1.0 + edits.contrast as f32 / 100.0;
-        for v in image.rgb.iter_mut() {
-            *v = (*v - 0.5) * factor + 0.5;
-        }
+        image
+            .rgb
+            .par_iter_mut()
+            .for_each(|v| *v = (*v - 0.5) * factor + 0.5);
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {

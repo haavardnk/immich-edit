@@ -29,6 +29,7 @@ http = "1"
 lru = "0.12"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+mimalloc = { version = "0.1", default-features = false }
 
 [dev-dependencies]
 tokio = { workspace = true }

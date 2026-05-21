@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
+use rayon::prelude::*;
 
 pub struct SaturationOp;
 
@@ -22,17 +23,15 @@ impl EditOperator for SaturationOp {
         edits: &Edits,
     ) -> PipelineResult<()> {
         let factor = 1.0 + edits.saturation as f32 / 100.0;
-        let pixels = image.pixel_count();
-        for i in 0..pixels {
-            let idx = i * 3;
-            let r = image.rgb[idx];
-            let g = image.rgb[idx + 1];
-            let b = image.rgb[idx + 2];
+        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
+            let r = px[0];
+            let g = px[1];
+            let b = px[2];
             let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            image.rgb[idx] = luma + (r - luma) * factor;
-            image.rgb[idx + 1] = luma + (g - luma) * factor;
-            image.rgb[idx + 2] = luma + (b - luma) * factor;
-        }
+            px[0] = luma + (r - luma) * factor;
+            px[1] = luma + (g - luma) * factor;
+            px[2] = luma + (b - luma) * factor;
+        });
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {

@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
+use rayon::prelude::*;
 
 pub struct ExposureOp;
 
@@ -25,9 +26,7 @@ impl EditOperator for ExposureOp {
         edits: &Edits,
     ) -> PipelineResult<()> {
         let factor = 2.0f32.powf(edits.exposure_ev as f32);
-        for v in image.rgb.iter_mut() {
-            *v *= factor;
-        }
+        image.rgb.par_iter_mut().for_each(|v| *v *= factor);
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {

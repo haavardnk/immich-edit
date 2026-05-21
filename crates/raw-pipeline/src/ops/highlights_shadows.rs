@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
+use rayon::prelude::*;
 
 pub struct HighlightsShadowsOp;
 
@@ -26,14 +27,14 @@ impl EditOperator for HighlightsShadowsOp {
     ) -> PipelineResult<()> {
         let hl = edits.highlights as f32 / 100.0;
         let sh = edits.shadows as f32 / 100.0;
-        for v in image.rgb.iter_mut() {
+        image.rgb.par_iter_mut().for_each(|v| {
             let x = v.clamp(0.0, 2.0);
             if x > 0.5 {
                 *v = x + hl * (1.0 - x) * 0.5;
             } else {
                 *v = x + sh * x * 0.5;
             }
-        }
+        });
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {

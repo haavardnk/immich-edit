@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
+use rayon::prelude::*;
 
 pub struct WhiteBalanceOp;
 
@@ -41,13 +42,11 @@ impl EditOperator for WhiteBalanceOp {
         edits: &Edits,
     ) -> PipelineResult<()> {
         let coeffs = compute_wb(ctx.wb_coeffs, edits.wb_temp, edits.wb_tint);
-        let pixels = image.pixel_count();
-        for i in 0..pixels {
-            let idx = i * 3;
-            image.rgb[idx] *= coeffs[0];
-            image.rgb[idx + 1] *= coeffs[1];
-            image.rgb[idx + 2] *= coeffs[2];
-        }
+        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
+            px[0] *= coeffs[0];
+            px[1] *= coeffs[1];
+            px[2] *= coeffs[2];
+        });
         Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
