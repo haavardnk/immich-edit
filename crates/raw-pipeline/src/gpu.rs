@@ -316,14 +316,22 @@ impl GpuRenderer {
             ],
             [0.0, 0.0, 0.0, 0.0],
         );
+        let mut active_mask: u32 = 0;
         for slot in &built.color_ops {
             let op = &registry.ops()[slot.op_index];
+            if op.is_active(&edits) {
+                active_mask |= 1u32 << slot.active_bit;
+            }
             let mut buf = vec![0.0f32; slot.vec4_count * 4];
             op.write_gpu_uniform(&edits, &ctx_op, &mut buf);
             let off = slot.uniform_offset;
             let bytes = slot.vec4_count * 16;
             uniform_bytes[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
         }
+        let mask_words: [u32; 4] = [active_mask, 0, 0, 0];
+        uniform_bytes[crate::gpu::shader_builder::ACTIVE_MASK_OFFSET
+            ..crate::gpu::shader_builder::ACTIVE_MASK_OFFSET + 16]
+            .copy_from_slice(bytemuck::cast_slice(&mask_words));
 
         let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("process-uniform"),

@@ -238,7 +238,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
     ];
 
-    let threshold: f64 = 8.0;
+    let threshold: f64 = 2.0;
     let mut failed: Vec<String> = Vec::new();
 
     for (label, edits) in cases {

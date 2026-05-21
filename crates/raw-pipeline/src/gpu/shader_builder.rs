@@ -2,12 +2,14 @@ use std::fmt::Write;
 
 use crate::ops::OpRegistry;
 
-pub const HEADER_BYTES: usize = 64;
+pub const HEADER_BYTES: usize = 80;
+pub const ACTIVE_MASK_OFFSET: usize = 64;
 
 pub struct ColorOpSlot {
     pub op_index: usize,
     pub uniform_offset: usize,
     pub vec4_count: usize,
+    pub active_bit: u32,
 }
 
 pub struct BuiltProcessShader {
@@ -29,6 +31,10 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
             continue;
         }
         let offset = HEADER_BYTES + used_vec4s * 16;
+        let bit = color_ops.len() as u32;
+        if bit >= 32 {
+            panic!("more than 32 GPU ops; active_mask layout needs expansion");
+        }
         if gpu_op.vec4_count == 1 {
             writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
         } else {
@@ -41,11 +47,17 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
         }
         functions.push_str(gpu_op.functions);
         functions.push('\n');
-        writeln!(apply_calls, "    {}", gpu_op.apply).unwrap();
+        writeln!(
+            apply_calls,
+            "    if (((p.active_mask.x >> {bit}u) & 1u) != 0u) {{ {} }}",
+            gpu_op.apply
+        )
+        .unwrap();
         color_ops.push(ColorOpSlot {
             op_index: idx,
             uniform_offset: offset,
             vec4_count: gpu_op.vec4_count,
+            active_bit: bit,
         });
         used_vec4s += gpu_op.vec4_count;
     }
@@ -59,6 +71,7 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     crop: vec4<f32>,
     flags: vec4<u32>,
     geom_extra: vec4<f32>,
+    active_mask: vec4<u32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
