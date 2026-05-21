@@ -5,8 +5,18 @@
 
 <div class="flex flex-col gap-2.5">
   <SliderRow
-    label="Saturation"
-    bind:value={editor.edits.saturation}
+    label="Temperature"
+    bind:value={editor.edits.wb_temp}
+    min={-100}
+    max={100}
+    step={1}
+    onLive={editor.onLive}
+    onCommit={editor.onCommit}
+    format={(v: number) => v.toFixed(0)}
+  />
+  <SliderRow
+    label="Tint"
+    bind:value={editor.edits.wb_tint}
     min={-100}
     max={100}
     step={1}

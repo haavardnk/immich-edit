@@ -21,7 +21,7 @@
     step={1}
     onLive={editor.onLive}
     onCommit={editor.onCommit}
-    format={(v) => v.toFixed(0)}
+    format={(v: number) => v.toFixed(0)}
   />
   <SliderRow
     label="Highlights"
@@ -31,7 +31,7 @@
     step={1}
     onLive={editor.onLive}
     onCommit={editor.onCommit}
-    format={(v) => v.toFixed(0)}
+    format={(v: number) => v.toFixed(0)}
   />
   <SliderRow
     label="Shadows"
@@ -41,6 +41,6 @@
     step={1}
     onLive={editor.onLive}
     onCommit={editor.onCommit}
-    format={(v) => v.toFixed(0)}
+    format={(v: number) => v.toFixed(0)}
   />
 </div>

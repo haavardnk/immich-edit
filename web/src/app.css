@@ -1,18 +1,63 @@
 @import "tailwindcss";
-@plugin "daisyui" {
-  themes: dim --default;
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-immich-primary: rgb(var(--immich-primary));
+  --color-immich-bg: rgb(var(--immich-bg));
+  --color-immich-fg: rgb(var(--immich-fg));
+  --color-immich-dark-primary: rgb(var(--immich-dark-primary));
+  --color-immich-dark-bg: rgb(var(--immich-dark-bg));
+  --color-immich-dark-fg: rgb(var(--immich-dark-fg));
+  --color-immich-dark-gray: rgb(var(--immich-dark-gray));
+  --color-immich-dark-surface: rgb(var(--immich-dark-surface));
 }
 
-html,
-body {
-  height: 100%;
-  overflow: hidden;
+@layer base {
+  :root {
+    --immich-primary: 66 80 175;
+    --immich-bg: 255 255 255;
+    --immich-fg: 0 0 0;
+    --immich-dark-primary: 172 203 250;
+    --immich-dark-bg: 10 10 10;
+    --immich-dark-fg: 229 231 235;
+    --immich-dark-gray: 33 33 33;
+    --immich-dark-surface: 24 24 24;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    letter-spacing: 0.1px;
+    color: var(--immich-dark-fg);
+    background-color: rgb(var(--immich-dark-bg));
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
+@utility scrollbar-hidden {
   scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility immich-scrollbar {
+  scrollbar-width: thin;
 }
 

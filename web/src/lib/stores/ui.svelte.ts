@@ -1,6 +1,8 @@
 class UiStore {
   leftCollapsed = $state(false);
   rightCollapsed = $state(false);
+  filmstripCollapsed = $state(false);
+  searchQuery = $state('');
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;
@@ -8,6 +10,10 @@ class UiStore {
 
   toggleRight = (): void => {
     this.rightCollapsed = !this.rightCollapsed;
+  };
+
+  toggleFilmstrip = (): void => {
+    this.filmstripCollapsed = !this.filmstripCollapsed;
   };
 }
 

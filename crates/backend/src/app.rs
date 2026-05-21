@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::{get, post};
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
@@ -19,6 +19,12 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(routes::health::health))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
+        .route("/people", get(routes::people::list))
+        .route("/people/{id}/thumb", get(routes::people::thumbnail))
+        .route("/tags", get(routes::tags::list))
+        .route("/folders/paths", get(routes::folders::paths))
+        .route("/folders/assets", get(routes::folders::assets))
+        .route("/search/metadata", post(routes::search::metadata))
         .route("/assets/{id}", get(routes::assets::detail))
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))
         .route(

@@ -27,20 +27,24 @@
   }
 </script>
 
-<div class="flex flex-col gap-0.5 group">
+<div class="flex flex-col gap-1 group">
   <div class="flex items-center justify-between text-[11px] leading-none">
     <button
-      class="opacity-70 hover:opacity-100 select-none text-left"
+      class="text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors select-none text-left"
       ondblclick={reset}
       title="double click to reset"
     >
       {label}
     </button>
-    <span class="font-mono tabular-nums opacity-60" class:opacity-30={isDefault}>{format(value)}</span>
+    <span
+      class="font-mono tabular-nums text-[10px] transition-opacity {isDefault ? 'text-immich-dark-fg/20' : 'text-immich-dark-fg/50'}"
+    >
+      {format(value)}
+    </span>
   </div>
   <input
     type="range"
-    class="range range-xs"
+    class="slider-range"
     {min}
     {max}
     {step}
@@ -49,3 +53,33 @@
     onchange={onCommit}
   />
 </div>
+
+<style>
+  .slider-range {
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    appearance: none;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .slider-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgb(var(--immich-dark-primary));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s;
+  }
+  .slider-range::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+  }
+  .slider-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgb(var(--immich-dark-primary));
+    border: 0;
+  }
+</style>
