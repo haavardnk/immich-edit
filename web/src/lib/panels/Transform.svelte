@@ -1,7 +1,12 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiRotateLeft, mdiRotateRight, mdiFlipHorizontal, mdiFlipVertical } from '@mdi/js';
+  import {
+    mdiRotateLeft,
+    mdiRotateRight,
+    mdiFlipHorizontal,
+    mdiFlipVertical,
+  } from '@mdi/js';
 
   function rotateLeft(): void {
     editor.edits.geometry.rotate = ((editor.edits.geometry.rotate + 270) % 360) as 0 | 90 | 180 | 270;
@@ -21,7 +26,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-2">
+<div class="flex flex-col gap-3">
   <div class="grid grid-cols-2 gap-1.5">
     <button
       class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
@@ -52,5 +57,4 @@
       Flip V
     </button>
   </div>
-  <div class="text-[10px] text-immich-dark-fg/30 font-mono text-center">rotate {editor.edits.geometry.rotate}°</div>
 </div>

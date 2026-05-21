@@ -1,31 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CropRect {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl CropRect {
-    const MIN_DIM: f64 = 0.01;
-
-    pub fn clamped(&self) -> Self {
-        let x = self.x.clamp(0.0, 1.0);
-        let y = self.y.clamp(0.0, 1.0);
-        let width = self.width.clamp(Self::MIN_DIM, 1.0 - x);
-        let height = self.height.clamp(Self::MIN_DIM, 1.0 - y);
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct BasicEdits {
     #[serde(default)]
@@ -126,8 +101,6 @@ pub struct GeometryEdits {
     pub flip_h: bool,
     #[serde(default)]
     pub flip_v: bool,
-    #[serde(default)]
-    pub crop: Option<CropRect>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -174,7 +147,6 @@ impl Edits {
                 rotate,
                 flip_h: self.geometry.flip_h,
                 flip_v: self.geometry.flip_v,
-                crop: self.geometry.crop.as_ref().map(|c| c.clamped()),
             },
         }
     }
@@ -211,23 +183,6 @@ mod tests {
         e.geometry.rotate = 45;
         let c = e.clamped();
         assert_eq!(c.geometry.rotate, 0);
-    }
-
-    #[test]
-    fn clamp_crop() {
-        let mut e = Edits::default();
-        e.geometry.crop = Some(CropRect {
-            x: -0.5,
-            y: 0.5,
-            width: 2.0,
-            height: 0.001,
-        });
-        let c = e.clamped();
-        let crop = c.geometry.crop.unwrap();
-        assert_eq!(crop.x, 0.0);
-        assert_eq!(crop.y, 0.5);
-        assert_eq!(crop.width, 1.0);
-        assert!(crop.height >= CropRect::MIN_DIM);
     }
 
     #[test]

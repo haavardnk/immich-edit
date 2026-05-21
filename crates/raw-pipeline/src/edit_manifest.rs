@@ -59,9 +59,7 @@ impl EditManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edits::{
-        BasicEdits, ColorEdits, CropRect, GeometryEdits, HslBand, HslEdits, ToneEdits,
-    };
+    use crate::edits::{BasicEdits, ColorEdits, GeometryEdits, HslBand, HslEdits, ToneEdits};
 
     #[test]
     fn empty_edits_yields_empty_doc() {
@@ -109,12 +107,6 @@ mod tests {
                 rotate: 90,
                 flip_h: true,
                 flip_v: false,
-                crop: Some(CropRect {
-                    x: 0.1,
-                    y: 0.2,
-                    width: 0.5,
-                    height: 0.6,
-                }),
             },
         };
         let doc = EditManifest::from_edits(&original);

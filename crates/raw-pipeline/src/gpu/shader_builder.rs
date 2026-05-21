@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::ops::OpRegistry;
 
-pub const HEADER_BYTES: usize = 48;
+pub const HEADER_BYTES: usize = 64;
 
 pub struct ColorOpSlot {
     pub op_index: usize,
@@ -25,6 +25,9 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
 
     for (idx, op) in registry.ops().iter().enumerate() {
         let Some(gpu_op) = op.gpu() else { continue };
+        if gpu_op.vec4_count == 0 {
+            continue;
+        }
         let offset = HEADER_BYTES + used_vec4s * 16;
         if gpu_op.vec4_count == 1 {
             writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
@@ -55,6 +58,7 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     out_size: vec2<u32>,
     crop: vec4<f32>,
     flags: vec4<u32>,
+    geom_extra: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
@@ -94,8 +98,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let flip_h = p.flags.y;
     let flip_v = p.flags.z;
 
-    var cu = p.crop.x + u * p.crop.z;
-    var cv = p.crop.y + v * p.crop.w;
+    var cu = u;
+    var cv = v;
 
     if (flip_h == 1u) {{ cu = 1.0 - cu; }}
     if (flip_v == 1u) {{ cv = 1.0 - cv; }}

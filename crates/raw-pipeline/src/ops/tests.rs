@@ -1,8 +1,6 @@
 use super::LinearImage;
 use super::*;
-use crate::edits::{
-    BasicEdits, ColorEdits, CropRect, Edits, GeometryEdits, HslBand, HslEdits, ToneEdits,
-};
+use crate::edits::{BasicEdits, ColorEdits, Edits, GeometryEdits, HslBand, HslEdits, ToneEdits};
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
     let mut buf = Vec::with_capacity(w * h * 3);
@@ -218,28 +216,6 @@ fn geometry_rotate_swaps_dims() {
         .unwrap();
     assert_eq!(img.width, 2);
     assert_eq!(img.height, 4);
-}
-
-#[test]
-fn geometry_crop_reduces_dims() {
-    let mut img = solid_image(10, 10, [0.5, 0.5, 0.5]);
-    let edits = Edits {
-        geometry: GeometryEdits {
-            crop: Some(CropRect {
-                x: 0.0,
-                y: 0.0,
-                width: 0.5,
-                height: 0.5,
-            }),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    geometry::GeometryOp
-        .apply_cpu(&mut img, &ctx(), &edits)
-        .unwrap();
-    assert_eq!(img.width, 5);
-    assert_eq!(img.height, 5);
 }
 
 #[test]

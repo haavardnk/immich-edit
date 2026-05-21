@@ -56,7 +56,6 @@ export interface GeometryEdits {
   rotate: 0 | 90 | 180 | 270;
   flip_h: boolean;
   flip_v: boolean;
-  crop: CropRect | null;
 }
 
 export interface Edits {
@@ -64,13 +63,6 @@ export interface Edits {
   tone: ToneEdits;
   color: ColorEdits;
   geometry: GeometryEdits;
-}
-
-export interface CropRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 export interface EditManifest {
@@ -115,7 +107,6 @@ export function neutralEdits(): Edits {
       rotate: 0,
       flip_h: false,
       flip_v: false,
-      crop: null
     }
   };
 }
@@ -141,8 +132,7 @@ export function isIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     e.geometry.rotate === 0 &&
     !e.geometry.flip_h &&
-    !e.geometry.flip_v &&
-    e.geometry.crop === null
+    !e.geometry.flip_v
   );
 }
 
@@ -171,14 +161,12 @@ export function editsToManifest(e: Edits): EditManifest {
   if (
     e.geometry.rotate !== 0 ||
     e.geometry.flip_h ||
-    e.geometry.flip_v ||
-    e.geometry.crop !== null
+    e.geometry.flip_v
   )
     ops.geometry = {
       rotate: e.geometry.rotate,
       flip_h: e.geometry.flip_h,
       flip_v: e.geometry.flip_v,
-      crop: e.geometry.crop
     };
   return { schema_version: 2, ops };
 }
@@ -214,13 +202,11 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
   if (wb?.tint !== undefined) edits.basic.wb_tint = wb.tint;
   const geom = ops.geometry as
-    | { rotate?: number; flip_h?: boolean; flip_v?: boolean; crop?: CropRect | null }
+    | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;
   if (geom?.rotate !== undefined)
     edits.geometry.rotate = geom.rotate as GeometryEdits['rotate'];
   if (geom?.flip_h !== undefined) edits.geometry.flip_h = geom.flip_h;
   if (geom?.flip_v !== undefined) edits.geometry.flip_v = geom.flip_v;
-  if (geom?.crop !== undefined) edits.geometry.crop = geom.crop;
-
   return edits;
 }

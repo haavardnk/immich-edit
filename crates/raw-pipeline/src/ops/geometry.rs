@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage};
+use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::Edits;
@@ -14,10 +14,7 @@ impl EditOperator for GeometryOp {
         Stage::Geometry
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.geometry.rotate != 0
-            || edits.geometry.flip_h
-            || edits.geometry.flip_v
-            || edits.geometry.crop.is_some()
+        edits.geometry.rotate != 0 || edits.geometry.flip_h || edits.geometry.flip_v
     }
     fn apply_cpu(
         &self,
@@ -39,35 +36,24 @@ impl EditOperator for GeometryOp {
         if edits.geometry.flip_v {
             transform::flip_vertical(&mut image.rgb, image.width, image.height);
         }
-        if let Some(crop) = &edits.geometry.crop {
-            let (cropped, cw, ch) = transform::crop(
-                &image.rgb,
-                image.width,
-                image.height,
-                crop.x,
-                crop.y,
-                crop.width,
-                crop.height,
-            );
-            image.rgb = cropped;
-            image.width = cw;
-            image.height = ch;
-        }
         Ok(())
     }
+    fn gpu(&self) -> Option<GpuOp> {
+        Some(GpuOp {
+            field_name: "_geom_noop",
+            functions: "",
+            apply: "",
+            vec4_count: 0,
+        })
+    }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.geometry.rotate == 0
-            && !edits.geometry.flip_h
-            && !edits.geometry.flip_v
-            && edits.geometry.crop.is_none()
-        {
+        if edits.geometry.rotate == 0 && !edits.geometry.flip_h && !edits.geometry.flip_v {
             return None;
         }
         Some(serde_json::json!({
             "rotate": edits.geometry.rotate,
             "flip_h": edits.geometry.flip_h,
             "flip_v": edits.geometry.flip_v,
-            "crop": edits.geometry.crop,
         }))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
@@ -79,13 +65,6 @@ impl EditOperator for GeometryOp {
         }
         if let Some(v) = value.get("flip_v").and_then(|v| v.as_bool()) {
             edits.geometry.flip_v = v;
-        }
-        if let Some(c) = value.get("crop") {
-            if c.is_null() {
-                edits.geometry.crop = None;
-            } else if let Ok(parsed) = serde_json::from_value::<crate::edits::CropRect>(c.clone()) {
-                edits.geometry.crop = Some(parsed);
-            }
         }
     }
 }

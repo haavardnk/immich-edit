@@ -120,33 +120,6 @@ fn exposure_raises_mean() {
 }
 
 #[test]
-fn crop_reduces_dims() {
-    each_fixture(|name, path| {
-        let bytes = std::fs::read(path).unwrap();
-        let frame = decode::decode(&bytes).unwrap();
-
-        let opts = RenderOptions { max_edge: 4096 };
-        let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
-        let crop_edits = Edits {
-            geometry: raw_pipeline::edits::GeometryEdits {
-                crop: Some(raw_pipeline::edits::CropRect {
-                    x: 0.25,
-                    y: 0.25,
-                    width: 0.5,
-                    height: 0.5,
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let cropped = cpu::render(&frame, &crop_edits, &opts).unwrap();
-        if cropped.width >= base.width || cropped.height >= base.height {
-            panic!("{name}: crop did not reduce dims");
-        }
-    });
-}
-
-#[test]
 fn orientation_swaps_display_dims_when_transposed() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();

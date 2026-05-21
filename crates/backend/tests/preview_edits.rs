@@ -69,7 +69,7 @@ async fn put_then_get_then_delete_edits() {
         "schema_version": 2,
         "ops": {
             "exposure": { "ev": 1.5 },
-            "geometry": { "rotate": 90, "flip_h": false, "flip_v": false, "crop": null }
+            "geometry": { "rotate": 90, "flip_h": false, "flip_v": false }
         }
     });
     let resp = app

@@ -271,21 +271,8 @@ impl GpuRenderer {
             90 | 270 => (display_h, display_w),
             _ => (display_w, display_h),
         };
-        let crop = edits
-            .geometry
-            .crop
-            .as_ref()
-            .map(|c| {
-                let cw = (c.width as f32).max(0.0001);
-                let ch = (c.height as f32).max(0.0001);
-                [c.x as f32, c.y as f32, cw, ch]
-            })
-            .unwrap_or([0.0, 0.0, 1.0, 1.0]);
 
-        let cropped_w = ((oriented_w as f32) * crop[2]).max(1.0) as u32;
-        let cropped_h = ((oriented_h as f32) * crop[3]).max(1.0) as u32;
-
-        let (out_w, out_h) = scale_to_max(cropped_w, cropped_h, opts.max_edge);
+        let (out_w, out_h) = scale_to_max(oriented_w, oriented_h, opts.max_edge);
 
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
@@ -300,13 +287,14 @@ impl GpuRenderer {
             &mut uniform_bytes,
             [cached.width, cached.height],
             [out_w, out_h],
-            crop,
+            [0.0, 0.0, 1.0, 1.0],
             [
                 edits.geometry.rotate as u32,
                 edits.geometry.flip_h as u32,
                 edits.geometry.flip_v as u32,
                 orient_packed,
             ],
+            [0.0, 0.0, 0.0, 0.0],
         );
         for slot in &built.color_ops {
             let op = &registry.ops()[slot.op_index];
@@ -454,11 +442,13 @@ fn write_header(
     out_size: [u32; 2],
     crop: [f32; 4],
     flags: [u32; 4],
+    geom_extra: [f32; 4],
 ) {
     dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
     dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
     dst[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
     dst[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
+    dst[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra));
 }
 
 fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {
