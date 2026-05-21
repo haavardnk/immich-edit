@@ -79,8 +79,17 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
 @group(0) @binding(2) var src_samp: sampler;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 
+fn soft_clip_high(v: f32) -> f32 {{
+    let knee: f32 = 0.95;
+    if (v <= knee) {{ return v; }}
+    let headroom: f32 = 1.0 - knee;
+    let excess: f32 = v - knee;
+    return knee + headroom * (excess / (excess + headroom));
+}}
+
 fn default_tone(v: f32) -> f32 {{
-    let lin = clamp(v, 0.0, 1.0);
+    var lin: f32;
+    if (v <= 0.0) {{ lin = 0.0; }} else {{ lin = soft_clip_high(v); }}
     var srgb: f32;
     if (lin <= 0.003130808) {{
         srgb = 12.92 * lin;
@@ -88,8 +97,7 @@ fn default_tone(v: f32) -> f32 {{
         srgb = 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
     }}
     let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    let out = srgb + (s - srgb) * 0.15;
-    return clamp(out, 0.0, 1.0);
+    return srgb + (s - srgb) * 0.15;
 }}
 
 {functions}

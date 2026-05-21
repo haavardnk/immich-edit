@@ -81,13 +81,22 @@ pub fn render_with_cancel(
 }
 
 const S_CURVE_BLEND: f32 = 0.15;
+const HIGHLIGHT_KNEE: f32 = 0.95;
+
+fn soft_clip_high(v: f32) -> f32 {
+    if v <= HIGHLIGHT_KNEE {
+        return v;
+    }
+    let headroom = 1.0 - HIGHLIGHT_KNEE;
+    let excess = v - HIGHLIGHT_KNEE;
+    HIGHLIGHT_KNEE + headroom * (excess / (excess + headroom))
+}
 
 pub(crate) fn default_tone(v: f32) -> f32 {
-    let lin = v.clamp(0.0, 1.0);
+    let lin = if v <= 0.0 { 0.0 } else { soft_clip_high(v) };
     let srgb = srgb_oetf(lin);
     let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    let out = srgb + (s - srgb) * S_CURVE_BLEND;
-    out.clamp(0.0, 1.0)
+    srgb + (s - srgb) * S_CURVE_BLEND
 }
 
 fn srgb_oetf(v: f32) -> f32 {
@@ -111,8 +120,25 @@ mod tests {
         if default_tone(0.0).abs() > 1e-4 {
             panic!("expected 0 at 0");
         }
-        if (default_tone(1.0) - 1.0).abs() > 1e-4 {
-            panic!("expected 1 at 1");
+        let one = default_tone(1.0);
+        if !(0.97..=1.0).contains(&one) {
+            panic!("expected ~1 at 1, got {one}");
+        }
+    }
+
+    #[test]
+    fn highlight_headroom_softly_compresses() {
+        let at_one = default_tone(1.0);
+        let above = default_tone(1.5);
+        let far = default_tone(4.0);
+        if above <= at_one {
+            panic!("expected monotonic above 1.0: {at_one} -> {above}");
+        }
+        if above >= 1.0 || far >= 1.0 {
+            panic!("expected soft-clip below 1.0: above={above} far={far}");
+        }
+        if far <= above {
+            panic!("expected monotonic far above 1.0: {above} -> {far}");
         }
     }
 
