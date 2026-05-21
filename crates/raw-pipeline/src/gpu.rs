@@ -290,8 +290,15 @@ impl GpuRenderer {
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
 
+        let cam_to_srgb = if frame.is_raw {
+            crate::color::cam_to_srgb_matrix(frame.cam_to_xyz)
+        } else {
+            crate::color::identity_3x3()
+        };
         let ctx_op = OpContext {
             wb_coeffs: frame.wb_coeffs,
+            cam_to_srgb,
+            is_raw: frame.is_raw,
         };
         let built = &self.pipelines.built;
         let registry = &self.pipelines.registry;

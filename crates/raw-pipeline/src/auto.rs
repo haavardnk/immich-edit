@@ -226,6 +226,7 @@ mod tests {
             data,
             cpp: 3,
             orientation: (false, false, false),
+            is_raw: false,
             exif: None,
         }
     }
@@ -251,6 +252,7 @@ mod tests {
             data,
             cpp: 3,
             orientation: (false, false, false),
+            is_raw: false,
             exif: None,
         }
     }
@@ -339,6 +341,7 @@ mod tests {
             data,
             cpp: 3,
             orientation: (false, false, false),
+            is_raw: false,
             exif: None,
         };
         let e = auto_adjust(&f);

@@ -1,0 +1,68 @@
+use super::LinearImage;
+use super::{EditOperator, GpuOp, OpContext, Stage};
+use crate::PipelineResult;
+use crate::edits::Edits;
+use rayon::prelude::*;
+
+pub struct ColorMatrixOp;
+
+impl EditOperator for ColorMatrixOp {
+    fn id(&self) -> &'static str {
+        "color_matrix"
+    }
+    fn stage(&self) -> Stage {
+        Stage::WhiteBalance
+    }
+    fn order(&self) -> i32 {
+        10
+    }
+    fn is_active(&self, _edits: &Edits) -> bool {
+        true
+    }
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        ctx: &OpContext,
+        _edits: &Edits,
+    ) -> PipelineResult<()> {
+        let m = ctx.cam_to_srgb;
+        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
+            let r = px[0];
+            let g = px[1];
+            let b = px[2];
+            px[0] = m[0][0] * r + m[0][1] * g + m[0][2] * b;
+            px[1] = m[1][0] * r + m[1][1] * g + m[1][2] * b;
+            px[2] = m[2][0] * r + m[2][1] * g + m[2][2] * b;
+        });
+        Ok(())
+    }
+    fn gpu(&self) -> Option<GpuOp> {
+        Some(GpuOp {
+            field_name: "color_matrix",
+            functions: concat!(
+                "fn color_matrix_apply(c: vec3<f32>) -> vec3<f32> {\n",
+                "  let m0 = p.color_matrix[0];\n",
+                "  let m1 = p.color_matrix[1];\n",
+                "  let m2 = p.color_matrix[2];\n",
+                "  return vec3<f32>(\n",
+                "    m0.x * c.r + m0.y * c.g + m0.z * c.b,\n",
+                "    m1.x * c.r + m1.y * c.g + m1.z * c.b,\n",
+                "    m2.x * c.r + m2.y * c.g + m2.z * c.b\n",
+                "  );\n",
+                "}\n",
+            ),
+            apply: "lin = color_matrix_apply(lin);",
+            vec4_count: 3,
+        })
+    }
+    fn write_gpu_uniform(&self, _edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
+        let m = ctx.cam_to_srgb;
+        for (row_idx, row) in m.iter().enumerate() {
+            let off = row_idx * 4;
+            dst[off] = row[0];
+            dst[off + 1] = row[1];
+            dst[off + 2] = row[2];
+            dst[off + 3] = 0.0;
+        }
+    }
+}

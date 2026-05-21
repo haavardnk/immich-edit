@@ -1,4 +1,5 @@
 pub mod brightness;
+pub mod color_matrix;
 pub mod contrast;
 pub mod curves;
 pub mod exposure;
@@ -42,6 +43,8 @@ pub enum Stage {
 #[derive(Clone)]
 pub struct OpContext {
     pub wb_coeffs: [f32; 4],
+    pub cam_to_srgb: [[f32; 3]; 3],
+    pub is_raw: bool,
 }
 
 pub struct GpuOp {
@@ -118,6 +121,7 @@ impl OpRegistry {
 pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
         Box::new(white_balance::WhiteBalanceOp),
+        Box::new(color_matrix::ColorMatrixOp),
         Box::new(exposure::ExposureOp),
         Box::new(brightness::BrightnessOp),
         Box::new(tone_regions::ToneRegionsOp),

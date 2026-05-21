@@ -13,6 +13,8 @@ fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
 fn ctx() -> OpContext {
     OpContext {
         wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        cam_to_srgb: crate::color::identity_3x3(),
+        is_raw: false,
     }
 }
 
@@ -232,5 +234,5 @@ fn registry_skips_inactive_ops() {
     let reg = default_registry();
     let edits = Edits::default();
     let active: Vec<&str> = reg.active(&edits).map(|o| o.id()).collect();
-    assert_eq!(active, vec!["white_balance"]);
+    assert_eq!(active, vec!["white_balance", "color_matrix"]);
 }

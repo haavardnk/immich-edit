@@ -1,5 +1,6 @@
 pub mod auto;
 pub mod cancel;
+pub mod color;
 pub mod cpu;
 pub mod decode;
 pub mod edit_manifest;

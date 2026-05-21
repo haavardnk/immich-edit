@@ -169,6 +169,7 @@ fn gpu_exif_orientation_matches_cpu() {
             data: data.clone(),
             cpp: 3,
             orientation: orient,
+            is_raw: false,
             exif: None,
         };
 

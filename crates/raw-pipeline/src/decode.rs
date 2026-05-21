@@ -103,6 +103,7 @@ fn decode_raw_fast(
         data,
         cpp: 1,
         orientation,
+        is_raw: true,
         exif,
     })
 }
@@ -165,6 +166,7 @@ fn decode_raw_quality(
         data,
         cpp: 3,
         orientation,
+        is_raw: true,
         exif,
     })
 }
@@ -214,6 +216,7 @@ fn decode_image(
         data: linear,
         cpp: 3,
         orientation: (false, false, false),
+        is_raw: false,
         exif,
     })
 }

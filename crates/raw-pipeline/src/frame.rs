@@ -12,6 +12,7 @@ pub struct RawFrame {
     pub data: Vec<f32>,
     pub cpp: usize,
     pub orientation: OrientFlips,
+    pub is_raw: bool,
     pub exif: Option<little_exif::metadata::Metadata>,
 }
 
