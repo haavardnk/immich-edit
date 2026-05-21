@@ -11,3 +11,7 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
+rawler = "0.7"
+turbojpeg = "1"
+sha2 = "0.10"
+hex = "0.4"
