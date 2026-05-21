@@ -39,13 +39,21 @@ pub async fn post_export(
 }
 
 async fn export(state: AppState, id: Uuid, edits: Edits) -> Result<Response, AppError> {
+    let frame = state.render.frame(id).await.map_err(map_render_err)?;
     let rendered = state
         .render
         .render(id, edits, EXPORT_MAX_EDGE, None)
         .await
         .map_err(map_render_err)?;
 
-    let mut resp = Response::new(Body::from(rendered.jpeg));
+    let mut jpeg = rendered.jpeg;
+    if let Some(exif) = frame.exif.as_ref() {
+        if let Err(e) = raw_pipeline::exif::inject_jpeg(&mut jpeg, exif) {
+            tracing::warn!(error = %e, "exif inject failed");
+        }
+    }
+
+    let mut resp = Response::new(Body::from(jpeg));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     resp.headers_mut().insert(

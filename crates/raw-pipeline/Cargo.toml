@@ -23,3 +23,4 @@ lru = "0.12"
 half = "2.7.1"
 fast_image_resize = "6.0.0"
 rayon = { workspace = true }
+little_exif = "0.6"

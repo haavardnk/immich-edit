@@ -3,14 +3,15 @@ use crate::frame::RawFrame;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
+    let exif = crate::exif::parse(data);
     let source = rawler::rawsource::RawSource::new_from_slice(data);
     let params = rawler::decoders::RawDecodeParams::default();
     match rawler::decode(&source, &params) {
-        Ok(raw_image) => decode_raw(raw_image),
+        Ok(raw_image) => decode_raw(raw_image, exif),
         Err(e) => {
             let msg = format!("{e}");
             if msg.contains("No decoder found") {
-                decode_image(data)
+                decode_image(data, exif)
             } else {
                 Err(PipelineError::Decode(msg))
             }
@@ -18,7 +19,10 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     }
 }
 
-fn decode_raw(raw_image: rawler::RawImage) -> crate::PipelineResult<RawFrame> {
+fn decode_raw(
+    raw_image: rawler::RawImage,
+    exif: Option<little_exif::metadata::Metadata>,
+) -> crate::PipelineResult<RawFrame> {
     let wb_coeffs = raw_image.wb_coeffs;
     let cam_to_xyz = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         raw_image.cam_to_xyz_normalized()
@@ -78,10 +82,14 @@ fn decode_raw(raw_image: rawler::RawImage) -> crate::PipelineResult<RawFrame> {
         data,
         cpp: 3,
         orientation,
+        exif,
     })
 }
 
-fn decode_image(data: &[u8]) -> crate::PipelineResult<RawFrame> {
+fn decode_image(
+    data: &[u8],
+    exif: Option<little_exif::metadata::Metadata>,
+) -> crate::PipelineResult<RawFrame> {
     let mut decompressor = turbojpeg::Decompressor::new()
         .map_err(|e| PipelineError::Decode(format!("jpeg init: {e}")))?;
     let header = decompressor
@@ -123,6 +131,7 @@ fn decode_image(data: &[u8]) -> crate::PipelineResult<RawFrame> {
         data: linear,
         cpp: 3,
         orientation: (false, false, false),
+        exif,
     })
 }
 

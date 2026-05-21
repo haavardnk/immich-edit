@@ -5,6 +5,7 @@ pub mod decode;
 pub mod edit_manifest;
 pub mod edits;
 pub mod encode;
+pub mod exif;
 pub mod frame;
 pub mod gpu;
 pub mod histogram;

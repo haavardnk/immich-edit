@@ -174,3 +174,30 @@ fn histogram_mean(bins: &[u32]) -> f64 {
         .sum();
     weighted as f64 / total as f64
 }
+
+#[test]
+fn exif_roundtrip_preserves_camera() {
+    each_fixture(|name, path| {
+        let bytes = std::fs::read(path).unwrap();
+        let frame = decode::decode(&bytes).unwrap();
+        let Some(exif) = frame.exif.as_ref() else {
+            eprintln!("{name}: no exif parsed, skipping");
+            return;
+        };
+        let opts = RenderOptions { max_edge: 512 };
+        let mut out = cpu::render(&frame, &Edits::default(), &opts).unwrap().jpeg;
+        raw_pipeline::exif::inject_jpeg(&mut out, exif).unwrap();
+        let reread = little_exif::metadata::Metadata::new_from_vec(
+            &out,
+            little_exif::filetype::FileExtension::JPEG,
+        )
+        .unwrap();
+        let has_make = reread
+            .get_tag(&little_exif::exif_tag::ExifTag::Make(String::new()))
+            .next()
+            .is_some();
+        if !has_make {
+            panic!("{name}: Make tag lost after roundtrip");
+        }
+    });
+}

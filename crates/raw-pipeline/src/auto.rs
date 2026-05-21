@@ -99,6 +99,7 @@ mod tests {
             data,
             cpp: 3,
             orientation: (false, false, false),
+            exif: None,
         }
     }
 
