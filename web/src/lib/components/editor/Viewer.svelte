@@ -34,6 +34,14 @@
     ui.setZoom(ui.zoom + delta);
   }
 
+  function onDblClick(): void {
+    if (ui.zoom > 100) {
+      ui.zoomFit();
+    } else {
+      ui.setZoom(200);
+    }
+  }
+
   $effect(() => {
     editor.onZoomChange(ui.zoom);
   });
@@ -50,6 +58,7 @@
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
   onwheel={onWheel}
+  ondblclick={onDblClick}
 >
   {#if editor.previewUrl}
     <img

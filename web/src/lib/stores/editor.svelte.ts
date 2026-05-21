@@ -74,8 +74,13 @@ class EditorStore {
       this.edits = manifestToEdits(s.manifest);
       this.initialised = true;
       this.pushHistory();
-      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
-      this.scheduleHires();
+      const hiresEdge = computeHiresEdge(100);
+      if (hiresEdge > LIVE_EDGE) {
+        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
+        this.scheduleHires();
+      } else {
+        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: hiresEdge });
+      }
     } catch (e) {
       this.error = (e as Error).message;
     }
