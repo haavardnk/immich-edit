@@ -386,8 +386,11 @@ impl GpuRenderer {
         let rgba = read_rgba8(&self.ctx, &readback, out_w, out_h)?;
         let _ = padded_row_bytes(out_w);
 
-        let histogram = Histogram::from_rgba8(&rgba);
-        let jpeg = encode_jpeg_rgba(&rgba, out_w, out_h, 85)?;
+        let (histogram, jpeg) = rayon::join(
+            || Histogram::from_rgba8(&rgba),
+            || encode_jpeg_rgba(&rgba, out_w, out_h, 85),
+        );
+        let jpeg = jpeg?;
 
         Ok(RenderedImage {
             jpeg,

@@ -45,8 +45,6 @@ pub fn render_with_cancel(
     cancel::check(cancel)?;
     let (rgb, w, h) = transform::resize(&image.rgb, image.width, image.height, options.max_edge);
 
-    let histogram = Histogram::from_rgb(&rgb, w, h);
-
     let mut srgb = rgb;
     cancel::check(cancel)?;
     apply_highlight_rolloff(&mut srgb);
@@ -57,7 +55,12 @@ pub fn render_with_cancel(
         .map(|&v| (v.clamp(0.0, 1.0) * 255.0) as u8)
         .collect();
     cancel::check(cancel)?;
-    let jpeg = encode_jpeg(&rgb_u8, w as u32, h as u32, 85)?;
+
+    let (histogram, jpeg) = rayon::join(
+        || Histogram::from_rgb_u8(&rgb_u8, w, h),
+        || encode_jpeg(&rgb_u8, w as u32, h as u32, 85),
+    );
+    let jpeg = jpeg?;
 
     Ok(RenderedImage {
         jpeg,

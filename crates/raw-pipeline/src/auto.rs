@@ -32,8 +32,16 @@ fn collect_stats(frame: &RawFrame) -> Option<Stats> {
     let g = wb[1].max(1e-6);
     let raw_scale = [wb[0] / g, 1.0, wb[2] / g];
     let max_scale = raw_scale[0].max(raw_scale[1]).max(raw_scale[2]);
-    let norm = if max_scale > 1.0 { 1.0 / max_scale } else { 1.0 };
-    let scale = [raw_scale[0] * norm, raw_scale[1] * norm, raw_scale[2] * norm];
+    let norm = if max_scale > 1.0 {
+        1.0 / max_scale
+    } else {
+        1.0
+    };
+    let scale = [
+        raw_scale[0] * norm,
+        raw_scale[1] * norm,
+        raw_scale[2] * norm,
+    ];
 
     let cap = total / step + 1;
     let mut lumas: Vec<f32> = Vec::with_capacity(cap);
