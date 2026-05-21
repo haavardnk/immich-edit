@@ -2,7 +2,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { isIdentity } from '$lib/types/edits';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiExport, mdiRestore } from '@mdi/js';
+  import { mdiExport, mdiRestore, mdiAutoFix } from '@mdi/js';
 
   const neutral = $derived(isIdentity(editor.edits));
 </script>
@@ -15,6 +15,14 @@
   >
     <Icon path={mdiExport} size={16} />
     {editor.exporting ? 'Exporting…' : 'Export JPEG'}
+  </button>
+  <button
+    class="flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    disabled={editor.autoBusy || !editor.assetId}
+    onclick={() => void editor.onAutoAdjust()}
+  >
+    <Icon path={mdiAutoFix} size={16} />
+    {editor.autoBusy ? 'Analyzing…' : 'Auto adjust'}
   </button>
   <button
     class="flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"

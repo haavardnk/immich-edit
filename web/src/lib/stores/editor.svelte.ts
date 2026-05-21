@@ -1,7 +1,7 @@
 import { NEUTRAL_EDITS, isIdentity, manifestToEdits, type Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail } from '$lib/types/asset';
-import { getEdits, putEdits, deleteEdits } from '$lib/api/edits';
+import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta } from '$lib/api/preview';
 import { downloadExport } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
@@ -20,6 +20,7 @@ class EditorStore {
   pending = $state(false);
   saving = $state(false);
   exporting = $state(false);
+  autoBusy = $state(false);
   error = $state<string | null>(null);
 
   private initialised = false;
@@ -110,6 +111,30 @@ class EditorStore {
       this.saving = false;
     }
     this.loadPersisted();
+  };
+
+  onAutoAdjust = async (): Promise<void> => {
+    if (!this.assetId || !this.initialised) return;
+    this.autoBusy = true;
+    try {
+      const suggested = await autoEdits(this.assetId);
+      this.edits = {
+        ...this.edits,
+        exposure_ev: suggested.exposure_ev,
+        contrast: suggested.contrast,
+        highlights: suggested.highlights,
+        shadows: suggested.shadows,
+        saturation: suggested.saturation,
+        wb_temp: suggested.wb_temp,
+        wb_tint: suggested.wb_tint
+      };
+      this.onLive();
+      await this.onCommit();
+    } catch (e) {
+      this.error = (e as Error).message;
+    } finally {
+      this.autoBusy = false;
+    }
   };
 
   onExport = async (): Promise<void> => {

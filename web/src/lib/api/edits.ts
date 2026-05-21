@@ -13,3 +13,7 @@ export function putEdits(assetId: string, edits: Edits): Promise<EditRecord> {
 export function deleteEdits(assetId: string): Promise<void> {
   return sendJson('DELETE', `/api/assets/${assetId}/edits`, undefined);
 }
+
+export function autoEdits(assetId: string): Promise<Edits> {
+  return sendJson('POST', `/api/assets/${assetId}/edits/auto`, undefined);
+}
