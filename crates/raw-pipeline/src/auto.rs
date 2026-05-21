@@ -37,8 +37,10 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
     lumas.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let p1 = percentile(&lumas, 0.01);
+    let p005 = percentile(&lumas, 0.005);
     let p50 = percentile(&lumas, 0.50);
     let p99 = percentile(&lumas, 0.99);
+    let p995 = percentile(&lumas, 0.995);
 
     let target_median: f32 = 0.18;
     let exposure_ev = if p50 > 1e-4 {
@@ -61,6 +63,20 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
         0.0
     };
 
+    let blacks_floor = 0.02;
+    let blacks = if p005 < blacks_floor {
+        (25.0 * (1.0 - p005 / blacks_floor)).clamp(0.0, 30.0)
+    } else {
+        0.0
+    };
+
+    let whites_ceil = 0.98;
+    let whites = if p995 > whites_ceil {
+        (-25.0 * ((p995 - whites_ceil) / (1.0 - whites_ceil))).clamp(-30.0, 0.0)
+    } else {
+        0.0
+    };
+
     Edits {
         basic: crate::edits::BasicEdits {
             exposure_ev: exposure_ev as f64,
@@ -69,7 +85,10 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
         tone: crate::edits::ToneEdits {
             highlights: highlights as f64,
             shadows: shadows as f64,
+            blacks: blacks as f64,
+            whites: whites as f64,
         },
+        color: Default::default(),
         geometry: Default::default(),
     }
 }

@@ -43,4 +43,24 @@
     onCommit={editor.onCommit}
     format={(v: number) => v.toFixed(0)}
   />
+  <SliderRow
+    label="Whites"
+    bind:value={editor.edits.tone.whites}
+    min={-100}
+    max={100}
+    step={1}
+    onLive={editor.onLive}
+    onCommit={editor.onCommit}
+    format={(v: number) => v.toFixed(0)}
+  />
+  <SliderRow
+    label="Blacks"
+    bind:value={editor.edits.tone.blacks}
+    min={-100}
+    max={100}
+    step={1}
+    onLive={editor.onLive}
+    onCommit={editor.onCommit}
+    format={(v: number) => v.toFixed(0)}
+  />
 </div>

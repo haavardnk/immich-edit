@@ -1,8 +1,10 @@
 pub mod contrast;
 pub mod exposure;
 pub mod geometry;
-pub mod highlights_shadows;
+pub mod hsl;
 pub mod saturation;
+pub mod tone_regions;
+pub mod vibrance;
 pub mod white_balance;
 
 #[cfg(test)]
@@ -99,9 +101,11 @@ pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(exposure::ExposureOp),
-        Box::new(highlights_shadows::HighlightsShadowsOp),
+        Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),
         Box::new(saturation::SaturationOp),
+        Box::new(vibrance::VibranceOp),
+        Box::new(hsl::HslOp),
         Box::new(geometry::GeometryOp),
     ])
 }

@@ -251,6 +251,15 @@ impl GpuRenderer {
 
         let edits = edits.clamped();
 
+        for op in self.pipelines.registry.active(&edits) {
+            if op.gpu().is_none() {
+                return Err(PipelineError::Unsupported(format!(
+                    "gpu pipeline missing op: {}",
+                    op.id()
+                )));
+            }
+        }
+
         let (sensor_w, sensor_h) = (cached.width, cached.height);
         let (display_w, display_h) = if frame.orientation.0 {
             (sensor_h, sensor_w)

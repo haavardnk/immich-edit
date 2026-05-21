@@ -35,6 +35,8 @@ pub struct BasicEdits {
     #[serde(default)]
     pub saturation: f64,
     #[serde(default)]
+    pub vibrance: f64,
+    #[serde(default)]
     pub wb_temp: f64,
     #[serde(default)]
     pub wb_tint: f64,
@@ -46,6 +48,74 @@ pub struct ToneEdits {
     pub highlights: f64,
     #[serde(default)]
     pub shadows: f64,
+    #[serde(default)]
+    pub blacks: f64,
+    #[serde(default)]
+    pub whites: f64,
+}
+
+pub const HSL_BANDS: usize = 8;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub struct HslBand {
+    #[serde(default)]
+    pub hue: f64,
+    #[serde(default)]
+    pub sat: f64,
+    #[serde(default)]
+    pub lum: f64,
+}
+
+impl HslBand {
+    pub fn is_zero(&self) -> bool {
+        self.hue == 0.0 && self.sat == 0.0 && self.lum == 0.0
+    }
+
+    pub fn clamped(&self) -> Self {
+        Self {
+            hue: self.hue.clamp(-100.0, 100.0),
+            sat: self.sat.clamp(-100.0, 100.0),
+            lum: self.lum.clamp(-100.0, 100.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HslEdits {
+    #[serde(default = "default_bands")]
+    pub bands: [HslBand; HSL_BANDS],
+}
+
+fn default_bands() -> [HslBand; HSL_BANDS] {
+    [HslBand::default(); HSL_BANDS]
+}
+
+impl Default for HslEdits {
+    fn default() -> Self {
+        Self {
+            bands: default_bands(),
+        }
+    }
+}
+
+impl HslEdits {
+    pub fn is_zero(&self) -> bool {
+        self.bands.iter().all(|b| b.is_zero())
+    }
+
+    pub fn clamped(&self) -> Self {
+        let mut bands = [HslBand::default(); HSL_BANDS];
+        for (i, b) in bands.iter_mut().enumerate() {
+            *b = self.bands[i].clamped();
+        }
+        Self { bands }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ColorEdits {
+    #[serde(default)]
+    pub hsl: HslEdits,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -67,6 +137,8 @@ pub struct Edits {
     #[serde(default)]
     pub tone: ToneEdits,
     #[serde(default)]
+    pub color: ColorEdits,
+    #[serde(default)]
     pub geometry: GeometryEdits,
 }
 
@@ -85,12 +157,18 @@ impl Edits {
                 exposure_ev: self.basic.exposure_ev.clamp(-5.0, 5.0),
                 contrast: self.basic.contrast.clamp(-100.0, 100.0),
                 saturation: self.basic.saturation.clamp(-100.0, 100.0),
+                vibrance: self.basic.vibrance.clamp(-100.0, 100.0),
                 wb_temp: self.basic.wb_temp.clamp(-100.0, 100.0),
                 wb_tint: self.basic.wb_tint.clamp(-100.0, 100.0),
             },
             tone: ToneEdits {
                 highlights: self.tone.highlights.clamp(-100.0, 100.0),
                 shadows: self.tone.shadows.clamp(-100.0, 100.0),
+                blacks: self.tone.blacks.clamp(-100.0, 100.0),
+                whites: self.tone.whites.clamp(-100.0, 100.0),
+            },
+            color: ColorEdits {
+                hsl: self.color.hsl.clamped(),
             },
             geometry: GeometryEdits {
                 rotate,

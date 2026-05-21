@@ -59,7 +59,9 @@ impl EditManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edits::{BasicEdits, CropRect, GeometryEdits, ToneEdits};
+    use crate::edits::{
+        BasicEdits, ColorEdits, CropRect, GeometryEdits, HslBand, HslEdits, ToneEdits,
+    };
 
     #[test]
     fn empty_edits_yields_empty_doc() {
@@ -74,17 +76,34 @@ mod tests {
 
     #[test]
     fn roundtrip_preserves_fields() {
+        let mut bands = [HslBand::default(); 8];
+        bands[0] = HslBand {
+            hue: 10.0,
+            sat: -20.0,
+            lum: 5.0,
+        };
+        bands[4] = HslBand {
+            hue: -8.0,
+            sat: 15.0,
+            lum: -3.0,
+        };
         let original = Edits {
             basic: BasicEdits {
                 exposure_ev: 1.5,
                 contrast: 25.0,
                 saturation: 12.5,
+                vibrance: 18.0,
                 wb_temp: 8.0,
                 wb_tint: -4.0,
             },
             tone: ToneEdits {
                 highlights: -10.0,
                 shadows: 30.0,
+                blacks: 12.0,
+                whites: -8.0,
+            },
+            color: ColorEdits {
+                hsl: HslEdits { bands },
             },
             geometry: GeometryEdits {
                 rotate: 90,

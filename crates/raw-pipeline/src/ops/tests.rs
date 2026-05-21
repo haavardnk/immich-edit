@@ -1,6 +1,8 @@
 use super::LinearImage;
 use super::*;
-use crate::edits::{BasicEdits, CropRect, Edits, GeometryEdits, ToneEdits};
+use crate::edits::{
+    BasicEdits, ColorEdits, CropRect, Edits, GeometryEdits, HslBand, HslEdits, ToneEdits,
+};
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
     let mut buf = Vec::with_capacity(w * h * 3);
@@ -73,6 +75,32 @@ fn saturation_full_desaturate_yields_luma() {
 }
 
 #[test]
+fn vibrance_boosts_low_sat_more_than_high() {
+    let mut low = solid_image(1, 1, [0.55, 0.50, 0.45]);
+    let mut high = solid_image(1, 1, [0.95, 0.20, 0.10]);
+    let edits = Edits {
+        basic: BasicEdits {
+            vibrance: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let low_before = low.rgb[0] - low.rgb[2];
+    let high_before = high.rgb[0] - high.rgb[2];
+    vibrance::VibranceOp
+        .apply_cpu(&mut low, &ctx(), &edits)
+        .unwrap();
+    vibrance::VibranceOp
+        .apply_cpu(&mut high, &ctx(), &edits)
+        .unwrap();
+    let low_after = low.rgb[0] - low.rgb[2];
+    let high_after = high.rgb[0] - high.rgb[2];
+    let low_gain = low_after / low_before;
+    let high_gain = high_after / high_before;
+    assert!(low_gain > high_gain);
+}
+
+#[test]
 fn highlights_lift_bright_pixels() {
     let mut img = solid_image(1, 1, [0.8, 0.8, 0.8]);
     let edits = Edits {
@@ -82,7 +110,7 @@ fn highlights_lift_bright_pixels() {
         },
         ..Default::default()
     };
-    highlights_shadows::HighlightsShadowsOp
+    tone_regions::ToneRegionsOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
     assert!(img.rgb[0] > 0.8);
@@ -98,10 +126,65 @@ fn shadows_lift_dark_pixels() {
         },
         ..Default::default()
     };
-    highlights_shadows::HighlightsShadowsOp
+    tone_regions::ToneRegionsOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
     assert!(img.rgb[0] > 0.2);
+}
+
+#[test]
+fn blacks_lift_very_dark_pixels() {
+    let mut img = solid_image(1, 1, [0.05, 0.05, 0.05]);
+    let edits = Edits {
+        tone: ToneEdits {
+            blacks: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] > 0.05);
+}
+
+#[test]
+fn whites_lift_very_bright_pixels() {
+    let mut img = solid_image(1, 1, [0.95, 0.95, 0.95]);
+    let edits = Edits {
+        tone: ToneEdits {
+            whites: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] > 0.95);
+}
+
+#[test]
+fn hsl_red_saturation_only_affects_red() {
+    let mut red = solid_image(1, 1, [0.8, 0.2, 0.2]);
+    let mut blue = solid_image(1, 1, [0.2, 0.2, 0.8]);
+    let mut bands = [HslBand::default(); 8];
+    bands[0] = HslBand {
+        sat: -100.0,
+        ..Default::default()
+    };
+    let edits = Edits {
+        color: ColorEdits {
+            hsl: HslEdits { bands },
+        },
+        ..Default::default()
+    };
+    hsl::HslOp.apply_cpu(&mut red, &ctx(), &edits).unwrap();
+    hsl::HslOp.apply_cpu(&mut blue, &ctx(), &edits).unwrap();
+    let red_spread = (red.rgb[0] - red.rgb[1]).abs();
+    let blue_spread = (blue.rgb[2] - blue.rgb[1]).abs();
+    assert!(red_spread < 0.1);
+    assert!(blue_spread > 0.5);
 }
 
 #[test]
