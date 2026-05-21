@@ -77,9 +77,71 @@ impl GpuRenderer {
         if let Some(c) = self.cache.lock().get(&key).cloned() {
             return Ok(c);
         }
-        let cached = self.demosaic_to_texture(frame)?;
+        let cached = if frame.cpp == 3 {
+            self.upload_rgb_texture(frame)?
+        } else {
+            self.demosaic_to_texture(frame)?
+        };
         self.cache.lock().put(key, cached.clone());
         Ok(cached)
+    }
+
+    fn upload_rgb_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let w = frame.width as u32;
+        let h = frame.height as u32;
+
+        let rgba_f16: Vec<u16> = frame
+            .data
+            .chunks_exact(3)
+            .flat_map(|rgb| {
+                [
+                    half::f16::from_f32(rgb[0]).to_bits(),
+                    half::f16::from_f32(rgb[1]).to_bits(),
+                    half::f16::from_f32(rgb[2]).to_bits(),
+                    half::f16::from_f32(1.0).to_bits(),
+                ]
+            })
+            .collect();
+
+        let texture = device.create_texture(&TextureDescriptor {
+            label: Some("linear-uploaded"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            texture.as_image_copy(),
+            bytemuck::cast_slice(&rgba_f16),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(w * 8),
+                rows_per_image: Some(h),
+            },
+            Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        Ok(Arc::new(CachedFrame {
+            texture: Arc::new(texture),
+            width: w,
+            height: h,
+        }))
     }
 
     fn demosaic_to_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {

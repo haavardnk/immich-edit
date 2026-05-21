@@ -20,3 +20,4 @@ bytemuck = { version = "1", features = ["derive"] }
 pollster = "0.3"
 parking_lot = "0.12"
 lru = "0.12"
+half = "2.7.1"
