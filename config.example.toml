@@ -1,0 +1,29 @@
+# immich-edit configuration
+# All values can also be set via environment variables with the same name (uppercase).
+
+# Immich server URL (required)
+# IMMICH_URL = "http://localhost:2283"
+
+# Immich API key (required)
+# IMMICH_API_KEY = "your-api-key"
+
+# Address to bind the server to
+# BIND_ADDR = "0.0.0.0:3000"
+
+# Directory for caches and sidecars
+# CACHE_DIR = "./cache"
+
+# Max edge for preview images
+# PREVIEW_MAX_EDGE = 2048
+
+# RAW frame cache size in MB
+# RAW_FRAME_CACHE_MB = 512
+
+# Linear RGB cache size in MB
+# LINEAR_CACHE_MB = 256
+
+# Max concurrent render tasks
+# RENDER_MAX_CONCURRENCY = 4
+
+# Renderer selection: auto, cpu, gpu
+# IMMICH_EDIT_RENDERER = "auto"

@@ -1,0 +1,28 @@
+PLAN.md
+
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# Node
+node_modules
+.svelte-kit
+build
+dist
+.npm
+.yarn
+.pnpm-store
+
+# Editors / OS
+.DS_Store
+.idea
+.vscode
+
+# Env / runtime
+.env
+.env.*
+!.env.example
+*.log
+config.toml
+cache/

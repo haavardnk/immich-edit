@@ -1,0 +1,25 @@
+[package]
+name = "immich-edit-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "immich-edit"
+path = "src/main.rs"
+
+[dependencies]
+raw-pipeline = { path = "../raw-pipeline" }
+anyhow = "1"
+axum = "0.8"
+tokio = { workspace = true }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+bytes = { workspace = true }
