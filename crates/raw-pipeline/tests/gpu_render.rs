@@ -1,11 +1,25 @@
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
 
-fn fixture(name: &str) -> Option<PathBuf> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name);
-    if path.exists() { Some(path) } else { None }
+const RAW_EXTS: &[&str] = &[
+    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf",
+    "pef", "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
+];
+
+fn any_fixture() -> Option<PathBuf> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let entries = std::fs::read_dir(&dir).ok()?;
+    let mut paths: Vec<PathBuf> = entries
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
+                .unwrap_or(false)
+        })
+        .collect();
+    paths.sort();
+    paths.into_iter().next()
 }
 
 fn try_renderer() -> Option<GpuRenderer> {
@@ -23,7 +37,7 @@ fn gpu_identity_render_jpeg() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let Some(path) = fixture("sample.arw").or_else(|| fixture("sample.dng")) else {
+    let Some(path) = any_fixture() else {
         eprintln!("no fixture, skipping");
         return;
     };
@@ -53,7 +67,7 @@ fn gpu_exposure_brightens() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let Some(path) = fixture("sample.arw").or_else(|| fixture("sample.dng")) else {
+    let Some(path) = any_fixture() else {
         return;
     };
     let bytes = std::fs::read(&path).unwrap();
@@ -100,7 +114,7 @@ fn gpu_rotate_swaps_dims() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let Some(path) = fixture("sample.arw").or_else(|| fixture("sample.dng")) else {
+    let Some(path) = any_fixture() else {
         return;
     };
     let bytes = std::fs::read(&path).unwrap();
