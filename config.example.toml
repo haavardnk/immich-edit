@@ -14,7 +14,7 @@
 # CACHE_DIR = "./cache"
 
 # Max edge for preview images
-# PREVIEW_MAX_EDGE = 2048
+# PREVIEW_MAX_EDGE = 4096
 
 # Max concurrent render tasks
 # RENDER_MAX_CONCURRENCY = 2

@@ -21,7 +21,7 @@ pub struct RenderOptions {
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { max_edge: 2048 }
+        Self { max_edge: 4096 }
     }
 }
 

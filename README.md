@@ -35,7 +35,7 @@ All options can be set via environment variables or a TOML config file (set `IMM
 | `IMMICH_API_KEY` | *(required)* | Immich API key |
 | `BIND_ADDR` | `0.0.0.0:3000` | Listen address |
 | `CACHE_DIR` | `./cache` | Cache and database directory |
-| `PREVIEW_MAX_EDGE` | `2048` | Max preview dimension (256–8192) |
+| `PREVIEW_MAX_EDGE` | `4096` | Max preview dimension (256–8192) |
 | `RENDER_MAX_CONCURRENCY` | `2` | Parallel render limit |
 | `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `cpu`, or `gpu` |
 | `DATABASE_URL` | `sqlite://CACHE_DIR/immich-edit.db` | SQLite connection string |

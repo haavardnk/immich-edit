@@ -15,20 +15,26 @@ impl Histogram {
     pub fn from_rgb(pixels: &[f32], width: usize, height: usize) -> Self {
         let pixel_count = width * height;
         let usable = pixel_count.min(pixels.len() / 3);
+        let step = if usable > 500_000 { 2 } else { 1 };
         let zero = || ([0u32; BINS], [0u32; BINS], [0u32; BINS], [0u32; BINS]);
         let (r, g, b, l) = pixels[..usable * 3]
             .par_chunks(30_000 * 3)
             .fold(zero, |mut acc, chunk| {
-                for px in chunk.chunks_exact(3) {
-                    let rv = (px[0].clamp(0.0, 1.0) * 255.0) as usize;
-                    let gv = (px[1].clamp(0.0, 1.0) * 255.0) as usize;
-                    let bv = (px[2].clamp(0.0, 1.0) * 255.0) as usize;
-                    let lv = (0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2]).clamp(0.0, 1.0);
+                let stride = step * 3;
+                let mut i = 0;
+                while i + 2 < chunk.len() {
+                    let rv = (chunk[i].clamp(0.0, 1.0) * 255.0) as usize;
+                    let gv = (chunk[i + 1].clamp(0.0, 1.0) * 255.0) as usize;
+                    let bv = (chunk[i + 2].clamp(0.0, 1.0) * 255.0) as usize;
+                    let lv =
+                        (0.2126 * chunk[i] + 0.7152 * chunk[i + 1] + 0.0722 * chunk[i + 2])
+                            .clamp(0.0, 1.0);
                     let li = (lv * 255.0) as usize;
                     acc.0[rv.min(BINS - 1)] += 1;
                     acc.1[gv.min(BINS - 1)] += 1;
                     acc.2[bv.min(BINS - 1)] += 1;
                     acc.3[li.min(BINS - 1)] += 1;
+                    i += stride;
                 }
                 acc
             })

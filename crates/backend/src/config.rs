@@ -113,7 +113,7 @@ impl Config {
         let cache_dir =
             PathBuf::from(pick("CACHE_DIR", file.cache_dir).unwrap_or_else(|| "./cache".into()));
 
-        let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 2048u32)?;
+        let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 4096u32)?;
         if !(256..=8192).contains(&preview_max_edge) {
             return Err(ConfigError::InvalidValue {
                 key: "PREVIEW_MAX_EDGE".into(),
@@ -253,7 +253,7 @@ mod tests {
         if cfg.immich_url.as_str() != "http://example.local:2283/" {
             panic!("url: {}", cfg.immich_url);
         }
-        if cfg.preview_max_edge != 2048 {
+        if cfg.preview_max_edge != 4096 {
             panic!("max_edge");
         }
         if cfg.renderer != RendererMode::Auto {
