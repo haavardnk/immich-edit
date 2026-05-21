@@ -124,6 +124,12 @@ fn render_blocking(
     opts: &RenderOptions,
     cancel: Option<&CancelToken>,
 ) -> Result<RenderedImage, PipelineError> {
+    tracing::debug!(
+        orient = ?frame.orientation,
+        sensor_w = frame.width,
+        sensor_h = frame.height,
+        "render orientation"
+    );
     if active == ActiveRenderer::Gpu {
         if let Some(g) = gpu.as_ref() {
             match g.render_with_cancel(frame, edits, opts, cancel) {

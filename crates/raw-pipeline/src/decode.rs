@@ -28,7 +28,10 @@ fn decode_raw(
         raw_image.cam_to_xyz_normalized()
     }))
     .unwrap_or([[0.0; 4]; 3]);
-    let orientation = raw_image.orientation.to_flips();
+    let orientation = exif
+        .as_ref()
+        .and_then(crate::exif::orientation)
+        .unwrap_or_else(|| raw_image.orientation.to_flips());
 
     let develop = RawDevelop {
         steps: vec![
