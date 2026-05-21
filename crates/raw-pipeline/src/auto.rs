@@ -62,17 +62,15 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
     };
 
     Edits {
-        exposure_ev: exposure_ev as f64,
-        contrast: 0.0,
-        highlights: highlights as f64,
-        shadows: shadows as f64,
-        saturation: 0.0,
-        wb_temp: 0.0,
-        wb_tint: 0.0,
-        rotate: 0,
-        flip_h: false,
-        flip_v: false,
-        crop: None,
+        basic: crate::edits::BasicEdits {
+            exposure_ev: exposure_ev as f64,
+            ..Default::default()
+        },
+        tone: crate::edits::ToneEdits {
+            highlights: highlights as f64,
+            shadows: shadows as f64,
+        },
+        geometry: Default::default(),
     }
 }
 
@@ -107,8 +105,8 @@ mod tests {
     fn dark_image_gets_positive_exposure() {
         let f = make_frame(0.05, 64, 64);
         let e = auto_adjust(&f);
-        if e.exposure_ev <= 0.5 {
-            panic!("expected positive exposure, got {}", e.exposure_ev);
+        if e.basic.exposure_ev <= 0.5 {
+            panic!("expected positive exposure, got {}", e.basic.exposure_ev);
         }
     }
 
@@ -116,8 +114,8 @@ mod tests {
     fn bright_image_gets_negative_exposure() {
         let f = make_frame(0.8, 64, 64);
         let e = auto_adjust(&f);
-        if e.exposure_ev >= -0.5 {
-            panic!("expected negative exposure, got {}", e.exposure_ev);
+        if e.basic.exposure_ev >= -0.5 {
+            panic!("expected negative exposure, got {}", e.basic.exposure_ev);
         }
     }
 
@@ -125,8 +123,8 @@ mod tests {
     fn neutral_image_no_exposure_change() {
         let f = make_frame(0.18, 64, 64);
         let e = auto_adjust(&f);
-        if e.exposure_ev.abs() > 0.1 {
-            panic!("expected ~0 exposure, got {}", e.exposure_ev);
+        if e.basic.exposure_ev.abs() > 0.1 {
+            panic!("expected ~0 exposure, got {}", e.basic.exposure_ev);
         }
     }
 }

@@ -258,11 +258,12 @@ impl GpuRenderer {
             (sensor_w, sensor_h)
         };
 
-        let (oriented_w, oriented_h) = match edits.rotate {
+        let (oriented_w, oriented_h) = match edits.geometry.rotate {
             90 | 270 => (display_h, display_w),
             _ => (display_w, display_h),
         };
         let crop = edits
+            .geometry
             .crop
             .as_ref()
             .map(|c| {
@@ -292,9 +293,9 @@ impl GpuRenderer {
             [out_w, out_h],
             crop,
             [
-                edits.rotate as u32,
-                edits.flip_h as u32,
-                edits.flip_v as u32,
+                edits.geometry.rotate as u32,
+                edits.geometry.flip_h as u32,
+                edits.geometry.flip_v as u32,
                 orient_packed,
             ],
         );

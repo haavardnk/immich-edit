@@ -59,7 +59,10 @@ fn gpu_exposure_brightens() {
 
     let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let bright = Edits {
-        exposure_ev: 2.0,
+        basic: raw_pipeline::edits::BasicEdits {
+            exposure_ev: 2.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let bumped = renderer.render(&frame, &bright, &opts).unwrap();
@@ -100,7 +103,10 @@ fn gpu_rotate_swaps_dims() {
 
     let a = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let rotated = Edits {
-        rotate: 90,
+        geometry: raw_pipeline::edits::GeometryEdits {
+            rotate: 90,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let b = renderer.render(&frame, &rotated, &opts).unwrap();

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CropRect {
     pub x: f64,
     pub y: f64,
@@ -26,22 +26,30 @@ impl CropRect {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Edits {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct BasicEdits {
     #[serde(default)]
     pub exposure_ev: f64,
     #[serde(default)]
     pub contrast: f64,
-    #[serde(default)]
-    pub highlights: f64,
-    #[serde(default)]
-    pub shadows: f64,
     #[serde(default)]
     pub saturation: f64,
     #[serde(default)]
     pub wb_temp: f64,
     #[serde(default)]
     pub wb_tint: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ToneEdits {
+    #[serde(default)]
+    pub highlights: f64,
+    #[serde(default)]
+    pub shadows: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct GeometryEdits {
     #[serde(default)]
     pub rotate: u16,
     #[serde(default)]
@@ -52,22 +60,14 @@ pub struct Edits {
     pub crop: Option<CropRect>,
 }
 
-impl Default for Edits {
-    fn default() -> Self {
-        Self {
-            exposure_ev: 0.0,
-            contrast: 0.0,
-            highlights: 0.0,
-            shadows: 0.0,
-            saturation: 0.0,
-            wb_temp: 0.0,
-            wb_tint: 0.0,
-            rotate: 0,
-            flip_h: false,
-            flip_v: false,
-            crop: None,
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct Edits {
+    #[serde(default)]
+    pub basic: BasicEdits,
+    #[serde(default)]
+    pub tone: ToneEdits,
+    #[serde(default)]
+    pub geometry: GeometryEdits,
 }
 
 impl Edits {
@@ -76,22 +76,28 @@ impl Edits {
     }
 
     pub fn clamped(&self) -> Self {
-        let rotate = match self.rotate {
-            0 | 90 | 180 | 270 => self.rotate,
+        let rotate = match self.geometry.rotate {
+            0 | 90 | 180 | 270 => self.geometry.rotate,
             _ => 0,
         };
         Self {
-            exposure_ev: self.exposure_ev.clamp(-5.0, 5.0),
-            contrast: self.contrast.clamp(-100.0, 100.0),
-            highlights: self.highlights.clamp(-100.0, 100.0),
-            shadows: self.shadows.clamp(-100.0, 100.0),
-            saturation: self.saturation.clamp(-100.0, 100.0),
-            wb_temp: self.wb_temp.clamp(-100.0, 100.0),
-            wb_tint: self.wb_tint.clamp(-100.0, 100.0),
-            rotate,
-            flip_h: self.flip_h,
-            flip_v: self.flip_v,
-            crop: self.crop.as_ref().map(|c| c.clamped()),
+            basic: BasicEdits {
+                exposure_ev: self.basic.exposure_ev.clamp(-5.0, 5.0),
+                contrast: self.basic.contrast.clamp(-100.0, 100.0),
+                saturation: self.basic.saturation.clamp(-100.0, 100.0),
+                wb_temp: self.basic.wb_temp.clamp(-100.0, 100.0),
+                wb_tint: self.basic.wb_tint.clamp(-100.0, 100.0),
+            },
+            tone: ToneEdits {
+                highlights: self.tone.highlights.clamp(-100.0, 100.0),
+                shadows: self.tone.shadows.clamp(-100.0, 100.0),
+            },
+            geometry: GeometryEdits {
+                rotate,
+                flip_h: self.geometry.flip_h,
+                flip_v: self.geometry.flip_v,
+                crop: self.geometry.crop.as_ref().map(|c| c.clamped()),
+            },
         }
     }
 
@@ -115,37 +121,31 @@ mod tests {
 
     #[test]
     fn clamp_exposure() {
-        let e = Edits {
-            exposure_ev: 10.0,
-            ..Default::default()
-        };
+        let mut e = Edits::default();
+        e.basic.exposure_ev = 10.0;
         let c = e.clamped();
-        assert_eq!(c.exposure_ev, 5.0);
+        assert_eq!(c.basic.exposure_ev, 5.0);
     }
 
     #[test]
     fn clamp_invalid_rotate() {
-        let e = Edits {
-            rotate: 45,
-            ..Default::default()
-        };
+        let mut e = Edits::default();
+        e.geometry.rotate = 45;
         let c = e.clamped();
-        assert_eq!(c.rotate, 0);
+        assert_eq!(c.geometry.rotate, 0);
     }
 
     #[test]
     fn clamp_crop() {
-        let e = Edits {
-            crop: Some(CropRect {
-                x: -0.5,
-                y: 0.5,
-                width: 2.0,
-                height: 0.001,
-            }),
-            ..Default::default()
-        };
+        let mut e = Edits::default();
+        e.geometry.crop = Some(CropRect {
+            x: -0.5,
+            y: 0.5,
+            width: 2.0,
+            height: 0.001,
+        });
         let c = e.clamped();
-        let crop = c.crop.unwrap();
+        let crop = c.geometry.crop.unwrap();
         assert_eq!(crop.x, 0.0);
         assert_eq!(crop.y, 0.5);
         assert_eq!(crop.width, 1.0);
@@ -154,10 +154,8 @@ mod tests {
 
     #[test]
     fn stable_hash_deterministic() {
-        let e = Edits {
-            exposure_ev: 1.5,
-            ..Default::default()
-        };
+        let mut e = Edits::default();
+        e.basic.exposure_ev = 1.5;
         let h1 = e.stable_hash();
         let h2 = e.stable_hash();
         assert_eq!(h1, h2);
@@ -166,24 +164,18 @@ mod tests {
 
     #[test]
     fn stable_hash_differs_on_change() {
-        let a = Edits {
-            exposure_ev: 1.0,
-            ..Default::default()
-        };
-        let b = Edits {
-            exposure_ev: 2.0,
-            ..Default::default()
-        };
+        let mut a = Edits::default();
+        a.basic.exposure_ev = 1.0;
+        let mut b = Edits::default();
+        b.basic.exposure_ev = 2.0;
         assert_ne!(a.stable_hash(), b.stable_hash());
     }
 
     #[test]
     fn serde_roundtrip() {
-        let e = Edits {
-            exposure_ev: 1.0,
-            rotate: 90,
-            ..Default::default()
-        };
+        let mut e = Edits::default();
+        e.basic.exposure_ev = 1.0;
+        e.geometry.rotate = 90;
         let json = serde_json::to_string(&e).unwrap();
         let e2: Edits = serde_json::from_str(&json).unwrap();
         assert_eq!(e, e2);

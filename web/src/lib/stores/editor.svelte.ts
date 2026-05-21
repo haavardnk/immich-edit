@@ -1,4 +1,4 @@
-import { NEUTRAL_EDITS, isIdentity, manifestToEdits, type Edits } from '$lib/types/edits';
+import { neutralEdits, isIdentity, manifestToEdits, type Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
@@ -14,7 +14,7 @@ const MAX_EDGE = 1600;
 class EditorStore {
   assetId = $state<string | null>(null);
   asset = $state<AssetDetail | null>(null);
-  edits = $state<Edits>({ ...NEUTRAL_EDITS });
+  edits = $state<Edits>(neutralEdits());
   previewUrl = $state<string | null>(null);
   meta = $state<PreviewMeta | null>(null);
   pending = $state(false);
@@ -52,7 +52,7 @@ class EditorStore {
     try {
       const [a, s] = await Promise.all([getAsset(id), getEdits(id)]);
       this.asset = a;
-      this.edits = { ...NEUTRAL_EDITS, ...manifestToEdits(s.manifest) };
+      this.edits = manifestToEdits(s.manifest);
       this.initialised = true;
       this.flight.submit({ edits: $state.snapshot(this.edits) });
     } catch (e) {
@@ -68,7 +68,7 @@ class EditorStore {
     this.meta = null;
     this.assetId = null;
     this.initialised = false;
-    this.edits = { ...NEUTRAL_EDITS };
+    this.edits = neutralEdits();
   }
 
   loadPersisted(): void {
@@ -92,7 +92,7 @@ class EditorStore {
         await deleteEdits(this.assetId);
       } else {
         const saved = await putEdits(this.assetId, $state.snapshot(this.edits));
-        this.edits = { ...this.edits, ...manifestToEdits(saved.manifest) };
+        this.edits = manifestToEdits(saved.manifest);
       }
     } catch (e) {
       this.error = (e as Error).message;
@@ -103,7 +103,7 @@ class EditorStore {
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
-    this.edits = { ...NEUTRAL_EDITS };
+    this.edits = neutralEdits();
     this.saving = true;
     try {
       await deleteEdits(this.assetId);
@@ -120,13 +120,8 @@ class EditorStore {
       const suggested = await autoEdits(this.assetId);
       this.edits = {
         ...this.edits,
-        exposure_ev: suggested.exposure_ev,
-        contrast: suggested.contrast,
-        highlights: suggested.highlights,
-        shadows: suggested.shadows,
-        saturation: suggested.saturation,
-        wb_temp: suggested.wb_temp,
-        wb_tint: suggested.wb_tint
+        basic: { ...this.edits.basic, ...suggested.basic },
+        tone: { ...this.edits.tone, ...suggested.tone }
       };
       this.onLive();
       await this.onCommit();

@@ -6,7 +6,7 @@
 <div class="flex flex-col gap-2.5">
   <SliderRow
     label="Temperature"
-    bind:value={editor.edits.wb_temp}
+    bind:value={editor.edits.basic.wb_temp}
     min={-100}
     max={100}
     step={1}
@@ -16,7 +16,7 @@
   />
   <SliderRow
     label="Tint"
-    bind:value={editor.edits.wb_tint}
+    bind:value={editor.edits.basic.wb_tint}
     min={-100}
     max={100}
     step={1}

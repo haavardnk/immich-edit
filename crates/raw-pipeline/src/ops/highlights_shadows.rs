@@ -17,7 +17,7 @@ impl EditOperator for HighlightsShadowsOp {
         10
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.highlights != 0.0 || edits.shadows != 0.0
+        edits.tone.highlights != 0.0 || edits.tone.shadows != 0.0
     }
     fn apply_cpu(
         &self,
@@ -25,8 +25,8 @@ impl EditOperator for HighlightsShadowsOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let hl = edits.highlights as f32 / 100.0;
-        let sh = edits.shadows as f32 / 100.0;
+        let hl = edits.tone.highlights as f32 / 100.0;
+        let sh = edits.tone.shadows as f32 / 100.0;
         image.rgb.par_iter_mut().for_each(|v| {
             let x = v.clamp(0.0, 2.0);
             if x > 0.5 {
@@ -45,24 +45,24 @@ impl EditOperator for HighlightsShadowsOp {
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
-        dst[0] = edits.highlights as f32 / 100.0;
-        dst[1] = edits.shadows as f32 / 100.0;
+        dst[0] = edits.tone.highlights as f32 / 100.0;
+        dst[1] = edits.tone.shadows as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.highlights == 0.0 && edits.shadows == 0.0 {
+        if edits.tone.highlights == 0.0 && edits.tone.shadows == 0.0 {
             return None;
         }
         Some(serde_json::json!({
-            "highlights": edits.highlights,
-            "shadows": edits.shadows,
+            "highlights": edits.tone.highlights,
+            "shadows": edits.tone.shadows,
         }))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("highlights").and_then(|v| v.as_f64()) {
-            edits.highlights = v;
+            edits.tone.highlights = v;
         }
         if let Some(v) = value.get("shadows").and_then(|v| v.as_f64()) {
-            edits.shadows = v;
+            edits.tone.shadows = v;
         }
     }
 }

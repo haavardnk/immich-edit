@@ -199,8 +199,14 @@ mod tests {
         let s = store().await;
         let id = uid();
         let doc = doc_with(Edits {
-            exposure_ev: 1.0,
-            rotate: 90,
+            basic: raw_pipeline::edits::BasicEdits {
+                exposure_ev: 1.0,
+                ..Default::default()
+            },
+            geometry: raw_pipeline::edits::GeometryEdits {
+                rotate: 90,
+                ..Default::default()
+            },
             ..Default::default()
         });
         let saved = s
@@ -217,7 +223,7 @@ mod tests {
         }
         let loaded = s.get(id).await.unwrap().unwrap();
         let edits = loaded.manifest.to_edits();
-        if edits.exposure_ev != 1.0 || edits.rotate != 90 {
+        if edits.basic.exposure_ev != 1.0 || edits.geometry.rotate != 90 {
             panic!("edits");
         }
         if loaded.immich_checksum.as_deref() != Some("abc") {
@@ -230,17 +236,23 @@ mod tests {
         let s = store().await;
         let id = uid();
         let doc = doc_with(Edits {
-            exposure_ev: 99.0,
-            rotate: 33,
+            basic: raw_pipeline::edits::BasicEdits {
+                exposure_ev: 99.0,
+                ..Default::default()
+            },
+            geometry: raw_pipeline::edits::GeometryEdits {
+                rotate: 33,
+                ..Default::default()
+            },
             ..Default::default()
         });
         let saved = s.put(id, doc, None, None).await.unwrap();
         let edits = saved.manifest.to_edits();
-        if edits.exposure_ev > 5.0 {
-            panic!("not clamped: {}", edits.exposure_ev);
+        if edits.basic.exposure_ev > 5.0 {
+            panic!("not clamped: {}", edits.basic.exposure_ev);
         }
-        if edits.rotate != 0 {
-            panic!("rotate not snapped: {}", edits.rotate);
+        if edits.geometry.rotate != 0 {
+            panic!("rotate not snapped: {}", edits.geometry.rotate);
         }
     }
 
@@ -269,7 +281,10 @@ mod tests {
         s.put(
             id,
             doc_with(Edits {
-                exposure_ev: 1.0,
+                basic: raw_pipeline::edits::BasicEdits {
+                    exposure_ev: 1.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
             None,
@@ -280,7 +295,10 @@ mod tests {
         s.put(
             id,
             doc_with(Edits {
-                exposure_ev: 2.0,
+                basic: raw_pipeline::edits::BasicEdits {
+                    exposure_ev: 2.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
             None,
@@ -289,7 +307,7 @@ mod tests {
         .await
         .unwrap();
         let loaded = s.get(id).await.unwrap().unwrap();
-        if loaded.manifest.to_edits().exposure_ev != 2.0 {
+        if loaded.manifest.to_edits().basic.exposure_ev != 2.0 {
             panic!("overwrite");
         }
     }

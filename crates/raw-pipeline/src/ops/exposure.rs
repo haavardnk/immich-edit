@@ -17,7 +17,7 @@ impl EditOperator for ExposureOp {
         0
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.exposure_ev != 0.0
+        edits.basic.exposure_ev != 0.0
     }
     fn apply_cpu(
         &self,
@@ -25,7 +25,7 @@ impl EditOperator for ExposureOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let factor = 2.0f32.powf(edits.exposure_ev as f32);
+        let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);
         image.rgb.par_iter_mut().for_each(|v| *v *= factor);
         Ok(())
     }
@@ -37,17 +37,17 @@ impl EditOperator for ExposureOp {
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
-        dst[0] = 2.0f32.powf(edits.exposure_ev as f32);
+        dst[0] = 2.0f32.powf(edits.basic.exposure_ev as f32);
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.exposure_ev == 0.0 {
+        if edits.basic.exposure_ev == 0.0 {
             return None;
         }
-        Some(serde_json::json!({ "ev": edits.exposure_ev }))
+        Some(serde_json::json!({ "ev": edits.basic.exposure_ev }))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("ev").and_then(|v| v.as_f64()) {
-            edits.exposure_ev = v;
+            edits.basic.exposure_ev = v;
         }
     }
 }

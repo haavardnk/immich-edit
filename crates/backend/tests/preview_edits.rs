@@ -165,7 +165,7 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
     mock_arw_original(&server, id).await;
     let app = router(test_state(&server).await);
 
-    let body = serde_json::json!({"max_edge": 512, "edits": {"exposure_ev": 1.0}});
+    let body = serde_json::json!({"max_edge": 512, "edits": {"basic": {"exposure_ev": 1.0}}});
     let resp = app
         .clone()
         .oneshot(

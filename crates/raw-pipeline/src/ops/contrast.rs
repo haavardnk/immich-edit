@@ -17,7 +17,7 @@ impl EditOperator for ContrastOp {
         20
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.contrast != 0.0
+        edits.basic.contrast != 0.0
     }
     fn apply_cpu(
         &self,
@@ -25,7 +25,7 @@ impl EditOperator for ContrastOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let factor = 1.0 + edits.contrast as f32 / 100.0;
+        let factor = 1.0 + edits.basic.contrast as f32 / 100.0;
         image
             .rgb
             .par_iter_mut()
@@ -40,17 +40,17 @@ impl EditOperator for ContrastOp {
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32; 4]) {
-        dst[0] = edits.contrast as f32 / 100.0;
+        dst[0] = edits.basic.contrast as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.contrast == 0.0 {
+        if edits.basic.contrast == 0.0 {
             return None;
         }
-        Some(serde_json::json!({ "amount": edits.contrast }))
+        Some(serde_json::json!({ "amount": edits.basic.contrast }))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
-            edits.contrast = v;
+            edits.basic.contrast = v;
         }
     }
 }

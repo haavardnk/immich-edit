@@ -41,7 +41,7 @@ impl EditOperator for WhiteBalanceOp {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let coeffs = compute_wb(ctx.wb_coeffs, edits.wb_temp, edits.wb_tint);
+        let coeffs = compute_wb(ctx.wb_coeffs, edits.basic.wb_temp, edits.basic.wb_tint);
         image.rgb.par_chunks_exact_mut(3).for_each(|px| {
             px[0] *= coeffs[0];
             px[1] *= coeffs[1];
@@ -57,27 +57,27 @@ impl EditOperator for WhiteBalanceOp {
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32; 4]) {
-        let c = compute_wb(ctx.wb_coeffs, edits.wb_temp, edits.wb_tint);
+        let c = compute_wb(ctx.wb_coeffs, edits.basic.wb_temp, edits.basic.wb_tint);
         dst[0] = c[0];
         dst[1] = c[1];
         dst[2] = c[2];
         dst[3] = 1.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.wb_temp == 0.0 && edits.wb_tint == 0.0 {
+        if edits.basic.wb_temp == 0.0 && edits.basic.wb_tint == 0.0 {
             return None;
         }
         Some(serde_json::json!({
-            "temp": edits.wb_temp,
-            "tint": edits.wb_tint,
+            "temp": edits.basic.wb_temp,
+            "tint": edits.basic.wb_tint,
         }))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
-            edits.wb_temp = v;
+            edits.basic.wb_temp = v;
         }
         if let Some(v) = value.get("tint").and_then(|v| v.as_f64()) {
-            edits.wb_tint = v;
+            edits.basic.wb_tint = v;
         }
     }
 }

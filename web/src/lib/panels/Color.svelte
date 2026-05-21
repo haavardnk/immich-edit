@@ -6,7 +6,7 @@
 <div class="flex flex-col gap-2.5">
   <SliderRow
     label="Saturation"
-    bind:value={editor.edits.saturation}
+    bind:value={editor.edits.basic.saturation}
     min={-100}
     max={100}
     step={1}

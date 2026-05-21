@@ -1,6 +1,6 @@
 use super::LinearImage;
 use super::*;
-use crate::edits::{CropRect, Edits};
+use crate::edits::{BasicEdits, CropRect, Edits, GeometryEdits, ToneEdits};
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
     let mut buf = Vec::with_capacity(w * h * 3);
@@ -20,7 +20,10 @@ fn ctx() -> OpContext {
 fn exposure_doubles_at_one_ev() {
     let mut img = solid_image(2, 2, [0.1, 0.1, 0.1]);
     let edits = Edits {
-        exposure_ev: 1.0,
+        basic: BasicEdits {
+            exposure_ev: 1.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     exposure::ExposureOp
@@ -38,7 +41,10 @@ fn exposure_inactive_when_zero() {
 fn contrast_pivots_around_half() {
     let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
     let edits = Edits {
-        contrast: 50.0,
+        basic: BasicEdits {
+            contrast: 50.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     contrast::ContrastOp
@@ -51,7 +57,10 @@ fn contrast_pivots_around_half() {
 fn saturation_full_desaturate_yields_luma() {
     let mut img = solid_image(1, 1, [1.0, 0.0, 0.0]);
     let edits = Edits {
-        saturation: -100.0,
+        basic: BasicEdits {
+            saturation: -100.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     saturation::SaturationOp
@@ -67,7 +76,10 @@ fn saturation_full_desaturate_yields_luma() {
 fn highlights_lift_bright_pixels() {
     let mut img = solid_image(1, 1, [0.8, 0.8, 0.8]);
     let edits = Edits {
-        highlights: 100.0,
+        tone: ToneEdits {
+            highlights: 100.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     highlights_shadows::HighlightsShadowsOp
@@ -80,7 +92,10 @@ fn highlights_lift_bright_pixels() {
 fn shadows_lift_dark_pixels() {
     let mut img = solid_image(1, 1, [0.2, 0.2, 0.2]);
     let edits = Edits {
-        shadows: 100.0,
+        tone: ToneEdits {
+            shadows: 100.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     highlights_shadows::HighlightsShadowsOp
@@ -93,7 +108,10 @@ fn shadows_lift_dark_pixels() {
 fn white_balance_temp_warms() {
     let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
     let edits = Edits {
-        wb_temp: 100.0,
+        basic: BasicEdits {
+            wb_temp: 100.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     white_balance::WhiteBalanceOp
@@ -106,7 +124,10 @@ fn white_balance_temp_warms() {
 fn geometry_rotate_swaps_dims() {
     let mut img = solid_image(4, 2, [0.5, 0.5, 0.5]);
     let edits = Edits {
-        rotate: 90,
+        geometry: GeometryEdits {
+            rotate: 90,
+            ..Default::default()
+        },
         ..Default::default()
     };
     geometry::GeometryOp
@@ -120,12 +141,15 @@ fn geometry_rotate_swaps_dims() {
 fn geometry_crop_reduces_dims() {
     let mut img = solid_image(10, 10, [0.5, 0.5, 0.5]);
     let edits = Edits {
-        crop: Some(CropRect {
-            x: 0.0,
-            y: 0.0,
-            width: 0.5,
-            height: 0.5,
-        }),
+        geometry: GeometryEdits {
+            crop: Some(CropRect {
+                x: 0.0,
+                y: 0.0,
+                width: 0.5,
+                height: 0.5,
+            }),
+            ..Default::default()
+        },
         ..Default::default()
     };
     geometry::GeometryOp

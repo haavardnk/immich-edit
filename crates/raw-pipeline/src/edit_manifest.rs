@@ -59,7 +59,7 @@ impl EditManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edits::CropRect;
+    use crate::edits::{BasicEdits, CropRect, GeometryEdits, ToneEdits};
 
     #[test]
     fn empty_edits_yields_empty_doc() {
@@ -75,22 +75,28 @@ mod tests {
     #[test]
     fn roundtrip_preserves_fields() {
         let original = Edits {
-            exposure_ev: 1.5,
-            contrast: 25.0,
-            highlights: -10.0,
-            shadows: 30.0,
-            saturation: 12.5,
-            wb_temp: 8.0,
-            wb_tint: -4.0,
-            rotate: 90,
-            flip_h: true,
-            flip_v: false,
-            crop: Some(CropRect {
-                x: 0.1,
-                y: 0.2,
-                width: 0.5,
-                height: 0.6,
-            }),
+            basic: BasicEdits {
+                exposure_ev: 1.5,
+                contrast: 25.0,
+                saturation: 12.5,
+                wb_temp: 8.0,
+                wb_tint: -4.0,
+            },
+            tone: ToneEdits {
+                highlights: -10.0,
+                shadows: 30.0,
+            },
+            geometry: GeometryEdits {
+                rotate: 90,
+                flip_h: true,
+                flip_v: false,
+                crop: Some(CropRect {
+                    x: 0.1,
+                    y: 0.2,
+                    width: 0.5,
+                    height: 0.6,
+                }),
+            },
         };
         let doc = EditManifest::from_edits(&original);
         let back = doc.to_edits();
@@ -102,7 +108,10 @@ mod tests {
     #[test]
     fn sparse_doc_only_includes_active_ops() {
         let edits = Edits {
-            exposure_ev: 0.5,
+            basic: BasicEdits {
+                exposure_ev: 0.5,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let doc = EditManifest::from_edits(&edits);
@@ -124,7 +133,7 @@ mod tests {
             ops,
         };
         let edits = doc.to_edits();
-        if edits.exposure_ev != 2.0 {
+        if edits.basic.exposure_ev != 2.0 {
             panic!("exposure not parsed");
         }
     }

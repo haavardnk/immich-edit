@@ -73,7 +73,10 @@ fn rotate_swaps_dims() {
         let opts = RenderOptions { max_edge: 256 };
         let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let rotated_edits = Edits {
-            rotate: 90,
+            geometry: raw_pipeline::edits::GeometryEdits {
+                rotate: 90,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let rotated = cpu::render(&frame, &rotated_edits, &opts).unwrap();
@@ -98,7 +101,10 @@ fn exposure_raises_mean() {
         let opts = RenderOptions { max_edge: 256 };
         let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let bright_edits = Edits {
-            exposure_ev: 2.0,
+            basic: raw_pipeline::edits::BasicEdits {
+                exposure_ev: 2.0,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let bright = cpu::render(&frame, &bright_edits, &opts).unwrap();
@@ -122,12 +128,15 @@ fn crop_reduces_dims() {
         let opts = RenderOptions { max_edge: 4096 };
         let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let crop_edits = Edits {
-            crop: Some(raw_pipeline::edits::CropRect {
-                x: 0.25,
-                y: 0.25,
-                width: 0.5,
-                height: 0.5,
-            }),
+            geometry: raw_pipeline::edits::GeometryEdits {
+                crop: Some(raw_pipeline::edits::CropRect {
+                    x: 0.25,
+                    y: 0.25,
+                    width: 0.5,
+                    height: 0.5,
+                }),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let cropped = cpu::render(&frame, &crop_edits, &opts).unwrap();
