@@ -10,20 +10,17 @@
 # Address to bind the server to
 # BIND_ADDR = "0.0.0.0:3000"
 
-# Directory for caches and sidecars
+# Directory for caches and database
 # CACHE_DIR = "./cache"
 
 # Max edge for preview images
 # PREVIEW_MAX_EDGE = 2048
 
-# RAW frame cache size in MB
-# RAW_FRAME_CACHE_MB = 512
-
-# Linear RGB cache size in MB
-# LINEAR_CACHE_MB = 256
-
 # Max concurrent render tasks
-# RENDER_MAX_CONCURRENCY = 4
+# RENDER_MAX_CONCURRENCY = 2
 
 # Renderer selection: auto, cpu, gpu
 # IMMICH_EDIT_RENDERER = "auto"
+
+# SQLite database URL (defaults to CACHE_DIR/immich-edit.db)
+# DATABASE_URL = "sqlite://./cache/immich-edit.db?mode=rwc"

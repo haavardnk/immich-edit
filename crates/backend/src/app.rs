@@ -7,6 +7,7 @@ use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
@@ -47,23 +48,25 @@ pub fn router(state: AppState) -> Router {
         )
         .fallback(api_not_found);
 
-    Router::new()
-        .nest("/api", api)
-        .fallback(spa_fallback)
-        .with_state(state)
-        .layer(
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(CompressionLayer::new())
-                .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024))
-                .layer(TimeoutLayer::with_status_code(
-                    StatusCode::REQUEST_TIMEOUT,
-                    Duration::from_secs(60),
-                ))
-                .layer(CorsLayer::permissive()),
-        )
-}
+    let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
+    let fallback_file = format!("{web_dir}/200.html");
+    let has_web = std::path::Path::new(&fallback_file).exists();
 
-async fn spa_fallback() -> (StatusCode, &'static str) {
-    (StatusCode::NOT_FOUND, "not found")
+    let mut root = Router::new().nest("/api", api);
+    if has_web {
+        let spa = ServeDir::new(&web_dir).fallback(ServeFile::new(&fallback_file));
+        root = root.fallback_service(spa);
+    }
+
+    root.with_state(state).layer(
+        ServiceBuilder::new()
+            .layer(TraceLayer::new_for_http())
+            .layer(CompressionLayer::new())
+            .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024))
+            .layer(TimeoutLayer::with_status_code(
+                StatusCode::REQUEST_TIMEOUT,
+                Duration::from_secs(60),
+            ))
+            .layer(CorsLayer::permissive()),
+    )
 }

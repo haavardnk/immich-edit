@@ -27,3 +27,10 @@ dist
 *.log
 config.toml
 cache/
+docker-compose.dev.yml
+Dockerfile.dev
+dev.sh
+.github/copilot-instructions.md
+
+# Local notes
+notes/
