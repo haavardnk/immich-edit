@@ -13,6 +13,8 @@ pub struct PreviewMeta {
     pub height: u32,
     pub renderer: String,
     pub histogram: Histogram,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub linear_histogram: Option<Histogram>,
 }
 
 #[derive(Clone, Default)]

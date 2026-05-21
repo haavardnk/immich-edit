@@ -64,6 +64,8 @@ pub fn render_with_cancel(
     cancel::check(cancel)?;
     let (rgb, w, h) = transform::resize(&image.rgb, image.width, image.height, options.max_edge);
 
+    let linear_histogram = Histogram::from_rgb(&rgb, w, h);
+
     let mut srgb = rgb;
     cancel::check(cancel)?;
     apply_default_tone(&mut srgb);
@@ -83,6 +85,7 @@ pub fn render_with_cancel(
     Ok(RenderedImage {
         jpeg,
         histogram,
+        linear_histogram: Some(linear_histogram),
         width: w as u32,
         height: h as u32,
         renderer: "cpu".into(),

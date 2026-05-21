@@ -92,6 +92,7 @@ async fn render_to_response(
         height: rendered.height,
         renderer: rendered.renderer.clone(),
         histogram: rendered.histogram.clone(),
+        linear_histogram: rendered.linear_histogram.clone(),
     };
     let meta_id = state.preview_meta.put(meta).await;
 

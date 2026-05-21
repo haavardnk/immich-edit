@@ -4,6 +4,7 @@ export interface PreviewMeta {
   height: number;
   renderer: string;
   histogram: Histogram;
+  linear_histogram?: Histogram;
 }
 
 export interface Histogram {

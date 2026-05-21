@@ -3,6 +3,7 @@
   import type { Histogram } from '$lib/types/preview';
 
   const hist = $derived(editor.meta?.histogram ?? null);
+  const linearHist = $derived(editor.meta?.linear_histogram ?? null);
   const dims = $derived(editor.meta ? `${editor.meta.width}×${editor.meta.height}` : '');
   const renderer = $derived(editor.meta?.renderer ?? '');
 
@@ -22,13 +23,22 @@
     return d;
   }
 
+  function clippingPct(h: Histogram, bin: number): number {
+    const total = h.l.reduce((a, b) => a + b, 0);
+    if (total === 0) return 0;
+    return ((h.r[bin] + h.g[bin] + h.b[bin]) / (total * 3)) * 100;
+  }
+
+  const shadowClip = $derived(linearHist ? clippingPct(linearHist, 0) : 0);
+  const highlightClip = $derived(linearHist ? clippingPct(linearHist, 255) : 0);
+
   function show(h: Histogram | null): boolean {
     return h !== null;
   }
 </script>
 
 <div class="flex flex-col gap-1">
-  <div class="bg-white/5 rounded-lg overflow-hidden">
+  <div class="bg-white/5 rounded-lg overflow-hidden relative">
     {#if !show(hist)}
       <div class="text-[11px] text-immich-dark-fg/30 h-16 flex items-center justify-center">no data</div>
     {:else if hist}
@@ -38,6 +48,12 @@
         <path d={path(hist.b)} fill="rgba(59,130,246,0.45)" />
         <path d={path(hist.l)} fill="none" stroke="rgba(229,229,229,0.6)" stroke-width="1" />
       </svg>
+      {#if shadowClip > 0.1}
+        <div class="absolute bottom-0.5 left-1 text-[9px] font-mono text-blue-400" title="Shadow clipping">▼</div>
+      {/if}
+      {#if highlightClip > 0.1}
+        <div class="absolute bottom-0.5 right-1 text-[9px] font-mono text-red-400" title="Highlight clipping">▲</div>
+      {/if}
     {/if}
   </div>
   <div class="flex items-center justify-between text-[10px] text-immich-dark-fg/30 font-mono">

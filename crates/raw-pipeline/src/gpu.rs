@@ -444,6 +444,7 @@ impl GpuRenderer {
         Ok(RenderedImage {
             jpeg,
             histogram,
+            linear_histogram: None,
             width: out_w,
             height: out_h,
             renderer: "gpu".into(),

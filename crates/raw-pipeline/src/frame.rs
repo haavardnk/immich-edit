@@ -34,6 +34,7 @@ impl Default for RenderOptions {
 pub struct RenderedImage {
     pub jpeg: Vec<u8>,
     pub histogram: crate::histogram::Histogram,
+    pub linear_histogram: Option<crate::histogram::Histogram>,
     pub width: u32,
     pub height: u32,
     pub renderer: String,
