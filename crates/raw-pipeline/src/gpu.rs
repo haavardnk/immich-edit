@@ -9,7 +9,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    AddressMode, BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages,
+    AddressMode, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferUsages,
     CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor,
     Texture, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
 };
@@ -23,7 +23,7 @@ use crate::{PipelineError, PipelineResult};
 
 use context::GpuContext;
 use pipeline::GpuPipelines;
-use readback::{copy_texture_to_buffer, make_readback_buffer, padded_row_bytes, read_rgba8};
+use readback::{copy_texture_to_buffer, make_readback_buffer, read_rgba8};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -43,10 +43,22 @@ struct CachedFrame {
     height: u32,
 }
 
+struct OutputPool {
+    texture: Texture,
+    readback: Buffer,
+    alloc_w: u32,
+    alloc_h: u32,
+}
+
+fn round_up_256(v: u32) -> u32 {
+    (v + 255) & !255
+}
+
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     pipelines: Arc<GpuPipelines>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
+    output_pool: Mutex<Option<OutputPool>>,
 }
 
 impl GpuRenderer {
@@ -59,6 +71,7 @@ impl GpuRenderer {
             cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(CACHE_ITEMS).expect("nonzero"),
             )),
+            output_pool: Mutex::new(None),
         })
     }
 
@@ -325,21 +338,35 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        let out_texture = device.create_texture(&TextureDescriptor {
-            label: Some("output"),
-            size: Extent3d {
-                width: out_w,
-                height: out_h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let out_view = out_texture.create_view(&TextureViewDescriptor::default());
+        let mut pool = self.output_pool.lock();
+        let need_w = round_up_256(out_w);
+        let need_h = round_up_256(out_h);
+        let fits = pool
+            .as_ref()
+            .is_some_and(|p| p.alloc_w >= need_w && p.alloc_h >= need_h);
+        if !fits {
+            *pool = Some(OutputPool {
+                texture: device.create_texture(&TextureDescriptor {
+                    label: Some("output"),
+                    size: Extent3d {
+                        width: need_w,
+                        height: need_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                    view_formats: &[],
+                }),
+                readback: make_readback_buffer(device, need_w, need_h),
+                alloc_w: need_w,
+                alloc_h: need_h,
+            });
+        }
+        let p = pool.as_ref().expect("pool populated");
+        let out_view = p.texture.create_view(&TextureViewDescriptor::default());
 
         let bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("process-bg"),
@@ -364,8 +391,6 @@ impl GpuRenderer {
             ],
         });
 
-        let readback = make_readback_buffer(device, out_w, out_h);
-
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("process-enc"),
         });
@@ -380,11 +405,11 @@ impl GpuRenderer {
             let gy = out_h.div_ceil(16);
             pass.dispatch_workgroups(gx, gy, 1);
         }
-        copy_texture_to_buffer(&mut encoder, &out_texture, &readback, out_w, out_h);
+        copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
         queue.submit(Some(encoder.finish()));
 
-        let rgba = read_rgba8(&self.ctx, &readback, out_w, out_h)?;
-        let _ = padded_row_bytes(out_w);
+        let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h)?;
+        drop(pool);
 
         let (histogram, jpeg) = rayon::join(
             || Histogram::from_rgba8(&rgba),
