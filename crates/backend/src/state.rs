@@ -22,7 +22,7 @@ impl AppState {
         let immich = ImmichClient::new(config.immich_url.clone(), &config.immich_api_key)
             .map_err(|e| anyhow::anyhow!("immich client: {e}"))?;
         let edits = EditsStore::new(&config.cache_dir);
-        let render = RenderService::new(immich.clone(), 8);
+        let render = RenderService::new(immich.clone(), 8, config.renderer);
         let queue = RenderQueue::new(config.render_max_concurrency);
         Ok(Self {
             config: Arc::new(config),

@@ -21,6 +21,7 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     }))
     .unwrap_or([[0.0; 4]; 3]);
     let cfa_pattern = raw_image.camera.cfa.name.clone();
+    let orientation = raw_image.orientation.to_flips();
 
     let black_levels = [0.0f32; 4];
     let white_levels = [1.0f32; 4];
@@ -44,5 +45,6 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
         white_levels,
         data,
         cpp,
+        orientation,
     })
 }

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import '../app.css';
+  import Shell from '$lib/components/shell/Shell.svelte';
 
-	let { children } = $props();
+  let { children } = $props();
 </script>
 
-{@render children()}
+<Shell>
+  {@render children()}
+</Shell>

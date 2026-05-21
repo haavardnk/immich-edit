@@ -16,6 +16,47 @@ pub fn rotate_90(pixels: &[f32], w: usize, h: usize) -> (Vec<f32>, usize, usize)
     (out, new_w, new_h)
 }
 
+pub fn transpose(pixels: &[f32], w: usize, h: usize) -> (Vec<f32>, usize, usize) {
+    let new_w = h;
+    let new_h = w;
+    let mut out = vec![0.0f32; new_w * new_h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let src = (y * w + x) * 3;
+            let dst = (x * new_w + y) * 3;
+            out[dst] = pixels[src];
+            out[dst + 1] = pixels[src + 1];
+            out[dst + 2] = pixels[src + 2];
+        }
+    }
+    (out, new_w, new_h)
+}
+
+pub fn apply_orientation(
+    rgb: Vec<f32>,
+    w: usize,
+    h: usize,
+    orient: crate::frame::OrientFlips,
+) -> (Vec<f32>, usize, usize) {
+    let (t, hf, vf) = orient;
+    let mut rgb = rgb;
+    let mut w = w;
+    let mut h = h;
+    if hf {
+        flip_horizontal(&mut rgb, w, h);
+    }
+    if vf {
+        flip_vertical(&mut rgb, w, h);
+    }
+    if t {
+        let (r, nw, nh) = transpose(&rgb, w, h);
+        rgb = r;
+        w = nw;
+        h = nh;
+    }
+    (rgb, w, h)
+}
+
 pub fn flip_horizontal(pixels: &mut [f32], w: usize, h: usize) {
     for y in 0..h {
         for x in 0..w / 2 {

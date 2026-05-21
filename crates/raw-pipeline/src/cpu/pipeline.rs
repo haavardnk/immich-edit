@@ -16,6 +16,11 @@ pub fn render(
     let mut w = frame.width;
     let mut h = frame.height;
 
+    let (oriented, ow, oh) = transform::apply_orientation(rgb, w, h, frame.orientation);
+    rgb = oriented;
+    w = ow;
+    h = oh;
+
     apply_wb(&mut rgb, frame, &edits);
     apply_exposure(&mut rgb, &edits);
     apply_highlights_shadows(&mut rgb, &edits);

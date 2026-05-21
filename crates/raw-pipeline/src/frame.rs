@@ -1,5 +1,7 @@
 use crate::edits::Edits;
 
+pub type OrientFlips = (bool, bool, bool);
+
 pub struct RawFrame {
     pub width: usize,
     pub height: usize,
@@ -11,6 +13,7 @@ pub struct RawFrame {
     pub white_levels: [f32; 4],
     pub data: Vec<f32>,
     pub cpp: usize,
+    pub orientation: OrientFlips,
 }
 
 impl RawFrame {

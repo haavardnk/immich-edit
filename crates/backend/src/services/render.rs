@@ -3,10 +3,11 @@ use std::sync::Arc;
 use bytes::Bytes;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
-use raw_pipeline::{CpuRenderer, PipelineError, RenderedImage, Renderer};
+use raw_pipeline::{CpuRenderer, GpuRenderer, PipelineError, RenderedImage, Renderer};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 
 #[derive(Debug, thiserror::Error)]
@@ -21,15 +22,45 @@ pub enum RenderError {
 pub struct RenderService {
     immich: ImmichClient,
     frames: Arc<Mutex<lru::LruCache<Uuid, Arc<RawFrame>>>>,
+    gpu: Option<Arc<GpuRenderer>>,
+    active: ActiveRenderer,
+    gpu_label: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActiveRenderer {
+    Cpu,
+    Gpu,
+}
+
+impl ActiveRenderer {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "cpu",
+            Self::Gpu => "gpu",
+        }
+    }
 }
 
 impl RenderService {
-    pub fn new(immich: ImmichClient, max_items: usize) -> Self {
+    pub fn new(immich: ImmichClient, max_items: usize, mode: RendererMode) -> Self {
         let cap = std::num::NonZeroUsize::new(max_items.max(1)).unwrap();
+        let (gpu, active, gpu_label) = init_gpu(mode);
         Self {
             immich,
             frames: Arc::new(Mutex::new(lru::LruCache::new(cap))),
+            gpu,
+            active,
+            gpu_label,
         }
+    }
+
+    pub fn active(&self) -> ActiveRenderer {
+        self.active
+    }
+
+    pub fn gpu_label(&self) -> Option<&str> {
+        self.gpu_label.as_deref()
     }
 
     pub async fn frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
@@ -51,14 +82,54 @@ impl RenderService {
     ) -> Result<RenderedImage, RenderError> {
         let frame = self.frame(asset_id).await?;
         let opts = RenderOptions { max_edge };
-        let result = tokio::task::spawn_blocking(move || {
-            let renderer = CpuRenderer;
-            renderer.render(&frame, &edits, &opts)
-        })
-        .await
-        .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
+        let gpu = self.gpu.clone();
+        let active = self.active;
+        let result = tokio::task::spawn_blocking(move || render_blocking(active, gpu, &frame, &edits, &opts))
+            .await
+            .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
         Ok(result)
     }
+}
+
+fn init_gpu(mode: RendererMode) -> (Option<Arc<GpuRenderer>>, ActiveRenderer, Option<String>) {
+    if matches!(mode, RendererMode::Cpu) {
+        return (None, ActiveRenderer::Cpu, None);
+    }
+    match GpuRenderer::new() {
+        Ok(r) => {
+            let label = r.adapter_label();
+            tracing::info!(adapter = %label, "gpu renderer initialized");
+            (Some(Arc::new(r)), ActiveRenderer::Gpu, Some(label))
+        }
+        Err(e) => {
+            if matches!(mode, RendererMode::Gpu) {
+                tracing::error!(error = %e, "gpu requested but unavailable; falling back to cpu");
+            } else {
+                tracing::warn!(error = %e, "gpu unavailable; using cpu");
+            }
+            (None, ActiveRenderer::Cpu, None)
+        }
+    }
+}
+
+fn render_blocking(
+    active: ActiveRenderer,
+    gpu: Option<Arc<GpuRenderer>>,
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+) -> Result<RenderedImage, PipelineError> {
+    if active == ActiveRenderer::Gpu {
+        if let Some(g) = gpu.as_ref() {
+            match g.render(frame, edits, opts) {
+                Ok(r) => return Ok(r),
+                Err(e) => {
+                    tracing::warn!(error = %e, "gpu render failed; falling back to cpu");
+                }
+            }
+        }
+    }
+    CpuRenderer.render(frame, edits, opts)
 }
 
 async fn decode_blocking(bytes: Bytes) -> Result<RawFrame, PipelineError> {

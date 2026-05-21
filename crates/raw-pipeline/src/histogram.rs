@@ -39,6 +39,26 @@ impl Histogram {
         Self { r, g, b, l }
     }
 
+    pub fn from_rgba8(pixels: &[u8]) -> Self {
+        let mut r = vec![0u32; BINS];
+        let mut g = vec![0u32; BINS];
+        let mut b = vec![0u32; BINS];
+        let mut l = vec![0u32; BINS];
+        for px in pixels.chunks_exact(4) {
+            let rv = px[0] as usize;
+            let gv = px[1] as usize;
+            let bv = px[2] as usize;
+            let li = ((0.2126 * px[0] as f32 + 0.7152 * px[1] as f32 + 0.0722 * px[2] as f32)
+                as usize)
+                .min(BINS - 1);
+            r[rv] += 1;
+            g[gv] += 1;
+            b[bv] += 1;
+            l[li] += 1;
+        }
+        Self { r, g, b, l }
+    }
+
     pub fn pixel_count(&self) -> u64 {
         self.l.iter().map(|&v| v as u64).sum()
     }

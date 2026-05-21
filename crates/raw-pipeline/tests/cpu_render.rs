@@ -126,6 +126,31 @@ fn crop_reduces_dims() {
     });
 }
 
+#[test]
+fn orientation_swaps_display_dims_when_transposed() {
+    each_fixture(|name, path| {
+        let bytes = std::fs::read(path).unwrap();
+        let frame = decode::decode(&bytes).unwrap();
+        let renderer = CpuRenderer;
+        let opts = RenderOptions { max_edge: 256 };
+        let out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let (transpose, _, _) = frame.orientation;
+        let (expected_w, expected_h) = if transpose {
+            (frame.height, frame.width)
+        } else {
+            (frame.width, frame.height)
+        };
+        let landscape_sensor = expected_w > expected_h;
+        let landscape_out = out.width > out.height;
+        if landscape_sensor != landscape_out && out.width != out.height {
+            panic!(
+                "{name}: oriented landscape={landscape_sensor} but out landscape={landscape_out} ({}x{})",
+                out.width, out.height
+            );
+        }
+    });
+}
+
 fn histogram_mean(bins: &[u32]) -> f64 {
     let total: u64 = bins.iter().map(|&v| v as u64).sum();
     if total == 0 {

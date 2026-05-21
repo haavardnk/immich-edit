@@ -33,7 +33,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         config: Arc::new(config),
         immich: immich.clone(),
         edits: EditsStore::new(&cache_dir),
-        render: RenderService::new(immich, 4),
+        render: RenderService::new(immich, 4, RendererMode::Cpu),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
     }

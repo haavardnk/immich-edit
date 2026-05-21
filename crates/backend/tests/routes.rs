@@ -31,8 +31,11 @@ async fn health_returns_ok_with_redacted_config() {
     if s.contains("test-key") {
         panic!("api key leaked: {s}");
     }
-    if json["renderer"] != "cpu" {
-        panic!("renderer field");
+    if json["renderer_mode"] != "cpu" {
+        panic!("renderer_mode field");
+    }
+    if json["renderer_active"] != "cpu" {
+        panic!("renderer_active field");
     }
     if json["immich_reachable"] != true {
         panic!("ping flag");
