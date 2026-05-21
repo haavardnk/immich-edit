@@ -111,36 +111,42 @@ pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, u
     }
 
     let scale = max as f64 / w.max(h) as f64;
-    let new_w = (w as f64 * scale).round() as usize;
-    let new_h = (h as f64 * scale).round() as usize;
-    let new_w = new_w.max(1);
-    let new_h = new_h.max(1);
+    let new_w = (w as f64 * scale).round().max(1.0) as u32;
+    let new_h = (h as f64 * scale).round().max(1.0) as u32;
 
-    let mut out = vec![0.0f32; new_w * new_h * 3];
-    for ny in 0..new_h {
-        let sy = (ny as f64 / new_h as f64 * h as f64).min((h - 1) as f64);
-        let sy0 = sy as usize;
-        let sy1 = (sy0 + 1).min(h - 1);
-        let fy = sy - sy0 as f64;
+    let mut src_buf = bytemuck::cast_slice::<f32, u8>(pixels).to_vec();
+    let src_image = match fast_image_resize::images::Image::from_slice_u8(
+        w as u32,
+        h as u32,
+        &mut src_buf,
+        fast_image_resize::PixelType::F32x3,
+    ) {
+        Ok(img) => img,
+        Err(_) => return (pixels.to_vec(), w, h),
+    };
 
-        for nx in 0..new_w {
-            let sx = (nx as f64 / new_w as f64 * w as f64).min((w - 1) as f64);
-            let sx0 = sx as usize;
-            let sx1 = (sx0 + 1).min(w - 1);
-            let fx = sx - sx0 as f64;
+    let mut dst_image = fast_image_resize::images::Image::new(
+        new_w,
+        new_h,
+        fast_image_resize::PixelType::F32x3,
+    );
 
-            for c in 0..3 {
-                let p00 = pixels[(sy0 * w + sx0) * 3 + c] as f64;
-                let p10 = pixels[(sy0 * w + sx1) * 3 + c] as f64;
-                let p01 = pixels[(sy1 * w + sx0) * 3 + c] as f64;
-                let p11 = pixels[(sy1 * w + sx1) * 3 + c] as f64;
-                let v = p00 * (1.0 - fx) * (1.0 - fy)
-                    + p10 * fx * (1.0 - fy)
-                    + p01 * (1.0 - fx) * fy
-                    + p11 * fx * fy;
-                out[(ny * new_w + nx) * 3 + c] = v as f32;
-            }
-        }
+    let mut resizer = fast_image_resize::Resizer::new();
+    if resizer
+        .resize(
+            &src_image,
+            &mut dst_image,
+            Some(&fast_image_resize::ResizeOptions::new().resize_alg(
+                fast_image_resize::ResizeAlg::Convolution(
+                    fast_image_resize::FilterType::Lanczos3,
+                ),
+            )),
+        )
+        .is_err()
+    {
+        return (pixels.to_vec(), w, h);
     }
-    (out, new_w, new_h)
+
+    let out: Vec<f32> = bytemuck::cast_slice(dst_image.buffer()).to_vec();
+    (out, new_w as usize, new_h as usize)
 }

@@ -1,4 +1,3 @@
-use super::demosaic;
 use crate::cpu::transform;
 use crate::edits::Edits;
 use crate::encode::encode_jpeg;
@@ -14,9 +13,8 @@ pub fn render(
 ) -> crate::PipelineResult<RenderedImage> {
     let edits = edits.clamped();
 
-    let rgb = demosaic::demosaic(frame);
     let (rgb, w, h) =
-        transform::apply_orientation(rgb, frame.width, frame.height, frame.orientation);
+        transform::apply_orientation(frame.data.clone(), frame.width, frame.height, frame.orientation);
 
     let mut image = LinearImage::new(rgb, w, h);
     let ctx = OpContext {

@@ -1,5 +1,6 @@
 use crate::PipelineError;
 use crate::frame::RawFrame;
+use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     let source = rawler::rawsource::RawSource::new_from_slice(data);
@@ -17,43 +18,65 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     }
 }
 
-fn decode_raw(mut raw_image: rawler::RawImage) -> crate::PipelineResult<RawFrame> {
-    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| raw_image.apply_scaling()));
-
-    let width = raw_image.width;
-    let height = raw_image.height;
-    let cpp = raw_image.cpp;
-    let bps = raw_image.bps;
+fn decode_raw(raw_image: rawler::RawImage) -> crate::PipelineResult<RawFrame> {
     let wb_coeffs = raw_image.wb_coeffs;
     let cam_to_xyz = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         raw_image.cam_to_xyz_normalized()
     }))
     .unwrap_or([[0.0; 4]; 3]);
-    let cfa_pattern = raw_image.camera.cfa.name.clone();
     let orientation = raw_image.orientation.to_flips();
 
-    let black_levels = [0.0f32; 4];
-    let white_levels = [1.0f32; 4];
+    let develop = RawDevelop {
+        steps: vec![
+            ProcessingStep::Rescale,
+            ProcessingStep::Demosaic,
+            ProcessingStep::CropActiveArea,
+        ],
+    };
+    let intermediate = develop
+        .develop_intermediate(&raw_image)
+        .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
 
-    let data = match &raw_image.data {
-        rawler::RawImageData::Float(d) => d.clone(),
-        rawler::RawImageData::Integer(d) => {
-            let max = ((1u32 << bps.min(16)) - 1) as f32;
-            d.iter().map(|&v| v as f32 / max).collect()
+    let (data, width, height) = match intermediate {
+        Intermediate::ThreeColor(pixels) => {
+            let w = pixels.width;
+            let h = pixels.height;
+            let flat: Vec<f32> = pixels.into_inner().into_iter().flatten().collect();
+            (flat, w, h)
+        }
+        Intermediate::FourColor(pixels) => {
+            let w = pixels.width;
+            let h = pixels.height;
+            let flat: Vec<f32> = pixels
+                .into_inner()
+                .into_iter()
+                .flat_map(|p| [p[0], p[1], p[2]])
+                .collect();
+            (flat, w, h)
+        }
+        Intermediate::Monochrome(pixels) => {
+            let w = pixels.width;
+            let h = pixels.height;
+            let flat: Vec<f32> = pixels
+                .into_inner()
+                .into_iter()
+                .flat_map(|v| [v, v, v])
+                .collect();
+            (flat, w, h)
         }
     };
 
     Ok(RawFrame {
         width,
         height,
-        cfa_pattern,
-        bps,
+        cfa_pattern: String::new(),
+        bps: 16,
         wb_coeffs,
         cam_to_xyz,
-        black_levels,
-        white_levels,
+        black_levels: [0.0; 4],
+        white_levels: [1.0; 4],
         data,
-        cpp,
+        cpp: 3,
         orientation,
     })
 }

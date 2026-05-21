@@ -54,21 +54,15 @@ impl ImmichClient {
     }
 
     pub async fn list_albums(&self) -> ImmichResult<Vec<AlbumSummary>> {
-        let url = self.url("api/albums")?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        self.get_json("api/albums").await
     }
 
     pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumDetail> {
-        let url = self.url(&format!("api/albums/{id}"))?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        self.get_json(&format!("api/albums/{id}")).await
     }
 
     pub async fn asset(&self, id: Uuid) -> ImmichResult<AssetDetail> {
-        let url = self.url(&format!("api/assets/{id}"))?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        self.get_json(&format!("api/assets/{id}")).await
     }
 
     pub async fn thumbnail(&self, id: Uuid, size: ThumbSize) -> ImmichResult<(Bytes, String)> {
@@ -100,8 +94,7 @@ impl ImmichClient {
             .get(url)
             .query(&[("withHidden", "false"), ("size", "500")]);
         let bytes = send(&self.http, req).await?;
-        let resp: PeopleResponse =
-            serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))?;
+        let resp: PeopleResponse = parse_json(&bytes)?;
         let people = if named_only {
             resp.people
                 .into_iter()
@@ -130,30 +123,31 @@ impl ImmichClient {
     }
 
     pub async fn list_tags(&self) -> ImmichResult<Vec<TagSummary>> {
-        let url = self.url("api/tags")?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        self.get_json("api/tags").await
     }
 
     pub async fn folder_paths(&self) -> ImmichResult<Vec<String>> {
-        let url = self.url("api/view/folder/unique-paths")?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        self.get_json("api/view/folder/unique-paths").await
     }
 
     pub async fn folder_assets(&self, path: &str) -> ImmichResult<Vec<AssetDetail>> {
         let url = self.url("api/view/folder")?;
         let req = self.http.get(url).query(&[("path", path)]);
         let bytes = send(&self.http, req).await?;
-        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+        parse_json(&bytes)
     }
 
     pub async fn search_metadata(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
         let url = self.url("api/search/metadata")?;
         let bytes = send_post_json(&self.http, url, body).await?;
-        let resp: SearchResponse =
-            serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))?;
+        let resp: SearchResponse = parse_json(&bytes)?;
         Ok(resp.assets)
+    }
+
+    async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
+        let url = self.url(path)?;
+        let bytes = send(&self.http, self.http.get(url)).await?;
+        parse_json(&bytes)
     }
 }
 
@@ -185,6 +179,10 @@ async fn send(_http: &Client, req: reqwest::RequestBuilder) -> ImmichResult<Byte
     resp.bytes()
         .await
         .map_err(|e| ImmichError::Transport(e.to_string()))
+}
+
+fn parse_json<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> ImmichResult<T> {
+    serde_json::from_slice(bytes).map_err(|e| ImmichError::Decode(e.to_string()))
 }
 
 async fn send_post_json(http: &Client, url: Url, body: &serde_json::Value) -> ImmichResult<Bytes> {
