@@ -70,8 +70,6 @@ pub struct BasicEdits {
     #[serde(default)]
     pub exposure_ev: f64,
     #[serde(default)]
-    pub brightness: f64,
-    #[serde(default)]
     pub contrast: f64,
     #[serde(default)]
     pub saturation: f64,
@@ -196,7 +194,6 @@ impl Edits {
         Self {
             basic: BasicEdits {
                 exposure_ev: self.basic.exposure_ev.clamp(-5.0, 5.0),
-                brightness: self.basic.brightness.clamp(-100.0, 100.0),
                 contrast: self.basic.contrast.clamp(-100.0, 100.0),
                 saturation: self.basic.saturation.clamp(-100.0, 100.0),
                 vibrance: self.basic.vibrance.clamp(-100.0, 100.0),

@@ -66,25 +66,17 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
 @group(0) @binding(2) var src_samp: sampler;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 
-fn srgb_encode(v: f32) -> f32 {{
-    let x = clamp(v, 0.0, 1.0);
-    if (x <= 0.0031308) {{ return x * 12.92; }}
-    return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
-}}
-
-fn highlight_rolloff(v: f32) -> f32 {{
-    let knee: f32 = 0.85;
-    if (v <= knee) {{ return v; }}
-    let headroom = 1.0 - knee;
-    return 1.0 - headroom * exp(-(v - knee) / headroom);
-}}
-
-fn baseline_tone(v: f32) -> f32 {{
-    let vc = max(v, 0.0);
-    let shoulder = highlight_rolloff(vc);
-    let amt: f32 = 0.04;
-    let s = shoulder - amt * sin(2.0 * 3.14159265 * shoulder);
-    return clamp(s, 0.0, 1.0);
+fn default_tone(v: f32) -> f32 {{
+    let lin = clamp(v, 0.0, 1.0);
+    var srgb: f32;
+    if (lin <= 0.003130808) {{
+        srgb = 12.92 * lin;
+    }} else {{
+        srgb = 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
+    }}
+    let s = srgb * srgb * (3.0 - 2.0 * srgb);
+    let out = srgb + (s - srgb) * 0.15;
+    return clamp(out, 0.0, 1.0);
 }}
 
 {functions}
@@ -129,8 +121,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let rgb = textureSampleLevel(src_tex, src_samp, vec2<f32>(su, sv), 0.0).rgb;
     let outc_lin = process_color(rgb);
-    let r1 = vec3<f32>(baseline_tone(outc_lin.r), baseline_tone(outc_lin.g), baseline_tone(outc_lin.b));
-    let outc = vec3<f32>(srgb_encode(r1.r), srgb_encode(r1.g), srgb_encode(r1.b));
+    let outc = vec3<f32>(default_tone(outc_lin.r), default_tone(outc_lin.g), default_tone(outc_lin.b));
     textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
 }}
 "#

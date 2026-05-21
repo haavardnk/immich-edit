@@ -14,16 +14,6 @@
     onCommit={editor.onCommit}
   />
   <SliderRow
-    label="Brightness"
-    bind:value={editor.edits.basic.brightness}
-    min={-100}
-    max={100}
-    step={1}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
-  />
-  <SliderRow
     label="Contrast"
     bind:value={editor.edits.basic.contrast}
     min={-100}

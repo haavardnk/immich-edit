@@ -34,8 +34,8 @@ pub fn render_with_cancel(
     let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
 
     let mut image = LinearImage::new(rgb, w, h);
-    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&frame.cam_to_xyz) {
-        crate::color::cam_to_srgb_matrix(frame.cam_to_xyz)
+    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&frame.xyz_to_cam) {
+        crate::color::cam_to_srgb_matrix(frame.xyz_to_cam)
     } else {
         crate::color::identity_3x3()
     };
@@ -56,8 +56,7 @@ pub fn render_with_cancel(
 
     let mut srgb = rgb;
     cancel::check(cancel)?;
-    apply_baseline_tone(&mut srgb);
-    linear_to_srgb(&mut srgb);
+    apply_default_tone(&mut srgb);
 
     let rgb_u8: Vec<u8> = srgb
         .par_iter()
@@ -80,36 +79,26 @@ pub fn render_with_cancel(
     })
 }
 
-const HIGHLIGHT_KNEE: f32 = 0.85;
-const S_CURVE_AMOUNT: f32 = 0.04;
+const S_CURVE_BLEND: f32 = 0.15;
 
-pub(crate) fn highlight_rolloff(v: f32) -> f32 {
-    if v <= HIGHLIGHT_KNEE {
-        return v;
+pub(crate) fn default_tone(v: f32) -> f32 {
+    let lin = v.clamp(0.0, 1.0);
+    let srgb = srgb_oetf(lin);
+    let s = srgb * srgb * (3.0 - 2.0 * srgb);
+    let out = srgb + (s - srgb) * S_CURVE_BLEND;
+    out.clamp(0.0, 1.0)
+}
+
+fn srgb_oetf(v: f32) -> f32 {
+    if v <= 0.003_130_8 {
+        12.92 * v
+    } else {
+        1.055 * v.powf(1.0 / 2.4) - 0.055
     }
-    let headroom = 1.0 - HIGHLIGHT_KNEE;
-    1.0 - headroom * (-(v - HIGHLIGHT_KNEE) / headroom).exp()
 }
 
-pub(crate) fn baseline_tone(v: f32) -> f32 {
-    let v = v.max(0.0);
-    let shoulder = highlight_rolloff(v);
-    let s = shoulder - S_CURVE_AMOUNT * (2.0 * std::f32::consts::PI * shoulder).sin();
-    s.clamp(0.0, 1.0)
-}
-
-fn apply_baseline_tone(rgb: &mut [f32]) {
-    rgb.par_iter_mut().for_each(|v| *v = baseline_tone(*v));
-}
-
-fn linear_to_srgb(rgb: &mut [f32]) {
-    rgb.par_iter_mut().for_each(|v| {
-        *v = if *v <= 0.0031308 {
-            *v * 12.92
-        } else {
-            1.055 * v.powf(1.0 / 2.4) - 0.055
-        };
-    });
+fn apply_default_tone(rgb: &mut [f32]) {
+    rgb.par_iter_mut().for_each(|v| *v = default_tone(*v));
 }
 
 #[cfg(test)]
@@ -117,58 +106,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rolloff_identity_below_knee() {
-        if (highlight_rolloff(0.5) - 0.5).abs() >= 1e-6 {
-            panic!("expected identity below knee");
+    fn default_tone_preserves_endpoints() {
+        if default_tone(0.0).abs() > 1e-4 {
+            panic!("expected 0 at 0");
         }
-        if (highlight_rolloff(HIGHLIGHT_KNEE) - HIGHLIGHT_KNEE).abs() >= 1e-6 {
-            panic!("expected identity at knee");
-        }
-    }
-
-    #[test]
-    fn rolloff_bounded_above_knee() {
-        for x in [1.0, 1.5, 2.5, 5.0, 100.0] {
-            let y = highlight_rolloff(x);
-            if !(y > HIGHLIGHT_KNEE && y <= 1.0) {
-                panic!("out of bounds at x={x}: {y}");
-            }
+        if (default_tone(1.0) - 1.0).abs() > 1e-4 {
+            panic!("expected 1 at 1");
         }
     }
 
     #[test]
-    fn rolloff_monotonic() {
-        let mut prev = -1.0f32;
-        let mut x = 0.0f32;
-        while x < 3.0 {
-            let y = highlight_rolloff(x);
-            if y < prev - 1e-6 {
-                panic!("non-monotonic at x={x}: {prev} -> {y}");
-            }
-            prev = y;
-            x += 0.05;
-        }
-    }
-
-    #[test]
-    fn baseline_tone_preserves_endpoints() {
-        if baseline_tone(0.0).abs() > 1e-4 {
-            panic!("expected 0 at 0, got {}", baseline_tone(0.0));
-        }
-        if (baseline_tone(1.0) - HIGHLIGHT_KNEE).abs() > (1.0 - HIGHLIGHT_KNEE) + 1e-4 {
-            panic!("unexpected at 1.0: {}", baseline_tone(1.0));
-        }
-    }
-
-    #[test]
-    fn baseline_tone_bounded() {
+    fn default_tone_bounded() {
         let mut x = -0.5f32;
         while x < 3.0 {
-            let y = baseline_tone(x);
+            let y = default_tone(x);
             if !(0.0..=1.0).contains(&y) {
                 panic!("out of bounds at x={x}: {y}");
             }
             x += 0.05;
+        }
+    }
+
+    #[test]
+    fn default_tone_monotonic() {
+        let mut prev = default_tone(0.0);
+        let mut x = 0.01f32;
+        while x <= 1.0 {
+            let y = default_tone(x);
+            if y < prev - 1e-5 {
+                panic!("non-monotonic at x={x}: {prev} -> {y}");
+            }
+            prev = y;
+            x += 0.01;
         }
     }
 }

@@ -5,7 +5,6 @@ export interface CurvePoint {
 
 export interface BasicEdits {
   exposure_ev: number;
-  brightness: number;
   contrast: number;
   saturation: number;
   vibrance: number;
@@ -95,7 +94,6 @@ export function neutralEdits(): Edits {
   return {
     basic: {
       exposure_ev: 0,
-      brightness: 0,
       contrast: 0,
       saturation: 0,
       vibrance: 0,
@@ -139,7 +137,6 @@ function curvesAreIdentity(pts: CurvePoint[]): boolean {
 export function isIdentity(e: Edits): boolean {
   return (
     e.basic.exposure_ev === 0 &&
-    e.basic.brightness === 0 &&
     e.basic.contrast === 0 &&
     e.basic.saturation === 0 &&
     e.basic.vibrance === 0 &&
@@ -160,7 +157,6 @@ export function isIdentity(e: Edits): boolean {
 export function editsToManifest(e: Edits): EditManifest {
   const ops: Record<string, unknown> = {};
   if (e.basic.exposure_ev !== 0) ops.exposure = { ev: e.basic.exposure_ev };
-  if (e.basic.brightness !== 0) ops.brightness = { amount: e.basic.brightness };
   if (e.basic.contrast !== 0) ops.contrast = { amount: e.basic.contrast };
   if (!curvesAreIdentity(e.basic.curves))
     ops.curves = { points: e.basic.curves.map((p) => [p.x, p.y]) };
@@ -200,8 +196,6 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const ops = doc.ops ?? {};
   const exposure = ops.exposure as { ev?: number } | undefined;
   if (exposure?.ev !== undefined) edits.basic.exposure_ev = exposure.ev;
-  const brightness = ops.brightness as { amount?: number } | undefined;
-  if (brightness?.amount !== undefined) edits.basic.brightness = brightness.amount;
   const contrast = ops.contrast as { amount?: number } | undefined;
   if (contrast?.amount !== undefined) edits.basic.contrast = contrast.amount;
   const curves = ops.curves as { points?: number[][] } | undefined;

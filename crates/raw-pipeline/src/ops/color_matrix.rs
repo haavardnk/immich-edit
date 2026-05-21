@@ -25,6 +25,9 @@ impl EditOperator for ColorMatrixOp {
         ctx: &OpContext,
         _edits: &Edits,
     ) -> PipelineResult<()> {
+        if !ctx.is_raw {
+            return Ok(());
+        }
         let m = ctx.cam_to_srgb;
         image.rgb.par_chunks_exact_mut(3).for_each(|px| {
             let r = px[0];

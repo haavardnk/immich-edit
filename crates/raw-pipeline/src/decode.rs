@@ -38,23 +38,51 @@ pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
 }
 
 fn extract_common(
-    raw_image: &rawler::RawImage,
+    raw_image: &mut rawler::RawImage,
     exif: &Option<little_exif::metadata::Metadata>,
-) -> ([f32; 4], [[f32; 4]; 3], crate::frame::OrientFlips) {
+) -> ([f32; 4], [[f32; 3]; 4], crate::frame::OrientFlips) {
     let wb_coeffs = raw_image.wb_coeffs;
-    let cam_to_xyz = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        raw_image.cam_to_xyz_normalized()
-    }))
-    .unwrap_or([[0.0; 4]; 3]);
+    populate_xyz_to_cam_from_color_matrix(raw_image);
+    let xyz_to_cam = raw_image.xyz_to_cam;
     let orientation = exif
         .as_ref()
         .and_then(crate::exif::orientation)
         .unwrap_or_else(|| raw_image.orientation.to_flips());
-    (wb_coeffs, cam_to_xyz, orientation)
+    (wb_coeffs, xyz_to_cam, orientation)
+}
+
+fn populate_xyz_to_cam_from_color_matrix(raw_image: &mut rawler::RawImage) {
+    if raw_image
+        .xyz_to_cam
+        .iter()
+        .any(|row| row.iter().any(|v| *v != 0.0))
+    {
+        return;
+    }
+    let matrix = raw_image
+        .color_matrix
+        .iter()
+        .find(|(illu, _)| **illu == rawler::imgop::xyz::Illuminant::D65)
+        .map(|(_, m)| m)
+        .or_else(|| raw_image.color_matrix.values().next());
+    let Some(matrix) = matrix else {
+        return;
+    };
+    if matrix.len() % 3 != 0 {
+        return;
+    }
+    let components = (matrix.len() / 3).min(4);
+    let mut xyz_to_cam = [[0.0f32; 3]; 4];
+    for i in 0..components {
+        for j in 0..3 {
+            xyz_to_cam[i][j] = matrix[i * 3 + j];
+        }
+    }
+    raw_image.xyz_to_cam = xyz_to_cam;
 }
 
 fn decode_raw_fast(
-    raw_image: rawler::RawImage,
+    mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
     if raw_image.cpp != 1 {
@@ -65,7 +93,7 @@ fn decode_raw_fast(
         _ => return decode_raw_quality(raw_image, exif),
     };
 
-    let (wb_coeffs, cam_to_xyz, orientation) = extract_common(&raw_image, &exif);
+    let (wb_coeffs, xyz_to_cam, orientation) = extract_common(&mut raw_image, &exif);
 
     let develop = RawDevelop {
         steps: vec![ProcessingStep::Rescale],
@@ -97,7 +125,7 @@ fn decode_raw_fast(
         cfa_pattern,
         bps: 16,
         wb_coeffs,
-        cam_to_xyz,
+        xyz_to_cam,
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data,
@@ -109,10 +137,10 @@ fn decode_raw_fast(
 }
 
 fn decode_raw_quality(
-    raw_image: rawler::RawImage,
+    mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
-    let (wb_coeffs, cam_to_xyz, orientation) = extract_common(&raw_image, &exif);
+    let (wb_coeffs, xyz_to_cam, orientation) = extract_common(&mut raw_image, &exif);
 
     let develop = RawDevelop {
         steps: vec![
@@ -160,7 +188,7 @@ fn decode_raw_quality(
         cfa_pattern: String::new(),
         bps: 16,
         wb_coeffs,
-        cam_to_xyz,
+        xyz_to_cam,
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],
         data,
@@ -206,10 +234,11 @@ fn decode_image(
         cfa_pattern: String::new(),
         bps: 8,
         wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        cam_to_xyz: [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
+        xyz_to_cam: [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0],
         ],
         black_levels: [0.0; 4],
         white_levels: [1.0; 4],

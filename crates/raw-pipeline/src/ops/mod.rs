@@ -1,4 +1,3 @@
-pub mod brightness;
 pub mod color_matrix;
 pub mod contrast;
 pub mod curves;
@@ -123,7 +122,6 @@ pub fn default_registry() -> OpRegistry {
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(exposure::ExposureOp),
-        Box::new(brightness::BrightnessOp),
         Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),
         Box::new(curves::CurvesOp),

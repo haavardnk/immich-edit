@@ -90,7 +90,6 @@ mod tests {
         let original = Edits {
             basic: BasicEdits {
                 exposure_ev: 1.5,
-                brightness: 0.0,
                 contrast: 25.0,
                 saturation: 12.5,
                 vibrance: 18.0,

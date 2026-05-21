@@ -1,21 +1,12 @@
-use crate::cpu::pipeline::baseline_tone;
+use crate::cpu::pipeline::default_tone;
 use crate::edits::{BasicEdits, Edits, ToneEdits};
 use crate::frame::RawFrame;
 
 const SAMPLE_TARGET: usize = 200_000;
 const HIST_BINS: usize = 256;
 
-fn linear_to_srgb(x: f32) -> f32 {
-    let x = x.max(0.0);
-    if x <= 0.0031308 {
-        x * 12.92
-    } else {
-        1.055 * x.powf(1.0 / 2.4) - 0.055
-    }
-}
-
 fn develop(v: f32) -> f32 {
-    linear_to_srgb(baseline_tone(v))
+    default_tone(v)
 }
 
 struct Stats {
@@ -201,7 +192,7 @@ mod tests {
             cfa_pattern: String::new(),
             bps: 16,
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            cam_to_xyz: [[0.0; 4]; 3],
+            xyz_to_cam: [[0.0; 3]; 4],
             black_levels: [0.0; 4],
             white_levels: [1.0; 4],
             data,
@@ -263,7 +254,7 @@ mod tests {
             cfa_pattern: String::new(),
             bps: 16,
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            cam_to_xyz: [[0.0; 4]; 3],
+            xyz_to_cam: [[0.0; 3]; 4],
             black_levels: [0.0; 4],
             white_levels: [1.0; 4],
             data,

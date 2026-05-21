@@ -163,7 +163,7 @@ fn gpu_exif_orientation_matches_cpu() {
             cfa_pattern: String::new(),
             bps: 16,
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            cam_to_xyz: [[0.0; 4]; 3],
+            xyz_to_cam: [[0.0; 3]; 4],
             black_levels: [0.0; 4],
             white_levels: [1.0; 4],
             data: data.clone(),

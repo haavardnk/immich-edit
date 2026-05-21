@@ -6,7 +6,7 @@ pub struct RawFrame {
     pub cfa_pattern: String,
     pub bps: usize,
     pub wb_coeffs: [f32; 4],
-    pub cam_to_xyz: [[f32; 4]; 3],
+    pub xyz_to_cam: [[f32; 3]; 4],
     pub black_levels: [f32; 4],
     pub white_levels: [f32; 4],
     pub data: Vec<f32>,
