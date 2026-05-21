@@ -58,6 +58,9 @@ async fn export(state: AppState, id: Uuid, edits: Edits) -> Result<Response, App
 fn map_render_err(err: RenderError) -> AppError {
     match err {
         RenderError::Upstream(e) => e.into(),
+        RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
+            AppError::UnsupportedFormat(msg)
+        }
         RenderError::Pipeline(e) => {
             tracing::error!(error = %e, "export render");
             AppError::Internal

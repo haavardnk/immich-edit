@@ -112,6 +112,9 @@ fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
 fn map_render_err(err: RenderError) -> AppError {
     match err {
         RenderError::Upstream(e) => e.into(),
+        RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
+            AppError::UnsupportedFormat(msg)
+        }
         RenderError::Pipeline(_) => {
             tracing::error!(error = %err, "render pipeline");
             AppError::Internal

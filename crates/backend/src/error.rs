@@ -18,6 +18,8 @@ pub enum AppError {
     UpstreamUnavailable,
     #[error("upstream timeout")]
     UpstreamTimeout,
+    #[error("unsupported format: {0}")]
+    UnsupportedFormat(String),
     #[error("internal error")]
     Internal,
     #[error("superseded")]
@@ -47,6 +49,11 @@ impl AppError {
                 StatusCode::GATEWAY_TIMEOUT,
                 "upstream_timeout",
                 "upstream timed out".into(),
+            ),
+            Self::UnsupportedFormat(m) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unsupported_format",
+                m.clone(),
             ),
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
