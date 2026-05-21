@@ -1,40 +1,46 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { ui } from '$lib/stores/ui.svelte';
-  import { library, type LibraryView } from '$lib/stores/library.svelte';
+  import { library } from '$lib/stores/library.svelte';
   import { searchMetadata } from '$lib/api/search';
   import AlbumList from '$lib/components/library/AlbumList.svelte';
   import PeopleList from '$lib/components/library/PeopleList.svelte';
   import TagList from '$lib/components/library/TagList.svelte';
   import FolderTree from '$lib/components/library/FolderTree.svelte';
-  import FavoriteLink from '$lib/components/library/FavoriteLink.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import type { AssetSummary } from '$lib/types/album';
   import {
+    mdiImageMultipleOutline,
     mdiImageAlbum,
     mdiFolderOutline,
     mdiAccountOutline,
     mdiHeartOutline,
     mdiTagMultipleOutline,
+    mdiPencilOutline,
     mdiMagnify,
     mdiClose,
+    mdiChevronDown,
+    mdiChevronRight,
+    mdiChevronLeft,
   } from '@mdi/js';
 
-  const views: { id: LibraryView; label: string; icon: string }[] = [
-    { id: 'albums', label: 'Albums', icon: mdiImageAlbum },
-    { id: 'folders', label: 'Folders', icon: mdiFolderOutline },
-    { id: 'people', label: 'People', icon: mdiAccountOutline },
-    { id: 'favorites', label: 'Favorites', icon: mdiHeartOutline },
-    { id: 'tags', label: 'Tags', icon: mdiTagMultipleOutline },
-  ];
+  type ExpandableSection = 'people' | 'albums' | 'tags' | 'folders';
 
+  let expanded = $state(new Set<ExpandableSection>());
   let searchResults = $state<AssetSummary[]>([]);
   let searching = $state(false);
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function switchView(v: LibraryView): void {
-    void library.loadView(v);
+  function toggleSection(id: ExpandableSection): void {
+    if (expanded.has(id)) {
+      expanded.delete(id);
+    } else {
+      expanded.add(id);
+      void library.loadView(id);
+    }
+    expanded = new Set(expanded);
   }
 
   async function doSearch(query: string): Promise<void> {
@@ -63,6 +69,8 @@
     void goto(`/assets/${id}`);
   }
 
+  const currentPath = $derived(page.url.pathname);
+
   onMount(() => {
     void library.load();
   });
@@ -71,10 +79,30 @@
 <aside
   class="bg-immich-dark-gray border-r border-white/5 flex flex-col min-h-0 transition-[width] duration-200 ease-out overflow-hidden"
   class:w-64={!ui.leftCollapsed}
-  class:w-0={ui.leftCollapsed}
+  class:w-7={ui.leftCollapsed}
 >
-  {#if !ui.leftCollapsed}
-    <div class="px-3 pt-3 pb-2">
+  {#if ui.leftCollapsed}
+    <button
+      class="flex-1 flex items-center justify-center hover:bg-white/5 transition-colors"
+      onclick={ui.toggleLeft}
+      aria-label="expand library panel"
+      title="Library"
+    >
+      <Icon path={mdiChevronRight} size={16} class="opacity-40" />
+    </button>
+  {:else}
+    <div class="flex items-center px-3 pt-2 pb-1">
+      <span class="flex-1 text-[10px] uppercase tracking-widest text-immich-dark-fg/40 font-semibold pl-1">Library</span>
+      <button
+        class="p-0.5 rounded hover:bg-white/10 transition-colors"
+        onclick={ui.toggleLeft}
+        aria-label="collapse library panel"
+        title="Collapse"
+      >
+        <Icon path={mdiChevronLeft} size={14} class="opacity-40" />
+      </button>
+    </div>
+    <div class="px-3 pb-2">
       <div class="relative">
         <Icon path={mdiMagnify} size={16} class="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-40" />
         <input
@@ -120,36 +148,105 @@
         {/if}
       </div>
     {:else}
-      <nav class="flex gap-0.5 px-2 pb-2">
-        {#each views as v (v.id)}
-          {@const active = library.view === v.id}
-          <button
-            class="flex flex-col items-center gap-0.5 flex-1 py-1.5 rounded-lg transition-colors text-[10px] {active ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/50 hover:bg-white/5'}"
-            onclick={() => switchView(v.id)}
-            title={v.label}
-          >
-            <Icon path={v.icon} size={16} />
-            <span>{v.label}</span>
-          </button>
-        {/each}
-      </nav>
+      <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+        <!-- Photos -->
+        <a
+          href="/photos"
+          class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/photos' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
+        >
+          <Icon path={mdiImageMultipleOutline} size={18} class="flex-none" />
+          <span class="text-[13px] font-medium">Photos</span>
+        </a>
 
-      <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden px-1">
-        {#if library.loading}
-          <div class="p-3 text-xs opacity-40">loading…</div>
-        {:else if library.error}
-          <div class="p-3 text-xs text-red-400">{library.error}</div>
-        {:else if library.view === 'albums'}
-          <AlbumList />
-        {:else if library.view === 'folders'}
-          <FolderTree nodes={library.folderTree} />
-        {:else if library.view === 'people'}
-          <PeopleList />
-        {:else if library.view === 'favorites'}
-          <FavoriteLink />
-        {:else if library.view === 'tags'}
-          <TagList />
-        {/if}
+        <!-- People -->
+        <div class="border-t border-white/5">
+          <button
+            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
+            onclick={() => toggleSection('people')}
+          >
+            <Icon path={mdiAccountOutline} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium flex-1 text-left">People</span>
+            <Icon path={expanded.has('people') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
+          </button>
+          {#if expanded.has('people')}
+            <div class="pb-1">
+              <PeopleList />
+            </div>
+          {/if}
+        </div>
+
+        <!-- Favorites -->
+        <div class="border-t border-white/5">
+          <a
+            href="/favorites"
+            class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/favorites' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
+          >
+            <Icon path={mdiHeartOutline} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium">Favorites</span>
+          </a>
+        </div>
+
+        <!-- Albums -->
+        <div class="border-t border-white/5">
+          <button
+            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
+            onclick={() => toggleSection('albums')}
+          >
+            <Icon path={mdiImageAlbum} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium flex-1 text-left">Albums</span>
+            <Icon path={expanded.has('albums') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
+          </button>
+          {#if expanded.has('albums')}
+            <div class="pb-1">
+              <AlbumList />
+            </div>
+          {/if}
+        </div>
+
+        <!-- Tags -->
+        <div class="border-t border-white/5">
+          <button
+            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
+            onclick={() => toggleSection('tags')}
+          >
+            <Icon path={mdiTagMultipleOutline} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium flex-1 text-left">Tags</span>
+            <Icon path={expanded.has('tags') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
+          </button>
+          {#if expanded.has('tags')}
+            <div class="pb-1">
+              <TagList />
+            </div>
+          {/if}
+        </div>
+
+        <!-- Folders -->
+        <div class="border-t border-white/5">
+          <button
+            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
+            onclick={() => toggleSection('folders')}
+          >
+            <Icon path={mdiFolderOutline} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium flex-1 text-left">Folders</span>
+            <Icon path={expanded.has('folders') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
+          </button>
+          {#if expanded.has('folders')}
+            <div class="pb-1">
+              <FolderTree nodes={library.folderTree} />
+            </div>
+          {/if}
+        </div>
+
+        <!-- Edited -->
+        <div class="border-t border-white/5">
+          <a
+            href="/edited"
+            class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/edited' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
+          >
+            <Icon path={mdiPencilOutline} size={18} class="flex-none" />
+            <span class="text-[13px] font-medium">Edited</span>
+          </a>
+        </div>
       </div>
     {/if}
   {/if}

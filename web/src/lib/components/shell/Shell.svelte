@@ -5,7 +5,6 @@
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
 
   let { children }: { children: Snippet } = $props();
 </script>
@@ -18,7 +17,7 @@
       <main class="flex-1 min-h-0 flex flex-col bg-immich-dark-bg">
         {@render children()}
       </main>
-      {#if editor.assetId && !ui.filmstripCollapsed}
+      {#if editor.assetId}
         <Filmstrip />
       {/if}
     </div>

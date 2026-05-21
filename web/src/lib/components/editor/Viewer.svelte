@@ -1,15 +1,19 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
+
+  let imgWrap = $state<HTMLDivElement | null>(null);
 </script>
 
 <div class="flex-1 min-h-0 flex items-center justify-center bg-black/40 p-4 relative">
   {#if editor.previewUrl}
-    <img
-      src={editor.previewUrl}
-      alt={editor.asset?.originalFileName ?? ''}
-      class="max-w-full max-h-full object-contain shadow-2xl rounded"
-      style="image-orientation: none;"
-    />
+    <div bind:this={imgWrap} class="relative inline-flex max-w-full max-h-full">
+      <img
+        src={editor.previewUrl}
+        alt={editor.asset?.originalFileName ?? ''}
+        class="max-w-full max-h-full object-contain shadow-2xl rounded"
+        style="image-orientation: none;"
+      />
+    </div>
   {:else if editor.error}
     <div class="text-red-400 text-sm">{editor.error}</div>
   {:else}
