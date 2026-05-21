@@ -10,6 +10,93 @@ pub const SRGB_TO_XYZ_D65: [[f32; 3]; 3] = [
     [0.019_333_9, 0.119_192, 0.950_304_1],
 ];
 
+const BRADFORD: [[f32; 3]; 3] = [
+    [0.8951, 0.2664, -0.1614],
+    [-0.7502, 1.7135, 0.0367],
+    [0.0389, -0.0685, 1.0296],
+];
+
+const BRADFORD_INV: [[f32; 3]; 3] = [
+    [0.986_993, -0.147_054_3, 0.159_962_7],
+    [0.432_305_3, 0.518_360_3, 0.049_291_2],
+    [-0.008_528_7, 0.040_042_8, 0.968_486_7],
+];
+
+const D65_XY: (f32, f32) = (0.312_71, 0.329_02);
+
+fn mat3_mul(a: &[[f32; 3]; 3], b: &[[f32; 3]; 3]) -> [[f32; 3]; 3] {
+    let mut r = [[0.0f32; 3]; 3];
+    for i in 0..3 {
+        for j in 0..3 {
+            r[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j];
+        }
+    }
+    r
+}
+
+fn mat3_vec(m: &[[f32; 3]; 3], v: [f32; 3]) -> [f32; 3] {
+    [
+        m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
+        m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
+        m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
+    ]
+}
+
+fn cct_to_xy(cct: f32) -> (f32, f32) {
+    let t = cct;
+    let t2 = t * t;
+    let t3 = t2 * t;
+    let x = if t <= 7000.0 {
+        -4.607e9 / t3 + 2.9678e6 / t2 + 0.09911e3 / t + 0.244_063
+    } else {
+        -2.0064e9 / t3 + 1.9018e6 / t2 + 0.24748e3 / t + 0.237_040
+    };
+    let y = -3.0 * x * x + 2.87 * x - 0.275;
+    (x, y)
+}
+
+fn bradford_cat(src_xy: (f32, f32), dst_xy: (f32, f32)) -> [[f32; 3]; 3] {
+    let src_xyz = [
+        src_xy.0 / src_xy.1,
+        1.0,
+        (1.0 - src_xy.0 - src_xy.1) / src_xy.1,
+    ];
+    let dst_xyz = [
+        dst_xy.0 / dst_xy.1,
+        1.0,
+        (1.0 - dst_xy.0 - dst_xy.1) / dst_xy.1,
+    ];
+    let sc = mat3_vec(&BRADFORD, src_xyz);
+    let dc = mat3_vec(&BRADFORD, dst_xyz);
+    let diag_brad = [
+        [
+            dc[0] / sc[0] * BRADFORD[0][0],
+            dc[0] / sc[0] * BRADFORD[0][1],
+            dc[0] / sc[0] * BRADFORD[0][2],
+        ],
+        [
+            dc[1] / sc[1] * BRADFORD[1][0],
+            dc[1] / sc[1] * BRADFORD[1][1],
+            dc[1] / sc[1] * BRADFORD[1][2],
+        ],
+        [
+            dc[2] / sc[2] * BRADFORD[2][0],
+            dc[2] / sc[2] * BRADFORD[2][1],
+            dc[2] / sc[2] * BRADFORD[2][2],
+        ],
+    ];
+    mat3_mul(&BRADFORD_INV, &diag_brad)
+}
+
+pub fn user_wb_matrix(temp: f64, tint: f64) -> [[f32; 3]; 3] {
+    let target_cct = (6500.0 * 2.0_f64.powf(-temp / 100.0)).clamp(2000.0, 25000.0) as f32;
+    let (dst_x, mut dst_y) = cct_to_xy(target_cct);
+    dst_y += tint as f32 * 0.02 / 100.0;
+    let cat_xyz = bradford_cat(D65_XY, (dst_x, dst_y));
+    let tmp = mat3_mul(&cat_xyz, &SRGB_TO_XYZ_D65);
+    mat3_mul(&XYZ_TO_SRGB_D65, &tmp)
+}
+
 fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])

@@ -6,6 +6,7 @@ pub mod geometry;
 pub mod hsl;
 pub mod saturation;
 pub mod tone_regions;
+pub mod user_wb;
 pub mod vibrance;
 pub mod white_balance;
 
@@ -121,6 +122,7 @@ pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(color_matrix::ColorMatrixOp),
+        Box::new(user_wb::UserWbOp),
         Box::new(exposure::ExposureOp),
         Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),

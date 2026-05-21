@@ -6,7 +6,7 @@ use rayon::prelude::*;
 
 pub struct WhiteBalanceOp;
 
-fn compute_wb(raw: [f32; 4], temp: f64, tint: f64) -> [f32; 4] {
+fn camera_wb(raw: [f32; 4]) -> [f32; 4] {
     let mut c = raw;
     if c[0] == 0.0 && c[1] == 0.0 && c[2] == 0.0 {
         c = [1.0, 1.0, 1.0, 1.0];
@@ -17,17 +17,12 @@ fn compute_wb(raw: [f32; 4], temp: f64, tint: f64) -> [f32; 4] {
         c[3] /= c[1];
         c[1] = 1.0;
     }
-    let t = temp as f32 / 100.0;
-    let ti = tint as f32 / 100.0;
-    c[0] *= 1.0 + t * 0.5;
-    c[2] *= 1.0 - t * 0.5;
-    c[1] *= 1.0 - ti * 0.3;
     c
 }
 
 impl EditOperator for WhiteBalanceOp {
     fn id(&self) -> &'static str {
-        "white_balance"
+        "camera_wb"
     }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance
@@ -39,9 +34,9 @@ impl EditOperator for WhiteBalanceOp {
         &self,
         image: &mut LinearImage,
         ctx: &OpContext,
-        edits: &Edits,
+        _edits: &Edits,
     ) -> PipelineResult<()> {
-        let coeffs = compute_wb(ctx.wb_coeffs, edits.basic.wb_temp, edits.basic.wb_tint);
+        let coeffs = camera_wb(ctx.wb_coeffs);
         image.rgb.par_chunks_exact_mut(3).for_each(|px| {
             px[0] *= coeffs[0];
             px[1] *= coeffs[1];
@@ -56,28 +51,11 @@ impl EditOperator for WhiteBalanceOp {
             "lin = white_balance_apply(lin, p.white_balance);",
         ))
     }
-    fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
-        let c = compute_wb(ctx.wb_coeffs, edits.basic.wb_temp, edits.basic.wb_tint);
+    fn write_gpu_uniform(&self, _edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
+        let c = camera_wb(ctx.wb_coeffs);
         dst[0] = c[0];
         dst[1] = c[1];
         dst[2] = c[2];
         dst[3] = 1.0;
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.basic.wb_temp == 0.0 && edits.basic.wb_tint == 0.0 {
-            return None;
-        }
-        Some(serde_json::json!({
-            "temp": edits.basic.wb_temp,
-            "tint": edits.basic.wb_tint,
-        }))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
-            edits.basic.wb_temp = v;
-        }
-        if let Some(v) = value.get("tint").and_then(|v| v.as_f64()) {
-            edits.basic.wb_tint = v;
-        }
     }
 }

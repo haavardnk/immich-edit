@@ -189,7 +189,7 @@ fn hsl_red_saturation_only_affects_red() {
 
 #[test]
 fn white_balance_temp_warms() {
-    let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
+    let mut img = solid_image(1, 1, [0.4, 0.5, 0.6]);
     let edits = Edits {
         basic: BasicEdits {
             wb_temp: 100.0,
@@ -197,10 +197,32 @@ fn white_balance_temp_warms() {
         },
         ..Default::default()
     };
-    white_balance::WhiteBalanceOp
+    user_wb::UserWbOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
     assert!(img.rgb[0] > img.rgb[2]);
+}
+
+#[test]
+fn user_wb_inactive_at_zero() {
+    let edits = Edits::default();
+    assert!(!user_wb::UserWbOp.is_active(&edits));
+}
+
+#[test]
+fn user_wb_cool_shifts_blue() {
+    let mut img = solid_image(1, 1, [0.4, 0.5, 0.6]);
+    let edits = Edits {
+        basic: BasicEdits {
+            wb_temp: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    user_wb::UserWbOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[2] > img.rgb[0]);
 }
 
 #[test]
@@ -234,5 +256,5 @@ fn registry_skips_inactive_ops() {
     let reg = default_registry();
     let edits = Edits::default();
     let active: Vec<&str> = reg.active(&edits).map(|o| o.id()).collect();
-    assert_eq!(active, vec!["white_balance", "color_matrix"]);
+    assert_eq!(active, vec!["camera_wb", "color_matrix"]);
 }
