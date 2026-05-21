@@ -120,7 +120,7 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
     let highlight_frac = hist_fraction_above(&s.hist, s.total, 240);
     let clipped_frac = hist_fraction_above(&s.hist, s.total, 250);
 
-    let mut exposure_ev = (128.0 - p50 as f64) * 0.012;
+    let mut exposure_ev = (128.0 - p50 as f64) * 0.008;
     if white_point > 245 || highlight_frac > 0.02 || clipped_frac > 0.005 {
         exposure_ev = exposure_ev.min(0.0);
     }
@@ -128,17 +128,17 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
 
     let mut contrast = 0.0f64;
     if range < 200.0 {
-        contrast = ((200.0 / range) - 1.0) * 15.0;
+        contrast = ((200.0 / range) - 1.0) * 8.0;
     }
     if highlight_frac > 0.02 {
         contrast *= 0.5;
     }
-    contrast = contrast.clamp(-50.0, 50.0);
+    contrast = contrast.clamp(-30.0, 30.0);
 
     let shadow_frac = hist_fraction_below(&s.hist, s.total, 32);
     let mut shadows = 0.0f64;
     if shadow_frac > 0.05 {
-        shadows = (shadow_frac * 60.0).min(50.0);
+        shadows = (shadow_frac * 40.0).min(35.0);
     }
 
     let mut highlights = 0.0f64;
@@ -148,8 +148,8 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
 
     let simulated_p01 = (p01 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
     let simulated_p99 = (p99 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
-    let blacks = -(simulated_p01 * 0.4).clamp(-30.0, 30.0);
-    let whites = ((simulated_p99 - 255.0) * 0.3).clamp(-40.0, 0.0);
+    let blacks = -(simulated_p01 * 0.2).clamp(-15.0, 15.0);
+    let whites = ((simulated_p99 - 255.0) * 0.15).clamp(-25.0, 0.0);
 
     let mut vibrance = 0.0f64;
     if s.mean_sat < 0.20 {
