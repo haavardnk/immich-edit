@@ -47,7 +47,10 @@ fn identity_render_jpeg() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let opts = RenderOptions { max_edge: 512 };
+        let opts = RenderOptions {
+            max_edge: 512,
+            ..Default::default()
+        };
         let out = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         if out.jpeg.len() < 1000 {
             panic!("{name}: jpeg too small ({} bytes)", out.jpeg.len());
@@ -70,7 +73,10 @@ fn rotate_swaps_dims() {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
 
-        let opts = RenderOptions { max_edge: 256 };
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
         let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let rotated_edits = Edits {
             geometry: raw_pipeline::edits::GeometryEdits {
@@ -98,7 +104,10 @@ fn exposure_raises_mean() {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
 
-        let opts = RenderOptions { max_edge: 256 };
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
         let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let bright_edits = Edits {
             basic: raw_pipeline::edits::BasicEdits {
@@ -125,7 +134,10 @@ fn orientation_swaps_display_dims_when_transposed() {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
 
-        let opts = RenderOptions { max_edge: 256 };
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
         let out = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let (transpose, _, _) = frame.orientation;
         let (expected_w, expected_h) = if transpose {
@@ -166,7 +178,10 @@ fn exif_roundtrip_preserves_camera() {
             eprintln!("{name}: no exif parsed, skipping");
             return;
         };
-        let opts = RenderOptions { max_edge: 512 };
+        let opts = RenderOptions {
+            max_edge: 512,
+            ..Default::default()
+        };
         let mut out = cpu::render(&frame, &Edits::default(), &opts).unwrap().jpeg;
         raw_pipeline::exif::inject_jpeg(&mut out, exif).unwrap();
         let reread = little_exif::metadata::Metadata::new_from_vec(

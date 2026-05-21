@@ -69,7 +69,11 @@ async fn render_to_response(
     let render = state.render.clone();
     let tracker = state.queue.tracker(asset_id).await;
     let token = tracker.next();
-    let work = render.render(asset_id, edits, max_edge, Some(token));
+    let opts = raw_pipeline::frame::RenderOptions {
+        max_edge,
+        quality: false,
+    };
+    let work = render.render(asset_id, edits, opts, Some(token));
     let result = state
         .queue
         .enqueue::<_, _, RenderError>(asset_id, work)

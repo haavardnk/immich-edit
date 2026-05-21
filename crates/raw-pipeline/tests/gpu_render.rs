@@ -29,7 +29,10 @@ fn gpu_identity_render_jpeg() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions { max_edge: 512 };
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
     let out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     if out.jpeg.len() < 1000 {
         panic!("jpeg too small ({} bytes)", out.jpeg.len());
@@ -55,7 +58,10 @@ fn gpu_exposure_brightens() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions { max_edge: 256 };
+    let opts = RenderOptions {
+        max_edge: 256,
+        ..Default::default()
+    };
 
     let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let bright = Edits {
@@ -99,7 +105,10 @@ fn gpu_rotate_swaps_dims() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions { max_edge: 512 };
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
 
     let a = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let rotated = Edits {
@@ -128,7 +137,10 @@ fn gpu_exif_orientation_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions { max_edge: 256 };
+    let opts = RenderOptions {
+        max_edge: 256,
+        ..Default::default()
+    };
     let w: usize = 40;
     let h: usize = 30;
     let data = vec![0.5f32; w * h * 3];

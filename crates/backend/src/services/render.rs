@@ -79,15 +79,19 @@ impl RenderService {
         &self,
         asset_id: Uuid,
         edits: Edits,
-        max_edge: u32,
+        options: RenderOptions,
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
-        let frame = self.frame(asset_id).await?;
-        let opts = RenderOptions { max_edge };
+        let frame = if options.quality {
+            let bytes = self.immich.original(asset_id).await?;
+            decode_quality_blocking(bytes).await?
+        } else {
+            self.frame(asset_id).await?
+        };
         let gpu = self.gpu.clone();
         let active = self.active;
         let result = tokio::task::spawn_blocking(move || {
-            render_blocking(active, gpu, &frame, &edits, &opts, cancel.as_ref())
+            render_blocking(active, gpu, &frame, &edits, &options, cancel.as_ref())
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
@@ -148,4 +152,11 @@ async fn decode_blocking(bytes: Bytes) -> Result<RawFrame, PipelineError> {
     tokio::task::spawn_blocking(move || raw_pipeline::decode::decode(&bytes))
         .await
         .map_err(|e| PipelineError::Decode(format!("join: {e}")))?
+}
+
+async fn decode_quality_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
+    let frame = tokio::task::spawn_blocking(move || raw_pipeline::decode::decode_quality(&bytes))
+        .await
+        .map_err(|e| PipelineError::Decode(format!("join: {e}")))?;
+    Ok(Arc::new(frame?))
 }

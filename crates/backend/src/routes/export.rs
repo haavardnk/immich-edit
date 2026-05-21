@@ -40,9 +40,13 @@ pub async fn post_export(
 
 async fn export(state: AppState, id: Uuid, edits: Edits) -> Result<Response, AppError> {
     let frame = state.render.frame(id).await.map_err(map_render_err)?;
+    let opts = raw_pipeline::frame::RenderOptions {
+        max_edge: EXPORT_MAX_EDGE,
+        quality: true,
+    };
     let rendered = state
         .render
-        .render(id, edits, EXPORT_MAX_EDGE, None)
+        .render(id, edits, opts, None)
         .await
         .map_err(map_render_err)?;
 

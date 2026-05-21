@@ -1,5 +1,5 @@
 use crate::cancel::{self, CancelToken};
-use crate::cpu::transform;
+use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::encode_jpeg;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
@@ -24,12 +24,14 @@ pub fn render_with_cancel(
 ) -> crate::PipelineResult<RenderedImage> {
     let edits = edits.clamped();
 
-    let (rgb, w, h) = transform::apply_orientation(
-        frame.data.clone(),
-        frame.width,
-        frame.height,
-        frame.orientation,
-    );
+    let (rgb, src_w, src_h) = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
+        let d = demosaic::bilinear(&frame.data, frame.width, frame.height, &frame.cfa_pattern);
+        (d, frame.width, frame.height)
+    } else {
+        (frame.data.clone(), frame.width, frame.height)
+    };
+
+    let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
 
     let mut image = LinearImage::new(rgb, w, h);
     let ctx = OpContext {

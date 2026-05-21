@@ -1,13 +1,14 @@
 use crate::PipelineError;
 use crate::frame::RawFrame;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
+use rawler::rawimage::RawPhotometricInterpretation;
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     let exif = crate::exif::parse(data);
     let source = rawler::rawsource::RawSource::new_from_slice(data);
     let params = rawler::decoders::RawDecodeParams::default();
     match rawler::decode(&source, &params) {
-        Ok(raw_image) => decode_raw(raw_image, exif),
+        Ok(raw_image) => decode_raw_fast(raw_image, exif),
         Err(e) => {
             let msg = format!("{e}");
             if msg.contains("No decoder found") {
@@ -19,10 +20,27 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     }
 }
 
-fn decode_raw(
-    raw_image: rawler::RawImage,
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
+    let exif = crate::exif::parse(data);
+    let source = rawler::rawsource::RawSource::new_from_slice(data);
+    let params = rawler::decoders::RawDecodeParams::default();
+    match rawler::decode(&source, &params) {
+        Ok(raw_image) => decode_raw_quality(raw_image, exif),
+        Err(e) => {
+            let msg = format!("{e}");
+            if msg.contains("No decoder found") {
+                decode_image(data, exif)
+            } else {
+                Err(PipelineError::Decode(msg))
+            }
+        }
+    }
+}
+
+fn extract_common(
+    raw_image: &rawler::RawImage,
+    exif: &Option<little_exif::metadata::Metadata>,
+) -> ([f32; 4], [[f32; 4]; 3], crate::frame::OrientFlips) {
     let wb_coeffs = raw_image.wb_coeffs;
     let cam_to_xyz = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         raw_image.cam_to_xyz_normalized()
@@ -32,6 +50,68 @@ fn decode_raw(
         .as_ref()
         .and_then(crate::exif::orientation)
         .unwrap_or_else(|| raw_image.orientation.to_flips());
+    (wb_coeffs, cam_to_xyz, orientation)
+}
+
+fn decode_raw_fast(
+    raw_image: rawler::RawImage,
+    exif: Option<little_exif::metadata::Metadata>,
+) -> crate::PipelineResult<RawFrame> {
+    if raw_image.cpp != 1 {
+        return decode_raw_quality(raw_image, exif);
+    }
+    let cfa_name = match &raw_image.photometric {
+        RawPhotometricInterpretation::Cfa(config) if config.cfa.is_rgb() => config.cfa.name.clone(),
+        _ => return decode_raw_quality(raw_image, exif),
+    };
+
+    let (wb_coeffs, cam_to_xyz, orientation) = extract_common(&raw_image, &exif);
+
+    let develop = RawDevelop {
+        steps: vec![ProcessingStep::Rescale],
+    };
+    let intermediate = develop
+        .develop_intermediate(&raw_image)
+        .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
+
+    let pixels = match intermediate {
+        Intermediate::Monochrome(p) => p,
+        _ => return decode_raw_quality(raw_image, exif),
+    };
+
+    let (data, width, height, cfa_pattern) = if let Some(area) = raw_image.active_area {
+        let cropped = pixels.crop(area);
+        let shifted = shift_cfa(&cfa_name, area.p.x, area.p.y);
+        let w = cropped.width;
+        let h = cropped.height;
+        (cropped.into_inner(), w, h, shifted)
+    } else {
+        let w = pixels.width;
+        let h = pixels.height;
+        (pixels.into_inner(), w, h, cfa_name)
+    };
+
+    Ok(RawFrame {
+        width,
+        height,
+        cfa_pattern,
+        bps: 16,
+        wb_coeffs,
+        cam_to_xyz,
+        black_levels: [0.0; 4],
+        white_levels: [1.0; 4],
+        data,
+        cpp: 1,
+        orientation,
+        exif,
+    })
+}
+
+fn decode_raw_quality(
+    raw_image: rawler::RawImage,
+    exif: Option<little_exif::metadata::Metadata>,
+) -> crate::PipelineResult<RawFrame> {
+    let (wb_coeffs, cam_to_xyz, orientation) = extract_common(&raw_image, &exif);
 
     let develop = RawDevelop {
         steps: vec![
@@ -144,4 +224,19 @@ fn srgb_to_linear(v: f32) -> f32 {
     } else {
         ((v + 0.055) / 1.055).powf(2.4)
     }
+}
+
+fn shift_cfa(cfa: &str, dx: usize, dy: usize) -> String {
+    let b = cfa.as_bytes();
+    if b.len() < 4 {
+        return cfa.to_string();
+    }
+    let get = |x: usize, y: usize| -> u8 { b[((y % 2) * 2 + (x % 2)) % 4] };
+    String::from_utf8(vec![
+        get(dx, dy),
+        get(dx + 1, dy),
+        get(dx, dy + 1),
+        get(dx + 1, dy + 1),
+    ])
+    .unwrap_or_else(|_| cfa.to_string())
 }

@@ -17,11 +17,15 @@ pub struct RawFrame {
 
 pub struct RenderOptions {
     pub max_edge: u32,
+    pub quality: bool,
 }
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { max_edge: 4096 }
+        Self {
+            max_edge: 4096,
+            quality: false,
+        }
     }
 }
 
