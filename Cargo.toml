@@ -16,3 +16,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
 bytes = "1"
+toml = "0.8"
+url = "2"

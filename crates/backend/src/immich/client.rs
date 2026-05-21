@@ -1,0 +1,144 @@
+use std::time::Duration;
+
+use bytes::Bytes;
+use reqwest::Client;
+use reqwest::header::{HeaderMap, HeaderValue};
+use url::Url;
+use uuid::Uuid;
+
+use super::dto::{AlbumDetail, AlbumSummary, AssetDetail};
+use super::{ImmichError, ImmichResult};
+
+const API_KEY_HEADER: &str = "x-api-key";
+
+#[derive(Debug, Clone)]
+pub struct ImmichClient {
+    http: Client,
+    base: Url,
+}
+
+impl ImmichClient {
+    pub fn new(base: Url, api_key: &str) -> ImmichResult<Self> {
+        let mut headers = HeaderMap::new();
+        let mut key_value = HeaderValue::from_str(api_key)
+            .map_err(|_| ImmichError::Decode("invalid api key header".into()))?;
+        key_value.set_sensitive(true);
+        headers.insert(API_KEY_HEADER, key_value);
+        headers.insert("accept", HeaderValue::from_static("application/json"));
+
+        let http = Client::builder()
+            .default_headers(headers)
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(5))
+            .build()
+            .map_err(|e| ImmichError::Transport(e.to_string()))?;
+        Ok(Self { http, base })
+    }
+
+    fn url(&self, path: &str) -> ImmichResult<Url> {
+        let path = path.trim_start_matches('/');
+        let mut base = self.base.clone();
+        if !base.path().ends_with('/') {
+            base.set_path(&format!("{}/", base.path()));
+        }
+        base.join(path)
+            .map_err(|e| ImmichError::Decode(format!("url join: {e}")))
+    }
+
+    pub async fn ping(&self) -> ImmichResult<()> {
+        let url = self.url("api/server/ping")?;
+        send(&self.http, self.http.get(url)).await.map(|_| ())
+    }
+
+    pub async fn list_albums(&self) -> ImmichResult<Vec<AlbumSummary>> {
+        let url = self.url("api/albums")?;
+        let bytes = send(&self.http, self.http.get(url)).await?;
+        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+    }
+
+    pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumDetail> {
+        let url = self.url(&format!("api/albums/{id}"))?;
+        let bytes = send(&self.http, self.http.get(url)).await?;
+        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+    }
+
+    pub async fn asset(&self, id: Uuid) -> ImmichResult<AssetDetail> {
+        let url = self.url(&format!("api/assets/{id}"))?;
+        let bytes = send(&self.http, self.http.get(url)).await?;
+        serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
+    }
+
+    pub async fn thumbnail(&self, id: Uuid, size: ThumbSize) -> ImmichResult<(Bytes, String)> {
+        let url = self.url(&format!("api/assets/{id}/thumbnail"))?;
+        let req = self.http.get(url).query(&[("size", size.as_str())]);
+        let resp = run(req).await?;
+        let ct = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("image/jpeg")
+            .to_string();
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| ImmichError::Transport(e.to_string()))?;
+        Ok((bytes, ct))
+    }
+
+    pub async fn original(&self, id: Uuid) -> ImmichResult<Bytes> {
+        let url = self.url(&format!("api/assets/{id}/original"))?;
+        send(&self.http, self.http.get(url)).await
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ThumbSize {
+    Thumbnail,
+    Preview,
+}
+
+impl ThumbSize {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Thumbnail => "thumbnail",
+            Self::Preview => "preview",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "thumbnail" => Some(Self::Thumbnail),
+            "preview" => Some(Self::Preview),
+            _ => None,
+        }
+    }
+}
+
+async fn send(_http: &Client, req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
+    let resp = run(req).await?;
+    resp.bytes()
+        .await
+        .map_err(|e| ImmichError::Transport(e.to_string()))
+}
+
+async fn run(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
+    let resp = req.send().await.map_err(map_send_err)?;
+    let status = resp.status();
+    if status.is_success() {
+        return Ok(resp);
+    }
+    Err(match status.as_u16() {
+        401 | 403 => ImmichError::Unauthorized,
+        404 => ImmichError::NotFound,
+        408 => ImmichError::Timeout,
+        code => ImmichError::Status(code),
+    })
+}
+
+fn map_send_err(err: reqwest::Error) -> ImmichError {
+    if err.is_timeout() {
+        ImmichError::Timeout
+    } else {
+        ImmichError::Transport(err.without_url().to_string())
+    }
+}

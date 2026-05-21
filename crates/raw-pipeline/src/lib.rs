@@ -29,3 +29,5 @@ pub fn version() -> &'static str {
 
 pub use cpu::CpuRenderer;
 pub use frame::{RawFrame, RenderOptions, RenderedImage, Renderer};
+pub use gpu::GpuRenderer;
+pub use gpu::context::GpuContext;
