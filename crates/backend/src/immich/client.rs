@@ -144,7 +144,10 @@ impl ImmichClient {
         Ok(resp.assets)
     }
 
-    pub async fn asset_statistics(&self, query: &[(String, String)]) -> ImmichResult<AssetStatistics> {
+    pub async fn asset_statistics(
+        &self,
+        query: &[(String, String)],
+    ) -> ImmichResult<AssetStatistics> {
         let mut url = self.url("api/assets/statistics")?;
         for (k, v) in query {
             url.query_pairs_mut().append_pair(k, v);

@@ -1,9 +1,11 @@
+use raw_pipeline::edits::BasicEdits;
+use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
 
 const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf",
-    "pef", "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
+    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
+    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 
 fn any_fixture() -> Option<PathBuf> {
@@ -144,10 +146,129 @@ fn gpu_rotate_swaps_dims() {
     }
 }
 
+fn synthetic_frame(w: usize, h: usize) -> RawFrame {
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let u = x as f32 / (w - 1) as f32;
+            let v = y as f32 / (h - 1) as f32;
+            let i = (y * w + x) * 3;
+            data[i] = (u * 1.2).clamp(0.0, 1.5);
+            data[i + 1] = (v * 1.0).clamp(0.0, 1.5);
+            data[i + 2] = ((u + v) * 0.5 * 1.1).clamp(0.0, 1.5);
+        }
+    }
+    RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        black_levels: [0.0; 4],
+        white_levels: [1.0; 4],
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        exif: None,
+    }
+}
+
+fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
+    let img: turbojpeg::Image<Vec<u8>> =
+        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
+    (img.pixels, img.width, img.height)
+}
+
+fn mean_abs_delta(a: &[u8], b: &[u8]) -> f64 {
+    if a.len() != b.len() {
+        panic!("len mismatch: {} vs {}", a.len(), b.len());
+    }
+    let sum: u64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| (x as i32 - y as i32).unsigned_abs() as u64)
+        .sum();
+    sum as f64 / a.len() as f64
+}
+
+#[test]
+fn gpu_matches_cpu_within_tolerance() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+
+    let cases: &[(&str, Edits)] = &[
+        ("identity", Edits::default()),
+        (
+            "exposure+1.5",
+            Edits {
+                basic: BasicEdits {
+                    exposure_ev: 1.5,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "saturation+50",
+            Edits {
+                basic: BasicEdits {
+                    saturation: 50.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "contrast+30",
+            Edits {
+                basic: BasicEdits {
+                    contrast: 30.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+    ];
+
+    let threshold: f64 = 8.0;
+    let mut failed: Vec<String> = Vec::new();
+
+    for (label, edits) in cases {
+        let cpu_out = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
+        let gpu_out = renderer.render(&frame, edits, &opts).unwrap();
+
+        if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
+            panic!(
+                "{label}: dim mismatch CPU {}x{} vs GPU {}x{}",
+                cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
+            );
+        }
+        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.jpeg);
+        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.jpeg);
+        if (cw, ch) != (gw, gh) {
+            panic!("{label}: decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
+        }
+        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+        eprintln!("{label}: mean abs delta = {delta:.3}");
+        if delta > threshold {
+            failed.push(format!("{label}: {delta:.3} > {threshold}"));
+        }
+    }
+    if !failed.is_empty() {
+        panic!("CPU vs GPU drift exceeded threshold: {}", failed.join("; "));
+    }
+}
+
 #[test]
 fn gpu_exif_orientation_matches_cpu() {
-    use raw_pipeline::frame::RawFrame;
-
     let Some(renderer) = try_renderer() else {
         return;
     };

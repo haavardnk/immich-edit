@@ -2,8 +2,8 @@ use raw_pipeline::{cpu, decode, edits::Edits, frame::RawFrame, frame::RenderOpti
 use std::path::{Path, PathBuf};
 
 const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf",
-    "pef", "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
+    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
+    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 
 fn fixtures() -> Vec<PathBuf> {

@@ -25,12 +25,8 @@ pub fn render_with_cancel(
     let edits = edits.clamped();
 
     let (rgb, src_w, src_h) = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
-        let d = demosaic::malvar_he_cutler(
-            &frame.data,
-            frame.width,
-            frame.height,
-            &frame.cfa_pattern,
-        );
+        let d =
+            demosaic::malvar_he_cutler(&frame.data, frame.width, frame.height, &frame.cfa_pattern);
         (d, frame.width, frame.height)
     } else {
         (frame.data.clone(), frame.width, frame.height)
