@@ -34,8 +34,6 @@ struct DemosaicParams {
     size: [u32; 2],
     _pad: [u32; 2],
     cfa: [u32; 4],
-    black: [f32; 4],
-    inv_range: [f32; 4],
 }
 
 const CACHE_ITEMS: usize = 2;
@@ -180,17 +178,10 @@ impl GpuRenderer {
         let h = frame.height as u32;
 
         let cfa = cfa_to_indices(&frame.cfa_pattern);
-        let mut inv_range = [0.0f32; 4];
-        for (i, slot) in inv_range.iter_mut().enumerate() {
-            let r = frame.white_levels[i] - frame.black_levels[i];
-            *slot = if r.abs() < 1e-6 { 0.0 } else { 1.0 / r };
-        }
         let params = DemosaicParams {
             size: [w, h],
             _pad: [0, 0],
             cfa,
-            black: frame.black_levels,
-            inv_range,
         };
 
         let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {

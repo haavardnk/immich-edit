@@ -1,8 +1,6 @@
 struct DemosaicParams {
     size: vec2<u32>,
     cfa: vec4<u32>,
-    black: vec4<f32>,
-    inv_range: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> p: DemosaicParams;
@@ -17,9 +15,7 @@ fn fetch(ix: i32, iy: i32) -> f32 {
     let xc = clamp(ix, 0, i32(p.size.x) - 1);
     let yc = clamp(iy, 0, i32(p.size.y) - 1);
     let idx = u32(yc) * p.size.x + u32(xc);
-    let v = raw_in[idx];
-    let c = cfa_at(u32(xc), u32(yc));
-    return (v - p.black[c]) * p.inv_range[c];
+    return raw_in[idx];
 }
 
 fn avg_color(ix: i32, iy: i32, want: u32) -> f32 {
