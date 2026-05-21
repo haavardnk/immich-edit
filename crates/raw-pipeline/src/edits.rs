@@ -1,10 +1,76 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+pub const CURVE_LUT_SIZE: usize = 16;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct CurvePoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(transparent)]
+pub struct CurvePoints {
+    pub points: Vec<CurvePoint>,
+}
+
+impl<'de> Deserialize<'de> for CurvePoints {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de;
+        use serde_json::Value;
+
+        let v = Value::deserialize(deserializer)?;
+        let Value::Array(arr) = v else {
+            return Err(de::Error::custom("expected array for curves"));
+        };
+        let pts: Vec<CurvePoint> = arr
+            .into_iter()
+            .filter_map(|item| serde_json::from_value(item).ok())
+            .collect();
+        if pts.len() >= 2 {
+            Ok(Self { points: pts })
+        } else {
+            Ok(Self::default())
+        }
+    }
+}
+
+impl CurvePoints {
+    fn default_points() -> Vec<CurvePoint> {
+        vec![CurvePoint { x: 0.0, y: 0.0 }, CurvePoint { x: 1.0, y: 1.0 }]
+    }
+
+    pub fn is_identity(&self) -> bool {
+        self.points.len() == 2
+            && self.points[0].x.abs() < 1e-10
+            && self.points[0].y.abs() < 1e-10
+            && (self.points[1].x - 1.0).abs() < 1e-10
+            && (self.points[1].y - 1.0).abs() < 1e-10
+    }
+
+    pub fn as_tuples(&self) -> Vec<(f64, f64)> {
+        self.points.iter().map(|p| (p.x, p.y)).collect()
+    }
+}
+
+impl Default for CurvePoints {
+    fn default() -> Self {
+        Self {
+            points: Self::default_points(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct BasicEdits {
     #[serde(default)]
     pub exposure_ev: f64,
+    #[serde(default)]
+    pub brightness: f64,
     #[serde(default)]
     pub contrast: f64,
     #[serde(default)]
@@ -15,6 +81,8 @@ pub struct BasicEdits {
     pub wb_temp: f64,
     #[serde(default)]
     pub wb_tint: f64,
+    #[serde(default)]
+    pub curves: CurvePoints,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -128,11 +196,13 @@ impl Edits {
         Self {
             basic: BasicEdits {
                 exposure_ev: self.basic.exposure_ev.clamp(-5.0, 5.0),
+                brightness: self.basic.brightness.clamp(-100.0, 100.0),
                 contrast: self.basic.contrast.clamp(-100.0, 100.0),
                 saturation: self.basic.saturation.clamp(-100.0, 100.0),
                 vibrance: self.basic.vibrance.clamp(-100.0, 100.0),
                 wb_temp: self.basic.wb_temp.clamp(-100.0, 100.0),
                 wb_tint: self.basic.wb_tint.clamp(-100.0, 100.0),
+                curves: self.basic.curves.clone(),
             },
             tone: ToneEdits {
                 highlights: self.tone.highlights.clamp(-100.0, 100.0),

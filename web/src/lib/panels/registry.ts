@@ -2,6 +2,7 @@ import type { Component } from 'svelte';
 import HistogramPanel from './Histogram.svelte';
 import WhiteBalancePanel from './WhiteBalance.svelte';
 import BasicPanel from './Basic.svelte';
+import CurvesPanel from './Curves.svelte';
 import ColorPanel from './Color.svelte';
 
 export interface PanelDef {
@@ -15,5 +16,6 @@ export const developPanels: PanelDef[] = [
   { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
   { id: 'wb', title: 'White Balance', component: WhiteBalancePanel, defaultOpen: false },
   { id: 'basic', title: 'Tone', component: BasicPanel, defaultOpen: true },
+  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
   { id: 'color', title: 'Color', component: ColorPanel, defaultOpen: false },
 ];

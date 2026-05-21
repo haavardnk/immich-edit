@@ -59,7 +59,9 @@ impl EditManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edits::{BasicEdits, ColorEdits, GeometryEdits, HslBand, HslEdits, ToneEdits};
+    use crate::edits::{
+        BasicEdits, ColorEdits, CurvePoints, GeometryEdits, HslBand, HslEdits, ToneEdits,
+    };
 
     #[test]
     fn empty_edits_yields_empty_doc() {
@@ -88,11 +90,13 @@ mod tests {
         let original = Edits {
             basic: BasicEdits {
                 exposure_ev: 1.5,
+                brightness: 0.0,
                 contrast: 25.0,
                 saturation: 12.5,
                 vibrance: 18.0,
                 wb_temp: 8.0,
                 wb_tint: -4.0,
+                curves: CurvePoints::default(),
             },
             tone: ToneEdits {
                 highlights: -10.0,

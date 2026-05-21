@@ -1,4 +1,6 @@
+pub mod brightness;
 pub mod contrast;
+pub mod curves;
 pub mod exposure;
 pub mod geometry;
 pub mod hsl;
@@ -117,8 +119,10 @@ pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(exposure::ExposureOp),
+        Box::new(brightness::BrightnessOp),
         Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),
+        Box::new(curves::CurvesOp),
         Box::new(saturation::SaturationOp),
         Box::new(vibrance::VibranceOp),
         Box::new(hsl::HslOp),

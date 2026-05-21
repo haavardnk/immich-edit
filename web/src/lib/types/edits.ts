@@ -1,10 +1,17 @@
+export interface CurvePoint {
+  x: number;
+  y: number;
+}
+
 export interface BasicEdits {
   exposure_ev: number;
+  brightness: number;
   contrast: number;
   saturation: number;
   vibrance: number;
   wb_temp: number;
   wb_tint: number;
+  curves: CurvePoint[];
 }
 
 export interface ToneEdits {
@@ -88,11 +95,13 @@ export function neutralEdits(): Edits {
   return {
     basic: {
       exposure_ev: 0,
+      brightness: 0,
       contrast: 0,
       saturation: 0,
       vibrance: 0,
       wb_temp: 0,
-      wb_tint: 0
+      wb_tint: 0,
+      curves: [{ x: 0, y: 0 }, { x: 1, y: 1 }]
     },
     tone: {
       highlights: 0,
@@ -117,14 +126,26 @@ function bandsAllZero(bands: HslBand[]): boolean {
   return bands.every((b) => b.hue === 0 && b.sat === 0 && b.lum === 0);
 }
 
+function curvesAreIdentity(pts: CurvePoint[]): boolean {
+  return (
+    pts.length === 2 &&
+    Math.abs(pts[0].x) < 1e-10 &&
+    Math.abs(pts[0].y) < 1e-10 &&
+    Math.abs(pts[1].x - 1) < 1e-10 &&
+    Math.abs(pts[1].y - 1) < 1e-10
+  );
+}
+
 export function isIdentity(e: Edits): boolean {
   return (
     e.basic.exposure_ev === 0 &&
+    e.basic.brightness === 0 &&
     e.basic.contrast === 0 &&
     e.basic.saturation === 0 &&
     e.basic.vibrance === 0 &&
     e.basic.wb_temp === 0 &&
     e.basic.wb_tint === 0 &&
+    curvesAreIdentity(e.basic.curves) &&
     e.tone.highlights === 0 &&
     e.tone.shadows === 0 &&
     e.tone.blacks === 0 &&
@@ -139,7 +160,10 @@ export function isIdentity(e: Edits): boolean {
 export function editsToManifest(e: Edits): EditManifest {
   const ops: Record<string, unknown> = {};
   if (e.basic.exposure_ev !== 0) ops.exposure = { ev: e.basic.exposure_ev };
+  if (e.basic.brightness !== 0) ops.brightness = { amount: e.basic.brightness };
   if (e.basic.contrast !== 0) ops.contrast = { amount: e.basic.contrast };
+  if (!curvesAreIdentity(e.basic.curves))
+    ops.curves = { points: e.basic.curves.map((p) => [p.x, p.y]) };
   if (
     e.tone.highlights !== 0 ||
     e.tone.shadows !== 0 ||
@@ -176,8 +200,14 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const ops = doc.ops ?? {};
   const exposure = ops.exposure as { ev?: number } | undefined;
   if (exposure?.ev !== undefined) edits.basic.exposure_ev = exposure.ev;
+  const brightness = ops.brightness as { amount?: number } | undefined;
+  if (brightness?.amount !== undefined) edits.basic.brightness = brightness.amount;
   const contrast = ops.contrast as { amount?: number } | undefined;
   if (contrast?.amount !== undefined) edits.basic.contrast = contrast.amount;
+  const curves = ops.curves as { points?: number[][] } | undefined;
+  if (curves?.points && curves.points.length >= 2) {
+    edits.basic.curves = curves.points.map((p) => ({ x: p[0], y: p[1] }));
+  }
   const tr = (ops.tone_regions ?? ops.highlights_shadows) as
     | { highlights?: number; shadows?: number; blacks?: number; whites?: number }
     | undefined;
