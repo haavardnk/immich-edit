@@ -81,7 +81,15 @@ pub fn flip_vertical(pixels: &mut [f32], w: usize, h: usize) {
     }
 }
 
-pub fn crop(pixels: &[f32], w: usize, h: usize, x: f64, y: f64, cw: f64, ch: f64) -> (Vec<f32>, usize, usize) {
+pub fn crop(
+    pixels: &[f32],
+    w: usize,
+    h: usize,
+    x: f64,
+    y: f64,
+    cw: f64,
+    ch: f64,
+) -> (Vec<f32>, usize, usize) {
     let sx = (x * w as f64) as usize;
     let sy = (y * h as f64) as usize;
     let sw = ((cw * w as f64) as usize).max(1).min(w - sx);

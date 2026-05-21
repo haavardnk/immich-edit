@@ -24,15 +24,14 @@ pub async fn test_state(server: &MockServer) -> AppState {
         bind_addr: "127.0.0.1:0".into(),
         cache_dir: cache_dir.clone(),
         preview_max_edge: 1024,
-        raw_frame_cache_mb: 64,
-        linear_cache_mb: 64,
         render_max_concurrency: 1,
         renderer: RendererMode::Cpu,
+        database_url: "sqlite::memory:".into(),
     };
     AppState {
         config: Arc::new(config),
         immich: immich.clone(),
-        edits: EditsStore::new(&cache_dir),
+        edits: EditsStore::migrated_memory().await.unwrap(),
         render: RenderService::new(immich, 4, RendererMode::Cpu),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),

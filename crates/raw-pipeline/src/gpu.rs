@@ -1,7 +1,7 @@
 pub mod context;
 pub mod pipeline;
 pub mod readback;
-pub mod uniforms;
+pub mod shader_builder;
 
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -16,14 +16,24 @@ use wgpu::{
 
 use crate::edits::Edits;
 use crate::encode::encode_jpeg_rgba;
-use crate::frame::{RawFrame, RenderOptions, RenderedImage, Renderer};
+use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
+use crate::ops::OpContext;
 use crate::{PipelineError, PipelineResult};
 
 use context::GpuContext;
 use pipeline::GpuPipelines;
 use readback::{copy_texture_to_buffer, make_readback_buffer, padded_row_bytes, read_rgba8};
-use uniforms::{DemosaicParams, ProcessParams};
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct DemosaicParams {
+    size: [u32; 2],
+    _pad: [u32; 2],
+    cfa: [u32; 4],
+    black: [f32; 4],
+    inv_range: [f32; 4],
+}
 
 const CACHE_ITEMS: usize = 2;
 
@@ -111,7 +121,11 @@ impl GpuRenderer {
 
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("linear-cached"),
-            size: Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
@@ -125,9 +139,18 @@ impl GpuRenderer {
             label: Some("demosaic-bg"),
             layout: &self.pipelines.demosaic_layout,
             entries: &[
-                BindGroupEntry { binding: 0, resource: uniform_buf.as_entire_binding() },
-                BindGroupEntry { binding: 1, resource: raw_buf.as_entire_binding() },
-                BindGroupEntry { binding: 2, resource: BindingResource::TextureView(&view) },
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: raw_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&view),
+                },
             ],
         });
 
@@ -192,37 +215,44 @@ impl GpuRenderer {
 
         let (out_w, out_h) = scale_to_max(cropped_w, cropped_h, opts.max_edge);
 
-        let mut wb = compute_wb(frame.wb_coeffs, edits.wb_temp as f32, edits.wb_tint as f32);
-        wb[3] = 1.0;
-
-        let exposure = 2.0f32.powf(edits.exposure_ev as f32);
-        let contrast = (edits.contrast as f32) / 100.0;
-        let hl = (edits.highlights as f32) / 100.0;
-        let sh = (edits.shadows as f32) / 100.0;
-        let sat = (edits.saturation as f32) / 100.0;
-
         let (ot, oh_h, oh_v) = frame.orientation;
-        let orient_packed =
-            (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
+        let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
 
-        let params = ProcessParams {
-            src_size: [cached.width, cached.height],
-            out_size: [out_w, out_h],
-            crop,
-            wb,
-            tone: [exposure, contrast, hl, sh],
-            flags: [edits.rotate as u32, edits.flip_h as u32, edits.flip_v as u32, orient_packed],
-            sat,
-            _pad: [0.0, 0.0, 0.0],
+        let ctx_op = OpContext {
+            wb_coeffs: frame.wb_coeffs,
         };
+        let built = &self.pipelines.built;
+        let registry = &self.pipelines.registry;
+        let mut uniform_bytes = vec![0u8; built.uniform_size];
+        write_header(
+            &mut uniform_bytes,
+            [cached.width, cached.height],
+            [out_w, out_h],
+            crop,
+            [
+                edits.rotate as u32,
+                edits.flip_h as u32,
+                edits.flip_v as u32,
+                orient_packed,
+            ],
+        );
+        for slot in &built.color_ops {
+            let op = &registry.ops()[slot.op_index];
+            let mut buf = [0.0f32; 4];
+            op.write_gpu_uniform(&edits, &ctx_op, &mut buf);
+            let off = slot.uniform_offset;
+            uniform_bytes[off..off + 16].copy_from_slice(bytemuck::cast_slice(&buf));
+        }
 
         let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("process-uniform"),
-            contents: bytemuck::bytes_of(&params),
+            contents: &uniform_bytes,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let src_view = cached.texture.create_view(&TextureViewDescriptor::default());
+        let src_view = cached
+            .texture
+            .create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("linear-samp"),
             address_mode_u: AddressMode::ClampToEdge,
@@ -236,7 +266,11 @@ impl GpuRenderer {
 
         let out_texture = device.create_texture(&TextureDescriptor {
             label: Some("output"),
-            size: Extent3d { width: out_w, height: out_h, depth_or_array_layers: 1 },
+            size: Extent3d {
+                width: out_w,
+                height: out_h,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
@@ -250,10 +284,22 @@ impl GpuRenderer {
             label: Some("process-bg"),
             layout: &self.pipelines.process_layout,
             entries: &[
-                BindGroupEntry { binding: 0, resource: uniform_buf.as_entire_binding() },
-                BindGroupEntry { binding: 1, resource: BindingResource::TextureView(&src_view) },
-                BindGroupEntry { binding: 2, resource: BindingResource::Sampler(&sampler) },
-                BindGroupEntry { binding: 3, resource: BindingResource::TextureView(&out_view) },
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&out_view),
+                },
             ],
         });
 
@@ -290,10 +336,8 @@ impl GpuRenderer {
             renderer: "gpu".into(),
         })
     }
-}
 
-impl Renderer for GpuRenderer {
-    fn render(
+    pub fn render(
         &self,
         frame: &RawFrame,
         edits: &Edits,
@@ -301,10 +345,6 @@ impl Renderer for GpuRenderer {
     ) -> PipelineResult<RenderedImage> {
         let cached = self.get_or_demosaic(frame)?;
         self.process(&cached, frame, edits, options)
-    }
-
-    fn name(&self) -> &str {
-        "gpu"
     }
 }
 
@@ -321,23 +361,17 @@ fn cfa_to_indices(pattern: &str) -> [u32; 4] {
     out
 }
 
-fn compute_wb(raw: [f32; 4], temp: f32, tint: f32) -> [f32; 4] {
-    let mut c = raw;
-    if c[0] == 0.0 && c[1] == 0.0 && c[2] == 0.0 {
-        c = [1.0, 1.0, 1.0, 1.0];
-    }
-    if c[1] > 0.0 {
-        c[0] /= c[1];
-        c[2] /= c[1];
-        c[3] /= c[1];
-        c[1] = 1.0;
-    }
-    let t = temp / 100.0;
-    let ti = tint / 100.0;
-    c[0] *= 1.0 + t * 0.5;
-    c[2] *= 1.0 - t * 0.5;
-    c[1] *= 1.0 - ti * 0.3;
-    c
+fn write_header(
+    dst: &mut [u8],
+    src_size: [u32; 2],
+    out_size: [u32; 2],
+    crop: [f32; 4],
+    flags: [u32; 4],
+) {
+    dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
+    dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
+    dst[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
+    dst[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
 }
 
 fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {

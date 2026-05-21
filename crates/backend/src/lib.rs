@@ -18,7 +18,7 @@ pub async fn run() -> anyhow::Result<()> {
     let bind_addr = config.bind_addr.clone();
     tracing::info!(config = ?config.redacted(), "loaded config");
 
-    let state = state::AppState::new(config)?;
+    let state = state::AppState::new(config).await?;
     let app = app::router(state);
 
     let addr: SocketAddr = bind_addr.parse()?;

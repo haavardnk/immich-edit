@@ -2,24 +2,30 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, SamplerBindingType,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
-    TextureSampleType, TextureViewDimension,
+    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
+    BufferBindingType, ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor,
+    SamplerBindingType, ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
+    TextureFormat, TextureSampleType, TextureViewDimension,
 };
 
 use super::context::GpuContext;
+use super::shader_builder::{self, BuiltProcessShader};
+use crate::ops::{OpRegistry, default_registry};
 
 pub struct GpuPipelines {
     pub demosaic_layout: BindGroupLayout,
     pub demosaic_pipeline: ComputePipeline,
     pub process_layout: BindGroupLayout,
     pub process_pipeline: ComputePipeline,
+    pub registry: OpRegistry,
+    pub built: BuiltProcessShader,
 }
 
 impl GpuPipelines {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
         let device = &ctx.device;
+        let registry = default_registry();
+        let built = shader_builder::build(&registry);
 
         let demosaic_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("demosaic-bgl"),
@@ -58,8 +64,8 @@ impl GpuPipelines {
         });
 
         let demosaic_src = include_str!("../../assets/shaders/demosaic.wgsl");
-        let demosaic_src = demosaic_src
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
+        let demosaic_src =
+            demosaic_src.replace("rgba16float", linear_format_str(ctx.linear_format));
         let demosaic_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("demosaic.wgsl"),
             source: ShaderSource::Wgsl(Cow::Owned(demosaic_src)),
@@ -122,9 +128,7 @@ impl GpuPipelines {
 
         let process_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("process.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Borrowed(include_str!(
-                "../../assets/shaders/process.wgsl"
-            ))),
+            source: ShaderSource::Wgsl(Cow::Owned(built.wgsl.clone())),
         });
         let process_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("process-pl"),
@@ -145,6 +149,8 @@ impl GpuPipelines {
             demosaic_pipeline,
             process_layout,
             process_pipeline,
+            registry,
+            built,
         }
     }
 }

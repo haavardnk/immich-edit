@@ -1,4 +1,4 @@
-import { NEUTRAL_EDITS, isIdentity, type Edits } from '$lib/types/edits';
+import { NEUTRAL_EDITS, isIdentity, manifestToEdits, type Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits } from '$lib/api/edits';
@@ -51,7 +51,7 @@ class EditorStore {
     try {
       const [a, s] = await Promise.all([getAsset(id), getEdits(id)]);
       this.asset = a;
-      this.edits = { ...NEUTRAL_EDITS, ...s.edits };
+      this.edits = { ...NEUTRAL_EDITS, ...manifestToEdits(s.manifest) };
       this.initialised = true;
       this.flight.submit({ edits: $state.snapshot(this.edits) });
     } catch (e) {
@@ -91,7 +91,7 @@ class EditorStore {
         await deleteEdits(this.assetId);
       } else {
         const saved = await putEdits(this.assetId, $state.snapshot(this.edits));
-        this.edits = { ...this.edits, ...saved.edits };
+        this.edits = { ...this.edits, ...manifestToEdits(saved.manifest) };
       }
     } catch (e) {
       this.error = (e as Error).message;

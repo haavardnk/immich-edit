@@ -17,7 +17,12 @@ impl CropRect {
         let y = self.y.clamp(0.0, 1.0);
         let width = self.width.clamp(Self::MIN_DIM, 1.0 - x);
         let height = self.height.clamp(Self::MIN_DIM, 1.0 - y);
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 }
 
@@ -98,17 +103,6 @@ impl Edits {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Sidecar {
-    pub schema_version: u32,
-    pub asset_id: uuid::Uuid,
-    pub immich_updated_at: Option<String>,
-    pub immich_checksum: Option<String>,
-    pub renderer_version: String,
-    pub edits: Edits,
-    pub updated_at: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,14 +115,20 @@ mod tests {
 
     #[test]
     fn clamp_exposure() {
-        let e = Edits { exposure_ev: 10.0, ..Default::default() };
+        let e = Edits {
+            exposure_ev: 10.0,
+            ..Default::default()
+        };
         let c = e.clamped();
         assert_eq!(c.exposure_ev, 5.0);
     }
 
     #[test]
     fn clamp_invalid_rotate() {
-        let e = Edits { rotate: 45, ..Default::default() };
+        let e = Edits {
+            rotate: 45,
+            ..Default::default()
+        };
         let c = e.clamped();
         assert_eq!(c.rotate, 0);
     }
@@ -136,7 +136,12 @@ mod tests {
     #[test]
     fn clamp_crop() {
         let e = Edits {
-            crop: Some(CropRect { x: -0.5, y: 0.5, width: 2.0, height: 0.001 }),
+            crop: Some(CropRect {
+                x: -0.5,
+                y: 0.5,
+                width: 2.0,
+                height: 0.001,
+            }),
             ..Default::default()
         };
         let c = e.clamped();
@@ -149,7 +154,10 @@ mod tests {
 
     #[test]
     fn stable_hash_deterministic() {
-        let e = Edits { exposure_ev: 1.5, ..Default::default() };
+        let e = Edits {
+            exposure_ev: 1.5,
+            ..Default::default()
+        };
         let h1 = e.stable_hash();
         let h2 = e.stable_hash();
         assert_eq!(h1, h2);
@@ -158,14 +166,24 @@ mod tests {
 
     #[test]
     fn stable_hash_differs_on_change() {
-        let a = Edits { exposure_ev: 1.0, ..Default::default() };
-        let b = Edits { exposure_ev: 2.0, ..Default::default() };
+        let a = Edits {
+            exposure_ev: 1.0,
+            ..Default::default()
+        };
+        let b = Edits {
+            exposure_ev: 2.0,
+            ..Default::default()
+        };
         assert_ne!(a.stable_hash(), b.stable_hash());
     }
 
     #[test]
     fn serde_roundtrip() {
-        let e = Edits { exposure_ev: 1.0, rotate: 90, ..Default::default() };
+        let e = Edits {
+            exposure_ev: 1.0,
+            rotate: 90,
+            ..Default::default()
+        };
         let json = serde_json::to_string(&e).unwrap();
         let e2: Edits = serde_json::from_str(&json).unwrap();
         assert_eq!(e, e2);

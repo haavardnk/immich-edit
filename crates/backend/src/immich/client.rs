@@ -6,7 +6,10 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use url::Url;
 use uuid::Uuid;
 
-use super::dto::{AlbumDetail, AlbumSummary, AssetDetail, PeopleResponse, PersonSummary, SearchAssets, SearchResponse, TagSummary};
+use super::dto::{
+    AlbumDetail, AlbumSummary, AssetDetail, PeopleResponse, PersonSummary, SearchAssets,
+    SearchResponse, TagSummary,
+};
 use super::{ImmichError, ImmichResult};
 
 const API_KEY_HEADER: &str = "x-api-key";
@@ -92,15 +95,18 @@ impl ImmichClient {
 
     pub async fn list_people(&self, named_only: bool) -> ImmichResult<Vec<PersonSummary>> {
         let url = self.url("api/people")?;
-        let req = self.http.get(url).query(&[
-            ("withHidden", "false"),
-            ("size", "500"),
-        ]);
+        let req = self
+            .http
+            .get(url)
+            .query(&[("withHidden", "false"), ("size", "500")]);
         let bytes = send(&self.http, req).await?;
         let resp: PeopleResponse =
             serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))?;
         let people = if named_only {
-            resp.people.into_iter().filter(|p| !p.name.is_empty()).collect()
+            resp.people
+                .into_iter()
+                .filter(|p| !p.name.is_empty())
+                .collect()
         } else {
             resp.people
         };
@@ -142,10 +148,7 @@ impl ImmichClient {
         serde_json::from_slice(&bytes).map_err(|e| ImmichError::Decode(e.to_string()))
     }
 
-    pub async fn search_metadata(
-        &self,
-        body: &serde_json::Value,
-    ) -> ImmichResult<SearchAssets> {
+    pub async fn search_metadata(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
         let url = self.url("api/search/metadata")?;
         let bytes = send_post_json(&self.http, url, body).await?;
         let resp: SearchResponse =

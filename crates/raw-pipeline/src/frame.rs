@@ -1,5 +1,3 @@
-use crate::edits::Edits;
-
 pub type OrientFlips = (bool, bool, bool);
 
 pub struct RawFrame {
@@ -14,14 +12,6 @@ pub struct RawFrame {
     pub data: Vec<f32>,
     pub cpp: usize,
     pub orientation: OrientFlips,
-}
-
-impl RawFrame {
-    pub fn byte_size(&self) -> usize {
-        self.data.len() * std::mem::size_of::<f32>()
-            + self.cfa_pattern.len()
-            + std::mem::size_of::<Self>()
-    }
 }
 
 pub struct RenderOptions {
@@ -40,15 +30,4 @@ pub struct RenderedImage {
     pub width: u32,
     pub height: u32,
     pub renderer: String,
-}
-
-pub trait Renderer: Send + Sync {
-    fn render(
-        &self,
-        frame: &RawFrame,
-        edits: &Edits,
-        options: &RenderOptions,
-    ) -> crate::PipelineResult<RenderedImage>;
-
-    fn name(&self) -> &str;
 }

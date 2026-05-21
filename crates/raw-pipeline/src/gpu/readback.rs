@@ -3,8 +3,8 @@ use wgpu::{
     ImageDataLayout, MapMode, Origin3d, Texture, TextureAspect,
 };
 
-use crate::{PipelineError, PipelineResult};
 use super::context::GpuContext;
+use crate::{PipelineError, PipelineResult};
 
 const BYTES_PER_PIXEL: u32 = 4;
 const ROW_ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -12,7 +12,11 @@ const ROW_ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 pub fn padded_row_bytes(width: u32) -> u32 {
     let unpadded = width * BYTES_PER_PIXEL;
     let rem = unpadded % ROW_ALIGN;
-    if rem == 0 { unpadded } else { unpadded + (ROW_ALIGN - rem) }
+    if rem == 0 {
+        unpadded
+    } else {
+        unpadded + (ROW_ALIGN - rem)
+    }
 }
 
 pub fn make_readback_buffer(device: &Device, width: u32, height: u32) -> Buffer {
@@ -47,7 +51,11 @@ pub fn copy_texture_to_buffer(
                 rows_per_image: Some(height),
             },
         },
-        Extent3d { width, height, depth_or_array_layers: 1 },
+        Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
 }
 

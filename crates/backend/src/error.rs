@@ -27,7 +27,11 @@ pub enum AppError {
 impl AppError {
     fn parts(&self) -> (StatusCode, &'static str, String) {
         match self {
-            Self::NotFound => (StatusCode::NOT_FOUND, "not_found", "resource not found".into()),
+            Self::NotFound => (
+                StatusCode::NOT_FOUND,
+                "not_found",
+                "resource not found".into(),
+            ),
             Self::BadRequest(m) => (StatusCode::BAD_REQUEST, "bad_request", m.clone()),
             Self::UpstreamAuth => (
                 StatusCode::BAD_GATEWAY,

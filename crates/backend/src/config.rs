@@ -45,10 +45,9 @@ pub struct Config {
     pub bind_addr: String,
     pub cache_dir: PathBuf,
     pub preview_max_edge: u32,
-    pub raw_frame_cache_mb: u64,
-    pub linear_cache_mb: u64,
     pub render_max_concurrency: usize,
     pub renderer: RendererMode,
+    pub database_url: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -58,10 +57,9 @@ struct FileConfig {
     bind_addr: Option<String>,
     cache_dir: Option<String>,
     preview_max_edge: Option<u32>,
-    raw_frame_cache_mb: Option<u64>,
-    linear_cache_mb: Option<u64>,
     render_max_concurrency: Option<usize>,
     renderer: Option<String>,
+    database_url: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -111,11 +109,9 @@ impl Config {
             return Err(ConfigError::Missing("IMMICH_API_KEY"));
         }
 
-        let bind_addr =
-            pick("BIND_ADDR", file.bind_addr).unwrap_or_else(|| "0.0.0.0:3000".into());
-        let cache_dir = PathBuf::from(
-            pick("CACHE_DIR", file.cache_dir).unwrap_or_else(|| "./cache".into()),
-        );
+        let bind_addr = pick("BIND_ADDR", file.bind_addr).unwrap_or_else(|| "0.0.0.0:3000".into());
+        let cache_dir =
+            PathBuf::from(pick("CACHE_DIR", file.cache_dir).unwrap_or_else(|| "./cache".into()));
 
         let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 2048u32)?;
         if !(256..=8192).contains(&preview_max_edge) {
@@ -125,10 +121,11 @@ impl Config {
             });
         }
 
-        let raw_frame_cache_mb = parse_or("RAW_FRAME_CACHE_MB", file.raw_frame_cache_mb, 1024u64)?;
-        let linear_cache_mb = parse_or("LINEAR_CACHE_MB", file.linear_cache_mb, 512u64)?;
-        let render_max_concurrency =
-            parse_or("RENDER_MAX_CONCURRENCY", file.render_max_concurrency, 2usize)?;
+        let render_max_concurrency = parse_or(
+            "RENDER_MAX_CONCURRENCY",
+            file.render_max_concurrency,
+            2usize,
+        )?;
         if render_max_concurrency == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "RENDER_MAX_CONCURRENCY".into(),
@@ -138,8 +135,14 @@ impl Config {
 
         let renderer = match pick("IMMICH_EDIT_RENDERER", file.renderer) {
             Some(s) => s.parse()?,
-            None => RendererMode::Cpu,
+            None => RendererMode::Auto,
         };
+
+        let database_url = pick("DATABASE_URL", file.database_url).unwrap_or_else(|| {
+            let mut p = cache_dir.clone();
+            p.push("immich-edit.db");
+            format!("sqlite://{}?mode=rwc", p.display())
+        });
 
         Ok(Self {
             immich_url,
@@ -147,10 +150,9 @@ impl Config {
             bind_addr,
             cache_dir,
             preview_max_edge,
-            raw_frame_cache_mb,
-            linear_cache_mb,
             render_max_concurrency,
             renderer,
+            database_url,
         })
     }
 
@@ -161,8 +163,6 @@ impl Config {
             bind_addr: self.bind_addr.clone(),
             cache_dir: self.cache_dir.display().to_string(),
             preview_max_edge: self.preview_max_edge,
-            raw_frame_cache_mb: self.raw_frame_cache_mb,
-            linear_cache_mb: self.linear_cache_mb,
             render_max_concurrency: self.render_max_concurrency,
             renderer: self.renderer.as_str(),
         }
@@ -176,8 +176,6 @@ pub struct RedactedConfig {
     pub bind_addr: String,
     pub cache_dir: String,
     pub preview_max_edge: u32,
-    pub raw_frame_cache_mb: u64,
-    pub linear_cache_mb: u64,
     pub render_max_concurrency: usize,
     pub renderer: &'static str,
 }
@@ -258,7 +256,7 @@ mod tests {
         if cfg.preview_max_edge != 2048 {
             panic!("max_edge");
         }
-        if cfg.renderer != RendererMode::Cpu {
+        if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
         }
     }

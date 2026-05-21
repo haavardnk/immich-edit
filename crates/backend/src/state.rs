@@ -18,10 +18,16 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config) -> anyhow::Result<Self> {
+    pub async fn new(config: Config) -> anyhow::Result<Self> {
         let immich = ImmichClient::new(config.immich_url.clone(), &config.immich_api_key)
             .map_err(|e| anyhow::anyhow!("immich client: {e}"))?;
-        let edits = EditsStore::new(&config.cache_dir);
+        if let Some(parent) = std::path::Path::new(&config.cache_dir).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::create_dir_all(&config.cache_dir).ok();
+        let edits = EditsStore::connect(&config.database_url)
+            .await
+            .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
         let render = RenderService::new(immich.clone(), 8, config.renderer);
         let queue = RenderQueue::new(config.render_max_concurrency);
         Ok(Self {

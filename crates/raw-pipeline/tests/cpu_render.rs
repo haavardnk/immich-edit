@@ -1,4 +1,4 @@
-use raw_pipeline::{decode, edits::Edits, frame::RenderOptions, CpuRenderer, Renderer};
+use raw_pipeline::{cpu, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
 
 fn fixture(name: &str) -> Option<PathBuf> {
@@ -47,9 +47,8 @@ fn identity_render_jpeg() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let renderer = CpuRenderer;
         let opts = RenderOptions { max_edge: 512 };
-        let out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let out = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         if out.jpeg.len() < 1000 {
             panic!("{name}: jpeg too small ({} bytes)", out.jpeg.len());
         }
@@ -70,16 +69,22 @@ fn rotate_swaps_dims() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let renderer = CpuRenderer;
+
         let opts = RenderOptions { max_edge: 256 };
-        let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-        let rotated_edits = Edits { rotate: 90, ..Default::default() };
-        let rotated = renderer.render(&frame, &rotated_edits, &opts).unwrap();
+        let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
+        let rotated_edits = Edits {
+            rotate: 90,
+            ..Default::default()
+        };
+        let rotated = cpu::render(&frame, &rotated_edits, &opts).unwrap();
         if base.width == base.height {
             return;
         }
         if rotated.width != base.height || rotated.height != base.width {
-            panic!("{name}: rotate90 dims {} {} -> {} {}", base.width, base.height, rotated.width, rotated.height);
+            panic!(
+                "{name}: rotate90 dims {} {} -> {} {}",
+                base.width, base.height, rotated.width, rotated.height
+            );
         }
     });
 }
@@ -89,15 +94,21 @@ fn exposure_raises_mean() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let renderer = CpuRenderer;
+
         let opts = RenderOptions { max_edge: 256 };
-        let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-        let bright_edits = Edits { exposure_ev: 2.0, ..Default::default() };
-        let bright = renderer.render(&frame, &bright_edits, &opts).unwrap();
+        let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
+        let bright_edits = Edits {
+            exposure_ev: 2.0,
+            ..Default::default()
+        };
+        let bright = cpu::render(&frame, &bright_edits, &opts).unwrap();
         let base_mean = histogram_mean(&base.histogram.l);
         let bright_mean = histogram_mean(&bright.histogram.l);
         if bright_mean <= base_mean {
-            panic!("{name}: exposure +2 mean {} <= base {}", bright_mean, base_mean);
+            panic!(
+                "{name}: exposure +2 mean {} <= base {}",
+                bright_mean, base_mean
+            );
         }
     });
 }
@@ -107,9 +118,9 @@ fn crop_reduces_dims() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let renderer = CpuRenderer;
+
         let opts = RenderOptions { max_edge: 4096 };
-        let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let base = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let crop_edits = Edits {
             crop: Some(raw_pipeline::edits::CropRect {
                 x: 0.25,
@@ -119,7 +130,7 @@ fn crop_reduces_dims() {
             }),
             ..Default::default()
         };
-        let cropped = renderer.render(&frame, &crop_edits, &opts).unwrap();
+        let cropped = cpu::render(&frame, &crop_edits, &opts).unwrap();
         if cropped.width >= base.width || cropped.height >= base.height {
             panic!("{name}: crop did not reduce dims");
         }
@@ -131,9 +142,9 @@ fn orientation_swaps_display_dims_when_transposed() {
     each_fixture(|name, path| {
         let bytes = std::fs::read(path).unwrap();
         let frame = decode::decode(&bytes).unwrap();
-        let renderer = CpuRenderer;
+
         let opts = RenderOptions { max_edge: 256 };
-        let out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let out = cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let (transpose, _, _) = frame.orientation;
         let (expected_w, expected_h) = if transpose {
             (frame.height, frame.width)
@@ -156,6 +167,10 @@ fn histogram_mean(bins: &[u32]) -> f64 {
     if total == 0 {
         return 0.0;
     }
-    let weighted: u64 = bins.iter().enumerate().map(|(i, &v)| i as u64 * v as u64).sum();
+    let weighted: u64 = bins
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| i as u64 * v as u64)
+        .sum();
     weighted as f64 / total as f64
 }

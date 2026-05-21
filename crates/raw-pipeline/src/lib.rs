@@ -1,11 +1,12 @@
-pub mod cache;
 pub mod cpu;
 pub mod decode;
+pub mod edit_manifest;
 pub mod edits;
 pub mod encode;
 pub mod frame;
 pub mod gpu;
 pub mod histogram;
+pub mod ops;
 
 use thiserror::Error;
 
@@ -27,7 +28,6 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-pub use cpu::CpuRenderer;
-pub use frame::{RawFrame, RenderOptions, RenderedImage, Renderer};
+pub use frame::{RawFrame, RenderOptions, RenderedImage};
 pub use gpu::GpuRenderer;
 pub use gpu::context::GpuContext;

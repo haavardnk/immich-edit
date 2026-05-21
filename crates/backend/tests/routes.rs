@@ -8,7 +8,12 @@ use tower::ServiceExt;
 use wiremock::MockServer;
 
 async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
-    resp.into_body().collect().await.unwrap().to_bytes().to_vec()
+    resp.into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes()
+        .to_vec()
 }
 
 #[tokio::test]
@@ -19,7 +24,12 @@ async fn health_returns_ok_with_redacted_config() {
     let app = router(state);
 
     let resp = app
-        .oneshot(Request::builder().uri("/api/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -52,7 +62,12 @@ async fn lists_albums() {
     let app = router(test_state(&server).await);
 
     let resp = app
-        .oneshot(Request::builder().uri("/api/albums").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/api/albums")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -173,7 +188,12 @@ async fn unknown_non_api_returns_plain_404() {
     let server = MockServer::start().await;
     let app = router(test_state(&server).await);
     let resp = app
-        .oneshot(Request::builder().uri("/something").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/something")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     if resp.status() != StatusCode::NOT_FOUND {

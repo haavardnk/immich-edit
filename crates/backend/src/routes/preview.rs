@@ -33,14 +33,10 @@ pub async fn get_preview(
     Query(q): Query<PreviewQuery>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
-    let edits = state
-        .edits
-        .get_edits_or_default(id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "edits store");
-            AppError::Internal
-        })?;
+    let edits = state.edits.get_edits_or_default(id).await.map_err(|e| {
+        tracing::error!(error = %e, "edits store");
+        AppError::Internal
+    })?;
     render_to_response(&state, id, edits, max_edge).await
 }
 
@@ -72,7 +68,10 @@ async fn render_to_response(
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
     let work = render.render(asset_id, edits, max_edge);
-    let result = state.queue.enqueue::<_, _, RenderError>(asset_id, work).await;
+    let result = state
+        .queue
+        .enqueue::<_, _, RenderError>(asset_id, work)
+        .await;
     let rendered = match result {
         Some(Ok(r)) => r,
         Some(Err(e)) => return Err(map_render_err(e)),

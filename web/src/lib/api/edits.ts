@@ -1,12 +1,13 @@
 import { getJson, sendJson } from './client';
-import type { Edits, Sidecar } from '$lib/types/edits';
+import type { Edits, EditRecord } from '$lib/types/edits';
+import { editsToManifest } from '$lib/types/edits';
 
-export function getEdits(assetId: string): Promise<Sidecar> {
+export function getEdits(assetId: string): Promise<EditRecord> {
   return getJson(`/api/assets/${assetId}/edits`);
 }
 
-export function putEdits(assetId: string, edits: Partial<Edits>): Promise<Sidecar> {
-  return sendJson('PUT', `/api/assets/${assetId}/edits`, edits);
+export function putEdits(assetId: string, edits: Edits): Promise<EditRecord> {
+  return sendJson('PUT', `/api/assets/${assetId}/edits`, editsToManifest(edits));
 }
 
 export function deleteEdits(assetId: string): Promise<void> {

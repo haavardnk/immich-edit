@@ -1,145 +1,212 @@
-use std::io;
-use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
-use raw_pipeline::edits::{Edits, Sidecar};
-use tokio::fs;
+use chrono::Utc;
+use raw_pipeline::edit_manifest::EditManifest;
+use raw_pipeline::edits::Edits;
+use serde::{Deserialize, Serialize};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-pub const RENDERER_VERSION: &str = "cpu-0.1.0";
+pub const RENDERER_VERSION: &str = "0.1.0";
+const SCHEMA_VERSION: i64 = 2;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
-    #[error("io: {0}")]
-    Io(#[from] io::Error),
+    #[error("db: {0}")]
+    Db(#[from] sqlx::Error),
+    #[error("migrate: {0}")]
+    Migrate(#[from] sqlx::migrate::MigrateError),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditRecord {
+    pub schema_version: u32,
+    pub asset_id: Uuid,
+    pub immich_updated_at: Option<String>,
+    pub immich_checksum: Option<String>,
+    pub renderer_version: String,
+    pub manifest: EditManifest,
+    pub updated_at: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct EditsStore {
-    root: PathBuf,
+    pool: SqlitePool,
 }
 
 impl EditsStore {
-    pub fn new(cache_dir: impl AsRef<Path>) -> Self {
-        Self {
-            root: cache_dir.as_ref().join("edits"),
-        }
+    pub async fn connect(database_url: &str) -> Result<Self, EditsStoreError> {
+        let opts = SqliteConnectOptions::from_str(database_url)?
+            .create_if_missing(true)
+            .journal_mode(SqliteJournalMode::Wal)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(8)
+            .connect_with(opts)
+            .await?;
+        sqlx::migrate!("./migrations").run(&pool).await?;
+        Ok(Self { pool })
     }
 
-    fn path_for(&self, asset_id: Uuid) -> PathBuf {
-        self.root.join(format!("{asset_id}.json"))
+    pub async fn migrated_memory() -> Result<Self, EditsStoreError> {
+        let opts = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await?;
+        sqlx::migrate!("./migrations").run(&pool).await?;
+        Ok(Self { pool })
     }
 
-    pub async fn ensure_root(&self) -> Result<(), EditsStoreError> {
-        fs::create_dir_all(&self.root).await?;
+    pub async fn ready(&self) -> Result<(), EditsStoreError> {
+        sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
     }
 
-    pub async fn get(&self, asset_id: Uuid) -> Result<Option<Sidecar>, EditsStoreError> {
-        let path = self.path_for(asset_id);
-        match fs::read(&path).await {
-            Ok(bytes) => {
-                let sidecar: Sidecar = serde_json::from_slice(&bytes)?;
-                Ok(Some(sidecar))
-            }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(EditsStoreError::Io(e)),
-        }
+    pub async fn migration_version(&self) -> Result<Option<i64>, EditsStoreError> {
+        let row = sqlx::query("SELECT MAX(version) AS v FROM _sqlx_migrations")
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        Ok(row.try_get::<Option<i64>, _>("v")?)
+    }
+
+    pub async fn get(&self, asset_id: Uuid) -> Result<Option<EditRecord>, EditsStoreError> {
+        let row = sqlx::query(
+            "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
+             immich_checksum, updated_at FROM edits WHERE asset_id = ?1",
+        )
+        .bind(asset_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let edits_json: String = row.try_get("edits_json")?;
+        let schema_version: i64 = row.try_get("schema_version")?;
+        let renderer_version: String = row.try_get("renderer_version")?;
+        let immich_updated_at: Option<String> = row.try_get("immich_updated_at")?;
+        let immich_checksum: Option<String> = row.try_get("immich_checksum")?;
+        let updated_at: String = row.try_get("updated_at")?;
+        let edits: Edits = serde_json::from_str(&edits_json)?;
+        Ok(Some(EditRecord {
+            schema_version: schema_version as u32,
+            asset_id,
+            immich_updated_at,
+            immich_checksum,
+            renderer_version,
+            manifest: EditManifest::from_edits(&edits),
+            updated_at,
+        }))
     }
 
     pub async fn get_edits_or_default(&self, asset_id: Uuid) -> Result<Edits, EditsStoreError> {
-        Ok(self.get(asset_id).await?.map(|s| s.edits).unwrap_or_default())
+        let row = sqlx::query("SELECT edits_json FROM edits WHERE asset_id = ?1")
+            .bind(asset_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some(row) = row else {
+            return Ok(Edits::default());
+        };
+        let edits_json: String = row.try_get("edits_json")?;
+        let edits: Edits = serde_json::from_str(&edits_json)?;
+        Ok(edits)
     }
 
     pub async fn put(
         &self,
         asset_id: Uuid,
-        edits: Edits,
+        manifest: EditManifest,
         immich_updated_at: Option<String>,
         immich_checksum: Option<String>,
-    ) -> Result<Sidecar, EditsStoreError> {
-        self.ensure_root().await?;
-        let now = chrono_like_now();
-        let sidecar = Sidecar {
-            schema_version: 1,
+    ) -> Result<EditRecord, EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let edits = manifest.to_edits().clamped();
+        let edits_json = serde_json::to_string(&edits)?;
+        let renderer_version = RENDERER_VERSION.to_string();
+        sqlx::query(
+            "INSERT INTO edits (asset_id, edits_json, schema_version, renderer_version, \
+             immich_updated_at, immich_checksum, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
+             ON CONFLICT(asset_id) DO UPDATE SET \
+               edits_json = excluded.edits_json, \
+               schema_version = excluded.schema_version, \
+               renderer_version = excluded.renderer_version, \
+               immich_updated_at = excluded.immich_updated_at, \
+               immich_checksum = excluded.immich_checksum, \
+               updated_at = excluded.updated_at",
+        )
+        .bind(asset_id.to_string())
+        .bind(&edits_json)
+        .bind(SCHEMA_VERSION)
+        .bind(&renderer_version)
+        .bind(&immich_updated_at)
+        .bind(&immich_checksum)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(EditRecord {
+            schema_version: SCHEMA_VERSION as u32,
             asset_id,
             immich_updated_at,
             immich_checksum,
-            renderer_version: RENDERER_VERSION.into(),
-            edits: edits.clamped(),
+            renderer_version,
+            manifest: EditManifest::from_edits(&edits),
             updated_at: now,
-        };
-        let bytes = serde_json::to_vec_pretty(&sidecar)?;
-        let final_path = self.path_for(asset_id);
-        let tmp_path = self
-            .root
-            .join(format!(".{asset_id}.{}.tmp", Uuid::new_v4()));
-        {
-            let f = fs::File::create(&tmp_path).await?;
-            let mut writer = tokio::io::BufWriter::new(f);
-            use tokio::io::AsyncWriteExt;
-            writer.write_all(&bytes).await?;
-            writer.flush().await?;
-            writer.get_ref().sync_all().await?;
-        }
-        fs::rename(&tmp_path, &final_path).await?;
-        Ok(sidecar)
+        })
     }
 
     pub async fn delete(&self, asset_id: Uuid) -> Result<bool, EditsStoreError> {
-        let path = self.path_for(asset_id);
-        match fs::remove_file(&path).await {
-            Ok(()) => Ok(true),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
-            Err(e) => Err(EditsStoreError::Io(e)),
-        }
+        let res = sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
+            .bind(asset_id.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(res.rows_affected() > 0)
     }
-}
-
-fn chrono_like_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use raw_pipeline::edits::Edits;
-    use tempfile::tempdir;
 
     fn uid() -> Uuid {
         Uuid::new_v4()
     }
 
+    async fn store() -> EditsStore {
+        EditsStore::migrated_memory().await.unwrap()
+    }
+
+    fn doc_with(edits: Edits) -> EditManifest {
+        EditManifest::from_edits(&edits)
+    }
+
     #[tokio::test]
     async fn get_missing_returns_none() {
-        let dir = tempdir().unwrap();
-        let store = EditsStore::new(dir.path());
-        let out = store.get(uid()).await.unwrap();
-        if out.is_some() {
+        let s = store().await;
+        if s.get(uid()).await.unwrap().is_some() {
             panic!("expected none");
         }
     }
 
     #[tokio::test]
     async fn put_then_get_roundtrips() {
-        let dir = tempdir().unwrap();
-        let store = EditsStore::new(dir.path());
+        let s = store().await;
         let id = uid();
-        let edits = Edits {
+        let doc = doc_with(Edits {
             exposure_ev: 1.0,
             rotate: 90,
             ..Default::default()
-        };
-        let saved = store
+        });
+        let saved = s
             .put(
                 id,
-                edits.clone(),
+                doc,
                 Some("2026-01-01T00:00:00Z".into()),
                 Some("abc".into()),
             )
@@ -148,8 +215,9 @@ mod tests {
         if saved.asset_id != id {
             panic!("id");
         }
-        let loaded = store.get(id).await.unwrap().unwrap();
-        if loaded.edits.exposure_ev != 1.0 || loaded.edits.rotate != 90 {
+        let loaded = s.get(id).await.unwrap().unwrap();
+        let edits = loaded.manifest.to_edits();
+        if edits.exposure_ev != 1.0 || edits.rotate != 90 {
             panic!("edits");
         }
         if loaded.immich_checksum.as_deref() != Some("abc") {
@@ -159,56 +227,79 @@ mod tests {
 
     #[tokio::test]
     async fn put_clamps_invalid_values() {
-        let dir = tempdir().unwrap();
-        let store = EditsStore::new(dir.path());
+        let s = store().await;
         let id = uid();
-        let edits = Edits {
+        let doc = doc_with(Edits {
             exposure_ev: 99.0,
             rotate: 33,
             ..Default::default()
-        };
-        let saved = store.put(id, edits, None, None).await.unwrap();
-        if saved.edits.exposure_ev > 5.0 {
-            panic!("not clamped: {}", saved.edits.exposure_ev);
+        });
+        let saved = s.put(id, doc, None, None).await.unwrap();
+        let edits = saved.manifest.to_edits();
+        if edits.exposure_ev > 5.0 {
+            panic!("not clamped: {}", edits.exposure_ev);
         }
-        if saved.edits.rotate != 0 {
-            panic!("rotate not snapped: {}", saved.edits.rotate);
+        if edits.rotate != 0 {
+            panic!("rotate not snapped: {}", edits.rotate);
         }
     }
 
     #[tokio::test]
     async fn delete_removes() {
-        let dir = tempdir().unwrap();
-        let store = EditsStore::new(dir.path());
+        let s = store().await;
         let id = uid();
-        store.put(id, Edits::default(), None, None).await.unwrap();
-        if !store.delete(id).await.unwrap() {
+        s.put(id, EditManifest::default(), None, None)
+            .await
+            .unwrap();
+        if !s.delete(id).await.unwrap() {
             panic!("first delete");
         }
-        if store.delete(id).await.unwrap() {
+        if s.delete(id).await.unwrap() {
             panic!("second delete should be false");
         }
-        if store.get(id).await.unwrap().is_some() {
+        if s.get(id).await.unwrap().is_some() {
             panic!("still present");
         }
     }
 
     #[tokio::test]
-    async fn atomic_write_no_temp_left() {
-        let dir = tempdir().unwrap();
-        let store = EditsStore::new(dir.path());
+    async fn put_overwrites() {
+        let s = store().await;
         let id = uid();
-        store.put(id, Edits::default(), None, None).await.unwrap();
-        let mut found_tmp = false;
-        let mut entries = fs::read_dir(dir.path().join("edits")).await.unwrap();
-        while let Some(e) = entries.next_entry().await.unwrap() {
-            let name = e.file_name().into_string().unwrap();
-            if name.ends_with(".tmp") {
-                found_tmp = true;
-            }
+        s.put(
+            id,
+            doc_with(Edits {
+                exposure_ev: 1.0,
+                ..Default::default()
+            }),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        s.put(
+            id,
+            doc_with(Edits {
+                exposure_ev: 2.0,
+                ..Default::default()
+            }),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let loaded = s.get(id).await.unwrap().unwrap();
+        if loaded.manifest.to_edits().exposure_ev != 2.0 {
+            panic!("overwrite");
         }
-        if found_tmp {
-            panic!("tmp file left behind");
+    }
+
+    #[tokio::test]
+    async fn migration_version_reports_latest() {
+        let s = store().await;
+        let v = s.migration_version().await.unwrap();
+        if v.is_none() {
+            panic!("missing");
         }
     }
 }

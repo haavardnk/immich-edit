@@ -92,7 +92,11 @@ fn interpolate_hv(frame: &RawFrame, x: usize, y: usize, cfa: &str, want_red: boo
     let above = cfa_color(cfa, cfa_x, (cfa_y + 1) % 2);
     let left = cfa_color(cfa, (cfa_x + 1) % 2, cfa_y);
 
-    let target = if want_red { CfaColor::Red } else { CfaColor::Blue };
+    let target = if want_red {
+        CfaColor::Red
+    } else {
+        CfaColor::Blue
+    };
 
     if above == target {
         (sample(frame, ix, iy - 1) + sample(frame, ix, iy + 1)) / 2.0

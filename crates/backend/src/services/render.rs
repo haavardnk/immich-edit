@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
-use raw_pipeline::{CpuRenderer, GpuRenderer, PipelineError, RenderedImage, Renderer};
+use raw_pipeline::{GpuRenderer, PipelineError, RenderedImage};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -84,9 +84,11 @@ impl RenderService {
         let opts = RenderOptions { max_edge };
         let gpu = self.gpu.clone();
         let active = self.active;
-        let result = tokio::task::spawn_blocking(move || render_blocking(active, gpu, &frame, &edits, &opts))
-            .await
-            .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
+        let result = tokio::task::spawn_blocking(move || {
+            render_blocking(active, gpu, &frame, &edits, &opts)
+        })
+        .await
+        .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
         Ok(result)
     }
 }
@@ -129,7 +131,7 @@ fn render_blocking(
             }
         }
     }
-    CpuRenderer.render(frame, edits, opts)
+    raw_pipeline::cpu::render(frame, edits, opts)
 }
 
 async fn decode_blocking(bytes: Bytes) -> Result<RawFrame, PipelineError> {

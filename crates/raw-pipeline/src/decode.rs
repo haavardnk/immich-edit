@@ -1,15 +1,13 @@
-use crate::frame::RawFrame;
 use crate::PipelineError;
+use crate::frame::RawFrame;
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     let source = rawler::rawsource::RawSource::new_from_slice(data);
     let params = rawler::decoders::RawDecodeParams::default();
-    let mut raw_image = rawler::decode(&source, &params)
-        .map_err(|e| PipelineError::Decode(format!("{e}")))?;
+    let mut raw_image =
+        rawler::decode(&source, &params).map_err(|e| PipelineError::Decode(format!("{e}")))?;
 
-    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        raw_image.apply_scaling()
-    }));
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| raw_image.apply_scaling()));
 
     let width = raw_image.width;
     let height = raw_image.height;
