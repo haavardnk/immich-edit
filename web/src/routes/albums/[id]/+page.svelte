@@ -3,6 +3,7 @@
   import { onMount, untrack } from 'svelte';
   import { album } from '$lib/stores/album.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
 
   const id = $derived(page.params.id as string);
@@ -10,6 +11,10 @@
   $effect(() => {
     const current = id;
     untrack(() => album.load(current));
+  });
+
+  $effect(() => {
+    if (album.current) browsing.set(album.current.assets);
   });
 
   onMount(() => {

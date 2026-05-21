@@ -3,6 +3,7 @@
   import { onMount, untrack } from 'svelte';
   import { folderAssets } from '$lib/api/folders';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -25,6 +26,7 @@
       updatedAt: a.updatedAt,
       checksum: a.checksum,
     }));
+    browsing.set(assets);
     loading = false;
   }
 

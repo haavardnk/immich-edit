@@ -1,15 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { album } from '$lib/stores/album.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { thumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
-  import type { AssetSummary } from '$lib/types/album';
 
   const currentId = $derived(page.params.id ?? null);
 
-  const assets = $derived<AssetSummary[]>(album.current?.assets ?? []);
+  const assets = $derived(browsing.assets);
   const currentIndex = $derived(assets.findIndex((a) => a.id === currentId));
 
   let scrollContainer: HTMLDivElement | undefined = $state();

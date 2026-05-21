@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { listEditedAssetIds } from '$lib/api/edits';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -19,6 +20,7 @@
       updatedAt: null,
       checksum: null,
     }));
+    browsing.set(assets);
     loading = false;
   });
 </script>

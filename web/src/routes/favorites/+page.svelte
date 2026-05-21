@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { searchMetadata } from '$lib/api/search';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -14,6 +15,7 @@
     editor.unload();
     const result = await searchMetadata({ isFavorite: true, size: 500 });
     assets = result.items;
+    browsing.set(assets);
     nextPage = result.nextPage;
     loading = false;
   });
@@ -23,6 +25,7 @@
     loadingMore = true;
     searchMetadata({ isFavorite: true, size: 500, page: nextPage }).then((result) => {
       assets = [...assets, ...result.items];
+      browsing.set(assets);
       nextPage = result.nextPage;
       loadingMore = false;
     });
