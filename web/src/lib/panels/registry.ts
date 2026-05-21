@@ -14,8 +14,8 @@ export interface PanelDef {
 
 export const developPanels: PanelDef[] = [
   { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
-  { id: 'wb', title: 'White Balance', component: WhiteBalancePanel, defaultOpen: false },
+  { id: 'wb', title: 'White Balance', component: WhiteBalancePanel, defaultOpen: true },
   { id: 'basic', title: 'Tone', component: BasicPanel, defaultOpen: true },
-  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
-  { id: 'color', title: 'Color', component: ColorPanel, defaultOpen: false },
+  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: true },
+  { id: 'color', title: 'Color', component: ColorPanel, defaultOpen: true },
 ];

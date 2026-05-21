@@ -105,7 +105,7 @@
               {/if}
             </div>
           {/each}
-          <div class="h-40"></div>
+          <div class="h-8"></div>
         {:else if activeTab === 'geometry'}
           <div class="px-4 py-3">
             <TransformPanel />
