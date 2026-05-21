@@ -15,6 +15,8 @@ use crate::ops::{OpRegistry, default_registry};
 pub struct GpuPipelines {
     pub demosaic_layout: BindGroupLayout,
     pub demosaic_pipeline: ComputePipeline,
+    pub mipgen_layout: BindGroupLayout,
+    pub mipgen_pipeline: ComputePipeline,
     pub process_layout: BindGroupLayout,
     pub process_pipeline: ComputePipeline,
     pub registry: OpRegistry,
@@ -79,6 +81,51 @@ impl GpuPipelines {
             label: Some("demosaic-cp"),
             layout: Some(&demosaic_pipeline_layout),
             module: &demosaic_module,
+            entry_point: "main",
+            compilation_options: Default::default(),
+            cache: None,
+        });
+
+        let mipgen_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("mipgen-bgl"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::WriteOnly,
+                        format: ctx.linear_format,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+            ],
+        });
+        let mipgen_src = include_str!("../../assets/shaders/mipgen.wgsl");
+        let mipgen_src = mipgen_src.replace("rgba16float", linear_format_str(ctx.linear_format));
+        let mipgen_module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("mipgen.wgsl"),
+            source: ShaderSource::Wgsl(Cow::Owned(mipgen_src)),
+        });
+        let mipgen_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("mipgen-pl"),
+            bind_group_layouts: &[&mipgen_layout],
+            push_constant_ranges: &[],
+        });
+        let mipgen_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
+            label: Some("mipgen-cp"),
+            layout: Some(&mipgen_pipeline_layout),
+            module: &mipgen_module,
             entry_point: "main",
             compilation_options: Default::default(),
             cache: None,
@@ -157,6 +204,8 @@ impl GpuPipelines {
         Self {
             demosaic_layout,
             demosaic_pipeline,
+            mipgen_layout,
+            mipgen_pipeline,
             process_layout,
             process_pipeline,
             registry,

@@ -59,6 +59,10 @@ fn round_up_256(v: u32) -> u32 {
     (v + 255) & !255
 }
 
+fn mip_count(w: u32, h: u32) -> u32 {
+    (w.max(h) as f32).log2().floor() as u32 + 1
+}
+
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     pipelines: Arc<GpuPipelines>,
@@ -130,7 +134,7 @@ impl GpuRenderer {
                 height: h,
                 depth_or_array_layers: 1,
             },
-            mip_level_count: 1,
+            mip_level_count: mip_count(w, h),
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.ctx.linear_format,
@@ -154,6 +158,8 @@ impl GpuRenderer {
                 depth_or_array_layers: 1,
             },
         );
+
+        self.encode_mipgen(&texture, w, h);
 
         Ok(Arc::new(CachedFrame {
             texture: Arc::new(texture),
@@ -206,14 +212,18 @@ impl GpuRenderer {
                 height: h,
                 depth_or_array_layers: 1,
             },
-            mip_level_count: 1,
+            mip_level_count: mip_count(w, h),
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.ctx.linear_format,
             usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
-        let view = texture.create_view(&TextureViewDescriptor::default());
+        let view = texture.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
 
         let bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("demosaic-bg"),
@@ -249,12 +259,67 @@ impl GpuRenderer {
             pass.dispatch_workgroups(gx, gy, 1);
         }
         queue.submit(Some(encoder.finish()));
+        self.encode_mipgen(&texture, w, h);
 
         Ok(Arc::new(CachedFrame {
             texture: Arc::new(texture),
             width: w,
             height: h,
         }))
+    }
+
+    fn encode_mipgen(&self, texture: &Texture, w: u32, h: u32) {
+        let levels = mip_count(w, h);
+        if levels <= 1 {
+            return;
+        }
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("mipgen-enc"),
+        });
+        let mut mip_w = w;
+        let mut mip_h = h;
+        for level in 1..levels {
+            let src_view = texture.create_view(&TextureViewDescriptor {
+                base_mip_level: level - 1,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+            let dst_w = (mip_w / 2).max(1);
+            let dst_h = (mip_h / 2).max(1);
+            let dst_view = texture.create_view(&TextureViewDescriptor {
+                base_mip_level: level,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+            let bind = device.create_bind_group(&BindGroupDescriptor {
+                label: Some("mipgen-bg"),
+                layout: &self.pipelines.mipgen_layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: BindingResource::TextureView(&src_view),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(&dst_view),
+                    },
+                ],
+            });
+            {
+                let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("mipgen-pass"),
+                    timestamp_writes: None,
+                });
+                pass.set_pipeline(&self.pipelines.mipgen_pipeline);
+                pass.set_bind_group(0, &bind, &[]);
+                pass.dispatch_workgroups(dst_w.div_ceil(16), dst_h.div_ceil(16), 1);
+            }
+            mip_w = dst_w;
+            mip_h = dst_h;
+        }
+        queue.submit(Some(encoder.finish()));
     }
 
     fn process(
@@ -292,6 +357,14 @@ impl GpuRenderer {
 
         let (out_w, out_h) = scale_to_max(oriented_w, oriented_h, opts.max_edge);
 
+        let src_max = cached.width.max(cached.height) as f32;
+        let out_max = out_w.max(out_h) as f32;
+        let lod = if src_max > out_max {
+            (src_max / out_max).log2()
+        } else {
+            0.0
+        };
+
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
 
@@ -328,7 +401,7 @@ impl GpuRenderer {
                 edits.geometry.flip_v as u32,
                 orient_packed,
             ],
-            [0.0, 0.0, 0.0, 0.0],
+            [lod, 0.0, 0.0, 0.0],
         );
         let mut active_mask: u32 = 0;
         for slot in &built.color_ops {
@@ -363,7 +436,7 @@ impl GpuRenderer {
             address_mode_w: AddressMode::ClampToEdge,
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Linear,
             ..Default::default()
         });
 
