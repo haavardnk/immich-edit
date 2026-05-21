@@ -68,6 +68,25 @@
 
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
         {#if activeTab === 'develop'}
+          <div class="px-4 py-2.5 flex items-center gap-2">
+            <button
+              class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={editor.autoBusy || !editor.assetId}
+              onclick={() => void editor.onAutoAdjust()}
+            >
+              <Icon path={mdiAutoFix} size={14} />
+              {editor.autoBusy ? 'Analyzing…' : 'Auto'}
+            </button>
+            <button
+              class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+              disabled={neutral || editor.saving}
+              onclick={() => void editor.onReset()}
+            >
+              <Icon path={mdiRestore} size={14} />
+              Reset
+            </button>
+          </div>
+
           {#each developPanels as panel (panel.id)}
             {@const Comp = panel.component}
             {@const isOpen = openPanels.has(panel.id)}
@@ -86,28 +105,6 @@
               {/if}
             </div>
           {/each}
-
-          <div class="border-t border-white/5 px-4 py-3 flex flex-col gap-2">
-            <button
-              class="flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              disabled={editor.autoBusy || !editor.assetId}
-              onclick={() => void editor.onAutoAdjust()}
-            >
-              <Icon path={mdiAutoFix} size={16} />
-              {editor.autoBusy ? 'Analyzing…' : 'Auto adjust'}
-            </button>
-            <button
-              class="flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              disabled={neutral || editor.saving}
-              onclick={() => void editor.onReset()}
-            >
-              <Icon path={mdiRestore} size={16} />
-              Reset all
-            </button>
-            <div class="text-[10px] text-immich-dark-fg/30 text-center">
-              {#if editor.saving}saving…{:else if neutral}no edits{:else}edited{/if}
-            </div>
-          </div>
         {:else if activeTab === 'geometry'}
           <div class="px-4 py-3">
             <TransformPanel />

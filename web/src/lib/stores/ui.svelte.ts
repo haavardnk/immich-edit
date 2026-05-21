@@ -16,6 +16,10 @@ class UiStore {
   rightCollapsed = $state(false);
   filmstripCollapsed = $state(false);
   searchQuery = $state('');
+  fullscreen = $state(false);
+  zoom = $state(100);
+  panX = $state(0);
+  panY = $state(0);
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;
@@ -27,6 +31,30 @@ class UiStore {
 
   toggleFilmstrip = (): void => {
     this.filmstripCollapsed = !this.filmstripCollapsed;
+  };
+
+  toggleFullscreen = (): void => {
+    this.fullscreen = !this.fullscreen;
+  };
+
+  zoomIn = (): void => {
+    this.zoom = Math.min(this.zoom + 25, 400);
+  };
+
+  zoomOut = (): void => {
+    this.zoom = Math.max(this.zoom - 25, 25);
+    if (this.zoom <= 100) { this.panX = 0; this.panY = 0; }
+  };
+
+  zoomFit = (): void => {
+    this.zoom = 100;
+    this.panX = 0;
+    this.panY = 0;
+  };
+
+  setZoom = (value: number): void => {
+    this.zoom = Math.round(Math.max(25, Math.min(400, value)));
+    if (this.zoom <= 100) { this.panX = 0; this.panY = 0; }
   };
 }
 

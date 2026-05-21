@@ -10,6 +10,7 @@ import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
 
 const MAX_EDGE = 1600;
+const MAX_HISTORY = 50;
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -22,6 +23,11 @@ class EditorStore {
   exporting = $state(false);
   autoBusy = $state(false);
   error = $state<string | null>(null);
+  showingOriginal = $state(false);
+
+  private history = $state<Edits[]>([]);
+  private historyCursor = $state(-1);
+  private skipHistory = false;
 
   private initialised = false;
   private flight = new SingleFlight<{ edits: Edits }, { url: string; metaId: string | null }>(
@@ -54,6 +60,7 @@ class EditorStore {
       this.asset = a;
       this.edits = manifestToEdits(s.manifest);
       this.initialised = true;
+      this.pushHistory();
       this.flight.submit({ edits: $state.snapshot(this.edits) });
     } catch (e) {
       this.error = (e as Error).message;
@@ -69,13 +76,55 @@ class EditorStore {
     this.assetId = null;
     this.initialised = false;
     this.edits = neutralEdits();
+    this.history = [];
+    this.historyCursor = -1;
+    this.showingOriginal = false;
   }
+
+  private pushHistory(): void {
+    const trimmed = this.history.slice(0, this.historyCursor + 1);
+    trimmed.push($state.snapshot(this.edits));
+    if (trimmed.length > MAX_HISTORY) trimmed.shift();
+    this.history = trimmed;
+    this.historyCursor = this.history.length - 1;
+  }
+
+  get canUndo(): boolean {
+    return this.historyCursor > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.historyCursor < this.history.length - 1;
+  }
+
+  undo = (): void => {
+    if (!this.canUndo) return;
+    this.historyCursor--;
+    this.edits = $state.snapshot(this.history[this.historyCursor]) as Edits;
+    this.skipHistory = true;
+    void this.onCommit();
+    this.skipHistory = false;
+  };
+
+  redo = (): void => {
+    if (!this.canRedo) return;
+    this.historyCursor++;
+    this.edits = $state.snapshot(this.history[this.historyCursor]) as Edits;
+    this.skipHistory = true;
+    void this.onCommit();
+    this.skipHistory = false;
+  };
 
   loadPersisted(): void {
     if (!this.assetId) return;
     const prev = this.previewUrl;
     this.previewUrl = persistedPreviewUrl(this.assetId, MAX_EDGE) + `&_=${Date.now()}`;
     if (prev?.startsWith('blob:')) revoke(prev);
+  }
+
+  showOriginal(): void {
+    if (!this.initialised) return;
+    this.flight.submit({ edits: neutralEdits() });
   }
 
   onLive = (): void => {
@@ -85,6 +134,7 @@ class EditorStore {
 
   onCommit = async (): Promise<void> => {
     if (!this.initialised || !this.assetId) return;
+    if (!this.skipHistory) this.pushHistory();
     this.onLive();
     this.saving = true;
     try {
