@@ -73,6 +73,7 @@
 
   onMount(() => {
     void library.load();
+    void library.loadCounts();
   });
 </script>
 
@@ -155,7 +156,10 @@
           class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/photos' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
         >
           <Icon path={mdiImageMultipleOutline} size={18} class="flex-none" />
-          <span class="text-[13px] font-medium">Photos</span>
+          <span class="text-[13px] font-medium flex-1">Photos</span>
+          {#if library.photosCount != null}
+            <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.photosCount}</span>
+          {/if}
         </a>
 
         <!-- People -->
@@ -166,6 +170,9 @@
           >
             <Icon path={mdiAccountOutline} size={18} class="flex-none" />
             <span class="text-[13px] font-medium flex-1 text-left">People</span>
+            {#if library.people.length > 0}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.people.length}</span>
+            {/if}
             <Icon path={expanded.has('people') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
           </button>
           {#if expanded.has('people')}
@@ -182,7 +189,10 @@
             class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/favorites' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
           >
             <Icon path={mdiHeartOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium">Favorites</span>
+            <span class="text-[13px] font-medium flex-1">Favorites</span>
+            {#if library.favoritesCount != null}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.favoritesCount}</span>
+            {/if}
           </a>
         </div>
 
@@ -194,6 +204,9 @@
           >
             <Icon path={mdiImageAlbum} size={18} class="flex-none" />
             <span class="text-[13px] font-medium flex-1 text-left">Albums</span>
+            {#if library.albums.length > 0}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.albums.length}</span>
+            {/if}
             <Icon path={expanded.has('albums') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
           </button>
           {#if expanded.has('albums')}
@@ -211,6 +224,9 @@
           >
             <Icon path={mdiTagMultipleOutline} size={18} class="flex-none" />
             <span class="text-[13px] font-medium flex-1 text-left">Tags</span>
+            {#if library.tags.length > 0}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.tags.length}</span>
+            {/if}
             <Icon path={expanded.has('tags') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
           </button>
           {#if expanded.has('tags')}
@@ -228,6 +244,9 @@
           >
             <Icon path={mdiFolderOutline} size={18} class="flex-none" />
             <span class="text-[13px] font-medium flex-1 text-left">Folders</span>
+            {#if library.foldersCount != null && library.foldersCount > 0}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.foldersCount}</span>
+            {/if}
             <Icon path={expanded.has('folders') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
           </button>
           {#if expanded.has('folders')}
@@ -244,7 +263,10 @@
             class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/edited' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
           >
             <Icon path={mdiPencilOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium">Edited</span>
+            <span class="text-[13px] font-medium flex-1">Edited</span>
+            {#if library.editedCount != null && library.editedCount > 0}
+              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.editedCount}</span>
+            {/if}
           </a>
         </div>
       </div>

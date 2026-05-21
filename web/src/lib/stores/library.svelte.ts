@@ -2,6 +2,8 @@ import { listAlbums } from '$lib/api/albums';
 import { listPeople, type PersonSummary } from '$lib/api/people';
 import { listTags, type TagSummary } from '$lib/api/tags';
 import { folderPaths } from '$lib/api/folders';
+import { listEditedAssetIds } from '$lib/api/edits';
+import { searchMetadata } from '$lib/api/search';
 import type { AlbumSummary } from '$lib/types/album';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
@@ -40,7 +42,17 @@ class LibraryStore {
   loading = $state(false);
   error = $state<string | null>(null);
 
+  photosCount = $state<number | null>(null);
+  favoritesCount = $state<number | null>(null);
+  editedCount = $state<number | null>(null);
+  private folderPathCount = $state<number | null>(null);
+
+  get foldersCount(): number | null {
+    return this.folderPathCount;
+  }
+
   private loaded = new Set<LibraryView>();
+  private countsLoaded = false;
 
   async loadView(v: LibraryView): Promise<void> {
     this.view = v;
@@ -75,6 +87,40 @@ class LibraryStore {
   async load(force = false): Promise<void> {
     if (force) this.loaded.delete(this.view);
     await this.loadView(this.view);
+  }
+
+  async loadCounts(): Promise<void> {
+    if (this.countsLoaded) return;
+    this.countsLoaded = true;
+    const [photos, favs, albums, people, tags, paths, editedIds] = await Promise.all([
+      searchMetadata({ size: 1 }).catch(() => null),
+      searchMetadata({ isFavorite: true, size: 1 }).catch(() => null),
+      listAlbums().catch(() => [] as AlbumSummary[]),
+      listPeople().catch(() => [] as PersonSummary[]),
+      listTags().catch(() => [] as TagSummary[]),
+      folderPaths().catch(() => [] as string[]),
+      listEditedAssetIds().catch(() => [] as string[]),
+    ]);
+    if (photos) this.photosCount = photos.total;
+    if (favs) this.favoritesCount = favs.total;
+    if (!this.loaded.has('albums')) {
+      this.albums = albums;
+      this.loaded.add('albums');
+    }
+    if (!this.loaded.has('people')) {
+      this.people = people;
+      this.loaded.add('people');
+    }
+    if (!this.loaded.has('tags')) {
+      this.tags = tags;
+      this.loaded.add('tags');
+    }
+    if (!this.loaded.has('folders')) {
+      this.folderTree = buildTree(paths);
+      this.loaded.add('folders');
+    }
+    this.folderPathCount = paths.length;
+    this.editedCount = editedIds.length;
   }
 }
 
