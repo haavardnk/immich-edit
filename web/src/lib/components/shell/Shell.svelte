@@ -4,6 +4,7 @@
   import LeftSidebar from './LeftSidebar.svelte';
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
+  import Toasts from './Toasts.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
 
@@ -30,4 +31,5 @@
       <RightSidebar />
     {/if}
   </div>
+  <Toasts />
 </div>

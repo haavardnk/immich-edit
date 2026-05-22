@@ -1,3 +1,5 @@
+import { toasts } from '$lib/stores/toasts.svelte';
+
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -5,6 +7,12 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
     this.code = code;
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
   }
 }
 
@@ -21,9 +29,42 @@ async function parseError(resp: Response): Promise<ApiError> {
   return new ApiError(resp.status, code, message);
 }
 
+function reportError(err: unknown): void {
+  if (err instanceof ApiError) {
+    if (err.code === 'upstream_unavailable') {
+      toasts.push('error', 'Immich server unavailable. Check IMMICH_URL and that Immich is running.');
+    } else if (err.code === 'upstream_auth') {
+      toasts.push('error', 'Immich rejected the API key. Check IMMICH_API_KEY.');
+    } else if (err.code === 'upstream_timeout') {
+      toasts.push('warn', 'Immich request timed out.');
+    } else if (err.status >= 500) {
+      toasts.push('error', `Server error: ${err.message}`);
+    }
+    return;
+  }
+  if (err instanceof NetworkError) {
+    toasts.push('error', 'Backend unreachable. Is immich-edit running?');
+  }
+}
+
+async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    const netErr = new NetworkError((err as Error)?.message ?? 'network error');
+    reportError(netErr);
+    throw netErr;
+  }
+}
+
 export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(path, init);
-  if (!resp.ok) throw await parseError(resp);
+  const resp = await safeFetch(path, init);
+  if (!resp.ok) {
+    const err = await parseError(resp);
+    reportError(err);
+    throw err;
+  }
   return (await resp.json()) as T;
 }
 
@@ -33,7 +74,7 @@ export async function sendJson<T>(
   body: unknown,
   init?: RequestInit
 ): Promise<T> {
-  const resp = await fetch(path, {
+  const resp = await safeFetch(path, {
     ...init,
     method,
     headers: {
@@ -42,7 +83,11 @@ export async function sendJson<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
-  if (!resp.ok) throw await parseError(resp);
+  if (!resp.ok) {
+    const err = await parseError(resp);
+    reportError(err);
+    throw err;
+  }
   if (resp.status === 204) return undefined as T;
   return (await resp.json()) as T;
 }
@@ -52,13 +97,17 @@ export async function postForBlob(
   body: unknown,
   signal?: AbortSignal
 ): Promise<{ blob: Blob; metaId: string | null }> {
-  const resp = await fetch(path, {
+  const resp = await safeFetch(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
     signal
   });
-  if (!resp.ok) throw await parseError(resp);
+  if (!resp.ok) {
+    const err = await parseError(resp);
+    reportError(err);
+    throw err;
+  }
   const metaId = resp.headers.get('x-preview-meta-id');
   const blob = await resp.blob();
   return { blob, metaId };
