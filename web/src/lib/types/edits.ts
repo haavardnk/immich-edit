@@ -54,8 +54,24 @@ export interface HslEdits {
   bands: HslBand[];
 }
 
+export interface ColorGradeRegion {
+  hue: number;
+  sat: number;
+  lum: number;
+}
+
+export interface ColorGradeEdits {
+  shadows: ColorGradeRegion;
+  midtones: ColorGradeRegion;
+  highlights: ColorGradeRegion;
+  global: ColorGradeRegion;
+  balance: number;
+  blend: number;
+}
+
 export interface ColorEdits {
   hsl: HslEdits;
+  color_grade: ColorGradeEdits;
 }
 
 export interface CropRect {
@@ -117,6 +133,21 @@ function neutralBands(): HslBand[] {
   return Array.from({ length: HSL_BANDS }, () => ({ hue: 0, sat: 0, lum: 0 }));
 }
 
+function neutralRegion(): ColorGradeRegion {
+  return { hue: 0, sat: 0, lum: 0 };
+}
+
+function neutralColorGrade(): ColorGradeEdits {
+  return {
+    shadows: neutralRegion(),
+    midtones: neutralRegion(),
+    highlights: neutralRegion(),
+    global: neutralRegion(),
+    balance: 0,
+    blend: 0
+  };
+}
+
 export function neutralEdits(): Edits {
   return {
     basic: {
@@ -135,7 +166,8 @@ export function neutralEdits(): Edits {
       whites: 0
     },
     color: {
-      hsl: { bands: neutralBands() }
+      hsl: { bands: neutralBands() },
+      color_grade: neutralColorGrade()
     },
     geometry: {
       rotate: 0,
@@ -152,6 +184,19 @@ export const NEUTRAL_EDITS: Edits = neutralEdits();
 
 function bandsAllZero(bands: HslBand[]): boolean {
   return bands.every((b) => b.hue === 0 && b.sat === 0 && b.lum === 0);
+}
+
+function regionIsZero(r: ColorGradeRegion): boolean {
+  return r.sat === 0 && r.lum === 0;
+}
+
+function colorGradeIsZero(cg: ColorGradeEdits): boolean {
+  return (
+    regionIsZero(cg.shadows) &&
+    regionIsZero(cg.midtones) &&
+    regionIsZero(cg.highlights) &&
+    regionIsZero(cg.global)
+  );
 }
 
 function curvesAreIdentity(pts: CurvePoint[]): boolean {
@@ -178,6 +223,7 @@ export function isIdentity(e: Edits): boolean {
     e.tone.blacks === 0 &&
     e.tone.whites === 0 &&
     bandsAllZero(e.color.hsl.bands) &&
+    colorGradeIsZero(e.color.color_grade) &&
     e.geometry.rotate === 0 &&
     Math.abs(e.geometry.rotate_angle) < 1e-4 &&
     !e.geometry.flip_h &&
@@ -209,6 +255,18 @@ export function editsToManifest(e: Edits): EditManifest {
   if (e.basic.vibrance !== 0) ops.vibrance = { amount: e.basic.vibrance };
   if (!bandsAllZero(e.color.hsl.bands))
     ops.hsl = { bands: e.color.hsl.bands.map((b) => ({ hue: b.hue, sat: b.sat, lum: b.lum })) };
+  if (!colorGradeIsZero(e.color.color_grade)) {
+    const cg = e.color.color_grade;
+    const r = (reg: ColorGradeRegion) => ({ hue: reg.hue, sat: reg.sat, lum: reg.lum });
+    ops.color_grade = {
+      shadows: r(cg.shadows),
+      midtones: r(cg.midtones),
+      highlights: r(cg.highlights),
+      global: r(cg.global),
+      balance: cg.balance,
+      blend: cg.blend
+    };
+  }
   if (e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0)
     ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
   if (
@@ -263,6 +321,30 @@ export function manifestToEdits(doc: EditManifest): Edits {
       if (b.sat !== undefined) edits.color.hsl.bands[i].sat = b.sat;
       if (b.lum !== undefined) edits.color.hsl.bands[i].lum = b.lum;
     }
+  }
+  const cg = ops.color_grade as
+    | {
+        shadows?: ColorGradeRegion;
+        midtones?: ColorGradeRegion;
+        highlights?: ColorGradeRegion;
+        global?: ColorGradeRegion;
+        balance?: number;
+        blend?: number;
+      }
+    | undefined;
+  if (cg) {
+    const readRegion = (src: ColorGradeRegion | undefined, dst: ColorGradeRegion) => {
+      if (!src) return;
+      if (src.hue !== undefined) dst.hue = src.hue;
+      if (src.sat !== undefined) dst.sat = src.sat;
+      if (src.lum !== undefined) dst.lum = src.lum;
+    };
+    readRegion(cg.shadows, edits.color.color_grade.shadows);
+    readRegion(cg.midtones, edits.color.color_grade.midtones);
+    readRegion(cg.highlights, edits.color.color_grade.highlights);
+    readRegion(cg.global, edits.color.color_grade.global);
+    if (cg.balance !== undefined) edits.color.color_grade.balance = cg.balance;
+    if (cg.blend !== undefined) edits.color.color_grade.blend = cg.blend;
   }
   const wb = ops.white_balance as { temp?: number; tint?: number } | undefined;
   if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
