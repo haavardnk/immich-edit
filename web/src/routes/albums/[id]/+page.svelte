@@ -30,7 +30,7 @@
   <div class="px-4 py-2.5 text-xs text-immich-dark-fg/40 border-b border-white/5 flex items-center gap-2">
     <span class="font-semibold text-immich-dark-fg/70 text-sm">{album.current.albumName}</span>
     <span class="text-immich-dark-fg/20">·</span>
-    <span>{album.current.assetCount} assets</span>
+    <span>{album.current.assets.length} / {album.current.assetCount} assets</span>
   </div>
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
     <AssetGrid assets={album.current.assets} />

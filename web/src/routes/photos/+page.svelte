@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { searchMetadata } from '$lib/api/search';
+  import { searchMetadata, assetStatistics } from '$lib/api/search';
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
@@ -10,9 +10,11 @@
   let loading = $state(true);
   let loadingMore = $state(false);
   let nextPage = $state<string | null>(null);
+  let total = $state(0);
 
   onMount(async () => {
     editor.unload();
+    void assetStatistics().then((s) => (total = s.total)).catch(() => {});
     try {
       const result = await searchMetadata({ size: 500 });
       assets = result.items;
@@ -49,7 +51,7 @@
   <div class="px-4 py-2.5 text-xs text-immich-dark-fg/40 border-b border-white/5 flex items-center gap-2">
     <span class="font-semibold text-immich-dark-fg/70 text-sm">Photos</span>
     <span class="text-immich-dark-fg/20">·</span>
-    <span>{assets.length} assets</span>
+    <span>{assets.length} / {total || assets.length} assets</span>
   </div>
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
     <AssetGrid {assets} {loadingMore} onLoadMore={nextPage ? loadMore : undefined} />
