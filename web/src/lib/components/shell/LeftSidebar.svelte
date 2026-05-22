@@ -10,6 +10,8 @@
   import TagList from '$lib/components/library/TagList.svelte';
   import FolderTree from '$lib/components/library/FolderTree.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import SidebarLink from './SidebarLink.svelte';
+  import SidebarSection from './SidebarSection.svelte';
   import type { AssetSummary } from '$lib/types/album';
   import {
     mdiImageMultipleOutline,
@@ -21,7 +23,6 @@
     mdiPencilOutline,
     mdiMagnify,
     mdiClose,
-    mdiChevronDown,
     mdiChevronRight,
     mdiChevronLeft,
   } from '@mdi/js';
@@ -150,127 +151,75 @@
       </div>
     {:else}
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-        <!-- Photos -->
-        <a
+        <SidebarLink
           href="/photos"
-          class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/photos' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
-        >
-          <Icon path={mdiImageMultipleOutline} size={18} class="flex-none" />
-          <span class="text-[13px] font-medium flex-1">Photos</span>
-          {#if library.photosCount != null}
-            <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.photosCount}</span>
-          {/if}
-          <span class="w-4"></span>
-        </a>
-
-        <!-- People -->
+          icon={mdiImageMultipleOutline}
+          label="Photos"
+          count={library.photosCount}
+          active={currentPath === '/photos'}
+        />
         <div class="border-t border-white/5">
-          <button
-            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
-            onclick={() => toggleSection('people')}
+          <SidebarSection
+            icon={mdiAccountOutline}
+            label="People"
+            count={library.people.length}
+            expanded={expanded.has('people')}
+            onToggle={() => toggleSection('people')}
           >
-            <Icon path={mdiAccountOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1 text-left">People</span>
-            {#if library.people.length > 0}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.people.length}</span>
-            {/if}
-            <Icon path={expanded.has('people') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
-          </button>
-          {#if expanded.has('people')}
-            <div class="pb-1">
-              <PeopleList />
-            </div>
-          {/if}
+            <PeopleList />
+          </SidebarSection>
         </div>
-
-        <!-- Favorites -->
         <div class="border-t border-white/5">
-          <a
+          <SidebarLink
             href="/favorites"
-            class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/favorites' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
-          >
-            <Icon path={mdiHeartOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1">Favorites</span>
-            {#if library.favoritesCount != null}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.favoritesCount}</span>
-            {/if}
-            <span class="w-4"></span>
-          </a>
+            icon={mdiHeartOutline}
+            label="Favorites"
+            count={library.favoritesCount}
+            active={currentPath === '/favorites'}
+          />
         </div>
-
-        <!-- Albums -->
         <div class="border-t border-white/5">
-          <button
-            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
-            onclick={() => toggleSection('albums')}
+          <SidebarSection
+            icon={mdiImageAlbum}
+            label="Albums"
+            count={library.albums.length}
+            expanded={expanded.has('albums')}
+            onToggle={() => toggleSection('albums')}
           >
-            <Icon path={mdiImageAlbum} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1 text-left">Albums</span>
-            {#if library.albums.length > 0}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.albums.length}</span>
-            {/if}
-            <Icon path={expanded.has('albums') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
-          </button>
-          {#if expanded.has('albums')}
-            <div class="pb-1">
-              <AlbumList />
-            </div>
-          {/if}
+            <AlbumList />
+          </SidebarSection>
         </div>
-
-        <!-- Tags -->
         <div class="border-t border-white/5">
-          <button
-            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
-            onclick={() => toggleSection('tags')}
+          <SidebarSection
+            icon={mdiTagMultipleOutline}
+            label="Tags"
+            count={library.tags.length}
+            expanded={expanded.has('tags')}
+            onToggle={() => toggleSection('tags')}
           >
-            <Icon path={mdiTagMultipleOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1 text-left">Tags</span>
-            {#if library.tags.length > 0}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.tags.length}</span>
-            {/if}
-            <Icon path={expanded.has('tags') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
-          </button>
-          {#if expanded.has('tags')}
-            <div class="pb-1">
-              <TagList />
-            </div>
-          {/if}
+            <TagList />
+          </SidebarSection>
         </div>
-
-        <!-- Folders -->
         <div class="border-t border-white/5">
-          <button
-            class="w-full flex items-center gap-2.5 py-2 px-4 transition-colors text-immich-dark-fg/70 hover:bg-white/5"
-            onclick={() => toggleSection('folders')}
+          <SidebarSection
+            icon={mdiFolderOutline}
+            label="Folders"
+            count={library.foldersCount}
+            expanded={expanded.has('folders')}
+            onToggle={() => toggleSection('folders')}
           >
-            <Icon path={mdiFolderOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1 text-left">Folders</span>
-            {#if library.foldersCount != null && library.foldersCount > 0}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.foldersCount}</span>
-            {/if}
-            <Icon path={expanded.has('folders') ? mdiChevronDown : mdiChevronRight} size={16} class="opacity-40" />
-          </button>
-          {#if expanded.has('folders')}
-            <div class="pb-1">
-              <FolderTree nodes={library.folderTree} />
-            </div>
-          {/if}
+            <FolderTree nodes={library.folderTree} />
+          </SidebarSection>
         </div>
-
-        <!-- Edited -->
         <div class="border-t border-white/5">
-          <a
+          <SidebarLink
             href="/edited"
-            class="flex items-center gap-2.5 py-2 px-4 transition-colors {currentPath === '/edited' ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'text-immich-dark-fg/70 hover:bg-white/5'}"
-          >
-            <Icon path={mdiPencilOutline} size={18} class="flex-none" />
-            <span class="text-[13px] font-medium flex-1">Edited</span>
-            {#if library.editedCount != null && library.editedCount > 0}
-              <span class="text-[11px] text-immich-dark-fg/30 tabular-nums">{library.editedCount}</span>
-            {/if}
-            <span class="w-4"></span>
-          </a>
+            icon={mdiPencilOutline}
+            label="Edited"
+            count={library.editedCount}
+            active={currentPath === '/edited'}
+            hideZero
+          />
         </div>
       </div>
     {/if}
