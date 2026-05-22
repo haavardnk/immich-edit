@@ -114,7 +114,7 @@
         <span>Aspect Ratio</span>
         <div class="flex gap-1.5 items-center">
           <select
-            class="select select-sm bg-white/5 flex-1 rounded-lg"
+            class="select bg-white/5 flex-1 rounded-lg text-xs h-auto py-1.5 min-h-0"
             value={aspectKey(editor.cropSession.draftAspect)}
             onchange={onAspectChange}
           >
