@@ -167,3 +167,9 @@ pub struct SearchAssets {
     #[serde(rename = "nextPage", default)]
     pub next_page: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchStatistics {
+    #[serde(default)]
+    pub total: u64,
+}

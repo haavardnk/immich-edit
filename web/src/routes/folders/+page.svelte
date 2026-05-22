@@ -4,7 +4,9 @@
   import { folderAssets } from '$lib/api/folders';
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
+  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let assets = $state<AssetSummary[]>([]);
@@ -39,6 +41,7 @@
 
   onMount(() => {
     editor.unload();
+    browseControls.reset();
   });
 </script>
 
@@ -47,11 +50,7 @@
 {:else if !folderPath}
   <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/30">Select a folder</div>
 {:else}
-  <div class="px-4 py-2.5 text-xs text-immich-dark-fg/40 border-b border-white/5 flex items-center gap-2">
-    <span class="font-semibold text-immich-dark-fg/70 text-sm truncate">{folderPath}</span>
-    <span class="text-immich-dark-fg/20">·</span>
-    <span class="flex-none">{assets.length} assets</span>
-  </div>
+  <BrowseHeader title={folderPath} loaded={assets.length} />
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
     <AssetGrid {assets} />
   </div>

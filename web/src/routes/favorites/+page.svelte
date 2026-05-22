@@ -1,47 +1,71 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { searchMetadata, assetStatistics } from '$lib/api/search';
+  import { searchMetadata, searchStatistics } from '$lib/api/search';
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
+  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let assets = $state<AssetSummary[]>([]);
   let loading = $state(true);
+  let loadedOnce = $state(false);
   let loadingMore = $state(false);
   let nextPage = $state<string | null>(null);
-  let total = $state(0);
+  let totalCount = $state<number | undefined>(undefined);
+  let prevKey = $state('');
 
-  onMount(async () => {
+  onMount(() => {
     editor.unload();
-    void assetStatistics({ isFavorite: 'true' }).then((s) => (total = s.total)).catch(() => {});
-    const result = await searchMetadata({ isFavorite: true, size: 500 });
-    assets = result.items;
-    browsing.set(assets);
-    nextPage = result.nextPage;
-    loading = false;
+    browseControls.reset();
+    fetchPage(true);
+  });
+
+  function fetchPage(initial: boolean): void {
+    if (initial) {
+      if (!loadedOnce) loading = true;
+      nextPage = null;
+      totalCount = undefined;
+      searchStatistics(browseControls.statsBody({ isFavorite: true }))
+        .then((s) => (totalCount = s.total))
+        .catch(() => {});
+    }
+    const body = browseControls.searchBody({ isFavorite: true });
+    if (!initial && nextPage) body.page = nextPage;
+    searchMetadata(body)
+      .then((result) => {
+        assets = initial ? result.items : [...assets, ...result.items];
+        browsing.set(assets);
+        nextPage = result.nextPage;
+      })
+      .catch(() => {})
+      .finally(() => {
+        loading = false;
+        loadedOnce = true;
+        loadingMore = false;
+      });
+  }
+
+  $effect(() => {
+    const key = browseControls.serverFilterKey;
+    if (prevKey && key !== prevKey) {
+      fetchPage(true);
+    }
+    prevKey = key;
   });
 
   function loadMore(): void {
     if (loadingMore || !nextPage) return;
     loadingMore = true;
-    searchMetadata({ isFavorite: true, size: 500, page: nextPage }).then((result) => {
-      assets = [...assets, ...result.items];
-      browsing.set(assets);
-      nextPage = result.nextPage;
-      loadingMore = false;
-    });
+    fetchPage(false);
   }
 </script>
 
-{#if loading}
+{#if loading && !loadedOnce}
   <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
 {:else}
-  <div class="px-4 py-2.5 text-xs text-immich-dark-fg/40 border-b border-white/5 flex items-center gap-2">
-    <span class="font-semibold text-immich-dark-fg/70 text-sm">Favorites</span>
-    <span class="text-immich-dark-fg/20">·</span>
-    <span>{assets.length} / {total || assets.length} assets</span>
-  </div>
+  <BrowseHeader title="Favorites" loaded={assets.length} {totalCount} favoriteLocked />
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
     <AssetGrid {assets} {loadingMore} onLoadMore={nextPage ? loadMore : undefined} />
   </div>

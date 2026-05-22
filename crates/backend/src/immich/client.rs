@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use super::dto::{
     AlbumDetail, AlbumSummary, AssetDetail, AssetStatistics, BulkIdResponse, PeopleResponse,
-    PersonSummary, SearchAssets, SearchResponse, TagSummary,
+    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, TagSummary,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -180,6 +180,15 @@ impl ImmichClient {
         let bytes = send_post_json(&self.http, url, body).await?;
         let resp: SearchResponse = parse_json(&bytes)?;
         Ok(resp.assets)
+    }
+
+    pub async fn search_statistics(
+        &self,
+        body: &serde_json::Value,
+    ) -> ImmichResult<SearchStatistics> {
+        let url = self.url("api/search/statistics")?;
+        let bytes = send_post_json(&self.http, url, body).await?;
+        parse_json(&bytes)
     }
 
     pub async fn asset_statistics(

@@ -18,6 +18,10 @@ export function searchMetadata(body: Record<string, unknown>): Promise<SearchRes
   return sendJson('POST', '/api/search/metadata', body);
 }
 
+export function searchStatistics(body: Record<string, unknown>): Promise<{ total: number }> {
+  return sendJson('POST', '/api/search/statistics', body);
+}
+
 export function assetStatistics(params?: Record<string, string>): Promise<AssetStatistics> {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return getJson(`/api/assets/statistics${qs}`);
