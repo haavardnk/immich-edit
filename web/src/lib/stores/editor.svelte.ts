@@ -1,4 +1,4 @@
-import { neutralEdits, isIdentity, manifestToEdits, type Edits } from '$lib/types/edits';
+import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
@@ -8,6 +8,7 @@ import { getAsset } from '$lib/api/assets';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
+import { constrainCropRect, largestInscribedRect, refitCropAtAspect, aspectRatioFor } from '$lib/utils/geom';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
@@ -33,6 +34,7 @@ class EditorStore {
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
+  cropSession = $state<CropSession | null>(null);
 
   private history = $state<Edits[]>([]);
   private historyCursor = $state(-1);
@@ -89,6 +91,10 @@ class EditorStore {
   unload(): void {
     this.flight.cancel();
     if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
+    if (this.cropSession) {
+      revoke(this.cropSession.pinnedUrl);
+      this.cropSession = null;
+    }
     if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
     this.previewUrl = null;
     this.asset = null;
@@ -245,6 +251,155 @@ class EditorStore {
       this.meta = null;
     }
   }
+
+  enterCropMode = async (): Promise<void> => {
+    if (!this.assetId || !this.initialised || this.cropSession) return;
+    const baseEdits = $state.snapshot(this.edits) as Edits;
+    const pinnedEditsSource: Edits = {
+      ...baseEdits,
+      geometry: {
+        ...baseEdits.geometry,
+        rotate_angle: 0,
+        crop: null
+      }
+    };
+    this.pending = true;
+    try {
+      const { blob, metaId } = await livePreview(this.assetId, pinnedEditsSource, LIVE_EDGE);
+      const url = makeObjectUrl(blob);
+      let sw = 0;
+      let sh = 0;
+      if (metaId) {
+        try {
+          const m = await getPreviewMeta(this.assetId, metaId);
+          sw = m.source_w;
+          sh = m.source_h;
+        } catch {
+          sw = 0;
+          sh = 0;
+        }
+      }
+      if (sw <= 0 || sh <= 0) {
+        revoke(url);
+        this.pending = false;
+        this.error = 'Failed to fetch crop preview';
+        return;
+      }
+      this.cropSession = {
+        pinnedUrl: url,
+        sourceW: sw,
+        sourceH: sh,
+        baseEdits,
+        draftAngle: baseEdits.geometry.rotate_angle,
+        draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
+        draftAspect: baseEdits.geometry.aspect,
+        userEditedCrop: baseEdits.geometry.crop !== null
+      };
+    } catch (e) {
+      this.error = (e as Error).message;
+    } finally {
+      this.pending = false;
+    }
+  };
+
+  exitCropMode = async (commit: boolean): Promise<void> => {
+    const sess = this.cropSession;
+    if (!sess) return;
+    revoke(sess.pinnedUrl);
+    this.cropSession = null;
+    if (!commit) return;
+    const next: Edits = {
+      ...this.edits,
+      geometry: {
+        ...this.edits.geometry,
+        rotate_angle: sess.draftAngle,
+        crop: sess.userEditedCrop ? sess.draftCrop : sess.draftCrop,
+        aspect: sess.draftAspect
+      }
+    };
+    this.edits = next;
+    await this.onCommit();
+  };
+
+  updateCropDraftAngle = (angle: number): void => {
+    const sess = this.cropSession;
+    if (!sess) return;
+    sess.draftAngle = angle;
+    const ratio = aspectRatioFor(sess.draftAspect, sess.sourceW, sess.sourceH);
+    if (ratio !== null) {
+      sess.draftCrop = refitCropAtAspect(
+        sess.draftCrop,
+        sess.sourceW,
+        sess.sourceH,
+        angle,
+        ratio
+      );
+    } else if (!sess.userEditedCrop) {
+      sess.draftCrop = largestInscribedRect(
+        sess.sourceW,
+        sess.sourceH,
+        angle,
+        sess.sourceW / sess.sourceH
+      );
+    } else {
+      sess.draftCrop = constrainCropRect(
+        sess.draftCrop,
+        sess.draftCrop,
+        sess.sourceW,
+        sess.sourceH,
+        angle
+      );
+    }
+  };
+
+  updateCropDraftCrop = (crop: CropRect): void => {
+    const sess = this.cropSession;
+    if (!sess) return;
+    sess.draftCrop = constrainCropRect(
+      crop,
+      sess.draftCrop,
+      sess.sourceW,
+      sess.sourceH,
+      sess.draftAngle
+    );
+    sess.userEditedCrop = true;
+  };
+
+  updateCropDraftAspect = (aspect: AspectLock): void => {
+    const sess = this.cropSession;
+    if (!sess) return;
+    sess.draftAspect = aspect;
+    const ratio = aspectRatioFor(aspect, sess.sourceW, sess.sourceH);
+    if (ratio !== null) {
+      sess.draftCrop = largestInscribedRect(
+        sess.sourceW,
+        sess.sourceH,
+        sess.draftAngle,
+        ratio
+      );
+      sess.userEditedCrop = false;
+    }
+  };
+
+  resetCropDraft = (): void => {
+    const sess = this.cropSession;
+    if (!sess) return;
+    sess.draftAngle = 0;
+    sess.draftAspect = { kind: 'original' };
+    sess.draftCrop = FULL_CROP;
+    sess.userEditedCrop = false;
+  };
+}
+
+interface CropSession {
+  pinnedUrl: string;
+  sourceW: number;
+  sourceH: number;
+  baseEdits: Edits;
+  draftAngle: number;
+  draftCrop: CropRect;
+  draftAspect: AspectLock;
+  userEditedCrop: boolean;
 }
 
 export const editor = new EditorStore();

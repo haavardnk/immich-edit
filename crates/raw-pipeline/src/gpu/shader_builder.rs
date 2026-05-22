@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::ops::OpRegistry;
 
-pub const HEADER_BYTES: usize = 80;
+pub const HEADER_BYTES: usize = 112;
 pub const ACTIVE_MASK_OFFSET: usize = 64;
 
 pub struct ColorOpSlot {
@@ -72,6 +72,8 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     flags: vec4<u32>,
     geom_extra: vec4<f32>,
     active_mask: vec4<u32>,
+    geom_extra2: vec4<f32>,
+    geom_extra3: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
@@ -115,6 +117,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let oh = f32(p.out_size.y);
     var u = (f32(gid.x) + 0.5) / ow;
     var v = (f32(gid.y) + 0.5) / oh;
+
+    let bx_rel = p.crop.x + u * p.crop.z;
+    let by_rel = p.crop.y + v * p.crop.w;
+    let cx_px = (bx_rel - 0.5) * p.geom_extra2.z;
+    let cy_px = (by_rel - 0.5) * p.geom_extra2.w;
+    let sx_px = cx_px * p.geom_extra2.x + cy_px * p.geom_extra2.y;
+    let sy_px = -cx_px * p.geom_extra2.y + cy_px * p.geom_extra2.x;
+    u = sx_px / p.geom_extra3.x + 0.5;
+    v = sy_px / p.geom_extra3.y + 0.5;
 
     let rot = p.flags.x;
     let flip_h = p.flags.y;

@@ -90,6 +90,8 @@ async fn render_to_response(
         asset_id,
         width: rendered.width,
         height: rendered.height,
+        source_w: rendered.source_w,
+        source_h: rendered.source_h,
         renderer: rendered.renderer.clone(),
         histogram: rendered.histogram.clone(),
         linear_histogram: rendered.linear_histogram.clone(),

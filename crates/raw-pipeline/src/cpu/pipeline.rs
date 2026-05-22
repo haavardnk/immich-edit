@@ -34,6 +34,11 @@ pub fn render_with_cancel(
 
     let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
 
+    let (oriented_w, oriented_h) = match edits.geometry.rotate {
+        90 | 270 => (h, w),
+        _ => (w, h),
+    };
+
     let mut image = LinearImage::new(rgb, w, h);
     let xyz_to_cam = if frame.color_matrices.len() >= 2 {
         let cct = crate::color::estimate_scene_cct(
@@ -88,6 +93,8 @@ pub fn render_with_cancel(
         linear_histogram: Some(linear_histogram),
         width: w as u32,
         height: h as u32,
+        source_w: oriented_w as u32,
+        source_h: oriented_h as u32,
         renderer: "cpu".into(),
     })
 }

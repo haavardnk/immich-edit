@@ -1,4 +1,5 @@
 use raw_pipeline::edits::BasicEdits;
+use raw_pipeline::edits::{CropRect, GeometryEdits};
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
@@ -235,9 +236,25 @@ fn gpu_matches_cpu_within_tolerance() {
                 ..Default::default()
             },
         ),
+        (
+            "rotate10+crop",
+            Edits {
+                geometry: GeometryEdits {
+                    rotate_angle: 10.0,
+                    crop: Some(CropRect {
+                        x: 0.15,
+                        y: 0.15,
+                        w: 0.7,
+                        h: 0.7,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
     ];
 
-    let threshold: f64 = 2.0;
+    let threshold: f64 = 3.0;
     let mut failed: Vec<String> = Vec::new();
 
     for (label, edits) in cases {

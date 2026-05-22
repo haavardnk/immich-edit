@@ -346,7 +346,17 @@ impl GpuRenderer {
             _ => (display_w, display_h),
         };
 
-        let (out_w, out_h) = scale_to_max(oriented_w, oriented_h, opts.max_edge);
+        let crop = edits
+            .geometry
+            .crop
+            .unwrap_or(crate::edits::CropRect::full());
+        let angle = edits.geometry.rotate_angle;
+        let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
+        let bw = bbox.w;
+        let bh = bbox.h;
+        let crop_w_px = (crop.w * bw).round().max(1.0) as u32;
+        let crop_h_px = (crop.h * bh).round().max(1.0) as u32;
+        let (out_w, out_h) = scale_to_max(crop_w_px, crop_h_px, opts.max_edge);
 
         let src_max = cached.width.max(cached.height) as f32;
         let out_max = out_w.max(out_h) as f32;
@@ -355,6 +365,10 @@ impl GpuRenderer {
         } else {
             0.0
         };
+
+        let a_rad = crate::geom::deg_to_rad(angle);
+        let cos_a = a_rad.cos();
+        let sin_a = a_rad.sin();
 
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
@@ -385,7 +399,7 @@ impl GpuRenderer {
             &mut uniform_bytes,
             [cached.width, cached.height],
             [out_w, out_h],
-            [0.0, 0.0, 1.0, 1.0],
+            [crop.x, crop.y, crop.w, crop.h],
             [
                 edits.geometry.rotate as u32,
                 edits.geometry.flip_h as u32,
@@ -393,6 +407,8 @@ impl GpuRenderer {
                 orient_packed,
             ],
             [lod, 0.0, 0.0, 0.0],
+            [cos_a, sin_a, bw, bh],
+            [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
         );
         let mut active_mask: u32 = 0;
         for slot in &built.color_ops {
@@ -551,6 +567,8 @@ impl GpuRenderer {
             linear_histogram: Some(linear_histogram),
             width: out_w,
             height: out_h,
+            source_w: oriented_w,
+            source_h: oriented_h,
             renderer: "gpu".into(),
         })
     }
@@ -593,6 +611,7 @@ fn cfa_to_indices(pattern: &str) -> [u32; 4] {
     out
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_header(
     dst: &mut [u8],
     src_size: [u32; 2],
@@ -600,12 +619,16 @@ fn write_header(
     crop: [f32; 4],
     flags: [u32; 4],
     geom_extra: [f32; 4],
+    geom_extra2: [f32; 4],
+    geom_extra3: [f32; 4],
 ) {
     dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
     dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
     dst[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
     dst[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
     dst[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra));
+    dst[80..96].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
+    dst[96..112].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
 }
 
 fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {

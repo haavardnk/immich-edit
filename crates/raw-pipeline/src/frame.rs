@@ -35,5 +35,7 @@ pub struct RenderedImage {
     pub linear_histogram: Option<crate::histogram::Histogram>,
     pub width: u32,
     pub height: u32,
+    pub source_w: u32,
+    pub source_h: u32,
     pub renderer: String,
 }

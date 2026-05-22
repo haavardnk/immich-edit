@@ -8,6 +8,7 @@ pub mod edits;
 pub mod encode;
 pub mod exif;
 pub mod frame;
+pub mod geom;
 pub mod gpu;
 pub mod histogram;
 pub mod ops;

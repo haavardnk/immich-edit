@@ -58,10 +58,37 @@ export interface ColorEdits {
   hsl: HslEdits;
 }
 
+export interface CropRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export type AspectLock =
+  | { kind: 'original' }
+  | { kind: 'free' }
+  | { kind: 'ratio'; num: number; den: number };
+
 export interface GeometryEdits {
   rotate: 0 | 90 | 180 | 270;
+  rotate_angle: number;
   flip_h: boolean;
   flip_v: boolean;
+  crop: CropRect | null;
+  aspect: AspectLock;
+}
+
+export const FULL_CROP: CropRect = { x: 0, y: 0, w: 1, h: 1 };
+
+export function isFullCrop(c: CropRect | null): boolean {
+  if (!c) return true;
+  return (
+    Math.abs(c.x) < 1e-4 &&
+    Math.abs(c.y) < 1e-4 &&
+    Math.abs(c.w - 1) < 1e-4 &&
+    Math.abs(c.h - 1) < 1e-4
+  );
 }
 
 export interface Edits {
@@ -112,8 +139,11 @@ export function neutralEdits(): Edits {
     },
     geometry: {
       rotate: 0,
+      rotate_angle: 0,
       flip_h: false,
       flip_v: false,
+      crop: null,
+      aspect: { kind: 'original' }
     }
   };
 }
@@ -149,8 +179,11 @@ export function isIdentity(e: Edits): boolean {
     e.tone.whites === 0 &&
     bandsAllZero(e.color.hsl.bands) &&
     e.geometry.rotate === 0 &&
+    Math.abs(e.geometry.rotate_angle) < 1e-4 &&
     !e.geometry.flip_h &&
-    !e.geometry.flip_v
+    !e.geometry.flip_v &&
+    isFullCrop(e.geometry.crop) &&
+    e.geometry.aspect.kind === 'original'
   );
 }
 
@@ -188,7 +221,16 @@ export function editsToManifest(e: Edits): EditManifest {
       flip_h: e.geometry.flip_h,
       flip_v: e.geometry.flip_v,
     };
-  return { schema_version: 2, ops };
+  const cropActive = !isFullCrop(e.geometry.crop);
+  const angleActive = Math.abs(e.geometry.rotate_angle) > 1e-4;
+  const aspectActive = e.geometry.aspect.kind !== 'original';
+  if (cropActive || angleActive || aspectActive) {
+    const obj: Record<string, unknown> = { aspect: e.geometry.aspect };
+    if (angleActive) obj.angle = e.geometry.rotate_angle;
+    if (e.geometry.crop && cropActive) obj.crop = e.geometry.crop;
+    ops.crop_rotate = obj;
+  }
+  return { schema_version: 3, ops };
 }
 
 export function manifestToEdits(doc: EditManifest): Edits {
@@ -232,5 +274,11 @@ export function manifestToEdits(doc: EditManifest): Edits {
     edits.geometry.rotate = geom.rotate as GeometryEdits['rotate'];
   if (geom?.flip_h !== undefined) edits.geometry.flip_h = geom.flip_h;
   if (geom?.flip_v !== undefined) edits.geometry.flip_v = geom.flip_v;
+  const cr = ops.crop_rotate as
+    | { angle?: number; crop?: CropRect; aspect?: AspectLock }
+    | undefined;
+  if (cr?.angle !== undefined) edits.geometry.rotate_angle = cr.angle;
+  if (cr?.crop) edits.geometry.crop = cr.crop;
+  if (cr?.aspect) edits.geometry.aspect = cr.aspect;
   return edits;
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import CropOverlay from './CropOverlay.svelte';
 
   let container = $state<HTMLDivElement | null>(null);
   let dragging = $state(false);
@@ -51,16 +52,18 @@
   bind:this={container}
   role="application"
   class="flex-1 min-h-0 flex items-center justify-center bg-black/40 relative overflow-hidden"
-  class:cursor-grab={ui.zoom > 100 && !dragging}
+  class:cursor-grab={ui.zoom > 100 && !dragging && !editor.cropSession}
   class:cursor-grabbing={dragging}
-  onpointerdown={onPointerDown}
-  onpointermove={onPointerMove}
-  onpointerup={onPointerUp}
-  onpointercancel={onPointerUp}
-  onwheel={onWheel}
-  ondblclick={onDblClick}
+  onpointerdown={editor.cropSession ? undefined : onPointerDown}
+  onpointermove={editor.cropSession ? undefined : onPointerMove}
+  onpointerup={editor.cropSession ? undefined : onPointerUp}
+  onpointercancel={editor.cropSession ? undefined : onPointerUp}
+  onwheel={editor.cropSession ? undefined : onWheel}
+  ondblclick={editor.cropSession ? undefined : onDblClick}
 >
-  {#if editor.previewUrl}
+  {#if editor.cropSession}
+    <CropOverlay />
+  {:else if editor.previewUrl}
     <img
       src={editor.previewUrl}
       alt={editor.asset?.originalFileName ?? ''}

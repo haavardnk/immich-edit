@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::edits::Edits;
 use crate::ops::{OpRegistry, default_registry};
 
-pub const EDIT_MANIFEST_VERSION: u32 = 2;
+pub const EDIT_MANIFEST_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EditManifest {
@@ -108,8 +108,11 @@ mod tests {
             },
             geometry: GeometryEdits {
                 rotate: 90,
+                rotate_angle: 0.0,
                 flip_h: true,
                 flip_v: false,
+                crop: None,
+                aspect: Default::default(),
             },
         };
         let doc = EditManifest::from_edits(&original);

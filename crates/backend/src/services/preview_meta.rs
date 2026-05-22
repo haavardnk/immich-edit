@@ -11,6 +11,8 @@ pub struct PreviewMeta {
     pub asset_id: Uuid,
     pub width: u32,
     pub height: u32,
+    pub source_w: u32,
+    pub source_h: u32,
     pub renderer: String,
     pub histogram: Histogram,
     #[serde(skip_serializing_if = "Option::is_none")]

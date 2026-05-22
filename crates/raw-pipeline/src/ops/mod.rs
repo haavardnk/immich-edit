@@ -1,5 +1,6 @@
 pub mod color_matrix;
 pub mod contrast;
+pub mod crop_rotate;
 pub mod curves;
 pub mod exposure;
 pub mod geometry;
@@ -131,5 +132,6 @@ pub fn default_registry() -> OpRegistry {
         Box::new(vibrance::VibranceOp),
         Box::new(hsl::HslOp),
         Box::new(geometry::GeometryOp),
+        Box::new(crop_rotate::CropRotateOp),
     ])
 }
