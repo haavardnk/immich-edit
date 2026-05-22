@@ -411,3 +411,40 @@ fn clarity_amplifies_midtones_more_than_extremes() {
     let bright_delta = (bright.rgb[probe] - bright_before).abs();
     assert!(mid_delta > bright_delta);
 }
+
+#[test]
+fn dehaze_inactive_when_zero() {
+    assert!(!dehaze::DehazeOp.is_active(&Edits::default()));
+}
+
+#[test]
+fn dehaze_positive_amplifies_edge_contrast() {
+    let mk = || {
+        let mut buf = vec![0.0f32; 800 * 100 * 3];
+        for y in 0..100 {
+            for x in 0..800 {
+                let v = if x < 400 { 0.4 } else { 0.6 };
+                let i = (y * 800 + x) * 3;
+                buf[i] = v;
+                buf[i + 1] = v;
+                buf[i + 2] = v;
+            }
+        }
+        LinearImage::new(buf, 800, 100)
+    };
+    let edits = Edits {
+        basic: BasicEdits {
+            dehaze: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut img = mk();
+    let dark_probe = (50 * 800 + 399) * 3;
+    let bright_probe = (50 * 800 + 400) * 3;
+    dehaze::DehazeOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[dark_probe] < 0.4);
+    assert!(img.rgb[bright_probe] > 0.6);
+}

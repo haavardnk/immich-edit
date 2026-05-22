@@ -97,6 +97,7 @@ mod tests {
                 wb_tint: -4.0,
                 texture: 33.0,
                 clarity: 22.0,
+                dehaze: -15.0,
                 curves: CurvePoints::default(),
             },
             tone: ToneEdits {

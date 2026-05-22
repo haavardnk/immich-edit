@@ -84,6 +84,8 @@ pub struct BasicEdits {
     #[serde(default)]
     pub clarity: f64,
     #[serde(default)]
+    pub dehaze: f64,
+    #[serde(default)]
     pub curves: CurvePoints,
 }
 
@@ -319,6 +321,7 @@ impl Edits {
                 wb_tint: self.basic.wb_tint.clamp(-100.0, 100.0),
                 texture: self.basic.texture.clamp(-100.0, 100.0),
                 clarity: self.basic.clarity.clamp(-100.0, 100.0),
+                dehaze: self.basic.dehaze.clamp(-100.0, 100.0),
                 curves: self.basic.curves.clone(),
             },
             tone: ToneEdits {

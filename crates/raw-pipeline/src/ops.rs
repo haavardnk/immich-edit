@@ -4,6 +4,7 @@ pub mod color_matrix;
 pub mod contrast;
 pub mod crop_rotate;
 pub mod curves;
+pub mod dehaze;
 pub mod exposure;
 pub mod geometry;
 pub mod hsl;
@@ -131,6 +132,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(user_wb::UserWbOp),
         Box::new(texture::TextureOp),
         Box::new(clarity::ClarityOp),
+        Box::new(dehaze::DehazeOp),
         Box::new(exposure::ExposureOp),
         Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),

@@ -12,6 +12,7 @@ export interface BasicEdits {
   wb_tint: number;
   texture: number;
   clarity: number;
+  dehaze: number;
   curves: CurvePoint[];
 }
 
@@ -156,6 +157,7 @@ export function neutralEdits(): Edits {
       wb_tint: 0,
       texture: 0,
       clarity: 0,
+      dehaze: 0,
       curves: [{ x: 0, y: 0 }, { x: 1, y: 1 }]
     },
     tone: {
@@ -218,6 +220,7 @@ export function isIdentity(e: Edits): boolean {
     e.basic.wb_tint === 0 &&
     e.basic.texture === 0 &&
     e.basic.clarity === 0 &&
+    e.basic.dehaze === 0 &&
     curvesAreIdentity(e.basic.curves) &&
     e.tone.highlights === 0 &&
     e.tone.shadows === 0 &&
@@ -272,6 +275,7 @@ export function editsToManifest(e: Edits): EditManifest {
     ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
   if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
   if (e.basic.clarity !== 0) ops.clarity = { amount: e.basic.clarity };
+  if (e.basic.dehaze !== 0) ops.dehaze = { amount: e.basic.dehaze };
   if (
     e.geometry.rotate !== 0 ||
     e.geometry.flip_h ||
@@ -356,6 +360,8 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (tex?.amount !== undefined) edits.basic.texture = tex.amount;
   const cla = ops.clarity as { amount?: number } | undefined;
   if (cla?.amount !== undefined) edits.basic.clarity = cla.amount;
+  const dhz = ops.dehaze as { amount?: number } | undefined;
+  if (dhz?.amount !== undefined) edits.basic.dehaze = dhz.amount;
   const geom = ops.geometry as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;
