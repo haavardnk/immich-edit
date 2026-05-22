@@ -1,11 +1,12 @@
 <script lang="ts">
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiAlertCircleOutline, mdiAlertOutline, mdiInformationOutline, mdiClose } from '@mdi/js';
+  import { mdiAlertCircleOutline, mdiAlertOutline, mdiInformationOutline, mdiCheckCircleOutline, mdiClose } from '@mdi/js';
 
   const iconFor = (kind: string): string => {
     if (kind === 'error') return mdiAlertCircleOutline;
     if (kind === 'warn') return mdiAlertOutline;
+    if (kind === 'success') return mdiCheckCircleOutline;
     return mdiInformationOutline;
   };
 </script>
@@ -23,6 +24,9 @@
       class:bg-immich-dark-gray={toast.kind === 'info'}
       class:border-white={toast.kind === 'info'}
       class:text-immich-dark-fg={toast.kind === 'info'}
+      class:bg-emerald-950={toast.kind === 'success'}
+      class:border-emerald-500={toast.kind === 'success'}
+      class:text-emerald-100={toast.kind === 'success'}
     >
       <Icon path={iconFor(toast.kind)} size={16} class="flex-none mt-0.5" />
       <span class="flex-1 leading-relaxed">{toast.message}</span>

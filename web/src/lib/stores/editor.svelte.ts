@@ -3,10 +3,11 @@ import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta } from '$lib/api/preview';
-import { downloadExport, EXTENSION_BY_FORMAT, type ExportOptions } from '$lib/api/export';
+import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
+import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
@@ -33,6 +34,8 @@ class EditorStore {
   pending = $state(false);
   saving = $state(false);
   exporting = $state(false);
+  exportingToImmich = $state(false);
+  lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
@@ -224,6 +227,39 @@ class EditorStore {
       this.error = (e as Error).message;
     } finally {
       this.exporting = false;
+    }
+  };
+
+  onUploadToImmich = async (opts: ImmichExportOptions): Promise<void> => {
+    if (!this.assetId) return;
+    this.exportingToImmich = true;
+    this.lastUpload = null;
+    try {
+      const result = await uploadToImmich(this.assetId, $state.snapshot(this.edits), opts);
+      const dup = result.status.toLowerCase() === 'duplicate';
+      const msg = dup
+        ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
+        : `Uploaded ${result.filename} to Immich`;
+      toasts.push(dup ? 'warn' : 'success', msg, 10000);
+      for (const w of result.warnings) toasts.push('warn', w, 10000);
+      this.lastUpload = {
+        kind: dup ? 'duplicate' : 'success',
+        message: result.warnings.length > 0 ? `${msg} — ${result.warnings.join('; ')}` : msg
+      };
+      if (opts.stackWithOriginal || opts.favorite) {
+        try {
+          this.asset = await getAsset(this.assetId);
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (e) {
+      const m = (e as Error).message;
+      this.error = m;
+      this.lastUpload = { kind: 'error', message: `Upload failed: ${m}` };
+      toasts.push('error', `Upload failed: ${m}`, 10000);
+    } finally {
+      this.exportingToImmich = false;
     }
   };
 

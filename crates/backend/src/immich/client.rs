@@ -7,8 +7,9 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, BulkIdResponse, PeopleResponse, PersonSummary,
-    SearchAssets, SearchResponse, SearchStatistics, TagSummary,
+    AlbumDetail, AlbumSummary, AssetDetail, BulkIdResponse, PeopleResponse,
+    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary,
+    UploadResponse,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -161,6 +162,65 @@ impl ImmichClient {
         let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
         let body = serde_json::json!({ "ids": [asset_id] });
         let bytes = send(&self.http, self.http.delete(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn upload_asset(
+        &self,
+        filename: &str,
+        content_type: &str,
+        bytes: Bytes,
+        is_favorite: bool,
+        file_created_at: &str,
+        file_modified_at: &str,
+    ) -> ImmichResult<UploadResponse> {
+        let url = self.url("api/assets")?;
+        let part = reqwest::multipart::Part::bytes(bytes.to_vec())
+            .file_name(filename.to_string())
+            .mime_str(content_type)
+            .map_err(|e| ImmichError::Decode(format!("mime: {e}")))?;
+        let form = reqwest::multipart::Form::new()
+            .text("deviceAssetId", format!("immich-edit-{filename}"))
+            .text("deviceId", "immich-edit".to_string())
+            .text("filename", filename.to_string())
+            .text("fileCreatedAt", file_created_at.to_string())
+            .text("fileModifiedAt", file_modified_at.to_string())
+            .text("isFavorite", is_favorite.to_string())
+            .part("assetData", part);
+        let bytes = send(&self.http, self.http.post(url).multipart(form)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn add_assets_to_album(
+        &self,
+        album_id: Uuid,
+        asset_ids: &[Uuid],
+    ) -> ImmichResult<Vec<BulkIdResponse>> {
+        let url = self.url(&format!("api/albums/{album_id}/assets"))?;
+        let body = serde_json::json!({ "ids": asset_ids });
+        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn get_stack(&self, id: Uuid) -> ImmichResult<StackDetail> {
+        self.get_json(&format!("api/stacks/{id}")).await
+    }
+
+    pub async fn create_stack(&self, asset_ids: &[Uuid]) -> ImmichResult<StackDetail> {
+        let url = self.url("api/stacks")?;
+        let body = serde_json::json!({ "assetIds": asset_ids });
+        let bytes = send(&self.http, self.http.post(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn update_stack_primary(
+        &self,
+        stack_id: Uuid,
+        primary_asset_id: Uuid,
+    ) -> ImmichResult<StackDetail> {
+        let url = self.url(&format!("api/stacks/{stack_id}"))?;
+        let body = serde_json::json!({ "primaryAssetId": primary_asset_id });
+        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
         parse_json(&bytes)
     }
 

@@ -67,6 +67,37 @@ pub struct AssetDetail {
     pub exif_info: Option<ExifInfo>,
     #[serde(default)]
     pub tags: Vec<TagSummary>,
+    #[serde(rename = "stackId", default)]
+    pub stack_id: Option<Uuid>,
+    #[serde(default)]
+    pub stack: Option<StackSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StackSummary {
+    pub id: Uuid,
+    #[serde(rename = "primaryAssetId")]
+    pub primary_asset_id: Uuid,
+    #[serde(rename = "assetCount", default)]
+    pub asset_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StackDetail {
+    pub id: Uuid,
+    #[serde(rename = "primaryAssetId")]
+    pub primary_asset_id: Uuid,
+    #[serde(default)]
+    pub assets: Vec<AssetSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UploadResponse {
+    pub id: Uuid,
+    #[serde(default)]
+    pub status: String,
+    #[serde(rename = "isTrashed", default)]
+    pub is_trashed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

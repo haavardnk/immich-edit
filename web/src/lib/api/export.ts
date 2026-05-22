@@ -76,3 +76,60 @@ export async function downloadExport(
   if (!resp.ok) throw new Error(`export failed: ${resp.status}`);
   return resp.blob();
 }
+
+export type StackPrimary = 'edited' | 'original';
+
+export interface ImmichExportOptions extends ExportOptions {
+  albumIds: string[];
+  tagIds: string[];
+  favorite: boolean;
+  stackWithOriginal: boolean;
+  stackPrimary: StackPrimary;
+  filenameSuffix: string;
+}
+
+export interface ImmichExportResult {
+  asset_id: string;
+  filename: string;
+  status: string;
+  warnings: string[];
+}
+
+export async function uploadToImmich(
+  assetId: string,
+  edits: Edits,
+  opts: ImmichExportOptions
+): Promise<ImmichExportResult> {
+  const resp = await fetch(`/api/assets/${assetId}/export/immich`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      edits,
+      format: opts.format,
+      quality: opts.quality,
+      include_exif: opts.includeExif,
+      bit_depth: opts.bitDepth,
+      png_compression: opts.pngCompression,
+      tiff_compression: opts.tiffCompression,
+      lossless: opts.lossless,
+      speed: opts.speed,
+      album_ids: opts.albumIds,
+      tag_ids: opts.tagIds,
+      favorite: opts.favorite,
+      stack_with_original: opts.stackWithOriginal,
+      stack_primary: opts.stackPrimary,
+      filename_suffix: opts.filenameSuffix
+    })
+  });
+  if (!resp.ok) {
+    let msg = `upload failed: ${resp.status}`;
+    try {
+      const body = await resp.json();
+      if (typeof body?.message === 'string') msg = body.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return (await resp.json()) as ImmichExportResult;
+}

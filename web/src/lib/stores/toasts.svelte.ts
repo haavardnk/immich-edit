@@ -1,4 +1,4 @@
-export type ToastKind = 'error' | 'warn' | 'info';
+export type ToastKind = 'error' | 'warn' | 'info' | 'success';
 
 export type Toast = {
   id: number;
