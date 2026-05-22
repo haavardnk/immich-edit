@@ -227,3 +227,128 @@ async fn upstream_404_maps_to_404() {
         panic!("status {}", resp.status());
     }
 }
+
+#[tokio::test]
+async fn asset_detail_returns_exif_and_favorite() {
+    let server = MockServer::start().await;
+    mock_asset_detail(&server).await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/assets/{}", asset_id()))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json["isFavorite"] != true {
+        panic!("favorite: {json}");
+    }
+    if json["exifInfo"]["rating"] != 4 {
+        panic!("rating: {json}");
+    }
+    if json["exifInfo"]["exifImageWidth"] != 4032 {
+        panic!("width: {json}");
+    }
+    if json["tags"][0]["value"] != "Landscape" {
+        panic!("tags: {json}");
+    }
+}
+
+#[tokio::test]
+async fn asset_update_proxies_to_immich() {
+    let server = MockServer::start().await;
+    mock_asset_update(&server).await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{}", asset_id()))
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"rating":5,"isFavorite":true}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json["exifInfo"]["rating"] != 5 {
+        panic!("rating: {json}");
+    }
+}
+
+#[tokio::test]
+async fn tags_upsert_proxies_to_immich() {
+    let server = MockServer::start().await;
+    mock_tag_upsert(&server).await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/tags")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"tags":["New"]}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json[0]["value"] != "New" {
+        panic!("body: {json}");
+    }
+}
+
+#[tokio::test]
+async fn tag_asset_add_and_remove_proxy() {
+    let server = MockServer::start().await;
+    mock_tag_asset(&server).await;
+    mock_untag_asset(&server).await;
+    let app = router(test_state(&server).await);
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/tags/{}/assets/{}", tag_id(), asset_id()))
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("put status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json[0]["success"] != true {
+        panic!("body: {json}");
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/tags/{}/assets/{}", tag_id(), asset_id()))
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("delete status {}", resp.status());
+    }
+}

@@ -104,3 +104,91 @@ pub async fn mock_ping_ok(server: &MockServer) {
         .mount(server)
         .await;
 }
+
+pub async fn mock_asset_detail(server: &MockServer) {
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{}", asset_id())))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": asset_id(),
+            "originalFileName": "DSC0001.ARW",
+            "type": "IMAGE",
+            "originalMimeType": "image/x-sony-arw",
+            "fileCreatedAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "checksum": "abc",
+            "isFavorite": true,
+            "exifInfo": {
+                "make": "SONY",
+                "model": "ILCE-7M4",
+                "lensModel": "FE 35mm F1.8",
+                "fNumber": 2.8,
+                "focalLength": 35.0,
+                "iso": 400,
+                "exposureTime": "0.004",
+                "exifImageWidth": 4032,
+                "exifImageHeight": 3024,
+                "dateTimeOriginal": "2026-01-01T00:00:00Z",
+                "rating": 4,
+                "fileSizeInByte": 12345678u64
+            },
+            "tags": [
+                { "id": "11111111-aaaa-bbbb-cccc-000000000001", "name": "Landscape", "value": "Landscape" }
+            ]
+        })))
+        .mount(server)
+        .await;
+}
+
+pub async fn mock_asset_update(server: &MockServer) {
+    Mock::given(method("PUT"))
+        .and(path(format!("/api/assets/{}", asset_id())))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": asset_id(),
+            "originalFileName": "DSC0001.ARW",
+            "type": "IMAGE",
+            "isFavorite": true,
+            "exifInfo": { "rating": 5 },
+            "tags": []
+        })))
+        .mount(server)
+        .await;
+}
+
+pub async fn mock_tag_upsert(server: &MockServer) {
+    Mock::given(method("PUT"))
+        .and(path("/api/tags"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            { "id": "22222222-aaaa-bbbb-cccc-000000000002", "name": "New", "value": "New" }
+        ])))
+        .mount(server)
+        .await;
+}
+
+pub fn tag_id() -> Uuid {
+    Uuid::parse_str("33333333-aaaa-bbbb-cccc-000000000003").unwrap()
+}
+
+pub async fn mock_tag_asset(server: &MockServer) {
+    Mock::given(method("PUT"))
+        .and(path(format!("/api/tags/{}/assets", tag_id())))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            { "id": asset_id(), "success": true }
+        ])))
+        .mount(server)
+        .await;
+}
+
+pub async fn mock_untag_asset(server: &MockServer) {
+    Mock::given(method("DELETE"))
+        .and(path(format!("/api/tags/{}/assets", tag_id())))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            { "id": asset_id(), "success": true }
+        ])))
+        .mount(server)
+        .await;
+}

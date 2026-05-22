@@ -61,9 +61,11 @@ class LibraryStore {
     this.error = null;
     try {
       switch (v) {
-        case 'albums':
-          this.albums = await listAlbums();
+        case 'albums': {
+          const a = await listAlbums();
+          this.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
           break;
+        }
         case 'people':
           this.people = await listPeople();
           break;
@@ -104,7 +106,7 @@ class LibraryStore {
     if (stats) this.photosCount = stats.total;
     if (favStats) this.favoritesCount = favStats.total;
     if (!this.loaded.has('albums')) {
-      this.albums = albums;
+      this.albums = albums.sort((x, y) => x.albumName.localeCompare(y.albumName));
       this.loaded.add('albums');
     }
     if (!this.loaded.has('people')) {

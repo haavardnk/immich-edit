@@ -25,6 +25,8 @@
       fileCreatedAt: a.fileCreatedAt,
       updatedAt: a.updatedAt,
       checksum: a.checksum,
+      isFavorite: a.isFavorite ?? false,
+      exifInfo: a.exifInfo ?? null,
     }));
     browsing.set(assets);
     loading = false;

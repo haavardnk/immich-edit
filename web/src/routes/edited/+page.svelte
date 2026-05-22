@@ -19,6 +19,8 @@
       fileCreatedAt: null,
       updatedAt: null,
       checksum: null,
+      isFavorite: false,
+      exifInfo: null,
     }));
     browsing.set(assets);
     loading = false;

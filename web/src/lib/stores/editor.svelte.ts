@@ -1,10 +1,12 @@
 import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
-import type { AssetDetail } from '$lib/types/asset';
+import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta } from '$lib/api/preview';
 import { downloadExport } from '$lib/api/export';
-import { getAsset } from '$lib/api/assets';
+import { getAsset, updateAsset } from '$lib/api/assets';
+import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
+import { browsing } from '$lib/stores/browsing.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
@@ -222,6 +224,108 @@ class EditorStore {
       this.error = (e as Error).message;
     } finally {
       this.exporting = false;
+    }
+  };
+
+  private syncBrowsing(): void {
+    if (!this.assetId || !this.asset) return;
+    browsing.patch(this.assetId, {
+      isFavorite: this.asset.isFavorite,
+      exifInfo: this.asset.exifInfo ?? null
+    });
+  }
+
+  toggleFavorite = async (): Promise<void> => {
+    if (!this.assetId || !this.asset) return;
+    const prev = this.asset.isFavorite;
+    this.asset = { ...this.asset, isFavorite: !prev };
+    try {
+      const updated = await updateAsset(this.assetId, { isFavorite: !prev });
+      this.asset = updated;
+      this.syncBrowsing();
+    } catch (e) {
+      if (this.asset) this.asset = { ...this.asset, isFavorite: prev };
+      this.error = (e as Error).message;
+    }
+  };
+
+  setRating = async (rating: number | null): Promise<void> => {
+    if (!this.assetId || !this.asset) return;
+    const prevExif: ExifInfo | null = this.asset.exifInfo;
+    const nextExif: ExifInfo = prevExif
+      ? { ...prevExif, rating }
+      : {
+          make: null,
+          model: null,
+          lensModel: null,
+          fNumber: null,
+          focalLength: null,
+          iso: null,
+          exposureTime: null,
+          exifImageWidth: null,
+          exifImageHeight: null,
+          dateTimeOriginal: null,
+          rating,
+          fileSizeInByte: null
+        };
+    this.asset = { ...this.asset, exifInfo: nextExif };
+    try {
+      const updated = await updateAsset(this.assetId, { rating });
+      this.asset = updated;
+      this.syncBrowsing();
+    } catch (e) {
+      if (this.asset) this.asset = { ...this.asset, exifInfo: prevExif };
+      this.error = (e as Error).message;
+    }
+  };
+
+  addTag = async (tag: TagRef): Promise<void> => {
+    if (!this.assetId || !this.asset) return;
+    if (this.asset.tags.some((t) => t.id === tag.id)) return;
+    const prev = this.asset.tags;
+    this.asset = { ...this.asset, tags: [...prev, tag] };
+    try {
+      await addTagToAsset(tag.id, this.assetId);
+    } catch (e) {
+      if (this.asset) this.asset = { ...this.asset, tags: prev };
+      this.error = (e as Error).message;
+    }
+  };
+
+  removeTag = async (tagId: string): Promise<void> => {
+    if (!this.assetId || !this.asset) return;
+    const prev = this.asset.tags;
+    this.asset = { ...this.asset, tags: prev.filter((t) => t.id !== tagId) };
+    try {
+      await removeTagFromAsset(tagId, this.assetId);
+    } catch (e) {
+      if (this.asset) this.asset = { ...this.asset, tags: prev };
+      this.error = (e as Error).message;
+    }
+  };
+
+  createAndAddTag = async (value: string): Promise<TagRef | null> => {
+    if (!this.assetId || !this.asset) return null;
+    try {
+      const created = await upsertTags([value]);
+      const tag = created[0];
+      if (!tag) return null;
+      const ref: TagRef = { id: tag.id, name: tag.name, value: tag.value };
+      if (!this.asset.tags.some((t) => t.id === ref.id)) {
+        const prev = this.asset.tags;
+        this.asset = { ...this.asset, tags: [...prev, ref] };
+        try {
+          await addTagToAsset(ref.id, this.assetId);
+        } catch (e) {
+          if (this.asset) this.asset = { ...this.asset, tags: prev };
+          this.error = (e as Error).message;
+          return null;
+        }
+      }
+      return ref;
+    } catch (e) {
+      this.error = (e as Error).message;
+      return null;
     }
   };
 

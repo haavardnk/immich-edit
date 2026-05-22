@@ -4,6 +4,8 @@ import WhiteBalancePanel from './WhiteBalance.svelte';
 import BasicPanel from './Basic.svelte';
 import CurvesPanel from './Curves.svelte';
 import ColorPanel from './Color.svelte';
+import InfoPanel from './Info.svelte';
+import TagsPanel from './Tags.svelte';
 
 export interface PanelDef {
   id: string;
@@ -18,4 +20,6 @@ export const developPanels: PanelDef[] = [
   { id: 'basic', title: 'Tone', component: BasicPanel, defaultOpen: true },
   { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: true },
   { id: 'color', title: 'Color', component: ColorPanel, defaultOpen: true },
+  { id: 'info', title: 'Info', component: InfoPanel, defaultOpen: false },
+  { id: 'tags', title: 'Tags', component: TagsPanel, defaultOpen: false },
 ];

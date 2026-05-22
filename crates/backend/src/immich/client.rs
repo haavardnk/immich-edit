@@ -7,8 +7,8 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, AssetStatistics, PeopleResponse, PersonSummary,
-    SearchAssets, SearchResponse, TagSummary,
+    AlbumDetail, AlbumSummary, AssetDetail, AssetStatistics, BulkIdResponse, PeopleResponse,
+    PersonSummary, SearchAssets, SearchResponse, TagSummary,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -124,6 +124,44 @@ impl ImmichClient {
 
     pub async fn list_tags(&self) -> ImmichResult<Vec<TagSummary>> {
         self.get_json("api/tags").await
+    }
+
+    pub async fn update_asset(
+        &self,
+        id: Uuid,
+        body: &serde_json::Value,
+    ) -> ImmichResult<AssetDetail> {
+        let url = self.url(&format!("api/assets/{id}"))?;
+        let bytes = send(&self.http, self.http.put(url).json(body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
+        let url = self.url("api/tags")?;
+        let bytes = send(&self.http, self.http.put(url).json(body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn tag_asset(
+        &self,
+        tag_id: Uuid,
+        asset_id: Uuid,
+    ) -> ImmichResult<Vec<BulkIdResponse>> {
+        let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
+        let body = serde_json::json!({ "ids": [asset_id] });
+        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn untag_asset(
+        &self,
+        tag_id: Uuid,
+        asset_id: Uuid,
+    ) -> ImmichResult<Vec<BulkIdResponse>> {
+        let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
+        let body = serde_json::json!({ "ids": [asset_id] });
+        let bytes = send(&self.http, self.http.delete(url).json(&body)).await?;
+        parse_json(&bytes)
     }
 
     pub async fn folder_paths(&self) -> ImmichResult<Vec<String>> {

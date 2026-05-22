@@ -199,7 +199,10 @@ pub enum AspectLock {
     #[default]
     Original,
     Free,
-    Ratio { num: u16, den: u16 },
+    Ratio {
+        num: u16,
+        den: u16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

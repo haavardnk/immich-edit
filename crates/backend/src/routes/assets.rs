@@ -19,6 +19,15 @@ pub async fn detail(
     Ok(Json(asset))
 }
 
+pub async fn update(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<AssetDetail>, AppError> {
+    let asset = state.immich.update_asset(id, &body).await?;
+    Ok(Json(asset))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ThumbQuery {
     #[serde(default = "default_thumb_size")]

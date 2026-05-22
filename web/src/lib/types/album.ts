@@ -1,3 +1,5 @@
+import type { ExifInfo } from './asset';
+
 export interface AlbumSummary {
   id: string;
   albumName: string;
@@ -21,4 +23,6 @@ export interface AssetSummary {
   fileCreatedAt: string | null;
   updatedAt: string | null;
   checksum: string | null;
+  isFavorite: boolean;
+  exifInfo: ExifInfo | null;
 }
