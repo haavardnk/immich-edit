@@ -65,11 +65,11 @@ mod tests {
 
     #[test]
     fn empty_edits_yields_empty_doc() {
-        let doc = EditManifest::from_edits(&Edits::default());
-        if !doc.ops.is_empty() {
-            panic!("expected no ops, got {:?}", doc.ops);
+        let manifest = EditManifest::from_edits(&Edits::default());
+        if !manifest.ops.is_empty() {
+            panic!("expected no ops, got {:?}", manifest.ops);
         }
-        if doc.schema_version != EDIT_MANIFEST_VERSION {
+        if manifest.schema_version != EDIT_MANIFEST_VERSION {
             panic!("wrong version");
         }
     }
@@ -115,8 +115,8 @@ mod tests {
                 aspect: Default::default(),
             },
         };
-        let doc = EditManifest::from_edits(&original);
-        let back = doc.to_edits();
+        let manifest = EditManifest::from_edits(&original);
+        let back = manifest.to_edits();
         if back != original {
             panic!("roundtrip mismatch: {back:?} != {original:?}");
         }
@@ -131,11 +131,11 @@ mod tests {
             },
             ..Default::default()
         };
-        let doc = EditManifest::from_edits(&edits);
-        if doc.ops.len() != 1 || !doc.ops.contains_key("exposure") {
+        let manifest = EditManifest::from_edits(&edits);
+        if manifest.ops.len() != 1 || !manifest.ops.contains_key("exposure") {
             panic!(
                 "expected only exposure key, got {:?}",
-                doc.ops.keys().collect::<Vec<_>>()
+                manifest.ops.keys().collect::<Vec<_>>()
             );
         }
     }
@@ -145,11 +145,11 @@ mod tests {
         let mut ops = BTreeMap::new();
         ops.insert("exposure".into(), serde_json::json!({ "ev": 2.0 }));
         ops.insert("nonexistent".into(), serde_json::json!({ "foo": 1 }));
-        let doc = EditManifest {
+        let manifest = EditManifest {
             schema_version: EDIT_MANIFEST_VERSION,
             ops,
         };
-        let edits = doc.to_edits();
+        let edits = manifest.to_edits();
         if edits.basic.exposure_ev != 2.0 {
             panic!("exposure not parsed");
         }

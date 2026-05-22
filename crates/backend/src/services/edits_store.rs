@@ -196,7 +196,7 @@ mod tests {
         EditsStore::migrated_memory().await.unwrap()
     }
 
-    fn doc_with(edits: Edits) -> EditManifest {
+    fn manifest_with(edits: Edits) -> EditManifest {
         EditManifest::from_edits(&edits)
     }
 
@@ -212,7 +212,7 @@ mod tests {
     async fn put_then_get_roundtrips() {
         let s = store().await;
         let id = uid();
-        let doc = doc_with(Edits {
+        let manifest = manifest_with(Edits {
             basic: raw_pipeline::edits::BasicEdits {
                 exposure_ev: 1.0,
                 ..Default::default()
@@ -226,7 +226,7 @@ mod tests {
         let saved = s
             .put(
                 id,
-                doc,
+                manifest,
                 Some("2026-01-01T00:00:00Z".into()),
                 Some("abc".into()),
             )
@@ -249,7 +249,7 @@ mod tests {
     async fn put_clamps_invalid_values() {
         let s = store().await;
         let id = uid();
-        let doc = doc_with(Edits {
+        let manifest = manifest_with(Edits {
             basic: raw_pipeline::edits::BasicEdits {
                 exposure_ev: 99.0,
                 ..Default::default()
@@ -260,7 +260,7 @@ mod tests {
             },
             ..Default::default()
         });
-        let saved = s.put(id, doc, None, None).await.unwrap();
+        let saved = s.put(id, manifest, None, None).await.unwrap();
         let edits = saved.manifest.to_edits();
         if edits.basic.exposure_ev > 5.0 {
             panic!("not clamped: {}", edits.basic.exposure_ev);
@@ -294,7 +294,7 @@ mod tests {
         let id = uid();
         s.put(
             id,
-            doc_with(Edits {
+            manifest_with(Edits {
                 basic: raw_pipeline::edits::BasicEdits {
                     exposure_ev: 1.0,
                     ..Default::default()
@@ -308,7 +308,7 @@ mod tests {
         .unwrap();
         s.put(
             id,
-            doc_with(Edits {
+            manifest_with(Edits {
                 basic: raw_pipeline::edits::BasicEdits {
                     exposure_ev: 2.0,
                     ..Default::default()
