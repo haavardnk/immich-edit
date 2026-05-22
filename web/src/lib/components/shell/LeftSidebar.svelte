@@ -93,10 +93,10 @@
       <Icon path={mdiChevronRight} size={16} class="opacity-40" />
     </button>
   {:else}
-    <div class="flex items-center px-3 pt-2 pb-1">
-      <span class="flex-1 text-[10px] uppercase tracking-widest text-immich-dark-fg/40 font-semibold pl-1">Library</span>
+    <div class="flex items-center border-b border-white/10">
+      <span class="flex-1 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/40 font-semibold">Library</span>
       <button
-        class="p-0.5 rounded hover:bg-white/10 transition-colors"
+        class="p-1.5 hover:bg-white/10 transition-colors"
         onclick={ui.toggleLeft}
         aria-label="collapse library panel"
         title="Collapse"
@@ -104,7 +104,7 @@
         <Icon path={mdiChevronLeft} size={14} class="opacity-40" />
       </button>
     </div>
-    <div class="px-3 pb-2">
+    <div class="px-3 pt-2 pb-2">
       <div class="relative">
         <Icon path={mdiMagnify} size={16} class="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-40" />
         <input

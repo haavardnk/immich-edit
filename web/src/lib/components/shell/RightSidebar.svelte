@@ -46,6 +46,14 @@
   {:else}
     {#if editor.assetId}
       <div class="flex items-center border-b border-white/10">
+        <button
+          class="p-1.5 hover:bg-white/10 transition-colors"
+          onclick={ui.toggleRight}
+          aria-label="collapse edit panel"
+          title="Collapse"
+        >
+          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
+        </button>
         <nav class="flex flex-1">
           {#each [{ id: 'develop', label: 'Develop' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
             <button
@@ -56,14 +64,6 @@
             </button>
           {/each}
         </nav>
-        <button
-          class="p-1.5 hover:bg-white/10 transition-colors"
-          onclick={ui.toggleRight}
-          aria-label="collapse edit panel"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
-        </button>
       </div>
 
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
