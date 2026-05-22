@@ -20,6 +20,7 @@ class UiStore {
   zoom = $state(100);
   panX = $state(0);
   panY = $state(0);
+  keybindsHelpOpen = $state(false);
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;
@@ -50,6 +51,22 @@ class UiStore {
     this.zoom = 100;
     this.panX = 0;
     this.panY = 0;
+  };
+
+  zoomToggle = (): void => {
+    if (this.zoom <= 100) {
+      this.zoom = 200;
+    } else {
+      this.zoomFit();
+    }
+  };
+
+  toggleKeybindsHelp = (): void => {
+    this.keybindsHelpOpen = !this.keybindsHelpOpen;
+  };
+
+  closeKeybindsHelp = (): void => {
+    this.keybindsHelpOpen = false;
   };
 
   setZoom = (value: number): void => {

@@ -16,6 +16,18 @@ class BrowsingStore {
     if (idx < 0) return;
     this.assets[idx] = { ...this.assets[idx], ...fields };
   }
+
+  prevOf(id: string): AssetSummary | null {
+    const idx = this.assets.findIndex((a) => a.id === id);
+    if (idx <= 0) return null;
+    return this.assets[idx - 1];
+  }
+
+  nextOf(id: string): AssetSummary | null {
+    const idx = this.assets.findIndex((a) => a.id === id);
+    if (idx < 0 || idx >= this.assets.length - 1) return null;
+    return this.assets[idx + 1];
+  }
 }
 
 export const browsing = new BrowsingStore();
