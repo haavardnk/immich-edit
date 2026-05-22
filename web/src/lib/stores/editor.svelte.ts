@@ -3,7 +3,7 @@ import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta } from '$lib/api/preview';
-import { downloadExport } from '$lib/api/export';
+import { downloadExport, EXTENSION_BY_FORMAT, type ExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
@@ -212,13 +212,13 @@ class EditorStore {
     }
   };
 
-  onExport = async (): Promise<void> => {
+  onExport = async (opts: ExportOptions): Promise<void> => {
     if (!this.assetId) return;
     this.exporting = true;
     try {
-      const blob = await downloadExport(this.assetId, $state.snapshot(this.edits));
-      const name =
-        (this.asset?.originalFileName ?? this.assetId).replace(/\.[^.]+$/, '') + '_edit.jpg';
+      const blob = await downloadExport(this.assetId, $state.snapshot(this.edits), opts);
+      const base = (this.asset?.originalFileName ?? this.assetId).replace(/\.[^.]+$/, '');
+      const name = `${base}_edit.${EXTENSION_BY_FORMAT[opts.format]}`;
       downloadBlob(blob, name);
     } catch (e) {
       this.error = (e as Error).message;
