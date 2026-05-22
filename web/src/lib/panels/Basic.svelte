@@ -100,6 +100,16 @@
       onCommit={editor.onCommit}
       format={(v: number) => v.toFixed(0)}
     />
+    <SliderRow
+      label="Clarity"
+      bind:value={editor.edits.basic.clarity}
+      min={-100}
+      max={100}
+      step={1}
+      onLive={editor.onLive}
+      onCommit={editor.onCommit}
+      format={(v: number) => v.toFixed(0)}
+    />
   </div>
   <div class="flex flex-col gap-2.5 pt-3">
     <SliderRow

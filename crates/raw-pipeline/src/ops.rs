@@ -1,3 +1,4 @@
+pub mod clarity;
 pub mod color_grade;
 pub mod color_matrix;
 pub mod contrast;
@@ -129,6 +130,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(user_wb::UserWbOp),
         Box::new(texture::TextureOp),
+        Box::new(clarity::ClarityOp),
         Box::new(exposure::ExposureOp),
         Box::new(tone_regions::ToneRegionsOp),
         Box::new(contrast::ContrastOp),

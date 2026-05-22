@@ -368,3 +368,46 @@ fn texture_positive_amplifies_detail() {
     let center_after = img.rgb[4 * 3];
     assert!(center_after > center_before);
 }
+
+#[test]
+fn clarity_inactive_when_zero() {
+    assert!(!clarity::ClarityOp.is_active(&Edits::default()));
+}
+
+#[test]
+fn clarity_amplifies_midtones_more_than_extremes() {
+    let mk = |left: f32, right: f32| {
+        let mut buf = vec![0.0f32; 200 * 10 * 3];
+        for y in 0..10 {
+            for x in 0..200 {
+                let v = if x < 100 { left } else { right };
+                let i = (y * 200 + x) * 3;
+                buf[i] = v;
+                buf[i + 1] = v;
+                buf[i + 2] = v;
+            }
+        }
+        LinearImage::new(buf, 200, 10)
+    };
+    let edits = Edits {
+        basic: BasicEdits {
+            clarity: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut mid = mk(0.45, 0.55);
+    let mut bright = mk(0.92, 1.00);
+    let probe = (5 * 200 + 99) * 3;
+    let mid_before = mid.rgb[probe];
+    let bright_before = bright.rgb[probe];
+    clarity::ClarityOp
+        .apply_cpu(&mut mid, &ctx(), &edits)
+        .unwrap();
+    clarity::ClarityOp
+        .apply_cpu(&mut bright, &ctx(), &edits)
+        .unwrap();
+    let mid_delta = (mid.rgb[probe] - mid_before).abs();
+    let bright_delta = (bright.rgb[probe] - bright_before).abs();
+    assert!(mid_delta > bright_delta);
+}
