@@ -39,16 +39,11 @@ export const HSL_BAND_NAMES: readonly string[] = [
   'Magenta'
 ];
 
-export const HSL_BAND_COLORS: readonly string[] = [
-  '#e53935',
-  '#fb8c00',
-  '#fdd835',
-  '#43a047',
-  '#26c6da',
-  '#1e88e5',
-  '#8e24aa',
-  '#d81b60'
-];
+export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 300, 340];
+
+export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map(
+  (h) => `hsl(${h}, 70%, 65%)`
+);
 
 export interface HslEdits {
   bands: HslBand[];
