@@ -7,8 +7,8 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, BulkIdResponse, PeopleResponse,
-    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, TagSummary,
+    AlbumDetail, AlbumSummary, AssetDetail, BulkIdResponse, PeopleResponse, PersonSummary,
+    SearchAssets, SearchResponse, SearchStatistics, TagSummary,
 };
 use super::{ImmichError, ImmichResult};
 

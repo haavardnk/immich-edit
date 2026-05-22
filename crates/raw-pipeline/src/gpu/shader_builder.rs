@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::ops::OpRegistry;
+use crate::ops::{OpRegistry, Stage};
 
 pub const HEADER_BYTES: usize = 112;
 pub const ACTIVE_MASK_OFFSET: usize = 64;
@@ -21,7 +21,10 @@ pub struct BuiltProcessShader {
 pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     let mut struct_fields = String::new();
     let mut functions = String::new();
-    let mut apply_calls = String::new();
+    let mut apply_wb = String::new();
+    let mut apply_local = String::new();
+    let mut apply_tone = String::new();
+    let mut apply_color = String::new();
     let mut color_ops: Vec<ColorOpSlot> = Vec::new();
     let mut used_vec4s: usize = 0;
 
@@ -47,8 +50,15 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
         }
         functions.push_str(gpu_op.functions);
         functions.push('\n');
+        let chunk = match op.stage() {
+            Stage::WhiteBalance => &mut apply_wb,
+            Stage::Local => &mut apply_local,
+            Stage::Tone => &mut apply_tone,
+            Stage::Color => &mut apply_color,
+            Stage::Geometry => unreachable!("geometry ops use vec4_count == 0"),
+        };
         writeln!(
-            apply_calls,
+            chunk,
             "    if (((p.active_mask.x >> {bit}u) & 1u) != 0u) {{ {} }}",
             gpu_op.apply
         )
@@ -104,9 +114,28 @@ fn default_tone(v: f32) -> f32 {{
 }}
 
 {functions}
+fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
+    var lin = c;
+{apply_wb}    return lin;
+}}
+
+fn apply_local_stage(c: vec3<f32>) -> vec3<f32> {{
+    var lin = c;
+{apply_local}    return lin;
+}}
+
+fn apply_tone_stage(c: vec3<f32>) -> vec3<f32> {{
+    var lin = c;
+{apply_tone}    return lin;
+}}
+
+fn apply_color_stage(c: vec3<f32>) -> vec3<f32> {{
+    var lin = c;
+{apply_color}    return lin;
+}}
+
 fn process_color(c0: vec3<f32>) -> vec3<f32> {{
-    var lin = c0;
-{apply_calls}    return lin;
+    return apply_color_stage(apply_tone_stage(apply_local_stage(apply_wb_stage(c0))));
 }}
 
 @compute @workgroup_size(16, 16, 1)

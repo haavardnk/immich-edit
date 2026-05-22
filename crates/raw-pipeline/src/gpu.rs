@@ -23,7 +23,9 @@ use crate::ops::OpContext;
 use crate::{PipelineError, PipelineResult};
 
 use context::GpuContext;
-use helpers::{DemosaicParams, cfa_to_indices, mip_count, round_up_256, scale_to_max, write_header};
+use helpers::{
+    DemosaicParams, cfa_to_indices, mip_count, round_up_256, scale_to_max, write_header,
+};
 use pipeline::GpuPipelines;
 use readback::{
     copy_texture_to_buffer, make_readback_buffer, make_readback_buffer_f16, read_rgba8,

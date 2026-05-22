@@ -116,9 +116,7 @@ impl EditOperator for ColorGradeOp {
             return None;
         }
         let cg = &edits.color.color_grade;
-        let r = |reg: &ColorGradeRegion| {
-            serde_json::json!({"hue": reg.hue, "sat": reg.sat, "lum": reg.lum})
-        };
+        let r = |reg: &ColorGradeRegion| serde_json::json!({"hue": reg.hue, "sat": reg.sat, "lum": reg.lum});
         Some(serde_json::json!({
             "shadows": r(&cg.shadows),
             "midtones": r(&cg.midtones),

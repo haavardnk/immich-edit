@@ -37,6 +37,7 @@ impl LinearImage {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     WhiteBalance,
+    Local,
     Tone,
     Color,
     Geometry,
