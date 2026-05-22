@@ -103,7 +103,7 @@ async fn render_to_response(
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     resp.headers_mut().insert(
         HeaderName::from_static(META_HEADER),
-        HeaderValue::from_str(&meta_id.to_string()).unwrap(),
+        HeaderValue::from_str(&meta_id.to_string()).expect("uuid is valid header value"),
     );
     Ok(resp.into_response())
 }

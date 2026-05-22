@@ -417,7 +417,7 @@ class EditorStore {
       geometry: {
         ...this.edits.geometry,
         rotate_angle: sess.draftAngle,
-        crop: sess.userEditedCrop ? sess.draftCrop : sess.draftCrop,
+        crop: sess.userEditedCrop ? sess.draftCrop : null,
         aspect: sess.draftAspect
       }
     };
