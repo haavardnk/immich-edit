@@ -53,6 +53,7 @@ impl EditOperator for UserWbOp {
             ),
             apply: "lin = user_wb_apply(lin);",
             vec4_count: 3,
+            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

@@ -133,6 +133,7 @@ impl EditOperator for CurvesOp {
             ),
             apply: "lin = curves_apply(lin);",
             vec4_count: 4,
+            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

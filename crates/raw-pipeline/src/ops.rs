@@ -41,10 +41,20 @@ impl LinearImage {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     WhiteBalance,
-    Local,
     Tone,
     Color,
     Geometry,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GpuOpKind {
+    Normal,
+    Presence,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResourceNeed {
+    LumaPyramid { max_radius_px: u32 },
 }
 
 #[derive(Clone)]
@@ -59,6 +69,7 @@ pub struct GpuOp {
     pub functions: &'static str,
     pub apply: &'static str,
     pub vec4_count: usize,
+    pub kind: GpuOpKind,
 }
 
 impl GpuOp {
@@ -72,6 +83,7 @@ impl GpuOp {
             functions,
             apply,
             vec4_count: 1,
+            kind: GpuOpKind::Normal,
         }
     }
 }
@@ -91,6 +103,9 @@ pub trait EditOperator: Send + Sync {
     ) -> PipelineResult<()>;
     fn gpu(&self) -> Option<GpuOp> {
         None
+    }
+    fn resource_needs(&self, _edits: &Edits) -> Vec<ResourceNeed> {
+        Vec::new()
     }
     fn write_gpu_uniform(&self, _edits: &Edits, _ctx: &OpContext, _dst: &mut [f32]) {}
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {

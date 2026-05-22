@@ -1,6 +1,6 @@
 use super::LinearImage;
 use super::local::{apply_luma_delta, box_blur_separable, luma_buffer};
-use super::{EditOperator, OpContext, Stage};
+use super::{EditOperator, OpContext, ResourceNeed, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
 use rayon::prelude::*;
@@ -12,13 +12,19 @@ impl EditOperator for ClarityOp {
         "clarity"
     }
     fn stage(&self) -> Stage {
-        Stage::Local
+        Stage::Tone
     }
     fn order(&self) -> i32 {
-        10
+        -20
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.clarity != 0.0
+    }
+    fn resource_needs(&self, edits: &Edits) -> Vec<ResourceNeed> {
+        if !self.is_active(edits) {
+            return Vec::new();
+        }
+        vec![ResourceNeed::LumaPyramid { max_radius_px: 64 }]
     }
     fn apply_cpu(
         &self,

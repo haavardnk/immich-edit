@@ -95,6 +95,7 @@ impl EditOperator for ColorGradeOp {
             functions: COLOR_GRADE_WGSL,
             apply: "lin = color_grade_apply(lin);",
             vec4_count: 5,
+            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

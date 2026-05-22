@@ -21,10 +21,7 @@ impl StageMask {
 
     pub const fn fast() -> Self {
         Self(
-            (1 << Stage::WhiteBalance as u8)
-                | (1 << Stage::Local as u8)
-                | (1 << Stage::Tone as u8)
-                | (1 << Stage::Color as u8),
+            (1 << Stage::WhiteBalance as u8) | (1 << Stage::Tone as u8) | (1 << Stage::Color as u8),
         )
     }
 
@@ -62,7 +59,6 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let mut struct_fields = String::new();
     let mut functions = String::new();
     let mut apply_wb = String::new();
-    let mut apply_local = String::new();
     let mut apply_tone = String::new();
     let mut apply_color = String::new();
     let mut color_ops: Vec<ColorOpSlot> = Vec::new();
@@ -96,7 +92,6 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
         functions.push('\n');
         let chunk = match stage {
             Stage::WhiteBalance => &mut apply_wb,
-            Stage::Local => &mut apply_local,
             Stage::Tone => &mut apply_tone,
             Stage::Color => &mut apply_color,
             Stage::Geometry => unreachable!("geometry ops use vec4_count == 0"),
@@ -164,11 +159,6 @@ fn default_tone(v: f32) -> f32 {{
 fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
     var lin = c;
 {apply_wb}    return lin;
-}}
-
-fn apply_local_stage(c: vec3<f32>) -> vec3<f32> {{
-    var lin = c;
-{apply_local}    return lin;
 }}
 
 fn apply_tone_stage(c: vec3<f32>) -> vec3<f32> {{
@@ -247,7 +237,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 fn build_process_chain(mask: StageMask) -> String {
     let stages = [
         (Stage::WhiteBalance, "apply_wb_stage"),
-        (Stage::Local, "apply_local_stage"),
         (Stage::Tone, "apply_tone_stage"),
         (Stage::Color, "apply_color_stage"),
     ];

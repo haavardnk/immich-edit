@@ -97,6 +97,7 @@ impl EditOperator for CropRotateOp {
             functions: "",
             apply: "",
             vec4_count: 0,
+            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
