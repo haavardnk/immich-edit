@@ -3,7 +3,7 @@ import { listPeople, type PersonSummary } from '$lib/api/people';
 import { listTags, type TagSummary } from '$lib/api/tags';
 import { folderPaths } from '$lib/api/folders';
 import { listEditedAssetIds } from '$lib/api/edits';
-import { assetStatistics } from '$lib/api/search';
+import { searchStatistics } from '$lib/api/search';
 import type { AlbumSummary } from '$lib/types/album';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
@@ -95,8 +95,8 @@ class LibraryStore {
     if (this.countsLoaded) return;
     this.countsLoaded = true;
     const [stats, favStats, albums, people, tags, paths, editedIds] = await Promise.all([
-      assetStatistics().catch(() => null),
-      assetStatistics({ isFavorite: 'true' }).catch(() => null),
+      searchStatistics({}).catch(() => null),
+      searchStatistics({ isFavorite: true }).catch(() => null),
       listAlbums().catch(() => [] as AlbumSummary[]),
       listPeople().catch(() => [] as PersonSummary[]),
       listTags().catch(() => [] as TagSummary[]),

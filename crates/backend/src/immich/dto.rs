@@ -145,13 +145,6 @@ pub struct BulkIdResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AssetStatistics {
-    pub images: u32,
-    pub videos: u32,
-    pub total: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
     pub assets: SearchAssets,
 }
