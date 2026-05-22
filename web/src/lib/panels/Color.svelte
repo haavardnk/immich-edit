@@ -1,6 +1,8 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '$lib/types/edits';
 
@@ -12,6 +14,28 @@
     { key: 'highlights' as const, label: 'Highlights' },
     { key: 'global' as const, label: 'Global' }
   ];
+
+  type RegionKey = (typeof CG_REGIONS)[number]['key'];
+
+  function resetRegion(key: RegionKey): void {
+    const reg = editor.edits.color.color_grade[key];
+    reg.hue = 0;
+    reg.sat = 0;
+    reg.lum = 0;
+    editor.onCommit();
+  }
+
+  function resetAllGrading(): void {
+    const cg = editor.edits.color.color_grade;
+    for (const r of CG_REGIONS) {
+      cg[r.key].hue = 0;
+      cg[r.key].sat = 0;
+      cg[r.key].lum = 0;
+    }
+    cg.balance = 0;
+    cg.blend = 0;
+    editor.onCommit();
+  }
 </script>
 
 <div class="flex flex-col gap-2.5">
@@ -83,7 +107,18 @@
   </div>
 
   <div class="flex flex-col gap-3 pt-2 mt-1 border-t border-white/10">
-    <div class="text-[10px] uppercase tracking-wide text-immich-dark-fg/60 px-1">Color grading</div>
+    <div class="flex items-center justify-between px-1">
+      <div class="text-[10px] uppercase tracking-wide text-immich-dark-fg/60">Color grading</div>
+      <button
+        type="button"
+        class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
+        title="Reset color grading"
+        onclick={resetAllGrading}
+      >
+        <Icon path={mdiRestore} size={12} />
+        Reset
+      </button>
+    </div>
     {#each CG_REGIONS as r (r.key)}
       <div class="flex gap-3 items-center">
         <HueWheel
@@ -93,7 +128,17 @@
           onCommit={editor.onCommit}
         />
         <div class="flex flex-col gap-1.5 flex-1 min-w-0">
-          <div class="text-[11px] text-immich-dark-fg/70">{r.label}</div>
+          <div class="flex items-center justify-between">
+            <div class="text-[11px] text-immich-dark-fg/70">{r.label}</div>
+            <button
+              type="button"
+              class="text-immich-dark-fg/40 hover:text-immich-dark-fg/80 transition-colors"
+              title="Reset {r.label}"
+              onclick={() => resetRegion(r.key)}
+            >
+              <Icon path={mdiRestore} size={12} />
+            </button>
+          </div>
           <SliderRow
             label="Lum"
             bind:value={editor.edits.color.color_grade[r.key].lum}
