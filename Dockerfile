@@ -5,7 +5,7 @@ RUN npm ci
 COPY web/ .
 RUN npm run build
 
-FROM rust:1.87-bookworm AS builder
+FROM rust:1.89-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nasm cmake pkg-config libclang-dev && \
     rm -rf /var/lib/apt/lists/*

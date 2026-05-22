@@ -72,6 +72,7 @@ async fn render_to_response(
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
         quality: false,
+        output: raw_pipeline::frame::OutputFormat::Jpeg { quality: 85 },
     };
     let work = render.render(asset_id, edits, opts, Some(token));
     let result = state
@@ -98,7 +99,7 @@ async fn render_to_response(
     };
     let meta_id = state.preview_meta.put(meta).await;
 
-    let mut resp = Response::new(Body::from(rendered.jpeg));
+    let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     resp.headers_mut().insert(

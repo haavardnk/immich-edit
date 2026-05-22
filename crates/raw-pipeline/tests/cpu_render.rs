@@ -75,10 +75,10 @@ fn identity_render_jpeg() {
             ..Default::default()
         };
         let out = cpu::render(frame, &Edits::default(), &opts).unwrap();
-        if out.jpeg.len() < 1000 {
-            panic!("{name}: jpeg too small ({} bytes)", out.jpeg.len());
+        if out.bytes.len() < 1000 {
+            panic!("{name}: jpeg too small ({} bytes)", out.bytes.len());
         }
-        if &out.jpeg[..2] != b"\xff\xd8" {
+        if &out.bytes[..2] != b"\xff\xd8" {
             panic!("{name}: not jpeg SOI marker");
         }
         if out.width.max(out.height) > 512 {
@@ -194,15 +194,16 @@ fn exif_roundtrip_preserves_camera() {
             max_edge: 512,
             ..Default::default()
         };
-        let mut out = cpu::render(frame, &Edits::default(), &opts).unwrap().jpeg;
-        raw_pipeline::exif::inject_jpeg(&mut out, exif).unwrap();
+        let mut out = cpu::render(frame, &Edits::default(), &opts).unwrap().bytes;
+        raw_pipeline::exif::inject(&mut out, exif, little_exif::filetype::FileExtension::JPEG)
+            .unwrap();
         let reread = match little_exif::metadata::Metadata::new_from_vec(
             &out,
             little_exif::filetype::FileExtension::JPEG,
         ) {
             Ok(m) => m,
             Err(e) => {
-                eprintln!("{name}: reparse failed ({e}); known inject_jpeg bug, skipping");
+                eprintln!("{name}: reparse failed ({e}); known inject bug, skipping");
                 return;
             }
         };

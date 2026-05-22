@@ -2,8 +2,8 @@ use crate::cancel::{self, CancelToken};
 use crate::cpu::presence::{apply_presence, has_presence};
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
-use crate::encode::encode_jpeg;
-use crate::frame::{RawFrame, RenderOptions, RenderedImage};
+use crate::encode::{encode_from_rgb8, encode_from_rgb16};
+use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
 use crate::ops::LinearImage;
 use crate::ops::{GpuOpKind, OpContext, default_registry};
@@ -85,20 +85,31 @@ pub fn render_with_cancel(
     cancel::check(cancel)?;
     apply_default_tone(&mut srgb);
 
+    let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     let rgb_u8: Vec<u8> = srgb
         .par_iter()
         .map(|&v| (v.clamp(0.0, 1.0) * 255.0) as u8)
         .collect();
     cancel::check(cancel)?;
 
-    let (histogram, jpeg) = rayon::join(
+    let (histogram, bytes) = rayon::join(
         || Histogram::from_rgb_u8(&rgb_u8, w, h),
-        || encode_jpeg(&rgb_u8, w as u32, h as u32, 85),
+        || -> crate::PipelineResult<Vec<u8>> {
+            if want_16bit {
+                let rgb16: Vec<u16> = srgb
+                    .par_iter()
+                    .map(|&v| (v.clamp(0.0, 1.0) * 65535.0) as u16)
+                    .collect();
+                encode_from_rgb16(&rgb16, w as u32, h as u32, &options.output)
+            } else {
+                encode_from_rgb8(&rgb_u8, w as u32, h as u32, &options.output)
+            }
+        },
     );
-    let jpeg = jpeg?;
+    let bytes = bytes?;
 
     Ok(RenderedImage {
-        jpeg,
+        bytes,
         histogram,
         linear_histogram: Some(linear_histogram),
         width: w as u32,

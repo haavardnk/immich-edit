@@ -18,6 +18,100 @@ pub struct RawFrame {
 pub struct RenderOptions {
     pub max_edge: u32,
     pub quality: bool,
+    pub output: OutputFormat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BitDepth {
+    Eight,
+    Sixteen,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PngCompression {
+    Fast,
+    Default,
+    Best,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TiffCompression {
+    None,
+    Lzw,
+    Deflate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OutputFormat {
+    Jpeg {
+        quality: u8,
+    },
+    Png {
+        bit_depth: BitDepth,
+        compression: PngCompression,
+    },
+    Webp {
+        quality: u8,
+        lossless: bool,
+    },
+    Avif {
+        quality: u8,
+        speed: u8,
+    },
+    Tiff {
+        bit_depth: BitDepth,
+        compression: TiffCompression,
+    },
+    Jxl {
+        bit_depth: BitDepth,
+    },
+}
+
+impl OutputFormat {
+    pub fn content_type(&self) -> &'static str {
+        match self {
+            Self::Jpeg { .. } => "image/jpeg",
+            Self::Png { .. } => "image/png",
+            Self::Webp { .. } => "image/webp",
+            Self::Avif { .. } => "image/avif",
+            Self::Tiff { .. } => "image/tiff",
+            Self::Jxl { .. } => "image/jxl",
+        }
+    }
+
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Jpeg { .. } => "jpg",
+            Self::Png { .. } => "png",
+            Self::Webp { .. } => "webp",
+            Self::Avif { .. } => "avif",
+            Self::Tiff { .. } => "tif",
+            Self::Jxl { .. } => "jxl",
+        }
+    }
+
+    pub fn bit_depth(&self) -> BitDepth {
+        match self {
+            Self::Jpeg { .. } | Self::Webp { .. } | Self::Avif { .. } => BitDepth::Eight,
+            Self::Png { bit_depth, .. }
+            | Self::Tiff { bit_depth, .. }
+            | Self::Jxl { bit_depth } => *bit_depth,
+        }
+    }
+
+    pub fn exif_file_extension(&self) -> little_exif::filetype::FileExtension {
+        use little_exif::filetype::FileExtension;
+        match self {
+            Self::Jpeg { .. } => FileExtension::JPEG,
+            Self::Png { .. } => FileExtension::PNG {
+                as_zTXt_chunk: true,
+            },
+            Self::Webp { .. } => FileExtension::WEBP,
+            Self::Avif { .. } => FileExtension::HEIF,
+            Self::Tiff { .. } => FileExtension::TIFF,
+            Self::Jxl { .. } => FileExtension::JXL,
+        }
+    }
 }
 
 impl Default for RenderOptions {
@@ -25,12 +119,13 @@ impl Default for RenderOptions {
         Self {
             max_edge: 4096,
             quality: false,
+            output: OutputFormat::Jpeg { quality: 85 },
         }
     }
 }
 
 pub struct RenderedImage {
-    pub jpeg: Vec<u8>,
+    pub bytes: Vec<u8>,
     pub histogram: crate::histogram::Histogram,
     pub linear_histogram: Option<crate::histogram::Histogram>,
     pub width: u32,

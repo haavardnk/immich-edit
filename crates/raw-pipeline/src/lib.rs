@@ -37,6 +37,8 @@ pub fn version() -> &'static str {
 }
 
 pub use cancel::{CancelToken, CancelTracker};
-pub use frame::{RawFrame, RenderOptions, RenderedImage};
+pub use frame::{
+    BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage, TiffCompression,
+};
 pub use gpu::GpuRenderer;
 pub use gpu::context::GpuContext;

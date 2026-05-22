@@ -51,10 +51,10 @@ fn gpu_identity_render_jpeg() {
         ..Default::default()
     };
     let out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-    if out.jpeg.len() < 1000 {
-        panic!("jpeg too small ({} bytes)", out.jpeg.len());
+    if out.bytes.len() < 1000 {
+        panic!("jpeg too small ({} bytes)", out.bytes.len());
     }
-    if &out.jpeg[..2] != b"\xff\xd8" {
+    if &out.bytes[..2] != b"\xff\xd8" {
         panic!("not jpeg SOI marker");
     }
     if out.width.max(out.height) > 512 {
@@ -267,8 +267,8 @@ fn gpu_matches_cpu_within_tolerance() {
                 cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
             );
         }
-        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.jpeg);
-        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.jpeg);
+        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
+        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
         if (cw, ch) != (gw, gh) {
             panic!("{label}: decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
         }
@@ -379,8 +379,8 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     assert_eq!(gpu.width, cpu.width);
     assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.jpeg);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.jpeg);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
     let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
     eprintln!("presence mean abs delta = {delta:.3}");
     if delta > 8.0 {

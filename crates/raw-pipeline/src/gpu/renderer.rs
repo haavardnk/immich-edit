@@ -10,7 +10,7 @@ use wgpu::{
 };
 
 use crate::edits::Edits;
-use crate::encode::encode_jpeg_rgba;
+use crate::encode::encode_from_rgba8;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
 use crate::ops::{GpuOpKind, OpContext};
@@ -505,19 +505,19 @@ impl GpuRenderer {
         let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h)?;
         drop(pool);
 
-        let ((histogram, linear_histogram), jpeg) = rayon::join(
+        let ((histogram, linear_histogram), bytes) = rayon::join(
             || {
                 rayon::join(
                     || Histogram::from_rgba8(&rgba),
                     || Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize),
                 )
             },
-            || encode_jpeg_rgba(&rgba, out_w, out_h, 85),
+            || encode_from_rgba8(&rgba, out_w, out_h, &opts.output),
         );
-        let jpeg = jpeg?;
+        let bytes = bytes?;
 
         Ok(RenderedImage {
-            jpeg,
+            bytes,
             histogram,
             linear_histogram: Some(linear_histogram),
             width: out_w,
