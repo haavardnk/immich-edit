@@ -35,12 +35,12 @@
     {:else}
       <div class="relative">
         <button
-          class="absolute right-2 top-1 z-10 p-0.5 rounded hover:bg-white/10 transition-colors"
+          class="absolute right-1 top-1 z-10 p-0.5 rounded bg-black/40 hover:bg-white/15 transition-colors"
           onclick={ui.toggleFilmstrip}
           aria-label="collapse filmstrip"
           title="Collapse"
         >
-          <Icon path={mdiChevronDown} size={14} class="opacity-40" />
+          <Icon path={mdiChevronDown} size={14} class="opacity-70" />
         </button>
         <div
           class="flex gap-1 px-2 py-2 overflow-x-auto scrollbar-hidden"
