@@ -1,3 +1,5 @@
+export type AssetType = 'IMAGE' | 'VIDEO';
+
 export interface ExifInfo {
   make: string | null;
   model: string | null;
@@ -24,7 +26,7 @@ export interface TagRef {
 export interface AssetDetail {
   id: string;
   originalFileName: string;
-  type: string;
+  type: AssetType;
   originalMimeType: string | null;
   fileCreatedAt: string | null;
   updatedAt: string | null;

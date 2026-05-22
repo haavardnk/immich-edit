@@ -1,4 +1,4 @@
-import type { ExifInfo } from './asset';
+import type { AssetType, ExifInfo } from './asset';
 
 export interface AlbumSummary {
   id: string;
@@ -19,7 +19,7 @@ export interface AlbumDetail {
 export interface AssetSummary {
   id: string;
   originalFileName: string;
-  type: string;
+  type: AssetType;
   fileCreatedAt: string | null;
   updatedAt: string | null;
   checksum: string | null;
