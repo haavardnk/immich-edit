@@ -1,3 +1,4 @@
+use little_exif::endian::Endian;
 use little_exif::exif_tag::ExifTag;
 use little_exif::filetype::FileExtension;
 use little_exif::metadata::Metadata;
@@ -39,12 +40,36 @@ fn detect(data: &[u8]) -> Option<FileExtension> {
     FileExtension::auto_detect(&mut cursor)
 }
 
-pub fn inject_jpeg(jpeg: &mut Vec<u8>, exif: &Metadata) -> crate::PipelineResult<()> {
-    let mut m = exif.clone();
+pub fn inject(
+    bytes: &mut Vec<u8>,
+    exif: &Metadata,
+    file_extension: FileExtension,
+) -> crate::PipelineResult<()> {
+    const MAX_TAG_BYTES: usize = 4096;
+    let mut m = Metadata::new();
+    for tag in exif.into_iter() {
+        if !tag.is_writable() || matches!(tag, ExifTag::Orientation(_)) {
+            continue;
+        }
+        if tag.value_as_u8_vec(&Endian::Little).len() > MAX_TAG_BYTES {
+            continue;
+        }
+        m.set_tag(tag.clone());
+    }
     m.set_tag(ExifTag::Orientation(vec![1]));
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        m.write_to_vec(jpeg, FileExtension::JPEG)
-    }))
-    .map_err(|_| PipelineError::Encode("exif write panic".into()))?
-    .map_err(|e| PipelineError::Encode(format!("exif: {e}")))
+    let original = bytes.clone();
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        m.write_to_vec(bytes, file_extension)
+    }));
+    match res {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => {
+            *bytes = original;
+            Err(PipelineError::Encode(format!("exif: {e}")))
+        }
+        Err(_) => {
+            *bytes = original;
+            Err(PipelineError::Encode("exif write panic".into()))
+        }
+    }
 }
