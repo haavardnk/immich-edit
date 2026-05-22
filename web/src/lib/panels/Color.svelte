@@ -1,5 +1,6 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '$lib/types/edits';
 
@@ -84,38 +85,26 @@
   <div class="flex flex-col gap-3 pt-2 mt-1 border-t border-white/10">
     <div class="text-[10px] uppercase tracking-wide text-immich-dark-fg/60 px-1">Color grading</div>
     {#each CG_REGIONS as r (r.key)}
-      <div class="flex flex-col gap-1.5">
-        <div class="text-[11px] text-immich-dark-fg/70 px-1">{r.label}</div>
-        <SliderRow
-          label="Hue"
-          bind:value={editor.edits.color.color_grade[r.key].hue}
-          min={0}
-          max={360}
-          step={1}
+      <div class="flex gap-3 items-center">
+        <HueWheel
+          bind:hue={editor.edits.color.color_grade[r.key].hue}
+          bind:sat={editor.edits.color.color_grade[r.key].sat}
           onLive={editor.onLive}
           onCommit={editor.onCommit}
-          format={(v: number) => v.toFixed(0) + '°'}
         />
-        <SliderRow
-          label="Sat"
-          bind:value={editor.edits.color.color_grade[r.key].sat}
-          min={0}
-          max={100}
-          step={1}
-          onLive={editor.onLive}
-          onCommit={editor.onCommit}
-          format={(v: number) => v.toFixed(0)}
-        />
-        <SliderRow
-          label="Lum"
-          bind:value={editor.edits.color.color_grade[r.key].lum}
-          min={-50}
-          max={50}
-          step={1}
-          onLive={editor.onLive}
-          onCommit={editor.onCommit}
-          format={(v: number) => v.toFixed(0)}
-        />
+        <div class="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div class="text-[11px] text-immich-dark-fg/70">{r.label}</div>
+          <SliderRow
+            label="Lum"
+            bind:value={editor.edits.color.color_grade[r.key].lum}
+            min={-50}
+            max={50}
+            step={1}
+            onLive={editor.onLive}
+            onCommit={editor.onCommit}
+            format={(v: number) => v.toFixed(0)}
+          />
+        </div>
       </div>
     {/each}
     <SliderRow
