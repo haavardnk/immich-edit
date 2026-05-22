@@ -94,7 +94,7 @@ class EditorStore {
     this.flight.cancel();
     if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
     if (this.cropSession) {
-      revoke(this.cropSession.pinnedUrl);
+      if (this.cropSession.pinnedOwned) revoke(this.cropSession.pinnedUrl);
       this.cropSession = null;
     }
     if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
@@ -356,62 +356,54 @@ class EditorStore {
     }
   }
 
-  enterCropMode = async (): Promise<void> => {
+  enterCropMode = (): void => {
     if (!this.assetId || !this.initialised || this.cropSession) return;
+    const sw = this.meta?.source_w ?? this.asset?.exifInfo?.exifImageWidth ?? 0;
+    const sh = this.meta?.source_h ?? this.asset?.exifInfo?.exifImageHeight ?? 0;
+    if (sw <= 0 || sh <= 0 || !this.previewUrl) return;
     const baseEdits = $state.snapshot(this.edits) as Edits;
-    const pinnedEditsSource: Edits = {
-      ...baseEdits,
-      geometry: {
-        ...baseEdits.geometry,
-        rotate_angle: 0,
-        crop: null
-      }
+    const needsPinned = baseEdits.geometry.crop !== null || baseEdits.geometry.rotate_angle !== 0;
+    this.cropSession = {
+      pinnedUrl: this.previewUrl,
+      pinnedOwned: false,
+      sourceW: sw,
+      sourceH: sh,
+      baseEdits,
+      draftAngle: baseEdits.geometry.rotate_angle,
+      draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
+      draftAspect: baseEdits.geometry.aspect,
+      userEditedCrop: baseEdits.geometry.crop !== null
     };
-    this.pending = true;
-    try {
-      const { blob, metaId } = await livePreview(this.assetId, pinnedEditsSource, LIVE_EDGE);
-      const url = makeObjectUrl(blob);
-      let sw = 0;
-      let sh = 0;
-      if (metaId) {
-        try {
-          const m = await getPreviewMeta(this.assetId, metaId);
-          sw = m.source_w;
-          sh = m.source_h;
-        } catch {
-          sw = 0;
-          sh = 0;
-        }
-      }
-      if (sw <= 0 || sh <= 0) {
-        revoke(url);
-        this.pending = false;
-        this.error = 'Failed to fetch crop preview';
-        return;
-      }
-      this.cropSession = {
-        pinnedUrl: url,
-        sourceW: sw,
-        sourceH: sh,
-        baseEdits,
-        draftAngle: baseEdits.geometry.rotate_angle,
-        draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
-        draftAspect: baseEdits.geometry.aspect,
-        userEditedCrop: baseEdits.geometry.crop !== null
-      };
-    } catch (e) {
-      this.error = (e as Error).message;
-    } finally {
-      this.pending = false;
-    }
+    if (needsPinned) void this.loadPinnedPreview(baseEdits);
   };
 
-  exitCropMode = async (commit: boolean): Promise<void> => {
+  private async loadPinnedPreview(baseEdits: Edits): Promise<void> {
+    if (!this.assetId) return;
+    const pinnedEditsSource: Edits = {
+      ...baseEdits,
+      geometry: { ...baseEdits.geometry, rotate_angle: 0, crop: null }
+    };
+    try {
+      const { blob } = await livePreview(this.assetId, pinnedEditsSource, LIVE_EDGE);
+      const sess = this.cropSession;
+      if (!sess) {
+        revoke(makeObjectUrl(blob));
+        return;
+      }
+      const url = makeObjectUrl(blob);
+      if (sess.pinnedOwned) revoke(sess.pinnedUrl);
+      sess.pinnedUrl = url;
+      sess.pinnedOwned = true;
+    } catch (e) {
+      this.error = (e as Error).message;
+    }
+  }
+
+  exitCropMode = async (): Promise<void> => {
     const sess = this.cropSession;
     if (!sess) return;
-    revoke(sess.pinnedUrl);
+    if (sess.pinnedOwned) revoke(sess.pinnedUrl);
     this.cropSession = null;
-    if (!commit) return;
     const next: Edits = {
       ...this.edits,
       geometry: {
@@ -497,6 +489,7 @@ class EditorStore {
 
 interface CropSession {
   pinnedUrl: string;
+  pinnedOwned: boolean;
   sourceW: number;
   sourceH: number;
   baseEdits: Edits;

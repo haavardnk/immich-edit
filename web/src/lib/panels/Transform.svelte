@@ -14,9 +14,9 @@
   } from '@mdi/js';
 
   onMount(() => {
-    void editor.enterCropMode();
+    editor.enterCropMode();
     return () => {
-      void editor.exitCropMode(true);
+      void editor.exitCropMode();
     };
   });
 
@@ -111,10 +111,10 @@
         />
       </label>
       <label class="flex flex-col gap-1">
-        <span>Aspect</span>
-        <div class="flex gap-1.5">
+        <span>Aspect Ratio</span>
+        <div class="flex gap-1.5 items-center">
           <select
-            class="select select-xs bg-white/5 flex-1"
+            class="select select-sm bg-white/5 flex-1 rounded-lg"
             value={aspectKey(editor.cropSession.draftAspect)}
             onchange={onAspectChange}
           >
@@ -124,13 +124,13 @@
           </select>
           <button
             type="button"
-            class="px-2 rounded-md text-xs transition-colors {orientationAvailable ? 'bg-white/5 hover:bg-white/10' : 'bg-white/5 opacity-40 cursor-not-allowed'}"
+            class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable ? 'bg-white/5 hover:bg-white/10' : 'bg-white/5 opacity-40 cursor-not-allowed'}"
             onclick={toggleOrientation}
             disabled={!orientationAvailable}
             aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
             title={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
           >
-            <Icon path={isPortrait ? mdiCropPortrait : mdiCropLandscape} size={14} />
+            <Icon path={isPortrait ? mdiCropPortrait : mdiCropLandscape} size={16} />
           </button>
         </div>
       </label>
@@ -159,14 +159,14 @@
         onclick={toggleFlipH}
       >
         <Icon path={mdiFlipHorizontal} size={16} />
-        Flip H
+        Flip Horizontal
       </button>
       <button
         class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {editor.edits.geometry.flip_v ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
         onclick={toggleFlipV}
       >
         <Icon path={mdiFlipVertical} size={16} />
-        Flip V
+        Flip Vertical
       </button>
     </div>
 </div>
