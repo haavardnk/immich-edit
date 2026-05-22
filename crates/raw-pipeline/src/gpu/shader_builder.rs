@@ -4,6 +4,42 @@ use crate::ops::{OpRegistry, Stage};
 
 pub const HEADER_BYTES: usize = 112;
 pub const ACTIVE_MASK_OFFSET: usize = 64;
+pub const MAX_OPS: u32 = 128;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StageMask(u8);
+
+impl StageMask {
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+
+    pub const fn with(mut self, stage: Stage) -> Self {
+        self.0 |= 1 << stage as u8;
+        self
+    }
+
+    pub const fn fast() -> Self {
+        Self(
+            (1 << Stage::WhiteBalance as u8)
+                | (1 << Stage::Local as u8)
+                | (1 << Stage::Tone as u8)
+                | (1 << Stage::Color as u8),
+        )
+    }
+
+    pub const fn white_balance() -> Self {
+        Self(1 << Stage::WhiteBalance as u8)
+    }
+
+    pub const fn tone_color() -> Self {
+        Self((1 << Stage::Tone as u8) | (1 << Stage::Color as u8))
+    }
+
+    pub fn contains(self, stage: Stage) -> bool {
+        (self.0 >> stage as u8) & 1 != 0
+    }
+}
 
 pub struct ColorOpSlot {
     pub op_index: usize,
@@ -19,6 +55,10 @@ pub struct BuiltProcessShader {
 }
 
 pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
+    build_for(registry, StageMask::fast())
+}
+
+pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let mut struct_fields = String::new();
     let mut functions = String::new();
     let mut apply_wb = String::new();
@@ -33,10 +73,14 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
         if gpu_op.vec4_count == 0 {
             continue;
         }
+        let stage = op.stage();
+        if !mask.contains(stage) {
+            continue;
+        }
         let offset = HEADER_BYTES + used_vec4s * 16;
         let bit = color_ops.len() as u32;
-        if bit >= 32 {
-            panic!("more than 32 GPU ops; active_mask layout needs expansion");
+        if bit >= MAX_OPS {
+            panic!("more than {MAX_OPS} GPU ops; active_mask layout needs expansion");
         }
         if gpu_op.vec4_count == 1 {
             writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
@@ -50,19 +94,14 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
         }
         functions.push_str(gpu_op.functions);
         functions.push('\n');
-        let chunk = match op.stage() {
+        let chunk = match stage {
             Stage::WhiteBalance => &mut apply_wb,
             Stage::Local => &mut apply_local,
             Stage::Tone => &mut apply_tone,
             Stage::Color => &mut apply_color,
             Stage::Geometry => unreachable!("geometry ops use vec4_count == 0"),
         };
-        writeln!(
-            chunk,
-            "    if (((p.active_mask.x >> {bit}u) & 1u) != 0u) {{ {} }}",
-            gpu_op.apply
-        )
-        .unwrap();
+        writeln!(chunk, "    if (is_active({bit}u)) {{ {} }}", gpu_op.apply).unwrap();
         color_ops.push(ColorOpSlot {
             op_index: idx,
             uniform_offset: offset,
@@ -73,6 +112,8 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
     }
 
     let uniform_size = HEADER_BYTES + used_vec4s * 16;
+
+    let process_chain = build_process_chain(mask);
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -91,6 +132,12 @@ pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
 @group(0) @binding(2) var src_samp: sampler;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(4) var linear_tex: texture_storage_2d<rgba16float, write>;
+
+fn is_active(bit: u32) -> bool {{
+    let word = bit / 32u;
+    let shift = bit % 32u;
+    return ((p.active_mask[word] >> shift) & 1u) != 0u;
+}}
 
 fn soft_clip_high(v: f32) -> f32 {{
     let knee: f32 = 0.95;
@@ -135,7 +182,7 @@ fn apply_color_stage(c: vec3<f32>) -> vec3<f32> {{
 }}
 
 fn process_color(c0: vec3<f32>) -> vec3<f32> {{
-    return apply_color_stage(apply_tone_stage(apply_local_stage(apply_wb_stage(c0))));
+    return {process_chain};
 }}
 
 @compute @workgroup_size(16, 16, 1)
@@ -195,4 +242,20 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
         uniform_size,
         color_ops,
     }
+}
+
+fn build_process_chain(mask: StageMask) -> String {
+    let stages = [
+        (Stage::WhiteBalance, "apply_wb_stage"),
+        (Stage::Local, "apply_local_stage"),
+        (Stage::Tone, "apply_tone_stage"),
+        (Stage::Color, "apply_color_stage"),
+    ];
+    let mut expr = String::from("c0");
+    for (stage, name) in stages {
+        if mask.contains(stage) {
+            expr = format!("{name}({expr})");
+        }
+    }
+    expr
 }

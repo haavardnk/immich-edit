@@ -36,23 +36,3 @@ pub(super) fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {
     let nh = ((h as f64) * scale).round() as u32;
     (nw.max(1), nh.max(1))
 }
-
-#[allow(clippy::too_many_arguments)]
-pub(super) fn write_header(
-    dst: &mut [u8],
-    src_size: [u32; 2],
-    out_size: [u32; 2],
-    crop: [f32; 4],
-    flags: [u32; 4],
-    geom_extra: [f32; 4],
-    geom_extra2: [f32; 4],
-    geom_extra3: [f32; 4],
-) {
-    dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
-    dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
-    dst[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
-    dst[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
-    dst[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra));
-    dst[80..96].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
-    dst[96..112].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
-}

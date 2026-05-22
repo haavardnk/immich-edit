@@ -1,0 +1,62 @@
+use wgpu::{
+    Buffer, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+};
+
+use super::context::GpuContext;
+use super::helpers::round_up_256;
+use super::readback::{make_readback_buffer, make_readback_buffer_f16};
+
+pub(super) struct OutputTargets {
+    pub texture: Texture,
+    pub readback: Buffer,
+    pub linear_texture: Texture,
+    pub linear_readback: Buffer,
+    pub alloc_w: u32,
+    pub alloc_h: u32,
+}
+
+impl OutputTargets {
+    pub fn fits(&self, w: u32, h: u32) -> bool {
+        self.alloc_w >= w && self.alloc_h >= h
+    }
+
+    pub fn allocate(ctx: &GpuContext, out_w: u32, out_h: u32) -> Self {
+        let device = &ctx.device;
+        let need_w = round_up_256(out_w);
+        let need_h = round_up_256(out_h);
+        Self {
+            texture: device.create_texture(&TextureDescriptor {
+                label: Some("output"),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                view_formats: &[],
+            }),
+            readback: make_readback_buffer(device, need_w, need_h),
+            linear_texture: device.create_texture(&TextureDescriptor {
+                label: Some("linear-output"),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba16Float,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                view_formats: &[],
+            }),
+            linear_readback: make_readback_buffer_f16(device, need_w, need_h),
+            alloc_w: need_w,
+            alloc_h: need_h,
+        }
+    }
+}
