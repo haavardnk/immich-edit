@@ -105,6 +105,7 @@ mod tests {
             },
             color: ColorEdits {
                 hsl: HslEdits { bands },
+                color_grade: Default::default(),
             },
             geometry: GeometryEdits {
                 rotate: 90,

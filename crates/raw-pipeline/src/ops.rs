@@ -1,3 +1,4 @@
+pub mod color_grade;
 pub mod color_matrix;
 pub mod contrast;
 pub mod crop_rotate;
@@ -131,6 +132,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(saturation::SaturationOp),
         Box::new(vibrance::VibranceOp),
         Box::new(hsl::HslOp),
+        Box::new(color_grade::ColorGradeOp),
         Box::new(geometry::GeometryOp),
         Box::new(crop_rotate::CropRotateOp),
     ])

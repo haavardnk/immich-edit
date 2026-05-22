@@ -1,6 +1,9 @@
 use super::LinearImage;
 use super::*;
-use crate::edits::{BasicEdits, ColorEdits, Edits, GeometryEdits, HslBand, HslEdits, ToneEdits};
+use crate::edits::{
+    BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, Edits, GeometryEdits, HslBand,
+    HslEdits, ToneEdits,
+};
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
     let mut buf = Vec::with_capacity(w * h * 3);
@@ -176,6 +179,7 @@ fn hsl_red_saturation_only_affects_red() {
     let edits = Edits {
         color: ColorEdits {
             hsl: HslEdits { bands },
+            color_grade: Default::default(),
         },
         ..Default::default()
     };
@@ -268,4 +272,69 @@ fn hsl_runs_before_saturation_and_vibrance() {
     let vib = ids.iter().position(|s| *s == "vibrance").unwrap();
     assert!(hsl < sat);
     assert!(hsl < vib);
+}
+
+#[test]
+fn color_grade_identity_when_zero() {
+    let mut img = solid_image(1, 1, [0.3, 0.4, 0.5]);
+    let edits = Edits::default();
+    color_grade::ColorGradeOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!((img.rgb[0] - 0.3).abs() < 1e-5);
+    assert!((img.rgb[1] - 0.4).abs() < 1e-5);
+    assert!((img.rgb[2] - 0.5).abs() < 1e-5);
+}
+
+#[test]
+fn color_grade_shadows_affect_dark_more_than_bright() {
+    let mut dark = solid_image(1, 1, [0.1, 0.1, 0.1]);
+    let mut bright = solid_image(1, 1, [0.9, 0.9, 0.9]);
+    let edits = Edits {
+        color: ColorEdits {
+            hsl: HslEdits::default(),
+            color_grade: ColorGradeEdits {
+                shadows: ColorGradeRegion {
+                    hue: 0.0,
+                    sat: 100.0,
+                    lum: 0.0,
+                },
+                ..Default::default()
+            },
+        },
+        ..Default::default()
+    };
+    color_grade::ColorGradeOp
+        .apply_cpu(&mut dark, &ctx(), &edits)
+        .unwrap();
+    color_grade::ColorGradeOp
+        .apply_cpu(&mut bright, &ctx(), &edits)
+        .unwrap();
+    let dark_shift = dark.rgb[0] - 0.1;
+    let bright_shift = bright.rgb[0] - 0.9;
+    assert!(dark_shift > bright_shift);
+}
+
+#[test]
+fn color_grade_global_lum_brightens() {
+    let mut img = solid_image(1, 1, [0.4, 0.4, 0.4]);
+    let edits = Edits {
+        color: ColorEdits {
+            hsl: HslEdits::default(),
+            color_grade: ColorGradeEdits {
+                global: ColorGradeRegion {
+                    hue: 0.0,
+                    sat: 0.0,
+                    lum: 50.0,
+                },
+                ..Default::default()
+            },
+        },
+        ..Default::default()
+    };
+    color_grade::ColorGradeOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] > 0.4);
+    assert!((img.rgb[0] - img.rgb[1]).abs() < 1e-5);
 }
