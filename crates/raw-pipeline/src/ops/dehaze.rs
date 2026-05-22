@@ -1,9 +1,8 @@
 use super::LinearImage;
-use super::local::{apply_luma_delta, box_blur_separable, luma_buffer};
 use super::{EditOperator, OpContext, ResourceNeed, Stage};
 use crate::PipelineResult;
+use crate::cpu::presence::apply_presence;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct DehazeOp;
 
@@ -26,22 +25,23 @@ impl EditOperator for DehazeOp {
         }
         vec![ResourceNeed::LumaPyramid { max_radius_px: 256 }]
     }
+    fn gpu_kind(&self) -> super::GpuOpKind {
+        super::GpuOpKind::Presence
+    }
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0) * 0.4;
-        let radius = (image.width.min(image.height) / 8).max(20);
-        let luma = luma_buffer(image);
-        let blurred = box_blur_separable(&luma, image.width, image.height, radius);
-        let new_luma: Vec<f32> = luma
-            .par_iter()
-            .zip(blurred.par_iter())
-            .map(|(&l, &b)| (l + amount * (l - b)).max(0.0))
-            .collect();
-        apply_luma_delta(image, &new_luma);
+        let only = Edits {
+            basic: crate::edits::BasicEdits {
+                dehaze: edits.basic.dehaze,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        apply_presence(image, &only);
         Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

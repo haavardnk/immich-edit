@@ -1,11 +1,12 @@
 use crate::cancel::{self, CancelToken};
+use crate::cpu::presence::{apply_presence, has_presence};
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::encode_jpeg;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
 use crate::ops::LinearImage;
-use crate::ops::{OpContext, default_registry};
+use crate::ops::{GpuOpKind, OpContext, default_registry};
 use rayon::prelude::*;
 
 pub fn render(
@@ -61,8 +62,17 @@ pub fn render_with_cancel(
     };
 
     let registry = default_registry();
+    let presence_active = has_presence(&edits);
+    let mut presence_done = false;
     for op in registry.active(&edits) {
         cancel::check(cancel)?;
+        if op.gpu_kind() == GpuOpKind::Presence {
+            if !presence_done && presence_active {
+                apply_presence(&mut image, &edits);
+                presence_done = true;
+            }
+            continue;
+        }
         op.apply_cpu(&mut image, &ctx, &edits)?;
     }
 

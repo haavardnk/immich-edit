@@ -234,6 +234,99 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     }
 }
 
+pub fn build_prepare_wb(registry: &OpRegistry) -> BuiltProcessShader {
+    let mask = StageMask::white_balance();
+    let mut struct_fields = String::new();
+    let mut functions = String::new();
+    let mut apply_wb = String::new();
+    let mut color_ops: Vec<ColorOpSlot> = Vec::new();
+    let mut used_vec4s: usize = 0;
+
+    for (idx, op) in registry.ops().iter().enumerate() {
+        let Some(gpu_op) = op.gpu() else { continue };
+        if gpu_op.vec4_count == 0 {
+            continue;
+        }
+        let stage = op.stage();
+        if !mask.contains(stage) {
+            continue;
+        }
+        let offset = HEADER_BYTES + used_vec4s * 16;
+        let bit = color_ops.len() as u32;
+        if gpu_op.vec4_count == 1 {
+            writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();
+        } else {
+            writeln!(
+                struct_fields,
+                "    {}: array<vec4<f32>, {}>,",
+                gpu_op.field_name, gpu_op.vec4_count
+            )
+            .unwrap();
+        }
+        functions.push_str(gpu_op.functions);
+        functions.push('\n');
+        writeln!(
+            apply_wb,
+            "    if (is_active({bit}u)) {{ {} }}",
+            gpu_op.apply
+        )
+        .unwrap();
+        color_ops.push(ColorOpSlot {
+            op_index: idx,
+            uniform_offset: offset,
+            vec4_count: gpu_op.vec4_count,
+            active_bit: bit,
+        });
+        used_vec4s += gpu_op.vec4_count;
+    }
+
+    let uniform_size = HEADER_BYTES + used_vec4s * 16;
+
+    let wgsl = format!(
+        r#"struct ProcessParams {{
+    src_size: vec2<u32>,
+    out_size: vec2<u32>,
+    crop: vec4<f32>,
+    flags: vec4<u32>,
+    geom_extra: vec4<f32>,
+    active_mask: vec4<u32>,
+    geom_extra2: vec4<f32>,
+    geom_extra3: vec4<f32>,
+{struct_fields}}};
+
+@group(0) @binding(0) var<uniform> p: ProcessParams;
+@group(0) @binding(1) var src_tex: texture_2d<f32>;
+@group(0) @binding(2) var dst_tex: texture_storage_2d<rgba16float, write>;
+
+fn is_active(bit: u32) -> bool {{
+    let word = bit / 32u;
+    let shift = bit % 32u;
+    return ((p.active_mask[word] >> shift) & 1u) != 0u;
+}}
+
+{functions}
+fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
+    var lin = c;
+{apply_wb}    return lin;
+}}
+
+@compute @workgroup_size(16, 16, 1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
+    if (gid.x >= p.src_size.x || gid.y >= p.src_size.y) {{ return; }}
+    let c = textureLoad(src_tex, vec2<i32>(i32(gid.x), i32(gid.y)), 0).rgb;
+    let outc = apply_wb_stage(c);
+    textureStore(dst_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
+}}
+"#
+    );
+
+    BuiltProcessShader {
+        wgsl,
+        uniform_size,
+        color_ops,
+    }
+}
+
 fn build_process_chain(mask: StageMask) -> String {
     let stages = [
         (Stage::WhiteBalance, "apply_wb_stage"),

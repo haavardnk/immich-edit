@@ -13,15 +13,18 @@ use crate::edits::Edits;
 use crate::encode::encode_jpeg_rgba;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
-use crate::ops::OpContext;
+use crate::ops::{GpuOpKind, OpContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
 use super::helpers::{DemosaicParams, cfa_to_indices, mip_count, scale_to_max};
 use super::passes::GpuPasses;
+use super::passes::luma_pyramid::LumaPyramidPass;
+use super::passes::presence::PRESENCE_UNIFORM_SIZE;
 use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use super::resources::OutputTargets;
 use super::uniforms::{write_active_mask, write_header};
+use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
 const CACHE_ITEMS: usize = 2;
 
@@ -302,7 +305,9 @@ impl GpuRenderer {
 
     fn process(
         &self,
-        cached: &CachedFrame,
+        pass: &super::passes::process::ProcessFastPass,
+        src_texture: &Texture,
+        src_dims: (u32, u32),
         frame: &RawFrame,
         edits: &Edits,
         opts: &RenderOptions,
@@ -313,6 +318,9 @@ impl GpuRenderer {
         let edits = edits.clamped();
 
         for op in self.passes.registry.active(&edits) {
+            if op.gpu_kind() == GpuOpKind::Presence {
+                continue;
+            }
             if op.gpu().is_none() {
                 return Err(PipelineError::Unsupported(format!(
                     "gpu pipeline missing op: {}",
@@ -321,7 +329,7 @@ impl GpuRenderer {
             }
         }
 
-        let (sensor_w, sensor_h) = (cached.width, cached.height);
+        let (sensor_w, sensor_h) = src_dims;
         let (display_w, display_h) = if frame.orientation.0 {
             (sensor_h, sensor_w)
         } else {
@@ -345,7 +353,7 @@ impl GpuRenderer {
         let crop_h_px = (crop.h * bh).round().max(1.0) as u32;
         let (out_w, out_h) = scale_to_max(crop_w_px, crop_h_px, opts.max_edge);
 
-        let src_max = cached.width.max(cached.height) as f32;
+        let src_max = sensor_w.max(sensor_h) as f32;
         let out_max = out_w.max(out_h) as f32;
         let lod = if src_max > out_max {
             (src_max / out_max).log2()
@@ -379,12 +387,12 @@ impl GpuRenderer {
             cam_to_srgb,
             is_raw: frame.is_raw,
         };
-        let built = &self.passes.process_fast.built;
+        let built = &pass.built;
         let registry = &self.passes.registry;
         let mut uniform_bytes = vec![0u8; built.uniform_size];
         write_header(
             &mut uniform_bytes,
-            [cached.width, cached.height],
+            [sensor_w, sensor_h],
             [out_w, out_h],
             [crop.x, crop.y, crop.w, crop.h],
             [
@@ -419,9 +427,7 @@ impl GpuRenderer {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let src_view = cached
-            .texture
-            .create_view(&TextureViewDescriptor::default());
+        let src_view = src_texture.create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("linear-samp"),
             address_mode_u: AddressMode::ClampToEdge,
@@ -446,7 +452,7 @@ impl GpuRenderer {
 
         let bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("process-bg"),
-            layout: &self.passes.process_fast.layout,
+            layout: &pass.layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
@@ -475,15 +481,15 @@ impl GpuRenderer {
             label: Some("process-enc"),
         });
         {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("process-pass"),
                 timestamp_writes: None,
             });
-            pass.set_pipeline(&self.passes.process_fast.pipeline);
-            pass.set_bind_group(0, &bind, &[]);
+            cpass.set_pipeline(&pass.pipeline);
+            cpass.set_bind_group(0, &bind, &[]);
             let gx = out_w.div_ceil(16);
             let gy = out_h.div_ceil(16);
-            pass.dispatch_workgroups(gx, gy, 1);
+            cpass.dispatch_workgroups(gx, gy, 1);
         }
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
         copy_texture_to_buffer(
@@ -531,6 +537,307 @@ impl GpuRenderer {
         self.render_with_cancel(frame, edits, options, None)
     }
 
+    fn run_presence(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        edits: &Edits,
+    ) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+        let edits = edits.clamped();
+
+        let radii = presence_radii(w, h);
+        let pyramid_levels = presence_pyramid_levels(w, h, radii);
+
+        let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
+        let adjusted = device.create_texture(&TextureDescriptor {
+            label: Some("presence-adjusted"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let amts = presence_amounts(&edits);
+        let amounts: [f32; 4] = [amts.texture, amts.clarity, amts.dehaze, 0.0];
+        let mip_sel = presence_mips(w, h, radii);
+        let mips: [u32; 4] = [mip_sel.texture, mip_sel.clarity, mip_sel.dehaze, 0];
+
+        let mut uniform_bytes = vec![0u8; PRESENCE_UNIFORM_SIZE as usize];
+        uniform_bytes[0..4].copy_from_slice(&w.to_le_bytes());
+        uniform_bytes[4..8].copy_from_slice(&h.to_le_bytes());
+        for (i, a) in amounts.iter().enumerate() {
+            let off = 16 + i * 4;
+            uniform_bytes[off..off + 4].copy_from_slice(&a.to_le_bytes());
+        }
+        for (i, m) in mips.iter().enumerate() {
+            let off = 32 + i * 4;
+            uniform_bytes[off..off + 4].copy_from_slice(&m.to_le_bytes());
+        }
+        let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("presence-uniform"),
+            contents: &uniform_bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let src_view_full = src.create_view(&TextureViewDescriptor::default());
+        let pyramid_full_view = pyramid.create_view(&TextureViewDescriptor::default());
+        let adjusted_mip0_view = adjusted.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let pyramid_level_views: Vec<wgpu::TextureView> = (0..pyramid_levels)
+            .map(|level| {
+                pyramid.create_view(&TextureViewDescriptor {
+                    base_mip_level: level,
+                    mip_level_count: Some(1),
+                    ..Default::default()
+                })
+            })
+            .collect();
+
+        let extract_bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("luma-extract-bg"),
+            layout: &self.passes.luma_pyramid.extract_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&src_view_full),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&pyramid_level_views[0]),
+                },
+            ],
+        });
+        let mipgen_binds: Vec<wgpu::BindGroup> = (1..pyramid_levels)
+            .map(|level| {
+                device.create_bind_group(&BindGroupDescriptor {
+                    label: Some("pyramid-mipgen-bg"),
+                    layout: &self.passes.mipgen.layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: BindingResource::TextureView(
+                                &pyramid_level_views[(level - 1) as usize],
+                            ),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(
+                                &pyramid_level_views[level as usize],
+                            ),
+                        },
+                    ],
+                })
+            })
+            .collect();
+        let presence_bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("presence-bg"),
+            layout: &self.passes.presence.adjust_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view_full),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&pyramid_full_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&adjusted_mip0_view),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("presence-enc"),
+        });
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("luma-extract-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.luma_pyramid.extract_pipeline);
+            pass.set_bind_group(0, &extract_bind, &[]);
+            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        if !mipgen_binds.is_empty() {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("pyramid-mipgen-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.mipgen.pipeline);
+            let mut mw = w;
+            let mut mh = h;
+            for bg in &mipgen_binds {
+                let dst_w = (mw / 2).max(1);
+                let dst_h = (mh / 2).max(1);
+                pass.set_bind_group(0, bg, &[]);
+                pass.dispatch_workgroups(dst_w.div_ceil(16), dst_h.div_ceil(16), 1);
+                mw = dst_w;
+                mh = dst_h;
+            }
+        }
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("presence-adjust-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.presence.adjust_pipeline);
+            pass.set_bind_group(0, &presence_bind, &[]);
+            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+
+        self.encode_mipgen(&adjusted, w, h);
+
+        Ok(Arc::new(adjusted))
+    }
+
+    fn run_wb_prepare(
+        &self,
+        cached: &CachedFrame,
+        frame: &RawFrame,
+        edits: &Edits,
+    ) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let w = cached.width;
+        let h = cached.height;
+
+        let xyz_to_cam = if frame.color_matrices.len() >= 2 {
+            let cct = crate::color::estimate_scene_cct(
+                frame.wb_coeffs,
+                &frame.color_matrices.last().unwrap().1,
+            );
+            crate::color::interpolate_xyz_to_cam(&frame.color_matrices, cct)
+        } else {
+            frame.xyz_to_cam
+        };
+        let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
+            crate::color::cam_to_srgb_matrix(xyz_to_cam)
+        } else {
+            crate::color::identity_3x3()
+        };
+        let ctx_op = OpContext {
+            wb_coeffs: frame.wb_coeffs,
+            cam_to_srgb,
+            is_raw: frame.is_raw,
+        };
+
+        let pass = &self.passes.wb_prepare;
+        let built = &pass.built;
+        let registry = &self.passes.registry;
+        let mut uniform_bytes = vec![0u8; built.uniform_size];
+        write_header(
+            &mut uniform_bytes,
+            [w, h],
+            [w, h],
+            [0.0, 0.0, 1.0, 1.0],
+            [0, 0, 0, 0],
+            [0.0; 4],
+            [0.0; 4],
+            [0.0; 4],
+        );
+        let mut active_mask: [u32; 4] = [0; 4];
+        for slot in &built.color_ops {
+            let op = &registry.ops()[slot.op_index];
+            if op.is_active(edits) {
+                let word = (slot.active_bit / 32) as usize;
+                let shift = slot.active_bit % 32;
+                active_mask[word] |= 1u32 << shift;
+            }
+            let mut buf = vec![0.0f32; slot.vec4_count * 4];
+            op.write_gpu_uniform(edits, &ctx_op, &mut buf);
+            let off = slot.uniform_offset;
+            let bytes = slot.vec4_count * 16;
+            uniform_bytes[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
+        }
+        write_active_mask(&mut uniform_bytes, active_mask);
+
+        let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("wb-prepare-uniform"),
+            contents: &uniform_bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let wb_base = device.create_texture(&TextureDescriptor {
+            label: Some("wb-base"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let src_view = cached
+            .texture
+            .create_view(&TextureViewDescriptor::default());
+        let dst_view = wb_base.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("wb-prepare-bg"),
+            layout: &pass.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dst_view),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("wb-prepare-enc"),
+        });
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("wb-prepare-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&pass.pipeline);
+            cpass.set_bind_group(0, &bind, &[]);
+            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+
+        self.encode_mipgen(&wb_base, w, h);
+
+        Ok(Arc::new(wb_base))
+    }
+
     pub fn render_with_cancel(
         &self,
         frame: &RawFrame,
@@ -539,11 +846,40 @@ impl GpuRenderer {
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         crate::cancel::check(cancel)?;
-        let _plan = RenderPlan::select(edits);
+        let plan = RenderPlan::select(edits);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;
-        let out = self.process(&cached, frame, edits, options)?;
-        crate::cancel::check(cancel)?;
-        Ok(out)
+        let dims = (cached.width, cached.height);
+        let edits_c = edits.clamped();
+        match plan {
+            RenderPlan::Fast => {
+                let out = self.process(
+                    &self.passes.process_fast,
+                    cached.texture.as_ref(),
+                    dims,
+                    frame,
+                    edits,
+                    options,
+                )?;
+                crate::cancel::check(cancel)?;
+                Ok(out)
+            }
+            RenderPlan::Presence => {
+                let wb_base = self.run_wb_prepare(&cached, frame, &edits_c)?;
+                crate::cancel::check(cancel)?;
+                let adjusted = self.run_presence(&wb_base, dims, &edits_c)?;
+                crate::cancel::check(cancel)?;
+                let out = self.process(
+                    &self.passes.process_post_wb,
+                    &adjusted,
+                    dims,
+                    frame,
+                    edits,
+                    options,
+                )?;
+                crate::cancel::check(cancel)?;
+                Ok(out)
+            }
+        }
     }
 }

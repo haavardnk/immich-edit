@@ -50,7 +50,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     if (p.amounts.y != 0.0) {
         let blurred = sampled_luma(p.mips.y, fx, fy);
-        delta = delta + p.amounts.y * (y0 - blurred);
+        let mt = 1.0 - abs(2.0 * y0 - 1.0);
+        delta = delta + p.amounts.y * mt * (y0 - blurred);
     }
     if (p.amounts.z != 0.0) {
         let blurred = sampled_luma(p.mips.z, fx, fy);

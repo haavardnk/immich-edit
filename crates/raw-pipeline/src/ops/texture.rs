@@ -1,9 +1,8 @@
 use super::LinearImage;
-use super::local::{apply_luma_delta, box_blur_separable, luma_buffer};
 use super::{EditOperator, OpContext, ResourceNeed, Stage};
 use crate::PipelineResult;
+use crate::cpu::presence::apply_presence;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct TextureOp;
 
@@ -24,7 +23,10 @@ impl EditOperator for TextureOp {
         if !self.is_active(edits) {
             return Vec::new();
         }
-        vec![ResourceNeed::LumaPyramid { max_radius_px: 2 }]
+        vec![ResourceNeed::LumaPyramid { max_radius_px: 6 }]
+    }
+    fn gpu_kind(&self) -> super::GpuOpKind {
+        super::GpuOpKind::Presence
     }
     fn apply_cpu(
         &self,
@@ -32,15 +34,14 @@ impl EditOperator for TextureOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let amount = (edits.basic.texture as f32 / 100.0).clamp(-1.0, 1.0);
-        let luma = luma_buffer(image);
-        let blurred = box_blur_separable(&luma, image.width, image.height, 1);
-        let new_luma: Vec<f32> = luma
-            .par_iter()
-            .zip(blurred.par_iter())
-            .map(|(&l, &b)| (l + amount * (l - b)).max(0.0))
-            .collect();
-        apply_luma_delta(image, &new_luma);
+        let only = Edits {
+            basic: crate::edits::BasicEdits {
+                texture: edits.basic.texture,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        apply_presence(image, &only);
         Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

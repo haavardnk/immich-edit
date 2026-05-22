@@ -334,3 +334,56 @@ fn gpu_exif_orientation_matches_cpu() {
         }
     }
 }
+
+#[test]
+fn gpu_presence_sliders_match_cpu_via_fallback() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 128,
+        ..Default::default()
+    };
+    let w: usize = 48;
+    let h: usize = 32;
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let stripe = ((x / 4) % 2) as f32;
+            data[i] = 0.2 + 0.5 * stripe;
+            data[i + 1] = 0.2 + 0.5 * stripe;
+            data[i + 2] = 0.2 + 0.5 * stripe;
+        }
+    }
+    let frame = RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        exif: None,
+    };
+    let mut edits = Edits::default();
+    edits.basic.texture = 30.0;
+    edits.basic.clarity = 20.0;
+    edits.basic.dehaze = 15.0;
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.jpeg);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.jpeg);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("presence mean abs delta = {delta:.3}");
+    if delta > 8.0 {
+        panic!("presence GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}

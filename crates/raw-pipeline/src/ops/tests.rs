@@ -346,27 +346,58 @@ fn texture_inactive_when_zero() {
 
 #[test]
 fn texture_positive_amplifies_detail() {
-    let mut img = LinearImage::new(
-        vec![
-            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.5, 0.5,
-            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-        ],
-        3,
-        3,
-    );
-    let edits = Edits {
+    let w: usize = 256;
+    let h: usize = 128;
+    let period: usize = 8;
+    let mk = || {
+        let mut buf = vec![0.0f32; w * h * 3];
+        for y in 0..h {
+            for x in 0..w {
+                let stripe = (((x / (period / 2)) % 2) as f32) * 0.1 + 0.45;
+                let i = (y * w + x) * 3;
+                buf[i] = stripe;
+                buf[i + 1] = stripe;
+                buf[i + 2] = stripe;
+            }
+        }
+        LinearImage::new(buf, w, h)
+    };
+    let edits_pos = Edits {
         basic: BasicEdits {
             texture: 100.0,
             ..Default::default()
         },
         ..Default::default()
     };
-    let center_before = img.rgb[4 * 3];
+    let edits_neg = Edits {
+        basic: BasicEdits {
+            texture: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let probe_hi = (h / 2 * w + period / 2) * 3;
+    let probe_lo = (h / 2 * w + period) * 3;
+    let base = mk();
+    let base_spread = (base.rgb[probe_hi] - base.rgb[probe_lo]).abs();
+    let mut pos = mk();
     texture::TextureOp
-        .apply_cpu(&mut img, &ctx(), &edits)
+        .apply_cpu(&mut pos, &ctx(), &edits_pos)
         .unwrap();
-    let center_after = img.rgb[4 * 3];
-    assert!(center_after > center_before);
+    let pos_spread = (pos.rgb[probe_hi] - pos.rgb[probe_lo]).abs();
+    let mut neg = mk();
+    texture::TextureOp
+        .apply_cpu(&mut neg, &ctx(), &edits_neg)
+        .unwrap();
+    let neg_spread = (neg.rgb[probe_hi] - neg.rgb[probe_lo]).abs();
+    assert!(
+        pos_spread > base_spread * 1.2,
+        "texture +100 should amplify mid-frequency: base={base_spread} pos={pos_spread}"
+    );
+    assert!(
+        neg_spread < base_spread * 0.9,
+        "texture -100 should reduce mid-frequency: base={base_spread} neg={neg_spread}"
+    );
 }
 
 #[test]

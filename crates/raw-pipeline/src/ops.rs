@@ -8,7 +8,6 @@ pub mod dehaze;
 pub mod exposure;
 pub mod geometry;
 pub mod hsl;
-pub mod local;
 pub mod saturation;
 pub mod texture;
 pub mod tone_regions;
@@ -103,6 +102,9 @@ pub trait EditOperator: Send + Sync {
     ) -> PipelineResult<()>;
     fn gpu(&self) -> Option<GpuOp> {
         None
+    }
+    fn gpu_kind(&self) -> GpuOpKind {
+        GpuOpKind::Normal
     }
     fn resource_needs(&self, _edits: &Edits) -> Vec<ResourceNeed> {
         Vec::new()

@@ -12,6 +12,7 @@ pub mod geom;
 pub mod gpu;
 pub mod histogram;
 pub mod ops;
+pub mod presence;
 
 use thiserror::Error;
 

@@ -4,37 +4,27 @@ use std::sync::Arc;
 use wgpu::{
     BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
     BufferBindingType, ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor,
-    SamplerBindingType, ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
-    TextureFormat, TextureSampleType, TextureViewDimension,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
+    TextureSampleType, TextureViewDimension,
 };
 
 use crate::gpu::context::GpuContext;
-use crate::gpu::shader_builder::{self, BuiltProcessShader, StageMask};
+use crate::gpu::shader_builder::{self, BuiltProcessShader};
 use crate::ops::OpRegistry;
 
-pub struct ProcessFastPass {
+pub struct WbPreparePass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
     pub built: BuiltProcessShader,
 }
 
-impl ProcessFastPass {
+impl WbPreparePass {
     pub fn new(ctx: &Arc<GpuContext>, registry: &OpRegistry) -> Self {
-        Self::new_with_mask(ctx, registry, StageMask::fast(), "process-fast")
-    }
-
-    pub fn new_with_mask(
-        ctx: &Arc<GpuContext>,
-        registry: &OpRegistry,
-        mask: StageMask,
-        label_prefix: &str,
-    ) -> Self {
         let device = &ctx.device;
-        let built = shader_builder::build_for(registry, mask);
+        let built = shader_builder::build_prepare_wb(registry);
 
-        let bgl_label = format!("{label_prefix}-bgl");
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(&bgl_label),
+            label: Some("wb-prepare-bgl"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
@@ -59,22 +49,6 @@ impl ProcessFastPass {
                 BindGroupLayoutEntry {
                     binding: 2,
                     visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: TextureFormat::Rgba8Unorm,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 4,
-                    visibility: ShaderStages::COMPUTE,
                     ty: BindingType::StorageTexture {
                         access: StorageTextureAccess::WriteOnly,
                         format: TextureFormat::Rgba16Float,
@@ -85,20 +59,17 @@ impl ProcessFastPass {
             ],
         });
 
-        let mod_label = format!("{label_prefix}.wgsl");
         let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some(&mod_label),
+            label: Some("wb_prepare.wgsl"),
             source: ShaderSource::Wgsl(Cow::Owned(built.wgsl.clone())),
         });
-        let pl_label = format!("{label_prefix}-pl");
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some(&pl_label),
+            label: Some("wb-prepare-pl"),
             bind_group_layouts: &[&layout],
             push_constant_ranges: &[],
         });
-        let cp_label = format!("{label_prefix}-cp");
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some(&cp_label),
+            label: Some("wb-prepare-cp"),
             layout: Some(&pipeline_layout),
             module: &module,
             entry_point: "main",
