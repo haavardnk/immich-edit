@@ -24,6 +24,26 @@
     format={(v: number) => v.toFixed(0)}
   />
   <SliderRow
+    label="Saturation"
+    bind:value={editor.edits.basic.saturation}
+    min={-100}
+    max={100}
+    step={1}
+    onLive={editor.onLive}
+    onCommit={editor.onCommit}
+    format={(v: number) => v.toFixed(0)}
+  />
+  <SliderRow
+    label="Vibrance"
+    bind:value={editor.edits.basic.vibrance}
+    min={-100}
+    max={100}
+    step={1}
+    onLive={editor.onLive}
+    onCommit={editor.onCommit}
+    format={(v: number) => v.toFixed(0)}
+  />
+  <SliderRow
     label="Highlights"
     bind:value={editor.edits.tone.highlights}
     min={-100}
