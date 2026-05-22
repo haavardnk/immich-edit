@@ -95,6 +95,7 @@ mod tests {
                 vibrance: 18.0,
                 wb_temp: 8.0,
                 wb_tint: -4.0,
+                texture: 33.0,
                 curves: CurvePoints::default(),
             },
             tone: ToneEdits {

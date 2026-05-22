@@ -10,6 +10,7 @@ export interface BasicEdits {
   vibrance: number;
   wb_temp: number;
   wb_tint: number;
+  texture: number;
   curves: CurvePoint[];
 }
 
@@ -152,6 +153,7 @@ export function neutralEdits(): Edits {
       vibrance: 0,
       wb_temp: 0,
       wb_tint: 0,
+      texture: 0,
       curves: [{ x: 0, y: 0 }, { x: 1, y: 1 }]
     },
     tone: {
@@ -212,6 +214,7 @@ export function isIdentity(e: Edits): boolean {
     e.basic.vibrance === 0 &&
     e.basic.wb_temp === 0 &&
     e.basic.wb_tint === 0 &&
+    e.basic.texture === 0 &&
     curvesAreIdentity(e.basic.curves) &&
     e.tone.highlights === 0 &&
     e.tone.shadows === 0 &&
@@ -264,6 +267,7 @@ export function editsToManifest(e: Edits): EditManifest {
   }
   if (e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0)
     ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
+  if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
   if (
     e.geometry.rotate !== 0 ||
     e.geometry.flip_h ||
@@ -344,6 +348,8 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const wb = ops.white_balance as { temp?: number; tint?: number } | undefined;
   if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
   if (wb?.tint !== undefined) edits.basic.wb_tint = wb.tint;
+  const tex = ops.texture as { amount?: number } | undefined;
+  if (tex?.amount !== undefined) edits.basic.texture = tex.amount;
   const geom = ops.geometry as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;

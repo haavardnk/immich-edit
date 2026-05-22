@@ -338,3 +338,33 @@ fn color_grade_global_lum_brightens() {
     assert!(img.rgb[0] > 0.4);
     assert!((img.rgb[0] - img.rgb[1]).abs() < 1e-5);
 }
+
+#[test]
+fn texture_inactive_when_zero() {
+    assert!(!texture::TextureOp.is_active(&Edits::default()));
+}
+
+#[test]
+fn texture_positive_amplifies_detail() {
+    let mut img = LinearImage::new(
+        vec![
+            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.9, 0.9, 0.9, 0.5, 0.5,
+            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+        ],
+        3,
+        3,
+    );
+    let edits = Edits {
+        basic: BasicEdits {
+            texture: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let center_before = img.rgb[4 * 3];
+    texture::TextureOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let center_after = img.rgb[4 * 3];
+    assert!(center_after > center_before);
+}

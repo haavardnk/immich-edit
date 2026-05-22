@@ -89,6 +89,18 @@
       format={(v: number) => v.toFixed(0)}
     />
   </div>
+  <div class="flex flex-col gap-2.5 py-3">
+    <SliderRow
+      label="Texture"
+      bind:value={editor.edits.basic.texture}
+      min={-100}
+      max={100}
+      step={1}
+      onLive={editor.onLive}
+      onCommit={editor.onCommit}
+      format={(v: number) => v.toFixed(0)}
+    />
+  </div>
   <div class="flex flex-col gap-2.5 pt-3">
     <SliderRow
       label="Vibrance"
