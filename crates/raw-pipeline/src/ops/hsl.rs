@@ -93,7 +93,7 @@ impl EditOperator for HslOp {
         Stage::Color
     }
     fn order(&self) -> i32 {
-        50
+        -10
     }
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.color.hsl.is_zero()

@@ -258,3 +258,14 @@ fn registry_skips_inactive_ops() {
     let active: Vec<&str> = reg.active(&edits).map(|o| o.id()).collect();
     assert_eq!(active, vec!["camera_wb", "color_matrix"]);
 }
+
+#[test]
+fn hsl_runs_before_saturation_and_vibrance() {
+    let reg = default_registry();
+    let ids: Vec<&str> = reg.ops().iter().map(|o| o.id()).collect();
+    let hsl = ids.iter().position(|s| *s == "hsl").unwrap();
+    let sat = ids.iter().position(|s| *s == "saturation").unwrap();
+    let vib = ids.iter().position(|s| *s == "vibrance").unwrap();
+    assert!(hsl < sat);
+    assert!(hsl < vib);
+}
