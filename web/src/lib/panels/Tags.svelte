@@ -3,6 +3,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { library } from '$lib/stores/library.svelte';
   import { listTags } from '$lib/api/tags';
+  import { toasts } from '$lib/stores/toasts.svelte';
   import { mdiClose, mdiPlus } from '@mdi/js';
 
   let input = $state('');
@@ -12,7 +13,7 @@
     if (library.tags.length === 0) {
       void listTags()
         .then((t) => (library.tags = t))
-        .catch(() => {});
+        .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
     }
   });
 
