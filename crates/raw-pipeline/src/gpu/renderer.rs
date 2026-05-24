@@ -321,6 +321,12 @@ impl GpuRenderer {
         let edits = edits.clamped();
         let sharpen_active = edits.detail.sharpen_active();
 
+        if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
+            return Err(PipelineError::Unsupported(
+                "gpu pipeline: noise reduction not implemented".into(),
+            ));
+        }
+
         for op in self.passes.registry.active(&edits) {
             if op.gpu_kind() == GpuOpKind::Presence {
                 continue;
