@@ -137,7 +137,31 @@ pub(crate) fn default_tone(v: f32) -> f32 {
     srgb + (s - srgb) * S_CURVE_BLEND
 }
 
+const OETF_LUT_SIZE: usize = 4096;
+
+fn oetf_lut() -> &'static [f32; OETF_LUT_SIZE + 1] {
+    static LUT: std::sync::OnceLock<[f32; OETF_LUT_SIZE + 1]> = std::sync::OnceLock::new();
+    LUT.get_or_init(|| {
+        let mut t = [0.0f32; OETF_LUT_SIZE + 1];
+        for (i, slot) in t.iter_mut().enumerate() {
+            let v = i as f32 / OETF_LUT_SIZE as f32;
+            *slot = srgb_oetf_scalar(v);
+        }
+        t
+    })
+}
+
 fn srgb_oetf(v: f32) -> f32 {
+    let lut = oetf_lut();
+    let scaled = v.clamp(0.0, 1.0) * OETF_LUT_SIZE as f32;
+    let idx = scaled as usize;
+    let frac = scaled - idx as f32;
+    let lo = lut[idx];
+    let hi = lut[(idx + 1).min(OETF_LUT_SIZE)];
+    lo + (hi - lo) * frac
+}
+
+fn srgb_oetf_scalar(v: f32) -> f32 {
     if v <= 0.003_130_8 {
         12.92 * v
     } else {
@@ -350,6 +374,51 @@ mod tests {
             }
             prev = y;
             x += 0.01;
+        }
+    }
+
+    #[test]
+    fn oetf_lut_matches_scalar_for_u8() {
+        let mut x = 0.0f32;
+        let mut max_err: f32 = 0.0;
+        let mut max_q_diff: i32 = 0;
+        while x <= 1.0 {
+            let lut = srgb_oetf(x);
+            let exact = srgb_oetf_scalar(x);
+            let err = (lut - exact).abs();
+            if err > max_err {
+                max_err = err;
+            }
+            let q_lut = (lut.clamp(0.0, 1.0) * 255.0).round() as i32;
+            let q_exact = (exact.clamp(0.0, 1.0) * 255.0).round() as i32;
+            let d = (q_lut - q_exact).abs();
+            if d > max_q_diff {
+                max_q_diff = d;
+            }
+            x += 1.0 / 8192.0;
+        }
+        if max_q_diff > 1 {
+            panic!("u8 quantization differs by {max_q_diff} (max abs err {max_err})");
+        }
+    }
+
+    #[test]
+    fn oetf_lut_matches_scalar_for_u16() {
+        let mut x = 0.0f32;
+        let mut max_diff: i32 = 0;
+        while x <= 1.0 {
+            let lut = srgb_oetf(x);
+            let exact = srgb_oetf_scalar(x);
+            let q_lut = (lut.clamp(0.0, 1.0) * 65535.0).round() as i32;
+            let q_exact = (exact.clamp(0.0, 1.0) * 65535.0).round() as i32;
+            let d = (q_lut - q_exact).abs();
+            if d > max_diff {
+                max_diff = d;
+            }
+            x += 1.0 / 16384.0;
+        }
+        if max_diff > 16 {
+            panic!("u16 quantization differs by {max_diff}");
         }
     }
 }
