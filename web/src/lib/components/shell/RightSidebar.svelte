@@ -2,7 +2,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { developPanels } from '$lib/panels/registry';
-  import { isIdentity } from '$lib/types/edits';
+  import { isNonGeometryIdentity } from '$lib/types/edits';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
   import Icon from '$lib/components/Icon.svelte';
@@ -17,7 +17,7 @@
   type Tab = 'develop' | 'geometry' | 'export';
   let activeTab = $state<Tab>('develop');
   let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
-  const neutral = $derived(isIdentity(editor.edits));
+  const neutral = $derived(isNonGeometryIdentity(editor.edits));
 
   function toggle(id: string): void {
     if (openPanels.has(id)) {
@@ -46,14 +46,6 @@
   {:else}
     {#if editor.assetId}
       <div class="flex items-center border-b border-white/10">
-        <button
-          class="p-1.5 hover:bg-white/10 transition-colors"
-          onclick={ui.toggleRight}
-          aria-label="collapse edit panel"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
-        </button>
         <nav class="flex flex-1">
           {#each [{ id: 'develop', label: 'Develop' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
             <button
@@ -64,6 +56,14 @@
             </button>
           {/each}
         </nav>
+        <button
+          class="p-1.5 hover:bg-white/10 transition-colors"
+          onclick={ui.toggleRight}
+          aria-label="collapse edit panel"
+          title="Collapse"
+        >
+          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
+        </button>
       </div>
 
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">

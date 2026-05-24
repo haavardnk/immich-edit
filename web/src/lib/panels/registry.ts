@@ -5,6 +5,7 @@ import CurvesPanel from './Curves.svelte';
 import HslPanel from './Hsl.svelte';
 import ColorGradingPanel from './ColorGrading.svelte';
 import DetailPanel from './Detail.svelte';
+import EffectsPanel from './Effects.svelte';
 import InfoPanel from './Info.svelte';
 import TagsPanel from './Tags.svelte';
 
@@ -22,6 +23,7 @@ export const developPanels: PanelDef[] = [
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: true },
   { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: true },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: true },
+  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: true },
   { id: 'info', title: 'Info', component: InfoPanel, defaultOpen: false },
   { id: 'tags', title: 'Tags', component: TagsPanel, defaultOpen: false },
 ];

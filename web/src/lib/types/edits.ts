@@ -98,6 +98,26 @@ export const NEUTRAL_DETAIL: DetailEdits = {
   color_nr_smoothness: 50
 };
 
+export interface EffectsEdits {
+  vignette_amount: number;
+  vignette_midpoint: number;
+  vignette_feather: number;
+  vignette_roundness: number;
+  grain_amount: number;
+  grain_size: number;
+  grain_roughness: number;
+}
+
+export const NEUTRAL_EFFECTS: EffectsEdits = {
+  vignette_amount: 0,
+  vignette_midpoint: 50,
+  vignette_feather: 50,
+  vignette_roundness: 0,
+  grain_amount: 0,
+  grain_size: 25,
+  grain_roughness: 50
+};
+
 export interface CropRect {
   x: number;
   y: number;
@@ -136,6 +156,7 @@ export interface Edits {
   tone: ToneEdits;
   color: ColorEdits;
   detail: DetailEdits;
+  effects: EffectsEdits;
   geometry: GeometryEdits;
 }
 
@@ -198,6 +219,7 @@ export function neutralEdits(): Edits {
       color_grade: neutralColorGrade()
     },
     detail: { ...NEUTRAL_DETAIL },
+    effects: { ...NEUTRAL_EFFECTS },
     geometry: {
       rotate: 0,
       rotate_angle: 0,
@@ -239,6 +261,16 @@ function curvesAreIdentity(pts: CurvePoint[]): boolean {
 }
 
 export function isIdentity(e: Edits): boolean {
+  return isNonGeometryIdentity(e) &&
+    e.geometry.rotate === 0 &&
+    Math.abs(e.geometry.rotate_angle) < 1e-4 &&
+    !e.geometry.flip_h &&
+    !e.geometry.flip_v &&
+    isFullCrop(e.geometry.crop) &&
+    e.geometry.aspect.kind === 'original';
+}
+
+export function isNonGeometryIdentity(e: Edits): boolean {
   return (
     e.basic.exposure_ev === 0 &&
     e.basic.contrast === 0 &&
@@ -259,12 +291,8 @@ export function isIdentity(e: Edits): boolean {
     e.detail.sharpen_amount === 0 &&
     e.detail.luma_nr_amount === 0 &&
     e.detail.color_nr_amount === 0 &&
-    e.geometry.rotate === 0 &&
-    Math.abs(e.geometry.rotate_angle) < 1e-4 &&
-    !e.geometry.flip_h &&
-    !e.geometry.flip_v &&
-    isFullCrop(e.geometry.crop) &&
-    e.geometry.aspect.kind === 'original'
+    e.effects.vignette_amount === 0 &&
+    e.effects.grain_amount === 0
   );
 }
 
@@ -325,6 +353,19 @@ export function editsToManifest(e: Edits): EditManifest {
       amount: e.detail.color_nr_amount,
       detail: e.detail.color_nr_detail,
       smoothness: e.detail.color_nr_smoothness
+    };
+  if (e.effects.vignette_amount !== 0)
+    ops.vignette = {
+      amount: e.effects.vignette_amount,
+      midpoint: e.effects.vignette_midpoint,
+      feather: e.effects.vignette_feather,
+      roundness: e.effects.vignette_roundness
+    };
+  if (e.effects.grain_amount !== 0)
+    ops.grain = {
+      amount: e.effects.grain_amount,
+      size: e.effects.grain_size,
+      roughness: e.effects.grain_roughness
     };
   if (
     e.geometry.rotate !== 0 ||
@@ -431,6 +472,19 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (cnr?.amount !== undefined) edits.detail.color_nr_amount = cnr.amount;
   if (cnr?.detail !== undefined) edits.detail.color_nr_detail = cnr.detail;
   if (cnr?.smoothness !== undefined) edits.detail.color_nr_smoothness = cnr.smoothness;
+  const vig = ops.vignette as
+    | { amount?: number; midpoint?: number; feather?: number; roundness?: number }
+    | undefined;
+  if (vig?.amount !== undefined) edits.effects.vignette_amount = vig.amount;
+  if (vig?.midpoint !== undefined) edits.effects.vignette_midpoint = vig.midpoint;
+  if (vig?.feather !== undefined) edits.effects.vignette_feather = vig.feather;
+  if (vig?.roundness !== undefined) edits.effects.vignette_roundness = vig.roundness;
+  const gr = ops.grain as
+    | { amount?: number; size?: number; roughness?: number }
+    | undefined;
+  if (gr?.amount !== undefined) edits.effects.grain_amount = gr.amount;
+  if (gr?.size !== undefined) edits.effects.grain_size = gr.size;
+  if (gr?.roughness !== undefined) edits.effects.grain_roughness = gr.roughness;
   const geom = ops.geometry as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;

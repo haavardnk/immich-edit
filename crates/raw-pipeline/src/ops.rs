@@ -8,6 +8,7 @@ pub mod curves;
 pub mod dehaze;
 pub mod exposure;
 pub mod geometry;
+pub mod grain;
 pub mod hsl;
 pub mod luma_nr;
 pub mod saturation;
@@ -16,6 +17,7 @@ pub mod texture;
 pub mod tone_regions;
 pub mod user_wb;
 pub mod vibrance;
+pub mod vignette;
 pub mod white_balance;
 
 #[cfg(test)]
@@ -173,5 +175,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(geometry::GeometryOp),
         Box::new(crop_rotate::CropRotateOp),
         Box::new(sharpen::SharpenOp),
+        Box::new(vignette::VignetteOp),
+        Box::new(grain::GrainOp),
     ])
 }

@@ -60,8 +60,8 @@ impl EditManifest {
 mod tests {
     use super::*;
     use crate::edits::{
-        BasicEdits, ColorEdits, CurvePoints, DetailEdits, GeometryEdits, HslBand, HslEdits,
-        ToneEdits,
+        BasicEdits, ColorEdits, CurvePoints, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
+        HslEdits, ToneEdits,
     };
 
     #[test]
@@ -122,6 +122,15 @@ mod tests {
                 color_nr_amount: 40.0,
                 color_nr_detail: 55.0,
                 color_nr_smoothness: 60.0,
+            },
+            effects: EffectsEdits {
+                vignette_amount: -35.0,
+                vignette_midpoint: 40.0,
+                vignette_feather: 65.0,
+                vignette_roundness: -10.0,
+                grain_amount: 30.0,
+                grain_size: 20.0,
+                grain_roughness: 55.0,
             },
             geometry: GeometryEdits {
                 rotate: 90,

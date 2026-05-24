@@ -373,6 +373,84 @@ pub enum AspectLock {
     },
 }
 
+fn vignette_midpoint_default() -> f64 {
+    50.0
+}
+fn vignette_feather_default() -> f64 {
+    50.0
+}
+fn grain_size_default() -> f64 {
+    25.0
+}
+fn grain_roughness_default() -> f64 {
+    50.0
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct EffectsEdits {
+    #[serde(default)]
+    pub vignette_amount: f64,
+    #[serde(default = "vignette_midpoint_default")]
+    pub vignette_midpoint: f64,
+    #[serde(default = "vignette_feather_default")]
+    pub vignette_feather: f64,
+    #[serde(default)]
+    pub vignette_roundness: f64,
+    #[serde(default)]
+    pub grain_amount: f64,
+    #[serde(default = "grain_size_default")]
+    pub grain_size: f64,
+    #[serde(default = "grain_roughness_default")]
+    pub grain_roughness: f64,
+}
+
+impl Default for EffectsEdits {
+    fn default() -> Self {
+        Self {
+            vignette_amount: 0.0,
+            vignette_midpoint: vignette_midpoint_default(),
+            vignette_feather: vignette_feather_default(),
+            vignette_roundness: 0.0,
+            grain_amount: 0.0,
+            grain_size: grain_size_default(),
+            grain_roughness: grain_roughness_default(),
+        }
+    }
+}
+
+impl EffectsEdits {
+    pub fn vignette_active(&self) -> bool {
+        self.vignette_amount != 0.0
+    }
+    pub fn grain_active(&self) -> bool {
+        self.grain_amount != 0.0
+    }
+    pub fn any_active(&self) -> bool {
+        self.vignette_active() || self.grain_active()
+    }
+    pub fn clamped(&self) -> Self {
+        let mut out = Self {
+            vignette_amount: self.vignette_amount.clamp(-100.0, 100.0),
+            vignette_midpoint: self.vignette_midpoint.clamp(0.0, 100.0),
+            vignette_feather: self.vignette_feather.clamp(0.0, 100.0),
+            vignette_roundness: self.vignette_roundness.clamp(-100.0, 100.0),
+            grain_amount: self.grain_amount.clamp(0.0, 100.0),
+            grain_size: self.grain_size.clamp(0.0, 100.0),
+            grain_roughness: self.grain_roughness.clamp(0.0, 100.0),
+        };
+        if !out.vignette_active() {
+            out.vignette_midpoint = vignette_midpoint_default();
+            out.vignette_feather = vignette_feather_default();
+            out.vignette_roundness = 0.0;
+        }
+        if !out.grain_active() {
+            out.grain_size = grain_size_default();
+            out.grain_roughness = grain_roughness_default();
+        }
+        out
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct GeometryEdits {
     #[serde(default)]
@@ -399,6 +477,8 @@ pub struct Edits {
     pub color: ColorEdits,
     #[serde(default)]
     pub detail: DetailEdits,
+    #[serde(default)]
+    pub effects: EffectsEdits,
     #[serde(default)]
     pub geometry: GeometryEdits,
 }
@@ -437,6 +517,7 @@ impl Edits {
                 color_grade: self.color.color_grade.clamped(),
             },
             detail: self.detail.clamped(),
+            effects: self.effects.clamped(),
             geometry: GeometryEdits {
                 rotate,
                 rotate_angle: self.geometry.rotate_angle.clamp(-45.0, 45.0),
