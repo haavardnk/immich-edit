@@ -61,20 +61,7 @@ pub fn render_with_cancel(
         is_raw: frame.is_raw,
     };
 
-    let registry = default_registry();
-    let presence_active = has_presence(&edits);
-    let mut presence_done = false;
-    for op in registry.active(&edits) {
-        cancel::check(cancel)?;
-        if op.gpu_kind() == GpuOpKind::Presence {
-            if !presence_done && presence_active {
-                apply_presence(&mut image, &edits);
-                presence_done = true;
-            }
-            continue;
-        }
-        op.apply_cpu(&mut image, &ctx, &edits)?;
-    }
+    run_pipeline_ops(&mut image, &ctx, &edits, cancel)?;
 
     cancel::check(cancel)?;
     let (rgb, w, h) = transform::resize(&image.rgb, image.width, image.height, options.max_edge);
@@ -122,6 +109,29 @@ pub fn render_with_cancel(
 
 const S_CURVE_BLEND: f32 = 0.15;
 const HIGHLIGHT_KNEE: f32 = 0.95;
+
+pub fn run_pipeline_ops(
+    image: &mut LinearImage,
+    ctx: &OpContext,
+    edits: &Edits,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<()> {
+    let registry = default_registry();
+    let presence_active = has_presence(edits);
+    let mut presence_done = false;
+    for op in registry.active(edits) {
+        cancel::check(cancel)?;
+        if op.gpu_kind() == GpuOpKind::Presence {
+            if !presence_done && presence_active {
+                apply_presence(image, edits);
+                presence_done = true;
+            }
+            continue;
+        }
+        op.apply_cpu(image, ctx, edits)?;
+    }
+    Ok(())
+}
 
 fn soft_clip_high(v: f32) -> f32 {
     if v <= HIGHLIGHT_KNEE {
