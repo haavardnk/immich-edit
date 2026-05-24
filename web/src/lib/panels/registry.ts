@@ -19,11 +19,11 @@ export interface PanelDef {
 export const developPanels: PanelDef[] = [
   { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
-  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: true },
-  { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: true },
-  { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: true },
-  { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: true },
-  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: true },
+  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
+  { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
+  { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: false },
+  { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
+  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
   { id: 'info', title: 'Info', component: InfoPanel, defaultOpen: false },
   { id: 'tags', title: 'Tags', component: TagsPanel, defaultOpen: false },
 ];
