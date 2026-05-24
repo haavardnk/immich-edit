@@ -121,6 +121,9 @@ pub fn run_pipeline_ops(
     let mut segment = FusedSegment::default();
     for op in registry.active(edits) {
         cancel::check(cancel)?;
+        if op.stage() == crate::ops::Stage::Output {
+            continue;
+        }
         if op.gpu_kind() == GpuOpKind::Detail {
             continue;
         }

@@ -1,5 +1,5 @@
 use raw_pipeline::edits::BasicEdits;
-use raw_pipeline::edits::{CropRect, DetailEdits, GeometryEdits};
+use raw_pipeline::edits::{CropRect, DetailEdits, EffectsEdits, GeometryEdits};
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
@@ -489,5 +489,144 @@ fn gpu_nr_matches_cpu() {
     eprintln!("nr mean abs delta = {delta:.3}");
     if delta > 4.0 {
         panic!("nr GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_vignette_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        effects: EffectsEdits {
+            vignette_amount: -50.0,
+            vignette_midpoint: 40.0,
+            vignette_feather: 60.0,
+            vignette_roundness: 0.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("vignette mean abs delta = {delta:.3}");
+    if delta > 2.0 {
+        panic!("vignette GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_grain_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        effects: EffectsEdits {
+            grain_amount: 50.0,
+            grain_size: 25.0,
+            grain_roughness: 50.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("grain mean abs delta = {delta:.3}");
+    if delta > 6.0 {
+        panic!("grain GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_effects_with_sharpen_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        detail: DetailEdits {
+            sharpen_amount: 60.0,
+            sharpen_radius: 1.0,
+            sharpen_detail: 25.0,
+            sharpen_masking: 0.0,
+            ..Default::default()
+        },
+        effects: EffectsEdits {
+            vignette_amount: -40.0,
+            grain_amount: 30.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("sharpen+effects mean abs delta = {delta:.3}");
+    if delta > 6.0 {
+        panic!("sharpen+effects GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_linear_histogram_changes_with_vignette() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let neutral = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    let edited = renderer
+        .render(
+            &frame,
+            &Edits {
+                effects: EffectsEdits {
+                    vignette_amount: -80.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            &opts,
+        )
+        .unwrap();
+    let nh = neutral.linear_histogram.expect("neutral linear histogram");
+    let eh = edited.linear_histogram.expect("edited linear histogram");
+    let diff: i64 =
+        nh.l.iter()
+            .zip(eh.l.iter())
+            .map(|(a, b)| (*a as i64 - *b as i64).abs())
+            .sum();
+    if diff == 0 {
+        panic!("linear histogram unchanged after vignette");
     }
 }

@@ -1,18 +1,15 @@
 struct CombineParams {
-    amount: f32,
-    detail_weight: f32,
-    masking_thresh: f32,
-    masking_softness: f32,
-    width: u32,
-    height: u32,
-    use_mask: u32,
-    preview_mode: u32,
+    sharpen: vec4<f32>,
+    dims_flags: vec4<u32>,
+    vignette: vec4<f32>,
+    grain: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> p: CombineParams;
 @group(0) @binding(1) var src_lin: texture_2d<f32>;
 @group(0) @binding(2) var src_blur: texture_2d<f32>;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(4) var out_lin: texture_storage_2d<rgba16float, write>;
 
 fn soft_clip_high(v: f32) -> f32 {
     let knee: f32 = 0.95;
@@ -44,20 +41,58 @@ fn smoothstep_f(edge0: f32, edge1: f32, x: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
+fn fade(t: f32) -> f32 {
+    return t * t * (3.0 - 2.0 * t);
+}
+
+fn pcg_hash(seed: u32) -> u32 {
+    var x = seed * 747796405u + 2891336453u;
+    let word = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+fn hash2(x: i32, y: i32, seed: u32) -> f32 {
+    let h = pcg_hash((u32(x) * 0x27d4eb2du) ^ pcg_hash(u32(y) ^ seed));
+    return f32(h) / 4294967295.0;
+}
+
+fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
+    let xi = i32(floor(x));
+    let yi = i32(floor(y));
+    let xf = x - floor(x);
+    let yf = y - floor(y);
+    let u = fade(xf);
+    let v = fade(yf);
+    let a = hash2(xi, yi, seed);
+    let b = hash2(xi + 1, yi, seed);
+    let c = hash2(xi, yi + 1, seed);
+    let d = hash2(xi + 1, yi + 1, seed);
+    return mix(mix(a, b, u), mix(c, d, u), v);
+}
+
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.width || gid.y >= p.height) { return; }
+    let width = p.dims_flags.x;
+    let height = p.dims_flags.y;
+    let use_mask = p.dims_flags.z;
+    let preview_mode = p.dims_flags.w;
+    if (gid.x >= width || gid.y >= height) { return; }
     let x = i32(gid.x);
     let y = i32(gid.y);
-    let max_x = i32(p.width) - 1;
-    let max_y = i32(p.height) - 1;
+    let max_x = i32(width) - 1;
+    let max_y = i32(height) - 1;
+
+    let amount = p.sharpen.x;
+    let detail_weight = p.sharpen.y;
+    let masking_thresh = p.sharpen.z;
+    let masking_softness = p.sharpen.w;
 
     let orig = textureLoad(src_lin, vec2<i32>(x, y), 0).rgb;
     let blur = textureLoad(src_blur, vec2<i32>(x, y), 0).rgb;
     let hp = orig - blur;
 
     var mask = 1.0;
-    if (p.use_mask == 1u) {
+    if (use_mask == 1u) {
         let xm = max(x - 1, 0);
         let xp = min(x + 1, max_x);
         let ym = max(y - 1, 0);
@@ -73,21 +108,71 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let gx = (l20 + 2.0 * l21 + l22) - (l00 + 2.0 * l01 + l02);
         let gy = (l02 + 2.0 * l12 + l22) - (l00 + 2.0 * l10 + l20);
         let mag = sqrt(gx * gx + gy * gy);
-        mask = smoothstep_f(p.masking_thresh, p.masking_thresh + p.masking_softness, mag);
+        mask = smoothstep_f(masking_thresh, masking_thresh + masking_softness, mag);
     }
 
-    let strength = (p.amount / 50.0) * p.detail_weight * mask;
-    let outc_lin = orig + hp * strength;
-    var outc = vec3<f32>(default_tone(outc_lin.r), default_tone(outc_lin.g), default_tone(outc_lin.b));
-    if (p.preview_mode == 1u) {
+    let strength = (amount / 50.0) * detail_weight * mask;
+    var lin = orig + hp * strength;
+
+    if (preview_mode == 0u) {
+        let vig_amount = p.vignette.x;
+        if (vig_amount != 0.0) {
+            let midpoint = p.vignette.y;
+            let feather = p.vignette.z;
+            let roundness = (p.vignette.w + 1.0) * 0.5;
+            let inner = mix(0.10, 0.90, midpoint);
+            let band = mix(0.02, max(0.02, 1.25 - inner), feather);
+            let aspect = f32(width) / f32(height);
+            let inv_w = 1.0 / f32(width);
+            let inv_h = 1.0 / f32(height);
+            let u_p = ((f32(x) + 0.5) * inv_w - 0.5) * 2.0;
+            let v_p = ((f32(y) + 0.5) * inv_h - 0.5) * 2.0;
+            var cx: f32;
+            var cy: f32;
+            if (aspect >= 1.0) {
+                cx = u_p * aspect;
+                cy = v_p;
+            } else {
+                cx = u_p;
+                cy = v_p / aspect;
+            }
+            let qx = mix(u_p, cx, roundness);
+            let qy = mix(v_p, cy, roundness);
+            let d = sqrt(qx * qx + qy * qy);
+            let t = smoothstep_f(inner, inner + band, d);
+            let gain = clamp(1.0 + vig_amount * t, 0.0, 2.0);
+            lin = clamp(lin * gain, vec3<f32>(0.0), vec3<f32>(4.0));
+        }
+        let grain_amount = p.grain.x;
+        if (grain_amount != 0.0) {
+            let size = p.grain.y;
+            let roughness = p.grain.z;
+            let cell = mix(1.0, 8.0, size);
+            let fine_cell = max(1.0, cell * 0.5);
+            let seed = width ^ ((height << 13u) | (height >> 19u));
+            let seed_fine = seed ^ 0x9E3779B9u;
+            let base = value_noise(f32(x) / cell, f32(y) / cell, seed);
+            let fine = value_noise(f32(x) / fine_cell, f32(y) / fine_cell, seed_fine);
+            let n = mix(base, fine, roughness) * 2.0 - 1.0;
+            let delta = n * grain_amount * 0.15;
+            let yv = luma(lin);
+            let scale = select(1.0, (yv + delta) / yv, yv > 1e-6);
+            lin = clamp(lin * scale, vec3<f32>(0.0), vec3<f32>(4.0));
+        }
+    }
+
+    textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
+
+    var outc = vec3<f32>(default_tone(lin.r), default_tone(lin.g), default_tone(lin.b));
+    if (preview_mode == 1u) {
         outc = vec3<f32>(mask, mask, mask);
-    } else if (p.preview_mode == 2u) {
+    } else if (preview_mode == 2u) {
         let lb = luma(blur);
         outc = vec3<f32>(lb, lb, lb);
-    } else if (p.preview_mode == 3u) {
+    } else if (preview_mode == 3u) {
         let lr = luma(orig);
         let lb = luma(blur);
-        let d = clamp(8.0 * p.detail_weight * abs(lr - lb), 0.0, 1.0);
+        let d = clamp(8.0 * detail_weight * abs(lr - lb), 0.0, 1.0);
         outc = vec3<f32>(d, d, d);
     }
     textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc, 1.0));

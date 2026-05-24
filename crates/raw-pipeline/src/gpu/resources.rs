@@ -66,6 +66,7 @@ impl OutputTargets {
 pub(super) struct SharpenTargets {
     pub blur_h: Texture,
     pub blur_full: Texture,
+    pub post_lin: Texture,
     pub alloc_w: u32,
     pub alloc_h: u32,
 }
@@ -79,7 +80,7 @@ impl SharpenTargets {
         let device = &ctx.device;
         let need_w = round_up_256(out_w);
         let need_h = round_up_256(out_h);
-        let make = |label: &'static str| -> Texture {
+        let make = |label: &'static str, usage: TextureUsages| -> Texture {
             device.create_texture(&TextureDescriptor {
                 label: Some(label),
                 size: Extent3d {
@@ -91,13 +92,15 @@ impl SharpenTargets {
                 sample_count: 1,
                 dimension: TextureDimension::D2,
                 format: ctx.linear_format,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                usage,
                 view_formats: &[],
             })
         };
+        let base = TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
         Self {
-            blur_h: make("sharpen-blur-h"),
-            blur_full: make("sharpen-blur-full"),
+            blur_h: make("sharpen-blur-h", base),
+            blur_full: make("sharpen-blur-full", base),
+            post_lin: make("output-post-lin", base | TextureUsages::COPY_SRC),
             alloc_w: need_w,
             alloc_h: need_h,
         }
