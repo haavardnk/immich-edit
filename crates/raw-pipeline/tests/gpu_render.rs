@@ -423,3 +423,71 @@ fn gpu_sharpen_matches_cpu() {
         panic!("sharpen GPU/CPU mean abs delta too high: {delta:.3}");
     }
 }
+
+#[test]
+fn gpu_sharpen_masking_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        detail: DetailEdits {
+            sharpen_amount: 80.0,
+            sharpen_radius: 1.0,
+            sharpen_detail: 25.0,
+            sharpen_masking: 60.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("sharpen+masking mean abs delta = {delta:.3}");
+    if delta > 3.0 {
+        panic!("sharpen+masking GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_nr_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        detail: DetailEdits {
+            luma_nr_amount: 50.0,
+            luma_nr_detail: 40.0,
+            luma_nr_contrast: 0.0,
+            color_nr_amount: 50.0,
+            color_nr_detail: 40.0,
+            color_nr_smoothness: 50.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("nr mean abs delta = {delta:.3}");
+    if delta > 4.0 {
+        panic!("nr GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}

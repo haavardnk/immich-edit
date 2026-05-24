@@ -1,6 +1,8 @@
 pub mod demosaic;
 pub mod luma_pyramid;
 pub mod mipgen;
+pub mod nr;
+pub mod nr_smooth;
 pub mod presence;
 pub mod process;
 pub mod sharpen;
@@ -15,6 +17,8 @@ use crate::ops::{OpRegistry, default_registry};
 use demosaic::DemosaicPass;
 use luma_pyramid::LumaPyramidPass;
 use mipgen::MipgenPass;
+use nr::NrPass;
+use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
 use sharpen::OutputSharpenPass;
@@ -24,6 +28,8 @@ pub struct GpuPasses {
     pub demosaic: DemosaicPass,
     pub mipgen: MipgenPass,
     pub luma_pyramid: LumaPyramidPass,
+    pub nr: NrPass,
+    pub nr_smooth: NrSmoothPass,
     pub presence: PresencePass,
     pub wb_prepare: WbPreparePass,
     pub process_fast: ProcessFastPass,
@@ -38,6 +44,8 @@ impl GpuPasses {
         let demosaic = DemosaicPass::new(ctx);
         let mipgen = MipgenPass::new(ctx);
         let luma_pyramid = LumaPyramidPass::new(ctx);
+        let nr = NrPass::new(ctx);
+        let nr_smooth = NrSmoothPass::new(ctx);
         let presence = PresencePass::new(ctx);
         let wb_prepare = WbPreparePass::new(ctx, &registry);
         let process_fast = ProcessFastPass::new(ctx, &registry);
@@ -48,6 +56,8 @@ impl GpuPasses {
             demosaic,
             mipgen,
             luma_pyramid,
+            nr,
+            nr_smooth,
             presence,
             wb_prepare,
             process_fast,

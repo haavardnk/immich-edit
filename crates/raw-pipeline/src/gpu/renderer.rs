@@ -44,7 +44,13 @@ pub enum RenderPlan {
 impl RenderPlan {
     pub fn select(edits: &Edits) -> Self {
         let b = &edits.basic;
-        if b.texture != 0.0 || b.clarity != 0.0 || b.dehaze != 0.0 {
+        let d = &edits.detail;
+        if b.texture != 0.0
+            || b.clarity != 0.0
+            || b.dehaze != 0.0
+            || d.luma_nr_active()
+            || d.color_nr_active()
+        {
             Self::Presence
         } else {
             Self::Fast
@@ -320,12 +326,6 @@ impl GpuRenderer {
 
         let edits = edits.clamped();
         let sharpen_active = edits.detail.sharpen_active();
-
-        if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
-            return Err(PipelineError::Unsupported(
-                "gpu pipeline: noise reduction not implemented".into(),
-            ));
-        }
 
         for op in self.passes.registry.active(&edits) {
             if op.gpu_kind() == GpuOpKind::Presence {
@@ -741,6 +741,198 @@ impl GpuRenderer {
         self.render_with_cancel(frame, edits, options, None)
     }
 
+    fn run_nr(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        edits: &Edits,
+    ) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+        let d = &edits.detail;
+
+        let luma_amount = d.luma_nr_amount as f32;
+        let luma_detail = d.luma_nr_detail as f32;
+        let luma_contrast = d.luma_nr_contrast as f32;
+        let color_amount = d.color_nr_amount as f32;
+        let color_detail = d.color_nr_detail as f32;
+
+        let max_amount = luma_amount.max(color_amount);
+        let radius: u32 = if max_amount >= 66.0 {
+            4
+        } else if max_amount >= 33.0 {
+            3
+        } else {
+            2
+        };
+        let sigma_s = radius as f32;
+        let sigma_r_luma = 0.005 + (1.0 - luma_detail / 100.0) * 0.20;
+        let sigma_r_chroma = 0.005 + (1.0 - color_detail / 100.0) * 0.30;
+        let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
+        let inv_2sr_luma = 1.0 / (2.0 * sigma_r_luma * sigma_r_luma);
+        let inv_2sr_chroma = 1.0 / (2.0 * sigma_r_chroma * sigma_r_chroma);
+        let alpha_luma = luma_amount / 100.0;
+        let alpha_chroma = color_amount / 100.0;
+        let contrast = luma_contrast / 100.0;
+
+        let mut bytes = vec![0u8; super::passes::nr::NR_UNIFORM_SIZE as usize];
+        bytes[0..4].copy_from_slice(&w.to_le_bytes());
+        bytes[4..8].copy_from_slice(&h.to_le_bytes());
+        bytes[8..12].copy_from_slice(&radius.to_le_bytes());
+        bytes[16..20].copy_from_slice(&inv_2ss.to_le_bytes());
+        bytes[20..24].copy_from_slice(&inv_2sr_luma.to_le_bytes());
+        bytes[24..28].copy_from_slice(&inv_2sr_chroma.to_le_bytes());
+        bytes[28..32].copy_from_slice(&alpha_luma.to_le_bytes());
+        bytes[32..36].copy_from_slice(&alpha_chroma.to_le_bytes());
+        bytes[36..40].copy_from_slice(&contrast.to_le_bytes());
+        let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("nr-uniform"),
+            contents: &bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let dst = device.create_texture(&TextureDescriptor {
+            label: Some("nr-out"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let dst_mip0 = dst.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("nr-bg"),
+            layout: &self.passes.nr.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dst_mip0),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("nr-enc"),
+        });
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("nr-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&self.passes.nr.pipeline);
+            cpass.set_bind_group(0, &bind, &[]);
+            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+
+        self.encode_mipgen(&dst, w, h);
+
+        let smoothness = (d.color_nr_smoothness as f32) / 100.0;
+        if smoothness > 0.0 && color_amount > 0.0 {
+            let smoothed = self.run_nr_smooth(&dst, dims, smoothness)?;
+            return Ok(smoothed);
+        }
+        Ok(Arc::new(dst))
+    }
+
+    fn run_nr_smooth(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        smoothness: f32,
+    ) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+
+        let mut bytes = vec![0u8; super::passes::nr_smooth::NR_SMOOTH_UNIFORM_SIZE as usize];
+        bytes[0..4].copy_from_slice(&w.to_le_bytes());
+        bytes[4..8].copy_from_slice(&h.to_le_bytes());
+        bytes[16..20].copy_from_slice(&smoothness.to_le_bytes());
+        let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("nr-smooth-uniform"),
+            contents: &bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let dst = device.create_texture(&TextureDescriptor {
+            label: Some("nr-smooth-out"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let dst_mip0 = dst.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("nr-smooth-bg"),
+            layout: &self.passes.nr_smooth.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dst_mip0),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("nr-smooth-enc"),
+        });
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("nr-smooth-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&self.passes.nr_smooth.pipeline);
+            cpass.set_bind_group(0, &bind, &[]);
+            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+        self.encode_mipgen(&dst, w, h);
+        Ok(Arc::new(dst))
+    }
+
     fn run_presence(
         &self,
         src: &Texture,
@@ -1072,11 +1264,27 @@ impl GpuRenderer {
             RenderPlan::Presence => {
                 let wb_base = self.run_wb_prepare(&cached, frame, &edits_c)?;
                 crate::cancel::check(cancel)?;
-                let adjusted = self.run_presence(&wb_base, dims, &edits_c)?;
+                let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
+                {
+                    let t = self.run_nr(&wb_base, dims, &edits_c)?;
+                    crate::cancel::check(cancel)?;
+                    Some(t)
+                } else {
+                    None
+                };
+                let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
+                let presence_active = edits_c.basic.texture != 0.0
+                    || edits_c.basic.clarity != 0.0
+                    || edits_c.basic.dehaze != 0.0;
+                let processed_src: Arc<Texture> = if presence_active {
+                    self.run_presence(presence_src, dims, &edits_c)?
+                } else {
+                    nr_out.unwrap_or(wb_base)
+                };
                 crate::cancel::check(cancel)?;
                 let out = self.process(
                     &self.passes.process_post_wb,
-                    &adjusted,
+                    &processed_src,
                     dims,
                     frame,
                     edits,

@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use raw_pipeline::cpu::run_pipeline_ops;
-use raw_pipeline::edits::{BasicEdits, CurvePoint, CurvePoints, Edits, ToneEdits};
+use raw_pipeline::edits::{BasicEdits, CurvePoint, CurvePoints, DetailEdits, Edits, ToneEdits};
 use raw_pipeline::ops::{LinearImage, OpContext};
 
 fn make_image(w: usize, h: usize) -> LinearImage {
@@ -84,6 +84,24 @@ fn edits_full() -> Edits {
     }
 }
 
+fn edits_detail_heavy() -> Edits {
+    Edits {
+        detail: DetailEdits {
+            sharpen_amount: 80.0,
+            sharpen_radius: 1.2,
+            sharpen_detail: 40.0,
+            sharpen_masking: 30.0,
+            luma_nr_amount: 60.0,
+            luma_nr_detail: 50.0,
+            luma_nr_contrast: 20.0,
+            color_nr_amount: 50.0,
+            color_nr_detail: 50.0,
+            color_nr_smoothness: 25.0,
+        },
+        ..Default::default()
+    }
+}
+
 fn bench_ops(c: &mut Criterion) {
     const W: usize = 1024;
     const H: usize = 1024;
@@ -95,6 +113,7 @@ fn bench_ops(c: &mut Criterion) {
         ("identity", edits_identity()),
         ("typical", edits_typical()),
         ("full", edits_full()),
+        ("detail_heavy", edits_detail_heavy()),
     ] {
         group.bench_with_input(BenchmarkId::from_parameter(label), &edits, |b, edits| {
             b.iter_batched(

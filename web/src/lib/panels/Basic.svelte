@@ -50,6 +50,7 @@
       onCommit={editor.onCommit}
       format={(v: number) => v.toFixed(0)}
     />
+    <div class="border-t border-white/5"></div>
     <SliderRow
       label="Highlights"
       bind:value={editor.edits.tone.highlights}
@@ -123,6 +124,7 @@
       onCommit={editor.onCommit}
       format={(v: number) => v.toFixed(0)}
     />
+    <div class="border-t border-white/5"></div>
     <SliderRow
       label="Vibrance"
       bind:value={editor.edits.basic.vibrance}
