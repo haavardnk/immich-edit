@@ -31,3 +31,10 @@ ravif = "0.13"
 rgb = "0.8"
 zune-jpegxl = "0.5"
 zune-core = "0.5"
+
+[dev-dependencies]
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "cpu_pipeline"
+harness = false
