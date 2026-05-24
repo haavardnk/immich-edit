@@ -11,43 +11,11 @@ fn cfa_channel(cfa: &[u8; 4], x: usize, y: usize) -> usize {
 }
 
 pub fn bilinear(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> Vec<f32> {
-    let mut cfa = [b'R', b'G', b'G', b'B'];
-    for (i, b) in cfa_pattern.bytes().take(4).enumerate() {
-        cfa[i] = b;
-    }
-
+    let cfa = parse_cfa(cfa_pattern);
     let mut out = vec![0.0f32; w * h * 3];
     out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
         for x in 0..w {
-            let own_ch = cfa_channel(&cfa, x, y);
-            let own_val = data[y * w + x];
-            let mut rgb = [0.0f32; 3];
-            rgb[own_ch] = own_val;
-
-            for (ch, slot) in rgb.iter_mut().enumerate() {
-                if ch == own_ch {
-                    continue;
-                }
-                let mut sum = 0.0f32;
-                let mut count = 0u32;
-                for dy in -1i32..=1 {
-                    for dx in -1i32..=1 {
-                        let nx = x as i32 + dx;
-                        let ny = y as i32 + dy;
-                        if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 {
-                            continue;
-                        }
-                        if cfa_channel(&cfa, nx as usize, ny as usize) == ch {
-                            sum += data[ny as usize * w + nx as usize];
-                            count += 1;
-                        }
-                    }
-                }
-                if count > 0 {
-                    *slot = sum / count as f32;
-                }
-            }
-
+            let rgb = bilinear_pixel(data, w, h, &cfa, x, y);
             let off = x * 3;
             row[off] = rgb[0];
             row[off + 1] = rgb[1];
@@ -57,61 +25,96 @@ pub fn bilinear(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> Vec<f32>
     out
 }
 
-pub fn malvar_he_cutler(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> Vec<f32> {
-    if w < 5 || h < 5 {
-        return bilinear(data, w, h, cfa_pattern);
-    }
+fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
     let mut cfa = [b'R', b'G', b'G', b'B'];
     for (i, b) in cfa_pattern.bytes().take(4).enumerate() {
         cfa[i] = b;
     }
+    cfa
+}
 
-    let mut out = bilinear(data, w, h, cfa_pattern);
-
-    out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
-        if y < 2 || y >= h - 2 {
-            return;
+#[inline]
+fn bilinear_pixel(data: &[f32], w: usize, h: usize, cfa: &[u8; 4], x: usize, y: usize) -> [f32; 3] {
+    let own_ch = cfa_channel(cfa, x, y);
+    let mut rgb = [0.0f32; 3];
+    rgb[own_ch] = data[y * w + x];
+    for (ch, slot) in rgb.iter_mut().enumerate() {
+        if ch == own_ch {
+            continue;
         }
-        for x in 2..w - 2 {
-            let own_ch = cfa_channel(&cfa, x, y);
-            let c = data[y * w + x];
-
-            let p = |dx: i32, dy: i32| -> f32 {
-                data[((y as i32 + dy) as usize) * w + ((x as i32 + dx) as usize)]
-            };
-
-            let row_ch = cfa_channel(&cfa, x + 1, y);
-            let col_ch = cfa_channel(&cfa, x, y + 1);
-
-            let off = x * 3;
-            if own_ch == 1 {
-                let other_h = row_ch;
-                let other_v = col_ch;
-                let n1 = p(-1, 0) + p(1, 0);
-                let n2 = p(0, -1) + p(0, 1);
-                let d2 = p(-2, 0) + p(2, 0);
-                let d2v = p(0, -2) + p(0, 2);
-                let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
-                let h_val = (n1 * 4.0 + c * 5.0 - d2 - diag + d2v * 0.5) / 8.0;
-                let v_val = (n2 * 4.0 + c * 5.0 - d2v - diag + d2 * 0.5) / 8.0;
-                row[off + other_h] = h_val.clamp(0.0, 1.0);
-                row[off + other_v] = v_val.clamp(0.0, 1.0);
-                row[off + 1] = c;
-            } else {
-                let n4 = p(-1, 0) + p(1, 0) + p(0, -1) + p(0, 1);
-                let dplus = p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2);
-                let g_val = (n4 * 2.0 + c * 4.0 - dplus) / 8.0;
-                row[off + 1] = g_val.clamp(0.0, 1.0);
-
-                let opp = 2 - own_ch;
-                let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
-                let opp_val =
-                    (diag * 2.0 + c * 6.0 - (p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2)) * 1.5) / 8.0;
-                row[off + opp] = opp_val.clamp(0.0, 1.0);
-                row[off + own_ch] = c;
+        let mut sum = 0.0f32;
+        let mut count = 0u32;
+        for dy in -1i32..=1 {
+            for dx in -1i32..=1 {
+                let nx = x as i32 + dx;
+                let ny = y as i32 + dy;
+                if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 {
+                    continue;
+                }
+                if cfa_channel(cfa, nx as usize, ny as usize) == ch {
+                    sum += data[ny as usize * w + nx as usize];
+                    count += 1;
+                }
             }
         }
-    });
+        if count > 0 {
+            *slot = sum / count as f32;
+        }
+    }
+    rgb
+}
+
+pub fn malvar_he_cutler(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> Vec<f32> {
+    if w < 5 || h < 5 {
+        return bilinear(data, w, h, cfa_pattern);
+    }
+    let cfa = parse_cfa(cfa_pattern);
+    let mut out = vec![0.0f32; w * h * 3];
+    out.par_chunks_exact_mut(w * 3)
+        .enumerate()
+        .for_each(|(y, row)| {
+            for x in 0..w {
+                let off = x * 3;
+                if y < 2 || y >= h - 2 || x < 2 || x >= w - 2 {
+                    let rgb = bilinear_pixel(data, w, h, &cfa, x, y);
+                    row[off] = rgb[0];
+                    row[off + 1] = rgb[1];
+                    row[off + 2] = rgb[2];
+                    continue;
+                }
+                let own_ch = cfa_channel(&cfa, x, y);
+                let c = data[y * w + x];
+                let p = |dx: i32, dy: i32| -> f32 {
+                    data[((y as i32 + dy) as usize) * w + ((x as i32 + dx) as usize)]
+                };
+                let row_ch = cfa_channel(&cfa, x + 1, y);
+                let col_ch = cfa_channel(&cfa, x, y + 1);
+                if own_ch == 1 {
+                    let n1 = p(-1, 0) + p(1, 0);
+                    let n2 = p(0, -1) + p(0, 1);
+                    let d2 = p(-2, 0) + p(2, 0);
+                    let d2v = p(0, -2) + p(0, 2);
+                    let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
+                    let h_val = (n1 * 4.0 + c * 5.0 - d2 - diag + d2v * 0.5) / 8.0;
+                    let v_val = (n2 * 4.0 + c * 5.0 - d2v - diag + d2 * 0.5) / 8.0;
+                    row[off + row_ch] = h_val.clamp(0.0, 1.0);
+                    row[off + col_ch] = v_val.clamp(0.0, 1.0);
+                    row[off + 1] = c;
+                } else {
+                    let n4 = p(-1, 0) + p(1, 0) + p(0, -1) + p(0, 1);
+                    let dplus = p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2);
+                    let g_val = (n4 * 2.0 + c * 4.0 - dplus) / 8.0;
+                    row[off + 1] = g_val.clamp(0.0, 1.0);
+                    let opp = 2 - own_ch;
+                    let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
+                    let opp_val = (diag * 2.0 + c * 6.0
+                        - (p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2)) * 1.5)
+                        / 8.0;
+                    row[off + opp] = opp_val.clamp(0.0, 1.0);
+                    row[off + own_ch] = c;
+                }
+            }
+        });
     out
 }
 
