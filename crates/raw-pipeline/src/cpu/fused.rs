@@ -1,4 +1,3 @@
-use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::{CURVE_LUT_SIZE, HSL_BANDS};
 use crate::ops::LinearImage;
 use rayon::prelude::*;
@@ -51,13 +50,12 @@ pub enum CpuFusedOp {
         blend: f32,
     },
     Presence {
-        pyramid: Arc<LumaPyramid>,
         texture: f32,
         clarity: f32,
         dehaze: f32,
-        mip_texture: u32,
-        mip_clarity: u32,
-        mip_dehaze: u32,
+        texture_blur: Option<Arc<Vec<f32>>>,
+        clarity_blur: Option<Arc<Vec<f32>>>,
+        dehaze_blur: Option<Arc<Vec<f32>>>,
     },
 }
 
@@ -81,7 +79,7 @@ impl FusedSegment {
 }
 
 #[inline(always)]
-fn apply_one(op: &CpuFusedOp, i: usize, img_w: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
+fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
     match op {
         CpuFusedOp::WhiteBalance { coeffs } => {
             *r *= coeffs[0];
@@ -182,32 +180,24 @@ fn apply_one(op: &CpuFusedOp, i: usize, img_w: usize, r: &mut f32, g: &mut f32, 
             *b = (*b + ob + lum).max(0.0);
         }
         CpuFusedOp::Presence {
-            pyramid,
             texture,
             clarity,
             dehaze,
-            mip_texture,
-            mip_clarity,
-            mip_dehaze,
+            texture_blur,
+            clarity_blur,
+            dehaze_blur,
         } => {
-            let x = i % img_w;
-            let y = i / img_w;
-            let fx = x as f32 + 0.5;
-            let fy = y as f32 + 0.5;
             let y0 = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
             let mut delta = 0.0f32;
-            if *texture != 0.0 {
-                let bl = pyramid.sample(*mip_texture, fx, fy);
-                delta += *texture * (y0 - bl);
+            if let Some(buf) = texture_blur {
+                delta += *texture * (y0 - buf[i]);
             }
-            if *clarity != 0.0 {
-                let bl = pyramid.sample(*mip_clarity, fx, fy);
+            if let Some(buf) = clarity_blur {
                 let mt = 1.0 - (2.0 * y0 - 1.0).abs();
-                delta += *clarity * mt * (y0 - bl);
+                delta += *clarity * mt * (y0 - buf[i]);
             }
-            if *dehaze != 0.0 {
-                let bl = pyramid.sample(*mip_dehaze, fx, fy);
-                delta += *dehaze * (y0 - bl);
+            if let Some(buf) = dehaze_blur {
+                delta += *dehaze * (y0 - buf[i]);
             }
             let goal = (y0 + delta).max(0.0);
             if y0 <= 1e-5 {
@@ -357,20 +347,25 @@ pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
     }
     let ops = segment.ops.as_slice();
     let img_w = image.width;
+    let row_floats = img_w * 3;
     image
         .rgb
-        .par_chunks_exact_mut(3)
+        .par_chunks_exact_mut(row_floats)
         .enumerate()
-        .for_each(|(i, px)| {
-            let mut r = px[0];
-            let mut g = px[1];
-            let mut b = px[2];
-            for op in ops {
-                apply_one(op, i, img_w, &mut r, &mut g, &mut b);
+        .for_each(|(y, row)| {
+            let row_base = y * img_w;
+            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+                let i = row_base + x;
+                let mut r = px[0];
+                let mut g = px[1];
+                let mut b = px[2];
+                for op in ops {
+                    apply_one(op, i, &mut r, &mut g, &mut b);
+                }
+                px[0] = r;
+                px[1] = g;
+                px[2] = b;
             }
-            px[0] = r;
-            px[1] = g;
-            px[2] = b;
         });
 }
 

@@ -126,15 +126,23 @@ pub fn run_pipeline_ops(
                 let radii = presence_radii(w, h);
                 let mips = presence_mips(w, h, radii);
                 let levels = presence_pyramid_levels(w, h, radii) as usize;
-                let pyramid = Arc::new(LumaPyramid::build(image, levels));
+                let pyramid = LumaPyramid::build(image, levels);
+                let iw = image.width;
+                let ih = image.height;
+                let texture_blur = (amounts.texture != 0.0)
+                    .then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih)));
+                let clarity_blur = (amounts.clarity != 0.0)
+                    .then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih)));
+                let dehaze_blur = (amounts.dehaze != 0.0)
+                    .then(|| Arc::new(pyramid.upsample(mips.dehaze, iw, ih)));
+                drop(pyramid);
                 segment.push(CpuFusedOp::Presence {
-                    pyramid,
                     texture: amounts.texture,
                     clarity: amounts.clarity,
                     dehaze: amounts.dehaze,
-                    mip_texture: mips.texture,
-                    mip_clarity: mips.clarity,
-                    mip_dehaze: mips.dehaze,
+                    texture_blur,
+                    clarity_blur,
+                    dehaze_blur,
                 });
                 presence_done = true;
             }
