@@ -89,17 +89,22 @@ pub fn flip_vertical(pixels: &mut [f32], w: usize, h: usize) {
     pixels.copy_from_slice(&out);
 }
 
-pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, usize, usize) {
+pub fn resize_owned(
+    pixels: Vec<f32>,
+    w: usize,
+    h: usize,
+    max_edge: u32,
+) -> (Vec<f32>, usize, usize) {
     let max = max_edge as usize;
     if w <= max && h <= max {
-        return (pixels.to_vec(), w, h);
+        return (pixels, w, h);
     }
 
     let scale = max as f64 / w.max(h) as f64;
     let new_w = (w as f64 * scale).round().max(1.0) as u32;
     let new_h = (h as f64 * scale).round().max(1.0) as u32;
 
-    let mut src_buf = bytemuck::cast_slice::<f32, u8>(pixels).to_vec();
+    let mut src_buf = bytemuck::cast_slice::<f32, u8>(&pixels).to_vec();
     let src_image = match fast_image_resize::images::Image::from_slice_u8(
         w as u32,
         h as u32,
@@ -107,7 +112,7 @@ pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, u
         fast_image_resize::PixelType::F32x3,
     ) {
         Ok(img) => img,
-        Err(_) => return (pixels.to_vec(), w, h),
+        Err(_) => return (pixels, w, h),
     };
 
     let mut dst_image =
@@ -124,7 +129,7 @@ pub fn resize(pixels: &[f32], w: usize, h: usize, max_edge: u32) -> (Vec<f32>, u
         )
         .is_err()
     {
-        return (pixels.to_vec(), w, h);
+        return (pixels, w, h);
     }
 
     let out: Vec<f32> = bytemuck::cast_slice(dst_image.buffer()).to_vec();
