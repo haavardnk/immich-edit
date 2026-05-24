@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 
 pub const BINS: usize = 256;
 
+pub(crate) fn chunk_pixels(pixel_count: usize) -> usize {
+    let threads = rayon::current_num_threads().max(1);
+    let per_thread = pixel_count.div_ceil(threads * 4);
+    per_thread.max(4096)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Histogram {
     pub r: Vec<u32>,
@@ -16,9 +22,10 @@ impl Histogram {
         let pixel_count = width * height;
         let usable = pixel_count.min(pixels.len() / 3);
         let step = if usable > 500_000 { 2 } else { 1 };
+        let chunk = chunk_pixels(usable) * 3;
         let zero = || ([0u32; BINS], [0u32; BINS], [0u32; BINS], [0u32; BINS]);
         let (r, g, b, l) = pixels[..usable * 3]
-            .par_chunks(30_000 * 3)
+            .par_chunks(chunk)
             .fold(zero, |mut acc, chunk| {
                 let stride = step * 3;
                 let mut i = 0;
@@ -58,9 +65,10 @@ impl Histogram {
         let total_px = width * height;
         let usable = total_px.min(pixels.len() / 3);
         let step = if usable > 500_000 { 2 } else { 1 };
+        let chunk = chunk_pixels(usable) * 3;
         let zero = || ([0u32; BINS], [0u32; BINS], [0u32; BINS], [0u32; BINS]);
         let (r, g, b, l) = pixels[..usable * 3]
-            .par_chunks(30_000 * 3)
+            .par_chunks(chunk)
             .fold(zero, |mut acc, chunk| {
                 let stride = step * 3;
                 let mut i = 0;
@@ -100,9 +108,10 @@ impl Histogram {
     pub fn from_rgba8(pixels: &[u8]) -> Self {
         let total_px = pixels.len() / 4;
         let step = if total_px > 500_000 { 2 } else { 1 };
+        let chunk = chunk_pixels(total_px) * 4;
         let zero = || ([0u32; BINS], [0u32; BINS], [0u32; BINS], [0u32; BINS]);
         let (r, g, b, l) = pixels
-            .par_chunks(30_000 * 4)
+            .par_chunks(chunk)
             .fold(zero, |mut acc, chunk| {
                 let stride = step * 4;
                 let mut i = 0;
