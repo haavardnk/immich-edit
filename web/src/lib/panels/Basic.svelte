@@ -5,6 +5,7 @@
 
 <div class="flex flex-col divide-y divide-white/5">
   <div class="flex flex-col gap-2.5 pb-3">
+    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">White Balance</div>
     <SliderRow
       label="Temperature"
       bind:value={editor.edits.basic.wb_temp}
@@ -29,6 +30,7 @@
     />
   </div>
   <div class="flex flex-col gap-2.5 py-3">
+    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Tone</div>
     <SliderRow
       label="Exposure"
       bind:value={editor.edits.basic.exposure_ev}
@@ -89,7 +91,8 @@
       format={(v: number) => v.toFixed(0)}
     />
   </div>
-  <div class="flex flex-col gap-2.5 py-3">
+  <div class="flex flex-col gap-2.5 pt-3">
+    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Presence</div>
     <SliderRow
       label="Texture"
       bind:value={editor.edits.basic.texture}
@@ -120,8 +123,6 @@
       onCommit={editor.onCommit}
       format={(v: number) => v.toFixed(0)}
     />
-  </div>
-  <div class="flex flex-col gap-2.5 pt-3">
     <SliderRow
       label="Vibrance"
       bind:value={editor.edits.basic.vibrance}
