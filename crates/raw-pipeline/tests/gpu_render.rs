@@ -204,10 +204,11 @@ fn gpu_matches_cpu_within_tolerance() {
         ..Default::default()
     };
 
-    let cases: &[(&str, Edits)] = &[
-        ("identity", Edits::default()),
+    let cases: &[(&str, f64, Edits)] = &[
+        ("identity", 1.0, Edits::default()),
         (
             "exposure+1.5",
+            1.1,
             Edits {
                 basic: BasicEdits {
                     exposure_ev: 1.5,
@@ -218,6 +219,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "saturation+50",
+            1.0,
             Edits {
                 basic: BasicEdits {
                     saturation: 50.0,
@@ -228,6 +230,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "contrast+30",
+            1.0,
             Edits {
                 basic: BasicEdits {
                     contrast: 30.0,
@@ -238,6 +241,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "rotate10+crop",
+            2.5,
             Edits {
                 geometry: GeometryEdits {
                     rotate_angle: 10.0,
@@ -254,10 +258,9 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
     ];
 
-    let threshold: f64 = 3.0;
     let mut failed: Vec<String> = Vec::new();
 
-    for (label, edits) in cases {
+    for (label, threshold, edits) in cases {
         let cpu_out = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
         let gpu_out = renderer.render(&frame, edits, &opts).unwrap();
 
@@ -274,7 +277,7 @@ fn gpu_matches_cpu_within_tolerance() {
         }
         let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
         eprintln!("{label}: mean abs delta = {delta:.3}");
-        if delta > threshold {
+        if delta > *threshold {
             failed.push(format!("{label}: {delta:.3} > {threshold}"));
         }
     }
