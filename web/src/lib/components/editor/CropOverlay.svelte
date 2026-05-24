@@ -23,8 +23,11 @@
   });
 
   const sess = $derived(editor.cropSession);
+  const swapped = $derived(sess ? sess.draftRotate === 90 || sess.draftRotate === 270 : false);
+  const sourceW = $derived(sess ? (swapped ? sess.srcH : sess.srcW) : 1);
+  const sourceH = $derived(sess ? (swapped ? sess.srcW : sess.srcH) : 1);
   const bbox = $derived(
-    sess ? rotatedBbox(sess.sourceW, sess.sourceH, sess.draftAngle) : { w: 1, h: 1 }
+    sess ? rotatedBbox(sourceW, sourceH, sess.draftAngle) : { w: 1, h: 1 }
   );
   const scale = $derived(
     Math.min(
@@ -34,8 +37,8 @@
   );
   const bboxW = $derived(bbox.w * scale);
   const bboxH = $derived(bbox.h * scale);
-  const srcW = $derived((sess?.sourceW ?? 1) * scale);
-  const srcH = $derived((sess?.sourceH ?? 1) * scale);
+  const imgW = $derived((sess?.srcW ?? 1) * scale);
+  const imgH = $derived((sess?.srcH ?? 1) * scale);
   const crop = $derived(sess?.draftCrop ?? { x: 0, y: 0, w: 1, h: 1 });
   const cropPx = $derived({
     x: crop.x * bboxW,
@@ -98,7 +101,7 @@
       }
       if (c.w < 0.05) c.w = 0.05;
       if (c.h < 0.05) c.h = 0.05;
-      const ratio = aspectRatioFor(sess.draftAspect, sess.sourceW, sess.sourceH);
+      const ratio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
       if (ratio !== null && bboxW > 0 && bboxH > 0) {
         const wPx = c.w * bboxW;
         const hPx = c.h * bboxH;
@@ -144,23 +147,18 @@
   bind:this={container}
   class="absolute inset-0 flex items-center justify-center select-none"
 >
-  {#if sess}
+  {#if sess && sess.pinnedReady && sess.pinnedUrl}
     <div
       class="relative"
       style="width: {bboxW}px; height: {bboxH}px;"
     >
-      <div
-        class="absolute"
-        style="left: {(bboxW - srcW) / 2}px; top: {(bboxH - srcH) / 2}px; width: {srcW}px; height: {srcH}px; transform: rotate({sess.draftAngle}deg); transform-origin: center;"
-      >
-        <img
-          src={sess.pinnedUrl}
-          alt=""
-          draggable="false"
-          class="w-full h-full block"
-          style="image-orientation: none;"
-        />
-      </div>
+      <img
+        src={sess.pinnedUrl}
+        alt=""
+        draggable="false"
+        class="absolute block"
+        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) scaleY({sess.draftFlipV ? -1 : 1}) scaleX({sess.draftFlipH ? -1 : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
+      />
 
       <div
         class="absolute inset-0 pointer-events-none"

@@ -21,20 +21,16 @@
   });
 
   function rotateLeft(): void {
-    editor.edits.geometry.rotate = ((editor.edits.geometry.rotate + 270) % 360) as 0 | 90 | 180 | 270;
-    void editor.onCommit();
+    editor.rotateStep(270);
   }
   function rotateRight(): void {
-    editor.edits.geometry.rotate = ((editor.edits.geometry.rotate + 90) % 360) as 0 | 90 | 180 | 270;
-    void editor.onCommit();
+    editor.rotateStep(90);
   }
   function toggleFlipH(): void {
-    editor.edits.geometry.flip_h = !editor.edits.geometry.flip_h;
-    void editor.onCommit();
+    editor.flipStep('h');
   }
   function toggleFlipV(): void {
-    editor.edits.geometry.flip_v = !editor.edits.geometry.flip_v;
-    void editor.onCommit();
+    editor.flipStep('v');
   }
 
   function reset(): void {
@@ -155,14 +151,14 @@
         90°
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {editor.edits.geometry.flip_h ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.cropSession?.draftFlipH ?? editor.edits.geometry.flip_h) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
         onclick={toggleFlipH}
       >
         <Icon path={mdiFlipHorizontal} size={16} />
         Flip Horizontal
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {editor.edits.geometry.flip_v ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.cropSession?.draftFlipV ?? editor.edits.geometry.flip_v) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
         onclick={toggleFlipV}
       >
         <Icon path={mdiFlipVertical} size={16} />

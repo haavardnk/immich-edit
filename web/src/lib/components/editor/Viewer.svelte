@@ -61,7 +61,7 @@
   onwheel={editor.cropSession ? undefined : onWheel}
   ondblclick={editor.cropSession ? undefined : onDblClick}
 >
-  {#if editor.cropSession}
+  {#if editor.cropSession && editor.cropSession.pinnedReady}
     <CropOverlay />
   {:else if editor.previewUrl}
     <img
