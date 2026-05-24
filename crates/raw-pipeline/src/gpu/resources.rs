@@ -51,10 +51,53 @@ impl OutputTargets {
                 sample_count: 1,
                 dimension: TextureDimension::D2,
                 format: TextureFormat::Rgba16Float,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                usage: TextureUsages::STORAGE_BINDING
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC,
                 view_formats: &[],
             }),
             linear_readback: make_readback_buffer_f16(device, need_w, need_h),
+            alloc_w: need_w,
+            alloc_h: need_h,
+        }
+    }
+}
+
+pub(super) struct SharpenTargets {
+    pub blur_h: Texture,
+    pub blur_full: Texture,
+    pub alloc_w: u32,
+    pub alloc_h: u32,
+}
+
+impl SharpenTargets {
+    pub fn fits(&self, w: u32, h: u32) -> bool {
+        self.alloc_w >= w && self.alloc_h >= h
+    }
+
+    pub fn allocate(ctx: &GpuContext, out_w: u32, out_h: u32) -> Self {
+        let device = &ctx.device;
+        let need_w = round_up_256(out_w);
+        let need_h = round_up_256(out_h);
+        let make = |label: &'static str| -> Texture {
+            device.create_texture(&TextureDescriptor {
+                label: Some(label),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: ctx.linear_format,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+        };
+        Self {
+            blur_h: make("sharpen-blur-h"),
+            blur_full: make("sharpen-blur-full"),
             alloc_w: need_w,
             alloc_h: need_h,
         }

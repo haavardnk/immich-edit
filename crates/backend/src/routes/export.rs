@@ -187,6 +187,7 @@ async fn render_export(
         max_edge: EXPORT_MAX_EDGE,
         quality: true,
         output,
+        ..Default::default()
     };
     let rendered = state
         .render

@@ -404,6 +404,7 @@ mod tests {
             wb_coeffs: [2.1, 1.0, 1.45, 1.0],
             cam_to_srgb: [[1.2, -0.1, -0.1], [-0.05, 1.05, 0.0], [0.0, -0.2, 1.2]],
             is_raw: true,
+            preview_mode: crate::frame::PreviewMode::None,
         };
         let edits = Edits {
             basic: BasicEdits {
@@ -447,6 +448,7 @@ mod tests {
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
             cam_to_srgb: identity_3x3(),
             is_raw: false,
+            preview_mode: crate::frame::PreviewMode::None,
         };
         let edits = Edits::default();
         if color_matrix::ColorMatrixOp

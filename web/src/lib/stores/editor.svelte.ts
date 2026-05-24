@@ -2,7 +2,7 @@ import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, 
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
-import { livePreview, persistedPreviewUrl, getPreviewMeta } from '$lib/api/preview';
+import { livePreview, persistedPreviewUrl, getPreviewMeta, type PreviewMode } from '$lib/api/preview';
 import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
@@ -49,11 +49,11 @@ class EditorStore {
   private hiresTimer: ReturnType<typeof setTimeout> | null = null;
   private renderedEdge = 0;
 
-  private flight = new SingleFlight<{ edits: Edits; maxEdge: number }, { url: string; metaId: string | null }>(
+  private flight = new SingleFlight<{ edits: Edits; maxEdge: number; previewMode: PreviewMode }, { url: string; metaId: string | null }>(
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       this.pending = true;
-      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, signal);
+      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, args.previewMode, signal);
       return { url: makeObjectUrl(blob), metaId };
     },
     (args, result) => {
@@ -61,8 +61,10 @@ class EditorStore {
       this.previewUrl = result.url;
       if (prev?.startsWith('blob:')) revoke(prev);
       this.pending = false;
-      this.renderedEdge = args.maxEdge;
-      if (result.metaId) void this.loadMeta(result.metaId);
+      if (args.previewMode === 'none') {
+        this.renderedEdge = args.maxEdge;
+        if (result.metaId) void this.loadMeta(result.metaId);
+      }
     },
     (err) => {
       this.pending = false;
@@ -83,10 +85,10 @@ class EditorStore {
       this.pushHistory();
       const hiresEdge = computeHiresEdge(100);
       if (hiresEdge > LIVE_EDGE) {
-        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
+        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: 'none' });
         this.scheduleHires();
       } else {
-        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: hiresEdge });
+        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: hiresEdge, previewMode: 'none' });
       }
     } catch (e) {
       this.error = (e as Error).message;
@@ -156,13 +158,24 @@ class EditorStore {
 
   showOriginal(): void {
     if (!this.initialised) return;
-    this.flight.submit({ edits: neutralEdits(), maxEdge: this.renderedEdge || LIVE_EDGE });
+    this.flight.submit({ edits: neutralEdits(), maxEdge: this.renderedEdge || LIVE_EDGE, previewMode: 'none' });
   }
 
   onLive = (): void => {
     if (!this.initialised) return;
-    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE });
+    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: 'none' });
     this.scheduleHires();
+  };
+
+  onPreview = (mode: PreviewMode): void => {
+    if (!this.initialised) return;
+    if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
+    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: mode });
+  };
+
+  endPreview = (): void => {
+    if (!this.initialised) return;
+    this.onLive();
   };
 
   onCommit = async (): Promise<void> => {
@@ -372,7 +385,7 @@ class EditorStore {
       if (!this.initialised) return;
       const edge = computeHiresEdge(zoom);
       if (edge <= this.renderedEdge) return;
-      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: edge });
+      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: edge, previewMode: 'none' });
     }, HIRES_DEBOUNCE_MS);
   }
 
@@ -420,7 +433,7 @@ class EditorStore {
       geometry: { ...baseEdits.geometry, rotate_angle: 0, crop: null }
     };
     try {
-      const { blob } = await livePreview(this.assetId, pinnedEditsSource, LIVE_EDGE);
+      const { blob } = await livePreview(this.assetId, pinnedEditsSource, LIVE_EDGE, 'none');
       const sess = this.cropSession;
       if (!sess) {
         revoke(makeObjectUrl(blob));

@@ -227,6 +227,106 @@ pub struct ColorEdits {
     pub color_grade: ColorGradeEdits,
 }
 
+fn sharpen_radius_default() -> f64 {
+    1.0
+}
+fn sharpen_detail_default() -> f64 {
+    25.0
+}
+fn luma_nr_detail_default() -> f64 {
+    50.0
+}
+fn color_nr_detail_default() -> f64 {
+    50.0
+}
+fn color_nr_smoothness_default() -> f64 {
+    50.0
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct DetailEdits {
+    #[serde(default)]
+    pub sharpen_amount: f64,
+    #[serde(default = "sharpen_radius_default")]
+    pub sharpen_radius: f64,
+    #[serde(default = "sharpen_detail_default")]
+    pub sharpen_detail: f64,
+    #[serde(default)]
+    pub sharpen_masking: f64,
+    #[serde(default)]
+    pub luma_nr_amount: f64,
+    #[serde(default = "luma_nr_detail_default")]
+    pub luma_nr_detail: f64,
+    #[serde(default)]
+    pub luma_nr_contrast: f64,
+    #[serde(default)]
+    pub color_nr_amount: f64,
+    #[serde(default = "color_nr_detail_default")]
+    pub color_nr_detail: f64,
+    #[serde(default = "color_nr_smoothness_default")]
+    pub color_nr_smoothness: f64,
+}
+
+impl Default for DetailEdits {
+    fn default() -> Self {
+        Self {
+            sharpen_amount: 0.0,
+            sharpen_radius: sharpen_radius_default(),
+            sharpen_detail: sharpen_detail_default(),
+            sharpen_masking: 0.0,
+            luma_nr_amount: 0.0,
+            luma_nr_detail: luma_nr_detail_default(),
+            luma_nr_contrast: 0.0,
+            color_nr_amount: 0.0,
+            color_nr_detail: color_nr_detail_default(),
+            color_nr_smoothness: color_nr_smoothness_default(),
+        }
+    }
+}
+
+impl DetailEdits {
+    pub fn sharpen_active(&self) -> bool {
+        self.sharpen_amount != 0.0
+    }
+    pub fn luma_nr_active(&self) -> bool {
+        self.luma_nr_amount != 0.0
+    }
+    pub fn color_nr_active(&self) -> bool {
+        self.color_nr_amount != 0.0
+    }
+    pub fn any_active(&self) -> bool {
+        self.sharpen_active() || self.luma_nr_active() || self.color_nr_active()
+    }
+    pub fn clamped(&self) -> Self {
+        let mut out = Self {
+            sharpen_amount: self.sharpen_amount.clamp(0.0, 150.0),
+            sharpen_radius: self.sharpen_radius.clamp(0.5, 3.0),
+            sharpen_detail: self.sharpen_detail.clamp(0.0, 100.0),
+            sharpen_masking: self.sharpen_masking.clamp(0.0, 100.0),
+            luma_nr_amount: self.luma_nr_amount.clamp(0.0, 100.0),
+            luma_nr_detail: self.luma_nr_detail.clamp(0.0, 100.0),
+            luma_nr_contrast: self.luma_nr_contrast.clamp(0.0, 100.0),
+            color_nr_amount: self.color_nr_amount.clamp(0.0, 100.0),
+            color_nr_detail: self.color_nr_detail.clamp(0.0, 100.0),
+            color_nr_smoothness: self.color_nr_smoothness.clamp(0.0, 100.0),
+        };
+        if !out.sharpen_active() {
+            out.sharpen_radius = sharpen_radius_default();
+            out.sharpen_detail = sharpen_detail_default();
+            out.sharpen_masking = 0.0;
+        }
+        if !out.luma_nr_active() {
+            out.luma_nr_detail = luma_nr_detail_default();
+            out.luma_nr_contrast = 0.0;
+        }
+        if !out.color_nr_active() {
+            out.color_nr_detail = color_nr_detail_default();
+            out.color_nr_smoothness = color_nr_smoothness_default();
+        }
+        out
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CropRect {
     pub x: f32,
@@ -298,6 +398,8 @@ pub struct Edits {
     #[serde(default)]
     pub color: ColorEdits,
     #[serde(default)]
+    pub detail: DetailEdits,
+    #[serde(default)]
     pub geometry: GeometryEdits,
 }
 
@@ -334,6 +436,7 @@ impl Edits {
                 hsl: self.color.hsl.clamped(),
                 color_grade: self.color.color_grade.clamped(),
             },
+            detail: self.detail.clamped(),
             geometry: GeometryEdits {
                 rotate,
                 rotate_angle: self.geometry.rotate_angle.clamp(-45.0, 45.0),

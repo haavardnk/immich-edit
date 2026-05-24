@@ -60,7 +60,8 @@ impl EditManifest {
 mod tests {
     use super::*;
     use crate::edits::{
-        BasicEdits, ColorEdits, CurvePoints, GeometryEdits, HslBand, HslEdits, ToneEdits,
+        BasicEdits, ColorEdits, CurvePoints, DetailEdits, GeometryEdits, HslBand, HslEdits,
+        ToneEdits,
     };
 
     #[test]
@@ -109,6 +110,18 @@ mod tests {
             color: ColorEdits {
                 hsl: HslEdits { bands },
                 color_grade: Default::default(),
+            },
+            detail: DetailEdits {
+                sharpen_amount: 60.0,
+                sharpen_radius: 1.2,
+                sharpen_detail: 30.0,
+                sharpen_masking: 15.0,
+                luma_nr_amount: 25.0,
+                luma_nr_detail: 45.0,
+                luma_nr_contrast: 10.0,
+                color_nr_amount: 40.0,
+                color_nr_detail: 55.0,
+                color_nr_smoothness: 60.0,
             },
             geometry: GeometryEdits {
                 rotate: 90,

@@ -7,8 +7,12 @@
     step = 0.1,
     onLive,
     onCommit,
+    onPreviewStart,
+    onPreviewEnd,
     format = (v: number): string => v.toFixed(2),
-    gradient
+    gradient,
+    defaultValue = 0,
+    disabled = false
   }: {
     label: string;
     value: number;
@@ -17,19 +21,73 @@
     step?: number;
     onLive: () => void;
     onCommit: () => void;
+    onPreviewStart?: () => void;
+    onPreviewEnd?: () => void;
     format?: (v: number) => string;
     gradient?: string;
+    defaultValue?: number;
+    disabled?: boolean;
   } = $props();
 
-  const isDefault = $derived(value === 0);
+  const isDefault = $derived(value === defaultValue);
+  const supportsPreview = $derived(!!onPreviewStart && !!onPreviewEnd);
+
+  let dragging = $state(false);
+  let altDown = $state(false);
+  let previewing = $state(false);
 
   function reset(): void {
-    value = 0;
+    value = defaultValue;
     onCommit();
+  }
+
+  function updatePreview(): void {
+    if (!supportsPreview) return;
+    const wantPreview = dragging && altDown && !disabled;
+    if (wantPreview && !previewing) {
+      previewing = true;
+      onPreviewStart!();
+    } else if (!wantPreview && previewing) {
+      previewing = false;
+      onPreviewEnd!();
+    }
+  }
+
+  function onPointerDown(e: PointerEvent): void {
+    if (disabled) return;
+    dragging = true;
+    altDown = e.altKey;
+    updatePreview();
+    window.addEventListener('pointerup', onPointerUp, { once: true });
+    window.addEventListener('keydown', onKeyChange);
+    window.addEventListener('keyup', onKeyChange);
+  }
+
+  function onPointerUp(): void {
+    dragging = false;
+    window.removeEventListener('keydown', onKeyChange);
+    window.removeEventListener('keyup', onKeyChange);
+    if (previewing) {
+      previewing = false;
+      onPreviewEnd!();
+    }
+  }
+
+  function onKeyChange(e: KeyboardEvent): void {
+    altDown = e.altKey;
+    updatePreview();
+  }
+
+  function onInput(): void {
+    if (previewing) {
+      onPreviewStart!();
+    } else {
+      onLive();
+    }
   }
 </script>
 
-<div class="flex flex-col gap-1 group">
+<div class="flex flex-col gap-1 group {disabled ? 'opacity-40 pointer-events-none' : ''}">
   <div class="flex items-center justify-between text-[11px] leading-none">
     <button
       class="text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors select-none text-left"
@@ -51,8 +109,10 @@
     {min}
     {max}
     {step}
+    {disabled}
     bind:value
-    oninput={onLive}
+    onpointerdown={onPointerDown}
+    oninput={onInput}
     onchange={onCommit}
     ondblclick={reset}
   />

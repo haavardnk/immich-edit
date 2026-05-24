@@ -19,6 +19,17 @@ pub struct RenderOptions {
     pub max_edge: u32,
     pub quality: bool,
     pub output: OutputFormat,
+    pub preview_mode: PreviewMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviewMode {
+    #[default]
+    None,
+    SharpenMask,
+    SharpenRadius,
+    SharpenDetail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +131,7 @@ impl Default for RenderOptions {
             max_edge: 4096,
             quality: false,
             output: OutputFormat::Jpeg { quality: 85 },
+            preview_mode: PreviewMode::None,
         }
     }
 }

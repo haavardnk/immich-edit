@@ -1,8 +1,8 @@
 use super::LinearImage;
 use super::*;
 use crate::edits::{
-    BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, Edits, GeometryEdits, HslBand,
-    HslEdits, ToneEdits,
+    BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, DetailEdits, Edits, GeometryEdits,
+    HslBand, HslEdits, ToneEdits,
 };
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
@@ -18,6 +18,7 @@ fn ctx() -> OpContext {
         wb_coeffs: [1.0, 1.0, 1.0, 1.0],
         cam_to_srgb: crate::color::identity_3x3(),
         is_raw: false,
+        preview_mode: crate::frame::PreviewMode::None,
     }
 }
 
@@ -478,4 +479,104 @@ fn dehaze_positive_amplifies_edge_contrast() {
         .unwrap();
     assert!(img.rgb[dark_probe] < 0.4);
     assert!(img.rgb[bright_probe] > 0.6);
+}
+
+#[test]
+fn sharpen_inactive_when_amount_zero() {
+    assert!(!sharpen::SharpenOp.is_active(&Edits::default()));
+}
+
+#[test]
+fn sharpen_amplifies_edge_contrast() {
+    let w: usize = 64;
+    let h: usize = 16;
+    let mk = || {
+        let mut buf = vec![0.0f32; w * h * 3];
+        for y in 0..h {
+            for x in 0..w {
+                let v = if x < w / 2 { 0.3 } else { 0.7 };
+                let i = (y * w + x) * 3;
+                buf[i] = v;
+                buf[i + 1] = v;
+                buf[i + 2] = v;
+            }
+        }
+        LinearImage::new(buf, w, h)
+    };
+    let edits = Edits {
+        detail: DetailEdits {
+            sharpen_amount: 100.0,
+            sharpen_radius: 1.0,
+            sharpen_detail: 100.0,
+            sharpen_masking: 0.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let base = mk();
+    let base_left = base.rgb[(8 * w + (w / 2 - 1)) * 3];
+    let base_right = base.rgb[(8 * w + (w / 2)) * 3];
+    let mut img = mk();
+    sharpen::SharpenOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let left = img.rgb[(8 * w + (w / 2 - 1)) * 3];
+    let right = img.rgb[(8 * w + (w / 2)) * 3];
+    assert!(
+        left < base_left && right > base_right,
+        "expected sharper edge: base=({base_left},{base_right}) got=({left},{right})"
+    );
+}
+
+#[test]
+fn sharpen_masking_suppresses_flat_areas() {
+    let w: usize = 64;
+    let h: usize = 32;
+    let mut buf = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let n = ((x * 7 + y * 13) % 11) as f32 / 1000.0;
+            let v = 0.5 + n;
+            let i = (y * w + x) * 3;
+            buf[i] = v;
+            buf[i + 1] = v;
+            buf[i + 2] = v;
+        }
+    }
+    let img_no_mask = LinearImage::new(buf.clone(), w, h);
+    let img_mask = LinearImage::new(buf.clone(), w, h);
+    let mk_edits = |masking: f64| Edits {
+        detail: DetailEdits {
+            sharpen_amount: 150.0,
+            sharpen_radius: 1.0,
+            sharpen_detail: 100.0,
+            sharpen_masking: masking,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut a = img_no_mask;
+    let mut b = img_mask;
+    sharpen::SharpenOp
+        .apply_cpu(&mut a, &ctx(), &mk_edits(0.0))
+        .unwrap();
+    sharpen::SharpenOp
+        .apply_cpu(&mut b, &ctx(), &mk_edits(100.0))
+        .unwrap();
+    let diff_no_mask: f32 = a
+        .rgb
+        .iter()
+        .zip(buf.iter())
+        .map(|(x, y)| (x - y).abs())
+        .sum();
+    let diff_mask: f32 = b
+        .rgb
+        .iter()
+        .zip(buf.iter())
+        .map(|(x, y)| (x - y).abs())
+        .sum();
+    assert!(
+        diff_mask < diff_no_mask * 0.25,
+        "masking should suppress noise sharpening: no_mask={diff_no_mask} masked={diff_mask}"
+    );
 }

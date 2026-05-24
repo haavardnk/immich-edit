@@ -171,6 +171,7 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
             whites,
         },
         color: Default::default(),
+        detail: Default::default(),
         geometry: Default::default(),
     }
 }

@@ -95,6 +95,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
             Stage::Tone => &mut apply_tone,
             Stage::Color => &mut apply_color,
             Stage::Geometry => unreachable!("geometry ops use vec4_count == 0"),
+            Stage::Output => unreachable!("output ops use vec4_count == 0"),
         };
         writeln!(chunk, "    if (is_active({bit}u)) {{ {} }}", gpu_op.apply).unwrap();
         color_ops.push(ColorOpSlot {

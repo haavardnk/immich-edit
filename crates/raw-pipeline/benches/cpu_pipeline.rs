@@ -26,6 +26,7 @@ fn ctx() -> OpContext {
             [0.02, -0.45, 1.43],
         ],
         is_raw: true,
+        preview_mode: raw_pipeline::frame::PreviewMode::None,
     }
 }
 

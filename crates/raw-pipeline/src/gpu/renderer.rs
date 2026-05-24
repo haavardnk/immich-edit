@@ -5,8 +5,9 @@ use parking_lot::Mutex;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     AddressMode, BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages,
-    CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor,
-    Texture, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
+    CommandEncoder, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, FilterMode,
+    SamplerDescriptor, Texture, TextureDescriptor, TextureDimension, TextureUsages,
+    TextureViewDescriptor,
 };
 
 use crate::edits::Edits;
@@ -22,7 +23,7 @@ use super::passes::GpuPasses;
 use super::passes::luma_pyramid::LumaPyramidPass;
 use super::passes::presence::PRESENCE_UNIFORM_SIZE;
 use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
-use super::resources::OutputTargets;
+use super::resources::{OutputTargets, SharpenTargets};
 use super::uniforms::{write_active_mask, write_header};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
@@ -56,6 +57,7 @@ pub struct GpuRenderer {
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     output_pool: Mutex<Option<OutputTargets>>,
+    sharpen_pool: Mutex<Option<SharpenTargets>>,
 }
 
 impl GpuRenderer {
@@ -69,6 +71,7 @@ impl GpuRenderer {
                 NonZeroUsize::new(CACHE_ITEMS).expect("nonzero"),
             )),
             output_pool: Mutex::new(None),
+            sharpen_pool: Mutex::new(None),
         })
     }
 
@@ -316,9 +319,13 @@ impl GpuRenderer {
         let queue = &self.ctx.queue;
 
         let edits = edits.clamped();
+        let sharpen_active = edits.detail.sharpen_active();
 
         for op in self.passes.registry.active(&edits) {
             if op.gpu_kind() == GpuOpKind::Presence {
+                continue;
+            }
+            if op.gpu_kind() == GpuOpKind::Detail {
                 continue;
             }
             if op.gpu().is_none() {
@@ -386,6 +393,7 @@ impl GpuRenderer {
             wb_coeffs: frame.wb_coeffs,
             cam_to_srgb,
             is_raw: frame.is_raw,
+            preview_mode: opts.preview_mode,
         };
         let built = &pass.built;
         let registry = &self.passes.registry;
@@ -491,6 +499,36 @@ impl GpuRenderer {
             let gy = out_h.div_ceil(16);
             cpass.dispatch_workgroups(gx, gy, 1);
         }
+
+        let sharpen_preview = matches!(
+            opts.preview_mode,
+            crate::frame::PreviewMode::SharpenMask
+                | crate::frame::PreviewMode::SharpenRadius
+                | crate::frame::PreviewMode::SharpenDetail
+        );
+        let sharpen_pool_guard = if sharpen_active || sharpen_preview {
+            let mut spool = self.sharpen_pool.lock();
+            let sfits = spool.as_ref().is_some_and(|s| s.fits(out_w, out_h));
+            if !sfits {
+                *spool = Some(SharpenTargets::allocate(&self.ctx, out_w, out_h));
+            }
+            Some(spool)
+        } else {
+            None
+        };
+        if let Some(spool) = sharpen_pool_guard.as_ref() {
+            let s = spool.as_ref().expect("sharpen pool populated");
+            self.encode_sharpen(
+                &mut encoder,
+                &edits.detail,
+                p,
+                s,
+                out_w,
+                out_h,
+                opts.preview_mode,
+            );
+        }
+
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
         copy_texture_to_buffer(
             &mut encoder,
@@ -526,6 +564,166 @@ impl GpuRenderer {
             source_h: oriented_h,
             renderer: "gpu".into(),
         })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn encode_sharpen(
+        &self,
+        encoder: &mut CommandEncoder,
+        d: &crate::edits::DetailEdits,
+        out: &OutputTargets,
+        sh: &SharpenTargets,
+        w: u32,
+        h: u32,
+        preview: crate::frame::PreviewMode,
+    ) {
+        let device = &self.ctx.device;
+        let sigma = (d.sharpen_radius as f32).max(0.01);
+        let radius = (sigma * 3.0).ceil();
+        let amount = d.sharpen_amount as f32;
+        let detail_weight = 0.5 + 0.5 * (d.sharpen_detail as f32 / 100.0);
+        let masking = (d.sharpen_masking as f32 / 100.0).clamp(0.0, 1.0);
+        let preview_mode_u: u32 = match preview {
+            crate::frame::PreviewMode::None => 0,
+            crate::frame::PreviewMode::SharpenMask => 1,
+            crate::frame::PreviewMode::SharpenRadius => 2,
+            crate::frame::PreviewMode::SharpenDetail => 3,
+        };
+        let use_mask = if masking > 0.0 || preview_mode_u == 1 {
+            1u32
+        } else {
+            0u32
+        };
+        let masking_thresh = masking * 0.5;
+        let masking_softness = 0.1f32;
+
+        let blur_uniform = |axis: u32| -> wgpu::Buffer {
+            let mut bytes = [0u8; 32];
+            bytes[0..4].copy_from_slice(&sigma.to_ne_bytes());
+            bytes[4..8].copy_from_slice(&radius.to_ne_bytes());
+            bytes[8..12].copy_from_slice(&w.to_ne_bytes());
+            bytes[12..16].copy_from_slice(&h.to_ne_bytes());
+            bytes[16..20].copy_from_slice(&axis.to_ne_bytes());
+            device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("sharpen-blur-uniform"),
+                contents: &bytes,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            })
+        };
+
+        let linear_view = out
+            .linear_texture
+            .create_view(&TextureViewDescriptor::default());
+        let blur_h_view = sh.blur_h.create_view(&TextureViewDescriptor::default());
+        let blur_full_view = sh.blur_full.create_view(&TextureViewDescriptor::default());
+        let out_view = out.texture.create_view(&TextureViewDescriptor::default());
+
+        let pass_h = &self.passes.output_sharpen;
+        let ub_h = blur_uniform(0);
+        let bg_h = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sharpen-blur-h-bg"),
+            layout: &pass_h.blur_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub_h.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&linear_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&blur_h_view),
+                },
+            ],
+        });
+        let ub_v = blur_uniform(1);
+        let bg_v = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sharpen-blur-v-bg"),
+            layout: &pass_h.blur_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub_v.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&blur_h_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&blur_full_view),
+                },
+            ],
+        });
+
+        let mut combine_bytes = [0u8; 32];
+        combine_bytes[0..4].copy_from_slice(&amount.to_ne_bytes());
+        combine_bytes[4..8].copy_from_slice(&detail_weight.to_ne_bytes());
+        combine_bytes[8..12].copy_from_slice(&masking_thresh.to_ne_bytes());
+        combine_bytes[12..16].copy_from_slice(&masking_softness.to_ne_bytes());
+        combine_bytes[16..20].copy_from_slice(&w.to_ne_bytes());
+        combine_bytes[20..24].copy_from_slice(&h.to_ne_bytes());
+        combine_bytes[24..28].copy_from_slice(&use_mask.to_ne_bytes());
+        combine_bytes[28..32].copy_from_slice(&preview_mode_u.to_ne_bytes());
+        let ub_c = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("sharpen-combine-uniform"),
+            contents: &combine_bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let bg_c = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sharpen-combine-bg"),
+            layout: &pass_h.combine_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub_c.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&linear_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&blur_full_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&out_view),
+                },
+            ],
+        });
+
+        let gx = w.div_ceil(16);
+        let gy = h.div_ceil(16);
+        {
+            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sharpen-blur-h"),
+                timestamp_writes: None,
+            });
+            cp.set_pipeline(&pass_h.blur_pipeline);
+            cp.set_bind_group(0, &bg_h, &[]);
+            cp.dispatch_workgroups(gx, gy, 1);
+        }
+        {
+            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sharpen-blur-v"),
+                timestamp_writes: None,
+            });
+            cp.set_pipeline(&pass_h.blur_pipeline);
+            cp.set_bind_group(0, &bg_v, &[]);
+            cp.dispatch_workgroups(gx, gy, 1);
+        }
+        {
+            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sharpen-combine"),
+                timestamp_writes: None,
+            });
+            cp.set_pipeline(&pass_h.combine_pipeline);
+            cp.set_bind_group(0, &bg_c, &[]);
+            cp.dispatch_workgroups(gx, gy, 1);
+        }
     }
 
     pub fn render(
@@ -739,6 +937,7 @@ impl GpuRenderer {
             wb_coeffs: frame.wb_coeffs,
             cam_to_srgb,
             is_raw: frame.is_raw,
+            preview_mode: crate::frame::PreviewMode::None,
         };
 
         let pass = &self.passes.wb_prepare;

@@ -72,6 +72,32 @@ export interface ColorEdits {
   color_grade: ColorGradeEdits;
 }
 
+export interface DetailEdits {
+  sharpen_amount: number;
+  sharpen_radius: number;
+  sharpen_detail: number;
+  sharpen_masking: number;
+  luma_nr_amount: number;
+  luma_nr_detail: number;
+  luma_nr_contrast: number;
+  color_nr_amount: number;
+  color_nr_detail: number;
+  color_nr_smoothness: number;
+}
+
+export const NEUTRAL_DETAIL: DetailEdits = {
+  sharpen_amount: 0,
+  sharpen_radius: 1.0,
+  sharpen_detail: 25,
+  sharpen_masking: 0,
+  luma_nr_amount: 0,
+  luma_nr_detail: 50,
+  luma_nr_contrast: 0,
+  color_nr_amount: 0,
+  color_nr_detail: 50,
+  color_nr_smoothness: 50
+};
+
 export interface CropRect {
   x: number;
   y: number;
@@ -109,6 +135,7 @@ export interface Edits {
   basic: BasicEdits;
   tone: ToneEdits;
   color: ColorEdits;
+  detail: DetailEdits;
   geometry: GeometryEdits;
 }
 
@@ -170,6 +197,7 @@ export function neutralEdits(): Edits {
       hsl: { bands: neutralBands() },
       color_grade: neutralColorGrade()
     },
+    detail: { ...NEUTRAL_DETAIL },
     geometry: {
       rotate: 0,
       rotate_angle: 0,
@@ -228,6 +256,9 @@ export function isIdentity(e: Edits): boolean {
     e.tone.whites === 0 &&
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
+    e.detail.sharpen_amount === 0 &&
+    e.detail.luma_nr_amount === 0 &&
+    e.detail.color_nr_amount === 0 &&
     e.geometry.rotate === 0 &&
     Math.abs(e.geometry.rotate_angle) < 1e-4 &&
     !e.geometry.flip_h &&
@@ -276,6 +307,25 @@ export function editsToManifest(e: Edits): EditManifest {
   if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
   if (e.basic.clarity !== 0) ops.clarity = { amount: e.basic.clarity };
   if (e.basic.dehaze !== 0) ops.dehaze = { amount: e.basic.dehaze };
+  if (e.detail.sharpen_amount !== 0)
+    ops.sharpen = {
+      amount: e.detail.sharpen_amount,
+      radius: e.detail.sharpen_radius,
+      detail: e.detail.sharpen_detail,
+      masking: e.detail.sharpen_masking
+    };
+  if (e.detail.luma_nr_amount !== 0)
+    ops.luma_nr = {
+      amount: e.detail.luma_nr_amount,
+      detail: e.detail.luma_nr_detail,
+      contrast: e.detail.luma_nr_contrast
+    };
+  if (e.detail.color_nr_amount !== 0)
+    ops.color_nr = {
+      amount: e.detail.color_nr_amount,
+      detail: e.detail.color_nr_detail,
+      smoothness: e.detail.color_nr_smoothness
+    };
   if (
     e.geometry.rotate !== 0 ||
     e.geometry.flip_h ||
@@ -362,6 +412,25 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (cla?.amount !== undefined) edits.basic.clarity = cla.amount;
   const dhz = ops.dehaze as { amount?: number } | undefined;
   if (dhz?.amount !== undefined) edits.basic.dehaze = dhz.amount;
+  const sh = ops.sharpen as
+    | { amount?: number; radius?: number; detail?: number; masking?: number }
+    | undefined;
+  if (sh?.amount !== undefined) edits.detail.sharpen_amount = sh.amount;
+  if (sh?.radius !== undefined) edits.detail.sharpen_radius = sh.radius;
+  if (sh?.detail !== undefined) edits.detail.sharpen_detail = sh.detail;
+  if (sh?.masking !== undefined) edits.detail.sharpen_masking = sh.masking;
+  const lnr = ops.luma_nr as
+    | { amount?: number; detail?: number; contrast?: number }
+    | undefined;
+  if (lnr?.amount !== undefined) edits.detail.luma_nr_amount = lnr.amount;
+  if (lnr?.detail !== undefined) edits.detail.luma_nr_detail = lnr.detail;
+  if (lnr?.contrast !== undefined) edits.detail.luma_nr_contrast = lnr.contrast;
+  const cnr = ops.color_nr as
+    | { amount?: number; detail?: number; smoothness?: number }
+    | undefined;
+  if (cnr?.amount !== undefined) edits.detail.color_nr_amount = cnr.amount;
+  if (cnr?.detail !== undefined) edits.detail.color_nr_detail = cnr.detail;
+  if (cnr?.smoothness !== undefined) edits.detail.color_nr_smoothness = cnr.smoothness;
   const geom = ops.geometry as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;

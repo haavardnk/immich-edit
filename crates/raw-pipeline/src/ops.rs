@@ -1,6 +1,7 @@
 pub mod clarity;
 pub mod color_grade;
 pub mod color_matrix;
+pub mod color_nr;
 pub mod contrast;
 pub mod crop_rotate;
 pub mod curves;
@@ -8,7 +9,9 @@ pub mod dehaze;
 pub mod exposure;
 pub mod geometry;
 pub mod hsl;
+pub mod luma_nr;
 pub mod saturation;
+pub mod sharpen;
 pub mod texture;
 pub mod tone_regions;
 pub mod user_wb;
@@ -44,12 +47,14 @@ pub enum Stage {
     Tone,
     Color,
     Geometry,
+    Output,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GpuOpKind {
     Normal,
     Presence,
+    Detail,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +67,7 @@ pub struct OpContext {
     pub wb_coeffs: [f32; 4],
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
+    pub preview_mode: crate::frame::PreviewMode,
 }
 
 pub struct GpuOp {
@@ -151,6 +157,8 @@ pub fn default_registry() -> OpRegistry {
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(user_wb::UserWbOp),
+        Box::new(luma_nr::LumaNrOp),
+        Box::new(color_nr::ColorNrOp),
         Box::new(texture::TextureOp),
         Box::new(clarity::ClarityOp),
         Box::new(dehaze::DehazeOp),
@@ -164,5 +172,6 @@ pub fn default_registry() -> OpRegistry {
         Box::new(color_grade::ColorGradeOp),
         Box::new(geometry::GeometryOp),
         Box::new(crop_rotate::CropRotateOp),
+        Box::new(sharpen::SharpenOp),
     ])
 }

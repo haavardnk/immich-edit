@@ -1,5 +1,5 @@
 use raw_pipeline::edits::BasicEdits;
-use raw_pipeline::edits::{CropRect, GeometryEdits};
+use raw_pipeline::edits::{CropRect, DetailEdits, GeometryEdits};
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
@@ -388,5 +388,38 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
     eprintln!("presence mean abs delta = {delta:.3}");
     if delta > 8.0 {
         panic!("presence GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_sharpen_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        detail: DetailEdits {
+            sharpen_amount: 80.0,
+            sharpen_radius: 1.0,
+            sharpen_detail: 25.0,
+            sharpen_masking: 0.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("sharpen mean abs delta = {delta:.3}");
+    if delta > 3.0 {
+        panic!("sharpen GPU/CPU mean abs delta too high: {delta:.3}");
     }
 }

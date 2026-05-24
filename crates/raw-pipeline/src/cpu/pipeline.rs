@@ -63,6 +63,7 @@ pub fn render_with_cancel(
         wb_coeffs: frame.wb_coeffs,
         cam_to_srgb,
         is_raw: frame.is_raw,
+        preview_mode: options.preview_mode,
     };
 
     run_pipeline_ops(&mut image, &ctx, &edits, cancel)?;
@@ -70,6 +71,12 @@ pub fn render_with_cancel(
     cancel::check(cancel)?;
     let (rgb, w, h) =
         transform::resize_owned(image.rgb, image.width, image.height, options.max_edge);
+
+    let mut out_image = LinearImage::new(rgb, w, h);
+    run_output_ops(&mut out_image, &ctx, &edits, cancel)?;
+    let rgb = out_image.rgb;
+    let w = out_image.width;
+    let h = out_image.height;
 
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     cancel::check(cancel)?;
@@ -114,6 +121,9 @@ pub fn run_pipeline_ops(
     let mut segment = FusedSegment::default();
     for op in registry.active(edits) {
         cancel::check(cancel)?;
+        if op.gpu_kind() == GpuOpKind::Detail {
+            continue;
+        }
         if op.gpu_kind() == GpuOpKind::Presence {
             if !presence_done && presence_active {
                 if !segment.is_empty() {
@@ -160,6 +170,23 @@ pub fn run_pipeline_ops(
     }
     if !segment.is_empty() {
         apply_segment(image, &segment);
+    }
+    Ok(())
+}
+
+pub fn run_output_ops(
+    image: &mut LinearImage,
+    ctx: &OpContext,
+    edits: &Edits,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<()> {
+    let registry = default_registry();
+    for op in registry.active(edits) {
+        if op.stage() != crate::ops::Stage::Output {
+            continue;
+        }
+        cancel::check(cancel)?;
+        op.apply_cpu(image, ctx, edits)?;
     }
     Ok(())
 }
