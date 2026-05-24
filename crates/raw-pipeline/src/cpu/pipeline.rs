@@ -4,7 +4,7 @@ use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
-use crate::histogram::Histogram;
+use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
 use crate::ops::{GpuOpKind, OpContext, default_registry};
 use rayon::prelude::*;
@@ -64,36 +64,24 @@ pub fn render_with_cancel(
     run_pipeline_ops(&mut image, &ctx, &edits, cancel)?;
 
     cancel::check(cancel)?;
-    let (rgb, w, h) = transform::resize(&image.rgb, image.width, image.height, options.max_edge);
-
-    let linear_histogram = Histogram::from_rgb(&rgb, w, h);
-
-    let mut srgb = rgb;
-    cancel::check(cancel)?;
-    apply_default_tone(&mut srgb);
+    let (rgb, w, h) =
+        transform::resize_owned(image.rgb, image.width, image.height, options.max_edge);
 
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
-    let rgb_u8: Vec<u8> = srgb
-        .par_iter()
-        .map(|&v| (v.clamp(0.0, 1.0) * 255.0) as u8)
-        .collect();
+    cancel::check(cancel)?;
+    let (rgb_u8, rgb_u16, histogram, linear_histogram) = finish_output(rgb, w, h, want_16bit);
     cancel::check(cancel)?;
 
-    let (histogram, bytes) = rayon::join(
-        || Histogram::from_rgb_u8(&rgb_u8, w, h),
-        || -> crate::PipelineResult<Vec<u8>> {
-            if want_16bit {
-                let rgb16: Vec<u16> = srgb
-                    .par_iter()
-                    .map(|&v| (v.clamp(0.0, 1.0) * 65535.0) as u16)
-                    .collect();
-                encode_from_rgb16(&rgb16, w as u32, h as u32, &options.output)
-            } else {
-                encode_from_rgb8(&rgb_u8, w as u32, h as u32, &options.output)
-            }
-        },
-    );
-    let bytes = bytes?;
+    let bytes = if want_16bit {
+        encode_from_rgb16(
+            rgb_u16.as_deref().unwrap(),
+            w as u32,
+            h as u32,
+            &options.output,
+        )?
+    } else {
+        encode_from_rgb8(&rgb_u8, w as u32, h as u32, &options.output)?
+    };
 
     Ok(RenderedImage {
         bytes,
@@ -157,8 +145,155 @@ fn srgb_oetf(v: f32) -> f32 {
     }
 }
 
-fn apply_default_tone(rgb: &mut [f32]) {
-    rgb.par_iter_mut().for_each(|v| *v = default_tone(*v));
+type HistBins = (
+    [u32; histogram::BINS],
+    [u32; histogram::BINS],
+    [u32; histogram::BINS],
+    [u32; histogram::BINS],
+);
+
+fn fold_linear(acc: &mut HistBins, lr: f32, lg: f32, lb: f32) {
+    let li = (0.2126 * lr + 0.7152 * lg + 0.0722 * lb).clamp(0.0, 1.0);
+    acc.0[((lr.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
+    acc.1[((lg.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
+    acc.2[((lb.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
+    acc.3[((li * 255.0) as usize).min(histogram::BINS - 1)] += 1;
+}
+
+fn fold_display(acc: &mut HistBins, ur: u8, ug: u8, ub: u8) {
+    let li = (0.2126 * ur as f32 + 0.7152 * ug as f32 + 0.0722 * ub as f32) as usize;
+    acc.0[ur as usize] += 1;
+    acc.1[ug as usize] += 1;
+    acc.2[ub as usize] += 1;
+    acc.3[li.min(histogram::BINS - 1)] += 1;
+}
+
+fn merge_bins(mut a: HistBins, b: HistBins) -> HistBins {
+    for i in 0..histogram::BINS {
+        a.0[i] += b.0[i];
+        a.1[i] += b.1[i];
+        a.2[i] += b.2[i];
+        a.3[i] += b.3[i];
+    }
+    a
+}
+
+fn bins_to_histogram(bins: HistBins) -> Histogram {
+    Histogram {
+        r: bins.0.to_vec(),
+        g: bins.1.to_vec(),
+        b: bins.2.to_vec(),
+        l: bins.3.to_vec(),
+    }
+}
+
+fn finish_output(
+    linear: Vec<f32>,
+    w: usize,
+    h: usize,
+    want_16bit: bool,
+) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
+    let pixel_count = w * h;
+    let n = linear.len();
+    let mut rgb_u8 = vec![0u8; n];
+    let mut rgb_u16: Vec<u16> = if want_16bit {
+        vec![0u16; n]
+    } else {
+        Vec::new()
+    };
+    let step = if pixel_count > 500_000 { 2 } else { 1 };
+    let chunk_px = histogram::chunk_pixels(pixel_count);
+    let chunk = chunk_px * 3;
+    let zero = || -> (HistBins, HistBins) {
+        (
+            (
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+            ),
+            (
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+                [0; histogram::BINS],
+            ),
+        )
+    };
+
+    let (lin_bins, dis_bins) = if want_16bit {
+        linear
+            .par_chunks(chunk)
+            .zip(rgb_u8.par_chunks_mut(chunk))
+            .zip(rgb_u16.par_chunks_mut(chunk))
+            .fold(zero, |mut acc, ((s, u8c), u16c)| {
+                let mut i = 0;
+                let mut p = 0usize;
+                while i + 2 < s.len() {
+                    let lr = s[i];
+                    let lg = s[i + 1];
+                    let lb = s[i + 2];
+                    let tr = default_tone(lr);
+                    let tg = default_tone(lg);
+                    let tb = default_tone(lb);
+                    let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
+                    let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
+                    let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;
+                    u8c[i] = ru;
+                    u8c[i + 1] = gu;
+                    u8c[i + 2] = bu;
+                    u16c[i] = (tr.clamp(0.0, 1.0) * 65535.0) as u16;
+                    u16c[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0) as u16;
+                    u16c[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0) as u16;
+                    if p % step == 0 {
+                        fold_linear(&mut acc.0, lr, lg, lb);
+                        fold_display(&mut acc.1, ru, gu, bu);
+                    }
+                    i += 3;
+                    p += 1;
+                }
+                acc
+            })
+            .reduce(zero, |a, b| (merge_bins(a.0, b.0), merge_bins(a.1, b.1)))
+    } else {
+        linear
+            .par_chunks(chunk)
+            .zip(rgb_u8.par_chunks_mut(chunk))
+            .fold(zero, |mut acc, (s, u8c)| {
+                let mut i = 0;
+                let mut p = 0usize;
+                while i + 2 < s.len() {
+                    let lr = s[i];
+                    let lg = s[i + 1];
+                    let lb = s[i + 2];
+                    let tr = default_tone(lr);
+                    let tg = default_tone(lg);
+                    let tb = default_tone(lb);
+                    let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
+                    let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
+                    let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;
+                    u8c[i] = ru;
+                    u8c[i + 1] = gu;
+                    u8c[i + 2] = bu;
+                    if p % step == 0 {
+                        fold_linear(&mut acc.0, lr, lg, lb);
+                        fold_display(&mut acc.1, ru, gu, bu);
+                    }
+                    i += 3;
+                    p += 1;
+                }
+                acc
+            })
+            .reduce(zero, |a, b| (merge_bins(a.0, b.0), merge_bins(a.1, b.1)))
+    };
+
+    let rgb_u16 = if want_16bit { Some(rgb_u16) } else { None };
+    (
+        rgb_u8,
+        rgb_u16,
+        bins_to_histogram(dis_bins),
+        bins_to_histogram(lin_bins),
+    )
 }
 
 #[cfg(test)]
