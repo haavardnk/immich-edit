@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AlbumSummary } from '$lib/types/album';
-  import { thumbUrl } from '$lib/api/assets';
+  import { assetThumbUrl } from '$lib/api/assets';
 
   let { album, active = false }: { album: AlbumSummary; active?: boolean } = $props();
 </script>
@@ -12,7 +12,7 @@
   <div class="w-8 h-8 rounded-lg bg-white/5 overflow-hidden flex-none">
     {#if album.albumThumbnailAssetId}
       <img
-        src={thumbUrl(album.albumThumbnailAssetId)}
+        src={assetThumbUrl(album.albumThumbnailAssetId)}
         alt=""
         loading="lazy"
         class="w-full h-full object-cover"

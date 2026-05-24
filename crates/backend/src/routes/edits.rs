@@ -6,12 +6,14 @@ use raw_pipeline::edits::Edits;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::edits_store::{EditRecord, EditsStoreError, RENDERER_VERSION};
+use crate::services::edits_store::{
+    EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
+};
 use crate::state::AppState;
 
-pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<Uuid>>, AppError> {
-    let ids = state.edits.list_asset_ids().await.map_err(map_err)?;
-    Ok(Json(ids))
+pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
+    let entries = state.edits.list_edited_assets().await.map_err(map_err)?;
+    Ok(Json(entries))
 }
 
 pub async fn get(
@@ -29,6 +31,7 @@ pub async fn get(
             renderer_version: RENDERER_VERSION.into(),
             manifest: EditManifest::default(),
             updated_at: String::new(),
+            hash: Edits::default().stable_hash(),
         },
     };
     Ok(Json(record))

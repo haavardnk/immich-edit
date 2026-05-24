@@ -37,6 +37,7 @@ pub fn router(state: AppState) -> Router {
             get(routes::assets::detail).put(routes::assets::update),
         )
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))
+        .route("/assets/{id}/edited-thumb", get(routes::edited_thumb::get))
         .route(
             "/assets/{id}/edits",
             get(routes::edits::get)

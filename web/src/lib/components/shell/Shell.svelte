@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { Snippet } from 'svelte';
   import TopBar from './TopBar.svelte';
   import LeftSidebar from './LeftSidebar.svelte';
@@ -7,8 +8,13 @@
   import KeybindsHelp from './KeybindsHelp.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 
   let { children }: { children: Snippet } = $props();
+
+  onMount(() => {
+    void editedThumbs.loadOnce();
+  });
 </script>
 
 <div class="h-screen w-screen flex flex-col bg-immich-dark-bg text-immich-dark-fg overflow-hidden">

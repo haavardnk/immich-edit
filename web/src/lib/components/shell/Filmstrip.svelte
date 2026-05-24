@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { thumbUrl } from '$lib/api/assets';
+  import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
 
@@ -54,7 +54,7 @@
               title={asset.originalFileName}
             >
               <img
-                src={thumbUrl(asset.id)}
+                src={assetThumbUrl(asset.id)}
                 alt=""
                 loading="lazy"
                 class="w-full h-full object-cover"

@@ -30,6 +30,14 @@ pub struct EditRecord {
     pub renderer_version: String,
     pub manifest: EditManifest,
     pub updated_at: String,
+    pub hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditedAssetEntry {
+    pub id: Uuid,
+    pub hash: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone)]
@@ -94,6 +102,7 @@ impl EditsStore {
         let immich_checksum: Option<String> = row.try_get("immich_checksum")?;
         let updated_at: String = row.try_get("updated_at")?;
         let edits: Edits = serde_json::from_str(&edits_json)?;
+        let hash = edits.stable_hash();
         Ok(Some(EditRecord {
             schema_version: schema_version as u32,
             asset_id,
@@ -102,6 +111,7 @@ impl EditsStore {
             renderer_version,
             manifest: EditManifest::from_edits(&edits),
             updated_at,
+            hash,
         }))
     }
 
@@ -150,6 +160,7 @@ impl EditsStore {
         .bind(&now)
         .execute(&self.pool)
         .await?;
+        let hash = edits.stable_hash();
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
             asset_id,
@@ -158,21 +169,34 @@ impl EditsStore {
             renderer_version,
             manifest: EditManifest::from_edits(&edits),
             updated_at: now,
+            hash,
         })
     }
 
-    pub async fn list_asset_ids(&self) -> Result<Vec<Uuid>, EditsStoreError> {
-        let rows = sqlx::query("SELECT asset_id FROM edits ORDER BY updated_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
-        let mut ids = Vec::with_capacity(rows.len());
+    pub async fn list_edited_assets(&self) -> Result<Vec<EditedAssetEntry>, EditsStoreError> {
+        let rows = sqlx::query(
+            "SELECT asset_id, edits_json, updated_at FROM edits ORDER BY updated_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut out = Vec::with_capacity(rows.len());
         for row in rows {
             let s: String = row.try_get("asset_id")?;
-            if let Ok(id) = Uuid::parse_str(&s) {
-                ids.push(id);
-            }
+            let Ok(id) = Uuid::parse_str(&s) else {
+                continue;
+            };
+            let edits_json: String = row.try_get("edits_json")?;
+            let updated_at: String = row.try_get("updated_at")?;
+            let Ok(edits) = serde_json::from_str::<Edits>(&edits_json) else {
+                continue;
+            };
+            out.push(EditedAssetEntry {
+                id,
+                hash: edits.stable_hash(),
+                updated_at,
+            });
         }
-        Ok(ids)
+        Ok(out)
     }
 
     pub async fn delete(&self, asset_id: Uuid) -> Result<bool, EditsStoreError> {

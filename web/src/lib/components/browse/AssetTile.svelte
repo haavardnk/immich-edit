@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { AssetSummary } from '$lib/types/album';
-  import { thumbUrl } from '$lib/api/assets';
+  import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiHeart, mdiStar } from '@mdi/js';
 
   let { asset, active = false }: { asset: AssetSummary; active?: boolean } = $props();
 
   const rating = $derived(asset.exifInfo?.rating ?? 0);
+  const src = $derived(assetThumbUrl(asset.id));
 </script>
 
 <a
@@ -17,7 +18,7 @@
   title={asset.originalFileName}
 >
   <img
-    src={thumbUrl(asset.id)}
+    src={src}
     alt=""
     loading="lazy"
     class="object-cover w-full h-full transition-transform group-hover:scale-105"

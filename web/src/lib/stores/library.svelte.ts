@@ -2,9 +2,9 @@ import { listAlbums } from '$lib/api/albums';
 import { listPeople, type PersonSummary } from '$lib/api/people';
 import { listTags, type TagSummary } from '$lib/api/tags';
 import { folderPaths } from '$lib/api/folders';
-import { listEditedAssetIds } from '$lib/api/edits';
 import { searchStatistics } from '$lib/api/search';
 import type { AlbumSummary } from '$lib/types/album';
+import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
 
@@ -44,12 +44,17 @@ class LibraryStore {
 
   photosCount = $state<number | null>(null);
   favoritesCount = $state<number | null>(null);
-  editedCount = $state<number | null>(null);
   private folderPathCount = $state<number | null>(null);
 
   get foldersCount(): number | null {
     return this.folderPathCount;
   }
+
+  get editedCount(): number | null {
+    return this.editedCountLoaded ? editedThumbs.count : null;
+  }
+
+  private editedCountLoaded = $state(false);
 
   private loaded = new Set<LibraryView>();
   private countsLoaded = false;
@@ -94,15 +99,15 @@ class LibraryStore {
   async loadCounts(): Promise<void> {
     if (this.countsLoaded) return;
     this.countsLoaded = true;
-    const [stats, favStats, albums, people, tags, paths, editedIds] = await Promise.all([
+    const [stats, favStats, albums, people, tags, paths] = await Promise.all([
       searchStatistics({}).catch(() => null),
       searchStatistics({ isFavorite: true }).catch(() => null),
       listAlbums().catch(() => [] as AlbumSummary[]),
       listPeople().catch(() => [] as PersonSummary[]),
       listTags().catch(() => [] as TagSummary[]),
       folderPaths().catch(() => [] as string[]),
-      listEditedAssetIds().catch(() => [] as string[]),
     ]);
+    await editedThumbs.loadOnce().catch(() => undefined);
     if (stats) this.photosCount = stats.total;
     if (favStats) this.favoritesCount = favStats.total;
     if (!this.loaded.has('albums')) {
@@ -122,7 +127,7 @@ class LibraryStore {
       this.loaded.add('folders');
     }
     this.folderPathCount = paths.length;
-    this.editedCount = editedIds.length;
+    this.editedCountLoaded = true;
   }
 }
 

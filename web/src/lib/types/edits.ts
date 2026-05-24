@@ -173,6 +173,7 @@ export interface EditRecord {
   renderer_version: string;
   manifest: EditManifest;
   updated_at: string;
+  hash: string;
 }
 
 function neutralBands(): HslBand[] {

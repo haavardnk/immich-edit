@@ -3,6 +3,7 @@
 use immich_edit_backend::app;
 use immich_edit_backend::config::{Config, RendererMode};
 use immich_edit_backend::immich::ImmichClient;
+use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::render::RenderService;
@@ -35,6 +36,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         render: RenderService::new(immich, 4, RendererMode::Cpu),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
+        edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
     }
 }
 
