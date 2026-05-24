@@ -1,5 +1,6 @@
 use super::{EditOperator, GpuOp, LinearImage, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, Edits};
 use rayon::prelude::*;
 
@@ -106,6 +107,10 @@ impl EditOperator for CurvesOp {
             px[2] = apply_lut(&lut, px[2]);
         });
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let lut = build_lut(&edits.basic.curves.points);
+        Some(CpuFusedOp::Curves { lut })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {

@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -38,6 +39,12 @@ impl EditOperator for ColorMatrixOp {
             px[2] = m[2][0] * r + m[2][1] * g + m[2][2] * b;
         });
         Ok(())
+    }
+    fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
+        if !ctx.is_raw {
+            return None;
+        }
+        Some(CpuFusedOp::ColorMatrix { m: ctx.cam_to_srgb })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {

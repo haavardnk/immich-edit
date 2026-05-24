@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -28,6 +29,10 @@ impl EditOperator for ExposureOp {
         let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);
         image.rgb.par_iter_mut().for_each(|v| *v *= factor);
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);
+        Some(CpuFusedOp::Exposure { factor })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

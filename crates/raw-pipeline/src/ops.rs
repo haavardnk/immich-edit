@@ -19,6 +19,7 @@ pub mod white_balance;
 mod tests;
 
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct LinearImage {
@@ -100,6 +101,9 @@ pub trait EditOperator: Send + Sync {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()>;
+    fn cpu_fused(&self, _edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        None
+    }
     fn gpu(&self) -> Option<GpuOp> {
         None
     }

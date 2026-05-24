@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -40,6 +41,10 @@ impl EditOperator for VibranceOp {
             px[2] = luma + (b - luma) * factor;
         });
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let amount = edits.basic.vibrance as f32 / 100.0;
+        Some(CpuFusedOp::Vibrance { amount })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

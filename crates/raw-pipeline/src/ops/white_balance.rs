@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -43,6 +44,12 @@ impl EditOperator for WhiteBalanceOp {
             px[2] *= coeffs[2];
         });
         Ok(())
+    }
+    fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
+        let c = camera_wb(ctx.wb_coeffs);
+        Some(CpuFusedOp::WhiteBalance {
+            coeffs: [c[0], c[1], c[2]],
+        })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

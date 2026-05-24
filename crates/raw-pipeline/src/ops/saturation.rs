@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -33,6 +34,10 @@ impl EditOperator for SaturationOp {
             px[2] = luma + (b - luma) * factor;
         });
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let factor = 1.0 + edits.basic.saturation as f32 / 100.0;
+        Some(CpuFusedOp::Saturation { factor })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

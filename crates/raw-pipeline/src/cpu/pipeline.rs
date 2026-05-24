@@ -1,5 +1,7 @@
 use crate::cancel::{self, CancelToken};
-use crate::cpu::presence::{apply_presence, has_presence};
+use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
+use crate::cpu::presence::has_presence;
+use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
@@ -7,7 +9,9 @@ use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
 use crate::ops::{GpuOpKind, OpContext, default_registry};
+use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
+use std::sync::Arc;
 
 pub fn render(
     frame: &RawFrame,
@@ -107,16 +111,47 @@ pub fn run_pipeline_ops(
     let registry = default_registry();
     let presence_active = has_presence(edits);
     let mut presence_done = false;
+    let mut segment = FusedSegment::default();
     for op in registry.active(edits) {
         cancel::check(cancel)?;
         if op.gpu_kind() == GpuOpKind::Presence {
             if !presence_done && presence_active {
-                apply_presence(image, edits);
+                if !segment.is_empty() {
+                    apply_segment(image, &segment);
+                    segment.clear();
+                }
+                let amounts = presence_amounts(edits);
+                let w = image.width as u32;
+                let h = image.height as u32;
+                let radii = presence_radii(w, h);
+                let mips = presence_mips(w, h, radii);
+                let levels = presence_pyramid_levels(w, h, radii) as usize;
+                let pyramid = Arc::new(LumaPyramid::build(image, levels));
+                segment.push(CpuFusedOp::Presence {
+                    pyramid,
+                    texture: amounts.texture,
+                    clarity: amounts.clarity,
+                    dehaze: amounts.dehaze,
+                    mip_texture: mips.texture,
+                    mip_clarity: mips.clarity,
+                    mip_dehaze: mips.dehaze,
+                });
                 presence_done = true;
             }
             continue;
         }
+        if let Some(fused) = op.cpu_fused(edits, ctx) {
+            segment.push(fused);
+            continue;
+        }
+        if !segment.is_empty() {
+            apply_segment(image, &segment);
+            segment.clear();
+        }
         op.apply_cpu(image, ctx, edits)?;
+    }
+    if !segment.is_empty() {
+        apply_segment(image, &segment);
     }
     Ok(())
 }

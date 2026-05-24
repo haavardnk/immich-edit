@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -31,6 +32,10 @@ impl EditOperator for ContrastOp {
             .par_iter_mut()
             .for_each(|v| *v = (*v - 0.5) * factor + 0.5);
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let factor = 1.0 + edits.basic.contrast as f32 / 100.0;
+        Some(CpuFusedOp::Contrast { factor })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

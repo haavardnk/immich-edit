@@ -1,6 +1,7 @@
 use crate::ops::LinearImage;
 use rayon::prelude::*;
 
+#[derive(Debug)]
 pub struct LumaPyramid {
     pub levels: Vec<Vec<f32>>,
     pub dims: Vec<(usize, usize)>,

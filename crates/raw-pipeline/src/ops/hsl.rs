@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{Edits, HSL_BANDS};
 use rayon::prelude::*;
 
@@ -144,6 +145,21 @@ impl EditOperator for HslOp {
             apply: "lin = hsl_apply(lin);",
             vec4_count: HSL_BANDS,
             kind: crate::ops::GpuOpKind::Normal,
+        })
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        if !self.is_active(edits) {
+            return None;
+        }
+        let bands = edits.color.hsl.bands;
+        let hue_shifts: [f32; HSL_BANDS] =
+            std::array::from_fn(|i| (bands[i].hue as f32) / 100.0 * 30.0);
+        let sat_gains: [f32; HSL_BANDS] = std::array::from_fn(|i| (bands[i].sat as f32) / 100.0);
+        let lum_gains: [f32; HSL_BANDS] = std::array::from_fn(|i| (bands[i].lum as f32) / 100.0);
+        Some(CpuFusedOp::Hsl {
+            hue_shifts,
+            sat_gains,
+            lum_gains,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

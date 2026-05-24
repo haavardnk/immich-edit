@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -35,6 +36,10 @@ impl EditOperator for UserWbOp {
             px[2] = m[2][0] * r + m[2][1] * g + m[2][2] * b;
         });
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
+        Some(CpuFusedOp::ColorMatrix { m })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {

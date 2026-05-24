@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use rayon::prelude::*;
 
@@ -55,6 +56,14 @@ impl EditOperator for ToneRegionsOp {
             .par_iter_mut()
             .for_each(|v| *v = apply_zone(*v, hl, sh, bk, wh));
         Ok(())
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        Some(CpuFusedOp::ToneRegions {
+            hl: edits.tone.highlights as f32 / 100.0,
+            sh: edits.tone.shadows as f32 / 100.0,
+            bk: edits.tone.blacks as f32 / 100.0,
+            wh: edits.tone.whites as f32 / 100.0,
+        })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(

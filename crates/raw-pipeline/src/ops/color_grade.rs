@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{ColorGradeRegion, Edits};
 use rayon::prelude::*;
 
@@ -96,6 +97,28 @@ impl EditOperator for ColorGradeOp {
             apply: "lin = color_grade_apply(lin);",
             vec4_count: 5,
             kind: crate::ops::GpuOpKind::Normal,
+        })
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        if !self.is_active(edits) {
+            return None;
+        }
+        let cg = &edits.color.color_grade;
+        let (s_off, s_lum) = region_offset(&cg.shadows);
+        let (m_off, m_lum) = region_offset(&cg.midtones);
+        let (h_off, h_lum) = region_offset(&cg.highlights);
+        let (g_off, g_lum) = region_offset(&cg.global);
+        Some(CpuFusedOp::ColorGrade {
+            s_off,
+            s_lum,
+            m_off,
+            m_lum,
+            h_off,
+            h_lum,
+            g_off,
+            g_lum,
+            balance: (cg.balance as f32) / 100.0,
+            blend: (cg.blend as f32) / 100.0,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
