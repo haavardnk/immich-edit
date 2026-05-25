@@ -37,8 +37,12 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             }
             if amounts.clarity != 0.0 {
                 let b = pyramid.sample(mips.clarity, fx, fy);
-                let mt = 1.0 - (2.0 * y0 - 1.0).abs();
-                log_gain += amounts.clarity * mt * (y0c / b.max(1e-5)).log2();
+                let mt = smoothstep(0.0, 0.1, y0)
+                    * (1.0 - smoothstep(0.9, 1.0, y0))
+                    * (1.0 - (2.0 * y0 - 1.0).abs()).max(0.0);
+                let ratio = (y0c / b.max(1e-5)).log2();
+                let gate = smoothstep(0.015, 0.12, ratio.abs());
+                log_gain += amounts.clarity * mt * gate * ratio;
             }
             let mut new_y = y0 * log_gain.exp2();
             if amounts.dehaze != 0.0 {
@@ -57,4 +61,10 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
                 px[2] = (px[2] * scale).max(0.0);
             }
         });
+}
+
+#[inline(always)]
+fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }

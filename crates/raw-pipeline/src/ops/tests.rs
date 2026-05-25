@@ -597,6 +597,57 @@ fn clarity_amplifies_midtones_more_than_extremes() {
 }
 
 #[test]
+fn clarity_flat_region_barely_changes() {
+    let mut img = LinearImage::new(vec![0.5f32; 256 * 256 * 3], 256, 256);
+    let before = img.rgb.clone();
+    let edits = Edits {
+        basic: BasicEdits {
+            clarity: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    clarity::ClarityOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let max_d = before
+        .iter()
+        .zip(img.rgb.iter())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    if max_d > 5e-3 {
+        panic!("clarity boosted flat patch: max_d={max_d}");
+    }
+}
+
+#[test]
+fn clarity_protects_clipped_highlights_and_crushed_shadows() {
+    let mk = |v: f32| LinearImage::new(vec![v; 256 * 256 * 3], 256, 256);
+    let edits = Edits {
+        basic: BasicEdits {
+            clarity: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    for v in [1.2f32, 0.02f32] {
+        let mut img = mk(v);
+        let before = img.rgb.clone();
+        clarity::ClarityOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        let max_d = before
+            .iter()
+            .zip(img.rgb.iter())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        if max_d > 1e-3 {
+            panic!("clarity moved protected patch v={v}: max_d={max_d}");
+        }
+    }
+}
+
+#[test]
 fn dehaze_inactive_when_zero() {
     assert!(!dehaze::DehazeOp.is_active(&Edits::default()));
 }

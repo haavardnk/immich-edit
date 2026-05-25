@@ -211,8 +211,12 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
                 log_gain += *texture * (y0c / buf[i].max(1e-5)).log2();
             }
             if let Some(buf) = clarity_blur {
-                let mt = 1.0 - (2.0 * y0 - 1.0).abs();
-                log_gain += *clarity * mt * (y0c / buf[i].max(1e-5)).log2();
+                let mt = smoothstep(0.0, 0.1, y0)
+                    * (1.0 - smoothstep(0.9, 1.0, y0))
+                    * (1.0 - (2.0 * y0 - 1.0).abs()).max(0.0);
+                let ratio = (y0c / buf[i].max(1e-5)).log2();
+                let gate = smoothstep(0.015, 0.12, ratio.abs());
+                log_gain += *clarity * mt * gate * ratio;
             }
             let mut new_y = y0 * log_gain.exp2();
             if let Some(buf) = dehaze_blur {

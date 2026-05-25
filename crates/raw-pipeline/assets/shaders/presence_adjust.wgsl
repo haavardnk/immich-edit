@@ -51,8 +51,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     if (p.amounts.y != 0.0) {
         let b = sampled_luma(p.mips.y, fx, fy);
-        let mt = 1.0 - abs(2.0 * y0 - 1.0);
-        log_gain = log_gain + p.amounts.y * mt * log2(y0c / max(b, 1e-5));
+        let mt = smoothstep(0.0, 0.1, y0)
+            * (1.0 - smoothstep(0.9, 1.0, y0))
+            * max(1.0 - abs(2.0 * y0 - 1.0), 0.0);
+        let ratio = log2(y0c / max(b, 1e-5));
+        let gate = smoothstep(0.015, 0.12, abs(ratio));
+        log_gain = log_gain + p.amounts.y * mt * gate * ratio;
     }
     var new_y = y0 * exp2(log_gain);
     if (p.amounts.z != 0.0) {
