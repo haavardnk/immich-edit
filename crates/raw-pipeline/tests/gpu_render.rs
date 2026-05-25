@@ -1,6 +1,6 @@
 use raw_pipeline::edits::BasicEdits;
 use raw_pipeline::edits::{CropRect, DetailEdits, EffectsEdits, GeometryEdits};
-use raw_pipeline::frame::RawFrame;
+use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame};
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
 
@@ -628,5 +628,86 @@ fn gpu_linear_histogram_changes_with_vignette() {
             .sum();
     if diff == 0 {
         panic!("linear histogram unchanged after vignette");
+    }
+}
+
+fn synthetic_bayer_frame(w: usize, h: usize, cfa_pattern: &str) -> RawFrame {
+    let mut data = vec![0.0f32; w * h];
+    for y in 0..h {
+        for x in 0..w {
+            let block = (x / 4 + y / 4) % 2;
+            data[y * w + x] = if block == 0 { 0.2 } else { 0.8 };
+        }
+    }
+    RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: cfa_pattern.to_string(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 1,
+        orientation: (false, false, false),
+        is_raw: false,
+        exif: None,
+    }
+}
+
+fn decode_png_rgb(bytes: &[u8]) -> (Vec<u8>, usize, usize) {
+    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    let mut reader = decoder.read_info().unwrap();
+    let mut buf = vec![0u8; reader.output_buffer_size().unwrap()];
+    let info = reader.next_frame(&mut buf).unwrap();
+    buf.truncate(info.buffer_size());
+    (buf, info.width as usize, info.height as usize)
+}
+
+#[test]
+fn gpu_demosaic_matches_cpu_mhc() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Eight,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+
+    let patterns: &[(&str, usize, usize)] = &[
+        ("RGGB", 96, 64),
+        ("BGGR", 88, 60),
+        ("GRBG", 80, 56),
+        ("GBRG", 72, 52),
+    ];
+
+    let mut failed: Vec<String> = Vec::new();
+    for (cfa, w, h) in patterns {
+        let frame = synthetic_bayer_frame(*w, *h, cfa);
+        let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+        let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        if cpu.width != gpu.width || cpu.height != gpu.height {
+            panic!(
+                "{cfa}: dim mismatch CPU {}x{} vs GPU {}x{}",
+                cpu.width, cpu.height, gpu.width, gpu.height
+            );
+        }
+        let (cpu_rgb, cw, ch) = decode_png_rgb(&cpu.bytes);
+        let (gpu_rgb, gw, gh) = decode_png_rgb(&gpu.bytes);
+        if (cw, ch) != (gw, gh) {
+            panic!("{cfa}: decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
+        }
+        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+        eprintln!("demosaic {cfa}: mean abs delta = {delta:.3}");
+        if delta > 1.0 {
+            failed.push(format!("{cfa}: {delta:.3} > 1.0"));
+        }
+    }
+    if !failed.is_empty() {
+        panic!("GPU demosaic drift: {}", failed.join("; "));
     }
 }
