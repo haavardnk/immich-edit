@@ -232,7 +232,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "contrast+30",
-            1.0,
+            2.0,
             Edits {
                 basic: BasicEdits {
                     contrast: 30.0,

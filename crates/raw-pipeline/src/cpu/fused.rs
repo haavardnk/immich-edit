@@ -16,7 +16,7 @@ pub enum CpuFusedOp {
         factor: f32,
     },
     Contrast {
-        factor: f32,
+        s: f32,
     },
     Saturation {
         factor: f32,
@@ -100,10 +100,10 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *g *= *factor;
             *b *= *factor;
         }
-        CpuFusedOp::Contrast { factor } => {
-            *r = (*r - 0.5) * *factor + 0.5;
-            *g = (*g - 0.5) * *factor + 0.5;
-            *b = (*b - 0.5) * *factor + 0.5;
+        CpuFusedOp::Contrast { s } => {
+            *r = crate::ops::contrast::apply_perceptual_contrast(*r, *s);
+            *g = crate::ops::contrast::apply_perceptual_contrast(*g, *s);
+            *b = crate::ops::contrast::apply_perceptual_contrast(*b, *s);
         }
         CpuFusedOp::Saturation { factor } => {
             let luma = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;

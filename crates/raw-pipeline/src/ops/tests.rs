@@ -44,8 +44,9 @@ fn exposure_inactive_when_zero() {
 }
 
 #[test]
-fn contrast_pivots_around_half() {
-    let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
+fn contrast_perceptual_pivot_invariant() {
+    let pivot = 0.5_f32.powf(2.2);
+    let mut img = solid_image(1, 1, [pivot, pivot, pivot]);
     let edits = Edits {
         basic: BasicEdits {
             contrast: 50.0,
@@ -56,7 +57,44 @@ fn contrast_pivots_around_half() {
     contrast::ContrastOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    assert!((img.rgb[0] - 0.5).abs() < 1e-5);
+    assert!((img.rgb[0] - pivot).abs() < 1e-3);
+}
+
+#[test]
+fn contrast_preserves_hdr_above_1() {
+    let mut img = solid_image(1, 1, [1.5, 1.5, 1.5]);
+    let edits = Edits {
+        basic: BasicEdits {
+            contrast: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    contrast::ContrastOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!((img.rgb[0] - 1.5).abs() < 1e-5);
+}
+
+#[test]
+fn contrast_negative_flattens() {
+    let mut low = solid_image(1, 1, [0.2, 0.2, 0.2]);
+    let mut high = solid_image(1, 1, [0.8, 0.8, 0.8]);
+    let edits = Edits {
+        basic: BasicEdits {
+            contrast: -50.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    contrast::ContrastOp
+        .apply_cpu(&mut low, &ctx(), &edits)
+        .unwrap();
+    contrast::ContrastOp
+        .apply_cpu(&mut high, &ctx(), &edits)
+        .unwrap();
+    let spread_after = high.rgb[0] - low.rgb[0];
+    assert!(spread_after < 0.6);
 }
 
 #[test]
