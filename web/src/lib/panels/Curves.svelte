@@ -367,26 +367,15 @@
 
   <div class="flex items-center justify-between px-1">
     <div class="text-[11px] text-immich-dark-fg/70">{channelLabels[activeChannel]}</div>
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
-        title="Reset {channelLabels[activeChannel]} curve"
-        onclick={resetActive}
-      >
-        <Icon path={mdiRestore} size={12} />
-        Curve
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
-        title="Reset all curves"
-        onclick={resetAll}
-      >
-        <Icon path={mdiRestore} size={12} />
-        All
-      </button>
-    </div>
+    <button
+      type="button"
+      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+      title="Reset {channelLabels[activeChannel]} curve  —  shift-click to reset all channels"
+      aria-label="Reset {channelLabels[activeChannel]} curve"
+      onclick={(e) => (e.shiftKey ? resetAll() : resetActive())}
+    >
+      <Icon path={mdiRestore} size={14} />
+    </button>
   </div>
 
   <div class="flex flex-col items-center">

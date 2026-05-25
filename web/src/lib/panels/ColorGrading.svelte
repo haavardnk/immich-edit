@@ -79,12 +79,12 @@
     </div>
     <button
       type="button"
-      class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
+      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
       title="Reset all color grading"
+      aria-label="Reset all color grading"
       onclick={resetAllGrading}
     >
-      <Icon path={mdiRestore} size={12} />
-      Reset
+      <Icon path={mdiRestore} size={14} />
     </button>
   </div>
 
@@ -188,12 +188,12 @@
         <span>S: {Math.round(activeRegionData.sat)}</span>
         <button
           type="button"
-          class="flex items-center gap-1 text-immich-dark-fg/40 hover:text-immich-dark-fg/80 transition-colors"
+          class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
           title="Reset {REGION_LABELS[activeRegion]}"
+          aria-label="Reset {REGION_LABELS[activeRegion]}"
           onclick={() => resetRegion(activeRegion)}
         >
-          <Icon path={mdiRestore} size={12} />
-          Reset
+          <Icon path={mdiRestore} size={14} />
         </button>
       </div>
       <SliderRow

@@ -53,26 +53,15 @@
   </div>
   <div class="flex items-center justify-between px-1">
     <div class="text-[11px] text-immich-dark-fg/70">{HSL_BAND_NAMES[activeBand]}</div>
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
-        title="Reset {HSL_BAND_NAMES[activeBand]}"
-        onclick={() => resetBand(activeBand)}
-      >
-        <Icon path={mdiRestore} size={12} />
-        Band
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1 text-[10px] text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
-        title="Reset all HSL bands"
-        onclick={resetAllHsl}
-      >
-        <Icon path={mdiRestore} size={12} />
-        All
-      </button>
-    </div>
+    <button
+      type="button"
+      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+      title="Reset {HSL_BAND_NAMES[activeBand]}  —  shift-click to reset all bands"
+      aria-label="Reset {HSL_BAND_NAMES[activeBand]}"
+      onclick={(e) => (e.shiftKey ? resetAllHsl() : resetBand(activeBand))}
+    >
+      <Icon path={mdiRestore} size={14} />
+    </button>
   </div>
   <SliderRow
     label="Hue"

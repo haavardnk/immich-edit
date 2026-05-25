@@ -1,11 +1,49 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
+
+  function resetWb(): void {
+    editor.edits.basic.wb_temp = 0;
+    editor.edits.basic.wb_tint = 0;
+    editor.onCommit();
+  }
+
+  function resetTone(): void {
+    editor.edits.basic.exposure_ev = 0;
+    editor.edits.basic.contrast = 0;
+    editor.edits.tone.highlights = 0;
+    editor.edits.tone.shadows = 0;
+    editor.edits.tone.whites = 0;
+    editor.edits.tone.blacks = 0;
+    editor.onCommit();
+  }
+
+  function resetPresence(): void {
+    editor.edits.basic.texture = 0;
+    editor.edits.basic.clarity = 0;
+    editor.edits.basic.dehaze = 0;
+    editor.edits.basic.vibrance = 0;
+    editor.edits.basic.saturation = 0;
+    editor.onCommit();
+  }
 </script>
 
 <div class="flex flex-col divide-y divide-white/5">
   <div class="flex flex-col gap-2.5 pb-3">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">White Balance</div>
+    <div class="flex items-center justify-between">
+      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">White Balance</div>
+      <button
+        type="button"
+        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+        title="Reset White Balance"
+        aria-label="Reset White Balance"
+        onclick={resetWb}
+      >
+        <Icon path={mdiRestore} size={14} />
+      </button>
+    </div>
     <SliderRow
       label="Temperature"
       bind:value={editor.edits.basic.wb_temp}
@@ -30,7 +68,18 @@
     />
   </div>
   <div class="flex flex-col gap-2.5 py-3">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Tone</div>
+    <div class="flex items-center justify-between">
+      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Tone</div>
+      <button
+        type="button"
+        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+        title="Reset Tone"
+        aria-label="Reset Tone"
+        onclick={resetTone}
+      >
+        <Icon path={mdiRestore} size={14} />
+      </button>
+    </div>
     <SliderRow
       label="Exposure"
       bind:value={editor.edits.basic.exposure_ev}
@@ -93,7 +142,18 @@
     />
   </div>
   <div class="flex flex-col gap-2.5 pt-3">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Presence</div>
+    <div class="flex items-center justify-between">
+      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Presence</div>
+      <button
+        type="button"
+        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+        title="Reset Presence"
+        aria-label="Reset Presence"
+        onclick={resetPresence}
+      >
+        <Icon path={mdiRestore} size={14} />
+      </button>
+    </div>
     <SliderRow
       label="Texture"
       bind:value={editor.edits.basic.texture}
