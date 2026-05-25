@@ -82,6 +82,16 @@ impl ProcessFastPass {
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
             ],
         });
 

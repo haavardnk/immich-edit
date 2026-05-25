@@ -48,6 +48,7 @@ impl RenderPlan {
         if b.texture != 0.0
             || b.clarity != 0.0
             || b.dehaze != 0.0
+            || edits.tone.shadows != 0.0
             || d.luma_nr_active()
             || d.color_nr_active()
         {
@@ -312,6 +313,7 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process(
         &self,
         pass: &super::passes::process::ProcessFastPass,
@@ -320,6 +322,7 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
         opts: &RenderOptions,
+        shadows_blur: Option<&wgpu::TextureView>,
     ) -> PipelineResult<RenderedImage> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
@@ -404,9 +407,15 @@ impl GpuRenderer {
             cam_to_srgb,
             is_raw: frame.is_raw,
             preview_mode: opts.preview_mode.clone(),
+            shadows_blur: None,
         };
         let built = &pass.built;
         let registry = &self.passes.registry;
+        let shadows_mip_f = {
+            let radii = presence_radii(src_dims.0, src_dims.1);
+            let mips = presence_mips(src_dims.0, src_dims.1, radii);
+            mips.shadows as f32
+        };
         let mut uniform_bytes = vec![0u8; built.uniform_size];
         write_header(
             &mut uniform_bytes,
@@ -419,7 +428,7 @@ impl GpuRenderer {
                 edits.geometry.flip_v as u32,
                 orient_packed,
             ],
-            [lod, 0.0, 0.0, 0.0],
+            [lod, shadows_mip_f, 0.0, 0.0],
             [cos_a, sin_a, bw, bh],
             [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
         );
@@ -468,6 +477,17 @@ impl GpuRenderer {
             .linear_texture
             .create_view(&TextureViewDescriptor::default());
 
+        let dummy_shadows = if shadows_blur.is_none() {
+            Some(make_dummy_luma(&self.ctx))
+        } else {
+            None
+        };
+        let dummy_view = dummy_shadows
+            .as_ref()
+            .map(|t| t.create_view(&TextureViewDescriptor::default()));
+        let shadows_view_ref: &wgpu::TextureView =
+            shadows_blur.unwrap_or_else(|| dummy_view.as_ref().unwrap());
+
         let bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("process-bg"),
             layout: &pass.layout,
@@ -491,6 +511,10 @@ impl GpuRenderer {
                 BindGroupEntry {
                     binding: 4,
                     resource: BindingResource::TextureView(&linear_view),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: BindingResource::TextureView(shadows_view_ref),
                 },
             ],
         });
@@ -614,7 +638,7 @@ impl GpuRenderer {
                         edits.geometry.flip_v as u32,
                         orient_packed,
                     ],
-                    [lod, 0.0, 0.0, 0.0],
+                    [lod, shadows_mip_f, 0.0, 0.0],
                     [cos_a, sin_a, bw, bh],
                     [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
                 );
@@ -661,6 +685,10 @@ impl GpuRenderer {
                         BindGroupEntry {
                             binding: 4,
                             resource: BindingResource::TextureView(&scratch_linear_view),
+                        },
+                        BindGroupEntry {
+                            binding: 5,
+                            resource: BindingResource::TextureView(shadows_view_ref),
                         },
                     ],
                 });
@@ -1533,6 +1561,7 @@ impl GpuRenderer {
             cam_to_srgb,
             is_raw: frame.is_raw,
             preview_mode: crate::frame::PreviewMode::None,
+            shadows_blur: None,
         };
 
         let pass = &self.passes.wb_prepare;
@@ -1654,6 +1683,7 @@ impl GpuRenderer {
                     frame,
                     edits,
                     options,
+                    None,
                 )?;
                 crate::cancel::check(cancel)?;
                 Ok(out)
@@ -1679,6 +1709,14 @@ impl GpuRenderer {
                     nr_out.unwrap_or(wb_base)
                 };
                 crate::cancel::check(cancel)?;
+                let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
+                    Some(self.build_luma_pyramid(&processed_src, dims)?)
+                } else {
+                    None
+                };
+                let shadows_view = shadows_pyramid
+                    .as_ref()
+                    .map(|t| t.create_view(&TextureViewDescriptor::default()));
                 let out = self.process(
                     &self.passes.process_post_wb,
                     &processed_src,
@@ -1686,10 +1724,135 @@ impl GpuRenderer {
                     frame,
                     edits,
                     options,
+                    shadows_view.as_ref(),
                 )?;
                 crate::cancel::check(cancel)?;
+                drop(shadows_view);
+                drop(shadows_pyramid);
                 Ok(out)
             }
         }
     }
+
+    fn build_luma_pyramid(&self, src: &Texture, dims: (u32, u32)) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+        let radii = presence_radii(w, h);
+        let pyramid_levels = presence_pyramid_levels(w, h, radii);
+        let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let level_views: Vec<wgpu::TextureView> = (0..pyramid_levels)
+            .map(|level| {
+                pyramid.create_view(&TextureViewDescriptor {
+                    base_mip_level: level,
+                    mip_level_count: Some(1),
+                    ..Default::default()
+                })
+            })
+            .collect();
+        let extract_bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("luma-extract-bg-shadows"),
+            layout: &self.passes.luma_pyramid.extract_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&level_views[0]),
+                },
+            ],
+        });
+        let mipgen_binds: Vec<wgpu::BindGroup> = (1..pyramid_levels)
+            .map(|level| {
+                device.create_bind_group(&BindGroupDescriptor {
+                    label: Some("pyramid-mipgen-bg-shadows"),
+                    layout: &self.passes.mipgen.layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: BindingResource::TextureView(
+                                &level_views[(level - 1) as usize],
+                            ),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(&level_views[level as usize]),
+                        },
+                    ],
+                })
+            })
+            .collect();
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("shadows-pyramid-enc"),
+        });
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("luma-extract-shadows"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.luma_pyramid.extract_pipeline);
+            pass.set_bind_group(0, &extract_bind, &[]);
+            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        if !mipgen_binds.is_empty() {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("pyramid-mipgen-shadows"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.mipgen.pipeline);
+            let mut mw = w;
+            let mut mh = h;
+            for bg in &mipgen_binds {
+                let dst_w = (mw / 2).max(1);
+                let dst_h = (mh / 2).max(1);
+                pass.set_bind_group(0, bg, &[]);
+                pass.dispatch_workgroups(dst_w.div_ceil(16), dst_h.div_ceil(16), 1);
+                mw = dst_w;
+                mh = dst_h;
+            }
+        }
+        queue.submit(Some(encoder.finish()));
+        Ok(Arc::new(pyramid))
+    }
+}
+
+fn make_dummy_luma(ctx: &GpuContext) -> Texture {
+    let tex = ctx.device.create_texture(&TextureDescriptor {
+        label: Some("shadows-blur-dummy"),
+        size: Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: ctx.linear_format,
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    let zero = [0u8; 8];
+    ctx.queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture: &tex,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &zero,
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(8),
+            rows_per_image: Some(1),
+        },
+        Extent3d {
+            width: 1,
+            height: 1,
+            depth_or_array_layers: 1,
+        },
+    );
+    tex
 }

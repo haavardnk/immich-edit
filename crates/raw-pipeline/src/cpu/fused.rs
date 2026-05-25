@@ -29,6 +29,7 @@ pub enum CpuFusedOp {
         sh: f32,
         bk: f32,
         wh_gain: f32,
+        shadows_blur: Option<Arc<Vec<f32>>>,
     },
     Curves {
         luts: Box<CurveLuts>,
@@ -126,10 +127,22 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             sh,
             bk,
             wh_gain,
+            shadows_blur,
         } => {
-            *r = tone_zone(*r * *wh_gain, *hl, *sh, *bk);
-            *g = tone_zone(*g * *wh_gain, *hl, *sh, *bk);
-            *b = tone_zone(*b * *wh_gain, *hl, *sh, *bk);
+            *r *= *wh_gain;
+            *g *= *wh_gain;
+            *b *= *wh_gain;
+            if *sh != 0.0 {
+                let luma = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
+                let blur_l = shadows_blur.as_ref().map(|buf| buf[i]).unwrap_or(luma);
+                let mult = crate::ops::tone_regions::shadows_mult(luma, blur_l, *sh);
+                *r *= mult;
+                *g *= mult;
+                *b *= mult;
+            }
+            *r = crate::ops::tone_regions::apply_hl_bk(*r, *hl, *bk);
+            *g = crate::ops::tone_regions::apply_hl_bk(*g, *hl, *bk);
+            *b = crate::ops::tone_regions::apply_hl_bk(*b, *hl, *bk);
         }
         CpuFusedOp::Curves { luts } => {
             apply_curves_pixel(luts.as_ref(), r, g, b);
@@ -324,20 +337,6 @@ fn cg_weights(y: f32, balance: f32, blend: f32) -> (f32, f32, f32) {
     (shadow, mid, highlight)
 }
 
-#[inline(always)]
-fn tone_zone(x: f32, hl: f32, sh: f32, bk: f32) -> f32 {
-    let x_hi = crate::ops::tone_regions::highlights_apply(x, hl);
-    let xc = x_hi.clamp(0.0, 2.0);
-    let xm = xc.min(1.0);
-    let w_sh = (1.0 - (xm - 0.25).abs() / 0.4).clamp(0.0, 1.0);
-    let mut mask_bk = (1.0 - xc / 0.05).clamp(0.0, 1.0);
-    mask_bk *= mask_bk;
-    let mult_bk = (bk * 0.75).exp2().clamp(0.0, 3.9);
-    let delta_bk = xc * (mult_bk - 1.0) * mask_bk;
-    let delta = sh * w_sh * xc * 0.5 + delta_bk;
-    xc + delta
-}
-
 pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
     if segment.is_empty() {
         return;
@@ -402,6 +401,7 @@ mod tests {
             cam_to_srgb: [[1.2, -0.1, -0.1], [-0.05, 1.05, 0.0], [0.0, -0.2, 1.2]],
             is_raw: true,
             preview_mode: crate::frame::PreviewMode::None,
+            shadows_blur: None,
         };
         let edits = Edits {
             basic: BasicEdits {
@@ -446,6 +446,7 @@ mod tests {
             cam_to_srgb: identity_3x3(),
             is_raw: false,
             preview_mode: crate::frame::PreviewMode::None,
+            shadows_blur: None,
         };
         let edits = Edits::default();
         if color_matrix::ColorMatrixOp

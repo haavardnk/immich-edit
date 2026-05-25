@@ -29,6 +29,7 @@ fn ctx() -> OpContext {
         ],
         is_raw: true,
         preview_mode: raw_pipeline::frame::PreviewMode::None,
+        shadows_blur: None,
     }
 }
 

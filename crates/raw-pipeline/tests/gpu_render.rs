@@ -474,6 +474,57 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
 }
 
 #[test]
+fn gpu_shadows_match_cpu_via_pyramid() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 128,
+        ..Default::default()
+    };
+    let w: usize = 48;
+    let h: usize = 32;
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let dark = if x < w / 2 { 0.05 } else { 0.6 };
+            data[i] = dark;
+            data[i + 1] = dark;
+            data[i + 2] = dark;
+        }
+    }
+    let frame = RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        exif: None,
+    };
+    let mut edits = Edits::default();
+    edits.tone.shadows = 50.0;
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("shadows mean abs delta = {delta:.3}");
+    if delta > 8.0 {
+        panic!("shadows GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
 fn gpu_sharpen_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;

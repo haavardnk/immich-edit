@@ -19,6 +19,7 @@ fn ctx() -> OpContext {
         cam_to_srgb: crate::color::identity_3x3(),
         is_raw: false,
         preview_mode: crate::frame::PreviewMode::None,
+        shadows_blur: None,
     }
 }
 

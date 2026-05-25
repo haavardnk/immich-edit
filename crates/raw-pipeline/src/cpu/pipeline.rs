@@ -67,6 +67,7 @@ pub fn render_with_cancel(
         cam_to_srgb,
         is_raw: frame.is_raw,
         preview_mode: options.preview_mode.clone(),
+        shadows_blur: None,
     };
 
     run_pipeline_ops(&mut image, &ctx, &edits, &options.rasters, cancel)?;
@@ -141,6 +142,32 @@ pub fn run_pipeline_ops(
         .collect();
     let n_layers = layer_evals.len();
     let presence_active = has_presence(edits);
+    let shadows_active =
+        edits.tone.shadows != 0.0 || layer_edits.iter().any(|e| e.tone.shadows != 0.0);
+    let mut pyramid_cache: Option<LumaPyramid> = None;
+    let mut pyramid_mips: Option<crate::presence::PresenceMips> = None;
+    let ctx_local;
+    let ctx: &OpContext = if shadows_active {
+        let w = image.width as u32;
+        let h = image.height as u32;
+        let radii = presence_radii(w, h);
+        let mips = presence_mips(w, h, radii);
+        let levels = presence_pyramid_levels(w, h, radii) as usize;
+        let pyr = LumaPyramid::build(image, levels);
+        let shadows_blur = Arc::new(pyr.upsample(mips.shadows, image.width, image.height));
+        pyramid_cache = Some(pyr);
+        pyramid_mips = Some(mips);
+        ctx_local = OpContext {
+            wb_coeffs: ctx.wb_coeffs,
+            cam_to_srgb: ctx.cam_to_srgb,
+            is_raw: ctx.is_raw,
+            preview_mode: ctx.preview_mode.clone(),
+            shadows_blur: Some(shadows_blur),
+        };
+        &ctx_local
+    } else {
+        ctx
+    };
     let mut presence_done = false;
     let mut segment = FusedSegment::default();
     let mut layer_segments: Vec<FusedSegment> =
@@ -183,9 +210,14 @@ pub fn run_pipeline_ops(
                 let w = image.width as u32;
                 let h = image.height as u32;
                 let radii = presence_radii(w, h);
-                let mips = presence_mips(w, h, radii);
-                let levels = presence_pyramid_levels(w, h, radii) as usize;
-                let pyramid = LumaPyramid::build(image, levels);
+                let mips = pyramid_mips.unwrap_or_else(|| presence_mips(w, h, radii));
+                let pyramid = match pyramid_cache.take() {
+                    Some(p) => p,
+                    None => {
+                        let levels = presence_pyramid_levels(w, h, radii) as usize;
+                        LumaPyramid::build(image, levels)
+                    }
+                };
                 let iw = image.width;
                 let ih = image.height;
                 let texture_blur = (amounts.texture != 0.0)

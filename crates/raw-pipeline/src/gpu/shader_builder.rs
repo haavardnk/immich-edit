@@ -128,6 +128,9 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
 @group(0) @binding(2) var src_samp: sampler;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(4) var linear_tex: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(5) var shadows_blur_tex: texture_2d<f32>;
+
+var<private> shadows_blur_l: f32 = 0.0;
 
 fn is_active(bit: u32) -> bool {{
     let word = bit / 32u;
@@ -220,6 +223,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     if (oh_h) {{ su = 1.0 - su; }}
 
     let rgb = textureSampleLevel(src_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.x).rgb;
+    shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
     let outc_lin = process_color(rgb);
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
     let outc = vec3<f32>(default_tone(outc_lin.r), default_tone(outc_lin.g), default_tone(outc_lin.b));

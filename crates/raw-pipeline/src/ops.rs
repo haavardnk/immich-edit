@@ -71,6 +71,7 @@ pub struct OpContext {
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
     pub preview_mode: crate::frame::PreviewMode,
+    pub shadows_blur: Option<std::sync::Arc<Vec<f32>>>,
 }
 
 pub struct GpuOp {
