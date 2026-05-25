@@ -97,6 +97,7 @@ impl EditedThumbService {
             quality: false,
             output: OutputFormat::Jpeg { quality: 80 },
             preview_mode: PreviewMode::None,
+            ..Default::default()
         };
         let rendered = render.render(asset_id, edits, opts, None).await?;
         let tmp = path.with_extension("jpg.tmp");

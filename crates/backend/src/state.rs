@@ -5,6 +5,7 @@ use crate::immich::ImmichClient;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 use crate::services::preview_meta::PreviewMetaStore;
+use crate::services::raster_store::RasterStore;
 use crate::services::render::RenderService;
 use crate::services::render_queue::RenderQueue;
 
@@ -17,6 +18,7 @@ pub struct AppState {
     pub queue: RenderQueue,
     pub preview_meta: PreviewMetaStore,
     pub edited_thumb: EditedThumbService,
+    pub rasters: RasterStore,
 }
 
 impl AppState {
@@ -30,7 +32,9 @@ impl AppState {
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
-        let render = RenderService::new(immich.clone(), 8, config.renderer);
+        let rasters = RasterStore::new(&config.cache_dir)
+            .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
+        let render = RenderService::new(immich.clone(), 8, config.renderer, rasters.clone());
         let queue = RenderQueue::new(config.render_max_concurrency);
         let edited_thumb =
             EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)
@@ -43,6 +47,7 @@ impl AppState {
             queue,
             preview_meta: PreviewMetaStore::new(),
             edited_thumb,
+            rasters,
         })
     }
 }

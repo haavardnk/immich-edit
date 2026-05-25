@@ -7,5 +7,6 @@ pub mod folders;
 pub mod health;
 pub mod people;
 pub mod preview;
+pub mod rasters;
 pub mod search;
 pub mod tags;

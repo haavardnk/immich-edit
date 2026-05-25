@@ -6,6 +6,7 @@ use immich_edit_backend::immich::ImmichClient;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
+use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::RenderService;
 use immich_edit_backend::services::render_queue::RenderQueue;
 use immich_edit_backend::state::AppState;
@@ -29,14 +30,16 @@ pub async fn test_state(server: &MockServer) -> AppState {
         renderer: RendererMode::Cpu,
         database_url: "sqlite::memory:".into(),
     };
+    let rasters = RasterStore::new(&cache_dir).unwrap();
     AppState {
         config: Arc::new(config),
         immich: immich.clone(),
         edits: EditsStore::migrated_memory().await.unwrap(),
-        render: RenderService::new(immich, 4, RendererMode::Cpu),
+        render: RenderService::new(immich, 4, RendererMode::Cpu, rasters.clone()),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
+        rasters,
     }
 }
 

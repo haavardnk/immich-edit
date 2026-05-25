@@ -61,6 +61,9 @@ pub fn router(state: AppState) -> Router {
             "/assets/{id}/export/immich",
             post(routes::export::post_export_immich),
         )
+        .route("/rasters", post(routes::rasters::upload))
+        .route("/rasters/{raster_id}", get(routes::rasters::get))
+        .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
         .fallback(api_not_found);
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());

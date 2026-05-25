@@ -4,12 +4,14 @@ use bytes::Bytes;
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
 use raw_pipeline::{GpuRenderer, PipelineError, RenderedImage};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
+use crate::services::raster_store::RasterStore;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
@@ -26,6 +28,7 @@ pub struct RenderService {
     gpu: Option<Arc<GpuRenderer>>,
     active: ActiveRenderer,
     gpu_label: Option<String>,
+    rasters: RasterStore,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,7 +47,12 @@ impl ActiveRenderer {
 }
 
 impl RenderService {
-    pub fn new(immich: ImmichClient, max_items: usize, mode: RendererMode) -> Self {
+    pub fn new(
+        immich: ImmichClient,
+        max_items: usize,
+        mode: RendererMode,
+        rasters: RasterStore,
+    ) -> Self {
         let cap = std::num::NonZeroUsize::new(max_items.max(1)).unwrap();
         let (gpu, active, gpu_label) = init_gpu(mode);
         Self {
@@ -53,6 +61,7 @@ impl RenderService {
             gpu,
             active,
             gpu_label,
+            rasters,
         }
     }
 
@@ -79,7 +88,7 @@ impl RenderService {
         &self,
         asset_id: Uuid,
         edits: Edits,
-        options: RenderOptions,
+        mut options: RenderOptions,
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = if options.quality {
@@ -88,6 +97,7 @@ impl RenderService {
         } else {
             self.frame(asset_id).await?
         };
+        options.rasters = self.load_rasters_for(&edits).await;
         let gpu = self.gpu.clone();
         let active = self.active;
         let result = tokio::task::spawn_blocking(move || {
@@ -96,6 +106,24 @@ impl RenderService {
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
         Ok(result)
+    }
+
+    async fn load_rasters_for(&self, edits: &Edits) -> RasterMap {
+        let ids = edits.referenced_raster_ids();
+        let mut map: RasterMap = RasterMap::with_capacity(ids.len());
+        for id in ids {
+            match self.rasters.load(&id).await {
+                Ok((meta, bytes)) => {
+                    if let Some(r) = MaskRaster::new(meta.width, meta.height, bytes) {
+                        map.insert(id, Arc::new(r));
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(raster_id = %id, error = %e, "raster load failed");
+                }
+            }
+        }
+        map
     }
 }
 
@@ -134,7 +162,11 @@ fn render_blocking(
         sensor_h = frame.height,
         "render orientation"
     );
-    if active == ActiveRenderer::Gpu {
+    let mask_preview = matches!(
+        opts.preview_mode,
+        raw_pipeline::frame::PreviewMode::MaskWeight { .. }
+    );
+    if active == ActiveRenderer::Gpu && !mask_preview {
         if let Some(g) = gpu.as_ref() {
             match g.render_with_cancel(frame, edits, opts, cancel) {
                 Ok(r) => return Ok(r),

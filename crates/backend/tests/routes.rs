@@ -352,3 +352,55 @@ async fn tag_asset_add_and_remove_proxy() {
         panic!("delete status {}", resp.status());
     }
 }
+
+#[tokio::test]
+async fn raster_upload_get_roundtrip() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let app = router(state);
+    let bytes = vec![0xABu8; 4 * 3];
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::post("/api/rasters?width=4&height=3")
+                .header("content-type", "application/octet-stream")
+                .body(Body::from(bytes.clone()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let v: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let raster_id = v["raster_id"].as_str().unwrap().to_string();
+
+    let resp = app
+        .oneshot(
+            Request::get(format!("/api/rasters/{raster_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(resp.headers().get("x-raster-width").unwrap(), "4");
+    assert_eq!(resp.headers().get("x-raster-height").unwrap(), "3");
+    let got = body_bytes(resp).await;
+    assert_eq!(got, bytes);
+}
+
+#[tokio::test]
+async fn raster_upload_rejects_bad_size() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::post("/api/rasters?width=4&height=3")
+                .header("content-type", "application/octet-stream")
+                .body(Body::from(vec![0u8; 5]))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}

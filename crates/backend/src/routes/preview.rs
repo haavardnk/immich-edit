@@ -77,7 +77,8 @@ async fn render_to_response(
         max_edge,
         quality: false,
         output: raw_pipeline::frame::OutputFormat::Jpeg { quality: 85 },
-        preview_mode,
+        preview_mode: preview_mode.clone(),
+        ..Default::default()
     };
     let work = render.render(asset_id, edits, opts, Some(token));
     let result = state
@@ -95,7 +96,7 @@ async fn render_to_response(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    if preview_mode == PreviewMode::None {
+    if matches!(preview_mode, PreviewMode::None) {
         let meta = PreviewMeta {
             asset_id,
             width: rendered.width,
