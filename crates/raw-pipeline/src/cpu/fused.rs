@@ -136,9 +136,11 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
                 *g *= mult;
                 *b *= mult;
             }
-            *r = crate::ops::tone_regions::apply_hl_bk(*r, *hl, *bk);
-            *g = crate::ops::tone_regions::apply_hl_bk(*g, *hl, *bk);
-            *b = crate::ops::tone_regions::apply_hl_bk(*b, *hl, *bk);
+            let (nr, ng, nb) =
+                crate::ops::tone_regions::apply_tone_regions_rgb(*r, *g, *b, *hl, *bk);
+            *r = nr;
+            *g = ng;
+            *b = nb;
         }
         CpuFusedOp::Curves { luts } => {
             apply_curves_pixel(luts.as_ref(), r, g, b);

@@ -914,3 +914,26 @@ fn sharpen_masking_suppresses_flat_areas() {
         "masking should suppress noise sharpening: no_mask={diff_no_mask} masked={diff_mask}"
     );
 }
+
+#[test]
+fn highlights_neg_desaturates_clipped_color() {
+    let mut img = solid_image(1, 1, [2.0, 1.5, 1.0]);
+    let edits = Edits {
+        tone: ToneEdits {
+            highlights: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let spread_before = 2.0f32 - 1.0f32;
+    let spread_after = img.rgb[0] - img.rgb[2];
+    if spread_after > spread_before * 0.5 {
+        panic!(
+            "clipped specular not desaturated: r={} g={} b={}",
+            img.rgb[0], img.rgb[1], img.rgb[2]
+        );
+    }
+}
