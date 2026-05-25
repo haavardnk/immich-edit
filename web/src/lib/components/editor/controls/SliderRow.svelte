@@ -19,7 +19,7 @@
     min: number;
     max: number;
     step?: number;
-    onLive: () => void;
+    onLive: (value: number) => void;
     onCommit: () => void;
     onPreviewStart?: () => void;
     onPreviewEnd?: () => void;
@@ -38,6 +38,7 @@
 
   function reset(): void {
     value = defaultValue;
+    onLive(defaultValue);
     onCommit();
   }
 
@@ -78,11 +79,13 @@
     updatePreview();
   }
 
-  function onInput(): void {
+  function onInput(e: Event): void {
+    const v = (e.currentTarget as HTMLInputElement).valueAsNumber;
+    value = v;
     if (previewing) {
       onPreviewStart!();
     } else {
-      onLive();
+      onLive(v);
     }
   }
 </script>
