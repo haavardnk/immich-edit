@@ -326,10 +326,13 @@ fn cg_weights(y: f32, balance: f32, blend: f32) -> (f32, f32, f32) {
 fn tone_zone(x: f32, hl: f32, sh: f32, bk: f32) -> f32 {
     let xc = x.clamp(0.0, 2.0);
     let xm = xc.min(1.0);
-    let w_bk = ((0.2 - xm) / 0.2).clamp(0.0, 1.0);
     let w_sh = (1.0 - (xm - 0.25).abs() / 0.4).clamp(0.0, 1.0);
     let w_hl = (1.0 - (xm - 0.75).abs() / 0.4).clamp(0.0, 1.0);
-    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5 + sh * w_sh * xc * 0.5 + bk * w_bk * 0.5;
+    let mut mask_bk = (1.0 - xc / 0.05).clamp(0.0, 1.0);
+    mask_bk *= mask_bk;
+    let mult_bk = (bk * 0.75).exp2().clamp(0.0, 3.9);
+    let delta_bk = xc * (mult_bk - 1.0) * mask_bk;
+    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5 + sh * w_sh * xc * 0.5 + delta_bk;
     xc + delta
 }
 

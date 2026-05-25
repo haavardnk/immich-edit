@@ -138,7 +138,7 @@ fn shadows_lift_dark_pixels() {
 
 #[test]
 fn blacks_lift_very_dark_pixels() {
-    let mut img = solid_image(1, 1, [0.05, 0.05, 0.05]);
+    let mut img = solid_image(1, 1, [0.01, 0.01, 0.01]);
     let edits = Edits {
         tone: ToneEdits {
             blacks: 100.0,
@@ -149,7 +149,40 @@ fn blacks_lift_very_dark_pixels() {
     tone_regions::ToneRegionsOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    assert!(img.rgb[0] > 0.05);
+    assert!(img.rgb[0] > 0.01);
+    assert!(img.rgb[0] < 0.05);
+}
+
+#[test]
+fn blacks_dont_affect_midtones() {
+    let mut img = solid_image(1, 1, [0.3, 0.3, 0.3]);
+    let edits = Edits {
+        tone: ToneEdits {
+            blacks: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!((img.rgb[0] - 0.3).abs() < 1e-4);
+}
+
+#[test]
+fn blacks_negative_crushes() {
+    let mut img = solid_image(1, 1, [0.02, 0.02, 0.02]);
+    let edits = Edits {
+        tone: ToneEdits {
+            blacks: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] < 0.02);
 }
 
 #[test]
