@@ -31,19 +31,18 @@
 
   const channelStroke: Record<CurveChannel, string> = {
     composite: 'rgb(240,240,240)',
-    r: 'rgb(255,90,90)',
-    g: 'rgb(90,220,120)',
-    b: 'rgb(110,160,255)',
+    r: 'hsl(0, 70%, 65%)',
+    g: 'hsl(120, 70%, 65%)',
+    b: 'hsl(240, 70%, 65%)',
     luma: 'rgb(240,210,90)'
   };
 
   const channelSwatchStyle: Record<CurveChannel, string> = {
-    composite:
-      'background: linear-gradient(135deg, rgba(255,90,90,0.55), rgba(90,220,120,0.55), rgba(110,160,255,0.55))',
-    r: 'background: rgb(220,60,60)',
-    g: 'background: rgb(60,180,90)',
-    b: 'background: rgb(70,120,220)',
-    luma: 'background: linear-gradient(90deg, #000, #fff)'
+    composite: 'background: linear-gradient(90deg, hsl(0,70%,65%), hsl(120,70%,65%), hsl(240,70%,65%))',
+    r: 'background: hsl(0, 70%, 65%)',
+    g: 'background: hsl(120, 70%, 65%)',
+    b: 'background: hsl(240, 70%, 65%)',
+    luma: 'background: linear-gradient(90deg, #111, #f0f0f0)'
   };
 
   function getCurve(ch: CurveChannel): CurvePoint[] {
@@ -143,19 +142,31 @@
     return out;
   });
 
-  const histPath = $derived.by(() => {
-    if (!hist) return '';
-    const lum = hist.l;
-    if (lum.length === 0) return '';
-    const max = Math.max(...lum, 1);
+  function histAreaPath(data: number[] | undefined): string {
+    if (!data || data.length === 0) return '';
+    const max = Math.max(...data, 1);
     let d = `M ${pad} ${pad + inner}`;
-    for (let i = 0; i < lum.length; i++) {
-      const x = pad + (i / (lum.length - 1)) * inner;
-      const y = pad + inner - (lum[i] / max) * inner * 0.8;
+    for (let i = 0; i < data.length; i++) {
+      const x = pad + (i / (data.length - 1)) * inner;
+      const y = pad + inner - (data[i] / max) * inner * 0.8;
       d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }
     d += ` L ${pad + inner} ${pad + inner} Z`;
     return d;
+  }
+
+  const histLayers = $derived.by(() => {
+    if (!hist) return [] as { d: string; fill: string }[];
+    if (activeChannel === 'r') return [{ d: histAreaPath(hist.r), fill: 'hsla(0,70%,65%,0.35)' }];
+    if (activeChannel === 'g') return [{ d: histAreaPath(hist.g), fill: 'hsla(120,70%,65%,0.35)' }];
+    if (activeChannel === 'b') return [{ d: histAreaPath(hist.b), fill: 'hsla(240,70%,65%,0.35)' }];
+    if (activeChannel === 'luma')
+      return [{ d: histAreaPath(hist.l), fill: 'rgba(229,229,229,0.18)' }];
+    return [
+      { d: histAreaPath(hist.r), fill: 'hsla(0,70%,65%,0.22)' },
+      { d: histAreaPath(hist.g), fill: 'hsla(120,70%,65%,0.22)' },
+      { d: histAreaPath(hist.b), fill: 'hsla(240,70%,65%,0.22)' }
+    ];
   });
 
   const gridLines = $derived.by(() => {
@@ -344,7 +355,7 @@
     {#each CURVE_CHANNELS as ch (ch)}
       <button
         type="button"
-        class="h-7 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow {activeChannel === ch ? 'ring-2 ring-white/80' : ''}"
+        class="h-7 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow flex items-center justify-center overflow-hidden {activeChannel === ch ? 'ring-2 ring-white/80' : ''}"
         style={channelSwatchStyle[ch]}
         title={channelLabels[ch]}
         aria-label="Edit {channelLabels[ch]} curve"
@@ -396,9 +407,11 @@
     >
       <rect x={pad} y={pad} width={inner} height={inner} fill="rgba(0,0,0,0.3)" rx="2" />
 
-      {#if histPath}
-        <path d={histPath} fill="rgba(255,255,255,0.08)" />
-      {/if}
+      {#each histLayers as layer}
+        {#if layer.d}
+          <path d={layer.d} fill={layer.fill} style:mix-blend-mode="screen" />
+        {/if}
+      {/each}
 
       {#each gridLines as l}
         <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.06)" stroke-width="0.5" />
