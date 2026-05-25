@@ -159,6 +159,54 @@ fn highlights_lift_bright_pixels() {
 }
 
 #[test]
+fn highlights_recover_bright_pixels() {
+    let mut img = solid_image(1, 1, [0.9, 0.9, 0.9]);
+    let edits = Edits {
+        tone: ToneEdits {
+            highlights: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] < 0.9);
+}
+
+#[test]
+fn highlights_clip_excess_at_full_negative() {
+    let mut img = solid_image(1, 1, [1.5, 1.5, 1.5]);
+    let edits = Edits {
+        tone: ToneEdits {
+            highlights: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] <= 1.0 + 1e-4);
+}
+
+#[test]
+fn highlights_dont_touch_shadows() {
+    let mut img = solid_image(1, 1, [0.1, 0.1, 0.1]);
+    let edits = Edits {
+        tone: ToneEdits {
+            highlights: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!((img.rgb[0] - 0.1).abs() < 1e-3);
+}
+
+#[test]
 fn shadows_lift_dark_pixels() {
     let mut img = solid_image(1, 1, [0.2, 0.2, 0.2]);
     let edits = Edits {

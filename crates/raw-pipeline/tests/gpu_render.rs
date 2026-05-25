@@ -264,6 +264,17 @@ fn gpu_matches_cpu_within_tolerance() {
             },
         ),
         (
+            "highlights-100",
+            2.5,
+            Edits {
+                tone: raw_pipeline::edits::ToneEdits {
+                    highlights: -100.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
             "rotate10+crop",
             2.5,
             Edits {

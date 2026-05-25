@@ -7,24 +7,43 @@ use rayon::prelude::*;
 
 pub struct ToneRegionsOp;
 
-fn weights(x: f32) -> [f32; 2] {
-    let sh = (1.0 - (x - 0.25).abs() / 0.4).clamp(0.0, 1.0);
-    let hl = (1.0 - (x - 0.75).abs() / 0.4).clamp(0.0, 1.0);
-    [hl, sh]
+#[inline(always)]
+fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 pub(crate) fn whites_gain(wh: f32) -> f32 {
     1.0 / (1.0 - wh.clamp(-0.99, 0.99) * 0.25)
 }
 
+pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
+    if hl == 0.0 {
+        return x;
+    }
+    let mask = smoothstep(0.3, 0.95, (x * 1.5).tanh());
+    let new = if hl < 0.0 {
+        let gamma = 1.0 - hl * 1.75;
+        let base = x.clamp(0.0, 1.0).powf(gamma);
+        let excess = (x - 1.0).max(0.0);
+        let blend = (1.0 + hl).max(0.0);
+        base + excess * blend
+    } else {
+        x * (hl * 1.75).exp2()
+    };
+    x * (1.0 - mask) + new * mask
+}
+
 fn apply_zone(x: f32, hl: f32, sh: f32, bk: f32) -> f32 {
-    let xc = x.clamp(0.0, 2.0);
-    let [w_hl, w_sh] = weights(xc.min(1.0));
+    let x_hi = highlights_apply(x, hl);
+    let xc = x_hi.clamp(0.0, 2.0);
+    let xm = xc.min(1.0);
+    let w_sh = (1.0 - (xm - 0.25).abs() / 0.4).clamp(0.0, 1.0);
     let mut mask_bk = (1.0 - xc / 0.05).clamp(0.0, 1.0);
     mask_bk *= mask_bk;
     let mult_bk = (bk * 0.75).exp2().clamp(0.0, 3.9);
     let delta_bk = xc * (mult_bk - 1.0) * mask_bk;
-    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5 + sh * w_sh * xc * 0.5 + delta_bk;
+    let delta = sh * w_sh * xc * 0.5 + delta_bk;
     xc + delta
 }
 
@@ -72,7 +91,7 @@ impl EditOperator for ToneRegionsOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "tone_regions",
-            "fn tone_regions_weights(x: f32) -> vec2<f32> { let sh = clamp(1.0 - abs(x - 0.25) / 0.4, 0.0, 1.0); let hl = clamp(1.0 - abs(x - 0.75) / 0.4, 0.0, 1.0); return vec2<f32>(hl, sh); } fn tone_regions_whites_gain(wh: f32) -> f32 { return 1.0 / (1.0 - clamp(wh, -0.99, 0.99) * 0.25); } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } let gain = tone_regions_whites_gain(p.w); var lifted = c * gain; var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let xc = clamp(lifted[i], 0.0, 2.0); let w = tone_regions_weights(min(xc, 1.0)); var mask_bk = clamp(1.0 - xc / 0.05, 0.0, 1.0); mask_bk = mask_bk * mask_bk; let mult_bk = clamp(exp2(p.z * 0.75), 0.0, 3.9); let delta_bk = xc * (mult_bk - 1.0) * mask_bk; let delta = p.x * w.x * max(1.0 - xc, -1.0) * 0.5 + p.y * w.y * xc * 0.5 + delta_bk; out_v[i] = xc + delta; } return out_v; }",
+            "fn tone_regions_whites_gain(wh: f32) -> f32 { return 1.0 / (1.0 - clamp(wh, -0.99, 0.99) * 0.25); } fn tone_regions_highlights(x: f32, hl: f32) -> f32 { if (hl == 0.0) { return x; } let mask = smoothstep(0.3, 0.95, tanh(x * 1.5)); var new_v: f32; if (hl < 0.0) { let gamma = 1.0 - hl * 1.75; let base = pow(max(min(x, 1.0), 0.0), gamma); let excess = max(x - 1.0, 0.0); let blend = max(1.0 + hl, 0.0); new_v = base + excess * blend; } else { new_v = x * exp2(hl * 1.75); } return x * (1.0 - mask) + new_v * mask; } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } let gain = tone_regions_whites_gain(p.w); var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let x_hi = tone_regions_highlights(c[i] * gain, p.x); let xc = clamp(x_hi, 0.0, 2.0); let xm = min(xc, 1.0); let w_sh = clamp(1.0 - abs(xm - 0.25) / 0.4, 0.0, 1.0); var mask_bk = clamp(1.0 - xc / 0.05, 0.0, 1.0); mask_bk = mask_bk * mask_bk; let mult_bk = clamp(exp2(p.z * 0.75), 0.0, 3.9); let delta_bk = xc * (mult_bk - 1.0) * mask_bk; let delta = p.y * w_sh * xc * 0.5 + delta_bk; out_v[i] = xc + delta; } return out_v; }",
             "lin = tone_regions_apply(lin, p.tone_regions);",
         ))
     }
