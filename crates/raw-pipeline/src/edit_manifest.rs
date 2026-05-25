@@ -60,7 +60,7 @@ impl EditManifest {
 mod tests {
     use super::*;
     use crate::edits::{
-        BasicEdits, ColorEdits, CurvePoints, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
+        BasicEdits, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
         HslEdits, ToneEdits,
     };
 
@@ -99,7 +99,7 @@ mod tests {
                 texture: 33.0,
                 clarity: 22.0,
                 dehaze: -15.0,
-                curves: CurvePoints::default(),
+                curves: CurvesEdits::default(),
             },
             tone: ToneEdits {
                 highlights: -10.0,

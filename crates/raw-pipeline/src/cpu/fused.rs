@@ -1,5 +1,6 @@
-use crate::edits::{CURVE_LUT_SIZE, HSL_BANDS};
+use crate::edits::HSL_BANDS;
 use crate::ops::LinearImage;
+use crate::ops::curves::{CurveLuts, apply_curves_pixel};
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -30,7 +31,7 @@ pub enum CpuFusedOp {
         wh: f32,
     },
     Curves {
-        lut: [f32; CURVE_LUT_SIZE],
+        luts: Box<CurveLuts>,
     },
     Hsl {
         hue_shifts: [f32; HSL_BANDS],
@@ -125,10 +126,8 @@ fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
             *g = tone_zone(*g, *hl, *sh, *bk, *wh);
             *b = tone_zone(*b, *hl, *sh, *bk, *wh);
         }
-        CpuFusedOp::Curves { lut } => {
-            *r = curves_sample(lut, *r);
-            *g = curves_sample(lut, *g);
-            *b = curves_sample(lut, *b);
+        CpuFusedOp::Curves { luts } => {
+            apply_curves_pixel(luts.as_ref(), r, g, b);
         }
         CpuFusedOp::Hsl {
             hue_shifts,
@@ -212,14 +211,6 @@ fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
             }
         }
     }
-}
-
-#[inline(always)]
-fn curves_sample(lut: &[f32; CURVE_LUT_SIZE], v: f32) -> f32 {
-    let x = v.clamp(0.0, 1.0) * (CURVE_LUT_SIZE - 1) as f32;
-    let idx = (x as usize).min(CURVE_LUT_SIZE - 2);
-    let frac = x - idx as f32;
-    lut[idx] * (1.0 - frac) + lut[idx + 1] * frac
 }
 
 const BAND_CENTERS_DEG: [f32; HSL_BANDS] = [0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0];

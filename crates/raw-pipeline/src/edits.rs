@@ -66,6 +66,30 @@ impl Default for CurvePoints {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct CurvesEdits {
+    #[serde(default)]
+    pub composite: CurvePoints,
+    #[serde(default)]
+    pub r: CurvePoints,
+    #[serde(default)]
+    pub g: CurvePoints,
+    #[serde(default)]
+    pub b: CurvePoints,
+    #[serde(default)]
+    pub luma: CurvePoints,
+}
+
+impl CurvesEdits {
+    pub fn is_identity(&self) -> bool {
+        self.composite.is_identity()
+            && self.r.is_identity()
+            && self.g.is_identity()
+            && self.b.is_identity()
+            && self.luma.is_identity()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct BasicEdits {
     #[serde(default)]
     pub exposure_ev: f64,
@@ -86,7 +110,7 @@ pub struct BasicEdits {
     #[serde(default)]
     pub dehaze: f64,
     #[serde(default)]
-    pub curves: CurvePoints,
+    pub curves: CurvesEdits,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

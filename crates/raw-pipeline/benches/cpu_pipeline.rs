@@ -1,6 +1,8 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use raw_pipeline::cpu::run_pipeline_ops;
-use raw_pipeline::edits::{BasicEdits, CurvePoint, CurvePoints, DetailEdits, Edits, ToneEdits};
+use raw_pipeline::edits::{
+    BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
+};
 use raw_pipeline::ops::{LinearImage, OpContext};
 
 fn make_image(w: usize, h: usize) -> LinearImage {
@@ -40,12 +42,15 @@ fn edits_typical() -> Edits {
             exposure_ev: 0.4,
             contrast: 25.0,
             saturation: 10.0,
-            curves: CurvePoints {
-                points: vec![
-                    CurvePoint { x: 0.0, y: 0.05 },
-                    CurvePoint { x: 0.5, y: 0.55 },
-                    CurvePoint { x: 1.0, y: 0.98 },
-                ],
+            curves: CurvesEdits {
+                composite: CurvePoints {
+                    points: vec![
+                        CurvePoint { x: 0.0, y: 0.05 },
+                        CurvePoint { x: 0.5, y: 0.55 },
+                        CurvePoint { x: 1.0, y: 0.98 },
+                    ],
+                },
+                ..Default::default()
             },
             ..Default::default()
         },
@@ -65,13 +70,16 @@ fn edits_full() -> Edits {
             texture: 20.0,
             clarity: 15.0,
             dehaze: 10.0,
-            curves: CurvePoints {
-                points: vec![
-                    CurvePoint { x: 0.0, y: 0.02 },
-                    CurvePoint { x: 0.3, y: 0.28 },
-                    CurvePoint { x: 0.7, y: 0.75 },
-                    CurvePoint { x: 1.0, y: 0.96 },
-                ],
+            curves: CurvesEdits {
+                composite: CurvePoints {
+                    points: vec![
+                        CurvePoint { x: 0.0, y: 0.02 },
+                        CurvePoint { x: 0.3, y: 0.28 },
+                        CurvePoint { x: 0.7, y: 0.75 },
+                        CurvePoint { x: 1.0, y: 0.96 },
+                    ],
+                },
+                ..Default::default()
             },
         },
         tone: ToneEdits {

@@ -1,5 +1,7 @@
 use raw_pipeline::edits::BasicEdits;
-use raw_pipeline::edits::{CropRect, DetailEdits, EffectsEdits, GeometryEdits};
+use raw_pipeline::edits::{
+    CropRect, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits,
+};
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame};
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
 use std::path::{Path, PathBuf};
@@ -251,6 +253,53 @@ fn gpu_matches_cpu_within_tolerance() {
                         w: 0.7,
                         h: 0.7,
                     }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "per_channel_curves",
+            2.0,
+            Edits {
+                basic: BasicEdits {
+                    curves: CurvesEdits {
+                        composite: CurvePoints {
+                            points: vec![
+                                CurvePoint { x: 0.0, y: 0.04 },
+                                CurvePoint { x: 0.5, y: 0.55 },
+                                CurvePoint { x: 1.0, y: 0.97 },
+                            ],
+                        },
+                        r: CurvePoints {
+                            points: vec![
+                                CurvePoint { x: 0.0, y: 0.0 },
+                                CurvePoint { x: 0.5, y: 0.62 },
+                                CurvePoint { x: 1.0, y: 1.0 },
+                            ],
+                        },
+                        g: CurvePoints {
+                            points: vec![
+                                CurvePoint { x: 0.0, y: 0.0 },
+                                CurvePoint { x: 0.5, y: 0.42 },
+                                CurvePoint { x: 1.0, y: 1.0 },
+                            ],
+                        },
+                        b: CurvePoints {
+                            points: vec![
+                                CurvePoint { x: 0.0, y: 0.0 },
+                                CurvePoint { x: 0.5, y: 0.58 },
+                                CurvePoint { x: 1.0, y: 1.0 },
+                            ],
+                        },
+                        luma: CurvePoints {
+                            points: vec![
+                                CurvePoint { x: 0.0, y: 0.02 },
+                                CurvePoint { x: 0.4, y: 0.45 },
+                                CurvePoint { x: 1.0, y: 0.98 },
+                            ],
+                        },
+                    },
                     ..Default::default()
                 },
                 ..Default::default()

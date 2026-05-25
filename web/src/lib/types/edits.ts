@@ -3,6 +3,35 @@ export interface CurvePoint {
   y: number;
 }
 
+export type CurveChannel = 'composite' | 'r' | 'g' | 'b' | 'luma';
+
+export const CURVE_CHANNELS: readonly CurveChannel[] = ['composite', 'r', 'g', 'b', 'luma'];
+
+export interface CurvesEdits {
+  composite: CurvePoint[];
+  r: CurvePoint[];
+  g: CurvePoint[];
+  b: CurvePoint[];
+  luma: CurvePoint[];
+}
+
+export function identityCurve(): CurvePoint[] {
+  return [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 }
+  ];
+}
+
+export function neutralCurves(): CurvesEdits {
+  return {
+    composite: identityCurve(),
+    r: identityCurve(),
+    g: identityCurve(),
+    b: identityCurve(),
+    luma: identityCurve()
+  };
+}
+
 export interface BasicEdits {
   exposure_ev: number;
   contrast: number;
@@ -13,7 +42,7 @@ export interface BasicEdits {
   texture: number;
   clarity: number;
   dehaze: number;
-  curves: CurvePoint[];
+  curves: CurvesEdits;
 }
 
 export interface ToneEdits {
@@ -207,7 +236,7 @@ export function neutralEdits(): Edits {
       texture: 0,
       clarity: 0,
       dehaze: 0,
-      curves: [{ x: 0, y: 0 }, { x: 1, y: 1 }]
+      curves: neutralCurves()
     },
     tone: {
       highlights: 0,
@@ -261,6 +290,16 @@ function curvesAreIdentity(pts: CurvePoint[]): boolean {
   );
 }
 
+export function curvesEditsIsIdentity(c: CurvesEdits): boolean {
+  return (
+    curvesAreIdentity(c.composite) &&
+    curvesAreIdentity(c.r) &&
+    curvesAreIdentity(c.g) &&
+    curvesAreIdentity(c.b) &&
+    curvesAreIdentity(c.luma)
+  );
+}
+
 export function isIdentity(e: Edits): boolean {
   return isNonGeometryIdentity(e) &&
     e.geometry.rotate === 0 &&
@@ -282,7 +321,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     e.basic.texture === 0 &&
     e.basic.clarity === 0 &&
     e.basic.dehaze === 0 &&
-    curvesAreIdentity(e.basic.curves) &&
+    curvesEditsIsIdentity(e.basic.curves) &&
     e.tone.highlights === 0 &&
     e.tone.shadows === 0 &&
     e.tone.blacks === 0 &&
@@ -301,8 +340,16 @@ export function editsToManifest(e: Edits): EditManifest {
   const ops: Record<string, unknown> = {};
   if (e.basic.exposure_ev !== 0) ops.exposure = { ev: e.basic.exposure_ev };
   if (e.basic.contrast !== 0) ops.contrast = { amount: e.basic.contrast };
-  if (!curvesAreIdentity(e.basic.curves))
-    ops.curves = { points: e.basic.curves.map((p) => [p.x, p.y]) };
+  if (!curvesEditsIsIdentity(e.basic.curves)) {
+    const obj: Record<string, [number, number][]> = {};
+    const c = e.basic.curves;
+    if (!curvesAreIdentity(c.composite)) obj.composite = c.composite.map((p) => [p.x, p.y]);
+    if (!curvesAreIdentity(c.r)) obj.r = c.r.map((p) => [p.x, p.y]);
+    if (!curvesAreIdentity(c.g)) obj.g = c.g.map((p) => [p.x, p.y]);
+    if (!curvesAreIdentity(c.b)) obj.b = c.b.map((p) => [p.x, p.y]);
+    if (!curvesAreIdentity(c.luma)) obj.luma = c.luma.map((p) => [p.x, p.y]);
+    ops.curves = obj;
+  }
   if (
     e.tone.highlights !== 0 ||
     e.tone.shadows !== 0 ||
@@ -397,9 +444,29 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (exposure?.ev !== undefined) edits.basic.exposure_ev = exposure.ev;
   const contrast = ops.contrast as { amount?: number } | undefined;
   if (contrast?.amount !== undefined) edits.basic.contrast = contrast.amount;
-  const curves = ops.curves as { points?: number[][] } | undefined;
-  if (curves?.points && curves.points.length >= 2) {
-    edits.basic.curves = curves.points.map((p) => ({ x: p[0], y: p[1] }));
+  const curves = ops.curves as
+    | { points?: number[][]; composite?: number[][]; r?: number[][]; g?: number[][]; b?: number[][]; luma?: number[][] }
+    | undefined;
+  if (curves) {
+    const decode = (pts: number[][] | undefined): CurvePoint[] | null => {
+      if (!pts || pts.length < 2) return null;
+      return pts.map((p) => ({ x: p[0], y: p[1] }));
+    };
+    if (curves.points) {
+      const legacy = decode(curves.points);
+      if (legacy) edits.basic.curves.composite = legacy;
+    } else {
+      const c = decode(curves.composite);
+      if (c) edits.basic.curves.composite = c;
+      const r = decode(curves.r);
+      if (r) edits.basic.curves.r = r;
+      const g = decode(curves.g);
+      if (g) edits.basic.curves.g = g;
+      const b = decode(curves.b);
+      if (b) edits.basic.curves.b = b;
+      const luma = decode(curves.luma);
+      if (luma) edits.basic.curves.luma = luma;
+    }
   }
   const tr = (ops.tone_regions ?? ops.highlights_shadows) as
     | { highlights?: number; shadows?: number; blacks?: number; whites?: number }
