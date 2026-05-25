@@ -2,8 +2,11 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import CropOverlay from './CropOverlay.svelte';
+  import MaskOverlay from './MaskOverlay.svelte';
+  import BrushCanvas from './BrushCanvas.svelte';
 
   let container = $state<HTMLDivElement | null>(null);
+  let imgEl = $state<HTMLImageElement | null>(null);
   let dragging = $state(false);
   let lastX = 0;
   let lastY = 0;
@@ -65,12 +68,15 @@
     <CropOverlay />
   {:else if editor.previewUrl}
     <img
+      bind:this={imgEl}
       src={editor.previewUrl}
       alt={editor.asset?.originalFileName ?? ''}
       class="max-w-full max-h-full object-contain shadow-2xl rounded select-none"
       style="transform: scale({ui.zoom / 100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY / (ui.zoom / 100)}px); transform-origin: center; image-orientation: none;"
       draggable="false"
     />
+    <MaskOverlay img={imgEl} />
+    <BrushCanvas img={imgEl} />
   {:else if editor.error}
     <div class="text-red-400 text-sm">{editor.error}</div>
   {:else}

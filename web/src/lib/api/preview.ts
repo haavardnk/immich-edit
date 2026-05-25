@@ -2,7 +2,20 @@ import { getJson, postForBlob } from './client';
 import type { Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 
-export type PreviewMode = 'none' | 'sharpen_mask' | 'sharpen_radius' | 'sharpen_detail';
+export type PreviewMode =
+  | 'none'
+  | 'sharpen_mask'
+  | 'sharpen_radius'
+  | 'sharpen_detail'
+  | { mask_weight: { layer_id: string } };
+
+export function maskWeightPreview(layerId: string): PreviewMode {
+  return { mask_weight: { layer_id: layerId } };
+}
+
+export function previewModeIsNone(m: PreviewMode): boolean {
+  return m === 'none';
+}
 
 export function persistedPreviewUrl(assetId: string, max: number): string {
   return `/api/assets/${assetId}/preview?max=${max}`;

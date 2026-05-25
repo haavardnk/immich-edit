@@ -5,6 +5,7 @@
   import { isNonGeometryIdentity } from '$lib/types/edits';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
+  import MasksPanel from '$lib/panels/Masks.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import {
     mdiChevronDown,
@@ -14,10 +15,17 @@
     mdiRestore,
   } from '@mdi/js';
 
-  type Tab = 'develop' | 'geometry' | 'export';
+  type Tab = 'develop' | 'masks' | 'geometry' | 'export';
   let activeTab = $state<Tab>('develop');
   let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
+
+  $effect(() => {
+    if (activeTab !== 'masks') {
+      editor.setActiveLayer(null);
+      editor.setActiveMaskComponent(null);
+    }
+  });
 
   function toggle(id: string): void {
     if (openPanels.has(id)) {
@@ -47,7 +55,7 @@
     {#if editor.assetId}
       <div class="flex items-center border-b border-white/10">
         <nav class="flex flex-1">
-          {#each [{ id: 'develop', label: 'Develop' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
+          {#each [{ id: 'develop', label: 'Develop' }, { id: 'masks', label: 'Masks' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
             <button
               class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {activeTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
               onclick={() => (activeTab = tab.id as Tab)}
@@ -106,6 +114,10 @@
             </div>
           {/each}
           <div class="h-8"></div>
+        {:else if activeTab === 'masks'}
+          <div class="px-4 py-3">
+            <MasksPanel />
+          </div>
         {:else if activeTab === 'geometry'}
           <div class="px-4 py-3">
             <TransformPanel />

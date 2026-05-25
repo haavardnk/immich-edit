@@ -1,8 +1,21 @@
-import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits } from '$lib/types/edits';
+import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
+import {
+  cloneLayerWithNewIds,
+  defaultBrush,
+  defaultLinear,
+  defaultMaskColor,
+  makeComponent,
+  makeLayer,
+  maskCapacity,
+  nextLayerName,
+  setMaskedEdit
+} from '$lib/types/masks';
+import { blankBuffer, type BrushBuffer } from '$lib/utils/brush';
+import { fetchRaster, uploadRaster } from '$lib/api/rasters';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
-import { livePreview, persistedPreviewUrl, getPreviewMeta, type PreviewMode } from '$lib/api/preview';
+import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode } from '$lib/api/preview';
 import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
@@ -41,6 +54,18 @@ class EditorStore {
   showingOriginal = $state(false);
   cropSession = $state<CropSession | null>(null);
 
+  activeLayerId = $state<string | null>(null);
+  activeMaskComponentId = $state<string | null>(null);
+  maskOverlayVisible = $state(true);
+  maskPreviewLayerId = $state<string | null>(null);
+  brushTool = $state<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>({
+    size: 0.08,
+    hardness: 0.5,
+    flow: 0.8,
+    mode: 'paint'
+  });
+  brushBuffers = $state<Record<string, BrushBuffer>>({});
+
   private history = $state<Edits[]>([]);
   private historyCursor = $state(-1);
   private skipHistory = false;
@@ -61,7 +86,7 @@ class EditorStore {
       this.previewUrl = result.url;
       if (prev?.startsWith('blob:')) revoke(prev);
       this.pending = false;
-      if (args.previewMode === 'none') {
+      if (previewModeIsNone(args.previewMode)) {
         this.renderedEdge = args.maxEdge;
         if (result.metaId) void this.loadMeta(result.metaId);
       }
@@ -113,6 +138,10 @@ class EditorStore {
     this.historyCursor = -1;
     this.showingOriginal = false;
     this.renderedEdge = 0;
+    this.activeLayerId = null;
+    this.activeMaskComponentId = null;
+    this.maskPreviewLayerId = null;
+    this.brushBuffers = {};
   }
 
   private pushHistory(): void {
@@ -267,6 +296,313 @@ class EditorStore {
       toasts.push('error', `Upload failed: ${m}`, 10000);
     } finally {
       this.exportingToImmich = false;
+    }
+  };
+
+  maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> => {
+    return maskCapacity(this.edits, layerId);
+  };
+
+  activeLayer = (): MaskLayer | null => {
+    if (!this.activeLayerId) return null;
+    return this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null;
+  };
+
+  setActiveLayer = (id: string | null): void => {
+    if (this.activeLayerId !== id) this.activeMaskComponentId = null;
+    this.activeLayerId = id;
+    if (this.maskPreviewLayerId && this.maskPreviewLayerId !== id) {
+      this.endMaskPreview();
+    }
+  };
+
+  activeMaskComponent = (): MaskComponent | null => {
+    const layer = this.activeLayer();
+    if (!layer || !this.activeMaskComponentId) return null;
+    return layer.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
+  };
+
+  setActiveMaskComponent = (id: string | null): void => {
+    this.activeMaskComponentId = id;
+  };
+
+  setMaskComponentFeather = (
+    layerId: string,
+    componentId: string,
+    feather: number
+  ): void => {
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    const comp = layer?.components.find((c) => c.id === componentId);
+    if (!comp) return;
+    const f = Math.max(0, Math.min(1, feather));
+    if (comp.kind.kind === 'linear') {
+      this.updateMaskComponentKind(layerId, componentId, { ...comp.kind, feather: f }, true);
+    } else if (comp.kind.kind === 'radial') {
+      this.updateMaskComponentKind(layerId, componentId, { ...comp.kind, feather: f }, true);
+    }
+  };
+
+  toggleMaskOverlay = (): void => {
+    this.maskOverlayVisible = !this.maskOverlayVisible;
+  };
+
+  previewMaskWeight = (layerId: string): void => {
+    if (!this.initialised) return;
+    this.maskPreviewLayerId = layerId;
+    this.onPreview(maskWeightPreview(layerId));
+  };
+
+  endMaskPreview = (): void => {
+    if (!this.maskPreviewLayerId) return;
+    this.maskPreviewLayerId = null;
+    this.endPreview();
+  };
+
+  addMaskLayer = async (kind: MaskComponentKind = defaultLinear()): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, null);
+    if (cap.layersFull || cap.totalFull) return null;
+    const layer = makeLayer(nextLayerName(this.edits.masks), this.edits.masks.length, kind);
+    this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
+    this.activeLayerId = layer.id;
+    this.activeMaskComponentId = layer.components[0]?.id ?? null;
+    await this.onCommit();
+    return layer.id;
+  };
+
+  removeMaskLayer = async (id: string): Promise<void> => {
+    const idx = this.edits.masks.findIndex((l) => l.id === id);
+    if (idx < 0) return;
+    const masks = this.edits.masks.filter((l) => l.id !== id);
+    this.edits = { ...this.edits, masks };
+    if (this.activeLayerId === id) {
+      this.activeLayerId = masks[idx]?.id ?? masks[masks.length - 1]?.id ?? null;
+      this.activeMaskComponentId = null;
+    }
+    if (this.maskPreviewLayerId === id) this.endMaskPreview();
+    await this.onCommit();
+  };
+
+  duplicateMaskLayer = async (id: string): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, null);
+    if (cap.layersFull || cap.totalFull) return null;
+    const src = this.edits.masks.find((l) => l.id === id);
+    if (!src) return null;
+    const copy = cloneLayerWithNewIds(
+      src,
+      defaultMaskColor(this.edits.masks.length),
+      `${src.name} copy`
+    );
+    const idx = this.edits.masks.findIndex((l) => l.id === id);
+    const masks = [...this.edits.masks];
+    masks.splice(idx + 1, 0, copy);
+    this.edits = { ...this.edits, masks };
+    this.activeLayerId = copy.id;
+    this.activeMaskComponentId = copy.components[0]?.id ?? null;
+    await this.onCommit();
+    return copy.id;
+  };
+
+  reorderMaskLayer = async (id: string, toIndex: number): Promise<void> => {
+    const from = this.edits.masks.findIndex((l) => l.id === id);
+    if (from < 0) return;
+    const masks = [...this.edits.masks];
+    const [layer] = masks.splice(from, 1);
+    const clamped = Math.max(0, Math.min(toIndex, masks.length));
+    masks.splice(clamped, 0, layer);
+    this.edits = { ...this.edits, masks };
+    await this.onCommit();
+  };
+
+  patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
+    const masks = this.edits.masks.map((l) => (l.id === id ? { ...l, ...patch } : l));
+    this.edits = { ...this.edits, masks };
+    if (live) this.onLive();
+  };
+
+  toggleMaskLayerEnabled = async (id: string): Promise<void> => {
+    const layer = this.edits.masks.find((l) => l.id === id);
+    if (!layer) return;
+    this.patchMaskLayer(id, { enabled: !layer.enabled }, false);
+    await this.onCommit();
+  };
+
+  renameMaskLayer = async (id: string, name: string): Promise<void> => {
+    this.patchMaskLayer(id, { name }, false);
+    await this.onCommit();
+  };
+
+  setMaskLayerColor = async (id: string, color: string): Promise<void> => {
+    this.patchMaskLayer(id, { color }, false);
+    await this.onCommit();
+  };
+
+  setMaskLayerAmount = (id: string, amount: number): void => {
+    this.patchMaskLayer(id, { amount: Math.max(0, Math.min(1, amount)) }, true);
+  };
+
+  setMaskLayerEdit = (id: string, key: MaskedEditKey, value: number): void => {
+    const layer = this.edits.masks.find((l) => l.id === id);
+    if (!layer) return;
+    this.patchMaskLayer(id, { edits: setMaskedEdit(layer.edits, key, value) }, true);
+  };
+
+  addMaskComponent = async (
+    layerId: string,
+    kind: MaskComponentKind,
+    mode: MaskComponentMode = 'add'
+  ): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, layerId);
+    if (cap.componentsFull || cap.totalFull) return null;
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    if (!layer) return null;
+    const comp = makeComponent(kind, mode);
+    this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
+    this.activeMaskComponentId = comp.id;
+    await this.onCommit();
+    return comp.id;
+  };
+
+  removeMaskComponent = async (layerId: string, componentId: string): Promise<void> => {
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    if (!layer) return;
+    const components = layer.components.filter((c) => c.id !== componentId);
+    this.patchMaskLayer(layerId, { components }, false);
+    if (this.activeMaskComponentId === componentId) this.activeMaskComponentId = null;
+    if (this.brushBuffers[componentId]) {
+      const { [componentId]: _drop, ...rest } = this.brushBuffers;
+      this.brushBuffers = rest;
+    }
+    await this.onCommit();
+  };
+
+  patchMaskComponent = (
+    layerId: string,
+    componentId: string,
+    patch: Partial<MaskComponent>,
+    live = true
+  ): void => {
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    if (!layer) return;
+    const components = layer.components.map((c) =>
+      c.id === componentId ? { ...c, ...patch } : c
+    );
+    this.patchMaskLayer(layerId, { components }, live);
+  };
+
+  updateMaskComponentKind = (
+    layerId: string,
+    componentId: string,
+    kind: MaskComponentKind,
+    live = true
+  ): void => {
+    this.patchMaskComponent(layerId, componentId, { kind }, live);
+  };
+
+  commitMasks = async (): Promise<void> => {
+    await this.onCommit();
+  };
+
+  setBrushTool = (
+    patch: Partial<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>
+  ): void => {
+    this.brushTool = { ...this.brushTool, ...patch };
+  };
+
+  private brushDims = (): { width: number; height: number } => {
+    const sw = this.meta?.source_w ?? 1024;
+    const sh = this.meta?.source_h ?? 1024;
+    const longest = Math.max(sw, sh, 1);
+    const scale = Math.max(1, Math.ceil(longest / 2048));
+    return {
+      width: Math.max(1, Math.floor(sw / scale)),
+      height: Math.max(1, Math.floor(sh / scale))
+    };
+  };
+
+  ensureBrushBuffer = async (
+    componentId: string,
+    rasterId: string | null
+  ): Promise<BrushBuffer> => {
+    const existing = this.brushBuffers[componentId];
+    if (existing) return existing;
+    if (rasterId) {
+      try {
+        const r = await fetchRaster(rasterId);
+        const buf: BrushBuffer = { width: r.width, height: r.height, bytes: r.bytes };
+        this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
+        return buf;
+      } catch {
+        // fall through to blank
+      }
+    }
+    const { width, height } = this.brushDims();
+    const buf = blankBuffer(width, height);
+    this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
+    return buf;
+  };
+
+  addBrushLayer = async (): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, null);
+    if (cap.layersFull || cap.totalFull) return null;
+    const { width, height } = this.brushDims();
+    const buf = blankBuffer(width, height);
+    let rasterId: string;
+    try {
+      const meta = await uploadRaster(width, height, buf.bytes);
+      rasterId = meta.raster_id;
+    } catch (e) {
+      this.error = (e as Error).message;
+      return null;
+    }
+    const layer = makeLayer(
+      nextLayerName(this.edits.masks),
+      this.edits.masks.length,
+      defaultBrush(rasterId)
+    );
+    this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
+    this.activeLayerId = layer.id;
+    const compId = layer.components[0]?.id ?? null;
+    this.activeMaskComponentId = compId;
+    if (compId) this.brushBuffers = { ...this.brushBuffers, [compId]: buf };
+    await this.onCommit();
+    return layer.id;
+  };
+
+  addBrushComponent = async (layerId: string): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, layerId);
+    if (cap.componentsFull || cap.totalFull) return null;
+    const { width, height } = this.brushDims();
+    const buf = blankBuffer(width, height);
+    let rasterId: string;
+    try {
+      const meta = await uploadRaster(width, height, buf.bytes);
+      rasterId = meta.raster_id;
+    } catch (e) {
+      this.error = (e as Error).message;
+      return null;
+    }
+    const id = await this.addMaskComponent(layerId, defaultBrush(rasterId));
+    if (id) this.brushBuffers = { ...this.brushBuffers, [id]: buf };
+    return id;
+  };
+
+  commitBrushStroke = async (layerId: string, componentId: string): Promise<void> => {
+    const buf = this.brushBuffers[componentId];
+    if (!buf) return;
+    try {
+      const meta = await uploadRaster(buf.width, buf.height, buf.bytes);
+      const layer = this.edits.masks.find((l) => l.id === layerId);
+      const comp = layer?.components.find((c) => c.id === componentId);
+      if (!comp || comp.kind.kind !== 'brush') return;
+      this.updateMaskComponentKind(
+        layerId,
+        componentId,
+        { kind: 'brush', raster_id: meta.raster_id },
+        false
+      );
+      await this.onCommit();
+    } catch (e) {
+      this.error = (e as Error).message;
     }
   };
 

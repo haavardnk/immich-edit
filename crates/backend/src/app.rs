@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::routing::{get, post, put};
 use tower::ServiceBuilder;
@@ -80,7 +81,8 @@ pub fn router(state: AppState) -> Router {
         ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            .layer(RequestBodyLimitLayer::new(16 * 1024 * 1024))
+            .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
+            .layer(RequestBodyLimitLayer::new(128 * 1024 * 1024))
             .layer(TimeoutLayer::with_status_code(
                 StatusCode::REQUEST_TIMEOUT,
                 Duration::from_secs(60),

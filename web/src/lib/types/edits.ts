@@ -180,6 +180,81 @@ export function isFullCrop(c: CropRect | null): boolean {
   );
 }
 
+export const N_MAX_MASK_LAYERS = 8;
+export const N_MAX_COMPONENTS_PER_LAYER = 8;
+export const N_MAX_TOTAL_COMPONENTS = 32;
+export const N_MAX_RASTER_SLOTS = 16;
+
+export type MaskComponentMode = 'add' | 'subtract' | 'intersect';
+export type MaskSource = 'manual' | 'generated';
+
+export interface Vec2f {
+  x: number;
+  y: number;
+}
+
+export type MaskComponentKind =
+  | { kind: 'linear'; p0: Vec2f; p1: Vec2f; feather: number }
+  | { kind: 'radial'; center: Vec2f; radius_xy: Vec2f; feather: number }
+  | { kind: 'brush'; raster_id: string };
+
+export interface MaskComponent {
+  id: string;
+  enabled: boolean;
+  mode: MaskComponentMode;
+  opacity: number;
+  invert: boolean;
+  kind: MaskComponentKind;
+  source: MaskSource;
+}
+
+export type MaskedEditKey =
+  | 'exposure_ev'
+  | 'contrast'
+  | 'saturation'
+  | 'vibrance'
+  | 'wb_temp'
+  | 'wb_tint'
+  | 'highlights'
+  | 'shadows'
+  | 'whites'
+  | 'blacks';
+
+export const MASKED_EDIT_KEYS: readonly MaskedEditKey[] = [
+  'exposure_ev',
+  'contrast',
+  'saturation',
+  'vibrance',
+  'wb_temp',
+  'wb_tint',
+  'highlights',
+  'shadows',
+  'whites',
+  'blacks'
+];
+
+export type MaskedEdits = Partial<Record<MaskedEditKey, number>>;
+
+export interface MaskLayer {
+  id: string;
+  name: string;
+  enabled: boolean;
+  color: string;
+  amount: number;
+  components: MaskComponent[];
+  edits: MaskedEdits;
+}
+
+export function maskedEditsIsZero(m: MaskedEdits): boolean {
+  return MASKED_EDIT_KEYS.every((k) => m[k] === undefined || m[k] === 0);
+}
+
+export function maskLayerIsEffective(l: MaskLayer): boolean {
+  if (!l.enabled || Math.abs(l.amount) < 1e-6) return false;
+  const hasComp = l.components.some((c) => c.enabled && Math.abs(c.opacity) > 1e-6);
+  return hasComp && !maskedEditsIsZero(l.edits);
+}
+
 export interface Edits {
   basic: BasicEdits;
   tone: ToneEdits;
@@ -187,6 +262,7 @@ export interface Edits {
   detail: DetailEdits;
   effects: EffectsEdits;
   geometry: GeometryEdits;
+  masks: MaskLayer[];
 }
 
 export interface EditManifest {
@@ -257,7 +333,8 @@ export function neutralEdits(): Edits {
       flip_v: false,
       crop: null,
       aspect: { kind: 'original' }
-    }
+    },
+    masks: []
   };
 }
 
@@ -434,6 +511,9 @@ export function editsToManifest(e: Edits): EditManifest {
     if (e.geometry.crop && cropActive) obj.crop = e.geometry.crop;
     ops.crop_rotate = obj;
   }
+  if (e.masks.length > 0) {
+    ops.masks = { layers: e.masks };
+  }
   return { schema_version: 3, ops };
 }
 
@@ -566,5 +646,91 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (cr?.angle !== undefined) edits.geometry.rotate_angle = cr.angle;
   if (cr?.crop) edits.geometry.crop = cr.crop;
   if (cr?.aspect) edits.geometry.aspect = cr.aspect;
+  const masks = ops.masks as { layers?: unknown[] } | undefined;
+  if (masks?.layers) {
+    edits.masks = masks.layers
+      .map((raw) => parseMaskLayer(raw))
+      .filter((l): l is MaskLayer => l !== null);
+  }
   return edits;
+}
+
+function parseMaskLayer(raw: unknown): MaskLayer | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string') return null;
+  const componentsRaw = Array.isArray(r.components) ? r.components : [];
+  const components: MaskComponent[] = [];
+  for (const c of componentsRaw) {
+    const parsed = parseMaskComponent(c);
+    if (parsed) components.push(parsed);
+    else return null;
+  }
+  const edits: MaskedEdits = {};
+  const editsRaw = (r.edits ?? {}) as Record<string, unknown>;
+  for (const k of MASKED_EDIT_KEYS) {
+    const v = editsRaw[k];
+    if (typeof v === 'number') edits[k] = v;
+  }
+  return {
+    id: r.id,
+    name: typeof r.name === 'string' ? r.name : '',
+    enabled: r.enabled !== false,
+    color: typeof r.color === 'string' ? r.color : '#ff3b30',
+    amount: typeof r.amount === 'number' ? r.amount : 1,
+    components,
+    edits
+  };
+}
+
+function parseMaskComponent(raw: unknown): MaskComponent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string') return null;
+  const kind = parseMaskKind(r.kind);
+  if (!kind) return null;
+  const mode = r.mode === 'subtract' || r.mode === 'intersect' ? r.mode : 'add';
+  return {
+    id: r.id,
+    enabled: r.enabled !== false,
+    mode,
+    opacity: typeof r.opacity === 'number' ? r.opacity : 1,
+    invert: r.invert === true,
+    kind,
+    source: r.source === 'generated' ? 'generated' : 'manual'
+  };
+}
+
+function parseVec2f(raw: unknown): Vec2f | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.x !== 'number' || typeof r.y !== 'number') return null;
+  return { x: r.x, y: r.y };
+}
+
+function parseMaskKind(raw: unknown): MaskComponentKind | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (r.kind === 'linear') {
+    const p0 = parseVec2f(r.p0);
+    const p1 = parseVec2f(r.p1);
+    if (!p0 || !p1) return null;
+    return { kind: 'linear', p0, p1, feather: typeof r.feather === 'number' ? r.feather : 0 };
+  }
+  if (r.kind === 'radial') {
+    const center = parseVec2f(r.center);
+    const radius_xy = parseVec2f(r.radius_xy);
+    if (!center || !radius_xy) return null;
+    return {
+      kind: 'radial',
+      center,
+      radius_xy,
+      feather: typeof r.feather === 'number' ? r.feather : 0
+    };
+  }
+  if (r.kind === 'brush') {
+    if (typeof r.raster_id !== 'string') return null;
+    return { kind: 'brush', raster_id: r.raster_id };
+  }
+  return null;
 }
