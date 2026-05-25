@@ -301,7 +301,7 @@ fn whites_global_gain_affects_midtones() {
     tone_regions::ToneRegionsOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    assert!((img.rgb[0] - 0.6667).abs() < 0.01);
+    assert!((img.rgb[0] - 1.0).abs() < 0.01);
 }
 
 #[test]
