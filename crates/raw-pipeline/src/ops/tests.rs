@@ -144,6 +144,73 @@ fn vibrance_boosts_low_sat_more_than_high() {
 }
 
 #[test]
+fn vibrance_skin_protected_vs_non_skin() {
+    let mut skin = solid_image(1, 1, [0.7, 0.55, 0.45]);
+    let mut non_skin = solid_image(1, 1, [0.7, 0.45, 0.55]);
+    let edits = Edits {
+        basic: BasicEdits {
+            vibrance: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let skin_before = skin.rgb[0] - skin.rgb[2];
+    let non_before = non_skin.rgb[0] - non_skin.rgb[2];
+    vibrance::VibranceOp
+        .apply_cpu(&mut skin, &ctx(), &edits)
+        .unwrap();
+    vibrance::VibranceOp
+        .apply_cpu(&mut non_skin, &ctx(), &edits)
+        .unwrap();
+    let skin_gain = (skin.rgb[0] - skin.rgb[2]).abs() / skin_before.abs();
+    let non_gain = (non_skin.rgb[0] - non_skin.rgb[2]).abs() / non_before.abs();
+    if skin_gain >= non_gain {
+        panic!("skin not damped vs non-skin: skin_gain={skin_gain} non_gain={non_gain}");
+    }
+}
+
+#[test]
+fn vibrance_gray_stays_gray() {
+    let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
+    let edits = Edits {
+        basic: BasicEdits {
+            vibrance: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    vibrance::VibranceOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    for v in &img.rgb {
+        if (v - 0.5).abs() > 1e-5 {
+            panic!("gray shifted: {v}");
+        }
+    }
+}
+
+#[test]
+fn vibrance_high_sat_barely_moves_on_positive() {
+    let mut img = solid_image(1, 1, [0.95, 0.05, 0.05]);
+    let before_spread = img.rgb[0] - img.rgb[2];
+    let edits = Edits {
+        basic: BasicEdits {
+            vibrance: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    vibrance::VibranceOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let after_spread = img.rgb[0] - img.rgb[2];
+    let delta = (after_spread - before_spread).abs();
+    if delta > 0.05 {
+        panic!("high-sat pixel moved too much: delta={delta}");
+    }
+}
+
+#[test]
 fn highlights_lift_bright_pixels() {
     let mut img = solid_image(1, 1, [0.8, 0.8, 0.8]);
     let edits = Edits {

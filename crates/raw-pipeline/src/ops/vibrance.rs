@@ -7,6 +7,53 @@ use rayon::prelude::*;
 
 pub struct VibranceOp;
 
+#[inline(always)]
+fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+#[inline(always)]
+fn hue_dist(a: f32, b: f32) -> f32 {
+    let d = (a - b).rem_euclid(360.0);
+    d.min(360.0 - d)
+}
+
+#[inline(always)]
+pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
+    let mx = r.max(g).max(b);
+    let mn = r.min(g).min(b);
+    let d = mx - mn;
+    let chroma = d.clamp(0.0, 1.0);
+    let hue = if d < 1e-6 {
+        0.0
+    } else if mx == r {
+        ((g - b) / d + if g < b { 6.0 } else { 0.0 }) * 60.0
+    } else if mx == g {
+        ((b - r) / d + 2.0) * 60.0
+    } else {
+        ((r - g) / d + 4.0) * 60.0
+    };
+    let effective = if amount > 0.0 {
+        let base = amount * 3.0 * (1.0 - smoothstep(0.4, 0.9, chroma));
+        let mut skin = 1.0 - smoothstep(10.0, 35.0, hue_dist(hue, 25.0));
+        skin *= smoothstep(0.05, 0.20, chroma);
+        base * (1.0 + (0.6 - 1.0) * skin)
+    } else {
+        amount * (1.0 - smoothstep(0.2, 0.8, chroma))
+    };
+    if effective.abs() < 1e-5 {
+        return (r, g, b);
+    }
+    let factor = 1.0 + effective;
+    let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    (
+        luma + (r - luma) * factor,
+        luma + (g - luma) * factor,
+        luma + (b - luma) * factor,
+    )
+}
+
 impl EditOperator for VibranceOp {
     fn id(&self) -> &'static str {
         "vibrance"
@@ -28,17 +75,10 @@ impl EditOperator for VibranceOp {
     ) -> PipelineResult<()> {
         let amount = edits.basic.vibrance as f32 / 100.0;
         image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let r = px[0];
-            let g = px[1];
-            let b = px[2];
-            let max = r.max(g).max(b);
-            let min = r.min(g).min(b);
-            let sat = (max - min).clamp(0.0, 1.0);
-            let factor = 1.0 + amount * (1.0 - sat);
-            let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            px[0] = luma + (r - luma) * factor;
-            px[1] = luma + (g - luma) * factor;
-            px[2] = luma + (b - luma) * factor;
+            let (nr, ng, nb) = apply_vibrance_rgb(px[0], px[1], px[2], amount);
+            px[0] = nr;
+            px[1] = ng;
+            px[2] = nb;
         });
         Ok(())
     }
@@ -49,8 +89,8 @@ impl EditOperator for VibranceOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "vibrance",
-            "fn vibrance_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let mx = max(max(c.r, c.g), c.b); let mn = min(min(c.r, c.g), c.b); let sat = clamp(mx - mn, 0.0, 1.0); let f = 1.0 + p.x * (1.0 - sat); let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
-            "lin = vibrance_apply(lin, p.vibrance);",
+            VIBRANCE_WGSL,
+            "lin = vibrance_apply(lin, p.vibrance.x);",
         ))
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
@@ -68,3 +108,43 @@ impl EditOperator for VibranceOp {
         }
     }
 }
+
+const VIBRANCE_WGSL: &str = r#"
+fn vib_hue_dist(a: f32, b: f32) -> f32 {
+    let raw = a - b;
+    let wrapped = raw - floor(raw / 360.0) * 360.0;
+    return min(wrapped, 360.0 - wrapped);
+}
+fn vibrance_apply(c: vec3<f32>, amount: f32) -> vec3<f32> {
+    if (amount == 0.0) { return c; }
+    let mx = max(max(c.r, c.g), c.b);
+    let mn = min(min(c.r, c.g), c.b);
+    let d = mx - mn;
+    let chroma = clamp(d, 0.0, 1.0);
+    var hue: f32 = 0.0;
+    if (d >= 1e-6) {
+        if (mx == c.r) {
+            var k = (c.g - c.b) / d;
+            if (c.g < c.b) { k = k + 6.0; }
+            hue = k * 60.0;
+        } else if (mx == c.g) {
+            hue = ((c.b - c.r) / d + 2.0) * 60.0;
+        } else {
+            hue = ((c.r - c.g) / d + 4.0) * 60.0;
+        }
+    }
+    var effective: f32;
+    if (amount > 0.0) {
+        let base = amount * 3.0 * (1.0 - smoothstep(0.4, 0.9, chroma));
+        var skin = 1.0 - smoothstep(10.0, 35.0, vib_hue_dist(hue, 25.0));
+        skin = skin * smoothstep(0.05, 0.20, chroma);
+        effective = base * (1.0 + (0.6 - 1.0) * skin);
+    } else {
+        effective = amount * (1.0 - smoothstep(0.2, 0.8, chroma));
+    }
+    if (abs(effective) < 1e-5) { return c; }
+    let factor = 1.0 + effective;
+    let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    return vec3<f32>(luma) + (c - vec3<f32>(luma)) * factor;
+}
+"#;

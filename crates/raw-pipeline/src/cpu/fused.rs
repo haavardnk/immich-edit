@@ -113,14 +113,10 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *b = luma + (*b - luma) * *factor;
         }
         CpuFusedOp::Vibrance { amount } => {
-            let mx = r.max(*g).max(*b);
-            let mn = r.min(*g).min(*b);
-            let sat = (mx - mn).clamp(0.0, 1.0);
-            let factor = 1.0 + *amount * (1.0 - sat);
-            let luma = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
-            *r = luma + (*r - luma) * factor;
-            *g = luma + (*g - luma) * factor;
-            *b = luma + (*b - luma) * factor;
+            let (nr, ng, nb) = crate::ops::vibrance::apply_vibrance_rgb(*r, *g, *b, *amount);
+            *r = nr;
+            *g = ng;
+            *b = nb;
         }
         CpuFusedOp::ToneRegions {
             hl,
