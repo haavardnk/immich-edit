@@ -157,6 +157,7 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
                 return;
             }
             let w = band_weights(h);
+            let gate = smoothstep(0.05, 0.20, s);
             let mut hue_delta = 0.0f32;
             let mut sat_delta = 0.0f32;
             let mut lum_delta = 0.0f32;
@@ -165,6 +166,9 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
                 sat_delta += sat_gains[i] * w[i];
                 lum_delta += lum_gains[i] * w[i];
             }
+            hue_delta *= gate;
+            sat_delta *= gate;
+            lum_delta *= gate;
             let new_h = h + hue_delta;
             let new_s = (s * (1.0 + sat_delta)).clamp(0.0, 1.0);
             let new_l = (l + lum_delta * 0.3).clamp(0.0, 1.0);
@@ -317,6 +321,12 @@ fn band_weights(h_deg: f32) -> [f32; HSL_BANDS] {
     for i in 0..HSL_BANDS {
         let d = hue_dist(h_deg, BAND_CENTERS_DEG[i]);
         w[i] = (-(d * d) / (2.0 * sigma2)).exp();
+    }
+    let sum: f32 = w.iter().sum();
+    if sum > 1.0 {
+        for v in &mut w {
+            *v /= sum;
+        }
     }
     w
 }

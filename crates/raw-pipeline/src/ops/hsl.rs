@@ -83,7 +83,18 @@ fn band_weights(h_deg: f32) -> [f32; HSL_BANDS] {
         let d = hue_dist(h_deg, BAND_CENTERS_DEG[i]);
         w[i] = (-(d * d) / (2.0 * sigma2)).exp();
     }
+    let sum: f32 = w.iter().sum();
+    if sum > 1.0 {
+        for v in &mut w {
+            *v /= sum;
+        }
+    }
     w
+}
+
+fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 impl EditOperator for HslOp {
@@ -120,6 +131,7 @@ impl EditOperator for HslOp {
                 return;
             }
             let w = band_weights(h);
+            let gate = smoothstep(0.05, 0.20, s);
             let mut hue_delta = 0.0f32;
             let mut sat_delta = 0.0f32;
             let mut lum_delta = 0.0f32;
@@ -128,6 +140,9 @@ impl EditOperator for HslOp {
                 sat_delta += sat_gains[i] * w[i];
                 lum_delta += lum_gains[i] * w[i];
             }
+            hue_delta *= gate;
+            sat_delta *= gate;
+            lum_delta *= gate;
             let new_h = h + hue_delta;
             let new_s = (s * (1.0 + sat_delta)).clamp(0.0, 1.0);
             let new_l = (l + lum_delta * 0.3).clamp(0.0, 1.0);
@@ -257,16 +272,30 @@ fn hsl_apply(c_in: vec3<f32>) -> vec3<f32> {
     if (hsl.y < 1e-4) { return c_in; }
     var centers: array<f32, 8> = array<f32, 8>(0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0);
     let sigma2 = 625.0;
+    var w: array<f32, 8>;
+    var w_sum: f32 = 0.0;
+    for (var i: i32 = 0; i < 8; i = i + 1) {
+        let d = hsl_hue_dist(hsl.x, centers[i]);
+        w[i] = exp(-(d * d) / (2.0 * sigma2));
+        w_sum = w_sum + w[i];
+    }
+    if (w_sum > 1.0) {
+        for (var i: i32 = 0; i < 8; i = i + 1) {
+            w[i] = w[i] / w_sum;
+        }
+    }
+    let gate = smoothstep(0.05, 0.20, hsl.y);
     var hue_d: f32 = 0.0;
     var sat_d: f32 = 0.0;
     var lum_d: f32 = 0.0;
     for (var i: i32 = 0; i < 8; i = i + 1) {
-        let d = hsl_hue_dist(hsl.x, centers[i]);
-        let w = exp(-(d * d) / (2.0 * sigma2));
-        hue_d = hue_d + (p.hsl[i].x / 100.0 * 30.0) * w;
-        sat_d = sat_d + (p.hsl[i].y / 100.0) * w;
-        lum_d = lum_d + (p.hsl[i].z / 100.0) * w;
+        hue_d = hue_d + (p.hsl[i].x / 100.0 * 30.0) * w[i];
+        sat_d = sat_d + (p.hsl[i].y / 100.0) * w[i];
+        lum_d = lum_d + (p.hsl[i].z / 100.0) * w[i];
     }
+    hue_d = hue_d * gate;
+    sat_d = sat_d * gate;
+    lum_d = lum_d * gate;
     let new_h = hsl.x + hue_d;
     let new_s = clamp(hsl.y * (1.0 + sat_d), 0.0, 1.0);
     let new_l = clamp(hsl.z + lum_d * 0.3, 0.0, 1.0);

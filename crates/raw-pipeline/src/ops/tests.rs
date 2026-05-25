@@ -340,8 +340,72 @@ fn hsl_red_saturation_only_affects_red() {
     hsl::HslOp.apply_cpu(&mut blue, &ctx(), &edits).unwrap();
     let red_spread = (red.rgb[0] - red.rgb[1]).abs();
     let blue_spread = (blue.rgb[2] - blue.rgb[1]).abs();
-    assert!(red_spread < 0.1);
+    assert!(red_spread < 0.3);
     assert!(blue_spread > 0.5);
+}
+
+#[test]
+fn hsl_gray_pixel_barely_shifts_under_max_bands() {
+    let mut gray = solid_image(1, 1, [0.5, 0.5, 0.5]);
+    let bands = [HslBand {
+        hue: 100.0,
+        sat: 100.0,
+        lum: 100.0,
+    }; 8];
+    let edits = Edits {
+        color: ColorEdits {
+            hsl: HslEdits { bands },
+            color_grade: Default::default(),
+        },
+        ..Default::default()
+    };
+    hsl::HslOp.apply_cpu(&mut gray, &ctx(), &edits).unwrap();
+    for v in &gray.rgb {
+        if (v - 0.5).abs() > 1e-3 {
+            panic!("gray pixel shifted: {v}");
+        }
+    }
+}
+
+#[test]
+fn hsl_band_overlap_does_not_stack() {
+    let mut p1 = solid_image(1, 1, [0.8, 0.4, 0.2]);
+    let mut p2 = solid_image(1, 1, [0.8, 0.4, 0.2]);
+    let mut single = [HslBand::default(); 8];
+    single[1] = HslBand {
+        sat: 100.0,
+        ..Default::default()
+    };
+    let mut both = [HslBand::default(); 8];
+    both[1] = HslBand {
+        sat: 100.0,
+        ..Default::default()
+    };
+    both[2] = HslBand {
+        sat: 100.0,
+        ..Default::default()
+    };
+    let e1 = Edits {
+        color: ColorEdits {
+            hsl: HslEdits { bands: single },
+            color_grade: Default::default(),
+        },
+        ..Default::default()
+    };
+    let e2 = Edits {
+        color: ColorEdits {
+            hsl: HslEdits { bands: both },
+            color_grade: Default::default(),
+        },
+        ..Default::default()
+    };
+    hsl::HslOp.apply_cpu(&mut p1, &ctx(), &e1).unwrap();
+    hsl::HslOp.apply_cpu(&mut p2, &ctx(), &e2).unwrap();
+    let sat_one = (p1.rgb[0] - p1.rgb[2]).abs();
+    let sat_both = (p2.rgb[0] - p2.rgb[2]).abs();
+    if sat_both > sat_one + 0.15 {
+        panic!("overlapping bands stacked: one={sat_one} both={sat_both}");
+    }
 }
 
 #[test]
