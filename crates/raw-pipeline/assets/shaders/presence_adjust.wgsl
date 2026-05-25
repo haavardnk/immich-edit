@@ -39,26 +39,28 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let pos = vec2<i32>(i32(gid.x), i32(gid.y));
     let rgb = textureLoad(base, pos, 0).rgb;
     let y0 = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
+    let y0c = max(y0, 1e-5);
 
     let fx = f32(gid.x) + 0.5;
     let fy = f32(gid.y) + 0.5;
 
-    var delta: f32 = 0.0;
+    var log_gain: f32 = 0.0;
     if (p.amounts.x != 0.0) {
-        let blurred = sampled_luma(p.mips.x, fx, fy);
-        delta = delta + p.amounts.x * (y0 - blurred);
+        let b = sampled_luma(p.mips.x, fx, fy);
+        log_gain = log_gain + p.amounts.x * log2(y0c / max(b, 1e-5));
     }
     if (p.amounts.y != 0.0) {
-        let blurred = sampled_luma(p.mips.y, fx, fy);
+        let b = sampled_luma(p.mips.y, fx, fy);
         let mt = 1.0 - abs(2.0 * y0 - 1.0);
-        delta = delta + p.amounts.y * mt * (y0 - blurred);
+        log_gain = log_gain + p.amounts.y * mt * log2(y0c / max(b, 1e-5));
     }
+    var new_y = y0 * exp2(log_gain);
     if (p.amounts.z != 0.0) {
-        let blurred = sampled_luma(p.mips.z, fx, fy);
-        delta = delta + p.amounts.z * (y0 - blurred);
+        let b = sampled_luma(p.mips.z, fx, fy);
+        new_y = new_y + p.amounts.z * (y0 - b);
     }
 
-    let goal = max(y0 + delta, 0.0);
+    let goal = max(new_y, 0.0);
     var scale: f32 = 1.0;
     if (y0 > 1e-5) { scale = goal / y0; }
     let outc = rgb * scale;

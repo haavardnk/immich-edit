@@ -29,21 +29,23 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             let fx = x as f32 + 0.5;
             let fy = y as f32 + 0.5;
             let y0 = 0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2];
-            let mut delta = 0.0f32;
+            let y0c = y0.max(1e-5);
+            let mut log_gain = 0.0f32;
             if amounts.texture != 0.0 {
                 let b = pyramid.sample(mips.texture, fx, fy);
-                delta += amounts.texture * (y0 - b);
+                log_gain += amounts.texture * (y0c / b.max(1e-5)).log2();
             }
             if amounts.clarity != 0.0 {
                 let b = pyramid.sample(mips.clarity, fx, fy);
                 let mt = 1.0 - (2.0 * y0 - 1.0).abs();
-                delta += amounts.clarity * mt * (y0 - b);
+                log_gain += amounts.clarity * mt * (y0c / b.max(1e-5)).log2();
             }
+            let mut new_y = y0 * log_gain.exp2();
             if amounts.dehaze != 0.0 {
                 let b = pyramid.sample(mips.dehaze, fx, fy);
-                delta += amounts.dehaze * (y0 - b);
+                new_y += amounts.dehaze * (y0 - b);
             }
-            let goal = (y0 + delta).max(0.0);
+            let goal = new_y.max(0.0);
             if y0 <= 1e-5 {
                 px[0] = goal;
                 px[1] = goal;

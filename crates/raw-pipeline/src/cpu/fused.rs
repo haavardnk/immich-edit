@@ -192,18 +192,20 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             dehaze_blur,
         } => {
             let y0 = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
-            let mut delta = 0.0f32;
+            let y0c = y0.max(1e-5);
+            let mut log_gain = 0.0f32;
             if let Some(buf) = texture_blur {
-                delta += *texture * (y0 - buf[i]);
+                log_gain += *texture * (y0c / buf[i].max(1e-5)).log2();
             }
             if let Some(buf) = clarity_blur {
                 let mt = 1.0 - (2.0 * y0 - 1.0).abs();
-                delta += *clarity * mt * (y0 - buf[i]);
+                log_gain += *clarity * mt * (y0c / buf[i].max(1e-5)).log2();
             }
+            let mut new_y = y0 * log_gain.exp2();
             if let Some(buf) = dehaze_blur {
-                delta += *dehaze * (y0 - buf[i]);
+                new_y += *dehaze * (y0 - buf[i]);
             }
-            let goal = (y0 + delta).max(0.0);
+            let goal = new_y.max(0.0);
             if y0 <= 1e-5 {
                 *r = goal;
                 *g = goal;
