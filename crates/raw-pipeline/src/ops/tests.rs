@@ -169,6 +169,38 @@ fn whites_lift_very_bright_pixels() {
 }
 
 #[test]
+fn whites_global_gain_affects_midtones() {
+    let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
+    let edits = Edits {
+        tone: ToneEdits {
+            whites: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!((img.rgb[0] - 0.6667).abs() < 0.01);
+}
+
+#[test]
+fn whites_negative_pulls_brights() {
+    let mut img = solid_image(1, 1, [0.95, 0.95, 0.95]);
+    let edits = Edits {
+        tone: ToneEdits {
+            whites: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    tone_regions::ToneRegionsOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    assert!(img.rgb[0] < 0.95);
+}
+
+#[test]
 fn hsl_red_saturation_only_affects_red() {
     let mut red = solid_image(1, 1, [0.8, 0.2, 0.2]);
     let mut blue = solid_image(1, 1, [0.2, 0.2, 0.8]);

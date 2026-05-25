@@ -28,7 +28,7 @@ pub enum CpuFusedOp {
         hl: f32,
         sh: f32,
         bk: f32,
-        wh: f32,
+        wh_gain: f32,
     },
     Curves {
         luts: Box<CurveLuts>,
@@ -121,10 +121,15 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *g = luma + (*g - luma) * factor;
             *b = luma + (*b - luma) * factor;
         }
-        CpuFusedOp::ToneRegions { hl, sh, bk, wh } => {
-            *r = tone_zone(*r, *hl, *sh, *bk, *wh);
-            *g = tone_zone(*g, *hl, *sh, *bk, *wh);
-            *b = tone_zone(*b, *hl, *sh, *bk, *wh);
+        CpuFusedOp::ToneRegions {
+            hl,
+            sh,
+            bk,
+            wh_gain,
+        } => {
+            *r = tone_zone(*r * *wh_gain, *hl, *sh, *bk);
+            *g = tone_zone(*g * *wh_gain, *hl, *sh, *bk);
+            *b = tone_zone(*b * *wh_gain, *hl, *sh, *bk);
         }
         CpuFusedOp::Curves { luts } => {
             apply_curves_pixel(luts.as_ref(), r, g, b);
@@ -318,17 +323,13 @@ fn cg_weights(y: f32, balance: f32, blend: f32) -> (f32, f32, f32) {
 }
 
 #[inline(always)]
-fn tone_zone(x: f32, hl: f32, sh: f32, bk: f32, wh: f32) -> f32 {
+fn tone_zone(x: f32, hl: f32, sh: f32, bk: f32) -> f32 {
     let xc = x.clamp(0.0, 2.0);
     let xm = xc.min(1.0);
     let w_bk = ((0.2 - xm) / 0.2).clamp(0.0, 1.0);
     let w_sh = (1.0 - (xm - 0.25).abs() / 0.4).clamp(0.0, 1.0);
     let w_hl = (1.0 - (xm - 0.75).abs() / 0.4).clamp(0.0, 1.0);
-    let w_wh = ((xm - 0.8) / 0.2).clamp(0.0, 1.0);
-    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5
-        + sh * w_sh * xc * 0.5
-        + bk * w_bk * 0.2
-        + wh * w_wh * (1.0 - xc).max(-1.0) * 0.5;
+    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5 + sh * w_sh * xc * 0.5 + bk * w_bk * 0.5;
     xc + delta
 }
 

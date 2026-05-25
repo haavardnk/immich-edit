@@ -7,21 +7,21 @@ use rayon::prelude::*;
 
 pub struct ToneRegionsOp;
 
-fn weights(x: f32) -> [f32; 4] {
+fn weights(x: f32) -> [f32; 3] {
     let bk = ((0.2 - x) / 0.2).clamp(0.0, 1.0);
     let sh = (1.0 - (x - 0.25).abs() / 0.4).clamp(0.0, 1.0);
     let hl = (1.0 - (x - 0.75).abs() / 0.4).clamp(0.0, 1.0);
-    let wh = ((x - 0.8) / 0.2).clamp(0.0, 1.0);
-    [hl, sh, bk, wh]
+    [hl, sh, bk]
 }
 
-fn apply_zone(x: f32, hl: f32, sh: f32, bk: f32, wh: f32) -> f32 {
+pub(crate) fn whites_gain(wh: f32) -> f32 {
+    1.0 / (1.0 - wh.clamp(-0.99, 0.99) * 0.25)
+}
+
+fn apply_zone(x: f32, hl: f32, sh: f32, bk: f32) -> f32 {
     let xc = x.clamp(0.0, 2.0);
-    let [w_hl, w_sh, w_bk, w_wh] = weights(xc.min(1.0));
-    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5
-        + sh * w_sh * xc * 0.5
-        + bk * w_bk * 0.2
-        + wh * w_wh * (1.0 - xc).max(-1.0) * 0.5;
+    let [w_hl, w_sh, w_bk] = weights(xc.min(1.0));
+    let delta = hl * w_hl * (1.0 - xc).max(-1.0) * 0.5 + sh * w_sh * xc * 0.5 + bk * w_bk * 0.5;
     xc + delta
 }
 
@@ -51,10 +51,11 @@ impl EditOperator for ToneRegionsOp {
         let sh = edits.tone.shadows as f32 / 100.0;
         let bk = edits.tone.blacks as f32 / 100.0;
         let wh = edits.tone.whites as f32 / 100.0;
+        let gain = whites_gain(wh);
         image
             .rgb
             .par_iter_mut()
-            .for_each(|v| *v = apply_zone(*v, hl, sh, bk, wh));
+            .for_each(|v| *v = apply_zone(*v * gain, hl, sh, bk));
         Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
@@ -62,13 +63,13 @@ impl EditOperator for ToneRegionsOp {
             hl: edits.tone.highlights as f32 / 100.0,
             sh: edits.tone.shadows as f32 / 100.0,
             bk: edits.tone.blacks as f32 / 100.0,
-            wh: edits.tone.whites as f32 / 100.0,
+            wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
         })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "tone_regions",
-            "fn tone_regions_weights(x: f32) -> vec4<f32> { let bk = clamp((0.2 - x) / 0.2, 0.0, 1.0); let sh = clamp(1.0 - abs(x - 0.25) / 0.4, 0.0, 1.0); let hl = clamp(1.0 - abs(x - 0.75) / 0.4, 0.0, 1.0); let wh = clamp((x - 0.8) / 0.2, 0.0, 1.0); return vec4<f32>(hl, sh, bk, wh); } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let xc = clamp(c[i], 0.0, 2.0); let w = tone_regions_weights(min(xc, 1.0)); let delta = p.x * w.x * max(1.0 - xc, -1.0) * 0.5 + p.y * w.y * xc * 0.5 + p.z * w.z * 0.2 + p.w * w.w * max(1.0 - xc, -1.0) * 0.5; out_v[i] = xc + delta; } return out_v; }",
+            "fn tone_regions_weights(x: f32) -> vec3<f32> { let bk = clamp((0.2 - x) / 0.2, 0.0, 1.0); let sh = clamp(1.0 - abs(x - 0.25) / 0.4, 0.0, 1.0); let hl = clamp(1.0 - abs(x - 0.75) / 0.4, 0.0, 1.0); return vec3<f32>(hl, sh, bk); } fn tone_regions_whites_gain(wh: f32) -> f32 { return 1.0 / (1.0 - clamp(wh, -0.99, 0.99) * 0.25); } fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; } let gain = tone_regions_whites_gain(p.w); var lifted = c * gain; var out_v = vec3<f32>(0.0); for (var i = 0u; i < 3u; i = i + 1u) { let xc = clamp(lifted[i], 0.0, 2.0); let w = tone_regions_weights(min(xc, 1.0)); let delta = p.x * w.x * max(1.0 - xc, -1.0) * 0.5 + p.y * w.y * xc * 0.5 + p.z * w.z * 0.5; out_v[i] = xc + delta; } return out_v; }",
             "lin = tone_regions_apply(lin, p.tone_regions);",
         ))
     }

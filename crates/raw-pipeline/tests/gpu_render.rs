@@ -242,6 +242,17 @@ fn gpu_matches_cpu_within_tolerance() {
             },
         ),
         (
+            "whites+50",
+            1.5,
+            Edits {
+                tone: raw_pipeline::edits::ToneEdits {
+                    whites: 50.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
             "rotate10+crop",
             2.5,
             Edits {
