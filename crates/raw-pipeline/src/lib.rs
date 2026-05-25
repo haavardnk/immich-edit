@@ -11,6 +11,7 @@ pub mod frame;
 pub mod geom;
 pub mod gpu;
 pub mod histogram;
+pub mod mask_raster;
 pub mod ops;
 pub mod presence;
 
@@ -42,3 +43,4 @@ pub use frame::{
 };
 pub use gpu::GpuRenderer;
 pub use gpu::context::GpuContext;
+pub use mask_raster::{MaskRaster, RasterMap, empty_rasters};

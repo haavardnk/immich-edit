@@ -403,7 +403,7 @@ impl GpuRenderer {
             wb_coeffs: frame.wb_coeffs,
             cam_to_srgb,
             is_raw: frame.is_raw,
-            preview_mode: opts.preview_mode,
+            preview_mode: opts.preview_mode.clone(),
         };
         let built = &pass.built;
         let registry = &self.passes.registry;
@@ -510,6 +510,316 @@ impl GpuRenderer {
             cpass.dispatch_workgroups(gx, gy, 1);
         }
 
+        let effective_layers: Vec<&crate::edits::MaskLayer> =
+            edits.masks.iter().filter(|l| l.is_effective()).collect();
+        let has_masks = !effective_layers.is_empty();
+        let mut accum_in_alt = false;
+        let mut _retained_bufs: Vec<wgpu::Buffer> = Vec::new();
+        let mut _retained_binds: Vec<wgpu::BindGroup> = Vec::new();
+        if has_masks {
+            let scratch_linear_view = p
+                .mask_scratch_linear
+                .create_view(&TextureViewDescriptor::default());
+            let scratch_tone_view = p
+                .mask_scratch_tone
+                .create_view(&TextureViewDescriptor::default());
+            let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
+            let accum_alt_view = p
+                .mask_accum_alt
+                .create_view(&TextureViewDescriptor::default());
+            let linear_view2 = p
+                .linear_texture
+                .create_view(&TextureViewDescriptor::default());
+
+            let mut slot_map: std::collections::HashMap<String, u32> =
+                std::collections::HashMap::new();
+            for layer in &effective_layers {
+                for comp in &layer.components {
+                    if !comp.enabled {
+                        continue;
+                    }
+                    let crate::edits::MaskComponentKind::Brush { raster_id } = &comp.kind else {
+                        continue;
+                    };
+                    if slot_map.len() as u32 >= crate::gpu::passes::mask_weight::ATLAS_LAYERS {
+                        break;
+                    }
+                    if !slot_map.contains_key(raster_id) && opts.rasters.contains_key(raster_id) {
+                        let slot = slot_map.len() as u32;
+                        slot_map.insert(raster_id.clone(), slot);
+                    }
+                }
+            }
+            let atlas = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("mask-raster-atlas"),
+                size: Extent3d {
+                    width: crate::gpu::passes::mask_weight::ATLAS_DIM,
+                    height: crate::gpu::passes::mask_weight::ATLAS_DIM,
+                    depth_or_array_layers: crate::gpu::passes::mask_weight::ATLAS_LAYERS,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::R8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
+            for (raster_id, slot) in &slot_map {
+                let Some(raster) = opts.rasters.get(raster_id) else {
+                    continue;
+                };
+                let bytes = crate::gpu::passes::mask_weight::resample_raster_to_atlas(raster);
+                self.ctx.queue.write_texture(
+                    wgpu::ImageCopyTexture {
+                        texture: &atlas,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x: 0,
+                            y: 0,
+                            z: *slot,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &bytes,
+                    wgpu::ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
+                        rows_per_image: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
+                    },
+                    Extent3d {
+                        width: crate::gpu::passes::mask_weight::ATLAS_DIM,
+                        height: crate::gpu::passes::mask_weight::ATLAS_DIM,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
+            let atlas_view = atlas.create_view(&wgpu::TextureViewDescriptor {
+                label: Some("mask-raster-atlas-view"),
+                dimension: Some(wgpu::TextureViewDimension::D2Array),
+                ..Default::default()
+            });
+            let atlas_sampler = crate::gpu::passes::mask_weight::make_atlas_sampler(&self.ctx);
+
+            for layer in &effective_layers {
+                let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
+                let mut eff_uniform = vec![0u8; built.uniform_size];
+                write_header(
+                    &mut eff_uniform,
+                    [sensor_w, sensor_h],
+                    [out_w, out_h],
+                    [crop.x, crop.y, crop.w, crop.h],
+                    [
+                        edits.geometry.rotate as u32,
+                        edits.geometry.flip_h as u32,
+                        edits.geometry.flip_v as u32,
+                        orient_packed,
+                    ],
+                    [lod, 0.0, 0.0, 0.0],
+                    [cos_a, sin_a, bw, bh],
+                    [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
+                );
+                let mut active_mask_eff: [u32; 4] = [0; 4];
+                for slot in &built.color_ops {
+                    let op = &registry.ops()[slot.op_index];
+                    if op.is_active(&eff) {
+                        let word = (slot.active_bit / 32) as usize;
+                        let shift = slot.active_bit % 32;
+                        active_mask_eff[word] |= 1u32 << shift;
+                    }
+                    let mut buf = vec![0.0f32; slot.vec4_count * 4];
+                    op.write_gpu_uniform(&eff, &ctx_op, &mut buf);
+                    let off = slot.uniform_offset;
+                    let bytes = slot.vec4_count * 16;
+                    eff_uniform[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
+                }
+                write_active_mask(&mut eff_uniform, active_mask_eff);
+                let eff_uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("process-uniform-layer"),
+                    contents: &eff_uniform,
+                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                });
+                let layer_bind = device.create_bind_group(&BindGroupDescriptor {
+                    label: Some("process-bg-layer"),
+                    layout: &pass.layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: eff_uniform_buf.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(&src_view),
+                        },
+                        BindGroupEntry {
+                            binding: 2,
+                            resource: BindingResource::Sampler(&sampler),
+                        },
+                        BindGroupEntry {
+                            binding: 3,
+                            resource: BindingResource::TextureView(&scratch_tone_view),
+                        },
+                        BindGroupEntry {
+                            binding: 4,
+                            resource: BindingResource::TextureView(&scratch_linear_view),
+                        },
+                    ],
+                });
+                {
+                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                        label: Some("process-layer"),
+                        timestamp_writes: None,
+                    });
+                    cp.set_pipeline(&pass.pipeline);
+                    cp.set_bind_group(0, &layer_bind, &[]);
+                    let gx = out_w.div_ceil(16);
+                    let gy = out_h.div_ceil(16);
+                    cp.dispatch_workgroups(gx, gy, 1);
+                }
+                _retained_bufs.push(eff_uniform_buf);
+                _retained_binds.push(layer_bind);
+
+                let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
+                let (comp_bytes, n_components) =
+                    crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
+                let mw_params = crate::gpu::passes::mask_weight::pack_params(
+                    out_w,
+                    out_h,
+                    n_components,
+                    eval.amount,
+                );
+                let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("mask-weight-uniform"),
+                    contents: &mw_params,
+                    usage: BufferUsages::UNIFORM,
+                });
+                let comp_buf_bytes = if comp_bytes.is_empty() {
+                    vec![0u8; crate::gpu::passes::mask_weight::COMPONENT_BYTES]
+                } else {
+                    comp_bytes
+                };
+                let mw_comp_buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("mask-weight-comps"),
+                    contents: &comp_buf_bytes,
+                    usage: BufferUsages::STORAGE,
+                });
+                let mw_bind = device.create_bind_group(&BindGroupDescriptor {
+                    label: Some("mask-weight-bg"),
+                    layout: &self.passes.mask_weight.layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: mw_params_buf.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: mw_comp_buf.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 2,
+                            resource: BindingResource::TextureView(&weight_view),
+                        },
+                        BindGroupEntry {
+                            binding: 3,
+                            resource: BindingResource::TextureView(&atlas_view),
+                        },
+                        BindGroupEntry {
+                            binding: 4,
+                            resource: BindingResource::Sampler(&atlas_sampler),
+                        },
+                    ],
+                });
+                {
+                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                        label: Some("mask-weight"),
+                        timestamp_writes: None,
+                    });
+                    cp.set_pipeline(&self.passes.mask_weight.pipeline);
+                    cp.set_bind_group(0, &mw_bind, &[]);
+                    let gx = out_w.div_ceil(16);
+                    let gy = out_h.div_ceil(16);
+                    cp.dispatch_workgroups(gx, gy, 1);
+                }
+                _retained_bufs.push(mw_params_buf);
+                _retained_bufs.push(mw_comp_buf);
+                _retained_binds.push(mw_bind);
+
+                let (curr_view, dst_view) = if accum_in_alt {
+                    (&accum_alt_view, &linear_view2)
+                } else {
+                    (&linear_view2, &accum_alt_view)
+                };
+                let bl_params = crate::gpu::passes::mask_blend::pack_params(out_w, out_h);
+                let bl_params_buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("mask-blend-uniform"),
+                    contents: &bl_params,
+                    usage: BufferUsages::UNIFORM,
+                });
+                let bl_bind = device.create_bind_group(&BindGroupDescriptor {
+                    label: Some("mask-blend-bg"),
+                    layout: &self.passes.mask_blend.layout,
+                    entries: &[
+                        BindGroupEntry {
+                            binding: 0,
+                            resource: bl_params_buf.as_entire_binding(),
+                        },
+                        BindGroupEntry {
+                            binding: 1,
+                            resource: BindingResource::TextureView(curr_view),
+                        },
+                        BindGroupEntry {
+                            binding: 2,
+                            resource: BindingResource::TextureView(&scratch_linear_view),
+                        },
+                        BindGroupEntry {
+                            binding: 3,
+                            resource: BindingResource::TextureView(&weight_view),
+                        },
+                        BindGroupEntry {
+                            binding: 4,
+                            resource: BindingResource::TextureView(dst_view),
+                        },
+                    ],
+                });
+                {
+                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                        label: Some("mask-blend"),
+                        timestamp_writes: None,
+                    });
+                    cp.set_pipeline(&self.passes.mask_blend.pipeline);
+                    cp.set_bind_group(0, &bl_bind, &[]);
+                    let gx = out_w.div_ceil(16);
+                    let gy = out_h.div_ceil(16);
+                    cp.dispatch_workgroups(gx, gy, 1);
+                }
+                _retained_bufs.push(bl_params_buf);
+                _retained_binds.push(bl_bind);
+
+                accum_in_alt = !accum_in_alt;
+            }
+            let _ = scratch_tone_view;
+            if accum_in_alt {
+                encoder.copy_texture_to_texture(
+                    wgpu::ImageCopyTexture {
+                        texture: &p.mask_accum_alt,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::ImageCopyTexture {
+                        texture: &p.linear_texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    Extent3d {
+                        width: out_w,
+                        height: out_h,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
+        }
+
         let sharpen_preview = matches!(
             opts.preview_mode,
             crate::frame::PreviewMode::SharpenMask
@@ -536,9 +846,53 @@ impl GpuRenderer {
                 s,
                 out_w,
                 out_h,
-                opts.preview_mode,
+                &opts.preview_mode,
                 sharpen_active || sharpen_preview,
             );
+        }
+
+        if has_masks && !final_pass_active {
+            let tm_params = crate::gpu::passes::tonemap::pack_params(out_w, out_h);
+            let tm_params_buf = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("tonemap-uniform"),
+                contents: &tm_params,
+                usage: BufferUsages::UNIFORM,
+            });
+            let tm_src_view = p
+                .linear_texture
+                .create_view(&TextureViewDescriptor::default());
+            let tm_dst_view = p.texture.create_view(&TextureViewDescriptor::default());
+            let tm_bind = device.create_bind_group(&BindGroupDescriptor {
+                label: Some("tonemap-bg"),
+                layout: &self.passes.tonemap.layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: tm_params_buf.as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(&tm_src_view),
+                    },
+                    BindGroupEntry {
+                        binding: 2,
+                        resource: BindingResource::TextureView(&tm_dst_view),
+                    },
+                ],
+            });
+            {
+                let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("tonemap-post-mask"),
+                    timestamp_writes: None,
+                });
+                cp.set_pipeline(&self.passes.tonemap.pipeline);
+                cp.set_bind_group(0, &tm_bind, &[]);
+                let gx = out_w.div_ceil(16);
+                let gy = out_h.div_ceil(16);
+                cp.dispatch_workgroups(gx, gy, 1);
+            }
+            _retained_bufs.push(tm_params_buf);
+            _retained_binds.push(tm_bind);
         }
 
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
@@ -586,7 +940,7 @@ impl GpuRenderer {
         sh: &SharpenTargets,
         w: u32,
         h: u32,
-        preview: crate::frame::PreviewMode,
+        preview: &crate::frame::PreviewMode,
         run_blur: bool,
     ) {
         let device = &self.ctx.device;
@@ -607,6 +961,7 @@ impl GpuRenderer {
             crate::frame::PreviewMode::SharpenMask => 1,
             crate::frame::PreviewMode::SharpenRadius => 2,
             crate::frame::PreviewMode::SharpenDetail => 3,
+            crate::frame::PreviewMode::MaskWeight { .. } => 0,
         };
         let use_mask = if (run_blur && sharpen_active && masking > 0.0) || preview_mode_u == 1 {
             1u32

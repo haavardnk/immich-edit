@@ -80,7 +80,7 @@ impl FusedSegment {
 }
 
 #[inline(always)]
-fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
+pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
     match op {
         CpuFusedOp::WhiteBalance { coeffs } => {
             *r *= coeffs[0];

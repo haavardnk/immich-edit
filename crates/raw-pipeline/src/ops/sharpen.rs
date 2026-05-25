@@ -28,7 +28,7 @@ impl EditOperator for SharpenOp {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_sharpen(image, &edits.detail, ctx.preview_mode);
+        apply_sharpen(image, &edits.detail, &ctx.preview_mode);
         Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
@@ -60,7 +60,7 @@ impl EditOperator for SharpenOp {
     }
 }
 
-fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: crate::frame::PreviewMode) {
+fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: &crate::frame::PreviewMode) {
     let amount = (d.sharpen_amount / 50.0) as f32;
     let sigma = d.sharpen_radius as f32;
     let detail_weight = 0.5 + 0.5 * (d.sharpen_detail / 100.0) as f32;
@@ -211,7 +211,7 @@ fn write_preview(
     blur: &[f32],
     mask: Option<&[f32]>,
     detail_weight: f32,
-    preview: crate::frame::PreviewMode,
+    preview: &crate::frame::PreviewMode,
 ) {
     let w = image.width;
     image
@@ -235,7 +235,7 @@ fn write_preview(
                         let lb = 0.2126 * brow[i] + 0.7152 * brow[i + 1] + 0.0722 * brow[i + 2];
                         (8.0 * detail_weight * (lr - lb).abs()).clamp(0.0, 1.0)
                     }
-                    crate::frame::PreviewMode::None => row[i],
+                    _ => row[i],
                 };
                 row[i] = v;
                 row[i + 1] = v;

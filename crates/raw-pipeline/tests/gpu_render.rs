@@ -760,3 +760,165 @@ fn gpu_demosaic_matches_cpu_mhc() {
         panic!("GPU demosaic drift: {}", failed.join("; "));
     }
 }
+
+#[test]
+fn gpu_masks_match_cpu_within_tolerance() {
+    use raw_pipeline::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+        Vec2f,
+    };
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+
+    let layer = MaskLayer {
+        id: "L1".into(),
+        name: "".into(),
+        enabled: true,
+        color: "#ff3b30".into(),
+        amount: 1.0,
+        components: vec![
+            MaskComponent {
+                id: "c1".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                opacity: 1.0,
+                invert: false,
+                kind: MaskComponentKind::Linear {
+                    p0: Vec2f { x: 0.0, y: 0.5 },
+                    p1: Vec2f { x: 1.0, y: 0.5 },
+                    feather: 0.4,
+                },
+                source: MaskSource::Manual,
+            },
+            MaskComponent {
+                id: "c2".into(),
+                enabled: true,
+                mode: MaskComponentMode::Subtract,
+                opacity: 1.0,
+                invert: false,
+                kind: MaskComponentKind::Radial {
+                    center: Vec2f { x: 0.25, y: 0.5 },
+                    radius_xy: Vec2f { x: 0.2, y: 0.2 },
+                    feather: 0.3,
+                },
+                source: MaskSource::Manual,
+            },
+        ],
+        edits: MaskedEdits {
+            exposure_ev: Some(1.2),
+            saturation: Some(30.0),
+            contrast: Some(20.0),
+            wb_temp: Some(15.0),
+            ..Default::default()
+        },
+    };
+
+    let edits = Edits {
+        masks: vec![layer],
+        ..Default::default()
+    };
+
+    let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
+    if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
+        panic!(
+            "dim mismatch CPU {}x{} vs GPU {}x{}",
+            cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
+        );
+    }
+    let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
+    let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
+    if (cw, ch) != (gw, gh) {
+        panic!("decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
+    }
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("masks parity: mean abs delta = {delta:.3}");
+    if delta > 1.5 {
+        panic!("CPU vs GPU mask drift: {delta:.3} > 1.5");
+    }
+}
+
+#[test]
+fn gpu_brush_masks_match_cpu_within_tolerance() {
+    use raw_pipeline::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+    };
+    use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
+    use std::sync::Arc;
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let w: u32 = 32;
+    let h: u32 = 32;
+    let mut bytes = vec![0u8; (w * h) as usize];
+    for y in 0..h {
+        for x in 0..w {
+            if x >= w / 2 {
+                bytes[(y * w + x) as usize] = 255;
+            }
+        }
+    }
+    let raster = Arc::new(MaskRaster::new(w, h, bytes).unwrap());
+    let mut rasters = RasterMap::new();
+    rasters.insert("brush_a".into(), raster);
+
+    let opts = RenderOptions {
+        max_edge: 96,
+        rasters,
+        ..Default::default()
+    };
+
+    let layer = MaskLayer {
+        id: "L1".into(),
+        name: "".into(),
+        enabled: true,
+        color: "#ff3b30".into(),
+        amount: 1.0,
+        components: vec![MaskComponent {
+            id: "b1".into(),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            opacity: 1.0,
+            invert: false,
+            kind: MaskComponentKind::Brush {
+                raster_id: "brush_a".into(),
+            },
+            source: MaskSource::Manual,
+        }],
+        edits: MaskedEdits {
+            exposure_ev: Some(1.5),
+            saturation: Some(25.0),
+            ..Default::default()
+        },
+    };
+
+    let edits = Edits {
+        masks: vec![layer],
+        ..Default::default()
+    };
+
+    let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
+    if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
+        panic!(
+            "dim mismatch CPU {}x{} vs GPU {}x{}",
+            cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
+        );
+    }
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu_out.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu_out.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("brush masks parity: mean abs delta = {delta:.3}");
+    if delta > 2.0 {
+        panic!("CPU vs GPU brush mask drift: {delta:.3} > 2.0");
+    }
+}

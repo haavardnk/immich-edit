@@ -174,6 +174,7 @@ pub fn auto_adjust(frame: &RawFrame) -> Edits {
         detail: Default::default(),
         effects: Default::default(),
         geometry: Default::default(),
+        masks: Vec::new(),
     }
 }
 

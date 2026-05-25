@@ -3,6 +3,11 @@ use sha2::{Digest, Sha256};
 
 pub const CURVE_LUT_SIZE: usize = 16;
 
+pub const N_MAX_MASK_LAYERS: usize = 8;
+pub const N_MAX_COMPONENTS_PER_LAYER: usize = 8;
+pub const N_MAX_TOTAL_COMPONENTS: usize = 32;
+pub const N_MAX_RASTER_SLOTS: usize = 16;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CurvePoint {
     pub x: f64,
@@ -491,6 +496,230 @@ pub struct GeometryEdits {
     pub aspect: AspectLock,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MaskComponentMode {
+    #[default]
+    Add,
+    Subtract,
+    Intersect,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MaskSource {
+    #[default]
+    Manual,
+    Generated,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub struct Vec2f {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MaskComponentKind {
+    Linear {
+        p0: Vec2f,
+        p1: Vec2f,
+        #[serde(default)]
+        feather: f32,
+    },
+    Radial {
+        center: Vec2f,
+        radius_xy: Vec2f,
+        #[serde(default)]
+        feather: f32,
+    },
+    Brush {
+        raster_id: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct MaskedEdits {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exposure_ev: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contrast: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saturation: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vibrance: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wb_temp: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wb_tint: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub highlights: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadows: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub whites: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blacks: Option<f64>,
+}
+
+impl MaskedEdits {
+    pub fn is_zero(&self) -> bool {
+        self.exposure_ev.is_none()
+            && self.contrast.is_none()
+            && self.saturation.is_none()
+            && self.vibrance.is_none()
+            && self.wb_temp.is_none()
+            && self.wb_tint.is_none()
+            && self.highlights.is_none()
+            && self.shadows.is_none()
+            && self.whites.is_none()
+            && self.blacks.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MaskComponent {
+    pub id: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub mode: MaskComponentMode,
+    #[serde(default = "default_opacity")]
+    pub opacity: f32,
+    #[serde(default)]
+    pub invert: bool,
+    pub kind: MaskComponentKind,
+    #[serde(default)]
+    pub source: MaskSource,
+}
+
+fn default_true() -> bool {
+    true
+}
+fn default_opacity() -> f32 {
+    1.0
+}
+fn default_color() -> String {
+    "#ff3b30".into()
+}
+fn default_amount() -> f32 {
+    1.0
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MaskLayer {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_color")]
+    pub color: String,
+    #[serde(default = "default_amount")]
+    pub amount: f32,
+    #[serde(default)]
+    pub components: Vec<MaskComponent>,
+    #[serde(default)]
+    pub edits: MaskedEdits,
+}
+
+impl MaskLayer {
+    pub fn is_effective(&self) -> bool {
+        if !self.enabled || self.amount.abs() < 1e-6 {
+            return false;
+        }
+        let has_component = self
+            .components
+            .iter()
+            .any(|c| c.enabled && c.opacity.abs() > 1e-6);
+        has_component && !self.edits.is_zero()
+    }
+}
+
+fn clamp_masked_delta(v: Option<f64>, lo: f64, hi: f64) -> Option<f64> {
+    let val = v?;
+    if val == 0.0 {
+        return None;
+    }
+    Some(val.clamp(lo, hi))
+}
+
+fn clamp_masked_edits(m: &MaskedEdits) -> MaskedEdits {
+    MaskedEdits {
+        exposure_ev: clamp_masked_delta(m.exposure_ev, -5.0, 5.0),
+        contrast: clamp_masked_delta(m.contrast, -100.0, 100.0),
+        saturation: clamp_masked_delta(m.saturation, -100.0, 100.0),
+        vibrance: clamp_masked_delta(m.vibrance, -100.0, 100.0),
+        wb_temp: clamp_masked_delta(m.wb_temp, -100.0, 100.0),
+        wb_tint: clamp_masked_delta(m.wb_tint, -100.0, 100.0),
+        highlights: clamp_masked_delta(m.highlights, -100.0, 100.0),
+        shadows: clamp_masked_delta(m.shadows, -100.0, 100.0),
+        whites: clamp_masked_delta(m.whites, -100.0, 100.0),
+        blacks: clamp_masked_delta(m.blacks, -100.0, 100.0),
+    }
+}
+
+fn clamp_component(c: &MaskComponent) -> MaskComponent {
+    let kind = match &c.kind {
+        MaskComponentKind::Linear { p0, p1, feather } => MaskComponentKind::Linear {
+            p0: *p0,
+            p1: *p1,
+            feather: feather.clamp(0.0, 1.0),
+        },
+        MaskComponentKind::Radial {
+            center,
+            radius_xy,
+            feather,
+        } => MaskComponentKind::Radial {
+            center: *center,
+            radius_xy: Vec2f {
+                x: radius_xy.x.clamp(0.0, 2.0),
+                y: radius_xy.y.clamp(0.0, 2.0),
+            },
+            feather: feather.clamp(0.0, 1.0),
+        },
+        MaskComponentKind::Brush { raster_id } => MaskComponentKind::Brush {
+            raster_id: raster_id.clone(),
+        },
+    };
+    MaskComponent {
+        id: c.id.clone(),
+        enabled: c.enabled,
+        mode: c.mode,
+        opacity: c.opacity.clamp(0.0, 1.0),
+        invert: c.invert,
+        kind,
+        source: c.source,
+    }
+}
+
+fn clamp_masks(layers: &[MaskLayer]) -> Vec<MaskLayer> {
+    let mut total_components: usize = 0;
+    let mut out: Vec<MaskLayer> = Vec::new();
+    for layer in layers.iter().take(N_MAX_MASK_LAYERS) {
+        let remaining = N_MAX_TOTAL_COMPONENTS.saturating_sub(total_components);
+        let take = remaining.min(N_MAX_COMPONENTS_PER_LAYER);
+        let components: Vec<MaskComponent> = layer
+            .components
+            .iter()
+            .take(take)
+            .map(clamp_component)
+            .collect();
+        total_components += components.len();
+        out.push(MaskLayer {
+            id: layer.id.clone(),
+            name: layer.name.clone(),
+            enabled: layer.enabled,
+            color: layer.color.clone(),
+            amount: layer.amount.clamp(0.0, 1.0),
+            components,
+            edits: clamp_masked_edits(&layer.edits),
+        });
+    }
+    out
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct Edits {
     #[serde(default)]
@@ -505,6 +734,8 @@ pub struct Edits {
     pub effects: EffectsEdits,
     #[serde(default)]
     pub geometry: GeometryEdits,
+    #[serde(default)]
+    pub masks: Vec<MaskLayer>,
 }
 
 impl Edits {
@@ -550,6 +781,7 @@ impl Edits {
                 crop: self.geometry.crop.map(|c| c.clamped()),
                 aspect: self.geometry.aspect,
             },
+            masks: clamp_masks(&self.masks),
         }
     }
 
@@ -558,6 +790,20 @@ impl Edits {
         let json = serde_json::to_string(&clamped).expect("edits serialize");
         let hash = Sha256::digest(json.as_bytes());
         hex::encode(&hash[..16])
+    }
+
+    pub fn referenced_raster_ids(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for layer in &self.masks {
+            for comp in &layer.components {
+                if let MaskComponentKind::Brush { raster_id } = &comp.kind {
+                    if !raster_id.is_empty() && !out.iter().any(|s| s == raster_id) {
+                        out.push(raster_id.clone());
+                    }
+                }
+            }
+        }
+        out
     }
 }
 
@@ -621,5 +867,108 @@ mod tests {
         let json = "{}";
         let e: Edits = serde_json::from_str(json).unwrap();
         assert!(e.is_identity());
+    }
+
+    #[test]
+    fn mask_brush_serde_roundtrip_preserves_raster_id() {
+        let mut e = Edits::default();
+        e.masks.push(MaskLayer {
+            id: "l1".into(),
+            name: "brush layer".into(),
+            enabled: true,
+            color: "#ff3b30".into(),
+            amount: 1.0,
+            components: vec![MaskComponent {
+                id: "c1".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                opacity: 1.0,
+                invert: false,
+                kind: MaskComponentKind::Brush {
+                    raster_id: "abc123".into(),
+                },
+                source: MaskSource::Manual,
+            }],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.0),
+                ..Default::default()
+            },
+        });
+        let json = serde_json::to_string(&e).unwrap();
+        let e2: Edits = serde_json::from_str(&json).unwrap();
+        assert_eq!(e, e2);
+        match &e2.masks[0].components[0].kind {
+            MaskComponentKind::Brush { raster_id } => assert_eq!(raster_id, "abc123"),
+            _ => panic!("expected brush kind"),
+        }
+    }
+
+    #[test]
+    fn referenced_raster_ids_dedups() {
+        let mut e = Edits::default();
+        let make_comp = |id: &str, raster: &str| MaskComponent {
+            id: id.into(),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            opacity: 1.0,
+            invert: false,
+            kind: MaskComponentKind::Brush {
+                raster_id: raster.into(),
+            },
+            source: MaskSource::Manual,
+        };
+        e.masks.push(MaskLayer {
+            id: "l1".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![make_comp("a", "r1"), make_comp("b", "r2")],
+            edits: MaskedEdits::default(),
+        });
+        e.masks.push(MaskLayer {
+            id: "l2".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![make_comp("c", "r1")],
+            edits: MaskedEdits::default(),
+        });
+        let ids = e.referenced_raster_ids();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"r1".to_string()));
+        assert!(ids.contains(&"r2".to_string()));
+    }
+
+    #[test]
+    fn clamped_preserves_brush_raster_id() {
+        let mut e = Edits::default();
+        e.masks.push(MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 2.0,
+            components: vec![MaskComponent {
+                id: "c".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                opacity: 2.0,
+                invert: false,
+                kind: MaskComponentKind::Brush {
+                    raster_id: "keep-me".into(),
+                },
+                source: MaskSource::Manual,
+            }],
+            edits: MaskedEdits::default(),
+        });
+        let c = e.clamped();
+        assert_eq!(c.masks[0].amount, 1.0);
+        assert_eq!(c.masks[0].components[0].opacity, 1.0);
+        match &c.masks[0].components[0].kind {
+            MaskComponentKind::Brush { raster_id } => assert_eq!(raster_id, "keep-me"),
+            _ => panic!("expected brush kind"),
+        }
     }
 }

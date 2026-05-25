@@ -11,6 +11,7 @@ pub mod geometry;
 pub mod grain;
 pub mod hsl;
 pub mod luma_nr;
+pub mod masks;
 pub mod saturation;
 pub mod sharpen;
 pub mod texture;
@@ -177,5 +178,6 @@ pub fn default_registry() -> OpRegistry {
         Box::new(sharpen::SharpenOp),
         Box::new(vignette::VignetteOp),
         Box::new(grain::GrainOp),
+        Box::new(masks::MasksOp),
     ])
 }

@@ -20,9 +20,10 @@ pub struct RenderOptions {
     pub quality: bool,
     pub output: OutputFormat,
     pub preview_mode: PreviewMode,
+    pub rasters: crate::mask_raster::RasterMap,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PreviewMode {
     #[default]
@@ -30,6 +31,9 @@ pub enum PreviewMode {
     SharpenMask,
     SharpenRadius,
     SharpenDetail,
+    MaskWeight {
+        layer_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,6 +136,7 @@ impl Default for RenderOptions {
             quality: false,
             output: OutputFormat::Jpeg { quality: 85 },
             preview_mode: PreviewMode::None,
+            rasters: crate::mask_raster::empty_rasters(),
         }
     }
 }

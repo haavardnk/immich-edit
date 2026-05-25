@@ -1,11 +1,14 @@
 pub mod demosaic;
 pub mod luma_pyramid;
+pub mod mask_blend;
+pub mod mask_weight;
 pub mod mipgen;
 pub mod nr;
 pub mod nr_smooth;
 pub mod presence;
 pub mod process;
 pub mod sharpen;
+pub mod tonemap;
 pub mod wb_prepare;
 
 use std::sync::Arc;
@@ -16,12 +19,15 @@ use crate::ops::{OpRegistry, default_registry};
 
 use demosaic::DemosaicPass;
 use luma_pyramid::LumaPyramidPass;
+use mask_blend::MaskBlendPass;
+use mask_weight::MaskWeightPass;
 use mipgen::MipgenPass;
 use nr::NrPass;
 use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
 use sharpen::OutputSharpenPass;
+use tonemap::TonemapPass;
 use wb_prepare::WbPreparePass;
 
 pub struct GpuPasses {
@@ -35,6 +41,9 @@ pub struct GpuPasses {
     pub process_fast: ProcessFastPass,
     pub process_post_wb: ProcessFastPass,
     pub output_sharpen: OutputSharpenPass,
+    pub mask_weight: MaskWeightPass,
+    pub mask_blend: MaskBlendPass,
+    pub tonemap: TonemapPass,
     pub registry: OpRegistry,
 }
 
@@ -52,6 +61,9 @@ impl GpuPasses {
         let process_post_wb =
             ProcessFastPass::new_with_mask(ctx, &registry, StageMask::tone_color(), "process-post");
         let output_sharpen = OutputSharpenPass::new(ctx);
+        let mask_weight = MaskWeightPass::new(ctx);
+        let mask_blend = MaskBlendPass::new(ctx);
+        let tonemap = TonemapPass::new(ctx);
         Self {
             demosaic,
             mipgen,
@@ -63,6 +75,9 @@ impl GpuPasses {
             process_fast,
             process_post_wb,
             output_sharpen,
+            mask_weight,
+            mask_blend,
+            tonemap,
             registry,
         }
     }

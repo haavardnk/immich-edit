@@ -126,7 +126,10 @@ fn bench_ops(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(label), &edits, |b, edits| {
             b.iter_batched(
                 || LinearImage::new(base.rgb.clone(), base.width, base.height),
-                |mut img| run_pipeline_ops(&mut img, &ctx, edits, None).unwrap(),
+                |mut img| {
+                    run_pipeline_ops(&mut img, &ctx, edits, &raw_pipeline::empty_rasters(), None)
+                        .unwrap()
+                },
                 criterion::BatchSize::LargeInput,
             );
         });

@@ -11,6 +11,10 @@ pub(super) struct OutputTargets {
     pub readback: Buffer,
     pub linear_texture: Texture,
     pub linear_readback: Buffer,
+    pub mask_accum_alt: Texture,
+    pub mask_scratch_linear: Texture,
+    pub mask_scratch_tone: Texture,
+    pub mask_weight: Texture,
     pub alloc_w: u32,
     pub alloc_h: u32,
 }
@@ -24,6 +28,23 @@ impl OutputTargets {
         let device = &ctx.device;
         let need_w = round_up_256(out_w);
         let need_h = round_up_256(out_h);
+        let linear_extra_usage = TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+        let make_linear = |label: &'static str, usage: TextureUsages| -> Texture {
+            device.create_texture(&TextureDescriptor {
+                label: Some(label),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba16Float,
+                usage,
+                view_formats: &[],
+            })
+        };
         Self {
             texture: device.create_texture(&TextureDescriptor {
                 label: Some("output"),
@@ -53,10 +74,44 @@ impl OutputTargets {
                 format: TextureFormat::Rgba16Float,
                 usage: TextureUsages::STORAGE_BINDING
                     | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
+                    | TextureUsages::COPY_SRC
+                    | TextureUsages::COPY_DST,
                 view_formats: &[],
             }),
             linear_readback: make_readback_buffer_f16(device, need_w, need_h),
+            mask_accum_alt: make_linear(
+                "mask-accum-alt",
+                linear_extra_usage | TextureUsages::COPY_SRC,
+            ),
+            mask_scratch_linear: make_linear("mask-scratch-linear", linear_extra_usage),
+            mask_scratch_tone: device.create_texture(&TextureDescriptor {
+                label: Some("mask-scratch-tone"),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8Unorm,
+                usage: TextureUsages::STORAGE_BINDING,
+                view_formats: &[],
+            }),
+            mask_weight: device.create_texture(&TextureDescriptor {
+                label: Some("mask-weight"),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::R32Float,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            }),
             alloc_w: need_w,
             alloc_h: need_h,
         }

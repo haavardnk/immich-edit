@@ -140,6 +140,7 @@ mod tests {
                 crop: None,
                 aspect: Default::default(),
             },
+            masks: Vec::new(),
         };
         let manifest = EditManifest::from_edits(&original);
         let back = manifest.to_edits();
@@ -178,6 +179,91 @@ mod tests {
         let edits = manifest.to_edits();
         if edits.basic.exposure_ev != 2.0 {
             panic!("exposure not parsed");
+        }
+    }
+
+    #[test]
+    fn masks_roundtrip_sparse() {
+        use crate::edits::{
+            MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
+            MaskedEdits, Vec2f,
+        };
+        let layer = MaskLayer {
+            id: "l1".into(),
+            name: "Sky".into(),
+            enabled: true,
+            color: "#3399ff".into(),
+            amount: 0.8,
+            components: vec![
+                MaskComponent {
+                    id: "c1".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Add,
+                    opacity: 1.0,
+                    invert: false,
+                    kind: MaskComponentKind::Linear {
+                        p0: Vec2f { x: 0.5, y: 0.0 },
+                        p1: Vec2f { x: 0.5, y: 0.5 },
+                        feather: 0.1,
+                    },
+                    source: MaskSource::Manual,
+                },
+                MaskComponent {
+                    id: "c2".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Subtract,
+                    opacity: 0.7,
+                    invert: false,
+                    kind: MaskComponentKind::Radial {
+                        center: Vec2f { x: 0.3, y: 0.2 },
+                        radius_xy: Vec2f { x: 0.2, y: 0.15 },
+                        feather: 0.2,
+                    },
+                    source: MaskSource::Manual,
+                },
+            ],
+            edits: MaskedEdits {
+                exposure_ev: Some(-0.5),
+                shadows: Some(20.0),
+                ..Default::default()
+            },
+        };
+        let edits = Edits {
+            masks: vec![layer.clone()],
+            ..Default::default()
+        };
+        let manifest = EditManifest::from_edits(&edits);
+        if !manifest.ops.contains_key("masks") {
+            panic!("masks key missing");
+        }
+        let back = manifest.to_edits();
+        if back.masks != vec![layer] {
+            panic!("masks roundtrip mismatch");
+        }
+    }
+
+    #[test]
+    fn masks_unknown_kind_skipped() {
+        let mut ops = BTreeMap::new();
+        ops.insert(
+            "masks".into(),
+            serde_json::json!({
+                "layers": [
+                    { "id": "l1" },
+                    { "id": "l2", "components": [{ "id": "c", "kind": { "kind": "wormhole" } }] }
+                ]
+            }),
+        );
+        let manifest = EditManifest {
+            schema_version: EDIT_MANIFEST_VERSION,
+            ops,
+        };
+        let edits = manifest.to_edits();
+        if edits.masks.len() != 1 || edits.masks[0].id != "l1" {
+            panic!(
+                "expected only valid layer to survive, got {:?}",
+                edits.masks
+            );
         }
     }
 }

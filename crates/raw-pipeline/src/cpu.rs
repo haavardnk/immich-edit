@@ -1,5 +1,6 @@
 pub mod demosaic;
 pub mod fused;
+pub mod masked;
 pub mod pipeline;
 pub mod presence;
 pub mod presence_pyramid;

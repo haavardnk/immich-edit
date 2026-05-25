@@ -1,5 +1,8 @@
 use crate::cancel::{self, CancelToken};
 use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
+use crate::cpu::masked::{
+    LayerEval, apply_segment_masked, build_layer_evals, effective_edits_for_layer,
+};
 use crate::cpu::presence::has_presence;
 use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::cpu::{demosaic, transform};
@@ -63,10 +66,10 @@ pub fn render_with_cancel(
         wb_coeffs: frame.wb_coeffs,
         cam_to_srgb,
         is_raw: frame.is_raw,
-        preview_mode: options.preview_mode,
+        preview_mode: options.preview_mode.clone(),
     };
 
-    run_pipeline_ops(&mut image, &ctx, &edits, cancel)?;
+    run_pipeline_ops(&mut image, &ctx, &edits, &options.rasters, cancel)?;
 
     cancel::check(cancel)?;
     let (rgb, w, h) =
@@ -113,14 +116,60 @@ pub fn run_pipeline_ops(
     image: &mut LinearImage,
     ctx: &OpContext,
     edits: &Edits,
+    rasters: &crate::mask_raster::RasterMap,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
+    if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.preview_mode {
+        let layer = edits.masks.iter().find(|l| &l.id == layer_id);
+        let eval = match layer {
+            Some(l) => crate::cpu::masked::build_layer_eval(l, rasters),
+            None => crate::cpu::masked::LayerEval {
+                amount: 0.0,
+                components: Vec::new(),
+            },
+        };
+        crate::cpu::masked::render_mask_weight(image, &eval);
+        return Ok(());
+    }
     let registry = default_registry();
+    let layer_evals = build_layer_evals(&edits.masks, rasters);
+    let layer_edits: Vec<Edits> = edits
+        .masks
+        .iter()
+        .filter(|l| l.is_effective())
+        .map(|l| effective_edits_for_layer(edits, l))
+        .collect();
+    let n_layers = layer_evals.len();
     let presence_active = has_presence(edits);
     let mut presence_done = false;
     let mut segment = FusedSegment::default();
-    for op in registry.active(edits) {
+    let mut layer_segments: Vec<FusedSegment> =
+        (0..n_layers).map(|_| FusedSegment::default()).collect();
+    let flush = |image: &mut LinearImage,
+                 segment: &mut FusedSegment,
+                 layer_segments: &mut [FusedSegment],
+                 layer_evals: &[LayerEval]| {
+        if n_layers == 0 {
+            if !segment.is_empty() {
+                apply_segment(image, segment);
+                segment.clear();
+            }
+        } else if !segment.is_empty() || layer_segments.iter().any(|s| !s.is_empty()) {
+            apply_segment_masked(image, segment, layer_segments, layer_evals);
+            segment.clear();
+            for s in layer_segments.iter_mut() {
+                s.clear();
+            }
+        }
+    };
+    let op_active = |op: &dyn crate::ops::EditOperator| -> bool {
+        op.is_active(edits) || layer_edits.iter().any(|e| op.is_active(e))
+    };
+    for op in registry.ops().iter().map(|o| o.as_ref()) {
         cancel::check(cancel)?;
+        if !op_active(op) {
+            continue;
+        }
         if op.stage() == crate::ops::Stage::Output {
             continue;
         }
@@ -129,10 +178,7 @@ pub fn run_pipeline_ops(
         }
         if op.gpu_kind() == GpuOpKind::Presence {
             if !presence_done && presence_active {
-                if !segment.is_empty() {
-                    apply_segment(image, &segment);
-                    segment.clear();
-                }
+                flush(image, &mut segment, &mut layer_segments, &layer_evals);
                 let amounts = presence_amounts(edits);
                 let w = image.width as u32;
                 let h = image.height as u32;
@@ -149,31 +195,35 @@ pub fn run_pipeline_ops(
                 let dehaze_blur = (amounts.dehaze != 0.0)
                     .then(|| Arc::new(pyramid.upsample(mips.dehaze, iw, ih)));
                 drop(pyramid);
-                segment.push(CpuFusedOp::Presence {
+                let presence_op = CpuFusedOp::Presence {
                     texture: amounts.texture,
                     clarity: amounts.clarity,
                     dehaze: amounts.dehaze,
                     texture_blur,
                     clarity_blur,
                     dehaze_blur,
-                });
+                };
+                segment.push(presence_op.clone());
+                for s in layer_segments.iter_mut() {
+                    s.push(presence_op.clone());
+                }
                 presence_done = true;
             }
             continue;
         }
         if let Some(fused) = op.cpu_fused(edits, ctx) {
             segment.push(fused);
+            for (i, s) in layer_segments.iter_mut().enumerate() {
+                if let Some(fl) = op.cpu_fused(&layer_edits[i], ctx) {
+                    s.push(fl);
+                }
+            }
             continue;
         }
-        if !segment.is_empty() {
-            apply_segment(image, &segment);
-            segment.clear();
-        }
+        flush(image, &mut segment, &mut layer_segments, &layer_evals);
         op.apply_cpu(image, ctx, edits)?;
     }
-    if !segment.is_empty() {
-        apply_segment(image, &segment);
-    }
+    flush(image, &mut segment, &mut layer_segments, &layer_evals);
     Ok(())
 }
 
