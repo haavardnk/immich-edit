@@ -53,21 +53,60 @@ pub struct GpuPasses {
 impl GpuPasses {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
         let registry = default_registry();
-        let dehaze = DehazePasses::new(ctx);
-        let demosaic = DemosaicPass::new(ctx);
-        let mipgen = MipgenPass::new(ctx);
-        let luma_pyramid = LumaPyramidPass::new(ctx);
-        let nr = NrPass::new(ctx);
-        let nr_smooth = NrSmoothPass::new(ctx);
-        let presence = PresencePass::new(ctx);
-        let wb_prepare = WbPreparePass::new(ctx, &registry);
-        let process_fast = ProcessFastPass::new(ctx, &registry);
-        let process_post_wb =
-            ProcessFastPass::new_with_mask(ctx, &registry, StageMask::tone_color(), "process-post");
-        let output_sharpen = OutputSharpenPass::new(ctx);
-        let mask_weight = MaskWeightPass::new(ctx);
-        let mask_blend = MaskBlendPass::new(ctx);
-        let sensor = SensorPass::new(ctx);
+        let (
+            dehaze,
+            demosaic,
+            mipgen,
+            luma_pyramid,
+            nr,
+            nr_smooth,
+            presence,
+            wb_prepare,
+            process_fast,
+            process_post_wb,
+            output_sharpen,
+            mask_weight,
+            mask_blend,
+            sensor,
+        ) = std::thread::scope(|s| {
+            let dehaze_t = s.spawn(|| DehazePasses::new(ctx));
+            let demosaic_t = s.spawn(|| DemosaicPass::new(ctx));
+            let mipgen_t = s.spawn(|| MipgenPass::new(ctx));
+            let luma_pyramid_t = s.spawn(|| LumaPyramidPass::new(ctx));
+            let nr_t = s.spawn(|| NrPass::new(ctx));
+            let nr_smooth_t = s.spawn(|| NrSmoothPass::new(ctx));
+            let presence_t = s.spawn(|| PresencePass::new(ctx));
+            let wb_prepare_t = s.spawn(|| WbPreparePass::new(ctx, &registry));
+            let process_fast_t = s.spawn(|| ProcessFastPass::new(ctx, &registry));
+            let process_post_wb_t = s.spawn(|| {
+                ProcessFastPass::new_with_mask(
+                    ctx,
+                    &registry,
+                    StageMask::tone_color(),
+                    "process-post",
+                )
+            });
+            let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
+            let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
+            let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
+            let sensor_t = s.spawn(|| SensorPass::new(ctx));
+            (
+                dehaze_t.join().expect("dehaze pass build"),
+                demosaic_t.join().expect("demosaic pass build"),
+                mipgen_t.join().expect("mipgen pass build"),
+                luma_pyramid_t.join().expect("luma pyramid pass build"),
+                nr_t.join().expect("nr pass build"),
+                nr_smooth_t.join().expect("nr smooth pass build"),
+                presence_t.join().expect("presence pass build"),
+                wb_prepare_t.join().expect("wb prepare pass build"),
+                process_fast_t.join().expect("process fast pass build"),
+                process_post_wb_t.join().expect("process post pass build"),
+                output_sharpen_t.join().expect("output sharpen pass build"),
+                mask_weight_t.join().expect("mask weight pass build"),
+                mask_blend_t.join().expect("mask blend pass build"),
+                sensor_t.join().expect("sensor pass build"),
+            )
+        });
         Self {
             dehaze,
             demosaic,
