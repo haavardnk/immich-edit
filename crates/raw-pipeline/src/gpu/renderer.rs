@@ -68,13 +68,14 @@ pub struct GpuRenderer {
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
-    output_pool: Mutex<Option<OutputTargets>>,
-    sharpen_pool: Mutex<Option<SharpenTargets>>,
+    output_pool: Mutex<Vec<OutputTargets>>,
+    sharpen_pool: Mutex<Vec<SharpenTargets>>,
 }
 
 const ATM_CACHE_ITEMS: usize = 16;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
+const TARGET_POOL_CAP: usize = 2;
 
 impl GpuRenderer {
     pub fn new() -> PipelineResult<Self> {
@@ -91,8 +92,8 @@ impl GpuRenderer {
             )),
             texture_pool: TexturePool::new(TEXTURE_POOL_CAP_PER_KEY),
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
-            output_pool: Mutex::new(None),
-            sharpen_pool: Mutex::new(None),
+            output_pool: Mutex::new(Vec::new()),
+            sharpen_pool: Mutex::new(Vec::new()),
         })
     }
 
@@ -214,7 +215,12 @@ impl GpuRenderer {
             cfa,
         };
 
-        let uniform_buf = self.uniform_pool.acquire(device, queue, bytemuck::bytes_of(&params), "demosaic-uniform");
+        let uniform_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&params),
+            "demosaic-uniform",
+        );
 
         let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("raw-storage"),
@@ -484,7 +490,9 @@ impl GpuRenderer {
         }
         write_active_mask(&mut uniform_bytes, active_mask);
 
-        let uniform_buf = self.uniform_pool.acquire(device, queue, &uniform_bytes, "process-uniform");
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, &uniform_bytes, "process-uniform");
 
         let src_view = src_texture.create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(&SamplerDescriptor {
@@ -499,11 +507,18 @@ impl GpuRenderer {
         });
 
         let mut pool = self.output_pool.lock();
-        let fits = pool.as_ref().is_some_and(|p| p.fits(out_w, out_h));
-        if !fits {
-            *pool = Some(OutputTargets::allocate(&self.ctx, out_w, out_h));
+        if let Some(i) = pool.iter().position(|p| p.fits(out_w, out_h)) {
+            if i != 0 {
+                let t = pool.remove(i);
+                pool.insert(0, t);
+            }
+        } else {
+            if pool.len() >= TARGET_POOL_CAP {
+                pool.pop();
+            }
+            pool.insert(0, OutputTargets::allocate(&self.ctx, out_w, out_h));
         }
-        let p = pool.as_ref().expect("pool populated");
+        let p = &pool[0];
         let out_view = p.texture.create_view(&TextureViewDescriptor::default());
         let linear_view = p
             .linear_texture
@@ -696,7 +711,9 @@ impl GpuRenderer {
                     eff_uniform[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
                 }
                 write_active_mask(&mut eff_uniform, active_mask_eff);
-                let eff_uniform_buf = self.uniform_pool.acquire(device, queue, &eff_uniform, "process-uniform-layer");
+                let eff_uniform_buf =
+                    self.uniform_pool
+                        .acquire(device, queue, &eff_uniform, "process-uniform-layer");
                 let layer_bind = device.create_bind_group(&BindGroupDescriptor {
                     label: Some("process-bg-layer"),
                     layout: &pass.layout,
@@ -912,16 +929,23 @@ impl GpuRenderer {
         let final_pass_active = sharpen_active || sharpen_preview || effects_active || has_masks;
         let sharpen_pool_guard = if final_pass_active {
             let mut spool = self.sharpen_pool.lock();
-            let sfits = spool.as_ref().is_some_and(|s| s.fits(out_w, out_h));
-            if !sfits {
-                *spool = Some(SharpenTargets::allocate(&self.ctx, out_w, out_h));
+            if let Some(i) = spool.iter().position(|s| s.fits(out_w, out_h)) {
+                if i != 0 {
+                    let t = spool.remove(i);
+                    spool.insert(0, t);
+                }
+            } else {
+                if spool.len() >= TARGET_POOL_CAP {
+                    spool.pop();
+                }
+                spool.insert(0, SharpenTargets::allocate(&self.ctx, out_w, out_h));
             }
             Some(spool)
         } else {
             None
         };
         if let Some(spool) = sharpen_pool_guard.as_ref() {
-            let s = spool.as_ref().expect("sharpen pool populated");
+            let s = &spool[0];
             let run_sharpen = sharpen_active || sharpen_preview;
             if run_sharpen {
                 self.encode_sharpen(&mut encoder, &edits, p, s, out_w, out_h, &opts.preview_mode);
@@ -933,9 +957,7 @@ impl GpuRenderer {
 
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
         let linear_src = match sharpen_pool_guard.as_ref() {
-            Some(spool) if !sharpen_preview => {
-                &spool.as_ref().expect("sharpen pool populated").post_lin
-            }
+            Some(spool) if !sharpen_preview => &spool[0].post_lin,
             _ => &p.linear_texture,
         };
         copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);
@@ -1278,7 +1300,9 @@ impl GpuRenderer {
         bytes[28..32].copy_from_slice(&alpha_luma.to_le_bytes());
         bytes[32..36].copy_from_slice(&alpha_chroma.to_le_bytes());
         bytes[36..40].copy_from_slice(&contrast.to_le_bytes());
-        let uniform_buf = self.uniform_pool.acquire(device, queue, &bytes, "nr-uniform");
+        let uniform_buf = self
+            .uniform_pool
+            .acquire(device, queue, &bytes, "nr-uniform");
 
         let dst = device.create_texture(&TextureDescriptor {
             label: Some("nr-out"),
@@ -1360,7 +1384,9 @@ impl GpuRenderer {
         bytes[0..4].copy_from_slice(&w.to_le_bytes());
         bytes[4..8].copy_from_slice(&h.to_le_bytes());
         bytes[16..20].copy_from_slice(&smoothness.to_le_bytes());
-        let uniform_buf = self.uniform_pool.acquire(device, queue, &bytes, "nr-smooth-uniform");
+        let uniform_buf = self
+            .uniform_pool
+            .acquire(device, queue, &bytes, "nr-smooth-uniform");
 
         let dst = device.create_texture(&TextureDescriptor {
             label: Some("nr-smooth-out"),
@@ -1588,7 +1614,9 @@ impl GpuRenderer {
         downsample_u[0..4].copy_from_slice(&lw.to_le_bytes());
         downsample_u[4..8].copy_from_slice(&lh.to_le_bytes());
         downsample_u[8..12].copy_from_slice(&scale.to_le_bytes());
-        let downsample_buf = self.uniform_pool.acquire(device, queue, &downsample_u, "dehaze-downsample-u");
+        let downsample_buf =
+            self.uniform_pool
+                .acquire(device, queue, &downsample_u, "dehaze-downsample-u");
 
         let mut norm_u = vec![0u8; 32];
         norm_u[0..4].copy_from_slice(&lw.to_le_bytes());
@@ -1597,7 +1625,9 @@ impl GpuRenderer {
         norm_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
         norm_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
         norm_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
-        let norm_buf = self.uniform_pool.acquire(device, queue, &norm_u, "dehaze-norm-u");
+        let norm_buf = self
+            .uniform_pool
+            .acquire(device, queue, &norm_u, "dehaze-norm-u");
 
         let make_filter_u = |radius: u32, axis: u32, label: &'static str| {
             let mut u = vec![0u8; 16];
@@ -1619,8 +1649,12 @@ impl GpuRenderer {
         let mut size_u = vec![0u8; 16];
         size_u[0..4].copy_from_slice(&lw.to_le_bytes());
         size_u[4..8].copy_from_slice(&lh.to_le_bytes());
-        let pack_buf = self.uniform_pool.acquire(device, queue, &size_u, "dehaze-pack-u");
-        let ab_uni = self.uniform_pool.acquire(device, queue, &size_u, "dehaze-ab-u");
+        let pack_buf = self
+            .uniform_pool
+            .acquire(device, queue, &size_u, "dehaze-pack-u");
+        let ab_uni = self
+            .uniform_pool
+            .acquire(device, queue, &size_u, "dehaze-ab-u");
 
         let mut apply_u = vec![0u8; 48];
         apply_u[0..4].copy_from_slice(&w.to_le_bytes());
@@ -1632,7 +1666,9 @@ impl GpuRenderer {
         apply_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
         apply_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
         apply_u[32..36].copy_from_slice(&amount.to_le_bytes());
-        let apply_buf = self.uniform_pool.acquire(device, queue, &apply_u, "dehaze-apply-u");
+        let apply_buf = self
+            .uniform_pool
+            .acquire(device, queue, &apply_u, "dehaze-apply-u");
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let lo_src_view = lo_src.create_view(&TextureViewDescriptor::default());
@@ -1967,7 +2003,9 @@ impl GpuRenderer {
             let off = 32 + i * 4;
             uniform_bytes[off..off + 4].copy_from_slice(&m.to_le_bytes());
         }
-        let uniform_buf = self.uniform_pool.acquire(device, queue, &uniform_bytes, "presence-uniform");
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, &uniform_bytes, "presence-uniform");
 
         let src_view_full = src.create_view(&TextureViewDescriptor::default());
         let pyramid_full_view = pyramid.create_view(&TextureViewDescriptor::default());
@@ -2157,7 +2195,9 @@ impl GpuRenderer {
         }
         write_active_mask(&mut uniform_bytes, active_mask);
 
-        let uniform_buf = self.uniform_pool.acquire(device, queue, &uniform_bytes, "wb-prepare-uniform");
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, &uniform_bytes, "wb-prepare-uniform");
 
         let wb_base = device.create_texture(&TextureDescriptor {
             label: Some("wb-base"),
@@ -2234,7 +2274,9 @@ impl GpuRenderer {
         let w = src.width;
         let h = src.height;
         let params = SensorParams::from_edits(&edits.lens, w, h);
-        let uniform_buf = self.uniform_pool.acquire(device, queue, bytemuck::bytes_of(&params), "sensor-uniform");
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, bytemuck::bytes_of(&params), "sensor-uniform");
         let dst = device.create_texture(&TextureDescriptor {
             label: Some("sensor-out"),
             size: Extent3d {
