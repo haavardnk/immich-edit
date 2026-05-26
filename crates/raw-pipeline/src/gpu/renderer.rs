@@ -167,7 +167,11 @@ impl GpuRenderer {
             },
         );
 
-        self.encode_mipgen(&texture, w, h);
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("upload-mipgen-enc"),
+        });
+        self.encode_mipgen(&mut encoder, &texture, w, h);
+        queue.submit(Some(encoder.finish()));
 
         Ok(Arc::new(CachedFrame {
             texture: Arc::new(texture),
@@ -259,8 +263,8 @@ impl GpuRenderer {
             let gy = h.div_ceil(16);
             pass.dispatch_workgroups(gx, gy, 1);
         }
+        self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
-        self.encode_mipgen(&texture, w, h);
 
         Ok(Arc::new(CachedFrame {
             texture: Arc::new(texture),
@@ -269,16 +273,12 @@ impl GpuRenderer {
         }))
     }
 
-    fn encode_mipgen(&self, texture: &Texture, w: u32, h: u32) {
+    fn encode_mipgen(&self, encoder: &mut wgpu::CommandEncoder, texture: &Texture, w: u32, h: u32) {
         let levels = mip_count(w, h);
         if levels <= 1 {
             return;
         }
         let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("mipgen-enc"),
-        });
         let mut mip_w = w;
         let mut mip_h = h;
         for level in 1..levels {
@@ -320,7 +320,6 @@ impl GpuRenderer {
             mip_w = dst_w;
             mip_h = dst_h;
         }
-        queue.submit(Some(encoder.finish()));
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1277,9 +1276,8 @@ impl GpuRenderer {
             cpass.set_bind_group(0, &bind, &[]);
             cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
+        self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
-
-        self.encode_mipgen(&dst, w, h);
 
         let smoothness = (d.color_nr_smoothness as f32) / 100.0;
         if smoothness > 0.0 && color_amount > 0.0 {
@@ -1361,8 +1359,8 @@ impl GpuRenderer {
             cpass.set_bind_group(0, &bind, &[]);
             cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
+        self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
-        self.encode_mipgen(&dst, w, h);
         Ok(Arc::new(dst))
     }
 
@@ -1882,8 +1880,8 @@ impl GpuRenderer {
             c.set_bind_group(0, &bg_apply, &[]);
             c.dispatch_workgroups(gx, gy, 1);
         }
+        self.encode_mipgen(&mut encoder, &out, w, h);
         queue.submit(Some(encoder.finish()));
-        self.encode_mipgen(&out, w, h);
         Ok(out.into_arc())
     }
 
@@ -2053,9 +2051,8 @@ impl GpuRenderer {
             pass.set_bind_group(0, &presence_bind, &[]);
             pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
+        self.encode_mipgen(&mut encoder, &adjusted, w, h);
         queue.submit(Some(encoder.finish()));
-
-        self.encode_mipgen(&adjusted, w, h);
 
         Ok(Arc::new(adjusted))
     }
@@ -2186,9 +2183,8 @@ impl GpuRenderer {
             cpass.set_bind_group(0, &bind, &[]);
             cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
+        self.encode_mipgen(&mut encoder, &wb_base, w, h);
         queue.submit(Some(encoder.finish()));
-
-        self.encode_mipgen(&wb_base, w, h);
 
         Ok(Arc::new(wb_base))
     }
@@ -2265,8 +2261,8 @@ impl GpuRenderer {
             cpass.set_bind_group(0, &bind, &[]);
             cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
+        self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
-        self.encode_mipgen(&dst, w, h);
         Ok(Arc::new(CachedFrame {
             texture: Arc::new(dst),
             width: w,
