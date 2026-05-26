@@ -24,6 +24,7 @@ use super::passes::luma_pyramid::LumaPyramidPass;
 use super::passes::presence::PRESENCE_UNIFORM_SIZE;
 use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use super::resources::{OutputTargets, SharpenTargets};
+use super::texture_pool::{TextureKey, TexturePool};
 use super::uniforms::{write_active_mask, write_header};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
@@ -64,11 +65,13 @@ pub struct GpuRenderer {
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
+    texture_pool: Arc<TexturePool>,
     output_pool: Mutex<Option<OutputTargets>>,
     sharpen_pool: Mutex<Option<SharpenTargets>>,
 }
 
 const ATM_CACHE_ITEMS: usize = 16;
+const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 
 impl GpuRenderer {
     pub fn new() -> PipelineResult<Self> {
@@ -83,6 +86,7 @@ impl GpuRenderer {
             atm_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATM_CACHE_ITEMS).expect("nonzero"),
             )),
+            texture_pool: TexturePool::new(TEXTURE_POOL_CAP_PER_KEY),
             output_pool: Mutex::new(None),
             sharpen_pool: Mutex::new(None),
         })
@@ -1547,22 +1551,15 @@ impl GpuRenderer {
         let r_gf: u32 = (r_gf_full / scale).max(4);
         let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
 
-        let make_scratch_lo = |label: &'static str| {
-            device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: lw,
-                    height: lh,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: self.ctx.linear_format,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            })
-        };
+        let scratch_key = TextureKey::new(
+            self.ctx.linear_format,
+            lw,
+            lh,
+            1,
+            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        );
+        let make_scratch_lo =
+            |label: &'static str| self.texture_pool.acquire(device, scratch_key, label);
         let lo_src = make_scratch_lo("dehaze-lo-src");
         let dn = make_scratch_lo("dehaze-dn");
         let dn_h = make_scratch_lo("dehaze-dn-h");
@@ -1573,20 +1570,14 @@ impl GpuRenderer {
         let ab = make_scratch_lo("dehaze-ab");
         let ab_h = make_scratch_lo("dehaze-ab-h");
         let ab_v = make_scratch_lo("dehaze-ab-v");
-        let out = device.create_texture(&TextureDescriptor {
-            label: Some("dehaze-out"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
+        let out_key = TextureKey::new(
+            self.ctx.linear_format,
+            w,
+            h,
+            mip_count(w, h),
+            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        );
+        let out = self.texture_pool.acquire(device, out_key, "dehaze-out");
 
         let mut downsample_u = vec![0u8; super::passes::dehaze::DOWNSAMPLE_UNIFORM_SIZE as usize];
         downsample_u[0..4].copy_from_slice(&lw.to_le_bytes());
@@ -1941,7 +1932,7 @@ impl GpuRenderer {
         }
         queue.submit(Some(encoder.finish()));
         self.encode_mipgen(&out, w, h);
-        Ok(Arc::new(out))
+        Ok(out.into_arc())
     }
 
     fn run_presence(
