@@ -12,7 +12,7 @@ use crate::gpu::context::GpuContext;
 use super::demosaic::linear_format_str;
 
 pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = 32;
-pub const SHARPEN_COMBINE_UNIFORM_SIZE: u64 = 64;
+pub const SHARPEN_COMBINE_UNIFORM_SIZE: u64 = 80;
 
 pub struct OutputSharpenPass {
     pub blur_layout: BindGroupLayout,
@@ -136,7 +136,8 @@ impl OutputSharpenPass {
             ],
         });
         let combine_src = include_str!("../../../assets/shaders/sharpen_combine.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
+            .replace("rgba16float", linear_format_str(ctx.linear_format))
+            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::TONE_WGSL);
         let combine_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("sharpen_combine.wgsl"),
             source: ShaderSource::Wgsl(Cow::Owned(combine_src)),

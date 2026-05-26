@@ -1,5 +1,4 @@
-use crate::cpu::pipeline::default_tone;
-use crate::edits::{BasicEdits, CropRect, Edits, ToneEdits};
+use crate::edits::{BasicEdits, CropRect, Edits, OutputEdits, ToneEdits};
 use crate::frame::{OrientFlips, RawFrame};
 use crate::geom::{GeometryTransform, mask_uv_to_display_uv};
 use crate::ops::lens_distortion::{distortion_coeffs, distortion_zoom, output_px_to_source_px};
@@ -9,8 +8,8 @@ const SAMPLE_TARGET: usize = 200_000;
 const HIST_BINS: usize = 256;
 const MIN_VALID_SAMPLES: u32 = 1000;
 
-fn develop(v: f32) -> f32 {
-    default_tone(v)
+fn develop_luma(r: f32, g: f32, b: f32, output: OutputEdits) -> f32 {
+    crate::tone::apply_display_luma([r, g, b], output)
 }
 
 struct Stats {
@@ -140,12 +139,11 @@ fn add_sample(
     total: &mut u32,
     sat_sum: &mut f64,
     sat_n: &mut u32,
-    r: f32,
-    gv: f32,
-    b: f32,
+    rgb: [f32; 3],
+    output: OutputEdits,
 ) {
-    let y_linear = 0.2126 * r + 0.7152 * gv + 0.0722 * b;
-    let y_srgb = develop(y_linear);
+    let [r, gv, b] = rgb;
+    let y_srgb = develop_luma(r, gv, b, output);
     let bin = (y_srgb * 255.0).round().clamp(0.0, 255.0) as usize;
     hist[bin] += 1;
     *total += 1;
@@ -175,7 +173,7 @@ fn finalize_stats(hist: [u32; HIST_BINS], total: u32, sat_sum: f64, sat_n: u32) 
     })
 }
 
-fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
+fn collect_stats_direct(frame: &RawFrame, output: OutputEdits) -> Option<Stats> {
     if frame.cpp < 3 {
         return None;
     }
@@ -197,7 +195,14 @@ fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
         let r = (frame.data[off] * scale[0]).max(0.0);
         let gv = (frame.data[off + 1] * scale[1]).max(0.0);
         let b = (frame.data[off + 2] * scale[2]).max(0.0);
-        add_sample(&mut hist, &mut total, &mut sat_sum, &mut sat_n, r, gv, b);
+        add_sample(
+            &mut hist,
+            &mut total,
+            &mut sat_sum,
+            &mut sat_n,
+            [r, gv, b],
+            output,
+        );
         i += step;
     }
 
@@ -205,6 +210,7 @@ fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
 }
 
 fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
+    let output = edits.output;
     let w = frame.width;
     let h = frame.height;
     if w == 0 || h == 0 || frame.cpp < 3 {
@@ -282,7 +288,14 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
             b *= gain;
         }
 
-        add_sample(&mut hist, &mut total, &mut sat_sum, &mut sat_n, r, gv, b);
+        add_sample(
+            &mut hist,
+            &mut total,
+            &mut sat_sum,
+            &mut sat_n,
+            [r, gv, b],
+            output,
+        );
         i += step;
     }
 
@@ -305,9 +318,10 @@ fn needs_output_pass(edits: &Edits) -> bool {
 pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
     let context = context.clamped();
     let stats = if needs_output_pass(&context) {
-        collect_stats_output(frame, &context).or_else(|| collect_stats_direct(frame))
+        collect_stats_output(frame, &context)
+            .or_else(|| collect_stats_direct(frame, context.output))
     } else {
-        collect_stats_direct(frame)
+        collect_stats_direct(frame, context.output)
     };
     let Some(s) = stats else {
         return Edits::default();
@@ -387,6 +401,7 @@ pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
         lens: Default::default(),
         geometry: Default::default(),
         masks: Vec::new(),
+        output: Default::default(),
     }
 }
 

@@ -434,6 +434,12 @@ impl GpuRenderer {
             [lod, shadows_mip_f, 0.0, 0.0],
             [cos_a, sin_a, bw, bh],
             [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
+            [
+                crate::tone::tonemap_kind_index(edits.output.tonemap),
+                0,
+                0,
+                0,
+            ],
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
@@ -644,6 +650,12 @@ impl GpuRenderer {
                     [lod, shadows_mip_f, 0.0, 0.0],
                     [cos_a, sin_a, bw, bh],
                     [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
+                    [
+                        crate::tone::tonemap_kind_index(edits.output.tonemap),
+                        0,
+                        0,
+                        0,
+                    ],
                 );
                 let mut active_mask_eff: [u32; 4] = [0; 4];
                 for slot in &built.color_ops {
@@ -903,7 +915,11 @@ impl GpuRenderer {
         }
 
         if has_masks && !final_pass_active {
-            let tm_params = crate::gpu::passes::tonemap::pack_params(out_w, out_h);
+            let tm_params = crate::gpu::passes::tonemap::pack_params(
+                out_w,
+                out_h,
+                crate::tone::tonemap_kind_index(edits.output.tonemap),
+            );
             let tm_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("tonemap-uniform"),
                 contents: &tm_params,
@@ -1110,7 +1126,7 @@ impl GpuRenderer {
             }
         }
 
-        let mut combine_bytes = [0u8; 64];
+        let mut combine_bytes = [0u8; 80];
         combine_bytes[0..4].copy_from_slice(&amount.to_ne_bytes());
         combine_bytes[4..8].copy_from_slice(&detail_weight.to_ne_bytes());
         combine_bytes[8..12].copy_from_slice(&masking_thresh.to_ne_bytes());
@@ -1133,6 +1149,8 @@ impl GpuRenderer {
         combine_bytes[48..52].copy_from_slice(&gr_amount.to_ne_bytes());
         combine_bytes[52..56].copy_from_slice(&gr_size.to_ne_bytes());
         combine_bytes[56..60].copy_from_slice(&gr_rough.to_ne_bytes());
+        let tone_kind = crate::tone::tonemap_kind_index(edits.output.tonemap);
+        combine_bytes[64..68].copy_from_slice(&tone_kind.to_ne_bytes());
         let ub_c = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("sharpen-combine-uniform"),
             contents: &combine_bytes,
@@ -1600,6 +1618,7 @@ impl GpuRenderer {
             [0.0; 4],
             [0.0; 4],
             [0.0; 4],
+            [0, 0, 0, 0],
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {

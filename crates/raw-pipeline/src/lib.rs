@@ -14,6 +14,7 @@ pub mod histogram;
 pub mod mask_raster;
 pub mod ops;
 pub mod presence;
+pub mod tone;
 
 use thiserror::Error;
 

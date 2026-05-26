@@ -311,6 +311,20 @@ export function maskLayerIsEffective(l: MaskLayer): boolean {
   return hasComp && !maskedEditsIsZero(l.edits);
 }
 
+export type TonemapKind = 'default' | 'agx';
+
+export interface OutputEdits {
+  tonemap: TonemapKind;
+}
+
+export function neutralOutput(): OutputEdits {
+  return { tonemap: 'default' };
+}
+
+export function outputIsDefault(o: OutputEdits): boolean {
+  return o.tonemap === 'default';
+}
+
 export interface Edits {
   basic: BasicEdits;
   tone: ToneEdits;
@@ -320,6 +334,7 @@ export interface Edits {
   lens: LensEdits;
   geometry: GeometryEdits;
   masks: MaskLayer[];
+  output: OutputEdits;
 }
 
 export interface EditManifest {
@@ -393,7 +408,8 @@ export function neutralEdits(): Edits {
       crop: null,
       aspect: { kind: 'original' }
     },
-    masks: []
+    masks: [],
+    output: neutralOutput()
   };
 }
 
@@ -470,7 +486,8 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     e.detail.color_nr_amount === 0 &&
     e.effects.vignette_amount === 0 &&
     e.effects.grain_amount === 0 &&
-    lensIsZero(e.lens)
+    lensIsZero(e.lens) &&
+    outputIsDefault(e.output)
   );
 }
 
@@ -603,6 +620,11 @@ export function editsToManifest(e: Edits): EditManifest {
   }
   if (e.masks.length > 0) {
     ops.masks = { layers: e.masks };
+  }
+  if (!outputIsDefault(e.output)) {
+    const obj: Record<string, string> = {};
+    if (e.output.tonemap !== 'default') obj.tonemap = e.output.tonemap;
+    ops.output = obj;
   }
   return { schema_version: 3, ops };
 }
@@ -775,6 +797,10 @@ export function manifestToEdits(doc: EditManifest): Edits {
     edits.masks = masks.layers
       .map((raw) => parseMaskLayer(raw))
       .filter((l): l is MaskLayer => l !== null);
+  }
+  const output = ops.output as { tonemap?: string } | undefined;
+  if (output) {
+    if (output.tonemap === 'agx') edits.output.tonemap = 'agx';
   }
   return edits;
 }

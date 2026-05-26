@@ -94,7 +94,8 @@ pub fn render_with_cancel(
 
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     cancel::check(cancel)?;
-    let (rgb_u8, rgb_u16, histogram, linear_histogram) = finish_output(rgb, w, h, want_16bit);
+    let (rgb_u8, rgb_u16, histogram, linear_histogram) =
+        finish_output(rgb, w, h, want_16bit, edits.output);
     cancel::check(cancel)?;
 
     let bytes = if want_16bit {
@@ -119,9 +120,6 @@ pub fn render_with_cancel(
         renderer: "cpu".into(),
     })
 }
-
-const S_CURVE_BLEND: f32 = 0.15;
-const HIGHLIGHT_KNEE: f32 = 0.95;
 
 pub fn run_pipeline_ops(
     image: &mut LinearImage,
@@ -323,52 +321,19 @@ pub fn run_sensor_ops(
     Ok(())
 }
 
-fn soft_clip_high(v: f32) -> f32 {
-    if v <= HIGHLIGHT_KNEE {
-        return v;
-    }
-    let headroom = 1.0 - HIGHLIGHT_KNEE;
-    let excess = v - HIGHLIGHT_KNEE;
-    HIGHLIGHT_KNEE + headroom * (excess / (excess + headroom))
-}
-
+#[cfg(test)]
 pub(crate) fn default_tone(v: f32) -> f32 {
-    let lin = if v <= 0.0 { 0.0 } else { soft_clip_high(v) };
-    let srgb = srgb_oetf(lin);
-    let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    srgb + (s - srgb) * S_CURVE_BLEND
+    crate::tone::default_scalar(v)
 }
 
-const OETF_LUT_SIZE: usize = 4096;
-
-fn oetf_lut() -> &'static [f32; OETF_LUT_SIZE + 1] {
-    static LUT: std::sync::OnceLock<[f32; OETF_LUT_SIZE + 1]> = std::sync::OnceLock::new();
-    LUT.get_or_init(|| {
-        let mut t = [0.0f32; OETF_LUT_SIZE + 1];
-        for (i, slot) in t.iter_mut().enumerate() {
-            let v = i as f32 / OETF_LUT_SIZE as f32;
-            *slot = srgb_oetf_scalar(v);
-        }
-        t
-    })
-}
-
+#[cfg(test)]
 fn srgb_oetf(v: f32) -> f32 {
-    let lut = oetf_lut();
-    let scaled = v.clamp(0.0, 1.0) * OETF_LUT_SIZE as f32;
-    let idx = scaled as usize;
-    let frac = scaled - idx as f32;
-    let lo = lut[idx];
-    let hi = lut[(idx + 1).min(OETF_LUT_SIZE)];
-    lo + (hi - lo) * frac
+    crate::tone::srgb_oetf(v)
 }
 
+#[cfg(test)]
 fn srgb_oetf_scalar(v: f32) -> f32 {
-    if v <= 0.003_130_8 {
-        12.92 * v
-    } else {
-        1.055 * v.powf(1.0 / 2.4) - 0.055
-    }
+    crate::tone::srgb_oetf_scalar(v)
 }
 
 type HistBins = (
@@ -418,6 +383,7 @@ fn finish_output(
     w: usize,
     h: usize,
     want_16bit: bool,
+    output: crate::edits::OutputEdits,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let pixel_count = w * h;
     let n = linear.len();
@@ -459,9 +425,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let tr = default_tone(lr);
-                    let tg = default_tone(lg);
-                    let tb = default_tone(lb);
+                    let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
                     let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
                     let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
                     let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;
@@ -492,9 +456,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let tr = default_tone(lr);
-                    let tg = default_tone(lg);
-                    let tb = default_tone(lb);
+                    let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
                     let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
                     let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
                     let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;

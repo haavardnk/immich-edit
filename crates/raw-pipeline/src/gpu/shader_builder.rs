@@ -2,8 +2,9 @@ use std::fmt::Write;
 
 use crate::ops::{OpRegistry, Stage};
 
-pub const HEADER_BYTES: usize = 112;
+pub const HEADER_BYTES: usize = 128;
 pub const ACTIVE_MASK_OFFSET: usize = 64;
+pub const OUTPUT_UNIFORM_OFFSET: usize = 112;
 pub const MAX_OPS: u32 = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,6 +112,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let uniform_size = HEADER_BYTES + used_vec4s * 16;
 
     let process_chain = build_process_chain(mask);
+    let tone_wgsl = crate::tone::wgsl::TONE_WGSL;
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -122,6 +124,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     active_mask: vec4<u32>,
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
+    output: vec4<u32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
@@ -139,26 +142,7 @@ fn is_active(bit: u32) -> bool {{
     return ((p.active_mask[word] >> shift) & 1u) != 0u;
 }}
 
-fn soft_clip_high(v: f32) -> f32 {{
-    let knee: f32 = 0.95;
-    if (v <= knee) {{ return v; }}
-    let headroom: f32 = 1.0 - knee;
-    let excess: f32 = v - knee;
-    return knee + headroom * (excess / (excess + headroom));
-}}
-
-fn default_tone(v: f32) -> f32 {{
-    var lin: f32;
-    if (v <= 0.0) {{ lin = 0.0; }} else {{ lin = soft_clip_high(v); }}
-    var srgb: f32;
-    if (lin <= 0.003130808) {{
-        srgb = 12.92 * lin;
-    }} else {{
-        srgb = 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
-    }}
-    let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    return srgb + (s - srgb) * 0.15;
-}}
+{tone_wgsl}
 
 {functions}
 fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
@@ -227,7 +211,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
     let outc_lin = process_color(rgb);
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
-    let outc = vec3<f32>(default_tone(outc_lin.r), default_tone(outc_lin.g), default_tone(outc_lin.b));
+    let outc = tone_apply_rgb(outc_lin, p.output.x);
     textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
 }}
 "#
@@ -298,6 +282,7 @@ pub fn build_prepare_wb(registry: &OpRegistry) -> BuiltProcessShader {
     active_mask: vec4<u32>,
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
+    output: vec4<u32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;

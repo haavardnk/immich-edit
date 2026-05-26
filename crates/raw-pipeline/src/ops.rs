@@ -17,6 +17,7 @@ pub mod lens_profile;
 pub mod lens_vignette;
 pub mod luma_nr;
 pub mod masks;
+pub mod output;
 pub mod sample;
 pub mod saturation;
 pub mod sharpen;
@@ -192,5 +193,6 @@ pub fn default_registry() -> OpRegistry {
         Box::new(vignette::VignetteOp),
         Box::new(grain::GrainOp),
         Box::new(masks::MasksOp),
+        Box::new(output::OutputOp),
     ])
 }

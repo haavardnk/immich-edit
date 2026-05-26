@@ -3,6 +3,7 @@ struct CombineParams {
     dims_flags: vec4<u32>,
     vignette: vec4<f32>,
     grain: vec4<f32>,
+    output: vec4<u32>,
 };
 
 @group(0) @binding(0) var<uniform> p: CombineParams;
@@ -11,26 +12,7 @@ struct CombineParams {
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(4) var out_lin: texture_storage_2d<rgba16float, write>;
 
-fn soft_clip_high(v: f32) -> f32 {
-    let knee: f32 = 0.95;
-    if (v <= knee) { return v; }
-    let headroom: f32 = 1.0 - knee;
-    let excess: f32 = v - knee;
-    return knee + headroom * (excess / (excess + headroom));
-}
-
-fn default_tone(v: f32) -> f32 {
-    var lin: f32;
-    if (v <= 0.0) { lin = 0.0; } else { lin = soft_clip_high(v); }
-    var srgb: f32;
-    if (lin <= 0.003130808) {
-        srgb = 12.92 * lin;
-    } else {
-        srgb = 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
-    }
-    let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    return srgb + (s - srgb) * 0.15;
-}
+// TONE_WGSL_INJECT
 
 fn luma(c: vec3<f32>) -> f32 {
     return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
@@ -163,7 +145,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
 
-    var outc = vec3<f32>(default_tone(lin.r), default_tone(lin.g), default_tone(lin.b));
+    var outc = tone_apply_rgb(lin, p.output.x);
     if (preview_mode == 1u) {
         outc = vec3<f32>(mask, mask, mask);
     } else if (preview_mode == 2u) {

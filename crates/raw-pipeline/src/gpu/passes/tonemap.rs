@@ -12,46 +12,32 @@ use crate::gpu::context::GpuContext;
 
 pub const PARAMS_BYTES: usize = 16;
 
-const SHADER: &str = r#"
-struct TonemapParams {
+fn shader_source() -> String {
+    format!(
+        r#"
+struct TonemapParams {{
     out_size: vec2<u32>,
-    pad: vec2<u32>,
-};
+    output: vec2<u32>,
+}};
 
 @group(0) @binding(0) var<uniform> p: TonemapParams;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
 @group(0) @binding(2) var dst_tex: texture_storage_2d<rgba8unorm, write>;
 
-fn soft_clip_high(v: f32) -> f32 {
-    let knee: f32 = 0.95;
-    if (v <= knee) { return v; }
-    let headroom: f32 = 1.0 - knee;
-    let excess: f32 = v - knee;
-    return knee + headroom * (excess / (excess + headroom));
-}
-
-fn default_tone(v: f32) -> f32 {
-    var lin: f32;
-    if (v <= 0.0) { lin = 0.0; } else { lin = soft_clip_high(v); }
-    var srgb: f32;
-    if (lin <= 0.003130808) {
-        srgb = 12.92 * lin;
-    } else {
-        srgb = 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
-    }
-    let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    return srgb + (s - srgb) * 0.15;
-}
+{tone_wgsl}
 
 @compute @workgroup_size(16, 16, 1)
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.out_size.x || gid.y >= p.out_size.y) { return; }
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
+    if (gid.x >= p.out_size.x || gid.y >= p.out_size.y) {{ return; }}
     let coord = vec2<i32>(i32(gid.x), i32(gid.y));
     let c = textureLoad(src_tex, coord, 0).rgb;
-    let outc = vec3<f32>(default_tone(c.r), default_tone(c.g), default_tone(c.b));
+    let outc = tone_apply_rgb(c, p.output.x);
     textureStore(dst_tex, coord, vec4<f32>(outc, 1.0));
+}}
+"#,
+        tone_wgsl = crate::tone::wgsl::TONE_WGSL
+    )
 }
-"#;
 
 pub struct TonemapPass {
     pub layout: BindGroupLayout,
@@ -96,9 +82,10 @@ impl TonemapPass {
                 },
             ],
         });
+        let source = shader_source();
         let module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("tonemap.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Borrowed(SHADER)),
+            source: ShaderSource::Wgsl(Cow::Owned(source)),
         });
         let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("tonemap-pl"),
@@ -117,9 +104,10 @@ impl TonemapPass {
     }
 }
 
-pub fn pack_params(out_w: u32, out_h: u32) -> [u8; PARAMS_BYTES] {
+pub fn pack_params(out_w: u32, out_h: u32, tonemap: u32) -> [u8; PARAMS_BYTES] {
     let mut buf = [0u8; PARAMS_BYTES];
     buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
     buf[4..8].copy_from_slice(&out_h.to_ne_bytes());
+    buf[8..12].copy_from_slice(&tonemap.to_ne_bytes());
     buf
 }
