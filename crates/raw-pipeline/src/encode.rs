@@ -53,6 +53,7 @@ pub fn encode_png8(
         enc.set_color(png::ColorType::Rgb);
         enc.set_depth(png::BitDepth::Eight);
         enc.set_compression(map_png_compression(compression));
+        enc.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
         let mut writer = enc
             .write_header()
             .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
@@ -79,6 +80,7 @@ pub fn encode_png16(
         enc.set_color(png::ColorType::Rgb);
         enc.set_depth(png::BitDepth::Sixteen);
         enc.set_compression(map_png_compression(compression));
+        enc.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
         let mut writer = enc
             .write_header()
             .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
