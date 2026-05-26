@@ -1,4 +1,4 @@
-use super::{EditOperator, LinearImage, OpContext, Stage};
+use super::{EditOperator, LinearImage, OpContext, Stage, OpKind};
 use crate::PipelineResult;
 use crate::edits::{Edits, MaskLayer};
 
@@ -10,6 +10,9 @@ impl EditOperator for MasksOp {
     }
     fn stage(&self) -> Stage {
         Stage::Color
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         1000

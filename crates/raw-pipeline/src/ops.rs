@@ -68,6 +68,13 @@ pub enum GpuOpKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OpKind {
+    Fused,
+    Spatial,
+    Output,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResourceNeed {
     LumaPyramid { max_radius_px: u32 },
 }
@@ -111,6 +118,9 @@ pub trait EditOperator: Send + Sync {
     fn order(&self) -> i32 {
         0
     }
+    fn kind(&self) -> OpKind {
+        OpKind::Fused
+    }
     fn is_active(&self, edits: &Edits) -> bool;
     fn apply_cpu(
         &self,
@@ -118,6 +128,12 @@ pub trait EditOperator: Send + Sync {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
+        if matches!(self.kind(), OpKind::Spatial) {
+            panic!(
+                "{}: OpKind::Spatial requires apply_cpu override",
+                self.id()
+            );
+        }
         if let Some(op) = self.cpu_fused(edits, ctx) {
             let mut seg = FusedSegment::default();
             seg.push(op);
@@ -171,7 +187,7 @@ impl OpRegistry {
 }
 
 pub fn default_registry() -> OpRegistry {
-    OpRegistry::new(vec![
+    let registry = OpRegistry::new(vec![
         Box::new(lens_profile::LensProfileOp),
         Box::new(lens_distortion::LensDistortionOp),
         Box::new(lens_vignette::LensVignetteOp),
@@ -199,5 +215,19 @@ pub fn default_registry() -> OpRegistry {
         Box::new(grain::GrainOp),
         Box::new(masks::MasksOp),
         Box::new(output::OutputOp),
-    ])
+    ]);
+    for op in registry.ops() {
+        if matches!(op.kind(), OpKind::Output) && op.stage() != Stage::Output {
+            panic!("{}: OpKind::Output requires Stage::Output", op.id());
+        }
+    }
+    let output_kinds = registry
+        .ops()
+        .iter()
+        .filter(|o| matches!(o.kind(), OpKind::Output))
+        .count();
+    if output_kinds != 1 {
+        panic!("expected exactly one OpKind::Output, found {output_kinds}");
+    }
+    registry
 }

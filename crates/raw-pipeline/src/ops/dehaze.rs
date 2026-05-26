@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage};
+use super::{EditOperator, OpContext, OpKind, Stage};
 use crate::PipelineResult;
 use crate::cpu::dehaze::apply_dehaze;
 use crate::edits::Edits;
@@ -12,6 +12,9 @@ impl EditOperator for DehazeOp {
     }
     fn stage(&self) -> Stage {
         Stage::Tone
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         -10

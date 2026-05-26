@@ -1,4 +1,4 @@
-use super::{EditOperator, LinearImage, OpContext, Stage};
+use super::{EditOperator, LinearImage, OpContext, Stage, OpKind};
 use crate::PipelineResult;
 use crate::edits::{Edits, TonemapKind};
 
@@ -10,6 +10,9 @@ impl EditOperator for OutputOp {
     }
     fn stage(&self) -> Stage {
         Stage::Output
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Output
     }
     fn order(&self) -> i32 {
         100

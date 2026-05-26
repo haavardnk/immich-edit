@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, GpuOpKind, OpContext, Stage};
+use super::{EditOperator, GpuOpKind, OpContext, OpKind, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -19,6 +19,9 @@ impl EditOperator for ColorNrOp {
     }
     fn stage(&self) -> Stage {
         Stage::Tone
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         -40

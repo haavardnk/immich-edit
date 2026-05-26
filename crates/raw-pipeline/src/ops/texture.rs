@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, ResourceNeed, Stage};
+use super::{EditOperator, OpContext, ResourceNeed, Stage, OpKind};
 use crate::PipelineResult;
 use crate::cpu::presence::apply_presence;
 use crate::edits::Edits;
@@ -12,6 +12,9 @@ impl EditOperator for TextureOp {
     }
     fn stage(&self) -> Stage {
         Stage::Tone
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         -30

@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage};
+use super::{EditOperator, OpContext, Stage, OpKind};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
@@ -12,6 +12,9 @@ impl EditOperator for LensVignetteOp {
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         1

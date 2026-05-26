@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 
 use super::LinearImage;
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{EditOperator, GpuOp, OpContext, Stage, OpKind};
 use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
@@ -15,6 +15,9 @@ impl EditOperator for TransformOp {
     }
     fn stage(&self) -> Stage {
         Stage::Geometry
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn is_active(&self, edits: &Edits) -> bool {
         let g = &edits.geometry;

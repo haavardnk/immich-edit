@@ -1,6 +1,6 @@
 use super::LinearImage;
 use super::sample::sample_channel_bicubic;
-use super::{EditOperator, OpContext, Stage};
+use super::{EditOperator, OpContext, Stage, OpKind};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
@@ -13,6 +13,9 @@ impl EditOperator for LensCaOp {
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
+    }
+    fn kind(&self) -> OpKind {
+        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         2
