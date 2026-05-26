@@ -73,6 +73,95 @@ pub fn distortion_zoom(lens: &LensEdits) -> f32 {
     constrain_zoom(k1, k2, k3)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct LensWarpParams {
+    pub k1: f32,
+    pub k2: f32,
+    pub k3: f32,
+    pub zoom: f32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl LensWarpParams {
+    pub fn from_edits(lens: &LensEdits, width: u32, height: u32) -> Self {
+        let (k1, k2, k3) = distortion_coeffs(lens);
+        let zoom = distortion_zoom(lens);
+        Self {
+            k1,
+            k2,
+            k3,
+            zoom,
+            width,
+            height,
+        }
+    }
+    pub fn is_identity(&self) -> bool {
+        self.k1 == 0.0 && self.k2 == 0.0 && self.k3 == 0.0 && self.zoom == 1.0
+    }
+    fn scale(&self, r: f32) -> f32 {
+        let r2 = r * r;
+        let r4 = r2 * r2;
+        let r6 = r4 * r2;
+        1.0 + self.k1 * r2 + self.k2 * r4 + self.k3 * r6
+    }
+}
+
+pub fn mask_uv_to_scene_uv(p: &LensWarpParams, uv: [f32; 2]) -> [f32; 2] {
+    if p.is_identity() {
+        return uv;
+    }
+    let w = p.width as f32;
+    let h = p.height as f32;
+    if w == 0.0 || h == 0.0 {
+        return uv;
+    }
+    let half_diag = 0.5 * (w * w + h * h).sqrt();
+    let nx = (uv[0] - 0.5) * w;
+    let ny = (uv[1] - 0.5) * h;
+    let r = (nx * nx + ny * ny).sqrt() * p.zoom / half_diag;
+    let s = p.scale(r);
+    [
+        0.5 + (uv[0] - 0.5) * p.zoom * s,
+        0.5 + (uv[1] - 0.5) * p.zoom * s,
+    ]
+}
+
+pub fn scene_uv_to_mask_uv(p: &LensWarpParams, uv: [f32; 2]) -> [f32; 2] {
+    if p.is_identity() {
+        return uv;
+    }
+    let w = p.width as f32;
+    let h = p.height as f32;
+    if w == 0.0 || h == 0.0 {
+        return uv;
+    }
+    let half_diag = 0.5 * (w * w + h * h).sqrt();
+    let sx = (uv[0] - 0.5) * w;
+    let sy = (uv[1] - 0.5) * h;
+    let len_scene = (sx * sx + sy * sy).sqrt();
+    if len_scene < 1e-9 {
+        return [0.5, 0.5];
+    }
+    let target = len_scene / half_diag;
+    let mut lo = 0.0f32;
+    let mut hi = 2.0f32;
+    for _ in 0..48 {
+        let mid = 0.5 * (lo + hi);
+        let r = mid * p.zoom;
+        if mid * p.zoom * p.scale(r) < target {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    let u = 0.5 * (lo + hi);
+    let mask_len = u * half_diag;
+    let mx = sx / len_scene * mask_len;
+    let my = sy / len_scene * mask_len;
+    [0.5 + mx / w, 0.5 + my / h]
+}
+
 pub fn apply_lens_distortion(image: &mut LinearImage, lens: &LensEdits) {
     let w = image.width;
     let h = image.height;
@@ -218,6 +307,84 @@ mod tests {
                 "round trip too far at center: got {}, expected {}",
                 img.rgb[center_idx], target[center_idx]
             );
+        }
+    }
+
+    fn warp(k1: f32, zoom: f32) -> LensWarpParams {
+        LensWarpParams {
+            k1,
+            k2: 0.0,
+            k3: 0.0,
+            zoom,
+            width: 6000,
+            height: 4000,
+        }
+    }
+
+    #[test]
+    fn warp_identity_is_passthrough() {
+        let p = LensWarpParams {
+            k1: 0.0,
+            k2: 0.0,
+            k3: 0.0,
+            zoom: 1.0,
+            width: 100,
+            height: 100,
+        };
+        let uv = [0.31, 0.78];
+        let out = mask_uv_to_scene_uv(&p, uv);
+        if (out[0] - uv[0]).abs() > 1e-7 || (out[1] - uv[1]).abs() > 1e-7 {
+            panic!("identity mismatch: {out:?}");
+        }
+    }
+
+    #[test]
+    fn warp_round_trip() {
+        for (k1, zoom) in [(0.15f32, 1.0f32), (-0.12, 1.0), (0.2, 0.85)] {
+            let p = warp(k1, zoom);
+            for uv in [[0.1, 0.2], [0.5, 0.5], [0.7, 0.9], [0.95, 0.05]] {
+                let scene = mask_uv_to_scene_uv(&p, uv);
+                let back = scene_uv_to_mask_uv(&p, scene);
+                let dx = back[0] - uv[0];
+                let dy = back[1] - uv[1];
+                if dx.abs() > 1e-4 || dy.abs() > 1e-4 {
+                    panic!("round trip failed k1={k1} zoom={zoom} uv={uv:?} back={back:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn warp_matches_cpu_pixel_formula() {
+        let lens = LensEdits {
+            profile_enabled: true,
+            distortion_amount: 100.0,
+            k1: 0.18,
+            ..Default::default()
+        };
+        let w: u32 = 200;
+        let h: u32 = 150;
+        let p = LensWarpParams::from_edits(&lens, w, h);
+        let (k1, k2, k3) = distortion_coeffs(&lens);
+        let zoom = distortion_zoom(&lens);
+        let cx = w as f32 * 0.5;
+        let cy = h as f32 * 0.5;
+        let r_norm = 0.5 * ((w as f32).powi(2) + (h as f32).powi(2)).sqrt();
+        let inv_norm = zoom / r_norm;
+        for &(x, y) in &[(0u32, 0u32), (50, 30), (100, 75), (199, 149)] {
+            let dx = (x as f32 + 0.5 - cx) * inv_norm;
+            let dy = (y as f32 + 0.5 - cy) * inv_norm;
+            let r2 = dx * dx + dy * dy;
+            let s = 1.0 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
+            let sx_px = dx * s * r_norm + cx;
+            let sy_px = dy * s * r_norm + cy;
+            let mask_uv = [(x as f32 + 0.5) / w as f32, (y as f32 + 0.5) / h as f32];
+            let scene_uv = mask_uv_to_scene_uv(&p, mask_uv);
+            let got_sx = scene_uv[0] * w as f32;
+            let got_sy = scene_uv[1] * h as f32;
+            if (got_sx - sx_px).abs() > 1e-3 || (got_sy - sy_px).abs() > 1e-3 {
+                panic!("mismatch at ({x},{y}): cpu=({sx_px},{sy_px}) helper=({got_sx},{got_sy})");
+            }
         }
     }
 }

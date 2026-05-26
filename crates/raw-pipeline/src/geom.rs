@@ -130,6 +130,114 @@ pub fn largest_inscribed_rect(sw: f32, sh: f32, angle_deg: f32, aspect: f32) -> 
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct GeometryTransform {
+    pub input_w: u32,
+    pub input_h: u32,
+    pub rotate_quarter: u16,
+    pub flip_h: bool,
+    pub flip_v: bool,
+    pub angle_deg: f32,
+    pub crop: CropRect,
+    pub output_w: u32,
+    pub output_h: u32,
+}
+
+impl GeometryTransform {
+    pub fn is_identity(&self) -> bool {
+        self.rotate_quarter == 0
+            && !self.flip_h
+            && !self.flip_v
+            && self.angle_deg.abs() < 1e-4
+            && self.crop.is_full()
+    }
+    pub fn oriented_size(&self) -> (u32, u32) {
+        match self.rotate_quarter {
+            90 | 270 => (self.input_h, self.input_w),
+            _ => (self.input_w, self.input_h),
+        }
+    }
+    pub fn bbox(&self) -> Size {
+        let (ow, oh) = self.oriented_size();
+        rotated_bbox(ow as f32, oh as f32, self.angle_deg)
+    }
+}
+
+fn ortho_forward(rot: u16, flip_h: bool, flip_v: bool, mu: f32, mv: f32) -> (f32, f32) {
+    let (mut u, mut v) = match rot {
+        90 => (1.0 - mv, mu),
+        180 => (1.0 - mu, 1.0 - mv),
+        270 => (mv, 1.0 - mu),
+        _ => (mu, mv),
+    };
+    if flip_h {
+        u = 1.0 - u;
+    }
+    if flip_v {
+        v = 1.0 - v;
+    }
+    (u, v)
+}
+
+fn ortho_inverse(rot: u16, flip_h: bool, flip_v: bool, u: f32, v: f32) -> (f32, f32) {
+    let mut uu = u;
+    let mut vv = v;
+    if flip_h {
+        uu = 1.0 - uu;
+    }
+    if flip_v {
+        vv = 1.0 - vv;
+    }
+    match rot {
+        90 => (vv, 1.0 - uu),
+        180 => (1.0 - uu, 1.0 - vv),
+        270 => (1.0 - vv, uu),
+        _ => (uu, vv),
+    }
+}
+
+pub fn display_uv_to_mask_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
+    if t.is_identity() {
+        return uv;
+    }
+    let (ow, oh) = t.oriented_size();
+    let bbox = t.bbox();
+    let a = deg_to_rad(t.angle_deg);
+    let cos_a = a.cos();
+    let sin_a = a.sin();
+    let bx_rel = t.crop.x + uv[0] * t.crop.w;
+    let by_rel = t.crop.y + uv[1] * t.crop.h;
+    let cx_px = (bx_rel - 0.5) * bbox.w;
+    let cy_px = (by_rel - 0.5) * bbox.h;
+    let sx_px = cx_px * cos_a + cy_px * sin_a;
+    let sy_px = -cx_px * sin_a + cy_px * cos_a;
+    let u_o = sx_px / ow as f32 + 0.5;
+    let v_o = sy_px / oh as f32 + 0.5;
+    let (mu, mv) = ortho_inverse(t.rotate_quarter, t.flip_h, t.flip_v, u_o, v_o);
+    [mu, mv]
+}
+
+pub fn mask_uv_to_display_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
+    if t.is_identity() {
+        return uv;
+    }
+    let (ow, oh) = t.oriented_size();
+    let bbox = t.bbox();
+    let a = deg_to_rad(t.angle_deg);
+    let cos_a = a.cos();
+    let sin_a = a.sin();
+    let (u_o, v_o) = ortho_forward(t.rotate_quarter, t.flip_h, t.flip_v, uv[0], uv[1]);
+    let sx_px = (u_o - 0.5) * ow as f32;
+    let sy_px = (v_o - 0.5) * oh as f32;
+    let cx_px = sx_px * cos_a - sy_px * sin_a;
+    let cy_px = sx_px * sin_a + sy_px * cos_a;
+    let bx_rel = cx_px / bbox.w + 0.5;
+    let by_rel = cy_px / bbox.h + 0.5;
+    let crop_w = t.crop.w.max(1e-9);
+    let crop_h = t.crop.h.max(1e-9);
+    [(bx_rel - t.crop.x) / crop_w, (by_rel - t.crop.y) / crop_h]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +292,74 @@ mod tests {
             aspect_ratio_for(AspectLock::Ratio { num: 16, den: 9 }, 100.0, 50.0),
             Some(16.0 / 9.0)
         );
+    }
+
+    fn xform(
+        rot: u16,
+        flip_h: bool,
+        flip_v: bool,
+        angle: f32,
+        crop: CropRect,
+    ) -> GeometryTransform {
+        let (iw, ih) = (1200u32, 800u32);
+        let (ow, oh) = match rot {
+            90 | 270 => (ih, iw),
+            _ => (iw, ih),
+        };
+        let bbox = rotated_bbox(ow as f32, oh as f32, angle);
+        let out_w = (crop.w * bbox.w).round().max(1.0) as u32;
+        let out_h = (crop.h * bbox.h).round().max(1.0) as u32;
+        GeometryTransform {
+            input_w: iw,
+            input_h: ih,
+            rotate_quarter: rot,
+            flip_h,
+            flip_v,
+            angle_deg: angle,
+            crop,
+            output_w: out_w,
+            output_h: out_h,
+        }
+    }
+
+    #[test]
+    fn geom_identity_passthrough() {
+        let t = xform(0, false, false, 0.0, CropRect::full());
+        let uv = [0.37, 0.81];
+        let m = display_uv_to_mask_uv(&t, uv);
+        assert!((m[0] - uv[0]).abs() < 1e-7 && (m[1] - uv[1]).abs() < 1e-7);
+    }
+
+    #[test]
+    fn geom_round_trip() {
+        let crops = [
+            CropRect::full(),
+            CropRect {
+                x: 0.1,
+                y: 0.15,
+                w: 0.7,
+                h: 0.6,
+            },
+        ];
+        for &rot in &[0u16, 90, 180, 270] {
+            for &flip_h in &[false, true] {
+                for &flip_v in &[false, true] {
+                    for &angle in &[0.0f32, 5.0, -7.5] {
+                        for &crop in &crops {
+                            let t = xform(rot, flip_h, flip_v, angle, crop);
+                            for uv in [[0.1, 0.2], [0.5, 0.5], [0.85, 0.9]] {
+                                let m = display_uv_to_mask_uv(&t, uv);
+                                let d = mask_uv_to_display_uv(&t, m);
+                                if (d[0] - uv[0]).abs() > 1e-4 || (d[1] - uv[1]).abs() > 1e-4 {
+                                    panic!(
+                                        "round trip rot={rot} fh={flip_h} fv={flip_v} a={angle} crop={crop:?} uv={uv:?} back={d:?} mask={m:?}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
