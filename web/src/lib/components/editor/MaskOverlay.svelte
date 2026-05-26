@@ -2,6 +2,19 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { isFullCrop, type MaskComponent, type MaskComponentKind, type Vec2f } from '$lib/types/edits';
+  import {
+    lensWarpFromEdits,
+    lensWarpActive,
+    maskUvToSceneUv,
+    sceneUvToMaskUv,
+    type LensWarpParams
+  } from '$lib/utils/lensWarp';
+  import {
+    displayUvToMaskUv,
+    maskUvToDisplayUv,
+    type GeometryTransform,
+    type RotateQuarter
+  } from '$lib/utils/geomTransform';
 
   let {
     img
@@ -61,6 +74,35 @@
     );
   });
 
+  const lensP = $derived.by<LensWarpParams>(() =>
+    lensWarpFromEdits(
+      editor.edits.lens,
+      editor.meta?.source_w ?? 1,
+      editor.meta?.source_h ?? 1
+    )
+  );
+
+  const geomT = $derived.by<GeometryTransform>(() => {
+    const g = editor.edits.geometry;
+    const sw = editor.meta?.source_w ?? 1;
+    const sh = editor.meta?.source_h ?? 1;
+    const dw = editor.meta?.width ?? sw;
+    const dh = editor.meta?.height ?? sh;
+    return {
+      inputW: sw,
+      inputH: sh,
+      rotateQuarter: g.rotate as RotateQuarter,
+      flipH: g.flip_h,
+      flipV: g.flip_v,
+      angleDeg: g.rotate_angle,
+      crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+      outputW: dw,
+      outputH: dh
+    };
+  });
+
+  const fillIdentity = $derived(geomIdentity && !lensWarpActive(lensP));
+
   const active = $derived(
     editor.activeLayerId
       ? editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null
@@ -69,12 +111,31 @@
 
   const showOverlay = $derived(
     editor.maskOverlayVisible &&
-      geomIdentity &&
       !!active &&
       editor.maskPreviewLayerId === null &&
       rectW > 0 &&
       rectH > 0
   );
+
+  function sceneToDisplay(scene: Vec2f): Vec2f {
+    const m = sceneUvToMaskUv(lensP, [scene.x, scene.y]);
+    const d = maskUvToDisplayUv(geomT, m);
+    return { x: d[0], y: d[1] };
+  }
+
+  function displayToScene(disp: Vec2f): Vec2f {
+    const m = displayUvToMaskUv(geomT, [disp.x, disp.y]);
+    const s = maskUvToSceneUv(lensP, m);
+    return { x: s[0], y: s[1] };
+  }
+
+  function sceneToPx(scene: Vec2f): { x: number; y: number } {
+    return toPx(sceneToDisplay(scene));
+  }
+
+  function fromPxScene(px: number, py: number): Vec2f {
+    return displayToScene(fromPx(px, py));
+  }
 
   function toPx(v: Vec2f): { x: number; y: number } {
     return { x: rectX + v.x * rectW, y: rectY + v.y * rectH };
@@ -144,7 +205,7 @@
     if (!layer) return;
     const comp = layer.components.find((c) => c.id === drag!.componentId);
     if (!comp) return;
-    const n = fromPx(e.clientX - parentLeft(e), e.clientY - parentTop(e));
+    const n = fromPxScene(e.clientX - parentLeft(e), e.clientY - parentTop(e));
     let next: MaskComponentKind | null = null;
     if (drag.kind.kind === 'linear-p0' && comp.kind.kind === 'linear') {
       next = { ...comp.kind, p0: n };
@@ -211,16 +272,23 @@
   }
 
   function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {
-    const a = toPx(k.p0);
-    const b = toPx(k.p1);
+    const a = sceneToPx(k.p0);
+    const b = sceneToPx(k.p1);
     return { a, b, comp };
   }
 
   function radialHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'radial' }>) {
-    const c = toPx(k.center);
-    const rx = k.radius_xy.x * rectW;
-    const ry = k.radius_xy.y * rectH;
-    return { c, rx, ry, comp };
+    const c = sceneToPx(k.center);
+    const rxEnd = sceneToPx({ x: k.center.x + k.radius_xy.x, y: k.center.y });
+    const ryEnd = sceneToPx({ x: k.center.x, y: k.center.y + k.radius_xy.y });
+    const rxDx = rxEnd.x - c.x;
+    const rxDy = rxEnd.y - c.y;
+    const ryDx = ryEnd.x - c.x;
+    const ryDy = ryEnd.y - c.y;
+    const rx = Math.hypot(rxDx, rxDy);
+    const ry = Math.hypot(ryDx, ryDy);
+    const tilt = (Math.atan2(rxDy, rxDx) * 180) / Math.PI;
+    return { c, rx, ry, tilt, rxDx, rxDy, ryDx, ryDy, comp };
   }
 
   const activeCompId = $derived(editor.activeMaskComponentId);
@@ -260,7 +328,7 @@
         {@const stopLo = Math.max(0, 0.5 - half)}
         {@const stopHi = Math.min(1, 0.5 + half)}
         <g style="pointer-events: auto;">
-          {#if isSel}
+          {#if isSel && fillIdentity}
             <defs>
               <linearGradient
                 id={gradId}
@@ -349,7 +417,7 @@
               if (comp.kind.kind !== 'linear') return;
               const svg = (e.currentTarget as SVGElement).ownerSVGElement!;
               const r = svg.getBoundingClientRect();
-              const mid = fromPx(e.clientX - r.left, e.clientY - r.top);
+              const mid = fromPxScene(e.clientX - r.left, e.clientY - r.top);
               startDrag(e, active.id, comp.id, {
                 kind: 'linear-move',
                 startP0: { ...comp.kind.p0 },
@@ -418,7 +486,7 @@
         {@const emptyOp = (comp.invert ? 0.55 : 0.0) * comp.opacity}
         {@const rMax = Math.max(h.rx, h.ry, 1)}
         <g style="pointer-events: auto;">
-          {#if isSel}
+          {#if isSel && fillIdentity}
             <defs>
               <radialGradient
                 id={gradId}
@@ -426,7 +494,7 @@
                 cx={h.c.x}
                 cy={h.c.y}
                 r={rMax}
-                gradientTransform={`translate(${h.c.x} ${h.c.y}) scale(${h.rx / rMax} ${h.ry / rMax}) translate(${-h.c.x} ${-h.c.y})`}
+                gradientTransform={`translate(${h.c.x} ${h.c.y}) rotate(${h.tilt}) scale(${h.rx / rMax} ${h.ry / rMax}) translate(${-h.c.x} ${-h.c.y})`}
               >
                 <stop offset="0" stop-color={active.color} stop-opacity={fillOp} />
                 <stop offset={innerScale} stop-color={active.color} stop-opacity={fillOp} />
@@ -447,6 +515,7 @@
             cy={h.c.y}
             rx={h.rx}
             ry={h.ry}
+            transform={`rotate(${h.tilt} ${h.c.x} ${h.c.y})`}
             fill="none"
             stroke={active.color}
             stroke-width="1.5"
@@ -462,6 +531,7 @@
             cy={h.c.y}
             rx={h.rx}
             ry={h.ry}
+            transform={`rotate(${h.tilt} ${h.c.x} ${h.c.y})`}
             fill="none"
             stroke="black"
             stroke-width="0.5"
@@ -481,8 +551,8 @@
             onpointerdown={(e) => startDrag(e, active.id, comp.id, { kind: 'radial-center' })}
           />
           <circle
-            cx={h.c.x + h.rx}
-            cy={h.c.y}
+            cx={h.c.x + h.rxDx}
+            cy={h.c.y + h.rxDy}
             r="6"
             fill={active.color}
             stroke="white"
@@ -494,8 +564,8 @@
             onpointerdown={(e) => startDrag(e, active.id, comp.id, { kind: 'radial-rx', sign: 1 })}
           />
           <circle
-            cx={h.c.x - h.rx}
-            cy={h.c.y}
+            cx={h.c.x - h.rxDx}
+            cy={h.c.y - h.rxDy}
             r="6"
             fill={active.color}
             stroke="white"
@@ -507,8 +577,8 @@
             onpointerdown={(e) => startDrag(e, active.id, comp.id, { kind: 'radial-rx', sign: -1 })}
           />
           <circle
-            cx={h.c.x}
-            cy={h.c.y + h.ry}
+            cx={h.c.x + h.ryDx}
+            cy={h.c.y + h.ryDy}
             r="6"
             fill={active.color}
             stroke="white"
@@ -520,8 +590,8 @@
             onpointerdown={(e) => startDrag(e, active.id, comp.id, { kind: 'radial-ry', sign: 1 })}
           />
           <circle
-            cx={h.c.x}
-            cy={h.c.y - h.ry}
+            cx={h.c.x - h.ryDx}
+            cy={h.c.y - h.ryDy}
             r="6"
             fill={active.color}
             stroke="white"
@@ -538,6 +608,7 @@
               cy={h.c.y}
               rx={h.rx * innerScale}
               ry={h.ry * innerScale}
+              transform={`rotate(${h.tilt} ${h.c.x} ${h.c.y})`}
               fill="none"
               stroke={active.color}
               stroke-width="1"
@@ -545,8 +616,8 @@
               opacity="0.7"
             />
             <circle
-              cx={h.c.x + h.rx * innerScale}
-              cy={h.c.y}
+              cx={h.c.x + h.rxDx * innerScale}
+              cy={h.c.y + h.rxDy * innerScale}
               r="5"
               fill={active.color}
               fill-opacity="0.3"
