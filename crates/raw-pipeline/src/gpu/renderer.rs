@@ -66,6 +66,8 @@ pub struct GpuRenderer {
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
+    wb_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
+    nr_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
     output_pool: Mutex<Vec<OutputTargets>>,
@@ -73,6 +75,8 @@ pub struct GpuRenderer {
 }
 
 const ATM_CACHE_ITEMS: usize = 16;
+const WB_CACHE_ITEMS: usize = 2;
+const NR_CACHE_ITEMS: usize = 2;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
 const TARGET_POOL_CAP: usize = 2;
@@ -89,6 +93,12 @@ impl GpuRenderer {
             )),
             atm_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATM_CACHE_ITEMS).expect("nonzero"),
+            )),
+            wb_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(WB_CACHE_ITEMS).expect("nonzero"),
+            )),
+            nr_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(NR_CACHE_ITEMS).expect("nonzero"),
             )),
             texture_pool: TexturePool::new(TEXTURE_POOL_CAP_PER_KEY),
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
@@ -1259,7 +1269,13 @@ impl GpuRenderer {
         src: &Texture,
         dims: (u32, u32),
         edits: &Edits,
+        frame: &RawFrame,
     ) -> PipelineResult<Arc<Texture>> {
+        let key = nr_cache_key(frame, edits, dims);
+        if let Some(t) = self.nr_cache.lock().get(&key).cloned() {
+            tracing::debug!(target: "gpu_cache", "nr_out cache hit");
+            return Ok(t);
+        }
         let _span = tracing::debug_span!("gpu.run_nr", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
@@ -1364,9 +1380,12 @@ impl GpuRenderer {
         let smoothness = (d.color_nr_smoothness as f32) / 100.0;
         if smoothness > 0.0 && color_amount > 0.0 {
             let smoothed = self.run_nr_smooth(&dst, dims, smoothness)?;
+            self.nr_cache.lock().put(key, smoothed.clone());
             return Ok(smoothed);
         }
-        Ok(Arc::new(dst))
+        let out = Arc::new(dst);
+        self.nr_cache.lock().put(key, out.clone());
+        Ok(out)
     }
 
     fn run_nr_smooth(
@@ -1635,11 +1654,7 @@ impl GpuRenderer {
             u[4..8].copy_from_slice(&lh.to_le_bytes());
             u[8..12].copy_from_slice(&radius.to_le_bytes());
             u[12..16].copy_from_slice(&axis.to_le_bytes());
-            device.create_buffer_init(&BufferInitDescriptor {
-                label: Some(label),
-                contents: &u,
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            })
+            self.uniform_pool.acquire(device, queue, &u, label)
         };
         let min_h_buf = make_filter_u(r_patch, 0, "dehaze-min-h-u");
         let min_v_buf = make_filter_u(r_patch, 1, "dehaze-min-v-u");
@@ -2133,6 +2148,11 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
+        let key = wb_cache_key(frame, edits, (cached.width, cached.height));
+        if let Some(t) = self.wb_cache.lock().get(&key).cloned() {
+            tracing::debug!(target: "gpu_cache", "wb_base cache hit");
+            return Ok(t);
+        }
         let _span = tracing::debug_span!("gpu.run_wb_prepare", w = cached.width, h = cached.height)
             .entered();
         let device = &self.ctx.device;
@@ -2258,7 +2278,9 @@ impl GpuRenderer {
         self.encode_mipgen(&mut encoder, &wb_base, w, h);
         queue.submit(Some(encoder.finish()));
 
-        Ok(Arc::new(wb_base))
+        let out = Arc::new(wb_base);
+        self.wb_cache.lock().put(key, out.clone());
+        Ok(out)
     }
 
     fn run_sensor(
@@ -2380,7 +2402,7 @@ impl GpuRenderer {
                 crate::cancel::check(cancel)?;
                 let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
                 {
-                    let t = self.run_nr(&wb_base, dims, &edits_c)?;
+                    let t = self.run_nr(&wb_base, dims, &edits_c, frame)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
                 } else {
@@ -2565,5 +2587,32 @@ fn atmosphere_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u6
     dims.0.hash(&mut h);
     dims.1.hash(&mut h);
     json.hash(&mut h);
+    h.finish()
+}
+
+fn wb_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    GpuRenderer::frame_key(frame).hash(&mut h);
+    dims.0.hash(&mut h);
+    dims.1.hash(&mut h);
+    edits.basic.wb_temp.to_bits().hash(&mut h);
+    edits.basic.wb_tint.to_bits().hash(&mut h);
+    let lens_json = serde_json::to_vec(&edits.lens).unwrap_or_default();
+    lens_json.hash(&mut h);
+    h.finish()
+}
+
+fn nr_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    wb_cache_key(frame, edits, dims).hash(&mut h);
+    let d = &edits.detail;
+    d.luma_nr_amount.to_bits().hash(&mut h);
+    d.luma_nr_detail.to_bits().hash(&mut h);
+    d.luma_nr_contrast.to_bits().hash(&mut h);
+    d.color_nr_amount.to_bits().hash(&mut h);
+    d.color_nr_detail.to_bits().hash(&mut h);
+    d.color_nr_smoothness.to_bits().hash(&mut h);
     h.finish()
 }
