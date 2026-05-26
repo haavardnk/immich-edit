@@ -10,7 +10,6 @@ pub mod presence;
 pub mod process;
 pub mod sensor;
 pub mod sharpen;
-pub mod tonemap;
 pub mod wb_prepare;
 
 use std::sync::Arc;
@@ -31,7 +30,6 @@ use presence::PresencePass;
 use process::ProcessFastPass;
 use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
-use tonemap::TonemapPass;
 use wb_prepare::WbPreparePass;
 
 pub struct GpuPasses {
@@ -49,7 +47,6 @@ pub struct GpuPasses {
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub sensor: SensorPass,
-    pub tonemap: TonemapPass,
     pub registry: OpRegistry,
 }
 
@@ -71,7 +68,6 @@ impl GpuPasses {
         let mask_weight = MaskWeightPass::new(ctx);
         let mask_blend = MaskBlendPass::new(ctx);
         let sensor = SensorPass::new(ctx);
-        let tonemap = TonemapPass::new(ctx);
         Self {
             dehaze,
             demosaic,
@@ -87,7 +83,6 @@ impl GpuPasses {
             mask_weight,
             mask_blend,
             sensor,
-            tonemap,
             registry,
         }
     }

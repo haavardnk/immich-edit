@@ -902,7 +902,7 @@ impl GpuRenderer {
                 | crate::frame::PreviewMode::SharpenRadius
                 | crate::frame::PreviewMode::SharpenDetail
         );
-        let final_pass_active = sharpen_active || sharpen_preview || effects_active;
+        let final_pass_active = sharpen_active || sharpen_preview || effects_active || has_masks;
         let sharpen_pool_guard = if final_pass_active {
             let mut spool = self.sharpen_pool.lock();
             let sfits = spool.as_ref().is_some_and(|s| s.fits(out_w, out_h));
@@ -925,54 +925,6 @@ impl GpuRenderer {
                 &opts.preview_mode,
                 sharpen_active || sharpen_preview,
             );
-        }
-
-        if has_masks && !final_pass_active {
-            let tm_params = crate::gpu::passes::tonemap::pack_params(
-                out_w,
-                out_h,
-                crate::tone::tonemap_kind_index(edits.output.tonemap),
-            );
-            let tm_params_buf = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("tonemap-uniform"),
-                contents: &tm_params,
-                usage: BufferUsages::UNIFORM,
-            });
-            let tm_src_view = p
-                .linear_texture
-                .create_view(&TextureViewDescriptor::default());
-            let tm_dst_view = p.texture.create_view(&TextureViewDescriptor::default());
-            let tm_bind = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("tonemap-bg"),
-                layout: &self.passes.tonemap.layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: tm_params_buf.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&tm_src_view),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(&tm_dst_view),
-                    },
-                ],
-            });
-            {
-                let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("tonemap-post-mask"),
-                    timestamp_writes: None,
-                });
-                cp.set_pipeline(&self.passes.tonemap.pipeline);
-                cp.set_bind_group(0, &tm_bind, &[]);
-                let gx = out_w.div_ceil(16);
-                let gy = out_h.div_ceil(16);
-                cp.dispatch_workgroups(gx, gy, 1);
-            }
-            _retained_bufs.push(tm_params_buf);
-            _retained_binds.push(tm_bind);
         }
 
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
