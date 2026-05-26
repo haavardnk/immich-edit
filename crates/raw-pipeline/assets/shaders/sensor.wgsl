@@ -1,7 +1,7 @@
 struct SensorParams {
     size: vec2<u32>,
     zoom: f32,
-    _pad0: f32,
+    vig_amount: f32,
     coeffs: vec4<f32>,
     ca_vig: vec4<f32>,
 };
@@ -52,12 +52,15 @@ fn vignette_correction(r_norm: f32) -> f32 {
     let vk1 = p.coeffs.w;
     let vk2 = p.ca_vig.z;
     let vk3 = p.ca_vig.w;
+    let amount = p.vig_amount;
     let r2 = r_norm * r_norm;
     let r4 = r2 * r2;
     let r6 = r4 * r2;
-    let gain_in = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
-    if (abs(gain_in) < 1e-6) { return 1.0; }
-    return 1.0 / gain_in;
+    let poly = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
+    var full_gain = 1.0;
+    if (abs(poly) >= 1e-6) { full_gain = 1.0 / poly; }
+    let gain = 1.0 + (full_gain - 1.0) * amount;
+    return clamp(gain, 0.25, 2.5);
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -98,5 +101,5 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let sby = dyb * sb + cy - 0.5;
     let b_blue = bilinear_chan(sbx, sby, 2) * vignette_correction(rb);
 
-    textureStore(dst, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(r_red, g_green, b_blue, 1.0));
+    textureStore(dst, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(max(r_red, 0.0), max(g_green, 0.0), max(b_blue, 0.0), 1.0));
 }

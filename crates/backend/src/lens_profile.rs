@@ -146,7 +146,17 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
         .focal_length
         .map(|f| f as f32)
         .unwrap_or(lens.focal_min);
-    let aperture = exif.f_number.map(|f| f as f32).unwrap_or(lens.aperture_min);
+    let aperture_opt = exif.f_number.map(|f| f as f32);
+    let calib_crop = if lens.crop_factor > 0.0 {
+        lens.crop_factor
+    } else {
+        1.0
+    };
+    let image_crop = camera
+        .map(|c| c.crop_factor)
+        .filter(|c| *c > 0.0)
+        .unwrap_or(calib_crop);
+    let crop_ratio = (calib_crop / image_crop) as f64;
     let mut edits = ProfileLensEdits::default();
 
     if let Some(cd) = lens.interpolate_distortion(focal)
@@ -162,12 +172,16 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
         edits.ca_red_scale_x10000 = ((red - 1.0) as f64) * 10000.0;
         edits.ca_blue_scale_x10000 = ((blue - 1.0) as f64) * 10000.0;
     }
-    if let Some(cv) = lens.interpolate_vignetting(focal, aperture, 1000.0)
+    if let Some(aperture) = aperture_opt
+        && let Some(cv) = lens.interpolate_vignetting(focal, aperture, 1000.0)
         && let Some((vk1, vk2, vk3)) = fit_vignetting(&cv)
     {
-        edits.vk1 = vk1 as f64;
-        edits.vk2 = vk2 as f64;
-        edits.vk3 = vk3 as f64;
+        let r2 = crop_ratio * crop_ratio;
+        let r4 = r2 * r2;
+        let r6 = r4 * r2;
+        edits.vk1 = (vk1 as f64) * r2;
+        edits.vk2 = (vk2 as f64) * r4;
+        edits.vk3 = (vk3 as f64) * r6;
     }
 
     let has_any = edits.k1 != 0.0
@@ -183,7 +197,7 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
         matched: true,
         lens: Some(lens.model.clone()),
         focal_length: Some(focal),
-        aperture: Some(aperture),
+        aperture: aperture_opt,
         edits: has_any.then_some(edits),
     }
 }

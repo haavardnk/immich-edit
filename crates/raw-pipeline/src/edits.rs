@@ -512,10 +512,6 @@ impl LensEdits {
         let s = self.distortion_amount / 100.0;
         (self.k1 * s, self.k2 * s, self.k3 * s)
     }
-    pub fn effective_vk(&self) -> (f64, f64, f64) {
-        let s = self.vignette_amount / 100.0;
-        (self.vk1 * s, self.vk2 * s, self.vk3 * s)
-    }
     pub fn ca_scales(&self) -> (f64, f64) {
         (
             1.0 + self.ca_red_scale_x10000 / 10000.0,

@@ -226,7 +226,7 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
     let (k1, k2, k3) = distortion_coeffs(lens);
     let zoom = distortion_zoom(lens);
     let distortion_on = lens.distortion_active();
-    let (vk1, vk2, vk3) = vignette_coeffs(lens);
+    let (vk1, vk2, vk3, vig_amount) = vignette_coeffs(lens);
     let vignette_on = lens.vignette_active();
     let constrain = lens.constrain_crop;
 
@@ -282,7 +282,7 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
             let dx = px + 0.5 - cx;
             let dy = py + 0.5 - cy;
             let r_norm = (dx * dx + dy * dy).sqrt() * inv_diag;
-            let gain = vignette_correction(vk1, vk2, vk3, r_norm).clamp(0.0, 4.0);
+            let gain = vignette_correction(vk1, vk2, vk3, vig_amount, r_norm).clamp(0.0, 2.5);
             r *= gain;
             gv *= gain;
             b *= gain;

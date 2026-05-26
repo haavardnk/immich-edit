@@ -305,7 +305,7 @@ fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     if (gid.x >= p.src_size.x || gid.y >= p.src_size.y) {{ return; }}
     let c = textureLoad(src_tex, vec2<i32>(i32(gid.x), i32(gid.y)), 0).rgb;
-    let outc = apply_wb_stage(c);
+    let outc = max(apply_wb_stage(c), vec3<f32>(0.0));
     textureStore(dst_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
 }}
 "#

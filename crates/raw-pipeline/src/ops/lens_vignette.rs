@@ -36,25 +36,27 @@ impl SpatialOp for LensVignetteOp {
     }
 }
 
-pub fn vignette_coeffs(lens: &LensEdits) -> (f32, f32, f32) {
+pub fn vignette_coeffs(lens: &LensEdits) -> (f32, f32, f32, f32) {
     if !lens.profile_enabled {
-        return (0.0, 0.0, 0.0);
+        return (0.0, 0.0, 0.0, 0.0);
     }
-    let (a, b, c) = lens.effective_vk();
-    (a as f32, b as f32, c as f32)
+    let amount = (lens.vignette_amount / 100.0) as f32 * VIGNETTE_AMOUNT_DAMPENING;
+    (lens.vk1 as f32, lens.vk2 as f32, lens.vk3 as f32, amount)
 }
 
+pub const VIGNETTE_GAIN_MIN: f32 = 0.25;
+pub const VIGNETTE_GAIN_MAX: f32 = 2.5;
+pub const VIGNETTE_AMOUNT_DAMPENING: f32 = 0.8;
+
 #[inline]
-pub fn vignette_correction(vk1: f32, vk2: f32, vk3: f32, r_norm: f32) -> f32 {
+pub fn vignette_correction(vk1: f32, vk2: f32, vk3: f32, amount: f32, r_norm: f32) -> f32 {
     let r2 = r_norm * r_norm;
     let r4 = r2 * r2;
     let r6 = r4 * r2;
-    let gain_in = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
-    if gain_in.abs() > 1e-6 {
-        1.0 / gain_in
-    } else {
-        1.0
-    }
+    let poly = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
+    let full_gain = if poly.abs() > 1e-6 { 1.0 / poly } else { 1.0 };
+    let gain = 1.0 + (full_gain - 1.0) * amount;
+    gain.clamp(VIGNETTE_GAIN_MIN, VIGNETTE_GAIN_MAX)
 }
 
 pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
@@ -63,7 +65,7 @@ pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
     if w == 0 || h == 0 {
         return;
     }
-    let (vk1, vk2, vk3) = vignette_coeffs(lens);
+    let (vk1, vk2, vk3, amount) = vignette_coeffs(lens);
     let cx = w as f32 * 0.5;
     let cy = h as f32 * 0.5;
     let half_diag = 0.5 * ((w as f32).powi(2) + (h as f32).powi(2)).sqrt();
@@ -78,7 +80,7 @@ pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
             for x in 0..w {
                 let dx = x as f32 + 0.5 - cx;
                 let r = (dx * dx + dy * dy).sqrt() * inv_diag;
-                let correction = vignette_correction(vk1, vk2, vk3, r);
+                let correction = vignette_correction(vk1, vk2, vk3, amount, r);
                 let i = x * 3;
                 row[i] *= correction;
                 row[i + 1] *= correction;
