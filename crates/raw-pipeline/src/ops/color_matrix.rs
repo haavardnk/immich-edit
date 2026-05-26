@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct ColorMatrixOp;
 
@@ -19,26 +16,6 @@ impl EditOperator for ColorMatrixOp {
     }
     fn is_active(&self, _edits: &Edits) -> bool {
         true
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        ctx: &OpContext,
-        _edits: &Edits,
-    ) -> PipelineResult<()> {
-        if !ctx.is_raw {
-            return Ok(());
-        }
-        let m = ctx.cam_to_srgb;
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let r = px[0];
-            let g = px[1];
-            let b = px[2];
-            px[0] = m[0][0] * r + m[0][1] * g + m[0][2] * b;
-            px[1] = m[1][0] * r + m[1][1] * g + m[1][2] * b;
-            px[2] = m[2][0] * r + m[2][1] * g + m[2][2] * b;
-        });
-        Ok(())
     }
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         if !ctx.is_raw {

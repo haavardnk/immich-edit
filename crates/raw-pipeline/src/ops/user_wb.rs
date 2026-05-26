@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct UserWbOp;
 
@@ -19,23 +16,6 @@ impl EditOperator for UserWbOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.wb_temp != 0.0 || edits.basic.wb_tint != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let r = px[0];
-            let g = px[1];
-            let b = px[2];
-            px[0] = m[0][0] * r + m[0][1] * g + m[0][2] * b;
-            px[1] = m[1][0] * r + m[1][1] * g + m[1][2] * b;
-            px[2] = m[2][0] * r + m[2][1] * g + m[2][2] * b;
-        });
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);

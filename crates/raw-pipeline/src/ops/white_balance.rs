@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct WhiteBalanceOp;
 
@@ -30,20 +27,6 @@ impl EditOperator for WhiteBalanceOp {
     }
     fn is_active(&self, _edits: &Edits) -> bool {
         true
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        ctx: &OpContext,
-        _edits: &Edits,
-    ) -> PipelineResult<()> {
-        let coeffs = camera_wb(ctx.wb_coeffs);
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            px[0] *= coeffs[0];
-            px[1] *= coeffs[1];
-            px[2] *= coeffs[2];
-        });
-        Ok(())
     }
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         let c = camera_wb(ctx.wb_coeffs);

@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct ContrastOp;
 
@@ -42,19 +39,6 @@ impl EditOperator for ContrastOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.contrast != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let s = contrast_strength(edits.basic.contrast as f32 / 100.0);
-        image
-            .rgb
-            .par_iter_mut()
-            .for_each(|v| *v = apply_perceptual_contrast(*v, s));
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let s = contrast_strength(edits.basic.contrast as f32 / 100.0);

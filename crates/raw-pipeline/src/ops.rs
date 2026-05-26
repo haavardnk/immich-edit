@@ -32,7 +32,7 @@ pub mod white_balance;
 mod tests;
 
 use crate::PipelineResult;
-use crate::cpu::fused::CpuFusedOp;
+use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
 use crate::edits::Edits;
 
 pub struct LinearImage {
@@ -118,7 +118,14 @@ pub trait EditOperator: Send + Sync {
         image: &mut LinearImage,
         ctx: &OpContext,
         edits: &Edits,
-    ) -> PipelineResult<()>;
+    ) -> PipelineResult<()> {
+        if let Some(op) = self.cpu_fused(edits, ctx) {
+            let mut seg = FusedSegment::default();
+            seg.push(op);
+            apply_segment(image, &seg);
+        }
+        Ok(())
+    }
     fn cpu_fused(&self, _edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         None
     }

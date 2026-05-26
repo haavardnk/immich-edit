@@ -1,8 +1,6 @@
-use super::{EditOperator, GpuOp, LinearImage, OpContext, Stage};
-use crate::PipelineResult;
+use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
-use rayon::prelude::*;
 
 pub struct CurvesOp;
 
@@ -138,24 +136,6 @@ impl EditOperator for CurvesOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.basic.curves.is_identity()
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let luts = CurveLuts::from_edits(&edits.basic.curves);
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let mut r = px[0];
-            let mut g = px[1];
-            let mut b = px[2];
-            apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
-            px[0] = r;
-            px[1] = g;
-            px[2] = b;
-        });
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         Some(CpuFusedOp::Curves {

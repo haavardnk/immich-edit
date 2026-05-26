@@ -388,77 +388,10 @@ pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::color::identity_3x3;
-    use crate::edits::{BasicEdits, Edits};
+    use crate::edits::Edits;
     use crate::ops::EditOperator;
-    use crate::ops::{OpContext, color_matrix, exposure, white_balance};
-
-    fn ramp_image(w: usize, h: usize) -> Vec<f32> {
-        let mut v = Vec::with_capacity(w * h * 3);
-        for i in 0..(w * h) {
-            let t = i as f32 / (w * h) as f32;
-            v.push(t * 0.7);
-            v.push(t * 0.5 + 0.1);
-            v.push((1.0 - t) * 0.6);
-        }
-        v
-    }
-
-    fn max_abs_diff(a: &[f32], b: &[f32]) -> f32 {
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y).abs())
-            .fold(0.0f32, f32::max)
-    }
-
-    #[test]
-    fn fused_matches_legacy_wb_cm_exposure() {
-        let w = 16;
-        let h = 16;
-        let buf = ramp_image(w, h);
-        let ctx = OpContext {
-            wb_coeffs: [2.1, 1.0, 1.45, 1.0],
-            cam_to_srgb: [[1.2, -0.1, -0.1], [-0.05, 1.05, 0.0], [0.0, -0.2, 1.2]],
-            is_raw: true,
-            preview_mode: crate::frame::PreviewMode::None,
-            shadows_blur: None,
-        };
-        let edits = Edits {
-            basic: BasicEdits {
-                exposure_ev: 0.7,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut legacy = LinearImage::new(buf.clone(), w, h);
-        white_balance::WhiteBalanceOp
-            .apply_cpu(&mut legacy, &ctx, &edits)
-            .unwrap();
-        color_matrix::ColorMatrixOp
-            .apply_cpu(&mut legacy, &ctx, &edits)
-            .unwrap();
-        exposure::ExposureOp
-            .apply_cpu(&mut legacy, &ctx, &edits)
-            .unwrap();
-
-        let mut fused = LinearImage::new(buf, w, h);
-        let mut seg = FusedSegment::default();
-        seg.push(
-            white_balance::WhiteBalanceOp
-                .cpu_fused(&edits, &ctx)
-                .unwrap(),
-        );
-        seg.push(color_matrix::ColorMatrixOp.cpu_fused(&edits, &ctx).unwrap());
-        seg.push(exposure::ExposureOp.cpu_fused(&edits, &ctx).unwrap());
-        apply_segment(&mut fused, &seg);
-
-        let d = max_abs_diff(&legacy.rgb, &fused.rgb);
-        if d > 1e-5 {
-            panic!("fused vs legacy diff too high: {d}");
-        }
-    }
+    use crate::ops::{OpContext, color_matrix};
 
     #[test]
     fn fused_skips_color_matrix_when_not_raw() {

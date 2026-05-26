@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{ColorGradeRegion, Edits};
-use rayon::prelude::*;
 
 pub struct ColorGradeOp;
 
@@ -28,24 +25,6 @@ fn region_offset(region: &ColorGradeRegion) -> ([f32; 3], f32) {
     ([dir[0] * s, dir[1] * s, dir[2] * s], l)
 }
 
-fn weights(y: f32, balance: f32, blend: f32) -> (f32, f32, f32) {
-    let pivot = 0.5 + 0.3 * balance;
-    let feather = 0.15 + 0.25 * blend;
-    let s_hi = (pivot + feather * 0.5).clamp(0.001, 0.999);
-    let s_lo = (pivot - feather - feather * 0.5).clamp(0.0, s_hi - 0.001);
-    let h_lo = (pivot - feather * 0.5).clamp(0.001, 0.999);
-    let h_hi = (pivot + feather + feather * 0.5).clamp(h_lo + 0.001, 1.0);
-    let shadow = 1.0 - smoothstep(s_lo, s_hi, y);
-    let highlight = smoothstep(h_lo, h_hi, y);
-    let mid = (1.0 - shadow - highlight).max(0.0);
-    (shadow, mid, highlight)
-}
-
-fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
-    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
 impl EditOperator for ColorGradeOp {
     fn id(&self) -> &'static str {
         "color_grade"
@@ -58,37 +37,6 @@ impl EditOperator for ColorGradeOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.color.color_grade.is_zero()
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let cg = &edits.color.color_grade;
-        let (s_off, s_lum) = region_offset(&cg.shadows);
-        let (m_off, m_lum) = region_offset(&cg.midtones);
-        let (h_off, h_lum) = region_offset(&cg.highlights);
-        let (g_off, g_lum) = region_offset(&cg.global);
-        let balance = (cg.balance as f32) / 100.0;
-        let blend = (cg.blend as f32) / 100.0;
-        let strength = 0.5;
-
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let r = px[0];
-            let g = px[1];
-            let b = px[2];
-            let y = (0.2126 * r + 0.7152 * g + 0.0722 * b).clamp(0.0, 1.0);
-            let (ws, wm, wh) = weights(y, balance, blend);
-            let or = (ws * s_off[0] + wm * m_off[0] + wh * h_off[0] + g_off[0]) * strength;
-            let og = (ws * s_off[1] + wm * m_off[1] + wh * h_off[1] + g_off[1]) * strength;
-            let ob = (ws * s_off[2] + wm * m_off[2] + wh * h_off[2] + g_off[2]) * strength;
-            let lum = (ws * s_lum + wm * m_lum + wh * h_lum + g_lum) * strength;
-            px[0] = (r + or + lum).max(0.0);
-            px[1] = (g + og + lum).max(0.0);
-            px[2] = (b + ob + lum).max(0.0);
-        });
-        Ok(())
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {

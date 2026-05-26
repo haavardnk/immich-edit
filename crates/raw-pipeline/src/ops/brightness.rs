@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct BrightnessOp;
 
@@ -43,21 +40,6 @@ impl EditOperator for BrightnessOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.brightness != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let a = (edits.basic.brightness as f32 / 100.0).clamp(-1.0, 1.0);
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let (nr, ng, nb) = apply_brightness_rgb(px[0], px[1], px[2], a);
-            px[0] = nr;
-            px[1] = ng;
-            px[2] = nb;
-        });
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let amount = (edits.basic.brightness as f32 / 100.0).clamp(-1.0, 1.0);

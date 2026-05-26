@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct ExposureOp;
 
@@ -19,16 +16,6 @@ impl EditOperator for ExposureOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.exposure_ev != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);
-        image.rgb.par_iter_mut().for_each(|v| *v *= factor);
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);

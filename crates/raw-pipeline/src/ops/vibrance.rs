@@ -1,9 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use rayon::prelude::*;
 
 pub struct VibranceOp;
 
@@ -66,21 +63,6 @@ impl EditOperator for VibranceOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.vibrance != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let amount = edits.basic.vibrance as f32 / 100.0;
-        image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-            let (nr, ng, nb) = apply_vibrance_rgb(px[0], px[1], px[2], amount);
-            px[0] = nr;
-            px[1] = ng;
-            px[2] = nb;
-        });
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let amount = edits.basic.vibrance as f32 / 100.0;

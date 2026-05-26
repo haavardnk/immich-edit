@@ -1,12 +1,6 @@
-use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
-use crate::PipelineResult;
 use crate::cpu::fused::CpuFusedOp;
-use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
-use crate::presence::{presence_mips, presence_pyramid_levels, presence_radii};
-use rayon::prelude::*;
-use std::sync::Arc;
 
 pub struct ToneRegionsOp;
 
@@ -92,57 +86,6 @@ impl EditOperator for ToneRegionsOp {
             || edits.tone.shadows != 0.0
             || edits.tone.blacks != 0.0
             || edits.tone.whites != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let hl = edits.tone.highlights as f32 / 100.0;
-        let sh = edits.tone.shadows as f32 / 100.0;
-        let bk = edits.tone.blacks as f32 / 100.0;
-        let wh = edits.tone.whites as f32 / 100.0;
-        let gain = whites_gain(wh);
-        if sh == 0.0 {
-            image.rgb.par_chunks_exact_mut(3).for_each(|px| {
-                let (nr, ng, nb) =
-                    apply_tone_regions_rgb(px[0] * gain, px[1] * gain, px[2] * gain, hl, bk);
-                px[0] = nr;
-                px[1] = ng;
-                px[2] = nb;
-            });
-            return Ok(());
-        }
-        let blur_arc = ctx.shadows_blur.clone().unwrap_or_else(|| {
-            let w = image.width as u32;
-            let h = image.height as u32;
-            let radii = presence_radii(w, h);
-            let mips = presence_mips(w, h, radii);
-            let levels = presence_pyramid_levels(w, h, radii) as usize;
-            let pyr = LumaPyramid::build(image, levels);
-            Arc::new(pyr.upsample(mips.shadows, image.width, image.height))
-        });
-        let blur = blur_arc.as_slice();
-        image
-            .rgb
-            .par_chunks_exact_mut(3)
-            .enumerate()
-            .for_each(|(i, px)| {
-                px[0] *= gain;
-                px[1] *= gain;
-                px[2] *= gain;
-                let luma = 0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2];
-                let mult = shadows_mult(luma, blur[i], sh);
-                px[0] *= mult;
-                px[1] *= mult;
-                px[2] *= mult;
-                let (nr, ng, nb) = apply_tone_regions_rgb(px[0], px[1], px[2], hl, bk);
-                px[0] = nr;
-                px[1] = ng;
-                px[2] = nb;
-            });
-        Ok(())
     }
     fn cpu_fused(&self, edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         Some(CpuFusedOp::ToneRegions {
