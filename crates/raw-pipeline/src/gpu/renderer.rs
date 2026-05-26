@@ -927,23 +927,21 @@ impl GpuRenderer {
         };
         if let Some(spool) = sharpen_pool_guard.as_ref() {
             let s = spool.as_ref().expect("sharpen pool populated");
-            self.encode_final_pass(
-                &mut encoder,
-                &edits,
-                p,
-                s,
-                out_w,
-                out_h,
-                &opts.preview_mode,
-                sharpen_active || sharpen_preview,
-            );
+            let run_sharpen = sharpen_active || sharpen_preview;
+            if run_sharpen {
+                self.encode_sharpen(&mut encoder, &edits, p, s, out_w, out_h, &opts.preview_mode);
+            }
+            if !sharpen_preview {
+                self.encode_effects_tone(&mut encoder, &edits, p, s, out_w, out_h, run_sharpen);
+            }
         }
 
         copy_texture_to_buffer(&mut encoder, &p.texture, &p.readback, out_w, out_h);
-        let linear_src = if let Some(spool) = sharpen_pool_guard.as_ref() {
-            &spool.as_ref().expect("sharpen pool populated").post_lin
-        } else {
-            &p.linear_texture
+        let linear_src = match sharpen_pool_guard.as_ref() {
+            Some(spool) if !sharpen_preview => {
+                &spool.as_ref().expect("sharpen pool populated").post_lin
+            }
+            _ => &p.linear_texture,
         };
         copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);
         queue.submit(Some(encoder.finish()));
@@ -976,7 +974,7 @@ impl GpuRenderer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn encode_final_pass(
+    fn encode_sharpen(
         &self,
         encoder: &mut CommandEncoder,
         edits: &Edits,
@@ -985,16 +983,14 @@ impl GpuRenderer {
         w: u32,
         h: u32,
         preview: &crate::frame::PreviewMode,
-        run_blur: bool,
     ) {
-        let _span = tracing::debug_span!("gpu.encode_final_pass", w = w, h = h).entered();
+        let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
         let d = &edits.detail;
-        let e = &edits.effects;
         let sigma = (d.sharpen_radius as f32).max(0.01);
         let radius = (sigma * 3.0).ceil();
         let sharpen_active = d.sharpen_active();
-        let amount = if run_blur {
+        let amount = if sharpen_active {
             d.sharpen_amount as f32
         } else {
             0.0
@@ -1008,7 +1004,7 @@ impl GpuRenderer {
             crate::frame::PreviewMode::SharpenDetail => 3,
             crate::frame::PreviewMode::MaskWeight { .. } => 0,
         };
-        let use_mask = if (run_blur && sharpen_active && masking > 0.0) || preview_mode_u == 1 {
+        let use_mask = if (sharpen_active && masking > 0.0) || preview_mode_u == 1 {
             1u32
         } else {
             0u32
@@ -1019,12 +1015,11 @@ impl GpuRenderer {
         let linear_view = out
             .linear_texture
             .create_view(&TextureViewDescriptor::default());
-        let linear_view_b = out
-            .linear_texture
-            .create_view(&TextureViewDescriptor::default());
         let blur_h_view = sh.blur_h.create_view(&TextureViewDescriptor::default());
         let blur_full_view = sh.blur_full.create_view(&TextureViewDescriptor::default());
-        let post_lin_view = sh.post_lin.create_view(&TextureViewDescriptor::default());
+        let sharpened_lin_view = sh
+            .sharpened_lin
+            .create_view(&TextureViewDescriptor::default());
         let out_view = out.texture.create_view(&TextureViewDescriptor::default());
 
         let pass_h = &self.passes.output_sharpen;
@@ -1032,116 +1027,93 @@ impl GpuRenderer {
         let gx = w.div_ceil(16);
         let gy = h.div_ceil(16);
 
-        if run_blur {
-            let blur_uniform = |axis: u32| -> wgpu::Buffer {
-                let mut bytes = [0u8; 32];
-                bytes[0..4].copy_from_slice(&sigma.to_ne_bytes());
-                bytes[4..8].copy_from_slice(&radius.to_ne_bytes());
-                bytes[8..12].copy_from_slice(&w.to_ne_bytes());
-                bytes[12..16].copy_from_slice(&h.to_ne_bytes());
-                bytes[16..20].copy_from_slice(&axis.to_ne_bytes());
-                device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("sharpen-blur-uniform"),
-                    contents: &bytes,
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-                })
-            };
-            let ub_h = blur_uniform(0);
-            let bg_h = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("sharpen-blur-h-bg"),
-                layout: &pass_h.blur_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: ub_h.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&linear_view),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(&blur_h_view),
-                    },
-                ],
+        let blur_uniform = |axis: u32| -> wgpu::Buffer {
+            let mut bytes = [0u8; 32];
+            bytes[0..4].copy_from_slice(&sigma.to_ne_bytes());
+            bytes[4..8].copy_from_slice(&radius.to_ne_bytes());
+            bytes[8..12].copy_from_slice(&w.to_ne_bytes());
+            bytes[12..16].copy_from_slice(&h.to_ne_bytes());
+            bytes[16..20].copy_from_slice(&axis.to_ne_bytes());
+            device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("sharpen-blur-uniform"),
+                contents: &bytes,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            })
+        };
+        let ub_h = blur_uniform(0);
+        let bg_h = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sharpen-blur-h-bg"),
+            layout: &pass_h.blur_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub_h.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&linear_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&blur_h_view),
+                },
+            ],
+        });
+        let ub_v = blur_uniform(1);
+        let bg_v = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sharpen-blur-v-bg"),
+            layout: &pass_h.blur_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub_v.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&blur_h_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&blur_full_view),
+                },
+            ],
+        });
+        {
+            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sharpen-blur-h"),
+                timestamp_writes: None,
             });
-            let ub_v = blur_uniform(1);
-            let bg_v = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("sharpen-blur-v-bg"),
-                layout: &pass_h.blur_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: ub_v.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&blur_h_view),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(&blur_full_view),
-                    },
-                ],
+            cp.set_pipeline(&pass_h.blur_pipeline);
+            cp.set_bind_group(0, &bg_h, &[]);
+            cp.dispatch_workgroups(gx, gy, 1);
+        }
+        {
+            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sharpen-blur-v"),
+                timestamp_writes: None,
             });
-            {
-                let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("sharpen-blur-h"),
-                    timestamp_writes: None,
-                });
-                cp.set_pipeline(&pass_h.blur_pipeline);
-                cp.set_bind_group(0, &bg_h, &[]);
-                cp.dispatch_workgroups(gx, gy, 1);
-            }
-            {
-                let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("sharpen-blur-v"),
-                    timestamp_writes: None,
-                });
-                cp.set_pipeline(&pass_h.blur_pipeline);
-                cp.set_bind_group(0, &bg_v, &[]);
-                cp.dispatch_workgroups(gx, gy, 1);
-            }
+            cp.set_pipeline(&pass_h.blur_pipeline);
+            cp.set_bind_group(0, &bg_v, &[]);
+            cp.dispatch_workgroups(gx, gy, 1);
         }
 
-        let mut combine_bytes = [0u8; 80];
-        combine_bytes[0..4].copy_from_slice(&amount.to_ne_bytes());
-        combine_bytes[4..8].copy_from_slice(&detail_weight.to_ne_bytes());
-        combine_bytes[8..12].copy_from_slice(&masking_thresh.to_ne_bytes());
-        combine_bytes[12..16].copy_from_slice(&masking_softness.to_ne_bytes());
-        combine_bytes[16..20].copy_from_slice(&w.to_ne_bytes());
-        combine_bytes[20..24].copy_from_slice(&h.to_ne_bytes());
-        combine_bytes[24..28].copy_from_slice(&use_mask.to_ne_bytes());
-        combine_bytes[28..32].copy_from_slice(&preview_mode_u.to_ne_bytes());
-        let vig_amount = (e.vignette_amount / 100.0) as f32;
-        let vig_mid = (e.vignette_midpoint / 100.0) as f32;
-        let vig_feather = (e.vignette_feather / 100.0) as f32;
-        let vig_round = (e.vignette_roundness / 100.0) as f32;
-        combine_bytes[32..36].copy_from_slice(&vig_amount.to_ne_bytes());
-        combine_bytes[36..40].copy_from_slice(&vig_mid.to_ne_bytes());
-        combine_bytes[40..44].copy_from_slice(&vig_feather.to_ne_bytes());
-        combine_bytes[44..48].copy_from_slice(&vig_round.to_ne_bytes());
-        let gr_amount = (e.grain_amount / 100.0) as f32;
-        let gr_size = (e.grain_size / 100.0) as f32;
-        let gr_rough = (e.grain_roughness / 100.0) as f32;
-        combine_bytes[48..52].copy_from_slice(&gr_amount.to_ne_bytes());
-        combine_bytes[52..56].copy_from_slice(&gr_size.to_ne_bytes());
-        combine_bytes[56..60].copy_from_slice(&gr_rough.to_ne_bytes());
-        let tone_kind = crate::tone::tonemap_kind_index(edits.output.tonemap);
-        combine_bytes[64..68].copy_from_slice(&tone_kind.to_ne_bytes());
+        let mut sh_bytes = [0u8; 32];
+        sh_bytes[0..4].copy_from_slice(&amount.to_ne_bytes());
+        sh_bytes[4..8].copy_from_slice(&detail_weight.to_ne_bytes());
+        sh_bytes[8..12].copy_from_slice(&masking_thresh.to_ne_bytes());
+        sh_bytes[12..16].copy_from_slice(&masking_softness.to_ne_bytes());
+        sh_bytes[16..20].copy_from_slice(&w.to_ne_bytes());
+        sh_bytes[20..24].copy_from_slice(&h.to_ne_bytes());
+        sh_bytes[24..28].copy_from_slice(&use_mask.to_ne_bytes());
+        sh_bytes[28..32].copy_from_slice(&preview_mode_u.to_ne_bytes());
         let ub_c = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("sharpen-combine-uniform"),
-            contents: &combine_bytes,
+            label: Some("sharpen-uniform"),
+            contents: &sh_bytes,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
-        let src_blur_binding = if run_blur {
-            BindingResource::TextureView(&blur_full_view)
-        } else {
-            BindingResource::TextureView(&linear_view_b)
-        };
         let bg_c = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("sharpen-combine-bg"),
-            layout: &pass_h.combine_layout,
+            label: Some("sharpen-bg"),
+            layout: &pass_h.sharpen_layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
@@ -1153,7 +1125,7 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: src_blur_binding,
+                    resource: BindingResource::TextureView(&blur_full_view),
                 },
                 BindGroupEntry {
                     binding: 3,
@@ -1161,19 +1133,104 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 4,
+                    resource: BindingResource::TextureView(&sharpened_lin_view),
+                },
+            ],
+        });
+        let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+            label: Some("sharpen"),
+            timestamp_writes: None,
+        });
+        cp.set_pipeline(&pass_h.sharpen_pipeline);
+        cp.set_bind_group(0, &bg_c, &[]);
+        cp.dispatch_workgroups(gx, gy, 1);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn encode_effects_tone(
+        &self,
+        encoder: &mut CommandEncoder,
+        edits: &Edits,
+        out: &OutputTargets,
+        sh: &SharpenTargets,
+        w: u32,
+        h: u32,
+        sharpen_ran: bool,
+    ) {
+        let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
+        let device = &self.ctx.device;
+        let e = &edits.effects;
+        let pass = &self.passes.effects_tone;
+
+        let linear_view = out
+            .linear_texture
+            .create_view(&TextureViewDescriptor::default());
+        let sharpened_lin_view = sh
+            .sharpened_lin
+            .create_view(&TextureViewDescriptor::default());
+        let post_lin_view = sh.post_lin.create_view(&TextureViewDescriptor::default());
+        let out_view = out.texture.create_view(&TextureViewDescriptor::default());
+
+        let mut bytes = [0u8; 64];
+        bytes[0..4].copy_from_slice(&w.to_ne_bytes());
+        bytes[4..8].copy_from_slice(&h.to_ne_bytes());
+        let vig_amount = (e.vignette_amount / 100.0) as f32;
+        let vig_mid = (e.vignette_midpoint / 100.0) as f32;
+        let vig_feather = (e.vignette_feather / 100.0) as f32;
+        let vig_round = (e.vignette_roundness / 100.0) as f32;
+        bytes[16..20].copy_from_slice(&vig_amount.to_ne_bytes());
+        bytes[20..24].copy_from_slice(&vig_mid.to_ne_bytes());
+        bytes[24..28].copy_from_slice(&vig_feather.to_ne_bytes());
+        bytes[28..32].copy_from_slice(&vig_round.to_ne_bytes());
+        let gr_amount = (e.grain_amount / 100.0) as f32;
+        let gr_size = (e.grain_size / 100.0) as f32;
+        let gr_rough = (e.grain_roughness / 100.0) as f32;
+        bytes[32..36].copy_from_slice(&gr_amount.to_ne_bytes());
+        bytes[36..40].copy_from_slice(&gr_size.to_ne_bytes());
+        bytes[40..44].copy_from_slice(&gr_rough.to_ne_bytes());
+        let tone_kind = crate::tone::tonemap_kind_index(edits.output.tonemap);
+        bytes[48..52].copy_from_slice(&tone_kind.to_ne_bytes());
+        let ub = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("effects-tone-uniform"),
+            contents: &bytes,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let src_binding = if sharpen_ran {
+            BindingResource::TextureView(&sharpened_lin_view)
+        } else {
+            BindingResource::TextureView(&linear_view)
+        };
+        let bg = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("effects-tone-bg"),
+            layout: &pass.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ub.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: src_binding,
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&out_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
                     resource: BindingResource::TextureView(&post_lin_view),
                 },
             ],
         });
-        {
-            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("sharpen-combine"),
-                timestamp_writes: None,
-            });
-            cp.set_pipeline(&pass_h.combine_pipeline);
-            cp.set_bind_group(0, &bg_c, &[]);
-            cp.dispatch_workgroups(gx, gy, 1);
-        }
+        let gx = w.div_ceil(16);
+        let gy = h.div_ceil(16);
+        let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
+            label: Some("effects-tone"),
+            timestamp_writes: None,
+        });
+        cp.set_pipeline(&pass.pipeline);
+        cp.set_bind_group(0, &bg, &[]);
+        cp.dispatch_workgroups(gx, gy, 1);
     }
 
     pub fn render(

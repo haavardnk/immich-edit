@@ -12,13 +12,13 @@ use crate::gpu::context::GpuContext;
 use super::demosaic::linear_format_str;
 
 pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = 32;
-pub const SHARPEN_COMBINE_UNIFORM_SIZE: u64 = 80;
+pub const SHARPEN_UNIFORM_SIZE: u64 = 32;
 
 pub struct OutputSharpenPass {
     pub blur_layout: BindGroupLayout,
     pub blur_pipeline: ComputePipeline,
-    pub combine_layout: BindGroupLayout,
-    pub combine_pipeline: ComputePipeline,
+    pub sharpen_layout: BindGroupLayout,
+    pub sharpen_pipeline: ComputePipeline,
 }
 
 impl OutputSharpenPass {
@@ -80,8 +80,8 @@ impl OutputSharpenPass {
             cache: None,
         });
 
-        let combine_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("sharpen-combine-bgl"),
+        let sharpen_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("sharpen-bgl"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
@@ -89,7 +89,7 @@ impl OutputSharpenPass {
                     ty: BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(SHARPEN_COMBINE_UNIFORM_SIZE),
+                        min_binding_size: BufferSize::new(SHARPEN_UNIFORM_SIZE),
                     },
                     count: None,
                 },
@@ -135,22 +135,21 @@ impl OutputSharpenPass {
                 },
             ],
         });
-        let combine_src = include_str!("../../../assets/shaders/sharpen_combine.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format))
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::TONE_WGSL);
-        let combine_module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("sharpen_combine.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(combine_src)),
+        let sharpen_src = include_str!("../../../assets/shaders/sharpen.wgsl")
+            .replace("rgba16float", linear_format_str(ctx.linear_format));
+        let sharpen_module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("sharpen.wgsl"),
+            source: ShaderSource::Wgsl(Cow::Owned(sharpen_src)),
         });
-        let combine_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("sharpen-combine-pl"),
-            bind_group_layouts: &[&combine_layout],
+        let sharpen_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("sharpen-pl"),
+            bind_group_layouts: &[&sharpen_layout],
             push_constant_ranges: &[],
         });
-        let combine_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("sharpen-combine-cp"),
-            layout: Some(&combine_pl),
-            module: &combine_module,
+        let sharpen_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
+            label: Some("sharpen-cp"),
+            layout: Some(&sharpen_pl),
+            module: &sharpen_module,
             entry_point: "main",
             compilation_options: Default::default(),
             cache: None,
@@ -159,8 +158,8 @@ impl OutputSharpenPass {
         Self {
             blur_layout,
             blur_pipeline,
-            combine_layout,
-            combine_pipeline,
+            sharpen_layout,
+            sharpen_pipeline,
         }
     }
 }

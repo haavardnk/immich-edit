@@ -121,6 +121,7 @@ impl OutputTargets {
 pub(super) struct SharpenTargets {
     pub blur_h: Texture,
     pub blur_full: Texture,
+    pub sharpened_lin: Texture,
     pub post_lin: Texture,
     pub alloc_w: u32,
     pub alloc_h: u32,
@@ -155,6 +156,7 @@ impl SharpenTargets {
         Self {
             blur_h: make("sharpen-blur-h", base),
             blur_full: make("sharpen-blur-full", base),
+            sharpened_lin: make("sharpened-lin", base),
             post_lin: make("output-post-lin", base | TextureUsages::COPY_SRC),
             alloc_w: need_w,
             alloc_h: need_h,

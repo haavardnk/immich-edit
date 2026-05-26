@@ -1,5 +1,6 @@
 pub mod dehaze;
 pub mod demosaic;
+pub mod effects_tone;
 pub mod luma_pyramid;
 pub mod mask_blend;
 pub mod mask_weight;
@@ -20,6 +21,7 @@ use crate::ops::{OpRegistry, default_registry};
 
 use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
+use effects_tone::EffectsTonePass;
 use luma_pyramid::LumaPyramidPass;
 use mask_blend::MaskBlendPass;
 use mask_weight::MaskWeightPass;
@@ -44,6 +46,7 @@ pub struct GpuPasses {
     pub process_fast: ProcessFastPass,
     pub process_post_wb: ProcessFastPass,
     pub output_sharpen: OutputSharpenPass,
+    pub effects_tone: EffectsTonePass,
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub sensor: SensorPass,
@@ -65,6 +68,7 @@ impl GpuPasses {
             process_fast,
             process_post_wb,
             output_sharpen,
+            effects_tone,
             mask_weight,
             mask_blend,
             sensor,
@@ -87,6 +91,7 @@ impl GpuPasses {
                 )
             });
             let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
+            let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx));
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
             let sensor_t = s.spawn(|| SensorPass::new(ctx));
@@ -102,6 +107,7 @@ impl GpuPasses {
                 process_fast_t.join().expect("process fast pass build"),
                 process_post_wb_t.join().expect("process post pass build"),
                 output_sharpen_t.join().expect("output sharpen pass build"),
+                effects_tone_t.join().expect("effects tone pass build"),
                 mask_weight_t.join().expect("mask weight pass build"),
                 mask_blend_t.join().expect("mask blend pass build"),
                 sensor_t.join().expect("sensor pass build"),
@@ -119,6 +125,7 @@ impl GpuPasses {
             process_fast,
             process_post_wb,
             output_sharpen,
+            effects_tone,
             mask_weight,
             mask_blend,
             sensor,
