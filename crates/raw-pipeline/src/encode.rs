@@ -1,8 +1,10 @@
+pub mod icc;
+
 use crate::PipelineError;
 use crate::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
 use libheif_rs::{
-    Channel, ColorSpace, CompressionFormat, EncoderQuality, HeifContext, Image as HeifImage,
-    LibHeif, RgbChroma,
+    Channel, ColorProfileRaw, ColorSpace, CompressionFormat, EncoderQuality, HeifContext,
+    Image as HeifImage, LibHeif, RgbChroma, color_profile_types,
 };
 
 pub struct ImageRgb8<'a> {
@@ -26,7 +28,7 @@ pub fn encode_jpeg_rgb(img: ImageRgb8<'_>, quality: i32) -> crate::PipelineResul
         format: turbojpeg::PixelFormat::RGB,
     };
     turbojpeg::compress(image, quality, turbojpeg::Subsamp::Sub2x2)
-        .map(|buf| buf.to_vec())
+        .map(|buf| icc::embed_jpeg_icc(buf.to_vec()))
         .map_err(|e| PipelineError::Encode(format!("{e}")))
 }
 
@@ -39,7 +41,7 @@ pub fn encode_jpeg_rgba(img: ImageRgba8<'_>, quality: i32) -> crate::PipelineRes
         format: turbojpeg::PixelFormat::RGBA,
     };
     turbojpeg::compress(image, quality, turbojpeg::Subsamp::Sub2x2)
-        .map(|buf| buf.to_vec())
+        .map(|buf| icc::embed_jpeg_icc(buf.to_vec()))
         .map_err(|e| PipelineError::Encode(format!("{e}")))
 }
 
@@ -110,7 +112,7 @@ pub fn encode_webp_rgb(
     } else {
         encoder.encode(quality as f32)
     };
-    Ok(mem.to_vec())
+    Ok(icc::embed_webp_icc(mem.to_vec()))
 }
 
 fn encode_heif_rgb(
@@ -124,6 +126,10 @@ fn encode_heif_rgb(
     heif_image
         .create_plane(Channel::Interleaved, img.width, img.height, 8)
         .map_err(|e| PipelineError::Encode(format!("heif plane: {e}")))?;
+    let icc_profile = ColorProfileRaw::new(color_profile_types::PROF, icc::SRGB_ICC.to_vec());
+    heif_image
+        .set_color_profile_raw(&icc_profile)
+        .map_err(|e| PipelineError::Encode(format!("heif icc: {e}")))?;
     {
         let planes = heif_image.planes_mut();
         let plane = planes
@@ -165,11 +171,20 @@ pub fn encode_tiff8(
     compression: TiffCompression,
 ) -> crate::PipelineResult<Vec<u8>> {
     use tiff::encoder::colortype;
+    use tiff::tags::Tag;
     let mut buf: Vec<u8> = Vec::new();
     {
         let cursor = std::io::Cursor::new(&mut buf);
         let mut enc = build_tiff_encoder(cursor, compression)?;
-        enc.write_image::<colortype::RGB8>(img.width, img.height, img.rgb)
+        let mut image = enc
+            .new_image::<colortype::RGB8>(img.width, img.height)
+            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
+        image
+            .encoder()
+            .write_tag(Tag::IccProfile, icc::SRGB_ICC)
+            .map_err(|e| PipelineError::Encode(format!("tiff icc: {e}")))?;
+        image
+            .write_data(img.rgb)
             .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
     }
     Ok(buf)
@@ -182,11 +197,20 @@ pub fn encode_tiff16(
     compression: TiffCompression,
 ) -> crate::PipelineResult<Vec<u8>> {
     use tiff::encoder::colortype;
+    use tiff::tags::Tag;
     let mut buf: Vec<u8> = Vec::new();
     {
         let cursor = std::io::Cursor::new(&mut buf);
         let mut enc = build_tiff_encoder(cursor, compression)?;
-        enc.write_image::<colortype::RGB16>(width, height, rgb16)
+        let mut image = enc
+            .new_image::<colortype::RGB16>(width, height)
+            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
+        image
+            .encoder()
+            .write_tag(Tag::IccProfile, icc::SRGB_ICC)
+            .map_err(|e| PipelineError::Encode(format!("tiff icc: {e}")))?;
+        image
+            .write_data(rgb16)
             .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
     }
     Ok(buf)
@@ -208,6 +232,7 @@ fn build_tiff_encoder<W: std::io::Write + std::io::Seek>(
 
 pub fn encode_jxl8(img: ImageRgb8<'_>) -> crate::PipelineResult<Vec<u8>> {
     let mut encoder = jpegxl_rs::encoder_builder()
+        .color_encoding(jpegxl_rs::encode::ColorEncoding::Srgb)
         .build()
         .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
     let result: jpegxl_rs::encode::EncoderResult<u8> = encoder
@@ -218,6 +243,7 @@ pub fn encode_jxl8(img: ImageRgb8<'_>) -> crate::PipelineResult<Vec<u8>> {
 
 pub fn encode_jxl16(rgb16: &[u16], width: u32, height: u32) -> crate::PipelineResult<Vec<u8>> {
     let mut encoder = jpegxl_rs::encoder_builder()
+        .color_encoding(jpegxl_rs::encode::ColorEncoding::Srgb)
         .build()
         .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
     let result: jpegxl_rs::encode::EncoderResult<u16> = encoder
@@ -316,6 +342,87 @@ pub fn encode_from_rgb16(
         _ => {
             let rgb8: Vec<u8> = rgb16.iter().map(|&v| (v >> 8) as u8).collect();
             encode_from_rgb8(&rgb8, width, height, format)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn red_pixels(w: u32, h: u32) -> Vec<u8> {
+        let mut v = Vec::with_capacity((w * h * 3) as usize);
+        for _ in 0..(w * h) {
+            v.extend_from_slice(&[200, 50, 50]);
+        }
+        v
+    }
+
+    fn contains_icc(bytes: &[u8]) -> bool {
+        bytes.windows(4).any(|w| w == b"acsp")
+    }
+
+    #[test]
+    fn jpeg_embeds_icc() {
+        let rgb = red_pixels(32, 32);
+        let out = encode_jpeg_rgb(
+            ImageRgb8 {
+                rgb: &rgb,
+                width: 32,
+                height: 32,
+            },
+            85,
+        )
+        .unwrap();
+        if !(out[0] == 0xFF && out[1] == 0xD8 && out[2] == 0xFF && out[3] == 0xE2) {
+            panic!("expected APP2 right after SOI");
+        }
+        if &out[6..18] != b"ICC_PROFILE\0" {
+            panic!("expected ICC_PROFILE marker");
+        }
+        if !contains_icc(&out) {
+            panic!("missing ICC body");
+        }
+    }
+
+    #[test]
+    fn tiff_embeds_icc() {
+        let rgb = red_pixels(16, 16);
+        let out = encode_tiff8(
+            ImageRgb8 {
+                rgb: &rgb,
+                width: 16,
+                height: 16,
+            },
+            TiffCompression::None,
+        )
+        .unwrap();
+        if !contains_icc(&out) {
+            panic!("tiff missing ICC");
+        }
+    }
+
+    #[test]
+    fn webp_embeds_icc() {
+        let rgb = red_pixels(16, 16);
+        let out = encode_webp_rgb(
+            ImageRgb8 {
+                rgb: &rgb,
+                width: 16,
+                height: 16,
+            },
+            85,
+            false,
+        )
+        .unwrap();
+        if &out[0..4] != b"RIFF" || &out[8..12] != b"WEBP" || &out[12..16] != b"VP8X" {
+            panic!("expected RIFF/WEBP/VP8X header");
+        }
+        if !out.windows(4).any(|w| w == b"ICCP") {
+            panic!("missing ICCP chunk");
+        }
+        if !contains_icc(&out) {
+            panic!("webp missing ICC body");
         }
     }
 }
