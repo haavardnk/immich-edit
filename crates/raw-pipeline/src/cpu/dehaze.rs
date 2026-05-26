@@ -159,7 +159,7 @@ fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Vec<f32> {
     out
 }
 
-fn estimate_atmosphere(rgb: &[f32], dp: &[f32], w: usize, h: usize) -> [f32; 3] {
+pub fn estimate_atmosphere(rgb: &[f32], dp: &[f32], w: usize, h: usize) -> [f32; 3] {
     let n = w * h;
     let take = (n / 1000).clamp(16, 256);
     let mut idx: Vec<u32> = (0..n as u32).collect();

@@ -1,3 +1,4 @@
+pub mod dehaze;
 pub mod demosaic;
 pub mod luma_pyramid;
 pub mod mask_blend;
@@ -18,6 +19,7 @@ use super::context::GpuContext;
 use crate::gpu::shader_builder::StageMask;
 use crate::ops::{OpRegistry, default_registry};
 
+use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
 use luma_pyramid::LumaPyramidPass;
 use mask_blend::MaskBlendPass;
@@ -33,6 +35,7 @@ use tonemap::TonemapPass;
 use wb_prepare::WbPreparePass;
 
 pub struct GpuPasses {
+    pub dehaze: DehazePasses,
     pub demosaic: DemosaicPass,
     pub mipgen: MipgenPass,
     pub luma_pyramid: LumaPyramidPass,
@@ -53,6 +56,7 @@ pub struct GpuPasses {
 impl GpuPasses {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
         let registry = default_registry();
+        let dehaze = DehazePasses::new(ctx);
         let demosaic = DemosaicPass::new(ctx);
         let mipgen = MipgenPass::new(ctx);
         let luma_pyramid = LumaPyramidPass::new(ctx);
@@ -69,6 +73,7 @@ impl GpuPasses {
         let sensor = SensorPass::new(ctx);
         let tonemap = TonemapPass::new(ctx);
         Self {
+            dehaze,
             demosaic,
             mipgen,
             luma_pyramid,

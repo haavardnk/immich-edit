@@ -338,6 +338,9 @@ impl GpuRenderer {
             if op.gpu_kind() == GpuOpKind::Detail {
                 continue;
             }
+            if op.id() == "dehaze" {
+                continue;
+            }
             if op.stage() == crate::ops::Stage::Output {
                 continue;
             }
@@ -1269,7 +1272,9 @@ impl GpuRenderer {
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            usage: TextureUsages::STORAGE_BINDING
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
             view_formats: &[],
         });
 
@@ -1397,6 +1402,467 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
         self.encode_mipgen(&dst, w, h);
         Ok(Arc::new(dst))
+    }
+
+    fn estimate_atmosphere(&self, src: &Texture, dims: (u32, u32)) -> PipelineResult<[f32; 3]> {
+        let (w, h) = dims;
+        let max_dim = w.max(h);
+        let level: u32 = if max_dim <= 256 {
+            0
+        } else {
+            (max_dim as f32 / 256.0).log2().ceil() as u32
+        };
+        let level = level.min(src.mip_level_count().saturating_sub(1));
+        let wl = (w >> level).max(1);
+        let hl = (h >> level).max(1);
+        let bpp: u32 = 8;
+        let row_align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let unpadded = wl * bpp;
+        let rem = unpadded % row_align;
+        let padded = if rem == 0 {
+            unpadded
+        } else {
+            unpadded + (row_align - rem)
+        };
+        let buffer_size = (padded as u64) * (hl as u64);
+        let buf = self.ctx.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("dehaze-atm-readback"),
+            size: buffer_size,
+            usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self
+            .ctx
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("dehaze-atm-enc"),
+            });
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: src,
+                mip_level: level,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &buf,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded),
+                    rows_per_image: Some(hl),
+                },
+            },
+            Extent3d {
+                width: wl,
+                height: hl,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.ctx.queue.submit(Some(encoder.finish()));
+
+        let slice = buf.slice(..);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        slice.map_async(wgpu::MapMode::Read, move |r| {
+            let _ = sender.send(r);
+        });
+        self.ctx.device.poll(wgpu::Maintain::Wait);
+        receiver
+            .recv()
+            .map_err(|e| PipelineError::Render(format!("atm recv: {e}")))?
+            .map_err(|e| PipelineError::Render(format!("atm map: {e}")))?;
+        let data = slice.get_mapped_range();
+        let px_count = (wl * hl) as usize;
+        let mut rgb = Vec::with_capacity(px_count * 3);
+        let unpadded_bytes = (wl * 8) as usize;
+        let padded_bytes = padded as usize;
+        for row in 0..hl as usize {
+            let start = row * padded_bytes;
+            let row_u16: &[u16] = bytemuck::cast_slice(&data[start..start + unpadded_bytes]);
+            for px in row_u16.chunks_exact(4) {
+                rgb.push(half::f16::from_bits(px[0]).to_f32());
+                rgb.push(half::f16::from_bits(px[1]).to_f32());
+                rgb.push(half::f16::from_bits(px[2]).to_f32());
+            }
+        }
+        drop(data);
+        buf.unmap();
+
+        let mut dp = vec![0.0f32; px_count];
+        for i in 0..px_count {
+            let r = rgb[i * 3].clamp(0.0, 1.0);
+            let g = rgb[i * 3 + 1].clamp(0.0, 1.0);
+            let b = rgb[i * 3 + 2].clamp(0.0, 1.0);
+            dp[i] = r.min(g).min(b);
+        }
+        Ok(crate::cpu::dehaze::estimate_atmosphere(
+            &rgb,
+            &dp,
+            wl as usize,
+            hl as usize,
+        ))
+    }
+
+    fn run_dehaze(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        edits: &Edits,
+        atm: [f32; 3],
+    ) -> PipelineResult<Arc<Texture>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+        let min_dim = w.min(h);
+        let half_min = (min_dim / 2).max(1);
+        let r_patch: u32 = (min_dim / 200).max(8).min(half_min);
+        let r_gf: u32 = (min_dim / 50).max(16).min(half_min);
+        let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
+
+        let make_scratch = |label: &'static str| {
+            device.create_texture(&TextureDescriptor {
+                label: Some(label),
+                size: Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: self.ctx.linear_format,
+                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+        };
+        let dn = make_scratch("dehaze-dn");
+        let dn_h = make_scratch("dehaze-dn-h");
+        let dn_min = make_scratch("dehaze-dn-min");
+        let packed = make_scratch("dehaze-pack");
+        let packed_h = make_scratch("dehaze-pack-h");
+        let packed_v = make_scratch("dehaze-pack-v");
+        let ab = make_scratch("dehaze-ab");
+        let ab_h = make_scratch("dehaze-ab-h");
+        let ab_v = make_scratch("dehaze-ab-v");
+        let out = device.create_texture(&TextureDescriptor {
+            label: Some("dehaze-out"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let mut norm_u = vec![0u8; 32];
+        norm_u[0..4].copy_from_slice(&w.to_le_bytes());
+        norm_u[4..8].copy_from_slice(&h.to_le_bytes());
+        norm_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
+        norm_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
+        norm_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
+        norm_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
+        let norm_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("dehaze-norm-u"),
+            contents: &norm_u,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let make_filter_u = |radius: u32, axis: u32, label: &'static str| {
+            let mut u = vec![0u8; 16];
+            u[0..4].copy_from_slice(&w.to_le_bytes());
+            u[4..8].copy_from_slice(&h.to_le_bytes());
+            u[8..12].copy_from_slice(&radius.to_le_bytes());
+            u[12..16].copy_from_slice(&axis.to_le_bytes());
+            device.create_buffer_init(&BufferInitDescriptor {
+                label: Some(label),
+                contents: &u,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            })
+        };
+        let min_h_buf = make_filter_u(r_patch, 0, "dehaze-min-h-u");
+        let min_v_buf = make_filter_u(r_patch, 1, "dehaze-min-v-u");
+        let box_h_buf = make_filter_u(r_gf, 0, "dehaze-box-h-u");
+        let box_v_buf = make_filter_u(r_gf, 1, "dehaze-box-v-u");
+
+        let mut size_u = vec![0u8; 16];
+        size_u[0..4].copy_from_slice(&w.to_le_bytes());
+        size_u[4..8].copy_from_slice(&h.to_le_bytes());
+        let pack_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("dehaze-pack-u"),
+            contents: &size_u,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let ab_uni = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("dehaze-ab-u"),
+            contents: &size_u,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let mut apply_u = vec![0u8; 48];
+        apply_u[0..4].copy_from_slice(&w.to_le_bytes());
+        apply_u[4..8].copy_from_slice(&h.to_le_bytes());
+        apply_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
+        apply_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
+        apply_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
+        apply_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
+        apply_u[32..36].copy_from_slice(&amount.to_le_bytes());
+        let apply_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("dehaze-apply-u"),
+            contents: &apply_u,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let dn_view = dn.create_view(&TextureViewDescriptor::default());
+        let dn_h_view = dn_h.create_view(&TextureViewDescriptor::default());
+        let dn_min_view = dn_min.create_view(&TextureViewDescriptor::default());
+        let packed_view = packed.create_view(&TextureViewDescriptor::default());
+        let packed_h_view = packed_h.create_view(&TextureViewDescriptor::default());
+        let packed_v_view = packed_v.create_view(&TextureViewDescriptor::default());
+        let ab_view = ab.create_view(&TextureViewDescriptor::default());
+        let ab_h_view = ab_h.create_view(&TextureViewDescriptor::default());
+        let ab_v_view = ab_v.create_view(&TextureViewDescriptor::default());
+        let out_view = out.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+
+        let p = &self.passes.dehaze;
+        let bg_norm = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-norm-bg"),
+            layout: &p.norm_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: norm_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dn_view),
+                },
+            ],
+        });
+        let bg_min_h = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-min-h-bg"),
+            layout: &p.min_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: min_h_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&dn_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dn_h_view),
+                },
+            ],
+        });
+        let bg_min_v = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-min-v-bg"),
+            layout: &p.min_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: min_v_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&dn_h_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dn_min_view),
+                },
+            ],
+        });
+        let bg_pack = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-pack-bg"),
+            layout: &p.pack_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: pack_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dn_min_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&packed_view),
+                },
+            ],
+        });
+        let bg_box_h_pack = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-box-h-pack-bg"),
+            layout: &p.box_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: box_h_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&packed_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&packed_h_view),
+                },
+            ],
+        });
+        let bg_box_v_pack = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-box-v-pack-bg"),
+            layout: &p.box_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: box_v_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&packed_h_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&packed_v_view),
+                },
+            ],
+        });
+        let bg_ab = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-ab-bg"),
+            layout: &p.ab_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: ab_uni.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&packed_v_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&ab_view),
+                },
+            ],
+        });
+        let bg_box_h_ab = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-box-h-ab-bg"),
+            layout: &p.box_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: box_h_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&ab_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&ab_h_view),
+                },
+            ],
+        });
+        let bg_box_v_ab = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-box-v-ab-bg"),
+            layout: &p.box_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: box_v_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&ab_h_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&ab_v_view),
+                },
+            ],
+        });
+        let bg_apply = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-apply-bg"),
+            layout: &p.apply_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: apply_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&ab_v_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&out_view),
+                },
+            ],
+        });
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("dehaze-enc"),
+        });
+        let gx = w.div_ceil(16);
+        let gy = h.div_ceil(16);
+        {
+            let mut c = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("dehaze-pass"),
+                timestamp_writes: None,
+            });
+            c.set_pipeline(&p.norm_pipeline);
+            c.set_bind_group(0, &bg_norm, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.min_pipeline);
+            c.set_bind_group(0, &bg_min_h, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_bind_group(0, &bg_min_v, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.pack_pipeline);
+            c.set_bind_group(0, &bg_pack, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.box_pipeline);
+            c.set_bind_group(0, &bg_box_h_pack, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_bind_group(0, &bg_box_v_pack, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.ab_pipeline);
+            c.set_bind_group(0, &bg_ab, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.box_pipeline);
+            c.set_bind_group(0, &bg_box_h_ab, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_bind_group(0, &bg_box_v_ab, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+            c.set_pipeline(&p.apply_pipeline);
+            c.set_bind_group(0, &bg_apply, &[]);
+            c.dispatch_workgroups(gx, gy, 1);
+        }
+        queue.submit(Some(encoder.finish()));
+        self.encode_mipgen(&out, w, h);
+        Ok(Arc::new(out))
     }
 
     fn run_presence(
@@ -1653,7 +2119,9 @@ impl GpuRenderer {
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            usage: TextureUsages::STORAGE_BINDING
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
             view_formats: &[],
         });
 
@@ -1792,9 +2260,6 @@ impl GpuRenderer {
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         crate::cancel::check(cancel)?;
-        if edits.basic.dehaze != 0.0 {
-            return Err(PipelineError::Unsupported("dehaze runs on cpu".into()));
-        }
         let plan = RenderPlan::select(edits);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;
@@ -1833,11 +2298,20 @@ impl GpuRenderer {
                     None
                 };
                 let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
-                let presence_active = edits_c.basic.texture != 0.0
-                    || edits_c.basic.clarity != 0.0
-                    || edits_c.basic.dehaze != 0.0;
+                let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
+                    let atm = self.estimate_atmosphere(presence_src, dims)?;
+                    let t = self.run_dehaze(presence_src, dims, &edits_c, atm)?;
+                    crate::cancel::check(cancel)?;
+                    Some(t)
+                } else {
+                    None
+                };
+                let post_dehaze_src: &Texture = dehaze_out.as_deref().unwrap_or(presence_src);
+                let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
-                    self.run_presence(presence_src, dims, &edits_c)?
+                    self.run_presence(post_dehaze_src, dims, &edits_c)?
+                } else if let Some(t) = dehaze_out {
+                    t
                 } else {
                     nr_out.unwrap_or(wb_base)
                 };
