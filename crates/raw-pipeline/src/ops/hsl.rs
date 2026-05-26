@@ -1,10 +1,10 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{Edits, HSL_BANDS};
 
 pub struct HslOp;
 
-impl EditOperator for HslOp {
+impl OpMeta for HslOp {
     fn id(&self) -> &'static str {
         "hsl"
     }
@@ -17,6 +17,39 @@ impl EditOperator for HslOp {
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.color.hsl.is_zero()
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        if !self.is_active(edits) {
+            return None;
+        }
+        let arr: Vec<serde_json::Value> = edits
+            .color
+            .hsl
+            .bands
+            .iter()
+            .map(|b| serde_json::json!({"hue": b.hue, "sat": b.sat, "lum": b.lum}))
+            .collect();
+        Some(serde_json::json!({ "bands": arr }))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        let Some(arr) = value.get("bands").and_then(|v| v.as_array()) else {
+            return;
+        };
+        for (i, item) in arr.iter().take(HSL_BANDS).enumerate() {
+            let band = &mut edits.color.hsl.bands[i];
+            if let Some(v) = item.get("hue").and_then(|v| v.as_f64()) {
+                band.hue = v;
+            }
+            if let Some(v) = item.get("sat").and_then(|v| v.as_f64()) {
+                band.sat = v;
+            }
+            if let Some(v) = item.get("lum").and_then(|v| v.as_f64()) {
+                band.lum = v;
+            }
+        }
+    }
+}
+
+impl FusedOp for HslOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {
             field_name: "hsl",
@@ -47,36 +80,6 @@ impl EditOperator for HslOp {
             dst[i * 4 + 1] = band.sat as f32;
             dst[i * 4 + 2] = band.lum as f32;
             dst[i * 4 + 3] = 0.0;
-        }
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if !self.is_active(edits) {
-            return None;
-        }
-        let arr: Vec<serde_json::Value> = edits
-            .color
-            .hsl
-            .bands
-            .iter()
-            .map(|b| serde_json::json!({"hue": b.hue, "sat": b.sat, "lum": b.lum}))
-            .collect();
-        Some(serde_json::json!({ "bands": arr }))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        let Some(arr) = value.get("bands").and_then(|v| v.as_array()) else {
-            return;
-        };
-        for (i, item) in arr.iter().take(HSL_BANDS).enumerate() {
-            let band = &mut edits.color.hsl.bands[i];
-            if let Some(v) = item.get("hue").and_then(|v| v.as_f64()) {
-                band.hue = v;
-            }
-            if let Some(v) = item.get("sat").and_then(|v| v.as_f64()) {
-                band.sat = v;
-            }
-            if let Some(v) = item.get("lum").and_then(|v| v.as_f64()) {
-                band.lum = v;
-            }
         }
     }
 }

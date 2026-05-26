@@ -1,10 +1,10 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct UserWbOp;
 
-impl EditOperator for UserWbOp {
+impl OpMeta for UserWbOp {
     fn id(&self) -> &'static str {
         "white_balance"
     }
@@ -17,6 +17,26 @@ impl EditOperator for UserWbOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.wb_temp != 0.0 || edits.basic.wb_tint != 0.0
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        if edits.basic.wb_temp == 0.0 && edits.basic.wb_tint == 0.0 {
+            return None;
+        }
+        Some(serde_json::json!({
+            "temp": edits.basic.wb_temp,
+            "tint": edits.basic.wb_tint,
+        }))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
+            edits.basic.wb_temp = v;
+        }
+        if let Some(v) = value.get("tint").and_then(|v| v.as_f64()) {
+            edits.basic.wb_tint = v;
+        }
+    }
+}
+
+impl FusedOp for UserWbOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
         Some(CpuFusedOp::ColorMatrix { m })
@@ -49,23 +69,6 @@ impl EditOperator for UserWbOp {
             dst[off + 1] = row[1];
             dst[off + 2] = row[2];
             dst[off + 3] = 0.0;
-        }
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.basic.wb_temp == 0.0 && edits.basic.wb_tint == 0.0 {
-            return None;
-        }
-        Some(serde_json::json!({
-            "temp": edits.basic.wb_temp,
-            "tint": edits.basic.wb_tint,
-        }))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
-            edits.basic.wb_temp = v;
-        }
-        if let Some(v) = value.get("tint").and_then(|v| v.as_f64()) {
-            edits.basic.wb_tint = v;
         }
     }
 }

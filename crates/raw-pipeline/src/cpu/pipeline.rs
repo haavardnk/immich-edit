@@ -56,14 +56,14 @@ pub fn render_with_cancel(
         crate::color::identity_3x3()
     };
     let ctx = OpContext {
-            render: RenderContext {
-                wb_coeffs: frame.wb_coeffs,
-                cam_to_srgb,
-                is_raw: frame.is_raw,
-                preview_mode: options.preview_mode.clone(),
-            },
-            scratch: OpScratch { shadows_blur: None },
-        };
+        render: RenderContext {
+            wb_coeffs: frame.wb_coeffs,
+            cam_to_srgb,
+            is_raw: frame.is_raw,
+            preview_mode: options.preview_mode.clone(),
+        },
+        scratch: OpScratch { shadows_blur: None },
+    };
 
     let mut sensor_image = LinearImage::new(rgb, src_w, src_h);
     run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
@@ -142,7 +142,7 @@ pub fn run_pipeline_ops(
         let warp = LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
         crate::cpu::masked::render_mask_weight(image, &eval, &warp);
         let registry = default_registry();
-        for op in registry.ops().iter().map(|o| o.as_ref()) {
+        for op in registry.ops().iter() {
             cancel::check(cancel)?;
             if op.stage() != crate::ops::Stage::Geometry {
                 continue;
@@ -186,7 +186,9 @@ pub fn run_pipeline_ops(
                 is_raw: ctx.render.is_raw,
                 preview_mode: ctx.render.preview_mode.clone(),
             },
-            scratch: OpScratch { shadows_blur: Some(shadows_blur) },
+            scratch: OpScratch {
+                shadows_blur: Some(shadows_blur),
+            },
         };
         &ctx_local
     } else {
@@ -215,10 +217,10 @@ pub fn run_pipeline_ops(
             }
         }
     };
-    let op_active = |op: &dyn crate::ops::EditOperator| -> bool {
+    let op_active = |op: &crate::ops::AnyOp| -> bool {
         op.is_active(edits) || layer_edits.iter().any(|e| op.is_active(e))
     };
-    for op in registry.ops().iter().map(|o| o.as_ref()) {
+    for op in registry.ops().iter() {
         cancel::check(cancel)?;
         if !op_active(op) {
             continue;

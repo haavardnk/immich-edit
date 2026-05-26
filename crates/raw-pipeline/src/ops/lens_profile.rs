@@ -1,19 +1,16 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage, OpKind};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
 
 pub struct LensProfileOp;
 
-impl EditOperator for LensProfileOp {
+impl OpMeta for LensProfileOp {
     fn id(&self) -> &'static str {
         "lens_profile"
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
-    }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         -10
@@ -31,14 +28,6 @@ impl EditOperator for LensProfileOp {
             || l.vk3 != 0.0
             || l.ca_red_scale_x10000 != 0.0
             || l.ca_blue_scale_x10000 != 0.0
-    }
-    fn apply_cpu(
-        &self,
-        _image: &mut LinearImage,
-        _ctx: &OpContext,
-        _edits: &Edits,
-    ) -> PipelineResult<()> {
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         if !self.is_active(edits) {
@@ -102,5 +91,16 @@ impl EditOperator for LensProfileOp {
         if let Some(v) = value.get("ca_blue").and_then(|v| v.as_f64()) {
             l.ca_blue_scale_x10000 = v;
         }
+    }
+}
+
+impl SpatialOp for LensProfileOp {
+    fn apply_cpu(
+        &self,
+        _image: &mut LinearImage,
+        _ctx: &OpContext,
+        _edits: &Edits,
+    ) -> PipelineResult<()> {
+        Ok(())
     }
 }

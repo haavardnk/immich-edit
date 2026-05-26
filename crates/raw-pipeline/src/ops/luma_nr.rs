@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, GpuOpKind, OpContext, OpKind, Stage};
+use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -11,42 +11,18 @@ const KB: f32 = 0.0722;
 
 pub struct LumaNrOp;
 
-impl EditOperator for LumaNrOp {
+impl OpMeta for LumaNrOp {
     fn id(&self) -> &'static str {
         "luma_nr"
     }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn order(&self) -> i32 {
         -50
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.detail.luma_nr_active()
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let d = &edits.detail;
-        if !d.luma_nr_active() {
-            return Ok(());
-        }
-        apply_luma_nr(
-            image,
-            d.luma_nr_amount as f32,
-            d.luma_nr_detail as f32,
-            d.luma_nr_contrast as f32,
-        );
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let d = &edits.detail;
@@ -70,6 +46,30 @@ impl EditOperator for LumaNrOp {
         if let Some(v) = value.get("contrast").and_then(|v| v.as_f64()) {
             d.luma_nr_contrast = v;
         }
+    }
+}
+
+impl SpatialOp for LumaNrOp {
+    fn gpu_kind(&self) -> GpuOpKind {
+        GpuOpKind::Detail
+    }
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        _ctx: &OpContext,
+        edits: &Edits,
+    ) -> PipelineResult<()> {
+        let d = &edits.detail;
+        if !d.luma_nr_active() {
+            return Ok(());
+        }
+        apply_luma_nr(
+            image,
+            d.luma_nr_amount as f32,
+            d.luma_nr_detail as f32,
+            d.luma_nr_contrast as f32,
+        );
+        Ok(())
     }
 }
 

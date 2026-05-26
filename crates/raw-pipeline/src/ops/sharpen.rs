@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, GpuOpKind, OpContext, OpKind, Stage};
+use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -7,33 +7,18 @@ use rayon::prelude::*;
 
 pub struct SharpenOp;
 
-impl EditOperator for SharpenOp {
+impl OpMeta for SharpenOp {
     fn id(&self) -> &'static str {
         "sharpen"
     }
     fn stage(&self) -> Stage {
         Stage::Output
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn order(&self) -> i32 {
         0
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.detail.sharpen_active()
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        apply_sharpen(image, &edits.detail, &ctx.render.preview_mode);
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let d = &edits.detail;
@@ -61,6 +46,21 @@ impl EditOperator for SharpenOp {
         if let Some(v) = value.get("masking").and_then(|v| v.as_f64()) {
             d.sharpen_masking = v;
         }
+    }
+}
+
+impl SpatialOp for SharpenOp {
+    fn gpu_kind(&self) -> GpuOpKind {
+        GpuOpKind::Detail
+    }
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        ctx: &OpContext,
+        edits: &Edits,
+    ) -> PipelineResult<()> {
+        apply_sharpen(image, &edits.detail, &ctx.render.preview_mode);
+        Ok(())
     }
 }
 

@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 
 use super::LinearImage;
-use super::{EditOperator, GpuOp, OpContext, Stage, OpKind};
+use super::{GpuOp, OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
@@ -9,21 +9,79 @@ use crate::geom;
 
 pub struct TransformOp;
 
-impl EditOperator for TransformOp {
+impl OpMeta for TransformOp {
     fn id(&self) -> &'static str {
         "transform"
     }
     fn stage(&self) -> Stage {
         Stage::Geometry
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn is_active(&self, edits: &Edits) -> bool {
         let g = &edits.geometry;
         let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
         g.rotate != 0 || g.flip_h || g.flip_v || g.rotate_angle.abs() > 1e-4 || crop_active
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        let g = &edits.geometry;
+        let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
+        let angle_active = g.rotate_angle.abs() > 1e-4;
+        let aspect_active = !matches!(g.aspect, AspectLock::Original);
+        let rotate_active = g.rotate != 0;
+        let flip_active = g.flip_h || g.flip_v;
+        if !crop_active && !angle_active && !aspect_active && !rotate_active && !flip_active {
+            return None;
+        }
+        let mut obj = serde_json::Map::new();
+        if rotate_active {
+            obj.insert("rotate".into(), serde_json::json!(g.rotate));
+        }
+        if g.flip_h {
+            obj.insert("flip_h".into(), serde_json::json!(true));
+        }
+        if g.flip_v {
+            obj.insert("flip_v".into(), serde_json::json!(true));
+        }
+        if angle_active {
+            obj.insert("angle".into(), serde_json::json!(g.rotate_angle));
+        }
+        if let Some(c) = g.crop {
+            obj.insert(
+                "crop".into(),
+                serde_json::json!({ "x": c.x, "y": c.y, "w": c.w, "h": c.h }),
+            );
+        }
+        obj.insert("aspect".into(), serde_json::to_value(g.aspect).ok()?);
+        Some(serde_json::Value::Object(obj))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(v) = value.get("rotate").and_then(|v| v.as_u64()) {
+            edits.geometry.rotate = v as u16;
+        }
+        if let Some(v) = value.get("flip_h").and_then(|v| v.as_bool()) {
+            edits.geometry.flip_h = v;
+        }
+        if let Some(v) = value.get("flip_v").and_then(|v| v.as_bool()) {
+            edits.geometry.flip_v = v;
+        }
+        if let Some(a) = value.get("angle").and_then(|v| v.as_f64()) {
+            edits.geometry.rotate_angle = a as f32;
+        }
+        if let Some(c) = value.get("crop") {
+            let x = c.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+            let y = c.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+            let w = c.get("w").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+            let h = c.get("h").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+            edits.geometry.crop = Some(CropRect { x, y, w, h });
+        }
+        if let Some(a) = value.get("aspect") {
+            if let Ok(v) = serde_json::from_value::<AspectLock>(a.clone()) {
+                edits.geometry.aspect = v;
+            }
+        }
+    }
+}
+
+impl SpatialOp for TransformOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
@@ -123,63 +181,5 @@ impl EditOperator for TransformOp {
             vec4_count: 0,
             kind: crate::ops::GpuOpKind::Normal,
         })
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        let g = &edits.geometry;
-        let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
-        let angle_active = g.rotate_angle.abs() > 1e-4;
-        let aspect_active = !matches!(g.aspect, AspectLock::Original);
-        let rotate_active = g.rotate != 0;
-        let flip_active = g.flip_h || g.flip_v;
-        if !crop_active && !angle_active && !aspect_active && !rotate_active && !flip_active {
-            return None;
-        }
-        let mut obj = serde_json::Map::new();
-        if rotate_active {
-            obj.insert("rotate".into(), serde_json::json!(g.rotate));
-        }
-        if g.flip_h {
-            obj.insert("flip_h".into(), serde_json::json!(true));
-        }
-        if g.flip_v {
-            obj.insert("flip_v".into(), serde_json::json!(true));
-        }
-        if angle_active {
-            obj.insert("angle".into(), serde_json::json!(g.rotate_angle));
-        }
-        if let Some(c) = g.crop {
-            obj.insert(
-                "crop".into(),
-                serde_json::json!({ "x": c.x, "y": c.y, "w": c.w, "h": c.h }),
-            );
-        }
-        obj.insert("aspect".into(), serde_json::to_value(g.aspect).ok()?);
-        Some(serde_json::Value::Object(obj))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("rotate").and_then(|v| v.as_u64()) {
-            edits.geometry.rotate = v as u16;
-        }
-        if let Some(v) = value.get("flip_h").and_then(|v| v.as_bool()) {
-            edits.geometry.flip_h = v;
-        }
-        if let Some(v) = value.get("flip_v").and_then(|v| v.as_bool()) {
-            edits.geometry.flip_v = v;
-        }
-        if let Some(a) = value.get("angle").and_then(|v| v.as_f64()) {
-            edits.geometry.rotate_angle = a as f32;
-        }
-        if let Some(c) = value.get("crop") {
-            let x = c.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
-            let y = c.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
-            let w = c.get("w").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
-            let h = c.get("h").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
-            edits.geometry.crop = Some(CropRect { x, y, w, h });
-        }
-        if let Some(a) = value.get("aspect") {
-            if let Ok(v) = serde_json::from_value::<AspectLock>(a.clone()) {
-                edits.geometry.aspect = v;
-            }
-        }
     }
 }

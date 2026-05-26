@@ -1,21 +1,18 @@
 use super::LinearImage;
 use super::sample::sample_channel_bicubic;
-use super::{EditOperator, OpContext, OpKind, Stage};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensCaOp;
 
-impl EditOperator for LensCaOp {
+impl OpMeta for LensCaOp {
     fn id(&self) -> &'static str {
         "lens_ca"
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
-    }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         2
@@ -23,6 +20,12 @@ impl EditOperator for LensCaOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.lens.ca_active()
     }
+    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+impl SpatialOp for LensCaOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
@@ -31,9 +34,6 @@ impl EditOperator for LensCaOp {
     ) -> PipelineResult<()> {
         apply_lens_ca(image, &edits.lens);
         Ok(())
-    }
-    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
-        None
     }
 }
 
@@ -77,8 +77,8 @@ pub fn apply_lens_ca(image: &mut LinearImage, lens: &LensEdits) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ops::{OpScratch, RenderContext};
     use crate::frame::PreviewMode;
+    use crate::ops::{OpScratch, RenderContext};
 
     fn ctx() -> OpContext {
         OpContext {

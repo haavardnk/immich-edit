@@ -1,20 +1,17 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, OpKind, Stage};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensVignetteOp;
 
-impl EditOperator for LensVignetteOp {
+impl OpMeta for LensVignetteOp {
     fn id(&self) -> &'static str {
         "lens_vignette"
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
-    }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         1
@@ -22,6 +19,12 @@ impl EditOperator for LensVignetteOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.lens.vignette_active()
     }
+    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+impl SpatialOp for LensVignetteOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
@@ -30,9 +33,6 @@ impl EditOperator for LensVignetteOp {
     ) -> PipelineResult<()> {
         apply_lens_vignette(image, &edits.lens);
         Ok(())
-    }
-    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
-        None
     }
 }
 
@@ -90,8 +90,8 @@ pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ops::{OpScratch, RenderContext};
     use crate::frame::PreviewMode;
+    use crate::ops::{OpScratch, RenderContext};
 
     fn solid_image(w: usize, h: usize, v: f32) -> LinearImage {
         LinearImage::new(vec![v; w * h * 3], w, h)

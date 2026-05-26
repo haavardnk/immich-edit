@@ -1,21 +1,18 @@
 use super::LinearImage;
 use super::sample::sample_rgb_bicubic;
-use super::{EditOperator, OpContext, OpKind, Stage};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensDistortionOp;
 
-impl EditOperator for LensDistortionOp {
+impl OpMeta for LensDistortionOp {
     fn id(&self) -> &'static str {
         "lens_distortion"
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
-    }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
     }
     fn order(&self) -> i32 {
         0
@@ -23,6 +20,12 @@ impl EditOperator for LensDistortionOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.lens.distortion_active()
     }
+    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+impl SpatialOp for LensDistortionOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
@@ -31,9 +34,6 @@ impl EditOperator for LensDistortionOp {
     ) -> PipelineResult<()> {
         apply_lens_distortion(image, &edits.lens);
         Ok(())
-    }
-    fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
-        None
     }
 }
 
@@ -235,8 +235,8 @@ pub fn apply_lens_distortion(image: &mut LinearImage, lens: &LensEdits) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ops::{OpScratch, RenderContext};
     use crate::frame::PreviewMode;
+    use crate::ops::{OpScratch, RenderContext};
 
     #[test]
     fn constrain_zoom_solves_fixed_point() {

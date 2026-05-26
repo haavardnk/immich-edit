@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
@@ -28,7 +28,7 @@ pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32,
     (r * s, g * s, b * s)
 }
 
-impl EditOperator for BrightnessOp {
+impl OpMeta for BrightnessOp {
     fn id(&self) -> &'static str {
         "brightness"
     }
@@ -41,6 +41,20 @@ impl EditOperator for BrightnessOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.brightness != 0.0
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        if edits.basic.brightness == 0.0 {
+            return None;
+        }
+        Some(serde_json::json!({ "amount": edits.basic.brightness }))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
+            edits.basic.brightness = v;
+        }
+    }
+}
+
+impl FusedOp for BrightnessOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let amount = (edits.basic.brightness as f32 / 100.0).clamp(-1.0, 1.0);
         Some(CpuFusedOp::Brightness { amount })
@@ -54,16 +68,5 @@ impl EditOperator for BrightnessOp {
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = (edits.basic.brightness as f32 / 100.0).clamp(-1.0, 1.0);
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.basic.brightness == 0.0 {
-            return None;
-        }
-        Some(serde_json::json!({ "amount": edits.basic.brightness }))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
-            edits.basic.brightness = v;
-        }
     }
 }

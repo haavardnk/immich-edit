@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
 
@@ -124,7 +124,7 @@ pub fn apply_curves_pixel(luts: &CurveLuts, r: &mut f32, g: &mut f32, b: &mut f3
     }
 }
 
-impl EditOperator for CurvesOp {
+impl OpMeta for CurvesOp {
     fn id(&self) -> &'static str {
         "curves"
     }
@@ -137,6 +137,53 @@ impl EditOperator for CurvesOp {
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.basic.curves.is_identity()
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        let c = &edits.basic.curves;
+        if c.is_identity() {
+            return None;
+        }
+        let mut obj = serde_json::Map::new();
+        let put =
+            |obj: &mut serde_json::Map<String, serde_json::Value>, key: &str, pts: &CurvePoints| {
+                if !pts.is_identity() {
+                    let arr: Vec<serde_json::Value> = pts
+                        .points
+                        .iter()
+                        .map(|p| serde_json::json!([p.x, p.y]))
+                        .collect();
+                    obj.insert(key.into(), serde_json::Value::Array(arr));
+                }
+            };
+        put(&mut obj, "composite", &c.composite);
+        put(&mut obj, "r", &c.r);
+        put(&mut obj, "g", &c.g);
+        put(&mut obj, "b", &c.b);
+        put(&mut obj, "luma", &c.luma);
+        Some(serde_json::Value::Object(obj))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(arr) = value.get("points").and_then(|v| v.as_array()) {
+            if let Some(pts) = decode_points(arr) {
+                edits.basic.curves.composite = CurvePoints { points: pts };
+            }
+            return;
+        }
+        let read = |key: &str, dst: &mut CurvePoints| {
+            if let Some(arr) = value.get(key).and_then(|v| v.as_array()) {
+                if let Some(pts) = decode_points(arr) {
+                    *dst = CurvePoints { points: pts };
+                }
+            }
+        };
+        read("composite", &mut edits.basic.curves.composite);
+        read("r", &mut edits.basic.curves.r);
+        read("g", &mut edits.basic.curves.g);
+        read("b", &mut edits.basic.curves.b);
+        read("luma", &mut edits.basic.curves.luma);
+    }
+}
+
+impl FusedOp for CurvesOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         Some(CpuFusedOp::Curves {
             luts: Box::new(CurveLuts::from_edits(&edits.basic.curves)),
@@ -190,50 +237,6 @@ impl EditOperator for CurvesOp {
             let base = i * CURVE_LUT_SIZE;
             dst[base..base + CURVE_LUT_SIZE].copy_from_slice(*block);
         }
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        let c = &edits.basic.curves;
-        if c.is_identity() {
-            return None;
-        }
-        let mut obj = serde_json::Map::new();
-        let put =
-            |obj: &mut serde_json::Map<String, serde_json::Value>, key: &str, pts: &CurvePoints| {
-                if !pts.is_identity() {
-                    let arr: Vec<serde_json::Value> = pts
-                        .points
-                        .iter()
-                        .map(|p| serde_json::json!([p.x, p.y]))
-                        .collect();
-                    obj.insert(key.into(), serde_json::Value::Array(arr));
-                }
-            };
-        put(&mut obj, "composite", &c.composite);
-        put(&mut obj, "r", &c.r);
-        put(&mut obj, "g", &c.g);
-        put(&mut obj, "b", &c.b);
-        put(&mut obj, "luma", &c.luma);
-        Some(serde_json::Value::Object(obj))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(arr) = value.get("points").and_then(|v| v.as_array()) {
-            if let Some(pts) = decode_points(arr) {
-                edits.basic.curves.composite = CurvePoints { points: pts };
-            }
-            return;
-        }
-        let read = |key: &str, dst: &mut CurvePoints| {
-            if let Some(arr) = value.get(key).and_then(|v| v.as_array()) {
-                if let Some(pts) = decode_points(arr) {
-                    *dst = CurvePoints { points: pts };
-                }
-            }
-        };
-        read("composite", &mut edits.basic.curves.composite);
-        read("r", &mut edits.basic.curves.r);
-        read("g", &mut edits.basic.curves.g);
-        read("b", &mut edits.basic.curves.b);
-        read("luma", &mut edits.basic.curves.luma);
     }
 }
 

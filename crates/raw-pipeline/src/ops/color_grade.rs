@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{ColorGradeRegion, Edits};
 
@@ -25,7 +25,7 @@ fn region_offset(region: &ColorGradeRegion) -> ([f32; 3], f32) {
     ([dir[0] * s, dir[1] * s, dir[2] * s], l)
 }
 
-impl EditOperator for ColorGradeOp {
+impl OpMeta for ColorGradeOp {
     fn id(&self) -> &'static str {
         "color_grade"
     }
@@ -37,51 +37,6 @@ impl EditOperator for ColorGradeOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.color.color_grade.is_zero()
-    }
-    fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "color_grade",
-            functions: COLOR_GRADE_WGSL,
-            apply: "lin = color_grade_apply(lin);",
-            vec4_count: 5,
-            kind: crate::ops::GpuOpKind::Normal,
-        })
-    }
-    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
-        if !self.is_active(edits) {
-            return None;
-        }
-        let cg = &edits.color.color_grade;
-        let (s_off, s_lum) = region_offset(&cg.shadows);
-        let (m_off, m_lum) = region_offset(&cg.midtones);
-        let (h_off, h_lum) = region_offset(&cg.highlights);
-        let (g_off, g_lum) = region_offset(&cg.global);
-        Some(CpuFusedOp::ColorGrade {
-            s_off,
-            s_lum,
-            m_off,
-            m_lum,
-            h_off,
-            h_lum,
-            g_off,
-            g_lum,
-            balance: (cg.balance as f32) / 100.0,
-            blend: (cg.blend as f32) / 100.0,
-        })
-    }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
-        let cg = &edits.color.color_grade;
-        let regions = [&cg.shadows, &cg.midtones, &cg.highlights, &cg.global];
-        for (i, r) in regions.iter().enumerate() {
-            dst[i * 4] = r.hue as f32;
-            dst[i * 4 + 1] = (r.sat as f32) / 100.0;
-            dst[i * 4 + 2] = (r.lum as f32) / 100.0;
-            dst[i * 4 + 3] = 0.0;
-        }
-        dst[16] = (cg.balance as f32) / 100.0;
-        dst[17] = (cg.blend as f32) / 100.0;
-        dst[18] = 0.0;
-        dst[19] = 0.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         if !self.is_active(edits) {
@@ -129,6 +84,54 @@ impl EditOperator for ColorGradeOp {
         if let Some(x) = value.get("blend").and_then(|v| v.as_f64()) {
             cg.blend = x;
         }
+    }
+}
+
+impl FusedOp for ColorGradeOp {
+    fn gpu(&self) -> Option<GpuOp> {
+        Some(GpuOp {
+            field_name: "color_grade",
+            functions: COLOR_GRADE_WGSL,
+            apply: "lin = color_grade_apply(lin);",
+            vec4_count: 5,
+            kind: crate::ops::GpuOpKind::Normal,
+        })
+    }
+    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
+        if !self.is_active(edits) {
+            return None;
+        }
+        let cg = &edits.color.color_grade;
+        let (s_off, s_lum) = region_offset(&cg.shadows);
+        let (m_off, m_lum) = region_offset(&cg.midtones);
+        let (h_off, h_lum) = region_offset(&cg.highlights);
+        let (g_off, g_lum) = region_offset(&cg.global);
+        Some(CpuFusedOp::ColorGrade {
+            s_off,
+            s_lum,
+            m_off,
+            m_lum,
+            h_off,
+            h_lum,
+            g_off,
+            g_lum,
+            balance: (cg.balance as f32) / 100.0,
+            blend: (cg.blend as f32) / 100.0,
+        })
+    }
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
+        let cg = &edits.color.color_grade;
+        let regions = [&cg.shadows, &cg.midtones, &cg.highlights, &cg.global];
+        for (i, r) in regions.iter().enumerate() {
+            dst[i * 4] = r.hue as f32;
+            dst[i * 4 + 1] = (r.sat as f32) / 100.0;
+            dst[i * 4 + 2] = (r.lum as f32) / 100.0;
+            dst[i * 4 + 3] = 0.0;
+        }
+        dst[16] = (cg.balance as f32) / 100.0;
+        dst[17] = (cg.blend as f32) / 100.0;
+        dst[18] = 0.0;
+        dst[19] = 0.0;
     }
 }
 

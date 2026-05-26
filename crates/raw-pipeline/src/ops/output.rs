@@ -1,32 +1,21 @@
-use super::{EditOperator, LinearImage, OpContext, Stage, OpKind};
+use super::{LinearImage, OpContext, OpMeta, OutputStageOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, TonemapKind};
 
 pub struct OutputOp;
 
-impl EditOperator for OutputOp {
+impl OpMeta for OutputOp {
     fn id(&self) -> &'static str {
         "output"
     }
     fn stage(&self) -> Stage {
         Stage::Output
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Output
-    }
     fn order(&self) -> i32 {
         100
     }
     fn is_active(&self, _edits: &Edits) -> bool {
         false
-    }
-    fn apply_cpu(
-        &self,
-        _image: &mut LinearImage,
-        _ctx: &OpContext,
-        _edits: &Edits,
-    ) -> PipelineResult<()> {
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         if edits.output.is_default() {
@@ -45,6 +34,17 @@ impl EditOperator for OutputOp {
         if let Some(s) = value.get("tonemap").and_then(|v| v.as_str()) {
             edits.output.tonemap = tonemap_from_str(s);
         }
+    }
+}
+
+impl OutputStageOp for OutputOp {
+    fn apply_cpu(
+        &self,
+        _image: &mut LinearImage,
+        _ctx: &OpContext,
+        _edits: &Edits,
+    ) -> PipelineResult<()> {
+        Ok(())
     }
 }
 

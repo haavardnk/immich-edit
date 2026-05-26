@@ -1,35 +1,23 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage, OpKind};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct VignetteOp;
 
-impl EditOperator for VignetteOp {
+impl OpMeta for VignetteOp {
     fn id(&self) -> &'static str {
         "vignette"
     }
     fn stage(&self) -> Stage {
         Stage::Output
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn order(&self) -> i32 {
         1
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.effects.vignette_active()
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        apply_vignette(image, &edits.effects);
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let e = &edits.effects;
@@ -57,6 +45,18 @@ impl EditOperator for VignetteOp {
         if let Some(v) = value.get("roundness").and_then(|v| v.as_f64()) {
             e.vignette_roundness = v;
         }
+    }
+}
+
+impl SpatialOp for VignetteOp {
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        _ctx: &OpContext,
+        edits: &Edits,
+    ) -> PipelineResult<()> {
+        apply_vignette(image, &edits.effects);
+        Ok(())
     }
 }
 

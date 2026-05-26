@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, GpuOpKind, OpContext, OpKind, Stage};
+use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -13,42 +13,18 @@ const PR_DEN: f32 = 1.5748;
 
 pub struct ColorNrOp;
 
-impl EditOperator for ColorNrOp {
+impl OpMeta for ColorNrOp {
     fn id(&self) -> &'static str {
         "color_nr"
     }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn order(&self) -> i32 {
         -40
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.detail.color_nr_active()
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        let d = &edits.detail;
-        if !d.color_nr_active() {
-            return Ok(());
-        }
-        apply_color_nr(
-            image,
-            d.color_nr_amount as f32,
-            d.color_nr_detail as f32,
-            d.color_nr_smoothness as f32,
-        );
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let d = &edits.detail;
@@ -72,6 +48,30 @@ impl EditOperator for ColorNrOp {
         if let Some(v) = value.get("smoothness").and_then(|v| v.as_f64()) {
             d.color_nr_smoothness = v;
         }
+    }
+}
+
+impl SpatialOp for ColorNrOp {
+    fn gpu_kind(&self) -> GpuOpKind {
+        GpuOpKind::Detail
+    }
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        _ctx: &OpContext,
+        edits: &Edits,
+    ) -> PipelineResult<()> {
+        let d = &edits.detail;
+        if !d.color_nr_active() {
+            return Ok(());
+        }
+        apply_color_nr(
+            image,
+            d.color_nr_amount as f32,
+            d.color_nr_detail as f32,
+            d.color_nr_smoothness as f32,
+        );
+        Ok(())
     }
 }
 

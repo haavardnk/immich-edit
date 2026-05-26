@@ -390,7 +390,7 @@ pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
 mod tests {
     use crate::color::identity_3x3;
     use crate::edits::Edits;
-    use crate::ops::EditOperator;
+    use crate::ops::FusedOp;
     use crate::ops::{OpContext, OpScratch, RenderContext, color_matrix};
 
     #[test]

@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
@@ -71,7 +71,7 @@ pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -
     )
 }
 
-impl EditOperator for ToneRegionsOp {
+impl OpMeta for ToneRegionsOp {
     fn id(&self) -> &'static str {
         "tone_regions"
     }
@@ -86,28 +86,6 @@ impl EditOperator for ToneRegionsOp {
             || edits.tone.shadows != 0.0
             || edits.tone.blacks != 0.0
             || edits.tone.whites != 0.0
-    }
-    fn cpu_fused(&self, edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
-        Some(CpuFusedOp::ToneRegions {
-            hl: edits.tone.highlights as f32 / 100.0,
-            sh: edits.tone.shadows as f32 / 100.0,
-            bk: edits.tone.blacks as f32 / 100.0,
-            wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
-            shadows_blur: ctx.scratch.shadows_blur.clone(),
-        })
-    }
-    fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp::new(
-            "tone_regions",
-            TONE_REGIONS_WGSL,
-            "lin = tone_regions_apply(lin, p.tone_regions, shadows_blur_l);",
-        ))
-    }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
-        dst[0] = edits.tone.highlights as f32 / 100.0;
-        dst[1] = edits.tone.shadows as f32 / 100.0;
-        dst[2] = edits.tone.blacks as f32 / 100.0;
-        dst[3] = edits.tone.whites as f32 / 100.0;
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         if !self.is_active(edits) {
@@ -133,6 +111,31 @@ impl EditOperator for ToneRegionsOp {
         if let Some(v) = value.get("whites").and_then(|v| v.as_f64()) {
             edits.tone.whites = v;
         }
+    }
+}
+
+impl FusedOp for ToneRegionsOp {
+    fn cpu_fused(&self, edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
+        Some(CpuFusedOp::ToneRegions {
+            hl: edits.tone.highlights as f32 / 100.0,
+            sh: edits.tone.shadows as f32 / 100.0,
+            bk: edits.tone.blacks as f32 / 100.0,
+            wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
+            shadows_blur: ctx.scratch.shadows_blur.clone(),
+        })
+    }
+    fn gpu(&self) -> Option<GpuOp> {
+        Some(GpuOp::new(
+            "tone_regions",
+            TONE_REGIONS_WGSL,
+            "lin = tone_regions_apply(lin, p.tone_regions, shadows_blur_l);",
+        ))
+    }
+    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
+        dst[0] = edits.tone.highlights as f32 / 100.0;
+        dst[1] = edits.tone.shadows as f32 / 100.0;
+        dst[2] = edits.tone.blacks as f32 / 100.0;
+        dst[3] = edits.tone.whites as f32 / 100.0;
     }
 }
 

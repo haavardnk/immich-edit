@@ -1,35 +1,23 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage, OpKind};
+use super::{OpContext, OpMeta, SpatialOp, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct GrainOp;
 
-impl EditOperator for GrainOp {
+impl OpMeta for GrainOp {
     fn id(&self) -> &'static str {
         "grain"
     }
     fn stage(&self) -> Stage {
         Stage::Output
     }
-    fn kind(&self) -> OpKind {
-        OpKind::Spatial
-    }
     fn order(&self) -> i32 {
         2
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.effects.grain_active()
-    }
-    fn apply_cpu(
-        &self,
-        image: &mut LinearImage,
-        _ctx: &OpContext,
-        edits: &Edits,
-    ) -> PipelineResult<()> {
-        apply_grain(image, &edits.effects);
-        Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let e = &edits.effects;
@@ -53,6 +41,18 @@ impl EditOperator for GrainOp {
         if let Some(v) = value.get("roughness").and_then(|v| v.as_f64()) {
             e.grain_roughness = v;
         }
+    }
+}
+
+impl SpatialOp for GrainOp {
+    fn apply_cpu(
+        &self,
+        image: &mut LinearImage,
+        _ctx: &OpContext,
+        edits: &Edits,
+    ) -> PipelineResult<()> {
+        apply_grain(image, &edits.effects);
+        Ok(())
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
@@ -18,7 +18,7 @@ fn camera_wb(raw: [f32; 4]) -> [f32; 4] {
     c
 }
 
-impl EditOperator for WhiteBalanceOp {
+impl OpMeta for WhiteBalanceOp {
     fn id(&self) -> &'static str {
         "camera_wb"
     }
@@ -28,6 +28,9 @@ impl EditOperator for WhiteBalanceOp {
     fn is_active(&self, _edits: &Edits) -> bool {
         true
     }
+}
+
+impl FusedOp for WhiteBalanceOp {
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         let c = camera_wb(ctx.render.wb_coeffs);
         Some(CpuFusedOp::WhiteBalance {

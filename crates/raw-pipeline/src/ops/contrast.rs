@@ -1,4 +1,4 @@
-use super::{EditOperator, GpuOp, OpContext, Stage};
+use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
@@ -27,7 +27,7 @@ pub(crate) fn apply_perceptual_contrast(v: f32, s: f32) -> f32 {
     lin * (1.0 - m) + v * m
 }
 
-impl EditOperator for ContrastOp {
+impl OpMeta for ContrastOp {
     fn id(&self) -> &'static str {
         "contrast"
     }
@@ -40,6 +40,20 @@ impl EditOperator for ContrastOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.contrast != 0.0
     }
+    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
+        if edits.basic.contrast == 0.0 {
+            return None;
+        }
+        Some(serde_json::json!({ "amount": edits.basic.contrast }))
+    }
+    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
+            edits.basic.contrast = v;
+        }
+    }
+}
+
+impl FusedOp for ContrastOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let s = contrast_strength(edits.basic.contrast as f32 / 100.0);
         Some(CpuFusedOp::Contrast { s })
@@ -53,16 +67,5 @@ impl EditOperator for ContrastOp {
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         dst[0] = contrast_strength(edits.basic.contrast as f32 / 100.0);
-    }
-    fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.basic.contrast == 0.0 {
-            return None;
-        }
-        Some(serde_json::json!({ "amount": edits.basic.contrast }))
-    }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
-            edits.basic.contrast = v;
-        }
     }
 }
