@@ -16,7 +16,7 @@ use crate::mask_raster::MaskRaster;
 pub const COMPONENT_BYTES: usize = 64;
 pub const MAX_COMPONENTS: usize = 32;
 pub const MAX_COMPONENTS_BYTES: usize = COMPONENT_BYTES * MAX_COMPONENTS;
-pub const PARAMS_BYTES: usize = 16;
+pub const PARAMS_BYTES: usize = 96;
 pub const ATLAS_DIM: u32 = 1024;
 pub const ATLAS_LAYERS: u32 = 16;
 
@@ -25,6 +25,11 @@ struct MaskParams {
     out_size: vec2<u32>,
     n_components: u32,
     layer_amount: f32,
+    crop: vec4<f32>,
+    flags: vec4<u32>,
+    geom_extra2: vec4<f32>,
+    geom_extra3: vec4<f32>,
+    lens: vec4<f32>,
 };
 
 struct Component {
@@ -43,6 +48,48 @@ struct Component {
 fn smoothstep_calc(e0: f32, e1: f32, x: f32) -> f32 {
     let t = clamp((x - e0) / max(e1 - e0, 1e-6), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
+}
+
+fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
+    let bx_rel = p.crop.x + disp_u * p.crop.z;
+    let by_rel = p.crop.y + disp_v * p.crop.w;
+    let cx_px = (bx_rel - 0.5) * p.geom_extra2.z;
+    let cy_px = (by_rel - 0.5) * p.geom_extra2.w;
+    let sx_px = cx_px * p.geom_extra2.x + cy_px * p.geom_extra2.y;
+    let sy_px = -cx_px * p.geom_extra2.y + cy_px * p.geom_extra2.x;
+    let u = sx_px / p.geom_extra3.x + 0.5;
+    let v = sy_px / p.geom_extra3.y + 0.5;
+    let rot = p.flags.x;
+    let flip_h = p.flags.y;
+    let flip_v = p.flags.z;
+    var cu = u;
+    var cv = v;
+    if (flip_h == 1u) { cu = 1.0 - cu; }
+    if (flip_v == 1u) { cv = 1.0 - cv; }
+    var mu: f32;
+    var mv: f32;
+    if (rot == 90u) { mu = cv; mv = 1.0 - cu; }
+    else if (rot == 180u) { mu = 1.0 - cu; mv = 1.0 - cv; }
+    else if (rot == 270u) { mu = 1.0 - cv; mv = cu; }
+    else { mu = cu; mv = cv; }
+    let k1 = p.lens.x;
+    let k2 = p.lens.y;
+    let k3 = p.lens.z;
+    let zoom = p.lens.w;
+    if (k1 == 0.0 && k2 == 0.0 && k3 == 0.0 && zoom == 1.0) {
+        return vec2<f32>(mu, mv);
+    }
+    let mw = p.geom_extra3.z;
+    let mh = p.geom_extra3.w;
+    let half_diag = 0.5 * sqrt(mw * mw + mh * mh);
+    let nx = (mu - 0.5) * mw;
+    let ny = (mv - 0.5) * mh;
+    let r = sqrt(nx * nx + ny * ny) * zoom / max(half_diag, 1e-6);
+    let r2 = r * r;
+    let r4 = r2 * r2;
+    let r6 = r4 * r2;
+    let s = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
+    return vec2<f32>(0.5 + (mu - 0.5) * zoom * s, 0.5 + (mv - 0.5) * zoom * s);
 }
 
 fn component_weight(c: Component, u: f32, v: f32) -> f32 {
@@ -84,8 +131,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.out_size.x || gid.y >= p.out_size.y) { return; }
     let ow = f32(p.out_size.x);
     let oh = f32(p.out_size.y);
-    let u = (f32(gid.x) + 0.5) / ow;
-    let v = (f32(gid.y) + 0.5) / oh;
+    let du = (f32(gid.x) + 0.5) / ow;
+    let dv = (f32(gid.y) + 0.5) / oh;
+    let scene = display_to_scene(du, dv);
+    let u = scene.x;
+    let v = scene.y;
     var w: f32 = 0.0;
     let n = p.n_components;
     for (var i: u32 = 0u; i < n; i = i + 1u) {
@@ -281,16 +331,27 @@ pub fn pack_layer_eval(
     (out, n)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn pack_params(
     out_w: u32,
     out_h: u32,
     n_components: u32,
     layer_amount: f32,
+    crop: [f32; 4],
+    flags: [u32; 4],
+    geom_extra2: [f32; 4],
+    geom_extra3: [f32; 4],
+    lens: [f32; 4],
 ) -> [u8; PARAMS_BYTES] {
     let mut buf = [0u8; PARAMS_BYTES];
     buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
     buf[4..8].copy_from_slice(&out_h.to_ne_bytes());
     buf[8..12].copy_from_slice(&n_components.to_ne_bytes());
     buf[12..16].copy_from_slice(&layer_amount.to_ne_bytes());
+    buf[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
+    buf[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
+    buf[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
+    buf[64..80].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
+    buf[80..96].copy_from_slice(bytemuck::cast_slice(&lens));
     buf
 }

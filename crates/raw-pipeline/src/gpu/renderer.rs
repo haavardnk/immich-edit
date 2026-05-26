@@ -712,11 +712,31 @@ impl GpuRenderer {
                 let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
                 let (comp_bytes, n_components) =
                     crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
+                let lens_warp = crate::ops::lens_distortion::LensWarpParams::from_edits(
+                    &edits.lens,
+                    display_w,
+                    display_h,
+                );
                 let mw_params = crate::gpu::passes::mask_weight::pack_params(
                     out_w,
                     out_h,
                     n_components,
                     eval.amount,
+                    [crop.x, crop.y, crop.w, crop.h],
+                    [
+                        edits.geometry.rotate as u32,
+                        edits.geometry.flip_h as u32,
+                        edits.geometry.flip_v as u32,
+                        0,
+                    ],
+                    [cos_a, sin_a, bw, bh],
+                    [
+                        oriented_w as f32,
+                        oriented_h as f32,
+                        display_w as f32,
+                        display_h as f32,
+                    ],
+                    [lens_warp.k1, lens_warp.k2, lens_warp.k3, lens_warp.zoom],
                 );
                 let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("mask-weight-uniform"),

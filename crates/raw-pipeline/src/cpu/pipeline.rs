@@ -11,6 +11,7 @@ use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
+use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::{GpuOpKind, OpContext, default_registry};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
@@ -138,7 +139,19 @@ pub fn run_pipeline_ops(
                 components: Vec::new(),
             },
         };
-        crate::cpu::masked::render_mask_weight(image, &eval);
+        let warp = LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
+        crate::cpu::masked::render_mask_weight(image, &eval, &warp);
+        let registry = default_registry();
+        for op in registry.ops().iter().map(|o| o.as_ref()) {
+            cancel::check(cancel)?;
+            if op.stage() != crate::ops::Stage::Geometry {
+                continue;
+            }
+            if !op.is_active(edits) {
+                continue;
+            }
+            op.apply_cpu(image, ctx, edits)?;
+        }
         return Ok(());
     }
     let registry = default_registry();
@@ -181,6 +194,8 @@ pub fn run_pipeline_ops(
     let mut segment = FusedSegment::default();
     let mut layer_segments: Vec<FusedSegment> =
         (0..n_layers).map(|_| FusedSegment::default()).collect();
+    let lens_warp =
+        LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
     let flush = |image: &mut LinearImage,
                  segment: &mut FusedSegment,
                  layer_segments: &mut [FusedSegment],
@@ -191,7 +206,7 @@ pub fn run_pipeline_ops(
                 segment.clear();
             }
         } else if !segment.is_empty() || layer_segments.iter().any(|s| !s.is_empty()) {
-            apply_segment_masked(image, segment, layer_segments, layer_evals);
+            apply_segment_masked(image, segment, layer_segments, layer_evals, &lens_warp);
             segment.clear();
             for s in layer_segments.iter_mut() {
                 s.clear();

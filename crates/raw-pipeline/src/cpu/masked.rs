@@ -2,6 +2,7 @@ use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_one};
 use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer};
 use crate::mask_raster::{MaskRaster, RasterMap};
 use crate::ops::LinearImage;
+use crate::ops::lens_distortion::{LensWarpParams, mask_uv_to_scene_uv};
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -161,6 +162,7 @@ pub fn apply_segment_masked(
     base_segment: &FusedSegment,
     layer_segments: &[FusedSegment],
     layers: &[LayerEval],
+    lens_warp: &LensWarpParams,
 ) {
     if base_segment.is_empty() && layer_segments.iter().all(|s| s.is_empty()) {
         return;
@@ -172,6 +174,7 @@ pub fn apply_segment_masked(
     let row_floats = w * 3;
     let base_ops = base_segment.ops.as_slice();
     let layer_ops: Vec<&[CpuFusedOp]> = layer_segments.iter().map(|s| s.ops.as_slice()).collect();
+    let warp_active = !lens_warp.is_identity();
 
     image
         .rgb
@@ -183,6 +186,12 @@ pub fn apply_segment_masked(
             for (x, px) in row.chunks_exact_mut(3).enumerate() {
                 let i = row_base + x;
                 let u = (x as f32 + 0.5) * inv_w;
+                let (su, sv) = if warp_active {
+                    let s = mask_uv_to_scene_uv(lens_warp, [u, v]);
+                    (s[0], s[1])
+                } else {
+                    (u, v)
+                };
                 let r0 = px[0];
                 let g0 = px[1];
                 let b0 = px[2];
@@ -196,7 +205,7 @@ pub fn apply_segment_masked(
                 let mut out_g = bg;
                 let mut out_b = bb;
                 for (li, layer) in layers.iter().enumerate() {
-                    let lw = fold_layer_weight(layer, u, v);
+                    let lw = fold_layer_weight(layer, su, sv);
                     if lw <= 1e-4 {
                         continue;
                     }
@@ -217,12 +226,13 @@ pub fn apply_segment_masked(
         });
 }
 
-pub fn render_mask_weight(image: &mut LinearImage, layer: &LayerEval) {
+pub fn render_mask_weight(image: &mut LinearImage, layer: &LayerEval, lens_warp: &LensWarpParams) {
     let w = image.width;
     let h = image.height;
     let inv_w = 1.0 / w.max(1) as f32;
     let inv_h = 1.0 / h.max(1) as f32;
     let row_floats = w * 3;
+    let warp_active = !lens_warp.is_identity();
     image
         .rgb
         .par_chunks_exact_mut(row_floats)
@@ -231,7 +241,13 @@ pub fn render_mask_weight(image: &mut LinearImage, layer: &LayerEval) {
             let v = (y as f32 + 0.5) * inv_h;
             for (x, px) in row.chunks_exact_mut(3).enumerate() {
                 let u = (x as f32 + 0.5) * inv_w;
-                let lw = fold_layer_weight(layer, u, v);
+                let (su, sv) = if warp_active {
+                    let s = mask_uv_to_scene_uv(lens_warp, [u, v]);
+                    (s[0], s[1])
+                } else {
+                    (u, v)
+                };
+                let lw = fold_layer_weight(layer, su, sv);
                 px[0] = lw;
                 px[1] = lw;
                 px[2] = lw;
@@ -281,7 +297,7 @@ pub fn effective_edits_for_layer(global: &Edits, layer: &MaskLayer) -> Edits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edits::{MaskComponent, MaskSource, Vec2f};
+    use crate::edits::{LensEdits, MaskComponent, MaskSource, Vec2f};
 
     fn linear(id: &str, p0: Vec2f, p1: Vec2f, feather: f32) -> MaskComponent {
         MaskComponent {
@@ -411,7 +427,8 @@ mod tests {
         let base = FusedSegment::default();
         let mut layer_seg = FusedSegment::default();
         layer_seg.push(CpuFusedOp::Exposure { factor: 4.0 });
-        apply_segment_masked(&mut image, &base, &[layer_seg], &[eval]);
+        let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
+        apply_segment_masked(&mut image, &base, &[layer_seg], &[eval], &warp);
         let left = image.rgb[0];
         let right = image.rgb[3 * (w - 1)];
         if (left - 0.5).abs() > 1e-3 {
@@ -442,7 +459,8 @@ mod tests {
             edits: Default::default(),
         };
         let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
-        render_mask_weight(&mut image, &eval);
+        let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
+        render_mask_weight(&mut image, &eval, &warp);
         let left = image.rgb[0];
         let right = image.rgb[3 * (w - 1)];
         if left > 0.1 {
@@ -549,6 +567,57 @@ mod tests {
         let eff = effective_edits_for_layer(&g, &layer);
         if (eff.basic.brightness - (-100.0)).abs() > 1e-6 {
             panic!("expected clamp to -100, got {}", eff.basic.brightness);
+        }
+    }
+
+    #[test]
+    fn scene_space_mask_anchors_through_lens_warp() {
+        let w = 64usize;
+        let h = 32usize;
+        let layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![linear(
+                "c",
+                Vec2f { x: 0.0, y: 0.0 },
+                Vec2f { x: 1.0, y: 0.0 },
+                0.0,
+            )],
+            edits: Default::default(),
+        };
+        let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+        let identity = LensWarpParams::from_edits(&LensEdits::default(), w as u32, h as u32);
+        let lens = LensEdits {
+            profile_enabled: true,
+            k1: -0.15,
+            constrain_crop: true,
+            ..Default::default()
+        };
+        let warp = LensWarpParams::from_edits(&lens, w as u32, h as u32);
+        if warp.is_identity() {
+            panic!("warp should be non-identity for anchoring test");
+        }
+        let mut img_warp = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
+        render_mask_weight(&mut img_warp, &eval, &warp);
+        let mut img_id = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
+        render_mask_weight(&mut img_id, &eval, &identity);
+        let samples = [(0.5, 0.5), (0.7, 0.5), (0.5, 0.3), (0.8, 0.7)];
+        for (u, v) in samples {
+            let mx = ((u * w as f32) as usize).min(w - 1);
+            let my = ((v * h as f32) as usize).min(h - 1);
+            let warped = img_warp.rgb[(my * w + mx) * 3];
+            let scene = mask_uv_to_scene_uv(&warp, [u, v]);
+            let sx = ((scene[0] * w as f32) as usize).min(w - 1);
+            let sy = ((scene[1] * h as f32) as usize).min(h - 1);
+            let identity_at_scene = img_id.rgb[(sy * w + sx) * 3];
+            if (warped - identity_at_scene).abs() > 0.05 {
+                panic!(
+                    "anchor mismatch at ({u},{v}): warped={warped} identity_at_scene={identity_at_scene}"
+                );
+            }
         }
     }
 }
