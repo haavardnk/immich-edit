@@ -148,6 +148,59 @@ export const NEUTRAL_EFFECTS: EffectsEdits = {
   grain_roughness: 50
 };
 
+export interface LensEdits {
+  profile_enabled: boolean;
+  ca_enabled: boolean;
+  constrain_crop: boolean;
+  distortion_amount: number;
+  vignette_amount: number;
+  k1: number;
+  k2: number;
+  k3: number;
+  vk1: number;
+  vk2: number;
+  vk3: number;
+  ca_red_scale_x10000: number;
+  ca_blue_scale_x10000: number;
+}
+
+export const NEUTRAL_LENS: LensEdits = {
+  profile_enabled: false,
+  ca_enabled: false,
+  constrain_crop: false,
+  distortion_amount: 100,
+  vignette_amount: 100,
+  k1: 0,
+  k2: 0,
+  k3: 0,
+  vk1: 0,
+  vk2: 0,
+  vk3: 0,
+  ca_red_scale_x10000: 0,
+  ca_blue_scale_x10000: 0
+};
+
+export function lensDistortionActive(l: LensEdits): boolean {
+  return (
+    l.profile_enabled &&
+    l.distortion_amount !== 0 &&
+    (l.k1 !== 0 || l.k2 !== 0 || l.k3 !== 0)
+  );
+}
+export function lensVignetteActive(l: LensEdits): boolean {
+  return (
+    l.profile_enabled &&
+    l.vignette_amount !== 0 &&
+    (l.vk1 !== 0 || l.vk2 !== 0 || l.vk3 !== 0)
+  );
+}
+export function lensCaActive(l: LensEdits): boolean {
+  return l.ca_enabled && (l.ca_red_scale_x10000 !== 0 || l.ca_blue_scale_x10000 !== 0);
+}
+export function lensIsZero(l: LensEdits): boolean {
+  return !lensDistortionActive(l) && !lensVignetteActive(l) && !lensCaActive(l);
+}
+
 export interface CropRect {
   x: number;
   y: number;
@@ -264,6 +317,7 @@ export interface Edits {
   color: ColorEdits;
   detail: DetailEdits;
   effects: EffectsEdits;
+  lens: LensEdits;
   geometry: GeometryEdits;
   masks: MaskLayer[];
 }
@@ -330,6 +384,7 @@ export function neutralEdits(): Edits {
     },
     detail: { ...NEUTRAL_DETAIL },
     effects: { ...NEUTRAL_EFFECTS },
+    lens: { ...NEUTRAL_LENS },
     geometry: {
       rotate: 0,
       rotate_angle: 0,
@@ -414,7 +469,8 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     e.detail.luma_nr_amount === 0 &&
     e.detail.color_nr_amount === 0 &&
     e.effects.vignette_amount === 0 &&
-    e.effects.grain_amount === 0
+    e.effects.grain_amount === 0 &&
+    lensIsZero(e.lens)
   );
 }
 
@@ -497,6 +553,34 @@ export function editsToManifest(e: Edits): EditManifest {
       amount: e.effects.grain_amount,
       size: e.effects.grain_size,
       roughness: e.effects.grain_roughness
+    };
+  const lensActive =
+    e.lens.profile_enabled ||
+    e.lens.ca_enabled ||
+    e.lens.constrain_crop ||
+    e.lens.k1 !== 0 ||
+    e.lens.k2 !== 0 ||
+    e.lens.k3 !== 0 ||
+    e.lens.vk1 !== 0 ||
+    e.lens.vk2 !== 0 ||
+    e.lens.vk3 !== 0 ||
+    e.lens.ca_red_scale_x10000 !== 0 ||
+    e.lens.ca_blue_scale_x10000 !== 0;
+  if (lensActive)
+    ops.lens_profile = {
+      profile_enabled: e.lens.profile_enabled,
+      ca_enabled: e.lens.ca_enabled,
+      constrain_crop: e.lens.constrain_crop,
+      distortion_amount: e.lens.distortion_amount,
+      vignette_amount: e.lens.vignette_amount,
+      k1: e.lens.k1,
+      k2: e.lens.k2,
+      k3: e.lens.k3,
+      vk1: e.lens.vk1,
+      vk2: e.lens.vk2,
+      vk3: e.lens.vk3,
+      ca_red: e.lens.ca_red_scale_x10000,
+      ca_blue: e.lens.ca_blue_scale_x10000
     };
   if (
     e.geometry.rotate !== 0 ||
@@ -641,6 +725,38 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (gr?.amount !== undefined) edits.effects.grain_amount = gr.amount;
   if (gr?.size !== undefined) edits.effects.grain_size = gr.size;
   if (gr?.roughness !== undefined) edits.effects.grain_roughness = gr.roughness;
+  const lensProf = ops.lens_profile as
+    | {
+        profile_enabled?: boolean;
+        ca_enabled?: boolean;
+        constrain_crop?: boolean;
+        distortion_amount?: number;
+        vignette_amount?: number;
+        k1?: number;
+        k2?: number;
+        k3?: number;
+        vk1?: number;
+        vk2?: number;
+        vk3?: number;
+        ca_red?: number;
+        ca_blue?: number;
+      }
+    | undefined;
+  if (lensProf) {
+    if (lensProf.profile_enabled !== undefined) edits.lens.profile_enabled = lensProf.profile_enabled;
+    if (lensProf.ca_enabled !== undefined) edits.lens.ca_enabled = lensProf.ca_enabled;
+    if (lensProf.constrain_crop !== undefined) edits.lens.constrain_crop = lensProf.constrain_crop;
+    if (lensProf.distortion_amount !== undefined) edits.lens.distortion_amount = lensProf.distortion_amount;
+    if (lensProf.vignette_amount !== undefined) edits.lens.vignette_amount = lensProf.vignette_amount;
+    if (lensProf.k1 !== undefined) edits.lens.k1 = lensProf.k1;
+    if (lensProf.k2 !== undefined) edits.lens.k2 = lensProf.k2;
+    if (lensProf.k3 !== undefined) edits.lens.k3 = lensProf.k3;
+    if (lensProf.vk1 !== undefined) edits.lens.vk1 = lensProf.vk1;
+    if (lensProf.vk2 !== undefined) edits.lens.vk2 = lensProf.vk2;
+    if (lensProf.vk3 !== undefined) edits.lens.vk3 = lensProf.vk3;
+    if (lensProf.ca_red !== undefined) edits.lens.ca_red_scale_x10000 = lensProf.ca_red;
+    if (lensProf.ca_blue !== undefined) edits.lens.ca_blue_scale_x10000 = lensProf.ca_blue;
+  }
   const geom = ops.geometry as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
     | undefined;
