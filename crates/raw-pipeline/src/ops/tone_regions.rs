@@ -93,7 +93,7 @@ impl EditOperator for ToneRegionsOp {
             sh: edits.tone.shadows as f32 / 100.0,
             bk: edits.tone.blacks as f32 / 100.0,
             wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
-            shadows_blur: ctx.shadows_blur.clone(),
+            shadows_blur: ctx.scratch.shadows_blur.clone(),
         })
     }
     fn gpu(&self) -> Option<GpuOp> {

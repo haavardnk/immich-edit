@@ -80,12 +80,22 @@ pub enum ResourceNeed {
 }
 
 #[derive(Clone)]
-pub struct OpContext {
+pub struct RenderContext {
     pub wb_coeffs: [f32; 4],
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
     pub preview_mode: crate::frame::PreviewMode,
+}
+
+#[derive(Clone, Default)]
+pub struct OpScratch {
     pub shadows_blur: Option<std::sync::Arc<Vec<f32>>>,
+}
+
+#[derive(Clone)]
+pub struct OpContext {
+    pub render: RenderContext,
+    pub scratch: OpScratch,
 }
 
 pub struct GpuOp {

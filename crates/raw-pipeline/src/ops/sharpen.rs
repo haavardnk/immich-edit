@@ -32,7 +32,7 @@ impl EditOperator for SharpenOp {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_sharpen(image, &edits.detail, &ctx.preview_mode);
+        apply_sharpen(image, &edits.detail, &ctx.render.preview_mode);
         Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {

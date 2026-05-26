@@ -18,10 +18,10 @@ impl EditOperator for ColorMatrixOp {
         true
     }
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
-        if !ctx.is_raw {
+        if !ctx.render.is_raw {
             return None;
         }
-        Some(CpuFusedOp::ColorMatrix { m: ctx.cam_to_srgb })
+        Some(CpuFusedOp::ColorMatrix { m: ctx.render.cam_to_srgb })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {
@@ -44,7 +44,7 @@ impl EditOperator for ColorMatrixOp {
         })
     }
     fn write_gpu_uniform(&self, _edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
-        let m = ctx.cam_to_srgb;
+        let m = ctx.render.cam_to_srgb;
         for (row_idx, row) in m.iter().enumerate() {
             let off = row_idx * 4;
             dst[off] = row[0];

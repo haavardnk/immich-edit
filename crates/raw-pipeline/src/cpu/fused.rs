@@ -391,16 +391,18 @@ mod tests {
     use crate::color::identity_3x3;
     use crate::edits::Edits;
     use crate::ops::EditOperator;
-    use crate::ops::{OpContext, color_matrix};
+    use crate::ops::{OpContext, OpScratch, RenderContext, color_matrix};
 
     #[test]
     fn fused_skips_color_matrix_when_not_raw() {
         let ctx = OpContext {
-            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            cam_to_srgb: identity_3x3(),
-            is_raw: false,
-            preview_mode: crate::frame::PreviewMode::None,
-            shadows_blur: None,
+            render: RenderContext {
+                wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+                cam_to_srgb: identity_3x3(),
+                is_raw: false,
+                preview_mode: crate::frame::PreviewMode::None,
+            },
+            scratch: OpScratch { shadows_blur: None },
         };
         let edits = Edits::default();
         if color_matrix::ColorMatrixOp

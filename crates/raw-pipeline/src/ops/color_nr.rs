@@ -216,15 +216,17 @@ mod tests {
     use super::*;
     use crate::edits::Edits;
     use crate::frame::PreviewMode;
-    use crate::ops::OpContext;
+    use crate::ops::{OpContext, OpScratch, RenderContext};
 
     fn ctx() -> OpContext {
         OpContext {
-            wb_coeffs: [1.0; 4],
-            cam_to_srgb: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-            is_raw: false,
-            preview_mode: PreviewMode::None,
-            shadows_blur: None,
+            render: RenderContext {
+                wb_coeffs: [1.0; 4],
+                cam_to_srgb: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                is_raw: false,
+                preview_mode: PreviewMode::None,
+            },
+            scratch: OpScratch { shadows_blur: None },
         }
     }
 

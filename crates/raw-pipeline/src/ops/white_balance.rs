@@ -29,7 +29,7 @@ impl EditOperator for WhiteBalanceOp {
         true
     }
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
-        let c = camera_wb(ctx.wb_coeffs);
+        let c = camera_wb(ctx.render.wb_coeffs);
         Some(CpuFusedOp::WhiteBalance {
             coeffs: [c[0], c[1], c[2]],
         })
@@ -42,7 +42,7 @@ impl EditOperator for WhiteBalanceOp {
         ))
     }
     fn write_gpu_uniform(&self, _edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
-        let c = camera_wb(ctx.wb_coeffs);
+        let c = camera_wb(ctx.render.wb_coeffs);
         dst[0] = c[0];
         dst[1] = c[1];
         dst[2] = c[2];

@@ -12,7 +12,7 @@ use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
-use crate::ops::{GpuOpKind, OpContext, default_registry};
+use crate::ops::{GpuOpKind, OpContext, OpScratch, RenderContext, default_registry};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -56,12 +56,14 @@ pub fn render_with_cancel(
         crate::color::identity_3x3()
     };
     let ctx = OpContext {
-        wb_coeffs: frame.wb_coeffs,
-        cam_to_srgb,
-        is_raw: frame.is_raw,
-        preview_mode: options.preview_mode.clone(),
-        shadows_blur: None,
-    };
+            render: RenderContext {
+                wb_coeffs: frame.wb_coeffs,
+                cam_to_srgb,
+                is_raw: frame.is_raw,
+                preview_mode: options.preview_mode.clone(),
+            },
+            scratch: OpScratch { shadows_blur: None },
+        };
 
     let mut sensor_image = LinearImage::new(rgb, src_w, src_h);
     run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
@@ -128,7 +130,7 @@ pub fn run_pipeline_ops(
     rasters: &crate::mask_raster::RasterMap,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
-    if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.preview_mode {
+    if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.render.preview_mode {
         let layer = edits.masks.iter().find(|l| &l.id == layer_id);
         let eval = match layer {
             Some(l) => crate::cpu::masked::build_layer_eval(l, rasters),
@@ -178,11 +180,13 @@ pub fn run_pipeline_ops(
         pyramid_cache = Some(pyr);
         pyramid_mips = Some(mips);
         ctx_local = OpContext {
-            wb_coeffs: ctx.wb_coeffs,
-            cam_to_srgb: ctx.cam_to_srgb,
-            is_raw: ctx.is_raw,
-            preview_mode: ctx.preview_mode.clone(),
-            shadows_blur: Some(shadows_blur),
+            render: RenderContext {
+                wb_coeffs: ctx.render.wb_coeffs,
+                cam_to_srgb: ctx.render.cam_to_srgb,
+                is_raw: ctx.render.is_raw,
+                preview_mode: ctx.render.preview_mode.clone(),
+            },
+            scratch: OpScratch { shadows_blur: Some(shadows_blur) },
         };
         &ctx_local
     } else {

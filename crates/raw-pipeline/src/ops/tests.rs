@@ -15,11 +15,13 @@ fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
 
 fn ctx() -> OpContext {
     OpContext {
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        cam_to_srgb: crate::color::identity_3x3(),
-        is_raw: false,
-        preview_mode: crate::frame::PreviewMode::None,
-        shadows_blur: None,
+        render: RenderContext {
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            cam_to_srgb: crate::color::identity_3x3(),
+            is_raw: false,
+            preview_mode: crate::frame::PreviewMode::None,
+        },
+        scratch: OpScratch { shadows_blur: None },
     }
 }
 

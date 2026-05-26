@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, Stage, OpKind};
+use super::{EditOperator, OpContext, OpKind, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
@@ -90,6 +90,7 @@ pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ops::{OpScratch, RenderContext};
     use crate::frame::PreviewMode;
 
     fn solid_image(w: usize, h: usize, v: f32) -> LinearImage {
@@ -98,11 +99,13 @@ mod tests {
 
     fn ctx() -> OpContext {
         OpContext {
-            wb_coeffs: [1.0; 4],
-            cam_to_srgb: crate::color::identity_3x3(),
-            is_raw: false,
-            preview_mode: PreviewMode::None,
-            shadows_blur: None,
+            render: RenderContext {
+                wb_coeffs: [1.0; 4],
+                cam_to_srgb: crate::color::identity_3x3(),
+                is_raw: false,
+                preview_mode: PreviewMode::None,
+            },
+            scratch: OpScratch { shadows_blur: None },
         }
     }
 

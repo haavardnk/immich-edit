@@ -14,7 +14,7 @@ use crate::edits::Edits;
 use crate::encode::encode_from_rgba8;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
-use crate::ops::{GpuOpKind, OpContext};
+use crate::ops::{GpuOpKind, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
@@ -431,11 +431,13 @@ impl GpuRenderer {
             crate::color::identity_3x3()
         };
         let ctx_op = OpContext {
-            wb_coeffs: frame.wb_coeffs,
-            cam_to_srgb,
-            is_raw: frame.is_raw,
-            preview_mode: opts.preview_mode.clone(),
-            shadows_blur: None,
+            render: RenderContext {
+                wb_coeffs: frame.wb_coeffs,
+                cam_to_srgb,
+                is_raw: frame.is_raw,
+                preview_mode: opts.preview_mode.clone(),
+            },
+            scratch: OpScratch { shadows_blur: None },
         };
         let built = &pass.built;
         let registry = &self.passes.registry;
@@ -2159,11 +2161,13 @@ impl GpuRenderer {
             crate::color::identity_3x3()
         };
         let ctx_op = OpContext {
-            wb_coeffs: frame.wb_coeffs,
-            cam_to_srgb,
-            is_raw: frame.is_raw,
-            preview_mode: crate::frame::PreviewMode::None,
-            shadows_blur: None,
+            render: RenderContext {
+                wb_coeffs: frame.wb_coeffs,
+                cam_to_srgb,
+                is_raw: frame.is_raw,
+                preview_mode: crate::frame::PreviewMode::None,
+            },
+            scratch: OpScratch { shadows_blur: None },
         };
 
         let pass = &self.passes.wb_prepare;

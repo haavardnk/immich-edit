@@ -3,7 +3,7 @@ use raw_pipeline::cpu::run_pipeline_ops;
 use raw_pipeline::edits::{
     BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
 };
-use raw_pipeline::ops::{LinearImage, OpContext};
+use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
 
 fn make_image(w: usize, h: usize) -> LinearImage {
     let mut rgb = Vec::with_capacity(w * h * 3);
@@ -21,15 +21,17 @@ fn make_image(w: usize, h: usize) -> LinearImage {
 
 fn ctx() -> OpContext {
     OpContext {
-        wb_coeffs: [2.1, 1.0, 1.45, 1.0],
-        cam_to_srgb: [
-            [1.85, -0.65, -0.20],
-            [-0.20, 1.45, -0.25],
-            [0.02, -0.45, 1.43],
-        ],
-        is_raw: true,
-        preview_mode: raw_pipeline::frame::PreviewMode::None,
-        shadows_blur: None,
+        render: RenderContext {
+            wb_coeffs: [2.1, 1.0, 1.45, 1.0],
+            cam_to_srgb: [
+                [1.85, -0.65, -0.20],
+                [-0.20, 1.45, -0.25],
+                [0.02, -0.45, 1.43],
+            ],
+            is_raw: true,
+            preview_mode: raw_pipeline::frame::PreviewMode::None,
+        },
+        scratch: OpScratch { shadows_blur: None },
     }
 }
 
