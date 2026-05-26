@@ -94,7 +94,7 @@ impl LumaPyramid {
         let mip = &self.levels[level];
         let mw_i = mw as i32;
         let mh_i = mh as i32;
-        let mut out = vec![0.0f32; w * h];
+        let mut out = Scratch::take_uninit(w * h);
         out.par_chunks_exact_mut(w)
             .enumerate()
             .for_each(|(y, row)| {
@@ -120,6 +120,6 @@ impl LumaPyramid {
                     *slot = lx0 + (lx1 - lx0) * ty;
                 }
             });
-        out
+        out.into_vec()
     }
 }

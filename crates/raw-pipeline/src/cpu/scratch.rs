@@ -43,6 +43,10 @@ impl Scratch {
     pub fn as_mut_slice(&mut self) -> &mut [f32] {
         self.0.as_mut().unwrap()
     }
+
+    pub fn into_vec(mut self) -> Vec<f32> {
+        self.0.take().unwrap()
+    }
 }
 
 impl Deref for Scratch {
