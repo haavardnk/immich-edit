@@ -1,7 +1,7 @@
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 
-export type ExportFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff' | 'jxl';
+export type ExportFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'heic' | 'tiff' | 'jxl';
 export type BitDepthOpt = '8' | '16';
 export type PngCompressionOpt = 'fast' | 'default' | 'best';
 export type TiffCompressionOpt = 'none' | 'lzw' | 'deflate';
@@ -14,7 +14,6 @@ export interface ExportOptions {
   pngCompression: PngCompressionOpt;
   tiffCompression: TiffCompressionOpt;
   lossless: boolean;
-  speed: number;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -22,6 +21,7 @@ export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
   png: 'png',
   webp: 'webp',
   avif: 'avif',
+  heic: 'heic',
   tiff: 'tif',
   jxl: 'jxl'
 };
@@ -34,8 +34,7 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
-    lossless: String(opts.lossless),
-    speed: String(opts.speed)
+    lossless: String(opts.lossless)
   };
 }
 
@@ -68,8 +67,7 @@ export async function downloadExport(
         bit_depth: opts.bitDepth,
         png_compression: opts.pngCompression,
         tiff_compression: opts.tiffCompression,
-        lossless: opts.lossless,
-        speed: opts.speed
+        lossless: opts.lossless
       })
     });
   }
@@ -112,7 +110,6 @@ export async function uploadToImmich(
       png_compression: opts.pngCompression,
       tiff_compression: opts.tiffCompression,
       lossless: opts.lossless,
-      speed: opts.speed,
       album_ids: opts.albumIds,
       tag_ids: opts.tagIds,
       favorite: opts.favorite,

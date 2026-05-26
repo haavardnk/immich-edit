@@ -27,10 +27,10 @@ little_exif = "0.6"
 png = "0.18"
 tiff = "0.11"
 webp = "0.3"
-ravif = "0.13"
 rgb = "0.8"
-zune-jpegxl = "0.5"
-zune-core = "0.5"
+libheif-rs = "2.7"
+jpegxl-rs = "0.14"
+image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }

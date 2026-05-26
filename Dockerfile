@@ -5,9 +5,10 @@ RUN npm ci
 COPY web/ .
 RUN npm run build
 
-FROM rust:1.89-bookworm AS builder
+FROM rust:1.92-trixie AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nasm cmake pkg-config libclang-dev && \
+    nasm cmake pkg-config libclang-dev \
+    libheif-dev libjxl-dev libturbojpeg0-dev && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
@@ -15,10 +16,13 @@ COPY crates/ crates/
 RUN cargo build --release --bin immich-edit -j$(nproc) && \
     strip target/release/immich-edit
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libturbojpeg0 \
+    libheif1 \
+    libheif-plugins-all \
+    libjxl0.11 \
     libvulkan1 \
     mesa-vulkan-drivers && \
     rm -rf /var/lib/apt/lists/*

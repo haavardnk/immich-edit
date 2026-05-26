@@ -29,7 +29,6 @@
   let pngCompression: PngCompressionOpt = $state<PngCompressionOpt>('default');
   let tiffCompression: TiffCompressionOpt = $state<TiffCompressionOpt>('lzw');
   let lossless: boolean = $state(false);
-  let speed: number = $state(6);
 
   let albumIds: string[] = $state<string[]>([]);
   let tagIds: string[] = $state<string[]>([]);
@@ -43,18 +42,21 @@
     { value: 'png', label: 'PNG' },
     { value: 'webp', label: 'WebP' },
     { value: 'avif', label: 'AVIF' },
+    { value: 'heic', label: 'HEIC' },
     { value: 'tiff', label: 'TIFF' },
     { value: 'jxl', label: 'JPEG XL' }
   ];
 
   let showQuality = $derived(
-    format === 'jpeg' || format === 'avif' || (format === 'webp' && !(lossless || includeExif))
+    format === 'jpeg' ||
+      format === 'avif' ||
+      format === 'heic' ||
+      (format === 'webp' && !(lossless || includeExif))
   );
   let showBitDepth = $derived(format === 'png' || format === 'tiff' || format === 'jxl');
   let showPngCompression = $derived(format === 'png');
   let showTiffCompression = $derived(format === 'tiff');
   let showLossless = $derived(format === 'webp');
-  let showSpeed = $derived(format === 'avif');
   let losslessForced = $derived(format === 'webp' && includeExif);
 
   $effect(() => {
@@ -79,8 +81,7 @@
       bitDepth,
       pngCompression,
       tiffCompression,
-      lossless: format === 'webp' ? lossless || includeExif : lossless,
-      speed
+      lossless: format === 'webp' ? lossless || includeExif : lossless
     };
   }
 
@@ -200,16 +201,6 @@
       />
       Lossless{losslessForced ? ' (required for EXIF)' : ''}
     </label>
-  {/if}
-
-  {#if showSpeed}
-    <div class="flex flex-col gap-1">
-      <div class="flex items-center justify-between text-[11px] leading-none">
-        <span class="text-immich-dark-fg/60 select-none">Speed</span>
-        <span class="font-mono tabular-nums text-[10px] text-immich-dark-fg/50">{speed}</span>
-      </div>
-      <input type="range" class="slider-range" min={1} max={10} step={1} bind:value={speed} />
-    </div>
   {/if}
 
   <label class="flex items-center gap-2 text-xs text-immich-dark-fg/80 select-none cursor-pointer">

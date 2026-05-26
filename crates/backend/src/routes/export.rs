@@ -18,7 +18,6 @@ use crate::state::AppState;
 
 const EXPORT_MAX_EDGE: u32 = 8192;
 const DEFAULT_QUALITY: u8 = 90;
-const DEFAULT_AVIF_SPEED: u8 = 6;
 
 #[derive(Debug, Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +27,7 @@ pub enum ExportFormatKind {
     Png,
     Webp,
     Avif,
+    Heic,
     Tiff,
     Jxl,
 }
@@ -68,10 +68,6 @@ fn default_include_exif() -> bool {
     true
 }
 
-fn default_speed() -> u8 {
-    DEFAULT_AVIF_SPEED
-}
-
 #[derive(Debug, Deserialize)]
 pub struct ExportParams {
     #[serde(default)]
@@ -88,8 +84,6 @@ pub struct ExportParams {
     pub tiff_compression: TiffCompressionOpt,
     #[serde(default)]
     pub lossless: bool,
-    #[serde(default = "default_speed")]
-    pub speed: u8,
 }
 
 impl Default for ExportParams {
@@ -102,7 +96,6 @@ impl Default for ExportParams {
             png_compression: PngCompressionOpt::default(),
             tiff_compression: TiffCompressionOpt::default(),
             lossless: false,
-            speed: DEFAULT_AVIF_SPEED,
         }
     }
 }
@@ -134,10 +127,8 @@ impl ExportParams {
                 quality,
                 lossless: self.lossless || self.include_exif,
             },
-            ExportFormatKind::Avif => OutputFormat::Avif {
-                quality,
-                speed: self.speed.clamp(1, 10),
-            },
+            ExportFormatKind::Avif => OutputFormat::Avif { quality },
+            ExportFormatKind::Heic => OutputFormat::Heic { quality },
             ExportFormatKind::Tiff => OutputFormat::Tiff {
                 bit_depth: bd,
                 compression: tiff_c,

@@ -1,5 +1,9 @@
 use crate::PipelineError;
 use crate::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
+use libheif_rs::{
+    Channel, ColorSpace, CompressionFormat, EncoderQuality, HeifContext, Image as HeifImage,
+    LibHeif, RgbChroma,
+};
 
 pub struct ImageRgb8<'a> {
     pub rgb: &'a [u8],
@@ -107,23 +111,51 @@ pub fn encode_webp_rgb(
     Ok(mem.to_vec())
 }
 
-pub fn encode_avif_rgb(
+fn encode_heif_rgb(
     img: ImageRgb8<'_>,
     quality: u8,
-    speed: u8,
+    format: CompressionFormat,
 ) -> crate::PipelineResult<Vec<u8>> {
-    let pixels: &[rgb::RGB8] = bytemuck::cast_slice(img.rgb);
-    let cfg = ravif::Encoder::new()
-        .with_quality(quality as f32)
-        .with_speed(speed.clamp(1, 10));
-    let res = cfg
-        .encode_rgb(ravif::Img::new(
-            pixels,
-            img.width as usize,
-            img.height as usize,
-        ))
-        .map_err(|e| PipelineError::Encode(format!("avif: {e}")))?;
-    Ok(res.avif_file)
+    let lib_heif = LibHeif::new();
+    let mut heif_image = HeifImage::new(img.width, img.height, ColorSpace::Rgb(RgbChroma::Rgb))
+        .map_err(|e| PipelineError::Encode(format!("heif image: {e}")))?;
+    heif_image
+        .create_plane(Channel::Interleaved, img.width, img.height, 8)
+        .map_err(|e| PipelineError::Encode(format!("heif plane: {e}")))?;
+    {
+        let planes = heif_image.planes_mut();
+        let plane = planes
+            .interleaved
+            .ok_or_else(|| PipelineError::Encode("heif: no interleaved plane".into()))?;
+        let stride = plane.stride;
+        let row_bytes = img.width as usize * 3;
+        for y in 0..img.height as usize {
+            let dst_off = y * stride;
+            let src_off = y * row_bytes;
+            plane.data[dst_off..dst_off + row_bytes]
+                .copy_from_slice(&img.rgb[src_off..src_off + row_bytes]);
+        }
+    }
+    let mut encoder = lib_heif
+        .encoder_for_format(format)
+        .map_err(|e| PipelineError::Encode(format!("heif encoder: {e}")))?;
+    encoder
+        .set_quality(EncoderQuality::Lossy(quality))
+        .map_err(|e| PipelineError::Encode(format!("heif quality: {e}")))?;
+    let mut ctx =
+        HeifContext::new().map_err(|e| PipelineError::Encode(format!("heif ctx: {e}")))?;
+    ctx.encode_image(&heif_image, &mut encoder, None)
+        .map_err(|e| PipelineError::Encode(format!("heif encode: {e}")))?;
+    ctx.write_to_bytes()
+        .map_err(|e| PipelineError::Encode(format!("heif write: {e}")))
+}
+
+pub fn encode_avif_rgb(img: ImageRgb8<'_>, quality: u8) -> crate::PipelineResult<Vec<u8>> {
+    encode_heif_rgb(img, quality, CompressionFormat::Av1)
+}
+
+pub fn encode_heic_rgb(img: ImageRgb8<'_>, quality: u8) -> crate::PipelineResult<Vec<u8>> {
+    encode_heif_rgb(img, quality, CompressionFormat::Hevc)
 }
 
 pub fn encode_tiff8(
@@ -173,41 +205,23 @@ fn build_tiff_encoder<W: std::io::Write + std::io::Seek>(
 }
 
 pub fn encode_jxl8(img: ImageRgb8<'_>) -> crate::PipelineResult<Vec<u8>> {
-    use zune_core::bit_depth::BitDepth as ZBitDepth;
-    use zune_core::colorspace::ColorSpace;
-    use zune_jpegxl::JxlSimpleEncoder;
-    let opts = zune_core::options::EncoderOptions::new(
-        img.width as usize,
-        img.height as usize,
-        ColorSpace::RGB,
-        ZBitDepth::Eight,
-    );
-    let enc = JxlSimpleEncoder::new(img.rgb, opts);
-    let mut out: Vec<u8> = Vec::new();
-    enc.encode(&mut out)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e:?}")))?;
-    Ok(out)
+    let mut encoder = jpegxl_rs::encoder_builder()
+        .build()
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
+    let result: jpegxl_rs::encode::EncoderResult<u8> = encoder
+        .encode::<u8, u8>(img.rgb, img.width, img.height)
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
+    Ok(result.data)
 }
 
 pub fn encode_jxl16(rgb16: &[u16], width: u32, height: u32) -> crate::PipelineResult<Vec<u8>> {
-    use zune_core::bit_depth::BitDepth as ZBitDepth;
-    use zune_core::colorspace::ColorSpace;
-    use zune_jpegxl::JxlSimpleEncoder;
-    let mut bytes: Vec<u8> = Vec::with_capacity(rgb16.len() * 2);
-    for &v in rgb16 {
-        bytes.extend_from_slice(&v.to_ne_bytes());
-    }
-    let opts = zune_core::options::EncoderOptions::new(
-        width as usize,
-        height as usize,
-        ColorSpace::RGB,
-        ZBitDepth::Sixteen,
-    );
-    let enc = JxlSimpleEncoder::new(&bytes, opts);
-    let mut out: Vec<u8> = Vec::new();
-    enc.encode(&mut out)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e:?}")))?;
-    Ok(out)
+    let mut encoder = jpegxl_rs::encoder_builder()
+        .build()
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
+    let result: jpegxl_rs::encode::EncoderResult<u16> = encoder
+        .encode::<u16, u16>(rgb16, width, height)
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
+    Ok(result.data)
 }
 
 pub fn encode_from_rgb8(
@@ -231,7 +245,8 @@ pub fn encode_from_rgb8(
             encode_png16(&rgb16, width, height, compression)
         }
         OutputFormat::Webp { quality, lossless } => encode_webp_rgb(img, quality, lossless),
-        OutputFormat::Avif { quality, speed } => encode_avif_rgb(img, quality, speed),
+        OutputFormat::Avif { quality } => encode_avif_rgb(img, quality),
+        OutputFormat::Heic { quality } => encode_heic_rgb(img, quality),
         OutputFormat::Tiff {
             bit_depth: BitDepth::Eight,
             compression,

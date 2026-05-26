@@ -10,7 +10,8 @@ Edits are stored locally in SQLite — Immich is never modified.
 - Exposure, contrast, highlights, shadows, saturation, white balance
 - Rotate, flip, crop
 - Live preview with GPU acceleration (CPU fallback always available)
-- Export edited full-resolution JPEGs
+- Export to JPEG, PNG (8/16), WebP, AVIF, HEIC, TIFF (8/16), JPEG XL (8/16)
+- Decodes all rawler-supported RAWs plus JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, BMP
 - Single container, dark UI
 
 ## Quick start
@@ -57,6 +58,16 @@ Set `IMMICH_EDIT_RENDERER=cpu` to force CPU mode. `auto` (default) tries GPU fir
 Check `GET /api/health` to see which renderer is active and the GPU adapter name.
 
 ## Development
+
+Native builds need libheif, libjxl, libturbojpeg, and pkg-config available.
+
+```bash
+# macOS
+brew install libheif jpeg-xl libde265 aom jpeg-turbo pkg-config
+
+# Debian/Ubuntu (trixie or newer for libheif ≥ 1.17)
+sudo apt install libheif-dev libheif-plugins-all libjxl-dev libturbojpeg0-dev pkg-config
+```
 
 ```bash
 # Backend (Rust)

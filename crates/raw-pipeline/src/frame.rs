@@ -71,7 +71,9 @@ pub enum OutputFormat {
     },
     Avif {
         quality: u8,
-        speed: u8,
+    },
+    Heic {
+        quality: u8,
     },
     Tiff {
         bit_depth: BitDepth,
@@ -89,6 +91,7 @@ impl OutputFormat {
             Self::Png { .. } => "image/png",
             Self::Webp { .. } => "image/webp",
             Self::Avif { .. } => "image/avif",
+            Self::Heic { .. } => "image/heic",
             Self::Tiff { .. } => "image/tiff",
             Self::Jxl { .. } => "image/jxl",
         }
@@ -100,6 +103,7 @@ impl OutputFormat {
             Self::Png { .. } => "png",
             Self::Webp { .. } => "webp",
             Self::Avif { .. } => "avif",
+            Self::Heic { .. } => "heic",
             Self::Tiff { .. } => "tif",
             Self::Jxl { .. } => "jxl",
         }
@@ -107,7 +111,9 @@ impl OutputFormat {
 
     pub fn bit_depth(&self) -> BitDepth {
         match self {
-            Self::Jpeg { .. } | Self::Webp { .. } | Self::Avif { .. } => BitDepth::Eight,
+            Self::Jpeg { .. } | Self::Webp { .. } | Self::Avif { .. } | Self::Heic { .. } => {
+                BitDepth::Eight
+            }
             Self::Png { bit_depth, .. }
             | Self::Tiff { bit_depth, .. }
             | Self::Jxl { bit_depth } => *bit_depth,
@@ -123,6 +129,7 @@ impl OutputFormat {
             },
             Self::Webp { .. } => FileExtension::WEBP,
             Self::Avif { .. } => FileExtension::HEIF,
+            Self::Heic { .. } => FileExtension::HEIF,
             Self::Tiff { .. } => FileExtension::TIFF,
             Self::Jxl { .. } => FileExtension::JXL,
         }
