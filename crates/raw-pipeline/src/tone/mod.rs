@@ -1,11 +1,13 @@
 use crate::edits::{OutputEdits, TonemapKind};
 
 pub mod agx;
+pub mod shared;
 pub mod wgsl;
 
-const HIGHLIGHT_KNEE: f32 = 0.95;
-const S_CURVE_BLEND: f32 = 0.15;
-const OETF_LUT_SIZE: usize = 4096;
+use shared::{
+    HIGHLIGHT_KNEE, OETF_LUT_SIZE, S_CURVE_BLEND, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET,
+    SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
+};
 
 fn oetf_lut() -> &'static [f32; OETF_LUT_SIZE + 1] {
     static LUT: std::sync::OnceLock<[f32; OETF_LUT_SIZE + 1]> = std::sync::OnceLock::new();
@@ -30,10 +32,10 @@ pub fn srgb_oetf(v: f32) -> f32 {
 }
 
 pub fn srgb_oetf_scalar(v: f32) -> f32 {
-    if v <= 0.003_130_8 {
-        12.92 * v
+    if v <= SRGB_OETF_LINEAR_CUTOFF {
+        SRGB_OETF_LINEAR_SLOPE * v
     } else {
-        1.055 * v.powf(1.0 / 2.4) - 0.055
+        SRGB_OETF_GAMMA_SCALE * v.powf(SRGB_OETF_GAMMA) - SRGB_OETF_GAMMA_OFFSET
     }
 }
 
@@ -75,8 +77,8 @@ pub fn apply_display_luma(rgb: [f32; 3], output: OutputEdits) -> f32 {
 
 pub const fn tonemap_kind_index(kind: TonemapKind) -> u32 {
     match kind {
-        TonemapKind::Default => 0,
-        TonemapKind::Agx => 1,
+        TonemapKind::Default => shared::TONE_KIND_DEFAULT,
+        TonemapKind::Agx => shared::TONE_KIND_AGX,
     }
 }
 

@@ -1,18 +1,9 @@
-const MIN_EV: f32 = -10.0;
-const MAX_EV: f32 = 6.5;
-const RANGE_EV: f32 = MAX_EV - MIN_EV;
-const MIN_LIN: f32 = 0.000_976_562_5;
+use super::shared::{
+    AGX_DESAT_CEIL, AGX_DESAT_KNEE, AGX_IN_B, AGX_IN_G, AGX_IN_R, AGX_MAX_EV, AGX_MIN_EV,
+    AGX_MIN_LIN, AGX_OUT_B, AGX_OUT_G, AGX_OUT_R, AGX_SIGMOID_COEFFS,
+};
 
-const DESAT_KNEE: f32 = 0.7;
-const DESAT_CEIL: f32 = 2.0;
-
-const IN_R: [f32; 3] = [0.842_479, 0.078_411_03, 0.087_828_82];
-const IN_G: [f32; 3] = [0.042_328_99, 0.878_869_2, 0.078_843_8];
-const IN_B: [f32; 3] = [0.042_424_29, 0.078_843_8, 0.879_092_2];
-
-const OUT_R: [f32; 3] = [1.196_799_4, -0.052_834_3, -0.143_965];
-const OUT_G: [f32; 3] = [-0.058_063_2, 1.151_812_1, -0.093_748_94];
-const OUT_B: [f32; 3] = [-0.086_345_55, -0.082_385_42, 1.168_730_9];
+const RANGE_EV: f32 = AGX_MAX_EV - AGX_MIN_EV;
 
 fn mat_mul(c: [f32; 3], r: [f32; 3], g: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
@@ -23,31 +14,31 @@ fn mat_mul(c: [f32; 3], r: [f32; 3], g: [f32; 3], b: [f32; 3]) -> [f32; 3] {
 }
 
 fn log2_normalize(v: f32) -> f32 {
-    let clamped = v.max(MIN_LIN);
-    ((clamped.log2() - MIN_EV) / RANGE_EV).clamp(0.0, 1.0)
+    let clamped = v.max(AGX_MIN_LIN);
+    ((clamped.log2() - AGX_MIN_EV) / RANGE_EV).clamp(0.0, 1.0)
 }
 
 fn sigmoid(x: f32) -> f32 {
     let x2 = x * x;
     let x4 = x2 * x2;
     let x6 = x4 * x2;
-    -17.866_29 * x6 * x
-        + 78.011_72 * x6
-        + -126.701_2 * x4 * x
-        + 92.060_05 * x4
-        + -28.722_15 * x2 * x
-        + 4.361_57 * x2
-        + 0.139_142_5 * x
-        + 0.001_891_437_3
+    AGX_SIGMOID_COEFFS[0] * x6 * x
+        + AGX_SIGMOID_COEFFS[1] * x6
+        + AGX_SIGMOID_COEFFS[2] * x4 * x
+        + AGX_SIGMOID_COEFFS[3] * x4
+        + AGX_SIGMOID_COEFFS[4] * x2 * x
+        + AGX_SIGMOID_COEFFS[5] * x2
+        + AGX_SIGMOID_COEFFS[6] * x
+        + AGX_SIGMOID_COEFFS[7]
 }
 
 fn highlight_desat(rgb: [f32; 3]) -> [f32; 3] {
     let m = rgb[0].max(rgb[1]).max(rgb[2]);
-    if m <= DESAT_KNEE {
+    if m <= AGX_DESAT_KNEE {
         return rgb;
     }
     let y = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-    let t_lin = ((m - DESAT_KNEE) / (DESAT_CEIL - DESAT_KNEE)).clamp(0.0, 1.0);
+    let t_lin = ((m - AGX_DESAT_KNEE) / (AGX_DESAT_CEIL - AGX_DESAT_KNEE)).clamp(0.0, 1.0);
     let t = t_lin * t_lin * (3.0 - 2.0 * t_lin);
     let k = 1.0 - t;
     [
@@ -59,7 +50,7 @@ fn highlight_desat(rgb: [f32; 3]) -> [f32; 3] {
 
 pub fn apply_rgb(rgb: [f32; 3]) -> [f32; 3] {
     let compressed = highlight_desat(rgb);
-    let working = mat_mul(compressed, IN_R, IN_G, IN_B);
+    let working = mat_mul(compressed, AGX_IN_R, AGX_IN_G, AGX_IN_B);
     let log_rgb = [
         log2_normalize(working[0]),
         log2_normalize(working[1]),
@@ -70,7 +61,7 @@ pub fn apply_rgb(rgb: [f32; 3]) -> [f32; 3] {
         sigmoid(log_rgb[1]),
         sigmoid(log_rgb[2]),
     ];
-    let display_linear = mat_mul(sigmoided, OUT_R, OUT_G, OUT_B);
+    let display_linear = mat_mul(sigmoided, AGX_OUT_R, AGX_OUT_G, AGX_OUT_B);
     [
         display_linear[0].clamp(0.0, 1.0),
         display_linear[1].clamp(0.0, 1.0),

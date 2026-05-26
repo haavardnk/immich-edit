@@ -69,7 +69,7 @@ impl EffectsTonePass {
         });
         let src = include_str!("../../../assets/shaders/effects_tone.wgsl")
             .replace("rgba16float", linear_format_str(ctx.linear_format))
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::TONE_WGSL);
+            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
         let module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("effects_tone.wgsl"),
             source: ShaderSource::Wgsl(Cow::Owned(src)),

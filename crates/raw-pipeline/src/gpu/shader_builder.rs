@@ -112,7 +112,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let uniform_size = HEADER_BYTES + used_vec4s * 16;
 
     let process_chain = build_process_chain(mask);
-    let tone_wgsl = crate::tone::wgsl::TONE_WGSL;
+    let tone_wgsl = crate::tone::wgsl::tone_wgsl();
 
     let wgsl = format!(
         r#"struct ProcessParams {{
