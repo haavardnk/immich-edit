@@ -3,14 +3,16 @@
 
   const shortcuts: { keys: string; description: string }[] = [
     { keys: '← / →', description: 'Previous / next asset' },
-    { keys: 'Space', description: 'Toggle zoom (fit ↔ 200%)' },
-    { keys: '0', description: 'Fit zoom to viewport' },
+    { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },
+    { keys: 'I', description: 'Toggle EXIF info' },
+    { keys: 'T', description: 'Toggle tags' },
     { keys: '1 – 5', description: 'Set / clear star rating' },
+    { keys: '0', description: 'Clear star rating' },
     { keys: 'F', description: 'Toggle favorite' },
     { keys: '⇧F', description: 'Toggle fullscreen' },
     { keys: '\\ (hold)', description: 'Show original' },
     { keys: '⌘Z / ⌘⇧Z', description: 'Undo / redo' },
-    { keys: 'Esc', description: 'Close help or exit fullscreen' },
+    { keys: 'Esc', description: 'Close popover, help, or fullscreen' },
     { keys: '?', description: 'Toggle this help' },
   ];
 

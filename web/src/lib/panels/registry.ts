@@ -8,8 +8,6 @@ import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import EffectsPanel from './Effects.svelte';
 import DisplayPanel from './Display.svelte';
-import InfoPanel from './Info.svelte';
-import TagsPanel from './Tags.svelte';
 
 export interface PanelDef {
   id: string;
@@ -28,6 +26,5 @@ export const developPanels: PanelDef[] = [
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
   { id: 'display', title: 'Display', component: DisplayPanel, defaultOpen: false },
-  { id: 'info', title: 'Info', component: InfoPanel, defaultOpen: false },
-  { id: 'tags', title: 'Tags', component: TagsPanel, defaultOpen: false },
 ];
+

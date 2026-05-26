@@ -28,3 +28,5 @@
     <Icon path={mdiLoading} size={16} class="animate-spin text-immich-dark-primary/70" />
   {/if}
 </header>
+
+

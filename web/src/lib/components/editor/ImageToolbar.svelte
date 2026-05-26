@@ -2,6 +2,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import ExifSummary from './ExifSummary.svelte';
   import {
     mdiArrowLeft,
     mdiUndo,
@@ -69,10 +70,13 @@
     </button>
     <button
       class="btn btn-ghost btn-sm btn-square"
-      title="Fullscreen (F)"
+      title="Fullscreen (⇧F)"
       onclick={ui.toggleFullscreen}
     >
       <Icon path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen} size={20} />
     </button>
+    {#if editor.assetId}
+      <ExifSummary />
+    {/if}
   </div>
 </div>

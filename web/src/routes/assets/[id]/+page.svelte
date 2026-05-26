@@ -40,8 +40,12 @@
       editor.undo();
       return;
     }
-    if (isTypingTarget(e)) return;
     if (e.key === 'Escape') {
+      if (ui.closeMetadataPopovers()) {
+        e.preventDefault();
+        return;
+      }
+      if (isTypingTarget(e)) return;
       if (ui.keybindsHelpOpen) {
         e.preventDefault();
         ui.closeKeybindsHelp();
@@ -51,6 +55,7 @@
       }
       return;
     }
+    if (isTypingTarget(e)) return;
     if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
       e.preventDefault();
       ui.toggleKeybindsHelp();
@@ -73,14 +78,19 @@
       void goto(`/assets/${next.id}`);
       return;
     }
-    if (e.key === ' ' && !meta && !e.shiftKey && !e.altKey) {
+    if ((e.key === ' ' || e.key === 'z' || e.key === 'Z') && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       ui.zoomToggle();
       return;
     }
-    if (e.key === '0' && !meta && !e.shiftKey && !e.altKey) {
+    if (e.key === 'i' && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
-      ui.zoomFit();
+      ui.toggleExifPopover();
+      return;
+    }
+    if (e.key === 't' && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      ui.toggleTagsPopover();
       return;
     }
     if (e.key === 'F' && !meta && e.shiftKey && !e.altKey) {
@@ -91,6 +101,11 @@
     if (e.key === 'f' && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       void editor.toggleFavorite();
+      return;
+    }
+    if (!meta && !e.shiftKey && !e.altKey && e.key === '0') {
+      e.preventDefault();
+      void editor.setRating(null);
       return;
     }
     if (!meta && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '5') {

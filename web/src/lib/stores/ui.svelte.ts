@@ -21,6 +21,8 @@ class UiStore {
   panX = $state(0);
   panY = $state(0);
   keybindsHelpOpen = $state(false);
+  exifPopoverOpen = $state(false);
+  tagsPopoverOpen = $state(false);
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;
@@ -67,6 +69,47 @@ class UiStore {
 
   closeKeybindsHelp = (): void => {
     this.keybindsHelpOpen = false;
+  };
+
+  openExifPopover = (): void => {
+    this.tagsPopoverOpen = false;
+    this.exifPopoverOpen = true;
+  };
+
+  toggleExifPopover = (): void => {
+    if (this.exifPopoverOpen) {
+      this.exifPopoverOpen = false;
+    } else {
+      this.openExifPopover();
+    }
+  };
+
+  closeExifPopover = (): void => {
+    this.exifPopoverOpen = false;
+  };
+
+  openTagsPopover = (): void => {
+    this.exifPopoverOpen = false;
+    this.tagsPopoverOpen = true;
+  };
+
+  toggleTagsPopover = (): void => {
+    if (this.tagsPopoverOpen) {
+      this.tagsPopoverOpen = false;
+    } else {
+      this.openTagsPopover();
+    }
+  };
+
+  closeTagsPopover = (): void => {
+    this.tagsPopoverOpen = false;
+  };
+
+  closeMetadataPopovers = (): boolean => {
+    if (!this.exifPopoverOpen && !this.tagsPopoverOpen) return false;
+    this.exifPopoverOpen = false;
+    this.tagsPopoverOpen = false;
+    return true;
   };
 
   setZoom = (value: number): void => {
