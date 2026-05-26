@@ -117,6 +117,12 @@ impl GpuRenderer {
     }
 
     fn upload_rgb_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
+        let _span = tracing::debug_span!(
+            "gpu.upload_rgb",
+            w = frame.width as u32,
+            h = frame.height as u32
+        )
+        .entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = frame.width as u32;
@@ -181,6 +187,12 @@ impl GpuRenderer {
     }
 
     fn demosaic_to_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
+        let _span = tracing::debug_span!(
+            "gpu.demosaic",
+            w = frame.width as u32,
+            h = frame.height as u32
+        )
+        .entered();
         if frame.cpp != 1 {
             return Err(PipelineError::Unsupported(
                 "gpu demosaic requires single-plane bayer frame".into(),
@@ -274,6 +286,7 @@ impl GpuRenderer {
     }
 
     fn encode_mipgen(&self, encoder: &mut wgpu::CommandEncoder, texture: &Texture, w: u32, h: u32) {
+        let _span = tracing::trace_span!("gpu.mipgen", w = w, h = h).entered();
         let levels = mip_count(w, h);
         if levels <= 1 {
             return;
@@ -974,6 +987,7 @@ impl GpuRenderer {
         preview: &crate::frame::PreviewMode,
         run_blur: bool,
     ) {
+        let _span = tracing::debug_span!("gpu.encode_final_pass", w = w, h = h).entered();
         let device = &self.ctx.device;
         let d = &edits.detail;
         let e = &edits.effects;
@@ -1177,6 +1191,7 @@ impl GpuRenderer {
         dims: (u32, u32),
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
+        let _span = tracing::debug_span!("gpu.run_nr", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
@@ -1293,6 +1308,7 @@ impl GpuRenderer {
         dims: (u32, u32),
         smoothness: f32,
     ) -> PipelineResult<Arc<Texture>> {
+        let _span = tracing::debug_span!("gpu.run_nr_smooth", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
@@ -1891,6 +1907,7 @@ impl GpuRenderer {
         dims: (u32, u32),
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
+        let _span = tracing::debug_span!("gpu.run_presence", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
@@ -2063,6 +2080,8 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
+        let _span = tracing::debug_span!("gpu.run_wb_prepare", w = cached.width, h = cached.height)
+            .entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = cached.width;
@@ -2196,6 +2215,7 @@ impl GpuRenderer {
     ) -> PipelineResult<Arc<CachedFrame>> {
         use super::passes::sensor::SensorParams;
 
+        let _span = tracing::debug_span!("gpu.run_sensor", w = src.width, h = src.height).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = src.width;
