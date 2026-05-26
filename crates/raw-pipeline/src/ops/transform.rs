@@ -3,24 +3,23 @@ use rayon::prelude::*;
 use super::LinearImage;
 use super::{EditOperator, GpuOp, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
 use crate::geom;
 
-pub struct CropRotateOp;
+pub struct TransformOp;
 
-impl EditOperator for CropRotateOp {
+impl EditOperator for TransformOp {
     fn id(&self) -> &'static str {
-        "crop_rotate"
+        "transform"
     }
     fn stage(&self) -> Stage {
         Stage::Geometry
     }
-    fn order(&self) -> i32 {
-        1
-    }
     fn is_active(&self, edits: &Edits) -> bool {
-        let crop_active = edits.geometry.crop.map(|c| !c.is_full()).unwrap_or(false);
-        edits.geometry.rotate_angle.abs() > 1e-4 || crop_active
+        let g = &edits.geometry;
+        let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
+        g.rotate != 0 || g.flip_h || g.flip_v || g.rotate_angle.abs() > 1e-4 || crop_active
     }
     fn apply_cpu(
         &self,
@@ -28,10 +27,32 @@ impl EditOperator for CropRotateOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
+        let g = &edits.geometry;
+        let mut steps = g.rotate / 90;
+        while steps > 0 {
+            let (rotated, nw, nh) = transform::rotate_90(&image.rgb, image.width, image.height);
+            image.rgb = rotated;
+            image.width = nw;
+            image.height = nh;
+            steps -= 1;
+        }
+        if g.flip_h {
+            transform::flip_horizontal(&mut image.rgb, image.width, image.height);
+        }
+        if g.flip_v {
+            transform::flip_vertical(&mut image.rgb, image.width, image.height);
+        }
+
+        let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
+        let angle_active = g.rotate_angle.abs() > 1e-4;
+        if !crop_active && !angle_active {
+            return Ok(());
+        }
+
         let sw = image.width as f32;
         let sh = image.height as f32;
-        let angle = edits.geometry.rotate_angle;
-        let crop = edits.geometry.crop.unwrap_or(CropRect::full());
+        let angle = g.rotate_angle;
+        let crop = g.crop.unwrap_or(CropRect::full());
         let bbox = geom::rotated_bbox(sw, sh, angle);
         let bw = bbox.w;
         let bh = bbox.h;
@@ -93,7 +114,7 @@ impl EditOperator for CropRotateOp {
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {
-            field_name: "_crop_rotate_noop",
+            field_name: "_transform_noop",
             functions: "",
             apply: "",
             vec4_count: 0,
@@ -105,10 +126,21 @@ impl EditOperator for CropRotateOp {
         let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
         let angle_active = g.rotate_angle.abs() > 1e-4;
         let aspect_active = !matches!(g.aspect, AspectLock::Original);
-        if !crop_active && !angle_active && !aspect_active {
+        let rotate_active = g.rotate != 0;
+        let flip_active = g.flip_h || g.flip_v;
+        if !crop_active && !angle_active && !aspect_active && !rotate_active && !flip_active {
             return None;
         }
         let mut obj = serde_json::Map::new();
+        if rotate_active {
+            obj.insert("rotate".into(), serde_json::json!(g.rotate));
+        }
+        if g.flip_h {
+            obj.insert("flip_h".into(), serde_json::json!(true));
+        }
+        if g.flip_v {
+            obj.insert("flip_v".into(), serde_json::json!(true));
+        }
         if angle_active {
             obj.insert("angle".into(), serde_json::json!(g.rotate_angle));
         }
@@ -122,6 +154,15 @@ impl EditOperator for CropRotateOp {
         Some(serde_json::Value::Object(obj))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+        if let Some(v) = value.get("rotate").and_then(|v| v.as_u64()) {
+            edits.geometry.rotate = v as u16;
+        }
+        if let Some(v) = value.get("flip_h").and_then(|v| v.as_bool()) {
+            edits.geometry.flip_h = v;
+        }
+        if let Some(v) = value.get("flip_v").and_then(|v| v.as_bool()) {
+            edits.geometry.flip_v = v;
+        }
         if let Some(a) = value.get("angle").and_then(|v| v.as_f64()) {
             edits.geometry.rotate_angle = a as f32;
         }

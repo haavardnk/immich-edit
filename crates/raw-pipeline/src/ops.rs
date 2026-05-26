@@ -4,11 +4,9 @@ pub mod color_grade;
 pub mod color_matrix;
 pub mod color_nr;
 pub mod contrast;
-pub mod crop_rotate;
 pub mod curves;
 pub mod dehaze;
 pub mod exposure;
-pub mod geometry;
 pub mod grain;
 pub mod hsl;
 pub mod lens_ca;
@@ -23,6 +21,7 @@ pub mod saturation;
 pub mod sharpen;
 pub mod texture;
 pub mod tone_regions;
+pub mod transform;
 pub mod user_wb;
 pub mod vibrance;
 pub mod vignette;
@@ -194,8 +193,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(vibrance::VibranceOp),
         Box::new(hsl::HslOp),
         Box::new(color_grade::ColorGradeOp),
-        Box::new(geometry::GeometryOp),
-        Box::new(crop_rotate::CropRotateOp),
+        Box::new(transform::TransformOp),
         Box::new(sharpen::SharpenOp),
         Box::new(vignette::VignetteOp),
         Box::new(grain::GrainOp),

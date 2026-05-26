@@ -69,7 +69,7 @@ async fn put_then_get_then_delete_edits() {
         "schema_version": 2,
         "ops": {
             "exposure": { "ev": 1.5 },
-            "geometry": { "rotate": 90, "flip_h": false, "flip_v": false }
+            "transform": { "rotate": 90 }
         }
     });
     let resp = app
@@ -101,7 +101,7 @@ async fn put_then_get_then_delete_edits() {
         .await
         .unwrap();
     let got: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
-    if got["manifest"]["ops"]["geometry"]["rotate"] != 90 {
+    if got["manifest"]["ops"]["transform"]["rotate"] != 90 {
         panic!("get: {got}");
     }
 

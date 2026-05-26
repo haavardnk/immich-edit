@@ -643,7 +643,7 @@ fn geometry_rotate_swaps_dims() {
         },
         ..Default::default()
     };
-    geometry::GeometryOp
+    transform::TransformOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
     assert_eq!(img.width, 2);
