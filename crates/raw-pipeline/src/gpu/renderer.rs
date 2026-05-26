@@ -341,6 +341,9 @@ impl GpuRenderer {
             if op.stage() == crate::ops::Stage::Output {
                 continue;
             }
+            if op.stage() == crate::ops::Stage::Sensor {
+                continue;
+            }
             if op.gpu().is_none() {
                 return Err(PipelineError::Unsupported(format!(
                     "gpu pipeline missing op: {}",
@@ -1661,6 +1664,87 @@ impl GpuRenderer {
         Ok(Arc::new(wb_base))
     }
 
+    fn run_sensor(
+        &self,
+        src: &Arc<CachedFrame>,
+        edits: &Edits,
+    ) -> PipelineResult<Arc<CachedFrame>> {
+        use super::passes::sensor::SensorParams;
+
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let w = src.width;
+        let h = src.height;
+        let params = SensorParams::from_edits(&edits.lens, w, h);
+        let uniform_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("sensor-uniform"),
+            contents: bytemuck::bytes_of(&params),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let dst = device.create_texture(&TextureDescriptor {
+            label: Some("sensor-out"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let src_view = src.texture.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let dst_view = dst.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let pass = &self.passes.sensor;
+        let bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sensor-bg"),
+            layout: &pass.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&dst_view),
+                },
+            ],
+        });
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("sensor-enc"),
+        });
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("sensor-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&pass.pipeline);
+            cpass.set_bind_group(0, &bind, &[]);
+            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+        self.encode_mipgen(&dst, w, h);
+        Ok(Arc::new(CachedFrame {
+            texture: Arc::new(dst),
+            width: w,
+            height: h,
+        }))
+    }
+
     pub fn render_with_cancel(
         &self,
         frame: &RawFrame,
@@ -1675,6 +1759,13 @@ impl GpuRenderer {
         let plan = RenderPlan::select(edits);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;
+        let cached = if edits.lens.any_active() {
+            let corrected = self.run_sensor(&cached, &edits.clamped())?;
+            crate::cancel::check(cancel)?;
+            corrected
+        } else {
+            cached
+        };
         let dims = (cached.width, cached.height);
         let edits_c = edits.clamped();
         match plan {

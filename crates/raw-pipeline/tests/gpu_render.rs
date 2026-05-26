@@ -1,6 +1,7 @@
 use raw_pipeline::edits::BasicEdits;
 use raw_pipeline::edits::{
     CropRect, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits,
+    LensEdits,
 };
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame};
 use raw_pipeline::{GpuRenderer, decode, edits::Edits, frame::RenderOptions};
@@ -344,6 +345,62 @@ fn gpu_matches_cpu_within_tolerance() {
                             ],
                         },
                     },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "lens_distortion_barrel",
+            4.0,
+            Edits {
+                lens: LensEdits {
+                    profile_enabled: true,
+                    distortion_amount: 100.0,
+                    k1: -0.1,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "lens_vignette_brighten",
+            3.0,
+            Edits {
+                lens: LensEdits {
+                    profile_enabled: true,
+                    vignette_amount: 100.0,
+                    vk1: -0.4,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "lens_ca_red",
+            4.0,
+            Edits {
+                lens: LensEdits {
+                    ca_enabled: true,
+                    ca_red_scale_x10000: 80.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "lens_combo",
+            5.0,
+            Edits {
+                lens: LensEdits {
+                    profile_enabled: true,
+                    ca_enabled: true,
+                    distortion_amount: 100.0,
+                    k1: -0.08,
+                    vignette_amount: 100.0,
+                    vk1: -0.3,
+                    ca_red_scale_x10000: 50.0,
+                    ca_blue_scale_x10000: -50.0,
                     ..Default::default()
                 },
                 ..Default::default()

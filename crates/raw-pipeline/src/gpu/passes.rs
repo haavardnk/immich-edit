@@ -7,6 +7,7 @@ pub mod nr;
 pub mod nr_smooth;
 pub mod presence;
 pub mod process;
+pub mod sensor;
 pub mod sharpen;
 pub mod tonemap;
 pub mod wb_prepare;
@@ -26,6 +27,7 @@ use nr::NrPass;
 use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
+use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
 use tonemap::TonemapPass;
 use wb_prepare::WbPreparePass;
@@ -43,6 +45,7 @@ pub struct GpuPasses {
     pub output_sharpen: OutputSharpenPass,
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
+    pub sensor: SensorPass,
     pub tonemap: TonemapPass,
     pub registry: OpRegistry,
 }
@@ -63,6 +66,7 @@ impl GpuPasses {
         let output_sharpen = OutputSharpenPass::new(ctx);
         let mask_weight = MaskWeightPass::new(ctx);
         let mask_blend = MaskBlendPass::new(ctx);
+        let sensor = SensorPass::new(ctx);
         let tonemap = TonemapPass::new(ctx);
         Self {
             demosaic,
@@ -77,6 +81,7 @@ impl GpuPasses {
             output_sharpen,
             mask_weight,
             mask_blend,
+            sensor,
             tonemap,
             registry,
         }

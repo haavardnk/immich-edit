@@ -40,14 +40,6 @@ pub fn render_with_cancel(
         (frame.data.clone(), frame.width, frame.height)
     };
 
-    let (rgb, w, h) = transform::apply_orientation(rgb, src_w, src_h, frame.orientation);
-
-    let (oriented_w, oriented_h) = match edits.geometry.rotate {
-        90 | 270 => (h, w),
-        _ => (w, h),
-    };
-
-    let mut image = LinearImage::new(rgb, w, h);
     let xyz_to_cam = if frame.color_matrices.len() >= 2 {
         let cct = crate::color::estimate_scene_cct(
             frame.wb_coeffs,
@@ -69,6 +61,23 @@ pub fn render_with_cancel(
         preview_mode: options.preview_mode.clone(),
         shadows_blur: None,
     };
+
+    let mut sensor_image = LinearImage::new(rgb, src_w, src_h);
+    run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
+    cancel::check(cancel)?;
+    let (rgb, w, h) = transform::apply_orientation(
+        sensor_image.rgb,
+        sensor_image.width,
+        sensor_image.height,
+        frame.orientation,
+    );
+
+    let (oriented_w, oriented_h) = match edits.geometry.rotate {
+        90 | 270 => (h, w),
+        _ => (w, h),
+    };
+
+    let mut image = LinearImage::new(rgb, w, h);
 
     run_pipeline_ops(&mut image, &ctx, &edits, &options.rasters, cancel)?;
 
@@ -200,6 +209,9 @@ pub fn run_pipeline_ops(
         if op.stage() == crate::ops::Stage::Output {
             continue;
         }
+        if op.stage() == crate::ops::Stage::Sensor {
+            continue;
+        }
         if op.gpu_kind() == GpuOpKind::Detail {
             continue;
         }
@@ -268,6 +280,26 @@ pub fn run_output_ops(
     let registry = default_registry();
     for op in registry.active(edits) {
         if op.stage() != crate::ops::Stage::Output {
+            continue;
+        }
+        cancel::check(cancel)?;
+        op.apply_cpu(image, ctx, edits)?;
+    }
+    Ok(())
+}
+
+pub fn run_sensor_ops(
+    image: &mut LinearImage,
+    ctx: &OpContext,
+    edits: &Edits,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<()> {
+    if !edits.lens.any_active() {
+        return Ok(());
+    }
+    let registry = default_registry();
+    for op in registry.active(edits) {
+        if op.stage() != crate::ops::Stage::Sensor {
             continue;
         }
         cancel::check(cancel)?;

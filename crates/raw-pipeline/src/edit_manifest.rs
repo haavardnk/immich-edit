@@ -61,7 +61,7 @@ mod tests {
     use super::*;
     use crate::edits::{
         BasicEdits, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
-        HslEdits, ToneEdits,
+        HslEdits, LensEdits, ToneEdits,
     };
 
     #[test]
@@ -132,6 +132,21 @@ mod tests {
                 grain_amount: 30.0,
                 grain_size: 20.0,
                 grain_roughness: 55.0,
+            },
+            lens: LensEdits {
+                profile_enabled: true,
+                ca_enabled: true,
+                constrain_crop: true,
+                distortion_amount: 50.0,
+                vignette_amount: 25.0,
+                k1: -0.2,
+                k2: 0.1,
+                k3: 0.0,
+                vk1: -0.4,
+                vk2: 0.0,
+                vk3: 0.0,
+                ca_red_scale_x10000: -15.0,
+                ca_blue_scale_x10000: 8.0,
             },
             geometry: GeometryEdits {
                 rotate: 90,
@@ -263,6 +278,32 @@ mod tests {
         let back = manifest.to_edits();
         if back.masks != vec![layer] {
             panic!("masks roundtrip mismatch");
+        }
+    }
+
+    #[test]
+    fn lens_sparse_roundtrip() {
+        let edits = Edits {
+            lens: LensEdits {
+                profile_enabled: true,
+                distortion_amount: 40.0,
+                k1: -0.12,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let manifest = EditManifest::from_edits(&edits);
+        if manifest.ops.len() != 1 || !manifest.ops.contains_key("lens_profile") {
+            panic!(
+                "expected only lens_profile key, got {:?}",
+                manifest.ops.keys().collect::<Vec<_>>()
+            );
+        }
+        let back = manifest.to_edits();
+        if (back.lens.distortion_amount - 40.0).abs() > 1e-9
+            || (back.lens.k1 - (-0.12)).abs() > 1e-9
+        {
+            panic!("lens_distortion roundtrip mismatch: {:?}", back.lens);
         }
     }
 

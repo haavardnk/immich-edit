@@ -94,6 +94,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
             Stage::WhiteBalance => &mut apply_wb,
             Stage::Tone => &mut apply_tone,
             Stage::Color => &mut apply_color,
+            Stage::Sensor => unreachable!("sensor ops use vec4_count == 0"),
             Stage::Geometry => unreachable!("geometry ops use vec4_count == 0"),
             Stage::Output => unreachable!("output ops use vec4_count == 0"),
         };

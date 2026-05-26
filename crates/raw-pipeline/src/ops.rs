@@ -11,8 +11,13 @@ pub mod exposure;
 pub mod geometry;
 pub mod grain;
 pub mod hsl;
+pub mod lens_ca;
+pub mod lens_distortion;
+pub mod lens_profile;
+pub mod lens_vignette;
 pub mod luma_nr;
 pub mod masks;
+pub mod sample;
 pub mod saturation;
 pub mod sharpen;
 pub mod texture;
@@ -47,6 +52,7 @@ impl LinearImage {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
+    Sensor,
     WhiteBalance,
     Tone,
     Color,
@@ -159,6 +165,10 @@ impl OpRegistry {
 
 pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
+        Box::new(lens_profile::LensProfileOp),
+        Box::new(lens_distortion::LensDistortionOp),
+        Box::new(lens_vignette::LensVignetteOp),
+        Box::new(lens_ca::LensCaOp),
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(user_wb::UserWbOp),
