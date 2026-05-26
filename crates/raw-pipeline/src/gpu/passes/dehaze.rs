@@ -3,14 +3,16 @@ use std::sync::Arc;
 
 use wgpu::{
     BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferSize,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StorageTextureAccess, TextureSampleType, TextureViewDimension,
+    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, Sampler,
+    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    StorageTextureAccess, TextureSampleType, TextureViewDimension,
 };
 
 use crate::gpu::context::GpuContext;
 
 use super::demosaic::linear_format_str;
 
+pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = 16;
 pub const NORM_UNIFORM_SIZE: u64 = 32;
 pub const MIN_UNIFORM_SIZE: u64 = 16;
 pub const PACK_UNIFORM_SIZE: u64 = 16;
@@ -109,7 +111,45 @@ fn make_layout_4(ctx: &Arc<GpuContext>, label: &str, uniform_size: u64) -> BindG
         })
 }
 
+fn sampler_entry(binding: u32) -> BindGroupLayoutEntry {
+    BindGroupLayoutEntry {
+        binding,
+        visibility: ShaderStages::COMPUTE,
+        ty: BindingType::Sampler(SamplerBindingType::Filtering),
+        count: None,
+    }
+}
+
+fn make_layout_downsample(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout {
+    ctx.device
+        .create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some(label),
+            entries: &[
+                uniform_entry(DOWNSAMPLE_UNIFORM_SIZE),
+                tex_entry(1),
+                sampler_entry(2),
+                storage_entry(3, ctx.linear_format),
+            ],
+        })
+}
+
+fn make_layout_apply(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout {
+    ctx.device
+        .create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some(label),
+            entries: &[
+                uniform_entry(APPLY_UNIFORM_SIZE),
+                tex_entry(1),
+                tex_entry(2),
+                sampler_entry(3),
+                storage_entry(4, ctx.linear_format),
+            ],
+        })
+}
+
 pub struct DehazePasses {
+    pub downsample_layout: BindGroupLayout,
+    pub downsample_pipeline: ComputePipeline,
     pub norm_layout: BindGroupLayout,
     pub norm_pipeline: ComputePipeline,
     pub min_layout: BindGroupLayout,
@@ -122,10 +162,19 @@ pub struct DehazePasses {
     pub ab_pipeline: ComputePipeline,
     pub apply_layout: BindGroupLayout,
     pub apply_pipeline: ComputePipeline,
+    pub linear_sampler: Sampler,
 }
 
 impl DehazePasses {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
+        let downsample_layout = make_layout_downsample(ctx, "dehaze-downsample-bgl");
+        let downsample_pipeline = make_pipeline(
+            ctx,
+            &downsample_layout,
+            "dehaze_downsample.wgsl",
+            include_str!("../../../assets/shaders/dehaze_downsample.wgsl"),
+        );
+
         let norm_layout = make_layout_3(ctx, "dehaze-norm-bgl", NORM_UNIFORM_SIZE);
         let norm_pipeline = make_pipeline(
             ctx,
@@ -166,7 +215,7 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_ab.wgsl"),
         );
 
-        let apply_layout = make_layout_4(ctx, "dehaze-apply-bgl", APPLY_UNIFORM_SIZE);
+        let apply_layout = make_layout_apply(ctx, "dehaze-apply-bgl");
         let apply_pipeline = make_pipeline(
             ctx,
             &apply_layout,
@@ -174,7 +223,20 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_apply.wgsl"),
         );
 
+        let linear_sampler = ctx.device.create_sampler(&SamplerDescriptor {
+            label: Some("dehaze-linear-sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
         Self {
+            downsample_layout,
+            downsample_pipeline,
             norm_layout,
             norm_pipeline,
             min_layout,
@@ -187,6 +249,7 @@ impl DehazePasses {
             ab_pipeline,
             apply_layout,
             apply_pipeline,
+            linear_sampler,
         }
     }
 }

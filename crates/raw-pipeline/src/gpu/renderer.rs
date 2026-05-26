@@ -63,9 +63,12 @@ pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
+    atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
     output_pool: Mutex<Option<OutputTargets>>,
     sharpen_pool: Mutex<Option<SharpenTargets>>,
 }
+
+const ATM_CACHE_ITEMS: usize = 16;
 
 impl GpuRenderer {
     pub fn new() -> PipelineResult<Self> {
@@ -76,6 +79,9 @@ impl GpuRenderer {
             passes,
             cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(CACHE_ITEMS).expect("nonzero"),
+            )),
+            atm_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(ATM_CACHE_ITEMS).expect("nonzero"),
             )),
             output_pool: Mutex::new(None),
             sharpen_pool: Mutex::new(None),
@@ -1404,6 +1410,24 @@ impl GpuRenderer {
         Ok(Arc::new(dst))
     }
 
+    fn atmosphere_for(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        src: &Texture,
+        dims: (u32, u32),
+    ) -> PipelineResult<[f32; 3]> {
+        let key = atmosphere_cache_key(frame, edits, dims);
+        if let Some(a) = self.atm_cache.lock().get(&key).copied() {
+            tracing::debug!(target: "dehaze", "atm cache hit");
+            return Ok(a);
+        }
+        let _span = tracing::debug_span!("gpu_dehaze_atm", w = dims.0, h = dims.1).entered();
+        let atm = self.estimate_atmosphere(src, dims)?;
+        self.atm_cache.lock().put(key, atm);
+        Ok(atm)
+    }
+
     fn estimate_atmosphere(&self, src: &Texture, dims: (u32, u32)) -> PipelineResult<[f32; 3]> {
         let (w, h) = dims;
         let max_dim = w.max(h);
@@ -1512,18 +1536,23 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
-        let min_dim = w.min(h);
-        let half_min = (min_dim / 2).max(1);
-        let r_patch: u32 = (min_dim / 200).max(8).min(half_min);
-        let r_gf: u32 = (min_dim / 50).max(16).min(half_min);
+        let min_dim_full = w.min(h);
+        let half_min_full = (min_dim_full / 2).max(1);
+        let r_patch_full: u32 = (min_dim_full / 200).max(8).min(half_min_full);
+        let r_gf_full: u32 = (min_dim_full / 50).max(16).min(half_min_full);
+        let scale: u32 = if min_dim_full >= 512 { 4 } else { 1 };
+        let lw = (w / scale).max(1);
+        let lh = (h / scale).max(1);
+        let r_patch: u32 = (r_patch_full / scale).max(2);
+        let r_gf: u32 = (r_gf_full / scale).max(4);
         let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
 
-        let make_scratch = |label: &'static str| {
+        let make_scratch_lo = |label: &'static str| {
             device.create_texture(&TextureDescriptor {
                 label: Some(label),
                 size: Extent3d {
-                    width: w,
-                    height: h,
+                    width: lw,
+                    height: lh,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: 1,
@@ -1534,15 +1563,16 @@ impl GpuRenderer {
                 view_formats: &[],
             })
         };
-        let dn = make_scratch("dehaze-dn");
-        let dn_h = make_scratch("dehaze-dn-h");
-        let dn_min = make_scratch("dehaze-dn-min");
-        let packed = make_scratch("dehaze-pack");
-        let packed_h = make_scratch("dehaze-pack-h");
-        let packed_v = make_scratch("dehaze-pack-v");
-        let ab = make_scratch("dehaze-ab");
-        let ab_h = make_scratch("dehaze-ab-h");
-        let ab_v = make_scratch("dehaze-ab-v");
+        let lo_src = make_scratch_lo("dehaze-lo-src");
+        let dn = make_scratch_lo("dehaze-dn");
+        let dn_h = make_scratch_lo("dehaze-dn-h");
+        let dn_min = make_scratch_lo("dehaze-dn-min");
+        let packed = make_scratch_lo("dehaze-pack");
+        let packed_h = make_scratch_lo("dehaze-pack-h");
+        let packed_v = make_scratch_lo("dehaze-pack-v");
+        let ab = make_scratch_lo("dehaze-ab");
+        let ab_h = make_scratch_lo("dehaze-ab-h");
+        let ab_v = make_scratch_lo("dehaze-ab-v");
         let out = device.create_texture(&TextureDescriptor {
             label: Some("dehaze-out"),
             size: Extent3d {
@@ -1558,9 +1588,19 @@ impl GpuRenderer {
             view_formats: &[],
         });
 
+        let mut downsample_u = vec![0u8; super::passes::dehaze::DOWNSAMPLE_UNIFORM_SIZE as usize];
+        downsample_u[0..4].copy_from_slice(&lw.to_le_bytes());
+        downsample_u[4..8].copy_from_slice(&lh.to_le_bytes());
+        downsample_u[8..12].copy_from_slice(&scale.to_le_bytes());
+        let downsample_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("dehaze-downsample-u"),
+            contents: &downsample_u,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+
         let mut norm_u = vec![0u8; 32];
-        norm_u[0..4].copy_from_slice(&w.to_le_bytes());
-        norm_u[4..8].copy_from_slice(&h.to_le_bytes());
+        norm_u[0..4].copy_from_slice(&lw.to_le_bytes());
+        norm_u[4..8].copy_from_slice(&lh.to_le_bytes());
         norm_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
         norm_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
         norm_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
@@ -1573,8 +1613,8 @@ impl GpuRenderer {
 
         let make_filter_u = |radius: u32, axis: u32, label: &'static str| {
             let mut u = vec![0u8; 16];
-            u[0..4].copy_from_slice(&w.to_le_bytes());
-            u[4..8].copy_from_slice(&h.to_le_bytes());
+            u[0..4].copy_from_slice(&lw.to_le_bytes());
+            u[4..8].copy_from_slice(&lh.to_le_bytes());
             u[8..12].copy_from_slice(&radius.to_le_bytes());
             u[12..16].copy_from_slice(&axis.to_le_bytes());
             device.create_buffer_init(&BufferInitDescriptor {
@@ -1589,8 +1629,8 @@ impl GpuRenderer {
         let box_v_buf = make_filter_u(r_gf, 1, "dehaze-box-v-u");
 
         let mut size_u = vec![0u8; 16];
-        size_u[0..4].copy_from_slice(&w.to_le_bytes());
-        size_u[4..8].copy_from_slice(&h.to_le_bytes());
+        size_u[0..4].copy_from_slice(&lw.to_le_bytes());
+        size_u[4..8].copy_from_slice(&lh.to_le_bytes());
         let pack_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("dehaze-pack-u"),
             contents: &size_u,
@@ -1605,6 +1645,8 @@ impl GpuRenderer {
         let mut apply_u = vec![0u8; 48];
         apply_u[0..4].copy_from_slice(&w.to_le_bytes());
         apply_u[4..8].copy_from_slice(&h.to_le_bytes());
+        apply_u[8..12].copy_from_slice(&lw.to_le_bytes());
+        apply_u[12..16].copy_from_slice(&lh.to_le_bytes());
         apply_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
         apply_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
         apply_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
@@ -1617,6 +1659,12 @@ impl GpuRenderer {
         });
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
+        let lo_src_view = lo_src.create_view(&TextureViewDescriptor::default());
+        let lo_src_store_view = lo_src.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
         let dn_view = dn.create_view(&TextureViewDescriptor::default());
         let dn_h_view = dn_h.create_view(&TextureViewDescriptor::default());
         let dn_min_view = dn_min.create_view(&TextureViewDescriptor::default());
@@ -1633,6 +1681,28 @@ impl GpuRenderer {
         });
 
         let p = &self.passes.dehaze;
+        let bg_downsample = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("dehaze-downsample-bg"),
+            layout: &p.downsample_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: downsample_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&p.linear_sampler),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&lo_src_store_view),
+                },
+            ],
+        });
         let bg_norm = device.create_bind_group(&BindGroupDescriptor {
             label: Some("dehaze-norm-bg"),
             layout: &p.norm_layout,
@@ -1643,7 +1713,7 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
+                    resource: BindingResource::TextureView(&lo_src_view),
                 },
                 BindGroupEntry {
                     binding: 2,
@@ -1697,7 +1767,7 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
+                    resource: BindingResource::TextureView(&lo_src_view),
                 },
                 BindGroupEntry {
                     binding: 2,
@@ -1817,6 +1887,10 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 3,
+                    resource: BindingResource::Sampler(&p.linear_sampler),
+                },
+                BindGroupEntry {
+                    binding: 4,
                     resource: BindingResource::TextureView(&out_view),
                 },
             ],
@@ -1825,6 +1899,8 @@ impl GpuRenderer {
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("dehaze-enc"),
         });
+        let gx_lo = lw.div_ceil(16);
+        let gy_lo = lh.div_ceil(16);
         let gx = w.div_ceil(16);
         let gy = h.div_ceil(16);
         {
@@ -1832,30 +1908,33 @@ impl GpuRenderer {
                 label: Some("dehaze-pass"),
                 timestamp_writes: None,
             });
+            c.set_pipeline(&p.downsample_pipeline);
+            c.set_bind_group(0, &bg_downsample, &[]);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.norm_pipeline);
             c.set_bind_group(0, &bg_norm, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.min_pipeline);
             c.set_bind_group(0, &bg_min_h, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_bind_group(0, &bg_min_v, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.pack_pipeline);
             c.set_bind_group(0, &bg_pack, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.box_pipeline);
             c.set_bind_group(0, &bg_box_h_pack, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_bind_group(0, &bg_box_v_pack, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.ab_pipeline);
             c.set_bind_group(0, &bg_ab, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.box_pipeline);
             c.set_bind_group(0, &bg_box_h_ab, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_bind_group(0, &bg_box_v_ab, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.dispatch_workgroups(gx_lo, gy_lo, 1);
             c.set_pipeline(&p.apply_pipeline);
             c.set_bind_group(0, &bg_apply, &[]);
             c.dispatch_workgroups(gx, gy, 1);
@@ -2299,7 +2378,9 @@ impl GpuRenderer {
                 };
                 let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm = self.estimate_atmosphere(presence_src, dims)?;
+                    let atm = self.atmosphere_for(frame, &edits_c, presence_src, dims)?;
+                    let _span =
+                        tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
                     let t = self.run_dehaze(presence_src, dims, &edits_c, atm)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
@@ -2462,4 +2543,17 @@ fn make_dummy_luma(ctx: &GpuContext) -> Texture {
         },
     );
     tex
+}
+
+fn atmosphere_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut e = edits.clone();
+    e.basic.dehaze = 0.0;
+    let json = serde_json::to_vec(&e).unwrap_or_default();
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    GpuRenderer::frame_key(frame).hash(&mut h);
+    dims.0.hash(&mut h);
+    dims.1.hash(&mut h);
+    json.hash(&mut h);
+    h.finish()
 }
