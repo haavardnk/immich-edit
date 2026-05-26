@@ -242,6 +242,17 @@ fn gpu_matches_cpu_within_tolerance() {
             },
         ),
         (
+            "brightness+35",
+            2.0,
+            Edits {
+                basic: BasicEdits {
+                    brightness: 35.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
             "whites+50",
             1.5,
             Edits {
@@ -896,6 +907,7 @@ fn gpu_masks_match_cpu_within_tolerance() {
         ],
         edits: MaskedEdits {
             exposure_ev: Some(1.2),
+            brightness: Some(25.0),
             saturation: Some(30.0),
             contrast: Some(20.0),
             wb_temp: Some(15.0),

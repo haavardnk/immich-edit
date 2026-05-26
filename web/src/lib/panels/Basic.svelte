@@ -12,6 +12,7 @@
 
   function resetTone(): void {
     editor.edits.basic.exposure_ev = 0;
+    editor.edits.basic.brightness = 0;
     editor.edits.basic.contrast = 0;
     editor.edits.tone.highlights = 0;
     editor.edits.tone.shadows = 0;
@@ -88,6 +89,16 @@
       step={0.05}
       onLive={editor.onLive}
       onCommit={editor.onCommit}
+    />
+    <SliderRow
+      label="Brightness"
+      bind:value={editor.edits.basic.brightness}
+      min={-100}
+      max={100}
+      step={1}
+      onLive={editor.onLive}
+      onCommit={editor.onCommit}
+      format={(v: number) => v.toFixed(0)}
     />
     <SliderRow
       label="Contrast"

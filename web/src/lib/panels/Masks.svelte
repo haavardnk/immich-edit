@@ -636,6 +636,13 @@
         step={0.05}
         format={(v: number) => v.toFixed(2)}
       />
+      <MaskedEditSlider
+        layerId={active.id}
+        eKey="brightness"
+        label="Brightness"
+        min={-100}
+        max={100}
+      />
       <MaskedEditSlider layerId={active.id} eKey="contrast" label="Contrast" min={-100} max={100} />
       <MaskedEditSlider
         layerId={active.id}

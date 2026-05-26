@@ -99,6 +99,8 @@ pub struct BasicEdits {
     #[serde(default)]
     pub exposure_ev: f64,
     #[serde(default)]
+    pub brightness: f64,
+    #[serde(default)]
     pub contrast: f64,
     #[serde(default)]
     pub saturation: f64,
@@ -544,6 +546,8 @@ pub struct MaskedEdits {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exposure_ev: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contrast: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub saturation: Option<f64>,
@@ -566,6 +570,7 @@ pub struct MaskedEdits {
 impl MaskedEdits {
     pub fn is_zero(&self) -> bool {
         self.exposure_ev.is_none()
+            && self.brightness.is_none()
             && self.contrast.is_none()
             && self.saturation.is_none()
             && self.vibrance.is_none()
@@ -648,6 +653,7 @@ fn clamp_masked_delta(v: Option<f64>, lo: f64, hi: f64) -> Option<f64> {
 fn clamp_masked_edits(m: &MaskedEdits) -> MaskedEdits {
     MaskedEdits {
         exposure_ev: clamp_masked_delta(m.exposure_ev, -5.0, 5.0),
+        brightness: clamp_masked_delta(m.brightness, -100.0, 100.0),
         contrast: clamp_masked_delta(m.contrast, -100.0, 100.0),
         saturation: clamp_masked_delta(m.saturation, -100.0, 100.0),
         vibrance: clamp_masked_delta(m.vibrance, -100.0, 100.0),
@@ -751,6 +757,7 @@ impl Edits {
         Self {
             basic: BasicEdits {
                 exposure_ev: self.basic.exposure_ev.clamp(-5.0, 5.0),
+                brightness: self.basic.brightness.clamp(-100.0, 100.0),
                 contrast: self.basic.contrast.clamp(-100.0, 100.0),
                 saturation: self.basic.saturation.clamp(-100.0, 100.0),
                 vibrance: self.basic.vibrance.clamp(-100.0, 100.0),

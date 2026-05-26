@@ -91,6 +91,7 @@ mod tests {
         let original = Edits {
             basic: BasicEdits {
                 exposure_ev: 1.5,
+                brightness: 22.0,
                 contrast: 25.0,
                 saturation: 12.5,
                 vibrance: 18.0,
@@ -146,6 +147,28 @@ mod tests {
         let back = manifest.to_edits();
         if back != original {
             panic!("roundtrip mismatch: {back:?} != {original:?}");
+        }
+    }
+
+    #[test]
+    fn brightness_sparse_roundtrip() {
+        let edits = Edits {
+            basic: BasicEdits {
+                brightness: 33.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let manifest = EditManifest::from_edits(&edits);
+        if !manifest.ops.contains_key("brightness") || manifest.ops.len() != 1 {
+            panic!(
+                "expected only brightness key, got {:?}",
+                manifest.ops.keys().collect::<Vec<_>>()
+            );
+        }
+        let back = manifest.to_edits();
+        if (back.basic.brightness - 33.0).abs() > 1e-9 {
+            panic!("brightness roundtrip mismatch: {}", back.basic.brightness);
         }
     }
 
@@ -224,6 +247,7 @@ mod tests {
             ],
             edits: MaskedEdits {
                 exposure_ev: Some(-0.5),
+                brightness: Some(15.0),
                 shadows: Some(20.0),
                 ..Default::default()
             },

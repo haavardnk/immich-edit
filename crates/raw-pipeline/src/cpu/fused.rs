@@ -15,6 +15,9 @@ pub enum CpuFusedOp {
     Exposure {
         factor: f32,
     },
+    Brightness {
+        amount: f32,
+    },
     Contrast {
         s: f32,
     },
@@ -100,6 +103,12 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *r *= *factor;
             *g *= *factor;
             *b *= *factor;
+        }
+        CpuFusedOp::Brightness { amount } => {
+            let (nr, ng, nb) = crate::ops::brightness::apply_brightness_rgb(*r, *g, *b, *amount);
+            *r = nr;
+            *g = ng;
+            *b = nb;
         }
         CpuFusedOp::Contrast { s } => {
             *r = crate::ops::contrast::apply_perceptual_contrast(*r, *s);

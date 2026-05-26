@@ -63,6 +63,7 @@ fn edits_full() -> Edits {
     Edits {
         basic: BasicEdits {
             exposure_ev: 0.6,
+            brightness: 20.0,
             contrast: 30.0,
             saturation: 15.0,
             vibrance: 25.0,

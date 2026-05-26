@@ -34,6 +34,7 @@ export function neutralCurves(): CurvesEdits {
 
 export interface BasicEdits {
   exposure_ev: number;
+  brightness: number;
   contrast: number;
   saturation: number;
   vibrance: number;
@@ -210,6 +211,7 @@ export interface MaskComponent {
 
 export type MaskedEditKey =
   | 'exposure_ev'
+  | 'brightness'
   | 'contrast'
   | 'saturation'
   | 'vibrance'
@@ -222,6 +224,7 @@ export type MaskedEditKey =
 
 export const MASKED_EDIT_KEYS: readonly MaskedEditKey[] = [
   'exposure_ev',
+  'brightness',
   'contrast',
   'saturation',
   'vibrance',
@@ -304,6 +307,7 @@ export function neutralEdits(): Edits {
   return {
     basic: {
       exposure_ev: 0,
+      brightness: 0,
       contrast: 0,
       saturation: 0,
       vibrance: 0,
@@ -390,6 +394,7 @@ export function isIdentity(e: Edits): boolean {
 export function isNonGeometryIdentity(e: Edits): boolean {
   return (
     e.basic.exposure_ev === 0 &&
+    e.basic.brightness === 0 &&
     e.basic.contrast === 0 &&
     e.basic.saturation === 0 &&
     e.basic.vibrance === 0 &&
@@ -416,6 +421,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
 export function editsToManifest(e: Edits): EditManifest {
   const ops: Record<string, unknown> = {};
   if (e.basic.exposure_ev !== 0) ops.exposure = { ev: e.basic.exposure_ev };
+  if (e.basic.brightness !== 0) ops.brightness = { amount: e.basic.brightness };
   if (e.basic.contrast !== 0) ops.contrast = { amount: e.basic.contrast };
   if (!curvesEditsIsIdentity(e.basic.curves)) {
     const obj: Record<string, [number, number][]> = {};
@@ -522,6 +528,8 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const ops = doc.ops ?? {};
   const exposure = ops.exposure as { ev?: number } | undefined;
   if (exposure?.ev !== undefined) edits.basic.exposure_ev = exposure.ev;
+  const brightness = ops.brightness as { amount?: number } | undefined;
+  if (brightness?.amount !== undefined) edits.basic.brightness = brightness.amount;
   const contrast = ops.contrast as { amount?: number } | undefined;
   if (contrast?.amount !== undefined) edits.basic.contrast = contrast.amount;
   const curves = ops.curves as

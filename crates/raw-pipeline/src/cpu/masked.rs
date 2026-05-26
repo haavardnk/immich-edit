@@ -245,6 +245,9 @@ pub fn effective_edits_for_layer(global: &Edits, layer: &MaskLayer) -> Edits {
     if let Some(v) = d.exposure_ev {
         out.basic.exposure_ev = (out.basic.exposure_ev + v).clamp(-5.0, 5.0);
     }
+    if let Some(v) = d.brightness {
+        out.basic.brightness = (out.basic.brightness + v).clamp(-100.0, 100.0);
+    }
     if let Some(v) = d.contrast {
         out.basic.contrast = (out.basic.contrast + v).clamp(-100.0, 100.0);
     }
@@ -521,6 +524,31 @@ mod tests {
         let w = fold_layer_weight(&eval, 0.5, 0.5);
         if w > 1e-6 {
             panic!("expected 0 with missing raster, got {w}");
+        }
+    }
+
+    #[test]
+    fn effective_edits_adds_and_clamps_brightness() {
+        let mut g = Edits::default();
+        g.basic.brightness = 80.0;
+        let mut layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![],
+            edits: Default::default(),
+        };
+        layer.edits.brightness = Some(50.0);
+        let eff = effective_edits_for_layer(&g, &layer);
+        if (eff.basic.brightness - 100.0).abs() > 1e-6 {
+            panic!("expected clamp to 100, got {}", eff.basic.brightness);
+        }
+        layer.edits.brightness = Some(-200.0);
+        let eff = effective_edits_for_layer(&g, &layer);
+        if (eff.basic.brightness - (-100.0)).abs() > 1e-6 {
+            panic!("expected clamp to -100, got {}", eff.basic.brightness);
         }
     }
 }
