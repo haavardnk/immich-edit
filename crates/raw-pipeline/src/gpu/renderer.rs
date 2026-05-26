@@ -1669,6 +1669,9 @@ impl GpuRenderer {
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         crate::cancel::check(cancel)?;
+        if edits.basic.dehaze != 0.0 {
+            return Err(PipelineError::Unsupported("dehaze runs on cpu".into()));
+        }
         let plan = RenderPlan::select(edits);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;

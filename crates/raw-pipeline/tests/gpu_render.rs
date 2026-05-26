@@ -458,7 +458,6 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
     let mut edits = Edits::default();
     edits.basic.texture = 30.0;
     edits.basic.clarity = 20.0;
-    edits.basic.dehaze = 15.0;
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();

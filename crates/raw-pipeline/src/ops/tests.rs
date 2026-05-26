@@ -784,20 +784,51 @@ fn dehaze_inactive_when_zero() {
 }
 
 #[test]
-fn dehaze_positive_amplifies_edge_contrast() {
-    let mk = || {
-        let mut buf = vec![0.0f32; 800 * 100 * 3];
-        for y in 0..100 {
-            for x in 0..800 {
-                let v = if x < 400 { 0.4 } else { 0.6 };
-                let i = (y * 800 + x) * 3;
-                buf[i] = v;
-                buf[i + 1] = v;
-                buf[i + 2] = v;
-            }
+fn dehaze_zero_is_identity() {
+    let mut img = LinearImage::new(
+        (0..64 * 64 * 3).map(|i| (i % 100) as f32 / 100.0).collect(),
+        64,
+        64,
+    );
+    let before = img.rgb.clone();
+    let edits = Edits::default();
+    dehaze::DehazeOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let max_d = before
+        .iter()
+        .zip(img.rgb.iter())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    if max_d > 1e-6 {
+        panic!("dehaze zero changed image: {max_d}");
+    }
+}
+
+#[test]
+fn dehaze_positive_recovers_synthetic_haze() {
+    let w: usize = 256;
+    let h: usize = 64;
+    let atm = [0.9f32, 0.9, 0.9];
+    let j_dark = [0.2f32, 0.1, 0.05];
+    let t = 0.5f32;
+    let dark_px = [
+        j_dark[0] * t + atm[0] * (1.0 - t),
+        j_dark[1] * t + atm[1] * (1.0 - t),
+        j_dark[2] * t + atm[2] * (1.0 - t),
+    ];
+    let sky_px = atm;
+    let mut buf = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let p = if x < w / 2 { dark_px } else { sky_px };
+            buf[i] = p[0];
+            buf[i + 1] = p[1];
+            buf[i + 2] = p[2];
         }
-        LinearImage::new(buf, 800, 100)
-    };
+    }
+    let mut img = LinearImage::new(buf, w, h);
     let edits = Edits {
         basic: BasicEdits {
             dehaze: 100.0,
@@ -805,14 +836,55 @@ fn dehaze_positive_amplifies_edge_contrast() {
         },
         ..Default::default()
     };
-    let mut img = mk();
-    let dark_probe = (50 * 800 + 399) * 3;
-    let bright_probe = (50 * 800 + 400) * 3;
     dehaze::DehazeOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    assert!(img.rgb[dark_probe] < 0.4);
-    assert!(img.rgb[bright_probe] > 0.6);
+    let i = (h / 2 * w + w / 4) * 3;
+    let dr = (img.rgb[i] - j_dark[0]).abs();
+    let dg = (img.rgb[i + 1] - j_dark[1]).abs();
+    let db = (img.rgb[i + 2] - j_dark[2]).abs();
+    if dr > 0.1 || dg > 0.1 || db > 0.1 {
+        panic!(
+            "dehaze did not recover J: r={} g={} b={} (truth {:?})",
+            img.rgb[i],
+            img.rgb[i + 1],
+            img.rgb[i + 2],
+            j_dark
+        );
+    }
+}
+
+#[test]
+fn dehaze_negative_pushes_toward_atmosphere() {
+    let w: usize = 64;
+    let h: usize = 64;
+    let mut buf = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            buf[i] = 0.4;
+            buf[i + 1] = 0.5;
+            buf[i + 2] = 0.6;
+        }
+    }
+    let mut img = LinearImage::new(buf, w, h);
+    let edits = Edits {
+        basic: BasicEdits {
+            dehaze: -100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    dehaze::DehazeOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    let i = (h / 2 * w + w / 2) * 3;
+    if img.rgb[i] <= 0.4 {
+        panic!(
+            "negative dehaze did not lift toward atmosphere: r={}",
+            img.rgb[i]
+        );
+    }
 }
 
 #[test]

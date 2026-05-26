@@ -1,3 +1,4 @@
+pub mod dehaze;
 pub mod demosaic;
 pub mod fused;
 pub mod masked;

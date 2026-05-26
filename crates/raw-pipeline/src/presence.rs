@@ -45,11 +45,10 @@ pub struct PresenceMips {
 pub fn presence_amounts(edits: &Edits) -> PresenceAmounts {
     let t = (edits.basic.texture as f32 / 100.0).clamp(-1.0, 1.0);
     let c = (edits.basic.clarity as f32 / 100.0).clamp(-1.0, 1.0);
-    let d = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
     PresenceAmounts {
         texture: t * 2.0,
         clarity: c * 1.0,
-        dehaze: d * 0.5,
+        dehaze: 0.0,
     }
 }
 

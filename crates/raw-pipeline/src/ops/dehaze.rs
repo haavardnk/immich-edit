@@ -1,7 +1,7 @@
 use super::LinearImage;
-use super::{EditOperator, OpContext, ResourceNeed, Stage};
+use super::{EditOperator, OpContext, Stage};
 use crate::PipelineResult;
-use crate::cpu::presence::apply_presence;
+use crate::cpu::dehaze::apply_dehaze;
 use crate::edits::Edits;
 
 pub struct DehazeOp;
@@ -19,29 +19,14 @@ impl EditOperator for DehazeOp {
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.dehaze != 0.0
     }
-    fn resource_needs(&self, edits: &Edits) -> Vec<ResourceNeed> {
-        if !self.is_active(edits) {
-            return Vec::new();
-        }
-        vec![ResourceNeed::LumaPyramid { max_radius_px: 256 }]
-    }
-    fn gpu_kind(&self) -> super::GpuOpKind {
-        super::GpuOpKind::Presence
-    }
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        let only = Edits {
-            basic: crate::edits::BasicEdits {
-                dehaze: edits.basic.dehaze,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        apply_presence(image, &only);
+        let amt = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
+        apply_dehaze(image, amt);
         Ok(())
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
