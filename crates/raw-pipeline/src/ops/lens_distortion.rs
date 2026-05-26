@@ -73,6 +73,37 @@ pub fn distortion_zoom(lens: &LensEdits) -> f32 {
     constrain_zoom(k1, k2, k3)
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn output_px_to_source_px(
+    k1: f32,
+    k2: f32,
+    k3: f32,
+    zoom: f32,
+    width: u32,
+    height: u32,
+    dst_x: f32,
+    dst_y: f32,
+) -> (f32, f32) {
+    let w = width as f32;
+    let h = height as f32;
+    if w == 0.0 || h == 0.0 {
+        return (dst_x, dst_y);
+    }
+    let cx = w * 0.5;
+    let cy = h * 0.5;
+    let r_norm = 0.5 * (w * w + h * h).sqrt();
+    let inv_norm = zoom / r_norm;
+    let dx = (dst_x + 0.5 - cx) * inv_norm;
+    let dy = (dst_y + 0.5 - cy) * inv_norm;
+    let r2 = dx * dx + dy * dy;
+    let r4 = r2 * r2;
+    let r6 = r4 * r2;
+    let s = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
+    let sx = dx * s * r_norm + cx - 0.5;
+    let sy = dy * s * r_norm + cy - 0.5;
+    (sx, sy)
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct LensWarpParams {
     pub k1: f32,

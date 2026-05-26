@@ -62,17 +62,24 @@ pub async fn delete(
 pub async fn auto(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    body: axum::body::Bytes,
 ) -> Result<Json<Edits>, AppError> {
-    let frame = state.render.frame(id).await.map_err(|e| match e {
+    let context = if body.is_empty() {
+        Edits::default()
+    } else {
+        serde_json::from_slice::<Edits>(&body).unwrap_or_default()
+    };
+    let frame = state.render.quality_frame(id).await.map_err(|e| match e {
         crate::services::render::RenderError::Upstream(u) => u.into(),
         crate::services::render::RenderError::Pipeline(p) => {
             tracing::error!(error = %p, "auto-adjust decode");
             AppError::Internal
         }
     })?;
-    let edits = tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame))
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let edits =
+        tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
+            .await
+            .map_err(|_| AppError::Internal)?;
     Ok(Json(edits))
 }
 

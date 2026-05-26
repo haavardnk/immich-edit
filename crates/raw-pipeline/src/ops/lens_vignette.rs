@@ -41,6 +41,19 @@ pub fn vignette_coeffs(lens: &LensEdits) -> (f32, f32, f32) {
     (a as f32, b as f32, c as f32)
 }
 
+#[inline]
+pub fn vignette_correction(vk1: f32, vk2: f32, vk3: f32, r_norm: f32) -> f32 {
+    let r2 = r_norm * r_norm;
+    let r4 = r2 * r2;
+    let r6 = r4 * r2;
+    let gain_in = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
+    if gain_in.abs() > 1e-6 {
+        1.0 / gain_in
+    } else {
+        1.0
+    }
+}
+
 pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
     let w = image.width;
     let h = image.height;
@@ -62,15 +75,7 @@ pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
             for x in 0..w {
                 let dx = x as f32 + 0.5 - cx;
                 let r = (dx * dx + dy * dy).sqrt() * inv_diag;
-                let r2 = r * r;
-                let r4 = r2 * r2;
-                let r6 = r4 * r2;
-                let gain_in = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
-                let correction = if gain_in.abs() > 1e-6 {
-                    1.0 / gain_in
-                } else {
-                    1.0
-                };
+                let correction = vignette_correction(vk1, vk2, vk3, r);
                 let i = x * 3;
                 row[i] *= correction;
                 row[i + 1] *= correction;

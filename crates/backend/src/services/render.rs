@@ -84,6 +84,11 @@ impl RenderService {
         Ok(frame)
     }
 
+    pub async fn quality_frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
+        let bytes = self.immich.original(asset_id).await?;
+        Ok(decode_quality_blocking(bytes).await?)
+    }
+
     pub async fn render(
         &self,
         asset_id: Uuid,

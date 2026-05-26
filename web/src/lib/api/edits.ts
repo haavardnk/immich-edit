@@ -37,6 +37,6 @@ export async function deleteEdits(assetId: string): Promise<void> {
   }
 }
 
-export function autoEdits(assetId: string): Promise<Edits> {
-  return sendJson('POST', `/api/assets/${assetId}/edits/auto`, undefined);
+export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
+  return sendJson('POST', `/api/assets/${assetId}/edits/auto`, context);
 }

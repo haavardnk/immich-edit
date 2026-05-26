@@ -236,11 +236,17 @@ class EditorStore {
     if (!this.assetId || !this.initialised) return;
     this.autoBusy = true;
     try {
-      const suggested = await autoEdits(this.assetId);
+      const suggested = await autoEdits(this.assetId, $state.snapshot(this.edits));
       this.edits = {
         ...this.edits,
-        basic: { ...this.edits.basic, ...suggested.basic },
-        tone: { ...this.edits.tone, ...suggested.tone }
+        basic: {
+          ...this.edits.basic,
+          exposure_ev: suggested.basic.exposure_ev,
+          brightness: suggested.basic.brightness,
+          contrast: suggested.basic.contrast,
+          vibrance: suggested.basic.vibrance
+        },
+        tone: { ...suggested.tone }
       };
       this.onLive();
       await this.onCommit();
