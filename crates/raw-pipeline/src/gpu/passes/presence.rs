@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in/out
 use std::borrow::Cow;
 use std::sync::Arc;
 

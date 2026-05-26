@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in → sRGB-encoded Rgba8Unorm + linear Rgba16Float out (vignette + grain in linear, then tone-map)
 use std::borrow::Cow;
 use std::sync::Arc;
 

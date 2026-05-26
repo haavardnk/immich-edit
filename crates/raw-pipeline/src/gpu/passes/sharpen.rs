@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in/out; tone-map applied later in effects_tone.wgsl
 use std::borrow::Cow;
 use std::sync::Arc;
 

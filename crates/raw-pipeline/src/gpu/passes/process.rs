@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in; out is linear (full path) or sRGB tone-mapped (fast no-effects path, see process.wgsl)
 use std::borrow::Cow;
 use std::sync::Arc;
 

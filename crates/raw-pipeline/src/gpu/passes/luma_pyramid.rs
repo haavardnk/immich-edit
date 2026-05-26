@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in → R16Float luma pyramid out
 use std::borrow::Cow;
 use std::sync::Arc;
 

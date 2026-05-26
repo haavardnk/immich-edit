@@ -1,3 +1,4 @@
+// color-space: linear scene-referred Rgba16Float in → R16Float weight out
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,3 +1,4 @@
+// color-space: Bayer u16 in → linear scene-referred Rgba16Float out
 use std::borrow::Cow;
 use std::sync::Arc;
 

@@ -1,3 +1,4 @@
+// color-space: sRGB-encoded Rgba8Unorm in (after tone-map in process or effects_tone) → 8-bit sRGB bytes out
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d, ImageCopyBuffer,
     ImageDataLayout, MapMode, Origin3d, Texture, TextureAspect,
