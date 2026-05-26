@@ -2,6 +2,7 @@ pub mod app;
 pub mod config;
 pub mod error;
 pub mod immich;
+pub mod lens_profile;
 pub mod routes;
 pub mod services;
 pub mod state;

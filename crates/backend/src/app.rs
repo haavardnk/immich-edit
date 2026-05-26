@@ -47,6 +47,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/assets/{id}/edits/auto", post(routes::edits::auto))
         .route(
+            "/assets/{id}/lens-profile",
+            get(routes::lens_profile::get_lens_profile),
+        )
+        .route(
             "/assets/{id}/preview",
             get(routes::preview::get_preview).post(routes::preview::post_preview),
         )
