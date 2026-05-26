@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOpKind, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
 use rayon::prelude::*;
 
@@ -124,9 +125,9 @@ fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     k
 }
 
-fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32> {
+fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Scratch {
     let radius = kernel.len() / 2;
-    let mut tmp = vec![0.0f32; src.len()];
+    let mut tmp = Scratch::take_uninit(src.len());
     tmp.par_chunks_mut(w * 3)
         .zip(src.par_chunks(w * 3))
         .for_each(|(dst_row, src_row)| {
@@ -146,7 +147,7 @@ fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32
                 dst_row[di + 2] = acc[2];
             }
         });
-    let mut out = vec![0.0f32; src.len()];
+    let mut out = Scratch::take_uninit(src.len());
     out.par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, dst_row)| {
@@ -169,8 +170,8 @@ fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Vec<f32
     out
 }
 
-fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Vec<f32> {
-    let mut luma = vec![0.0f32; w * h];
+fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
+    let mut luma = Scratch::take_uninit(w * h);
     luma.par_chunks_mut(w)
         .zip(blur.par_chunks(w * 3))
         .for_each(|(lrow, brow)| {
@@ -179,7 +180,7 @@ fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Vec<f32> {
                 *slot = 0.2126 * brow[i] + 0.7152 * brow[i + 1] + 0.0722 * brow[i + 2];
             }
         });
-    let mut mag = vec![0.0f32; w * h];
+    let mut mag = Scratch::take_uninit(w * h);
     mag.par_chunks_mut(w).enumerate().for_each(|(y, mrow)| {
         let ym1 = y.saturating_sub(1);
         let yp1 = (y + 1).min(h - 1);

@@ -1,22 +1,25 @@
+use crate::cpu::scratch::Scratch;
 use crate::ops::LinearImage;
 use rayon::prelude::*;
 
 #[derive(Debug)]
 pub struct LumaPyramid {
-    pub levels: Vec<Vec<f32>>,
+    pub levels: Vec<Scratch>,
     pub dims: Vec<(usize, usize)>,
 }
 
 impl LumaPyramid {
     pub fn build(image: &LinearImage, num_levels: usize) -> Self {
         let n = num_levels.max(1);
-        let mut levels: Vec<Vec<f32>> = Vec::with_capacity(n);
+        let mut levels: Vec<Scratch> = Vec::with_capacity(n);
         let mut dims: Vec<(usize, usize)> = Vec::with_capacity(n);
-        let l0: Vec<f32> = image
-            .rgb
-            .par_chunks_exact(3)
-            .map(|p| 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2])
-            .collect();
+        let n0 = image.width * image.height;
+        let mut l0 = Scratch::take_uninit(n0);
+        l0.par_iter_mut()
+            .zip(image.rgb.par_chunks_exact(3))
+            .for_each(|(slot, p)| {
+                *slot = 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+            });
         levels.push(l0);
         dims.push((image.width, image.height));
         for _ in 1..n {
@@ -24,7 +27,7 @@ impl LumaPyramid {
             let (pw, ph) = dims[last_idx];
             let nw = (pw / 2).max(1);
             let nh = (ph / 2).max(1);
-            let mut next = vec![0.0f32; nw * nh];
+            let mut next = Scratch::take_uninit(nw * nh);
             {
                 let prev = &levels[last_idx];
                 let interior_w = if pw >= 2 { nw.min(pw / 2) } else { 0 };

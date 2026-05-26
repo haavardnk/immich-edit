@@ -1,6 +1,7 @@
 use super::LinearImage;
 use super::{EditOperator, GpuOpKind, OpContext, Stage};
 use crate::PipelineResult;
+use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
 use rayon::prelude::*;
 
@@ -78,9 +79,9 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
         return;
     }
     let n = w * h;
-    let mut y_buf: Vec<f32> = vec![0.0; n];
-    let mut pb_buf: Vec<f32> = vec![0.0; n];
-    let mut pr_buf: Vec<f32> = vec![0.0; n];
+    let mut y_buf = Scratch::take_uninit(n);
+    let mut pb_buf = Scratch::take_uninit(n);
+    let mut pr_buf = Scratch::take_uninit(n);
     (
         y_buf.par_chunks_mut(w),
         pb_buf.par_chunks_mut(w),
@@ -111,8 +112,8 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
     let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
     let inv_2sr = 1.0 / (2.0 * sigma_r * sigma_r);
     let alpha = amount / 100.0;
-    let mut pb_out: Vec<f32> = vec![0.0; n];
-    let mut pr_out: Vec<f32> = vec![0.0; n];
+    let mut pb_out = Scratch::take_uninit(n);
+    let mut pr_out = Scratch::take_uninit(n);
     (pb_out.par_chunks_mut(w), pr_out.par_chunks_mut(w))
         .into_par_iter()
         .enumerate()
@@ -153,8 +154,8 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
         });
     let s = smoothness / 100.0;
     if s > 0.0 {
-        let mut pb_s: Vec<f32> = pb_out.clone();
-        let mut pr_s: Vec<f32> = pr_out.clone();
+        let mut pb_s = Scratch::take_uninit(n);
+        let mut pr_s = Scratch::take_uninit(n);
         box_blur_3x3(&pb_out, &mut pb_s, w, h);
         box_blur_3x3(&pr_out, &mut pr_s, w, h);
         pb_out

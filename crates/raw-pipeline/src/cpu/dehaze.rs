@@ -1,3 +1,4 @@
+use crate::cpu::scratch::Scratch;
 use crate::ops::LinearImage;
 use rayon::prelude::*;
 
@@ -66,9 +67,9 @@ fn box_mean_v(src: &[f32], dst: &mut [f32], w: usize, h: usize, r: usize) {
     });
 }
 
-fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
-    let mut tmp = vec![0.0f32; w * h];
-    let mut out = vec![0.0f32; w * h];
+fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
+    let mut tmp = Scratch::take_uninit(w * h);
+    let mut out = Scratch::take_uninit(w * h);
     box_mean_h(src, &mut tmp, w, h, r);
     box_mean_v(&tmp, &mut out, w, h, r);
     out
@@ -140,16 +141,16 @@ fn min_filter_v(src: &[f32], dst: &mut [f32], w: usize, h: usize, r: usize) {
     });
 }
 
-fn min_filter(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
-    let mut tmp = vec![0.0f32; w * h];
-    let mut out = vec![0.0f32; w * h];
+fn min_filter(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
+    let mut tmp = Scratch::take_uninit(w * h);
+    let mut out = Scratch::take_uninit(w * h);
     min_filter_h(src, &mut tmp, w, h, r);
     min_filter_v(&tmp, &mut out, w, h, r);
     out
 }
 
-fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Vec<f32> {
-    let mut out = vec![0.0f32; w * h];
+fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
+    let mut out = Scratch::take_uninit(w * h);
     out.par_iter_mut().enumerate().for_each(|(i, v)| {
         let r = rgb[i * 3].clamp(0.0, 1.0);
         let g = rgb[i * 3 + 1].clamp(0.0, 1.0);
@@ -186,47 +187,60 @@ pub fn estimate_atmosphere(rgb: &[f32], dp: &[f32], w: usize, h: usize) -> [f32;
     ]
 }
 
-fn guided_filter(guide: &[f32], p: &[f32], w: usize, h: usize, r: usize, eps: f32) -> Vec<f32> {
+fn guided_filter(guide: &[f32], p: &[f32], w: usize, h: usize, r: usize, eps: f32) -> Scratch {
+    let n = w * h;
     let mean_i = box_mean(guide, w, h, r);
     let mean_p = box_mean(p, w, h, r);
-    let ii: Vec<f32> = guide.par_iter().map(|x| x * x).collect();
-    let ip: Vec<f32> = guide
-        .par_iter()
-        .zip(p.par_iter())
-        .map(|(a, b)| a * b)
-        .collect();
-    let corr_i = box_mean(&ii, w, h, r);
-    let corr_ip = box_mean(&ip, w, h, r);
-    let var_i: Vec<f32> = corr_i
-        .par_iter()
-        .zip(mean_i.par_iter())
-        .map(|(c, m)| c - m * m)
-        .collect();
-    let cov_ip: Vec<f32> = corr_ip
-        .par_iter()
-        .zip(mean_i.par_iter())
-        .zip(mean_p.par_iter())
-        .map(|((c, mi), mp)| c - mi * mp)
-        .collect();
-    let a_coef: Vec<f32> = cov_ip
-        .par_iter()
-        .zip(var_i.par_iter())
-        .map(|(c, v)| c / (v + eps))
-        .collect();
-    let b_coef: Vec<f32> = a_coef
-        .par_iter()
-        .zip(mean_i.par_iter())
-        .zip(mean_p.par_iter())
-        .map(|((a, mi), mp)| mp - a * mi)
-        .collect();
-    let mean_a = box_mean(&a_coef, w, h, r);
-    let mean_b = box_mean(&b_coef, w, h, r);
-    mean_a
-        .par_iter()
-        .zip(mean_b.par_iter())
+    let mut ii = Scratch::take_uninit(n);
+    ii.par_iter_mut()
         .zip(guide.par_iter())
-        .map(|((ma, mb), g)| ma * g + mb)
-        .collect()
+        .for_each(|(d, x)| *d = x * x);
+    let mut ip = Scratch::take_uninit(n);
+    ip.par_iter_mut()
+        .zip(guide.par_iter().zip(p.par_iter()))
+        .for_each(|(d, (a, b))| *d = a * b);
+    let corr_i = box_mean(&ii, w, h, r);
+    drop(ii);
+    let corr_ip = box_mean(&ip, w, h, r);
+    drop(ip);
+    let mut a_coef = Scratch::take_uninit(n);
+    a_coef
+        .par_iter_mut()
+        .zip(
+            corr_ip
+                .par_iter()
+                .zip(corr_i.par_iter())
+                .zip(mean_i.par_iter().zip(mean_p.par_iter())),
+        )
+        .for_each(|(d, ((cip, ci), (mi, mp)))| {
+            let var_i = ci - mi * mi;
+            let cov_ip = cip - mi * mp;
+            *d = cov_ip / (var_i + eps);
+        });
+    drop(corr_i);
+    drop(corr_ip);
+    let mut b_coef = Scratch::take_uninit(n);
+    b_coef
+        .par_iter_mut()
+        .zip(
+            a_coef
+                .par_iter()
+                .zip(mean_i.par_iter().zip(mean_p.par_iter())),
+        )
+        .for_each(|(d, (a, (mi, mp)))| *d = mp - a * mi);
+    let mean_a = box_mean(&a_coef, w, h, r);
+    drop(a_coef);
+    let mean_b = box_mean(&b_coef, w, h, r);
+    drop(b_coef);
+    let mut out = Scratch::take_uninit(n);
+    out.par_iter_mut()
+        .zip(
+            mean_a
+                .par_iter()
+                .zip(mean_b.par_iter().zip(guide.par_iter())),
+        )
+        .for_each(|(d, (ma, (mb, g)))| *d = ma * g + mb);
+    out
 }
 
 pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
@@ -244,32 +258,36 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     let r_gf = (min_dim / 50).max(16).min(min_dim / 2);
     let d0 = dark_channel_per_pixel(&image.rgb, w, h);
     let dp = min_filter(&d0, w, h, r_patch);
+    drop(d0);
     let atm = estimate_atmosphere(&image.rgb, &dp, w, h);
-    let dn: Vec<f32> = (0..w * h)
-        .into_par_iter()
-        .map(|i| {
-            let r = (image.rgb[i * 3] / atm[0]).clamp(0.0, 1.0);
-            let g = (image.rgb[i * 3 + 1] / atm[1]).clamp(0.0, 1.0);
-            let b = (image.rgb[i * 3 + 2] / atm[2]).clamp(0.0, 1.0);
-            r.min(g).min(b)
-        })
-        .collect();
+    drop(dp);
+    let n = w * h;
+    let mut dn = Scratch::take_uninit(n);
+    dn.par_iter_mut().enumerate().for_each(|(i, v)| {
+        let r = (image.rgb[i * 3] / atm[0]).clamp(0.0, 1.0);
+        let g = (image.rgb[i * 3 + 1] / atm[1]).clamp(0.0, 1.0);
+        let b = (image.rgb[i * 3 + 2] / atm[2]).clamp(0.0, 1.0);
+        *v = r.min(g).min(b);
+    });
     let dn_patch = min_filter(&dn, w, h, r_patch);
-    let t_raw: Vec<f32> = dn_patch
-        .par_iter()
-        .map(|d| (1.0 - 0.95 * d).clamp(0.0, 1.0))
-        .collect();
-    let guide: Vec<f32> = (0..w * h)
-        .into_par_iter()
-        .map(|i| {
-            luma(
-                image.rgb[i * 3].clamp(0.0, 1.0),
-                image.rgb[i * 3 + 1].clamp(0.0, 1.0),
-                image.rgb[i * 3 + 2].clamp(0.0, 1.0),
-            )
-        })
-        .collect();
+    drop(dn);
+    let mut t_raw = Scratch::take_uninit(n);
+    t_raw
+        .par_iter_mut()
+        .zip(dn_patch.par_iter())
+        .for_each(|(d, s)| *d = (1.0 - 0.95 * s).clamp(0.0, 1.0));
+    drop(dn_patch);
+    let mut guide = Scratch::take_uninit(n);
+    guide.par_iter_mut().enumerate().for_each(|(i, v)| {
+        *v = luma(
+            image.rgb[i * 3].clamp(0.0, 1.0),
+            image.rgb[i * 3 + 1].clamp(0.0, 1.0),
+            image.rgb[i * 3 + 2].clamp(0.0, 1.0),
+        );
+    });
     let t = guided_filter(&guide, &t_raw, w, h, r_gf, 1e-3);
+    drop(guide);
+    drop(t_raw);
     if a > 0.0 {
         image
             .rgb
