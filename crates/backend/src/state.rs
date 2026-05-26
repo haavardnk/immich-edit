@@ -32,7 +32,7 @@ impl AppState {
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
-        let rasters = RasterStore::new(&config.cache_dir)
+        let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let render = RenderService::new(immich.clone(), 8, config.renderer, rasters.clone());
         let queue = RenderQueue::new(config.render_max_concurrency);

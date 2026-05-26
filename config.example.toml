@@ -19,6 +19,9 @@
 # Max concurrent render tasks
 # RENDER_MAX_CONCURRENCY = 2
 
+# Mask raster disk cache cap (MB). Evicts oldest rasters when total exceeds cap.
+# MASK_CACHE_MB = 1024
+
 # Renderer selection: auto, cpu, gpu
 # IMMICH_EDIT_RENDERER = "auto"
 

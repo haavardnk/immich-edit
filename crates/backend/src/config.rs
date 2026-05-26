@@ -46,6 +46,7 @@ pub struct Config {
     pub cache_dir: PathBuf,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
+    pub mask_cache_mb: u64,
     pub renderer: RendererMode,
     pub database_url: String,
 }
@@ -58,6 +59,7 @@ struct FileConfig {
     cache_dir: Option<String>,
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
+    mask_cache_mb: Option<u64>,
     renderer: Option<String>,
     database_url: Option<String>,
 }
@@ -133,6 +135,14 @@ impl Config {
             });
         }
 
+        let mask_cache_mb = parse_or("MASK_CACHE_MB", file.mask_cache_mb, 1024u64)?;
+        if mask_cache_mb == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "MASK_CACHE_MB".into(),
+                value: "0".into(),
+            });
+        }
+
         let renderer = match pick("IMMICH_EDIT_RENDERER", file.renderer) {
             Some(s) => s.parse()?,
             None => RendererMode::Auto,
@@ -151,6 +161,7 @@ impl Config {
             cache_dir,
             preview_max_edge,
             render_max_concurrency,
+            mask_cache_mb,
             renderer,
             database_url,
         })
@@ -164,6 +175,7 @@ impl Config {
             cache_dir: self.cache_dir.display().to_string(),
             preview_max_edge: self.preview_max_edge,
             render_max_concurrency: self.render_max_concurrency,
+            mask_cache_mb: self.mask_cache_mb,
             renderer: self.renderer.as_str(),
         }
     }
@@ -177,6 +189,7 @@ pub struct RedactedConfig {
     pub cache_dir: String,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
+    pub mask_cache_mb: u64,
     pub renderer: &'static str,
 }
 
@@ -229,6 +242,7 @@ mod tests {
             "RAW_FRAME_CACHE_MB",
             "LINEAR_CACHE_MB",
             "RENDER_MAX_CONCURRENCY",
+            "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
         ] {

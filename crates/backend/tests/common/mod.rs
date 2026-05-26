@@ -27,10 +27,11 @@ pub async fn test_state(server: &MockServer) -> AppState {
         cache_dir: cache_dir.clone(),
         preview_max_edge: 1024,
         render_max_concurrency: 1,
+        mask_cache_mb: 1024,
         renderer: RendererMode::Cpu,
         database_url: "sqlite::memory:".into(),
     };
-    let rasters = RasterStore::new(&cache_dir).unwrap();
+    let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     AppState {
         config: Arc::new(config),
         immich: immich.clone(),
