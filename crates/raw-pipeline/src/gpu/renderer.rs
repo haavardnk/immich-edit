@@ -2433,9 +2433,26 @@ impl GpuRenderer {
             RenderPlan::Presence => {
                 let wb_base = self.run_wb_prepare(&cached, frame, &edits_c)?;
                 crate::cancel::check(cancel)?;
+                let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
+                let src_max = dims.0.max(dims.1);
+                let out_max = out_w.max(out_h);
+                let preview_active = !options.quality
+                    && out_max >= 256
+                    && src_max >= out_max.saturating_mul(2);
+                let (spatial_dims, wb_base) = if preview_active {
+                    let scale = (out_max as f32 / src_max as f32).min(1.0);
+                    let preview_sw = ((dims.0 as f32 * scale).round() as u32).max(1);
+                    let preview_sh = ((dims.1 as f32 * scale).round() as u32).max(1);
+                    let preview_dims = (preview_sw, preview_sh);
+                    let downsampled = self.downsample_to_preview(&wb_base, dims, preview_dims)?;
+                    crate::cancel::check(cancel)?;
+                    (preview_dims, downsampled)
+                } else {
+                    (dims, wb_base)
+                };
                 let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
                 {
-                    let t = self.run_nr(&wb_base, dims, &edits_c, frame)?;
+                    let t = self.run_nr(&wb_base, spatial_dims, &edits_c, frame)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
                 } else {
@@ -2443,10 +2460,20 @@ impl GpuRenderer {
                 };
                 let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm = self.atmosphere_for(frame, &edits_c, presence_src, dims, cancel)?;
-                    let _span =
-                        tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-                    let t = self.run_dehaze(presence_src, dims, &edits_c, atm)?;
+                    let atm = self.atmosphere_for(
+                        frame,
+                        &edits_c,
+                        presence_src,
+                        spatial_dims,
+                        cancel,
+                    )?;
+                    let _span = tracing::debug_span!(
+                        "gpu_dehaze",
+                        w = spatial_dims.0,
+                        h = spatial_dims.1
+                    )
+                    .entered();
+                    let t = self.run_dehaze(presence_src, spatial_dims, &edits_c, atm)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
                 } else {
@@ -2455,7 +2482,7 @@ impl GpuRenderer {
                 let post_dehaze_src: &Texture = dehaze_out.as_deref().unwrap_or(presence_src);
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
-                    self.run_presence(post_dehaze_src, dims, &edits_c)?
+                    self.run_presence(post_dehaze_src, spatial_dims, &edits_c)?
                 } else if let Some(t) = dehaze_out {
                     t
                 } else {
@@ -2463,7 +2490,7 @@ impl GpuRenderer {
                 };
                 crate::cancel::check(cancel)?;
                 let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
-                    Some(self.build_luma_pyramid(&processed_src, dims)?)
+                    Some(self.build_luma_pyramid(&processed_src, spatial_dims)?)
                 } else {
                     None
                 };
@@ -2473,7 +2500,7 @@ impl GpuRenderer {
                 let out = self.process(
                     &self.passes.process_post_wb,
                     &processed_src,
-                    dims,
+                    spatial_dims,
                     frame,
                     edits,
                     options,
@@ -2486,6 +2513,97 @@ impl GpuRenderer {
                 Ok(out)
             }
         }
+    }
+
+    fn downsample_to_preview(
+        &self,
+        src: &Arc<Texture>,
+        src_dims: (u32, u32),
+        target_dims: (u32, u32),
+    ) -> PipelineResult<Arc<Texture>> {
+        let _span = tracing::debug_span!(
+            "gpu.downsample_to_preview",
+            sw = src_dims.0,
+            sh = src_dims.1,
+            tw = target_dims.0,
+            th = target_dims.1
+        )
+        .entered();
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (tw, th) = target_dims;
+        let src_max = src_dims.0.max(src_dims.1) as f32;
+        let tgt_max = tw.max(th) as f32;
+        let ratio = (src_max / tgt_max).max(1.0);
+        let mut src_lod = ratio.log2().floor() as u32;
+        let max_lod = src.mip_level_count().saturating_sub(1);
+        src_lod = src_lod.min(max_lod);
+
+        let dst = Arc::new(device.create_texture(&TextureDescriptor {
+            label: Some("preview-spatial-src"),
+            size: Extent3d {
+                width: tw,
+                height: th,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        }));
+
+        let mut u = vec![0u8; super::passes::dehaze::DOWNSAMPLE_UNIFORM_SIZE as usize];
+        u[0..4].copy_from_slice(&tw.to_le_bytes());
+        u[4..8].copy_from_slice(&th.to_le_bytes());
+        u[8..12].copy_from_slice(&1u32.to_le_bytes());
+        u[12..16].copy_from_slice(&src_lod.to_le_bytes());
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, &u, "preview-downsample-u");
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let dst_view = dst.create_view(&TextureViewDescriptor::default());
+        let p = &self.passes.dehaze;
+        let bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("preview-downsample-bg"),
+            layout: &p.downsample_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&p.linear_sampler),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&dst_view),
+                },
+            ],
+        });
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("preview-downsample-enc"),
+        });
+        {
+            let mut c = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("preview-downsample-pass"),
+                timestamp_writes: None,
+            });
+            c.set_pipeline(&p.downsample_pipeline);
+            c.set_bind_group(0, &bind, &[]);
+            c.dispatch_workgroups(tw.div_ceil(16), th.div_ceil(16), 1);
+        }
+        queue.submit(Some(encoder.finish()));
+        Ok(dst)
     }
 
     fn build_luma_pyramid(&self, src: &Texture, dims: (u32, u32)) -> PipelineResult<Arc<Texture>> {
@@ -2649,4 +2767,31 @@ fn nr_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
     d.color_nr_detail.to_bits().hash(&mut h);
     d.color_nr_smoothness.to_bits().hash(&mut h);
     h.finish()
+}
+
+fn compute_out_dims(
+    frame: &RawFrame,
+    edits: &Edits,
+    src_dims: (u32, u32),
+    max_edge: u32,
+) -> (u32, u32) {
+    let (sensor_w, sensor_h) = src_dims;
+    let (display_w, display_h) = if frame.orientation.0 {
+        (sensor_h, sensor_w)
+    } else {
+        (sensor_w, sensor_h)
+    };
+    let (oriented_w, oriented_h) = match edits.geometry.rotate {
+        90 | 270 => (display_h, display_w),
+        _ => (display_w, display_h),
+    };
+    let crop = edits
+        .geometry
+        .crop
+        .unwrap_or(crate::edits::CropRect::full());
+    let angle = edits.geometry.rotate_angle;
+    let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
+    let crop_w_px = (crop.w * bbox.w).round().max(1.0) as u32;
+    let crop_h_px = (crop.h * bbox.h).round().max(1.0) as u32;
+    scale_to_max(crop_w_px, crop_h_px, max_edge)
 }
