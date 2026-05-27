@@ -8,6 +8,7 @@
     mdiUndo,
     mdiRedo,
     mdiEyeOutline,
+    mdiCompare,
     mdiFullscreen,
     mdiFullscreenExit,
   } from '@mdi/js';
@@ -67,6 +68,14 @@
       onpointerleave={() => { if (editor.showingOriginal) holdOriginal(false); }}
     >
       <Icon path={mdiEyeOutline} size={20} />
+    </button>
+    <button
+      class="btn btn-ghost btn-sm btn-square {editor.splitMode ? 'text-immich-dark-primary' : ''}"
+      title="Before/After split"
+      disabled={!!editor.cropSession}
+      onclick={editor.toggleSplit}
+    >
+      <Icon path={mdiCompare} size={20} />
     </button>
     <button
       class="btn btn-ghost btn-sm btn-square"

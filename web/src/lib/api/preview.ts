@@ -1,12 +1,12 @@
-import { getJson, postForBlob } from './client';
-import type { Edits } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
+import { getJson, postForBlob } from "./client";
+import type { Edits } from "$lib/types/edits";
+import type { PreviewMeta } from "$lib/types/preview";
 
 export type PreviewMode =
-  | 'none'
-  | 'sharpen_mask'
-  | 'sharpen_radius'
-  | 'sharpen_detail'
+  | "none"
+  | "sharpen_mask"
+  | "sharpen_radius"
+  | "sharpen_detail"
   | { mask_weight: { layer_id: string } };
 
 export function maskWeightPreview(layerId: string): PreviewMode {
@@ -14,7 +14,7 @@ export function maskWeightPreview(layerId: string): PreviewMode {
 }
 
 export function previewModeIsNone(m: PreviewMode): boolean {
-  return m === 'none';
+  return m === "none";
 }
 
 export function persistedPreviewUrl(assetId: string, max: number): string {
@@ -26,15 +26,18 @@ export async function livePreview(
   edits: Edits,
   maxEdge: number,
   previewMode: PreviewMode,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     `/api/assets/${assetId}/preview`,
     { max_edge: maxEdge, edits, preview_mode: previewMode },
-    signal
+    signal,
   );
 }
 
-export function getPreviewMeta(assetId: string, metaId: string): Promise<PreviewMeta> {
+export function getPreviewMeta(
+  assetId: string,
+  metaId: string,
+): Promise<PreviewMeta> {
   return getJson(`/api/assets/${assetId}/preview/meta/${metaId}`);
 }

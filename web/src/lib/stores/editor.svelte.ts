@@ -64,6 +64,9 @@ class EditorStore {
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
+  splitMode = $state(false);
+  splitPos = $state(0.5);
+  originalUrl = $state<string | null>(null);
   cropSession = $state<CropSession | null>(null);
 
   activeLayerId = $state<string | null>(null);
@@ -85,6 +88,8 @@ class EditorStore {
   private initialised = false;
   private hiresTimer: ReturnType<typeof setTimeout> | null = null;
   private renderedEdge = 0;
+  private originalEdge = 0;
+  private originalGeomKey = '';
 
   private flight = new SingleFlight<{ edits: Edits; maxEdge: number; previewMode: PreviewMode }, { url: string; metaId: string | null }>(
     async (args, signal) => {
@@ -101,6 +106,7 @@ class EditorStore {
       if (previewModeIsNone(args.previewMode)) {
         this.renderedEdge = args.maxEdge;
         if (result.metaId) void this.loadMeta(result.metaId);
+        if (this.splitMode) this.refreshOriginal();
       }
     },
     (err) => {
@@ -108,6 +114,60 @@ class EditorStore {
       this.error = (err as Error).message;
     }
   );
+
+  private originalFlight = new SingleFlight<{ edge: number; geomKey: string }, { url: string }>(
+    async (args, signal) => {
+      if (!this.assetId) throw new Error('no asset');
+      const snap = $state.snapshot(this.edits) as Edits;
+      const neutral = neutralEdits();
+      const edits: Edits = {
+        ...snap,
+        basic: neutral.basic,
+        tone: neutral.tone,
+        color: neutral.color,
+        detail: neutral.detail,
+        effects: neutral.effects,
+        masks: []
+      };
+      const { blob } = await livePreview(this.assetId, edits, args.edge, 'none', signal);
+      return { url: makeObjectUrl(blob) };
+    },
+    (args, result) => {
+      const prev = this.originalUrl;
+      this.originalUrl = result.url;
+      if (prev?.startsWith('blob:')) revoke(prev);
+      this.originalEdge = args.edge;
+      this.originalGeomKey = args.geomKey;
+    },
+    () => {}
+  );
+
+  toggleSplit = (): void => {
+    if (this.cropSession) return;
+    this.splitMode = !this.splitMode;
+    if (this.splitMode) {
+      this.refreshOriginal();
+    } else {
+      this.originalFlight.cancel();
+      if (this.originalUrl?.startsWith('blob:')) revoke(this.originalUrl);
+      this.originalUrl = null;
+      this.originalEdge = 0;
+      this.originalGeomKey = '';
+    }
+  };
+
+  setSplitPos = (p: number): void => {
+    this.splitPos = Math.min(1, Math.max(0, p));
+  };
+
+  private refreshOriginal(): void {
+    if (!this.splitMode || !this.assetId) return;
+    const edge = this.renderedEdge || LIVE_EDGE;
+    const snap = $state.snapshot(this.edits);
+    const geomKey = JSON.stringify({ g: snap.geometry, l: snap.lens, o: snap.output });
+    if (this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
+    this.originalFlight.submit({ edge, geomKey });
+  }
 
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
@@ -135,6 +195,7 @@ class EditorStore {
 
   unload(): void {
     this.flight.cancel();
+    this.originalFlight.cancel();
     if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
     if (this.cropSession) {
       if (this.cropSession.pinnedUrl) revoke(this.cropSession.pinnedUrl);
@@ -142,6 +203,11 @@ class EditorStore {
     }
     if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
     this.previewUrl = null;
+    if (this.originalUrl?.startsWith('blob:')) revoke(this.originalUrl);
+    this.originalUrl = null;
+    this.originalEdge = 0;
+    this.originalGeomKey = '';
+    this.splitMode = false;
     this.asset = null;
     this.meta = null;
     this.assetId = null;
