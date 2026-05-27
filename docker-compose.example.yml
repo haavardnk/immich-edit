@@ -4,12 +4,8 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      - IMMICH_URL=http://immich-server:2283
-      - IMMICH_API_KEY=your-api-key-here
-      - IMMICH_EDIT_RENDERER=auto
-      # set AUTH_TOKEN for LAN deployments without reverse-proxy auth
-      # - AUTH_TOKEN=change-me
+    env_file:
+      - .env
     volumes:
       - edit-cache:/cache
     restart: unless-stopped

@@ -1,42 +1,25 @@
-# sv
+# immich-edit web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit frontend for immich-edit. It builds as a static SPA and talks to the Rust backend through `/api/*`.
 
-## Creating a project
+## Setup
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
+```bash
+npm install
 ```
 
-To recreate this project with the same configuration:
+## Development
 
-```sh
-# recreate this project
-npx sv@0.15.3 create --template minimal --types ts --no-install web
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+The dev server proxies API requests to the backend. Run the backend from the repo root in another terminal.
 
-To create a production version of your app:
+## Build
 
-```sh
+```bash
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+The Docker image uses this build output. For local full-app development, use the root [CONTRIBUTING.md](../CONTRIBUTING.md).

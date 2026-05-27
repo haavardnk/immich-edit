@@ -1,100 +1,114 @@
 # immich-edit
 
-Self-hosted RAW photo editor for [Immich](https://immich.app/). Browse your library, render RAW files to JPEG previews with GPU acceleration, apply non-destructive edits, and export full-resolution JPEGs.
+A non-destructive RAW editor for your [Immich](https://immich.app/) library. Browse albums in the browser, render previews and exports on the server, and keep the edits outside Immich. Originals stay untouched.
 
-Edits are stored locally in SQLite — Immich is never modified.
+> **Beta software, early development.** Expect bugs, missing features, breaking changes, and occasional migrations that require clearing the cache or database. There is no upgrade path between 0.x releases yet. Run it against a backup, not your only copy.
 
-## Features
+## Why
 
-- Browse albums, folders, people, tags, favorites
-- Exposure, contrast, highlights, shadows, saturation, white balance
-- Rotate, flip, crop
-- Live preview with GPU acceleration (CPU fallback always available)
-- Export to JPEG, PNG (8/16), WebP, AVIF, HEIC, TIFF (8/16), JPEG XL (8/16)
-- Decodes all rawler-supported RAWs plus JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, BMP
-- Single container, dark UI
+I wanted Lightroom-style edits on my Immich library without sending photos to the cloud, without exporting to disk first, and without giving up RAW. Nothing in the Immich plugin ecosystem covered this, so I started building it. It is opinionated, single-user, and shaped around how I work.
+
+## What works
+
+Rendering and decoding:
+
+- All RAW formats that [rawler](https://github.com/dnglab/dnglab/tree/main/rawler) supports (.arw, .cr2, .cr3, .nef, .dng, etc.)
+- JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, BMP
+- GPU rendering via wgpu (Vulkan on Linux, Metal on macOS), CPU fallback always available
+
+Edits:
+
+- Exposure, contrast, brightness, highlights, shadows, blacks, whites
+- White balance (camera, auto, custom temp/tint)
+- HSL, saturation, vibrance, color grading
+- Curves (RGB, R, G, B, luma)
+- Clarity, texture, dehaze, sharpening, luma + color noise reduction
+- Vignette, grain
+- Crop, rotate, flip
+- Local masks (radial, linear, brush) with adjustable parameters
+- Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
+
+Export:
+
+- JPEG, PNG (8/16-bit), WebP, AVIF, HEIC, TIFF (8/16-bit), JPEG XL (8/16-bit)
+- Push edited results back to Immich as a new asset
+
+## What does not work yet
+
+- Single-user only. One shared auth token, no accounts.
+- No HDR output, no DNG export, no PSD compatibility, no LUT support
+- No AI features
+- No presets
+- Histograms and clipping warnings are basic
+- No mobile layout
+- No undo history beyond the current session
+- CPU rendering is slow; use the GPU path if you can
 
 ## Quick start
 
+The Docker Hub image is not published yet. For now, Docker Compose builds the image locally.
+
 ```bash
-docker run --rm -p 3000:3000 \
-  -e IMMICH_URL=http://your-immich:2283 \
-  -e IMMICH_API_KEY=your-key \
-  -v immich-edit-cache:/cache \
-  immich-edit:local
+git clone https://github.com/haavardnk/immich-edit.git
+cd immich-edit
+cp .env.example .env
+cp docker-compose.example.yml docker-compose.yml
+# edit .env
+docker compose up -d
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` and log in with the token.
+
+`AUTH_TOKEN` is optional only when the server binds to a loopback address. The Docker Compose example binds to `0.0.0.0`, so set a token unless you also change the bind/security settings.
 
 ## Configuration
 
-All options can be set via environment variables or a TOML config file (set `IMMICH_EDIT_CONFIG` to its path).
+Settings use environment variables. See [.env.example](.env.example) for the full list.
 
-| Variable | Default | Description |
-|---|---|---|
-| `IMMICH_URL` | *(required)* | Immich server URL |
-| `IMMICH_API_KEY` | *(required)* | Immich API key |
-| `BIND_ADDR` | `0.0.0.0:3000` | Listen address |
-| `CACHE_DIR` | `./cache` | Cache and database directory |
-| `PREVIEW_MAX_EDGE` | `4096` | Max preview dimension (256–8192) |
-| `RENDER_MAX_CONCURRENCY` | `2` | Parallel render limit |
-| `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `cpu`, or `gpu` |
-| `DATABASE_URL` | `sqlite://CACHE_DIR/immich-edit.db` | SQLite connection string |
-
-See `config.example.toml` for the file format.
+`IMMICH_URL` and `IMMICH_API_KEY` are required. Most other settings can stay unset.
 
 ## GPU acceleration
 
-wgpu selects the best available backend automatically:
+GPU rendering is much faster than CPU rendering, especially on large RAWs. `wgpu` picks the backend at startup. Check `GET /api/health` to see which renderer is active.
 
-| Platform | Backend | Setup |
+To enable a GPU in Docker, uncomment the matching block in [docker-compose.example.yml](docker-compose.example.yml) and restart.
+
+| Host | Backend | Setup |
 |---|---|---|
-| Linux AMD | Vulkan | `--device /dev/dri` + `mesa-vulkan-drivers` (included in image) |
-| Linux NVIDIA | Vulkan | `nvidia-container-toolkit` + deploy config in compose |
-| macOS (native) | Metal | Works out of the box when running natively |
+| Linux, AMD or Intel iGPU | Vulkan | Pass `/dev/dri` and add `video` + `render` groups. The image includes Mesa Vulkan drivers. |
+| Linux, NVIDIA | Vulkan | Install `nvidia-container-toolkit` on the host and use the `deploy.resources.reservations.devices` block. |
+| macOS, native | Metal | Run the binary directly. |
+| macOS, in Docker | none | Falls back to CPU. Metal cannot be passed into a container. |
 
-Set `IMMICH_EDIT_RENDERER=cpu` to force CPU mode. `auto` (default) tries GPU first and falls back to CPU on failure.
+`IMMICH_EDIT_RENDERER` controls the renderer:
 
-Check `GET /api/health` to see which renderer is active and the GPU adapter name.
+- `auto` (default): use GPU when available, otherwise use CPU
+- `gpu`: prefer GPU and log an error if it is missing, then use CPU
+- `cpu`: use CPU only
+
+If the GPU path is not active, check the backend startup logs for the wgpu adapter line.
 
 ## Development
 
-Native builds need libheif, libjxl, libturbojpeg, and pkg-config available.
+Local development runs without Docker. The backend uses `cargo run`; the frontend uses Vite. See [CONTRIBUTING.md](CONTRIBUTING.md) for system dependencies and commands.
+
+Tests:
 
 ```bash
-# macOS
-brew install libheif jpeg-xl libde265 aom jpeg-turbo pkg-config
-
-# Debian/Ubuntu (trixie or newer for libheif ≥ 1.17)
-sudo apt install libheif-dev libheif-plugins-all libjxl-dev libturbojpeg0-dev pkg-config
-```
-
-```bash
-# Backend (Rust)
-cargo run -p backend
-
-# Frontend (SvelteKit dev server, proxies /api to backend)
-cd web && npm install && npm run dev
-
-# Tests
 cargo test --workspace
-cd web && npx svelte-check
-```
-
-Or use `docker compose -f docker-compose.dev.yml up` for a containerized dev setup with file watching.
-
-## Building
-
-```bash
-# Docker image
-docker build -t immich-edit:local .
-
-# Native
-cargo build --release --bin immich-edit
-cd web && npm ci && npm run build
-# Point WEB_DIR at web/build when running the binary
+cd web && npm run check
 ```
 
 ## License
 
-AGPL-3.0-only
+[AGPL-3.0-only](LICENSE).
+
+Use it, modify it, run it on your own server. If you host a modified version where other people can reach it over a network, you have to make your source available to those users.
+
+## Acknowledgments
+
+- [Immich](https://immich.app/) for the platform this plugs into
+- [RapidRAW](https://github.com/CyberTimon/RapidRAW) for pipeline inspiration
+- [rawler](https://github.com/dnglab/dnglab) for RAW parsing
+- [wgpu](https://wgpu.rs/) for GPU rendering in Rust
+- [lensfun](https://lensfun.github.io/) for the lens correction database
