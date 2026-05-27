@@ -774,14 +774,15 @@ class EditorStore {
         crop: null
       }
     };
+    let url: string | null = null;
     try {
       const { blob } = await livePreview(this.assetId, canonical, LIVE_EDGE, 'none');
-      const url = makeObjectUrl(blob);
+      url = makeObjectUrl(blob);
       const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
         img.onerror = () => reject(new Error('pinned preview decode failed'));
-        img.src = url;
+        img.src = url as string;
       });
       const sess = this.cropSession;
       if (!sess || dims.w <= 0 || dims.h <= 0) {
@@ -794,6 +795,7 @@ class EditorStore {
       sess.srcH = dims.h;
       sess.pinnedReady = true;
     } catch (e) {
+      if (url) revoke(url);
       this.error = (e as Error).message;
     }
   }
