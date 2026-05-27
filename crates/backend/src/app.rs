@@ -1,24 +1,49 @@
 use std::time::Duration;
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::extract::{DefaultBodyLimit, Request, State};
+use axum::http::header::{HeaderName, HeaderValue};
+use axum::http::{Method, StatusCode};
+use axum::middleware::{Next, from_fn_with_state};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use tower::ServiceBuilder;
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::compression::CompressionLayer;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::request_id::{
+    MakeRequestId, PropagateRequestIdLayer, RequestId, SetRequestIdLayer,
+};
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
+use uuid::Uuid;
 
-use crate::error::api_not_found;
+use crate::error::{AppError, api_not_found};
 use crate::routes;
 use crate::state::AppState;
+
+const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
+
+#[derive(Clone, Default)]
+struct UuidRequestId;
+
+impl MakeRequestId for UuidRequestId {
+    fn make_request_id<B>(&mut self, _req: &http::Request<B>) -> Option<RequestId> {
+        let id = Uuid::new_v4().to_string();
+        HeaderValue::from_str(&id).ok().map(RequestId::new)
+    }
+}
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(routes::health::health))
+        .route("/health/live", get(routes::health::live))
+        .route("/auth/login", post(routes::auth::login))
+        .route("/auth/logout", post(routes::auth::logout))
         .route("/debug/timings", get(routes::debug::timings))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
@@ -70,7 +95,9 @@ pub fn router(state: AppState) -> Router {
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
-        .fallback(api_not_found);
+        .fallback(api_not_found)
+        .layer(from_fn_with_state(state.clone(), debug_gate))
+        .layer(from_fn_with_state(state.clone(), auth_middleware));
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
     let fallback_file = format!("{web_dir}/200.html");
@@ -82,16 +109,89 @@ pub fn router(state: AppState) -> Router {
         root = root.fallback_service(spa);
     }
 
+    let body_bytes = (state.config.max_body_mb as usize).saturating_mul(1024 * 1024);
+    let cors = build_cors(&state.config.allowed_origins);
+
     root.with_state(state).layer(
         ServiceBuilder::new()
+            .layer(SetRequestIdLayer::new(
+                REQUEST_ID_HEADER.clone(),
+                UuidRequestId,
+            ))
+            .layer(PropagateRequestIdLayer::new(REQUEST_ID_HEADER.clone()))
             .layer(TraceLayer::new_for_http())
+            .layer(CatchPanicLayer::new())
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("x-content-type-options"),
+                HeaderValue::from_static("nosniff"),
+            ))
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("referrer-policy"),
+                HeaderValue::from_static("no-referrer"),
+            ))
+            .layer(SetResponseHeaderLayer::if_not_present(
+                HeaderName::from_static("x-frame-options"),
+                HeaderValue::from_static("DENY"),
+            ))
             .layer(CompressionLayer::new())
-            .layer(DefaultBodyLimit::max(128 * 1024 * 1024))
-            .layer(RequestBodyLimitLayer::new(128 * 1024 * 1024))
+            .layer(DefaultBodyLimit::max(body_bytes))
+            .layer(RequestBodyLimitLayer::new(body_bytes))
             .layer(TimeoutLayer::with_status_code(
                 StatusCode::REQUEST_TIMEOUT,
                 Duration::from_secs(60),
             ))
-            .layer(CorsLayer::permissive()),
+            .layer(cors),
     )
+}
+
+fn build_cors(allowed: &[String]) -> CorsLayer {
+    let methods = [
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::OPTIONS,
+    ];
+    let base = CorsLayer::new()
+        .allow_methods(methods)
+        .allow_credentials(true)
+        .allow_headers([
+            HeaderName::from_static("content-type"),
+            HeaderName::from_static("authorization"),
+            HeaderName::from_static("x-request-id"),
+        ]);
+    if allowed.is_empty() {
+        return base;
+    }
+    let origins: Vec<HeaderValue> = allowed
+        .iter()
+        .filter_map(|o| HeaderValue::from_str(o).ok())
+        .collect();
+    base.allow_origin(AllowOrigin::list(origins))
+}
+
+async fn auth_middleware(
+    State(state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let path = req.uri().path();
+    if path == "/health/live" || path == "/auth/login" {
+        return next.run(req).await;
+    }
+    let Some(expected) = state.config.auth_token.clone() else {
+        return next.run(req).await;
+    };
+    let token = routes::auth::extract_token(req.headers());
+    match token {
+        Some(t) if routes::auth::ct_eq(t.as_bytes(), expected.as_bytes()) => next.run(req).await,
+        _ => AppError::Unauthorized.into_response(),
+    }
+}
+
+async fn debug_gate(State(state): State<AppState>, req: Request<Body>, next: Next) -> Response {
+    if req.uri().path() == "/debug/timings" && !state.config.debug_endpoints {
+        return AppError::NotFound.into_response();
+    }
+    next.run(req).await
 }

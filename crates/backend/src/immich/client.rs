@@ -22,6 +22,10 @@ pub struct ImmichClient {
 
 impl ImmichClient {
     pub fn new(base: Url, api_key: &str) -> ImmichResult<Self> {
+        Self::with_timeout(base, api_key, Duration::from_secs(120))
+    }
+
+    pub fn with_timeout(base: Url, api_key: &str, request_timeout: Duration) -> ImmichResult<Self> {
         let mut headers = HeaderMap::new();
         let mut key_value = HeaderValue::from_str(api_key)
             .map_err(|_| ImmichError::Decode("invalid api key header".into()))?;
@@ -31,7 +35,7 @@ impl ImmichClient {
 
         let http = Client::builder()
             .default_headers(headers)
-            .timeout(Duration::from_secs(30))
+            .timeout(request_timeout)
             .connect_timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| ImmichError::Transport(e.to_string()))?;

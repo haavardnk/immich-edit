@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -43,12 +44,20 @@ pub struct Config {
     pub immich_url: Url,
     pub immich_api_key: String,
     pub bind_addr: String,
+    pub bind_socket: SocketAddr,
     pub cache_dir: PathBuf,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub renderer: RendererMode,
     pub database_url: String,
+    pub auth_token: Option<String>,
+    pub allowed_origins: Vec<String>,
+    pub debug_endpoints: bool,
+    pub max_body_mb: u64,
+    pub original_timeout_secs: u64,
+    pub export_timeout_secs: u64,
+    pub insecure: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -62,6 +71,13 @@ struct FileConfig {
     mask_cache_mb: Option<u64>,
     renderer: Option<String>,
     database_url: Option<String>,
+    auth_token: Option<String>,
+    allowed_origins: Option<Vec<String>>,
+    debug_endpoints: Option<bool>,
+    max_body_mb: Option<u64>,
+    original_timeout_secs: Option<u64>,
+    export_timeout_secs: Option<u64>,
+    insecure: Option<bool>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -78,6 +94,16 @@ pub enum ConfigError {
     },
     #[error("config file parse: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("cache dir not writable: {path}: {source}")]
+    CacheDir {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error(
+        "AUTH_TOKEN unset and BIND_ADDR is non-loopback ({addr}); set AUTH_TOKEN, bind to 127.0.0.1, or set IMMICH_EDIT_INSECURE=1"
+    )]
+    InsecureBind { addr: String },
 }
 
 impl Config {
@@ -112,6 +138,10 @@ impl Config {
         }
 
         let bind_addr = pick("BIND_ADDR", file.bind_addr).unwrap_or_else(|| "0.0.0.0:3000".into());
+        let bind_socket: SocketAddr = bind_addr.parse().map_err(|_| ConfigError::InvalidValue {
+            key: "BIND_ADDR".into(),
+            value: bind_addr.clone(),
+        })?;
         let cache_dir =
             PathBuf::from(pick("CACHE_DIR", file.cache_dir).unwrap_or_else(|| "./cache".into()));
 
@@ -154,16 +184,62 @@ impl Config {
             format!("sqlite://{}?mode=rwc", p.display())
         });
 
+        let auth_token = pick("AUTH_TOKEN", file.auth_token).and_then(|s| {
+            let t = s.trim().to_string();
+            if t.is_empty() { None } else { Some(t) }
+        });
+
+        let allowed_origins = match std::env::var("ALLOWED_ORIGINS").ok() {
+            Some(s) if !s.is_empty() => s
+                .split(',')
+                .map(|p| p.trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect(),
+            _ => file.allowed_origins.unwrap_or_default(),
+        };
+
+        let debug_endpoints =
+            parse_bool("IMMICH_EDIT_DEBUG", file.debug_endpoints)?.unwrap_or(false);
+        let insecure = parse_bool("IMMICH_EDIT_INSECURE", file.insecure)?.unwrap_or(false);
+
+        let max_body_mb = parse_or("MAX_BODY_MB", file.max_body_mb, 128u64)?;
+        if max_body_mb == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "MAX_BODY_MB".into(),
+                value: "0".into(),
+            });
+        }
+        let original_timeout_secs =
+            parse_or("ORIGINAL_TIMEOUT_SECS", file.original_timeout_secs, 120u64)?;
+        let export_timeout_secs =
+            parse_or("EXPORT_TIMEOUT_SECS", file.export_timeout_secs, 300u64)?;
+
+        if !is_loopback(&bind_socket) && auth_token.is_none() && !insecure {
+            return Err(ConfigError::InsecureBind {
+                addr: bind_addr.clone(),
+            });
+        }
+
+        ensure_cache_writable(&cache_dir)?;
+
         Ok(Self {
             immich_url,
             immich_api_key,
             bind_addr,
+            bind_socket,
             cache_dir,
             preview_max_edge,
             render_max_concurrency,
             mask_cache_mb,
             renderer,
             database_url,
+            auth_token,
+            allowed_origins,
+            debug_endpoints,
+            max_body_mb,
+            original_timeout_secs,
+            export_timeout_secs,
+            insecure,
         })
     }
 
@@ -177,6 +253,13 @@ impl Config {
             render_max_concurrency: self.render_max_concurrency,
             mask_cache_mb: self.mask_cache_mb,
             renderer: self.renderer.as_str(),
+            auth_enabled: self.auth_token.is_some(),
+            allowed_origins: self.allowed_origins.clone(),
+            debug_endpoints: self.debug_endpoints,
+            max_body_mb: self.max_body_mb,
+            original_timeout_secs: self.original_timeout_secs,
+            export_timeout_secs: self.export_timeout_secs,
+            insecure: self.insecure,
         }
     }
 }
@@ -191,6 +274,13 @@ pub struct RedactedConfig {
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub renderer: &'static str,
+    pub auth_enabled: bool,
+    pub allowed_origins: Vec<String>,
+    pub debug_endpoints: bool,
+    pub max_body_mb: u64,
+    pub original_timeout_secs: u64,
+    pub export_timeout_secs: u64,
+    pub insecure: bool,
 }
 
 fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {
@@ -213,6 +303,39 @@ where
         });
     }
     Ok(file_value.unwrap_or(default))
+}
+
+fn parse_bool(env_key: &str, file_value: Option<bool>) -> Result<Option<bool>, ConfigError> {
+    if let Ok(v) = std::env::var(env_key) {
+        let lowered = v.to_ascii_lowercase();
+        return match lowered.as_str() {
+            "1" | "true" | "yes" | "on" => Ok(Some(true)),
+            "0" | "false" | "no" | "off" | "" => Ok(Some(false)),
+            _ => Err(ConfigError::InvalidValue {
+                key: env_key.into(),
+                value: v,
+            }),
+        };
+    }
+    Ok(file_value)
+}
+
+fn is_loopback(addr: &SocketAddr) -> bool {
+    addr.ip().is_loopback()
+}
+
+fn ensure_cache_writable(dir: &PathBuf) -> Result<(), ConfigError> {
+    std::fs::create_dir_all(dir).map_err(|source| ConfigError::CacheDir {
+        path: dir.clone(),
+        source,
+    })?;
+    let probe = dir.join(".immich-edit-write-probe");
+    std::fs::write(&probe, b"ok").map_err(|source| ConfigError::CacheDir {
+        path: dir.clone(),
+        source,
+    })?;
+    let _ = std::fs::remove_file(&probe);
+    Ok(())
 }
 
 fn redact_url(url: &Url) -> String {
@@ -245,6 +368,13 @@ mod tests {
             "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
+            "AUTH_TOKEN",
+            "ALLOWED_ORIGINS",
+            "IMMICH_EDIT_DEBUG",
+            "IMMICH_EDIT_INSECURE",
+            "MAX_BODY_MB",
+            "ORIGINAL_TIMEOUT_SECS",
+            "EXPORT_TIMEOUT_SECS",
         ] {
             unsafe { std::env::remove_var(k) };
         }
@@ -262,6 +392,7 @@ mod tests {
         unsafe {
             std::env::set_var("IMMICH_URL", "http://example.local:2283");
             std::env::set_var("IMMICH_API_KEY", "secret-key");
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
         }
         let cfg = Config::load().unwrap();
         if cfg.immich_url.as_str() != "http://example.local:2283/" {
@@ -321,6 +452,7 @@ mod tests {
         unsafe {
             std::env::set_var("IMMICH_URL", "http://user:pw@example.local");
             std::env::set_var("IMMICH_API_KEY", "supersecret");
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
         }
         let cfg = Config::load().unwrap();
         let red = cfg.redacted();
@@ -346,11 +478,75 @@ mod tests {
         unsafe {
             std::env::set_var("IMMICH_URL", "http://x");
             std::env::set_var("IMMICH_API_KEY", "k");
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
             std::env::set_var("IMMICH_EDIT_RENDERER", "auto");
         }
         let cfg = Config::load().unwrap();
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
+        }
+    }
+
+    #[test]
+    fn rejects_non_loopback_without_auth() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("IMMICH_URL", "http://x");
+            std::env::set_var("IMMICH_API_KEY", "k");
+            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
+        }
+        let err = Config::load().unwrap_err();
+        if !matches!(err, ConfigError::InsecureBind { .. }) {
+            panic!("err {err:?}");
+        }
+    }
+
+    #[test]
+    fn allows_non_loopback_with_auth() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("IMMICH_URL", "http://x");
+            std::env::set_var("IMMICH_API_KEY", "k");
+            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
+            std::env::set_var("AUTH_TOKEN", "tok");
+        }
+        let cfg = Config::load().unwrap();
+        if cfg.auth_token.as_deref() != Some("tok") {
+            panic!("auth");
+        }
+    }
+
+    #[test]
+    fn allows_non_loopback_with_insecure_flag() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("IMMICH_URL", "http://x");
+            std::env::set_var("IMMICH_API_KEY", "k");
+            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
+            std::env::set_var("IMMICH_EDIT_INSECURE", "1");
+        }
+        let cfg = Config::load().unwrap();
+        if !cfg.insecure {
+            panic!("flag");
+        }
+    }
+
+    #[test]
+    fn parses_allowed_origins_csv() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("IMMICH_URL", "http://x");
+            std::env::set_var("IMMICH_API_KEY", "k");
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+            std::env::set_var("ALLOWED_ORIGINS", "http://a.local, http://b.local");
+        }
+        let cfg = Config::load().unwrap();
+        if cfg.allowed_origins != vec!["http://a.local".to_string(), "http://b.local".to_string()] {
+            panic!("origins {:?}", cfg.allowed_origins);
         }
     }
 }

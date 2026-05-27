@@ -12,6 +12,8 @@ pub enum AppError {
     NotFound,
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("unauthorized")]
+    Unauthorized,
     #[error("upstream auth failed")]
     UpstreamAuth,
     #[error("upstream unavailable")]
@@ -35,6 +37,11 @@ impl AppError {
                 "resource not found".into(),
             ),
             Self::BadRequest(m) => (StatusCode::BAD_REQUEST, "bad_request", m.clone()),
+            Self::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "authentication required".into(),
+            ),
             Self::UpstreamAuth => (
                 StatusCode::BAD_GATEWAY,
                 "upstream_auth",

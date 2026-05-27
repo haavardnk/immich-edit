@@ -16,6 +16,13 @@ export class NetworkError extends Error {
   }
 }
 
+function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname === '/login') return;
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.replace(`/login?next=${next}`);
+}
+
 async function parseError(resp: Response): Promise<ApiError> {
   let code = 'unknown';
   let message = resp.statusText || 'request failed';
@@ -31,6 +38,10 @@ async function parseError(resp: Response): Promise<ApiError> {
 
 function reportError(err: unknown): void {
   if (err instanceof ApiError) {
+    if (err.status === 401 && err.code === 'unauthorized') {
+      redirectToLogin();
+      return;
+    }
     if (err.code === 'upstream_unavailable') {
       toasts.push('error', 'Immich server unavailable. Check IMMICH_URL and that Immich is running.');
     } else if (err.code === 'upstream_auth') {
@@ -49,7 +60,7 @@ function reportError(err: unknown): void {
 
 async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
   try {
-    return await fetch(input, init);
+    return await fetch(input, { credentials: 'same-origin', ...init });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     const netErr = new NetworkError((err as Error)?.message ?? 'network error');

@@ -404,3 +404,149 @@ async fn raster_upload_rejects_bad_size() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn live_endpoint_works_without_auth() {
+    let server = MockServer::start().await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.auth_token = Some("secret".into());
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health/live")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    assert_eq!(json["status"], "ok");
+}
+
+#[tokio::test]
+async fn protected_route_requires_auth_when_token_set() {
+    let server = MockServer::start().await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.auth_token = Some("secret".into());
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn protected_route_accepts_bearer_token() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.auth_token = Some("secret".into());
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .header("authorization", "Bearer secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn login_sets_cookie_then_protects() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.auth_token = Some("secret".into());
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/login")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"token":"secret"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookie = resp
+        .headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(cookie.contains("immich_edit_auth=secret"));
+
+    let send_cookie = cookie.split(';').next().unwrap().to_string();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .header("cookie", send_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn debug_timings_hidden_when_disabled() {
+    let server = MockServer::start().await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.debug_endpoints = false;
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/debug/timings")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn request_id_header_propagated() {
+    let server = MockServer::start().await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health/live")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(resp.headers().get("x-request-id").is_some());
+}

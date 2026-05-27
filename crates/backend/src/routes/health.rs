@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
+use serde_json::{Value, json};
 
 use crate::state::AppState;
 
@@ -15,6 +16,10 @@ pub struct Health {
     pub db_ready: bool,
     pub db_migration_version: Option<i64>,
     pub config: crate::config::RedactedConfig,
+}
+
+pub async fn live() -> Json<Value> {
+    Json(json!({ "status": "ok" }))
 }
 
 pub async fn health(State(state): State<AppState>) -> Json<Health> {

@@ -23,8 +23,12 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let immich = ImmichClient::new(config.immich_url.clone(), &config.immich_api_key)
-            .map_err(|e| anyhow::anyhow!("immich client: {e}"))?;
+        let immich = ImmichClient::with_timeout(
+            config.immich_url.clone(),
+            &config.immich_api_key,
+            std::time::Duration::from_secs(config.original_timeout_secs),
+        )
+        .map_err(|e| anyhow::anyhow!("immich client: {e}"))?;
         if let Some(parent) = std::path::Path::new(&config.cache_dir).parent() {
             let _ = std::fs::create_dir_all(parent);
         }

@@ -54,10 +54,11 @@ export async function downloadExport(
   const base = `/api/assets/${assetId}/export`;
   let resp: Response;
   if (isIdentity(edits)) {
-    resp = await fetch(base + queryString(opts));
+    resp = await fetch(base + queryString(opts), { credentials: 'same-origin' });
   } else {
     resp = await fetch(base, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         edits,
@@ -100,6 +101,7 @@ export async function uploadToImmich(
 ): Promise<ImmichExportResult> {
   const resp = await fetch(`/api/assets/${assetId}/export/immich`, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       edits,

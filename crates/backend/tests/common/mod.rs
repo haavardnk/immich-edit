@@ -24,12 +24,20 @@ pub async fn test_state(server: &MockServer) -> AppState {
         immich_url: base,
         immich_api_key: "test-key".into(),
         bind_addr: "127.0.0.1:0".into(),
+        bind_socket: "127.0.0.1:0".parse().unwrap(),
         cache_dir: cache_dir.clone(),
         preview_max_edge: 1024,
         render_max_concurrency: 1,
         mask_cache_mb: 1024,
         renderer: RendererMode::Cpu,
         database_url: "sqlite::memory:".into(),
+        auth_token: None,
+        allowed_origins: Vec::new(),
+        debug_endpoints: true,
+        max_body_mb: 128,
+        original_timeout_secs: 120,
+        export_timeout_secs: 300,
+        insecure: true,
     };
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     AppState {

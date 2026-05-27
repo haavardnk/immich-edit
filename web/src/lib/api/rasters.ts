@@ -14,6 +14,7 @@ export async function uploadRaster(
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const r = await fetch(`/api/rasters?width=${width}&height=${height}`, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'content-type': 'application/octet-stream' },
     body: buf
   });
@@ -24,7 +25,7 @@ export async function uploadRaster(
 export async function fetchRaster(
   rasterId: string
 ): Promise<{ width: number; height: number; bytes: Uint8Array }> {
-  const r = await fetch(`/api/rasters/${rasterId}`);
+  const r = await fetch(`/api/rasters/${rasterId}`, { credentials: 'same-origin' });
   if (!r.ok) throw new Error(`raster fetch failed: ${r.status}`);
   const width = Number(r.headers.get('x-raster-width') ?? 0);
   const height = Number(r.headers.get('x-raster-height') ?? 0);
