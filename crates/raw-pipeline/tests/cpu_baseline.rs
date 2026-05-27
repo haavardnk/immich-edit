@@ -73,7 +73,8 @@ fn compute_metrics(rgb: &[u8], width: usize, height: usize) -> Baseline {
         for x in 0..width {
             let gx = (x * GRID / width).min(GRID - 1);
             let i = (y * width + x) * 3;
-            let l = 0.2126 * rgb[i] as f64 + 0.7152 * rgb[i + 1] as f64 + 0.0722 * rgb[i + 2] as f64;
+            let l =
+                0.2126 * rgb[i] as f64 + 0.7152 * rgb[i + 1] as f64 + 0.0722 * rgb[i + 2] as f64;
             grid_sum[gy * GRID + gx] += l;
             grid_count[gy * GRID + gx] += 1;
         }
@@ -116,9 +117,7 @@ fn diff(current: &Baseline, base: &Baseline) -> Vec<String> {
     for c in 0..3 {
         let d = (current.mean_rgb[c] - base.mean_rgb[c]).abs();
         if d > MEAN_RGB_TOL {
-            errs.push(format!(
-                "mean ch{c} diff {d:.3} > {MEAN_RGB_TOL}"
-            ));
+            errs.push(format!("mean ch{c} diff {d:.3} > {MEAN_RGB_TOL}"));
         }
     }
     if current.luma_grid.len() != base.luma_grid.len() {
@@ -136,10 +135,14 @@ fn diff(current: &Baseline, base: &Baseline) -> Vec<String> {
     }
     let mean_cell = sum_cell / current.luma_grid.len() as f64;
     if max_cell > GRID_CELL_TOL {
-        errs.push(format!("luma grid max cell diff {max_cell:.3} > {GRID_CELL_TOL}"));
+        errs.push(format!(
+            "luma grid max cell diff {max_cell:.3} > {GRID_CELL_TOL}"
+        ));
     }
     if mean_cell > GRID_MEAN_TOL {
-        errs.push(format!("luma grid mean diff {mean_cell:.3} > {GRID_MEAN_TOL}"));
+        errs.push(format!(
+            "luma grid mean diff {mean_cell:.3} > {GRID_MEAN_TOL}"
+        ));
     }
     errs
 }
@@ -168,9 +171,7 @@ fn cpu_baseline_per_fixture() {
             eprintln!("skip {name}: decode or render failed");
             continue;
         };
-        if !bake
-            && let Some(base) = existing.get(&name)
-        {
+        if !bake && let Some(base) = existing.get(&name) {
             let errs = diff(&m, base);
             if !errs.is_empty() {
                 failed.push(format!("{name}: {}", errs.join("; ")));
@@ -189,7 +190,10 @@ fn cpu_baseline_per_fixture() {
         return;
     }
 
-    let missing: Vec<&String> = current.keys().filter(|k| !existing.contains_key(*k)).collect();
+    let missing: Vec<&String> = current
+        .keys()
+        .filter(|k| !existing.contains_key(*k))
+        .collect();
     if !missing.is_empty() {
         panic!(
             "no baseline for: {}. Run with BAKE_BASELINE=1 to generate.",

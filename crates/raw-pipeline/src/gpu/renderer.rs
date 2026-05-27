@@ -2436,9 +2436,8 @@ impl GpuRenderer {
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
                 let src_max = dims.0.max(dims.1);
                 let out_max = out_w.max(out_h);
-                let preview_active = !options.quality
-                    && out_max >= 256
-                    && src_max >= out_max.saturating_mul(2);
+                let preview_active =
+                    !options.quality && out_max >= 256 && src_max >= out_max.saturating_mul(2);
                 let (spatial_dims, wb_base) = if preview_active {
                     let scale = (out_max as f32 / src_max as f32).min(1.0);
                     let preview_sw = ((dims.0 as f32 * scale).round() as u32).max(1);
@@ -2460,19 +2459,11 @@ impl GpuRenderer {
                 };
                 let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm = self.atmosphere_for(
-                        frame,
-                        &edits_c,
-                        presence_src,
-                        spatial_dims,
-                        cancel,
-                    )?;
-                    let _span = tracing::debug_span!(
-                        "gpu_dehaze",
-                        w = spatial_dims.0,
-                        h = spatial_dims.1
-                    )
-                    .entered();
+                    let atm =
+                        self.atmosphere_for(frame, &edits_c, presence_src, spatial_dims, cancel)?;
+                    let _span =
+                        tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
+                            .entered();
                     let t = self.run_dehaze(presence_src, spatial_dims, &edits_c, atm)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
@@ -2561,9 +2552,9 @@ impl GpuRenderer {
         u[4..8].copy_from_slice(&th.to_le_bytes());
         u[8..12].copy_from_slice(&1u32.to_le_bytes());
         u[12..16].copy_from_slice(&src_lod.to_le_bytes());
-        let uniform_buf =
-            self.uniform_pool
-                .acquire(device, queue, &u, "preview-downsample-u");
+        let uniform_buf = self
+            .uniform_pool
+            .acquire(device, queue, &u, "preview-downsample-u");
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let dst_view = dst.create_view(&TextureViewDescriptor::default());
