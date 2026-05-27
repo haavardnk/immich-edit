@@ -2,7 +2,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { album } from '$lib/stores/album.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiLoading } from '@mdi/js';
+  import { mdiLoading, mdiCogOutline } from '@mdi/js';
 
   const subtitle = $derived(
     editor.assetId
@@ -27,6 +27,15 @@
   {#if editor.pending}
     <Icon path={mdiLoading} size={16} class="animate-spin text-immich-dark-primary/70" />
   {/if}
+
+  <a
+    href="/settings"
+    class="p-1.5 hover:bg-white/10 rounded transition-colors text-immich-dark-fg/60 hover:text-immich-dark-fg"
+    title="Settings &amp; diagnostics"
+    aria-label="Settings"
+  >
+    <Icon path={mdiCogOutline} size={16} />
+  </a>
 </header>
 
 
