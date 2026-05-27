@@ -1,10 +1,13 @@
-use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
+use lru::LruCache;
 use raw_pipeline::histogram::Histogram;
 use serde::Serialize;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use uuid::Uuid;
+
+const DEFAULT_CAP: usize = 512;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PreviewMeta {
@@ -19,9 +22,15 @@ pub struct PreviewMeta {
     pub linear_histogram: Option<Histogram>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct PreviewMetaStore {
-    inner: Arc<RwLock<HashMap<Uuid, PreviewMeta>>>,
+    inner: Arc<Mutex<LruCache<Uuid, PreviewMeta>>>,
+}
+
+impl Default for PreviewMetaStore {
+    fn default() -> Self {
+        Self::with_capacity(DEFAULT_CAP)
+    }
 }
 
 impl PreviewMetaStore {
@@ -29,13 +38,20 @@ impl PreviewMetaStore {
         Self::default()
     }
 
+    pub fn with_capacity(cap: usize) -> Self {
+        let n = NonZeroUsize::new(cap.max(1)).unwrap();
+        Self {
+            inner: Arc::new(Mutex::new(LruCache::new(n))),
+        }
+    }
+
     pub async fn put(&self, meta: PreviewMeta) -> Uuid {
         let id = Uuid::new_v4();
-        self.inner.write().await.insert(id, meta);
+        self.inner.lock().await.put(id, meta);
         id
     }
 
     pub async fn get(&self, id: Uuid) -> Option<PreviewMeta> {
-        self.inner.read().await.get(&id).cloned()
+        self.inner.lock().await.get(&id).cloned()
     }
 }

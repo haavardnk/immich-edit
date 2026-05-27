@@ -340,11 +340,10 @@ async fn run_idempotent(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::R
 }
 
 fn is_retryable(err: &ImmichError) -> bool {
-    match err {
-        ImmichError::Status(502 | 503 | 504) => true,
-        ImmichError::Transport(_) | ImmichError::Timeout => true,
-        _ => false,
-    }
+    matches!(
+        err,
+        ImmichError::Status(502..=504) | ImmichError::Transport(_) | ImmichError::Timeout
+    )
 }
 
 fn jitter_ms(base: u64) -> u64 {

@@ -18,6 +18,10 @@ impl CancelTracker {
             generation: g,
         }
     }
+
+    pub fn cancel_all(&self) {
+        self.latest.fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 #[derive(Clone)]

@@ -1,29 +1,46 @@
-use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
+use std::time::Duration;
 
+use lru::LruCache;
 use raw_pipeline::CancelTracker;
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
+const TRACKER_CAP: usize = 1024;
+const LATEST_CAP: usize = 1024;
+
 #[derive(Clone)]
 pub struct RenderQueue {
+    max_concurrency: usize,
     semaphore: Arc<Semaphore>,
-    latest: Arc<Mutex<HashMap<Uuid, u64>>>,
-    trackers: Arc<Mutex<HashMap<Uuid, CancelTracker>>>,
+    latest: Arc<Mutex<LruCache<Uuid, u64>>>,
+    trackers: Arc<Mutex<LruCache<Uuid, CancelTracker>>>,
 }
 
 impl RenderQueue {
     pub fn new(max_concurrency: usize) -> Self {
+        let cap = max_concurrency.max(1);
         Self {
-            semaphore: Arc::new(Semaphore::new(max_concurrency.max(1))),
-            latest: Arc::new(Mutex::new(HashMap::new())),
-            trackers: Arc::new(Mutex::new(HashMap::new())),
+            max_concurrency: cap,
+            semaphore: Arc::new(Semaphore::new(cap)),
+            latest: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(LATEST_CAP).unwrap(),
+            ))),
+            trackers: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(TRACKER_CAP).unwrap(),
+            ))),
         }
     }
 
     pub async fn tracker(&self, asset_id: Uuid) -> CancelTracker {
         let mut map = self.trackers.lock().await;
-        map.entry(asset_id).or_default().clone()
+        if let Some(t) = map.get(&asset_id) {
+            return t.clone();
+        }
+        let t = CancelTracker::default();
+        map.put(asset_id, t.clone());
+        t
     }
 
     pub async fn enqueue<F, T, E>(&self, asset_id: Uuid, work: F) -> Option<Result<T, E>>
@@ -32,14 +49,14 @@ impl RenderQueue {
     {
         let ticket: u64 = {
             let mut map = self.latest.lock().await;
-            let counter = map.entry(asset_id).or_insert(0);
+            let counter = map.get_or_insert_mut(asset_id, || 0u64);
             *counter = counter.wrapping_add(1);
             *counter
         };
 
         let permit = self.semaphore.clone().acquire_owned().await.ok()?;
         {
-            let map = self.latest.lock().await;
+            let mut map = self.latest.lock().await;
             if map.get(&asset_id).copied() != Some(ticket) {
                 drop(permit);
                 return None;
@@ -49,6 +66,26 @@ impl RenderQueue {
         let result = work.await;
         drop(permit);
         Some(result)
+    }
+
+    pub async fn shutdown(&self, timeout: Duration) {
+        self.semaphore.close();
+        {
+            let trackers = self.trackers.lock().await;
+            for (_, t) in trackers.iter() {
+                t.cancel_all();
+            }
+        }
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            if self.semaphore.available_permits() >= self.max_concurrency {
+                break;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
     }
 }
 
