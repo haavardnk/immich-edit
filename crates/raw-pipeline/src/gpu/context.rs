@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use wgpu::{
     Adapter, AdapterInfo, Backends, Device, DeviceDescriptor, Features, Instance,
@@ -15,6 +16,7 @@ pub struct GpuContext {
     pub queue: Queue,
     pub adapter_info: AdapterInfo,
     pub linear_format: TextureFormat,
+    device_lost: Arc<AtomicBool>,
 }
 
 impl GpuContext {
@@ -67,6 +69,13 @@ impl GpuContext {
             .await
             .map_err(|e| PipelineError::Unsupported(format!("gpu device: {e}")))?;
 
+        let device_lost = Arc::new(AtomicBool::new(false));
+        let flag = device_lost.clone();
+        device.set_device_lost_callback(move |reason, msg| {
+            tracing::error!(?reason, msg = %msg, "gpu device lost");
+            flag.store(true, Ordering::SeqCst);
+        });
+
         Ok(Arc::new(Self {
             instance,
             adapter,
@@ -74,7 +83,12 @@ impl GpuContext {
             queue,
             adapter_info,
             linear_format,
+            device_lost,
         }))
+    }
+
+    pub fn is_lost(&self) -> bool {
+        self.device_lost.load(Ordering::SeqCst)
     }
 
     pub fn adapter_label(&self) -> String {

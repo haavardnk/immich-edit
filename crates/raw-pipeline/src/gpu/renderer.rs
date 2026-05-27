@@ -111,6 +111,10 @@ impl GpuRenderer {
         self.ctx.adapter_label()
     }
 
+    pub fn is_lost(&self) -> bool {
+        self.ctx.is_lost()
+    }
+
     fn frame_key(frame: &RawFrame) -> u64 {
         let ptr = frame.data.as_ptr() as usize as u64;
         let dims = ((frame.width as u64) << 32) | (frame.height as u64);
@@ -361,6 +365,7 @@ impl GpuRenderer {
         edits: &Edits,
         opts: &RenderOptions,
         shadows_blur: Option<&wgpu::TextureView>,
+        cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
@@ -973,8 +978,8 @@ impl GpuRenderer {
         copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);
         queue.submit(Some(encoder.finish()));
 
-        let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h)?;
-        let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h)?;
+        let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h, cancel)?;
+        let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel)?;
         drop(pool);
 
         let ((histogram, linear_histogram), bytes) = rayon::join(
@@ -1470,6 +1475,7 @@ impl GpuRenderer {
         edits: &Edits,
         src: &Texture,
         dims: (u32, u32),
+        cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<[f32; 3]> {
         let key = atmosphere_cache_key(frame, edits, dims);
         if let Some(a) = self.atm_cache.lock().get(&key).copied() {
@@ -1477,12 +1483,17 @@ impl GpuRenderer {
             return Ok(a);
         }
         let _span = tracing::debug_span!("gpu_dehaze_atm", w = dims.0, h = dims.1).entered();
-        let atm = self.estimate_atmosphere(src, dims)?;
+        let atm = self.estimate_atmosphere(src, dims, cancel)?;
         self.atm_cache.lock().put(key, atm);
         Ok(atm)
     }
 
-    fn estimate_atmosphere(&self, src: &Texture, dims: (u32, u32)) -> PipelineResult<[f32; 3]> {
+    fn estimate_atmosphere(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<[f32; 3]> {
         let (w, h) = dims;
         let max_dim = w.max(h);
         let level: u32 = if max_dim <= 256 {
@@ -1538,16 +1549,8 @@ impl GpuRenderer {
         );
         self.ctx.queue.submit(Some(encoder.finish()));
 
+        super::readback::map_buffer_cancellable(&self.ctx, &buf, cancel)?;
         let slice = buf.slice(..);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        slice.map_async(wgpu::MapMode::Read, move |r| {
-            let _ = sender.send(r);
-        });
-        self.ctx.device.poll(wgpu::Maintain::Wait);
-        receiver
-            .recv()
-            .map_err(|e| PipelineError::Render(format!("atm recv: {e}")))?
-            .map_err(|e| PipelineError::Render(format!("atm map: {e}")))?;
         let data = slice.get_mapped_range();
         let px_count = (wl * hl) as usize;
         let mut rgb = Vec::with_capacity(px_count * 3);
@@ -2370,6 +2373,9 @@ impl GpuRenderer {
         options: &RenderOptions,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
+        if self.ctx.is_lost() {
+            return Err(PipelineError::DeviceLost);
+        }
         crate::cancel::check(cancel)?;
         let plan = RenderPlan::select(edits);
         let cached = self.get_or_demosaic(frame)?;
@@ -2393,6 +2399,7 @@ impl GpuRenderer {
                     edits,
                     options,
                     None,
+                    cancel,
                 )?;
                 crate::cancel::check(cancel)?;
                 Ok(out)
@@ -2410,7 +2417,7 @@ impl GpuRenderer {
                 };
                 let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm = self.atmosphere_for(frame, &edits_c, presence_src, dims)?;
+                    let atm = self.atmosphere_for(frame, &edits_c, presence_src, dims, cancel)?;
                     let _span =
                         tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
                     let t = self.run_dehaze(presence_src, dims, &edits_c, atm)?;
@@ -2445,6 +2452,7 @@ impl GpuRenderer {
                     edits,
                     options,
                     shadows_view.as_ref(),
+                    cancel,
                 )?;
                 crate::cancel::check(cancel)?;
                 drop(shadows_view);

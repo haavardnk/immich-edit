@@ -30,6 +30,8 @@ pub enum PipelineError {
     Unsupported(String),
     #[error("cancelled")]
     Cancelled,
+    #[error("gpu device lost")]
+    DeviceLost,
 }
 
 pub type PipelineResult<T> = Result<T, PipelineError>;

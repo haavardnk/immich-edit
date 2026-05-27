@@ -1,11 +1,17 @@
 // color-space: sRGB-encoded Rgba8Unorm in (after tone-map in process or effects_tone) → 8-bit sRGB bytes out
+use std::sync::mpsc::TryRecvError;
+use std::time::Duration;
+
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d, ImageCopyBuffer,
     ImageDataLayout, MapMode, Origin3d, Texture, TextureAspect,
 };
 
 use super::context::GpuContext;
+use crate::cancel::CancelToken;
 use crate::{PipelineError, PipelineResult};
+
+const CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(1);
 
 const ROW_ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 
@@ -81,24 +87,49 @@ pub fn copy_texture_to_buffer(
     );
 }
 
-pub fn read_rgba8(
+pub fn map_buffer_cancellable(
     ctx: &GpuContext,
     buffer: &Buffer,
-    width: u32,
-    height: u32,
-) -> PipelineResult<Vec<u8>> {
-    let padded = padded_row_bytes(width) as usize;
-    let unpadded = (width * 4) as usize;
+    cancel: Option<&CancelToken>,
+) -> PipelineResult<()> {
     let slice = buffer.slice(..);
     let (sender, receiver) = std::sync::mpsc::channel();
     slice.map_async(MapMode::Read, move |r| {
         let _ = sender.send(r);
     });
-    ctx.device.poll(wgpu::Maintain::Wait);
-    receiver
-        .recv()
-        .map_err(|e| PipelineError::Render(format!("readback recv: {e}")))?
-        .map_err(|e| PipelineError::Render(format!("readback map: {e}")))?;
+    loop {
+        ctx.device.poll(wgpu::Maintain::Poll);
+        match receiver.try_recv() {
+            Ok(result) => {
+                result.map_err(|e| PipelineError::Render(format!("readback map: {e}")))?;
+                return Ok(());
+            }
+            Err(TryRecvError::Empty) => {
+                if let Some(tok) = cancel
+                    && tok.is_cancelled()
+                {
+                    return Err(crate::PipelineError::Cancelled);
+                }
+                std::thread::sleep(CANCEL_POLL_INTERVAL);
+            }
+            Err(TryRecvError::Disconnected) => {
+                return Err(PipelineError::Render("readback channel closed".into()));
+            }
+        }
+    }
+}
+
+pub fn read_rgba8(
+    ctx: &GpuContext,
+    buffer: &Buffer,
+    width: u32,
+    height: u32,
+    cancel: Option<&CancelToken>,
+) -> PipelineResult<Vec<u8>> {
+    let padded = padded_row_bytes(width) as usize;
+    let unpadded = (width * 4) as usize;
+    map_buffer_cancellable(ctx, buffer, cancel)?;
+    let slice = buffer.slice(..);
 
     let data = slice.get_mapped_range();
     let mut out = Vec::with_capacity(unpadded * height as usize);
@@ -116,19 +147,12 @@ pub fn read_rgba16f_as_rgb(
     buffer: &Buffer,
     width: u32,
     height: u32,
+    cancel: Option<&CancelToken>,
 ) -> PipelineResult<Vec<f32>> {
     let padded = padded_row_bytes_f16(width) as usize;
     let unpadded_bytes = (width * 8) as usize;
+    map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);
-    let (sender, receiver) = std::sync::mpsc::channel();
-    slice.map_async(MapMode::Read, move |r| {
-        let _ = sender.send(r);
-    });
-    ctx.device.poll(wgpu::Maintain::Wait);
-    receiver
-        .recv()
-        .map_err(|e| PipelineError::Render(format!("readback recv: {e}")))?
-        .map_err(|e| PipelineError::Render(format!("readback map: {e}")))?;
 
     let data = slice.get_mapped_range();
     let px_count = (width * height) as usize;
