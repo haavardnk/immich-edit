@@ -19,6 +19,7 @@ use crate::state::AppState;
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(routes::health::health))
+        .route("/debug/timings", get(routes::debug::timings))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
         .route("/people", get(routes::people::list))

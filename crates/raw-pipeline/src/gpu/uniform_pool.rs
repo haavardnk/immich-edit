@@ -57,6 +57,11 @@ impl UniformPool {
             v.push(buf);
         }
     }
+
+    pub fn bytes(&self) -> u64 {
+        let g = self.free.lock();
+        g.iter().map(|(s, v)| s * v.len() as u64).sum()
+    }
 }
 
 pub struct PooledUniform {

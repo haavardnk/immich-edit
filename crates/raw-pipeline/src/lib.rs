@@ -44,6 +44,7 @@ pub use cancel::{CancelToken, CancelTracker};
 pub use frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage, TiffCompression,
 };
+pub use gpu::GpuPoolStats;
 pub use gpu::GpuRenderer;
 pub use gpu::context::GpuContext;
 pub use mask_raster::{MaskRaster, RasterMap, empty_rasters};

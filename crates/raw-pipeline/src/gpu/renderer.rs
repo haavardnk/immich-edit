@@ -61,6 +61,49 @@ impl RenderPlan {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct GpuPoolStats {
+    pub texture_pool: u64,
+    pub uniform_pool: u64,
+    pub output_targets: u64,
+    pub sharpen_targets: u64,
+    pub wb_cache: u64,
+    pub nr_cache: u64,
+    pub atlas_cache: u64,
+}
+
+fn texture_bytes(tex: &Texture) -> u64 {
+    let bpp = tex.format().block_copy_size(None).unwrap_or(0) as u64;
+    let w = tex.width() as u64;
+    let h = tex.height() as u64;
+    let mips = tex.mip_level_count();
+    let mut total: u64 = 0;
+    for level in 0..mips {
+        let lw = (w >> level).max(1);
+        let lh = (h >> level).max(1);
+        total += lw * lh * bpp;
+    }
+    total
+}
+
+fn output_targets_bytes(o: &OutputTargets) -> u64 {
+    texture_bytes(&o.texture)
+        + o.readback.size()
+        + texture_bytes(&o.linear_texture)
+        + o.linear_readback.size()
+        + texture_bytes(&o.mask_accum_alt)
+        + texture_bytes(&o.mask_scratch_linear)
+        + texture_bytes(&o.mask_scratch_tone)
+        + texture_bytes(&o.mask_weight)
+}
+
+fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {
+    texture_bytes(&s.blur_h)
+        + texture_bytes(&s.blur_full)
+        + texture_bytes(&s.sharpened_lin)
+        + texture_bytes(&s.post_lin)
+}
+
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
@@ -114,6 +157,48 @@ impl GpuRenderer {
 
     pub fn adapter_label(&self) -> String {
         self.ctx.adapter_label()
+    }
+
+    pub fn pool_stats(&self) -> GpuPoolStats {
+        let output_bytes = self
+            .output_pool
+            .lock()
+            .iter()
+            .map(output_targets_bytes)
+            .sum();
+        let sharpen_bytes = self
+            .sharpen_pool
+            .lock()
+            .iter()
+            .map(sharpen_targets_bytes)
+            .sum();
+        let wb_cache_bytes = self
+            .wb_cache
+            .lock()
+            .iter()
+            .map(|(_, t)| texture_bytes(t))
+            .sum();
+        let nr_cache_bytes = self
+            .nr_cache
+            .lock()
+            .iter()
+            .map(|(_, t)| texture_bytes(t))
+            .sum();
+        let atlas_cache_bytes = self
+            .atlas_cache
+            .lock()
+            .iter()
+            .map(|(_, v)| v.len() as u64)
+            .sum();
+        GpuPoolStats {
+            texture_pool: self.texture_pool.bytes(),
+            uniform_pool: self.uniform_pool.bytes(),
+            output_targets: output_bytes,
+            sharpen_targets: sharpen_bytes,
+            wb_cache: wb_cache_bytes,
+            nr_cache: nr_cache_bytes,
+            atlas_cache: atlas_cache_bytes,
+        }
     }
 
     pub fn is_lost(&self) -> bool {

@@ -10,4 +10,5 @@ mod texture_pool;
 mod uniform_pool;
 mod uniforms;
 
+pub use renderer::GpuPoolStats;
 pub use renderer::{GpuRenderer, RenderPlan};

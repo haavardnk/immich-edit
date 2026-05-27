@@ -86,6 +86,26 @@ impl TexturePool {
             v.push(tex);
         }
     }
+
+    pub fn bytes(&self) -> u64 {
+        let g = self.free.lock();
+        g.iter()
+            .map(|(k, v)| texture_bytes(k) * v.len() as u64)
+            .sum()
+    }
+}
+
+fn texture_bytes(k: &TextureKey) -> u64 {
+    let bpp = k.format.block_copy_size(None).unwrap_or(0) as u64;
+    let w = k.width as u64;
+    let h = k.height as u64;
+    let mut total: u64 = 0;
+    for level in 0..k.mip_level_count {
+        let lw = (w >> level).max(1);
+        let lh = (h >> level).max(1);
+        total += lw * lh * bpp;
+    }
+    total
 }
 
 pub struct PooledTexture {

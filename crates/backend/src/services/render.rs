@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
+use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 
 const GPU_REBUILD_MIN_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -36,6 +37,7 @@ pub struct RenderService {
     gpu_label: Arc<RwLock<Option<String>>>,
     last_rebuild: Arc<RwLock<Option<Instant>>>,
     rasters: RasterStore,
+    telemetry: RenderTelemetry,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,6 +75,7 @@ impl RenderService {
             gpu_label: Arc::new(RwLock::new(gpu_label)),
             last_rebuild: Arc::new(RwLock::new(None)),
             rasters,
+            telemetry: RenderTelemetry::new(),
         }
     }
 
@@ -82,6 +85,14 @@ impl RenderService {
 
     pub fn gpu_label(&self) -> Option<String> {
         self.gpu_label.read().unwrap().clone()
+    }
+
+    pub fn telemetry(&self) -> &RenderTelemetry {
+        &self.telemetry
+    }
+
+    pub fn gpu_pool_stats(&self) -> Option<raw_pipeline::GpuPoolStats> {
+        self.gpu.read().unwrap().as_ref().map(|g| g.pool_stats())
     }
 
     pub async fn frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
@@ -122,11 +133,17 @@ impl RenderService {
         };
         options.rasters = self.load_rasters_for(&edits).await;
         let svc = self.clone();
+        let start = Instant::now();
         let result = tokio::task::spawn_blocking(move || {
             svc.render_blocking(&frame, &edits, &options, cancel.as_ref())
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
+        let kind = match self.active() {
+            ActiveRenderer::Cpu => RendererKind::Cpu,
+            ActiveRenderer::Gpu => RendererKind::Gpu,
+        };
+        self.telemetry.record(kind, start.elapsed());
         Ok(result)
     }
 

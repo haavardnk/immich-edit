@@ -4,3 +4,4 @@ pub mod preview_meta;
 pub mod raster_store;
 pub mod render;
 pub mod render_queue;
+pub mod render_telemetry;
