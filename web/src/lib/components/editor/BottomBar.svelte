@@ -4,6 +4,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
+  import SaveStatus from './SaveStatus.svelte';
   import { mdiMagnifyMinusOutline, mdiMagnifyPlusOutline } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
@@ -16,9 +17,10 @@
     {/if}
   </div>
 
-  <div class="flex items-center">
+  <div class="flex items-center gap-2">
     {#if hasAsset}
       <RatingControl />
+      <SaveStatus />
     {/if}
   </div>
 

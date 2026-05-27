@@ -53,6 +53,7 @@ class EditorStore {
   pending = $state(false);
   saving = $state(false);
   savedHash = $state<string>('');
+  saveError = $state<string | null>(null);
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
@@ -230,6 +231,7 @@ class EditorStore {
         this.edits = manifestToEdits(saved.manifest);
         this.savedHash = saved.hash;
       }
+      this.saveError = null;
     } catch (e) {
       if (e instanceof ConflictError) {
         const current = e.current as EditRecord | undefined;
@@ -237,14 +239,18 @@ class EditorStore {
           this.edits = manifestToEdits(current.manifest);
           this.savedHash = current.hash;
         }
+        this.saveError = null;
         toasts.push('warn', 'Edits were changed elsewhere. Loaded latest version.');
       } else {
+        this.saveError = (e as Error).message;
         this.error = (e as Error).message;
       }
     } finally {
       this.saving = false;
     }
   };
+
+  retrySave = (): Promise<void> => this.onCommit();
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
