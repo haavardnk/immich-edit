@@ -15,6 +15,8 @@ import { fetchRaster, uploadRaster } from '$lib/api/rasters';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
+import { ConflictError } from '$lib/api/client';
+import type { EditRecord } from '$lib/types/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode } from '$lib/api/preview';
 import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
@@ -46,6 +48,7 @@ class EditorStore {
   meta = $state<PreviewMeta | null>(null);
   pending = $state(false);
   saving = $state(false);
+  savedHash = $state<string>('');
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
@@ -106,6 +109,7 @@ class EditorStore {
       const [a, s] = await Promise.all([getAsset(id), getEdits(id)]);
       this.asset = a;
       this.edits = manifestToEdits(s.manifest);
+      this.savedHash = s.hash;
       this.initialised = true;
       this.pushHistory();
       const hiresEdge = computeHiresEdge(100);
@@ -215,12 +219,23 @@ class EditorStore {
     try {
       if (isIdentity(this.edits)) {
         await deleteEdits(this.assetId);
+        this.savedHash = '';
       } else {
-        const saved = await putEdits(this.assetId, $state.snapshot(this.edits));
+        const saved = await putEdits(this.assetId, $state.snapshot(this.edits), this.savedHash);
         this.edits = manifestToEdits(saved.manifest);
+        this.savedHash = saved.hash;
       }
     } catch (e) {
-      this.error = (e as Error).message;
+      if (e instanceof ConflictError) {
+        const current = e.current as EditRecord | undefined;
+        if (current) {
+          this.edits = manifestToEdits(current.manifest);
+          this.savedHash = current.hash;
+        }
+        toasts.push('warn', 'Edits were changed elsewhere. Loaded latest version.');
+      } else {
+        this.error = (e as Error).message;
+      }
     } finally {
       this.saving = false;
     }

@@ -134,6 +134,88 @@ async fn put_then_get_then_delete_edits() {
     }
 }
 
+#[tokio::test]
+async fn put_with_if_match_conflict_returns_current() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}")))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": id,
+            "originalFileName": "x.arw",
+            "type": "IMAGE",
+            "updatedAt": "2026-05-01T00:00:00Z",
+            "checksum": "deadbeef"
+        })))
+        .mount(&server)
+        .await;
+    let app = router(test_state(&server).await);
+
+    let first = serde_json::json!({
+        "schema_version": 2,
+        "ops": { "exposure": { "ev": 1.5 } }
+    });
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .body(Body::from(first.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("first put: {}", resp.status());
+    }
+    let saved: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let current_hash = saved["hash"].as_str().unwrap().to_string();
+
+    let second = serde_json::json!({
+        "schema_version": 2,
+        "ops": { "exposure": { "ev": 2.0 } }
+    });
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .header("if-match", "stale-hash")
+                .body(Body::from(second.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::CONFLICT {
+        panic!("expected 409, got {}", resp.status());
+    }
+    let body: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if body["hash"].as_str() != Some(current_hash.as_str()) {
+        panic!("conflict body hash: {body}");
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .header("if-match", &current_hash)
+                .body(Body::from(second.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("matching if-match should succeed: {}", resp.status());
+    }
+}
+
 fn arw_fixture() -> Option<Vec<u8>> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../raw-pipeline/tests/fixtures/sample.arw");

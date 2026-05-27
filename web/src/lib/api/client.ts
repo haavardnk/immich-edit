@@ -3,10 +3,20 @@ import { toasts } from '$lib/stores/toasts.svelte';
 export class ApiError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string, message: string) {
+  body?: unknown;
+  constructor(status: number, code: string, message: string, body?: unknown) {
     super(message);
     this.status = status;
     this.code = code;
+    this.body = body;
+  }
+}
+
+export class ConflictError<T = unknown> extends Error {
+  current?: T;
+  constructor(message: string, current?: T) {
+    super(message);
+    this.current = current;
   }
 }
 
@@ -26,14 +36,16 @@ function redirectToLogin(): void {
 async function parseError(resp: Response): Promise<ApiError> {
   let code = 'unknown';
   let message = resp.statusText || 'request failed';
+  let body: unknown;
   try {
-    const body = await resp.json();
-    if (typeof body?.code === 'string') code = body.code;
-    if (typeof body?.message === 'string') message = body.message;
+    body = await resp.json();
+    const b = body as { code?: unknown; message?: unknown } | null;
+    if (b && typeof b.code === 'string') code = b.code;
+    if (b && typeof b.message === 'string') message = b.message;
   } catch {
     /* ignore */
   }
-  return new ApiError(resp.status, code, message);
+  return new ApiError(resp.status, code, message, body);
 }
 
 function reportError(err: unknown): void {

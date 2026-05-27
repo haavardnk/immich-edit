@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use uuid::Uuid;
@@ -40,15 +41,45 @@ pub async fn get(
 pub async fn put(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    headers: HeaderMap,
     Json(manifest): Json<EditManifest>,
-) -> Result<Json<EditRecord>, AppError> {
+) -> Result<Response, AppError> {
+    let if_match = headers
+        .get("if-match")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim_matches('"').to_string());
+    if let Some(expected) = if_match.as_deref() {
+        let current = state.edits.get(id).await?;
+        let current_hash = match &current {
+            Some(r) => r.hash.as_str(),
+            None => "",
+        };
+        let default_hash = Edits::default().stable_hash();
+        let actual = if current_hash.is_empty() {
+            default_hash.as_str()
+        } else {
+            current_hash
+        };
+        if expected != actual {
+            let body = current.unwrap_or_else(|| EditRecord {
+                schema_version: 2,
+                asset_id: id,
+                immich_updated_at: None,
+                immich_checksum: None,
+                renderer_version: RENDERER_VERSION.into(),
+                manifest: EditManifest::default(),
+                updated_at: String::new(),
+                hash: default_hash,
+            });
+            return Ok((StatusCode::CONFLICT, Json(body)).into_response());
+        }
+    }
     let asset = state.immich.asset(id).await?;
     let saved = state
         .edits
         .put(id, manifest, asset.updated_at, asset.checksum)
-        .await
-        .map_err(map_err)?;
-    Ok(Json(saved))
+        .await?;
+    Ok(Json(saved).into_response())
 }
 
 pub async fn delete(
