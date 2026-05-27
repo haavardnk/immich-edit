@@ -58,3 +58,37 @@ export async function deleteEdits(assetId: string): Promise<void> {
 export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
   return sendJson('POST', `/api/assets/${assetId}/edits/auto`, context);
 }
+
+export interface EditHistoryEntry {
+  id: number;
+  manifest_hash: string;
+  deleted: boolean;
+  edits: Edits | null;
+  created_at: string;
+}
+
+export function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
+  return getJson(`/api/assets/${assetId}/edits/history`);
+}
+
+export async function restoreEdits(assetId: string, hash: string): Promise<EditRecord | null> {
+  const saved = await sendJson<EditRecord | undefined>(
+    'POST',
+    `/api/assets/${assetId}/edits/restore`,
+    { hash }
+  );
+  if (typeof window !== 'undefined') {
+    if (saved) {
+      window.dispatchEvent(
+        new CustomEvent('immich-edit:edits-saved', {
+          detail: { id: assetId, hash: saved.hash, updated_at: saved.updated_at }
+        })
+      );
+    } else {
+      window.dispatchEvent(
+        new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } })
+      );
+    }
+  }
+  return saved ?? null;
+}

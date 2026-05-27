@@ -7,6 +7,7 @@
   import ExportPanel from '$lib/panels/Export.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
   import {
     mdiChevronDown,
     mdiChevronRight,
@@ -93,6 +94,7 @@
               <Icon path={mdiRestore} size={14} />
               Reset
             </button>
+            <HistoryPopover />
           </div>
 
           {#each developPanels as panel (panel.id)}

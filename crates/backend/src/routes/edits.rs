@@ -4,11 +4,12 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::services::edits_store::{
-    EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
+    EditHistoryEntry, EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
 };
 use crate::state::AppState;
 
@@ -117,4 +118,43 @@ pub async fn auto(
 fn map_err(err: EditsStoreError) -> AppError {
     tracing::error!(error = %err, "edits store");
     AppError::Internal
+}
+
+pub async fn history(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<EditHistoryEntry>>, AppError> {
+    let entries = state.edits.list_history(id).await?;
+    Ok(Json(entries))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RestoreBody {
+    pub hash: String,
+}
+
+pub async fn restore(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(body): Json<RestoreBody>,
+) -> Result<Response, AppError> {
+    let Some(entry) = state
+        .edits
+        .get_history_entry_by_hash(id, &body.hash)
+        .await?
+    else {
+        return Err(AppError::NotFound);
+    };
+    if entry.deleted || entry.edits.is_none() {
+        state.edits.delete(id).await?;
+        return Ok(StatusCode::NO_CONTENT.into_response());
+    }
+    let edits = entry.edits.unwrap();
+    let manifest = EditManifest::from_edits(&edits);
+    let asset = state.immich.asset(id).await?;
+    let saved = state
+        .edits
+        .put(id, manifest, asset.updated_at, asset.checksum)
+        .await?;
+    Ok(Json(saved).into_response())
 }

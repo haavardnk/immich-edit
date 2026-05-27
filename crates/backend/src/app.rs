@@ -94,6 +94,8 @@ pub fn router(state: AppState) -> Router {
                 .delete(routes::edits::delete),
         )
         .route("/assets/{id}/edits/auto", post(routes::edits::auto))
+        .route("/assets/{id}/edits/history", get(routes::edits::history))
+        .route("/assets/{id}/edits/restore", post(routes::edits::restore))
         .route(
             "/assets/{id}/lens-profile",
             get(routes::lens_profile::get_lens_profile),

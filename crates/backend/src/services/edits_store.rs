@@ -40,6 +40,17 @@ pub struct EditedAssetEntry {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditHistoryEntry {
+    pub id: i64,
+    pub manifest_hash: String,
+    pub deleted: bool,
+    pub edits: Option<Edits>,
+    pub created_at: String,
+}
+
+const HISTORY_LIMIT_PER_ASSET: i64 = 50;
+
 #[derive(Debug, Clone)]
 pub struct EditsStore {
     pool: SqlitePool,
@@ -161,6 +172,8 @@ impl EditsStore {
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
+        self.write_history(asset_id, &hash, Some(&edits_json), false)
+            .await?;
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
             asset_id,
@@ -204,7 +217,105 @@ impl EditsStore {
             .bind(asset_id.to_string())
             .execute(&self.pool)
             .await?;
-        Ok(res.rows_affected() > 0)
+        let deleted = res.rows_affected() > 0;
+        if deleted {
+            let tombstone_hash = Edits::default().stable_hash();
+            self.write_history(asset_id, &tombstone_hash, None, true)
+                .await?;
+        }
+        Ok(deleted)
+    }
+
+    async fn write_history(
+        &self,
+        asset_id: Uuid,
+        manifest_hash: &str,
+        edits_json: Option<&str>,
+        deleted: bool,
+    ) -> Result<(), EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+        )
+        .bind(asset_id.to_string())
+        .bind(manifest_hash)
+        .bind(edits_json)
+        .bind(if deleted { 1 } else { 0 })
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "DELETE FROM edits_history WHERE asset_id = ?1 AND id NOT IN (\
+                SELECT id FROM edits_history WHERE asset_id = ?1 \
+                ORDER BY created_at DESC, id DESC LIMIT ?2\
+             )",
+        )
+        .bind(asset_id.to_string())
+        .bind(HISTORY_LIMIT_PER_ASSET)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn list_history(
+        &self,
+        asset_id: Uuid,
+    ) -> Result<Vec<EditHistoryEntry>, EditsStoreError> {
+        let rows = sqlx::query(
+            "SELECT id, manifest_hash, edits_json, deleted, created_at \
+             FROM edits_history WHERE asset_id = ?1 ORDER BY created_at DESC, id DESC",
+        )
+        .bind(asset_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let edits_json: Option<String> = row.try_get("edits_json")?;
+            let edits = edits_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str::<Edits>(s).ok());
+            let deleted_i: i64 = row.try_get("deleted")?;
+            out.push(EditHistoryEntry {
+                id: row.try_get("id")?,
+                manifest_hash: row.try_get("manifest_hash")?,
+                deleted: deleted_i != 0,
+                edits,
+                created_at: row.try_get("created_at")?,
+            });
+        }
+        Ok(out)
+    }
+
+    pub async fn get_history_entry_by_hash(
+        &self,
+        asset_id: Uuid,
+        manifest_hash: &str,
+    ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
+        let row = sqlx::query(
+            "SELECT id, manifest_hash, edits_json, deleted, created_at \
+             FROM edits_history WHERE asset_id = ?1 AND manifest_hash = ?2 \
+             ORDER BY created_at DESC, id DESC LIMIT 1",
+        )
+        .bind(asset_id.to_string())
+        .bind(manifest_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let edits_json: Option<String> = row.try_get("edits_json")?;
+        let edits = edits_json
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<Edits>(s).ok());
+        let deleted_i: i64 = row.try_get("deleted")?;
+        Ok(Some(EditHistoryEntry {
+            id: row.try_get("id")?,
+            manifest_hash: row.try_get("manifest_hash")?,
+            deleted: deleted_i != 0,
+            edits,
+            created_at: row.try_get("created_at")?,
+        }))
     }
 
     pub async fn get_export_job(
