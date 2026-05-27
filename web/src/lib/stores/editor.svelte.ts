@@ -33,6 +33,10 @@ const MAX_EDGE = 4096;
 const HIRES_DEBOUNCE_MS = 300;
 const MAX_HISTORY = 50;
 
+export type EditGroup = 'basic' | 'tone' | 'color' | 'detail' | 'effects' | 'lens';
+
+let clipboard: Edits | null = null;
+
 function computeHiresEdge(zoom: number): number {
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
   const vp = typeof window !== 'undefined' ? Math.max(window.innerWidth, window.innerHeight) : 1600;
@@ -52,6 +56,7 @@ class EditorStore {
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
+  hasEdits = $derived(!isIdentity(this.edits));
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
@@ -246,6 +251,30 @@ class EditorStore {
     this.edits = { ...neutralEdits(), geometry: this.edits.geometry };
     await this.onCommit();
   };
+
+  copyEdits = (): void => {
+    if (isIdentity(this.edits)) return;
+    clipboard = $state.snapshot(this.edits) as Edits;
+    this.hasClipboard = true;
+  };
+
+  pasteEdits = async (): Promise<void> => {
+    if (!clipboard || !this.initialised) return;
+    const snap = structuredClone(clipboard) as Edits;
+    this.edits = { ...snap, geometry: this.edits.geometry, masks: this.edits.masks };
+    this.onLive();
+    await this.onCommit();
+  };
+
+  pasteGroup = async (group: EditGroup): Promise<void> => {
+    if (!clipboard || !this.initialised) return;
+    const snap = structuredClone(clipboard) as Edits;
+    this.edits = { ...this.edits, [group]: snap[group] };
+    this.onLive();
+    await this.onCommit();
+  };
+
+  hasClipboard = $state(false);
 
   onAutoAdjust = async (): Promise<void> => {
     if (!this.assetId || !this.initialised) return;
