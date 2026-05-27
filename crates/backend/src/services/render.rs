@@ -29,6 +29,7 @@ pub enum RenderError {
 pub struct RenderService {
     immich: ImmichClient,
     frames: Arc<Mutex<lru::LruCache<Uuid, Arc<RawFrame>>>>,
+    quality_frames: Arc<Mutex<lru::LruCache<Uuid, Arc<RawFrame>>>>,
     gpu: Arc<RwLock<Option<Arc<GpuRenderer>>>>,
     gpu_mode: RendererMode,
     active: Arc<RwLock<ActiveRenderer>>,
@@ -60,10 +61,12 @@ impl RenderService {
         rasters: RasterStore,
     ) -> Self {
         let cap = std::num::NonZeroUsize::new(max_items.max(1)).unwrap();
+        let quality_cap = std::num::NonZeroUsize::new(2).unwrap();
         let (gpu, active, gpu_label) = init_gpu(mode);
         Self {
             immich,
             frames: Arc::new(Mutex::new(lru::LruCache::new(cap))),
+            quality_frames: Arc::new(Mutex::new(lru::LruCache::new(quality_cap))),
             gpu: Arc::new(RwLock::new(gpu)),
             gpu_mode: mode,
             active: Arc::new(RwLock::new(active)),
@@ -93,8 +96,16 @@ impl RenderService {
     }
 
     pub async fn quality_frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
+        if let Some(f) = self.quality_frames.lock().await.get(&asset_id).cloned() {
+            return Ok(f);
+        }
         let bytes = self.immich.original(asset_id).await?;
-        Ok(decode_quality_blocking(bytes).await?)
+        let frame = decode_quality_blocking(bytes).await?;
+        self.quality_frames
+            .lock()
+            .await
+            .put(asset_id, frame.clone());
+        Ok(frame)
     }
 
     pub async fn render(
@@ -105,8 +116,7 @@ impl RenderService {
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = if options.quality {
-            let bytes = self.immich.original(asset_id).await?;
-            decode_quality_blocking(bytes).await?
+            self.quality_frame(asset_id).await?
         } else {
             self.frame(asset_id).await?
         };

@@ -68,6 +68,7 @@ pub struct GpuRenderer {
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
     wb_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     nr_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
+    atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
     output_pool: Mutex<Vec<OutputTargets>>,
@@ -77,6 +78,7 @@ pub struct GpuRenderer {
 const ATM_CACHE_ITEMS: usize = 16;
 const WB_CACHE_ITEMS: usize = 2;
 const NR_CACHE_ITEMS: usize = 2;
+const ATLAS_CACHE_ITEMS: usize = 32;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
 const TARGET_POOL_CAP: usize = 2;
@@ -99,6 +101,9 @@ impl GpuRenderer {
             )),
             nr_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(NR_CACHE_ITEMS).expect("nonzero"),
+            )),
+            atlas_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(ATLAS_CACHE_ITEMS).expect("nonzero"),
             )),
             texture_pool: TexturePool::new(TEXTURE_POOL_CAP_PER_KEY),
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
@@ -655,7 +660,18 @@ impl GpuRenderer {
                 let Some(raster) = opts.rasters.get(raster_id) else {
                     continue;
                 };
-                let bytes = crate::gpu::passes::mask_weight::resample_raster_to_atlas(raster);
+                let bytes = {
+                    let mut cache = self.atlas_cache.lock();
+                    if let Some(b) = cache.get(raster_id).cloned() {
+                        b
+                    } else {
+                        let b = Arc::new(
+                            crate::gpu::passes::mask_weight::resample_raster_to_atlas(raster),
+                        );
+                        cache.put(raster_id.clone(), b.clone());
+                        b
+                    }
+                };
                 self.ctx.queue.write_texture(
                     wgpu::ImageCopyTexture {
                         texture: &atlas,
@@ -667,7 +683,7 @@ impl GpuRenderer {
                         },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    &bytes,
+                    bytes.as_slice(),
                     wgpu::ImageDataLayout {
                         offset: 0,
                         bytes_per_row: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
