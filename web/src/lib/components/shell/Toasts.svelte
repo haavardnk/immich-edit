@@ -31,7 +31,7 @@
       <Icon path={iconFor(toast.kind)} size={16} class="flex-none mt-0.5" />
       <span class="flex-1 leading-relaxed">{toast.message}</span>
       <button
-        class="flex-none opacity-60 hover:opacity-100 transition-opacity mt-0.5"
+        class="flex-none opacity-60 hover:opacity-100 transition-opacity mt-0.5 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         onclick={() => toasts.dismiss(toast.id)}
         aria-label="dismiss"
       >
