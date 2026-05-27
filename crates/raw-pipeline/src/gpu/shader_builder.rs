@@ -77,7 +77,11 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
         let offset = HEADER_BYTES + used_vec4s * 16;
         let bit = color_ops.len() as u32;
         if bit >= MAX_OPS {
-            panic!("more than {MAX_OPS} GPU ops; active_mask layout needs expansion");
+            tracing::warn!(
+                "GPU op '{}' skipped: reached MAX_OPS={MAX_OPS} active_mask limit",
+                op.id()
+            );
+            continue;
         }
         if gpu_op.vec4_count == 1 {
             writeln!(struct_fields, "    {}: vec4<f32>,", gpu_op.field_name).unwrap();

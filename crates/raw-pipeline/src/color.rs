@@ -118,6 +118,21 @@ pub fn estimate_scene_cct(wb_coeffs: [f32; 4], xyz_to_cam: &[[f32; 3]; 4]) -> f3
     6504.0
 }
 
+pub fn resolve_xyz_to_cam(
+    matrices: &[(f32, [[f32; 3]; 4])],
+    wb_coeffs: [f32; 4],
+    fallback: [[f32; 3]; 4],
+) -> [[f32; 3]; 4] {
+    let Some(last) = matrices.last() else {
+        return fallback;
+    };
+    if matrices.len() < 2 {
+        return fallback;
+    }
+    let cct = estimate_scene_cct(wb_coeffs, &last.1);
+    interpolate_xyz_to_cam(matrices, cct)
+}
+
 pub fn interpolate_xyz_to_cam(matrices: &[(f32, [[f32; 3]; 4])], scene_cct: f32) -> [[f32; 3]; 4] {
     if matrices.len() < 2 {
         return matrices.first().map(|m| m.1).unwrap_or([[0.0; 3]; 4]);
