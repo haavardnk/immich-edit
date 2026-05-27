@@ -58,6 +58,9 @@ class EditorStore {
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
   hasEdits = $derived(!isIdentity(this.edits));
+  lastWarnings = $state<string[]>([]);
+  private lastImmichOpts: ImmichExportOptions | null = null;
+  private lastExportOpts: ExportOptions | null = null;
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
@@ -309,6 +312,7 @@ class EditorStore {
 
   onExport = async (opts: ExportOptions): Promise<void> => {
     if (!this.assetId) return;
+    this.lastExportOpts = opts;
     this.exporting = true;
     try {
       const blob = await downloadExport(this.assetId, $state.snapshot(this.edits), opts);
@@ -322,10 +326,16 @@ class EditorStore {
     }
   };
 
+  retryExport = async (): Promise<void> => {
+    if (this.lastExportOpts) await this.onExport(this.lastExportOpts);
+  };
+
   onUploadToImmich = async (opts: ImmichExportOptions): Promise<void> => {
     if (!this.assetId) return;
+    this.lastImmichOpts = opts;
     this.exportingToImmich = true;
     this.lastUpload = null;
+    this.lastWarnings = [];
     try {
       const result = await uploadToImmich(this.assetId, $state.snapshot(this.edits), opts);
       const dup = result.status.toLowerCase() === 'duplicate';
@@ -333,11 +343,8 @@ class EditorStore {
         ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
         : `Uploaded ${result.filename} to Immich`;
       toasts.push(dup ? 'warn' : 'success', msg, 10000);
-      for (const w of result.warnings) toasts.push('warn', w, 10000);
-      this.lastUpload = {
-        kind: dup ? 'duplicate' : 'success',
-        message: result.warnings.length > 0 ? `${msg} — ${result.warnings.join('; ')}` : msg
-      };
+      this.lastWarnings = result.warnings;
+      this.lastUpload = { kind: dup ? 'duplicate' : 'success', message: msg };
       if (opts.stackWithOriginal || opts.favorite) {
         try {
           this.asset = await getAsset(this.assetId);
@@ -353,6 +360,10 @@ class EditorStore {
     } finally {
       this.exportingToImmich = false;
     }
+  };
+
+  retryUpload = async (): Promise<void> => {
+    if (this.lastImmichOpts) await this.onUploadToImmich(this.lastImmichOpts);
   };
 
   maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> => {

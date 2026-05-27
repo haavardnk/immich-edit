@@ -6,7 +6,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
-  import { mdiExport, mdiCloudUpload } from '@mdi/js';
+  import { mdiExport, mdiCloudUpload, mdiLoading, mdiRefresh, mdiAlertOutline } from '@mdi/js';
   import type {
     ExportFormat,
     BitDepthOpt,
@@ -275,13 +275,17 @@
       else void editor.onUploadToImmich(buildImmichOptions());
     }}
   >
-    <Icon path={destination === 'download' ? mdiExport : mdiCloudUpload} size={16} />
+    {#if isLoading}
+      <Icon path={mdiLoading} size={16} class="animate-spin" />
+    {:else}
+      <Icon path={destination === 'download' ? mdiExport : mdiCloudUpload} size={16} />
+    {/if}
     {isLoading ? busyLabel : buttonLabel}
   </button>
 
   {#if destination === 'immich' && editor.lastUpload}
     <div
-      class="text-[11px] leading-relaxed px-3 py-2 rounded-md border"
+      class="text-[11px] leading-relaxed px-3 py-2 rounded-md border flex items-start justify-between gap-2"
       class:bg-emerald-950={editor.lastUpload.kind === 'success'}
       class:border-emerald-500={editor.lastUpload.kind === 'success'}
       class:text-emerald-100={editor.lastUpload.kind === 'success'}
@@ -292,7 +296,28 @@
       class:border-red-500={editor.lastUpload.kind === 'error'}
       class:text-red-100={editor.lastUpload.kind === 'error'}
     >
-      {editor.lastUpload.message}
+      <span class="flex-1">{editor.lastUpload.message}</span>
+      {#if editor.lastUpload.kind === 'error'}
+        <button
+          class="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors"
+          onclick={() => void editor.retryUpload()}
+          disabled={isLoading}
+        >
+          <Icon path={mdiRefresh} size={12} />
+          Retry
+        </button>
+      {/if}
     </div>
+  {/if}
+
+  {#if destination === 'immich' && editor.lastWarnings.length > 0}
+    <ul class="text-[11px] leading-relaxed px-3 py-2 rounded-md border border-amber-500/40 bg-amber-950/40 text-amber-100 space-y-1">
+      {#each editor.lastWarnings as w}
+        <li class="flex items-start gap-1.5">
+          <Icon path={mdiAlertOutline} size={12} class="mt-0.5 shrink-0" />
+          <span>{w}</span>
+        </li>
+      {/each}
+    </ul>
   {/if}
 </div>
