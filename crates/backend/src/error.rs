@@ -6,6 +6,10 @@ use uuid::Uuid;
 
 use crate::immich::ImmichError;
 
+tokio::task_local! {
+    pub static REQUEST_ID: String;
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("not found")]
@@ -98,7 +102,9 @@ impl From<crate::services::edits_store::EditsStoreError> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let request_id = Uuid::new_v4();
+        let request_id = REQUEST_ID
+            .try_with(|s| s.clone())
+            .unwrap_or_else(|_| Uuid::new_v4().to_string());
         let (status, code, message) = self.parts();
         let body: Value = json!({
             "code": code,

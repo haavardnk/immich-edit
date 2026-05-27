@@ -8,6 +8,7 @@ pub mod services;
 pub mod state;
 pub mod telemetry;
 
+use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
@@ -24,13 +25,16 @@ pub async fn run() -> anyhow::Result<()> {
 
     tracing::info!("listening on {bind_socket}");
     let listener = TcpListener::bind(bind_socket).await?;
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async move {
-            shutdown_signal().await;
-            tracing::info!("shutdown signal received; draining renders");
-            queue.shutdown(Duration::from_secs(10)).await;
-        })
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(async move {
+        shutdown_signal().await;
+        tracing::info!("shutdown signal received; draining renders");
+        queue.shutdown(Duration::from_secs(10)).await;
+    })
+    .await?;
     Ok(())
 }
 

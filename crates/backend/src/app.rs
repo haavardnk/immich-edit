@@ -5,10 +5,13 @@ use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Request, State};
 use axum::http::header::{HeaderName, HeaderValue};
 use axum::http::{Method, StatusCode};
-use axum::middleware::{Next, from_fn_with_state};
+use axum::middleware::{Next, from_fn, from_fn_with_state};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use tower::ServiceBuilder;
+use tower_governor::GovernorLayer;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::key_extractor::GlobalKeyExtractor;
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -22,7 +25,7 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
-use crate::error::{AppError, api_not_found};
+use crate::error::{AppError, REQUEST_ID, api_not_found};
 use crate::routes;
 use crate::state::AppState;
 
@@ -39,6 +42,25 @@ impl MakeRequestId for UuidRequestId {
 }
 
 pub fn router(state: AppState) -> Router {
+    let heavy_cfg = std::sync::Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(GlobalKeyExtractor)
+            .per_millisecond(2000)
+            .burst_size(20)
+            .finish()
+            .expect("heavy governor config"),
+    );
+    let api_cfg = std::sync::Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(GlobalKeyExtractor)
+            .per_millisecond(500)
+            .burst_size(200)
+            .finish()
+            .expect("api governor config"),
+    );
+    let heavy = GovernorLayer::new(heavy_cfg);
+    let api_limit = GovernorLayer::new(api_cfg);
+
     let api = Router::new()
         .route("/health", get(routes::health::health))
         .route("/health/live", get(routes::health::live))
@@ -86,18 +108,22 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/assets/{id}/export",
-            get(routes::export::get_export).post(routes::export::post_export),
+            get(routes::export::get_export)
+                .post(routes::export::post_export)
+                .layer(heavy.clone()),
         )
         .route(
             "/assets/{id}/export/immich",
-            post(routes::export::post_export_immich),
+            post(routes::export::post_export_immich).layer(heavy),
         )
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
         .fallback(api_not_found)
         .layer(from_fn_with_state(state.clone(), debug_gate))
-        .layer(from_fn_with_state(state.clone(), auth_middleware));
+        .layer(from_fn_with_state(state.clone(), auth_middleware))
+        .layer(from_fn(request_id_scope))
+        .layer(api_limit);
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
     let fallback_file = format!("{web_dir}/200.html");
@@ -194,4 +220,14 @@ async fn debug_gate(State(state): State<AppState>, req: Request<Body>, next: Nex
         return AppError::NotFound.into_response();
     }
     next.run(req).await
+}
+
+async fn request_id_scope(req: Request<Body>, next: Next) -> Response {
+    let id = req
+        .headers()
+        .get(REQUEST_ID_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    REQUEST_ID.scope(id, next.run(req)).await
 }

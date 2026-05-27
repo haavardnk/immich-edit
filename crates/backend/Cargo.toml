@@ -33,6 +33,7 @@ sha2 = "0.10"
 hex = "0.4"
 mimalloc = { version = "0.1", default-features = false }
 lensfun = "=0.7.0"
+tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
