@@ -49,6 +49,12 @@
       if (ui.keybindsHelpOpen) {
         e.preventDefault();
         ui.closeKeybindsHelp();
+      } else if (editor.cropSession) {
+        e.preventDefault();
+        void editor.exitCropMode();
+      } else if (editor.activeMaskComponentId) {
+        e.preventDefault();
+        editor.setActiveMaskComponent(null);
       } else if (ui.fullscreen) {
         e.preventDefault();
         ui.toggleFullscreen();
@@ -62,7 +68,7 @@
       return;
     }
     if (ui.keybindsHelpOpen) return;
-    if (e.key === 'ArrowLeft' && !meta && !e.altKey) {
+    if ((e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') && !meta && !e.altKey) {
       if (editor.cropSession) return;
       const prev = browsing.prevOf(id);
       if (!prev) return;
@@ -70,7 +76,7 @@
       void goto(`/assets/${prev.id}`);
       return;
     }
-    if (e.key === 'ArrowRight' && !meta && !e.altKey) {
+    if ((e.key === 'ArrowRight' || e.key === 'k' || e.key === 'K') && !meta && !e.altKey) {
       if (editor.cropSession) return;
       const next = browsing.nextOf(id);
       if (!next) return;
@@ -121,6 +127,22 @@
         editor.showingOriginal = true;
         editor.showOriginal();
       }
+    }
+    if ((e.key === 'b' || e.key === 'B') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      if (editor.showingOriginal) {
+        editor.showingOriginal = false;
+        editor.onLive();
+      } else {
+        editor.showingOriginal = true;
+        editor.showOriginal();
+      }
+      return;
+    }
+    if ((e.key === 'r' || e.key === 'R') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      void editor.onReset();
+      return;
     }
   }
 
