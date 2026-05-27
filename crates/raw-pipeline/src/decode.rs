@@ -9,14 +9,7 @@ pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     let params = rawler::decoders::RawDecodeParams::default();
     match rawler::decode(&source, &params) {
         Ok(raw_image) => decode_raw_fast(raw_image, exif),
-        Err(e) => {
-            let msg = format!("{e}");
-            if msg.contains("No decoder found") {
-                decode_image(data, exif)
-            } else {
-                Err(PipelineError::Decode(msg))
-            }
-        }
+        Err(e) => raw_fallback_or_unsupported(e, data, exif),
     }
 }
 
@@ -26,12 +19,35 @@ pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     let params = rawler::decoders::RawDecodeParams::default();
     match rawler::decode(&source, &params) {
         Ok(raw_image) => decode_raw_quality(raw_image, exif),
-        Err(e) => {
-            let msg = format!("{e}");
-            if msg.contains("No decoder found") {
-                decode_image(data, exif)
+        Err(e) => raw_fallback_or_unsupported(e, data, exif),
+    }
+}
+
+fn raw_fallback_or_unsupported(
+    err: impl std::fmt::Display,
+    data: &[u8],
+    exif: Option<little_exif::metadata::Metadata>,
+) -> crate::PipelineResult<RawFrame> {
+    let msg = format!("{err}");
+    if msg.contains("No decoder found") {
+        decode_image(data, exif)
+    } else {
+        Err(PipelineError::Unsupported(format!(
+            "RAW format not supported by rawler ({}): {msg}",
+            format_hint(data)
+        )))
+    }
+}
+
+fn format_hint(data: &[u8]) -> String {
+    match sniff_format(data) {
+        Some(f) => format!("{f:?}"),
+        None => {
+            let head: Vec<String> = data.iter().take(4).map(|b| format!("{b:02X}")).collect();
+            if head.is_empty() {
+                "empty".into()
             } else {
-                Err(PipelineError::Decode(msg))
+                format!("magic {}", head.join(" "))
             }
         }
     }
@@ -312,7 +328,10 @@ fn decode_image(
         Some(InputFormat::Jxl) => decode_jxl(data, exif),
         Some(InputFormat::Gif) => decode_via_image_crate(data, exif),
         Some(InputFormat::Bmp) => decode_via_image_crate(data, exif),
-        None => Err(PipelineError::Decode("unknown image format".into())),
+        None => Err(PipelineError::Unsupported(format!(
+            "unknown image format ({})",
+            format_hint(data)
+        ))),
     }
 }
 
@@ -444,7 +463,7 @@ fn decode_png(
             let rgb: Vec<u16> = g.iter().flat_map(|&v| [v, v, v]).collect();
             Ok(frame_from_rgb16(rgb, width, height, exif))
         }
-        (ct, bd) => Err(PipelineError::Decode(format!(
+        (ct, bd) => Err(PipelineError::Unsupported(format!(
             "png: unsupported color {ct:?} depth {bd:?}"
         ))),
     }
@@ -488,7 +507,7 @@ fn decode_tiff(
             let rgb: Vec<u16> = v.iter().flat_map(|&g| [g, g, g]).collect();
             Ok(frame_from_rgb16(rgb, width, height, exif))
         }
-        (ct, _) => Err(PipelineError::Decode(format!(
+        (ct, _) => Err(PipelineError::Unsupported(format!(
             "tiff: unsupported colortype {ct:?}"
         ))),
     }
