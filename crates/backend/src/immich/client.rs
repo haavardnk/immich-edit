@@ -285,7 +285,7 @@ impl ThumbSize {
 }
 
 async fn send(_http: &Client, req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
-    let resp = run(req).await?;
+    let resp = run_idempotent(req).await?;
     resp.bytes()
         .await
         .map_err(|e| ImmichError::Transport(e.to_string()))
@@ -315,6 +315,45 @@ async fn run(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
         408 => ImmichError::Timeout,
         code => ImmichError::Status(code),
     })
+}
+
+async fn run_idempotent(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
+    const ATTEMPTS: u32 = 3;
+    let mut last: Option<ImmichError> = None;
+    for attempt in 0..ATTEMPTS {
+        let try_req = match req.try_clone() {
+            Some(r) => r,
+            None => return run(req).await,
+        };
+        match run(try_req).await {
+            Ok(resp) => return Ok(resp),
+            Err(err) if is_retryable(&err) && attempt + 1 < ATTEMPTS => {
+                last = Some(err);
+                let base_ms = 100u64 << attempt;
+                let jitter_ms = jitter_ms(base_ms);
+                tokio::time::sleep(std::time::Duration::from_millis(base_ms + jitter_ms)).await;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+    Err(last.unwrap_or(ImmichError::Transport("retry exhausted".into())))
+}
+
+fn is_retryable(err: &ImmichError) -> bool {
+    match err {
+        ImmichError::Status(502 | 503 | 504) => true,
+        ImmichError::Transport(_) | ImmichError::Timeout => true,
+        _ => false,
+    }
+}
+
+fn jitter_ms(base: u64) -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(0);
+    nanos % base.max(1)
 }
 
 fn map_send_err(err: reqwest::Error) -> ImmichError {
