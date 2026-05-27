@@ -402,6 +402,7 @@ pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
         geometry: Default::default(),
         masks: Vec::new(),
         output: Default::default(),
+        unknown_ops: Default::default(),
     }
 }
 

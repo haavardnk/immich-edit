@@ -866,6 +866,8 @@ pub struct Edits {
     pub masks: Vec<MaskLayer>,
     #[serde(default)]
     pub output: OutputEdits,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub unknown_ops: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl Edits {
@@ -915,6 +917,7 @@ impl Edits {
             },
             masks: clamp_masks(&self.masks),
             output: self.output,
+            unknown_ops: self.unknown_ops.clone(),
         }
     }
 

@@ -8,6 +8,18 @@ use crate::ops::{OpRegistry, default_registry};
 
 pub const EDIT_MANIFEST_VERSION: u32 = 3;
 
+type Migration = fn(&mut BTreeMap<String, Value>);
+
+const MIGRATIONS: &[(u32, Migration)] = &[];
+
+fn migrate_in_place(from: u32, ops: &mut BTreeMap<String, Value>) {
+    for (target, mig) in MIGRATIONS {
+        if from < *target {
+            mig(ops);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EditManifest {
     pub schema_version: u32,
@@ -35,6 +47,9 @@ impl EditManifest {
                 ops.insert(op.id().to_string(), value);
             }
         }
+        for (key, value) in &edits.unknown_ops {
+            ops.entry(key.clone()).or_insert_with(|| value.clone());
+        }
         Self {
             schema_version: EDIT_MANIFEST_VERSION,
             ops,
@@ -46,10 +61,21 @@ impl EditManifest {
     }
 
     pub fn to_edits_with(&self, registry: &OpRegistry) -> Edits {
+        let mut ops = self.ops.clone();
+        if self.schema_version < EDIT_MANIFEST_VERSION {
+            migrate_in_place(self.schema_version, &mut ops);
+        }
         let mut edits = Edits::default();
+        let mut known: Vec<&str> = Vec::with_capacity(registry.ops().len());
         for op in registry.ops() {
-            if let Some(value) = self.ops.get(op.id()) {
+            known.push(op.id());
+            if let Some(value) = ops.get(op.id()) {
                 op.from_doc(value, &mut edits);
+            }
+        }
+        for (key, value) in ops {
+            if !known.iter().any(|id| *id == key) {
+                edits.unknown_ops.insert(key, value);
             }
         }
         edits
@@ -158,6 +184,7 @@ mod tests {
             },
             masks: Vec::new(),
             output: Default::default(),
+            unknown_ops: Default::default(),
         };
         let manifest = EditManifest::from_edits(&original);
         let back = manifest.to_edits();
@@ -207,17 +234,41 @@ mod tests {
     }
 
     #[test]
-    fn from_doc_ignores_unknown_keys() {
+    fn unknown_ops_preserved_through_roundtrip() {
         let mut ops = BTreeMap::new();
         ops.insert("exposure".into(), serde_json::json!({ "ev": 2.0 }));
-        ops.insert("nonexistent".into(), serde_json::json!({ "foo": 1 }));
+        ops.insert(
+            "future_op".into(),
+            serde_json::json!({ "foo": 1, "bar": [true, "x"] }),
+        );
         let manifest = EditManifest {
             schema_version: EDIT_MANIFEST_VERSION,
-            ops,
+            ops: ops.clone(),
         };
         let edits = manifest.to_edits();
         if edits.basic.exposure_ev != 2.0 {
             panic!("exposure not parsed");
+        }
+        let back = EditManifest::from_edits(&edits);
+        if back.ops.get("future_op") != ops.get("future_op") {
+            panic!("unknown op lost: {:?}", back.ops.get("future_op"));
+        }
+    }
+
+    #[test]
+    fn known_op_overrides_unknown_with_same_id() {
+        let mut e = Edits {
+            basic: BasicEdits {
+                exposure_ev: 1.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        e.unknown_ops
+            .insert("exposure".into(), serde_json::json!({ "ev": 99.0 }));
+        let manifest = EditManifest::from_edits(&e);
+        if manifest.ops.get("exposure") != Some(&serde_json::json!({ "ev": 1.0 })) {
+            panic!("known op should win: {:?}", manifest.ops.get("exposure"));
         }
     }
 
