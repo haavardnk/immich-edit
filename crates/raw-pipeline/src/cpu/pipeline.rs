@@ -391,6 +391,7 @@ fn finish_output(
     want_16bit: bool,
     output: crate::edits::OutputEdits,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
+    let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
     let n = linear.len();
     let mut rgb_u8 = vec![0u8; n];

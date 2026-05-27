@@ -1000,9 +1000,19 @@ impl GpuRenderer {
 
         let ((histogram, linear_histogram), bytes) = rayon::join(
             || {
+                let _span = tracing::debug_span!("gpu.histogram", w = out_w, h = out_h).entered();
                 rayon::join(
-                    || Histogram::from_rgba8(&rgba),
-                    || Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize),
+                    || {
+                        let _s =
+                            tracing::debug_span!("gpu.histogram.display", w = out_w, h = out_h)
+                                .entered();
+                        Histogram::from_rgba8(&rgba)
+                    },
+                    || {
+                        let _s = tracing::debug_span!("gpu.histogram.linear", w = out_w, h = out_h)
+                            .entered();
+                        Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize)
+                    },
                 )
             },
             || encode_from_rgba8(&rgba, out_w, out_h, &opts.output),
