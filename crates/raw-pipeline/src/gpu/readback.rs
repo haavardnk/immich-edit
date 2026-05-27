@@ -97,18 +97,29 @@ pub fn map_buffer_cancellable(
     slice.map_async(MapMode::Read, move |r| {
         let _ = sender.send(r);
     });
+    let mut cancelled = false;
     loop {
         ctx.device.poll(wgpu::Maintain::Poll);
         match receiver.try_recv() {
             Ok(result) => {
-                result.map_err(|e| PipelineError::Render(format!("readback map: {e}")))?;
+                let map_err = result.err();
+                if cancelled {
+                    if map_err.is_none() {
+                        buffer.unmap();
+                    }
+                    return Err(crate::PipelineError::Cancelled);
+                }
+                if let Some(e) = map_err {
+                    return Err(PipelineError::Render(format!("readback map: {e}")));
+                }
                 return Ok(());
             }
             Err(TryRecvError::Empty) => {
-                if let Some(tok) = cancel
+                if !cancelled
+                    && let Some(tok) = cancel
                     && tok.is_cancelled()
                 {
-                    return Err(crate::PipelineError::Cancelled);
+                    cancelled = true;
                 }
                 std::thread::sleep(CANCEL_POLL_INTERVAL);
             }
