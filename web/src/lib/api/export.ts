@@ -97,12 +97,16 @@ export interface ImmichExportResult {
 export async function uploadToImmich(
   assetId: string,
   edits: Edits,
-  opts: ImmichExportOptions
+  opts: ImmichExportOptions,
+  idempotencyKey: string = crypto.randomUUID()
 ): Promise<ImmichExportResult> {
   const resp = await fetch(`/api/assets/${assetId}/export/immich`, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': idempotencyKey
+    },
     body: JSON.stringify({
       edits,
       format: opts.format,

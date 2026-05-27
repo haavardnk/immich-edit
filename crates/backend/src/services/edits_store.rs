@@ -206,6 +206,112 @@ impl EditsStore {
             .await?;
         Ok(res.rows_affected() > 0)
     }
+
+    pub async fn get_export_job(
+        &self,
+        asset_id: Uuid,
+        key: &str,
+    ) -> Result<Option<ExportJobRecord>, EditsStoreError> {
+        let row = sqlx::query(
+            "SELECT request_hash, status, immich_asset_id, filename, upload_status, warnings_json \
+             FROM export_jobs WHERE asset_id = ?1 AND idempotency_key = ?2",
+        )
+        .bind(asset_id.to_string())
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let warnings_json: String = row.try_get("warnings_json")?;
+        let warnings: Vec<String> = serde_json::from_str(&warnings_json).unwrap_or_default();
+        let immich_str: Option<String> = row.try_get("immich_asset_id")?;
+        let immich_asset_id = immich_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
+        let status_str: String = row.try_get("status")?;
+        let status = match status_str.as_str() {
+            "uploaded" => ExportJobStatus::Uploaded,
+            "completed" => ExportJobStatus::Completed,
+            _ => ExportJobStatus::Uploaded,
+        };
+        Ok(Some(ExportJobRecord {
+            request_hash: row.try_get("request_hash")?,
+            status,
+            immich_asset_id,
+            filename: row.try_get("filename")?,
+            upload_status: row.try_get("upload_status")?,
+            warnings,
+        }))
+    }
+
+    pub async fn put_export_job_uploaded(
+        &self,
+        asset_id: Uuid,
+        key: &str,
+        request_hash: &str,
+        immich_asset_id: Uuid,
+        filename: &str,
+        upload_status: &str,
+    ) -> Result<(), EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO export_jobs (asset_id, idempotency_key, request_hash, status, \
+             immich_asset_id, filename, upload_status, warnings_json, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, 'uploaded', ?4, ?5, ?6, '[]', ?7, ?7) \
+             ON CONFLICT(asset_id, idempotency_key) DO UPDATE SET \
+               status = excluded.status, \
+               immich_asset_id = excluded.immich_asset_id, \
+               filename = excluded.filename, \
+               upload_status = excluded.upload_status, \
+               updated_at = excluded.updated_at",
+        )
+        .bind(asset_id.to_string())
+        .bind(key)
+        .bind(request_hash)
+        .bind(immich_asset_id.to_string())
+        .bind(filename)
+        .bind(upload_status)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn complete_export_job(
+        &self,
+        asset_id: Uuid,
+        key: &str,
+        warnings: &[String],
+    ) -> Result<(), EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let warnings_json = serde_json::to_string(warnings)?;
+        sqlx::query(
+            "UPDATE export_jobs SET status = 'completed', warnings_json = ?3, updated_at = ?4 \
+             WHERE asset_id = ?1 AND idempotency_key = ?2",
+        )
+        .bind(asset_id.to_string())
+        .bind(key)
+        .bind(&warnings_json)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExportJobStatus {
+    Uploaded,
+    Completed,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportJobRecord {
+    pub request_hash: String,
+    pub status: ExportJobStatus,
+    pub immich_asset_id: Option<Uuid>,
+    pub filename: Option<String>,
+    pub upload_status: Option<String>,
+    pub warnings: Vec<String>,
 }
 
 #[cfg(test)]
@@ -356,6 +462,38 @@ mod tests {
         let v = s.migration_version().await.unwrap();
         if v.is_none() {
             panic!("missing");
+        }
+    }
+
+    #[tokio::test]
+    async fn export_job_roundtrip_and_complete() {
+        let s = store().await;
+        let asset = uid();
+        let new_id = uid();
+        s.put_export_job_uploaded(asset, "k1", "h1", new_id, "f.jpg", "created")
+            .await
+            .unwrap();
+        let r = s.get_export_job(asset, "k1").await.unwrap().unwrap();
+        if r.status != ExportJobStatus::Uploaded
+            || r.immich_asset_id != Some(new_id)
+            || r.request_hash != "h1"
+        {
+            panic!("uploaded mismatch: {r:?}");
+        }
+        s.complete_export_job(asset, "k1", &["w1".into()])
+            .await
+            .unwrap();
+        let r = s.get_export_job(asset, "k1").await.unwrap().unwrap();
+        if r.status != ExportJobStatus::Completed || r.warnings != vec!["w1".to_string()] {
+            panic!("completed mismatch: {r:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn export_job_missing_returns_none() {
+        let s = store().await;
+        if s.get_export_job(uid(), "x").await.unwrap().is_some() {
+            panic!("expected none");
         }
     }
 }

@@ -89,6 +89,13 @@ impl From<ImmichError> for AppError {
     }
 }
 
+impl From<crate::services::edits_store::EditsStoreError> for AppError {
+    fn from(err: crate::services::edits_store::EditsStoreError) -> Self {
+        tracing::error!(error = %err, "edits store");
+        Self::Internal
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let request_id = Uuid::new_v4();

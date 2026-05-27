@@ -1,18 +1,20 @@
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderValue, header};
+use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use chrono::Utc;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
+use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
 use crate::services::render::RenderError;
 use crate::state::AppState;
 
@@ -261,8 +263,26 @@ pub struct ExportToImmichResult {
 pub async fn post_export_immich(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    headers: HeaderMap,
     Json(body): Json<ExportToImmichBody>,
 ) -> Result<Json<ExportToImmichResult>, AppError> {
+    let idem_key = idempotency_key(&headers)?;
+    let request_hash = idem_key.as_ref().map(|_| hash_request(id, &body));
+
+    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
+        if let Some(existing) = state.edits.get_export_job(id, key).await? {
+            if existing.request_hash != hash {
+                return Err(AppError::BadRequest(
+                    "idempotency key reused with different request".into(),
+                ));
+            }
+            if existing.status == ExportJobStatus::Completed {
+                return Ok(Json(record_to_result(&existing)));
+            }
+            return resume_export_job(&state, id, key, &body, existing).await;
+        }
+    }
+
     let suffix = validate_suffix(&body.filename_suffix)?;
     let original = state.immich.asset(id).await?;
     let existing_names = collect_existing_filenames(&state, &original).await;
@@ -287,10 +307,120 @@ pub async fn post_export_immich(
         )
         .await?;
 
-    let mut warnings: Vec<String> = Vec::new();
     let new_id = upload.id;
     let status = upload.status.clone();
-    let is_duplicate = status.eq_ignore_ascii_case("duplicate");
+
+    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
+        state
+            .edits
+            .put_export_job_uploaded(id, key, hash, new_id, &filename, &status)
+            .await?;
+    }
+
+    let warnings = run_post_upload(&state, &original, &body, new_id, &status).await;
+
+    if let Some(key) = idem_key.as_deref() {
+        state.edits.complete_export_job(id, key, &warnings).await?;
+    }
+
+    Ok(Json(ExportToImmichResult {
+        asset_id: new_id,
+        filename,
+        status,
+        warnings,
+    }))
+}
+
+fn idempotency_key(headers: &HeaderMap) -> Result<Option<String>, AppError> {
+    let Some(v) = headers.get("idempotency-key") else {
+        return Ok(None);
+    };
+    let s = v
+        .to_str()
+        .map_err(|_| AppError::BadRequest("invalid Idempotency-Key header".into()))?
+        .trim();
+    if s.is_empty() {
+        return Ok(None);
+    }
+    if s.len() > 128 || !s.chars().all(|c| c.is_ascii_graphic()) {
+        return Err(AppError::BadRequest(
+            "invalid Idempotency-Key header".into(),
+        ));
+    }
+    Ok(Some(s.to_string()))
+}
+
+fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
+    let mut album_ids = body.album_ids.clone();
+    album_ids.sort();
+    let mut tag_ids = body.tag_ids.clone();
+    tag_ids.sort();
+    let canonical = serde_json::json!({
+        "asset_id": asset_id,
+        "edits": body.edits.clamped(),
+        "format": format!("{:?}", body.params.format),
+        "quality": body.params.quality,
+        "include_exif": body.params.include_exif,
+        "bit_depth": format!("{:?}", body.params.bit_depth),
+        "png_compression": format!("{:?}", body.params.png_compression),
+        "tiff_compression": format!("{:?}", body.params.tiff_compression),
+        "lossless": body.params.lossless,
+        "album_ids": album_ids,
+        "tag_ids": tag_ids,
+        "favorite": body.favorite,
+        "stack_with_original": body.stack_with_original,
+        "stack_primary": format!("{:?}", body.stack_primary),
+        "filename_suffix": body.filename_suffix,
+    });
+    let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
+    let mut h = Sha256::new();
+    h.update(&bytes);
+    format!("{:x}", h.finalize())
+}
+
+fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
+    ExportToImmichResult {
+        asset_id: rec.immich_asset_id.unwrap_or_default(),
+        filename: rec.filename.clone().unwrap_or_default(),
+        status: rec.upload_status.clone().unwrap_or_default(),
+        warnings: rec.warnings.clone(),
+    }
+}
+
+async fn resume_export_job(
+    state: &AppState,
+    asset_id: Uuid,
+    key: &str,
+    body: &ExportToImmichBody,
+    existing: ExportJobRecord,
+) -> Result<Json<ExportToImmichResult>, AppError> {
+    let Some(new_id) = existing.immich_asset_id else {
+        return Err(AppError::Internal);
+    };
+    let original = state.immich.asset(asset_id).await?;
+    let upload_status = existing.upload_status.clone().unwrap_or_default();
+    let warnings = run_post_upload(state, &original, body, new_id, &upload_status).await;
+    state
+        .edits
+        .complete_export_job(asset_id, key, &warnings)
+        .await?;
+    Ok(Json(ExportToImmichResult {
+        asset_id: new_id,
+        filename: existing.filename.unwrap_or_default(),
+        status: upload_status,
+        warnings,
+    }))
+}
+
+async fn run_post_upload(
+    state: &AppState,
+    original: &AssetDetail,
+    body: &ExportToImmichBody,
+    new_id: Uuid,
+    upload_status: &str,
+) -> Vec<String> {
+    let mut warnings: Vec<String> = Vec::new();
+    let is_duplicate = upload_status.eq_ignore_ascii_case("duplicate");
 
     if body.favorite && is_duplicate {
         if let Err(e) = state
@@ -335,17 +465,12 @@ pub async fn post_export_immich(
     }
 
     if body.stack_with_original {
-        if let Err(e) = stack_with_original(&state, &original, new_id, body.stack_primary).await {
+        if let Err(e) = stack_with_original(state, original, new_id, body.stack_primary).await {
             warnings.push(format!("Stacking failed: {}", short_err(&e)));
         }
     }
 
-    Ok(Json(ExportToImmichResult {
-        asset_id: new_id,
-        filename,
-        status,
-        warnings,
-    }))
+    warnings
 }
 
 fn validate_suffix(raw: &str) -> Result<String, AppError> {
