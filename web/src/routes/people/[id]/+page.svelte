@@ -7,6 +7,8 @@
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseBody: () => ({ personIds: [id] }) });
@@ -29,10 +31,14 @@
 </script>
 
 {#if feed.loading && !feed.loadedOnce}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading photos…" /></div>
 {:else}
   <BrowseHeader title={title} loaded={feed.assets.length} totalCount={feed.totalCount} />
-  <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
-  </div>
+  {#if feed.assets.length === 0}
+    <EmptyState title="No photos for this person" />
+  {:else}
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+    </div>
+  {/if}
 {/if}

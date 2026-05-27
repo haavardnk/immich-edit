@@ -8,6 +8,8 @@
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({
@@ -39,7 +41,7 @@
 </script>
 
 {#if (album.loading && !album.current) || (feed.loading && !feed.loadedOnce)}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading album…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading album…" /></div>
 {:else if album.error}
   <div class="flex-1 flex items-center justify-center text-sm text-red-400">{album.error}</div>
 {:else if album.current}
@@ -48,7 +50,11 @@
     loaded={feed.assets.length}
     totalCount={album.current.assetCount}
   />
-  <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
-  </div>
+  {#if feed.assets.length === 0}
+    <EmptyState title="This album is empty" />
+  {:else}
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+    </div>
+  {/if}
 {/if}

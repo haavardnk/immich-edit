@@ -7,6 +7,8 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let assets = $state<AssetSummary[]>([]);
@@ -46,9 +48,11 @@
 </script>
 
 {#if loading}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading folder…" /></div>
 {:else if !folderPath}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/30">Select a folder</div>
+  <EmptyState title="Select a folder" message="Pick a folder from the sidebar to browse its photos." />
+{:else if assets.length === 0}
+  <EmptyState title="No photos in this folder" />
 {:else}
   <BrowseHeader title={folderPath} loaded={assets.length} />
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">

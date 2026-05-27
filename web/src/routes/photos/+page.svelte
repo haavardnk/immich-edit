@@ -5,6 +5,8 @@
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const feed = new BrowseFeed({ baseBody: () => ({}) });
 
@@ -18,11 +20,11 @@
 </script>
 
 {#if feed.loading && !feed.loadedOnce}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading photos…" /></div>
 {:else}
   <BrowseHeader title="Photos" loaded={feed.assets.length} totalCount={feed.totalCount} />
   {#if feed.assets.length === 0}
-    <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">no photos</div>
+    <EmptyState title="No photos" message="Connect an Immich library or upload assets to get started." />
   {:else}
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
       <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />

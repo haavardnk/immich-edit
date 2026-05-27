@@ -6,6 +6,8 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let loading = $state(true);
@@ -36,9 +38,9 @@
 </script>
 
 {#if loading}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading edited photos…" /></div>
 {:else if assets.length === 0}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/30">No edited photos yet</div>
+  <EmptyState title="No edited photos yet" message="Open a photo and make edits to see it here." />
 {:else}
   <BrowseHeader title="Edited" loaded={assets.length} totalCount={assets.length} />
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">

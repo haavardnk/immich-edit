@@ -5,6 +5,8 @@
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const feed = new BrowseFeed({ baseBody: () => ({ isFavorite: true }) });
 
@@ -18,10 +20,14 @@
 </script>
 
 {#if feed.loading && !feed.loadedOnce}
-  <div class="flex-1 flex items-center justify-center text-sm text-immich-dark-fg/40">loading…</div>
+  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading favorites…" /></div>
 {:else}
   <BrowseHeader title="Favorites" loaded={feed.assets.length} totalCount={feed.totalCount} favoriteLocked />
-  <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
-  </div>
+  {#if feed.assets.length === 0}
+    <EmptyState title="No favorites yet" message="Mark photos as favorites in Immich to see them here." />
+  {:else}
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+    </div>
+  {/if}
 {/if}
