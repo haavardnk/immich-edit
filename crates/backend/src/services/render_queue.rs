@@ -151,4 +151,39 @@ mod tests {
             panic!("collapsed too few: ran {}", runs.load(Ordering::SeqCst));
         }
     }
+
+    #[tokio::test]
+    async fn shutdown_cancels_trackers_and_drains() {
+        let q = RenderQueue::new(2);
+        let a = Uuid::new_v4();
+        let b = Uuid::new_v4();
+        let token_a = q.tracker(a).await.next();
+        let token_b = q.tracker(b).await.next();
+
+        let q1 = q.clone();
+        let h = tokio::spawn(async move {
+            q1.enqueue::<_, &'static str, ()>(a, async move {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                Ok("done")
+            })
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        q.shutdown(Duration::from_secs(2)).await;
+
+        if !token_a.is_cancelled() || !token_b.is_cancelled() {
+            panic!("trackers not cancelled");
+        }
+        let _ = h.await.unwrap();
+        if q.semaphore.available_permits() < 2 {
+            panic!("did not drain");
+        }
+        let after = q
+            .enqueue::<_, &'static str, ()>(Uuid::new_v4(), async move { Ok("late") })
+            .await;
+        if after.is_some() {
+            panic!("post-shutdown enqueue should be rejected");
+        }
+    }
 }

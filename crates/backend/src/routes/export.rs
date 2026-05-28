@@ -350,7 +350,7 @@ fn idempotency_key(headers: &HeaderMap) -> Result<Option<String>, AppError> {
     Ok(Some(s.to_string()))
 }
 
-fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
+pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
     let mut album_ids = body.album_ids.clone();
     album_ids.sort();
     let mut tag_ids = body.tag_ids.clone();

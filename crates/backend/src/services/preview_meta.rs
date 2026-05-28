@@ -54,4 +54,54 @@ impl PreviewMetaStore {
     pub async fn get(&self, id: Uuid) -> Option<PreviewMeta> {
         self.inner.lock().await.get(&id).cloned()
     }
+
+    #[cfg(test)]
+    async fn len(&self) -> usize {
+        self.inner.lock().await.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use raw_pipeline::histogram::Histogram;
+
+    fn meta() -> PreviewMeta {
+        PreviewMeta {
+            asset_id: Uuid::new_v4(),
+            width: 1,
+            height: 1,
+            source_w: 1,
+            source_h: 1,
+            renderer: "cpu".into(),
+            histogram: Histogram::from_rgb_u8(&[0, 0, 0], 1, 1),
+            linear_histogram: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn lru_caps_count() {
+        let store = PreviewMetaStore::with_capacity(8);
+        for _ in 0..64 {
+            store.put(meta()).await;
+        }
+        let n = store.len().await;
+        if n != 8 {
+            panic!("expected 8, got {n}");
+        }
+    }
+
+    #[tokio::test]
+    async fn lru_evicts_oldest() {
+        let store = PreviewMetaStore::with_capacity(2);
+        let a = store.put(meta()).await;
+        let b = store.put(meta()).await;
+        let c = store.put(meta()).await;
+        if store.get(a).await.is_some() {
+            panic!("oldest should be evicted");
+        }
+        if store.get(b).await.is_none() || store.get(c).await.is_none() {
+            panic!("recent entries should remain");
+        }
+    }
 }

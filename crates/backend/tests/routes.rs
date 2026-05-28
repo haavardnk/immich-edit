@@ -550,3 +550,51 @@ async fn request_id_header_propagated() {
         .unwrap();
     assert!(resp.headers().get("x-request-id").is_some());
 }
+
+#[tokio::test]
+async fn protected_route_rejects_invalid_token() {
+    let server = MockServer::start().await;
+    let mut state = test_state(&server).await;
+    let mut cfg = (*state.config).clone();
+    cfg.auth_token = Some("secret".into());
+    state.config = std::sync::Arc::new(cfg);
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/health")
+                .header("authorization", "Bearer wrong")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn error_body_request_id_matches_inbound_header() {
+    let server = MockServer::start().await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/does/not/exist")
+                .header("x-request-id", "client-supplied-1234")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        resp.headers()
+            .get("x-request-id")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "client-supplied-1234"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    assert_eq!(json["request_id"], "client-supplied-1234");
+}
