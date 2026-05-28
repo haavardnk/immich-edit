@@ -19,7 +19,7 @@ wgpu = "22"
 bytemuck = { version = "1", features = ["derive"] }
 pollster = "0.3"
 parking_lot = "0.12"
-lru = "0.12"
+lru = "0.18"
 half = "2.7.1"
 fast_image_resize = "6.0.0"
 rayon = { workspace = true }
