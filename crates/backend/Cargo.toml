@@ -15,7 +15,7 @@ axum = "0.8"
 tokio = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs", "set-header", "request-id", "util", "catch-panic"] }
-reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
+reqwest = { version = "0.13", features = ["json", "stream", "multipart"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
@@ -38,7 +38,7 @@ tower_governor = { version = "0.8", default-features = false, features = ["axum"
 [dev-dependencies]
 tokio = { workspace = true }
 wiremock = "0.6"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 url = { workspace = true }
