@@ -9,11 +9,6 @@ services:
     volumes:
       - edit-cache:/cache
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: false
 
     # --- AMD GPU (uncomment) ---
     # devices:
