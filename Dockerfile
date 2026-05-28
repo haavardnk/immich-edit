@@ -5,8 +5,16 @@ RUN npm ci --no-audit --no-fund
 COPY web/ .
 RUN npm run build
 
-FROM rust:1.95-trixie AS backend
+FROM rust:1.95-trixie AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /build
+
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY crates/ crates/
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS backend
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     cmake \
@@ -17,7 +25,10 @@ RUN apt-get update && \
     nasm \
     pkg-config && \
     rm -rf /var/lib/apt/lists/*
-COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY --from=planner /build/recipe.json recipe.json
+COPY rust-toolchain.toml ./
+RUN cargo chef cook --release --recipe-path recipe.json -j "$(nproc)"
+COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 RUN cargo build --locked --release --bin immich-edit -j "$(nproc)" && \
     strip target/release/immich-edit

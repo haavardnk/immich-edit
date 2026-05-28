@@ -28,9 +28,14 @@ png = "0.18"
 tiff = "0.11"
 webp = "0.3"
 rgb = "0.8"
-libheif-rs = { version = "2.7", features = ["embedded-libheif"] }
 jpegxl-rs = { version = "0.14", features = ["vendored"] }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+libheif-rs = { version = "2.7", features = ["embedded-libheif"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libheif-rs = "2.7"
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }

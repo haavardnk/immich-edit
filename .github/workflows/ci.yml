@@ -37,7 +37,7 @@ jobs:
           key: brew-${{ runner.os }}-v1
       - name: Install macOS deps
         if: runner.os == 'macOS'
-        run: brew install nasm ninja jpeg-turbo
+        run: brew install nasm ninja jpeg-turbo libheif
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace

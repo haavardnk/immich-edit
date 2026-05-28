@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/backend", "crates/raw-pipeline"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.0"
 edition = "2024"
 license = "AGPL-3.0-only"
 
@@ -21,8 +21,8 @@ url = "2"
 rayon = "1"
 
 [profile.release]
-lto = "fat"
-codegen-units = 1
+lto = "thin"
+codegen-units = 16
 strip = "symbols"
 
 [profile.dev]
