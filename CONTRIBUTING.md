@@ -50,6 +50,11 @@ cd web && npm install && npm run dev
 
 On macOS, run natively for GPU rendering. Metal does not pass through Docker.
 
+## Pipeline changes
+
+If you change RAW operators, render pass ordering, CPU/GPU ownership, or tone/output handling,
+read [docs/pipeline.md](docs/pipeline.md) first and update it with the code change.
+
 ## Tests
 
 ```bash
