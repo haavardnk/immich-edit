@@ -368,3 +368,134 @@ async fn export_returns_full_res_jpeg() {
         panic!("full res suspiciously small: {} bytes", bytes.len());
     }
 }
+
+async fn mock_asset_metadata(server: &MockServer, id: uuid::Uuid, checksum: &str) {
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}")))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": id,
+            "originalFileName": "x.arw",
+            "type": "IMAGE",
+            "updatedAt": "2026-05-01T00:00:00Z",
+            "checksum": checksum,
+        })))
+        .mount(server)
+        .await;
+}
+
+async fn put_edits(
+    app: &axum::Router,
+    id: uuid::Uuid,
+    body: serde_json::Value,
+) -> serde_json::Value {
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("put: {}", resp.status());
+    }
+    serde_json::from_slice(&body_bytes(resp).await).unwrap()
+}
+
+#[tokio::test]
+async fn put_writes_history_revision() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_metadata(&server, id, "abc").await;
+    let app = router(test_state(&server).await);
+
+    put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 0.5}}}),
+    )
+    .await;
+    put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 1.5}}}),
+    )
+    .await;
+
+    let resp = app
+        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("history status {}", resp.status());
+    }
+    let entries: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let arr = entries.as_array().unwrap();
+    if arr.len() != 2 {
+        panic!("expected 2 history entries, got {}", arr.len());
+    }
+    if arr[0]["edits"]["basic"]["exposure_ev"] != 1.5 {
+        panic!("newest first: {entries}");
+    }
+    if arr[1]["edits"]["basic"]["exposure_ev"] != 0.5 {
+        panic!("oldest second: {entries}");
+    }
+}
+
+#[tokio::test]
+async fn restore_returns_previous_edits() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_metadata(&server, id, "abc").await;
+    let app = router(test_state(&server).await);
+
+    let first = put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 0.5}}}),
+    )
+    .await;
+    let first_hash = first["hash"].as_str().unwrap().to_string();
+    put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 1.5}}}),
+    )
+    .await;
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/edits/restore"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"hash": first_hash}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("restore status {}", resp.status());
+    }
+    let restored: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if restored["manifest"]["ops"]["exposure"]["ev"] != 0.5 {
+        panic!("restore body: {restored}");
+    }
+
+    let resp = app
+        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .await
+        .unwrap();
+    let current: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if current["manifest"]["ops"]["exposure"]["ev"] != 0.5 {
+        panic!("get-after-restore: {current}");
+    }
+}
