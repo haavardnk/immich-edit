@@ -15,7 +15,7 @@ import { fetchRaster, uploadRaster } from '$lib/api/rasters';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
-import { ConflictError } from '$lib/api/client';
+import { ConflictError, ApiError } from '$lib/api/client';
 import type { EditRecord } from '$lib/types/edits';
 import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode } from '$lib/api/preview';
 import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
@@ -111,6 +111,8 @@ class EditorStore {
     },
     (err) => {
       this.pending = false;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (err instanceof ApiError && err.code === 'superseded') return;
       this.error = (err as Error).message;
     }
   );
