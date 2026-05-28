@@ -1743,7 +1743,7 @@ dependencies = [
 
 [[package]]
 name = "immich-edit-backend"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3058,7 +3058,7 @@ dependencies = [
 
 [[package]]
 name = "raw-pipeline"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "bytemuck",
  "bytes",
