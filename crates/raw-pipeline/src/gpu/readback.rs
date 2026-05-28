@@ -3,8 +3,8 @@ use std::sync::mpsc::TryRecvError;
 use std::time::Duration;
 
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d, ImageCopyBuffer,
-    ImageDataLayout, MapMode, Origin3d, Texture, TextureAspect,
+    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d, MapMode, Origin3d,
+    TexelCopyBufferInfo, TexelCopyBufferLayout, Texture, TextureAspect,
 };
 
 use super::context::GpuContext;
@@ -65,15 +65,15 @@ pub fn copy_texture_to_buffer(
         _ => 4,
     };
     encoder.copy_texture_to_buffer(
-        wgpu::ImageCopyTexture {
+        wgpu::TexelCopyTextureInfo {
             texture,
             mip_level: 0,
             origin: Origin3d::ZERO,
             aspect: TextureAspect::All,
         },
-        ImageCopyBuffer {
+        TexelCopyBufferInfo {
             buffer,
-            layout: ImageDataLayout {
+            layout: TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(padded_row(width, bpp)),
                 rows_per_image: Some(height),
@@ -99,7 +99,7 @@ pub fn map_buffer_cancellable(
     });
     let mut cancelled = false;
     loop {
-        ctx.device.poll(wgpu::Maintain::Poll);
+        let _ = ctx.device.poll(wgpu::PollType::Poll);
         match receiver.try_recv() {
             Ok(result) => {
                 let map_err = result.err();

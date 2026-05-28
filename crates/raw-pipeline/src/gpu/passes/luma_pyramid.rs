@@ -54,14 +54,14 @@ impl LumaPyramidPass {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("luma-extract-pl"),
-            bind_group_layouts: &[&extract_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&extract_layout)],
+            immediate_size: 0,
         });
         let extract_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("luma-extract-cp"),
             layout: Some(&pipeline_layout),
             module: &module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

@@ -375,7 +375,7 @@ pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();
     h.update(&bytes);
-    format!("{:x}", h.finalize())
+    hex::encode(h.finalize())
 }
 
 fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {

@@ -270,7 +270,7 @@ impl GpuRenderer {
         queue.write_texture(
             texture.as_image_copy(),
             bytemuck::cast_slice(&rgba_f16),
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(w * 8),
                 rows_per_image: Some(h),
@@ -603,7 +603,7 @@ impl GpuRenderer {
             address_mode_w: AddressMode::ClampToEdge,
             mag_filter: FilterMode::Linear,
             min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..Default::default()
         });
 
@@ -754,7 +754,7 @@ impl GpuRenderer {
                     }
                 };
                 self.ctx.queue.write_texture(
-                    wgpu::ImageCopyTexture {
+                    wgpu::TexelCopyTextureInfo {
                         texture: &atlas,
                         mip_level: 0,
                         origin: wgpu::Origin3d {
@@ -765,7 +765,7 @@ impl GpuRenderer {
                         aspect: wgpu::TextureAspect::All,
                     },
                     bytes.as_slice(),
-                    wgpu::ImageDataLayout {
+                    wgpu::TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
                         rows_per_image: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
@@ -1011,13 +1011,13 @@ impl GpuRenderer {
             let _ = scratch_tone_view;
             if accum_in_alt {
                 encoder.copy_texture_to_texture(
-                    wgpu::ImageCopyTexture {
+                    wgpu::TexelCopyTextureInfo {
                         texture: &p.mask_accum_alt,
                         mip_level: 0,
                         origin: wgpu::Origin3d::ZERO,
                         aspect: wgpu::TextureAspect::All,
                     },
-                    wgpu::ImageCopyTexture {
+                    wgpu::TexelCopyTextureInfo {
                         texture: &p.linear_texture,
                         mip_level: 0,
                         origin: wgpu::Origin3d::ZERO,
@@ -1634,15 +1634,15 @@ impl GpuRenderer {
                 label: Some("dehaze-atm-enc"),
             });
         encoder.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: src,
                 mip_level: level,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &buf,
-                layout: wgpu::ImageDataLayout {
+                layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(padded),
                     rows_per_image: Some(hl),
@@ -2776,14 +2776,14 @@ fn make_dummy_luma(ctx: &GpuContext) -> Texture {
     });
     let zero = [0u8; 8];
     ctx.queue.write_texture(
-        wgpu::ImageCopyTexture {
+        wgpu::TexelCopyTextureInfo {
             texture: &tex,
             mip_level: 0,
             origin: wgpu::Origin3d::ZERO,
             aspect: wgpu::TextureAspect::All,
         },
         &zero,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(8),
             rows_per_image: Some(1),

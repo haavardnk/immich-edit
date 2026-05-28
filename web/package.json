@@ -29,5 +29,8 @@
 	},
 	"dependencies": {
 		"@mdi/js": "^7.4.47"
+	},
+	"overrides": {
+		"cookie": "^1.0.2"
 	}
 }

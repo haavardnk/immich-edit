@@ -69,14 +69,14 @@ impl OutputSharpenPass {
         });
         let blur_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("sharpen-blur-pl"),
-            bind_group_layouts: &[&blur_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&blur_layout)],
+            immediate_size: 0,
         });
         let blur_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("sharpen-blur-cp"),
             layout: Some(&blur_pl),
             module: &blur_module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -144,14 +144,14 @@ impl OutputSharpenPass {
         });
         let sharpen_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("sharpen-pl"),
-            bind_group_layouts: &[&sharpen_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&sharpen_layout)],
+            immediate_size: 0,
         });
         let sharpen_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("sharpen-cp"),
             layout: Some(&sharpen_pl),
             module: &sharpen_module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

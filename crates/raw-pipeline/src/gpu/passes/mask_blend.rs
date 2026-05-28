@@ -79,14 +79,14 @@ impl MaskBlendPass {
         });
         let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("mask-blend-pl"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("mask-blend-cp"),
             layout: Some(&pl),
             module: &module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

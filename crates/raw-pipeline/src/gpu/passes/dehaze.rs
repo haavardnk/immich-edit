@@ -35,14 +35,14 @@ fn make_pipeline(
     });
     let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some(label),
-        bind_group_layouts: &[layout],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[Some(layout)],
+        immediate_size: 0,
     });
     device.create_compute_pipeline(&ComputePipelineDescriptor {
         label: Some(label),
         layout: Some(&pl),
         module: &module,
-        entry_point: "main",
+        entry_point: Some("main"),
         compilation_options: Default::default(),
         cache: None,
     })
@@ -231,7 +231,7 @@ impl DehazePasses {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..Default::default()
         });
 

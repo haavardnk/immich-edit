@@ -104,15 +104,15 @@ impl ProcessFastPass {
         let pl_label = format!("{label_prefix}-pl");
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some(&pl_label),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let cp_label = format!("{label_prefix}-cp");
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some(&cp_label),
             layout: Some(&pipeline_layout),
             module: &module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

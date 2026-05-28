@@ -75,14 +75,14 @@ impl PresencePass {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("presence-adjust-pl"),
-            bind_group_layouts: &[&adjust_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&adjust_layout)],
+            immediate_size: 0,
         });
         let adjust_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("presence-adjust-cp"),
             layout: Some(&pipeline_layout),
             module: &module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

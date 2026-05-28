@@ -15,7 +15,7 @@ axum = "0.8"
 tokio = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs", "set-header", "request-id", "util", "catch-panic"] }
-reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
+reqwest = { version = "0.13", features = ["json", "query", "stream", "multipart"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
@@ -26,10 +26,10 @@ bytes = { workspace = true }
 toml = { workspace = true }
 url = { workspace = true }
 http = "1"
-lru = "0.12"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
+lru = "0.18"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 mimalloc = { version = "0.1", default-features = false }
 lensfun = "=0.7.0"
@@ -38,7 +38,7 @@ tower_governor = { version = "0.8", default-features = false, features = ["axum"
 [dev-dependencies]
 tokio = { workspace = true }
 wiremock = "0.6"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "query"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
 url = { workspace = true }

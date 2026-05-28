@@ -25,10 +25,9 @@ impl GpuContext {
     }
 
     pub async fn new_async() -> PipelineResult<Arc<Self>> {
-        let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::PRIMARY,
-            ..Default::default()
-        });
+        let mut instance_desc = InstanceDescriptor::new_without_display_handle();
+        instance_desc.backends = Backends::PRIMARY;
+        let instance = Instance::new(instance_desc);
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::HighPerformance,
@@ -36,7 +35,7 @@ impl GpuContext {
                 force_fallback_adapter: false,
             })
             .await
-            .ok_or_else(|| PipelineError::Unsupported("no gpu adapter found".into()))?;
+            .map_err(|e| PipelineError::Unsupported(format!("gpu adapter: {e}")))?;
 
         let adapter_info = adapter.get_info();
         let adapter_limits = adapter.limits();
@@ -57,15 +56,14 @@ impl GpuContext {
             .min(adapter_limits.max_buffer_size);
 
         let (device, queue) = adapter
-            .request_device(
-                &DeviceDescriptor {
-                    label: Some("immich-edit gpu"),
-                    required_features: Features::empty(),
-                    required_limits: limits,
-                    memory_hints: MemoryHints::Performance,
-                },
-                None,
-            )
+            .request_device(&DeviceDescriptor {
+                label: Some("immich-edit gpu"),
+                required_features: Features::empty(),
+                required_limits: limits,
+                experimental_features: Default::default(),
+                memory_hints: MemoryHints::Performance,
+                trace: wgpu::Trace::Off,
+            })
             .await
             .map_err(|e| PipelineError::Unsupported(format!("gpu device: {e}")))?;
 

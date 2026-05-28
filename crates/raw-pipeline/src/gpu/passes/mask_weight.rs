@@ -221,14 +221,14 @@ impl MaskWeightPass {
         });
         let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("mask-weight-pl"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("mask-weight-cp"),
             layout: Some(&pl),
             module: &module,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -244,7 +244,7 @@ pub fn make_atlas_sampler(ctx: &Arc<GpuContext>) -> Sampler {
         address_mode_w: AddressMode::ClampToEdge,
         mag_filter: FilterMode::Linear,
         min_filter: FilterMode::Linear,
-        mipmap_filter: FilterMode::Nearest,
+        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
         ..Default::default()
     })
 }

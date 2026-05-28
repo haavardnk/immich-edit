@@ -13,13 +13,13 @@ bytes = { workspace = true }
 tracing = { workspace = true }
 rawler = "0.7"
 turbojpeg = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
-wgpu = "22"
+wgpu = "29"
 bytemuck = { version = "1", features = ["derive"] }
-pollster = "0.3"
+pollster = "0.4"
 parking_lot = "0.12"
-lru = "0.12"
+lru = "0.18"
 half = "2.7.1"
 fast_image_resize = "6.0.0"
 rayon = { workspace = true }
@@ -28,8 +28,8 @@ png = "0.18"
 tiff = "0.11"
 webp = "0.3"
 rgb = "0.8"
-libheif-rs = "2.7"
-jpegxl-rs = "0.14"
+libheif-rs = { version = "2.7", features = ["embedded-libheif"] }
+jpegxl-rs = { version = "0.14", features = ["vendored"] }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
 
 [dev-dependencies]
