@@ -61,6 +61,14 @@ Open `http://localhost:3000` and log in with the token.
 
 `AUTH_TOKEN` is optional only when the server binds to a loopback address. The Docker Compose example binds to `0.0.0.0`, so set a token unless you also change the bind/security settings.
 
+For anything beyond a trusted LAN, put immich-edit behind a reverse proxy that handles TLS and authentication (Authelia, Authentik, oauth2-proxy, Caddy `basic_auth`, Traefik ForwardAuth). The shared token is a single secret, not a user system. See [docs/deploy.md](docs/deploy.md) for proxy examples.
+
+## Documentation
+
+- [Deploy guide](docs/deploy.md) - Docker, native, reverse-proxy, GPU passthrough, backups, upgrades
+- [Troubleshooting](docs/troubleshooting.md) - common errors and how to diagnose them
+- [Raw pipeline](docs/pipeline.md) - contributor reference for operator and render-pass ownership
+
 ## Configuration
 
 Settings use environment variables. See [.env.example](.env.example) for the full list.
