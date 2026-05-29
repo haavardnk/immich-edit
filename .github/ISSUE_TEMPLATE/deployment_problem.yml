@@ -1,0 +1,72 @@
+name: Deployment problem
+description: Get help with Docker, networking, GPU passthrough, auth, or storage.
+title: "Deploy: "
+labels: [deployment]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [deployment docs](https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md) before opening this. Most setup problems come down to env vars, permissions, proxy headers, or GPU group access.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Container won't start / crash loop
+        - Can't reach Immich (immich_reachable=false)
+        - GPU passthrough / renderer falls back to CPU
+        - Reverse proxy / CORS / TLS
+        - Built-in token auth
+        - Cache / database / permissions
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: What is failing?
+      description: Include the exact error text, status code, screenshot, or browser message.
+    validations:
+      required: true
+  - type: textarea
+    id: support_bundle
+    attributes:
+      label: Support bundle
+      description: Paste the output from Settings & diagnostics. If the container never starts, paste startup logs instead.
+      render: text
+  - type: textarea
+    id: compose
+    attributes:
+      label: compose.yaml
+      description: Redact tokens and private hostnames if needed.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: .env (redacted)
+      description: Replace `IMMICH_API_KEY` and `AUTH_TOKEN` with `***`.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Host
+      placeholder: e.g. Ubuntu 24.04 amd64, Unraid 7.0, Synology DSM 7.2
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU (if relevant)
+      placeholder: e.g. AMD RX 6600, Intel UHD 770, none
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`docker compose logs immich-edit` from the failing start or request. Redact tokens."
+      render: shell
+    validations:
+      required: true

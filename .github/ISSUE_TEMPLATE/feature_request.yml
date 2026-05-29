@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an edit, workflow, integration, or UI improvement.
+title: "Feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and where does immich-edit get in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change? UI sketches, operator names, example values, and before/after screenshots all help.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds
+      description: What do you do today instead?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links to similar tools, sample photos, or real workflows.

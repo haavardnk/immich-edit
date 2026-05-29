@@ -1,0 +1,96 @@
+name: Bug report
+description: Report a reproducible bug in immich-edit.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for bugs in immich-edit. If the problem is with Immich itself, open it upstream instead.
+
+        Paste the support bundle from **Settings & diagnostics > Copy support bundle**. It saves a lot of back and forth.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What broke? What should have happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open an album
+        2. Select a RAW file
+        3. Change exposure
+        4. Save edits
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Error text, wrong image output, failed request, console error, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What should immich-edit have done?
+    validations:
+      required: true
+  - type: textarea
+    id: support_bundle
+    attributes:
+      label: Support bundle
+      description: Paste the output from Settings & diagnostics. It includes version, renderer, GPU adapter, cache path, debug status, and recent render timings.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: immich_version
+    attributes:
+      label: Immich server version
+      placeholder: e.g. v1.130.3
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Docker Hub image (haavardnk/immich-edit)
+        - Self-built Docker image
+        - Native (cargo run)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Host OS and architecture
+      placeholder: e.g. Ubuntu 24.04 amd64, Unraid 7.0, macOS 15 arm64
+    validations:
+      required: true
+  - type: input
+    id: request_id
+    attributes:
+      label: Request ID(s)
+      description: From the failing response header, toast, or server log if you have one.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Backend logs and browser console output. Redact tokens.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I am on the latest release tag (or a recent `latest` pull).
+          required: true
+        - label: I searched existing issues.
+          required: true
