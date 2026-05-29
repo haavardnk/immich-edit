@@ -62,6 +62,8 @@ cargo test --workspace
 cd web && npm run check
 ```
 
+GPU parity tests require local GPU hardware and do not run on GitHub-hosted Ubuntu. If a PR changes GPU shaders, render pass ordering, GPU/CPU parity behavior, or device setup, include local GPU test evidence in the PR description.
+
 ## Commits
 
 - Use conventional commit titles
