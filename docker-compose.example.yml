@@ -16,6 +16,9 @@ services:
     # group_add:
     #   - video
     #   - render
+    #   # On Unraid or distros without a `render` group, replace the names
+    #   # above with the numeric GID of the host group owning /dev/dri/renderD128
+    #   # (find it with: stat -c '%g' /dev/dri/renderD128), e.g. "18".
 
     # --- Intel GPU (uncomment) ---
     # devices:
@@ -23,6 +26,7 @@ services:
     # group_add:
     #   - video
     #   - render
+    #   # Same Unraid note as above applies.
 
     # --- NVIDIA GPU (uncomment) ---
     # deploy:

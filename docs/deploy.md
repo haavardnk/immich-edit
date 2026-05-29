@@ -117,6 +117,8 @@ GPU rendering uses Vulkan inside the container. The image bundles Mesa Vulkan dr
 | Linux, NVIDIA | Vulkan (proprietary) | Install [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then `deploy.resources.reservations.devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]` |
 | macOS | Metal | Run native (`cargo run`). Metal does not pass into Docker. |
 
+On Unraid (and some other distros without a `render` group), `group_add: [video, render]` fails because the names do not resolve inside the container. Look up the numeric GID of the host group that owns `/dev/dri/renderD128` (`stat -c '%g' /dev/dri/renderD128`) and pass it directly, e.g. `group_add: ["18"]`.
+
 Check which renderer the running instance picked:
 
 ```bash

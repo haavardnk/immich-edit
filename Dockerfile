@@ -1,12 +1,14 @@
 FROM node:26-slim AS frontend
+ARG APP_VERSION=0.0.0
 WORKDIR /build/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ .
-RUN npm run build
+RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
+    npm run build
 
 FROM rust:1.95-trixie AS chef
-RUN cargo install cargo-chef --locked
+RUN cargo install cargo-chef cargo-edit --locked
 WORKDIR /build
 
 FROM chef AS planner
@@ -15,6 +17,7 @@ COPY crates/ crates/
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS backend
+ARG APP_VERSION=0.0.0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     cmake \
@@ -30,7 +33,8 @@ COPY rust-toolchain.toml ./
 RUN cargo chef cook --release --recipe-path recipe.json -j "$(nproc)"
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
-RUN cargo build --locked --release --bin immich-edit -j "$(nproc)" && \
+RUN cargo set-version --workspace "$APP_VERSION" && \
+    cargo build --locked --release --bin immich-edit -j "$(nproc)" && \
     strip target/release/immich-edit
 
 FROM debian:trixie-slim
