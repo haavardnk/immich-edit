@@ -31,7 +31,7 @@ jobs:
             libturbojpeg0-dev
       - name: Cache Homebrew downloads
         if: runner.os == 'macOS'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/Homebrew/downloads
           key: brew-${{ runner.os }}-v1
