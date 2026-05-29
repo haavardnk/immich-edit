@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Deployment and configuration docs
+    url: https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md
+    about: Docker Compose, env vars, GPU passthrough, reverse proxies, and common setup problems.
+  - name: Changelog
+    url: https://github.com/haavardnk/immich-edit/blob/main/CHANGELOG.md
+    about: Check whether a newer beta already fixed your issue.
+  - name: Security report
+    url: https://github.com/haavardnk/immich-edit/security/advisories/new
+    about: Report a security vulnerability privately.

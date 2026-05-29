@@ -8,6 +8,7 @@
   let timings = $state<DebugTimings | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let copyState = $state<'idle' | 'ok' | 'fail'>('idle');
 
   async function refresh(): Promise<void> {
     loading = true;
@@ -40,6 +41,59 @@
     return `${(b / 1024 / 1024 / 1024).toFixed(2)}GiB`;
   }
 
+  function buildSupportBundle(h: HealthInfo, t: DebugTimings | null): string {
+    const cfg = h.config as Record<string, unknown>;
+    const lines: string[] = [];
+    lines.push('## immich-edit support bundle');
+    lines.push('');
+    lines.push(`- Version: ${h.version}`);
+    lines.push(`- Renderer mode: ${h.renderer_mode}`);
+    lines.push(`- Renderer active: ${h.renderer_active}`);
+    lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
+    lines.push(`- Immich reachable: ${h.immich_reachable}`);
+    lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
+    lines.push(`- Cache dir: ${cfg.cache_dir ?? '—'}`);
+    lines.push(`- Debug endpoints: ${cfg.debug_endpoints ?? false}`);
+    lines.push(`- User agent: ${navigator.userAgent}`);
+    lines.push('');
+    if (t) {
+      lines.push('### Render latency');
+      lines.push('');
+      lines.push('| Renderer | Count | p50 | p95 | p99 | max |');
+      lines.push('|---|---|---|---|---|---|');
+      const row = (name: string, s: typeof t.render_latency.cpu) =>
+        `| ${name} | ${s.count} | ${formatUs(s.p50_us)} | ${formatUs(s.p95_us)} | ${formatUs(s.p99_us)} | ${formatUs(s.max_us)} |`;
+      lines.push(row('cpu', t.render_latency.cpu));
+      lines.push(row('gpu', t.render_latency.gpu));
+      if (t.gpu_pool_bytes) {
+        lines.push('');
+        lines.push(`- GPU pool total: ${formatBytes(t.gpu_pool_bytes.total)}`);
+      }
+    } else {
+      lines.push('Render timings: unavailable (debug endpoints disabled).');
+    }
+    lines.push('');
+    lines.push('### Redacted config');
+    lines.push('');
+    lines.push('```json');
+    lines.push(JSON.stringify(h.config, null, 2));
+    lines.push('```');
+    return lines.join('\n');
+  }
+
+  async function copySupportBundle(): Promise<void> {
+    if (!health) return;
+    try {
+      await navigator.clipboard.writeText(buildSupportBundle(health, timings));
+      copyState = 'ok';
+    } catch {
+      copyState = 'fail';
+    }
+    setTimeout(() => {
+      copyState = 'idle';
+    }, 2000);
+  }
+
   onMount(() => {
     editor.unload();
     void refresh();
@@ -50,13 +104,23 @@
   <div class="max-w-3xl mx-auto space-y-6">
     <div class="flex items-center justify-between">
       <h1 class="text-lg font-medium">Settings &amp; diagnostics</h1>
-      <button
-        class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs"
-        onclick={() => void refresh()}
-        disabled={loading}
-      >
-        Refresh
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
+          onclick={() => void copySupportBundle()}
+          disabled={loading || !health}
+          title="Copy a diagnostics block to paste into a bug report"
+        >
+          {copyState === 'ok' ? 'Copied' : copyState === 'fail' ? 'Copy failed' : 'Copy support bundle'}
+        </button>
+        <button
+          class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs"
+          onclick={() => void refresh()}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </div>
     </div>
 
     {#if loading}
@@ -114,6 +178,15 @@
       {:else}
         <p class="text-xs text-immich-dark-fg/40">Debug timings disabled (set <code class="font-mono">IMMICH_EDIT_DEBUG_ENDPOINTS=true</code> to enable).</p>
       {/if}
+
+      <section class="space-y-2">
+        <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Resources</h2>
+        <ul class="text-xs space-y-1">
+          <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md" target="_blank" rel="noopener">Deployment & troubleshooting</a></li>
+          <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+          <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/issues/new/choose" target="_blank" rel="noopener">Report an issue</a></li>
+        </ul>
+      </section>
     {/if}
   </div>
 </div>

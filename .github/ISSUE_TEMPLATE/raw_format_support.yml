@@ -1,0 +1,60 @@
+name: RAW format support
+description: Report a RAW file that fails to decode or renders incorrectly.
+title: "RAW: "
+labels: [raw-format]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        immich-edit decodes RAW files through [rawler](https://github.com/dnglab/dnglab). If the camera is unsupported there, it is unsupported here too.
+
+        A sample file is usually required. Without one, this is hard to fix.
+  - type: input
+    id: camera
+    attributes:
+      label: Camera make and model
+      placeholder: e.g. Sony α7 IV, Fujifilm X-T5
+    validations:
+      required: true
+  - type: input
+    id: format
+    attributes:
+      label: RAW format and extension
+      placeholder: e.g. ARW (compressed), RAF, DNG
+    validations:
+      required: true
+  - type: dropdown
+    id: failure
+    attributes:
+      label: What goes wrong
+      options:
+        - Decode fails outright (error toast)
+        - Image loads but colors are wrong
+        - Image loads but is corrupted/distorted
+        - White balance / exposure is far off baseline
+        - Crop or rotation is wrong
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Describe the bad output. A comparison from darktable, RawTherapee, the camera vendor app, or Immich helps.
+    validations:
+      required: true
+  - type: textarea
+    id: support_bundle
+    attributes:
+      label: Support bundle
+      description: Paste the output from Settings & diagnostics.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample file
+      description: Link to a small RAW file. Google Drive, Dropbox, raw.pixls.us, or a temporary file host is fine.
+    validations:
+      required: true
