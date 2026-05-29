@@ -1,7 +1,9 @@
 services:
   immich-edit:
-    image: immich-edit:local
-    build: .
+    image: haavardnk/immich-edit:latest
+    # For local development, replace the image line above with:
+    # image: immich-edit:local
+    # build: .
     ports:
       - "3000:3000"
     env_file:

@@ -46,16 +46,41 @@ Export:
 
 ## Quick start
 
-The Docker Hub image is not published yet. For now, Docker Compose builds the image locally.
+The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest release. Pin an exact tag instead if you want upgrades to be explicit.
+
+Create `compose.yaml`:
+
+```yaml
+services:
+  immich-edit:
+    image: haavardnk/immich-edit:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - immich-edit-cache:/cache
+    restart: unless-stopped
+
+volumes:
+  immich-edit-cache:
+```
+
+Create `.env` next to it:
+
+```env
+IMMICH_URL=http://immich-server:2283
+IMMICH_API_KEY=your-api-key-here
+AUTH_TOKEN=choose-a-long-random-token
+```
+
+Start it:
 
 ```bash
-git clone https://github.com/haavardnk/immich-edit.git
-cd immich-edit
-cp .env.example .env
-cp docker-compose.example.yml docker-compose.yml
-# edit .env
 docker compose up -d
 ```
+
+To build from source, clone the repo and use [docker-compose.example.yml](docker-compose.example.yml) as a starting point.
 
 Open `http://localhost:3000` and log in with the token.
 
