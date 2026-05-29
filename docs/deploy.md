@@ -20,10 +20,35 @@ Open `http://127.0.0.1:3000`.
 
 For a home network where you trust every device that can reach the host.
 
-1. Copy `.env.example` to `.env` and set `IMMICH_URL`, `IMMICH_API_KEY`, and `AUTH_TOKEN`.
-2. Copy `docker-compose.example.yml` to `docker-compose.yml`.
-3. `docker compose up -d`.
-4. Visit `http://<host>:3000`, paste the token at `/login`.
+Use the published Docker Hub image unless you are developing locally:
+
+```yaml
+services:
+  immich-edit:
+    image: haavardnk/immich-edit:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - immich-edit-cache:/cache
+    restart: unless-stopped
+
+volumes:
+  immich-edit-cache:
+```
+
+Set the required values in `.env`:
+
+```env
+IMMICH_URL=http://immich-server:2283
+IMMICH_API_KEY=your-api-key-here
+AUTH_TOKEN=choose-a-long-random-token
+```
+
+Then run `docker compose up -d` and open `http://<host>:3000`.
+
+For local builds, clone the repository and use [docker-compose.example.yml](../docker-compose.example.yml). It includes a commented build option for development.
 
 `AUTH_TOKEN` is required whenever `BIND_ADDR` is not loopback. Setting `IMMICH_EDIT_INSECURE=1` overrides the startup check; only do this if a reverse proxy is fronting the service.
 
@@ -88,7 +113,7 @@ Bump `client_max_body_size` past `MAX_BODY_MB` if you raise the backend limit fo
 ```yaml
 services:
   immich-edit:
-    image: ghcr.io/haavardnk/immich-edit:0.1.0-beta.1
+    image: haavardnk/immich-edit:latest
     networks: [proxy]
     environment:
       IMMICH_URL: http://immich-server:2283
