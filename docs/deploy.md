@@ -160,7 +160,7 @@ To force the renderer for testing:
 ## Healthchecks
 
 - `GET /api/health/live` - unauthenticated liveness probe used by the Docker `HEALTHCHECK` directive. Returns `{"status":"ok"}` if the process is running.
-- `GET /api/health` - authenticated detailed health (`renderer_mode`, `renderer_active`, `gpu_adapter`, Immich reachability, DB migration status, redacted config).
+- `GET /api/health` - authenticated detailed health (`renderer_mode`, `renderer_active`, `gpu_adapter`, structured `immich_status`, DB migration status, redacted config).
 
 Reverse-proxy probes should hit `/api/health/live`. Monitoring that needs detail should authenticate and hit `/api/health`.
 

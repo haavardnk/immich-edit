@@ -7,9 +7,17 @@ export interface HealthInfo {
   renderer_active: string;
   gpu_adapter: string | null;
   immich_reachable: boolean;
+  immich_status: ImmichConnectionStatus;
   db_ready: boolean;
   db_migration_version: number | null;
   config: Record<string, unknown>;
+}
+
+export interface ImmichConnectionStatus {
+  ok: boolean;
+  kind: string;
+  message: string;
+  status_code: number | null;
 }
 
 export interface LatencyStats {

@@ -50,8 +50,46 @@ async fn health_returns_ok_with_redacted_config() {
     if json["immich_reachable"] != true {
         panic!("ping flag");
     }
+    if json["immich_status"]["kind"] != "ok" {
+        panic!("immich status: {}", json["immich_status"]);
+    }
     if json["config"]["immich_api_key_present"] != true {
         panic!("redacted flag");
+    }
+}
+
+#[tokio::test]
+async fn health_reports_specific_immich_failure() {
+    for (status, kind, code) in [
+        (401u16, "api_key_rejected", serde_json::Value::Null),
+        (503u16, "upstream_5xx", serde_json::json!(503)),
+    ] {
+        let server = MockServer::start().await;
+        mock_ping_status(&server, status).await;
+        let app = router(test_state(&server).await);
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("status {} for upstream {status}", resp.status());
+        }
+        let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+        if json["immich_reachable"] != false {
+            panic!("ping flag for upstream {status}: {json}");
+        }
+        if json["immich_status"]["kind"] != kind {
+            panic!("kind for upstream {status}: {json}");
+        }
+        if json["immich_status"]["status_code"] != code {
+            panic!("status_code for upstream {status}: {json}");
+        }
     }
 }
 
