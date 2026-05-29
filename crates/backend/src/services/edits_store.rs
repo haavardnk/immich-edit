@@ -47,6 +47,7 @@ pub struct EditHistoryEntry {
     pub deleted: bool,
     pub edits: Option<Edits>,
     pub created_at: String,
+    pub action: Option<String>,
 }
 
 const HISTORY_LIMIT_PER_ASSET: i64 = 50;
@@ -145,6 +146,7 @@ impl EditsStore {
         manifest: EditManifest,
         immich_updated_at: Option<String>,
         immich_checksum: Option<String>,
+        action: Option<&str>,
     ) -> Result<EditRecord, EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         let edits = manifest.to_edits().clamped();
@@ -172,7 +174,7 @@ impl EditsStore {
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
-        self.write_history(asset_id, &hash, Some(&edits_json), false)
+        self.write_history(asset_id, &hash, Some(&edits_json), false, action)
             .await?;
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
@@ -212,7 +214,11 @@ impl EditsStore {
         Ok(out)
     }
 
-    pub async fn delete(&self, asset_id: Uuid) -> Result<bool, EditsStoreError> {
+    pub async fn delete(
+        &self,
+        asset_id: Uuid,
+        action: Option<&str>,
+    ) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
             .bind(asset_id.to_string())
             .execute(&self.pool)
@@ -220,7 +226,7 @@ impl EditsStore {
         let deleted = res.rows_affected() > 0;
         if deleted {
             let tombstone_hash = Edits::default().stable_hash();
-            self.write_history(asset_id, &tombstone_hash, None, true)
+            self.write_history(asset_id, &tombstone_hash, None, true, action)
                 .await?;
         }
         Ok(deleted)
@@ -232,17 +238,19 @@ impl EditsStore {
         manifest_hash: &str,
         edits_json: Option<&str>,
         deleted: bool,
+        action: Option<&str>,
     ) -> Result<(), EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
-            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at, action) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )
         .bind(asset_id.to_string())
         .bind(manifest_hash)
         .bind(edits_json)
         .bind(if deleted { 1 } else { 0 })
         .bind(&now)
+        .bind(action)
         .execute(&self.pool)
         .await?;
         sqlx::query(
@@ -263,7 +271,7 @@ impl EditsStore {
         asset_id: Uuid,
     ) -> Result<Vec<EditHistoryEntry>, EditsStoreError> {
         let rows = sqlx::query(
-            "SELECT id, manifest_hash, edits_json, deleted, created_at \
+            "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
              FROM edits_history WHERE asset_id = ?1 ORDER BY created_at DESC, id DESC",
         )
         .bind(asset_id.to_string())
@@ -282,9 +290,97 @@ impl EditsStore {
                 deleted: deleted_i != 0,
                 edits,
                 created_at: row.try_get("created_at")?,
+                action: row.try_get("action")?,
             });
         }
         Ok(out)
+    }
+
+    pub async fn restore_to_entry(
+        &self,
+        asset_id: Uuid,
+        entry: &EditHistoryEntry,
+    ) -> Result<Option<EditRecord>, EditsStoreError> {
+        let current = self.get(asset_id).await?;
+        let immich_updated_at = current.as_ref().and_then(|r| r.immich_updated_at.clone());
+        let immich_checksum = current.as_ref().and_then(|r| r.immich_checksum.clone());
+        sqlx::query("DELETE FROM edits_history WHERE asset_id = ?1 AND id > ?2")
+            .bind(asset_id.to_string())
+            .bind(entry.id)
+            .execute(&self.pool)
+            .await?;
+        if entry.deleted || entry.edits.is_none() {
+            sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
+                .bind(asset_id.to_string())
+                .execute(&self.pool)
+                .await?;
+            return Ok(None);
+        }
+        let edits = entry.edits.clone().unwrap().clamped();
+        let edits_json = serde_json::to_string(&edits)?;
+        let renderer_version = RENDERER_VERSION.to_string();
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO edits (asset_id, edits_json, schema_version, renderer_version, \
+             immich_updated_at, immich_checksum, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
+             ON CONFLICT(asset_id) DO UPDATE SET \
+               edits_json = excluded.edits_json, \
+               schema_version = excluded.schema_version, \
+               renderer_version = excluded.renderer_version, \
+               updated_at = excluded.updated_at",
+        )
+        .bind(asset_id.to_string())
+        .bind(&edits_json)
+        .bind(SCHEMA_VERSION)
+        .bind(&renderer_version)
+        .bind(&immich_updated_at)
+        .bind(&immich_checksum)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        let hash = edits.stable_hash();
+        Ok(Some(EditRecord {
+            schema_version: SCHEMA_VERSION as u32,
+            asset_id,
+            immich_updated_at,
+            immich_checksum,
+            renderer_version,
+            manifest: EditManifest::from_edits(&edits),
+            updated_at: now,
+            hash,
+        }))
+    }
+
+    pub async fn get_history_entry(
+        &self,
+        asset_id: Uuid,
+        entry_id: i64,
+    ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
+        let row = sqlx::query(
+            "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
+             FROM edits_history WHERE asset_id = ?1 AND id = ?2",
+        )
+        .bind(asset_id.to_string())
+        .bind(entry_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let edits_json: Option<String> = row.try_get("edits_json")?;
+        let edits = edits_json
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<Edits>(s).ok());
+        let deleted_i: i64 = row.try_get("deleted")?;
+        Ok(Some(EditHistoryEntry {
+            id: row.try_get("id")?,
+            manifest_hash: row.try_get("manifest_hash")?,
+            deleted: deleted_i != 0,
+            edits,
+            created_at: row.try_get("created_at")?,
+            action: row.try_get("action")?,
+        }))
     }
 
     pub async fn get_history_entry_by_hash(
@@ -293,7 +389,7 @@ impl EditsStore {
         manifest_hash: &str,
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
         let row = sqlx::query(
-            "SELECT id, manifest_hash, edits_json, deleted, created_at \
+            "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
              FROM edits_history WHERE asset_id = ?1 AND manifest_hash = ?2 \
              ORDER BY created_at DESC, id DESC LIMIT 1",
         )
@@ -315,6 +411,7 @@ impl EditsStore {
             deleted: deleted_i != 0,
             edits,
             created_at: row.try_get("created_at")?,
+            action: row.try_get("action")?,
         }))
     }
 
@@ -470,6 +567,7 @@ mod tests {
                 manifest,
                 Some("2026-01-01T00:00:00Z".into()),
                 Some("abc".into()),
+                None,
             )
             .await
             .unwrap();
@@ -501,7 +599,7 @@ mod tests {
             },
             ..Default::default()
         });
-        let saved = s.put(id, manifest, None, None).await.unwrap();
+        let saved = s.put(id, manifest, None, None, None).await.unwrap();
         let edits = saved.manifest.to_edits();
         if edits.basic.exposure_ev > 5.0 {
             panic!("not clamped: {}", edits.basic.exposure_ev);
@@ -515,13 +613,13 @@ mod tests {
     async fn delete_removes() {
         let s = store().await;
         let id = uid();
-        s.put(id, EditManifest::default(), None, None)
+        s.put(id, EditManifest::default(), None, None, None)
             .await
             .unwrap();
-        if !s.delete(id).await.unwrap() {
+        if !s.delete(id, None).await.unwrap() {
             panic!("first delete");
         }
-        if s.delete(id).await.unwrap() {
+        if s.delete(id, None).await.unwrap() {
             panic!("second delete should be false");
         }
         if s.get(id).await.unwrap().is_some() {
@@ -544,6 +642,7 @@ mod tests {
             }),
             None,
             None,
+            None,
         )
         .await
         .unwrap();
@@ -558,12 +657,88 @@ mod tests {
             }),
             None,
             None,
+            None,
         )
         .await
         .unwrap();
         let loaded = s.get(id).await.unwrap().unwrap();
         if loaded.manifest.to_edits().basic.exposure_ev != 2.0 {
             panic!("overwrite");
+        }
+    }
+
+    #[tokio::test]
+    async fn put_history_roundtrips_action() {
+        let s = store().await;
+        let id = uid();
+        s.put(
+            id,
+            manifest_with(Edits {
+                basic: raw_pipeline::edits::BasicEdits {
+                    exposure_ev: 0.5,
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            None,
+            None,
+            Some("Exposure"),
+        )
+        .await
+        .unwrap();
+        let hist = s.list_history(id).await.unwrap();
+        if hist.len() != 1 || hist[0].action.as_deref() != Some("Exposure") {
+            panic!("action not stored: {hist:?}");
+        }
+        s.put(id, EditManifest::default(), None, None, None)
+            .await
+            .unwrap();
+        let hist = s.list_history(id).await.unwrap();
+        if hist.len() != 2 || hist[0].action.is_some() {
+            panic!("missing null-action row: {hist:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_history_roundtrips_action() {
+        let s = store().await;
+        let id = uid();
+        s.put(id, EditManifest::default(), None, None, Some("Auto"))
+            .await
+            .unwrap();
+        s.delete(id, Some("Brightness")).await.unwrap();
+        let hist = s.list_history(id).await.unwrap();
+        if !hist[0].deleted || hist[0].action.as_deref() != Some("Brightness") {
+            panic!("tombstone action: {hist:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn history_reads_null_action() {
+        let s = store().await;
+        let id = uid();
+        sqlx::query(
+            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at) \
+             VALUES (?1, ?2, ?3, 0, ?4)",
+        )
+        .bind(id.to_string())
+        .bind("deadbeef")
+        .bind("{}")
+        .bind("2026-01-01T00:00:00Z")
+        .execute(&s.pool)
+        .await
+        .unwrap();
+        let hist = s.list_history(id).await.unwrap();
+        if hist.len() != 1 || hist[0].action.is_some() {
+            panic!("expected null action: {hist:?}");
+        }
+        let single = s
+            .get_history_entry_by_hash(id, "deadbeef")
+            .await
+            .unwrap()
+            .unwrap();
+        if single.action.is_some() {
+            panic!("single null action: {single:?}");
         }
     }
 

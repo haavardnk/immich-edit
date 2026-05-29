@@ -43,7 +43,7 @@
     reg.hue = 0;
     reg.sat = 0;
     reg.lum = 0;
-    editor.onCommit();
+    editor.onCommit(`Reset ${REGION_LABELS[key]}`);
   }
 
   function resetAllGrading(): void {
@@ -55,7 +55,7 @@
     }
     cg.balance = 0;
     cg.blend = 0;
-    editor.onCommit();
+    editor.onCommit('Reset Color Grading');
   }
 </script>
 
@@ -103,6 +103,7 @@
             size={108}
             onLive={editor.onLive}
             onCommit={editor.onCommit}
+            commitAction="Midtones Color"
           />
         </button>
         <button
@@ -126,6 +127,7 @@
             size={92}
             onLive={editor.onLive}
             onCommit={editor.onCommit}
+            commitAction="Shadows Color"
           />
         </button>
         <button
@@ -149,6 +151,7 @@
             size={92}
             onLive={editor.onLive}
             onCommit={editor.onCommit}
+            commitAction="Highlights Color"
           />
         </button>
         <button
@@ -168,6 +171,7 @@
         size={160}
         onLive={editor.onLive}
         onCommit={editor.onCommit}
+        commitAction="Global Color"
       />
       <div class="cg-label">Global</div>
     </div>
@@ -198,6 +202,7 @@
       </div>
       <SliderRow
         label="Hue"
+        commitAction={`${REGION_LABELS[activeRegion]} Hue`}
         bind:value={activeRegionData.hue}
         min={0}
         max={360}
@@ -209,6 +214,7 @@
       />
       <SliderRow
         label="Saturation"
+        commitAction={`${REGION_LABELS[activeRegion]} Saturation`}
         bind:value={activeRegionData.sat}
         min={0}
         max={100}
@@ -220,6 +226,7 @@
       />
       <SliderRow
         label="Luminance"
+        commitAction={`${REGION_LABELS[activeRegion]} Luminance`}
         bind:value={activeRegionData.lum}
         min={-50}
         max={50}
@@ -235,6 +242,7 @@
   <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2">
     <SliderRow
       label="Balance"
+      commitAction="Color Balance"
       bind:value={editor.edits.color.color_grade.balance}
       min={-100}
       max={100}
@@ -246,6 +254,7 @@
     />
     <SliderRow
       label="Blending"
+      commitAction="Color Blending"
       bind:value={editor.edits.color.color_grade.blend}
       min={0}
       max={100}

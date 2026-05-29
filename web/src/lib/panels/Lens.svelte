@@ -60,7 +60,7 @@
       if (editor.edits.lens.vignette_amount === 0)
         editor.edits.lens.vignette_amount = NEUTRAL_LENS.vignette_amount;
     }
-    editor.onCommit();
+    editor.onCommit('Lens Profile');
   }
 
   function onToggleCa(e: Event): void {
@@ -73,12 +73,12 @@
     ) {
       loadProfileCoefficients();
     }
-    editor.onCommit();
+    editor.onCommit('Chromatic Aberration');
   }
 
   function onToggleConstrain(e: Event): void {
     editor.edits.lens.constrain_crop = (e.currentTarget as HTMLInputElement).checked;
-    editor.onCommit();
+    editor.onCommit('Constrain Crop');
   }
 </script>
 
@@ -128,6 +128,7 @@
 
   <SliderRow
     label="Distortion"
+    commitAction="Lens Distortion"
     bind:value={editor.edits.lens.distortion_amount}
     min={0}
     max={200}
@@ -141,6 +142,7 @@
 
   <SliderRow
     label="Vignetting"
+    commitAction="Lens Vignetting"
     bind:value={editor.edits.lens.vignette_amount}
     min={0}
     max={200}

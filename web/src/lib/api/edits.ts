@@ -19,7 +19,8 @@ export function getEdits(assetId: string): Promise<EditRecord> {
 export async function putEdits(
   assetId: string,
   edits: Edits,
-  baseHash?: string
+  baseHash?: string,
+  action?: string
 ): Promise<EditRecord> {
   const headers: Record<string, string> = {};
   if (baseHash) headers['if-match'] = baseHash;
@@ -27,7 +28,7 @@ export async function putEdits(
     const saved = await sendJson<EditRecord>(
       'PUT',
       `/api/assets/${assetId}/edits`,
-      editsToManifest(edits),
+      { manifest: editsToManifest(edits), action: action ?? null },
       { headers }
     );
     if (typeof window !== 'undefined') {
@@ -46,8 +47,8 @@ export async function putEdits(
   }
 }
 
-export async function deleteEdits(assetId: string): Promise<void> {
-  await sendJson<void>('DELETE', `/api/assets/${assetId}/edits`, undefined);
+export async function deleteEdits(assetId: string, action?: string): Promise<void> {
+  await sendJson<void>('DELETE', `/api/assets/${assetId}/edits`, { action: action ?? null });
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } })
@@ -65,17 +66,21 @@ export interface EditHistoryEntry {
   deleted: boolean;
   edits: Edits | null;
   created_at: string;
+  action: string | null;
 }
 
 export function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
   return getJson(`/api/assets/${assetId}/edits/history`);
 }
 
-export async function restoreEdits(assetId: string, hash: string): Promise<EditRecord | null> {
+export async function restoreEdits(
+  assetId: string,
+  entryId: number
+): Promise<EditRecord | null> {
   const saved = await sendJson<EditRecord | undefined>(
     'POST',
     `/api/assets/${assetId}/edits/restore`,
-    { hash }
+    { entry_id: entryId }
   );
   if (typeof window !== 'undefined') {
     if (saved) {

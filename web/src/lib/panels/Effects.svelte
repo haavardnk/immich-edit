@@ -13,14 +13,14 @@
     editor.edits.effects.vignette_midpoint = NEUTRAL_EFFECTS.vignette_midpoint;
     editor.edits.effects.vignette_feather = NEUTRAL_EFFECTS.vignette_feather;
     editor.edits.effects.vignette_roundness = NEUTRAL_EFFECTS.vignette_roundness;
-    editor.onCommit();
+    editor.onCommit('Reset Vignette');
   }
 
   function resetGrain(): void {
     editor.edits.effects.grain_amount = NEUTRAL_EFFECTS.grain_amount;
     editor.edits.effects.grain_size = NEUTRAL_EFFECTS.grain_size;
     editor.edits.effects.grain_roughness = NEUTRAL_EFFECTS.grain_roughness;
-    editor.onCommit();
+    editor.onCommit('Reset Grain');
   }
 </script>
 
@@ -40,6 +40,7 @@
     </div>
     <SliderRow
       label="Amount"
+      commitAction="Vignette Amount"
       bind:value={editor.edits.effects.vignette_amount}
       min={-100}
       max={100}
@@ -50,6 +51,7 @@
     />
     <SliderRow
       label="Midpoint"
+      commitAction="Vignette Midpoint"
       bind:value={editor.edits.effects.vignette_midpoint}
       min={0}
       max={100}
@@ -62,6 +64,7 @@
     />
     <SliderRow
       label="Feather"
+      commitAction="Vignette Feather"
       bind:value={editor.edits.effects.vignette_feather}
       min={0}
       max={100}
@@ -74,6 +77,7 @@
     />
     <SliderRow
       label="Roundness"
+      commitAction="Vignette Roundness"
       bind:value={editor.edits.effects.vignette_roundness}
       min={-100}
       max={100}
@@ -99,6 +103,7 @@
     </div>
     <SliderRow
       label="Amount"
+      commitAction="Grain Amount"
       bind:value={editor.edits.effects.grain_amount}
       min={0}
       max={100}
@@ -109,6 +114,7 @@
     />
     <SliderRow
       label="Size"
+      commitAction="Grain Size"
       bind:value={editor.edits.effects.grain_size}
       min={0}
       max={100}
@@ -121,6 +127,7 @@
     />
     <SliderRow
       label="Roughness"
+      commitAction="Grain Roughness"
       bind:value={editor.edits.effects.grain_roughness}
       min={0}
       max={100}

@@ -4,13 +4,15 @@
     sat = $bindable(),
     size = 96,
     onLive,
-    onCommit
+    onCommit,
+    commitAction
   }: {
     hue: number;
     sat: number;
     size?: number;
     onLive: () => void;
-    onCommit: () => void;
+    onCommit: (action?: string) => void;
+    commitAction?: string;
   } = $props();
 
   let wheel = $state<HTMLDivElement | undefined>();
@@ -59,13 +61,13 @@
     if (!dragging) return;
     dragging = false;
     if (wheel?.hasPointerCapture(ev.pointerId)) wheel.releasePointerCapture(ev.pointerId);
-    onCommit();
+    onCommit(commitAction);
   }
 
   function reset(): void {
     hue = 0;
     sat = 0;
-    onCommit();
+    onCommit(commitAction);
   }
 
   function key(ev: KeyboardEvent): void {
@@ -86,7 +88,7 @@
     if (changed) {
       ev.preventDefault();
       onLive();
-      onCommit();
+      onCommit(commitAction);
     }
   }
 </script>

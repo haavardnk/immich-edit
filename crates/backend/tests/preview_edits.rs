@@ -470,13 +470,28 @@ async fn restore_returns_previous_edits() {
 
     let resp = app
         .clone()
+        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .await
+        .unwrap();
+    let history: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let entry_id = history
+        .as_array()
+        .and_then(|arr| {
+            arr.iter()
+                .find(|e| e["manifest_hash"] == serde_json::Value::String(first_hash.clone()))
+        })
+        .and_then(|e| e["id"].as_i64())
+        .expect("history entry id");
+
+    let resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri(format!("/api/assets/{id}/edits/restore"))
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    serde_json::json!({"hash": first_hash}).to_string(),
+                    serde_json::json!({"entry_id": entry_id}).to_string(),
                 ))
                 .unwrap(),
         )

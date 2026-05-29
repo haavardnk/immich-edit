@@ -12,7 +12,7 @@
     b.hue = 0;
     b.sat = 0;
     b.lum = 0;
-    editor.onCommit();
+    editor.onCommit(`Reset ${HSL_BAND_NAMES[i]}`);
   }
 
   function resetAllHsl(): void {
@@ -21,7 +21,7 @@
       b.sat = 0;
       b.lum = 0;
     }
-    editor.onCommit();
+    editor.onCommit('Reset HSL');
   }
 
   const bandHue = $derived(HSL_BAND_HUES[activeBand]);
@@ -65,6 +65,7 @@
   </div>
   <SliderRow
     label="Hue"
+    commitAction={`${HSL_BAND_NAMES[activeBand]} Hue`}
     bind:value={editor.edits.color.hsl.bands[activeBand].hue}
     min={-100}
     max={100}
@@ -76,6 +77,7 @@
   />
   <SliderRow
     label="Saturation"
+    commitAction={`${HSL_BAND_NAMES[activeBand]} Saturation`}
     bind:value={editor.edits.color.hsl.bands[activeBand].sat}
     min={-100}
     max={100}
@@ -87,6 +89,7 @@
   />
   <SliderRow
     label="Luminance"
+    commitAction={`${HSL_BAND_NAMES[activeBand]} Luminance`}
     bind:value={editor.edits.color.hsl.bands[activeBand].lum}
     min={-100}
     max={100}

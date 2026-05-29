@@ -6,12 +6,12 @@
 
   function onTonemapChange(e: Event): void {
     editor.edits.output.tonemap = (e.currentTarget as HTMLSelectElement).value as TonemapKind;
-    editor.onCommit();
+    editor.onCommit('Tonemap');
   }
 
   function reset(): void {
     editor.edits.output.tonemap = 'default';
-    editor.onCommit();
+    editor.onCommit('Reset Display');
   }
 </script>
 

@@ -12,7 +12,8 @@
     format = (v: number): string => v.toFixed(2),
     gradient,
     defaultValue = 0,
-    disabled = false
+    disabled = false,
+    commitAction
   }: {
     label: string;
     value: number;
@@ -20,13 +21,14 @@
     max: number;
     step?: number;
     onLive: (value: number) => void;
-    onCommit: () => void;
+    onCommit: (action?: string) => void;
     onPreviewStart?: () => void;
     onPreviewEnd?: () => void;
     format?: (v: number) => string;
     gradient?: string;
     defaultValue?: number;
     disabled?: boolean;
+    commitAction?: string;
   } = $props();
 
   const isDefault = $derived(value === defaultValue);
@@ -39,7 +41,7 @@
   function reset(): void {
     value = defaultValue;
     onLive(defaultValue);
-    onCommit();
+    onCommit(commitAction);
   }
 
   function updatePreview(): void {
@@ -116,7 +118,7 @@
     bind:value
     onpointerdown={onPointerDown}
     oninput={onInput}
-    onchange={onCommit}
+    onchange={() => onCommit(commitAction)}
     ondblclick={reset}
   />
 </div>

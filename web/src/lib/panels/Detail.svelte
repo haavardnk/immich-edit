@@ -14,7 +14,7 @@
     editor.edits.detail.sharpen_radius = NEUTRAL_DETAIL.sharpen_radius;
     editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
     editor.edits.detail.sharpen_masking = NEUTRAL_DETAIL.sharpen_masking;
-    editor.onCommit();
+    editor.onCommit('Reset Sharpening');
   }
 
   function resetNr(): void {
@@ -24,7 +24,7 @@
     editor.edits.detail.color_nr_amount = NEUTRAL_DETAIL.color_nr_amount;
     editor.edits.detail.color_nr_detail = NEUTRAL_DETAIL.color_nr_detail;
     editor.edits.detail.color_nr_smoothness = NEUTRAL_DETAIL.color_nr_smoothness;
-    editor.onCommit();
+    editor.onCommit('Reset Noise Reduction');
   }
 </script>
 
@@ -44,6 +44,7 @@
     </div>
     <SliderRow
       label="Amount"
+      commitAction="Sharpen Amount"
       bind:value={editor.edits.detail.sharpen_amount}
       min={0}
       max={150}
@@ -54,6 +55,7 @@
     />
     <SliderRow
       label="Radius"
+      commitAction="Sharpen Radius"
       bind:value={editor.edits.detail.sharpen_radius}
       min={0.5}
       max={3.0}
@@ -68,6 +70,7 @@
     />
     <SliderRow
       label="Detail"
+      commitAction="Sharpen Detail"
       bind:value={editor.edits.detail.sharpen_detail}
       min={0}
       max={100}
@@ -82,6 +85,7 @@
     />
     <SliderRow
       label="Masking"
+      commitAction="Sharpen Masking"
       bind:value={editor.edits.detail.sharpen_masking}
       min={0}
       max={100}
@@ -109,6 +113,7 @@
     </div>
     <SliderRow
       label="Luminance"
+      commitAction="Luminance NR"
       bind:value={editor.edits.detail.luma_nr_amount}
       min={0}
       max={100}
@@ -119,6 +124,7 @@
     />
     <SliderRow
       label="Detail"
+      commitAction="Luminance NR Detail"
       bind:value={editor.edits.detail.luma_nr_detail}
       min={0}
       max={100}
@@ -131,6 +137,7 @@
     />
     <SliderRow
       label="Contrast"
+      commitAction="Luminance NR Contrast"
       bind:value={editor.edits.detail.luma_nr_contrast}
       min={0}
       max={100}
@@ -144,6 +151,7 @@
   <div class="flex flex-col gap-2.5 pt-3">
     <SliderRow
       label="Color"
+      commitAction="Color NR"
       bind:value={editor.edits.detail.color_nr_amount}
       min={0}
       max={100}
@@ -154,6 +162,7 @@
     />
     <SliderRow
       label="Detail"
+      commitAction="Color NR Detail"
       bind:value={editor.edits.detail.color_nr_detail}
       min={0}
       max={100}
@@ -166,6 +175,7 @@
     />
     <SliderRow
       label="Smoothness"
+      commitAction="Color NR Smoothness"
       bind:value={editor.edits.detail.color_nr_smoothness}
       min={0}
       max={100}

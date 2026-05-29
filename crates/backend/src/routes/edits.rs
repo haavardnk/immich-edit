@@ -13,6 +13,32 @@ use crate::services::edits_store::{
 };
 use crate::state::AppState;
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PutEditsBody {
+    Wrapped {
+        manifest: EditManifest,
+        #[serde(default)]
+        action: Option<String>,
+    },
+    Raw(EditManifest),
+}
+
+impl PutEditsBody {
+    fn split(self) -> (EditManifest, Option<String>) {
+        match self {
+            PutEditsBody::Wrapped { manifest, action } => (manifest, action),
+            PutEditsBody::Raw(manifest) => (manifest, None),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct ActionBody {
+    #[serde(default)]
+    pub action: Option<String>,
+}
+
 pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
     let entries = state.edits.list_edited_assets().await.map_err(map_err)?;
     Ok(Json(entries))
@@ -43,8 +69,9 @@ pub async fn put(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
-    Json(manifest): Json<EditManifest>,
+    Json(body): Json<PutEditsBody>,
 ) -> Result<Response, AppError> {
+    let (manifest, action) = body.split();
     let if_match = headers
         .get("if-match")
         .and_then(|v| v.to_str().ok())
@@ -78,7 +105,13 @@ pub async fn put(
     let asset = state.immich.asset(id).await?;
     let saved = state
         .edits
-        .put(id, manifest, asset.updated_at, asset.checksum)
+        .put(
+            id,
+            manifest,
+            asset.updated_at,
+            asset.checksum,
+            action.as_deref(),
+        )
         .await?;
     Ok(Json(saved).into_response())
 }
@@ -86,8 +119,16 @@ pub async fn put(
 pub async fn delete(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    body: Option<Json<ActionBody>>,
 ) -> Result<StatusCode, AppError> {
-    state.edits.delete(id).await.map_err(map_err)?;
+    let action = body
+        .and_then(|Json(b)| b.action)
+        .unwrap_or_else(|| "Reset".to_string());
+    state
+        .edits
+        .delete(id, Some(action.as_str()))
+        .await
+        .map_err(map_err)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -130,7 +171,7 @@ pub async fn history(
 
 #[derive(Debug, Deserialize)]
 pub struct RestoreBody {
-    pub hash: String,
+    pub entry_id: i64,
 }
 
 pub async fn restore(
@@ -138,23 +179,12 @@ pub async fn restore(
     Path(id): Path<Uuid>,
     Json(body): Json<RestoreBody>,
 ) -> Result<Response, AppError> {
-    let Some(entry) = state
-        .edits
-        .get_history_entry_by_hash(id, &body.hash)
-        .await?
-    else {
+    let Some(entry) = state.edits.get_history_entry(id, body.entry_id).await? else {
         return Err(AppError::NotFound);
     };
-    if entry.deleted || entry.edits.is_none() {
-        state.edits.delete(id).await?;
-        return Ok(StatusCode::NO_CONTENT.into_response());
+    let saved = state.edits.restore_to_entry(id, &entry).await?;
+    match saved {
+        Some(record) => Ok(Json(record).into_response()),
+        None => Ok(StatusCode::NO_CONTENT.into_response()),
     }
-    let edits = entry.edits.unwrap();
-    let manifest = EditManifest::from_edits(&edits);
-    let asset = state.immich.asset(id).await?;
-    let saved = state
-        .edits
-        .put(id, manifest, asset.updated_at, asset.checksum)
-        .await?;
-    Ok(Json(saved).into_response())
 }

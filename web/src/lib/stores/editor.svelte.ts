@@ -54,6 +54,7 @@ class EditorStore {
   saving = $state(false);
   savedHash = $state<string>('');
   saveError = $state<string | null>(null);
+  private lastSaveAction: string | undefined = undefined;
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
@@ -288,17 +289,24 @@ class EditorStore {
     this.onLive();
   };
 
-  onCommit = async (): Promise<void> => {
+  onCommit = async (action?: string): Promise<void> => {
     if (!this.initialised || !this.assetId) return;
     if (!this.skipHistory) this.pushHistory();
     this.onLive();
+    const effectiveAction = this.skipHistory ? undefined : action;
+    this.lastSaveAction = effectiveAction;
     this.saving = true;
     try {
       if (isIdentity(this.edits)) {
-        await deleteEdits(this.assetId);
+        await deleteEdits(this.assetId, effectiveAction);
         this.savedHash = '';
       } else {
-        const saved = await putEdits(this.assetId, $state.snapshot(this.edits), this.savedHash);
+        const saved = await putEdits(
+          this.assetId,
+          $state.snapshot(this.edits),
+          this.savedHash,
+          effectiveAction
+        );
         this.edits = manifestToEdits(saved.manifest);
         this.savedHash = saved.hash;
       }
@@ -321,12 +329,12 @@ class EditorStore {
     }
   };
 
-  retrySave = (): Promise<void> => this.onCommit();
+  retrySave = (): Promise<void> => this.onCommit(this.lastSaveAction);
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
     this.edits = { ...neutralEdits(), geometry: this.edits.geometry };
-    await this.onCommit();
+    await this.onCommit('Reset');
   };
 
   copyEdits = (): void => {
@@ -340,7 +348,7 @@ class EditorStore {
     const snap = structuredClone(clipboard) as Edits;
     this.edits = { ...snap, geometry: this.edits.geometry, masks: this.edits.masks };
     this.onLive();
-    await this.onCommit();
+    await this.onCommit('Paste');
   };
 
   pasteGroup = async (group: EditGroup): Promise<void> => {
@@ -348,7 +356,15 @@ class EditorStore {
     const snap = structuredClone(clipboard) as Edits;
     this.edits = { ...this.edits, [group]: snap[group] };
     this.onLive();
-    await this.onCommit();
+    const labels: Record<EditGroup, string> = {
+      basic: 'Paste Basic',
+      tone: 'Paste Tone',
+      color: 'Paste Color',
+      detail: 'Paste Detail',
+      effects: 'Paste Effects',
+      lens: 'Paste Lens'
+    };
+    await this.onCommit(labels[group]);
   };
 
   hasClipboard = $state(false);
@@ -370,7 +386,7 @@ class EditorStore {
         tone: { ...suggested.tone }
       };
       this.onLive();
-      await this.onCommit();
+      await this.onCommit('Auto');
     } catch (e) {
       this.error = (e as Error).message;
     } finally {
@@ -500,7 +516,7 @@ class EditorStore {
     this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
     this.activeLayerId = layer.id;
     this.activeMaskComponentId = layer.components[0]?.id ?? null;
-    await this.onCommit();
+    await this.onCommit('Masks');
     return layer.id;
   };
 
@@ -514,7 +530,7 @@ class EditorStore {
       this.activeMaskComponentId = null;
     }
     if (this.maskPreviewLayerId === id) this.endMaskPreview();
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   duplicateMaskLayer = async (id: string): Promise<string | null> => {
@@ -533,7 +549,7 @@ class EditorStore {
     this.edits = { ...this.edits, masks };
     this.activeLayerId = copy.id;
     this.activeMaskComponentId = copy.components[0]?.id ?? null;
-    await this.onCommit();
+    await this.onCommit('Masks');
     return copy.id;
   };
 
@@ -545,7 +561,7 @@ class EditorStore {
     const clamped = Math.max(0, Math.min(toIndex, masks.length));
     masks.splice(clamped, 0, layer);
     this.edits = { ...this.edits, masks };
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
@@ -558,17 +574,17 @@ class EditorStore {
     const layer = this.edits.masks.find((l) => l.id === id);
     if (!layer) return;
     this.patchMaskLayer(id, { enabled: !layer.enabled }, false);
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   renameMaskLayer = async (id: string, name: string): Promise<void> => {
     this.patchMaskLayer(id, { name }, false);
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   setMaskLayerColor = async (id: string, color: string): Promise<void> => {
     this.patchMaskLayer(id, { color }, false);
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   setMaskLayerAmount = (id: string, amount: number): void => {
@@ -593,7 +609,7 @@ class EditorStore {
     const comp = makeComponent(kind, mode);
     this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
     this.activeMaskComponentId = comp.id;
-    await this.onCommit();
+    await this.onCommit('Masks');
     return comp.id;
   };
 
@@ -607,7 +623,7 @@ class EditorStore {
       const { [componentId]: _drop, ...rest } = this.brushBuffers;
       this.brushBuffers = rest;
     }
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   patchMaskComponent = (
@@ -634,7 +650,7 @@ class EditorStore {
   };
 
   commitMasks = async (): Promise<void> => {
-    await this.onCommit();
+    await this.onCommit('Masks');
   };
 
   setBrushTool = (
@@ -699,7 +715,7 @@ class EditorStore {
     const compId = layer.components[0]?.id ?? null;
     this.activeMaskComponentId = compId;
     if (compId) this.brushBuffers = { ...this.brushBuffers, [compId]: buf };
-    await this.onCommit();
+    await this.onCommit('Masks');
     return layer.id;
   };
 
@@ -735,7 +751,7 @@ class EditorStore {
         { kind: 'brush', raster_id: meta.raster_id },
         false
       );
-      await this.onCommit();
+      await this.onCommit('Masks');
     } catch (e) {
       this.error = (e as Error).message;
     }
@@ -948,7 +964,7 @@ class EditorStore {
         aspect: sess.draftAspect
       }
     };
-    await this.onCommit();
+    await this.onCommit('Crop');
   };
 
   rotateStep = (delta: 90 | 270): void => {
@@ -966,7 +982,7 @@ class EditorStore {
       return;
     }
     this.edits.geometry.rotate = ((this.edits.geometry.rotate + delta) % 360) as 0 | 90 | 180 | 270;
-    void this.onCommit();
+    void this.onCommit('Rotate');
   };
 
   flipStep = (axis: 'h' | 'v'): void => {
@@ -978,7 +994,7 @@ class EditorStore {
     }
     if (axis === 'h') this.edits.geometry.flip_h = !this.edits.geometry.flip_h;
     else this.edits.geometry.flip_v = !this.edits.geometry.flip_v;
-    void this.onCommit();
+    void this.onCommit('Flip');
   };
 
   updateCropDraftAngle = (angle: number): void => {

@@ -251,7 +251,7 @@
       target.releasePointerCapture(pointerId);
       pointerId = null;
     }
-    editor.onCommit();
+    editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
   }
 
   function onDblClick(e: MouseEvent) {
@@ -269,7 +269,7 @@
         newPts.splice(i, 1);
         setCurve(activeChannel, newPts);
         if (selected === i) selected = null;
-        editor.onCommit();
+        editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
         return;
       }
     }
@@ -298,22 +298,22 @@
     if (e.key === 'ArrowUp') {
       nudge(selected, step, 0);
       editor.onLive();
-      editor.onCommit();
+      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       e.preventDefault();
     } else if (e.key === 'ArrowDown') {
       nudge(selected, -step, 0);
       editor.onLive();
-      editor.onCommit();
+      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       e.preventDefault();
     } else if (e.key === 'ArrowLeft') {
       nudge(selected, 0, -step);
       editor.onLive();
-      editor.onCommit();
+      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       e.preventDefault();
     } else if (e.key === 'ArrowRight') {
       nudge(selected, 0, step);
       editor.onLive();
-      editor.onCommit();
+      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       if (selected > 0 && selected < pts.length - 1) {
@@ -321,7 +321,7 @@
         newPts.splice(selected, 1);
         setCurve(activeChannel, newPts);
         selected = null;
-        editor.onCommit();
+        editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       }
       e.preventDefault();
     } else if (e.key === 'Escape') {
@@ -340,13 +340,13 @@
   function resetActive() {
     setCurve(activeChannel, identityCurve());
     selected = null;
-    editor.onCommit();
+    editor.onCommit(`Reset Curve ${channelLabels[activeChannel]}`);
   }
 
   function resetAll() {
     editor.edits.basic.curves = neutralCurves();
     selected = null;
-    editor.onCommit();
+    editor.onCommit('Reset Curves');
   }
 </script>
 

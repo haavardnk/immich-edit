@@ -5,6 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { listEditHistory, restoreEdits, type EditHistoryEntry } from '$lib/api/edits';
   import { manifestToEdits } from '$lib/types/edits';
+  import { historyLabel } from '$lib/util/history';
 
   let open = $state(false);
   let entries = $state<EditHistoryEntry[]>([]);
@@ -28,11 +29,11 @@
     if (open) await refresh();
   }
 
-  async function restore(hash: string): Promise<void> {
+  async function restore(entryId: number): Promise<void> {
     if (!editor.assetId) return;
-    busyHash = hash;
+    busyHash = String(entryId);
     try {
-      const saved = await restoreEdits(editor.assetId, hash);
+      const saved = await restoreEdits(editor.assetId, entryId);
       if (saved) {
         editor.edits = manifestToEdits(saved.manifest);
         editor.savedHash = saved.hash;
@@ -43,6 +44,7 @@
       }
       editor.onLive();
       await refresh();
+      close();
     } finally {
       busyHash = null;
     }
@@ -55,20 +57,6 @@
   function formatTime(s: string): string {
     const d = new Date(s);
     return d.toLocaleString();
-  }
-
-  function summary(entry: EditHistoryEntry): string {
-    if (entry.deleted) return 'Reset to original';
-    const e = entry.edits;
-    if (!e) return entry.manifest_hash.slice(0, 8);
-    const parts: string[] = [];
-    if (Math.abs(e.basic.exposure_ev) > 1e-3) parts.push(`exp ${e.basic.exposure_ev.toFixed(2)}`);
-    if (Math.abs(e.basic.contrast) > 1e-3) parts.push(`contrast ${e.basic.contrast.toFixed(2)}`);
-    if (Math.abs(e.tone.highlights) > 1e-3) parts.push(`hi ${e.tone.highlights.toFixed(2)}`);
-    if (Math.abs(e.tone.shadows) > 1e-3) parts.push(`sh ${e.tone.shadows.toFixed(2)}`);
-    if (Math.abs(e.basic.saturation) > 1e-3) parts.push(`sat ${e.basic.saturation.toFixed(2)}`);
-    if (parts.length === 0) return entry.manifest_hash.slice(0, 8);
-    return parts.slice(0, 3).join(', ');
   }
 
   let popoverEl: HTMLDivElement | null = $state(null);
@@ -137,14 +125,24 @@
         <div class="px-3 py-4 text-xs text-immich-dark-fg/40">No history</div>
       {:else}
         <ul class="py-1">
-          {#each entries as entry (entry.id)}
+          {#each entries as entry, i (entry.id)}
+            {@const info = historyLabel(entry, entries[i + 1] ?? null)}
+            {@const isCurrent = entry.manifest_hash === editor.savedHash}
             <li>
               <button
-                class="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors disabled:opacity-40 flex flex-col gap-0.5"
+                class="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors disabled:opacity-40 flex flex-col gap-0.5 {isCurrent ? 'bg-white/5' : ''}"
                 disabled={busyHash !== null}
-                onclick={() => void restore(entry.manifest_hash)}
+                onclick={() => void restore(entry.id)}
               >
-                <span class="text-xs text-immich-dark-fg/90 truncate">{summary(entry)}</span>
+                <span class="text-xs text-immich-dark-fg/90 truncate flex items-center gap-1.5">
+                  <span>{info.label}</span>
+                  {#if info.delta}
+                    <span class="font-mono tabular-nums text-immich-dark-fg/50">{info.delta}</span>
+                  {/if}
+                  {#if isCurrent}
+                    <span class="ml-auto text-[9px] uppercase tracking-wider text-immich-dark-fg/40">current</span>
+                  {/if}
+                </span>
                 <span class="text-[10px] text-immich-dark-fg/40">{formatTime(entry.created_at)}</span>
               </button>
             </li>
