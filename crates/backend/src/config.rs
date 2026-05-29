@@ -189,14 +189,7 @@ impl Config {
             if t.is_empty() { None } else { Some(t) }
         });
 
-        let allowed_origins = match std::env::var("ALLOWED_ORIGINS").ok() {
-            Some(s) if !s.is_empty() => s
-                .split(',')
-                .map(|p| p.trim().to_string())
-                .filter(|p| !p.is_empty())
-                .collect(),
-            _ => file.allowed_origins.unwrap_or_default(),
-        };
+        let allowed_origins = load_allowed_origins(file.allowed_origins)?;
 
         let debug_endpoints =
             parse_bool("IMMICH_EDIT_DEBUG", file.debug_endpoints)?.unwrap_or(false);
@@ -318,6 +311,46 @@ fn parse_bool(env_key: &str, file_value: Option<bool>) -> Result<Option<bool>, C
         };
     }
     Ok(file_value)
+}
+
+fn load_allowed_origins(file_value: Option<Vec<String>>) -> Result<Vec<String>, ConfigError> {
+    let raw = match std::env::var("ALLOWED_ORIGINS").ok() {
+        Some(s) if !s.is_empty() => s.split(',').map(str::to_string).collect(),
+        _ => file_value.unwrap_or_default(),
+    };
+    raw.iter()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(validate_allowed_origin)
+        .collect()
+}
+
+fn validate_allowed_origin(raw: &str) -> Result<String, ConfigError> {
+    let parsed = Url::parse(raw).map_err(|_| invalid_origin(raw))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(invalid_origin(raw));
+    }
+    if parsed.host_str().is_none() {
+        return Err(invalid_origin(raw));
+    }
+    if parsed.path() != "/" || parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err(invalid_origin(raw));
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(invalid_origin(raw));
+    }
+    let origin = parsed.origin().ascii_serialization();
+    if raw != origin {
+        return Err(invalid_origin(raw));
+    }
+    Ok(origin)
+}
+
+fn invalid_origin(raw: &str) -> ConfigError {
+    ConfigError::InvalidValue {
+        key: "ALLOWED_ORIGINS".into(),
+        value: raw.into(),
+    }
 }
 
 fn is_loopback(addr: &SocketAddr) -> bool {
@@ -542,11 +575,38 @@ mod tests {
             std::env::set_var("IMMICH_URL", "http://x");
             std::env::set_var("IMMICH_API_KEY", "k");
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
-            std::env::set_var("ALLOWED_ORIGINS", "http://a.local, http://b.local");
+            std::env::set_var("ALLOWED_ORIGINS", "http://a.local, https://b.local:8443");
         }
         let cfg = Config::load().unwrap();
-        if cfg.allowed_origins != vec!["http://a.local".to_string(), "http://b.local".to_string()] {
+        if cfg.allowed_origins
+            != vec![
+                "http://a.local".to_string(),
+                "https://b.local:8443".to_string(),
+            ]
+        {
             panic!("origins {:?}", cfg.allowed_origins);
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_allowed_origin() {
+        let _g = lock();
+        for bad in [
+            "https://edit.example.com/api",
+            "https://edit.example.com/",
+            "edit.example.com",
+        ] {
+            clear_env();
+            unsafe {
+                std::env::set_var("IMMICH_URL", "http://x");
+                std::env::set_var("IMMICH_API_KEY", "k");
+                std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+                std::env::set_var("ALLOWED_ORIGINS", bad);
+            }
+            let err = Config::load().unwrap_err();
+            if !matches!(err, ConfigError::InvalidValue { .. }) {
+                panic!("expected invalid for {bad}, got {err:?}");
+            }
         }
     }
 }

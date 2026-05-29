@@ -119,6 +119,14 @@ pub async fn mock_ping_ok(server: &MockServer) {
         .await;
 }
 
+pub async fn mock_ping_status(server: &MockServer, status: u16) {
+    Mock::given(method("GET"))
+        .and(path("/api/server/ping"))
+        .respond_with(ResponseTemplate::new(status))
+        .mount(server)
+        .await;
+}
+
 pub async fn mock_asset_detail(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path(format!("/api/assets/{}", asset_id())))

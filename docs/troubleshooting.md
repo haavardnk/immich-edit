@@ -14,21 +14,27 @@ The configured `CACHE_DIR` is unwritable. With Docker, ensure the bind-mount or 
 
 The default `sqlite://./cache/immich-edit.db?mode=rwc` expects `cache/` to exist and be writable. If you override `DATABASE_URL`, keep `?mode=rwc` so sqlite creates the file on first start.
 
+### "invalid value for ALLOWED_ORIGINS"
+
+Each CORS origin must be an HTTP or HTTPS origin, not a full URL. Use `https://edit.example.com`, not `https://edit.example.com/api` or `https://edit.example.com/`. Separate env values with commas.
+
 ## Immich upstream errors
 
-### `upstream_unavailable`
+The Settings page shows a specific Immich status. `/api/health` exposes the same data as `immich_status.kind` and `immich_status.message`.
+
+### `unreachable`
 
 The backend cannot reach `IMMICH_URL`. Check that the URL is correct, the Immich server is running, and Docker networks let the two containers see each other (typically same Compose network or both on `bridge`).
 
-### `upstream_auth`
+### `api_key_rejected`
 
 `IMMICH_API_KEY` is rejected. Generate a new key in Immich (Account Settings > API Keys) and restart.
 
-### `upstream_timeout`
+### `timeout`
 
 A request to Immich took longer than the configured timeout. For large RAW downloads, raise `ORIGINAL_TIMEOUT_SECS` (default 120). For export/upload, raise `EXPORT_TIMEOUT_SECS` (default 300).
 
-### Repeated 502 / 503 from Immich
+### `upstream_5xx`
 
 The backend retries idempotent GETs with jittered exponential backoff. Persistent failures usually indicate Immich is restarting, overloaded, or behind a reverse proxy with a strict idle timeout. Check Immich logs first.
 

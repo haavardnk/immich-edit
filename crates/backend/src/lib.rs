@@ -21,6 +21,19 @@ pub async fn run() -> anyhow::Result<()> {
 
     let state = state::AppState::new(config).await?;
     let queue = state.queue.clone();
+    let immich = state.immich.clone();
+    tokio::spawn(async move {
+        let status = immich::ImmichConnectionStatus::from_ping(immich.ping().await);
+        if status.ok {
+            return;
+        }
+        tracing::warn!(
+            kind = status.kind,
+            status_code = ?status.status_code,
+            message = %status.message,
+            "Immich ping failed at startup"
+        );
+    });
     let app = app::router(state);
 
     tracing::info!("listening on {bind_socket}");

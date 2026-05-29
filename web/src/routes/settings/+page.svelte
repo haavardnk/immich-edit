@@ -43,6 +43,7 @@
 
   function buildSupportBundle(h: HealthInfo, t: DebugTimings | null): string {
     const cfg = h.config as Record<string, unknown>;
+    const statusCode = h.immich_status.status_code ? ` HTTP ${h.immich_status.status_code}` : '';
     const lines: string[] = [];
     lines.push('## immich-edit support bundle');
     lines.push('');
@@ -50,7 +51,7 @@
     lines.push(`- Renderer mode: ${h.renderer_mode}`);
     lines.push(`- Renderer active: ${h.renderer_active}`);
     lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
-    lines.push(`- Immich reachable: ${h.immich_reachable}`);
+    lines.push(`- Immich status: ${h.immich_status.kind}${statusCode} (${h.immich_status.message})`);
     lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
     lines.push(`- Cache dir: ${cfg.cache_dir ?? '—'}`);
     lines.push(`- Debug endpoints: ${cfg.debug_endpoints ?? false}`);
@@ -135,7 +136,7 @@
           <dt class="text-immich-dark-fg/50">Renderer mode</dt><dd class="font-mono">{health.renderer_mode}</dd>
           <dt class="text-immich-dark-fg/50">Renderer active</dt><dd class="font-mono">{health.renderer_active}</dd>
           <dt class="text-immich-dark-fg/50">GPU adapter</dt><dd class="font-mono">{health.gpu_adapter ?? '—'}</dd>
-          <dt class="text-immich-dark-fg/50">Immich reachable</dt><dd class={health.immich_reachable ? 'text-emerald-400' : 'text-red-400'}>{health.immich_reachable ? 'yes' : 'no'}</dd>
+          <dt class="text-immich-dark-fg/50">Immich</dt><dd><span class={health.immich_status.ok ? 'text-emerald-400' : health.immich_status.kind === 'api_key_rejected' ? 'text-amber-300' : 'text-red-400'}>{health.immich_status.message}</span> <span class="font-mono text-immich-dark-fg/40">{health.immich_status.kind}{health.immich_status.status_code ? `/${health.immich_status.status_code}` : ''}</span></dd>
           <dt class="text-immich-dark-fg/50">DB ready</dt><dd class={health.db_ready ? 'text-emerald-400' : 'text-red-400'}>{health.db_ready ? 'yes' : 'no'}</dd>
           <dt class="text-immich-dark-fg/50">DB migration</dt><dd class="font-mono">{health.db_migration_version ?? '—'}</dd>
         </dl>
