@@ -29,7 +29,7 @@
   }
 </script>
 
-<div class="flex items-center justify-between px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
+<div class="relative z-30 flex items-center justify-between px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
   <div class="flex items-center gap-1">
     <button
       class="btn btn-ghost btn-sm btn-square"
