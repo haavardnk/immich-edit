@@ -1,11 +1,9 @@
 export type SortDir = 'asc' | 'desc';
-export type MediaType = 'all' | 'IMAGE' | 'VIDEO';
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
 export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 class BrowseControlsStore {
   sortDir = $state<SortDir>('desc');
-  mediaType = $state<MediaType>('all');
   favoriteOnly = $state(false);
   rating = $state<RatingFilter>('any');
   filename = $state('');
@@ -16,7 +14,6 @@ class BrowseControlsStore {
   get isDefault(): boolean {
     return (
       this.sortDir === 'desc' &&
-      this.mediaType === 'all' &&
       !this.favoriteOnly &&
       this.rating === 'any' &&
       this.filename === '' &&
@@ -28,7 +25,6 @@ class BrowseControlsStore {
 
   get isFiltered(): boolean {
     return (
-      this.mediaType !== 'all' ||
       this.favoriteOnly ||
       this.rating !== 'any' ||
       this.filename !== '' ||
@@ -40,7 +36,6 @@ class BrowseControlsStore {
 
   reset(): void {
     this.sortDir = 'desc';
-    this.mediaType = 'all';
     this.favoriteOnly = false;
     this.rating = 'any';
     this.filename = '';
@@ -56,10 +51,8 @@ class BrowseControlsStore {
       size: 500,
       order: this.sortDir,
       visibility: this.visibility,
+      type: 'IMAGE',
     };
-    if (this.mediaType !== 'all') {
-      body.type = this.mediaType;
-    }
     if (this.favoriteOnly && !('isFavorite' in base)) {
       body.isFavorite = true;
     }
@@ -92,7 +85,6 @@ class BrowseControlsStore {
   get serverFilterKey(): string {
     return [
       this.sortDir,
-      this.mediaType,
       this.favoriteOnly,
       this.rating,
       this.filename,

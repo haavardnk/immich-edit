@@ -2,7 +2,6 @@
   import Icon from '$lib/components/Icon.svelte';
   import {
     browseControls,
-    type MediaType,
     type RatingFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
@@ -45,12 +44,6 @@
   }
 
   const hasFilter = $derived(browseControls.isFiltered);
-
-  const typeOptions: { value: MediaType; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'IMAGE', label: 'Photos' },
-    { value: 'VIDEO', label: 'Videos' }
-  ];
 
   const ratingOptions: { value: RatingFilter; label: string }[] = [
     { value: 'any', label: 'Any' },
@@ -129,20 +122,6 @@
             <Icon path={mdiClose} size={12} />
           </button>
         </div>
-
-        <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-immich-dark-fg/40">Type</span>
-          <select
-            class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none cursor-pointer hover:bg-white/10 w-full"
-            value={browseControls.mediaType}
-            onchange={(e) =>
-              (browseControls.mediaType = (e.target as HTMLSelectElement).value as MediaType)}
-          >
-            {#each typeOptions as opt (opt.value)}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </label>
 
         <label class="flex flex-col gap-1">
           <span class="text-[10px] text-immich-dark-fg/40">Visibility</span>
