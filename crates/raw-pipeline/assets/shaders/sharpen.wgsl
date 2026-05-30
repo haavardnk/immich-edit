@@ -59,7 +59,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         mask = smoothstep_f(masking_thresh, masking_thresh + masking_softness, mag);
     }
 
-    let strength = (amount / 50.0) * detail_weight * mask;
+    let strength = (amount / 25.0) * detail_weight * mask;
     let lin = orig + hp * strength;
 
     textureStore(sharpened_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));

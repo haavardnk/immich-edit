@@ -65,7 +65,7 @@ impl SpatialOp for SharpenOp {
 }
 
 fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: &crate::frame::PreviewMode) {
-    let amount = (d.sharpen_amount / 50.0) as f32;
+    let amount = (d.sharpen_amount / 25.0) as f32;
     let sigma = d.sharpen_radius as f32;
     let detail_weight = 0.5 + 0.5 * (d.sharpen_detail / 100.0) as f32;
     let masking = (d.sharpen_masking / 100.0) as f32;
@@ -201,8 +201,8 @@ fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
             mrow[x] = (gx * gx + gy * gy).sqrt();
         }
     });
-    let thresh = masking * 0.5;
-    let width = 0.1f32;
+    let thresh = masking * 0.15;
+    let width = 0.15f32;
     mag.par_iter_mut().for_each(|m| {
         let t = ((*m - thresh) / width).clamp(0.0, 1.0);
         *m = t * t * (3.0 - 2.0 * t);

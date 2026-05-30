@@ -1149,8 +1149,8 @@ impl GpuRenderer {
         } else {
             0u32
         };
-        let masking_thresh = masking * 0.5;
-        let masking_softness = 0.1f32;
+        let masking_thresh = masking * 0.15;
+        let masking_softness = 0.15f32;
 
         let linear_view = out
             .linear_texture
