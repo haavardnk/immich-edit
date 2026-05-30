@@ -305,7 +305,7 @@
     onpointercancel={onPointerUp}
   >
     {#each active.components as comp (comp.id)}
-      {#if comp.enabled && comp.kind.kind === 'linear'}
+      {#if comp.enabled && activeCompId === comp.id && comp.kind.kind === 'linear'}
         {@const h = linearHandles(comp, comp.kind)}
         {@const isSel = activeCompId === comp.id}
         {@const k = comp.kind}
@@ -477,7 +477,7 @@
             />
           {/if}
         </g>
-      {:else if comp.enabled && comp.kind.kind === 'radial'}
+      {:else if comp.enabled && activeCompId === comp.id && comp.kind.kind === 'radial'}
         {@const h = radialHandles(comp, comp.kind)}
         {@const isSel = activeCompId === comp.id}
         {@const innerScale = 1 - comp.kind.feather}

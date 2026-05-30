@@ -459,9 +459,10 @@
               : 'hover:bg-white/5'}"
             role="button"
             tabindex="0"
-            onclick={() => editor.setActiveMaskComponent(comp.id)}
+            onclick={() => editor.setActiveMaskComponent(isCompActive ? null : comp.id)}
             onkeydown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') editor.setActiveMaskComponent(comp.id);
+              if (e.key === 'Enter' || e.key === ' ')
+                editor.setActiveMaskComponent(isCompActive ? null : comp.id);
             }}
           >
             <button
