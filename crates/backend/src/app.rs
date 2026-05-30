@@ -50,16 +50,7 @@ pub fn router(state: AppState) -> Router {
             .finish()
             .expect("heavy governor config"),
     );
-    let api_cfg = std::sync::Arc::new(
-        GovernorConfigBuilder::default()
-            .key_extractor(GlobalKeyExtractor)
-            .per_millisecond(500)
-            .burst_size(200)
-            .finish()
-            .expect("api governor config"),
-    );
     let heavy = GovernorLayer::new(heavy_cfg);
-    let api_limit = GovernorLayer::new(api_cfg);
 
     let api = Router::new()
         .route("/health", get(routes::health::health))
@@ -124,8 +115,7 @@ pub fn router(state: AppState) -> Router {
         .fallback(api_not_found)
         .layer(from_fn_with_state(state.clone(), debug_gate))
         .layer(from_fn_with_state(state.clone(), auth_middleware))
-        .layer(from_fn(request_id_scope))
-        .layer(api_limit);
+        .layer(from_fn(request_id_scope));
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
     let fallback_file = format!("{web_dir}/200.html");
