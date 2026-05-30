@@ -1,5 +1,6 @@
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
+import { v4 as uuidv4 } from 'uuid';
 
 export type ExportFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'heic' | 'tiff' | 'jxl';
 export type BitDepthOpt = '8' | '16';
@@ -98,7 +99,7 @@ export async function uploadToImmich(
   assetId: string,
   edits: Edits,
   opts: ImmichExportOptions,
-  idempotencyKey: string = crypto.randomUUID()
+  idempotencyKey: string = uuidv4()
 ): Promise<ImmichExportResult> {
   const resp = await fetch(`/api/assets/${assetId}/export/immich`, {
     method: 'POST',

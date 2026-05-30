@@ -11,6 +11,7 @@ import {
   type MaskedEdits,
   type Vec2f
 } from './edits';
+import { v4 as uuidv4 } from 'uuid';
 
 const PALETTE = [
   '#ff3b30',
@@ -24,10 +25,7 @@ const PALETTE = [
 ];
 
 function nextId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `id-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  return uuidv4();
 }
 
 export function defaultMaskColor(index: number): string {
