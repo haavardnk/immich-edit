@@ -269,7 +269,18 @@ class EditorStore {
 
   showOriginal(): void {
     if (!this.initialised) return;
-    this.flight.submit({ edits: neutralEdits(), maxEdge: this.renderedEdge || LIVE_EDGE, previewMode: 'none' });
+    const snap = $state.snapshot(this.edits) as Edits;
+    const neutral = neutralEdits();
+    const edits: Edits = {
+      ...snap,
+      basic: neutral.basic,
+      tone: neutral.tone,
+      color: neutral.color,
+      detail: neutral.detail,
+      effects: neutral.effects,
+      masks: []
+    };
+    this.flight.submit({ edits, maxEdge: this.renderedEdge || LIVE_EDGE, previewMode: 'none' });
   }
 
   onLive = (): void => {
