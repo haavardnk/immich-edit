@@ -82,7 +82,12 @@ pub fn router(state: AppState) -> Router {
                 .put(routes::presets::update)
                 .delete(routes::presets::delete),
         )
-        .route("/jobs", get(routes::jobs::list).post(routes::jobs::create))
+        .route(
+            "/jobs",
+            get(routes::jobs::list)
+                .post(routes::jobs::create)
+                .delete(routes::jobs::clear),
+        )
         .route("/jobs/{id}", get(routes::jobs::get))
         .route("/jobs/{id}/cancel", post(routes::jobs::cancel))
         .route("/jobs/{id}/download", get(routes::jobs::download))

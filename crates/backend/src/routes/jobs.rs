@@ -13,7 +13,9 @@ use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::export::{DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive};
+use crate::services::export::{
+    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
+};
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJobItem};
 use crate::state::AppState;
 
@@ -90,6 +92,16 @@ pub async fn cancel(
     } else {
         Err(AppError::NotFound)
     }
+}
+
+pub async fn clear(State(state): State<AppState>) -> Result<StatusCode, AppError> {
+    let cleared = state.jobs.clear_finished().await?;
+    for (id, kind) in cleared {
+        if kind == DOWNLOAD_ZIP_KIND {
+            cleanup_zip_job(&state, id).await;
+        }
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn download(

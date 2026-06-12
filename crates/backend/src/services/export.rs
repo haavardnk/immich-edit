@@ -681,6 +681,21 @@ pub fn zip_archive_path(state: &AppState, job_id: Uuid) -> PathBuf {
         .join(format!("{job_id}.zip"))
 }
 
+pub async fn cleanup_zip_job(state: &AppState, job_id: Uuid) {
+    let dir = zip_job_dir(state, job_id);
+    if let Err(e) = tokio::fs::remove_dir_all(&dir).await
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %e, "remove export dir");
+    }
+    let archive = zip_archive_path(state, job_id);
+    if let Err(e) = tokio::fs::remove_file(&archive).await
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %e, "remove export archive");
+    }
+}
+
 fn sanitize_filename(name: &str) -> String {
     let stem = match name.rsplit_once('.') {
         Some((s, _)) => s,
