@@ -9,6 +9,7 @@ pub mod folders;
 pub mod health;
 pub mod lens_profile;
 pub mod people;
+pub mod presets;
 pub mod preview;
 pub mod rasters;
 pub mod search;

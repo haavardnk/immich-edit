@@ -1,4 +1,4 @@
-import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
+import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
   defaultBrush,
@@ -379,6 +379,29 @@ class EditorStore {
   };
 
   hasClipboard = $state(false);
+
+  applyPreset = async (
+    manifest: EditManifest,
+    opts: { includeGeometry: boolean; includeMasks: boolean; includeOutput: boolean },
+    name?: string
+  ): Promise<void> => {
+    if (!this.initialised) return;
+    const incoming = manifestToEdits(manifest);
+    this.edits = {
+      basic: incoming.basic,
+      tone: incoming.tone,
+      color: incoming.color,
+      detail: incoming.detail,
+      effects: incoming.effects,
+      lens: incoming.lens,
+      geometry: opts.includeGeometry ? incoming.geometry : this.edits.geometry,
+      masks: opts.includeMasks ? incoming.masks : this.edits.masks,
+      output: opts.includeOutput ? incoming.output : this.edits.output
+    };
+    this.onLive();
+    await this.onCommit(name ? `Preset: ${name}` : 'Preset');
+  };
+
 
   onAutoAdjust = async (): Promise<void> => {
     if (!this.assetId || !this.initialised) return;

@@ -8,6 +8,7 @@ import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import EffectsPanel from './Effects.svelte';
 import DisplayPanel from './Display.svelte';
+import PresetsPanel from './Presets.svelte';
 
 export interface PanelDef {
   id: string;
@@ -18,6 +19,7 @@ export interface PanelDef {
 
 export const developPanels: PanelDef[] = [
   { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
+  { id: 'presets', title: 'Presets', component: PresetsPanel, defaultOpen: false },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
   { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
