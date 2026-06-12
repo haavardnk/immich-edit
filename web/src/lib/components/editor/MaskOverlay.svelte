@@ -1,10 +1,9 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { isFullCrop, type MaskComponent, type MaskComponentKind, type Vec2f } from '$lib/types/edits';
+  import { type MaskComponent, type MaskComponentKind, type Vec2f } from '$lib/types/edits';
   import {
     lensWarpFromEdits,
-    lensWarpActive,
     maskUvToSceneUv,
     sceneUvToMaskUv,
     type LensWarpParams
@@ -63,17 +62,6 @@
     return () => cancelAnimationFrame(id);
   });
 
-  const geomIdentity = $derived.by(() => {
-    const g = editor.edits.geometry;
-    return (
-      g.rotate === 0 &&
-      g.rotate_angle === 0 &&
-      !g.flip_h &&
-      !g.flip_v &&
-      isFullCrop(g.crop)
-    );
-  });
-
   const lensP = $derived.by<LensWarpParams>(() =>
     lensWarpFromEdits(
       editor.edits.lens,
@@ -100,8 +88,6 @@
       outputH: dh
     };
   });
-
-  const fillIdentity = $derived(geomIdentity && !lensWarpActive(lensP));
 
   const active = $derived(
     editor.activeLayerId
@@ -328,7 +314,7 @@
         {@const stopLo = Math.max(0, 0.5 - half)}
         {@const stopHi = Math.min(1, 0.5 + half)}
         <g style="pointer-events: auto;">
-          {#if isSel && fillIdentity}
+          {#if isSel}
             <defs>
               <linearGradient
                 id={gradId}
@@ -486,7 +472,7 @@
         {@const emptyOp = (comp.invert ? 0.55 : 0.0) * comp.opacity}
         {@const rMax = Math.max(h.rx, h.ry, 1)}
         <g style="pointer-events: auto;">
-          {#if isSel && fillIdentity}
+          {#if isSel}
             <defs>
               <radialGradient
                 id={gradId}
