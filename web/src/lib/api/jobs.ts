@@ -48,6 +48,10 @@ export function cancelJob(id: string): Promise<void> {
   return sendJson('POST', `/api/jobs/${id}/cancel`, undefined);
 }
 
+export function clearJobs(): Promise<void> {
+  return sendJson('DELETE', '/api/jobs', undefined);
+}
+
 export function jobDownloadUrl(id: string): string {
   return `/api/jobs/${id}/download`;
 }

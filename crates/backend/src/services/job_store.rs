@@ -346,6 +346,28 @@ impl JobStore {
         Ok(cancelled)
     }
 
+    pub async fn clear_finished(&self) -> Result<Vec<(Uuid, String)>, JobStoreError> {
+        let rows =
+            sqlx::query("SELECT id, kind FROM jobs WHERE status NOT IN ('pending', 'running')")
+                .fetch_all(&self.pool)
+                .await?;
+        let cleared: Vec<(Uuid, String)> = rows
+            .iter()
+            .map(|r| (parse_uuid(r.get("id")), r.get::<String, _>("kind")))
+            .collect();
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE status NOT IN ('pending', 'running'))",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM jobs WHERE status NOT IN ('pending', 'running')")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(cleared)
+    }
+
     pub async fn requeue_running(&self) -> Result<u64, JobStoreError> {
         let now = Utc::now().to_rfc3339();
         let items = sqlx::query(

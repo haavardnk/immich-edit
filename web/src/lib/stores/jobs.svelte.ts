@@ -1,4 +1,4 @@
-import { cancelJob, getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
+import { cancelJob, clearJobs, getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
 import { toasts } from '$lib/stores/toasts.svelte';
 
 function isActive(status: Job['status']): boolean {
@@ -15,6 +15,7 @@ class JobsStore {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   activeCount = $derived(this.jobs.filter((j) => isActive(j.status)).length);
+  clearableCount = $derived(this.jobs.filter((j) => !isActive(j.status)).length);
 
   load = async (): Promise<void> => {
     if (this.loading) return;
@@ -49,6 +50,20 @@ class JobsStore {
       await cancelJob(id);
     } catch (e) {
       toasts.push('error', `Failed to cancel job: ${(e as Error).message}`, 6000);
+    }
+  };
+
+  clear = async (): Promise<void> => {
+    try {
+      await clearJobs();
+      const removed = new Set(this.jobs.filter((j) => !isActive(j.status)).map((j) => j.id));
+      for (const id of removed) this.disconnect(id);
+      this.jobs = this.jobs.filter((j) => isActive(j.status));
+      const items = { ...this.items };
+      for (const id of removed) delete items[id];
+      this.items = items;
+    } catch (e) {
+      toasts.push('error', `Failed to clear jobs: ${(e as Error).message}`, 6000);
     }
   };
 

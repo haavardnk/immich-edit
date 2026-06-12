@@ -1,8 +1,15 @@
 <script lang="ts">
   import { jobs } from '$lib/stores/jobs.svelte';
-  import { jobDownloadUrl, type Job } from '$lib/api/jobs';
+  import { jobDownloadUrl, type Job, type JobItem, type JobItemStatus } from '$lib/api/jobs';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiClose, mdiChevronDown, mdiChevronRight, mdiCancel, mdiDownload } from '@mdi/js';
+  import {
+    mdiClose,
+    mdiChevronDown,
+    mdiChevronRight,
+    mdiCancel,
+    mdiDownload,
+    mdiTrashCanOutline,
+  } from '@mdi/js';
 
   let expanded = $state<string | null>(null);
 
@@ -47,6 +54,24 @@
   function isActive(status: Job['status']): boolean {
     return status === 'pending' || status === 'running';
   }
+
+  function itemColor(status: JobItemStatus): string {
+    switch (status) {
+      case 'completed':
+        return 'text-green-400';
+      case 'failed':
+        return 'text-red-400';
+      case 'running':
+        return 'text-immich-primary';
+      default:
+        return 'text-immich-dark-fg/40';
+    }
+  }
+
+  function itemName(item: JobItem): string {
+    const result = item.result as { filename?: string } | null;
+    return result?.filename ?? item.asset_id.slice(0, 8);
+  }
 </script>
 
 {#if jobs.open}
@@ -76,8 +101,8 @@
       {/if}
 
       {#each jobs.jobs as job (job.id)}
-        <div class="rounded-lg border border-white/10 bg-black/20 overflow-hidden">
-          <div class="flex items-center gap-2 px-2.5 py-2">
+        <div class="rounded-lg border border-white/10 bg-black/20">
+          <div class="flex items-center gap-2 px-2.5 py-2.5">
             <button
               class="p-0.5 rounded hover:bg-white/10 transition-colors flex-none"
               onclick={() => toggleExpand(job.id)}
@@ -129,20 +154,44 @@
           </div>
 
           {#if expanded === job.id}
-            <div class="border-t border-white/10 px-2.5 py-2 max-h-48 overflow-y-auto">
-              {#each jobs.items[job.id] ?? [] as item (item.id)}
-                {#if item.status === 'failed'}
-                  <div class="text-[11px] py-0.5 text-red-400/90">
-                    <span class="font-mono">{item.asset_id.slice(0, 8)}</span>: {item.error}
-                  </div>
-                {/if}
+            <div class="border-t border-white/10 px-2.5 py-2">
+              {#if jobs.items[job.id] === undefined}
+                <p class="text-[11px] text-immich-dark-fg/40">Loading…</p>
               {:else}
-                <p class="text-[11px] text-immich-dark-fg/40">No item details.</p>
-              {/each}
+                <div class="flex flex-col gap-1">
+                  {#each jobs.items[job.id] as item (item.id)}
+                    <div class="min-w-0">
+                      <div class="flex items-baseline gap-2 text-[11px]">
+                        <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
+                        <span class="flex-none {itemColor(item.status)}">{item.status}</span>
+                      </div>
+                      {#if item.status === 'failed' && item.error}
+                        <div
+                          class="mt-1 rounded bg-red-500/10 border border-red-500/20 px-2 py-1 text-[10px] leading-snug text-red-300/90 whitespace-pre-wrap wrap-anywhere"
+                        >
+                          {item.error}
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
       {/each}
     </div>
+
+    {#if jobs.clearableCount > 0}
+      <footer class="flex-none border-t border-white/10 p-2">
+        <button
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs text-immich-dark-fg/70 hover:bg-white/10 hover:text-red-400 transition-colors"
+          onclick={jobs.clear}
+        >
+          <Icon path={mdiTrashCanOutline} size={16} />
+          Clear finished
+        </button>
+      </footer>
+    {/if}
   </aside>
 {/if}
