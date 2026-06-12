@@ -22,6 +22,15 @@ pub async fn run() -> anyhow::Result<()> {
     let state = state::AppState::new(config).await?;
     let queue = state.queue.clone();
     let immich = state.immich.clone();
+
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let runner = services::job_runner::JobRunner::new(
+        state.jobs.clone(),
+        std::sync::Arc::new(services::job_runner::UnsupportedExecutor),
+        state.config.render_max_concurrency,
+    );
+    let runner_handle = tokio::spawn(runner.run(shutdown_rx));
+
     tokio::spawn(async move {
         let status = immich::ImmichConnectionStatus::from_ping(immich.ping().await);
         if status.ok {
@@ -45,9 +54,11 @@ pub async fn run() -> anyhow::Result<()> {
     .with_graceful_shutdown(async move {
         shutdown_signal().await;
         tracing::info!("shutdown signal received; draining renders");
+        let _ = shutdown_tx.send(true);
         queue.shutdown(Duration::from_secs(10)).await;
     })
     .await?;
+    let _ = runner_handle.await;
     Ok(())
 }
 

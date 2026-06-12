@@ -5,6 +5,7 @@ use immich_edit_backend::config::{Config, RendererMode};
 use immich_edit_backend::immich::ImmichClient;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
+use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::RenderService;
@@ -40,10 +41,13 @@ pub async fn test_state(server: &MockServer) -> AppState {
         insecure: true,
     };
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
+    let edits = EditsStore::migrated_memory().await.unwrap();
+    let jobs = JobStore::new(edits.pool());
     AppState {
         config: Arc::new(config),
         immich: immich.clone(),
-        edits: EditsStore::migrated_memory().await.unwrap(),
+        edits,
+        jobs,
         render: RenderService::new(immich, 4, RendererMode::Cpu, rasters.clone()),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),

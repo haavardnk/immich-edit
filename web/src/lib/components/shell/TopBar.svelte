@@ -2,9 +2,10 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { album } from '$lib/stores/album.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiLoading, mdiCogOutline, mdiClose } from '@mdi/js';
+  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks } from '@mdi/js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import { jobs } from '$lib/stores/jobs.svelte';
 
   const subtitle = $derived(
     editor.assetId
@@ -40,6 +41,23 @@
   {#if editor.pending}
     <Icon path={mdiLoading} size={16} class="animate-spin text-immich-dark-primary/70" />
   {/if}
+
+  <button
+    type="button"
+    onclick={jobs.toggle}
+    class="relative p-1.5 hover:bg-white/10 rounded transition-colors text-immich-dark-fg/60 hover:text-immich-dark-fg"
+    title="Jobs"
+    aria-label="Jobs"
+  >
+    <Icon path={mdiFormatListChecks} size={16} />
+    {#if jobs.activeCount > 0}
+      <span
+        class="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-1 rounded-full bg-immich-primary text-[9px] leading-3.5 text-white text-center"
+      >
+        {jobs.activeCount}
+      </span>
+    {/if}
+  </button>
 
   <button
     type="button"
