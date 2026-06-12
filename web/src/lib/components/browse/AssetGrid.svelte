@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { AssetSummary } from '$lib/types/album';
   import AssetTile from './AssetTile.svelte';
+  import BulkActionBar from './BulkActionBar.svelte';
+  import { selection } from '$lib/stores/selection.svelte';
 
   let {
     assets,
@@ -15,6 +18,8 @@
   } = $props();
 
   let sentinel: HTMLDivElement | undefined = $state();
+
+  onMount(() => selection.clear());
 
   $effect(() => {
     if (!sentinel || !onLoadMore) return;
@@ -36,7 +41,14 @@
   style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));"
 >
   {#each assets as asset (asset.id)}
-    <AssetTile {asset} active={asset.id === activeId} />
+    <AssetTile
+      {asset}
+      active={asset.id === activeId}
+      selected={selection.has(asset.id)}
+      selectionActive={selection.active}
+      onToggle={() => selection.toggle(asset.id)}
+      onRange={() => selection.range(assets.map((a) => a.id), asset.id)}
+    />
   {/each}
 </div>
 {#if onLoadMore}
@@ -45,3 +57,5 @@
 {#if loadingMore}
   <div class="py-4 text-center text-xs text-immich-dark-fg/30">loading…</div>
 {/if}
+
+<BulkActionBar {assets} />
