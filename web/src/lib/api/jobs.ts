@@ -1,4 +1,5 @@
 import { getJson, sendJson } from './client';
+import type { ExportOptions, ImmichExportOptions } from './export';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobItemStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -45,4 +46,48 @@ export function getJob(id: string): Promise<JobDetail> {
 
 export function cancelJob(id: string): Promise<void> {
   return sendJson('POST', `/api/jobs/${id}/cancel`, undefined);
+}
+
+export function jobDownloadUrl(id: string): string {
+  return `/api/jobs/${id}/download`;
+}
+
+function baseParams(opts: ExportOptions): Record<string, unknown> {
+  return {
+    format: opts.format,
+    quality: opts.quality,
+    include_exif: opts.includeExif,
+    bit_depth: opts.bitDepth,
+    png_compression: opts.pngCompression,
+    tiff_compression: opts.tiffCompression,
+    lossless: opts.lossless,
+  };
+}
+
+export function createImmichExportJob(assetIds: string[], opts: ImmichExportOptions): Promise<Job> {
+  return sendJson('POST', '/api/jobs', {
+    kind: 'export_immich',
+    asset_ids: assetIds,
+    params: {
+      ...baseParams(opts),
+      album_ids: opts.albumIds,
+      tag_ids: opts.tagIds,
+      favorite: opts.favorite,
+      stack_with_original: opts.stackWithOriginal,
+      stack_primary: opts.stackPrimary,
+      filename_suffix: opts.filenameSuffix,
+    },
+  });
+}
+
+export function createZipExportJob(
+  assetIds: string[],
+  opts: ExportOptions,
+  filenameSuffix: string,
+): Promise<Job> {
+  return sendJson('POST', '/api/jobs', {
+    kind: 'download_zip',
+    asset_ids: assetIds,
+    params: { ...baseParams(opts), filename_suffix: filenameSuffix },
+  });
 }

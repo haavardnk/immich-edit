@@ -26,7 +26,7 @@ pub async fn run() -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let runner = services::job_runner::JobRunner::new(
         state.jobs.clone(),
-        std::sync::Arc::new(services::job_runner::UnsupportedExecutor),
+        std::sync::Arc::new(services::export::BatchExecutor::new(state.clone())),
         state.config.render_max_concurrency,
     );
     let runner_handle = tokio::spawn(runner.run(shutdown_rx));

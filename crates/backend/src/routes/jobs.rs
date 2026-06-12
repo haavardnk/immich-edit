@@ -1,19 +1,23 @@
 use std::convert::Infallible;
 
 use axum::Json;
+use axum::body::Body;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode, header};
+use axum::response::Response;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use serde::{Deserialize, Serialize};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::job_store::{JobItemRecord, JobRecord, NewJobItem};
+use crate::services::export::{DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive};
+use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJobItem};
 use crate::state::AppState;
 
-const KNOWN_JOB_KINDS: &[&str] = &[];
+const KNOWN_JOB_KINDS: &[&str] = &[EXPORT_JOB_KIND, DOWNLOAD_ZIP_KIND];
 const MAX_ITEMS: usize = 10_000;
 const LIST_LIMIT: i64 = 100;
 
@@ -86,6 +90,37 @@ pub async fn cancel(
     } else {
         Err(AppError::NotFound)
     }
+}
+
+pub async fn download(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.kind != DOWNLOAD_ZIP_KIND {
+        return Err(AppError::NotFound);
+    }
+    if job.status != JobStatus::Completed {
+        return Err(AppError::BadRequest("job not complete".into()));
+    }
+    let archive = build_zip_archive(&state, id).await?;
+    let file = tokio::fs::File::open(&archive).await.map_err(|e| {
+        tracing::error!(error = %e, "open zip archive");
+        AppError::Internal
+    })?;
+    let body = Body::from_stream(ReaderStream::new(file));
+    let short: String = id.to_string().chars().take(8).collect();
+    let mut resp = Response::new(body);
+    resp.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/zip"),
+    );
+    resp.headers_mut().insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&format!("attachment; filename=\"immich-edit-{short}.zip\""))
+            .unwrap_or(HeaderValue::from_static("attachment")),
+    );
+    Ok(resp)
 }
 
 pub async fn events(

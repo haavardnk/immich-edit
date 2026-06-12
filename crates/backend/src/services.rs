@@ -1,5 +1,6 @@
 pub mod edited_thumb;
 pub mod edits_store;
+pub mod export;
 pub mod job_runner;
 pub mod job_store;
 pub mod preview_meta;
