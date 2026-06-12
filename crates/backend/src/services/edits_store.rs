@@ -81,6 +81,10 @@ impl EditsStore {
         Ok(Self { pool })
     }
 
+    pub fn pool(&self) -> SqlitePool {
+        self.pool.clone()
+    }
+
     pub async fn ready(&self) -> Result<(), EditsStoreError> {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())

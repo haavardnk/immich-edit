@@ -4,6 +4,7 @@ use crate::config::Config;
 use crate::immich::ImmichClient;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
+use crate::services::job_store::JobStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::RenderService;
@@ -14,6 +15,7 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub immich: ImmichClient,
     pub edits: EditsStore,
+    pub jobs: JobStore,
     pub render: RenderService,
     pub queue: RenderQueue,
     pub preview_meta: PreviewMetaStore,
@@ -36,6 +38,7 @@ impl AppState {
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
+        let jobs = JobStore::new(edits.pool());
         let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let render = RenderService::new(immich.clone(), 8, config.renderer, rasters.clone());
@@ -47,6 +50,7 @@ impl AppState {
             config: Arc::new(config),
             immich,
             edits,
+            jobs,
             render,
             queue,
             preview_meta: PreviewMetaStore::new(),

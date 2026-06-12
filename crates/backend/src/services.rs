@@ -1,5 +1,7 @@
 pub mod edited_thumb;
 pub mod edits_store;
+pub mod job_runner;
+pub mod job_store;
 pub mod preview_meta;
 pub mod raster_store;
 pub mod render;

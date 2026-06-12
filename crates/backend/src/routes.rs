@@ -7,6 +7,7 @@ pub mod edits;
 pub mod export;
 pub mod folders;
 pub mod health;
+pub mod jobs;
 pub mod lens_profile;
 pub mod people;
 pub mod presets;

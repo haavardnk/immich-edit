@@ -13,6 +13,7 @@ raw-pipeline = { path = "../raw-pipeline" }
 anyhow = "1"
 axum = "0.8"
 tokio = { workspace = true }
+tokio-stream = { version = "0.1", features = ["sync"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs", "set-header", "request-id", "util", "catch-panic"] }
 reqwest = { version = "0.13", features = ["json", "query", "stream", "multipart"] }

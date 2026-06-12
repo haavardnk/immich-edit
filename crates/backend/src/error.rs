@@ -100,6 +100,13 @@ impl From<crate::services::edits_store::EditsStoreError> for AppError {
     }
 }
 
+impl From<crate::services::job_store::JobStoreError> for AppError {
+    fn from(err: crate::services::job_store::JobStoreError) -> Self {
+        tracing::error!(error = %err, "job store");
+        Self::Internal
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let request_id = REQUEST_ID

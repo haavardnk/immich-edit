@@ -6,14 +6,17 @@
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
+  import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
+  import { jobs } from '$lib/stores/jobs.svelte';
 
   let { children }: { children: Snippet } = $props();
 
   onMount(() => {
     void editedThumbs.loadOnce();
+    void jobs.load();
   });
 </script>
 
@@ -40,3 +43,4 @@
 </div>
 
 <KeybindsHelp />
+<JobsDrawer />
