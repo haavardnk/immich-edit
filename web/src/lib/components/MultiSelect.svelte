@@ -7,13 +7,15 @@
     selected = $bindable(),
     getId,
     getLabel,
-    placeholder = 'Search…'
+    placeholder = 'Search…',
+    dropUp = false
   }: {
     options: T[];
     selected: string[];
     getId: (item: T) => string;
     getLabel: (item: T) => string;
     placeholder?: string;
+    dropUp?: boolean;
   } = $props();
 
   let input = $state('');
@@ -74,7 +76,9 @@
     />
     {#if open && suggestions.length > 0}
       <div
-        class="absolute z-20 left-0 right-0 mt-1 bg-immich-dark-bg border border-immich-dark-fg/10 rounded-md shadow-lg max-h-64 overflow-y-auto"
+        class="absolute z-20 left-0 right-0 bg-immich-dark-bg border border-immich-dark-fg/10 rounded-md shadow-lg max-h-64 overflow-y-auto {dropUp
+          ? 'bottom-full mb-1'
+          : 'mt-1'}"
       >
         {#each suggestions as s (getId(s))}
           <button

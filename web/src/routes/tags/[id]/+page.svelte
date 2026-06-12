@@ -5,6 +5,7 @@
   import { library } from '$lib/stores/library.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
+  import { selection } from '$lib/stores/selection.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -17,6 +18,7 @@
   $effect(() => {
     const _ = id;
     untrack(() => {
+      selection.clear();
       browseControls.reset();
       feed.reset();
       feed.fetchPage(true);
