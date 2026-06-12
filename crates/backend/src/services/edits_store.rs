@@ -504,6 +504,115 @@ impl EditsStore {
         .await?;
         Ok(())
     }
+
+    pub async fn list_presets(&self) -> Result<Vec<PresetRecord>, EditsStoreError> {
+        let rows = sqlx::query(
+            "SELECT id, name, group_name, manifest_json, created_at, updated_at \
+             FROM presets ORDER BY group_name IS NULL, group_name, name",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(preset_from_row(&row)?);
+        }
+        Ok(out)
+    }
+
+    pub async fn get_preset(&self, id: Uuid) -> Result<Option<PresetRecord>, EditsStoreError> {
+        let row = sqlx::query(
+            "SELECT id, name, group_name, manifest_json, created_at, updated_at \
+             FROM presets WHERE id = ?1",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        Ok(Some(preset_from_row(&row)?))
+    }
+
+    pub async fn create_preset(
+        &self,
+        name: &str,
+        group_name: Option<&str>,
+        manifest: &EditManifest,
+    ) -> Result<PresetRecord, EditsStoreError> {
+        let id = Uuid::new_v4();
+        let now = Utc::now().to_rfc3339();
+        let manifest_json = serde_json::to_string(manifest)?;
+        sqlx::query(
+            "INSERT INTO presets (id, name, group_name, manifest_json, schema_version, \
+             created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+        )
+        .bind(id.to_string())
+        .bind(name)
+        .bind(group_name)
+        .bind(&manifest_json)
+        .bind(manifest.schema_version as i64)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(PresetRecord {
+            id,
+            name: name.to_string(),
+            group_name: group_name.map(str::to_string),
+            manifest: manifest.clone(),
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    pub async fn update_preset(
+        &self,
+        id: Uuid,
+        name: &str,
+        group_name: Option<&str>,
+        manifest: &EditManifest,
+    ) -> Result<Option<PresetRecord>, EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let manifest_json = serde_json::to_string(manifest)?;
+        let res = sqlx::query(
+            "UPDATE presets SET name = ?2, group_name = ?3, manifest_json = ?4, \
+             schema_version = ?5, updated_at = ?6 WHERE id = ?1",
+        )
+        .bind(id.to_string())
+        .bind(name)
+        .bind(group_name)
+        .bind(&manifest_json)
+        .bind(manifest.schema_version as i64)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Ok(None);
+        }
+        self.get_preset(id).await
+    }
+
+    pub async fn delete_preset(&self, id: Uuid) -> Result<bool, EditsStoreError> {
+        let res = sqlx::query("DELETE FROM presets WHERE id = ?1")
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(res.rows_affected() > 0)
+    }
+}
+
+fn preset_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<PresetRecord, EditsStoreError> {
+    let id_str: String = row.try_get("id")?;
+    let id = Uuid::parse_str(&id_str).map_err(|_| EditsStoreError::Db(sqlx::Error::RowNotFound))?;
+    let manifest_json: String = row.try_get("manifest_json")?;
+    let manifest: EditManifest = serde_json::from_str(&manifest_json)?;
+    Ok(PresetRecord {
+        id,
+        name: row.try_get("name")?,
+        group_name: row.try_get("group_name")?,
+        manifest,
+        created_at: row.try_get("created_at")?,
+        updated_at: row.try_get("updated_at")?,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -520,6 +629,16 @@ pub struct ExportJobRecord {
     pub filename: Option<String>,
     pub upload_status: Option<String>,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PresetRecord {
+    pub id: Uuid,
+    pub name: String,
+    pub group_name: Option<String>,
+    pub manifest: EditManifest,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[cfg(test)]
@@ -779,6 +898,59 @@ mod tests {
     async fn export_job_missing_returns_none() {
         let s = store().await;
         if s.get_export_job(uid(), "x").await.unwrap().is_some() {
+            panic!("expected none");
+        }
+    }
+
+    #[tokio::test]
+    async fn preset_crud_roundtrips() {
+        let s = store().await;
+        let manifest = manifest_with(Edits {
+            basic: raw_pipeline::edits::BasicEdits {
+                exposure_ev: 0.5,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let created = s
+            .create_preset("Warm", Some("Looks"), &manifest)
+            .await
+            .unwrap();
+        if created.name != "Warm" || created.group_name.as_deref() != Some("Looks") {
+            panic!("create mismatch: {created:?}");
+        }
+        let fetched = s.get_preset(created.id).await.unwrap().unwrap();
+        if fetched.manifest.to_edits().basic.exposure_ev != 0.5 {
+            panic!("manifest not persisted");
+        }
+        let updated = s
+            .update_preset(created.id, "Cool", None, &EditManifest::default())
+            .await
+            .unwrap()
+            .unwrap();
+        if updated.name != "Cool" || updated.group_name.is_some() {
+            panic!("update mismatch: {updated:?}");
+        }
+        let all = s.list_presets().await.unwrap();
+        if all.len() != 1 {
+            panic!("list len: {}", all.len());
+        }
+        if !s.delete_preset(created.id).await.unwrap() {
+            panic!("delete returned false");
+        }
+        if s.get_preset(created.id).await.unwrap().is_some() {
+            panic!("preset not deleted");
+        }
+    }
+
+    #[tokio::test]
+    async fn update_missing_preset_returns_none() {
+        let s = store().await;
+        let res = s
+            .update_preset(uid(), "x", None, &EditManifest::default())
+            .await
+            .unwrap();
+        if res.is_some() {
             panic!("expected none");
         }
     }

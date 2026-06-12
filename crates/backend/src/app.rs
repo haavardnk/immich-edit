@@ -73,6 +73,16 @@ pub fn router(state: AppState) -> Router {
         .route("/search/statistics", post(routes::search::statistics))
         .route("/edits", get(routes::edits::list))
         .route(
+            "/presets",
+            get(routes::presets::list).post(routes::presets::create),
+        )
+        .route(
+            "/presets/{id}",
+            get(routes::presets::get)
+                .put(routes::presets::update)
+                .delete(routes::presets::delete),
+        )
+        .route(
             "/assets/{id}",
             get(routes::assets::detail).put(routes::assets::update),
         )

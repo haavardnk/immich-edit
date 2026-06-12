@@ -27,6 +27,7 @@ Edits:
 - Crop, rotate, flip
 - Local masks (radial, linear, brush) with adjustable parameters
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
+- Presets (save, apply, batch apply across selections)
 
 Export:
 
@@ -38,7 +39,6 @@ Export:
 - Single-user only. One shared auth token, no accounts.
 - No HDR output, no DNG export, no PSD compatibility, no LUT support
 - No AI features
-- No presets
 - Histograms and clipping warnings are basic
 - No mobile layout
 - No undo history beyond the current session
