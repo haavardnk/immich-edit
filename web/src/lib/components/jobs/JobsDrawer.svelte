@@ -1,10 +1,19 @@
 <script lang="ts">
   import { jobs } from '$lib/stores/jobs.svelte';
-  import type { Job } from '$lib/api/jobs';
+  import { jobDownloadUrl, type Job } from '$lib/api/jobs';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiClose, mdiChevronDown, mdiChevronRight, mdiCancel } from '@mdi/js';
+  import { mdiClose, mdiChevronDown, mdiChevronRight, mdiCancel, mdiDownload } from '@mdi/js';
 
   let expanded = $state<string | null>(null);
+
+  const KIND_LABELS: Record<string, string> = {
+    export_immich: 'Export to Immich',
+    download_zip: 'Download ZIP',
+  };
+
+  function kindLabel(kind: string): string {
+    return KIND_LABELS[kind] ?? kind;
+  }
 
   function toggleExpand(id: string): void {
     if (expanded === id) {
@@ -78,7 +87,7 @@
             </button>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <span class="text-xs font-medium truncate">{job.kind}</span>
+                <span class="text-xs font-medium truncate">{kindLabel(job.kind)}</span>
                 <span class="text-[10px] uppercase tracking-wide {statusColor(job.status)}">
                   {job.status}
                 </span>
@@ -105,6 +114,17 @@
               >
                 <Icon path={mdiCancel} size={16} />
               </button>
+            {/if}
+            {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
+              <a
+                class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/60 hover:text-immich-primary transition-colors flex-none"
+                href={jobDownloadUrl(job.id)}
+                download
+                title="Download ZIP"
+                aria-label="Download ZIP"
+              >
+                <Icon path={mdiDownload} size={16} />
+              </a>
             {/if}
           </div>
 

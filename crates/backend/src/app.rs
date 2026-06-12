@@ -85,6 +85,7 @@ pub fn router(state: AppState) -> Router {
         .route("/jobs", get(routes::jobs::list).post(routes::jobs::create))
         .route("/jobs/{id}", get(routes::jobs::get))
         .route("/jobs/{id}/cancel", post(routes::jobs::cancel))
+        .route("/jobs/{id}/download", get(routes::jobs::download))
         .route("/jobs/{id}/events", get(routes::jobs::events))
         .route(
             "/assets/{id}",

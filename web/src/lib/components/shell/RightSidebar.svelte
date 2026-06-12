@@ -1,10 +1,12 @@
 <script lang="ts">
   import { ui } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { selection } from '$lib/stores/selection.svelte';
   import { developPanels } from '$lib/panels/registry';
   import { isNonGeometryIdentity } from '$lib/types/edits';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
+  import BulkExportPanel from '$lib/panels/BulkExport.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
@@ -147,6 +149,21 @@
         {:else if activeTab === 'export'}
           <ExportPanel />
         {/if}
+      </div>
+    {:else if selection.active}
+      <div class="flex items-center justify-between border-b border-white/10 pl-4 pr-1.5 h-[37px]">
+        <span class="text-[11px] uppercase tracking-wider text-immich-dark-fg/60">Bulk Export</span>
+        <button
+          class="p-1.5 hover:bg-white/10 transition-colors rounded"
+          onclick={ui.toggleRight}
+          aria-label="collapse panel"
+          title="Collapse"
+        >
+          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
+        </button>
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+        <BulkExportPanel />
       </div>
     {:else}
       <div class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center">

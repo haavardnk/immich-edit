@@ -168,6 +168,7 @@ impl ImmichClient {
         parse_json(&bytes)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn upload_asset(
         &self,
         filename: &str,
@@ -176,6 +177,7 @@ impl ImmichClient {
         is_favorite: bool,
         file_created_at: &str,
         file_modified_at: &str,
+        device_asset_id: &str,
     ) -> ImmichResult<UploadResponse> {
         let url = self.url("api/assets")?;
         let part = reqwest::multipart::Part::bytes(bytes.to_vec())
@@ -183,7 +185,7 @@ impl ImmichClient {
             .mime_str(content_type)
             .map_err(|e| ImmichError::Decode(format!("mime: {e}")))?;
         let form = reqwest::multipart::Form::new()
-            .text("deviceAssetId", format!("immich-edit-{filename}"))
+            .text("deviceAssetId", device_asset_id.to_string())
             .text("deviceId", "immich-edit".to_string())
             .text("filename", filename.to_string())
             .text("fileCreatedAt", file_created_at.to_string())

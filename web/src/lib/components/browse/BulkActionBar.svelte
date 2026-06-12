@@ -8,7 +8,15 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
-  import { mdiClose, mdiHeart, mdiHeartOutline, mdiStar, mdiStarOutline, mdiSelectAll, mdiTagOutline } from '@mdi/js';
+  import {
+    mdiClose,
+    mdiHeart,
+    mdiHeartOutline,
+    mdiStar,
+    mdiStarOutline,
+    mdiSelectAll,
+    mdiTagOutline,
+  } from '@mdi/js';
 
   let { assets }: { assets: AssetSummary[] } = $props();
 
@@ -186,7 +194,7 @@
             : 's'}
         </span>
         <div class="flex items-end gap-2">
-          <div class="flex-1 min-w-[220px]">
+          <div class="flex-1 min-w-55">
             <MultiSelect
               options={tags}
               bind:selected={chosenTags}

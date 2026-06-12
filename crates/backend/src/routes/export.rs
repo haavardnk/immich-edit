@@ -3,150 +3,15 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
-use bytes::Bytes;
-use chrono::Utc;
-use raw_pipeline::edits::Edits;
-use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::immich::dto::AssetDetail;
-use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
-use crate::services::render::RenderError;
+use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
 use crate::state::AppState;
 
-const EXPORT_MAX_EDGE: u32 = 8192;
-const DEFAULT_QUALITY: u8 = 90;
-
-#[derive(Debug, Clone, Copy, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum ExportFormatKind {
-    #[default]
-    Jpeg,
-    Png,
-    Webp,
-    Avif,
-    Heic,
-    Tiff,
-    Jxl,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum BitDepthOpt {
-    #[default]
-    #[serde(rename = "8")]
-    Eight,
-    #[serde(rename = "16")]
-    Sixteen,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum PngCompressionOpt {
-    Fast,
-    #[default]
-    Default,
-    Best,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum TiffCompressionOpt {
-    None,
-    #[default]
-    Lzw,
-    Deflate,
-}
-
-fn default_quality() -> u8 {
-    DEFAULT_QUALITY
-}
-
-fn default_include_exif() -> bool {
-    true
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ExportParams {
-    #[serde(default)]
-    pub format: ExportFormatKind,
-    #[serde(default = "default_quality")]
-    pub quality: u8,
-    #[serde(default = "default_include_exif")]
-    pub include_exif: bool,
-    #[serde(default)]
-    pub bit_depth: BitDepthOpt,
-    #[serde(default)]
-    pub png_compression: PngCompressionOpt,
-    #[serde(default)]
-    pub tiff_compression: TiffCompressionOpt,
-    #[serde(default)]
-    pub lossless: bool,
-}
-
-impl Default for ExportParams {
-    fn default() -> Self {
-        Self {
-            format: ExportFormatKind::default(),
-            quality: DEFAULT_QUALITY,
-            include_exif: true,
-            bit_depth: BitDepthOpt::default(),
-            png_compression: PngCompressionOpt::default(),
-            tiff_compression: TiffCompressionOpt::default(),
-            lossless: false,
-        }
-    }
-}
-
-impl ExportParams {
-    fn output_format(&self) -> OutputFormat {
-        let quality = self.quality.clamp(1, 100);
-        let bd = match self.bit_depth {
-            BitDepthOpt::Eight => BitDepth::Eight,
-            BitDepthOpt::Sixteen => BitDepth::Sixteen,
-        };
-        let png_c = match self.png_compression {
-            PngCompressionOpt::Fast => PngCompression::Fast,
-            PngCompressionOpt::Default => PngCompression::Default,
-            PngCompressionOpt::Best => PngCompression::Best,
-        };
-        let tiff_c = match self.tiff_compression {
-            TiffCompressionOpt::None => TiffCompression::None,
-            TiffCompressionOpt::Lzw => TiffCompression::Lzw,
-            TiffCompressionOpt::Deflate => TiffCompression::Deflate,
-        };
-        match self.format {
-            ExportFormatKind::Jpeg => OutputFormat::Jpeg { quality },
-            ExportFormatKind::Png => OutputFormat::Png {
-                bit_depth: bd,
-                compression: png_c,
-            },
-            ExportFormatKind::Webp => OutputFormat::Webp {
-                quality,
-                lossless: self.lossless || self.include_exif,
-            },
-            ExportFormatKind::Avif => OutputFormat::Avif { quality },
-            ExportFormatKind::Heic => OutputFormat::Heic { quality },
-            ExportFormatKind::Tiff => OutputFormat::Tiff {
-                bit_depth: bd,
-                compression: tiff_c,
-            },
-            ExportFormatKind::Jxl => OutputFormat::Jxl { bit_depth: bd },
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ExportBody {
-    #[serde(default)]
-    pub edits: Edits,
-    #[serde(flatten)]
-    pub params: ExportParams,
-}
+pub use crate::services::export::{
+    ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+};
 
 pub async fn get_export(
     State(state): State<AppState>,
@@ -157,7 +22,8 @@ pub async fn get_export(
         tracing::error!(error = %e, "edits store");
         AppError::Internal
     })?;
-    export(state, id, edits, params).await
+    let (bytes, output) = export::render_export(&state, id, edits, &params).await?;
+    Ok(download_response(id, bytes, output))
 }
 
 pub async fn post_export(
@@ -165,49 +31,16 @@ pub async fn post_export(
     Path(id): Path<Uuid>,
     Json(body): Json<ExportBody>,
 ) -> Result<Response, AppError> {
-    export(state, id, body.edits.clamped(), body.params).await
+    let (bytes, output) =
+        export::render_export(&state, id, body.edits.clamped(), &body.params).await?;
+    Ok(download_response(id, bytes, output))
 }
 
-async fn render_export(
-    state: &AppState,
+fn download_response(
     id: Uuid,
-    edits: Edits,
-    params: &ExportParams,
-) -> Result<(Bytes, OutputFormat), AppError> {
-    let frame = state.render.frame(id).await.map_err(map_render_err)?;
-    let output = params.output_format();
-    let opts = raw_pipeline::frame::RenderOptions {
-        max_edge: EXPORT_MAX_EDGE,
-        quality: true,
-        output,
-        ..Default::default()
-    };
-    let rendered = state
-        .render
-        .render(id, edits, opts, None)
-        .await
-        .map_err(map_render_err)?;
-
-    let mut bytes = rendered.bytes;
-    if params.include_exif {
-        if let Some(exif) = frame.exif.as_ref() {
-            if let Err(e) =
-                raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
-            {
-                tracing::warn!(error = %e, "exif inject failed");
-            }
-        }
-    }
-    Ok((Bytes::from(bytes), output))
-}
-
-async fn export(
-    state: AppState,
-    id: Uuid,
-    edits: Edits,
-    params: ExportParams,
-) -> Result<Response, AppError> {
-    let (bytes, output) = render_export(&state, id, edits, &params).await?;
+    bytes: bytes::Bytes,
+    output: raw_pipeline::frame::OutputFormat,
+) -> Response {
     let content_type = output.content_type();
     let extension = output.extension();
     let mut resp = Response::new(Body::from(bytes));
@@ -217,47 +50,7 @@ async fn export(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_str(&format!("attachment; filename=\"{id}.{extension}\"")).unwrap(),
     );
-    Ok(resp.into_response())
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum StackPrimary {
-    #[default]
-    Edited,
-    Original,
-}
-
-fn default_suffix() -> String {
-    "_edit".into()
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ExportToImmichBody {
-    #[serde(default)]
-    pub edits: Edits,
-    #[serde(flatten)]
-    pub params: ExportParams,
-    #[serde(default)]
-    pub album_ids: Vec<Uuid>,
-    #[serde(default)]
-    pub tag_ids: Vec<Uuid>,
-    #[serde(default)]
-    pub favorite: bool,
-    #[serde(default)]
-    pub stack_with_original: bool,
-    #[serde(default)]
-    pub stack_primary: StackPrimary,
-    #[serde(default = "default_suffix")]
-    pub filename_suffix: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ExportToImmichResult {
-    pub asset_id: Uuid,
-    pub filename: String,
-    pub status: String,
-    pub warnings: Vec<String>,
+    resp.into_response()
 }
 
 pub async fn post_export_immich(
@@ -267,68 +60,17 @@ pub async fn post_export_immich(
     Json(body): Json<ExportToImmichBody>,
 ) -> Result<Json<ExportToImmichResult>, AppError> {
     let idem_key = idempotency_key(&headers)?;
-    let request_hash = idem_key.as_ref().map(|_| hash_request(id, &body));
-
-    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
-        if let Some(existing) = state.edits.get_export_job(id, key).await? {
-            if existing.request_hash != hash {
-                return Err(AppError::BadRequest(
-                    "idempotency key reused with different request".into(),
-                ));
-            }
-            if existing.status == ExportJobStatus::Completed {
-                return Ok(Json(record_to_result(&existing)));
-            }
-            return resume_export_job(&state, id, key, &body, existing).await;
-        }
-    }
-
-    let suffix = validate_suffix(&body.filename_suffix)?;
-    let original = state.immich.asset(id).await?;
-    let existing_names = collect_existing_filenames(&state, &original).await;
-
-    let (bytes, output) = render_export(&state, id, body.edits.clamped(), &body.params).await?;
-    let filename = resolve_filename(
-        &original.original_file_name,
-        &suffix,
-        output.extension(),
-        &existing_names,
-    );
-    let now = Utc::now().to_rfc3339();
-    let upload = state
-        .immich
-        .upload_asset(
-            &filename,
-            output.content_type(),
-            bytes,
-            body.favorite,
-            &now,
-            &now,
-        )
-        .await?;
-
-    let new_id = upload.id;
-    let status = upload.status.clone();
-
-    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
-        state
-            .edits
-            .put_export_job_uploaded(id, key, hash, new_id, &filename, &status)
-            .await?;
-    }
-
-    let warnings = run_post_upload(&state, &original, &body, new_id, &status).await;
-
-    if let Some(key) = idem_key.as_deref() {
-        state.edits.complete_export_job(id, key, &warnings).await?;
-    }
-
-    Ok(Json(ExportToImmichResult {
-        asset_id: new_id,
-        filename,
-        status,
-        warnings,
-    }))
+    let result = export::export_to_immich(
+        &state,
+        ExportImmichRequest {
+            asset_id: id,
+            body: &body,
+            idempotency_key: idem_key,
+            device_asset_id: None,
+        },
+    )
+    .await?;
+    Ok(Json(result))
 }
 
 fn idempotency_key(headers: &HeaderMap) -> Result<Option<String>, AppError> {
@@ -348,245 +90,4 @@ fn idempotency_key(headers: &HeaderMap) -> Result<Option<String>, AppError> {
         ));
     }
     Ok(Some(s.to_string()))
-}
-
-pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
-    let mut album_ids = body.album_ids.clone();
-    album_ids.sort();
-    let mut tag_ids = body.tag_ids.clone();
-    tag_ids.sort();
-    let canonical = serde_json::json!({
-        "asset_id": asset_id,
-        "edits": body.edits.clamped(),
-        "format": format!("{:?}", body.params.format),
-        "quality": body.params.quality,
-        "include_exif": body.params.include_exif,
-        "bit_depth": format!("{:?}", body.params.bit_depth),
-        "png_compression": format!("{:?}", body.params.png_compression),
-        "tiff_compression": format!("{:?}", body.params.tiff_compression),
-        "lossless": body.params.lossless,
-        "album_ids": album_ids,
-        "tag_ids": tag_ids,
-        "favorite": body.favorite,
-        "stack_with_original": body.stack_with_original,
-        "stack_primary": format!("{:?}", body.stack_primary),
-        "filename_suffix": body.filename_suffix,
-    });
-    let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
-    let mut h = Sha256::new();
-    h.update(&bytes);
-    hex::encode(h.finalize())
-}
-
-fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
-    ExportToImmichResult {
-        asset_id: rec.immich_asset_id.unwrap_or_default(),
-        filename: rec.filename.clone().unwrap_or_default(),
-        status: rec.upload_status.clone().unwrap_or_default(),
-        warnings: rec.warnings.clone(),
-    }
-}
-
-async fn resume_export_job(
-    state: &AppState,
-    asset_id: Uuid,
-    key: &str,
-    body: &ExportToImmichBody,
-    existing: ExportJobRecord,
-) -> Result<Json<ExportToImmichResult>, AppError> {
-    let Some(new_id) = existing.immich_asset_id else {
-        return Err(AppError::Internal);
-    };
-    let original = state.immich.asset(asset_id).await?;
-    let upload_status = existing.upload_status.clone().unwrap_or_default();
-    let warnings = run_post_upload(state, &original, body, new_id, &upload_status).await;
-    state
-        .edits
-        .complete_export_job(asset_id, key, &warnings)
-        .await?;
-    Ok(Json(ExportToImmichResult {
-        asset_id: new_id,
-        filename: existing.filename.unwrap_or_default(),
-        status: upload_status,
-        warnings,
-    }))
-}
-
-async fn run_post_upload(
-    state: &AppState,
-    original: &AssetDetail,
-    body: &ExportToImmichBody,
-    new_id: Uuid,
-    upload_status: &str,
-) -> Vec<String> {
-    let mut warnings: Vec<String> = Vec::new();
-    let is_duplicate = upload_status.eq_ignore_ascii_case("duplicate");
-
-    if body.favorite && is_duplicate {
-        if let Err(e) = state
-            .immich
-            .update_asset(new_id, &serde_json::json!({ "isFavorite": true }))
-            .await
-        {
-            warnings.push(format!("Favorite failed: {}", short_err(&e)));
-        }
-    }
-
-    for album_id in &body.album_ids {
-        match state.immich.add_assets_to_album(*album_id, &[new_id]).await {
-            Ok(items) => {
-                for item in items {
-                    if !item.success {
-                        warnings.push(format!(
-                            "Album {album_id} failed: {}",
-                            item.error.unwrap_or_else(|| "unknown".into())
-                        ));
-                    }
-                }
-            }
-            Err(e) => warnings.push(format!("Album {album_id} failed: {}", short_err(&e))),
-        }
-    }
-
-    for tag_id in &body.tag_ids {
-        match state.immich.tag_asset(*tag_id, new_id).await {
-            Ok(items) => {
-                for item in items {
-                    if !item.success {
-                        warnings.push(format!(
-                            "Tag {tag_id} failed: {}",
-                            item.error.unwrap_or_else(|| "unknown".into())
-                        ));
-                    }
-                }
-            }
-            Err(e) => warnings.push(format!("Tag {tag_id} failed: {}", short_err(&e))),
-        }
-    }
-
-    if body.stack_with_original {
-        if let Err(e) = stack_with_original(state, original, new_id, body.stack_primary).await {
-            warnings.push(format!("Stacking failed: {}", short_err(&e)));
-        }
-    }
-
-    warnings
-}
-
-fn validate_suffix(raw: &str) -> Result<String, AppError> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Ok("_edit".into());
-    }
-    if trimmed
-        .chars()
-        .any(|c| c.is_control() || matches!(c, '/' | '\\' | '\0'))
-    {
-        return Err(AppError::BadRequest("invalid filename suffix".into()));
-    }
-    if trimmed.len() > 32 {
-        return Err(AppError::BadRequest("filename suffix too long".into()));
-    }
-    Ok(trimmed.to_string())
-}
-
-async fn collect_existing_filenames(state: &AppState, original: &AssetDetail) -> Vec<String> {
-    let mut names = vec![original.original_file_name.clone()];
-    let Some(stack_id) = original.stack_id.or(original.stack.as_ref().map(|s| s.id)) else {
-        return names;
-    };
-    match state.immich.get_stack(stack_id).await {
-        Ok(stack) => {
-            for asset in stack.assets {
-                names.push(asset.original_file_name);
-            }
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "fetch stack for filename collision");
-        }
-    }
-    names
-}
-
-pub fn resolve_filename(
-    original: &str,
-    suffix: &str,
-    extension: &str,
-    existing: &[String],
-) -> String {
-    let stem = match original.rsplit_once('.') {
-        Some((s, _)) => s,
-        None => original,
-    };
-    let lower: HashSet<String> = existing.iter().map(|n| n.to_ascii_lowercase()).collect();
-    let mut n: u32 = 1;
-    loop {
-        let candidate = if n == 1 {
-            format!("{stem}{suffix}.{extension}")
-        } else {
-            format!("{stem}{suffix}_{n}.{extension}")
-        };
-        if !lower.contains(&candidate.to_ascii_lowercase()) {
-            return candidate;
-        }
-        n += 1;
-    }
-}
-
-async fn stack_with_original(
-    state: &AppState,
-    original: &AssetDetail,
-    new_id: Uuid,
-    primary: StackPrimary,
-) -> Result<(), crate::immich::ImmichError> {
-    let existing_stack_id = original.stack_id.or(original.stack.as_ref().map(|s| s.id));
-    let mut ids: Vec<Uuid> = vec![new_id, original.id];
-    if let Some(stack_id) = existing_stack_id {
-        if let Ok(stack) = state.immich.get_stack(stack_id).await {
-            for a in stack.assets {
-                if !ids.contains(&a.id) {
-                    ids.push(a.id);
-                }
-            }
-        }
-    }
-    let primary_id = match primary {
-        StackPrimary::Edited => new_id,
-        StackPrimary::Original => original.id,
-    };
-    if let Some(pos) = ids.iter().position(|i| *i == primary_id) {
-        ids.swap(0, pos);
-    }
-    let created = state.immich.create_stack(&ids).await?;
-    if created.primary_asset_id != primary_id {
-        state
-            .immich
-            .update_stack_primary(created.id, primary_id)
-            .await?;
-    }
-    Ok(())
-}
-
-fn short_err(err: &crate::immich::ImmichError) -> String {
-    match err {
-        crate::immich::ImmichError::Unauthorized => "unauthorized".into(),
-        crate::immich::ImmichError::NotFound => "not found".into(),
-        crate::immich::ImmichError::Timeout => "timeout".into(),
-        crate::immich::ImmichError::Status(c) => format!("status {c}"),
-        crate::immich::ImmichError::Transport(_) => "transport error".into(),
-        crate::immich::ImmichError::Decode(_) => "decode error".into(),
-    }
-}
-
-fn map_render_err(err: RenderError) -> AppError {
-    match err {
-        RenderError::Upstream(e) => e.into(),
-        RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
-            AppError::UnsupportedFormat(msg)
-        }
-        RenderError::Pipeline(e) => {
-            tracing::error!(error = %e, "export render");
-            AppError::Internal
-        }
-    }
 }
