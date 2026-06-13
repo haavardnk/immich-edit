@@ -592,6 +592,9 @@ impl JobExecutor for BatchExecutor {
                     crate::services::apply_preset::run_apply_preset_item(&state, &job, asset_id)
                         .await
                 }
+                crate::services::paste_edits::PASTE_EDITS_KIND => {
+                    crate::services::paste_edits::run_paste_edits_item(&state, &job, asset_id).await
+                }
                 other => Err(format!("unsupported job kind: {other}")),
             }
         })

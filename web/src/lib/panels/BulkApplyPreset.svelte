@@ -51,7 +51,11 @@
 </script>
 
 <div class="flex flex-col gap-4 px-4 pt-3">
-  <div class="text-[11px] text-immich-dark-fg/60 select-none">
+  <div class="flex items-center gap-1.5">
+    <Icon path={mdiAutoFix} size={13} class="opacity-50" />
+    <span class="uppercase tracking-wider text-[10px] font-medium text-immich-dark-fg/50">Apply preset</span>
+  </div>
+  <div class="text-[11px] text-immich-dark-fg/60 select-none -mt-2">
     {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'} selected
   </div>
 

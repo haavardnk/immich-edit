@@ -6,6 +6,7 @@
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
+  import CopyDialog from './CopyDialog.svelte';
   import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
@@ -43,4 +44,5 @@
 </div>
 
 <KeybindsHelp />
+<CopyDialog />
 <JobsDrawer />

@@ -107,7 +107,10 @@ class JobsStore {
         const job = JSON.parse((ev as MessageEvent).data) as Job;
         this.patch(job);
         if (!isActive(job.status)) {
-          if (job.kind === 'apply_preset' && job.status === 'completed') {
+          if (
+            (job.kind === 'apply_preset' || job.kind === 'paste_edits') &&
+            job.status === 'completed'
+          ) {
             void editedThumbs.refresh();
           }
           this.disconnect(job.id);
