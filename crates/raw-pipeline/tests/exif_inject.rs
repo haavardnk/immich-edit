@@ -32,6 +32,7 @@ fn injected_jpeg_is_valid() {
                 height: 240,
             },
             85,
+            raw_pipeline::frame::JpegSubsampling::Chroma420,
         )
         .unwrap();
         exif::inject(&mut jpeg, &meta, little_exif::filetype::FileExtension::JPEG).unwrap();

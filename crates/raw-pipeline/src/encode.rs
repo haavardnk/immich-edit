@@ -1,7 +1,7 @@
 pub mod icc;
 
 use crate::PipelineError;
-use crate::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
+use crate::frame::{BitDepth, JpegSubsampling, OutputFormat, PngCompression, TiffCompression};
 use libheif_rs::{
     Channel, ColorProfileRaw, ColorSpace, CompressionFormat, EncoderQuality, HeifContext,
     Image as HeifImage, LibHeif, RgbChroma, color_profile_types,
@@ -19,7 +19,18 @@ pub struct ImageRgba8<'a> {
     pub height: u32,
 }
 
-pub fn encode_jpeg_rgb(img: ImageRgb8<'_>, quality: i32) -> crate::PipelineResult<Vec<u8>> {
+fn turbo_subsamp(subsampling: JpegSubsampling) -> turbojpeg::Subsamp {
+    match subsampling {
+        JpegSubsampling::Chroma420 => turbojpeg::Subsamp::Sub2x2,
+        JpegSubsampling::Chroma444 => turbojpeg::Subsamp::None,
+    }
+}
+
+pub fn encode_jpeg_rgb(
+    img: ImageRgb8<'_>,
+    quality: i32,
+    subsampling: JpegSubsampling,
+) -> crate::PipelineResult<Vec<u8>> {
     let image = turbojpeg::Image {
         pixels: img.rgb,
         width: img.width as usize,
@@ -27,12 +38,16 @@ pub fn encode_jpeg_rgb(img: ImageRgb8<'_>, quality: i32) -> crate::PipelineResul
         height: img.height as usize,
         format: turbojpeg::PixelFormat::RGB,
     };
-    turbojpeg::compress(image, quality, turbojpeg::Subsamp::Sub2x2)
+    turbojpeg::compress(image, quality, turbo_subsamp(subsampling))
         .map(|buf| icc::embed_jpeg_icc(buf.to_vec()))
         .map_err(|e| PipelineError::Encode(format!("{e}")))
 }
 
-pub fn encode_jpeg_rgba(img: ImageRgba8<'_>, quality: i32) -> crate::PipelineResult<Vec<u8>> {
+pub fn encode_jpeg_rgba(
+    img: ImageRgba8<'_>,
+    quality: i32,
+    subsampling: JpegSubsampling,
+) -> crate::PipelineResult<Vec<u8>> {
     let image = turbojpeg::Image {
         pixels: img.rgba,
         width: img.width as usize,
@@ -40,7 +55,7 @@ pub fn encode_jpeg_rgba(img: ImageRgba8<'_>, quality: i32) -> crate::PipelineRes
         height: img.height as usize,
         format: turbojpeg::PixelFormat::RGBA,
     };
-    turbojpeg::compress(image, quality, turbojpeg::Subsamp::Sub2x2)
+    turbojpeg::compress(image, quality, turbo_subsamp(subsampling))
         .map(|buf| icc::embed_jpeg_icc(buf.to_vec()))
         .map_err(|e| PipelineError::Encode(format!("{e}")))
 }
@@ -260,7 +275,10 @@ pub fn encode_from_rgb8(
 ) -> crate::PipelineResult<Vec<u8>> {
     let img = ImageRgb8 { rgb, width, height };
     match *format {
-        OutputFormat::Jpeg { quality } => encode_jpeg_rgb(img, quality as i32),
+        OutputFormat::Jpeg {
+            quality,
+            subsampling,
+        } => encode_jpeg_rgb(img, quality as i32, subsampling),
         OutputFormat::Png {
             bit_depth: BitDepth::Eight,
             compression,
@@ -304,7 +322,11 @@ pub fn encode_from_rgba8(
     height: u32,
     format: &OutputFormat,
 ) -> crate::PipelineResult<Vec<u8>> {
-    if let OutputFormat::Jpeg { quality } = *format {
+    if let OutputFormat::Jpeg {
+        quality,
+        subsampling,
+    } = *format
+    {
         return encode_jpeg_rgba(
             ImageRgba8 {
                 rgba,
@@ -312,6 +334,7 @@ pub fn encode_from_rgba8(
                 height,
             },
             quality as i32,
+            subsampling,
         );
     }
     let mut rgb: Vec<u8> = Vec::with_capacity((width as usize) * (height as usize) * 3);
@@ -372,6 +395,7 @@ mod tests {
                 height: 32,
             },
             85,
+            JpegSubsampling::Chroma420,
         )
         .unwrap();
         if !(out[0] == 0xFF && out[1] == 0xD8 && out[2] == 0xFF && out[3] == 0xE2) {

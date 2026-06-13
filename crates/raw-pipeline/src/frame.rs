@@ -57,9 +57,16 @@ pub enum TiffCompression {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum JpegSubsampling {
+    Chroma420,
+    Chroma444,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OutputFormat {
     Jpeg {
         quality: u8,
+        subsampling: JpegSubsampling,
     },
     Png {
         bit_depth: BitDepth,
@@ -141,7 +148,10 @@ impl Default for RenderOptions {
         Self {
             max_edge: 4096,
             quality: false,
-            output: OutputFormat::Jpeg { quality: 85 },
+            output: OutputFormat::Jpeg {
+                quality: 85,
+                subsampling: JpegSubsampling::Chroma420,
+            },
             preview_mode: PreviewMode::None,
             rasters: crate::mask_raster::empty_rasters(),
         }

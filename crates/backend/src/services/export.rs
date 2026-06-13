@@ -2,7 +2,9 @@ use bytes::Bytes;
 use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
-use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, TiffCompression};
+use raw_pipeline::frame::{
+    BitDepth, JpegSubsampling, OutputFormat, PngCompression, TiffCompression,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -128,7 +130,10 @@ impl ExportParams {
             TiffCompressionOpt::Deflate => TiffCompression::Deflate,
         };
         match self.format {
-            ExportFormatKind::Jpeg => OutputFormat::Jpeg { quality },
+            ExportFormatKind::Jpeg => OutputFormat::Jpeg {
+                quality,
+                subsampling: JpegSubsampling::Chroma420,
+            },
             ExportFormatKind::Png => OutputFormat::Png {
                 bit_depth: bd,
                 compression: png_c,

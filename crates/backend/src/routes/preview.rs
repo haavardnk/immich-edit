@@ -76,7 +76,10 @@ async fn render_to_response(
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
         quality: false,
-        output: raw_pipeline::frame::OutputFormat::Jpeg { quality: 85 },
+        output: raw_pipeline::frame::OutputFormat::Jpeg {
+            quality: 85,
+            subsampling: raw_pipeline::frame::JpegSubsampling::Chroma444,
+        },
         preview_mode: preview_mode.clone(),
         ..Default::default()
     };

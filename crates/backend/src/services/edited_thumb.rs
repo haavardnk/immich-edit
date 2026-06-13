@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use raw_pipeline::edits::Edits;
-use raw_pipeline::frame::{OutputFormat, PreviewMode, RenderOptions};
+use raw_pipeline::frame::{JpegSubsampling, OutputFormat, PreviewMode, RenderOptions};
 use tokio::fs;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
@@ -95,7 +95,10 @@ impl EditedThumbService {
         let opts = RenderOptions {
             max_edge: size,
             quality: false,
-            output: OutputFormat::Jpeg { quality: 80 },
+            output: OutputFormat::Jpeg {
+                quality: 80,
+                subsampling: JpegSubsampling::Chroma420,
+            },
             preview_mode: PreviewMode::None,
             ..Default::default()
         };
