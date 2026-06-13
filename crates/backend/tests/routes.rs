@@ -797,3 +797,37 @@ async fn create_paste_edits_job_creates_items_for_ids() {
     assert_eq!(job["kind"], "paste_edits");
     assert_eq!(job["total"], 2);
 }
+
+#[tokio::test]
+async fn create_reset_edits_job_creates_items_for_ids() {
+    use uuid::Uuid;
+
+    let server = MockServer::start().await;
+    let app = router(test_state(&server).await);
+    let id1 = Uuid::new_v4();
+    let id2 = Uuid::new_v4();
+
+    let create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/jobs")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "kind": "reset_edits",
+                        "asset_ids": [id1, id2],
+                        "params": {}
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(create.status(), StatusCode::OK);
+    let job: serde_json::Value = serde_json::from_slice(&body_bytes(create).await).unwrap();
+    assert_eq!(job["kind"], "reset_edits");
+    assert_eq!(job["total"], 2);
+}

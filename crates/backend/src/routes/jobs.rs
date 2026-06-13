@@ -19,6 +19,7 @@ use crate::services::export::{
 };
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJobItem};
 use crate::services::paste_edits::PASTE_EDITS_KIND;
+use crate::services::reset_edits::RESET_EDITS_KIND;
 use crate::state::AppState;
 
 const KNOWN_JOB_KINDS: &[&str] = &[
@@ -26,6 +27,7 @@ const KNOWN_JOB_KINDS: &[&str] = &[
     DOWNLOAD_ZIP_KIND,
     APPLY_PRESET_KIND,
     PASTE_EDITS_KIND,
+    RESET_EDITS_KIND,
 ];
 const MAX_ITEMS: usize = 10_000;
 const LIST_LIMIT: i64 = 100;
