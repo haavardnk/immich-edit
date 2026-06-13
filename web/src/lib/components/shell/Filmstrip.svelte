@@ -6,18 +6,54 @@
   import Icon from '$lib/components/Icon.svelte';
   import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
 
+  const ITEM = 64;
+  const GAP = 4;
+  const PAD = 8;
+  const STRIDE = ITEM + GAP;
+  const OVERSCAN = 3;
+
   const currentId = $derived(page.params.id ?? null);
 
   const assets = $derived(browsing.assets);
   const currentIndex = $derived(assets.findIndex((a) => a.id === currentId));
 
   let scrollContainer: HTMLDivElement | undefined = $state();
+  let containerWidth = $state(0);
+  let scrollLeft = $state(0);
+
+  const totalWidth = $derived(PAD * 2 + Math.max(0, assets.length) * STRIDE - GAP);
+
+  const view = $derived.by(() => {
+    const startIdx = Math.max(0, Math.floor((scrollLeft - PAD) / STRIDE) - OVERSCAN);
+    const count = Math.ceil(containerWidth / STRIDE) + OVERSCAN * 2;
+    return {
+      startIdx,
+      endIdx: Math.min(assets.length, startIdx + count),
+      offsetX: PAD + startIdx * STRIDE
+    };
+  });
+
+  const visibleAssets = $derived(assets.slice(view.startIdx, view.endIdx));
+
+  function measure(): void {
+    if (!scrollContainer) return;
+    containerWidth = scrollContainer.clientWidth;
+    scrollLeft = scrollContainer.scrollLeft;
+  }
 
   $effect(() => {
-    if (currentIndex >= 0 && scrollContainer) {
-      const el = scrollContainer.children[currentIndex] as HTMLElement | undefined;
-      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
+    if (!scrollContainer) return;
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(scrollContainer);
+    return () => ro.disconnect();
+  });
+
+  $effect(() => {
+    if (!scrollContainer || currentIndex < 0) return;
+    const target = PAD + currentIndex * STRIDE + ITEM / 2 - containerWidth / 2;
+    const max = Math.max(0, totalWidth - containerWidth);
+    scrollContainer.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
   });
 </script>
 
@@ -43,24 +79,29 @@
           <Icon path={mdiChevronDown} size={14} class="opacity-70" />
         </button>
         <div
-          class="flex gap-1 px-2 py-2 overflow-x-auto scrollbar-hidden"
+          class="py-2 overflow-x-auto scrollbar-hidden"
           bind:this={scrollContainer}
+          onscroll={measure}
         >
-          {#each assets as asset, i (asset.id)}
-            {@const isCurrent = asset.id === currentId}
-            <a
-              href={`/assets/${asset.id}`}
-              class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent ? 'ring-2 ring-immich-dark-primary opacity-100' : 'opacity-50 hover:opacity-80'}"
-              title={asset.originalFileName}
-            >
-              <img
-                src={assetThumbUrl(asset.id)}
-                alt=""
-                loading="lazy"
-                class="w-full h-full object-cover"
-              />
-            </a>
-          {/each}
+          <div class="relative" style:width="{totalWidth}px" style:height="{ITEM}px">
+            <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
+              {#each visibleAssets as asset (asset.id)}
+                {@const isCurrent = asset.id === currentId}
+                <a
+                  href={`/assets/${asset.id}`}
+                  class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent ? 'ring-2 ring-immich-dark-primary opacity-100' : 'opacity-50 hover:opacity-80'}"
+                  title={asset.originalFileName}
+                >
+                  <img
+                    src={assetThumbUrl(asset.id)}
+                    alt=""
+                    loading="lazy"
+                    class="w-full h-full object-cover"
+                  />
+                </a>
+              {/each}
+            </div>
+          </div>
         </div>
       </div>
     {/if}
