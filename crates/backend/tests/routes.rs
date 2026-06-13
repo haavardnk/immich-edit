@@ -349,6 +349,30 @@ async fn tags_upsert_proxies_to_immich() {
 }
 
 #[tokio::test]
+async fn tags_list_includes_asset_counts() {
+    let server = MockServer::start().await;
+    mock_tag_list_with_stats(&server, 42).await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/tags")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json[0]["assetCount"] != 42 {
+        panic!("body: {json}");
+    }
+}
+
+#[tokio::test]
 async fn tag_asset_add_and_remove_proxy() {
     let server = MockServer::start().await;
     mock_tag_asset(&server).await;

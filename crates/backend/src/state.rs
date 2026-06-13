@@ -9,6 +9,7 @@ use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::RenderService;
 use crate::services::render_queue::RenderQueue;
+use crate::services::tag_counts::TagCountCache;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -21,6 +22,7 @@ pub struct AppState {
     pub preview_meta: PreviewMetaStore,
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
+    pub tag_counts: TagCountCache,
 }
 
 impl AppState {
@@ -56,6 +58,7 @@ impl AppState {
             preview_meta: PreviewMetaStore::new(),
             edited_thumb,
             rasters,
+            tag_counts: TagCountCache::new(),
         })
     }
 }

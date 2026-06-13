@@ -12,3 +12,4 @@ pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;
 pub mod reset_edits;
+pub mod tag_counts;

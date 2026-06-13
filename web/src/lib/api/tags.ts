@@ -8,6 +8,7 @@ export interface TagSummary {
   color?: string | null;
   createdAt: string | null;
   updatedAt?: string | null;
+  assetCount?: number | null;
 }
 
 export function listTags(): Promise<TagSummary[]> {

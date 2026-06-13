@@ -10,6 +10,7 @@ use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::RenderService;
 use immich_edit_backend::services::render_queue::RenderQueue;
+use immich_edit_backend::services::tag_counts::TagCountCache;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
 use url::Url;
@@ -53,6 +54,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         preview_meta: PreviewMetaStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
         rasters,
+        tag_counts: TagCountCache::new(),
     }
 }
 
@@ -215,6 +217,25 @@ pub async fn mock_untag_asset(server: &MockServer) {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             { "id": asset_id(), "success": true }
         ])))
+        .mount(server)
+        .await;
+}
+
+pub async fn mock_tag_list_with_stats(server: &MockServer, count: u64) {
+    Mock::given(method("GET"))
+        .and(path("/api/tags"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            { "id": tag_id(), "name": "Blue", "value": "Blue" }
+        ])))
+        .mount(server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/search/statistics"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "total": count
+        })))
         .mount(server)
         .await;
 }

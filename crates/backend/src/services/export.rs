@@ -410,6 +410,7 @@ async fn run_post_upload(
     for tag_id in &body.tag_ids {
         match state.immich.tag_asset(*tag_id, new_id).await {
             Ok(items) => {
+                state.tag_counts.invalidate(*tag_id).await;
                 for item in items {
                     if !item.success {
                         warnings.push(format!(
