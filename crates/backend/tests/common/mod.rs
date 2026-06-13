@@ -3,6 +3,7 @@
 use immich_edit_backend::app;
 use immich_edit_backend::config::{Config, RendererMode};
 use immich_edit_backend::immich::ImmichClient;
+use immich_edit_backend::services::asset_counts::AssetCountCache;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 use immich_edit_backend::services::job_store::JobStore;
@@ -10,7 +11,6 @@ use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::RenderService;
 use immich_edit_backend::services::render_queue::RenderQueue;
-use immich_edit_backend::services::tag_counts::TagCountCache;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
 use url::Url;
@@ -54,7 +54,8 @@ pub async fn test_state(server: &MockServer) -> AppState {
         preview_meta: PreviewMetaStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
         rasters,
-        tag_counts: TagCountCache::new(),
+        tag_counts: AssetCountCache::new("tagIds"),
+        people_counts: AssetCountCache::new("personIds"),
     }
 }
 
@@ -228,6 +229,31 @@ pub async fn mock_tag_list_with_stats(server: &MockServer, count: u64) {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             { "id": tag_id(), "name": "Blue", "value": "Blue" }
         ])))
+        .mount(server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/search/statistics"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "total": count
+        })))
+        .mount(server)
+        .await;
+}
+
+pub fn person_id() -> Uuid {
+    Uuid::parse_str("44444444-aaaa-bbbb-cccc-000000000004").unwrap()
+}
+
+pub async fn mock_people_list_with_stats(server: &MockServer, count: u64) {
+    Mock::given(method("GET"))
+        .and(path("/api/people"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "people": [ { "id": person_id(), "name": "Alice" } ],
+            "total": 1,
+            "hasNextPage": false
+        })))
         .mount(server)
         .await;
     Mock::given(method("POST"))

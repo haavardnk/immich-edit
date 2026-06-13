@@ -10,7 +10,12 @@ use crate::immich::dto::PersonSummary;
 use crate::state::AppState;
 
 pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<PersonSummary>>, AppError> {
-    let people = state.immich.list_people(true).await?;
+    let mut people = state.immich.list_people(true).await?;
+    let ids: Vec<Uuid> = people.iter().map(|p| p.id).collect();
+    let counts = state.people_counts.counts_for(&state.immich, &ids).await;
+    for person in &mut people {
+        person.asset_count = counts.get(&person.id).copied();
+    }
     Ok(Json(people))
 }
 

@@ -373,6 +373,30 @@ async fn tags_list_includes_asset_counts() {
 }
 
 #[tokio::test]
+async fn people_list_includes_asset_counts() {
+    let server = MockServer::start().await;
+    mock_people_list_with_stats(&server, 17).await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/people")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if json[0]["assetCount"] != 17 {
+        panic!("body: {json}");
+    }
+}
+
+#[tokio::test]
 async fn tag_asset_add_and_remove_proxy() {
     let server = MockServer::start().await;
     mock_tag_asset(&server).await;

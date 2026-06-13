@@ -139,6 +139,12 @@ pub struct PersonSummary {
     pub is_hidden: bool,
     #[serde(rename = "updatedAt", default)]
     pub updated_at: Option<String>,
+    #[serde(
+        rename = "assetCount",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub asset_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

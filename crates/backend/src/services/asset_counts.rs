@@ -10,37 +10,33 @@ use crate::immich::ImmichClient;
 const FETCH_CONCURRENCY: usize = 6;
 
 #[derive(Clone)]
-pub struct TagCountCache {
+pub struct AssetCountCache {
+    field: &'static str,
     inner: Arc<Mutex<HashMap<Uuid, u64>>>,
 }
 
-impl Default for TagCountCache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TagCountCache {
-    pub fn new() -> Self {
+impl AssetCountCache {
+    pub fn new(field: &'static str) -> Self {
         Self {
+            field,
             inner: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub async fn invalidate(&self, tag_id: Uuid) {
-        self.inner.lock().await.remove(&tag_id);
+    pub async fn invalidate(&self, id: Uuid) {
+        self.inner.lock().await.remove(&id);
     }
 
     pub async fn clear(&self) {
         self.inner.lock().await.clear();
     }
 
-    pub async fn counts_for(&self, immich: &ImmichClient, tag_ids: &[Uuid]) -> HashMap<Uuid, u64> {
+    pub async fn counts_for(&self, immich: &ImmichClient, ids: &[Uuid]) -> HashMap<Uuid, u64> {
         let mut result: HashMap<Uuid, u64> = HashMap::new();
         let mut missing: Vec<Uuid> = Vec::new();
         {
             let cache = self.inner.lock().await;
-            for id in tag_ids {
+            for id in ids {
                 match cache.get(id) {
                     Some(count) => {
                         result.insert(*id, *count);
@@ -53,19 +49,19 @@ impl TagCountCache {
         let mut tasks: JoinSet<(Uuid, Option<u64>)> = JoinSet::new();
         let mut queue = missing.into_iter();
         for id in queue.by_ref().take(FETCH_CONCURRENCY) {
-            spawn_count(&mut tasks, immich.clone(), id);
+            spawn_count(&mut tasks, immich.clone(), self.field, id);
         }
 
         while let Some(joined) = tasks.join_next().await {
-            let Ok((tag_id, count)) = joined else {
+            let Ok((id, count)) = joined else {
                 continue;
             };
             if let Some(count) = count {
-                result.insert(tag_id, count);
-                self.inner.lock().await.insert(tag_id, count);
+                result.insert(id, count);
+                self.inner.lock().await.insert(id, count);
             }
             if let Some(next) = queue.next() {
-                spawn_count(&mut tasks, immich.clone(), next);
+                spawn_count(&mut tasks, immich.clone(), self.field, next);
             }
         }
 
@@ -73,14 +69,19 @@ impl TagCountCache {
     }
 }
 
-fn spawn_count(tasks: &mut JoinSet<(Uuid, Option<u64>)>, immich: ImmichClient, tag_id: Uuid) {
+fn spawn_count(
+    tasks: &mut JoinSet<(Uuid, Option<u64>)>,
+    immich: ImmichClient,
+    field: &'static str,
+    id: Uuid,
+) {
     tasks.spawn(async move {
-        let body = serde_json::json!({ "tagIds": [tag_id] });
+        let body = serde_json::json!({ field: [id] });
         match immich.search_statistics(&body).await {
-            Ok(stats) => (tag_id, Some(stats.total)),
+            Ok(stats) => (id, Some(stats.total)),
             Err(e) => {
-                tracing::warn!(%tag_id, error = %e, "tag asset count lookup failed");
-                (tag_id, None)
+                tracing::warn!(%id, field, error = %e, "asset count lookup failed");
+                (id, None)
             }
         }
     });

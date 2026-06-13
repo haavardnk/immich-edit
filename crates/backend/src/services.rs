@@ -1,4 +1,5 @@
 pub mod apply_preset;
+pub mod asset_counts;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;
@@ -12,4 +13,3 @@ pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;
 pub mod reset_edits;
-pub mod tag_counts;

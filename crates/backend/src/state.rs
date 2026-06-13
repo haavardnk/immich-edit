@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::immich::ImmichClient;
+use crate::services::asset_counts::AssetCountCache;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 use crate::services::job_store::JobStore;
@@ -9,7 +10,6 @@ use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::RenderService;
 use crate::services::render_queue::RenderQueue;
-use crate::services::tag_counts::TagCountCache;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -22,7 +22,8 @@ pub struct AppState {
     pub preview_meta: PreviewMetaStore,
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
-    pub tag_counts: TagCountCache,
+    pub tag_counts: AssetCountCache,
+    pub people_counts: AssetCountCache,
 }
 
 impl AppState {
@@ -58,7 +59,8 @@ impl AppState {
             preview_meta: PreviewMetaStore::new(),
             edited_thumb,
             rasters,
-            tag_counts: TagCountCache::new(),
+            tag_counts: AssetCountCache::new("tagIds"),
+            people_counts: AssetCountCache::new("personIds"),
         })
     }
 }

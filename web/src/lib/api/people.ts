@@ -6,6 +6,7 @@ export interface PersonSummary {
   thumbnailPath: string;
   isHidden: boolean;
   updatedAt: string | null;
+  assetCount?: number | null;
 }
 
 export function listPeople(): Promise<PersonSummary[]> {
