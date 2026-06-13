@@ -57,7 +57,8 @@ COPY --from=frontend --chown=10001:10001 /build/web/build /app/web
 ENV WEB_DIR=/app/web \
     CACHE_DIR=/cache \
     BIND_ADDR=0.0.0.0:3000 \
-    IMMICH_EDIT_RENDERER=auto
+    IMMICH_EDIT_RENDERER=auto \
+    XDG_CACHE_HOME=/cache
 USER 10001:10001
 EXPOSE 3000
 VOLUME /cache
