@@ -46,7 +46,7 @@ Export:
 
 ## Quick start
 
-The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest release. Pin an exact tag instead if you want upgrades to be explicit.
+The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest stable release; `edge` tracks the newest build including prereleases. Pin an exact tag like `0.2.0` if you want upgrades to be explicit. See [available tags](docs/deploy.md#image-tags).
 
 Create `compose.yaml`:
 
