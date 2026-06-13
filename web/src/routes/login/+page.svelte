@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { login } from '$lib/api/auth';
   import { ApiError } from '$lib/api/client';
+  import Logo from '$lib/components/Logo.svelte';
 
   let token = $state('');
   let submitting = $state(false);
@@ -34,7 +35,10 @@
     onsubmit={submit}
     class="w-full max-w-sm flex flex-col gap-4 p-6 rounded-lg bg-immich-dark-gray border border-immich-dark-gray"
   >
-    <h1 class="text-xl font-semibold">immich-edit</h1>
+    <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
+      <Logo size={26} />
+      <span><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span></span>
+    </h1>
     <label class="flex flex-col gap-1">
       <span class="text-sm opacity-70">Access token</span>
       <input
