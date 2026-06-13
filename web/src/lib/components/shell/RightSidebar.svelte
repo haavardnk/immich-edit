@@ -185,6 +185,16 @@
         {/if}
       </div>
     {:else}
+      <div class="flex items-center justify-end border-b border-white/10 h-[37px] pr-1.5">
+        <button
+          class="p-1.5 hover:bg-white/10 transition-colors rounded"
+          onclick={ui.toggleRight}
+          aria-label="collapse panel"
+          title="Collapse"
+        >
+          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
+        </button>
+      </div>
       <div class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center">
         Select an asset to edit
       </div>
