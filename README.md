@@ -4,6 +4,10 @@ A non-destructive RAW editor for your [Immich](https://immich.app/) library. Bro
 
 > **Beta software, early development.** Expect bugs, missing features, breaking changes, and occasional migrations that require clearing the cache or database. There is no upgrade path between 0.x releases yet. Run it against a backup, not your only copy.
 
+![immich-edit editor](docs/image/editor.png)
+
+<sub>Photo by [Simon Williams](https://unsplash.com/@simowilliams?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText) on [Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText)</sub>
+
 ## Why
 
 I wanted Lightroom-style edits on my Immich library without sending photos to the cloud, without exporting to disk first, and without giving up RAW. Nothing in the Immich plugin ecosystem covered this, so I started building it. It is opinionated, single-user, and shaped around how I work.
