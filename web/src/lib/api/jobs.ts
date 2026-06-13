@@ -68,10 +68,19 @@ function baseParams(opts: ExportOptions): Record<string, unknown> {
   };
 }
 
-export function createImmichExportJob(assetIds: string[], opts: ImmichExportOptions): Promise<Job> {
+export type JobTarget =
+  | { assetIds: string[] }
+  | { search: Record<string, unknown> };
+
+function targetFields(target: JobTarget): Record<string, unknown> {
+  if ('assetIds' in target) return { asset_ids: target.assetIds };
+  return { target: { search: target.search } };
+}
+
+export function createImmichExportJob(target: JobTarget, opts: ImmichExportOptions): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'export_immich',
-    asset_ids: assetIds,
+    ...targetFields(target),
     params: {
       ...baseParams(opts),
       album_ids: opts.albumIds,
@@ -85,13 +94,13 @@ export function createImmichExportJob(assetIds: string[], opts: ImmichExportOpti
 }
 
 export function createZipExportJob(
-  assetIds: string[],
+  target: JobTarget,
   opts: ExportOptions,
   filenameSuffix: string,
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'download_zip',
-    asset_ids: assetIds,
+    ...targetFields(target),
     params: { ...baseParams(opts), filename_suffix: filenameSuffix },
   });
 }
@@ -103,13 +112,13 @@ export interface ApplyPresetOptions {
 }
 
 export function createApplyPresetJob(
-  assetIds: string[],
+  target: JobTarget,
   presetId: string,
   opts: ApplyPresetOptions,
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'apply_preset',
-    asset_ids: assetIds,
+    ...targetFields(target),
     params: {
       preset_id: presetId,
       include_geometry: opts.includeGeometry,

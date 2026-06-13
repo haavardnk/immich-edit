@@ -47,7 +47,11 @@ pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -
     }
 }
 
-pub async fn run_apply_preset_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
+pub async fn run_apply_preset_item(
+    state: &AppState,
+    job: &JobRecord,
+    asset_id: Uuid,
+) -> ItemOutcome {
     let params: ApplyPresetParams = serde_json::from_value(job.params.clone())
         .map_err(|e| format!("invalid apply preset params: {e}"))?;
     let preset = state
@@ -71,7 +75,13 @@ pub async fn run_apply_preset_item(state: &AppState, job: &JobRecord, asset_id: 
     let action = format!("Apply preset: {}", preset.name);
     let saved = state
         .edits
-        .put(asset_id, manifest, asset.updated_at, asset.checksum, Some(&action))
+        .put(
+            asset_id,
+            manifest,
+            asset.updated_at,
+            asset.checksum,
+            Some(&action),
+        )
         .await
         .map_err(|e| e.to_string())?;
     Ok(serde_json::json!({

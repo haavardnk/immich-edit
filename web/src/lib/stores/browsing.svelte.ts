@@ -2,13 +2,22 @@ import type { AssetSummary } from '$lib/types/album';
 
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
+  query = $state<Record<string, unknown> | null>(null);
+  total = $state<number | undefined>(undefined);
 
   set(assets: AssetSummary[]): void {
     this.assets = assets;
   }
 
+  setContext(query: Record<string, unknown> | null, total: number | undefined): void {
+    this.query = query;
+    this.total = total;
+  }
+
   clear(): void {
     this.assets = [];
+    this.query = null;
+    this.total = undefined;
   }
 
   patch(id: string, fields: Partial<AssetSummary>): void {

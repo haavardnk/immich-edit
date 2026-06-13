@@ -3,8 +3,8 @@
   import type { AssetDetail } from '$lib/types/asset';
   import { selection } from '$lib/stores/selection.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
-  import { updateAsset } from '$lib/api/assets';
   import { listTags, addTagToAsset, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
+  import { updateAsset } from '$lib/api/assets';
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
@@ -25,6 +25,11 @@
   let tagsLoaded = $state(false);
   let showTags = $state(false);
   let chosenTags = $state<string[]>([]);
+
+  let metaBusy = $derived(busy || selection.allFiltered);
+  let showSelectAll = $derived(
+    browsing.query !== null && browsing.total !== undefined && browsing.total > 0,
+  );
 
   $effect(() => {
     if (selection.active && !tagsLoaded) {
@@ -47,7 +52,7 @@
   }
 
   async function applyMeta(fn: (id: string) => Promise<AssetDetail>): Promise<void> {
-    if (busy) return;
+    if (busy || selection.allFiltered) return;
     busy = true;
     const ids = [...selection.selected];
     const byId = new Map(assets.map((a) => [a.id, a]));
@@ -82,7 +87,7 @@
   }
 
   async function applyTags(add: boolean): Promise<void> {
-    if (busy || chosenTags.length === 0) return;
+    if (busy || selection.allFiltered || chosenTags.length === 0) return;
     busy = true;
     const ids = [...selection.selected];
     let failed = 0;
@@ -109,21 +114,31 @@
     class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-2 bg-immich-dark-gray border border-white/10 rounded-xl shadow-2xl px-3 py-2 max-w-[95vw]"
   >
     <div class="flex items-center gap-2 flex-wrap text-xs">
-      <span class="font-medium px-1">{selection.count} selected</span>
+      <span class="font-medium px-1">{selection.targetCount} selected</span>
       <button
         class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
         onclick={() => selection.selectLoaded(assets.map((a) => a.id))}
-        title="Select all loaded"
+        title="Select loaded"
       >
         <Icon path={mdiSelectAll} size={16} />
-        All loaded
+        Select loaded
       </button>
+      {#if showSelectAll}
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+          onclick={() => selection.selectFiltered(browsing.query!, browsing.total!)}
+          title="Select all (job-based actions only)"
+        >
+          <Icon path={mdiSelectAll} size={16} />
+          Select all
+        </button>
+      {/if}
 
       <div class="w-px h-5 bg-white/10"></div>
 
       <button
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={busy}
+        disabled={metaBusy}
         onclick={() => setFavorite(true)}
         title="Favorite"
         aria-label="Favorite"
@@ -132,7 +147,7 @@
       </button>
       <button
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={busy}
+        disabled={metaBusy}
         onclick={() => setFavorite(false)}
         title="Unfavorite"
         aria-label="Unfavorite"
@@ -146,7 +161,7 @@
         {#each [1, 2, 3, 4, 5] as n (n)}
           <button
             class="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
-            disabled={busy}
+            disabled={metaBusy}
             onclick={() => setRating(n)}
             aria-label={`Rate ${n}`}
           >
@@ -155,7 +170,7 @@
         {/each}
         <button
           class="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
-          disabled={busy}
+          disabled={metaBusy}
           onclick={() => setRating(0)}
           aria-label="Clear rating"
         >
@@ -166,7 +181,8 @@
       <div class="w-px h-5 bg-white/10"></div>
 
       <button
-        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors {showTags ? 'bg-white/10' : ''}"
+        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 {showTags ? 'bg-white/10' : ''}"
+        disabled={metaBusy}
         onclick={() => (showTags = !showTags)}
         title="Tags"
       >
@@ -206,14 +222,14 @@
           </div>
           <button
             class="px-2.5 py-1 rounded-lg bg-immich-primary/90 hover:bg-immich-primary text-white text-xs whitespace-nowrap transition-colors disabled:opacity-40 disabled:hover:bg-immich-primary/90"
-            disabled={busy || chosenTags.length === 0}
+            disabled={metaBusy || chosenTags.length === 0}
             onclick={() => void applyTags(true)}
           >
             Add to selected
           </button>
           <button
             class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs whitespace-nowrap transition-colors disabled:opacity-40"
-            disabled={busy || chosenTags.length === 0}
+            disabled={metaBusy || chosenTags.length === 0}
             onclick={() => void applyTags(false)}
           >
             Remove from selected
