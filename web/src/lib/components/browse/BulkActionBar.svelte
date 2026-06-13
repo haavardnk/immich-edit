@@ -195,7 +195,7 @@
       <button
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
         onclick={selection.clear}
-        title="Clear selection"
+        title="Clear selection (Esc)"
         aria-label="Clear selection"
       >
         <Icon path={mdiClose} size={16} />

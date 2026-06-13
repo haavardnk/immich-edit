@@ -76,6 +76,13 @@
     }
   }
 
+  function onKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && selection.active) {
+      e.preventDefault();
+      selection.clear();
+    }
+  }
+
   onMount(() => {
     selection.clear();
     if (!root) return;
@@ -83,12 +90,14 @@
     measure();
     const ro = new ResizeObserver(() => measure());
     ro.observe(root);
+    window.addEventListener('keydown', onKeydown);
     if (scrollParent) {
       ro.observe(scrollParent);
       scrollParent.addEventListener('scroll', onScroll, { passive: true });
     }
     return () => {
       ro.disconnect();
+      window.removeEventListener('keydown', onKeydown);
       scrollParent?.removeEventListener('scroll', onScroll);
     };
   });
