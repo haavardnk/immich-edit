@@ -43,6 +43,10 @@
   function onCheckbox(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
+    if (e.shiftKey) {
+      onRange?.();
+      return;
+    }
     onToggle?.();
   }
 </script>

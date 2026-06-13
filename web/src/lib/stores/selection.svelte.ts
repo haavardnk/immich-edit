@@ -3,6 +3,7 @@ import type { JobTarget } from '$lib/api/jobs';
 class SelectionStore {
   selected = $state(new Set<string>());
   anchorId: string | null = null;
+  rangeBase = new Set<string>();
   filterQuery = $state<Record<string, unknown> | null>(null);
   filterCount = $state(0);
 
@@ -40,6 +41,7 @@ class SelectionStore {
     }
     this.selected = next;
     this.anchorId = id;
+    this.rangeBase = new Set(next);
   };
 
   range = (orderedIds: string[], toId: string): void => {
@@ -56,7 +58,7 @@ class SelectionStore {
     }
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
-    const next = new Set(this.selected);
+    const next = new Set(this.rangeBase);
     for (const id of orderedIds.slice(lo, hi + 1)) {
       next.add(id);
     }
@@ -67,6 +69,7 @@ class SelectionStore {
     this.filterQuery = null;
     this.selected = new Set(ids);
     this.anchorId = ids.at(-1) ?? null;
+    this.rangeBase = new Set(ids);
   };
 
   selectFiltered = (query: Record<string, unknown>, count: number): void => {
@@ -74,11 +77,13 @@ class SelectionStore {
     this.filterCount = count;
     this.selected = new Set();
     this.anchorId = null;
+    this.rangeBase = new Set();
   };
 
   clear = (): void => {
     this.selected = new Set();
     this.anchorId = null;
+    this.rangeBase = new Set();
     this.filterQuery = null;
     this.filterCount = 0;
   };
