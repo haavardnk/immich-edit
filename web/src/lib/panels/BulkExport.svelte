@@ -1,8 +1,7 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
-  import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
-  import { toasts } from '$lib/stores/toasts.svelte';
+  import { createImmichExportJob, createZipExportJob, type JobTarget } from '$lib/api/jobs';
+  import { runBulkJob } from '$lib/api/bulkJob';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiCloudUpload, mdiFolderZip, mdiLoading } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
@@ -28,32 +27,19 @@
 
   async function submit(): Promise<void> {
     if (busy) return;
-    const count = selection.targetCount;
-    if (count === 0) return;
-    const target = selection.buildTarget();
     busy = true;
-    try {
-      if (destination === 'immich') {
-        await createImmichExportJob(target, immichOptions(form));
-      } else {
-        await createZipExportJob(target, baseOptions(form), form.filenameSuffix);
-      }
-      const verb = destination === 'immich' ? 'export to Immich' : 'zip download';
-      toasts.push(
-        'success',
-        `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
-        4000,
-      );
-      if (jobs.open) {
-        void jobs.load();
-      } else {
-        jobs.toggle();
-      }
-    } catch (e) {
-      toasts.push('error', `Failed to queue export: ${(e as Error).message}`, 6000);
-    } finally {
-      busy = false;
-    }
+    const verb = destination === 'immich' ? 'export to Immich' : 'zip download';
+    await runBulkJob(
+      (target: JobTarget) =>
+        destination === 'immich'
+          ? createImmichExportJob(target, immichOptions(form))
+          : createZipExportJob(target, baseOptions(form), form.filenameSuffix),
+      {
+        success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
+        error: 'Failed to queue export',
+      },
+    );
+    busy = false;
   }
 
   let label = $derived(formatLabel(form.format));

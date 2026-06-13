@@ -1,9 +1,8 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
   import { presets } from '$lib/stores/presets.svelte';
   import { createApplyPresetJob } from '$lib/api/jobs';
-  import { toasts } from '$lib/stores/toasts.svelte';
+  import { runBulkJob } from '$lib/api/bulkJob';
   import Icon from '$lib/components/Icon.svelte';
   import PresetIncludeToggles from './preset/IncludeToggles.svelte';
   import { mdiAutoFix, mdiLoading } from '@mdi/js';
@@ -26,27 +25,16 @@
 
   async function submit(): Promise<void> {
     if (busy || !presetId) return;
-    const count = selection.targetCount;
-    if (count === 0) return;
-    const target = selection.buildTarget();
+    const id = presetId;
     busy = true;
-    try {
-      await createApplyPresetJob(target, presetId, { includeGeometry, includeMasks, includeOutput });
-      toasts.push(
-        'success',
-        `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
-        4000,
-      );
-      if (jobs.open) {
-        void jobs.load();
-      } else {
-        jobs.toggle();
-      }
-    } catch (e) {
-      toasts.push('error', `Failed to queue preset: ${(e as Error).message}`, 6000);
-    } finally {
-      busy = false;
-    }
+    await runBulkJob(
+      (target) => createApplyPresetJob(target, id, { includeGeometry, includeMasks, includeOutput }),
+      {
+        success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
+        error: 'Failed to queue preset',
+      },
+    );
+    busy = false;
   }
 </script>
 

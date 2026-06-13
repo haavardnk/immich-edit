@@ -3,10 +3,10 @@
   import { clipboard } from '$lib/stores/clipboard.svelte';
   import { copyDialog } from '$lib/stores/copyDialog.svelte';
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { getEdits } from '$lib/api/edits';
   import { createPasteEditsJob } from '$lib/api/jobs';
+  import { runBulkJob } from '$lib/api/bulkJob';
   import { manifestToEdits, editsToManifest } from '$lib/types/edits';
   import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
   import Icon from '$lib/components/Icon.svelte';
@@ -40,23 +40,16 @@
   async function paste(): Promise<void> {
     if (busy) return;
     const snap = clipboard.snapshot();
-    const count = selection.targetCount;
-    if (!snap || count === 0) return;
-    const target = selection.buildTarget();
+    if (!snap) return;
     busy = true;
-    try {
-      await createPasteEditsJob(target, editsToManifest(snap.edits), snap.sections);
-      toasts.push('success', `Queued paste on ${count} asset${count === 1 ? '' : 's'}`, 4000);
-      if (jobs.open) {
-        void jobs.load();
-      } else {
-        jobs.toggle();
-      }
-    } catch (e) {
-      toasts.push('error', `Failed to queue paste: ${(e as Error).message}`, 6000);
-    } finally {
-      busy = false;
-    }
+    await runBulkJob(
+      (target) => createPasteEditsJob(target, editsToManifest(snap.edits), snap.sections),
+      {
+        success: (count) => `Queued paste on ${count} asset${count === 1 ? '' : 's'}`,
+        error: 'Failed to queue paste',
+      },
+    );
+    busy = false;
   }
 </script>
 
