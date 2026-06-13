@@ -54,14 +54,25 @@ pub async fn create(
     if !KNOWN_JOB_KINDS.contains(&kind) {
         return Err(AppError::BadRequest(format!("unknown job kind: {kind}")));
     }
-    if body.asset_ids.is_empty() {
-        return Err(AppError::BadRequest("asset_ids required".into()));
+    let asset_ids = if body.asset_ids.is_empty() {
+        match body.target.get("search") {
+            Some(query) => expand_search_target(&state, query).await?,
+            None => {
+                return Err(AppError::BadRequest(
+                    "asset_ids or target.search required".into(),
+                ));
+            }
+        }
+    } else {
+        body.asset_ids
+    };
+    if asset_ids.is_empty() {
+        return Err(AppError::BadRequest("no matching assets".into()));
     }
-    if body.asset_ids.len() > MAX_ITEMS {
+    if asset_ids.len() > MAX_ITEMS {
         return Err(AppError::BadRequest("too many items".into()));
     }
-    let items: Vec<NewJobItem> = body
-        .asset_ids
+    let items: Vec<NewJobItem> = asset_ids
         .into_iter()
         .map(|asset_id| NewJobItem {
             asset_id,
@@ -73,6 +84,34 @@ pub async fn create(
         .create_job(kind, &body.target, &body.params, &items)
         .await?;
     Ok(Json(job))
+}
+
+async fn expand_search_target(
+    state: &AppState,
+    query: &serde_json::Value,
+) -> Result<Vec<String>, AppError> {
+    let base = query
+        .as_object()
+        .ok_or_else(|| AppError::BadRequest("invalid target.search".into()))?;
+    let mut ids: Vec<String> = Vec::new();
+    let mut page: Option<String> = None;
+    loop {
+        let mut body = base.clone();
+        body.insert("size".into(), serde_json::json!(1000));
+        if let Some(p) = &page {
+            body.insert("page".into(), serde_json::json!(p));
+        }
+        let result = state
+            .immich
+            .search_metadata(&serde_json::Value::Object(body))
+            .await?;
+        ids.extend(result.items.into_iter().map(|a| a.id.to_string()));
+        match result.next_page {
+            Some(next) if ids.len() <= MAX_ITEMS => page = Some(next),
+            _ => break,
+        }
+    }
+    Ok(ids)
 }
 
 pub async fn get(

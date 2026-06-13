@@ -40,9 +40,13 @@ export class BrowseFeed {
       if (!this.loadedOnce) this.loading = true;
       this.nextPage = null;
       this.totalCount = undefined;
+      browsing.setContext(browseControls.statsBody(base), undefined);
       if (this.opts.includeStats !== false) {
         searchStatistics(browseControls.statsBody(base))
-          .then((s) => (this.totalCount = s.total))
+          .then((s) => {
+            this.totalCount = s.total;
+            browsing.total = s.total;
+          })
           .catch((e) => toasts.push('error', `stats: ${(e as Error).message}`));
       }
     }

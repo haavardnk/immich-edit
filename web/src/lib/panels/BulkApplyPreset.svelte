@@ -26,14 +26,15 @@
 
   async function submit(): Promise<void> {
     if (busy || !presetId) return;
-    const ids = [...selection.selected];
-    if (ids.length === 0) return;
+    const count = selection.targetCount;
+    if (count === 0) return;
+    const target = selection.buildTarget();
     busy = true;
     try {
-      await createApplyPresetJob(ids, presetId, { includeGeometry, includeMasks, includeOutput });
+      await createApplyPresetJob(target, presetId, { includeGeometry, includeMasks, includeOutput });
       toasts.push(
         'success',
-        `Queued preset on ${ids.length} asset${ids.length === 1 ? '' : 's'}`,
+        `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
         4000,
       );
       if (jobs.open) {
@@ -51,7 +52,7 @@
 
 <div class="flex flex-col gap-4 px-4 pt-3">
   <div class="text-[11px] text-immich-dark-fg/60 select-none">
-    {selection.count} asset{selection.count === 1 ? '' : 's'} selected
+    {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'} selected
   </div>
 
   {#if presets.presets.length === 0}
@@ -85,7 +86,7 @@
 
     <button
       class="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      disabled={busy || !presetId || selection.count === 0}
+      disabled={busy || !presetId || selection.targetCount === 0}
       onclick={() => void submit()}
     >
       {#if busy}
@@ -93,7 +94,7 @@
       {:else}
         <Icon path={mdiAutoFix} size={16} />
       {/if}
-      {selected ? `Apply ${selected.name} to ${selection.count}` : `Select a preset`}
+      {selected ? `Apply ${selected.name} to ${selection.targetCount}` : `Select a preset`}
     </button>
 
     <p class="text-[11px] leading-relaxed text-immich-dark-fg/40">
