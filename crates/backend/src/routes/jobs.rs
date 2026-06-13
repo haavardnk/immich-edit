@@ -13,13 +13,14 @@ use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
 };
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJobItem};
 use crate::state::AppState;
 
-const KNOWN_JOB_KINDS: &[&str] = &[EXPORT_JOB_KIND, DOWNLOAD_ZIP_KIND];
+const KNOWN_JOB_KINDS: &[&str] = &[EXPORT_JOB_KIND, DOWNLOAD_ZIP_KIND, APPLY_PRESET_KIND];
 const MAX_ITEMS: usize = 10_000;
 const LIST_LIMIT: i64 = 100;
 

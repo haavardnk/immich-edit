@@ -7,6 +7,7 @@
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
   import BulkExportPanel from '$lib/panels/BulkExport.svelte';
+  import BulkApplyPresetPanel from '$lib/panels/BulkApplyPreset.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
@@ -22,6 +23,8 @@
 
   type Tab = 'develop' | 'masks' | 'geometry' | 'export';
   let activeTab = $state<Tab>('develop');
+  type BulkTab = 'export' | 'preset';
+  let bulkTab = $state<BulkTab>('preset');
   let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
 
@@ -151,8 +154,17 @@
         {/if}
       </div>
     {:else if selection.active}
-      <div class="flex items-center justify-between border-b border-white/10 pl-4 pr-1.5 h-[37px]">
-        <span class="text-[11px] uppercase tracking-wider text-immich-dark-fg/60">Bulk Export</span>
+      <div class="flex items-center border-b border-white/10 pr-1.5">
+        <nav class="flex flex-1">
+          {#each [{ id: 'preset', label: 'Bulk Edit' }, { id: 'export', label: 'Bulk Export' }] as tab (tab.id)}
+            <button
+              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {bulkTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
+              onclick={() => (bulkTab = tab.id as BulkTab)}
+            >
+              {tab.label}
+            </button>
+          {/each}
+        </nav>
         <button
           class="p-1.5 hover:bg-white/10 transition-colors rounded"
           onclick={ui.toggleRight}
@@ -163,7 +175,11 @@
         </button>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-        <BulkExportPanel />
+        {#if bulkTab === 'export'}
+          <BulkExportPanel />
+        {:else}
+          <BulkApplyPresetPanel />
+        {/if}
       </div>
     {:else}
       <div class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center">

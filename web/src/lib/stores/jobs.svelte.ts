@@ -1,4 +1,5 @@
 import { cancelJob, clearJobs, getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
+import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 
 function isActive(status: Job['status']): boolean {
@@ -106,6 +107,9 @@ class JobsStore {
         const job = JSON.parse((ev as MessageEvent).data) as Job;
         this.patch(job);
         if (!isActive(job.status)) {
+          if (job.kind === 'apply_preset' && job.status === 'completed') {
+            void editedThumbs.refresh();
+          }
           this.disconnect(job.id);
         }
       } catch {
