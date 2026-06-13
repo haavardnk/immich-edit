@@ -5,12 +5,11 @@
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { getEdits } from '$lib/api/edits';
-  import { createPasteEditsJob } from '$lib/api/jobs';
+  import { createPasteEditsJob, createResetEditsJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
   import { manifestToEdits, editsToManifest } from '$lib/types/edits';
-  import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiContentCopy } from '@mdi/js';
+  import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 
   let busy = $state(false);
 
@@ -51,32 +50,48 @@
     );
     busy = false;
   }
+
+  async function reset(): Promise<void> {
+    if (busy || selection.targetCount === 0) return;
+    busy = true;
+    await runBulkJob((target) => createResetEditsJob(target), {
+      success: (count) => `Queued reset on ${count} asset${count === 1 ? '' : 's'}`,
+      error: 'Failed to queue reset',
+    });
+    busy = false;
+  }
 </script>
 
-<div class="flex flex-col gap-2.5 px-4 pt-3 pb-4 border-b border-white/10 bg-white/1.5">
-  <div class="flex items-center gap-1.5">
-    <Icon path={mdiContentCopy} size={13} class="opacity-50" />
-    <span class="uppercase tracking-wider text-[10px] font-medium text-immich-dark-fg/50">Copy &amp; paste</span>
-  </div>
-  <div class="flex items-center gap-2">
-    <CopyPasteButtons
-      canCopy={!busy && canCopy}
-      canPaste={!busy && clipboard.has && selection.targetCount > 0}
-      copyTitle={canCopy
-        ? 'Copy edits from selected asset'
-        : copyId !== null
-          ? 'Selected asset has no edits'
-          : 'Select exactly one asset to copy'}
-      pasteTitle={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
-      onCopy={() => void copy()}
-      onPaste={() => void paste()}
-    />
-    <span class="text-[11px] leading-snug text-immich-dark-fg/50">
-      {#if clipboard.has}
-        Paste copied settings to {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'}
-      {:else}
-        Select one asset to copy its edits
-      {/if}
-    </span>
-  </div>
+<div class="px-4 py-2.5 flex items-center gap-2">
+  <button
+    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    disabled={busy || selection.targetCount === 0}
+    onclick={() => void reset()}
+    title="Reset edits on selected assets to original"
+  >
+    <Icon path={mdiRestore} size={14} />
+    Reset
+  </button>
+  <button
+    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    disabled={busy || !canCopy}
+    onclick={() => void copy()}
+    title={canCopy
+      ? 'Copy edits from selected asset'
+      : copyId !== null
+        ? 'Selected asset has no edits'
+        : 'Select exactly one asset to copy'}
+  >
+    <Icon path={mdiContentCopy} size={14} />
+    Copy
+  </button>
+  <button
+    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    disabled={busy || !clipboard.has || selection.targetCount === 0}
+    onclick={() => void paste()}
+    title={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
+  >
+    <Icon path={mdiContentPaste} size={14} />
+    Paste
+  </button>
 </div>

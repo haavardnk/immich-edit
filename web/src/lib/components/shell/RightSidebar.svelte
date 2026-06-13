@@ -25,6 +25,7 @@
   let activeTab = $state<Tab>('develop');
   type BulkTab = 'export' | 'preset';
   let bulkTab = $state<BulkTab>('preset');
+  let bulkPresetOpen = $state(true);
   let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
 
@@ -169,7 +170,18 @@
           <BulkExportPanel />
         {:else}
           <BulkCopyPastePanel />
-          <BulkApplyPresetPanel />
+          <div class="border-t border-white/5">
+            <button
+              class="w-full flex items-center gap-1.5 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/60 hover:bg-white/5 transition-colors select-none"
+              onclick={() => (bulkPresetOpen = !bulkPresetOpen)}
+            >
+              <Icon path={bulkPresetOpen ? mdiChevronDown : mdiChevronRight} size={14} class="opacity-50" />
+              Presets
+            </button>
+            {#if bulkPresetOpen}
+              <BulkApplyPresetPanel />
+            {/if}
+          </div>
         {/if}
       </div>
     {:else}

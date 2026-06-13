@@ -141,3 +141,11 @@ export function createPasteEditsJob(
     params: { manifest, sections },
   });
 }
+
+export function createResetEditsJob(target: JobTarget): Promise<Job> {
+  return sendJson('POST', '/api/jobs', {
+    kind: 'reset_edits',
+    ...targetFields(target),
+    params: {},
+  });
+}

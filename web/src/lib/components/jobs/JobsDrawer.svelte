@@ -17,6 +17,7 @@
     export_immich: 'Export to Immich',
     download_zip: 'Download ZIP',
     apply_preset: 'Apply Preset',
+    reset_edits: 'Reset Edits',
   };
 
   function kindLabel(kind: string): string {

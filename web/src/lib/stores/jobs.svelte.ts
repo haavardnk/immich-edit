@@ -108,7 +108,9 @@ class JobsStore {
         this.patch(job);
         if (!isActive(job.status)) {
           if (
-            (job.kind === 'apply_preset' || job.kind === 'paste_edits') &&
+            (job.kind === 'apply_preset' ||
+              job.kind === 'paste_edits' ||
+              job.kind === 'reset_edits') &&
             job.status === 'completed'
           ) {
             void editedThumbs.refresh();

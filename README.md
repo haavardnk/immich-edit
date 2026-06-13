@@ -29,6 +29,13 @@ Edits:
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
 
+Batch:
+
+- Multi-select in the grid, or select everything matching a filter
+- Apply presets, copy/paste edits, or reset edits across the selection
+- Export or push back to Immich in bulk
+- Runs as background jobs with progress tracking
+
 Export:
 
 - JPEG, PNG (8/16-bit), WebP, AVIF, HEIC, TIFF (8/16-bit), JPEG XL (8/16-bit)
