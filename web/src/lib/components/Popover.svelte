@@ -11,7 +11,8 @@
     onClose,
     trigger,
     children,
-    contentClass = ''
+    contentClass = '',
+    rootClass = 'inline-flex'
   }: {
     open: boolean;
     anchor?: Anchor;
@@ -20,6 +21,7 @@
     trigger: Snippet;
     children: Snippet;
     contentClass?: string;
+    rootClass?: string;
   } = $props();
 
   let root = $state<HTMLDivElement | null>(null);
@@ -54,7 +56,7 @@
   });
 </script>
 
-<div class="relative inline-flex" bind:this={root}>
+<div class="relative {rootClass}" bind:this={root}>
   {@render trigger()}
   {#if open}
     <div

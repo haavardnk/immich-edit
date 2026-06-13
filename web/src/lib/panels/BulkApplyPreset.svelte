@@ -5,6 +5,7 @@
   import { runBulkJob } from '$lib/api/bulkJob';
   import Icon from '$lib/components/Icon.svelte';
   import PresetIncludeToggles from './preset/IncludeToggles.svelte';
+  import PresetPicker from './preset/PresetPicker.svelte';
   import { mdiAutoFix, mdiLoading } from '@mdi/js';
 
   let presetId = $state<string | null>(null);
@@ -46,24 +47,7 @@
   {#if presets.presets.length === 0}
     <div class="text-xs text-immich-dark-fg/30 py-1">No presets yet.</div>
   {:else}
-    <div class="flex flex-col gap-1.5">
-      {#each presets.grouped as { group, items } (group)}
-        {#if group}
-          <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40 pt-1">{group}</div>
-        {/if}
-        {#each items as p (p.id)}
-          <button
-            class="text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors truncate {presetId ===
-            p.id
-              ? 'bg-immich-dark-primary/25 text-immich-dark-primary'
-              : 'bg-white/5 hover:bg-white/10'}"
-            onclick={() => (presetId = p.id)}
-          >
-            {p.name}
-          </button>
-        {/each}
-      {/each}
-    </div>
+    <PresetPicker bind:selectedId={presetId} />
 
     <PresetIncludeToggles
       bind:includeGeometry
