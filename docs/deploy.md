@@ -50,6 +50,10 @@ Then run `docker compose up -d` and open `http://<host>:3000`.
 
 For local builds, clone the repository and use [docker-compose.example.yml](../docker-compose.example.yml). It includes a commented build option for development.
 
+### Image tags
+
+[`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) publishes exact semver tags (`0.2.0`, `0.2`, `0`) plus `latest` for the newest stable release and `edge` for the newest build including prereleases. Prereleases update only `edge` and their exact tag, never `latest`.
+
 `AUTH_TOKEN` is required whenever `BIND_ADDR` is not loopback. Setting `IMMICH_EDIT_INSECURE=1` overrides the startup check; only do this if a reverse proxy is fronting the service.
 
 ### Reverse-proxy auth (recommended for anything exposed)
