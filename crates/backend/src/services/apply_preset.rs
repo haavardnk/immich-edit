@@ -3,6 +3,7 @@ use raw_pipeline::edits::Edits;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::services::edit_merge::{MergeSections, merge_edits};
 use crate::services::job_runner::ItemOutcome;
 use crate::services::job_store::JobRecord;
 use crate::state::AppState;
@@ -21,30 +22,13 @@ pub struct ApplyPresetParams {
 }
 
 pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -> Edits {
-    Edits {
-        basic: preset.basic,
-        tone: preset.tone,
-        color: preset.color,
-        detail: preset.detail,
-        effects: preset.effects,
-        lens: preset.lens,
-        geometry: if params.include_geometry {
-            preset.geometry
-        } else {
-            current.geometry
-        },
-        masks: if params.include_masks {
-            preset.masks
-        } else {
-            current.masks
-        },
-        output: if params.include_output {
-            preset.output
-        } else {
-            current.output
-        },
-        unknown_ops: current.unknown_ops,
-    }
+    let sections = MergeSections {
+        output: params.include_output,
+        geometry: params.include_geometry,
+        masks: params.include_masks,
+        ..MergeSections::look_only()
+    };
+    merge_edits(current, preset, sections)
 }
 
 pub async fn run_apply_preset_item(

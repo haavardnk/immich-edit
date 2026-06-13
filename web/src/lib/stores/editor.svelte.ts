@@ -22,6 +22,9 @@ import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
+import { clipboard } from '$lib/stores/clipboard.svelte';
+import { copyDialog } from '$lib/stores/copyDialog.svelte';
+import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
@@ -33,9 +36,6 @@ const MAX_EDGE = 4096;
 const HIRES_DEBOUNCE_MS = 300;
 const MAX_HISTORY = 50;
 
-export type EditGroup = 'basic' | 'tone' | 'color' | 'detail' | 'effects' | 'lens';
-
-let clipboard: Edits | null = null;
 
 function computeHiresEdge(zoom: number): number {
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
@@ -350,35 +350,18 @@ class EditorStore {
 
   copyEdits = (): void => {
     if (isIdentity(this.edits)) return;
-    clipboard = $state.snapshot(this.edits) as Edits;
-    this.hasClipboard = true;
+    copyDialog.show($state.snapshot(this.edits) as Edits);
   };
 
   pasteEdits = async (): Promise<void> => {
-    if (!clipboard || !this.initialised) return;
-    const snap = structuredClone(clipboard) as Edits;
-    this.edits = { ...snap, geometry: this.edits.geometry, masks: this.edits.masks };
+    const snap = clipboard.snapshot();
+    if (!snap || !this.initialised) return;
+    this.edits = applyCopySections(this.edits, snap.edits, snap.sections);
     this.onLive();
     await this.onCommit('Paste');
   };
 
-  pasteGroup = async (group: EditGroup): Promise<void> => {
-    if (!clipboard || !this.initialised) return;
-    const snap = structuredClone(clipboard) as Edits;
-    this.edits = { ...this.edits, [group]: snap[group] };
-    this.onLive();
-    const labels: Record<EditGroup, string> = {
-      basic: 'Paste Basic',
-      tone: 'Paste Tone',
-      color: 'Paste Color',
-      detail: 'Paste Detail',
-      effects: 'Paste Effects',
-      lens: 'Paste Lens'
-    };
-    await this.onCommit(labels[group]);
-  };
-
-  hasClipboard = $state(false);
+  hasClipboard = $derived(clipboard.has);
 
   applyPreset = async (
     manifest: EditManifest,

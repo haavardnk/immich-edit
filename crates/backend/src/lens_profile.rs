@@ -3,8 +3,8 @@ use lensfun::{
     CalibDistortion, CalibTca, CalibVignetting, Database, DistortionModel, Lens, TcaModel,
     VignettingModel,
 };
+use raw_pipeline::edits::LensEdits;
 use std::sync::OnceLock;
-
 static DB: OnceLock<Option<Database>> = OnceLock::new();
 
 fn db() -> Option<&'static Database> {
@@ -202,6 +202,21 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
     }
 }
 
+pub fn reproject_lens(lens: LensEdits, exif: Option<&ExifInfo>) -> LensEdits {
+    let profile = exif.map(lookup).and_then(|m| m.edits).unwrap_or_default();
+    LensEdits {
+        k1: profile.k1,
+        k2: profile.k2,
+        k3: profile.k3,
+        vk1: profile.vk1,
+        vk2: profile.vk2,
+        vk3: profile.vk3,
+        ca_red_scale_x10000: profile.ca_red_scale_x10000,
+        ca_blue_scale_x10000: profile.ca_blue_scale_x10000,
+        ..lens
+    }
+}
+
 const FIT_RADII: [f32; 10] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
 fn distortion_s_target(model: &DistortionModel, r: f32) -> f32 {
@@ -280,6 +295,39 @@ fn solve_3x3(a: [[f64; 3]; 3], b: [f64; 3]) -> Option<[f64; 3]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reproject_without_exif_zeroes_coeffs_keeps_flags() {
+        let lens = LensEdits {
+            profile_enabled: true,
+            ca_enabled: true,
+            constrain_crop: true,
+            distortion_amount: 80.0,
+            vignette_amount: 60.0,
+            k1: 0.1,
+            k2: 0.2,
+            k3: 0.3,
+            vk1: 0.4,
+            vk2: 0.5,
+            vk3: 0.6,
+            ca_red_scale_x10000: 7.0,
+            ca_blue_scale_x10000: 8.0,
+        };
+        let out = reproject_lens(lens, None);
+        assert!(out.profile_enabled);
+        assert!(out.ca_enabled);
+        assert!(out.constrain_crop);
+        assert_eq!(out.distortion_amount, 80.0);
+        assert_eq!(out.vignette_amount, 60.0);
+        assert_eq!(out.k1, 0.0);
+        assert_eq!(out.k2, 0.0);
+        assert_eq!(out.k3, 0.0);
+        assert_eq!(out.vk1, 0.0);
+        assert_eq!(out.vk2, 0.0);
+        assert_eq!(out.vk3, 0.0);
+        assert_eq!(out.ca_red_scale_x10000, 0.0);
+        assert_eq!(out.ca_blue_scale_x10000, 0.0);
+    }
 
     #[test]
     fn fit_poly5_is_exact() {

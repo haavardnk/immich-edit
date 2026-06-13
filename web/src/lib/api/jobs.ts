@@ -1,5 +1,7 @@
 import { getJson, sendJson } from './client';
 import type { ExportOptions, ImmichExportOptions } from './export';
+import type { EditManifest } from '$lib/types/edits';
+import type { CopySections } from '$lib/copyPaste';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobItemStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -125,5 +127,17 @@ export function createApplyPresetJob(
       include_masks: opts.includeMasks,
       include_output: opts.includeOutput,
     },
+  });
+}
+
+export function createPasteEditsJob(
+  target: JobTarget,
+  manifest: EditManifest,
+  sections: CopySections,
+): Promise<Job> {
+  return sendJson('POST', '/api/jobs', {
+    kind: 'paste_edits',
+    ...targetFields(target),
+    params: { manifest, sections },
   });
 }

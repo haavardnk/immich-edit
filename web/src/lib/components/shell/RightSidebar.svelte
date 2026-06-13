@@ -8,8 +8,10 @@
   import ExportPanel from '$lib/panels/Export.svelte';
   import BulkExportPanel from '$lib/panels/BulkExport.svelte';
   import BulkApplyPresetPanel from '$lib/panels/BulkApplyPreset.svelte';
+  import BulkCopyPastePanel from '$lib/panels/BulkCopyPaste.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
   import {
     mdiChevronDown,
@@ -17,8 +19,6 @@
     mdiChevronLeft,
     mdiAutoFix,
     mdiRestore,
-    mdiContentCopy,
-    mdiContentPaste,
   } from '@mdi/js';
 
   type Tab = 'develop' | 'masks' | 'geometry' | 'export';
@@ -101,24 +101,14 @@
               <Icon path={mdiRestore} size={14} />
               Reset
             </button>
-            <button
-              class="flex items-center justify-center py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
-              disabled={!editor.assetId || !editor.hasEdits}
-              onclick={editor.copyEdits}
-              title={editor.hasEdits ? 'Copy edits' : 'Nothing to copy'}
-              aria-label="Copy edits"
-            >
-              <Icon path={mdiContentCopy} size={14} />
-            </button>
-            <button
-              class="flex items-center justify-center py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/5"
-              disabled={!editor.assetId || !editor.hasClipboard || editor.saving}
-              onclick={() => void editor.pasteEdits()}
-              title={editor.hasClipboard ? 'Paste edits' : 'Nothing copied'}
-              aria-label="Paste edits"
-            >
-              <Icon path={mdiContentPaste} size={14} />
-            </button>
+            <CopyPasteButtons
+              canCopy={!!editor.assetId && editor.hasEdits}
+              canPaste={!!editor.assetId && editor.hasClipboard && !editor.saving}
+              copyTitle={editor.hasEdits ? 'Copy edits' : 'Nothing to copy'}
+              pasteTitle={editor.hasClipboard ? 'Paste edits' : 'Nothing copied'}
+              onCopy={editor.copyEdits}
+              onPaste={() => void editor.pasteEdits()}
+            />
             <HistoryPopover />
           </div>
 
@@ -178,6 +168,7 @@
         {#if bulkTab === 'export'}
           <BulkExportPanel />
         {:else}
+          <BulkCopyPastePanel />
           <BulkApplyPresetPanel />
         {/if}
       </div>
