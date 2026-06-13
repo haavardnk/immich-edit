@@ -184,7 +184,7 @@
         <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Resources</h2>
         <ul class="text-xs space-y-1">
           <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md" target="_blank" rel="noopener">Deployment & troubleshooting</a></li>
-          <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a></li>
+          <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/releases" target="_blank" rel="noopener">Releases</a></li>
           <li><a class="text-immich-primary hover:underline" href="https://github.com/haavardnk/immich-edit/issues/new/choose" target="_blank" rel="noopener">Report an issue</a></li>
         </ul>
       </section>
