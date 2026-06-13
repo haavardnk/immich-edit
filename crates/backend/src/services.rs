@@ -1,3 +1,4 @@
+pub mod apply_preset;
 pub mod edited_thumb;
 pub mod edits_store;
 pub mod export;

@@ -95,3 +95,26 @@ export function createZipExportJob(
     params: { ...baseParams(opts), filename_suffix: filenameSuffix },
   });
 }
+
+export interface ApplyPresetOptions {
+  includeGeometry: boolean;
+  includeMasks: boolean;
+  includeOutput: boolean;
+}
+
+export function createApplyPresetJob(
+  assetIds: string[],
+  presetId: string,
+  opts: ApplyPresetOptions,
+): Promise<Job> {
+  return sendJson('POST', '/api/jobs', {
+    kind: 'apply_preset',
+    asset_ids: assetIds,
+    params: {
+      preset_id: presetId,
+      include_geometry: opts.includeGeometry,
+      include_masks: opts.includeMasks,
+      include_output: opts.includeOutput,
+    },
+  });
+}

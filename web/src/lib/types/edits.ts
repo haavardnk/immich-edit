@@ -599,24 +599,20 @@ export function editsToManifest(e: Edits): EditManifest {
       ca_red: e.lens.ca_red_scale_x10000,
       ca_blue: e.lens.ca_blue_scale_x10000
     };
-  if (
-    e.geometry.rotate !== 0 ||
-    e.geometry.flip_h ||
-    e.geometry.flip_v
-  )
-    ops.geometry = {
-      rotate: e.geometry.rotate,
-      flip_h: e.geometry.flip_h,
-      flip_v: e.geometry.flip_v,
-    };
   const cropActive = !isFullCrop(e.geometry.crop);
   const angleActive = Math.abs(e.geometry.rotate_angle) > 1e-4;
   const aspectActive = e.geometry.aspect.kind !== 'original';
-  if (cropActive || angleActive || aspectActive) {
-    const obj: Record<string, unknown> = { aspect: e.geometry.aspect };
+  const rotateActive = e.geometry.rotate !== 0;
+  const flipActive = e.geometry.flip_h || e.geometry.flip_v;
+  if (cropActive || angleActive || aspectActive || rotateActive || flipActive) {
+    const obj: Record<string, unknown> = {};
+    if (rotateActive) obj.rotate = e.geometry.rotate;
+    if (e.geometry.flip_h) obj.flip_h = true;
+    if (e.geometry.flip_v) obj.flip_v = true;
     if (angleActive) obj.angle = e.geometry.rotate_angle;
     if (e.geometry.crop && cropActive) obj.crop = e.geometry.crop;
-    ops.crop_rotate = obj;
+    obj.aspect = e.geometry.aspect;
+    ops.transform = obj;
   }
   if (e.masks.length > 0) {
     ops.masks = { layers: e.masks };
@@ -779,19 +775,16 @@ export function manifestToEdits(doc: EditManifest): Edits {
     if (lensProf.ca_red !== undefined) edits.lens.ca_red_scale_x10000 = lensProf.ca_red;
     if (lensProf.ca_blue !== undefined) edits.lens.ca_blue_scale_x10000 = lensProf.ca_blue;
   }
-  const geom = ops.geometry as
-    | { rotate?: number; flip_h?: boolean; flip_v?: boolean }
+  const transform = ops.transform as
+    | { rotate?: number; flip_h?: boolean; flip_v?: boolean; angle?: number; crop?: CropRect; aspect?: AspectLock }
     | undefined;
-  if (geom?.rotate !== undefined)
-    edits.geometry.rotate = geom.rotate as GeometryEdits['rotate'];
-  if (geom?.flip_h !== undefined) edits.geometry.flip_h = geom.flip_h;
-  if (geom?.flip_v !== undefined) edits.geometry.flip_v = geom.flip_v;
-  const cr = ops.crop_rotate as
-    | { angle?: number; crop?: CropRect; aspect?: AspectLock }
-    | undefined;
-  if (cr?.angle !== undefined) edits.geometry.rotate_angle = cr.angle;
-  if (cr?.crop) edits.geometry.crop = cr.crop;
-  if (cr?.aspect) edits.geometry.aspect = cr.aspect;
+  if (transform?.rotate !== undefined)
+    edits.geometry.rotate = transform.rotate as GeometryEdits['rotate'];
+  if (transform?.flip_h !== undefined) edits.geometry.flip_h = transform.flip_h;
+  if (transform?.flip_v !== undefined) edits.geometry.flip_v = transform.flip_v;
+  if (transform?.angle !== undefined) edits.geometry.rotate_angle = transform.angle;
+  if (transform?.crop) edits.geometry.crop = transform.crop;
+  if (transform?.aspect) edits.geometry.aspect = transform.aspect;
   const masks = ops.masks as { layers?: unknown[] } | undefined;
   if (masks?.layers) {
     edits.masks = masks.layers

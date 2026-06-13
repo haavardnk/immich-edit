@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import PresetIncludeToggles from './preset/IncludeToggles.svelte';
   import { mdiDelete, mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { presets } from '$lib/stores/presets.svelte';
@@ -109,21 +110,11 @@
     </button>
   {/if}
 
-  <div class="flex flex-col gap-1 text-[11px] text-immich-dark-fg/60">
-    <span class="uppercase tracking-wider text-[10px] text-immich-dark-fg/40">Apply includes</span>
-    <label class="flex items-center gap-2">
-      <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeGeometry} />
-      Geometry &amp; crop
-    </label>
-    <label class="flex items-center gap-2">
-      <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeMasks} />
-      Masks
-    </label>
-    <label class="flex items-center gap-2">
-      <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeOutput} />
-      Tonemap
-    </label>
-  </div>
+  <PresetIncludeToggles
+    bind:includeGeometry
+    bind:includeMasks
+    bind:includeOutput
+  />
 
   {#if presets.presets.length === 0}
     <div class="text-xs text-immich-dark-fg/30 py-1">No presets yet.</div>

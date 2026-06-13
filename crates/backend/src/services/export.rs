@@ -588,6 +588,10 @@ impl JobExecutor for BatchExecutor {
             match job.kind.as_str() {
                 EXPORT_JOB_KIND => run_immich_item(&state, &job, asset_id).await,
                 DOWNLOAD_ZIP_KIND => run_zip_item(&state, &job, asset_id).await,
+                crate::services::apply_preset::APPLY_PRESET_KIND => {
+                    crate::services::apply_preset::run_apply_preset_item(&state, &job, asset_id)
+                        .await
+                }
                 other => Err(format!("unsupported job kind: {other}")),
             }
         })
