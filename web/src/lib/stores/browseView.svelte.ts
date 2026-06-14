@@ -44,6 +44,8 @@ class BrowseViewStore {
   activeId = $state<string | null>(null);
   loupeId = $state<string | null>(null);
   loupeZoomed = $state(false);
+  loupePanX = $state(0);
+  loupePanY = $state(0);
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
@@ -100,17 +102,23 @@ class BrowseViewStore {
     return this.activeId;
   }
 
+  resetLoupeView(): void {
+    this.loupeZoomed = false;
+    this.loupePanX = 0;
+    this.loupePanY = 0;
+  }
+
   openLoupe(id: string): void {
     this.activeId = id;
     this.loupeId = id;
-    this.loupeZoomed = false;
+    this.resetLoupeView();
     this.loupeTagsOpen = false;
   }
 
   closeLoupe(): void {
     if (this.loupeId) this.activeId = this.loupeId;
     this.loupeId = null;
-    this.loupeZoomed = false;
+    this.resetLoupeView();
     this.loupeTagsOpen = false;
   }
 }

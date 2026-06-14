@@ -27,6 +27,15 @@
   } from '@mdi/js';
 
   const MAX_EDGE = 2560;
+  const LOUPE_ZOOM = 2.5;
+  const DRAG_THRESHOLD = 5;
+
+  let loupeContainer = $state<HTMLDivElement | null>(null);
+  let loupeImage = $state<HTMLImageElement | null>(null);
+  let dragging = $state(false);
+  let lastX = 0;
+  let lastY = 0;
+  let totalDrag = 0;
 
   const currentId = $derived(browseView.loupeId);
   const asset = $derived(
@@ -129,6 +138,70 @@
     if (next) browseView.openLoupe(next.id);
   }
 
+  function clampPan(): void {
+    if (!loupeContainer || !loupeImage) return;
+    const cw = loupeContainer.clientWidth;
+    const ch = loupeContainer.clientHeight;
+    const nw = loupeImage.naturalWidth;
+    const nh = loupeImage.naturalHeight;
+    if (!cw || !ch || !nw || !nh) return;
+    const fit = Math.min(cw / nw, ch / nh);
+    const zoomW = nw * fit * LOUPE_ZOOM;
+    const zoomH = nh * fit * LOUPE_ZOOM;
+    const maxX = Math.max(0, (zoomW - cw) / 2);
+    const maxY = Math.max(0, (zoomH - ch) / 2);
+    browseView.loupePanX = Math.min(maxX, Math.max(-maxX, browseView.loupePanX));
+    browseView.loupePanY = Math.min(maxY, Math.max(-maxY, browseView.loupePanY));
+  }
+
+  function zoomInAt(clientX: number, clientY: number): void {
+    browseView.loupeZoomed = true;
+    if (loupeContainer) {
+      const rect = loupeContainer.getBoundingClientRect();
+      const dx = clientX - (rect.left + rect.width / 2);
+      const dy = clientY - (rect.top + rect.height / 2);
+      browseView.loupePanX = dx * (1 - LOUPE_ZOOM);
+      browseView.loupePanY = dy * (1 - LOUPE_ZOOM);
+    }
+    clampPan();
+  }
+
+  function toggleZoom(): void {
+    if (browseView.loupeZoomed) browseView.resetLoupeView();
+    else browseView.loupeZoomed = true;
+  }
+
+  function onImagePointerDown(e: PointerEvent): void {
+    e.preventDefault();
+    lastX = e.clientX;
+    lastY = e.clientY;
+    totalDrag = 0;
+    if (browseView.loupeZoomed) {
+      dragging = true;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+  }
+
+  function onImagePointerMove(e: PointerEvent): void {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    totalDrag += Math.abs(dx) + Math.abs(dy);
+    browseView.loupePanX += dx;
+    browseView.loupePanY += dy;
+    clampPan();
+  }
+
+  function onImagePointerUp(e: PointerEvent): void {
+    const wasDragging = dragging;
+    dragging = false;
+    if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
+    if (browseView.loupeZoomed) browseView.resetLoupeView();
+    else zoomInAt(e.clientX, e.clientY);
+  }
+
   function rate(value: number | null): void {
     if (!currentId) return;
     void rateAsset(currentId, value);
@@ -178,7 +251,7 @@
       case 'Z':
       case ' ':
         e.preventDefault();
-        browseView.loupeZoomed = !browseView.loupeZoomed;
+        toggleZoom();
         return;
       case 'i':
       case 'I':
@@ -206,7 +279,7 @@
   const hasNext = $derived(currentId ? browsing.nextOf(currentId) !== null : false);
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onresize={clampPan} />
 
 {#if asset}
   <div class="fixed inset-0 z-40 flex flex-col bg-black/95">
@@ -296,20 +369,33 @@
     </div>
 
     <div class="flex-1 min-h-0 relative flex">
-      <button
-        type="button"
-        class="flex-1 min-w-0 flex items-center justify-center {browseView.loupeZoomed
-          ? 'overflow-auto cursor-zoom-out'
-          : 'overflow-hidden cursor-zoom-in'}"
+      <div
+        bind:this={loupeContainer}
+        role="button"
+        tabindex="0"
         aria-label={browseView.loupeZoomed ? 'Zoom out' : 'Zoom in'}
-        onclick={() => (browseView.loupeZoomed = !browseView.loupeZoomed)}
+        class="flex-1 min-w-0 flex items-center justify-center overflow-hidden {browseView.loupeZoomed
+          ? dragging
+            ? 'cursor-grabbing'
+            : 'cursor-grab'
+          : 'cursor-zoom-in'}"
+        onpointerdown={onImagePointerDown}
+        onpointermove={onImagePointerMove}
+        onpointerup={onImagePointerUp}
+        onpointercancel={onImagePointerUp}
       >
         <img
+          bind:this={loupeImage}
           src={previewSrc}
           alt={asset.originalFileName}
-          class={browseView.loupeZoomed ? 'max-w-none' : 'max-w-full max-h-full object-contain'}
+          draggable="false"
+          class="max-w-full max-h-full object-contain select-none"
+          style={browseView.loupeZoomed
+            ? `transform: scale(${LOUPE_ZOOM}) translate(${browseView.loupePanX / LOUPE_ZOOM}px, ${browseView.loupePanY / LOUPE_ZOOM}px); transform-origin: center;`
+            : ''}
+          onload={clampPan}
         />
-      </button>
+      </div>
 
       {#if hasPrev}
         <button
