@@ -2,7 +2,7 @@
 
 A non-destructive RAW editor for your [Immich](https://immich.app/) library. Browse albums in the browser, render previews and exports on the server, and keep the edits outside Immich. Originals stay untouched.
 
-> **Beta software, early development.** Expect bugs, missing features, breaking changes, and occasional migrations that require clearing the cache or database. There is no upgrade path between 0.x releases yet. Run it against a backup, not your only copy.
+> **Active development.** Expect breaking changes and occasional migrations that require clearing the cache or database. There is no upgrade path between 0.x releases yet. Run it against a backup, not your only copy.
 
 ![immich-edit editor](docs/image/editor.png)
 

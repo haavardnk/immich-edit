@@ -59,8 +59,10 @@ read [docs/pipeline.md](docs/pipeline.md) first and update it with the code chan
 
 ```bash
 cargo test --workspace
-cd web && npm run check
+cd web && npm run check && npm run test:unit && npm run test:e2e
 ```
+
+Frontend changes need coverage: unit tests (Vitest, `web/src/**/*.test.ts`) for pure logic and Playwright e2e (`web/e2e/`) for user flows.
 
 GPU parity tests require local GPU hardware and do not run on GitHub-hosted Ubuntu. If a PR changes GPU shaders, render pass ordering, GPU/CPU parity behavior, or device setup, include local GPU test evidence in the PR description.
 
@@ -72,7 +74,7 @@ GPU parity tests require local GPU hardware and do not run on GitHub-hosted Ubun
 ## Pull requests
 
 - Keep changes focused; one feature or fix per PR
-- Add or update tests for new behavior
+- Add or update tests for new behavior (Rust tests, Vitest, or Playwright)
 - CI must pass before merge
 
 ## Reporting issues
