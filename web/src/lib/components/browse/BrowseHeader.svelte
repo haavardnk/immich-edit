@@ -5,6 +5,7 @@
     type RatingFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
+  import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
   import {
     mdiSortAscending,
     mdiSortDescending,
@@ -68,6 +69,13 @@
   function toggleDir(): void {
     browseControls.sortDir = browseControls.sortDir === 'asc' ? 'desc' : 'asc';
   }
+
+  const sizeOptions: { value: GridSize; label: string }[] = [
+    { value: 'sm', label: 'S' },
+    { value: 'md', label: 'M' },
+    { value: 'lg', label: 'L' },
+    { value: 'xl', label: 'XL' }
+  ];
 </script>
 
 <div
@@ -84,6 +92,21 @@
   {/if}
 
   <div class="flex-1"></div>
+
+  <div class="flex items-center rounded bg-white/5 p-0.5 gap-0.5">
+    {#each sizeOptions as opt (opt.value)}
+      <button
+        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {browseView.gridSize ===
+        opt.value
+          ? 'bg-white/15 text-immich-dark-fg'
+          : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70'}"
+        title="Thumbnail size {opt.label}"
+        onclick={() => browseView.setGridSize(opt.value)}
+      >
+        {opt.label}
+      </button>
+    {/each}
+  </div>
 
   {#if !browseControls.isDefault}
     <button

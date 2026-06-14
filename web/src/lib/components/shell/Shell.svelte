@@ -8,8 +8,10 @@
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
+  import Loupe from '$lib/components/browse/Loupe.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { browseView } from '$lib/stores/browseView.svelte';
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
 
@@ -46,3 +48,6 @@
 <KeybindsHelp />
 <CopyDialog />
 <JobsDrawer />
+{#if browseView.loupeId}
+  <Loupe />
+{/if}

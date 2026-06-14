@@ -3,18 +3,53 @@ export interface KeybindEntry {
   description: string;
 }
 
-export const KEYBINDS: KeybindEntry[] = [
-  { keys: '← / → · J / K', description: 'Previous / next asset' },
-  { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },
-  { keys: 'I', description: 'Toggle EXIF info' },
-  { keys: 'T', description: 'Toggle tags' },
-  { keys: 'R', description: 'Reset edits' },
-  { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
-  { keys: '1 – 5', description: 'Set / clear star rating' },
-  { keys: '0', description: 'Clear star rating' },
-  { keys: 'F', description: 'Toggle favorite' },
-  { keys: '⇧F', description: 'Toggle fullscreen' },
-  { keys: '⌘Z / ⌘⇧Z', description: 'Undo / redo' },
-  { keys: 'Esc', description: 'Exit crop / brush / popover / fullscreen' },
-  { keys: '?', description: 'Toggle this help' }
+export interface KeybindGroup {
+  title: string;
+  binds: KeybindEntry[];
+}
+
+export const KEYBIND_GROUPS: KeybindGroup[] = [
+  {
+    title: 'Grid',
+    binds: [
+      { keys: '← / → / ↑ / ↓', description: 'Move active photo' },
+      { keys: 'Home / End', description: 'First / last photo' },
+      { keys: 'PgUp / PgDn', description: 'Jump a page' },
+      { keys: '1 – 5 / 0', description: 'Set / clear rating' },
+      { keys: 'F', description: 'Toggle favorite' },
+      { keys: '− / =', description: 'Thumbnail size' },
+      { keys: 'Enter', description: 'Open editor' },
+      { keys: 'Space', description: 'Open quick-review loupe' }
+    ]
+  },
+  {
+    title: 'Loupe',
+    binds: [
+      { keys: '← / → · J / K', description: 'Previous / next photo' },
+      { keys: '1 – 5 / 0', description: 'Set / clear rating' },
+      { keys: 'F', description: 'Toggle favorite' },
+      { keys: 'Z / Space', description: 'Toggle zoom' },
+      { keys: 'I', description: 'Toggle info' },
+      { keys: 'E / Enter', description: 'Open editor' },
+      { keys: 'Esc', description: 'Close loupe' }
+    ]
+  },
+  {
+    title: 'Editor',
+    binds: [
+      { keys: '← / → · J / K', description: 'Previous / next asset' },
+      { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },
+      { keys: 'I', description: 'Toggle EXIF info' },
+      { keys: 'T', description: 'Toggle tags' },
+      { keys: 'R', description: 'Reset edits' },
+      { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
+      { keys: '1 – 5', description: 'Set / clear star rating' },
+      { keys: '0', description: 'Clear star rating' },
+      { keys: 'F', description: 'Toggle favorite' },
+      { keys: '⇧F', description: 'Toggle fullscreen' },
+      { keys: '⌘Z / ⌘⇧Z', description: 'Undo / redo' },
+      { keys: 'Esc', description: 'Exit crop / brush / popover / fullscreen' },
+      { keys: '?', description: 'Toggle this help' }
+    ]
+  }
 ];

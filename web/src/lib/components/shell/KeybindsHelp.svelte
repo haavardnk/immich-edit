@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ui } from '$lib/stores/ui.svelte';
-  import { KEYBINDS } from '$lib/keybinds';
+  import { KEYBIND_GROUPS } from '$lib/keybinds';
 
   function onBackdropClick(e: MouseEvent): void {
     if (e.currentTarget === e.target) ui.closeKeybindsHelp();
@@ -29,10 +29,19 @@
           Esc
         </button>
       </div>
-      <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-        {#each KEYBINDS as s (s.keys)}
-          <kbd class="font-mono text-immich-dark-fg/90 whitespace-nowrap">{s.keys}</kbd>
-          <span class="text-immich-dark-fg/70">{s.description}</span>
+      <div class="flex flex-col gap-4">
+        {#each KEYBIND_GROUPS as group (group.title)}
+          <div>
+            <h3 class="text-[11px] uppercase tracking-wider text-immich-dark-fg/40 mb-1.5">
+              {group.title}
+            </h3>
+            <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+              {#each group.binds as s (s.keys + s.description)}
+                <kbd class="font-mono text-immich-dark-fg/90 whitespace-nowrap">{s.keys}</kbd>
+                <span class="text-immich-dark-fg/70">{s.description}</span>
+              {/each}
+            </div>
+          </div>
         {/each}
       </div>
     </div>

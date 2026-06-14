@@ -67,7 +67,9 @@ test('photos → asset → export tab', async ({ page }) => {
   await page.goto('/photos');
   const tile = page.locator(`a[href="/assets/${ASSET_ID}"]`).first();
   await expect(tile).toBeVisible();
-  await tile.click();
+  const box = await tile.boundingBox();
+  if (!box) throw new Error('tile has no bounding box');
+  await tile.click({ position: { x: box.width - 6, y: box.height - 6 } });
   await page.waitForURL(`**/assets/${ASSET_ID}`);
 
   await expect(page.getByTitle('Back')).toBeVisible();

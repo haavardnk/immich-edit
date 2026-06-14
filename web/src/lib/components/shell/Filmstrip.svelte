@@ -6,13 +6,21 @@
   import Icon from '$lib/components/Icon.svelte';
   import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
 
+  let {
+    currentId: currentIdProp = null,
+    onSelect
+  }: {
+    currentId?: string | null;
+    onSelect?: (id: string) => void;
+  } = $props();
+
   const ITEM = 64;
   const GAP = 4;
   const PAD = 8;
   const STRIDE = ITEM + GAP;
   const OVERSCAN = 3;
 
-  const currentId = $derived(page.params.id ?? null);
+  const currentId = $derived(onSelect ? currentIdProp : (page.params.id ?? null));
 
   const assets = $derived(browsing.assets);
   const currentIndex = $derived(assets.findIndex((a) => a.id === currentId));
@@ -87,18 +95,38 @@
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
               {#each visibleAssets as asset (asset.id)}
                 {@const isCurrent = asset.id === currentId}
-                <a
-                  href={`/assets/${asset.id}`}
-                  class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent ? 'ring-2 ring-immich-dark-primary opacity-100' : 'opacity-50 hover:opacity-80'}"
-                  title={asset.originalFileName}
-                >
-                  <img
-                    src={assetThumbUrl(asset.id)}
-                    alt=""
-                    loading="lazy"
-                    class="w-full h-full object-cover"
-                  />
-                </a>
+                {#if onSelect}
+                  <button
+                    type="button"
+                    onclick={() => onSelect(asset.id)}
+                    class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent
+                      ? 'ring-2 ring-immich-dark-primary opacity-100'
+                      : 'opacity-50 hover:opacity-80'}"
+                    title={asset.originalFileName}
+                  >
+                    <img
+                      src={assetThumbUrl(asset.id)}
+                      alt=""
+                      loading="lazy"
+                      class="w-full h-full object-cover"
+                    />
+                  </button>
+                {:else}
+                  <a
+                    href={`/assets/${asset.id}`}
+                    class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent
+                      ? 'ring-2 ring-immich-dark-primary opacity-100'
+                      : 'opacity-50 hover:opacity-80'}"
+                    title={asset.originalFileName}
+                  >
+                    <img
+                      src={assetThumbUrl(asset.id)}
+                      alt=""
+                      loading="lazy"
+                      class="w-full h-full object-cover"
+                    />
+                  </a>
+                {/if}
               {/each}
             </div>
           </div>
