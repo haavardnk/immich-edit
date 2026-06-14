@@ -18,6 +18,7 @@
     mdiStar,
     mdiStarOutline,
     mdiInformationOutline,
+    mdiSkipNextOutline,
     mdiPencilOutline,
     mdiChevronLeft,
     mdiChevronRight
@@ -129,7 +130,7 @@
   function rate(value: number | null): void {
     if (!currentId) return;
     void rateAsset(currentId, value);
-    go(1);
+    if (browseView.loupeAutoAdvance) go(1);
   }
 
   function openEditor(): void {
@@ -248,6 +249,17 @@
         onclick={() => (browseView.loupeInfoOpen = !browseView.loupeInfoOpen)}
       >
         <Icon path={mdiInformationOutline} size={18} />
+      </button>
+      <button
+        type="button"
+        class="p-1 rounded hover:bg-white/10 {browseView.loupeAutoAdvance
+          ? 'text-immich-dark-primary'
+          : 'text-immich-dark-fg/70'}"
+        title="Auto-advance after rating"
+        aria-pressed={browseView.loupeAutoAdvance}
+        onclick={() => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)}
+      >
+        <Icon path={mdiSkipNextOutline} size={18} />
       </button>
       <button
         type="button"

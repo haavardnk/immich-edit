@@ -15,10 +15,11 @@ const STORAGE_KEY = 'immich-edit:browseView';
 
 type Persisted = {
   gridSize: GridSize;
+  loupeAutoAdvance: boolean;
 };
 
 function loadPersisted(): Persisted {
-  const fallback: Persisted = { gridSize: 'md' };
+  const fallback: Persisted = { gridSize: 'md', loupeAutoAdvance: false };
   if (typeof localStorage === 'undefined') return fallback;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -27,7 +28,11 @@ function loadPersisted(): Persisted {
     return {
       gridSize: SIZE_ORDER.includes(parsed.gridSize as GridSize)
         ? (parsed.gridSize as GridSize)
-        : fallback.gridSize
+        : fallback.gridSize,
+      loupeAutoAdvance:
+        typeof parsed.loupeAutoAdvance === 'boolean'
+          ? parsed.loupeAutoAdvance
+          : fallback.loupeAutoAdvance
     };
   } catch {
     return fallback;
@@ -41,15 +46,20 @@ class BrowseViewStore {
   loupeZoomed = $state(false);
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
+  loupeAutoAdvance = $state(false);
 
   constructor() {
     const p = loadPersisted();
     this.gridSize = p.gridSize;
+    this.loupeAutoAdvance = p.loupeAutoAdvance;
   }
 
   private persist(): void {
     if (typeof localStorage === 'undefined') return;
-    const data: Persisted = { gridSize: this.gridSize };
+    const data: Persisted = {
+      gridSize: this.gridSize,
+      loupeAutoAdvance: this.loupeAutoAdvance
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
@@ -66,6 +76,11 @@ class BrowseViewStore {
     const idx = SIZE_ORDER.indexOf(this.gridSize);
     const next = Math.min(SIZE_ORDER.length - 1, Math.max(0, idx + delta));
     this.setGridSize(SIZE_ORDER[next]);
+  }
+
+  setLoupeAutoAdvance(on: boolean): void {
+    this.loupeAutoAdvance = on;
+    this.persist();
   }
 
   setActive(id: string | null): void {
