@@ -30,6 +30,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'F', description: 'Toggle favorite' },
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'I', description: 'Toggle info' },
+      { keys: 'T', description: 'Toggle tags' },
       { keys: 'E / Enter', description: 'Open editor' },
       { keys: 'Esc', description: 'Close loupe' }
     ]

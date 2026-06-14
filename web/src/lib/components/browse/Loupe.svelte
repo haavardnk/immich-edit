@@ -4,7 +4,12 @@
   import { browseView } from '$lib/stores/browseView.svelte';
   import { rateAsset, toggleFavorite } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
+  import { getAsset } from '$lib/api/assets';
+  import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
+  import { toasts } from '$lib/stores/toasts.svelte';
+  import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
+  import TagPicker from '$lib/components/TagPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import {
     mdiClose,
@@ -27,6 +32,83 @@
   const rating = $derived(asset?.exifInfo?.rating ?? 0);
   const exif = $derived(asset?.exifInfo ?? null);
   const previewSrc = $derived(currentId ? persistedPreviewUrl(currentId, MAX_EDGE) : '');
+
+  let tagCache = $state<Record<string, TagRef[]>>({});
+  const currentTags = $derived(currentId ? (tagCache[currentId] ?? []) : []);
+
+  $effect(() => {
+    const id = currentId;
+    if (!id || tagCache[id]) return;
+    void getAsset(id)
+      .then((a) => (tagCache = { ...tagCache, [id]: a.tags }))
+      .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
+  });
+
+  function setTags(id: string, tags: TagRef[]): void {
+    tagCache = { ...tagCache, [id]: tags };
+  }
+
+  async function addTag(tag: TagRef): Promise<void> {
+    const id = currentId;
+    if (!id) return;
+    const prev = tagCache[id] ?? [];
+    if (prev.some((t) => t.id === tag.id)) return;
+    setTags(id, [...prev, tag]);
+    try {
+      await addTagToAsset(tag.id, id);
+    } catch (e) {
+      setTags(id, prev);
+      toasts.push('error', `tag: ${(e as Error).message}`);
+    }
+  }
+
+  async function removeTag(tagId: string): Promise<void> {
+    const id = currentId;
+    if (!id) return;
+    const prev = tagCache[id] ?? [];
+    setTags(
+      id,
+      prev.filter((t) => t.id !== tagId)
+    );
+    try {
+      await removeTagFromAsset(tagId, id);
+    } catch (e) {
+      setTags(id, prev);
+      toasts.push('error', `tag: ${(e as Error).message}`);
+    }
+  }
+
+  async function createAndAddTag(value: string): Promise<TagRef | null> {
+    const id = currentId;
+    if (!id) return null;
+    try {
+      const created = await upsertTags([value]);
+      const tag = created[0];
+      if (!tag) return null;
+      const ref: TagRef = {
+        id: tag.id,
+        name: tag.name,
+        value: tag.value,
+        parentId: tag.parentId,
+        color: tag.color
+      };
+      const prev = tagCache[id] ?? [];
+      if (!prev.some((t) => t.id === ref.id)) {
+        setTags(id, [...prev, ref]);
+        try {
+          await addTagToAsset(ref.id, id);
+        } catch (e) {
+          setTags(id, prev);
+          toasts.push('error', `tag: ${(e as Error).message}`);
+          return null;
+        }
+      }
+      return ref;
+    } catch (e) {
+      toasts.push('error', `tag: ${(e as Error).message}`);
+      return null;
+    }
+  }
 
   $effect(() => {
     if (!currentId) return;
@@ -94,6 +176,11 @@
         e.preventDefault();
         browseView.loupeInfoOpen = !browseView.loupeInfoOpen;
         return;
+      case 't':
+      case 'T':
+        e.preventDefault();
+        browseView.loupeTagsOpen = !browseView.loupeTagsOpen;
+        return;
       case 'e':
       case 'E':
       case 'Enter':
@@ -136,6 +223,19 @@
       >
         <Icon path={asset.isFavorite ? mdiHeart : mdiHeartOutline} size={16} />
       </button>
+
+      <div class="ml-2 min-w-0 max-w-[45%]">
+        <TagPicker
+          tags={currentTags}
+          open={browseView.loupeTagsOpen}
+          onToggle={() => (browseView.loupeTagsOpen = !browseView.loupeTagsOpen)}
+          onClose={() => (browseView.loupeTagsOpen = false)}
+          onAdd={addTag}
+          onRemove={removeTag}
+          onCreate={createAndAddTag}
+          anchor="bottom"
+        />
+      </div>
 
       <div class="flex-1"></div>
 

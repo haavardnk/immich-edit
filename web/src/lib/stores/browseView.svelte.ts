@@ -40,6 +40,7 @@ class BrowseViewStore {
   loupeId = $state<string | null>(null);
   loupeZoomed = $state(false);
   loupeInfoOpen = $state(false);
+  loupeTagsOpen = $state(false);
 
   constructor() {
     const p = loadPersisted();
@@ -88,12 +89,14 @@ class BrowseViewStore {
     this.activeId = id;
     this.loupeId = id;
     this.loupeZoomed = false;
+    this.loupeTagsOpen = false;
   }
 
   closeLoupe(): void {
     if (this.loupeId) this.activeId = this.loupeId;
     this.loupeId = null;
     this.loupeZoomed = false;
+    this.loupeTagsOpen = false;
   }
 }
 
