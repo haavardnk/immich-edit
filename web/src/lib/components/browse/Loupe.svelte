@@ -328,6 +328,6 @@
       {/if}
     </div>
 
-    <Filmstrip currentId={currentId} onSelect={(id) => browseView.openLoupe(id)} />
+    <Filmstrip currentId={currentId} onSelect={(id) => browseView.openLoupe(id)} size={72} showBadges />
   </div>
 {/if}

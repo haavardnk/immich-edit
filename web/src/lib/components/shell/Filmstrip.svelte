@@ -4,21 +4,24 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
+  import { mdiChevronDown, mdiChevronUp, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
-    onSelect
+    onSelect,
+    size = 64,
+    showBadges = false
   }: {
     currentId?: string | null;
     onSelect?: (id: string) => void;
+    size?: number;
+    showBadges?: boolean;
   } = $props();
 
-  const ITEM = 64;
   const GAP = 4;
   const PAD = 8;
-  const STRIDE = ITEM + GAP;
   const OVERSCAN = 3;
+  const STRIDE = $derived(size + GAP);
 
   const currentId = $derived(onSelect ? currentIdProp : (page.params.id ?? null));
 
@@ -59,7 +62,7 @@
 
   $effect(() => {
     if (!scrollContainer || currentIndex < 0) return;
-    const target = PAD + currentIndex * STRIDE + ITEM / 2 - containerWidth / 2;
+    const target = PAD + currentIndex * STRIDE + size / 2 - containerWidth / 2;
     const max = Math.max(0, totalWidth - containerWidth);
     scrollContainer.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
   });
@@ -91,40 +94,81 @@
           bind:this={scrollContainer}
           onscroll={measure}
         >
-          <div class="relative" style:width="{totalWidth}px" style:height="{ITEM}px">
+          <div class="relative" style:width="{totalWidth}px" style:height="{size}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
               {#each visibleAssets as asset (asset.id)}
                 {@const isCurrent = asset.id === currentId}
+                {@const rating = asset.exifInfo?.rating ?? 0}
                 {#if onSelect}
                   <button
                     type="button"
                     onclick={() => onSelect(asset.id)}
-                    class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent
-                      ? 'ring-2 ring-immich-dark-primary opacity-100'
-                      : 'opacity-50 hover:opacity-80'}"
+                    class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
+                      ? 'ring-2 ring-immich-dark-primary'
+                      : ''}"
+                    style:width="{size}px"
+                    style:height="{size}px"
                     title={asset.originalFileName}
                   >
                     <img
                       src={assetThumbUrl(asset.id)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover"
+                      class="w-full h-full object-cover transition-opacity {isCurrent
+                        ? 'opacity-100'
+                        : 'opacity-50 group-hover:opacity-80'}"
                     />
+                    {#if showBadges && asset.isFavorite}
+                      <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
+                        <Icon path={mdiHeart} size={13} />
+                      </div>
+                    {/if}
+                    {#if showBadges && rating > 0}
+                      <div
+                        class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
+                      >
+                        <div class="flex items-center gap-0.5">
+                          {#each [1, 2, 3, 4, 5] as n (n)}
+                            <Icon path={mdiStar} size={9} class={n <= rating ? 'opacity-100' : 'opacity-30'} />
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
                   </button>
                 {:else}
                   <a
                     href={`/assets/${asset.id}`}
-                    class="flex-none w-16 h-16 rounded-lg overflow-hidden transition-all {isCurrent
-                      ? 'ring-2 ring-immich-dark-primary opacity-100'
-                      : 'opacity-50 hover:opacity-80'}"
+                    class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
+                      ? 'ring-2 ring-immich-dark-primary'
+                      : ''}"
+                    style:width="{size}px"
+                    style:height="{size}px"
                     title={asset.originalFileName}
                   >
                     <img
                       src={assetThumbUrl(asset.id)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover"
+                      class="w-full h-full object-cover transition-opacity {isCurrent
+                        ? 'opacity-100'
+                        : 'opacity-50 group-hover:opacity-80'}"
                     />
+                    {#if showBadges && asset.isFavorite}
+                      <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
+                        <Icon path={mdiHeart} size={13} />
+                      </div>
+                    {/if}
+                    {#if showBadges && rating > 0}
+                      <div
+                        class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
+                      >
+                        <div class="flex items-center gap-0.5">
+                          {#each [1, 2, 3, 4, 5] as n (n)}
+                            <Icon path={mdiStar} size={9} class={n <= rating ? 'opacity-100' : 'opacity-30'} />
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
                   </a>
                 {/if}
               {/each}
