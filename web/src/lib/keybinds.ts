@@ -3,14 +3,18 @@ export interface KeybindEntry {
   description: string;
 }
 
+export type KeybindMode = 'grid' | 'loupe' | 'editor';
+
 export interface KeybindGroup {
   title: string;
+  mode: KeybindMode;
   binds: KeybindEntry[];
 }
 
 export const KEYBIND_GROUPS: KeybindGroup[] = [
   {
     title: 'Grid',
+    mode: 'grid',
     binds: [
       { keys: '← / → / ↑ / ↓', description: 'Move active photo' },
       { keys: 'Home / End', description: 'First / last photo' },
@@ -24,6 +28,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
   },
   {
     title: 'Loupe',
+    mode: 'loupe',
     binds: [
       { keys: '← / → · J / K', description: 'Previous / next photo' },
       { keys: '1 – 5 / 0', description: 'Set / clear rating' },
@@ -37,6 +42,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
   },
   {
     title: 'Editor',
+    mode: 'editor',
     binds: [
       { keys: '← / → · J / K', description: 'Previous / next asset' },
       { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },

@@ -1,6 +1,17 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { ui } from '$lib/stores/ui.svelte';
-  import { KEYBIND_GROUPS } from '$lib/keybinds';
+  import { browseView } from '$lib/stores/browseView.svelte';
+  import { KEYBIND_GROUPS, type KeybindMode } from '$lib/keybinds';
+
+  const mode = $derived<KeybindMode>(
+    page.url.pathname.startsWith('/assets/')
+      ? 'editor'
+      : browseView.loupeId
+        ? 'loupe'
+        : 'grid'
+  );
+  const groups = $derived(KEYBIND_GROUPS.filter((g) => g.mode === mode));
 
   function onBackdropClick(e: MouseEvent): void {
     if (e.currentTarget === e.target) ui.closeKeybindsHelp();
@@ -41,7 +52,7 @@
         </button>
       </div>
       <div class="flex flex-col gap-4">
-        {#each KEYBIND_GROUPS as group (group.title)}
+        {#each groups as group (group.title)}
           <div>
             <h3 class="text-[11px] uppercase tracking-wider text-immich-dark-fg/40 mb-1.5">
               {group.title}
