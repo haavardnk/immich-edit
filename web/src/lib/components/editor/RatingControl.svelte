@@ -59,7 +59,7 @@
         role="radio"
         aria-checked={n === rating}
         tabindex="-1"
-        class="p-0.5 leading-none transition-colors {active ? 'text-amber-400' : 'text-immich-dark-fg/25 hover:text-immich-dark-fg/50'} {preview ? 'opacity-70' : ''}"
+        class="p-0.5 leading-none transition-colors {active ? 'text-immich-dark-fg' : 'text-immich-dark-fg/25 hover:text-immich-dark-fg/50'} {preview ? 'opacity-70' : ''}"
         title={`${n} star${n > 1 ? 's' : ''}`}
         onmouseenter={() => (hover = n)}
         onclick={(e) => onStarClick(n, e)}
