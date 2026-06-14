@@ -13,6 +13,14 @@ pub async fn metadata(
     Ok(Json(assets))
 }
 
+pub async fn smart(
+    State(state): State<AppState>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<SearchAssets>, AppError> {
+    let assets = state.immich.search_smart(&body).await?;
+    Ok(Json(assets))
+}
+
 pub async fn statistics(
     State(state): State<AppState>,
     Json(body): Json<serde_json::Value>,

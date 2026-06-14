@@ -764,6 +764,44 @@ async fn create_job_expands_search_target_via_paging() {
 }
 
 #[tokio::test]
+async fn search_smart_proxies_to_immich() {
+    use wiremock::matchers::{body_partial_json, method, path};
+    use wiremock::{Mock, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/search/smart"))
+        .and(body_partial_json(serde_json::json!({ "query": "red car" })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "assets": {
+                "items": [{ "id": asset_id(), "type": "IMAGE" }],
+                "count": 1, "total": 1, "nextPage": null
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/search/smart")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "query": "red car" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    assert_eq!(json["items"][0]["id"], asset_id().to_string());
+    assert_eq!(json["total"], 1);
+}
+
+#[tokio::test]
 async fn create_job_without_ids_or_target_is_bad_request() {
     let server = MockServer::start().await;
     let app = router(test_state(&server).await);

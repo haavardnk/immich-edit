@@ -247,6 +247,13 @@ impl ImmichClient {
         Ok(resp.assets)
     }
 
+    pub async fn search_smart(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
+        let url = self.url("api/search/smart")?;
+        let bytes = send_post_json(&self.http, url, body).await?;
+        let resp: SearchResponse = parse_json(&bytes)?;
+        Ok(resp.assets)
+    }
+
     pub async fn search_statistics(
         &self,
         body: &serde_json::Value,

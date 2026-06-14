@@ -82,6 +82,31 @@ class BrowseControlsStore {
     return body;
   }
 
+  smartSearchBody(base: Record<string, unknown>): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+      ...base,
+      withExif: true,
+      size: 500,
+      visibility: this.visibility,
+      type: 'IMAGE',
+    };
+    if (this.favoriteOnly && !('isFavorite' in base)) {
+      body.isFavorite = true;
+    }
+    if (typeof this.rating === 'number') {
+      body.rating = this.rating;
+    } else if (this.rating === 'unrated') {
+      body.rating = null;
+    }
+    if (this.takenAfter) {
+      body.takenAfter = new Date(this.takenAfter).toISOString();
+    }
+    if (this.takenBefore) {
+      body.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
+    }
+    return body;
+  }
+
   get serverFilterKey(): string {
     return [
       this.sortDir,

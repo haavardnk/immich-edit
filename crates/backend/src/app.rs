@@ -70,6 +70,7 @@ pub fn router(state: AppState) -> Router {
         .route("/folders/paths", get(routes::folders::paths))
         .route("/folders/assets", get(routes::folders::assets))
         .route("/search/metadata", post(routes::search::metadata))
+        .route("/search/smart", post(routes::search::smart))
         .route("/search/statistics", post(routes::search::statistics))
         .route("/edits", get(routes::edits::list))
         .route(

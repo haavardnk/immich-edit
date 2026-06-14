@@ -1,4 +1,5 @@
 import { searchMetadata, searchStatistics } from '$lib/api/search';
+import type { SearchResult } from '$lib/api/search';
 import { browsing } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import { toasts } from './toasts.svelte';
@@ -7,6 +8,8 @@ import type { AssetSummary } from '$lib/types/album';
 export interface BrowseFeedOptions {
   baseBody: () => Record<string, unknown>;
   includeStats?: boolean;
+  fetcher?: (body: Record<string, unknown>) => Promise<SearchResult>;
+  buildBody?: (base: Record<string, unknown>) => Record<string, unknown>;
   onFetchError?: (initial: boolean, error: unknown) => void;
 }
 
@@ -50,9 +53,10 @@ export class BrowseFeed {
           .catch((e) => toasts.push('error', `stats: ${(e as Error).message}`));
       }
     }
-    const body = browseControls.searchBody(base);
+    const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
     if (!initial && this.nextPage) body.page = this.nextPage;
-    searchMetadata(body)
+    const fetcher = this.opts.fetcher ?? searchMetadata;
+    fetcher(body)
       .then((result) => {
         this.assets = initial ? result.items : [...this.assets, ...result.items];
         browsing.set(this.assets);

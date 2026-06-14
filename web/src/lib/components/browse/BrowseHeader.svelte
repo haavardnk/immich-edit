@@ -16,12 +16,16 @@
     title,
     loaded,
     totalCount,
-    favoriteLocked = false
+    favoriteLocked = false,
+    hideSort = false,
+    hideFilenameFilter = false
   }: {
     title: string;
     loaded: number;
     totalCount?: number;
     favoriteLocked?: boolean;
+    hideSort?: boolean;
+    hideFilenameFilter?: boolean;
   } = $props();
 
   let filterOpen = $state(false);
@@ -91,16 +95,18 @@
     </button>
   {/if}
 
-  <button
-    class="p-0.5 rounded hover:bg-white/10"
-    title={browseControls.sortDir === 'asc' ? 'Oldest first' : 'Newest first'}
-    onclick={toggleDir}
-  >
-    <Icon
-      path={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
-      size={14}
-    />
-  </button>
+  {#if !hideSort}
+    <button
+      class="p-0.5 rounded hover:bg-white/10"
+      title={browseControls.sortDir === 'asc' ? 'Oldest first' : 'Newest first'}
+      onclick={toggleDir}
+    >
+      <Icon
+        path={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
+        size={14}
+      />
+    </button>
+  {/if}
 
   <div class="relative">
     <button
@@ -167,16 +173,18 @@
           </label>
         {/if}
 
-        <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-immich-dark-fg/40">Filename</span>
-          <input
-            type="text"
-            class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none w-full"
-            placeholder="Search…"
-            value={filenameLocal}
-            oninput={onFilenameInput}
-          />
-        </label>
+        {#if !hideFilenameFilter}
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] text-immich-dark-fg/40">Filename</span>
+            <input
+              type="text"
+              class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none w-full"
+              placeholder="Search…"
+              value={filenameLocal}
+              oninput={onFilenameInput}
+            />
+          </label>
+        {/if}
 
         <div class="grid grid-cols-2 gap-2">
           <label class="flex flex-col gap-1">

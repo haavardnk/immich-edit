@@ -1,11 +1,13 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { album } from '$lib/stores/album.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Logo from '$lib/components/Logo.svelte';
-  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks } from '@mdi/js';
+  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks, mdiMagnify } from '@mdi/js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import { untrack } from 'svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
 
   const subtitle = $derived(
@@ -17,6 +19,49 @@
   );
 
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
+
+  const routeQuery = $derived(
+    page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : null
+  );
+
+  let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  $effect(() => {
+    const q = routeQuery;
+    if (q !== null) untrack(() => (ui.searchQuery = q));
+  });
+
+  function submitSearch(value: string): void {
+    const q = value.trim();
+    if (q) {
+      goto('/search?q=' + encodeURIComponent(q), {
+        replaceState: page.url.pathname === '/search',
+        keepFocus: true
+      });
+    } else if (page.url.pathname === '/search') {
+      goto('/photos', { keepFocus: true });
+    }
+  }
+
+  function onSearchInput(e: Event): void {
+    const value = (e.currentTarget as HTMLInputElement).value;
+    ui.searchQuery = value;
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => submitSearch(value), 300);
+  }
+
+  function onSearchKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      clearTimeout(searchTimeout);
+      submitSearch((e.currentTarget as HTMLInputElement).value);
+    }
+  }
+
+  function clearSearch(): void {
+    clearTimeout(searchTimeout);
+    ui.searchQuery = '';
+    if (page.url.pathname === '/search') goto('/photos');
+  }
 
   function toggleSettings(): void {
     if (onSettings) {
@@ -36,9 +81,38 @@
     <span><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span></span>
   </a>
 
-  <div class="flex-1 text-xs text-immich-dark-fg/50 truncate px-2">
-    {subtitle}
-  </div>
+  {#if editor.assetId}
+    <div class="flex-1 text-xs text-immich-dark-fg/50 truncate px-2">
+      {subtitle}
+    </div>
+  {:else}
+    <div class="flex-1 flex justify-center px-2">
+      <div class="relative w-full max-w-md">
+        <div class="absolute left-2 top-1/2 -translate-y-1/2 text-immich-dark-fg/40">
+          <Icon path={mdiMagnify} size={16} />
+        </div>
+        <input
+          type="text"
+          placeholder="Search your photos"
+          value={ui.searchQuery}
+          oninput={onSearchInput}
+          onkeydown={onSearchKeydown}
+          class="w-full h-7 bg-white/5 rounded-full pl-8 pr-7 text-xs text-immich-dark-fg placeholder:text-immich-dark-fg/40 outline-none focus:bg-white/10 transition-colors"
+        />
+        {#if ui.searchQuery}
+          <button
+            type="button"
+            onclick={clearSearch}
+            class="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/10 text-immich-dark-fg/50 hover:text-immich-dark-fg"
+            title="Clear search"
+            aria-label="Clear search"
+          >
+            <Icon path={mdiClose} size={14} />
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   {#if editor.pending}
     <Icon path={mdiLoading} size={16} class="animate-spin text-immich-dark-primary/70" />

@@ -12,6 +12,10 @@ export function searchMetadata(body: Record<string, unknown>): Promise<SearchRes
   return sendJson('POST', '/api/search/metadata', body);
 }
 
+export function searchSmart(body: Record<string, unknown>): Promise<SearchResult> {
+  return sendJson('POST', '/api/search/smart', body);
+}
+
 export function searchStatistics(body: Record<string, unknown>): Promise<{ total: number }> {
   return sendJson('POST', '/api/search/statistics', body);
 }
