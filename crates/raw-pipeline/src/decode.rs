@@ -345,6 +345,10 @@ fn frame_from_rgb8(
         .iter()
         .map(|&v| srgb_to_linear(v as f32 / 255.0))
         .collect();
+    let orientation = exif
+        .as_ref()
+        .and_then(crate::exif::orientation)
+        .unwrap_or((false, false, false));
     RawFrame {
         width,
         height,
@@ -355,7 +359,7 @@ fn frame_from_rgb8(
         color_matrices: Vec::new(),
         data: linear,
         cpp: 3,
-        orientation: (false, false, false),
+        orientation,
         is_raw: false,
         exif,
     }
@@ -371,6 +375,10 @@ fn frame_from_rgb16(
         .iter()
         .map(|&v| srgb_to_linear(v as f32 / 65535.0))
         .collect();
+    let orientation = exif
+        .as_ref()
+        .and_then(crate::exif::orientation)
+        .unwrap_or((false, false, false));
     RawFrame {
         width,
         height,
@@ -381,7 +389,7 @@ fn frame_from_rgb16(
         color_matrices: Vec::new(),
         data: linear,
         cpp: 3,
-        orientation: (false, false, false),
+        orientation,
         is_raw: false,
         exif,
     }
