@@ -4,7 +4,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Logo from '$lib/components/Logo.svelte';
-  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks, mdiMagnify } from '@mdi/js';
+  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks, mdiKeyboardOutline, mdiMagnify } from '@mdi/js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
@@ -117,6 +117,16 @@
   {#if editor.pending}
     <Icon path={mdiLoading} size={16} class="animate-spin text-immich-dark-primary/70" />
   {/if}
+
+  <button
+    type="button"
+    onclick={() => ui.toggleKeybindsHelp()}
+    class="p-1.5 hover:bg-white/10 rounded transition-colors text-immich-dark-fg/60 hover:text-immich-dark-fg"
+    title="Keyboard shortcuts (?)"
+    aria-label="Keyboard shortcuts"
+  >
+    <Icon path={mdiKeyboardOutline} size={16} />
+  </button>
 
   <button
     type="button"

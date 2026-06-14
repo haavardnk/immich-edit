@@ -5,7 +5,18 @@
   function onBackdropClick(e: MouseEvent): void {
     if (e.currentTarget === e.target) ui.closeKeybindsHelp();
   }
+
+  function onWindowKeydown(e: KeyboardEvent): void {
+    if (!ui.keybindsHelpOpen) return;
+    if (e.key === 'Escape' || e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      e.preventDefault();
+      ui.closeKeybindsHelp();
+    }
+    e.stopPropagation();
+  }
 </script>
+
+<svelte:window onkeydowncapture={onWindowKeydown} />
 
 {#if ui.keybindsHelpOpen}
   <div

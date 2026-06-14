@@ -17,7 +17,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'PgUp / PgDn', description: 'Jump a page' },
       { keys: '1 – 5 / 0', description: 'Set / clear rating' },
       { keys: 'F', description: 'Toggle favorite' },
-      { keys: '− / =', description: 'Thumbnail size' },
+      { keys: '− / +', description: 'Thumbnail size' },
       { keys: 'Enter', description: 'Open editor' },
       { keys: 'Space', description: 'Open quick-review loupe' }
     ]

@@ -6,6 +6,7 @@
   import BulkActionBar from './BulkActionBar.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite } from '$lib/cull';
 
   let {
@@ -122,6 +123,12 @@
 
   function onKeydown(e: KeyboardEvent): void {
     if (browseView.loupeId || isTyping()) return;
+
+    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      e.preventDefault();
+      ui.toggleKeybindsHelp();
+      return;
+    }
 
     if (e.key === 'Escape' && selection.active) {
       e.preventDefault();

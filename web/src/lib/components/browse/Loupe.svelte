@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { getAsset } from '$lib/api/assets';
@@ -19,6 +20,7 @@
     mdiStarOutline,
     mdiInformationOutline,
     mdiSkipNextOutline,
+    mdiKeyboardOutline,
     mdiPencilOutline,
     mdiChevronLeft,
     mdiChevronRight
@@ -148,6 +150,12 @@
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+      e.preventDefault();
+      ui.toggleKeybindsHelp();
+      return;
+    }
+
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
@@ -260,6 +268,14 @@
         onclick={() => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)}
       >
         <Icon path={mdiSkipNextOutline} size={18} />
+      </button>
+      <button
+        type="button"
+        class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/70"
+        title="Keyboard shortcuts (?)"
+        onclick={() => ui.toggleKeybindsHelp()}
+      >
+        <Icon path={mdiKeyboardOutline} size={18} />
       </button>
       <button
         type="button"
