@@ -35,12 +35,13 @@ impl FusedOp for WhiteBalanceOp {
         let c = camera_wb(ctx.render.wb_coeffs);
         Some(CpuFusedOp::WhiteBalance {
             coeffs: [c[0], c[1], c[2]],
+            reconstruct: ctx.render.is_raw,
         })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "white_balance",
-            "fn white_balance_apply(c: vec3<f32>, w: vec4<f32>) -> vec3<f32> { return vec3<f32>(c.r * w.r, c.g * w.g, c.b * w.b); }",
+            "fn white_balance_apply(c: vec3<f32>, w: vec4<f32>) -> vec3<f32> { let wb = vec3<f32>(c.r * w.r, c.g * w.g, c.b * w.b); let pre_max = max(c.r, max(c.g, c.b)); let t = smoothstep(0.98, 1.0, pre_max) * w.w; let neutral = max(wb.r, max(wb.g, wb.b)); return mix(wb, vec3<f32>(neutral), t); }",
             "lin = white_balance_apply(lin, p.white_balance);",
         ))
     }
@@ -49,6 +50,6 @@ impl FusedOp for WhiteBalanceOp {
         dst[0] = c[0];
         dst[1] = c[1];
         dst[2] = c[2];
-        dst[3] = 1.0;
+        dst[3] = if ctx.render.is_raw { 1.0 } else { 0.0 };
     }
 }

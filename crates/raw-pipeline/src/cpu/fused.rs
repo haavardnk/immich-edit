@@ -4,10 +4,14 @@ use crate::ops::curves::{CurveLuts, apply_curves_pixel};
 use rayon::prelude::*;
 use std::sync::Arc;
 
+const WB_HL_RECON_LO: f32 = 0.98;
+const WB_HL_RECON_HI: f32 = 1.0;
+
 #[derive(Clone, Debug)]
 pub enum CpuFusedOp {
     WhiteBalance {
         coeffs: [f32; 3],
+        reconstruct: bool,
     },
     ColorMatrix {
         m: [[f32; 3]; 3],
@@ -86,10 +90,22 @@ impl FusedSegment {
 #[inline(always)]
 pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
     match op {
-        CpuFusedOp::WhiteBalance { coeffs } => {
+        CpuFusedOp::WhiteBalance {
+            coeffs,
+            reconstruct,
+        } => {
+            let pre_max = r.max(*g).max(*b);
             *r *= coeffs[0];
             *g *= coeffs[1];
             *b *= coeffs[2];
+            if *reconstruct && pre_max > WB_HL_RECON_LO {
+                let t = ((pre_max - WB_HL_RECON_LO) / (WB_HL_RECON_HI - WB_HL_RECON_LO))
+                    .clamp(0.0, 1.0);
+                let target = r.max(*g).max(*b);
+                *r += (target - *r) * t;
+                *g += (target - *g) * t;
+                *b += (target - *b) * t;
+            }
         }
         CpuFusedOp::ColorMatrix { m } => {
             let nr = m[0][0] * *r + m[0][1] * *g + m[0][2] * *b;
