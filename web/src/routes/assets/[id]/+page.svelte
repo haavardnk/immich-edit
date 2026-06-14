@@ -73,7 +73,7 @@
       const prev = browsing.prevOf(id);
       if (!prev) return;
       e.preventDefault();
-      void goto(`/assets/${prev.id}`);
+      void goto(`/assets/${prev.id}`, { replaceState: true });
       return;
     }
     if ((e.key === 'ArrowRight' || e.key === 'k' || e.key === 'K') && !meta && !e.altKey) {
@@ -81,7 +81,7 @@
       const next = browsing.nextOf(id);
       if (!next) return;
       e.preventDefault();
-      void goto(`/assets/${next.id}`);
+      void goto(`/assets/${next.id}`, { replaceState: true });
       return;
     }
     if ((e.key === ' ' || e.key === 'z' || e.key === 'Z') && !meta && !e.shiftKey && !e.altKey) {
