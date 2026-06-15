@@ -7,6 +7,7 @@
   import Filmstrip from './Filmstrip.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
+  import MetadataConsentDialog from './MetadataConsentDialog.svelte';
   import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
   import Loupe from '$lib/components/browse/Loupe.svelte';
   import { editor } from '$lib/stores/editor.svelte';
@@ -47,6 +48,7 @@
 
 <KeybindsHelp />
 <CopyDialog />
+<MetadataConsentDialog />
 <JobsDrawer />
 {#if browseView.loupeId}
   <Loupe />

@@ -55,6 +55,14 @@ Export:
 - No undo history beyond the current session
 - CPU rendering is slow; use the GPU path if you can
 
+## Data handling
+
+immich-edit never deletes assets. Your photo edits are non-destructive: they live as sidecars in the cache directory, and your Immich originals are never touched.
+
+Some actions do write metadata back to Immich so the two stay in sync: star ratings, favorites, tags, and reject marks (an `immich-edit/reject` tag). Rejecting a photo dims it in the grid and loupe and lets you filter it out, but it stays in your library and nothing is removed.
+
+The first time you do one of these actions, immich-edit asks you to confirm. After you agree, it won't ask again on that device.
+
 ## Quick start
 
 The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest stable release; `edge` tracks the newest build including prereleases. Pin an exact tag like `0.2.0` if you want upgrades to be explicit. See [available tags](docs/deploy.md#image-tags).
