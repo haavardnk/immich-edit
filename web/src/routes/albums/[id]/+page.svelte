@@ -15,7 +15,6 @@
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({
     baseBody: () => ({ albumIds: [id] }),
-    includeStats: false,
     onFetchError: (initial) => {
       if (initial && album.current) {
         feed.assets = album.current.assets;
@@ -50,7 +49,7 @@
   <BrowseHeader
     title={album.current.albumName}
     loaded={feed.assets.length}
-    totalCount={album.current.assetCount}
+    totalCount={feed.totalCount ?? album.current.assetCount}
   />
   {#if feed.assets.length === 0}
     <EmptyState title="This album is empty" />
