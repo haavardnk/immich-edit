@@ -1,6 +1,6 @@
 # Contributing
 
-## Build locally
+## Build from source
 
 System dependencies (macOS):
 
@@ -15,13 +15,16 @@ sudo apt-get install -y nasm cmake pkg-config libclang-dev \
   libheif-dev libjxl-dev libturbojpeg0-dev
 ```
 
-Install frontend dependencies:
+Install and build the frontend:
 
 ```bash
-cd web && npm install
+cd web
+npm ci
+npm run build
+cd ..
 ```
 
-Build the Rust workspace:
+Build the Rust workspace, including the RAW pipeline crate:
 
 ```bash
 cargo build --workspace
@@ -29,7 +32,7 @@ cargo build --workspace
 
 ## Dev workflow
 
-Copy `.env.example` to `.env`, then set `IMMICH_URL` and `IMMICH_API_KEY`. For local work, also set `BIND_ADDR=127.0.0.1:3000` or set `AUTH_TOKEN`. Run the backend and frontend in separate terminals.
+Copy `.env.example` to `.env`, then set `IMMICH_URL`, `IMMICH_API_KEY`, and `BIND_ADDR=127.0.0.1:8088`. Vite proxies `/api` there by default. Run the backend and frontend in separate terminals.
 
 Backend (Rust):
 
@@ -40,13 +43,19 @@ set +a
 cargo run -p immich-edit-backend
 ```
 
-For reloads during backend work, source `.env` the same way, then run `cargo watch -x "run -p immich-edit-backend" -w crates`.
+To serve the built frontend through the Rust server instead of Vite, first run `npm run build` in `web/`. Then, from the repository root after sourcing `.env`, run `WEB_DIR=web/build cargo run -p immich-edit-backend`.
 
-Frontend (Vite dev server, proxies `/api` to the backend):
+For reloads during backend work, install `cargo-watch`, source `.env` the same way, then run `cargo watch -x "run -p immich-edit-backend" -w crates`.
+
+Frontend (Vite dev server):
 
 ```bash
-cd web && npm install && npm run dev
+cd web
+npm ci
+npm run dev
 ```
+
+If you bind the backend somewhere else, set `IMMICH_EDIT_BACKEND` before starting Vite.
 
 On macOS, run natively for GPU rendering. Metal does not pass through Docker.
 

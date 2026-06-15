@@ -1,4 +1,4 @@
-# immich-edit
+# <img src="web/static/favicon.svg" width="32" height="32" alt=""> immich-edit
 
 A non-destructive RAW editor for your [Immich](https://immich.app/) library. Browse albums in the browser, render previews and exports on the server, and keep the edits outside Immich. Originals stay untouched.
 
@@ -20,6 +20,12 @@ Rendering and decoding:
 - JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, BMP
 - GPU rendering via wgpu (Vulkan on Linux, Metal on macOS), CPU fallback always available
 
+Browsing / culling:
+
+- Browse photos, albums, favorites, people, and tags with filters for rating, dates, filename, visibility, favorites, and rejects
+- Cull from the grid, loupe, or editor with keyboard shortcuts for stars, favorites, and reject marks
+- Hide rejected photos without deleting them
+
 Edits:
 
 - Exposure, contrast, brightness, highlights, shadows, blacks, whites
@@ -32,6 +38,7 @@ Edits:
 - Local masks (radial, linear, brush) with adjustable parameters
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
+- Undo/redo while editing, plus saved edit history you can restore from
 
 Batch:
 
@@ -52,12 +59,11 @@ Export:
 - No AI features
 - Histograms and clipping warnings are basic
 - No mobile layout
-- No undo history beyond the current session
 - CPU rendering is slow; use the GPU path if you can
 
 ## Data handling
 
-immich-edit never deletes assets. Your photo edits are non-destructive: they live as sidecars in the cache directory, and your Immich originals are never touched.
+immich-edit never deletes assets. Your photo edits are non-destructive: they are stored in immich-edit's SQLite database, and your Immich originals are never touched.
 
 Some actions do write metadata back to Immich so the two stay in sync: star ratings, favorites, tags, and reject marks (an `immich-edit/reject` tag). Rejecting a photo dims it in the grid and loupe and lets you filter it out, but it stays in your library and nothing is removed.
 
@@ -99,7 +105,7 @@ Start it:
 docker compose up -d
 ```
 
-To build from source, clone the repo and use [docker-compose.example.yml](docker-compose.example.yml) as a starting point.
+To build from source or run a local dev setup, see [Development](#development).
 
 Open `http://localhost:3000` and log in with the token.
 
@@ -142,14 +148,7 @@ If the GPU path is not active, check the backend startup logs for the wgpu adapt
 
 ## Development
 
-Local development runs without Docker. The backend uses `cargo run`; the frontend uses Vite. See [CONTRIBUTING.md](CONTRIBUTING.md) for system dependencies and commands.
-
-Tests:
-
-```bash
-cargo test --workspace
-cd web && npm run check
-```
+Local development runs without Docker. See [CONTRIBUTING.md](CONTRIBUTING.md) for system dependencies and commands.
 
 ## License
 

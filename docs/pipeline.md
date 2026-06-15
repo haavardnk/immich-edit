@@ -16,7 +16,7 @@ Every operator implements `OpMeta`:
 - `stage() -> Stage`
 - `order() -> i32`
 - `is_active(&Edits) -> bool`
-- `to_doc` / `from_doc` for sidecar persistence
+- `to_doc` / `from_doc` for persisted edit data
 
 `FusedOp` is for pointwise work. It returns a `CpuFusedOp`, can contribute WGSL through `gpu()`, and is batched into generated CPU/GPU process passes. Exposure, contrast, curves, HSL, white balance, and color matrix live here.
 
@@ -105,7 +105,7 @@ Lens ownership is split. `lens_vignette` is handled by `passes/sensor.rs` on GPU
    - Spatial GPU detail/presence: implement `SpatialOp`, return `GpuOpKind::Detail` or `GpuOpKind::Presence`, then wire the renderer pass.
    - Output setting: implement `OutputStageOp` only for persisted output options.
 2. Register it in `default_registry()`.
-3. Add sidecar round-trip coverage in `ops/tests.rs` when it persists edits.
+3. Add edit round-trip coverage in `ops/tests.rs` when it persists edits.
 4. Add render-path coverage in CPU/GPU tests when it changes pixels.
 5. Update the dispatch table above.
 

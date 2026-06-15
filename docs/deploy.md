@@ -6,13 +6,20 @@ immich-edit is a single-user backend that talks to Immich over HTTP and serves a
 
 ### Localhost / native
 
-Good for local testing and macOS GPU work. Binds to loopback by default when `AUTH_TOKEN` is unset.
+Good for local testing and macOS GPU work. Bind to loopback when `AUTH_TOKEN` is unset.
 
 ```bash
 cp .env.example .env
 $EDITOR .env
+cd web && npm ci && npm run build
+cd ..
+set -a
+source .env
+set +a
 cargo run -p immich-edit-backend
 ```
+
+In `.env`, set `BIND_ADDR=127.0.0.1:3000` and `WEB_DIR=web/build`.
 
 Open `http://127.0.0.1:3000`.
 
@@ -48,7 +55,7 @@ AUTH_TOKEN=choose-a-long-random-token
 
 Then run `docker compose up -d` and open `http://<host>:3000`.
 
-For local builds, clone the repository and use [docker-compose.example.yml](../docker-compose.example.yml). It includes a commented build option for development.
+For local Docker image builds, clone the repository and use [docker-compose.example.yml](../docker-compose.example.yml). It includes a commented build option for development.
 
 ### Image tags
 
