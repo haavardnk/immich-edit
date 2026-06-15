@@ -5,6 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import Viewer from '$lib/components/editor/Viewer.svelte';
   import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
   import BottomBar from '$lib/components/editor/BottomBar.svelte';
@@ -109,17 +110,13 @@
       void editor.toggleFavorite();
       return;
     }
-    if (!meta && !e.shiftKey && !e.altKey && e.key === '0') {
-      e.preventDefault();
-      void editor.setRating(null);
-      return;
-    }
-    if (!meta && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '5') {
-      e.preventDefault();
-      const n = Number(e.key);
-      const current = editor.asset?.exifInfo?.rating ?? null;
-      void editor.setRating(current === n ? null : n);
-      return;
+    if (!meta && !e.shiftKey && !e.altKey) {
+      const next = nextRatingFromKey(e.key, editor.asset?.exifInfo?.rating ?? null);
+      if (next !== undefined) {
+        e.preventDefault();
+        void editor.setRating(next);
+        return;
+      }
     }
     if (e.key === '\\' && !meta) {
       e.preventDefault();

@@ -12,12 +12,11 @@
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import TagPicker from '$lib/components/TagPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import StarRating from '$lib/components/StarRating.svelte';
+  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import {
     mdiClose,
-    mdiHeart,
-    mdiHeartOutline,
-    mdiStar,
-    mdiStarOutline,
     mdiInformationOutline,
     mdiSkipNextOutline,
     mdiKeyboardOutline,
@@ -269,9 +268,10 @@
         e.preventDefault();
         return openEditor();
     }
-    if (e.key >= '0' && e.key <= '5') {
+    const next = nextRatingFromKey(e.key, rating);
+    if (next !== undefined) {
       e.preventDefault();
-      rate(e.key === '0' ? null : Number(e.key));
+      rate(next);
     }
   }
 
@@ -285,26 +285,10 @@
   <div class="fixed inset-0 z-40 flex flex-col bg-black/95">
     <div class="flex items-center gap-2 px-4 h-11 flex-none text-immich-dark-fg">
       <span class="text-sm font-medium truncate">{asset.originalFileName}</span>
-      <div class="flex items-center gap-0.5 ml-1">
-        {#each [1, 2, 3, 4, 5] as n (n)}
-          <button
-            type="button"
-            class="text-immich-dark-fg/70 hover:text-immich-dark-fg"
-            title={`Rate ${n}`}
-            onclick={() => rate(n === rating ? null : n)}
-          >
-            <Icon path={n <= rating ? mdiStar : mdiStarOutline} size={16} />
-          </button>
-        {/each}
+      <div class="ml-1">
+        <StarRating {rating} size={16} onchange={rate} />
       </div>
-      <button
-        type="button"
-        class="ml-1 {asset.isFavorite ? 'text-red-400' : 'text-immich-dark-fg/70 hover:text-immich-dark-fg'}"
-        title="Favorite (F)"
-        onclick={() => toggleFavorite(asset.id)}
-      >
-        <Icon path={asset.isFavorite ? mdiHeart : mdiHeartOutline} size={16} />
-      </button>
+      <FavoriteButton isFavorite={asset.isFavorite} size={16} ontoggle={() => toggleFavorite(asset.id)} />
 
       <div class="ml-2 min-w-0 max-w-[45%]">
         <TagPicker

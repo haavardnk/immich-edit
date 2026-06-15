@@ -8,6 +8,7 @@
   import { browseView } from '$lib/stores/browseView.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite } from '$lib/cull';
+  import { nextRatingFromKey } from '$lib/ratingShortcuts';
 
   let {
     assets,
@@ -188,9 +189,15 @@
         return;
     }
 
-    if (e.key >= '0' && e.key <= '5') {
+    if (e.key === '0' || (e.key >= '1' && e.key <= '5')) {
+      const ids = targets();
+      if (ids.length === 0) return;
       e.preventDefault();
-      applyRating(e.key === '0' ? null : Number(e.key));
+      const idSet = new Set(ids);
+      const ratings = assets.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
+      const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
+      const next = nextRatingFromKey(e.key, current);
+      if (next !== undefined) applyRating(next);
     }
   }
 
