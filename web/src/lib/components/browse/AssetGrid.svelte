@@ -6,8 +6,10 @@
   import BulkActionBar from './BulkActionBar.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite } from '$lib/cull';
+  import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
+  import { isRejected } from '$lib/reject';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
 
   let {
@@ -34,12 +36,16 @@
 
   const effectiveActive = $derived(activeId ?? browseView.activeId);
 
+  const items = $derived(
+    browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
+  );
+
   const layout = $derived.by(() => {
     const inner = Math.max(0, gridWidth - PAD * 2);
     const cols = Math.max(1, Math.floor((inner + GAP) / (browseView.minTile + GAP)));
     const colWidth = (inner - (cols - 1) * GAP) / cols;
     const rowStride = colWidth + GAP;
-    const rowCount = Math.ceil(assets.length / cols);
+    const rowCount = Math.ceil(items.length / cols);
     const totalHeight = PAD * 2 + rowCount * colWidth + Math.max(0, rowCount - 1) * GAP;
     return { cols, colWidth, rowStride, rowCount, totalHeight };
   });
@@ -51,12 +57,12 @@
     const endRow = Math.min(rowCount, startRow + rowsInView);
     return {
       startIdx: startRow * cols,
-      endIdx: Math.min(assets.length, endRow * cols),
+      endIdx: Math.min(items.length, endRow * cols),
       offsetY: PAD + startRow * rowStride
     };
   });
 
-  const visibleAssets = $derived(assets.slice(view.startIdx, view.endIdx));
+  const visibleAssets = $derived(items.slice(view.startIdx, view.endIdx));
 
   function findScrollParent(el: HTMLElement): HTMLElement | null {
     let p = el.parentElement;
@@ -83,7 +89,7 @@
   }
 
   function ensureVisible(id: string): void {
-    const idx = assets.findIndex((a) => a.id === id);
+    const idx = items.findIndex((a) => a.id === id);
     if (idx < 0 || !scrollParent) return;
     const { cols, rowStride, colWidth } = layout;
     const rowTop = PAD + Math.floor(idx / cols) * rowStride;
@@ -120,6 +126,10 @@
 
   function applyFavorite(): void {
     targets().forEach((id) => void toggleFavorite(id));
+  }
+
+  function applyReject(): void {
+    targets().forEach((id) => void toggleReject(id));
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -175,6 +185,10 @@
       case 'F':
         e.preventDefault();
         return applyFavorite();
+      case 'x':
+      case 'X':
+        e.preventDefault();
+        return applyReject();
       case 'Enter':
         if (browseView.activeId) {
           e.preventDefault();
@@ -194,7 +208,7 @@
       if (ids.length === 0) return;
       e.preventDefault();
       const idSet = new Set(ids);
-      const ratings = assets.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
+      const ratings = items.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
       const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
       const next = nextRatingFromKey(e.key, current);
       if (next !== undefined) applyRating(next);
@@ -221,7 +235,7 @@
   });
 
   $effect(() => {
-    assets.length;
+    items.length;
     measure();
   });
 </script>
@@ -241,7 +255,7 @@
         selected={selection.has(asset.id)}
         selectionActive={selection.active}
         onToggle={() => selection.toggle(asset.id)}
-        onRange={() => selection.range(assets.map((a) => a.id), asset.id)}
+        onRange={() => selection.range(items.map((a) => a.id), asset.id)}
         onActivate={() => browseView.setActive(asset.id)}
         onLoupe={() => browseView.openLoupe(asset.id)}
       />

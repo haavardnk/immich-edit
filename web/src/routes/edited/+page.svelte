@@ -22,6 +22,7 @@
       checksum: null,
       isFavorite: false,
       exifInfo: null,
+      tags: [],
     }))
   );
 

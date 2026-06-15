@@ -6,6 +6,7 @@
   import { listTags, type TagSummary } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { TagRef } from '$lib/types/asset';
+  import { isManagedTag, MANAGED_TAG_PREFIX } from '$lib/reject';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
 
   type Anchor = 'top' | 'bottom';
@@ -78,7 +79,8 @@
     return { id: t.id, name: t.name, value: t.value, parentId: t.parentId, color: t.color };
   }
 
-  const allTags = $derived(library.tags ?? []);
+  const allTags = $derived((library.tags ?? []).filter((t) => !isManagedTag(toRef(t))));
+  const visibleTags = $derived(tags.filter((t) => !isManagedTag(t)));
   const suggestions = $derived.by(() => {
     const q = input.trim().toLowerCase();
     if (!q) return [];
@@ -96,6 +98,7 @@
   });
   const canCreate = $derived(
     input.trim().length > 0 &&
+      !isManagedTag({ id: '', name: '', value: input.trim() }) &&
       !allTags.some((t) => t.value.toLowerCase() === input.trim().toLowerCase())
   );
 
@@ -126,7 +129,7 @@
 <div class={rootClass}>
   <Icon path={mdiTagOutline} size={14} class="opacity-30 shrink-0" />
   <div class={pillsClass}>
-    {#each tags as t (t.id)}
+    {#each visibleTags as t (t.id)}
       <span
         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white/10 whitespace-nowrap shrink-0"
         title={t.value}

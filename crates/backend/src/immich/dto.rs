@@ -44,6 +44,8 @@ pub struct AssetSummary {
     pub is_favorite: bool,
     #[serde(rename = "exifInfo", default)]
     pub exif_info: Option<ExifInfo>,
+    #[serde(default)]
+    pub tags: Vec<TagSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,4 +210,24 @@ pub struct SearchAssets {
 pub struct SearchStatistics {
     #[serde(default)]
     pub total: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AssetSummary;
+
+    #[test]
+    fn asset_summary_defaults_tags_when_absent() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","originalFileName":"a.jpg","type":"IMAGE"}"#;
+        let asset: AssetSummary = serde_json::from_str(json).unwrap();
+        assert!(asset.tags.is_empty());
+    }
+
+    #[test]
+    fn asset_summary_parses_tags() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","originalFileName":"a.jpg","type":"IMAGE","tags":[{"id":"11111111-1111-1111-1111-111111111111","name":"Reject","value":"Reject"}]}"#;
+        let asset: AssetSummary = serde_json::from_str(json).unwrap();
+        assert_eq!(asset.tags.len(), 1);
+        assert_eq!(asset.tags[0].value, "Reject");
+    }
 }

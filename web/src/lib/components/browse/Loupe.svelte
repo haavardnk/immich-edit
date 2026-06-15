@@ -3,17 +3,20 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite } from '$lib/cull';
+  import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { getAsset } from '$lib/api/assets';
   import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
+  import { isRejected } from '$lib/reject';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import TagPicker from '$lib/components/TagPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import RejectButton from '$lib/components/RejectButton.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import {
     mdiClose,
@@ -41,6 +44,7 @@
     currentId ? (browsing.assets.find((a) => a.id === currentId) ?? null) : null
   );
   const rating = $derived(asset?.exifInfo?.rating ?? 0);
+  const rejected = $derived(asset ? isRejected(asset) : false);
   const exif = $derived(asset?.exifInfo ?? null);
   const previewSrc = $derived(currentId ? persistedPreviewUrl(currentId, MAX_EDGE) : '');
 
@@ -64,6 +68,7 @@
     if (!id) return;
     const prev = tagCache[id] ?? [];
     if (prev.some((t) => t.id === tag.id)) return;
+    if (!(await metadataConsent.gate())) return;
     setTags(id, [...prev, tag]);
     try {
       await addTagToAsset(tag.id, id);
@@ -77,6 +82,7 @@
     const id = currentId;
     if (!id) return;
     const prev = tagCache[id] ?? [];
+    if (!(await metadataConsent.gate())) return;
     setTags(
       id,
       prev.filter((t) => t.id !== tagId)
@@ -92,6 +98,7 @@
   async function createAndAddTag(value: string): Promise<TagRef | null> {
     const id = currentId;
     if (!id) return null;
+    if (!(await metadataConsent.gate())) return null;
     try {
       const created = await upsertTags([value]);
       const tag = created[0];
@@ -203,8 +210,28 @@
 
   function rate(value: number | null): void {
     if (!currentId) return;
-    void rateAsset(currentId, value);
-    if (browseView.loupeAutoAdvance) go(1);
+    const id = currentId;
+    void rateAsset(id, value).then((ok) => {
+      if (ok && browseView.loupeAutoAdvance) go(1);
+    });
+  }
+
+  function favorite(): void {
+    if (!currentId) return;
+    void toggleFavorite(currentId).then((ok) => {
+      if (ok && browseView.loupeAutoAdvance) go(1);
+    });
+  }
+
+  function reject(): void {
+    if (!currentId) return;
+    const id = currentId;
+    void toggleReject(id).then((ok) => {
+      if (!ok) return;
+      const updated = browsing.assets.find((a) => a.id === id);
+      if (updated) setTags(id, updated.tags);
+      if (browseView.loupeAutoAdvance) go(1);
+    });
   }
 
   function openEditor(): void {
@@ -245,7 +272,11 @@
       case 'f':
       case 'F':
         e.preventDefault();
-        return void toggleFavorite(currentId);
+        return favorite();
+      case 'x':
+      case 'X':
+        e.preventDefault();
+        return reject();
       case 'z':
       case 'Z':
       case ' ':
@@ -288,7 +319,8 @@
       <div class="ml-1">
         <StarRating {rating} size={16} onchange={rate} />
       </div>
-      <FavoriteButton isFavorite={asset.isFavorite} size={16} ontoggle={() => toggleFavorite(asset.id)} />
+      <FavoriteButton isFavorite={asset.isFavorite} size={16} ontoggle={() => favorite()} />
+      <RejectButton isRejected={rejected} size={16} ontoggle={() => reject()} />
 
       <div class="ml-2 min-w-0 max-w-[45%]">
         <TagPicker

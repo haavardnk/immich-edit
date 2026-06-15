@@ -2,12 +2,14 @@
   import type { AssetSummary } from '$lib/types/album';
   import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
+  import { isRejected } from '$lib/reject';
   import {
     mdiHeart,
     mdiStar,
     mdiCheckCircle,
     mdiCheckboxBlankCircleOutline,
-    mdiEyeOutline
+    mdiEyeOutline,
+    mdiCloseCircle
   } from '@mdi/js';
 
   let {
@@ -31,6 +33,7 @@
   } = $props();
 
   const rating = $derived(asset.exifInfo?.rating ?? 0);
+  const rejected = $derived(isRejected(asset));
   const src = $derived(assetThumbUrl(asset.id));
 
   function onClick(e: MouseEvent): void {
@@ -84,6 +87,8 @@
       loading="lazy"
       class="object-cover w-full h-full transition-transform group-hover:scale-105"
       class:opacity-70={selected}
+      class:opacity-40={rejected}
+      class:grayscale={rejected}
     />
   </a>
   <button
@@ -100,6 +105,15 @@
   {#if asset.isFavorite}
     <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
       <Icon path={mdiHeart} size={16} />
+    </div>
+  {/if}
+  {#if rejected}
+    <div
+      class="absolute right-1 text-white drop-shadow-md pointer-events-none"
+      class:top-1={!asset.isFavorite}
+      class:top-7={asset.isFavorite}
+    >
+      <Icon path={mdiCloseCircle} size={16} />
     </div>
   {/if}
   <button

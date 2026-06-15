@@ -4,7 +4,8 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiChevronDown, mdiChevronUp, mdiHeart, mdiStar } from '@mdi/js';
+  import { isRejected } from '$lib/reject';
+  import { mdiChevronDown, mdiChevronUp, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
@@ -99,6 +100,7 @@
               {#each visibleAssets as asset (asset.id)}
                 {@const isCurrent = asset.id === currentId}
                 {@const rating = asset.exifInfo?.rating ?? 0}
+                {@const rejected = isRejected(asset)}
                 {#if onSelect}
                   <button
                     type="button"
@@ -117,10 +119,20 @@
                       class="w-full h-full object-cover transition-opacity {isCurrent
                         ? 'opacity-100'
                         : 'opacity-50 group-hover:opacity-80'}"
+                      class:grayscale={rejected}
                     />
                     {#if showBadges && asset.isFavorite}
                       <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
                         <Icon path={mdiHeart} size={13} />
+                      </div>
+                    {/if}
+                    {#if showBadges && rejected}
+                      <div
+                        class="absolute right-1 text-white drop-shadow-md pointer-events-none"
+                        class:top-1={!asset.isFavorite}
+                        class:top-6={asset.isFavorite}
+                      >
+                        <Icon path={mdiCloseCircle} size={13} />
                       </div>
                     {/if}
                     {#if showBadges && rating > 0}
@@ -152,10 +164,20 @@
                       class="w-full h-full object-cover transition-opacity {isCurrent
                         ? 'opacity-100'
                         : 'opacity-50 group-hover:opacity-80'}"
+                      class:grayscale={rejected}
                     />
                     {#if showBadges && asset.isFavorite}
                       <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
                         <Icon path={mdiHeart} size={13} />
+                      </div>
+                    {/if}
+                    {#if showBadges && rejected}
+                      <div
+                        class="absolute right-1 text-white drop-shadow-md pointer-events-none"
+                        class:top-1={!asset.isFavorite}
+                        class:top-6={asset.isFavorite}
+                      >
+                        <Icon path={mdiCloseCircle} size={13} />
                       </div>
                     {/if}
                     {#if showBadges && rating > 0}

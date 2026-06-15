@@ -10,6 +10,7 @@ class BrowseControlsStore {
   visibility = $state<Visibility>('timeline');
   takenAfter = $state('');
   takenBefore = $state('');
+  excludeRejected = $state(false);
 
   get isDefault(): boolean {
     return (
@@ -19,7 +20,8 @@ class BrowseControlsStore {
       this.filename === '' &&
       this.visibility === 'timeline' &&
       this.takenAfter === '' &&
-      this.takenBefore === ''
+      this.takenBefore === '' &&
+      !this.excludeRejected
     );
   }
 
@@ -30,7 +32,8 @@ class BrowseControlsStore {
       this.filename !== '' ||
       this.visibility !== 'timeline' ||
       this.takenAfter !== '' ||
-      this.takenBefore !== ''
+      this.takenBefore !== '' ||
+      this.excludeRejected
     );
   }
 
@@ -42,6 +45,7 @@ class BrowseControlsStore {
     this.visibility = 'timeline';
     this.takenAfter = '';
     this.takenBefore = '';
+    this.excludeRejected = false;
   }
 
   searchBody(base: Record<string, unknown>): Record<string, unknown> {

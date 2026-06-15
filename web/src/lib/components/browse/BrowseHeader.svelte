@@ -196,6 +196,17 @@
           </label>
         {/if}
 
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-xs"
+            checked={browseControls.excludeRejected}
+            onchange={(e) =>
+              (browseControls.excludeRejected = (e.target as HTMLInputElement).checked)}
+          />
+          <span class="text-[11px]">Exclude rejected</span>
+        </label>
+
         {#if !hideFilenameFilter}
           <label class="flex flex-col gap-1">
             <span class="text-[10px] text-immich-dark-fg/40">Filename</span>

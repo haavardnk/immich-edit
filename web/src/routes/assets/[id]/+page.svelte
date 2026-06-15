@@ -110,6 +110,11 @@
       void editor.toggleFavorite();
       return;
     }
+    if ((e.key === 'x' || e.key === 'X') && !meta && !e.altKey) {
+      e.preventDefault();
+      void editor.toggleReject();
+      return;
+    }
     if (!meta && !e.shiftKey && !e.altKey) {
       const next = nextRatingFromKey(e.key, editor.asset?.exifInfo?.rating ?? null);
       if (next !== undefined) {

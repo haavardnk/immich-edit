@@ -1,4 +1,4 @@
-import type { AssetType, ExifInfo } from './asset';
+import type { AssetType, ExifInfo, TagRef } from './asset';
 
 export interface AlbumSummary {
   id: string;
@@ -25,4 +25,5 @@ export interface AssetSummary {
   checksum: string | null;
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
+  tags: TagRef[];
 }

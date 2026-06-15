@@ -31,6 +31,7 @@
       checksum: a.checksum,
       isFavorite: a.isFavorite ?? false,
       exifInfo: a.exifInfo ?? null,
+      tags: [],
     }));
     browsing.set(assets);
     loading = false;

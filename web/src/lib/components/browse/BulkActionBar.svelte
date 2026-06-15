@@ -5,11 +5,16 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { listTags, addTagToAsset, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
+  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
+  import { rejected } from '$lib/stores/rejected.svelte';
+  import { ensureRejectTag, isManagedTag, setRejectedTags, toTagRef } from '$lib/reject';
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
   import {
     mdiClose,
+    mdiCloseCircle,
+    mdiCloseCircleOutline,
     mdiHeart,
     mdiHeartOutline,
     mdiStar,
@@ -35,7 +40,7 @@
     if (selection.active && !tagsLoaded) {
       tagsLoaded = true;
       listTags()
-        .then((t) => (tags = t))
+        .then((t) => (tags = t.filter((tag) => !isManagedTag(toTagRef(tag)))))
         .catch(() => (tagsLoaded = false));
     }
   });
@@ -53,6 +58,7 @@
 
   async function applyMeta(fn: (id: string) => Promise<AssetDetail>): Promise<void> {
     if (busy || selection.allFiltered) return;
+    if (!(await metadataConsent.gate())) return;
     busy = true;
     const ids = [...selection.selected];
     const byId = new Map(assets.map((a) => [a.id, a]));
@@ -86,8 +92,44 @@
     void applyMeta((id) => updateAsset(id, { rating: value }));
   }
 
+  async function applyReject(value: boolean): Promise<void> {
+    if (busy || selection.allFiltered) return;
+    if (!(await metadataConsent.gate())) return;
+    const rejectTag = await ensureRejectTag();
+    if (!rejectTag) {
+      toasts.push('error', 'reject: could not create tag', 6000);
+      return;
+    }
+    busy = true;
+    const ids = [...selection.selected];
+    const byId = new Map(assets.map((a) => [a.id, a]));
+    let failed = 0;
+    await runPool(ids, 6, async (id) => {
+      try {
+        await (value ? addTagToAsset(rejectTag.id, id) : removeTagFromAsset(rejectTag.id, id));
+        const a = byId.get(id);
+        if (a) {
+          const tags = setRejectedTags(a.tags, rejectTag, value);
+          a.tags = tags;
+          browsing.patch(id, { tags });
+        }
+        if (value) rejected.add(id, rejectTag);
+        else rejected.remove(id);
+      } catch {
+        failed += 1;
+      }
+    });
+    busy = false;
+    if (failed > 0) {
+      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
+    } else {
+      toasts.push('success', `${value ? 'Rejected' : 'Unrejected'} ${ids.length} assets`, 4000);
+    }
+  }
+
   async function applyTags(add: boolean): Promise<void> {
     if (busy || selection.allFiltered || chosenTags.length === 0) return;
+    if (!(await metadataConsent.gate())) return;
     busy = true;
     const ids = [...selection.selected];
     let failed = 0;
@@ -177,6 +219,27 @@
           <Icon path={mdiStarOutline} size={16} />
         </button>
       </div>
+
+      <div class="w-px h-5 bg-white/10"></div>
+
+      <button
+        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
+        disabled={metaBusy}
+        onclick={() => void applyReject(true)}
+        title="Reject"
+        aria-label="Reject"
+      >
+        <Icon path={mdiCloseCircle} size={16} />
+      </button>
+      <button
+        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
+        disabled={metaBusy}
+        onclick={() => void applyReject(false)}
+        title="Unreject"
+        aria-label="Unreject"
+      >
+        <Icon path={mdiCloseCircleOutline} size={16} />
+      </button>
 
       <div class="w-px h-5 bg-white/10"></div>
 

@@ -2,6 +2,7 @@ import { searchMetadata, searchStatistics } from '$lib/api/search';
 import type { SearchResult } from '$lib/api/search';
 import { browsing } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
+import { rejected } from './rejected.svelte';
 import { toasts } from './toasts.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
@@ -56,9 +57,10 @@ export class BrowseFeed {
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
     if (!initial && this.nextPage) body.page = this.nextPage;
     const fetcher = this.opts.fetcher ?? searchMetadata;
-    fetcher(body)
-      .then((result) => {
-        this.assets = initial ? result.items : [...this.assets, ...result.items];
+    Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
+      .then(([result]) => {
+        const items = rejected.stamp(result.items);
+        this.assets = initial ? items : [...this.assets, ...items];
         browsing.set(this.assets);
         this.nextPage = result.nextPage;
       })

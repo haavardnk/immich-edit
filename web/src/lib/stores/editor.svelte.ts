@@ -22,6 +22,9 @@ import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
+import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
+import { rejected } from '$lib/stores/rejected.svelte';
+import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { applyCopySections } from '$lib/copyPaste';
@@ -778,12 +781,14 @@ class EditorStore {
     if (!this.assetId || !this.asset) return;
     browsing.patch(this.assetId, {
       isFavorite: this.asset.isFavorite,
-      exifInfo: this.asset.exifInfo ?? null
+      exifInfo: this.asset.exifInfo ?? null,
+      tags: this.asset.tags
     });
   }
 
   toggleFavorite = async (): Promise<void> => {
     if (!this.assetId || !this.asset) return;
+    if (!(await metadataConsent.gate())) return;
     const prev = this.asset.isFavorite;
     this.asset = { ...this.asset, isFavorite: !prev };
     try {
@@ -798,6 +803,7 @@ class EditorStore {
 
   setRating = async (rating: number | null): Promise<void> => {
     if (!this.assetId || !this.asset) return;
+    if (!(await metadataConsent.gate())) return;
     const prevExif: ExifInfo | null = this.asset.exifInfo;
     const nextExif: ExifInfo = prevExif
       ? { ...prevExif, rating }
@@ -829,10 +835,12 @@ class EditorStore {
   addTag = async (tag: TagRef): Promise<void> => {
     if (!this.assetId || !this.asset) return;
     if (this.asset.tags.some((t) => t.id === tag.id)) return;
+    if (!(await metadataConsent.gate())) return;
     const prev = this.asset.tags;
     this.asset = { ...this.asset, tags: [...prev, tag] };
     try {
       await addTagToAsset(tag.id, this.assetId);
+      this.syncBrowsing();
     } catch (e) {
       if (this.asset) this.asset = { ...this.asset, tags: prev };
       this.error = (e as Error).message;
@@ -841,18 +849,46 @@ class EditorStore {
 
   removeTag = async (tagId: string): Promise<void> => {
     if (!this.assetId || !this.asset) return;
+    if (!(await metadataConsent.gate())) return;
     const prev = this.asset.tags;
     this.asset = { ...this.asset, tags: prev.filter((t) => t.id !== tagId) };
     try {
       await removeTagFromAsset(tagId, this.assetId);
+      this.syncBrowsing();
     } catch (e) {
       if (this.asset) this.asset = { ...this.asset, tags: prev };
       this.error = (e as Error).message;
     }
   };
 
+  toggleReject = async (): Promise<void> => {
+    if (!this.assetId || !this.asset) return;
+    if (!(await metadataConsent.gate())) return;
+    const rejectTag = await ensureRejectTag();
+    if (!rejectTag) {
+      this.error = 'reject: could not create tag';
+      return;
+    }
+    const next = !isRejected(this.asset);
+    const prev = this.asset.tags;
+    this.asset = { ...this.asset, tags: setRejectedTags(prev, rejectTag, next) };
+    if (next) rejected.add(this.assetId, rejectTag);
+    else rejected.remove(this.assetId);
+    try {
+      if (next) await addTagToAsset(rejectTag.id, this.assetId);
+      else await removeTagFromAsset(rejectTag.id, this.assetId);
+      this.syncBrowsing();
+    } catch (e) {
+      if (this.asset) this.asset = { ...this.asset, tags: prev };
+      if (next) rejected.remove(this.assetId);
+      else rejected.add(this.assetId, rejectTag);
+      this.error = (e as Error).message;
+    }
+  };
+
   createAndAddTag = async (value: string): Promise<TagRef | null> => {
     if (!this.assetId || !this.asset) return null;
+    if (!(await metadataConsent.gate())) return null;
     try {
       const created = await upsertTags([value]);
       const tag = created[0];
@@ -863,6 +899,7 @@ class EditorStore {
         this.asset = { ...this.asset, tags: [...prev, ref] };
         try {
           await addTagToAsset(ref.id, this.assetId);
+          this.syncBrowsing();
         } catch (e) {
           if (this.asset) this.asset = { ...this.asset, tags: prev };
           this.error = (e as Error).message;

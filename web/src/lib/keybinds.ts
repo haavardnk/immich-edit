@@ -21,6 +21,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'PgUp / PgDn', description: 'Jump a page' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
       { keys: 'F', description: 'Toggle favorite' },
+      { keys: 'X', description: 'Toggle reject' },
       { keys: '− / +', description: 'Thumbnail size' },
       { keys: 'Enter', description: 'Open editor' },
       { keys: 'Space', description: 'Open quick-review loupe' }
@@ -33,6 +34,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: '← / → · J / K', description: 'Previous / next photo' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
       { keys: 'F', description: 'Toggle favorite' },
+      { keys: 'X', description: 'Toggle reject' },
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'I', description: 'Toggle info' },
       { keys: 'T', description: 'Toggle tags' },
@@ -52,6 +54,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
       { keys: 'F', description: 'Toggle favorite' },
+      { keys: 'X', description: 'Toggle reject' },
       { keys: '⇧F', description: 'Toggle fullscreen' },
       { keys: '⌘Z / ⌘⇧Z', description: 'Undo / redo' },
       { keys: 'Esc', description: 'Exit crop / brush / popover / fullscreen' },

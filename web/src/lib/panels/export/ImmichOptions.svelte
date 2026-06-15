@@ -3,6 +3,7 @@
   import MultiSelect from '$lib/components/MultiSelect.svelte';
   import type { AlbumSummary } from '$lib/types/album';
   import type { TagSummary } from '$lib/api/tags';
+  import { isManagedTag, toTagRef } from '$lib/reject';
   import type { ExportForm } from './settings';
 
   let {
@@ -60,7 +61,7 @@
 <div class="flex flex-col gap-1">
   <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Tags</span>
   <MultiSelect
-    options={library.tags}
+    options={library.tags.filter((t) => !isManagedTag(toTagRef(t)))}
     bind:selected={form.tagIds}
     getId={(t: TagSummary) => t.id}
     getLabel={(t: TagSummary) => t.value || t.name}
