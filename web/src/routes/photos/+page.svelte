@@ -12,7 +12,7 @@
 
   onMount(() => {
     editor.unload();
-    browseControls.reset();
+    browseControls.enter('photos');
     feed.fetchPage(true);
   });
 

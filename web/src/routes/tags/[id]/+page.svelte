@@ -19,7 +19,7 @@
     const _ = id;
     untrack(() => {
       selection.clear();
-      browseControls.reset();
+      browseControls.enter('tag:' + id);
       feed.reset();
       feed.fetchPage(true);
     });

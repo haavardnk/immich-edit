@@ -37,7 +37,7 @@
     const _ = query;
     untrack(() => {
       selection.clear();
-      browseControls.reset();
+      browseControls.enter('search:' + query);
       feed.reset();
       if (query) feed.fetchPage(true);
     });

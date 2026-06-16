@@ -37,6 +37,8 @@ class BrowseControlsStore {
     );
   }
 
+  private context: string | null = null;
+
   reset(): void {
     this.sortDir = 'desc';
     this.favoriteOnly = false;
@@ -46,6 +48,12 @@ class BrowseControlsStore {
     this.takenAfter = '';
     this.takenBefore = '';
     this.excludeRejected = false;
+  }
+
+  enter(context: string): void {
+    if (this.context === context) return;
+    this.context = context;
+    this.reset();
   }
 
   searchBody(base: Record<string, unknown>): Record<string, unknown> {

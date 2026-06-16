@@ -28,7 +28,7 @@
     untrack(() => {
       selection.clear();
       album.load(current);
-      browseControls.reset();
+      browseControls.enter('album:' + current);
       feed.reset();
       feed.fetchPage(true);
     });

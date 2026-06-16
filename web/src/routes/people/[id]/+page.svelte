@@ -17,7 +17,7 @@
   $effect(() => {
     const _ = id;
     untrack(() => {
-      browseControls.reset();
+      browseControls.enter('person:' + id);
       feed.reset();
       feed.fetchPage(true);
     });
