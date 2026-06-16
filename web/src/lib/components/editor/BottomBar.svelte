@@ -1,60 +1,67 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
+  import Popover from '$lib/components/Popover.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';
-  import { mdiMagnifyMinusOutline, mdiMagnifyPlusOutline } from '@mdi/js';
+  import { mdiMagnifyMinusOutline, mdiMagnifyPlusOutline, mdiFitToScreenOutline, mdiFullscreen, mdiFullscreenExit } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
 </script>
 
-<div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-1 bg-immich-dark-bg/80 backdrop-blur-sm border-t border-white/5">
-  <div class="min-w-0">
-    {#if hasAsset}
-      <TagsStrip />
-    {/if}
-  </div>
-
-  <div class="flex items-center gap-2">
+<div class="flex items-center justify-between gap-3 px-3 py-1 bg-immich-dark-bg/80 backdrop-blur-sm border-t border-white/5">
+  <div class="flex items-center gap-3 min-w-0">
     {#if hasAsset}
       <RatingControl />
+      <div class="min-w-0">
+        <TagsStrip />
+      </div>
       <SaveStatus />
     {/if}
   </div>
 
-  <div class="flex items-center gap-1.5 justify-self-end">
-    <button
-      class="btn btn-ghost btn-xs btn-square"
-      title="Zoom Out"
-      onclick={ui.zoomOut}
+  <div class="flex items-center gap-0.5">
+    <Popover
+      open={ui.zoomPopoverOpen}
+      anchor="top"
+      align="end"
+      onClose={ui.closeZoomPopover}
+      contentClass="p-2"
     >
-      <Icon path={mdiMagnifyMinusOutline} size={16} />
-    </button>
-    <input
-      type="range"
-      min="25"
-      max="400"
-      step="5"
-      value={ui.zoom}
-      oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
-      class="range range-xs w-24"
+      {#snippet trigger()}
+        <ToolbarButton
+          variant="text"
+          label={`${ui.zoom}%`}
+          title="Zoom"
+          active={ui.zoomPopoverOpen}
+          onclick={ui.toggleZoomPopover}
+        />
+      {/snippet}
+      {#snippet children()}
+        <div class="flex items-center gap-2">
+          <ToolbarButton path={mdiMagnifyMinusOutline} size={16} title="Zoom Out" onclick={ui.zoomOut} />
+          <input
+            type="range"
+            min="25"
+            max="400"
+            step="5"
+            value={ui.zoom}
+            oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
+            class="w-28 h-1 accent-immich-dark-primary"
+          />
+          <ToolbarButton path={mdiMagnifyPlusOutline} size={16} title="Zoom In" onclick={ui.zoomIn} />
+          <ToolbarButton path={mdiFitToScreenOutline} size={16} title="Fit to Screen (Space / Z)" onclick={ui.zoomFit} />
+        </div>
+      {/snippet}
+    </Popover>
+    <ToolbarButton
+      path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}
+      size={18}
+      title="Fullscreen (⇧F)"
+      onclick={ui.toggleFullscreen}
     />
-    <button
-      class="btn btn-ghost btn-xs btn-square"
-      title="Zoom In"
-      onclick={ui.zoomIn}
-    >
-      <Icon path={mdiMagnifyPlusOutline} size={16} />
-    </button>
-    <button
-      class="btn btn-ghost btn-xs min-w-14 font-mono text-xs"
-      title="Fit to Screen (Space / Z)"
-      onclick={ui.zoomFit}
-    >
-      {ui.zoom}%
-    </button>
   </div>
 </div>
 

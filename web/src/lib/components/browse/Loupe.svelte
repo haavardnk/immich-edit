@@ -14,6 +14,7 @@
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import TagPicker from '$lib/components/TagPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
@@ -337,51 +338,39 @@
 
       <div class="flex-1"></div>
 
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 {browseView.loupeInfoOpen
-          ? 'text-immich-dark-primary'
-          : 'text-immich-dark-fg/70'}"
+      <ToolbarButton
+        path={mdiInformationOutline}
+        size={18}
         title="Info (I)"
+        active={browseView.loupeInfoOpen}
         onclick={() => (browseView.loupeInfoOpen = !browseView.loupeInfoOpen)}
-      >
-        <Icon path={mdiInformationOutline} size={18} />
-      </button>
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 {browseView.loupeAutoAdvance
-          ? 'text-immich-dark-primary'
-          : 'text-immich-dark-fg/70'}"
+      />
+      <ToolbarButton
+        path={mdiSkipNextOutline}
+        size={18}
         title="Auto-advance after rating"
-        aria-pressed={browseView.loupeAutoAdvance}
+        active={browseView.loupeAutoAdvance}
+        pressed={browseView.loupeAutoAdvance}
         onclick={() => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)}
-      >
-        <Icon path={mdiSkipNextOutline} size={18} />
-      </button>
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/70"
+      />
+      <ToolbarButton
+        path={mdiKeyboardOutline}
+        size={18}
         title="Keyboard shortcuts (?)"
         onclick={() => ui.toggleKeybindsHelp()}
-      >
-        <Icon path={mdiKeyboardOutline} size={18} />
-      </button>
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/70"
+      />
+      <ToolbarButton
+        path={mdiPencilOutline}
+        size={18}
         title="Edit (E)"
         onclick={openEditor}
-      >
-        <Icon path={mdiPencilOutline} size={18} />
-      </button>
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/70"
+      />
+      <ToolbarButton
+        path={mdiClose}
+        size={18}
         title="Close (Esc)"
         onclick={() => browseView.closeLoupe()}
-      >
-        <Icon path={mdiClose} size={18} />
-      </button>
+      />
     </div>
 
     <div class="flex-1 min-h-0 relative flex">

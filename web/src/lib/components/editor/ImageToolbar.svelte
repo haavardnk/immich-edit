@@ -1,7 +1,6 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
   import ExifSummary from './ExifSummary.svelte';
   import {
     mdiArrowLeft,
@@ -9,8 +8,6 @@
     mdiRedo,
     mdiEyeOutline,
     mdiCompare,
-    mdiFullscreen,
-    mdiFullscreenExit,
   } from '@mdi/js';
 
   function goBack(): void {
@@ -29,61 +26,48 @@
   }
 </script>
 
-<div class="relative z-30 flex items-center justify-between px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
-  <div class="flex items-center gap-1">
-    <button
-      class="btn btn-ghost btn-sm btn-square"
-      title="Back"
-      onclick={goBack}
-    >
-      <Icon path={mdiArrowLeft} size={20} />
-    </button>
+<div class="relative z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
+  <div class="flex items-center gap-1 justify-self-start min-w-0">
+    <ToolbarButton path={mdiArrowLeft} size={18} title="Back" onclick={goBack} />
+    {#if editor.asset}
+      <span class="text-[13px] font-medium truncate text-immich-dark-fg/80">{editor.asset.originalFileName}</span>
+    {/if}
   </div>
 
-  <div class="flex items-center gap-1">
-    <button
-      class="btn btn-ghost btn-sm btn-square {editor.canUndo ? 'text-immich-dark-fg' : 'text-immich-dark-fg/25 cursor-not-allowed'}"
+  <div class="flex items-center gap-0.5 justify-self-center">
+    <ToolbarButton
+      path={mdiUndo}
+      size={18}
       title="Undo (Ctrl+Z)"
       disabled={!editor.canUndo}
       onclick={editor.undo}
-    >
-      <Icon path={mdiUndo} size={20} />
-    </button>
-    <button
-      class="btn btn-ghost btn-sm btn-square {editor.canRedo ? 'text-immich-dark-fg' : 'text-immich-dark-fg/25 cursor-not-allowed'}"
+    />
+    <ToolbarButton
+      path={mdiRedo}
+      size={18}
       title="Redo (Ctrl+Shift+Z)"
       disabled={!editor.canRedo}
       onclick={editor.redo}
-    >
-      <Icon path={mdiRedo} size={20} />
-    </button>
+    />
   </div>
 
-  <div class="flex items-center gap-1">
-    <button
-      class="btn btn-ghost btn-sm btn-square"
+  <div class="flex items-center gap-0.5 justify-self-end">
+    <ToolbarButton
+      path={mdiEyeOutline}
+      size={18}
       title="View Original (hold \)"
       onpointerdown={() => holdOriginal(true)}
       onpointerup={() => holdOriginal(false)}
       onpointerleave={() => { if (editor.showingOriginal) holdOriginal(false); }}
-    >
-      <Icon path={mdiEyeOutline} size={20} />
-    </button>
-    <button
-      class="btn btn-ghost btn-sm btn-square {editor.splitMode ? 'text-immich-dark-primary' : ''}"
+    />
+    <ToolbarButton
+      path={mdiCompare}
+      size={18}
       title="Before/After split"
+      active={editor.splitMode}
       disabled={!!editor.cropSession}
       onclick={editor.toggleSplit}
-    >
-      <Icon path={mdiCompare} size={20} />
-    </button>
-    <button
-      class="btn btn-ghost btn-sm btn-square"
-      title="Fullscreen (⇧F)"
-      onclick={ui.toggleFullscreen}
-    >
-      <Icon path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen} size={20} />
-    </button>
+    />
     {#if editor.assetId}
       <ExifSummary />
     {/if}

@@ -11,11 +11,7 @@
   import { jobs } from '$lib/stores/jobs.svelte';
 
   const subtitle = $derived(
-    editor.assetId
-      ? (editor.asset?.originalFileName ?? editor.assetId)
-      : album.current
-        ? album.current.albumName
-        : ''
+    !editor.assetId && album.current ? album.current.albumName : ''
   );
 
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
@@ -82,9 +78,7 @@
   </a>
 
   {#if editor.assetId}
-    <div class="flex-1 text-xs text-immich-dark-fg/50 truncate px-2">
-      {subtitle}
-    </div>
+    <div class="flex-1"></div>
   {:else}
     <div class="flex-1 flex justify-center px-2">
       <div class="relative w-full max-w-md">

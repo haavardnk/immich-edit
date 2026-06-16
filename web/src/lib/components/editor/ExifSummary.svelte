@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import ExifDetails from './ExifDetails.svelte';
   import { editor } from '$lib/stores/editor.svelte';
@@ -18,15 +18,13 @@
     contentClass="p-3"
   >
     {#snippet trigger()}
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm btn-square {ui.exifPopoverOpen ? 'text-immich-dark-primary' : ''}"
+      <ToolbarButton
+        path={mdiInformationOutline}
+        size={18}
         title="Info (I)"
-        aria-label="Info"
+        active={ui.exifPopoverOpen}
         onclick={ui.toggleExifPopover}
-      >
-        <Icon path={mdiInformationOutline} size={20} />
-      </button>
+      />
     {/snippet}
     {#snippet children()}
       <ExifDetails />

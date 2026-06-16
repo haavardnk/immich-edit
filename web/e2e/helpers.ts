@@ -122,5 +122,5 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 export async function gotoAsset(page: Page): Promise<void> {
   await page.goto(`/assets/${ASSET_ID}`);
   await expect(page.getByTitle('Back')).toBeVisible();
-  await expect(page.getByText('Saved')).toBeVisible();
+  await expect(page.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
 }
