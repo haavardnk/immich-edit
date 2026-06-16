@@ -567,7 +567,9 @@ fn decode_heif(
         let off = y * stride;
         rgb.extend_from_slice(&plane.data[off..off + row_bytes]);
     }
-    Ok(frame_from_rgb8(rgb, width, height, exif))
+    let mut frame = frame_from_rgb8(rgb, width, height, exif);
+    frame.orientation = (false, false, false);
+    Ok(frame)
 }
 
 fn decode_jxl(
