@@ -1,3 +1,4 @@
+use crate::tone::shared::RAW_LINEAR_CEILING;
 use rayon::prelude::*;
 
 fn cfa_channel(cfa: &[u8; 4], x: usize, y: usize) -> usize {
@@ -97,20 +98,20 @@ pub fn malvar_he_cutler(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> 
                     let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
                     let h_val = (n1 * 4.0 + c * 5.0 - d2 - diag + d2v * 0.5) / 8.0;
                     let v_val = (n2 * 4.0 + c * 5.0 - d2v - diag + d2 * 0.5) / 8.0;
-                    row[off + row_ch] = h_val.clamp(0.0, 1.0);
-                    row[off + col_ch] = v_val.clamp(0.0, 1.0);
+                    row[off + row_ch] = h_val.clamp(0.0, RAW_LINEAR_CEILING);
+                    row[off + col_ch] = v_val.clamp(0.0, RAW_LINEAR_CEILING);
                     row[off + 1] = c;
                 } else {
                     let n4 = p(-1, 0) + p(1, 0) + p(0, -1) + p(0, 1);
                     let dplus = p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2);
                     let g_val = (n4 * 2.0 + c * 4.0 - dplus) / 8.0;
-                    row[off + 1] = g_val.clamp(0.0, 1.0);
+                    row[off + 1] = g_val.clamp(0.0, RAW_LINEAR_CEILING);
                     let opp = 2 - own_ch;
                     let diag = p(-1, -1) + p(1, -1) + p(-1, 1) + p(1, 1);
                     let opp_val = (diag * 2.0 + c * 6.0
                         - (p(-2, 0) + p(2, 0) + p(0, -2) + p(0, 2)) * 1.5)
                         / 8.0;
-                    row[off + opp] = opp_val.clamp(0.0, 1.0);
+                    row[off + opp] = opp_val.clamp(0.0, RAW_LINEAR_CEILING);
                     row[off + own_ch] = c;
                 }
             }
@@ -153,6 +154,24 @@ mod tests {
         let out = malvar_he_cutler(&data, w, h, "RGGB");
         if out.len() != w * h * 3 {
             panic!("size mismatch");
+        }
+    }
+
+    #[test]
+    fn mhc_preserves_highlight_headroom() {
+        let w = 16;
+        let h = 16;
+        let data = flat_bayer(2.5, w, h);
+        let out = malvar_he_cutler(&data, w, h, "RGGB");
+        for y in 2..h - 2 {
+            for x in 2..w - 2 {
+                let off = (y * w + x) * 3;
+                for c in 0..3 {
+                    if (out[off + c] - 2.5).abs() > 1e-3 {
+                        panic!("clamped headroom at {x},{y} c{c}: {}", out[off + c]);
+                    }
+                }
+            }
         }
     }
 }

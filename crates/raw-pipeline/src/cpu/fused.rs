@@ -1,11 +1,9 @@
 use crate::edits::HSL_BANDS;
 use crate::ops::LinearImage;
 use crate::ops::curves::{CurveLuts, apply_curves_pixel};
+use crate::tone::shared::{HL_RECONSTRUCT_BIAS, HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE};
 use rayon::prelude::*;
 use std::sync::Arc;
-
-const WB_HL_RECON_LO: f32 = 0.98;
-const WB_HL_RECON_HI: f32 = 1.0;
 
 #[derive(Clone, Debug)]
 pub enum CpuFusedOp {
@@ -94,18 +92,37 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             coeffs,
             reconstruct,
         } => {
-            let pre_max = r.max(*g).max(*b);
-            *r *= coeffs[0];
-            *g *= coeffs[1];
-            *b *= coeffs[2];
-            if *reconstruct && pre_max > WB_HL_RECON_LO {
-                let t = ((pre_max - WB_HL_RECON_LO) / (WB_HL_RECON_HI - WB_HL_RECON_LO))
-                    .clamp(0.0, 1.0);
-                let target = r.max(*g).max(*b);
-                *r += (target - *r) * t;
-                *g += (target - *g) * t;
-                *b += (target - *b) * t;
+            let pr = *r;
+            let pg = *g;
+            let pb = *b;
+            let mut wr = pr * coeffs[0];
+            let mut wg = pg * coeffs[1];
+            let mut wb = pb * coeffs[2];
+            if *reconstruct {
+                let cr = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pr);
+                let cg = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pg);
+                let cb = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pb);
+                if cr.max(cg).max(cb) > 0.0 {
+                    let ur = 1.0 - cr;
+                    let ug = 1.0 - cg;
+                    let ub = 1.0 - cb;
+                    let wmax = wr.max(wg).max(wb);
+                    let target = (ur * wr + ug * wg + ub * wb + HL_RECONSTRUCT_BIAS * wmax)
+                        / (ur + ug + ub + HL_RECONSTRUCT_BIAS);
+                    if wr < target {
+                        wr += (target - wr) * cr;
+                    }
+                    if wg < target {
+                        wg += (target - wg) * cg;
+                    }
+                    if wb < target {
+                        wb += (target - wb) * cb;
+                    }
+                }
             }
+            *r = wr;
+            *g = wg;
+            *b = wb;
         }
         CpuFusedOp::ColorMatrix { m } => {
             let nr = m[0][0] * *r + m[0][1] * *g + m[0][2] * *b;
@@ -426,6 +443,81 @@ mod tests {
             .is_some()
         {
             panic!("expected None when not raw");
+        }
+    }
+
+    fn wb(r: f32, g: f32, b: f32) -> [f32; 3] {
+        let op = super::CpuFusedOp::WhiteBalance {
+            coeffs: [2.0, 1.0, 1.5],
+            reconstruct: true,
+        };
+        let mut rr = r;
+        let mut gg = g;
+        let mut bb = b;
+        super::apply_one(&op, 0, &mut rr, &mut gg, &mut bb);
+        [rr, gg, bb]
+    }
+
+    #[test]
+    fn wb_keeps_unclipped_blue_blue() {
+        let out = wb(0.2, 0.4, 0.8);
+        if (out[0] - 0.4).abs() > 1e-5 || (out[1] - 0.4).abs() > 1e-5 || (out[2] - 1.2).abs() > 1e-5
+        {
+            panic!("unclipped pixel should be plain WB multiply, got {out:?}");
+        }
+        if !(out[2] > out[1] && out[1] >= out[0]) {
+            panic!("blue should remain dominant: {out:?}");
+        }
+    }
+
+    #[test]
+    fn wb_deep_blue_below_knee_is_untouched() {
+        let out = wb(0.221, 0.711, 0.564);
+        let plain = [0.442f32, 0.711, 0.846];
+        for c in 0..3 {
+            if (out[c] - plain[c]).abs() > 1e-4 {
+                panic!("deep blue (max green 0.71 < knee) must be plain WB multiply, got {out:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn wb_green_clipped_reduces_magenta() {
+        let pre = [0.546f32, 1.034, 0.948];
+        let coeffs = [2.0f32, 1.0, 1.5];
+        let plain = [pre[0] * coeffs[0], pre[1] * coeffs[1], pre[2] * coeffs[2]];
+        let plain_deficit = (plain[0] + plain[2]) * 0.5 - plain[1];
+        let out = wb(pre[0], pre[1], pre[2]);
+        let out_deficit = (out[0] + out[2]) * 0.5 - out[1];
+        if out_deficit >= plain_deficit - 1e-4 {
+            panic!("green-clip reconstruction must lift green to cut magenta, got {out:?}");
+        }
+        if out[1] < plain[1] - 1e-4 {
+            panic!("reconstruction must not lower the clipped green channel, got {out:?}");
+        }
+    }
+
+    #[test]
+    fn wb_saturated_color_max_channel_stays_dominant() {
+        let out = wb(0.3, 0.3, 0.99);
+        if !(out[2] > out[0] && out[2] > out[1]) {
+            panic!("a pixel whose own max channel is clipped must stay that color, got {out:?}");
+        }
+    }
+
+    #[test]
+    fn wb_reconstruction_never_pushes_below_plain() {
+        let out = wb(1.0, 1.0, 1.0);
+        let plain = [2.0f32, 1.0, 1.5];
+        let plain_min = plain[0].min(plain[1]).min(plain[2]);
+        let out_min = out[0].min(out[1]).min(out[2]);
+        if out_min < plain_min - 1e-4 {
+            panic!(
+                "reconstruction toward wmax must never push a channel below plain WB, got {out:?}"
+            );
+        }
+        if (out[0] - out[1]).abs() > 1e-4 || (out[1] - out[2]).abs() > 1e-4 {
+            panic!("fully clipped neutral should be neutral after reconstruction, got {out:?}");
         }
     }
 }

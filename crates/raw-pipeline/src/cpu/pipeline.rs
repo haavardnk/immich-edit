@@ -377,6 +377,24 @@ fn bins_to_histogram(bins: HistBins) -> Histogram {
     }
 }
 
+#[inline(always)]
+fn dither_hash(x: u32, y: u32, c: u32) -> f32 {
+    let mut h =
+        x.wrapping_mul(0x8da6_b343) ^ y.wrapping_mul(0xd816_3841) ^ c.wrapping_mul(0xcb1a_b31f);
+    h ^= h >> 16;
+    h = h.wrapping_mul(0x7feb_352d);
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x846c_a68b);
+    h ^= h >> 16;
+    h as f32 / u32::MAX as f32
+}
+
+#[inline(always)]
+fn quantize_u8_dithered(v: f32, x: u32, y: u32, c: u32) -> u8 {
+    let tpdf = dither_hash(x, y, c * 2) - dither_hash(x, y, c * 2 + 1);
+    ((v.clamp(0.0, 1.0) * 255.0 + tpdf).round()).clamp(0.0, 255.0) as u8
+}
+
 fn finish_output(
     linear: Vec<f32>,
     w: usize,
@@ -416,9 +434,11 @@ fn finish_output(
     let (lin_bins, dis_bins) = if want_16bit {
         linear
             .par_chunks(chunk)
+            .enumerate()
             .zip(rgb_u8.par_chunks_mut(chunk))
             .zip(rgb_u16.par_chunks_mut(chunk))
-            .fold(zero, |mut acc, ((s, u8c), u16c)| {
+            .fold(zero, |mut acc, (((ci, s), u8c), u16c)| {
+                let base_px = ci * chunk_px;
                 let mut i = 0;
                 let mut p = 0usize;
                 while i + 2 < s.len() {
@@ -426,9 +446,12 @@ fn finish_output(
                     let lg = s[i + 1];
                     let lb = s[i + 2];
                     let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
-                    let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
-                    let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
-                    let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;
+                    let abs_px = base_px + p;
+                    let px = (abs_px % w) as u32;
+                    let py = (abs_px / w) as u32;
+                    let ru = quantize_u8_dithered(tr, px, py, 0);
+                    let gu = quantize_u8_dithered(tg, px, py, 1);
+                    let bu = quantize_u8_dithered(tb, px, py, 2);
                     u8c[i] = ru;
                     u8c[i + 1] = gu;
                     u8c[i + 2] = bu;
@@ -448,8 +471,10 @@ fn finish_output(
     } else {
         linear
             .par_chunks(chunk)
+            .enumerate()
             .zip(rgb_u8.par_chunks_mut(chunk))
-            .fold(zero, |mut acc, (s, u8c)| {
+            .fold(zero, |mut acc, ((ci, s), u8c)| {
+                let base_px = ci * chunk_px;
                 let mut i = 0;
                 let mut p = 0usize;
                 while i + 2 < s.len() {
@@ -457,9 +482,12 @@ fn finish_output(
                     let lg = s[i + 1];
                     let lb = s[i + 2];
                     let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
-                    let ru = (tr.clamp(0.0, 1.0) * 255.0) as u8;
-                    let gu = (tg.clamp(0.0, 1.0) * 255.0) as u8;
-                    let bu = (tb.clamp(0.0, 1.0) * 255.0) as u8;
+                    let abs_px = base_px + p;
+                    let px = (abs_px % w) as u32;
+                    let py = (abs_px / w) as u32;
+                    let ru = quantize_u8_dithered(tr, px, py, 0);
+                    let gu = quantize_u8_dithered(tg, px, py, 1);
+                    let bu = quantize_u8_dithered(tb, px, py, 2);
                     u8c[i] = ru;
                     u8c[i + 1] = gu;
                     u8c[i + 2] = bu;
@@ -493,9 +521,13 @@ mod tests {
         if default_tone(0.0).abs() > 1e-4 {
             panic!("expected 0 at 0");
         }
+        let ceil = default_tone(crate::tone::shared::RAW_LINEAR_CEILING);
+        if !(0.98..=1.0).contains(&ceil) {
+            panic!("expected ~1 at ceiling, got {ceil}");
+        }
         let one = default_tone(1.0);
-        if !(0.97..=1.0).contains(&one) {
-            panic!("expected ~1 at 1, got {one}");
+        if !(0.85..1.0).contains(&one) {
+            panic!("expected high-but-below-white at 1.0, got {one}");
         }
     }
 
@@ -583,6 +615,52 @@ mod tests {
         }
         if max_diff > 16 {
             panic!("u16 quantization differs by {max_diff}");
+        }
+    }
+
+    #[test]
+    fn dither_is_deterministic_per_pixel() {
+        let a = quantize_u8_dithered(0.5, 12, 7, 1);
+        let b = quantize_u8_dithered(0.5, 12, 7, 1);
+        if a != b {
+            panic!("dither must be deterministic for identical coords, got {a} vs {b}");
+        }
+    }
+
+    #[test]
+    fn dither_stays_within_one_lsb() {
+        let v = 100.0 / 255.0;
+        let base = (v * 255.0f32).round() as i32;
+        let mut x = 0u32;
+        while x < 64 {
+            let q = quantize_u8_dithered(v, x, 0, 0) as i32;
+            if (q - base).abs() > 1 {
+                panic!("dither perturbation exceeds 1 LSB at x={x}: {q} vs {base}");
+            }
+            x += 1;
+        }
+    }
+
+    #[test]
+    fn dither_breaks_bands_on_subtle_gradient() {
+        let lo = 100.4 / 255.0;
+        let hi = 100.6 / 255.0;
+        let mut seen_lo = false;
+        let mut seen_hi = false;
+        let mut x = 0u32;
+        while x < 256 {
+            let v = lo + (hi - lo) * (x as f32 / 255.0);
+            let q = quantize_u8_dithered(v, x, 3, 2);
+            if q == 100 {
+                seen_lo = true;
+            }
+            if q == 101 {
+                seen_hi = true;
+            }
+            x += 1;
+        }
+        if !(seen_lo && seen_hi) {
+            panic!("dither should distribute a sub-LSB gradient across both bins");
         }
     }
 }

@@ -36,6 +36,7 @@ impl FusedOp for ColorMatrixOp {
                 "  let m0 = p.color_matrix[0];\n",
                 "  let m1 = p.color_matrix[1];\n",
                 "  let m2 = p.color_matrix[2];\n",
+                "  if (m0.w < 0.5) { return c; }\n",
                 "  return vec3<f32>(\n",
                 "    m0.x * c.r + m0.y * c.g + m0.z * c.b,\n",
                 "    m1.x * c.r + m1.y * c.g + m1.z * c.b,\n",
@@ -57,5 +58,6 @@ impl FusedOp for ColorMatrixOp {
             dst[off + 2] = row[2];
             dst[off + 3] = 0.0;
         }
+        dst[3] = if ctx.render.is_raw { 1.0 } else { 0.0 };
     }
 }

@@ -216,7 +216,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let outc_lin = process_color(rgb);
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
     let outc = tone_apply_rgb(outc_lin, p.output.x);
-    textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc, 1.0));
+    let outc_d = tone_dither_u8(outc, gid.x, gid.y);
+    textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_d, 1.0));
 }}
 "#
     );

@@ -108,5 +108,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
     let outc = tone_apply_rgb(lin, p.output.x);
-    textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc, 1.0));
+    let outc_d = tone_dither_u8(outc, gid.x, gid.y);
+    textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, 1.0));
 }
