@@ -159,6 +159,29 @@ pub fn scale_matrix(m: [[f32; 3]; 3], gain: f32) -> [[f32; 3]; 3] {
     ]
 }
 
+fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
+    let wb = camera_wb_coeffs(frame.wb_coeffs);
+    let xyz_to_cam =
+        crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
+    if !frame.is_raw || crate::color::is_unusable_matrix(&xyz_to_cam) {
+        return (wb, crate::color::identity_3x3());
+    }
+    let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
+    let gain = raw_baseline_gain(frame, m);
+    (wb, scale_matrix(m, gain))
+}
+
+fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {
+    let r = (raw[0] * wb[0]).max(0.0);
+    let g = (raw[1] * wb[1]).max(0.0);
+    let b = (raw[2] * wb[2]).max(0.0);
+    [
+        (m[0][0] * r + m[0][1] * g + m[0][2] * b).max(0.0),
+        (m[1][0] * r + m[1][1] * g + m[1][2] * b).max(0.0),
+        (m[2][0] * r + m[2][1] * g + m[2][2] * b).max(0.0),
+    ]
+}
+
 fn develop_luma(r: f32, g: f32, b: f32, output: OutputEdits) -> f32 {
     crate::tone::apply_display_luma([r, g, b], output)
 }
@@ -189,23 +212,6 @@ fn hist_fraction_above(hist: &[u32; HIST_BINS], total: u32, threshold: usize) ->
 fn hist_fraction_below(hist: &[u32; HIST_BINS], total: u32, threshold: usize) -> f64 {
     let sum: u32 = hist[..=threshold.min(HIST_BINS - 1)].iter().sum();
     sum as f64 / total.max(1) as f64
-}
-
-fn wb_scale(frame: &RawFrame) -> [f32; 3] {
-    let wb = frame.wb_coeffs;
-    let g = wb[1].max(1e-6);
-    let raw_scale = [wb[0] / g, 1.0, wb[2] / g];
-    let max_scale = raw_scale[0].max(raw_scale[1]).max(raw_scale[2]);
-    let norm = if max_scale > 1.0 {
-        1.0 / max_scale
-    } else {
-        1.0
-    };
-    [
-        raw_scale[0] * norm,
-        raw_scale[1] * norm,
-        raw_scale[2] * norm,
-    ]
 }
 
 fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f32; 3]> {
@@ -333,7 +339,7 @@ fn collect_stats_direct(frame: &RawFrame, output: OutputEdits) -> Option<Stats> 
         return None;
     }
     let step = (pixel_count / SAMPLE_TARGET).max(1);
-    let scale = wb_scale(frame);
+    let (wb, m) = display_color(frame);
 
     let mut hist = [0u32; HIST_BINS];
     let mut sat_sum: f64 = 0.0;
@@ -343,17 +349,12 @@ fn collect_stats_direct(frame: &RawFrame, output: OutputEdits) -> Option<Stats> 
     let mut i = 0;
     while i < pixel_count {
         let off = i * frame.cpp;
-        let r = (frame.data[off] * scale[0]).max(0.0);
-        let gv = (frame.data[off + 1] * scale[1]).max(0.0);
-        let b = (frame.data[off + 2] * scale[2]).max(0.0);
-        add_sample(
-            &mut hist,
-            &mut total,
-            &mut sat_sum,
-            &mut sat_n,
-            [r, gv, b],
-            output,
+        let rgb = display_rgb(
+            [frame.data[off], frame.data[off + 1], frame.data[off + 2]],
+            wb,
+            m,
         );
+        add_sample(&mut hist, &mut total, &mut sat_sum, &mut sat_n, rgb, output);
         i += step;
     }
 
@@ -367,7 +368,7 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
     if w == 0 || h == 0 || frame.cpp < 3 {
         return None;
     }
-    let scale = wb_scale(frame);
+    let (wb, m) = display_color(frame);
 
     let (orient_t, _, _) = frame.orientation;
     let (oriented_w, oriented_h) = if orient_t { (h, w) } else { (w, h) };
@@ -425,18 +426,16 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
             i += step;
             continue;
         };
-        let mut r = (rgb[0] * scale[0]).max(0.0);
-        let mut gv = (rgb[1] * scale[1]).max(0.0);
-        let mut b = (rgb[2] * scale[2]).max(0.0);
+        let mut cam = [rgb[0].max(0.0), rgb[1].max(0.0), rgb[2].max(0.0)];
 
         if vignette_on {
             let dx = px + 0.5 - cx;
             let dy = py + 0.5 - cy;
             let r_norm = (dx * dx + dy * dy).sqrt() * inv_diag;
             let gain = vignette_correction(vk1, vk2, vk3, vig_amount, r_norm).clamp(0.0, 2.5);
-            r *= gain;
-            gv *= gain;
-            b *= gain;
+            cam[0] *= gain;
+            cam[1] *= gain;
+            cam[2] *= gain;
         }
 
         add_sample(
@@ -444,7 +443,7 @@ fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
             &mut total,
             &mut sat_sum,
             &mut sat_n,
-            [r, gv, b],
+            display_rgb(cam, wb, m),
             output,
         );
         i += step;
@@ -600,6 +599,28 @@ mod tests {
             panic!(
                 "expected small exposure for well-exposed image, got {}",
                 e.basic.exposure_ev
+            );
+        }
+    }
+
+    #[test]
+    fn raw_baseline_gain_accounted_for_in_stats() {
+        let luma = 0.32;
+        let mut raw = make_frame_luma(luma, 64, 64);
+        raw.is_raw = true;
+        raw.xyz_to_cam = [
+            [0.95, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.08],
+            [0.0, 0.0, 0.0],
+        ];
+        let non_raw = make_frame_luma(luma, 64, 64);
+        let e_raw = auto_adjust(&raw, &Edits::default());
+        let e_non = auto_adjust(&non_raw, &Edits::default());
+        if e_raw.basic.exposure_ev >= e_non.basic.exposure_ev {
+            panic!(
+                "baseline gain should lower suggested exposure: raw={} non_raw={}",
+                e_raw.basic.exposure_ev, e_non.basic.exposure_ev
             );
         }
     }
