@@ -44,7 +44,9 @@ pub fn render_with_cancel(
     let xyz_to_cam =
         crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
     let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
-        crate::color::cam_to_srgb_matrix(xyz_to_cam)
+        let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
+        let gain = crate::auto::raw_baseline_gain(frame, m);
+        crate::auto::scale_matrix(m, gain)
     } else {
         crate::color::identity_3x3()
     };

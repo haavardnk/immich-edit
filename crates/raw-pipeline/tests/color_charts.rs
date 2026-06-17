@@ -104,7 +104,7 @@ fn srgb_to_linear(c: u8) -> f64 {
     }
 }
 
-fn rgb_to_lab(c: [u8; 3]) -> [f64; 3] {
+fn lin_rgb_to_lab(lin: [f64; 3]) -> [f64; 3] {
     let xn = 0.95047;
     let yn = 1.0;
     let zn = 1.08883;
@@ -116,9 +116,9 @@ fn rgb_to_lab(c: [u8; 3]) -> [f64; 3] {
             t / (3.0 * d * d) + 4.0 / 29.0
         }
     };
-    let r = srgb_to_linear(c[0]);
-    let g = srgb_to_linear(c[1]);
-    let b = srgb_to_linear(c[2]);
+    let r = lin[0];
+    let g = lin[1];
+    let b = lin[2];
     let x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
     let y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
     let z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
@@ -215,16 +215,39 @@ fn color_chart_delta_e_against_xrite() {
             turbojpeg::decompress(&out.bytes, turbojpeg::PixelFormat::RGB).unwrap();
         let rgb = img.pixels;
         let (w, h) = (img.width, img.height);
-        let mut des: Vec<f64> = Vec::with_capacity(24);
+        let mut sampled_lin: Vec<[f64; 3]> = Vec::with_capacity(24);
+        let mut ref_lin: Vec<[f64; 3]> = Vec::with_capacity(24);
         for row in 0..4 {
             for col in 0..6 {
                 let (cx, cy) = patch_center(chart.corners, col, row);
                 let sampled = sample_patch(&rgb, w, h, cx, cy);
                 let idx = row * 6 + col;
-                let lab_s = rgb_to_lab(sampled);
-                let lab_r = rgb_to_lab(XRITE_SRGB[idx]);
-                des.push(delta_e_2000(lab_s, lab_r));
+                let r = XRITE_SRGB[idx];
+                sampled_lin.push([
+                    srgb_to_linear(sampled[0]),
+                    srgb_to_linear(sampled[1]),
+                    srgb_to_linear(sampled[2]),
+                ]);
+                ref_lin.push([
+                    srgb_to_linear(r[0]),
+                    srgb_to_linear(r[1]),
+                    srgb_to_linear(r[2]),
+                ]);
             }
+        }
+        let mut num = 0.0f64;
+        let mut den = 0.0f64;
+        for (s, r) in sampled_lin.iter().zip(&ref_lin) {
+            for ch in 0..3 {
+                num += s[ch] * r[ch];
+                den += s[ch] * s[ch];
+            }
+        }
+        let scale = if den > 0.0 { num / den } else { 1.0 };
+        let mut des: Vec<f64> = Vec::with_capacity(24);
+        for (s, r) in sampled_lin.iter().zip(&ref_lin) {
+            let scaled = [s[0] * scale, s[1] * scale, s[2] * scale];
+            des.push(delta_e_2000(lin_rgb_to_lab(scaled), lin_rgb_to_lab(*r)));
         }
         let mean = des.iter().sum::<f64>() / des.len() as f64;
         let mut sorted = des.clone();
