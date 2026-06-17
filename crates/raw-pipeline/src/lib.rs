@@ -46,5 +46,6 @@ pub use frame::{
 };
 pub use gpu::GpuPoolStats;
 pub use gpu::GpuRenderer;
+pub use gpu::GpuRendererOptions;
 pub use gpu::context::GpuContext;
 pub use mask_raster::{MaskRaster, RasterMap, empty_rasters};

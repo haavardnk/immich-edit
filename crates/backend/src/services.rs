@@ -9,6 +9,7 @@ pub mod job_store;
 pub mod paste_edits;
 pub mod preview_meta;
 pub mod raster_store;
+pub mod raw_frame_cache;
 pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;

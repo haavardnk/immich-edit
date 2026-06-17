@@ -7,16 +7,25 @@ use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use raw_pipeline::{GpuRenderer, PipelineError, RenderedImage};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError, RenderedImage};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
+use crate::services::raw_frame_cache::RawFrameCache;
 use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 
 const GPU_REBUILD_MIN_INTERVAL: Duration = Duration::from_secs(30);
+const MB: u64 = 1024 * 1024;
+
+#[derive(Debug, Clone, Copy)]
+pub struct RenderCacheOptions {
+    pub raw_frame_cache_mb: u64,
+    pub quality_frame_cache_mb: u64,
+    pub gpu_texture_cache_mb: u64,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
@@ -29,10 +38,11 @@ pub enum RenderError {
 #[derive(Clone)]
 pub struct RenderService {
     immich: ImmichClient,
-    frames: Arc<Mutex<lru::LruCache<Uuid, Arc<RawFrame>>>>,
-    quality_frames: Arc<Mutex<lru::LruCache<Uuid, Arc<RawFrame>>>>,
+    frames: Arc<Mutex<RawFrameCache>>,
+    quality_frames: Arc<Mutex<RawFrameCache>>,
     gpu: Arc<RwLock<Option<Arc<GpuRenderer>>>>,
     gpu_mode: RendererMode,
+    gpu_texture_cache_bytes: u64,
     active: Arc<RwLock<ActiveRenderer>>,
     gpu_label: Arc<RwLock<Option<String>>>,
     last_rebuild: Arc<RwLock<Option<Instant>>>,
@@ -58,19 +68,23 @@ impl ActiveRenderer {
 impl RenderService {
     pub fn new(
         immich: ImmichClient,
-        max_items: usize,
+        cache: RenderCacheOptions,
         mode: RendererMode,
         rasters: RasterStore,
     ) -> Self {
-        let cap = std::num::NonZeroUsize::new(max_items.max(1)).unwrap();
-        let quality_cap = std::num::NonZeroUsize::new(2).unwrap();
-        let (gpu, active, gpu_label) = init_gpu(mode);
+        let gpu_texture_cache_bytes = cache.gpu_texture_cache_mb.saturating_mul(MB);
+        let (gpu, active, gpu_label) = init_gpu(mode, gpu_texture_cache_bytes);
         Self {
             immich,
-            frames: Arc::new(Mutex::new(lru::LruCache::new(cap))),
-            quality_frames: Arc::new(Mutex::new(lru::LruCache::new(quality_cap))),
+            frames: Arc::new(Mutex::new(RawFrameCache::new(
+                cache.raw_frame_cache_mb.saturating_mul(MB),
+            ))),
+            quality_frames: Arc::new(Mutex::new(RawFrameCache::new(
+                cache.quality_frame_cache_mb.saturating_mul(MB),
+            ))),
             gpu: Arc::new(RwLock::new(gpu)),
             gpu_mode: mode,
+            gpu_texture_cache_bytes,
             active: Arc::new(RwLock::new(active)),
             gpu_label: Arc::new(RwLock::new(gpu_label)),
             last_rebuild: Arc::new(RwLock::new(None)),
@@ -96,7 +110,7 @@ impl RenderService {
     }
 
     pub async fn frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
-        if let Some(f) = self.frames.lock().await.get(&asset_id).cloned() {
+        if let Some(f) = self.frames.lock().await.get(&asset_id) {
             return Ok(f);
         }
         let bytes = self.immich.original(asset_id).await?;
@@ -107,7 +121,7 @@ impl RenderService {
     }
 
     pub async fn quality_frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
-        if let Some(f) = self.quality_frames.lock().await.get(&asset_id).cloned() {
+        if let Some(f) = self.quality_frames.lock().await.get(&asset_id) {
             return Ok(f);
         }
         let bytes = self.immich.original(asset_id).await?;
@@ -200,7 +214,9 @@ impl RenderService {
         }
         *last = Some(now);
         drop(last);
-        match GpuRenderer::new() {
+        match GpuRenderer::with_options(GpuRendererOptions {
+            texture_pool_max_bytes: self.gpu_texture_cache_bytes,
+        }) {
             Ok(r) => {
                 let label = r.adapter_label();
                 tracing::info!(adapter = %label, "gpu renderer rebuilt after device loss");
@@ -244,11 +260,16 @@ impl RenderService {
     }
 }
 
-fn init_gpu(mode: RendererMode) -> (Option<Arc<GpuRenderer>>, ActiveRenderer, Option<String>) {
+fn init_gpu(
+    mode: RendererMode,
+    texture_pool_max_bytes: u64,
+) -> (Option<Arc<GpuRenderer>>, ActiveRenderer, Option<String>) {
     if matches!(mode, RendererMode::Cpu) {
         return (None, ActiveRenderer::Cpu, None);
     }
-    match GpuRenderer::new() {
+    match GpuRenderer::with_options(GpuRendererOptions {
+        texture_pool_max_bytes,
+    }) {
         Ok(r) => {
             let label = r.adapter_label();
             tracing::info!(adapter = %label, "gpu renderer initialized");

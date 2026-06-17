@@ -125,9 +125,27 @@ const ATLAS_CACHE_ITEMS: usize = 32;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
 const TARGET_POOL_CAP: usize = 2;
+const DEFAULT_TEXTURE_POOL_MAX_BYTES: u64 = 512 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy)]
+pub struct GpuRendererOptions {
+    pub texture_pool_max_bytes: u64,
+}
+
+impl Default for GpuRendererOptions {
+    fn default() -> Self {
+        Self {
+            texture_pool_max_bytes: DEFAULT_TEXTURE_POOL_MAX_BYTES,
+        }
+    }
+}
 
 impl GpuRenderer {
     pub fn new() -> PipelineResult<Self> {
+        Self::with_options(GpuRendererOptions::default())
+    }
+
+    pub fn with_options(options: GpuRendererOptions) -> PipelineResult<Self> {
         let ctx = GpuContext::new()?;
         let passes = Arc::new(GpuPasses::new(&ctx));
         Ok(Self {
@@ -148,7 +166,10 @@ impl GpuRenderer {
             atlas_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATLAS_CACHE_ITEMS).expect("nonzero"),
             )),
-            texture_pool: TexturePool::new(TEXTURE_POOL_CAP_PER_KEY),
+            texture_pool: TexturePool::new(
+                TEXTURE_POOL_CAP_PER_KEY,
+                options.texture_pool_max_bytes,
+            ),
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
             output_pool: Mutex::new(Vec::new()),
             sharpen_pool: Mutex::new(Vec::new()),

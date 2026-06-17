@@ -10,6 +10,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { isRejected } from '$lib/reject';
+  import { putBounded } from '$lib/utils/boundedRecord';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import TagPicker from '$lib/components/TagPicker.svelte';
@@ -50,18 +51,21 @@
   const previewSrc = $derived(currentId ? persistedPreviewUrl(currentId, MAX_EDGE) : '');
 
   let tagCache = $state<Record<string, TagRef[]>>({});
+  let tagOrder = $state<string[]>([]);
   const currentTags = $derived(currentId ? (tagCache[currentId] ?? []) : []);
 
   $effect(() => {
     const id = currentId;
     if (!id || tagCache[id]) return;
     void getAsset(id)
-      .then((a) => (tagCache = { ...tagCache, [id]: a.tags }))
+      .then((a) => setTags(id, a.tags))
       .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
   });
 
   function setTags(id: string, tags: TagRef[]): void {
-    tagCache = { ...tagCache, [id]: tags };
+    const next = putBounded(tagCache, tagOrder, id, tags, 50);
+    tagCache = next.record;
+    tagOrder = next.order;
   }
 
   async function addTag(tag: TagRef): Promise<void> {

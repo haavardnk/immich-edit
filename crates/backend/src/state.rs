@@ -8,7 +8,7 @@ use crate::services::edits_store::EditsStore;
 use crate::services::job_store::JobStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
-use crate::services::render::RenderService;
+use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
 
 #[derive(Clone)]
@@ -44,7 +44,16 @@ impl AppState {
         let jobs = JobStore::new(edits.pool());
         let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
-        let render = RenderService::new(immich.clone(), 8, config.renderer, rasters.clone());
+        let render = RenderService::new(
+            immich.clone(),
+            RenderCacheOptions {
+                raw_frame_cache_mb: config.raw_frame_cache_mb,
+                quality_frame_cache_mb: config.quality_frame_cache_mb,
+                gpu_texture_cache_mb: config.gpu_texture_cache_mb,
+            },
+            config.renderer,
+            rasters.clone(),
+        );
         let queue = RenderQueue::new(config.render_max_concurrency);
         let edited_thumb =
             EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)

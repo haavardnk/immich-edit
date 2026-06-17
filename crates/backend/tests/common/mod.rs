@@ -9,7 +9,7 @@ use immich_edit_backend::services::edits_store::EditsStore;
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
-use immich_edit_backend::services::render::RenderService;
+use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
@@ -31,6 +31,9 @@ pub async fn test_state(server: &MockServer) -> AppState {
         preview_max_edge: 1024,
         render_max_concurrency: 1,
         mask_cache_mb: 1024,
+        raw_frame_cache_mb: 256,
+        quality_frame_cache_mb: 256,
+        gpu_texture_cache_mb: 256,
         renderer: RendererMode::Cpu,
         database_url: "sqlite::memory:".into(),
         auth_token: None,
@@ -49,7 +52,16 @@ pub async fn test_state(server: &MockServer) -> AppState {
         immich: immich.clone(),
         edits,
         jobs,
-        render: RenderService::new(immich, 4, RendererMode::Cpu, rasters.clone()),
+        render: RenderService::new(
+            immich,
+            RenderCacheOptions {
+                raw_frame_cache_mb: 256,
+                quality_frame_cache_mb: 256,
+                gpu_texture_cache_mb: 256,
+            },
+            RendererMode::Cpu,
+            rasters.clone(),
+        ),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -33,16 +34,28 @@ impl TextureKey {
     }
 }
 
+struct FreePool {
+    by_key: HashMap<TextureKey, Vec<Arc<Texture>>>,
+    lru: VecDeque<TextureKey>,
+    retained_bytes: u64,
+}
+
 pub struct TexturePool {
-    free: Mutex<HashMap<TextureKey, Vec<Arc<Texture>>>>,
+    free: Mutex<FreePool>,
     cap_per_key: usize,
+    max_bytes: u64,
 }
 
 impl TexturePool {
-    pub fn new(cap_per_key: usize) -> Arc<Self> {
+    pub fn new(cap_per_key: usize, max_bytes: u64) -> Arc<Self> {
         Arc::new(Self {
-            free: Mutex::new(HashMap::new()),
+            free: Mutex::new(FreePool {
+                by_key: HashMap::new(),
+                lru: VecDeque::new(),
+                retained_bytes: 0,
+            }),
             cap_per_key,
+            max_bytes,
         })
     }
 
@@ -54,7 +67,14 @@ impl TexturePool {
     ) -> PooledTexture {
         let from_pool = {
             let mut g = self.free.lock();
-            g.get_mut(&key).and_then(|v| v.pop())
+            let popped = g.by_key.get_mut(&key).and_then(|v| v.pop());
+            if popped.is_some() {
+                if let Some(pos) = g.lru.iter().position(|k| *k == key) {
+                    g.lru.remove(pos);
+                }
+                g.retained_bytes = g.retained_bytes.saturating_sub(texture_bytes(&key));
+            }
+            popped
         };
         let tex = from_pool.unwrap_or_else(|| {
             Arc::new(device.create_texture(&TextureDescriptor {
@@ -80,18 +100,34 @@ impl TexturePool {
     }
 
     fn release(&self, key: TextureKey, tex: Arc<Texture>) {
+        let tex_bytes = texture_bytes(&key);
         let mut g = self.free.lock();
-        let v = g.entry(key).or_default();
-        if v.len() < self.cap_per_key {
-            v.push(tex);
+        if g.by_key.get(&key).map(Vec::len).unwrap_or(0) >= self.cap_per_key {
+            return;
         }
+        if tex_bytes > self.max_bytes {
+            return;
+        }
+        while g.retained_bytes + tex_bytes > self.max_bytes {
+            let Some(victim) = g.lru.pop_front() else {
+                break;
+            };
+            if let Some(v) = g.by_key.get_mut(&victim)
+                && v.pop().is_some()
+            {
+                g.retained_bytes = g.retained_bytes.saturating_sub(texture_bytes(&victim));
+            }
+        }
+        if g.retained_bytes + tex_bytes > self.max_bytes {
+            return;
+        }
+        g.by_key.entry(key).or_default().push(tex);
+        g.lru.push_back(key);
+        g.retained_bytes += tex_bytes;
     }
 
     pub fn bytes(&self) -> u64 {
-        let g = self.free.lock();
-        g.iter()
-            .map(|(k, v)| texture_bytes(k) * v.len() as u64)
-            .sum()
+        self.free.lock().retained_bytes
     }
 }
 

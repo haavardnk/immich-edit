@@ -49,6 +49,9 @@ pub struct Config {
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
+    pub raw_frame_cache_mb: u64,
+    pub quality_frame_cache_mb: u64,
+    pub gpu_texture_cache_mb: u64,
     pub renderer: RendererMode,
     pub database_url: String,
     pub auth_token: Option<String>,
@@ -69,6 +72,9 @@ struct FileConfig {
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
     mask_cache_mb: Option<u64>,
+    raw_frame_cache_mb: Option<u64>,
+    quality_frame_cache_mb: Option<u64>,
+    gpu_texture_cache_mb: Option<u64>,
     renderer: Option<String>,
     database_url: Option<String>,
     auth_token: Option<String>,
@@ -173,6 +179,35 @@ impl Config {
             });
         }
 
+        let raw_frame_cache_mb = parse_or("RAW_FRAME_CACHE_MB", file.raw_frame_cache_mb, 1024u64)?;
+        if !(64..=16384).contains(&raw_frame_cache_mb) {
+            return Err(ConfigError::InvalidValue {
+                key: "RAW_FRAME_CACHE_MB".into(),
+                value: raw_frame_cache_mb.to_string(),
+            });
+        }
+
+        let quality_frame_cache_mb = parse_or(
+            "QUALITY_FRAME_CACHE_MB",
+            file.quality_frame_cache_mb,
+            512u64,
+        )?;
+        if !(64..=16384).contains(&quality_frame_cache_mb) {
+            return Err(ConfigError::InvalidValue {
+                key: "QUALITY_FRAME_CACHE_MB".into(),
+                value: quality_frame_cache_mb.to_string(),
+            });
+        }
+
+        let gpu_texture_cache_mb =
+            parse_or("GPU_TEXTURE_CACHE_MB", file.gpu_texture_cache_mb, 512u64)?;
+        if !(64..=16384).contains(&gpu_texture_cache_mb) {
+            return Err(ConfigError::InvalidValue {
+                key: "GPU_TEXTURE_CACHE_MB".into(),
+                value: gpu_texture_cache_mb.to_string(),
+            });
+        }
+
         let renderer = match pick("IMMICH_EDIT_RENDERER", file.renderer) {
             Some(s) => s.parse()?,
             None => RendererMode::Auto,
@@ -224,6 +259,9 @@ impl Config {
             preview_max_edge,
             render_max_concurrency,
             mask_cache_mb,
+            raw_frame_cache_mb,
+            quality_frame_cache_mb,
+            gpu_texture_cache_mb,
             renderer,
             database_url,
             auth_token,
@@ -245,6 +283,9 @@ impl Config {
             preview_max_edge: self.preview_max_edge,
             render_max_concurrency: self.render_max_concurrency,
             mask_cache_mb: self.mask_cache_mb,
+            raw_frame_cache_mb: self.raw_frame_cache_mb,
+            quality_frame_cache_mb: self.quality_frame_cache_mb,
+            gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             renderer: self.renderer.as_str(),
             auth_enabled: self.auth_token.is_some(),
             allowed_origins: self.allowed_origins.clone(),
@@ -266,6 +307,9 @@ pub struct RedactedConfig {
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
+    pub raw_frame_cache_mb: u64,
+    pub quality_frame_cache_mb: u64,
+    pub gpu_texture_cache_mb: u64,
     pub renderer: &'static str,
     pub auth_enabled: bool,
     pub allowed_origins: Vec<String>,
@@ -396,7 +440,8 @@ mod tests {
             "CACHE_DIR",
             "PREVIEW_MAX_EDGE",
             "RAW_FRAME_CACHE_MB",
-            "LINEAR_CACHE_MB",
+            "QUALITY_FRAME_CACHE_MB",
+            "GPU_TEXTURE_CACHE_MB",
             "RENDER_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
@@ -433,6 +478,15 @@ mod tests {
         }
         if cfg.preview_max_edge != 4096 {
             panic!("max_edge");
+        }
+        if cfg.raw_frame_cache_mb != 1024 {
+            panic!("raw_frame_cache_mb");
+        }
+        if cfg.quality_frame_cache_mb != 512 {
+            panic!("quality_frame_cache_mb");
+        }
+        if cfg.gpu_texture_cache_mb != 512 {
+            panic!("gpu_texture_cache_mb");
         }
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
