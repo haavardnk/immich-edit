@@ -485,27 +485,28 @@ pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
 
     let highlight_frac = hist_fraction_above(&s.hist, s.total, 240);
     let clipped_frac = hist_fraction_above(&s.hist, s.total, 250);
-    let highlight_guard = p99 > 245 || highlight_frac > 0.02 || clipped_frac > 0.005;
 
     let target_ev = ((128.0 - p50 as f64) * 0.008).clamp(-2.0, 2.0);
-    let exposure_ev = if highlight_guard {
-        target_ev.min(0.0)
+    let ev_headroom = ((252.0 - p99 as f64) / 20.0).max(0.0);
+    let exposure_ev = if target_ev > 0.0 {
+        let cap = if clipped_frac > 0.02 {
+            0.0
+        } else {
+            ev_headroom.max(0.2)
+        };
+        target_ev.min(cap)
     } else {
         target_ev
     };
 
-    let brightness = if target_ev > 0.0 && exposure_ev < target_ev {
-        ((target_ev - exposure_ev) * 70.0).clamp(0.0, 60.0)
-    } else {
-        0.0
-    };
+    let brightness = ((target_ev - exposure_ev) * 45.0).clamp(0.0, 30.0);
 
-    let mut contrast = 0.0f64;
+    let mut contrast = 8.0f64;
     if range < 200.0 {
-        contrast = ((200.0 / range) - 1.0) * 8.0;
+        contrast += ((200.0 / range) - 1.0) * 8.0;
     }
-    if highlight_frac > 0.02 {
-        contrast *= 0.5;
+    if highlight_frac > 0.05 {
+        contrast *= 0.6;
     }
     contrast = contrast.clamp(-30.0, 30.0);
 
@@ -515,27 +516,41 @@ pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
         shadows = (shadow_frac * 40.0).min(35.0);
     }
 
-    let mut highlights = 0.0f64;
-    if highlight_frac > 0.02 {
-        highlights = -(highlight_frac * 120.0).min(70.0);
-    }
-
     let simulated_p01 = (p01 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
     let simulated_p99 = (p99 as f64 + exposure_ev * 20.0).clamp(0.0, 255.0);
+
+    let mut highlights = 0.0f64;
+    if highlight_frac > 0.01 {
+        highlights = -(highlight_frac * 150.0).min(60.0);
+    }
+    if clipped_frac > 0.005 {
+        highlights -= (clipped_frac * 600.0).min(25.0);
+    }
+    if simulated_p99 > 245.0 {
+        highlights -= (simulated_p99 - 245.0) * 1.2;
+    }
+    highlights = highlights.clamp(-70.0, 0.0);
+
+    let mut clarity = 7.0f64;
+    if highlight_frac > 0.05 {
+        clarity *= 0.5;
+    }
+    if shadow_frac > 0.25 {
+        clarity *= 0.6;
+    }
+    clarity = clarity.clamp(0.0, 12.0);
+
     let blacks = -(simulated_p01 * 0.2).clamp(-15.0, 15.0);
     let whites = ((simulated_p99 - 255.0) * 0.15).clamp(-25.0, 0.0);
 
-    let mut vibrance = 0.0f64;
-    if s.mean_sat < 0.20 {
-        vibrance = (0.20 - s.mean_sat) as f64 * 120.0;
-    }
-    vibrance = vibrance.clamp(0.0, 40.0);
+    let vibrance = (5.0 + (0.34 - s.mean_sat as f64) * 55.0).clamp(3.0, 28.0);
 
     Edits {
         basic: BasicEdits {
             exposure_ev,
             brightness,
             contrast,
+            clarity,
             vibrance,
             ..Default::default()
         },
@@ -674,22 +689,19 @@ mod tests {
     }
 
     #[test]
-    fn brightness_lifts_when_highlights_block_exposure() {
+    fn blown_highlights_trigger_recovery() {
         let f = make_frame_with(64, 64, |x, y| {
             let i = y * 64 + x;
             if i % 8 == 0 { 0.99 } else { 0.06 }
         });
         let e = auto_adjust(&f, &Edits::default());
-        if e.basic.exposure_ev > 0.0 {
-            panic!(
-                "expected exposure clamped at 0, got {}",
-                e.basic.exposure_ev
-            );
+        if e.tone.highlights >= 0.0 {
+            panic!("expected highlight recovery, got {}", e.tone.highlights);
         }
-        if e.basic.brightness <= 0.0 {
+        if e.basic.exposure_ev + e.basic.brightness <= 0.0 {
             panic!(
-                "expected positive brightness suggestion, got {}",
-                e.basic.brightness
+                "expected some lift for dark scene, ev={} bri={}",
+                e.basic.exposure_ev, e.basic.brightness
             );
         }
     }
@@ -759,7 +771,6 @@ mod tests {
             || e.basic.wb_tint != 0.0
             || e.basic.saturation != 0.0
             || e.basic.texture != 0.0
-            || e.basic.clarity != 0.0
             || e.basic.dehaze != 0.0
         {
             panic!("auto set non-owned basic fields: {:?}", e.basic);
