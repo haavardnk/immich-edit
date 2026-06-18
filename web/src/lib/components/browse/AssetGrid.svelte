@@ -33,6 +33,8 @@
   let gridWidth = $state(0);
   let parentHeight = $state(0);
   let viewTop = $state(0);
+  let scrollKey = '';
+  let pendingRestore: number | null = null;
 
   const effectiveActive = $derived(activeId ?? browseView.activeId);
 
@@ -81,11 +83,29 @@
     viewTop = scrollParent.getBoundingClientRect().top - root.getBoundingClientRect().top;
   }
 
+  function saveScroll(): void {
+    if (!scrollParent || !scrollKey || pendingRestore !== null) return;
+    browseView.setGridScroll(scrollKey, scrollParent.scrollTop);
+  }
+
   function onScroll(): void {
     measure();
+    saveScroll();
     if (onLoadMore && !loadingMore && layout.totalHeight - (viewTop + parentHeight) < 400) {
       onLoadMore();
     }
+  }
+
+  function restoreScroll(): void {
+    if (!scrollParent || pendingRestore === null) return;
+    const maxTop = Math.max(0, scrollParent.scrollHeight - scrollParent.clientHeight);
+    if (pendingRestore > maxTop + 1 && onLoadMore && !loadingMore) {
+      onLoadMore();
+      return;
+    }
+    scrollParent.scrollTop = Math.min(pendingRestore, maxTop);
+    pendingRestore = null;
+    measure();
   }
 
   function ensureVisible(id: string): void {
@@ -218,8 +238,12 @@
   onMount(() => {
     selection.clear();
     if (!root) return;
+    scrollKey = `${window.location.pathname}${window.location.search}`;
+    const savedTop = browseView.getGridScroll(scrollKey);
+    pendingRestore = savedTop > 0 ? savedTop : null;
     scrollParent = findScrollParent(root);
     measure();
+    restoreScroll();
     const ro = new ResizeObserver(() => measure());
     ro.observe(root);
     window.addEventListener('keydown', onKeydown);
@@ -237,6 +261,7 @@
   $effect(() => {
     items.length;
     measure();
+    restoreScroll();
   });
 </script>
 

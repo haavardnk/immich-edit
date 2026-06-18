@@ -55,6 +55,7 @@ export interface PreviewRequest {
 }
 
 export interface InstallOpts {
+  assets?: Array<typeof ASSET_SUMMARY>;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
@@ -62,6 +63,8 @@ export interface InstallOpts {
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
+  const assets = opts.assets ?? [ASSET_SUMMARY];
+
   await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -69,32 +72,47 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const method = req.method();
 
     if (p === '/api/search/metadata')
-      return route.fulfill(json({ items: [ASSET_SUMMARY], count: 1, total: 1, nextPage: null }));
-    if (p === '/api/search/statistics') return route.fulfill(json({ total: 1 }));
+      return route.fulfill(
+        json({ items: assets, count: assets.length, total: assets.length, nextPage: null })
+      );
+    if (p === '/api/search/statistics') return route.fulfill(json({ total: assets.length }));
     if (p === '/api/edits') return route.fulfill(json([]));
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));
     if (p === '/api/tags') return route.fulfill(json([]));
     if (p === '/api/people') return route.fulfill(json([]));
 
-    if (p === `/api/assets/${ASSET_ID}`) return route.fulfill(json(ASSET_DETAIL));
-
-    if (p === `/api/assets/${ASSET_ID}/edits`) {
-      if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
-      return route.fulfill(json(NEUTRAL_RECORD));
+    const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);
+    if (assetMatch) {
+      const id = assetMatch[1];
+      const asset = assets.find((a) => a.id === id) ?? ASSET_SUMMARY;
+      return route.fulfill(
+        json({
+          ...ASSET_DETAIL,
+          ...asset,
+          originalMimeType: 'image/x-sony-arw',
+          tags: []
+        })
+      );
     }
 
-    if (p === `/api/assets/${ASSET_ID}/edits/history`) {
+    const editsMatch = p.match(/^\/api\/assets\/([^/]+)\/edits$/);
+    if (editsMatch) {
+      if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
+      return route.fulfill(json({ ...NEUTRAL_RECORD, asset_id: editsMatch[1] }));
+    }
+
+    if (p.match(/^\/api\/assets\/[^/]+\/edits\/history$/)) {
       if (opts.onHistory) return opts.onHistory(route);
       return route.fulfill(json([]));
     }
 
-    if (p === `/api/assets/${ASSET_ID}/edits/restore`) {
+    if (p.match(/^\/api\/assets\/[^/]+\/edits\/restore$/)) {
       if (opts.onRestore) return opts.onRestore(route);
       return route.fulfill(json(null));
     }
 
-    if (p === `/api/assets/${ASSET_ID}/export`) {
+    if (p.match(/^\/api\/assets\/[^/]+\/export$/)) {
       if (opts.onExport) return opts.onExport(route);
       return route.fulfill({
         status: 200,
@@ -104,14 +122,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       });
     }
 
-    if (p === `/api/assets/${ASSET_ID}/preview`) {
+    if (p.match(/^\/api\/assets\/[^/]+\/preview$/)) {
       if (method === 'POST' && opts.onPreview) {
         const body = req.postDataJSON() as PreviewRequest | null;
         if (body) opts.onPreview(body);
       }
       return route.fulfill(png());
     }
-    if (p.startsWith(`/api/assets/${ASSET_ID}/preview`)) return route.fulfill(png());
+    if (p.match(/^\/api\/assets\/[^/]+\/preview/)) return route.fulfill(png());
     if (p.endsWith('/thumbnail') || p.endsWith('/thumb') || p.endsWith('/edited-thumb'))
       return route.fulfill(png());
 
