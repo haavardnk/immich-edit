@@ -16,7 +16,7 @@ tokio = { workspace = true }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs", "set-header", "request-id", "util", "catch-panic"] }
+tower-http = { version = "0.7", features = ["trace", "cors", "compression-gzip", "timeout", "limit", "fs", "set-header", "request-id", "util", "catch-panic"] }
 reqwest = { version = "0.13", features = ["json", "query", "stream", "multipart"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
