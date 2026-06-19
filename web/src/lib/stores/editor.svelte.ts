@@ -793,7 +793,7 @@ class EditorStore {
     this.asset = { ...this.asset, isFavorite: !prev };
     try {
       const updated = await updateAsset(this.assetId, { isFavorite: !prev });
-      this.asset = updated;
+      this.asset = { ...updated, tags: this.asset.tags };
       this.syncBrowsing();
     } catch (e) {
       if (this.asset) this.asset = { ...this.asset, isFavorite: prev };
@@ -824,7 +824,7 @@ class EditorStore {
     this.asset = { ...this.asset, exifInfo: nextExif };
     try {
       const updated = await updateAsset(this.assetId, { rating });
-      this.asset = updated;
+      this.asset = { ...updated, tags: this.asset.tags };
       this.syncBrowsing();
     } catch (e) {
       if (this.asset) this.asset = { ...this.asset, exifInfo: prevExif };
