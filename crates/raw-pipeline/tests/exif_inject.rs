@@ -43,12 +43,11 @@ fn injected_jpeg_is_valid() {
             panic!("{:?}: missing EOI", p.file_name());
         }
         if jpeg.len() > 1_000_000 {
-            eprintln!(
-                "{:?}: injected jpeg large ({} bytes); known bloat for some fixtures, skipping",
+            panic!(
+                "{:?}: injected jpeg bloated ({} bytes); embedded preview leaked",
                 p.file_name(),
                 jpeg.len()
             );
-            continue;
         }
         tested += 1;
     }

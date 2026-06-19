@@ -46,9 +46,16 @@ pub fn inject(
     file_extension: FileExtension,
 ) -> crate::PipelineResult<()> {
     const MAX_TAG_BYTES: usize = 4096;
+    const SKIP_TAGS: [u16; 15] = [
+        0x00fe, 0x00ff, 0x0100, 0x0101, 0x0102, 0x0103, 0x0106, 0x0111, 0x0115, 0x0116, 0x0117,
+        0x011c, 0x0201, 0x0202, 0x0212,
+    ];
     let mut m = Metadata::new();
     for tag in exif.into_iter() {
         if !tag.is_writable() || matches!(tag, ExifTag::Orientation(_)) {
+            continue;
+        }
+        if SKIP_TAGS.contains(&tag.as_u16()) {
             continue;
         }
         if tag.value_as_u8_vec(&Endian::Little).len() > MAX_TAG_BYTES {
@@ -70,6 +77,54 @@ pub fn inject(
         Err(_) => {
             *bytes = original;
             Err(PipelineError::Encode("exif write panic".into()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encode::{ImageRgb8, encode_jpeg_rgb};
+    use crate::frame::JpegSubsampling;
+
+    fn tiny_jpeg() -> Vec<u8> {
+        let rgb = vec![128u8; 16 * 16 * 3];
+        let img = ImageRgb8 {
+            rgb: &rgb,
+            width: 16,
+            height: 16,
+        };
+        encode_jpeg_rgb(img, 90, JpegSubsampling::Chroma420).unwrap()
+    }
+
+    #[test]
+    fn inject_drops_embedded_preview_strips() {
+        let preview = vec![0xABu8; 4_000_000];
+        let mut src = Metadata::new();
+        src.set_tag(ExifTag::Make("SONY".to_string()));
+        src.set_tag(ExifTag::StripOffsets(vec![512], vec![preview]));
+        src.set_tag(ExifTag::StripByteCounts(vec![4_000_000]));
+
+        let mut bytes = tiny_jpeg();
+        let base_len = bytes.len();
+        inject(&mut bytes, &src, FileExtension::JPEG).unwrap();
+
+        if bytes.len() > base_len + 64_000 {
+            panic!("embedded preview leaked into exif: {} bytes", bytes.len());
+        }
+
+        let parsed = parse(&bytes).expect("output has parseable exif");
+        let has_make = parsed
+            .into_iter()
+            .any(|t| matches!(t, ExifTag::Make(v) if v == "SONY"));
+        if !has_make {
+            panic!("make tag was not preserved");
+        }
+        let has_strips = parsed
+            .into_iter()
+            .any(|t| matches!(t, ExifTag::StripOffsets(_, _) | ExifTag::StripByteCounts(_)));
+        if has_strips {
+            panic!("strip tags were not removed");
         }
     }
 }
