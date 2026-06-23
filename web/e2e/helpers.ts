@@ -60,6 +60,9 @@ export interface InstallOpts {
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
   onPreview?: (req: PreviewRequest) => void;
+  onSmart?: (body: Record<string, unknown>) => void;
+  onMetadata?: (body: Record<string, unknown>) => void;
+  smartFails?: boolean;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -71,10 +74,20 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const p = url.pathname;
     const method = req.method();
 
-    if (p === '/api/search/metadata')
+    if (p === '/api/search/smart') {
+      if (opts.onSmart) opts.onSmart((req.postDataJSON() as Record<string, unknown>) ?? {});
+      if (opts.smartFails)
+        return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
       return route.fulfill(
         json({ items: assets, count: assets.length, total: assets.length, nextPage: null })
       );
+    }
+    if (p === '/api/search/metadata') {
+      if (opts.onMetadata) opts.onMetadata((req.postDataJSON() as Record<string, unknown>) ?? {});
+      return route.fulfill(
+        json({ items: assets, count: assets.length, total: assets.length, nextPage: null })
+      );
+    }
     if (p === '/api/search/statistics') return route.fulfill(json({ total: assets.length }));
     if (p === '/api/edits') return route.fulfill(json([]));
     if (p === '/api/folders/paths') return route.fulfill(json([]));

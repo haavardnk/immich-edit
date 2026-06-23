@@ -95,7 +95,8 @@ export async function sendJson<T>(
   method: 'POST' | 'PUT' | 'DELETE',
   path: string,
   body: unknown,
-  init?: RequestInit
+  init?: RequestInit,
+  opts?: { silent?: boolean }
 ): Promise<T> {
   const resp = await safeFetch(path, {
     ...init,
@@ -108,7 +109,7 @@ export async function sendJson<T>(
   });
   if (!resp.ok) {
     const err = await parseError(resp);
-    reportError(err);
+    if (!opts?.silent) reportError(err);
     throw err;
   }
   if (resp.status === 204) return undefined as T;

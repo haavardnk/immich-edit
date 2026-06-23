@@ -13,7 +13,7 @@ export function searchMetadata(body: Record<string, unknown>): Promise<SearchRes
 }
 
 export function searchSmart(body: Record<string, unknown>): Promise<SearchResult> {
-  return sendJson('POST', '/api/search/smart', body);
+  return sendJson('POST', '/api/search/smart', body, undefined, { silent: true });
 }
 
 export function searchStatistics(body: Record<string, unknown>): Promise<{ total: number }> {
