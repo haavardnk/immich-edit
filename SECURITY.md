@@ -22,4 +22,4 @@ Please give me time to fix the issue before publishing details. I will publish a
 
 ## Dependency audit exceptions
 
-`RUSTSEC-2026-0194` is temporarily excluded from the automated Rust audit. It affects XML attribute parsing in `quick-xml` through an unused XMP cleanup helper in `little_exif`. immich-edit does not parse XMP through that helper. The exception should be removed when `little_exif` supports `quick-xml` 0.41 or newer, or before adding XMP parsing.
+`RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` are temporarily excluded from the automated Rust audit. They affect XML attribute and namespace parsing in `quick-xml` through XMP code in `little_exif`. immich-edit uses EXIF read/write paths and does not parse XMP through those paths. The exceptions should be removed when `little_exif` supports `quick-xml` 0.41 or newer, or before adding XMP parsing.
