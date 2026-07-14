@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gotoAsset, installMocks, type PreviewRequest } from './helpers';
+import { gotoAsset, installMocks, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
 
 function exposureSlider(page: import('@playwright/test').Page) {
   return page
@@ -75,4 +75,54 @@ test('C opens Geometry and Escape returns to Develop', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
+});
+
+test('lens reset clears all profile edits', async ({ page }) => {
+  await installMocks(page, {
+    editRecord: {
+      ...NEUTRAL_RECORD,
+      hash: 'hash-lens',
+      manifest: {
+        schema_version: 3,
+        ops: {
+          lens_profile: {
+            profile_enabled: true,
+            ca_enabled: true,
+            constrain_crop: true,
+            distortion_amount: 70,
+            vignette_amount: 80,
+            k1: 0.1,
+            k2: 0.2,
+            k3: 0.3,
+            vk1: 0.4,
+            vk2: 0.5,
+            vk3: 0.6,
+            ca_red: 12,
+            ca_blue: -8
+          }
+        }
+      }
+    }
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  await expect(page.getByLabel('Enable Profile Corrections')).toBeChecked();
+  await expect(page.getByLabel('Remove Chromatic Aberration')).toBeChecked();
+
+  const deleted = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'DELETE'
+  );
+  await page.getByRole('button', { name: 'Reset Lens Corrections' }).click();
+  await deleted;
+
+  await expect(page.getByLabel('Enable Profile Corrections')).not.toBeChecked();
+  await expect(page.getByLabel('Remove Chromatic Aberration')).not.toBeChecked();
+  await expect(page.getByLabel('Constrain Crop')).not.toBeChecked();
+  await expect(
+    page.locator('div.group', { has: page.getByRole('button', { name: 'Distortion' }) }).getByRole('slider')
+  ).toHaveValue('100');
+  await expect(
+    page.locator('div.group', { has: page.getByRole('button', { name: 'Vignetting' }) }).getByRole('slider')
+  ).toHaveValue('100');
 });

@@ -1,5 +1,7 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_LENS } from '$lib/types/edits';
   import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
@@ -80,11 +82,27 @@
     editor.edits.lens.constrain_crop = (e.currentTarget as HTMLInputElement).checked;
     editor.onCommit('Constrain Crop');
   }
+
+  function resetLens(): void {
+    editor.edits.lens = { ...NEUTRAL_LENS };
+    editor.onCommit('Reset Lens Corrections');
+  }
 </script>
 
 <div class="flex flex-col gap-3">
   <div class="flex flex-col gap-1">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Lens Profile</div>
+    <div class="flex items-center justify-between">
+      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Lens Profile</div>
+      <button
+        type="button"
+        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+        title="Reset Lens Corrections"
+        aria-label="Reset Lens Corrections"
+        onclick={resetLens}
+      >
+        <Icon path={mdiRestore} size={14} />
+      </button>
+    </div>
     {#if profileLoading}
       <div class="text-[11px] text-immich-dark-fg/50">Loading…</div>
     {:else if profileError}

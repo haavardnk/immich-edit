@@ -1,4 +1,5 @@
 import { expect, type Page, type Route } from '@playwright/test';
+import type { EditRecord } from '../src/lib/types/edits';
 
 export const PNG_1X1: Buffer = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -56,6 +57,7 @@ export interface PreviewRequest {
 
 export interface InstallOpts {
   assets?: Array<typeof ASSET_SUMMARY>;
+  editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
@@ -112,7 +114,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const editsMatch = p.match(/^\/api\/assets\/([^/]+)\/edits$/);
     if (editsMatch) {
       if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
-      return route.fulfill(json({ ...NEUTRAL_RECORD, asset_id: editsMatch[1] }));
+      return route.fulfill(
+        json({ ...(opts.editRecord ?? NEUTRAL_RECORD), asset_id: editsMatch[1] })
+      );
     }
 
     if (p.match(/^\/api\/assets\/[^/]+\/edits\/history$/)) {
