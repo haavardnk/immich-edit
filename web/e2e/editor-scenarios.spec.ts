@@ -1,13 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, NEUTRAL_RECORD, installMocks, json, gotoAsset } from './helpers';
+import { neutralEdits } from '../src/lib/types/edits';
 
-test('history popover restores a prior entry', async ({ page }) => {
+test('history popover expands details and restores a prior entry', async ({ page }) => {
+  const latestEdits = neutralEdits();
+  latestEdits.basic.exposure_ev = 1.25;
+  latestEdits.geometry.rotate = 90;
+  latestEdits.output.tonemap = 'agx';
   const entries = [
     {
       id: 2,
       manifest_hash: 'hash-neutral',
       deleted: false,
-      edits: null,
+      edits: latestEdits,
       created_at: '2024-01-02T00:00:00Z',
       action: 'Latest'
     },
@@ -15,7 +20,7 @@ test('history popover restores a prior entry', async ({ page }) => {
       id: 1,
       manifest_hash: 'hash-prior',
       deleted: false,
-      edits: null,
+      edits: neutralEdits(),
       created_at: '2024-01-01T00:00:00Z',
       action: 'Initial'
     }
@@ -34,6 +39,11 @@ test('history popover restores a prior entry', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Edit history' }).click();
+  await page.getByRole('button', { name: 'Expand changes for Latest' }).click();
+  await expect(page.getByText('0.00 → +1.25')).toBeVisible();
+  await expect(page.getByText('Rotation: 0° → 90°')).toBeVisible();
+  await expect(page.getByText('Tonemap: Default → AgX')).toBeVisible();
+  expect(restoreCalled).toBe(false);
   await expect(page.getByText('Initial')).toBeVisible();
   await page.getByText('Initial').click();
 
