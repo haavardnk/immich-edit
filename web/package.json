@@ -22,7 +22,7 @@
 		"@sveltejs/kit": "^2.69.2",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@tailwindcss/vite": "^4.3.2",
-		"@types/node": "^25.9.3",
+		"@types/node": "^26.1.1",
 		"@types/uuid": "^11.0.0",
 		"@vitest/coverage-v8": "^4.1.10",
 		"jsdom": "^29.1.1",
