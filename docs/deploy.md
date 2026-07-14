@@ -63,6 +63,22 @@ For local Docker image builds, clone the repository and use [docker-compose.exam
 
 `AUTH_TOKEN` is required whenever `BIND_ADDR` is not loopback. Setting `IMMICH_EDIT_INSECURE=1` overrides the startup check; only do this if a reverse proxy is fronting the service.
 
+### Configuration file
+
+Environment variables are the simplest deployment option. The backend can also read TOML from the path in `IMMICH_EDIT_CONFIG`. Environment variables take precedence over matching file values.
+
+```toml
+immich_url = "http://immich-server:2283"
+immich_api_key = "your-api-key-here"
+bind_addr = "127.0.0.1:3000"
+cache_dir = "./cache"
+renderer = "auto"
+```
+
+Start the native backend with `IMMICH_EDIT_CONFIG=/path/to/config.toml`. In Docker, mount the file read-only and set `IMMICH_EDIT_CONFIG` to its container path. The file accepts the lowercase forms of the settings in [.env.example](../.env.example), including `auth_token`, `allowed_origins`, cache limits, timeouts, `debug_endpoints`, and `insecure`.
+
+Do not commit a configuration file containing an Immich API key or auth token.
+
 ### Reverse-proxy auth (recommended for anything exposed)
 
 Let a reverse proxy handle TLS and authentication (Authelia, Authentik, oauth2-proxy, Caddy `basic_auth`, Traefik ForwardAuth). Keep immich-edit on loopback or a private Docker network.

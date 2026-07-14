@@ -67,8 +67,10 @@ read [docs/pipeline.md](docs/pipeline.md) first and update it with the code chan
 ## Tests
 
 ```bash
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cd web && npm run check && npm run test:unit && npm run test:e2e
+cd web && npm run check && npm run build && npm run test:unit && npm run test:e2e
 ```
 
 Frontend changes need coverage: unit tests (Vitest, `web/src/**/*.test.ts`) for pure logic and Playwright e2e (`web/e2e/`) for user flows.

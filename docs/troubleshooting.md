@@ -50,7 +50,7 @@ Check that camera white balance is selected, not auto. If colors are still off, 
 
 ### Highlights blow out hard
 
-The pipeline has basic clip recovery only. Bring Highlights down and lift Whites. Full highlight reconstruction is not implemented yet.
+RAW rendering includes hue-preserving recovery for channels clipped near sensor white. It runs with camera white balance on both CPU and GPU paths. It can reduce color casts when one channel clips before the others, but it cannot recover detail when every channel is fully clipped. Bring Highlights down to reveal the recovered transition, then adjust Whites as needed.
 
 ## GPU rendering
 

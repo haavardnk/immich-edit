@@ -38,7 +38,7 @@ Edits:
 - Local masks (radial, linear, brush) with adjustable parameters
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
-- Undo/redo while editing, plus saved edit history you can restore from
+- Undo/redo while editing, plus saved edit history with expandable change details and restore
 
 Batch:
 
@@ -121,7 +121,7 @@ For anything beyond a trusted LAN, put immich-edit behind a reverse proxy that h
 
 ## Configuration
 
-Settings use environment variables. See [.env.example](.env.example) for the full list.
+Settings use environment variables or an optional TOML file selected with `IMMICH_EDIT_CONFIG`. Environment variables override values from the file. See [.env.example](.env.example) for the full environment-variable list and [docs/deploy.md](docs/deploy.md#configuration-file) for a TOML example.
 
 `IMMICH_URL` and `IMMICH_API_KEY` are required. Most other settings can stay unset.
 
