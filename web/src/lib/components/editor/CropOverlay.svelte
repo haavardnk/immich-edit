@@ -22,7 +22,7 @@
     return () => ro.disconnect();
   });
 
-  const sess = $derived(editor.cropSession);
+  const sess = $derived(editor.geometrySession);
   const swapped = $derived(sess ? sess.draftRotate === 90 || sess.draftRotate === 270 : false);
   const sourceW = $derived(sess ? (swapped ? sess.srcH : sess.srcW) : 1);
   const sourceH = $derived(sess ? (swapped ? sess.srcW : sess.srcH) : 1);
@@ -133,7 +133,7 @@
         c.h = newH;
       }
     }
-    editor.updateCropDraftCrop(c);
+    editor.updateGeometryDraftCrop(c);
   }
 
   function onUp(e: PointerEvent): void {

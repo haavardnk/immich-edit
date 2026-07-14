@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ui } from '$lib/stores/ui.svelte';
+  import { ui, type EditorTab } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { developPanels } from '$lib/panels/registry';
@@ -21,8 +21,6 @@
     mdiRestore,
   } from '@mdi/js';
 
-  type Tab = 'develop' | 'masks' | 'geometry' | 'export';
-  let activeTab = $state<Tab>('develop');
   type BulkTab = 'export' | 'preset';
   let bulkTab = $state<BulkTab>('preset');
   let bulkPresetOpen = $state(true);
@@ -30,7 +28,7 @@
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
 
   $effect(() => {
-    if (activeTab !== 'masks') {
+    if (ui.editorTab !== 'masks') {
       editor.setActiveLayer(null);
       editor.setActiveMaskComponent(null);
     }
@@ -66,8 +64,9 @@
         <nav class="flex flex-1">
           {#each [{ id: 'develop', label: 'Develop' }, { id: 'masks', label: 'Masks' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
             <button
-              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {activeTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
-              onclick={() => (activeTab = tab.id as Tab)}
+              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {ui.editorTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
+              aria-pressed={ui.editorTab === tab.id}
+              onclick={() => (ui.editorTab = tab.id as EditorTab)}
             >
               {tab.label}
             </button>
@@ -84,7 +83,7 @@
       </div>
 
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-        {#if activeTab === 'develop'}
+        {#if ui.editorTab === 'develop'}
           <div class="px-4 py-2.5 flex items-center gap-2">
             <button
               class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -132,15 +131,15 @@
             </div>
           {/each}
           <div class="h-8"></div>
-        {:else if activeTab === 'masks'}
+        {:else if ui.editorTab === 'masks'}
           <div class="px-4 py-3">
             <MasksPanel />
           </div>
-        {:else if activeTab === 'geometry'}
+        {:else if ui.editorTab === 'geometry'}
           <div class="px-4 py-3">
             <TransformPanel />
           </div>
-        {:else if activeTab === 'export'}
+        {:else if ui.editorTab === 'export'}
           <ExportPanel />
         {/if}
       </div>

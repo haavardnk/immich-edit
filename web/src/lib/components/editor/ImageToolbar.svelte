@@ -65,7 +65,7 @@
       size={18}
       title="Before/After split"
       active={editor.splitMode}
-      disabled={!!editor.cropSession}
+      disabled={!!editor.geometrySession}
       onclick={editor.toggleSplit}
     />
     {#if editor.assetId}

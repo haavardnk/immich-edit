@@ -50,6 +50,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },
       { keys: 'I', description: 'Toggle EXIF info' },
       { keys: 'T', description: 'Toggle tags' },
+      { keys: 'C', description: 'Open Geometry' },
       { keys: 'R', description: 'Reset edits' },
       { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
@@ -57,7 +58,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'X', description: 'Toggle reject' },
       { keys: '⇧F', description: 'Toggle fullscreen' },
       { keys: '⌘Z / ⌘⇧Z', description: 'Undo / redo' },
-      { keys: 'Esc', description: 'Exit crop / brush / popover / fullscreen' },
+      { keys: 'Esc', description: 'Close Geometry / brush / popover / fullscreen' },
       { keys: '?', description: 'Toggle this help' }
     ]
   }

@@ -18,7 +18,7 @@
   });
 
   onDestroy(() => {
-    editor.unload();
+    void editor.finishGeometrySession().finally(() => editor.unload());
   });
 
   function isTypingTarget(e: KeyboardEvent): boolean {
@@ -50,9 +50,9 @@
       if (ui.keybindsHelpOpen) {
         e.preventDefault();
         ui.closeKeybindsHelp();
-      } else if (editor.cropSession) {
+      } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
         e.preventDefault();
-        void editor.exitCropMode();
+        ui.editorTab = 'develop';
       } else if (editor.activeMaskComponentId) {
         e.preventDefault();
         editor.setActiveMaskComponent(null);
@@ -70,7 +70,6 @@
     }
     if (ui.keybindsHelpOpen) return;
     if ((e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') && !meta && !e.altKey) {
-      if (editor.cropSession) return;
       const prev = browsing.prevOf(id);
       if (!prev) return;
       e.preventDefault();
@@ -78,7 +77,6 @@
       return;
     }
     if ((e.key === 'ArrowRight' || e.key === 'k' || e.key === 'K') && !meta && !e.altKey) {
-      if (editor.cropSession) return;
       const next = browsing.nextOf(id);
       if (!next) return;
       e.preventDefault();
@@ -139,6 +137,11 @@
         editor.showingOriginal = true;
         editor.showOriginal();
       }
+      return;
+    }
+    if ((e.key === 'c' || e.key === 'C') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      ui.openGeometry();
       return;
     }
     if ((e.key === 'r' || e.key === 'R') && !meta && !e.shiftKey && !e.altKey) {

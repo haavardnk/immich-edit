@@ -81,16 +81,16 @@
   bind:this={container}
   role="application"
   class="flex-1 min-h-0 flex items-center justify-center bg-black/40 relative overflow-hidden"
-  class:cursor-grab={ui.zoom > 100 && !dragging && !editor.cropSession}
+  class:cursor-grab={ui.zoom > 100 && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
-  onpointerdown={editor.cropSession ? undefined : onPointerDown}
-  onpointermove={editor.cropSession ? undefined : onPointerMove}
-  onpointerup={editor.cropSession ? undefined : onPointerUp}
-  onpointercancel={editor.cropSession ? undefined : onPointerUp}
-  onwheel={editor.cropSession ? undefined : onWheel}
-  ondblclick={editor.cropSession ? undefined : onDblClick}
+  onpointerdown={editor.geometrySession ? undefined : onPointerDown}
+  onpointermove={editor.geometrySession ? undefined : onPointerMove}
+  onpointerup={editor.geometrySession ? undefined : onPointerUp}
+  onpointercancel={editor.geometrySession ? undefined : onPointerUp}
+  onwheel={editor.geometrySession ? undefined : onWheel}
+  ondblclick={editor.geometrySession ? undefined : onDblClick}
 >
-  {#if editor.cropSession && editor.cropSession.pinnedReady}
+  {#if editor.geometrySession && editor.geometrySession.pinnedReady}
     <CropOverlay />
   {:else if editor.previewUrl}
     {#if editor.splitMode && editor.originalUrl}

@@ -1,4 +1,5 @@
 export type AspectRatio = 'free' | 'original' | '1:1' | '4:3' | '3:2' | '16:9' | '5:4' | '7:5';
+export type EditorTab = 'develop' | 'masks' | 'geometry' | 'export';
 
 export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | null }[] = [
   { id: 'free', label: 'Free', value: null },
@@ -24,6 +25,7 @@ class UiStore {
   exifPopoverOpen = $state(false);
   tagsPopoverOpen = $state(false);
   zoomPopoverOpen = $state(false);
+  editorTab = $state<EditorTab>('develop');
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;
@@ -31,6 +33,12 @@ class UiStore {
 
   toggleRight = (): void => {
     this.rightCollapsed = !this.rightCollapsed;
+  };
+
+  openGeometry = (): void => {
+    this.fullscreen = false;
+    this.rightCollapsed = false;
+    this.editorTab = 'geometry';
   };
 
   toggleFilmstrip = (): void => {

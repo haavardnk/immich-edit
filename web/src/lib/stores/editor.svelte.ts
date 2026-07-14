@@ -71,7 +71,8 @@ class EditorStore {
   splitMode = $state(false);
   splitPos = $state(0.5);
   originalUrl = $state<string | null>(null);
-  cropSession = $state<CropSession | null>(null);
+  geometrySession = $state<GeometrySession | null>(null);
+  private geometrySessionId = 0;
 
   activeLayerId = $state<string | null>(null);
   activeMaskComponentId = $state<string | null>(null);
@@ -89,7 +90,7 @@ class EditorStore {
   private historyCursor = $state(-1);
   private skipHistory = false;
 
-  private initialised = false;
+  initialised = $state(false);
   private hiresTimer: ReturnType<typeof setTimeout> | null = null;
   private renderedEdge = 0;
   private originalEdge = 0;
@@ -149,7 +150,7 @@ class EditorStore {
   );
 
   toggleSplit = (): void => {
-    if (this.cropSession) return;
+    if (this.geometrySession) return;
     this.splitMode = !this.splitMode;
     if (this.splitMode) {
       this.refreshOriginal();
@@ -177,6 +178,7 @@ class EditorStore {
 
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
+    await this.finishGeometrySession();
     this.unload();
     this.assetId = id;
     this.error = null;
@@ -203,9 +205,9 @@ class EditorStore {
     this.flight.cancel();
     this.originalFlight.cancel();
     if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
-    if (this.cropSession) {
-      if (this.cropSession.pinnedUrl) revoke(this.cropSession.pinnedUrl);
-      this.cropSession = null;
+    if (this.geometrySession) {
+      if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);
+      this.geometrySession = null;
     }
     if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
     this.previewUrl = null;
@@ -940,15 +942,16 @@ class EditorStore {
     }
   }
 
-  enterCropMode = (): void => {
-    if (!this.assetId || !this.initialised || this.cropSession) return;
+  startGeometrySession = (): void => {
+    if (!this.assetId || !this.initialised || this.geometrySession) return;
     const baseEdits = $state.snapshot(this.edits) as Edits;
-    this.cropSession = {
+    const sessionId = ++this.geometrySessionId;
+    this.geometrySession = {
+      id: sessionId,
       pinnedUrl: null,
       pinnedReady: false,
       srcW: 0,
       srcH: 0,
-      baseEdits,
       draftRotate: baseEdits.geometry.rotate,
       draftFlipH: baseEdits.geometry.flip_h,
       draftFlipV: baseEdits.geometry.flip_v,
@@ -957,10 +960,10 @@ class EditorStore {
       draftAspect: baseEdits.geometry.aspect,
       userEditedCrop: baseEdits.geometry.crop !== null
     };
-    void this.loadPinnedPreview(baseEdits);
+    void this.loadGeometryPreview(baseEdits, sessionId);
   };
 
-  private async loadPinnedPreview(baseEdits: Edits): Promise<void> {
+  private async loadGeometryPreview(baseEdits: Edits, sessionId: number): Promise<void> {
     if (!this.assetId) return;
     const canonical: Edits = {
       ...baseEdits,
@@ -983,8 +986,8 @@ class EditorStore {
         img.onerror = () => reject(new Error('pinned preview decode failed'));
         img.src = url as string;
       });
-      const sess = this.cropSession;
-      if (!sess || dims.w <= 0 || dims.h <= 0) {
+      const sess = this.geometrySession;
+      if (sess?.id !== sessionId || dims.w <= 0 || dims.h <= 0) {
         revoke(url);
         return;
       }
@@ -995,34 +998,37 @@ class EditorStore {
       sess.pinnedReady = true;
     } catch (e) {
       if (url) revoke(url);
+      if (this.geometrySession?.id !== sessionId) return;
       this.error = (e as Error).message;
     }
   }
 
-  exitCropMode = async (): Promise<void> => {
-    const sess = this.cropSession;
+  finishGeometrySession = async (): Promise<void> => {
+    const sess = this.geometrySession;
     if (!sess) return;
     if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-    this.cropSession = null;
+    this.geometrySession = null;
     const dc = sess.draftCrop;
     const full = dc.x === 0 && dc.y === 0 && dc.w === 1 && dc.h === 1;
+    const geometry = {
+      ...this.edits.geometry,
+      rotate: sess.draftRotate,
+      flip_h: sess.draftFlipH,
+      flip_v: sess.draftFlipV,
+      rotate_angle: sess.draftAngle,
+      crop: full ? null : sess.draftCrop,
+      aspect: sess.draftAspect
+    };
+    if (JSON.stringify(this.edits.geometry) === JSON.stringify(geometry)) return;
     this.edits = {
       ...this.edits,
-      geometry: {
-        ...this.edits.geometry,
-        rotate: sess.draftRotate,
-        flip_h: sess.draftFlipH,
-        flip_v: sess.draftFlipV,
-        rotate_angle: sess.draftAngle,
-        crop: full ? null : sess.draftCrop,
-        aspect: sess.draftAspect
-      }
+      geometry
     };
-    await this.onCommit('Crop');
+    await this.onCommit('Geometry');
   };
 
   rotateStep = (delta: 90 | 270): void => {
-    const sess = this.cropSession;
+    const sess = this.geometrySession;
     if (sess) {
       sess.draftRotate = ((sess.draftRotate + delta) % 360) as 0 | 90 | 180 | 270;
       const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
@@ -1040,7 +1046,7 @@ class EditorStore {
   };
 
   flipStep = (axis: 'h' | 'v'): void => {
-    const sess = this.cropSession;
+    const sess = this.geometrySession;
     if (sess) {
       if (axis === 'h') sess.draftFlipH = !sess.draftFlipH;
       else sess.draftFlipV = !sess.draftFlipV;
@@ -1051,8 +1057,8 @@ class EditorStore {
     void this.onCommit('Flip');
   };
 
-  updateCropDraftAngle = (angle: number): void => {
-    const sess = this.cropSession;
+  updateGeometryDraftAngle = (angle: number): void => {
+    const sess = this.geometrySession;
     if (!sess) return;
     const { sw, sh } = sourceDims(sess);
     sess.draftAngle = angle;
@@ -1066,16 +1072,16 @@ class EditorStore {
     }
   };
 
-  updateCropDraftCrop = (crop: CropRect): void => {
-    const sess = this.cropSession;
+  updateGeometryDraftCrop = (crop: CropRect): void => {
+    const sess = this.geometrySession;
     if (!sess) return;
     const { sw, sh } = sourceDims(sess);
     sess.draftCrop = constrainCropRect(crop, sess.draftCrop, sw, sh, sess.draftAngle);
     sess.userEditedCrop = true;
   };
 
-  updateCropDraftAspect = (aspect: AspectLock): void => {
-    const sess = this.cropSession;
+  updateGeometryDraftAspect = (aspect: AspectLock): void => {
+    const sess = this.geometrySession;
     if (!sess) return;
     const { sw, sh } = sourceDims(sess);
     sess.draftAspect = aspect;
@@ -1086,8 +1092,8 @@ class EditorStore {
     }
   };
 
-  resetCropDraft = (): void => {
-    const sess = this.cropSession;
+  resetGeometryDraft = (): void => {
+    const sess = this.geometrySession;
     if (!sess) return;
     sess.draftAngle = 0;
     sess.draftAspect = { kind: 'original' };
@@ -1096,17 +1102,17 @@ class EditorStore {
   };
 }
 
-function sourceDims(sess: CropSession): { sw: number; sh: number } {
+function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
   const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
   return { sw: swapped ? sess.srcH : sess.srcW, sh: swapped ? sess.srcW : sess.srcH };
 }
 
-interface CropSession {
+interface GeometrySession {
+  id: number;
   pinnedUrl: string | null;
   pinnedReady: boolean;
   srcW: number;
   srcH: number;
-  baseEdits: Edits;
   draftRotate: 0 | 90 | 180 | 270;
   draftFlipH: boolean;
   draftFlipV: boolean;

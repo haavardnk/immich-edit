@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { type AspectLock } from '$lib/types/edits';
@@ -13,10 +13,13 @@
     mdiCropPortrait
   } from '@mdi/js';
 
-  onMount(() => {
-    editor.enterCropMode();
+  $effect(() => {
+    const assetId = editor.assetId;
+    const initialised = editor.initialised;
+    if (!assetId || !initialised) return;
+    untrack(() => editor.startGeometrySession());
     return () => {
-      void editor.exitCropMode();
+      untrack(() => void editor.finishGeometrySession());
     };
   });
 
@@ -34,7 +37,7 @@
   }
 
   function reset(): void {
-    editor.resetCropDraft();
+    editor.resetGeometryDraft();
   }
 
   const aspectOptions: Array<{ label: string; value: AspectLock }> = [
@@ -55,34 +58,36 @@
     return a.kind;
   }
   function onAspectChange(e: Event): void {
+    const sess = editor.geometrySession;
+    if (!sess) return;
     const key = (e.currentTarget as HTMLSelectElement).value;
     const opt = aspectOptions.find((o) => aspectKey(o.value) === key);
     if (!opt) return;
-    if (opt.value.kind === 'ratio' && editor.cropSession) {
-      const cur = editor.cropSession.draftAspect;
+    if (opt.value.kind === 'ratio') {
+      const cur = sess.draftAspect;
       const wantPortrait = cur.kind === 'ratio' && cur.num < cur.den;
       const next: AspectLock = wantPortrait
         ? { kind: 'ratio', num: opt.value.den, den: opt.value.num }
         : opt.value;
-      editor.updateCropDraftAspect(next);
+      editor.updateGeometryDraftAspect(next);
     } else {
-      editor.updateCropDraftAspect(opt.value);
+      editor.updateGeometryDraftAspect(opt.value);
     }
   }
 
   const isPortrait = $derived(
-    editor.cropSession?.draftAspect.kind === 'ratio' &&
-      editor.cropSession.draftAspect.num < editor.cropSession.draftAspect.den
+    editor.geometrySession?.draftAspect.kind === 'ratio' &&
+      editor.geometrySession.draftAspect.num < editor.geometrySession.draftAspect.den
   );
   const orientationAvailable = $derived(
-    editor.cropSession?.draftAspect.kind === 'ratio' &&
-      editor.cropSession.draftAspect.num !== editor.cropSession.draftAspect.den
+    editor.geometrySession?.draftAspect.kind === 'ratio' &&
+      editor.geometrySession.draftAspect.num !== editor.geometrySession.draftAspect.den
   );
 
   function toggleOrientation(): void {
-    const sess = editor.cropSession;
+    const sess = editor.geometrySession;
     if (!sess || sess.draftAspect.kind !== 'ratio') return;
-    editor.updateCropDraftAspect({
+    editor.updateGeometryDraftAspect({
       kind: 'ratio',
       num: sess.draftAspect.den,
       den: sess.draftAspect.num
@@ -92,17 +97,18 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  {#if editor.cropSession}
+  {#if editor.geometrySession}
     <div class="flex flex-col gap-2 text-xs">
       <label class="flex flex-col gap-1">
-        <span class="flex justify-between"><span>Angle</span><span class="opacity-60">{editor.cropSession.draftAngle.toFixed(1)}°</span></span>
+        <span class="flex justify-between"><span>Angle</span><span class="opacity-60">{editor.geometrySession.draftAngle.toFixed(1)}°</span></span>
         <input
           type="range"
+          aria-label="Angle"
           min="-45"
           max="45"
           step="0.1"
-          value={editor.cropSession.draftAngle}
-          oninput={(e) => editor.updateCropDraftAngle(parseFloat((e.currentTarget as HTMLInputElement).value))}
+          value={editor.geometrySession.draftAngle}
+          oninput={(e) => editor.updateGeometryDraftAngle(parseFloat((e.currentTarget as HTMLInputElement).value))}
           class="range range-xs"
         />
       </label>
@@ -110,8 +116,9 @@
         <span>Aspect Ratio</span>
         <div class="flex gap-1.5 items-center">
           <select
+            aria-label="Aspect Ratio"
             class="select bg-white/5 flex-1 rounded-lg text-xs h-auto py-1.5 min-h-0"
-            value={aspectKey(editor.cropSession.draftAspect)}
+            value={aspectKey(editor.geometrySession.draftAspect)}
             onchange={onAspectChange}
           >
             {#each aspectOptions as o}
@@ -134,10 +141,10 @@
         <Icon path={mdiRestore} size={14} /> Reset crop
       </button>
     </div>
-  {/if}
-  <div class="grid grid-cols-2 gap-1.5">
+    <div class="grid grid-cols-2 gap-1.5">
       <button
         class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+        aria-label="Rotate left 90°"
         onclick={rotateLeft}
       >
         <Icon path={mdiRotateLeft} size={16} />
@@ -145,24 +152,28 @@
       </button>
       <button
         class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+        aria-label="Rotate right 90°"
         onclick={rotateRight}
       >
         <Icon path={mdiRotateRight} size={16} />
         90°
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.cropSession?.draftFlipH ?? editor.edits.geometry.flip_h) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        aria-pressed={editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h}
         onclick={toggleFlipH}
       >
         <Icon path={mdiFlipHorizontal} size={16} />
         Flip Horizontal
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.cropSession?.draftFlipV ?? editor.edits.geometry.flip_v) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        aria-pressed={editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v}
         onclick={toggleFlipV}
       >
         <Icon path={mdiFlipVertical} size={16} />
         Flip Vertical
       </button>
     </div>
+  {/if}
 </div>
