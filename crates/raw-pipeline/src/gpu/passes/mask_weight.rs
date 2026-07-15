@@ -45,10 +45,58 @@ struct Component {
 @group(0) @binding(2) var weight_out: texture_storage_2d<r32float, write>;
 @group(0) @binding(3) var atlas: texture_2d_array<f32>;
 @group(0) @binding(4) var samp: sampler;
+@group(0) @binding(5) var display_tex: texture_2d<f32>;
 
 fn smoothstep_calc(e0: f32, e1: f32, x: f32) -> f32 {
     let t = clamp((x - e0) / max(e1 - e0, 1e-6), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
+}
+
+fn srgb_to_linear(v: f32) -> f32 {
+    let c = clamp(v, 0.0, 1.0);
+    if (c <= 0.04045) { return c / 12.92; }
+    return pow((c + 0.055) / 1.055, 2.4);
+}
+
+fn display_srgb_to_oklab(rgb: vec3<f32>) -> vec3<f32> {
+    let lin = vec3<f32>(
+        srgb_to_linear(rgb.x),
+        srgb_to_linear(rgb.y),
+        srgb_to_linear(rgb.z),
+    );
+    let l = pow(0.41222146 * lin.x + 0.53633255 * lin.y + 0.051445995 * lin.z, 1.0 / 3.0);
+    let m = pow(0.2119035 * lin.x + 0.6806995 * lin.y + 0.10739696 * lin.z, 1.0 / 3.0);
+    let s = pow(0.08830246 * lin.x + 0.28171885 * lin.y + 0.6299787 * lin.z, 1.0 / 3.0);
+    return vec3<f32>(
+        0.21045426 * l + 0.7936178 * m - 0.004072047 * s,
+        1.9779985 * l - 2.4285922 * m + 0.4505937 * s,
+        0.025904037 * l + 0.78277177 * m - 0.80867577 * s,
+    );
+}
+
+fn luma_range_weight(luma: f32, lo: f32, hi: f32, softness: f32) -> f32 {
+    if (softness <= 1e-6) {
+        if (luma >= lo && luma <= hi) { return 1.0; }
+        return 0.0;
+    }
+    let lower = smoothstep_calc(lo - softness, lo, luma);
+    let upper = 1.0 - smoothstep_calc(hi, hi + softness, luma);
+    return lower * upper;
+}
+
+fn color_range_weight(
+    rgb: vec3<f32>,
+    sample_lab: vec3<f32>,
+    tolerance: f32,
+    softness: f32,
+) -> f32 {
+    let lab = display_srgb_to_oklab(rgb);
+    let distance = length(lab - sample_lab);
+    if (softness <= 1e-6) {
+        if (distance <= tolerance) { return 1.0; }
+        return 0.0;
+    }
+    return 1.0 - smoothstep_calc(tolerance, tolerance + softness, distance);
 }
 
 fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
@@ -93,7 +141,7 @@ fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
     return vec2<f32>(0.5 + (mu - 0.5) * zoom * s, 0.5 + (mv - 0.5) * zoom * s);
 }
 
-fn component_weight(c: Component, u: f32, v: f32) -> f32 {
+fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32 {
     var raw: f32 = 0.0;
     let kind = c.kind_mode_invert_pad.x;
     if (kind == 0u) {
@@ -119,6 +167,11 @@ fn component_weight(c: Component, u: f32, v: f32) -> f32 {
     } else if (kind == 2u) {
         let slot = i32(c.kind_mode_invert_pad.w);
         raw = textureSampleLevel(atlas, samp, vec2<f32>(u, v), slot, 0.0).x;
+    } else if (kind == 3u) {
+        let luma = 0.2126 * display_rgb.x + 0.7152 * display_rgb.y + 0.0722 * display_rgb.z;
+        raw = luma_range_weight(luma, c.geom_a.x, c.geom_a.y, c.geom_a.z);
+    } else if (kind == 4u) {
+        raw = color_range_weight(display_rgb, c.geom_a.xyz, c.geom_b.x, c.geom_b.y);
     }
     let inverted = c.kind_mode_invert_pad.z;
     var r = raw;
@@ -137,11 +190,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let scene = display_to_scene(du, dv);
     let u = scene.x;
     let v = scene.y;
+    let display_rgb = textureLoad(display_tex, vec2<i32>(i32(gid.x), i32(gid.y)), 0).rgb;
     var w: f32 = 0.0;
     let n = p.n_components;
     for (var i: u32 = 0u; i < n; i = i + 1u) {
         let c = comps[i];
-        let cw = component_weight(c, u, v);
+        let cw = component_weight(c, u, v, display_rgb);
         let mode = c.kind_mode_invert_pad.y;
         if (mode == 0u) {
             w = 1.0 - (1.0 - w) * (1.0 - cw);
@@ -211,6 +265,16 @@ impl MaskWeightPass {
                     binding: 4,
                     visibility: ShaderStages::COMPUTE,
                     ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
                     count: None,
                 },
             ],
@@ -306,6 +370,19 @@ pub fn pack_layer_eval(
                 slot = *s;
                 (2u32, [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0])
             }
+            crate::cpu::masked::ComponentKindEval::LumaRange { min, max, softness } => {
+                (3u32, [*min, *max, *softness, 0.0], [0.0, 0.0, 0.0, 0.0])
+            }
+            crate::cpu::masked::ComponentKindEval::ColorRange {
+                sample_rgb: _,
+                sample_lab,
+                tolerance,
+                softness,
+            } => (
+                4u32,
+                [sample_lab[0], sample_lab[1], sample_lab[2], 0.0],
+                [*tolerance, *softness, 0.0, 0.0],
+            ),
         };
         let mode = match c.mode {
             crate::edits::MaskComponentMode::Add => 0u32,

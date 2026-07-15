@@ -1,5 +1,5 @@
 use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_one};
-use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer};
+use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer, OutputEdits};
 use crate::mask_raster::{MaskRaster, RasterMap};
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::{LensWarpParams, mask_uv_to_scene_uv};
@@ -22,6 +22,17 @@ pub enum ComponentKindEval {
     Brush {
         raster_id: String,
         raster: Option<Arc<MaskRaster>>,
+    },
+    LumaRange {
+        min: f32,
+        max: f32,
+        softness: f32,
+    },
+    ColorRange {
+        sample_rgb: [f32; 3],
+        sample_lab: [f32; 3],
+        tolerance: f32,
+        softness: f32,
     },
 }
 
@@ -90,6 +101,23 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
                     raster_id: raster_id.clone(),
                     raster: rasters.get(raster_id).cloned(),
                 },
+                MaskComponentKind::LumaRange { min, max, softness } => {
+                    ComponentKindEval::LumaRange {
+                        min: min.clamp(0.0, 1.0),
+                        max: max.clamp(0.0, 1.0),
+                        softness: softness.clamp(0.0, 1.0),
+                    }
+                }
+                MaskComponentKind::ColorRange {
+                    sample_rgb,
+                    tolerance,
+                    softness,
+                } => ComponentKindEval::ColorRange {
+                    sample_rgb: *sample_rgb,
+                    sample_lab: display_srgb_to_oklab(*sample_rgb),
+                    tolerance: tolerance.clamp(0.0, 1.0),
+                    softness: softness.clamp(0.0, 1.0),
+                },
             };
             ComponentEval {
                 mode: c.mode,
@@ -112,7 +140,55 @@ fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
 }
 
 #[inline(always)]
-fn component_weight(c: &ComponentEval, u: f32, v: f32) -> f32 {
+fn srgb_to_linear(v: f32) -> f32 {
+    let c = v.clamp(0.0, 1.0);
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+#[inline(always)]
+fn display_srgb_to_oklab(rgb: [f32; 3]) -> [f32; 3] {
+    let r = srgb_to_linear(rgb[0]);
+    let g = srgb_to_linear(rgb[1]);
+    let b = srgb_to_linear(rgb[2]);
+    let l = (0.412_221_46 * r + 0.536_332_55 * g + 0.051_445_995 * b).cbrt();
+    let m = (0.211_903_5 * r + 0.680_699_5 * g + 0.107_396_96 * b).cbrt();
+    let s = (0.088_302_46 * r + 0.281_718_85 * g + 0.629_978_7 * b).cbrt();
+    [
+        0.210_454_26 * l + 0.793_617_8 * m - 0.004_072_047 * s,
+        1.977_998_5 * l - 2.428_592_2 * m + 0.450_593_7 * s,
+        0.025_904_037 * l + 0.782_771_77 * m - 0.808_675_77 * s,
+    ]
+}
+
+#[inline(always)]
+fn luma_range_weight(luma: f32, min: f32, max: f32, softness: f32) -> f32 {
+    if softness <= 1e-6 {
+        return if luma >= min && luma <= max { 1.0 } else { 0.0 };
+    }
+    let lower = smoothstep(min - softness, min, luma);
+    let upper = 1.0 - smoothstep(max, max + softness, luma);
+    lower * upper
+}
+
+#[inline(always)]
+fn color_range_weight(rgb: [f32; 3], sample_lab: [f32; 3], tolerance: f32, softness: f32) -> f32 {
+    let lab = display_srgb_to_oklab(rgb);
+    let dl = lab[0] - sample_lab[0];
+    let da = lab[1] - sample_lab[1];
+    let db = lab[2] - sample_lab[2];
+    let distance = (dl * dl + da * da + db * db).sqrt();
+    if softness <= 1e-6 {
+        return if distance <= tolerance { 1.0 } else { 0.0 };
+    }
+    1.0 - smoothstep(tolerance, tolerance + softness, distance)
+}
+
+#[inline(always)]
+fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) -> f32 {
     let raw = match &c.kind {
         ComponentKindEval::Linear {
             p0,
@@ -138,6 +214,16 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32) -> f32 {
             Some(r) => r.sample_bilinear(u, v),
             None => 0.0,
         },
+        ComponentKindEval::LumaRange { min, max, softness } => {
+            let luma = 0.2126 * display_rgb[0] + 0.7152 * display_rgb[1] + 0.0722 * display_rgb[2];
+            luma_range_weight(luma, *min, *max, *softness)
+        }
+        ComponentKindEval::ColorRange {
+            sample_rgb: _,
+            sample_lab,
+            tolerance,
+            softness,
+        } => color_range_weight(display_rgb, *sample_lab, *tolerance, *softness),
     };
     let r = if c.invert { 1.0 - raw } else { raw };
     (r * c.opacity).clamp(0.0, 1.0)
@@ -145,9 +231,19 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32) -> f32 {
 
 #[inline(always)]
 pub fn fold_layer_weight(layer: &LayerEval, u: f32, v: f32) -> f32 {
+    fold_layer_weight_with_display(layer, u, v, [0.0, 0.0, 0.0])
+}
+
+#[inline(always)]
+pub fn fold_layer_weight_with_display(
+    layer: &LayerEval,
+    u: f32,
+    v: f32,
+    display_rgb: [f32; 3],
+) -> f32 {
     let mut w: f32 = 0.0;
     for c in &layer.components {
-        let cw = component_weight(c, u, v);
+        let cw = component_weight(c, u, v, display_rgb);
         w = match c.mode {
             MaskComponentMode::Add => 1.0 - (1.0 - w) * (1.0 - cw),
             MaskComponentMode::Subtract => w * (1.0 - cw),
@@ -163,6 +259,7 @@ pub fn apply_segment_masked(
     layer_segments: &[FusedSegment],
     layers: &[LayerEval],
     lens_warp: &LensWarpParams,
+    output: OutputEdits,
 ) {
     if base_segment.is_empty() && layer_segments.iter().all(|s| s.is_empty()) {
         return;
@@ -201,11 +298,12 @@ pub fn apply_segment_masked(
                 for op in base_ops {
                     apply_one(op, i, &mut br, &mut bg, &mut bb);
                 }
+                let display_rgb = crate::tone::apply_rgb([br, bg, bb], output);
                 let mut out_r = br;
                 let mut out_g = bg;
                 let mut out_b = bb;
                 for (li, layer) in layers.iter().enumerate() {
-                    let lw = fold_layer_weight(layer, su, sv);
+                    let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
                     if lw <= 1e-4 {
                         continue;
                     }
@@ -226,7 +324,12 @@ pub fn apply_segment_masked(
         });
 }
 
-pub fn render_mask_weight(image: &mut LinearImage, layer: &LayerEval, lens_warp: &LensWarpParams) {
+pub fn render_mask_overlay(
+    image: &mut LinearImage,
+    layer: &LayerEval,
+    lens_warp: &LensWarpParams,
+    output: OutputEdits,
+) {
     let w = image.width;
     let h = image.height;
     let inv_w = 1.0 / w.max(1) as f32;
@@ -247,10 +350,12 @@ pub fn render_mask_weight(image: &mut LinearImage, layer: &LayerEval, lens_warp:
                 } else {
                     (u, v)
                 };
-                let lw = fold_layer_weight(layer, su, sv);
-                px[0] = lw;
-                px[1] = lw;
-                px[2] = lw;
+                let display_rgb = crate::tone::apply_rgb([px[0], px[1], px[2]], output);
+                let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
+                let alpha = lw * 0.55;
+                px[0] = display_rgb[0] + (1.0 - display_rgb[0]) * alpha;
+                px[1] = display_rgb[1] * (1.0 - alpha);
+                px[2] = display_rgb[2] * (1.0 - alpha);
             }
         });
 }
@@ -428,7 +533,14 @@ mod tests {
         let mut layer_seg = FusedSegment::default();
         layer_seg.push(CpuFusedOp::Exposure { factor: 4.0 });
         let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
-        apply_segment_masked(&mut image, &base, &[layer_seg], &[eval], &warp);
+        apply_segment_masked(
+            &mut image,
+            &base,
+            &[layer_seg],
+            &[eval],
+            &warp,
+            OutputEdits::default(),
+        );
         let left = image.rgb[0];
         let right = image.rgb[3 * (w - 1)];
         if (left - 0.5).abs() > 1e-3 {
@@ -440,10 +552,10 @@ mod tests {
     }
 
     #[test]
-    fn render_mask_weight_writes_grayscale_gradient() {
+    fn render_mask_overlay_preserves_context_and_marks_selection_red() {
         let w = 16;
         let h = 4;
-        let mut image = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
+        let mut image = LinearImage::new(vec![4.0f32; w * h * 3], w, h);
         let layer = MaskLayer {
             id: "l".into(),
             name: String::new(),
@@ -460,18 +572,22 @@ mod tests {
         };
         let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
         let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
-        render_mask_weight(&mut image, &eval, &warp);
-        let left = image.rgb[0];
-        let right = image.rgb[3 * (w - 1)];
-        if left > 0.1 {
-            panic!("expected ~0 on left, got {left}");
+        render_mask_overlay(&mut image, &eval, &warp, OutputEdits::default());
+        let left = [image.rgb[0], image.rgb[1], image.rgb[2]];
+        let right_index = 3 * (w - 1);
+        let right = [
+            image.rgb[right_index],
+            image.rgb[right_index + 1],
+            image.rgb[right_index + 2],
+        ];
+        if left.iter().any(|value| !(0.0..=1.0).contains(value)) {
+            panic!("expected bounded image context, got {left:?}");
         }
-        if right < 0.9 {
-            panic!("expected ~1 on right, got {right}");
+        if right[0] <= right[1] || right[0] <= right[2] {
+            panic!("expected selected area shifted toward red, got {right:?}");
         }
-        if (image.rgb[0] - image.rgb[1]).abs() > 1e-6 || (image.rgb[0] - image.rgb[2]).abs() > 1e-6
-        {
-            panic!("expected grayscale (r=g=b)");
+        if right[1] >= left[1] || right[2] >= left[2] {
+            panic!("expected overlay to reduce green and blue, got {left:?} and {right:?}");
         }
     }
 
@@ -546,6 +662,80 @@ mod tests {
     }
 
     #[test]
+    fn luma_range_selects_and_softens_boundaries() {
+        let component = MaskComponent {
+            id: "c".into(),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            opacity: 1.0,
+            invert: false,
+            kind: MaskComponentKind::LumaRange {
+                min: 0.4,
+                max: 0.6,
+                softness: 0.2,
+            },
+            source: MaskSource::Manual,
+        };
+        let layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![component],
+            edits: Default::default(),
+        };
+        let eval = build_layer_eval(&layer, &RasterMap::new());
+        let inside = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.5, 0.5, 0.5]);
+        let soft = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.3, 0.3, 0.3]);
+        let outside = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.1, 0.1, 0.1]);
+        if inside < 0.99 {
+            panic!("expected inside luma selected, got {inside}");
+        }
+        if !(0.0..1.0).contains(&soft) {
+            panic!("expected soft luma boundary, got {soft}");
+        }
+        if outside > 1e-6 {
+            panic!("expected outside luma rejected, got {outside}");
+        }
+    }
+
+    #[test]
+    fn color_range_prefers_sampled_color() {
+        let component = MaskComponent {
+            id: "c".into(),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            opacity: 1.0,
+            invert: false,
+            kind: MaskComponentKind::ColorRange {
+                sample_rgb: [0.9, 0.1, 0.1],
+                tolerance: 0.05,
+                softness: 0.05,
+            },
+            source: MaskSource::Manual,
+        };
+        let layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![component],
+            edits: Default::default(),
+        };
+        let eval = build_layer_eval(&layer, &RasterMap::new());
+        let red = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.9, 0.1, 0.1]);
+        let blue = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.1, 0.1, 0.9]);
+        if red < 0.99 {
+            panic!("expected sampled red selected, got {red}");
+        }
+        if blue > 0.01 {
+            panic!("expected blue rejected, got {blue}");
+        }
+    }
+
+    #[test]
     fn effective_edits_adds_and_clamps_brightness() {
         let mut g = Edits::default();
         g.basic.brightness = 80.0;
@@ -601,9 +791,9 @@ mod tests {
             panic!("warp should be non-identity for anchoring test");
         }
         let mut img_warp = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-        render_mask_weight(&mut img_warp, &eval, &warp);
+        render_mask_overlay(&mut img_warp, &eval, &warp, OutputEdits::default());
         let mut img_id = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-        render_mask_weight(&mut img_id, &eval, &identity);
+        render_mask_overlay(&mut img_id, &eval, &identity, OutputEdits::default());
         let samples = [(0.5, 0.5), (0.7, 0.5), (0.5, 0.3), (0.8, 0.7)];
         for (u, v) in samples {
             let mx = ((u * w as f32) as usize).min(w - 1);

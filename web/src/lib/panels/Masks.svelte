@@ -10,7 +10,12 @@
     type MaskComponentMode,
     type MaskLayer
   } from '$lib/types/edits';
-  import { defaultLinear, defaultRadial } from '$lib/types/masks';
+  import {
+    defaultColorRange,
+    defaultLinear,
+    defaultLumaRange,
+    defaultRadial
+  } from '$lib/types/masks';
   import {
     mdiPlus,
     mdiClose,
@@ -20,7 +25,10 @@
     mdiGradientHorizontal,
     mdiCircleOutline,
     mdiBrush,
+    mdiBrightness6,
+    mdiEyedropperVariant,
     mdiInvertColors,
+    mdiPalette,
     mdiCircleOpacity
   } from '@mdi/js';
 
@@ -54,6 +62,20 @@
   const brushSizeValue = $derived(editor.brushTool.size);
   const brushHardnessValue = $derived(editor.brushTool.hardness);
   const brushFlowValue = $derived(editor.brushTool.flow);
+  const lumaMinValue = $derived(
+    activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
+  );
+  const lumaMaxValue = $derived(
+    activeComp?.kind.kind === 'luma_range' ? activeComp.kind.max : 0.75
+  );
+  const rangeSoftnessValue = $derived(
+    activeComp?.kind.kind === 'luma_range' || activeComp?.kind.kind === 'color_range'
+      ? activeComp.kind.softness
+      : 0.1
+  );
+  const colorToleranceValue = $derived(
+    activeComp?.kind.kind === 'color_range' ? activeComp.kind.tolerance : 0.1
+  );
 
   function onAmountLive(v: number): void {
     if (active) editor.setMaskLayerAmount(active.id, v);
@@ -74,13 +96,41 @@
   function kindLabel(k: MaskComponentKind): string {
     if (k.kind === 'linear') return 'Linear gradient';
     if (k.kind === 'radial') return 'Radial gradient';
-    return 'Brush';
+    if (k.kind === 'brush') return 'Brush';
+    if (k.kind === 'luma_range') return 'Luminance range';
+    return 'Color range';
   }
 
   function kindIcon(k: MaskComponentKind): string {
     if (k.kind === 'linear') return mdiGradientHorizontal;
     if (k.kind === 'radial') return mdiCircleOutline;
-    return mdiBrush;
+    if (k.kind === 'brush') return mdiBrush;
+    if (k.kind === 'luma_range') return mdiBrightness6;
+    return mdiPalette;
+  }
+
+  function updateLumaRange(field: 'min' | 'max' | 'softness', value: number): void {
+    if (!active || !activeComp || activeComp.kind.kind !== 'luma_range') return;
+    const kind = activeComp.kind;
+    const next = { ...kind, [field]: value };
+    if (field === 'min') next.min = Math.min(value, kind.max);
+    if (field === 'max') next.max = Math.max(value, kind.min);
+    editor.updateMaskComponentKind(active.id, activeComp.id, next, true);
+  }
+
+  function updateColorRange(field: 'tolerance' | 'softness', value: number): void {
+    if (!active || !activeComp || activeComp.kind.kind !== 'color_range') return;
+    editor.updateMaskComponentKind(
+      active.id,
+      activeComp.id,
+      { ...activeComp.kind, [field]: value },
+      true
+    );
+  }
+
+  function colorCss(rgb: [number, number, number]): string {
+    const channels = rgb.map((value) => Math.round(Math.max(0, Math.min(1, value)) * 255));
+    return `rgb(${channels[0]} ${channels[1]} ${channels[2]})`;
   }
 
   async function addLayer(kind: MaskComponentKind): Promise<void> {
@@ -259,6 +309,20 @@
             >
               <Icon path={mdiBrush} size={14} /> Brush
             </button>
+            <button
+              type="button"
+              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left"
+              onclick={() => void addLayer(defaultLumaRange())}
+            >
+              <Icon path={mdiBrightness6} size={14} /> Luminance range
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left"
+              onclick={() => void addLayer(defaultColorRange())}
+            >
+              <Icon path={mdiPalette} size={14} /> Color range
+            </button>
           </div>
         {/if}
       </div>
@@ -345,7 +409,7 @@
             class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {isPreview
               ? 'text-immich-dark-primary'
               : ''}"
-            title={isPreview ? 'Hide mask preview' : 'Show mask weight'}
+            title={isPreview ? 'Hide mask overlay' : 'Show mask overlay'}
             aria-label="Toggle mask preview"
             onclick={(e) => {
               e.stopPropagation();
@@ -442,6 +506,20 @@
                 onclick={() => void addBrushComp()}
               >
                 <Icon path={mdiBrush} size={14} /> Brush
+              </button>
+              <button
+                type="button"
+                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left"
+                onclick={() => void addComponent(defaultLumaRange())}
+              >
+                <Icon path={mdiBrightness6} size={14} /> Luminance range
+              </button>
+              <button
+                type="button"
+                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left"
+                onclick={() => void addComponent(defaultColorRange())}
+              >
+                <Icon path={mdiPalette} size={14} /> Color range
               </button>
             </div>
           {/if}
@@ -622,6 +700,94 @@
           onLive={(v: number) => editor.setBrushTool({ flow: v })}
           onCommit={() => editor.setBrushTool({ flow: brushFlowValue })}
           format={(v: number) => v.toFixed(2)}
+        />
+      </div>
+    {/if}
+
+    {#if activeComp && activeComp.kind.kind === 'luma_range'}
+      <div class="mt-2 flex flex-col gap-2.5">
+        <SliderRow
+          label="Min"
+          value={lumaMinValue}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={0.25}
+          onLive={(value: number) => updateLumaRange('min', value)}
+          onCommit={onFeatherCommit}
+          format={(value: number) => value.toFixed(2)}
+        />
+        <SliderRow
+          label="Max"
+          value={lumaMaxValue}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={0.75}
+          onLive={(value: number) => updateLumaRange('max', value)}
+          onCommit={onFeatherCommit}
+          format={(value: number) => value.toFixed(2)}
+        />
+        <SliderRow
+          label="Softness"
+          value={rangeSoftnessValue}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={0.1}
+          onLive={(value: number) => updateLumaRange('softness', value)}
+          onCommit={onFeatherCommit}
+          format={(value: number) => value.toFixed(2)}
+        />
+      </div>
+    {/if}
+
+    {#if activeComp && activeComp.kind.kind === 'color_range'}
+      <div class="mt-2 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-[11px] text-immich-dark-fg/70">Sample</span>
+          <div class="flex items-center gap-2">
+            <span
+              class="w-5 h-5 rounded-sm ring-1 ring-white/20"
+              style="background-color: {colorCss(activeComp.kind.sample_rgb)}"
+            ></span>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center w-6 h-6 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors {editor.colorPicker
+                ? 'bg-white/10 text-immich-dark-primary'
+                : ''}"
+              title={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
+              aria-label={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
+              onclick={() => {
+                if (editor.colorPicker) editor.cancelColorPicker();
+                else if (active) editor.beginColorPicker(active.id, activeComp.id);
+              }}
+            >
+              <Icon path={mdiEyedropperVariant} size={14} />
+            </button>
+          </div>
+        </div>
+        <SliderRow
+          label="Tolerance"
+          value={colorToleranceValue}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={0.1}
+          onLive={(value: number) => updateColorRange('tolerance', value)}
+          onCommit={onFeatherCommit}
+          format={(value: number) => value.toFixed(2)}
+        />
+        <SliderRow
+          label="Softness"
+          value={rangeSoftnessValue}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={0.05}
+          onLive={(value: number) => updateColorRange('softness', value)}
+          onCommit={onFeatherCommit}
+          format={(value: number) => value.toFixed(2)}
         />
       </div>
     {/if}

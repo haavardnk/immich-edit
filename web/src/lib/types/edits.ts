@@ -250,7 +250,14 @@ export interface Vec2f {
 export type MaskComponentKind =
   | { kind: 'linear'; p0: Vec2f; p1: Vec2f; feather: number }
   | { kind: 'radial'; center: Vec2f; radius_xy: Vec2f; feather: number }
-  | { kind: 'brush'; raster_id: string };
+  | { kind: 'brush'; raster_id: string }
+  | { kind: 'luma_range'; min: number; max: number; softness: number }
+  | {
+      kind: 'color_range';
+      sample_rgb: [number, number, number];
+      tolerance: number;
+      softness: number;
+    };
 
 export interface MaskComponent {
   id: string;
@@ -487,6 +494,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     e.effects.vignette_amount === 0 &&
     e.effects.grain_amount === 0 &&
     lensIsZero(e.lens) &&
+    e.masks.length === 0 &&
     outputIsDefault(e.output)
   );
 }
@@ -851,6 +859,12 @@ function parseVec2f(raw: unknown): Vec2f | null {
   return { x: r.x, y: r.y };
 }
 
+function parseRgb(raw: unknown): [number, number, number] | null {
+  if (!Array.isArray(raw) || raw.length !== 3) return null;
+  if (!raw.every((value) => typeof value === 'number' && Number.isFinite(value))) return null;
+  return [raw[0], raw[1], raw[2]];
+}
+
 function parseMaskKind(raw: unknown): MaskComponentKind | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -874,6 +888,30 @@ function parseMaskKind(raw: unknown): MaskComponentKind | null {
   if (r.kind === 'brush') {
     if (typeof r.raster_id !== 'string') return null;
     return { kind: 'brush', raster_id: r.raster_id };
+  }
+  if (r.kind === 'luma_range') {
+    if (
+      typeof r.min !== 'number' ||
+      typeof r.max !== 'number' ||
+      typeof r.softness !== 'number'
+    )
+      return null;
+    return { kind: 'luma_range', min: r.min, max: r.max, softness: r.softness };
+  }
+  if (r.kind === 'color_range') {
+    const sample_rgb = parseRgb(r.sample_rgb);
+    if (
+      !sample_rgb ||
+      typeof r.tolerance !== 'number' ||
+      typeof r.softness !== 'number'
+    )
+      return null;
+    return {
+      kind: 'color_range',
+      sample_rgb,
+      tolerance: r.tolerance,
+      softness: r.softness
+    };
   }
   return null;
 }

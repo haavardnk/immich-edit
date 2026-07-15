@@ -26,6 +26,33 @@ describe('neutralEdits identity', () => {
     expect(manifest.schema_version).toBe(3);
     expect(Object.keys(manifest.ops)).toHaveLength(0);
   });
+
+  it('treats mask-only edits as non-identity', () => {
+    const e = neutralEdits();
+    e.masks = [
+      {
+        id: 'layer',
+        name: 'Range',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        components: [
+          {
+            id: 'luma',
+            enabled: true,
+            mode: 'add',
+            opacity: 1,
+            invert: false,
+            kind: { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 },
+            source: 'manual'
+          }
+        ],
+        edits: {}
+      }
+    ];
+    expect(isIdentity(e)).toBe(false);
+    expect(isNonGeometryIdentity(e)).toBe(false);
+  });
 });
 
 describe('editsToManifest / manifestToEdits round-trip', () => {
@@ -110,5 +137,73 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     });
     expect(edits.tone.highlights).toBe(-10);
     expect(edits.tone.shadows).toBe(20);
+  });
+
+  it('preserves luma and color range masks', () => {
+    const e = neutralEdits();
+    e.masks = [
+      {
+        id: 'layer',
+        name: 'Range',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        components: [
+          {
+            id: 'luma',
+            enabled: true,
+            mode: 'add',
+            opacity: 1,
+            invert: false,
+            kind: { kind: 'luma_range', min: 0.2, max: 0.8, softness: 0.1 },
+            source: 'manual'
+          },
+          {
+            id: 'color',
+            enabled: true,
+            mode: 'intersect',
+            opacity: 0.9,
+            invert: false,
+            kind: {
+              kind: 'color_range',
+              sample_rgb: [0.2, 0.5, 0.9],
+              tolerance: 0.12,
+              softness: 0.04
+            },
+            source: 'manual'
+          }
+        ],
+        edits: { exposure_ev: 0.5 }
+      }
+    ];
+    expect(roundTrip(e).masks).toEqual(e.masks);
+  });
+
+  it('drops malformed color range samples', () => {
+    const edits = manifestToEdits({
+      schema_version: 3,
+      ops: {
+        masks: {
+          layers: [
+            {
+              id: 'layer',
+              components: [
+                {
+                  id: 'color',
+                  kind: {
+                    kind: 'color_range',
+                    sample_rgb: [0.2, 0.5],
+                    tolerance: 0.1,
+                    softness: 0.05
+                  }
+                }
+              ],
+              edits: { exposure_ev: 0.5 }
+            }
+          ]
+        }
+      }
+    });
+    expect(edits.masks).toEqual([]);
   });
 });

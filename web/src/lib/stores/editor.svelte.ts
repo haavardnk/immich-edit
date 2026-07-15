@@ -78,6 +78,7 @@ class EditorStore {
   activeMaskComponentId = $state<string | null>(null);
   maskOverlayVisible = $state(true);
   maskPreviewLayerId = $state<string | null>(null);
+  colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
   brushTool = $state<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>({
     size: 0.08,
     hardness: 0.5,
@@ -96,7 +97,15 @@ class EditorStore {
   private originalEdge = 0;
   private originalGeomKey = '';
 
-  private flight = new SingleFlight<{ edits: Edits; maxEdge: number; previewMode: PreviewMode }, { url: string; metaId: string | null }>(
+  private flight = new SingleFlight<
+    {
+      edits: Edits;
+      maxEdge: number;
+      previewMode: PreviewMode;
+      purpose?: 'color-picker';
+    },
+    { url: string; metaId: string | null }
+  >(
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       this.pending = true;
@@ -108,6 +117,9 @@ class EditorStore {
       this.previewUrl = result.url;
       if (prev?.startsWith('blob:')) revoke(prev);
       this.pending = false;
+      if (args.purpose === 'color-picker' && this.colorPicker) {
+        this.colorPicker = { ...this.colorPicker, ready: true };
+      }
       if (previewModeIsNone(args.previewMode)) {
         this.renderedEdge = args.maxEdge;
         if (result.metaId) void this.loadMeta(result.metaId);
@@ -118,6 +130,7 @@ class EditorStore {
       this.pending = false;
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (err instanceof ApiError && err.code === 'superseded') return;
+      this.colorPicker = null;
       this.error = (err as Error).message;
     }
   );
@@ -228,6 +241,7 @@ class EditorStore {
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskPreviewLayerId = null;
+    this.colorPicker = null;
     this.brushBuffers = {};
   }
 
@@ -308,7 +322,11 @@ class EditorStore {
   onCommit = async (action?: string): Promise<void> => {
     if (!this.initialised || !this.assetId) return;
     if (!this.skipHistory) this.pushHistory();
-    this.onLive();
+    if (this.maskPreviewLayerId) {
+      this.onPreview(maskWeightPreview(this.maskPreviewLayerId));
+    } else {
+      this.onLive();
+    }
     const effectiveAction = this.skipHistory ? undefined : action;
     this.lastSaveAction = effectiveAction;
     this.saving = true;
@@ -482,6 +500,7 @@ class EditorStore {
   };
 
   setActiveLayer = (id: string | null): void => {
+    if (this.colorPicker && this.colorPicker.layerId !== id) this.cancelColorPicker();
     if (this.activeLayerId !== id) this.activeMaskComponentId = null;
     this.activeLayerId = id;
     if (this.maskPreviewLayerId && this.maskPreviewLayerId !== id) {
@@ -496,6 +515,7 @@ class EditorStore {
   };
 
   setActiveMaskComponent = (id: string | null): void => {
+    if (this.colorPicker && this.colorPicker.componentId !== id) this.cancelColorPicker();
     this.activeMaskComponentId = id;
   };
 
@@ -529,6 +549,51 @@ class EditorStore {
     if (!this.maskPreviewLayerId) return;
     this.maskPreviewLayerId = null;
     this.endPreview();
+  };
+
+  beginColorPicker = (layerId: string, componentId: string): void => {
+    const layer = this.edits.masks.find((item) => item.id === layerId);
+    const component = layer?.components.find((item) => item.id === componentId);
+    if (!component || component.kind.kind !== 'color_range') return;
+    if (this.hiresTimer) {
+      clearTimeout(this.hiresTimer);
+      this.hiresTimer = null;
+    }
+    if (this.splitMode) this.toggleSplit();
+    this.maskPreviewLayerId = null;
+    this.colorPicker = { layerId, componentId, ready: false };
+    const edits = $state.snapshot(this.edits) as Edits;
+    this.flight.submit({
+      edits: { ...edits, masks: [] },
+      maxEdge: this.renderedEdge || LIVE_EDGE,
+      previewMode: 'none',
+      purpose: 'color-picker'
+    });
+  };
+
+  cancelColorPicker = (): void => {
+    if (!this.colorPicker) return;
+    this.colorPicker = null;
+    this.onLive();
+  };
+
+  commitColorSample = async (sampleRgb: [number, number, number]): Promise<void> => {
+    const picker = this.colorPicker;
+    if (!picker) return;
+    const layer = this.edits.masks.find((item) => item.id === picker.layerId);
+    const component = layer?.components.find((item) => item.id === picker.componentId);
+    if (!component || component.kind.kind !== 'color_range') {
+      this.cancelColorPicker();
+      return;
+    }
+    this.colorPicker = null;
+    this.updateMaskComponentKind(
+      picker.layerId,
+      picker.componentId,
+      { ...component.kind, sample_rgb: sampleRgb },
+      false
+    );
+    await this.commitMasks();
   };
 
   addMaskLayer = async (kind: MaskComponentKind = defaultLinear()): Promise<string | null> => {
@@ -589,7 +654,12 @@ class EditorStore {
   patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
     const masks = this.edits.masks.map((l) => (l.id === id ? { ...l, ...patch } : l));
     this.edits = { ...this.edits, masks };
-    if (live) this.onLive();
+    if (!live) return;
+    if (this.maskPreviewLayerId === id) {
+      this.onPreview(maskWeightPreview(id));
+    } else {
+      this.onLive();
+    }
   };
 
   toggleMaskLayerEnabled = async (id: string): Promise<void> => {

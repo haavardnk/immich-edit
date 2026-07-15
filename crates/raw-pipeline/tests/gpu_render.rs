@@ -1128,3 +1128,79 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
         panic!("CPU vs GPU brush mask drift: {delta:.3} > 2.0");
     }
 }
+
+#[test]
+fn gpu_range_masks_match_cpu_within_tolerance() {
+    use raw_pipeline::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+        TonemapKind,
+    };
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    for tonemap in [TonemapKind::Default, TonemapKind::Agx] {
+        let layer = MaskLayer {
+            id: "L1".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#ff3b30".into(),
+            amount: 1.0,
+            components: vec![
+                MaskComponent {
+                    id: "color".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Add,
+                    opacity: 1.0,
+                    invert: false,
+                    kind: MaskComponentKind::ColorRange {
+                        sample_rgb: [0.65, 0.45, 0.35],
+                        tolerance: 0.25,
+                        softness: 0.15,
+                    },
+                    source: MaskSource::Manual,
+                },
+                MaskComponent {
+                    id: "luma".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Intersect,
+                    opacity: 1.0,
+                    invert: false,
+                    kind: MaskComponentKind::LumaRange {
+                        min: 0.15,
+                        max: 0.85,
+                        softness: 0.15,
+                    },
+                    source: MaskSource::Manual,
+                },
+            ],
+            edits: MaskedEdits {
+                exposure_ev: Some(0.8),
+                saturation: Some(20.0),
+                ..Default::default()
+            },
+        };
+        let mut edits = Edits {
+            masks: vec![layer],
+            ..Default::default()
+        };
+        edits.output.tonemap = tonemap;
+        let opts = RenderOptions {
+            max_edge: 96,
+            ..Default::default()
+        };
+        let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
+        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
+        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
+        if (cw, ch) != (gw, gh) {
+            panic!("range mask decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
+        }
+        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+        eprintln!("range masks {tonemap:?}: mean abs delta = {delta:.3}");
+        if delta > 2.5 {
+            panic!("CPU vs GPU range mask drift for {tonemap:?}: {delta:.3} > 2.5");
+        }
+    }
+}

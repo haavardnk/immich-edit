@@ -102,6 +102,9 @@
       rectW > 0 &&
       rectH > 0
   );
+  const showColorPicker = $derived(
+    !!editor.colorPicker?.ready && rectW > 0 && rectH > 0 && !!img
+  );
 
   function sceneToDisplay(scene: Vec2f): Vec2f {
     const m = sceneUvToMaskUv(lensP, [scene.x, scene.y]);
@@ -169,6 +172,11 @@
   }
 
   function onKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && editor.colorPicker) {
+      e.preventDefault();
+      editor.cancelColorPicker();
+      return;
+    }
     if (e.key !== 'Backspace' && e.key !== 'Delete') return;
     const t = e.target as HTMLElement | null;
     if (t) {
@@ -257,6 +265,25 @@
     return Math.max(0, Math.min(1, v));
   }
 
+  function sampleColor(e: PointerEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!img || !editor.colorPicker?.ready || img.naturalWidth < 1 || img.naturalHeight < 1) return;
+    const rect = img.getBoundingClientRect();
+    const u = clamp01((e.clientX - rect.left) / Math.max(rect.width, 1));
+    const v = clamp01((e.clientY - rect.top) / Math.max(rect.height, 1));
+    const sx = Math.min(img.naturalWidth - 1, Math.floor(u * img.naturalWidth));
+    const sy = Math.min(img.naturalHeight - 1, Math.floor(v * img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return;
+    context.drawImage(img, sx, sy, 1, 1, 0, 0, 1, 1);
+    const pixel = context.getImageData(0, 0, 1, 1).data;
+    void editor.commitColorSample([pixel[0] / 255, pixel[1] / 255, pixel[2] / 255]);
+  }
+
   function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {
     const a = sceneToPx(k.p0);
     const b = sceneToPx(k.p1);
@@ -279,6 +306,16 @@
 
   const activeCompId = $derived(editor.activeMaskComponentId);
 </script>
+
+{#if showColorPicker}
+  <button
+    type="button"
+    class="absolute z-30 cursor-crosshair bg-transparent"
+    style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px;"
+    aria-label="Sample mask color"
+    onpointerdown={sampleColor}
+  ></button>
+{/if}
 
 {#if showOverlay && active}
   <svg

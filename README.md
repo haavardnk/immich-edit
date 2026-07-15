@@ -35,7 +35,7 @@ Edits:
 - Clarity, texture, dehaze, sharpening, luma + color noise reduction
 - Vignette, grain
 - Crop, rotate, flip
-- Local masks (radial, linear, brush) with adjustable parameters
+- Local masks (radial, linear, brush, luminance range, color range) with adjustable parameters
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
 - Undo/redo while editing, plus saved edit history with expandable change details and restore

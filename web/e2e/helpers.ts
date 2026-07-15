@@ -62,6 +62,7 @@ export interface InstallOpts {
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
   onPreview?: (req: PreviewRequest) => void;
+  onSave?: (body: Record<string, unknown>) => void;
   onSmart?: (body: Record<string, unknown>) => void;
   onMetadata?: (body: Record<string, unknown>) => void;
   smartFails?: boolean;
@@ -114,6 +115,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const editsMatch = p.match(/^\/api\/assets\/([^/]+)\/edits$/);
     if (editsMatch) {
       if (method === 'DELETE') return route.fulfill({ status: 204, body: '' });
+      if (method === 'PUT') {
+        const body = (req.postDataJSON() as Record<string, unknown> | null) ?? {};
+        if (opts.onSave) opts.onSave(body);
+        const record = opts.editRecord ?? NEUTRAL_RECORD;
+        return route.fulfill(
+          json({
+            ...record,
+            asset_id: editsMatch[1],
+            manifest: body.manifest ?? record.manifest
+          })
+        );
+      }
       return route.fulfill(
         json({ ...(opts.editRecord ?? NEUTRAL_RECORD), asset_id: editsMatch[1] })
       );

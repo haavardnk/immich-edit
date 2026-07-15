@@ -311,6 +311,32 @@ mod tests {
                     },
                     source: MaskSource::Manual,
                 },
+                MaskComponent {
+                    id: "c3".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Intersect,
+                    opacity: 0.9,
+                    invert: false,
+                    kind: MaskComponentKind::LumaRange {
+                        min: 0.2,
+                        max: 0.8,
+                        softness: 0.1,
+                    },
+                    source: MaskSource::Manual,
+                },
+                MaskComponent {
+                    id: "c4".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Intersect,
+                    opacity: 1.0,
+                    invert: false,
+                    kind: MaskComponentKind::ColorRange {
+                        sample_rgb: [0.2, 0.5, 0.9],
+                        tolerance: 0.12,
+                        softness: 0.04,
+                    },
+                    source: MaskSource::Manual,
+                },
             ],
             edits: MaskedEdits {
                 exposure_ev: Some(-0.5),

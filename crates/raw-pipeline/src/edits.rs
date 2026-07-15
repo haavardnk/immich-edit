@@ -659,6 +659,16 @@ pub enum MaskComponentKind {
     Brush {
         raster_id: String,
     },
+    LumaRange {
+        min: f32,
+        max: f32,
+        softness: f32,
+    },
+    ColorRange {
+        sample_rgb: [f32; 3],
+        tolerance: f32,
+        softness: f32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -807,6 +817,24 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
         },
         MaskComponentKind::Brush { raster_id } => MaskComponentKind::Brush {
             raster_id: raster_id.clone(),
+        },
+        MaskComponentKind::LumaRange { min, max, softness } => {
+            let lo = min.min(*max).clamp(0.0, 1.0);
+            let hi = min.max(*max).clamp(0.0, 1.0);
+            MaskComponentKind::LumaRange {
+                min: lo,
+                max: hi,
+                softness: softness.clamp(0.0, 1.0),
+            }
+        }
+        MaskComponentKind::ColorRange {
+            sample_rgb,
+            tolerance,
+            softness,
+        } => MaskComponentKind::ColorRange {
+            sample_rgb: sample_rgb.map(|v| v.clamp(0.0, 1.0)),
+            tolerance: tolerance.clamp(0.0, 1.0),
+            softness: softness.clamp(0.0, 1.0),
         },
     };
     MaskComponent {

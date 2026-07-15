@@ -84,7 +84,13 @@ pub fn render_with_cancel(
         transform::resize_owned(image.rgb, image.width, image.height, options.max_edge);
 
     let mut out_image = LinearImage::new(rgb, w, h);
-    run_output_ops(&mut out_image, &ctx, &edits, cancel)?;
+    let display_ready = matches!(
+        options.preview_mode,
+        crate::frame::PreviewMode::MaskWeight { .. }
+    );
+    if !display_ready {
+        run_output_ops(&mut out_image, &ctx, &edits, cancel)?;
+    }
     let rgb = out_image.rgb;
     let w = out_image.width;
     let h = out_image.height;
@@ -92,7 +98,7 @@ pub fn render_with_cancel(
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     cancel::check(cancel)?;
     let (rgb_u8, rgb_u16, histogram, linear_histogram) =
-        finish_output(rgb, w, h, want_16bit, edits.output);
+        finish_output(rgb, w, h, want_16bit, edits.output, display_ready);
     cancel::check(cancel)?;
 
     let bytes = if want_16bit {
@@ -134,8 +140,21 @@ pub fn run_pipeline_ops(
                 components: Vec::new(),
             },
         };
+        let mut global_edits = edits.clone();
+        global_edits.masks.clear();
+        global_edits.geometry = Default::default();
+        let global_ctx = OpContext {
+            render: RenderContext {
+                wb_coeffs: ctx.render.wb_coeffs,
+                cam_to_srgb: ctx.render.cam_to_srgb,
+                is_raw: ctx.render.is_raw,
+                preview_mode: crate::frame::PreviewMode::None,
+            },
+            scratch: OpScratch::default(),
+        };
+        run_pipeline_ops(image, &global_ctx, &global_edits, rasters, cancel)?;
         let warp = LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
-        crate::cpu::masked::render_mask_weight(image, &eval, &warp);
+        crate::cpu::masked::render_mask_overlay(image, &eval, &warp, edits.output);
         let registry = default_registry();
         for op in registry.ops().iter() {
             cancel::check(cancel)?;
@@ -205,7 +224,14 @@ pub fn run_pipeline_ops(
                 segment.clear();
             }
         } else if !segment.is_empty() || layer_segments.iter().any(|s| !s.is_empty()) {
-            apply_segment_masked(image, segment, layer_segments, layer_evals, &lens_warp);
+            apply_segment_masked(
+                image,
+                segment,
+                layer_segments,
+                layer_evals,
+                &lens_warp,
+                edits.output,
+            );
             segment.clear();
             for s in layer_segments.iter_mut() {
                 s.clear();
@@ -403,6 +429,7 @@ fn finish_output(
     h: usize,
     want_16bit: bool,
     output: crate::edits::OutputEdits,
+    display_ready: bool,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -447,7 +474,11 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
+                    let [tr, tg, tb] = if display_ready {
+                        [lr, lg, lb]
+                    } else {
+                        crate::tone::apply_rgb([lr, lg, lb], output)
+                    };
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -483,7 +514,11 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = crate::tone::apply_rgb([lr, lg, lb], output);
+                    let [tr, tg, tb] = if display_ready {
+                        [lr, lg, lb]
+                    } else {
+                        crate::tone::apply_rgb([lr, lg, lb], output)
+                    };
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -517,6 +552,15 @@ fn finish_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn display_ready_output_skips_tone_mapping() {
+        let (rgb, _, _, _) =
+            finish_output(vec![0.5, 0.5, 0.5], 1, 1, false, Default::default(), true);
+        if rgb.iter().any(|value| !(126..=129).contains(value)) {
+            panic!("expected display-ready midpoint, got {rgb:?}");
+        }
+    }
 
     #[test]
     fn default_tone_preserves_endpoints() {

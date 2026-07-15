@@ -23,6 +23,69 @@ test('adjusting a slider requests a live preview with the new edit', async ({ pa
     .toBe(true);
 });
 
+test('color range eyedropper samples maskless preview', async ({ page }) => {
+  const previews: PreviewRequest[] = [];
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    onPreview: (request) => previews.push(request),
+    onSave: (body) => saves.push(body)
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'Add mask layer' }).click();
+  await page.getByRole('button', { name: 'Color range', exact: true }).click();
+
+  const maskPreview = page.getByRole('button', { name: 'Toggle mask preview', exact: true });
+  await maskPreview.click();
+  await expect
+    .poll(() =>
+      previews.some(
+        (request) =>
+          typeof request.preview_mode === 'object' &&
+          request.preview_mode !== null &&
+          'mask_weight' in request.preview_mode
+      )
+    )
+    .toBe(true);
+  await maskPreview.click();
+
+  const picker = page.getByRole('button', { name: 'Pick color from image' });
+  await picker.click();
+  await expect
+    .poll(() =>
+      previews.some((request) => {
+        const edits = request.edits as { masks?: unknown[] };
+        return Array.isArray(edits.masks) && edits.masks.length === 0;
+      })
+    )
+    .toBe(true);
+
+  await page.getByRole('button', { name: 'Sample mask color' }).click();
+  await expect.poll(() => saves.length).toBeGreaterThan(1);
+  const body = saves.at(-1) as {
+    manifest?: {
+      ops?: {
+        masks?: {
+          layers?: Array<{
+            components?: Array<{ kind?: { kind?: string; sample_rgb?: number[] } }>;
+          }>;
+        };
+      };
+    };
+  };
+  const kind = body.manifest?.ops?.masks?.layers?.[0]?.components?.[0]?.kind;
+  expect(kind?.kind).toBe('color_range');
+  expect(kind?.sample_rgb).toHaveLength(3);
+  expect(kind?.sample_rgb).not.toEqual([0.5, 0.5, 0.5]);
+  await expect(page.getByRole('button', { name: 'Pick color from image' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  await expect(page.getByRole('button', { name: 'Sample mask color' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
+});
+
 test('keyboard help modal toggles with the ? key', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

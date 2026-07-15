@@ -961,6 +961,10 @@ impl GpuRenderer {
                             binding: 4,
                             resource: BindingResource::Sampler(&atlas_sampler),
                         },
+                        BindGroupEntry {
+                            binding: 5,
+                            resource: BindingResource::TextureView(&out_view),
+                        },
                     ],
                 });
                 {

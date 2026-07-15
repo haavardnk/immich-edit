@@ -54,6 +54,19 @@ export function defaultBrush(rasterId: string): MaskComponentKind {
   return { kind: 'brush', raster_id: rasterId };
 }
 
+export function defaultLumaRange(): MaskComponentKind {
+  return { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 };
+}
+
+export function defaultColorRange(): MaskComponentKind {
+  return {
+    kind: 'color_range',
+    sample_rgb: [0.5, 0.5, 0.5],
+    tolerance: 0.1,
+    softness: 0.05
+  };
+}
+
 export function makeComponent(kind: MaskComponentKind, mode: MaskComponentMode = 'add'): MaskComponent {
   return {
     id: nextId(),
@@ -125,7 +138,16 @@ function cloneKind(k: MaskComponentKind): MaskComponentKind {
       feather: k.feather
     };
   }
-  return { kind: 'brush', raster_id: k.raster_id };
+  if (k.kind === 'brush') return { kind: 'brush', raster_id: k.raster_id };
+  if (k.kind === 'luma_range') {
+    return { kind: 'luma_range', min: k.min, max: k.max, softness: k.softness };
+  }
+  return {
+    kind: 'color_range',
+    sample_rgb: [...k.sample_rgb],
+    tolerance: k.tolerance,
+    softness: k.softness
+  };
 }
 
 export function setMaskedEdit(edits: MaskedEdits, key: MaskedEditKey, value: number): MaskedEdits {
