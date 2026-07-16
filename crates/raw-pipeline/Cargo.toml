@@ -17,7 +17,7 @@ sha2 = "0.11"
 hex = "0.4"
 wgpu = "29"
 bytemuck = { version = "1", features = ["derive"] }
-pollster = "0.4"
+pollster = "1.0"
 parking_lot = "0.12"
 lru = "0.18"
 half = "2.7.1"
