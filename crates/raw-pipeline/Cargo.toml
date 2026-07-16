@@ -28,7 +28,7 @@ png = "0.18"
 tiff = "0.11"
 webp = "0.3"
 rgb = "0.8"
-jpegxl-rs = { version = "0.14", features = ["vendored"] }
+jpegxl-rs = { version = "0.15", features = ["vendored"] }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
