@@ -81,11 +81,15 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
   }
 }
 
-export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function getJson<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: { silent?: boolean }
+): Promise<T> {
   const resp = await safeFetch(path, init);
   if (!resp.ok) {
     const err = await parseError(resp);
-    reportError(err);
+    if (!opts?.silent) reportError(err);
     throw err;
   }
   return (await resp.json()) as T;
