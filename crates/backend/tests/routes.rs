@@ -913,3 +913,41 @@ async fn create_reset_edits_job_creates_items_for_ids() {
     assert_eq!(job["kind"], "reset_edits");
     assert_eq!(job["total"], 2);
 }
+
+#[tokio::test]
+async fn admin_users_empty_on_fresh_instance() {
+    let server = MockServer::start().await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/admin/users")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    assert_eq!(json["users"].as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn admin_instance_reports_epoch() {
+    let server = MockServer::start().await;
+    let app = router(test_state(&server).await);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/admin/instance")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    assert!(json["server_epoch"].is_number());
+}

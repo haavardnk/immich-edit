@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod albums;
 pub mod assets;
 pub mod auth;

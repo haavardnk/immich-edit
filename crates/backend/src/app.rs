@@ -69,6 +69,14 @@ pub fn router(state: AppState) -> Router {
             "/auth/sessions/revoke-all",
             post(routes::auth::revoke_all_sessions),
         )
+        .route("/admin/users", get(routes::admin::list_users))
+        .route("/admin/users/{id}/access", put(routes::admin::set_access))
+        .route(
+            "/admin/users/{id}/data",
+            axum::routing::delete(routes::admin::purge_user_data),
+        )
+        .route("/admin/instance", get(routes::admin::instance_info))
+        .route("/admin/instance/rebind", post(routes::admin::rebind))
         .route("/setup/status", get(routes::setup::status))
         .route("/setup/complete", post(routes::setup::complete))
         .route("/debug/timings", get(routes::debug::timings))

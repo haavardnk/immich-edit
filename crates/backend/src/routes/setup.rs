@@ -4,7 +4,6 @@ use axum::http::HeaderMap;
 use axum::response::Response;
 use serde::Deserialize;
 use serde_json::json;
-use url::Url;
 
 use crate::error::AppError;
 use crate::routes::auth;
@@ -33,11 +32,7 @@ pub async fn complete(
     if cfg.is_configured() {
         return Err(AppError::Conflict("instance already configured".into()));
     }
-    let base = Url::parse(body.immich_url.trim())
-        .map_err(|_| AppError::BadRequest("invalid immich url".into()))?;
-    if !matches!(base.scheme(), "http" | "https") || base.host().is_none() {
-        return Err(AppError::BadRequest("immich url must be http(s)".into()));
-    }
+    let base = auth::validate_candidate_url(&body.immich_url)?;
 
     let (user, kind, cred): (_, _, Vec<u8>) = if let Some(api_key) = body.api_key.as_deref() {
         let user = auth::validate_api_key(&base, api_key).await?;

@@ -275,6 +275,16 @@ impl AuthStore {
         Ok(())
     }
 
+    pub async fn purge_all(&self) -> Result<(), AuthStoreError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM sessions")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM users").execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn list_sessions(&self, user_id: Uuid) -> Result<Vec<SessionRecord>, AuthStoreError> {
         let rows = sqlx::query(
             "SELECT id, user_id, auth_kind, server_epoch, created_at, expires_at, last_seen_at, \

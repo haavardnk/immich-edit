@@ -355,6 +355,46 @@ impl JobStore {
         Ok(cancelled)
     }
 
+    pub async fn cancel_active_for_owner(&self, owner: Uuid) -> Result<u64, JobStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let res = sqlx::query(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
+             WHERE user_id = ?2 AND status IN ('pending', 'running')",
+        )
+        .bind(&now)
+        .bind(owner.to_string())
+        .execute(&self.pool)
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    pub async fn purge_owner(&self, owner: Uuid) -> Result<(), JobStoreError> {
+        let owner_str = owner.to_string();
+        let mut tx = self.pool.begin().await?;
+        sqlx::query(
+            "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1)",
+        )
+        .bind(&owner_str)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM jobs WHERE user_id = ?1")
+            .bind(&owner_str)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn purge_all(&self) -> Result<(), JobStoreError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM job_items")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM jobs").execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn clear_finished(&self) -> Result<Vec<(Uuid, String)>, JobStoreError> {
         let rows =
             sqlx::query("SELECT id, kind FROM jobs WHERE status NOT IN ('pending', 'running')")
