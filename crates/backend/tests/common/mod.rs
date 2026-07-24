@@ -4,9 +4,11 @@ use immich_edit_backend::app;
 use immich_edit_backend::config::{Config, RendererMode};
 use immich_edit_backend::immich::ImmichClient;
 use immich_edit_backend::services::asset_counts::AssetCountCache;
+use immich_edit_backend::services::crypto::InstanceCrypto;
 use immich_edit_backend::services::dcp_store::DcpStore;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
+use immich_edit_backend::services::instance_store::InstanceStore;
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::lut_store::LutStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
@@ -48,11 +50,16 @@ pub async fn test_state(server: &MockServer) -> AppState {
     };
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     let edits = EditsStore::migrated_memory().await.unwrap();
+    let instance = InstanceStore::new(edits.pool());
+    let crypto =
+        Arc::new(InstanceCrypto::load_or_create(&cache_dir.join("instance.key"), false).unwrap());
     let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
     let dcp = DcpStore::new(edits.pool(), &cache_dir).unwrap();
     let jobs = JobStore::new(edits.pool());
     AppState {
         config: Arc::new(config),
+        crypto,
+        instance,
         immich: immich.clone(),
         edits,
         jobs,

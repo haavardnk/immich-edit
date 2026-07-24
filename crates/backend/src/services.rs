@@ -1,11 +1,13 @@
 pub mod apply_preset;
 pub mod asset_counts;
 pub mod blob_store;
+pub mod crypto;
 pub mod dcp_store;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;
 pub mod export;
+pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;
 pub mod lut_store;

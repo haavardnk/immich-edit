@@ -3,9 +3,11 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::immich::ImmichClient;
 use crate::services::asset_counts::AssetCountCache;
+use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
+use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
 use crate::services::lut_store::LutStore;
 use crate::services::preview_meta::PreviewMetaStore;
@@ -16,6 +18,8 @@ use crate::services::render_queue::RenderQueue;
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub crypto: Arc<InstanceCrypto>,
+    pub instance: InstanceStore,
     pub immich: ImmichClient,
     pub edits: EditsStore,
     pub jobs: JobStore,
@@ -45,6 +49,13 @@ impl AppState {
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
+        let instance = InstanceStore::new(edits.pool());
+        let has_secrets = instance.has_encrypted_secrets().await.unwrap_or(false);
+        let key_path = std::path::Path::new(&config.cache_dir).join("instance.key");
+        let crypto = Arc::new(
+            InstanceCrypto::load_or_create(&key_path, has_secrets)
+                .map_err(|e| anyhow::anyhow!("instance key: {e}"))?,
+        );
         let jobs = JobStore::new(edits.pool());
         let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
@@ -82,6 +93,8 @@ impl AppState {
                 .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
         Ok(Self {
             config: Arc::new(config),
+            crypto,
+            instance,
             immich,
             edits,
             jobs,
