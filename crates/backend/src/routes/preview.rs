@@ -11,7 +11,8 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
-use crate::services::render::RenderError;
+use crate::services::render::{RenderError, RenderIdentity};
+use crate::services::render_queue::RenderKey;
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
@@ -86,11 +87,13 @@ pub async fn post_preview(
 
 pub async fn get_meta(
     State(state): State<AppState>,
-    Path((_id, meta_id)): Path<(Uuid, Uuid)>,
+    ctx: AuthCtx,
+    Path((asset_id, meta_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<PreviewMeta>, AppError> {
     match state.preview_meta.get(meta_id).await {
-        Some(m) => Ok(Json(m)),
+        Some(meta) if meta.owner == ctx.owner && meta.asset_id == asset_id => Ok(Json(meta)),
         None => Err(AppError::NotFound),
+        Some(_) => Err(AppError::NotFound),
     }
 }
 
@@ -106,7 +109,16 @@ async fn render_to_response(
     gamut_warn: bool,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
-    let tracker = state.queue.tracker(asset_id).await;
+    let identity = RenderIdentity {
+        owner: ctx.owner,
+        server_epoch: ctx.server_epoch,
+    };
+    let key = RenderKey {
+        owner: ctx.owner,
+        server_epoch: ctx.server_epoch,
+        asset_id,
+    };
+    let tracker = state.queue.tracker(key).await;
     let token = tracker.next();
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
@@ -120,11 +132,15 @@ async fn render_to_response(
         gamut_warn,
         ..Default::default()
     };
-    let work = render.render(ctx.immich.clone(), asset_id, edits, opts, Some(token));
-    let result = state
-        .queue
-        .enqueue::<_, _, RenderError>(asset_id, work)
-        .await;
+    let work = render.render(
+        identity,
+        ctx.immich.clone(),
+        asset_id,
+        edits,
+        opts,
+        Some(token),
+    );
+    let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
     let rendered = match result {
         Some(Ok(r)) => r,
         Some(Err(e)) => return Err(map_render_err(e)),
@@ -138,6 +154,7 @@ async fn render_to_response(
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     if matches!(preview_mode, PreviewMode::None) && !gamut_warn {
         let meta = PreviewMeta {
+            owner: ctx.owner,
             asset_id,
             width: rendered.width,
             height: rendered.height,

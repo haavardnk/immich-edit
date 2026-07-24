@@ -75,6 +75,10 @@ pub struct JobRecord {
     pub id: Uuid,
     #[serde(skip)]
     pub user_id: Uuid,
+    #[serde(skip)]
+    pub server_epoch: i64,
+    #[serde(skip)]
+    pub auth_session_id: Option<Uuid>,
     pub kind: String,
     pub status: JobStatus,
     pub target: serde_json::Value,
@@ -136,6 +140,8 @@ impl JobStore {
     pub async fn create_job(
         &self,
         owner: Uuid,
+        server_epoch: i64,
+        auth_session_id: Uuid,
         kind: &str,
         target: &serde_json::Value,
         params: &serde_json::Value,
@@ -152,8 +158,8 @@ impl JobStore {
 
         let mut tx = self.pool.begin().await?;
         sqlx::query(
-            "INSERT INTO jobs (id, kind, status, target_json, params_json, total, completed, failed, created_at, updated_at, user_id) \
-             VALUES (?, ?, 'pending', ?, ?, ?, 0, 0, ?, ?, ?)",
+            "INSERT INTO jobs (id, kind, status, target_json, params_json, total, completed, failed, created_at, updated_at, user_id, server_epoch, auth_session_id) \
+             VALUES (?, ?, 'pending', ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)",
         )
         .bind(id.to_string())
         .bind(kind)
@@ -163,6 +169,8 @@ impl JobStore {
         .bind(&now)
         .bind(&now)
         .bind(owner.to_string())
+        .bind(server_epoch)
+        .bind(auth_session_id.to_string())
         .execute(&mut *tx)
         .await?;
 
@@ -222,17 +230,9 @@ impl JobStore {
         Ok(Some((cred, auth_kind)))
     }
 
-    pub async fn delete_credential(&self, job_id: Uuid) -> Result<(), JobStoreError> {
-        sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
-            .bind(job_id.to_string())
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
         let row = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id \
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch, auth_session_id \
              FROM jobs WHERE id = ?1",
         )
         .bind(id.to_string())
@@ -247,7 +247,7 @@ impl JobStore {
         limit: i64,
     ) -> Result<Vec<JobRecord>, JobStoreError> {
         let rows = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id \
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch, auth_session_id \
              FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
@@ -350,6 +350,7 @@ impl JobStore {
 
     async fn recompute_and_finalize(&self, job_id: Uuid) -> Result<(), JobStoreError> {
         let now = Utc::now().to_rfc3339();
+        let mut tx = self.pool.begin().await?;
         sqlx::query(
             "UPDATE jobs SET \
                  completed = (SELECT COUNT(*) FROM job_items WHERE job_id = ?1 AND status = 'completed'), \
@@ -359,7 +360,7 @@ impl JobStore {
         )
         .bind(job_id.to_string())
         .bind(&now)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
         let row = sqlx::query(
@@ -369,7 +370,7 @@ impl JobStore {
                  (SELECT status FROM jobs WHERE id = ?1) AS status",
         )
         .bind(job_id.to_string())
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
         let pending: i64 = row.get("pending");
         let completed: i64 = row.get("completed");
@@ -385,10 +386,14 @@ impl JobStore {
                 .bind(final_status.as_str())
                 .bind(&now)
                 .bind(job_id.to_string())
-                .execute(&self.pool)
+                .execute(&mut *tx)
                 .await?;
-            self.delete_credential(job_id).await?;
+            sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
+                .bind(job_id.to_string())
+                .execute(&mut *tx)
+                .await?;
         }
+        tx.commit().await?;
 
         if let Some(job) = self.get_job(job_id).await? {
             self.publish(&job);
@@ -398,6 +403,7 @@ impl JobStore {
 
     pub async fn cancel_job(&self, id: Uuid) -> Result<bool, JobStoreError> {
         let now = Utc::now().to_rfc3339();
+        let mut tx = self.pool.begin().await?;
         let res = sqlx::query(
             "UPDATE jobs SET status = 'cancelled', cancelled_at = ?, updated_at = ? \
              WHERE id = ? AND status IN ('pending', 'running')",
@@ -405,36 +411,95 @@ impl JobStore {
         .bind(&now)
         .bind(&now)
         .bind(id.to_string())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
         let cancelled = res.rows_affected() > 0;
         if cancelled {
-            self.delete_credential(id).await?;
-            if let Some(job) = self.get_job(id).await? {
-                self.publish(&job);
-            }
+            sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
+                .bind(id.to_string())
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        if cancelled && let Some(job) = self.get_job(id).await? {
+            self.publish(&job);
         }
         Ok(cancelled)
     }
 
     pub async fn cancel_active_for_owner(&self, owner: Uuid) -> Result<u64, JobStoreError> {
         let now = Utc::now().to_rfc3339();
+        let mut tx = self.pool.begin().await?;
         let res = sqlx::query(
             "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
              WHERE user_id = ?2 AND status IN ('pending', 'running')",
         )
         .bind(&now)
         .bind(owner.to_string())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
         sqlx::query(
             "DELETE FROM job_credentials WHERE job_id IN \
              (SELECT id FROM jobs WHERE user_id = ?1 AND status = 'cancelled')",
         )
         .bind(owner.to_string())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(res.rows_affected())
+    }
+
+    pub async fn cancel_active_for_session(&self, session_id: Uuid) -> Result<u64, JobStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let session = session_id.to_string();
+        let mut tx = self.pool.begin().await?;
+        let result = sqlx::query(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
+             WHERE auth_session_id = ?2 AND status IN ('pending', 'running')",
+        )
+        .bind(&now)
+        .bind(&session)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "DELETE FROM job_credentials WHERE job_id IN \
+             (SELECT id FROM jobs WHERE auth_session_id = ?1 AND status = 'cancelled')",
+        )
+        .bind(&session)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn cancel_active_for_other_sessions(
+        &self,
+        owner: Uuid,
+        current_session_id: Uuid,
+    ) -> Result<u64, JobStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let owner = owner.to_string();
+        let current = current_session_id.to_string();
+        let mut tx = self.pool.begin().await?;
+        let result = sqlx::query(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
+             WHERE user_id = ?2 AND auth_session_id != ?3 AND status IN ('pending', 'running')",
+        )
+        .bind(&now)
+        .bind(&owner)
+        .bind(&current)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "DELETE FROM job_credentials WHERE job_id IN \
+             (SELECT id FROM jobs WHERE user_id = ?1 AND auth_session_id != ?2 AND status = 'cancelled')",
+        )
+        .bind(&owner)
+        .bind(&current)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
     }
 
     pub async fn purge_owner(&self, owner: Uuid) -> Result<(), JobStoreError> {
@@ -464,22 +529,27 @@ impl JobStore {
         Ok(())
     }
 
-    pub async fn clear_finished(&self) -> Result<Vec<(Uuid, String)>, JobStoreError> {
-        let rows =
-            sqlx::query("SELECT id, kind FROM jobs WHERE status NOT IN ('pending', 'running')")
-                .fetch_all(&self.pool)
-                .await?;
+    pub async fn clear_finished(&self, owner: Uuid) -> Result<Vec<(Uuid, String)>, JobStoreError> {
+        let owner_str = owner.to_string();
+        let rows = sqlx::query(
+            "SELECT id, kind FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running')",
+        )
+        .bind(&owner_str)
+        .fetch_all(&self.pool)
+        .await?;
         let cleared: Vec<(Uuid, String)> = rows
             .iter()
             .map(|r| (parse_uuid(r.get("id")), r.get::<String, _>("kind")))
             .collect();
         let mut tx = self.pool.begin().await?;
         sqlx::query(
-            "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE status NOT IN ('pending', 'running'))",
+            "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running'))",
         )
+        .bind(&owner_str)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM jobs WHERE status NOT IN ('pending', 'running')")
+        sqlx::query("DELETE FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running')")
+            .bind(&owner_str)
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;
@@ -510,6 +580,10 @@ fn job_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord, JobStoreErro
     Ok(JobRecord {
         id: parse_uuid(row.get("id")),
         user_id: parse_uuid(row.get("user_id")),
+        server_epoch: row.get("server_epoch"),
+        auth_session_id: row
+            .get::<Option<String>, _>("auth_session_id")
+            .map(parse_uuid),
         kind: row.get("kind"),
         status: JobStatus::from_str(&row.get::<String, _>("status")),
         target: serde_json::from_str(&row.get::<String, _>("target_json"))?,
@@ -579,6 +653,8 @@ mod tests {
         store
             .create_job(
                 owner,
+                1,
+                Uuid::nil(),
                 kind,
                 target,
                 params,

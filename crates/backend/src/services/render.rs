@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
-use crate::services::raw_frame_cache::RawFrameCache;
+use crate::services::raw_frame_cache::{FrameCacheKey, RawFrameCache};
 use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 
 const GPU_REBUILD_MIN_INTERVAL: Duration = Duration::from_secs(30);
@@ -25,6 +25,12 @@ pub struct RenderCacheOptions {
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RenderIdentity {
+    pub owner: Uuid,
+    pub server_epoch: i64,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -123,40 +129,53 @@ impl RenderService {
         self.gpu.read().unwrap().as_ref().map(|g| g.pool_stats())
     }
 
+    pub async fn clear_frame_caches(&self) {
+        self.frames.lock().await.clear();
+        self.quality_frames.lock().await.clear();
+    }
+
     pub async fn frame(
         &self,
+        identity: RenderIdentity,
         immich: &ImmichClient,
         asset_id: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        if let Some(f) = self.frames.lock().await.get(&asset_id) {
+        let key = FrameCacheKey {
+            server_epoch: identity.server_epoch,
+            asset_id,
+        };
+        if let Some(f) = self.frames.lock().await.get(&key) {
             return Ok(f);
         }
         let bytes = immich.original(asset_id).await?;
         let frame = decode_blocking(bytes).await?;
         let frame = Arc::new(frame);
-        self.frames.lock().await.put(asset_id, frame.clone());
+        self.frames.lock().await.put(key, frame.clone());
         Ok(frame)
     }
 
     pub async fn quality_frame(
         &self,
+        identity: RenderIdentity,
         immich: &ImmichClient,
         asset_id: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        if let Some(f) = self.quality_frames.lock().await.get(&asset_id) {
+        let key = FrameCacheKey {
+            server_epoch: identity.server_epoch,
+            asset_id,
+        };
+        if let Some(f) = self.quality_frames.lock().await.get(&key) {
             return Ok(f);
         }
         let bytes = immich.original(asset_id).await?;
         let frame = decode_quality_blocking(bytes).await?;
-        self.quality_frames
-            .lock()
-            .await
-            .put(asset_id, frame.clone());
+        self.quality_frames.lock().await.put(key, frame.clone());
         Ok(frame)
     }
 
     pub async fn render(
         &self,
+        identity: RenderIdentity,
         immich: ImmichClient,
         asset_id: Uuid,
         edits: Edits,
@@ -164,11 +183,11 @@ impl RenderService {
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = if options.quality {
-            self.quality_frame(&immich, asset_id).await?
+            self.quality_frame(identity, &immich, asset_id).await?
         } else {
-            self.frame(&immich, asset_id).await?
+            self.frame(identity, &immich, asset_id).await?
         };
-        options.rasters = self.load_rasters_for(&edits).await;
+        options.rasters = self.load_rasters_for(identity, &edits).await;
         options.luts = self.load_luts_for(&edits).await?;
         options.dcp = self.load_dcp_for(&edits, &frame).await?;
         let svc = self.clone();
@@ -266,11 +285,15 @@ impl RenderService {
         *self.last_rebuild.write().unwrap() = Some(Instant::now());
     }
 
-    async fn load_rasters_for(&self, edits: &Edits) -> RasterMap {
+    async fn load_rasters_for(&self, identity: RenderIdentity, edits: &Edits) -> RasterMap {
         let ids = edits.referenced_raster_ids();
         let mut map: RasterMap = RasterMap::with_capacity(ids.len());
         for id in ids {
-            match self.rasters.load(&id).await {
+            match self
+                .rasters
+                .load(identity.server_epoch, identity.owner, &id)
+                .await
+            {
                 Ok((meta, bytes)) => {
                     if let Some(r) = MaskRaster::new(meta.width, meta.height, bytes) {
                         map.insert(id, Arc::new(r));

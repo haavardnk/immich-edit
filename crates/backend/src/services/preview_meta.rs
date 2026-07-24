@@ -11,6 +11,8 @@ const DEFAULT_CAP: usize = 512;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PreviewMeta {
+    #[serde(skip)]
+    pub owner: Uuid,
     pub asset_id: Uuid,
     pub width: u32,
     pub height: u32,
@@ -55,6 +57,10 @@ impl PreviewMetaStore {
         self.inner.lock().await.get(&id).cloned()
     }
 
+    pub async fn clear(&self) {
+        self.inner.lock().await.clear();
+    }
+
     #[cfg(test)]
     async fn len(&self) -> usize {
         self.inner.lock().await.len()
@@ -68,6 +74,7 @@ mod tests {
 
     fn meta() -> PreviewMeta {
         PreviewMeta {
+            owner: Uuid::nil(),
             asset_id: Uuid::new_v4(),
             width: 1,
             height: 1,

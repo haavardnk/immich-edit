@@ -6,8 +6,14 @@ use uuid::Uuid;
 
 const FRAME_OVERHEAD_BYTES: u64 = 4096;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FrameCacheKey {
+    pub server_epoch: i64,
+    pub asset_id: Uuid,
+}
+
 pub struct RawFrameCache {
-    map: lru::LruCache<Uuid, Arc<RawFrame>>,
+    map: lru::LruCache<FrameCacheKey, Arc<RawFrame>>,
     max_bytes: u64,
     current_bytes: u64,
 }
@@ -26,11 +32,11 @@ impl RawFrameCache {
         }
     }
 
-    pub fn get(&mut self, key: &Uuid) -> Option<Arc<RawFrame>> {
+    pub fn get(&mut self, key: &FrameCacheKey) -> Option<Arc<RawFrame>> {
         self.map.get(key).cloned()
     }
 
-    pub fn put(&mut self, key: Uuid, frame: Arc<RawFrame>) {
+    pub fn put(&mut self, key: FrameCacheKey, frame: Arc<RawFrame>) {
         let bytes = frame_bytes(&frame);
         if let Some(old) = self.map.pop(&key) {
             self.current_bytes = self.current_bytes.saturating_sub(frame_bytes(&old));
@@ -53,6 +59,11 @@ impl RawFrameCache {
 
     pub fn current_bytes(&self) -> u64 {
         self.current_bytes
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+        self.current_bytes = 0;
     }
 }
 
@@ -86,9 +97,18 @@ mod tests {
     fn evicts_lru_to_fit_budget() {
         let floats = (mb(1) / 4) as usize;
         let mut cache = RawFrameCache::new(mb(2) + FRAME_OVERHEAD_BYTES * 2);
-        let a = Uuid::new_v4();
-        let b = Uuid::new_v4();
-        let c = Uuid::new_v4();
+        let a = FrameCacheKey {
+            server_epoch: 1,
+            asset_id: Uuid::new_v4(),
+        };
+        let b = FrameCacheKey {
+            server_epoch: 1,
+            asset_id: Uuid::new_v4(),
+        };
+        let c = FrameCacheKey {
+            server_epoch: 1,
+            asset_id: Uuid::new_v4(),
+        };
         cache.put(a, frame_with_floats(floats));
         cache.put(b, frame_with_floats(floats));
         cache.get(&a);
@@ -105,7 +125,10 @@ mod tests {
     fn skips_oversized_frame() {
         let floats = (mb(4) / 4) as usize;
         let mut cache = RawFrameCache::new(mb(1));
-        let id = Uuid::new_v4();
+        let id = FrameCacheKey {
+            server_epoch: 1,
+            asset_id: Uuid::new_v4(),
+        };
         cache.put(id, frame_with_floats(floats));
         if cache.get(&id).is_some() {
             panic!("oversized frame should not be retained");

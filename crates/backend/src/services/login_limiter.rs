@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 const MAX_FAILURES: u32 = 5;
+const MAX_ENTRIES: usize = 10_000;
 const WINDOW: Duration = Duration::from_secs(15 * 60);
 
 struct Entry {
@@ -43,6 +44,18 @@ impl LoginLimiter {
     pub fn record_failure(&self, key: &str) {
         let mut map = self.inner.lock().unwrap();
         let now = Instant::now();
+        map.retain(|_, entry| {
+            now.duration_since(entry.window_start) <= WINDOW
+                || entry.locked_until.is_some_and(|until| until > now)
+        });
+        if map.len() >= MAX_ENTRIES
+            && let Some(oldest) = map
+                .iter()
+                .min_by_key(|(_, entry)| entry.window_start)
+                .map(|(key, _)| key.clone())
+        {
+            map.remove(&oldest);
+        }
         let entry = map.entry(key.to_string()).or_insert(Entry {
             failures: 0,
             window_start: now,

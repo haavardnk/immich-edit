@@ -96,6 +96,8 @@ pub async fn create(
         .jobs
         .create_job(
             ctx.owner,
+            ctx.server_epoch,
+            ctx.session_id,
             kind,
             &body.target,
             &body.params,
@@ -164,11 +166,11 @@ pub async fn cancel(
     }
 }
 
-pub async fn clear(State(state): State<AppState>) -> Result<StatusCode, AppError> {
-    let cleared = state.jobs.clear_finished().await?;
+pub async fn clear(State(state): State<AppState>, ctx: AuthCtx) -> Result<StatusCode, AppError> {
+    let cleared = state.jobs.clear_finished(ctx.owner).await?;
     for (id, kind) in cleared {
         if kind == DOWNLOAD_ZIP_KIND {
-            cleanup_zip_job(&state, id).await;
+            cleanup_zip_job(&state, ctx.server_epoch, ctx.owner, id).await;
         }
     }
     Ok(StatusCode::NO_CONTENT)
@@ -189,7 +191,7 @@ pub async fn download(
     if job.status != JobStatus::Completed {
         return Err(AppError::BadRequest("job not complete".into()));
     }
-    let archive = build_zip_archive(&state, id).await?;
+    let archive = build_zip_archive(&state, ctx.server_epoch, ctx.owner, id).await?;
     let file = tokio::fs::File::open(&archive).await.map_err(|e| {
         tracing::error!(error = %e, "open zip archive");
         AppError::Internal
@@ -220,8 +222,9 @@ pub async fn events(
     }
     let rx = state.jobs.subscribe();
     let snapshot = tokio_stream::once(Ok(job_event(&job)));
+    let owner = ctx.owner;
     let updates = BroadcastStream::new(rx).filter_map(move |res| match res {
-        Ok(rec) if rec.id == id => Some(Ok(job_event(&rec))),
+        Ok(rec) if rec.id == id && rec.user_id == owner => Some(Ok(job_event(&rec))),
         _ => None,
     });
     Ok(Sse::new(snapshot.chain(updates)).keep_alive(KeepAlive::default()))

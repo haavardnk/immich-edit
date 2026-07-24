@@ -66,6 +66,8 @@ immich-edit has its own Immich-federated user system, so a separate auth proxy i
 
 Each user signs in with their own Immich account; there is no shared password to distribute.
 
+When the proxy connects from a loopback or private address, immich-edit automatically honors its `X-Forwarded-For` client IP (for rate limiting and session records) and `X-Forwarded-Proto` scheme (to mark the session cookie `Secure` over HTTPS). Forwarding headers from public direct connections are ignored, so no configuration is needed.
+
 ## Reverse-proxy examples
 
 ### Caddy

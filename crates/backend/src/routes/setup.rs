@@ -25,6 +25,7 @@ pub struct SetupBody {
 
 pub async fn complete(
     State(state): State<AppState>,
+    client: auth::ClientMeta,
     headers: HeaderMap,
     Json(body): Json<SetupBody>,
 ) -> Result<Response, AppError> {
@@ -32,31 +33,40 @@ pub async fn complete(
     if cfg.is_configured() {
         return Err(AppError::Conflict("instance already configured".into()));
     }
+    let identity = body.email.as_deref().unwrap_or("apikey").to_lowercase();
+    let rate_key = format!("{}|setup|{identity}", client.ip);
+    if let Some(duration) = state.login_limiter.retry_after(&rate_key) {
+        return Err(AppError::RateLimited(Some(duration.as_secs())));
+    }
     let base = auth::validate_candidate_url(&body.immich_url)?;
 
-    let (user, kind, cred): (_, _, Vec<u8>) = if let Some(api_key) = body.api_key.as_deref() {
-        let user = auth::validate_api_key(&base, api_key).await?;
-        (user, AuthKind::ApiKey, api_key.as_bytes().to_vec())
-    } else if let (Some(email), Some(password)) = (body.email.as_deref(), body.password.as_deref())
-    {
-        let (user, cred) = auth::validate_password(&base, email, password).await?;
-        (user, AuthKind::Password, cred)
-    } else {
-        return Err(AppError::BadRequest(
+    let validated: Result<(_, _, Vec<u8>), AppError> = async {
+        if let Some(api_key) = body.api_key.as_deref() {
+            let user = auth::validate_api_key(&base, api_key).await?;
+            return Ok((user, AuthKind::ApiKey, api_key.as_bytes().to_vec()));
+        }
+        if let (Some(email), Some(password)) = (body.email.as_deref(), body.password.as_deref()) {
+            let (user, cred) = auth::validate_password(&base, email, password).await?;
+            return Ok((user, AuthKind::Password, cred));
+        }
+        Err(AppError::BadRequest(
             "email+password or api_key required".into(),
-        ));
+        ))
+    }
+    .await;
+    let (user, kind, cred) = match validated {
+        Ok(value) => value,
+        Err(error) => {
+            state.login_limiter.record_failure(&rate_key);
+            return Err(error);
+        }
     };
 
     if !user.is_admin {
+        state.login_limiter.record_failure(&rate_key);
         return Err(AppError::AdminRequired);
     }
+    state.login_limiter.record_success(&rate_key);
 
-    state
-        .instance
-        .claim(base.as_str())
-        .await
-        .map_err(|_| AppError::Conflict("instance already configured".into()))?;
-
-    let ip = auth::client_ip(&headers);
-    auth::finish_login(&state, &user, kind, &cred, &headers, Some(ip.as_str())).await
+    auth::finish_setup(&state, base.as_str(), &user, kind, &cred, &headers, &client).await
 }

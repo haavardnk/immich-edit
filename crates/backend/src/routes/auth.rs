@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichUser};
-use crate::services::auth_store::{AuthContext, AuthKind};
+use crate::services::auth_store::{AuthContext, AuthKind, AuthStoreError, UserRecord};
 use crate::services::crypto::SecretBytes;
 use crate::state::AppState;
 
@@ -22,6 +22,7 @@ pub const AUTH_COOKIE: &str = "immich_edit_auth";
 #[derive(Clone)]
 pub struct AuthCtx {
     pub owner: Uuid,
+    pub session_id: Uuid,
     pub server_epoch: i64,
     pub is_admin: bool,
     pub immich: ImmichClient,
@@ -73,6 +74,7 @@ pub async fn build_auth_ctx(state: &AppState, headers: &HeaderMap) -> Option<Aut
     .ok()?;
     Some(AuthCtx {
         owner: actx.user.id,
+        session_id: actx.session_id,
         server_epoch: actx.server_epoch,
         is_admin: actx.user.is_admin,
         immich,
@@ -148,12 +150,31 @@ pub fn validate_candidate_url(raw: &str) -> Result<Url, AppError> {
     Ok(url)
 }
 
-fn request_is_secure(headers: &HeaderMap) -> bool {
-    headers
-        .get("x-forwarded-proto")
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v.eq_ignore_ascii_case("https"))
-        .unwrap_or(false)
+#[derive(Clone)]
+pub struct ClientMeta {
+    pub ip: String,
+    pub secure: bool,
+}
+
+impl Default for ClientMeta {
+    fn default() -> Self {
+        Self {
+            ip: "unknown".into(),
+            secure: false,
+        }
+    }
+}
+
+impl<S: Send + Sync> FromRequestParts<S> for ClientMeta {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(parts
+            .extensions
+            .get::<ClientMeta>()
+            .cloned()
+            .unwrap_or_default())
+    }
 }
 
 fn session_cookie(token: &str, secure: bool) -> String {
@@ -178,18 +199,24 @@ fn user_json(user: &crate::services::auth_store::UserRecord, kind: AuthKind) -> 
     })
 }
 
-fn rate_key(ip: &str, ident: &str) -> String {
-    format!("{ip}|{}", ident.to_lowercase())
+fn user_agent(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.chars().take(256).collect::<String>())
 }
 
-pub fn client_ip(headers: &HeaderMap) -> String {
-    headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "unknown".into())
+fn login_response(user: &UserRecord, kind: AuthKind, token: &str, secure: bool) -> Response {
+    let cookie = session_cookie(token, secure);
+    let mut response = (StatusCode::OK, Json(user_json(user, kind))).into_response();
+    if let Ok(value) = HeaderValue::from_str(&cookie) {
+        response.headers_mut().insert(SET_COOKIE, value);
+    }
+    response
+}
+
+fn rate_key(ip: &str, ident: &str) -> String {
+    format!("{ip}|{}", ident.to_lowercase())
 }
 
 pub async fn require_session(
@@ -210,7 +237,7 @@ pub async fn finish_login(
     kind: AuthKind,
     cred: &[u8],
     headers: &HeaderMap,
-    ip: Option<&str>,
+    client: &ClientMeta,
 ) -> Result<Response, AppError> {
     let epoch = state
         .instance
@@ -226,21 +253,75 @@ pub async fn finish_login(
     if !stored.access_enabled {
         return Err(AppError::AccessDisabled);
     }
-    let ua = headers
-        .get("user-agent")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.chars().take(256).collect::<String>());
+    let ua = user_agent(headers);
     let token = state
         .auth
-        .create_session(stored.id, kind, cred, epoch, ua.as_deref(), ip)
+        .create_session(
+            stored.id,
+            kind,
+            cred,
+            epoch,
+            ua.as_deref(),
+            Some(&client.ip),
+        )
         .await
         .map_err(|_| AppError::Internal)?;
-    let cookie = session_cookie(&token, request_is_secure(headers));
-    let mut resp = (StatusCode::OK, Json(user_json(&stored, kind))).into_response();
-    if let Ok(v) = HeaderValue::from_str(&cookie) {
-        resp.headers_mut().insert(SET_COOKIE, v);
-    }
-    Ok(resp)
+    Ok(login_response(&stored, kind, &token, client.secure))
+}
+
+pub async fn finish_setup(
+    state: &AppState,
+    immich_url: &str,
+    user: &ImmichUser,
+    kind: AuthKind,
+    cred: &[u8],
+    headers: &HeaderMap,
+    client: &ClientMeta,
+) -> Result<Response, AppError> {
+    let ua = user_agent(headers);
+    let (stored, token) = state
+        .auth
+        .claim_instance_and_create_session(
+            immich_url,
+            user,
+            kind,
+            cred,
+            ua.as_deref(),
+            Some(&client.ip),
+        )
+        .await
+        .map_err(|error| match error {
+            AuthStoreError::AlreadyConfigured => {
+                AppError::Conflict("instance already configured".into())
+            }
+            _ => AppError::Internal,
+        })?;
+    Ok(login_response(&stored, kind, &token, client.secure))
+}
+
+pub async fn finish_rebind(
+    state: &AppState,
+    immich_url: &str,
+    user: &ImmichUser,
+    kind: AuthKind,
+    cred: &[u8],
+    headers: &HeaderMap,
+    client: &ClientMeta,
+) -> Result<Response, AppError> {
+    let ua = user_agent(headers);
+    let (stored, token) = state
+        .auth
+        .rebind_instance_and_create_session(
+            immich_url,
+            user,
+            kind,
+            cred,
+            ua.as_deref(),
+            Some(&client.ip),
+        )
+        .await
+        .map_err(|_| AppError::Internal)?;
+    Ok(login_response(&stored, kind, &token, client.secure))
 }
 
 pub async fn validate_password(
@@ -257,7 +338,7 @@ pub async fn validate_password(
     let login = candidate
         .login_password(email, password)
         .await
-        .map_err(|_| AppError::Unauthorized)?;
+        .map_err(map_login_error)?;
     let user = ImmichUser {
         id: login.user_id,
         email: login.user_email,
@@ -274,16 +355,23 @@ pub async fn validate_api_key(base: &Url, api_key: &str) -> Result<ImmichUser, A
         Duration::from_secs(30),
     )
     .map_err(|_| AppError::Internal)?;
-    client.me().await.map_err(|_| AppError::Unauthorized)
+    client.me().await.map_err(map_login_error)
+}
+
+fn map_login_error(err: crate::immich::ImmichError) -> AppError {
+    match err {
+        crate::immich::ImmichError::Unauthorized => AppError::Unauthorized,
+        other => other.into(),
+    }
 }
 
 pub async fn login_password(
     State(state): State<AppState>,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<PasswordLoginBody>,
 ) -> Result<Response, AppError> {
-    let ip = client_ip(&headers);
-    let key = rate_key(&ip, &body.email);
+    let key = rate_key(&client.ip, &body.email);
     if let Some(d) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }
@@ -296,24 +384,16 @@ pub async fn login_password(
         }
     };
     state.login_limiter.record_success(&key);
-    finish_login(
-        &state,
-        &user,
-        AuthKind::Password,
-        &cred,
-        &headers,
-        Some(ip.as_str()),
-    )
-    .await
+    finish_login(&state, &user, AuthKind::Password, &cred, &headers, &client).await
 }
 
 pub async fn login_api_key(
     State(state): State<AppState>,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<ApiKeyLoginBody>,
 ) -> Result<Response, AppError> {
-    let ip = client_ip(&headers);
-    let key = rate_key(&ip, "apikey");
+    let key = rate_key(&client.ip, "apikey");
     if let Some(d) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }
@@ -332,7 +412,7 @@ pub async fn login_api_key(
         AuthKind::ApiKey,
         body.api_key.as_bytes(),
         &headers,
-        Some(ip.as_str()),
+        &client,
     )
     .await
 }
@@ -346,6 +426,7 @@ pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -
     if let Some(token) = extract_token(&headers)
         && let Ok(Some(ctx)) = state.auth.authenticate(&token).await
     {
+        let _ = state.jobs.cancel_active_for_session(ctx.session_id).await;
         let _ = state.auth.revoke_session(ctx.session_id).await;
     }
     let cookie = format!("{AUTH_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
@@ -397,6 +478,11 @@ pub async fn revoke_session(
         return Err(AppError::NotFound);
     }
     state
+        .jobs
+        .cancel_active_for_session(id)
+        .await
+        .map_err(|_| AppError::Internal)?;
+    state
         .auth
         .revoke_session(id)
         .await
@@ -410,8 +496,13 @@ pub async fn revoke_all_sessions(
 ) -> Result<Response, AppError> {
     let ctx = require_session(&state, &headers).await?;
     state
+        .jobs
+        .cancel_active_for_other_sessions(ctx.user.id, ctx.session_id)
+        .await
+        .map_err(|_| AppError::Internal)?;
+    state
         .auth
-        .revoke_all_for_user(ctx.user.id)
+        .revoke_others_for_user(ctx.user.id, ctx.session_id)
         .await
         .map_err(|_| AppError::Internal)?;
     Ok((StatusCode::OK, Json(json!({"ok": true}))).into_response())

@@ -46,6 +46,7 @@ pub async fn set_access(
     Path(id): Path<Uuid>,
     Json(body): Json<AccessBody>,
 ) -> Result<Response, AppError> {
+    require_fresh_admin(&admin).await?;
     if id == admin.0.owner && !body.enabled {
         return Err(AppError::BadRequest(
             "cannot disable your own account".into(),
@@ -63,6 +64,7 @@ pub async fn set_access(
         .await
         .map_err(|_| AppError::Internal)?;
     if !body.enabled {
+        state.queue.cancel_owner(id).await;
         state
             .auth
             .revoke_all_for_user(id)
@@ -79,9 +81,11 @@ pub async fn set_access(
 
 pub async fn purge_user_data(
     State(state): State<AppState>,
-    _admin: AdminCtx,
+    admin: AdminCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
+    require_fresh_admin(&admin).await?;
+    state.queue.cancel_owner(id).await;
     state
         .auth
         .get_user(id)
@@ -103,6 +107,17 @@ pub async fn purge_user_data(
         .revoke_all_for_user(id)
         .await
         .map_err(|_| AppError::Internal)?;
+    state
+        .rasters
+        .purge_owner(id)
+        .await
+        .map_err(|_| AppError::Internal)?;
+    state
+        .edited_thumb
+        .purge_owner(id)
+        .await
+        .map_err(|_| AppError::Internal)?;
+    crate::services::export::purge_owner_exports(&state, id).await;
     Ok((StatusCode::OK, Json(json!({ "ok": true }))).into_response())
 }
 
@@ -133,10 +148,12 @@ pub struct RebindBody {
 
 pub async fn rebind(
     State(state): State<AppState>,
-    _admin: AdminCtx,
+    admin: AdminCtx,
+    client: auth::ClientMeta,
     headers: HeaderMap,
     Json(body): Json<RebindBody>,
 ) -> Result<Response, AppError> {
+    require_fresh_admin(&admin).await?;
     let base = auth::validate_candidate_url(&body.immich_url)?;
     let host = base.host_str().unwrap_or_default();
     if !host.eq_ignore_ascii_case(body.confirm_hostname.trim()) {
@@ -162,27 +179,27 @@ pub async fn rebind(
         return Err(AppError::AdminRequired);
     }
 
-    state
-        .instance
-        .rebind(base.as_str())
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .jobs
-        .purge_all()
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .edits
-        .purge_all()
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .auth
-        .purge_all()
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let response =
+        auth::finish_rebind(&state, base.as_str(), &user, kind, &cred, &headers, &client).await?;
+    state.queue.cancel_all().await;
+    state.render.clear_frame_caches().await;
+    state.preview_meta.clear().await;
+    state.tag_counts.clear().await;
+    state.people_counts.clear().await;
+    if let Err(error) = state.rasters.purge_all().await {
+        tracing::warn!(error = %error, "purge rasters after rebind");
+    }
+    if let Err(error) = state.edited_thumb.purge_all().await {
+        tracing::warn!(error = %error, "purge edited thumbnails after rebind");
+    }
+    crate::services::export::purge_all_exports(&state).await;
+    Ok(response)
+}
 
-    let ip = auth::client_ip(&headers);
-    auth::finish_login(&state, &user, kind, &cred, &headers, Some(ip.as_str())).await
+async fn require_fresh_admin(admin: &AdminCtx) -> Result<(), AppError> {
+    let user = admin.0.immich.me().await?;
+    if user.id != admin.0.owner || !user.is_admin {
+        return Err(AppError::AdminRequired);
+    }
+    Ok(())
 }

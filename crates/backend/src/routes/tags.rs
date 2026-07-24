@@ -13,7 +13,10 @@ pub async fn list(
 ) -> Result<Json<Vec<TagSummary>>, AppError> {
     let mut tags = ctx.immich.list_tags().await?;
     let ids: Vec<Uuid> = tags.iter().map(|t| t.id).collect();
-    let counts = state.tag_counts.counts_for(&ctx.immich, &ids).await;
+    let counts = state
+        .tag_counts
+        .counts_for(ctx.owner, ctx.server_epoch, &ctx.immich, &ids)
+        .await;
     for tag in &mut tags {
         tag.asset_count = counts.get(&tag.id).copied();
     }
@@ -26,7 +29,10 @@ pub async fn upsert(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<Vec<TagSummary>>, AppError> {
     let tags = ctx.immich.upsert_tags(&body).await?;
-    state.tag_counts.clear().await;
+    state
+        .tag_counts
+        .clear_tenant(ctx.owner, ctx.server_epoch)
+        .await;
     Ok(Json(tags))
 }
 
@@ -36,7 +42,10 @@ pub async fn tag_asset(
     Path((tag_id, asset_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
     let resp = ctx.immich.tag_asset(tag_id, asset_id).await?;
-    state.tag_counts.invalidate(tag_id).await;
+    state
+        .tag_counts
+        .invalidate(ctx.owner, ctx.server_epoch, tag_id)
+        .await;
     Ok(Json(resp))
 }
 
@@ -46,6 +55,9 @@ pub async fn untag_asset(
     Path((tag_id, asset_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
     let resp = ctx.immich.untag_asset(tag_id, asset_id).await?;
-    state.tag_counts.invalidate(tag_id).await;
+    state
+        .tag_counts
+        .invalidate(ctx.owner, ctx.server_epoch, tag_id)
+        .await;
     Ok(Json(resp))
 }

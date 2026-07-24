@@ -12,6 +12,7 @@ use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
 };
+use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -157,7 +158,14 @@ pub async fn auto(
     };
     let frame = state
         .render
-        .quality_frame(&ctx.immich, id)
+        .quality_frame(
+            RenderIdentity {
+                owner: ctx.owner,
+                server_epoch: ctx.server_epoch,
+            },
+            &ctx.immich,
+            id,
+        )
         .await
         .map_err(|e| match e {
             crate::services::render::RenderError::Upstream(u) => u.into(),

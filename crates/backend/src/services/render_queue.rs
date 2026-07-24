@@ -10,12 +10,19 @@ use uuid::Uuid;
 const TRACKER_CAP: usize = 1024;
 const LATEST_CAP: usize = 1024;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RenderKey {
+    pub owner: Uuid,
+    pub server_epoch: i64,
+    pub asset_id: Uuid,
+}
+
 #[derive(Clone)]
 pub struct RenderQueue {
     max_concurrency: usize,
     semaphore: Arc<Semaphore>,
-    latest: Arc<Mutex<LruCache<Uuid, u64>>>,
-    trackers: Arc<Mutex<LruCache<Uuid, CancelTracker>>>,
+    latest: Arc<Mutex<LruCache<RenderKey, u64>>>,
+    trackers: Arc<Mutex<LruCache<RenderKey, CancelTracker>>>,
 }
 
 impl RenderQueue {
@@ -33,23 +40,23 @@ impl RenderQueue {
         }
     }
 
-    pub async fn tracker(&self, asset_id: Uuid) -> CancelTracker {
+    pub async fn tracker(&self, key: RenderKey) -> CancelTracker {
         let mut map = self.trackers.lock().await;
-        if let Some(t) = map.get(&asset_id) {
+        if let Some(t) = map.get(&key) {
             return t.clone();
         }
         let t = CancelTracker::default();
-        map.put(asset_id, t.clone());
+        map.put(key, t.clone());
         t
     }
 
-    pub async fn enqueue<F, T, E>(&self, asset_id: Uuid, work: F) -> Option<Result<T, E>>
+    pub async fn enqueue<F, T, E>(&self, key: RenderKey, work: F) -> Option<Result<T, E>>
     where
         F: std::future::Future<Output = Result<T, E>> + Send,
     {
         let ticket: u64 = {
             let mut map = self.latest.lock().await;
-            let counter = map.get_or_insert_mut(asset_id, || 0u64);
+            let counter = map.get_or_insert_mut(key, || 0u64);
             *counter = counter.wrapping_add(1);
             *counter
         };
@@ -57,7 +64,7 @@ impl RenderQueue {
         let permit = self.semaphore.clone().acquire_owned().await.ok()?;
         {
             let mut map = self.latest.lock().await;
-            if map.get(&asset_id).copied() != Some(ticket) {
+            if map.get(&key).copied() != Some(ticket) {
                 drop(permit);
                 return None;
             }
@@ -87,6 +94,22 @@ impl RenderQueue {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
+
+    pub async fn cancel_all(&self) {
+        let trackers = self.trackers.lock().await;
+        for (_, tracker) in trackers.iter() {
+            tracker.cancel_all();
+        }
+    }
+
+    pub async fn cancel_owner(&self, owner: Uuid) {
+        let trackers = self.trackers.lock().await;
+        for (key, tracker) in trackers.iter() {
+            if key.owner == owner {
+                tracker.cancel_all();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -95,10 +118,18 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
+    fn key(asset_id: Uuid) -> RenderKey {
+        RenderKey {
+            owner: Uuid::nil(),
+            server_epoch: 1,
+            asset_id,
+        }
+    }
+
     #[tokio::test]
     async fn latest_wins_collapses_pending() {
         let q = RenderQueue::new(1);
-        let id = Uuid::new_v4();
+        let id = key(Uuid::new_v4());
         let runs = Arc::new(AtomicUsize::new(0));
 
         let q1 = q.clone();
@@ -155,8 +186,8 @@ mod tests {
     #[tokio::test]
     async fn shutdown_cancels_trackers_and_drains() {
         let q = RenderQueue::new(2);
-        let a = Uuid::new_v4();
-        let b = Uuid::new_v4();
+        let a = key(Uuid::new_v4());
+        let b = key(Uuid::new_v4());
         let token_a = q.tracker(a).await.next();
         let token_b = q.tracker(b).await.next();
 
@@ -180,7 +211,7 @@ mod tests {
             panic!("did not drain");
         }
         let after = q
-            .enqueue::<_, &'static str, ()>(Uuid::new_v4(), async move { Ok("late") })
+            .enqueue::<_, &'static str, ()>(key(Uuid::new_v4()), async move { Ok("late") })
             .await;
         if after.is_some() {
             panic!("post-shutdown enqueue should be rejected");

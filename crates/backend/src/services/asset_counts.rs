@@ -9,10 +9,17 @@ use crate::immich::ImmichClient;
 
 const FETCH_CONCURRENCY: usize = 6;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct CountKey {
+    owner: Uuid,
+    server_epoch: i64,
+    entity_id: Uuid,
+}
+
 #[derive(Clone)]
 pub struct AssetCountCache {
     field: &'static str,
-    inner: Arc<Mutex<HashMap<Uuid, u64>>>,
+    inner: Arc<Mutex<HashMap<CountKey, u64>>>,
 }
 
 impl AssetCountCache {
@@ -23,21 +30,43 @@ impl AssetCountCache {
         }
     }
 
-    pub async fn invalidate(&self, id: Uuid) {
-        self.inner.lock().await.remove(&id);
+    pub async fn invalidate(&self, owner: Uuid, server_epoch: i64, id: Uuid) {
+        self.inner.lock().await.remove(&CountKey {
+            owner,
+            server_epoch,
+            entity_id: id,
+        });
+    }
+
+    pub async fn clear_tenant(&self, owner: Uuid, server_epoch: i64) {
+        self.inner
+            .lock()
+            .await
+            .retain(|key, _| key.owner != owner || key.server_epoch != server_epoch);
     }
 
     pub async fn clear(&self) {
         self.inner.lock().await.clear();
     }
 
-    pub async fn counts_for(&self, immich: &ImmichClient, ids: &[Uuid]) -> HashMap<Uuid, u64> {
+    pub async fn counts_for(
+        &self,
+        owner: Uuid,
+        server_epoch: i64,
+        immich: &ImmichClient,
+        ids: &[Uuid],
+    ) -> HashMap<Uuid, u64> {
         let mut result: HashMap<Uuid, u64> = HashMap::new();
         let mut missing: Vec<Uuid> = Vec::new();
         {
             let cache = self.inner.lock().await;
             for id in ids {
-                match cache.get(id) {
+                let key = CountKey {
+                    owner,
+                    server_epoch,
+                    entity_id: *id,
+                };
+                match cache.get(&key) {
                     Some(count) => {
                         result.insert(*id, *count);
                     }
@@ -58,7 +87,14 @@ impl AssetCountCache {
             };
             if let Some(count) = count {
                 result.insert(id, count);
-                self.inner.lock().await.insert(id, count);
+                self.inner.lock().await.insert(
+                    CountKey {
+                        owner,
+                        server_epoch,
+                        entity_id: id,
+                    },
+                    count,
+                );
             }
             if let Some(next) = queue.next() {
                 spawn_count(&mut tasks, immich.clone(), self.field, next);

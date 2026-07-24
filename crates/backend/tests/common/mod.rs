@@ -137,6 +137,14 @@ fn wrap_auth(app: axum::Router, token: String) -> axum::Router {
             if let Ok(v) = HeaderValue::from_str(&cookie) {
                 req.headers_mut().insert("cookie", v);
             }
+            if !req.headers().contains_key("host") {
+                req.headers_mut()
+                    .insert("host", HeaderValue::from_static("localhost"));
+            }
+            if !req.headers().contains_key("origin") {
+                req.headers_mut()
+                    .insert("origin", HeaderValue::from_static("http://localhost"));
+            }
             next.run(req).await
         }
     }))

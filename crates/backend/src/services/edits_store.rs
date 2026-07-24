@@ -514,9 +514,10 @@ impl EditsStore {
         let immich_asset_id = immich_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
         let status_str: String = row.try_get("status")?;
         let status = match status_str.as_str() {
+            "pending" => ExportJobStatus::Pending,
             "uploaded" => ExportJobStatus::Uploaded,
             "completed" => ExportJobStatus::Completed,
-            _ => ExportJobStatus::Uploaded,
+            _ => ExportJobStatus::Pending,
         };
         Ok(Some(ExportJobRecord {
             request_hash: row.try_get("request_hash")?,
@@ -526,6 +527,47 @@ impl EditsStore {
             upload_status: row.try_get("upload_status")?,
             warnings,
         }))
+    }
+
+    pub async fn reserve_export_job(
+        &self,
+        owner: Uuid,
+        asset_id: Uuid,
+        key: &str,
+        request_hash: &str,
+    ) -> Result<bool, EditsStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let result = sqlx::query(
+            "INSERT OR IGNORE INTO export_jobs \
+             (user_id, asset_id, idempotency_key, request_hash, status, warnings_json, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, 'pending', '[]', ?5, ?5)",
+        )
+        .bind(owner.to_string())
+        .bind(asset_id.to_string())
+        .bind(key)
+        .bind(request_hash)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    pub async fn delete_pending_export_job(
+        &self,
+        owner: Uuid,
+        asset_id: Uuid,
+        key: &str,
+    ) -> Result<(), EditsStoreError> {
+        sqlx::query(
+            "DELETE FROM export_jobs WHERE user_id = ?1 AND asset_id = ?2 \
+             AND idempotency_key = ?3 AND status = 'pending'",
+        )
+        .bind(owner.to_string())
+        .bind(asset_id.to_string())
+        .bind(key)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -710,6 +752,7 @@ fn preset_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<PresetRecord, EditsS
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExportJobStatus {
+    Pending,
     Uploaded,
     Completed,
 }

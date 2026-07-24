@@ -32,6 +32,22 @@ pub async fn run() -> anyhow::Result<()> {
     );
     let runner_handle = tokio::spawn(runner.run(shutdown_rx));
 
+    let cleanup_auth = state.auth.clone();
+    let mut cleanup_shutdown = shutdown_tx.subscribe();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(6 * 3600));
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if let Err(err) = cleanup_auth.cleanup_expired().await {
+                        tracing::warn!(error = %err, "expired session cleanup failed");
+                    }
+                }
+                _ = cleanup_shutdown.changed() => break,
+            }
+        }
+    });
+
     tokio::spawn(async move {
         let Ok(cfg) = instance.get().await else {
             return;

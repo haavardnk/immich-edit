@@ -151,6 +151,8 @@ mod tests {
         let job = store
             .create_job(
                 uuid::Uuid::nil(),
+                1,
+                uuid::Uuid::nil(),
                 "test",
                 &json!(null),
                 &json!(null),

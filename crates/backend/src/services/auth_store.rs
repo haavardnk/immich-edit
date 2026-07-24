@@ -5,7 +5,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{Duration, Utc};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::immich::client::ImmichUser;
@@ -21,6 +21,8 @@ pub enum AuthStoreError {
     Db(#[from] sqlx::Error),
     #[error("crypto: {0}")]
     Crypto(#[from] crate::services::crypto::CryptoError),
+    #[error("already configured")]
+    AlreadyConfigured,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +81,15 @@ pub struct AuthContext {
 pub struct AuthStore {
     pool: SqlitePool,
     crypto: Arc<InstanceCrypto>,
+}
+
+struct PreparedSession {
+    token: String,
+    token_hash: Vec<u8>,
+    encrypted: Encrypted,
+    created_at: String,
+    expires_at: String,
+    absolute_expires_at: String,
 }
 
 fn hash_token(token: &str) -> Vec<u8> {
@@ -152,15 +163,48 @@ impl AuthStore {
         user_agent: Option<&str>,
         ip: Option<&str>,
     ) -> Result<String, AuthStoreError> {
+        let prepared = self.prepare_session(immich_cred)?;
+        let mut tx = self.pool.begin().await?;
+        Self::insert_session(
+            &mut tx,
+            user_id,
+            auth_kind,
+            server_epoch,
+            user_agent,
+            ip,
+            &prepared,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(prepared.token)
+    }
+
+    fn prepare_session(&self, immich_cred: &[u8]) -> Result<PreparedSession, AuthStoreError> {
         let mut token_bytes = [0u8; 32];
         rand::rng().fill_bytes(&mut token_bytes);
         let token = URL_SAFE_NO_PAD.encode(token_bytes);
         let token_hash = hash_token(&token);
-        let enc = self.crypto.encrypt(immich_cred)?;
+        let encrypted = self.crypto.encrypt(immich_cred)?;
         let now = Utc::now();
-        let created = now.to_rfc3339();
-        let expires = (now + Duration::days(IDLE_DAYS)).to_rfc3339();
-        let absolute = (now + Duration::days(ABSOLUTE_DAYS)).to_rfc3339();
+        Ok(PreparedSession {
+            token,
+            token_hash,
+            encrypted,
+            created_at: now.to_rfc3339(),
+            expires_at: (now + Duration::days(IDLE_DAYS)).to_rfc3339(),
+            absolute_expires_at: (now + Duration::days(ABSOLUTE_DAYS)).to_rfc3339(),
+        })
+    }
+
+    async fn insert_session(
+        tx: &mut Transaction<'_, Sqlite>,
+        user_id: Uuid,
+        auth_kind: AuthKind,
+        server_epoch: i64,
+        user_agent: Option<&str>,
+        ip: Option<&str>,
+        prepared: &PreparedSession,
+    ) -> Result<(), AuthStoreError> {
         sqlx::query(
             "INSERT INTO sessions (id, user_id, token_hash, auth_kind, immich_cred_enc, \
              immich_cred_nonce, key_version, server_epoch, created_at, expires_at, \
@@ -169,20 +213,129 @@ impl AuthStore {
         )
         .bind(Uuid::new_v4().to_string())
         .bind(user_id.to_string())
-        .bind(token_hash)
+        .bind(&prepared.token_hash)
         .bind(auth_kind.as_str())
-        .bind(enc.ciphertext)
-        .bind(enc.nonce)
-        .bind(enc.key_version)
+        .bind(&prepared.encrypted.ciphertext)
+        .bind(&prepared.encrypted.nonce)
+        .bind(prepared.encrypted.key_version)
         .bind(server_epoch)
-        .bind(&created)
-        .bind(&expires)
-        .bind(&absolute)
+        .bind(&prepared.created_at)
+        .bind(&prepared.expires_at)
+        .bind(&prepared.absolute_expires_at)
         .bind(user_agent)
         .bind(ip)
-        .execute(&self.pool)
+        .execute(&mut **tx)
         .await?;
-        Ok(token)
+        Ok(())
+    }
+
+    async fn insert_user(
+        tx: &mut Transaction<'_, Sqlite>,
+        user: &ImmichUser,
+    ) -> Result<UserRecord, AuthStoreError> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO users (id, email, name, is_admin, access_enabled, created_at, last_login_at) \
+             VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)",
+        )
+        .bind(user.id.to_string())
+        .bind(&user.email)
+        .bind(&user.name)
+        .bind(user.is_admin as i64)
+        .bind(&now)
+        .execute(&mut **tx)
+        .await?;
+        Ok(UserRecord {
+            id: user.id,
+            email: user.email.clone(),
+            name: user.name.clone(),
+            is_admin: user.is_admin,
+            access_enabled: true,
+        })
+    }
+
+    pub async fn claim_instance_and_create_session(
+        &self,
+        immich_url: &str,
+        user: &ImmichUser,
+        auth_kind: AuthKind,
+        immich_cred: &[u8],
+        user_agent: Option<&str>,
+        ip: Option<&str>,
+    ) -> Result<(UserRecord, String), AuthStoreError> {
+        let prepared = self.prepare_session(immich_cred)?;
+        let now = Utc::now().to_rfc3339();
+        let mut tx = self.pool.begin().await?;
+        let result = sqlx::query(
+            "UPDATE instance_config SET server_epoch = 1, immich_url = ?1, configured_at = ?2 \
+             WHERE id = 1 AND server_epoch = 0",
+        )
+        .bind(immich_url)
+        .bind(&now)
+        .execute(&mut *tx)
+        .await?;
+        if result.rows_affected() == 0 {
+            return Err(AuthStoreError::AlreadyConfigured);
+        }
+        let stored = Self::insert_user(&mut tx, user).await?;
+        Self::insert_session(&mut tx, stored.id, auth_kind, 1, user_agent, ip, &prepared).await?;
+        tx.commit().await?;
+        Ok((stored, prepared.token))
+    }
+
+    pub async fn rebind_instance_and_create_session(
+        &self,
+        immich_url: &str,
+        user: &ImmichUser,
+        auth_kind: AuthKind,
+        immich_cred: &[u8],
+        user_agent: Option<&str>,
+        ip: Option<&str>,
+    ) -> Result<(UserRecord, String), AuthStoreError> {
+        let prepared = self.prepare_session(immich_cred)?;
+        let now = Utc::now().to_rfc3339();
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query(
+            "UPDATE instance_config SET server_epoch = server_epoch + 1, immich_url = ?1, \
+             configured_at = ?2 WHERE id = 1 RETURNING server_epoch",
+        )
+        .bind(immich_url)
+        .bind(&now)
+        .fetch_one(&mut *tx)
+        .await?;
+        let server_epoch: i64 = row.try_get("server_epoch")?;
+        sqlx::query("DELETE FROM job_items")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM job_credentials")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM jobs").execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM edits").execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM edits_history")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM presets").execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM export_jobs")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM sessions")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM users").execute(&mut *tx).await?;
+        let stored = Self::insert_user(&mut tx, user).await?;
+        Self::insert_session(
+            &mut tx,
+            stored.id,
+            auth_kind,
+            server_epoch,
+            user_agent,
+            ip,
+            &prepared,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok((stored, prepared.token))
     }
 
     pub async fn authenticate(&self, token: &str) -> Result<Option<AuthContext>, AuthStoreError> {
@@ -195,6 +348,7 @@ impl AuthStore {
              s.key_version AS key_version, s.last_seen_at AS last_seen_at, \
              u.email AS email, u.name AS name, u.is_admin AS is_admin, u.access_enabled AS access_enabled \
              FROM sessions s JOIN users u ON u.id = s.user_id \
+             JOIN instance_config i ON i.id = 1 AND i.server_epoch = s.server_epoch \
              WHERE s.token_hash = ?1 AND s.expires_at > ?2 AND s.absolute_expires_at > ?2",
         )
         .bind(token_hash)
@@ -270,6 +424,19 @@ impl AuthStore {
     pub async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<(), AuthStoreError> {
         sqlx::query("DELETE FROM sessions WHERE user_id = ?1")
             .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn revoke_others_for_user(
+        &self,
+        user_id: Uuid,
+        current_session_id: Uuid,
+    ) -> Result<(), AuthStoreError> {
+        sqlx::query("DELETE FROM sessions WHERE user_id = ?1 AND id != ?2")
+            .bind(user_id.to_string())
+            .bind(current_session_id.to_string())
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -359,6 +526,10 @@ mod tests {
     #[tokio::test]
     async fn session_roundtrip_returns_context() {
         let s = store().await;
+        sqlx::query("UPDATE instance_config SET server_epoch = 1 WHERE id = 1")
+            .execute(&s.pool)
+            .await
+            .unwrap();
         let user = s.upsert_user(&immich_user(true)).await.unwrap();
         let token = s
             .create_session(user.id, AuthKind::Password, b"bearer-xyz", 1, None, None)
@@ -379,6 +550,10 @@ mod tests {
     #[tokio::test]
     async fn disabled_user_denied() {
         let s = store().await;
+        sqlx::query("UPDATE instance_config SET server_epoch = 1 WHERE id = 1")
+            .execute(&s.pool)
+            .await
+            .unwrap();
         let user = s.upsert_user(&immich_user(false)).await.unwrap();
         let token = s
             .create_session(user.id, AuthKind::ApiKey, b"key", 1, None, None)
@@ -391,6 +566,10 @@ mod tests {
     #[tokio::test]
     async fn revoke_ends_session() {
         let s = store().await;
+        sqlx::query("UPDATE instance_config SET server_epoch = 1 WHERE id = 1")
+            .execute(&s.pool)
+            .await
+            .unwrap();
         let user = s.upsert_user(&immich_user(false)).await.unwrap();
         let token = s
             .create_session(user.id, AuthKind::Password, b"c", 1, None, None)

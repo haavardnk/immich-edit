@@ -75,9 +75,12 @@ impl InstanceStore {
     }
 
     pub async fn has_encrypted_secrets(&self) -> Result<bool, InstanceStoreError> {
-        let row = sqlx::query("SELECT EXISTS(SELECT 1 FROM sessions) AS present")
-            .fetch_one(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            "SELECT EXISTS(SELECT 1 FROM sessions) OR \
+             EXISTS(SELECT 1 FROM job_credentials) AS present",
+        )
+        .fetch_one(&self.pool)
+        .await?;
         let present: i64 = row.get("present");
         Ok(present != 0)
     }

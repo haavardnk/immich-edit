@@ -70,6 +70,7 @@ impl ImmichClient {
             .default_headers(headers)
             .timeout(request_timeout)
             .connect_timeout(Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| ImmichError::Transport(e.to_string()))?;
         let (auth_name, auth_value) = auth.header()?;

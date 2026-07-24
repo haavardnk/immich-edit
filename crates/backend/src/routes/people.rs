@@ -16,7 +16,10 @@ pub async fn list(
 ) -> Result<Json<Vec<PersonSummary>>, AppError> {
     let mut people = ctx.immich.list_people(true).await?;
     let ids: Vec<Uuid> = people.iter().map(|p| p.id).collect();
-    let counts = state.people_counts.counts_for(&ctx.immich, &ids).await;
+    let counts = state
+        .people_counts
+        .counts_for(ctx.owner, ctx.server_epoch, &ctx.immich, &ids)
+        .await;
     for person in &mut people {
         person.asset_count = counts.get(&person.id).copied();
     }
@@ -27,7 +30,7 @@ pub async fn thumbnail(ctx: AuthCtx, Path(id): Path<Uuid>) -> Result<Response, A
     let (bytes, ct) = ctx.immich.person_thumb(id).await?;
     let resp = Response::builder()
         .header(header::CONTENT_TYPE, HeaderValue::from_str(&ct).unwrap())
-        .header(header::CACHE_CONTROL, "public, max-age=86400")
+        .header(header::CACHE_CONTROL, "private, max-age=86400")
         .body(Body::from(bytes))
         .unwrap();
     Ok(resp)

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 pub const MAX_RASTER_EDGE: u32 = 8192;
 pub const MAX_RASTER_BYTES: usize = 64 * 1024 * 1024;
@@ -33,7 +34,7 @@ pub struct RasterMeta {
 }
 
 struct CacheState {
-    lru: LruCache<String, u64>,
+    lru: LruCache<(i64, Uuid, String), u64>,
     total_bytes: u64,
     cap_bytes: u64,
 }
@@ -49,26 +50,54 @@ impl RasterStore {
         let dir = cache_dir.join("rasters");
         std::fs::create_dir_all(&dir)?;
         let cap_bytes = cap_mb.saturating_mul(1024 * 1024);
-        let mut entries: Vec<(String, u64, std::time::SystemTime)> = Vec::new();
-        for ent in std::fs::read_dir(&dir)? {
-            let ent = ent?;
-            let path = ent.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("r8") {
+        let mut entries: Vec<((i64, Uuid, String), u64, std::time::SystemTime)> = Vec::new();
+        for epoch_entry in std::fs::read_dir(&dir)? {
+            let epoch_entry = epoch_entry?;
+            if !epoch_entry.file_type()?.is_dir() {
                 continue;
             }
-            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            let Some(epoch) = epoch_entry
+                .file_name()
+                .to_str()
+                .and_then(|value| value.parse().ok())
+            else {
                 continue;
             };
-            let md = ent.metadata()?;
-            let mtime = md.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-            entries.push((stem.to_string(), md.len(), mtime));
+            for owner_entry in std::fs::read_dir(epoch_entry.path())? {
+                let owner_entry = owner_entry?;
+                if !owner_entry.file_type()?.is_dir() {
+                    continue;
+                }
+                let Some(owner) = owner_entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|value| Uuid::parse_str(value).ok())
+                else {
+                    continue;
+                };
+                for entry in std::fs::read_dir(owner_entry.path())? {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if path.extension().and_then(|s| s.to_str()) != Some("r8") {
+                        continue;
+                    }
+                    let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                        continue;
+                    };
+                    let metadata = entry.metadata()?;
+                    let modified = metadata
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    entries.push(((epoch, owner, stem.to_string()), metadata.len(), modified));
+                }
+            }
         }
         entries.sort_by_key(|(_, _, t)| *t);
-        let mut lru: LruCache<String, u64> = LruCache::unbounded();
+        let mut lru: LruCache<(i64, Uuid, String), u64> = LruCache::unbounded();
         let mut total: u64 = 0;
-        for (id, size, _) in entries {
+        for (key, size, _) in entries {
             total = total.saturating_add(size);
-            lru.put(id, size);
+            lru.put(key, size);
         }
         let state = Arc::new(Mutex::new(CacheState {
             lru,
@@ -80,15 +109,19 @@ impl RasterStore {
         Ok(store)
     }
 
-    fn paths(&self, raster_id: &str) -> (PathBuf, PathBuf) {
-        let bin = self.dir.join(format!("{raster_id}.r8"));
-        let meta = self.dir.join(format!("{raster_id}.json"));
+    fn paths(&self, server_epoch: i64, owner: Uuid, raster_id: &str) -> (PathBuf, PathBuf) {
+        let owner_dir = self
+            .dir
+            .join(server_epoch.to_string())
+            .join(owner.to_string());
+        let bin = owner_dir.join(format!("{raster_id}.r8"));
+        let meta = owner_dir.join(format!("{raster_id}.json"));
         (bin, meta)
     }
 
     fn evict_to_cap(&self) {
         loop {
-            let victim: Option<(String, u64)> = {
+            let victim: Option<((i64, Uuid, String), u64)> = {
                 let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
                 if st.total_bytes <= st.cap_bytes || st.lru.is_empty() {
                     return;
@@ -97,23 +130,26 @@ impl RasterStore {
                 st.total_bytes = st.total_bytes.saturating_sub(v);
                 Some((k, v))
             };
-            if let Some((id, _)) = victim {
-                let (bin, meta) = self.paths(&id);
+            if let Some(((server_epoch, owner, id), _)) = victim {
+                let (bin, meta) = self.paths(server_epoch, owner, &id);
                 let _ = std::fs::remove_file(&bin);
                 let _ = std::fs::remove_file(&meta);
             }
         }
     }
 
-    fn touch(&self, raster_id: &str) {
+    fn touch(&self, server_epoch: i64, owner: Uuid, raster_id: &str) {
         let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let _ = st.lru.get(raster_id);
+        let _ = st.lru.get(&(server_epoch, owner, raster_id.to_string()));
     }
 
-    fn insert(&self, raster_id: &str, size: u64) {
+    fn insert(&self, server_epoch: i64, owner: Uuid, raster_id: &str, size: u64) {
         {
             let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(prev) = st.lru.put(raster_id.to_string(), size) {
+            if let Some(prev) = st
+                .lru
+                .put((server_epoch, owner, raster_id.to_string()), size)
+            {
                 st.total_bytes = st.total_bytes.saturating_sub(prev);
             }
             st.total_bytes = st.total_bytes.saturating_add(size);
@@ -123,6 +159,8 @@ impl RasterStore {
 
     pub async fn store(
         &self,
+        server_epoch: i64,
+        owner: Uuid,
         bytes: &[u8],
         width: u32,
         height: u32,
@@ -152,7 +190,10 @@ impl RasterStore {
         hasher.update(bytes);
         let raster_id = hex::encode(hasher.finalize());
 
-        let (bin_path, meta_path) = self.paths(&raster_id);
+        let (bin_path, meta_path) = self.paths(server_epoch, owner, &raster_id);
+        if let Some(owner_dir) = bin_path.parent() {
+            fs::create_dir_all(owner_dir).await?;
+        }
         if !fs::try_exists(&bin_path).await? {
             let mut f = fs::File::create(&bin_path).await?;
             f.write_all(bytes).await?;
@@ -169,31 +210,79 @@ impl RasterStore {
             let json = serde_json::to_vec_pretty(&meta)?;
             fs::write(&meta_path, json).await?;
         }
-        self.insert(&raster_id, bytes.len() as u64);
+        self.insert(server_epoch, owner, &raster_id, bytes.len() as u64);
         Ok(meta)
     }
 
-    pub async fn load(&self, raster_id: &str) -> Result<(RasterMeta, Vec<u8>), RasterStoreError> {
-        let (bin_path, meta_path) = self.paths(raster_id);
+    pub async fn load(
+        &self,
+        server_epoch: i64,
+        owner: Uuid,
+        raster_id: &str,
+    ) -> Result<(RasterMeta, Vec<u8>), RasterStoreError> {
+        let (bin_path, meta_path) = self.paths(server_epoch, owner, raster_id);
         if !fs::try_exists(&meta_path).await? {
             return Err(RasterStoreError::NotFound);
         }
         let meta_bytes = fs::read(&meta_path).await?;
         let meta: RasterMeta = serde_json::from_slice(&meta_bytes)?;
         let bin = fs::read(&bin_path).await?;
-        self.touch(raster_id);
+        self.touch(server_epoch, owner, raster_id);
         Ok((meta, bin))
     }
 
-    pub async fn meta(&self, raster_id: &str) -> Result<RasterMeta, RasterStoreError> {
-        let (_, meta_path) = self.paths(raster_id);
+    pub async fn meta(
+        &self,
+        server_epoch: i64,
+        owner: Uuid,
+        raster_id: &str,
+    ) -> Result<RasterMeta, RasterStoreError> {
+        let (_, meta_path) = self.paths(server_epoch, owner, raster_id);
         if !fs::try_exists(&meta_path).await? {
             return Err(RasterStoreError::NotFound);
         }
         let meta_bytes = fs::read(&meta_path).await?;
         let meta: RasterMeta = serde_json::from_slice(&meta_bytes)?;
-        self.touch(raster_id);
+        self.touch(server_epoch, owner, raster_id);
         Ok(meta)
+    }
+
+    pub async fn purge_owner(&self, owner: Uuid) -> Result<(), RasterStoreError> {
+        let mut epochs = fs::read_dir(&self.dir).await?;
+        while let Some(epoch) = epochs.next_entry().await? {
+            let path = epoch.path().join(owner.to_string());
+            if let Err(error) = fs::remove_dir_all(path).await
+                && error.kind() != std::io::ErrorKind::NotFound
+            {
+                return Err(error.into());
+            }
+        }
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let keys: Vec<_> = state
+            .lru
+            .iter()
+            .filter(|((_, key_owner, _), _)| *key_owner == owner)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in keys {
+            if let Some(size) = state.lru.pop(&key) {
+                state.total_bytes = state.total_bytes.saturating_sub(size);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn purge_all(&self) -> Result<(), RasterStoreError> {
+        if let Err(error) = fs::remove_dir_all(&self.dir).await
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            return Err(error.into());
+        }
+        fs::create_dir_all(&self.dir).await?;
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.lru.clear();
+        state.total_bytes = 0;
+        Ok(())
     }
 }
 
@@ -206,17 +295,25 @@ mod tests {
         1024
     }
 
+    fn owner() -> Uuid {
+        Uuid::nil()
+    }
+
+    fn epoch() -> i64 {
+        1
+    }
+
     #[tokio::test]
     async fn roundtrip_and_dedupes() {
         let dir = tempdir().unwrap();
         let store = RasterStore::new(dir.path(), unlimited()).unwrap();
         let bytes = vec![0x42u8; 4 * 3];
-        let m1 = store.store(&bytes, 4, 3).await.unwrap();
-        let m2 = store.store(&bytes, 4, 3).await.unwrap();
+        let m1 = store.store(epoch(), owner(), &bytes, 4, 3).await.unwrap();
+        let m2 = store.store(epoch(), owner(), &bytes, 4, 3).await.unwrap();
         if m1.raster_id != m2.raster_id {
             panic!("same content must dedupe to same id");
         }
-        let (meta, loaded) = store.load(&m1.raster_id).await.unwrap();
+        let (meta, loaded) = store.load(epoch(), owner(), &m1.raster_id).await.unwrap();
         if loaded != bytes {
             panic!("roundtrip mismatch");
         }
@@ -229,7 +326,7 @@ mod tests {
     async fn rejects_size_mismatch() {
         let dir = tempdir().unwrap();
         let store = RasterStore::new(dir.path(), unlimited()).unwrap();
-        let r = store.store(&[0u8; 5], 4, 3).await;
+        let r = store.store(epoch(), owner(), &[0u8; 5], 4, 3).await;
         if !matches!(r, Err(RasterStoreError::Invalid(_))) {
             panic!("expected invalid");
         }
@@ -239,7 +336,7 @@ mod tests {
     async fn missing_load_is_not_found() {
         let dir = tempdir().unwrap();
         let store = RasterStore::new(dir.path(), unlimited()).unwrap();
-        let r = store.load("deadbeef").await;
+        let r = store.load(epoch(), owner(), "deadbeef").await;
         if !matches!(r, Err(RasterStoreError::NotFound)) {
             panic!("expected not found");
         }
@@ -254,16 +351,28 @@ mod tests {
             RasterStore::new(dir.path(), cap_mb).unwrap()
         };
         let mk = |fill: u8| vec![fill; 1024 * 1024];
-        let a = store.store(&mk(1), 1024, 1024).await.unwrap();
-        let b = store.store(&mk(2), 1024, 1024).await.unwrap();
-        let c = store.store(&mk(3), 1024, 1024).await.unwrap();
-        let _ = store.load(&a.raster_id).await.unwrap();
-        let d = store.store(&mk(4), 1024, 1024).await.unwrap();
-        if store.load(&b.raster_id).await.is_ok() {
+        let a = store
+            .store(epoch(), owner(), &mk(1), 1024, 1024)
+            .await
+            .unwrap();
+        let b = store
+            .store(epoch(), owner(), &mk(2), 1024, 1024)
+            .await
+            .unwrap();
+        let c = store
+            .store(epoch(), owner(), &mk(3), 1024, 1024)
+            .await
+            .unwrap();
+        let _ = store.load(epoch(), owner(), &a.raster_id).await.unwrap();
+        let d = store
+            .store(epoch(), owner(), &mk(4), 1024, 1024)
+            .await
+            .unwrap();
+        if store.load(epoch(), owner(), &b.raster_id).await.is_ok() {
             panic!("b should have been evicted (least recently used)");
         }
         for id in [&a.raster_id, &c.raster_id, &d.raster_id] {
-            if store.load(id).await.is_err() {
+            if store.load(epoch(), owner(), id).await.is_err() {
                 panic!("{id} should survive");
             }
         }
@@ -276,7 +385,7 @@ mod tests {
             let store = RasterStore::new(dir.path(), 1024).unwrap();
             for fill in 1u8..=3 {
                 store
-                    .store(&vec![fill; 1024 * 1024], 1024, 1024)
+                    .store(epoch(), owner(), &vec![fill; 1024 * 1024], 1024, 1024)
                     .await
                     .unwrap();
             }

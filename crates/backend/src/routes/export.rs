@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
+use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
 pub use crate::services::export::{
@@ -28,7 +29,18 @@ pub async fn get_export(
             tracing::error!(error = %e, "edits store");
             AppError::Internal
         })?;
-    let (bytes, output) = export::render_export(&state, &ctx.immich, id, edits, &params).await?;
+    let (bytes, output) = export::render_export(
+        &state,
+        RenderIdentity {
+            owner: ctx.owner,
+            server_epoch: ctx.server_epoch,
+        },
+        &ctx.immich,
+        id,
+        edits,
+        &params,
+    )
+    .await?;
     Ok(download_response(id, bytes, output))
 }
 
@@ -38,8 +50,18 @@ pub async fn post_export(
     Path(id): Path<Uuid>,
     Json(body): Json<ExportBody>,
 ) -> Result<Response, AppError> {
-    let (bytes, output) =
-        export::render_export(&state, &ctx.immich, id, body.edits.clamped(), &body.params).await?;
+    let (bytes, output) = export::render_export(
+        &state,
+        RenderIdentity {
+            owner: ctx.owner,
+            server_epoch: ctx.server_epoch,
+        },
+        &ctx.immich,
+        id,
+        body.edits.clamped(),
+        &body.params,
+    )
+    .await?;
     Ok(download_response(id, bytes, output))
 }
 
@@ -74,6 +96,7 @@ pub async fn post_export_immich(
         ctx.owner,
         ExportImmichRequest {
             asset_id: id,
+            server_epoch: ctx.server_epoch,
             body: &body,
             idempotency_key: idem_key,
             device_asset_id: None,

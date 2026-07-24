@@ -20,6 +20,7 @@ use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
 use crate::services::job_runner::{ItemOutcome, JobExecutor};
 use crate::services::job_store::{JobItemRecord, JobRecord};
 use crate::services::render::RenderError;
+use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
 pub const EXPORT_MAX_EDGE: u32 = 8192;
@@ -217,6 +218,7 @@ pub struct ExportToImmichResult {
 
 pub struct ExportImmichRequest<'a> {
     pub asset_id: Uuid,
+    pub server_epoch: i64,
     pub body: &'a ExportToImmichBody,
     pub idempotency_key: Option<String>,
     pub device_asset_id: Option<String>,
@@ -224,6 +226,7 @@ pub struct ExportImmichRequest<'a> {
 
 pub async fn render_export(
     state: &AppState,
+    identity: RenderIdentity,
     immich: &crate::immich::ImmichClient,
     id: Uuid,
     edits: Edits,
@@ -231,7 +234,7 @@ pub async fn render_export(
 ) -> Result<(Bytes, OutputFormat), AppError> {
     let frame = state
         .render
-        .frame(immich, id)
+        .frame(identity, immich, id)
         .await
         .map_err(map_render_err)?;
     let output = params.output_format();
@@ -244,7 +247,7 @@ pub async fn render_export(
     };
     let rendered = state
         .render
-        .render(immich.clone(), id, edits, opts, None)
+        .render(identity, immich.clone(), id, edits, opts, None)
         .await
         .map_err(map_render_err)?;
 
@@ -268,74 +271,125 @@ pub async fn export_to_immich(
     let body = req.body;
     let idem_key = req.idempotency_key;
     let request_hash = idem_key.as_ref().map(|_| hash_request(id, body));
-
-    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref())
-        && let Some(existing) = state.edits.get_export_job(owner, id, key).await?
-    {
-        if existing.request_hash != hash {
-            return Err(AppError::BadRequest(
-                "idempotency key reused with different request".into(),
-            ));
-        }
-        if existing.status == ExportJobStatus::Completed {
-            return Ok(record_to_result(&existing));
-        }
-        return resume_export_job(state, immich, owner, id, key, body, existing).await;
-    }
-
-    let suffix = validate_suffix(&body.filename_suffix)?;
-    let original = immich.asset(id).await?;
-    let existing_names = collect_existing_filenames(immich, &original).await;
-
-    let (bytes, output) =
-        render_export(state, immich, id, body.edits.clamped(), &body.params).await?;
-    let filename = resolve_filename(
-        &original.original_file_name,
-        &suffix,
-        output.extension(),
-        &existing_names,
-    );
-    let device_asset_id = req
-        .device_asset_id
-        .unwrap_or_else(|| format!("immich-edit-{filename}"));
-    let now = Utc::now().to_rfc3339();
-    let upload = immich
-        .upload_asset(
-            &filename,
-            output.content_type(),
-            bytes,
-            body.favorite,
-            &now,
-            &now,
-            &device_asset_id,
-        )
-        .await?;
-
-    let new_id = upload.id;
-    let status = upload.status.clone();
+    let mut reserved = false;
 
     if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
-        state
-            .edits
-            .put_export_job_uploaded(owner, id, key, hash, new_id, &filename, &status)
-            .await?;
+        reserved = state.edits.reserve_export_job(owner, id, key, hash).await?;
+        if !reserved && let Some(existing) = state.edits.get_export_job(owner, id, key).await? {
+            if existing.request_hash != hash {
+                return Err(AppError::BadRequest(
+                    "idempotency key reused with different request".into(),
+                ));
+            }
+            return match existing.status {
+                ExportJobStatus::Pending => {
+                    Err(AppError::Conflict("export already in progress".into()))
+                }
+                ExportJobStatus::Uploaded => {
+                    resume_export_job(
+                        state,
+                        immich,
+                        owner,
+                        req.server_epoch,
+                        id,
+                        key,
+                        body,
+                        existing,
+                    )
+                    .await
+                }
+                ExportJobStatus::Completed => Ok(record_to_result(&existing)),
+            };
+        }
     }
 
-    let warnings = run_post_upload(state, immich, &original, body, new_id, &status).await;
+    let result: Result<ExportToImmichResult, AppError> = async {
+        let suffix = validate_suffix(&body.filename_suffix)?;
+        let original = immich.asset(id).await?;
+        let existing_names = collect_existing_filenames(immich, &original).await;
 
-    if let Some(key) = idem_key.as_deref() {
-        state
-            .edits
-            .complete_export_job(owner, id, key, &warnings)
+        let (bytes, output) = render_export(
+            state,
+            RenderIdentity {
+                owner,
+                server_epoch: req.server_epoch,
+            },
+            immich,
+            id,
+            body.edits.clamped(),
+            &body.params,
+        )
+        .await?;
+        let filename = resolve_filename(
+            &original.original_file_name,
+            &suffix,
+            output.extension(),
+            &existing_names,
+        );
+        let device_asset_id = req.device_asset_id.unwrap_or_else(|| {
+            request_hash
+                .as_deref()
+                .map(|hash| format!("immich-edit-{id}-{hash}"))
+                .unwrap_or_else(|| format!("immich-edit-{filename}"))
+        });
+        let now = Utc::now().to_rfc3339();
+        let upload = immich
+            .upload_asset(
+                &filename,
+                output.content_type(),
+                bytes,
+                body.favorite,
+                &now,
+                &now,
+                &device_asset_id,
+            )
             .await?;
-    }
 
-    Ok(ExportToImmichResult {
-        asset_id: new_id,
-        filename,
-        status,
-        warnings,
-    })
+        let new_id = upload.id;
+        let status = upload.status.clone();
+
+        if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
+            state
+                .edits
+                .put_export_job_uploaded(owner, id, key, hash, new_id, &filename, &status)
+                .await?;
+        }
+
+        let warnings = run_post_upload(
+            state,
+            owner,
+            req.server_epoch,
+            immich,
+            &original,
+            body,
+            new_id,
+            &status,
+        )
+        .await;
+
+        if let Some(key) = idem_key.as_deref() {
+            state
+                .edits
+                .complete_export_job(owner, id, key, &warnings)
+                .await?;
+        }
+
+        Ok(ExportToImmichResult {
+            asset_id: new_id,
+            filename,
+            status,
+            warnings,
+        })
+    }
+    .await;
+
+    if result.is_err()
+        && reserved
+        && let Some(key) = idem_key.as_deref()
+    {
+        let _ = state.edits.delete_pending_export_job(owner, id, key).await;
+    }
+    result
 }
 
 pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
@@ -376,10 +430,12 @@ fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn resume_export_job(
     state: &AppState,
     immich: &crate::immich::ImmichClient,
     owner: Uuid,
+    server_epoch: i64,
     asset_id: Uuid,
     key: &str,
     body: &ExportToImmichBody,
@@ -390,7 +446,17 @@ async fn resume_export_job(
     };
     let original = immich.asset(asset_id).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
-    let warnings = run_post_upload(state, immich, &original, body, new_id, &upload_status).await;
+    let warnings = run_post_upload(
+        state,
+        owner,
+        server_epoch,
+        immich,
+        &original,
+        body,
+        new_id,
+        &upload_status,
+    )
+    .await;
     state
         .edits
         .complete_export_job(owner, asset_id, key, &warnings)
@@ -403,8 +469,11 @@ async fn resume_export_job(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_post_upload(
     state: &AppState,
+    owner: Uuid,
+    server_epoch: i64,
     immich: &crate::immich::ImmichClient,
     original: &AssetDetail,
     body: &ExportToImmichBody,
@@ -442,7 +511,10 @@ async fn run_post_upload(
     for tag_id in &body.tag_ids {
         match immich.tag_asset(*tag_id, new_id).await {
             Ok(items) => {
-                state.tag_counts.invalidate(*tag_id).await;
+                state
+                    .tag_counts
+                    .invalidate(owner, server_epoch, *tag_id)
+                    .await;
                 for item in items {
                     if !item.success {
                         warnings.push(format!(
@@ -678,6 +750,9 @@ pub async fn job_immich(
         .to_utf8()
         .ok_or_else(|| "job credential invalid".to_string())?;
     let cfg = state.instance.get().await.map_err(|e| e.to_string())?;
+    if cfg.server_epoch != job.server_epoch {
+        return Err("job belongs to a previous Immich server".into());
+    }
     let url = cfg
         .immich_url
         .ok_or_else(|| "instance not configured".to_string())?;
@@ -720,6 +795,7 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
         job.user_id,
         ExportImmichRequest {
             asset_id,
+            server_epoch: job.server_epoch,
             body: &body,
             idempotency_key: Some(idempotency_key),
             device_asset_id: Some(device_asset_id),
@@ -736,10 +812,20 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> Item
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let suffix = validate_suffix(&params.filename_suffix).map_err(|e| e.to_string())?;
     let original = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
-    let (bytes, output) = render_export(state, &immich, asset_id, edits.clamped(), &params.params)
-        .await
-        .map_err(|e| e.to_string())?;
-    let dir = zip_job_dir(state, job.id);
+    let (bytes, output) = render_export(
+        state,
+        RenderIdentity {
+            owner: job.user_id,
+            server_epoch: job.server_epoch,
+        },
+        &immich,
+        asset_id,
+        edits.clamped(),
+        &params.params,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    let dir = zip_job_dir(state, job.server_epoch, job.user_id, job.id);
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| format!("create export dir: {e}"))?;
@@ -750,30 +836,34 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> Item
     Ok(serde_json::json!({ "filename": filename, "bytes": bytes.len() }))
 }
 
-pub fn zip_job_dir(state: &AppState, job_id: Uuid) -> PathBuf {
+pub fn zip_job_dir(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) -> PathBuf {
     state
         .config
         .cache_dir
         .join("exports")
+        .join(server_epoch.to_string())
+        .join(owner.to_string())
         .join(job_id.to_string())
 }
 
-pub fn zip_archive_path(state: &AppState, job_id: Uuid) -> PathBuf {
+pub fn zip_archive_path(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) -> PathBuf {
     state
         .config
         .cache_dir
         .join("exports")
+        .join(server_epoch.to_string())
+        .join(owner.to_string())
         .join(format!("{job_id}.zip"))
 }
 
-pub async fn cleanup_zip_job(state: &AppState, job_id: Uuid) {
-    let dir = zip_job_dir(state, job_id);
+pub async fn cleanup_zip_job(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) {
+    let dir = zip_job_dir(state, server_epoch, owner, job_id);
     if let Err(e) = tokio::fs::remove_dir_all(&dir).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
         tracing::warn!(error = %e, "remove export dir");
     }
-    let archive = zip_archive_path(state, job_id);
+    let archive = zip_archive_path(state, server_epoch, owner, job_id);
     if let Err(e) = tokio::fs::remove_file(&archive).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
@@ -838,12 +928,17 @@ async fn write_unique(
     }
 }
 
-pub async fn build_zip_archive(state: &AppState, job_id: Uuid) -> Result<PathBuf, AppError> {
-    let archive = zip_archive_path(state, job_id);
+pub async fn build_zip_archive(
+    state: &AppState,
+    server_epoch: i64,
+    owner: Uuid,
+    job_id: Uuid,
+) -> Result<PathBuf, AppError> {
+    let archive = zip_archive_path(state, server_epoch, owner, job_id);
     if tokio::fs::try_exists(&archive).await.unwrap_or(false) {
         return Ok(archive);
     }
-    let dir = zip_job_dir(state, job_id);
+    let dir = zip_job_dir(state, server_epoch, owner, job_id);
     let archive_for_task = archive.clone();
     tokio::task::spawn_blocking(move || zip_dir_blocking(&dir, &archive_for_task))
         .await
@@ -856,6 +951,31 @@ pub async fn build_zip_archive(state: &AppState, job_id: Uuid) -> Result<PathBuf
             AppError::Internal
         })?;
     Ok(archive)
+}
+
+pub async fn purge_owner_exports(state: &AppState, owner: Uuid) {
+    let root = state.config.cache_dir.join("exports");
+    let Ok(mut epochs) = tokio::fs::read_dir(root).await else {
+        return;
+    };
+    while let Ok(Some(epoch)) = epochs.next_entry().await {
+        let path = epoch.path().join(owner.to_string());
+        if let Err(error) = tokio::fs::remove_dir_all(path).await
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(error = %error, %owner, "remove owner exports");
+        }
+    }
+}
+
+pub async fn purge_all_exports(state: &AppState) {
+    let root = state.config.cache_dir.join("exports");
+    if let Err(error) = tokio::fs::remove_dir_all(&root).await
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %error, "remove all exports");
+    }
+    let _ = tokio::fs::create_dir_all(root).await;
 }
 
 fn zip_dir_blocking(dir: &Path, archive: &Path) -> std::io::Result<()> {

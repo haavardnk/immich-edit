@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::edited_thumb::EditedThumbError;
+use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -34,7 +35,18 @@ pub async fn get(
     let edits = record.manifest.to_edits().clamped();
     let bytes = state
         .edited_thumb
-        .get_or_render(&state.render, ctx.immich.clone(), id, edits, &q.h, size)
+        .get_or_render(
+            &state.render,
+            RenderIdentity {
+                owner: ctx.owner,
+                server_epoch: ctx.server_epoch,
+            },
+            ctx.immich.clone(),
+            id,
+            edits,
+            &q.h,
+            size,
+        )
         .await
         .map_err(map_err)?;
     let mut resp = Response::new(Body::from(bytes));

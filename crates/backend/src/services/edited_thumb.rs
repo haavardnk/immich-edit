@@ -8,7 +8,7 @@ use tokio::fs;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
-use crate::services::render::{RenderError, RenderService};
+use crate::services::render::{RenderError, RenderIdentity, RenderService};
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 
@@ -46,30 +46,48 @@ impl EditedThumbService {
         let dir = self.dir.clone();
         std::thread::spawn(move || {
             let now = SystemTime::now();
-            let Ok(read) = std::fs::read_dir(dir.as_path()) else {
-                return;
-            };
-            for entry in read.flatten() {
-                let Ok(meta) = entry.metadata() else {
+            let mut pending = vec![dir.as_ref().clone()];
+            while let Some(current) = pending.pop() {
+                let Ok(read) = std::fs::read_dir(&current) else {
                     continue;
                 };
-                let Ok(modified) = meta.modified() else {
-                    continue;
-                };
-                if now.duration_since(modified).unwrap_or_default() > TTL {
-                    let _ = std::fs::remove_file(entry.path());
+                for entry in read.flatten() {
+                    let Ok(metadata) = entry.metadata() else {
+                        continue;
+                    };
+                    if metadata.is_dir() {
+                        pending.push(entry.path());
+                        continue;
+                    }
+                    let Ok(modified) = metadata.modified() else {
+                        continue;
+                    };
+                    if now.duration_since(modified).unwrap_or_default() > TTL {
+                        let _ = std::fs::remove_file(entry.path());
+                    }
                 }
             }
         });
     }
 
-    fn cache_path(&self, asset_id: Uuid, hash: &str, size: u32) -> PathBuf {
-        self.dir.join(format!("{asset_id}-{hash}-{size}.jpg"))
+    fn cache_path(
+        &self,
+        identity: RenderIdentity,
+        asset_id: Uuid,
+        hash: &str,
+        size: u32,
+    ) -> PathBuf {
+        self.dir
+            .join(identity.server_epoch.to_string())
+            .join(identity.owner.to_string())
+            .join(format!("{asset_id}-{hash}-{size}.jpg"))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_or_render(
         &self,
         render: &RenderService,
+        identity: RenderIdentity,
         immich: crate::immich::ImmichClient,
         asset_id: Uuid,
         edits: Edits,
@@ -82,7 +100,7 @@ impl EditedThumbService {
         }
         let dcp_revision = render.dcp_revision().await?;
         let render_hash = format!("{expected_hash}-{dcp_revision}");
-        let path = self.cache_path(asset_id, &render_hash, size);
+        let path = self.cache_path(identity, asset_id, &render_hash, size);
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);
         }
@@ -92,6 +110,9 @@ impl EditedThumbService {
             .acquire_owned()
             .await
             .map_err(|_| EditedThumbError::Io(std::io::ErrorKind::Other.into()))?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);
         }
@@ -105,10 +126,37 @@ impl EditedThumbService {
             preview_mode: PreviewMode::None,
             ..Default::default()
         };
-        let rendered = render.render(immich, asset_id, edits, opts, None).await?;
-        let tmp = path.with_extension("jpg.tmp");
+        let rendered = render
+            .render(identity, immich, asset_id, edits, opts, None)
+            .await?;
+        let tmp = path.with_extension(format!("{}.tmp", Uuid::new_v4()));
         fs::write(&tmp, &rendered.bytes).await?;
-        fs::rename(&tmp, &path).await?;
+        if let Err(error) = fs::rename(&tmp, &path).await {
+            let _ = fs::remove_file(&tmp).await;
+            return Err(error.into());
+        }
         Ok(rendered.bytes)
+    }
+
+    pub async fn purge_owner(&self, owner: Uuid) -> std::io::Result<()> {
+        let mut epochs = fs::read_dir(self.dir.as_path()).await?;
+        while let Some(epoch) = epochs.next_entry().await? {
+            let path = epoch.path().join(owner.to_string());
+            if let Err(error) = fs::remove_dir_all(path).await
+                && error.kind() != std::io::ErrorKind::NotFound
+            {
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn purge_all(&self) -> std::io::Result<()> {
+        if let Err(error) = fs::remove_dir_all(self.dir.as_path()).await
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            return Err(error);
+        }
+        fs::create_dir_all(self.dir.as_path()).await
     }
 }

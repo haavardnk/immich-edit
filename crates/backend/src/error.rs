@@ -36,6 +36,8 @@ pub enum AppError {
     SetupRequired,
     #[error("admin required")]
     AdminRequired,
+    #[error("forbidden")]
+    Forbidden,
     #[error("access disabled")]
     AccessDisabled,
     #[error("rate limited")]
@@ -96,6 +98,11 @@ impl AppError {
                 StatusCode::FORBIDDEN,
                 "admin_required",
                 "administrator access required".into(),
+            ),
+            Self::Forbidden => (
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "request rejected".into(),
             ),
             Self::AccessDisabled => (
                 StatusCode::FORBIDDEN,

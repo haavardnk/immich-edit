@@ -894,3 +894,29 @@ async fn admin_instance_reports_epoch() {
     let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
     assert!(json["server_epoch"].is_number());
 }
+
+#[tokio::test]
+async fn csrf_rejects_foreign_origin_on_mutation() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/jobs")
+                .header("origin", "http://evil.example.com")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "kind": "reset_edits",
+                        "asset_ids": [uuid::Uuid::new_v4()],
+                        "params": {}
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
