@@ -138,6 +138,7 @@ mod tests {
                 hsl: HslEdits { bands },
                 color_grade: Default::default(),
                 lut_3d: Default::default(),
+                dcp: Default::default(),
             },
             detail: DetailEdits {
                 sharpen_amount: 60.0,
@@ -231,6 +232,35 @@ mod tests {
                 "expected only exposure key, got {:?}",
                 manifest.ops.keys().collect::<Vec<_>>()
             );
+        }
+    }
+
+    #[test]
+    fn dcp_roundtrip() {
+        let mut edits = Edits::default();
+        edits.color.dcp.mode = crate::edits::DcpMode::Profile;
+        edits.color.dcp.profile_id = Some("abc123".into());
+        edits.color.dcp.illuminant = crate::dcp::DcpIlluminant::Second;
+        edits.color.dcp.use_look_table = false;
+        edits.color.dcp.use_baseline_exposure = true;
+        let manifest = EditManifest::from_edits(&edits);
+        if !manifest.ops.contains_key("dcp_hue_sat") {
+            panic!(
+                "expected dcp_hue_sat key, got {:?}",
+                manifest.ops.keys().collect::<Vec<_>>()
+            );
+        }
+        let back = manifest.to_edits();
+        if back.color.dcp != edits.color.dcp {
+            panic!("dcp roundtrip mismatch: {:?}", back.color.dcp);
+        }
+    }
+
+    #[test]
+    fn dcp_off_not_serialized() {
+        let manifest = EditManifest::from_edits(&Edits::default());
+        if manifest.ops.contains_key("dcp_hue_sat") {
+            panic!("dcp should not serialize when Off");
         }
     }
 

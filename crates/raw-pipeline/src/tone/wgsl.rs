@@ -165,6 +165,16 @@ fn tone_agx_rgb(c: vec3<f32>) -> vec3<f32> {{
     return clamp(display, vec3<f32>(0.0), vec3<f32>(1.0));
 }}
 
+fn tone_dcp_rgb(c: vec3<f32>) -> vec3<f32> {{
+    let neutral = clamp(tone_luma(c), 0.0, 1.0);
+    let mapped = tone_project_gamut(c, neutral);
+    return vec3<f32>(
+        tone_srgb_oetf(clamp(mapped.x, 0.0, 1.0)),
+        tone_srgb_oetf(clamp(mapped.y, 0.0, 1.0)),
+        tone_srgb_oetf(clamp(mapped.z, 0.0, 1.0)),
+    );
+}}
+
 fn tone_apply_rgb(c: vec3<f32>, kind: u32) -> vec3<f32> {{
     if (kind == TONE_KIND_AGX) {{
         return tone_agx_rgb(c);

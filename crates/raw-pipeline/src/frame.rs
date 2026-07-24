@@ -12,6 +12,7 @@ pub struct RawFrame {
     pub cpp: usize,
     pub orientation: OrientFlips,
     pub is_raw: bool,
+    pub model: String,
     pub exif: Option<little_exif::metadata::Metadata>,
 }
 
@@ -22,6 +23,7 @@ pub struct RenderOptions {
     pub preview_mode: PreviewMode,
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
+    pub dcp: Option<std::sync::Arc<crate::dcp::DcpProfile>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -156,6 +158,7 @@ impl Default for RenderOptions {
             preview_mode: PreviewMode::None,
             rasters: crate::mask_raster::empty_rasters(),
             luts: crate::lut::empty_luts(),
+            dcp: None,
         }
     }
 }

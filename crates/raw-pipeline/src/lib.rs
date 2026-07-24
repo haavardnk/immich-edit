@@ -2,6 +2,7 @@ pub mod auto;
 pub mod cancel;
 pub mod color;
 pub mod cpu;
+pub mod dcp;
 pub mod decode;
 pub mod edit_manifest;
 pub mod edits;
@@ -42,6 +43,7 @@ pub fn version() -> &'static str {
 }
 
 pub use cancel::{CancelToken, CancelTracker};
+pub use dcp::{DcpMap, DcpProfile, empty_dcp, parse_dcp};
 pub use frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage, TiffCompression,
 };

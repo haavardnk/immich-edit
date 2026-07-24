@@ -199,6 +199,7 @@ fn decode_raw_fast(
         cpp: 1,
         orientation,
         is_raw: true,
+        model: raw_image.clean_model.clone(),
         exif,
     })
 }
@@ -262,6 +263,7 @@ fn decode_raw_quality(
         cpp: 3,
         orientation,
         is_raw: true,
+        model: raw_image.clean_model.clone(),
         exif,
     })
 }
@@ -361,6 +363,7 @@ fn frame_from_rgb8(
         cpp: 3,
         orientation,
         is_raw: false,
+        model: String::new(),
         exif,
     }
 }
@@ -391,6 +394,7 @@ fn frame_from_rgb16(
         cpp: 3,
         orientation,
         is_raw: false,
+        model: String::new(),
         exif,
     }
 }

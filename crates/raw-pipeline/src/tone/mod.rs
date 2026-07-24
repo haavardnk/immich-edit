@@ -113,6 +113,19 @@ pub fn apply_rgb(rgb: [f32; 3], output: OutputEdits) -> [f32; 3] {
     }
 }
 
+pub fn apply_rgb_dcp(rgb: [f32; 3], output: OutputEdits, dcp_active: bool) -> [f32; 3] {
+    if !dcp_active {
+        return apply_rgb(rgb, output);
+    }
+    let neutral = luma(rgb).clamp(0.0, 1.0);
+    let mapped = project_to_gamut(rgb, neutral);
+    [
+        srgb_oetf(mapped[0].clamp(0.0, 1.0)),
+        srgb_oetf(mapped[1].clamp(0.0, 1.0)),
+        srgb_oetf(mapped[2].clamp(0.0, 1.0)),
+    ]
+}
+
 pub fn apply_display_luma(rgb: [f32; 3], output: OutputEdits) -> f32 {
     let display = apply_rgb(rgb, output);
     0.2126 * display[0] + 0.7152 * display[1] + 0.0722 * display[2]

@@ -284,6 +284,87 @@ impl Lut3dEdits {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DcpMode {
+    #[default]
+    Off,
+    Auto,
+    Profile,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DcpEdits {
+    #[serde(default)]
+    pub mode: DcpMode,
+    #[serde(default)]
+    pub profile_id: Option<String>,
+    #[serde(default)]
+    pub illuminant: crate::dcp::DcpIlluminant,
+    #[serde(default = "bool_true")]
+    pub use_tone_curve: bool,
+    #[serde(default = "bool_true")]
+    pub use_base_table: bool,
+    #[serde(default = "bool_true")]
+    pub use_look_table: bool,
+    #[serde(default)]
+    pub use_baseline_exposure: bool,
+}
+
+fn bool_true() -> bool {
+    true
+}
+
+impl Default for DcpEdits {
+    fn default() -> Self {
+        Self {
+            mode: DcpMode::Off,
+            profile_id: None,
+            illuminant: crate::dcp::DcpIlluminant::default(),
+            use_tone_curve: true,
+            use_base_table: true,
+            use_look_table: true,
+            use_baseline_exposure: false,
+        }
+    }
+}
+
+impl DcpEdits {
+    pub fn is_active(&self) -> bool {
+        match self.mode {
+            DcpMode::Off => false,
+            DcpMode::Auto => true,
+            DcpMode::Profile => self.profile_id.as_ref().is_some_and(|s| !s.is_empty()),
+        }
+    }
+
+    pub fn clamped(&self) -> Self {
+        let profile_id = self.profile_id.as_ref().filter(|s| !s.is_empty()).cloned();
+        let mode = if self.mode == DcpMode::Profile && profile_id.is_none() {
+            DcpMode::Off
+        } else {
+            self.mode
+        };
+        Self {
+            mode,
+            profile_id,
+            illuminant: self.illuminant,
+            use_tone_curve: self.use_tone_curve,
+            use_base_table: self.use_base_table,
+            use_look_table: self.use_look_table,
+            use_baseline_exposure: self.use_baseline_exposure,
+        }
+    }
+
+    pub fn referenced_profile_id(&self) -> Option<String> {
+        if self.mode == DcpMode::Profile {
+            self.profile_id.as_ref().filter(|s| !s.is_empty()).cloned()
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ColorEdits {
     #[serde(default)]
@@ -292,6 +373,8 @@ pub struct ColorEdits {
     pub color_grade: ColorGradeEdits,
     #[serde(default)]
     pub lut_3d: Lut3dEdits,
+    #[serde(default)]
+    pub dcp: DcpEdits,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -968,6 +1051,7 @@ impl Edits {
                 hsl: self.color.hsl.clamped(),
                 color_grade: self.color.color_grade.clamped(),
                 lut_3d: self.color.lut_3d.clamped(),
+                dcp: self.color.dcp.clamped(),
             },
             detail: self.detail.clamped(),
             effects: self.effects.clamped(),
@@ -1014,6 +1098,10 @@ impl Edits {
             .as_ref()
             .filter(|id| !id.is_empty())
             .cloned()
+    }
+
+    pub fn referenced_dcp_id(&self) -> Option<String> {
+        self.color.dcp.referenced_profile_id()
     }
 }
 
