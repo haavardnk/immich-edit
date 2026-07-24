@@ -35,6 +35,8 @@ pub enum RenderError {
     Pipeline(#[from] PipelineError),
     #[error("lut: {0}")]
     Lut(String),
+    #[error("dcp: {0}")]
+    Dcp(String),
 }
 
 #[derive(Clone)]
@@ -50,6 +52,7 @@ pub struct RenderService {
     last_rebuild: Arc<RwLock<Option<Instant>>>,
     rasters: RasterStore,
     luts: crate::services::lut_store::LutStore,
+    dcp: crate::services::dcp_store::DcpStore,
     telemetry: RenderTelemetry,
 }
 
@@ -75,6 +78,7 @@ impl RenderService {
         mode: RendererMode,
         rasters: RasterStore,
         luts: crate::services::lut_store::LutStore,
+        dcp: crate::services::dcp_store::DcpStore,
     ) -> Self {
         let gpu_texture_cache_bytes = cache.gpu_texture_cache_mb.saturating_mul(MB);
         let (gpu, active, gpu_label) = init_gpu(mode, gpu_texture_cache_bytes);
@@ -94,6 +98,7 @@ impl RenderService {
             last_rebuild: Arc::new(RwLock::new(None)),
             rasters,
             luts,
+            dcp,
             telemetry: RenderTelemetry::new(),
         }
     }
@@ -152,6 +157,7 @@ impl RenderService {
         };
         options.rasters = self.load_rasters_for(&edits).await;
         options.luts = self.load_luts_for(&edits).await?;
+        options.dcp = self.load_dcp_for(&edits, &frame).await?;
         let svc = self.clone();
         let start = Instant::now();
         let result = tokio::task::spawn_blocking(move || {
@@ -276,6 +282,37 @@ impl RenderService {
             map.insert(id, lut);
         }
         Ok(map)
+    }
+
+    async fn load_dcp_for(
+        &self,
+        edits: &Edits,
+        frame: &RawFrame,
+    ) -> Result<Option<Arc<raw_pipeline::dcp::DcpProfile>>, RenderError> {
+        use raw_pipeline::edits::DcpMode;
+        let dcp = &edits.color.dcp;
+        if !frame.is_raw || !dcp.is_active() {
+            return Ok(None);
+        }
+        match dcp.mode {
+            DcpMode::Off => Ok(None),
+            DcpMode::Profile => match dcp.referenced_profile_id() {
+                Some(id) => {
+                    let p = self
+                        .dcp
+                        .load(&id)
+                        .await
+                        .map_err(|e| RenderError::Dcp(format!("{id}: {e}")))?;
+                    Ok(Some(p))
+                }
+                None => Ok(None),
+            },
+            DcpMode::Auto => self
+                .dcp
+                .match_camera(&frame.model)
+                .await
+                .map_err(|e| RenderError::Dcp(e.to_string())),
+        }
     }
 }
 

@@ -163,3 +163,4 @@ Use it, modify it, run it on your own server. If you host a modified version whe
 - [rawler](https://github.com/dnglab/dnglab) for RAW parsing
 - [wgpu](https://wgpu.rs/) for GPU rendering in Rust
 - [lensfun](https://lensfun.github.io/) for the lens correction database
+- [RawTherapee](https://github.com/Beep6581/RawTherapee) for the bundled DNG camera profiles (GPL-3.0)

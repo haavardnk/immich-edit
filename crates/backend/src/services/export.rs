@@ -549,6 +549,7 @@ pub fn map_render_err(err: RenderError) -> AppError {
             AppError::Internal
         }
         RenderError::Lut(m) => AppError::BadRequest(m),
+        RenderError::Dcp(m) => AppError::BadRequest(m),
     }
 }
 

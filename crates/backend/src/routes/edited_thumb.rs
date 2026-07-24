@@ -59,6 +59,9 @@ fn map_err(err: EditedThumbError) -> AppError {
         EditedThumbError::Render(crate::services::render::RenderError::Lut(m)) => {
             AppError::BadRequest(m)
         }
+        EditedThumbError::Render(crate::services::render::RenderError::Dcp(m)) => {
+            AppError::BadRequest(m)
+        }
         EditedThumbError::Io(e) => {
             tracing::error!(error = %e, "edited thumb io");
             AppError::Internal

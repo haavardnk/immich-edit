@@ -54,7 +54,9 @@ RUN mkdir -p /cache && \
 WORKDIR /app
 COPY --from=backend --chown=10001:10001 /build/target/release/immich-edit /app/immich-edit
 COPY --from=frontend --chown=10001:10001 /build/web/build /app/web
+COPY --chown=10001:10001 crates/backend/assets/dcp /app/assets/dcp
 ENV WEB_DIR=/app/web \
+    DCP_DIR=/app/assets/dcp \
     CACHE_DIR=/cache \
     BIND_ADDR=0.0.0.0:3000 \
     IMMICH_EDIT_RENDERER=auto \

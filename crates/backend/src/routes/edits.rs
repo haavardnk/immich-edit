@@ -149,6 +149,7 @@ pub async fn auto(
             AppError::Internal
         }
         crate::services::render::RenderError::Lut(m) => AppError::BadRequest(m),
+        crate::services::render::RenderError::Dcp(m) => AppError::BadRequest(m),
     })?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))

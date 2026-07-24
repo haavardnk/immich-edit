@@ -1,5 +1,6 @@
 pub mod apply_preset;
 pub mod asset_counts;
+pub mod dcp_store;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;

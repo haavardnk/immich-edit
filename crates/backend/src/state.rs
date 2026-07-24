@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::immich::ImmichClient;
 use crate::services::asset_counts::AssetCountCache;
+use crate::services::dcp_store::DcpStore;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 use crate::services::job_store::JobStore;
@@ -24,6 +25,7 @@ pub struct AppState {
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
     pub luts: LutStore,
+    pub dcp: DcpStore,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
 }
@@ -48,6 +50,20 @@ impl AppState {
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
             .map_err(|e| anyhow::anyhow!("lut store: {e}"))?;
+        let dcp = DcpStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+            .map_err(|e| anyhow::anyhow!("dcp store: {e}"))?;
+        let dcp_dir = std::env::var("DCP_DIR").unwrap_or_else(|_| "./assets/dcp".into());
+        let dcp_dir_path = std::path::Path::new(&dcp_dir);
+        if !dcp_dir_path.exists() {
+            tracing::warn!(dir = %dcp_dir, "DCP_DIR not found; no bundled camera profiles will be imported");
+        }
+        let imported = dcp
+            .import_bundled(dcp_dir_path)
+            .await
+            .map_err(|e| anyhow::anyhow!("dcp bundle import: {e}"))?;
+        if imported > 0 {
+            tracing::info!(count = imported, "imported bundled dcp profiles");
+        }
         let render = RenderService::new(
             immich.clone(),
             RenderCacheOptions {
@@ -58,6 +74,7 @@ impl AppState {
             config.renderer,
             rasters.clone(),
             luts.clone(),
+            dcp.clone(),
         );
         let queue = RenderQueue::new(config.render_max_concurrency);
         let edited_thumb =
@@ -74,6 +91,7 @@ impl AppState {
             edited_thumb,
             rasters,
             luts,
+            dcp,
             tag_counts: AssetCountCache::new("tagIds"),
             people_counts: AssetCountCache::new("personIds"),
         })

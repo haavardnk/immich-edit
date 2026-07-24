@@ -137,6 +137,8 @@ pub fn router(state: AppState) -> Router {
             Router::new()
                 .route("/luts", get(routes::luts::list).post(routes::luts::import))
                 .route("/luts/{id}", axum::routing::delete(routes::luts::delete))
+                .route("/dcp", get(routes::dcp::list).post(routes::dcp::import))
+                .route("/dcp/{id}", axum::routing::delete(routes::dcp::delete))
                 .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
         .fallback(api_not_found)
