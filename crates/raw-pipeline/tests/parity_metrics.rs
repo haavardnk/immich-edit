@@ -285,3 +285,85 @@ fn gpu_vs_cpu_parity_per_fixture() {
         panic!("parity below floor: {}", failed.join("; "));
     }
 }
+
+fn tint_lut_cube(size: usize) -> String {
+    let last = (size - 1) as f32;
+    let mut s = format!("LUT_3D_SIZE {size}\n");
+    for b in 0..size {
+        for g in 0..size {
+            for r in 0..size {
+                let rf = (r as f32 / last * 1.1).clamp(0.0, 1.0);
+                let gf = (g as f32 / last).clamp(0.0, 1.0);
+                let bf = (b as f32 / last * 0.85).clamp(0.0, 1.0);
+                s.push_str(&format!("{rf} {gf} {bf}\n"));
+            }
+        }
+    }
+    s
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_lut() {
+    use raw_pipeline::{Lut3d, LutMap};
+    use std::sync::Arc;
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures; skipping");
+        return;
+    }
+    let lut = Lut3d::parse_cube(tint_lut_cube(16).as_bytes()).unwrap();
+    let mut luts: LutMap = std::collections::HashMap::new();
+    luts.insert("test".to_string(), Arc::new(lut));
+    let opts = RenderOptions {
+        max_edge: 512,
+        luts,
+        ..Default::default()
+    };
+    let mut edits = Edits::default();
+    edits.color.lut_3d.lut_id = Some("test".to_string());
+    edits.color.lut_3d.amount = 100.0;
+
+    let mut failed: Vec<String> = Vec::new();
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let frame = match decode::decode(&bytes) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
+            continue;
+        };
+        decoded += 1;
+        let p_db = psnr(&cpu_rgb, &gpu_rgb);
+        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
+        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
+        eprintln!(
+            "{name} (lut): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}"
+        );
+        if p_db < PSNR_FLOOR_DB {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        }
+        if s < SSIM_FLOOR {
+            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
+        }
+        if de_mean > DE2000_MEAN_CEIL {
+            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
+        }
+        if de_p95 > DE2000_P95_CEIL {
+            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
+        }
+    }
+    if decoded == 0 {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    }
+    if !failed.is_empty() {
+        panic!("lut parity below floor: {}", failed.join("; "));
+    }
+}

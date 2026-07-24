@@ -6,6 +6,7 @@ pub mod edits_store;
 pub mod export;
 pub mod job_runner;
 pub mod job_store;
+pub mod lut_store;
 pub mod paste_edits;
 pub mod preview_meta;
 pub mod raster_store;

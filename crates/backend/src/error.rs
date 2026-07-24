@@ -28,6 +28,8 @@ pub enum AppError {
     UnsupportedFormat(String),
     #[error("internal error")]
     Internal,
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error("superseded")]
     Superseded,
 }
@@ -71,6 +73,7 @@ impl AppError {
                 "internal",
                 "internal error".into(),
             ),
+            Self::Conflict(m) => (StatusCode::CONFLICT, "conflict", m.clone()),
             Self::Superseded => (
                 StatusCode::CONFLICT,
                 "superseded",

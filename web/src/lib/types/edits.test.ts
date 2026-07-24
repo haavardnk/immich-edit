@@ -79,6 +79,21 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(back.tone).toEqual(e.tone);
   });
 
+  it('preserves lut selection and amount', () => {
+    const e = neutralEdits();
+    e.color.lut_3d = { lut_id: 'abc123', amount: 65 };
+    const back = roundTrip(e);
+    expect(back.color.lut_3d).toEqual(e.color.lut_3d);
+  });
+
+  it('omits inactive lut from manifest', () => {
+    const e = neutralEdits();
+    e.color.lut_3d = { lut_id: null, amount: 100 };
+    expect(editsToManifest(e).ops.lut_3d).toBeUndefined();
+    e.color.lut_3d = { lut_id: 'x', amount: 0 };
+    expect(editsToManifest(e).ops.lut_3d).toBeUndefined();
+  });
+
   it('preserves detail and effects', () => {
     const e = neutralEdits();
     e.detail.sharpen_amount = 40;

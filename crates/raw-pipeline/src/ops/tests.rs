@@ -522,6 +522,7 @@ fn hsl_red_saturation_only_affects_red() {
         color: ColorEdits {
             hsl: HslEdits { bands },
             color_grade: Default::default(),
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };
@@ -545,6 +546,7 @@ fn hsl_gray_pixel_barely_shifts_under_max_bands() {
         color: ColorEdits {
             hsl: HslEdits { bands },
             color_grade: Default::default(),
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };
@@ -578,6 +580,7 @@ fn hsl_band_overlap_does_not_stack() {
         color: ColorEdits {
             hsl: HslEdits { bands: single },
             color_grade: Default::default(),
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };
@@ -585,6 +588,7 @@ fn hsl_band_overlap_does_not_stack() {
         color: ColorEdits {
             hsl: HslEdits { bands: both },
             color_grade: Default::default(),
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };
@@ -707,6 +711,7 @@ fn color_grade_shadows_affect_dark_more_than_bright() {
                 },
                 ..Default::default()
             },
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };
@@ -735,6 +740,7 @@ fn color_grade_global_lum_brightens() {
                 },
                 ..Default::default()
             },
+            lut_3d: Default::default(),
         },
         ..Default::default()
     };

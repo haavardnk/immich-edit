@@ -250,12 +250,48 @@ impl ColorGradeEdits {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Lut3dEdits {
+    #[serde(default)]
+    pub lut_id: Option<String>,
+    #[serde(default = "lut_amount_default")]
+    pub amount: f64,
+}
+
+fn lut_amount_default() -> f64 {
+    100.0
+}
+
+impl Default for Lut3dEdits {
+    fn default() -> Self {
+        Self {
+            lut_id: None,
+            amount: lut_amount_default(),
+        }
+    }
+}
+
+impl Lut3dEdits {
+    pub fn is_active(&self) -> bool {
+        self.lut_id.as_ref().is_some_and(|id| !id.is_empty()) && self.amount > 0.0
+    }
+
+    pub fn clamped(&self) -> Self {
+        Self {
+            lut_id: self.lut_id.as_ref().filter(|id| !id.is_empty()).cloned(),
+            amount: self.amount.clamp(0.0, 100.0),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ColorEdits {
     #[serde(default)]
     pub hsl: HslEdits,
     #[serde(default)]
     pub color_grade: ColorGradeEdits,
+    #[serde(default)]
+    pub lut_3d: Lut3dEdits,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -931,6 +967,7 @@ impl Edits {
             color: ColorEdits {
                 hsl: self.color.hsl.clamped(),
                 color_grade: self.color.color_grade.clamped(),
+                lut_3d: self.color.lut_3d.clamped(),
             },
             detail: self.detail.clamped(),
             effects: self.effects.clamped(),
@@ -968,6 +1005,15 @@ impl Edits {
             }
         }
         out
+    }
+
+    pub fn referenced_lut_id(&self) -> Option<String> {
+        self.color
+            .lut_3d
+            .lut_id
+            .as_ref()
+            .filter(|id| !id.is_empty())
+            .cloned()
     }
 }
 

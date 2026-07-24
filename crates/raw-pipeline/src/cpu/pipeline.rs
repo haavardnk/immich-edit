@@ -97,8 +97,10 @@ pub fn render_with_cancel(
 
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     cancel::check(cancel)?;
+    let lut_resolved = resolve_lut(&edits, options)?;
+    let lut_ref = lut_resolved.as_ref().map(|(l, a)| (l.as_ref(), *a));
     let (rgb_u8, rgb_u16, histogram, linear_histogram) =
-        finish_output(rgb, w, h, want_16bit, edits.output, display_ready);
+        finish_output(rgb, w, h, want_16bit, edits.output, display_ready, lut_ref);
     cancel::check(cancel)?;
 
     let bytes = if want_16bit {
@@ -423,6 +425,44 @@ fn quantize_u8_dithered(v: f32, x: u32, y: u32, c: u32) -> u8 {
     ((v.clamp(0.0, 1.0) * 255.0 + tpdf).round()).clamp(0.0, 255.0) as u8
 }
 
+#[inline]
+fn apply_display_lut(rgb: [f32; 3], lut: Option<(&crate::lut::Lut3d, f32)>) -> [f32; 3] {
+    match lut {
+        Some((l, amount)) => {
+            let sampled = l.sample(rgb);
+            [
+                rgb[0] + amount * (sampled[0] - rgb[0]),
+                rgb[1] + amount * (sampled[1] - rgb[1]),
+                rgb[2] + amount * (sampled[2] - rgb[2]),
+            ]
+        }
+        None => rgb,
+    }
+}
+
+fn resolve_lut(
+    edits: &Edits,
+    options: &RenderOptions,
+) -> crate::PipelineResult<Option<(std::sync::Arc<crate::lut::Lut3d>, f32)>> {
+    if !edits.color.lut_3d.is_active() {
+        return Ok(None);
+    }
+    let id = edits
+        .color
+        .lut_3d
+        .lut_id
+        .as_ref()
+        .ok_or_else(|| crate::PipelineError::Render("lut id missing".into()))?;
+    let lut = options
+        .luts
+        .get(id)
+        .ok_or_else(|| crate::PipelineError::Render(format!("lut {id} not loaded")))?;
+    Ok(Some((
+        lut.clone(),
+        (edits.color.lut_3d.amount / 100.0) as f32,
+    )))
+}
+
 fn finish_output(
     linear: Vec<f32>,
     w: usize,
@@ -430,6 +470,7 @@ fn finish_output(
     want_16bit: bool,
     output: crate::edits::OutputEdits,
     display_ready: bool,
+    lut: Option<(&crate::lut::Lut3d, f32)>,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -477,7 +518,7 @@ fn finish_output(
                     let [tr, tg, tb] = if display_ready {
                         [lr, lg, lb]
                     } else {
-                        crate::tone::apply_rgb([lr, lg, lb], output)
+                        apply_display_lut(crate::tone::apply_rgb([lr, lg, lb], output), lut)
                     };
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
@@ -517,7 +558,7 @@ fn finish_output(
                     let [tr, tg, tb] = if display_ready {
                         [lr, lg, lb]
                     } else {
-                        crate::tone::apply_rgb([lr, lg, lb], output)
+                        apply_display_lut(crate::tone::apply_rgb([lr, lg, lb], output), lut)
                     };
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
@@ -555,8 +596,15 @@ mod tests {
 
     #[test]
     fn display_ready_output_skips_tone_mapping() {
-        let (rgb, _, _, _) =
-            finish_output(vec![0.5, 0.5, 0.5], 1, 1, false, Default::default(), true);
+        let (rgb, _, _, _) = finish_output(
+            vec![0.5, 0.5, 0.5],
+            1,
+            1,
+            false,
+            Default::default(),
+            true,
+            None,
+        );
         if rgb.iter().any(|value| !(126..=129).contains(value)) {
             panic!("expected display-ready midpoint, got {rgb:?}");
         }

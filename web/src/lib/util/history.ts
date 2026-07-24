@@ -68,7 +68,8 @@ const FIELDS: FieldDef[] = [
   { kind: 'number', section: 'lens', label: 'Lens Distortion', get: (e) => e.lens.distortion_amount },
   { kind: 'number', section: 'lens', label: 'Lens Vignetting', get: (e) => e.lens.vignette_amount },
   { kind: 'number', section: 'color', label: 'Color Balance', get: (e) => e.color.color_grade.balance, signed: true },
-  { kind: 'number', section: 'color', label: 'Color Blending', get: (e) => e.color.color_grade.blend }
+  { kind: 'number', section: 'color', label: 'Color Blending', get: (e) => e.color.color_grade.blend },
+  { kind: 'number', section: 'color', label: 'LUT Amount', get: (e) => e.color.lut_3d.amount }
 ];
 
 const SECTION_LABELS: Record<string, string> = {

@@ -133,6 +133,12 @@ pub fn router(state: AppState) -> Router {
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
+        .merge(
+            Router::new()
+                .route("/luts", get(routes::luts::list).post(routes::luts::import))
+                .route("/luts/{id}", axum::routing::delete(routes::luts::delete))
+                .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
+        )
         .fallback(api_not_found)
         .layer(from_fn_with_state(state.clone(), debug_gate))
         .layer(from_fn_with_state(state.clone(), auth_middleware))

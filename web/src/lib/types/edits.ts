@@ -97,9 +97,23 @@ export interface ColorGradeEdits {
   blend: number;
 }
 
+export interface Lut3dEdits {
+  lut_id: string | null;
+  amount: number;
+}
+
+export function neutralLut3d(): Lut3dEdits {
+  return { lut_id: null, amount: 100 };
+}
+
+export function lut3dIsActive(l: Lut3dEdits): boolean {
+  return !!l.lut_id && l.amount > 0;
+}
+
 export interface ColorEdits {
   hsl: HslEdits;
   color_grade: ColorGradeEdits;
+  lut_3d: Lut3dEdits;
 }
 
 export interface DetailEdits {
@@ -402,7 +416,8 @@ export function neutralEdits(): Edits {
     },
     color: {
       hsl: { bands: neutralBands() },
-      color_grade: neutralColorGrade()
+      color_grade: neutralColorGrade(),
+      lut_3d: neutralLut3d()
     },
     detail: { ...NEUTRAL_DETAIL },
     effects: { ...NEUTRAL_EFFECTS },
@@ -488,6 +503,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     e.tone.whites === 0 &&
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
+    !lut3dIsActive(e.color.lut_3d) &&
     e.detail.sharpen_amount === 0 &&
     e.detail.luma_nr_amount === 0 &&
     e.detail.color_nr_amount === 0 &&
@@ -542,6 +558,8 @@ export function editsToManifest(e: Edits): EditManifest {
       blend: cg.blend
     };
   }
+  if (lut3dIsActive(e.color.lut_3d))
+    ops.lut_3d = { lut_id: e.color.lut_3d.lut_id, amount: e.color.lut_3d.amount };
   if (e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0)
     ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
   if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
@@ -710,6 +728,9 @@ export function manifestToEdits(doc: EditManifest): Edits {
     if (cg.balance !== undefined) edits.color.color_grade.balance = cg.balance;
     if (cg.blend !== undefined) edits.color.color_grade.blend = cg.blend;
   }
+  const lut3d = ops.lut_3d as { lut_id?: string; amount?: number } | undefined;
+  if (lut3d?.lut_id !== undefined) edits.color.lut_3d.lut_id = lut3d.lut_id;
+  if (lut3d?.amount !== undefined) edits.color.lut_3d.amount = lut3d.amount;
   const wb = ops.white_balance as { temp?: number; tint?: number } | undefined;
   if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
   if (wb?.tint !== undefined) edits.basic.wb_tint = wb.tint;

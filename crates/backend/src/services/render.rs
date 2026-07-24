@@ -33,6 +33,8 @@ pub enum RenderError {
     Upstream(#[from] ImmichError),
     #[error("pipeline: {0}")]
     Pipeline(#[from] PipelineError),
+    #[error("lut: {0}")]
+    Lut(String),
 }
 
 #[derive(Clone)]
@@ -47,6 +49,7 @@ pub struct RenderService {
     gpu_label: Arc<RwLock<Option<String>>>,
     last_rebuild: Arc<RwLock<Option<Instant>>>,
     rasters: RasterStore,
+    luts: crate::services::lut_store::LutStore,
     telemetry: RenderTelemetry,
 }
 
@@ -71,6 +74,7 @@ impl RenderService {
         cache: RenderCacheOptions,
         mode: RendererMode,
         rasters: RasterStore,
+        luts: crate::services::lut_store::LutStore,
     ) -> Self {
         let gpu_texture_cache_bytes = cache.gpu_texture_cache_mb.saturating_mul(MB);
         let (gpu, active, gpu_label) = init_gpu(mode, gpu_texture_cache_bytes);
@@ -89,6 +93,7 @@ impl RenderService {
             gpu_label: Arc::new(RwLock::new(gpu_label)),
             last_rebuild: Arc::new(RwLock::new(None)),
             rasters,
+            luts,
             telemetry: RenderTelemetry::new(),
         }
     }
@@ -146,6 +151,7 @@ impl RenderService {
             self.frame(asset_id).await?
         };
         options.rasters = self.load_rasters_for(&edits).await;
+        options.luts = self.load_luts_for(&edits).await?;
         let svc = self.clone();
         let start = Instant::now();
         let result = tokio::task::spawn_blocking(move || {
@@ -257,6 +263,19 @@ impl RenderService {
             }
         }
         map
+    }
+
+    async fn load_luts_for(&self, edits: &Edits) -> Result<raw_pipeline::lut::LutMap, RenderError> {
+        let mut map = raw_pipeline::lut::empty_luts();
+        if let Some(id) = edits.referenced_lut_id() {
+            let lut = self
+                .luts
+                .load(&id)
+                .await
+                .map_err(|e| RenderError::Lut(format!("{id}: {e}")))?;
+            map.insert(id, lut);
+        }
+        Ok(map)
     }
 }
 

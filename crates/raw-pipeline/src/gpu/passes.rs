@@ -2,6 +2,7 @@ pub mod dehaze;
 pub mod demosaic;
 pub mod effects_tone;
 pub mod luma_pyramid;
+pub mod lut;
 pub mod mask_blend;
 pub mod mask_weight;
 pub mod mipgen;
@@ -23,6 +24,7 @@ use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
 use effects_tone::EffectsTonePass;
 use luma_pyramid::LumaPyramidPass;
+use lut::LutPass;
 use mask_blend::MaskBlendPass;
 use mask_weight::MaskWeightPass;
 use mipgen::MipgenPass;
@@ -47,6 +49,7 @@ pub struct GpuPasses {
     pub process_post_wb: ProcessFastPass,
     pub output_sharpen: OutputSharpenPass,
     pub effects_tone: EffectsTonePass,
+    pub lut: LutPass,
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub sensor: SensorPass,
@@ -69,6 +72,7 @@ impl GpuPasses {
             process_post_wb,
             output_sharpen,
             effects_tone,
+            lut,
             mask_weight,
             mask_blend,
             sensor,
@@ -92,6 +96,7 @@ impl GpuPasses {
             });
             let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
             let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx));
+            let lut_t = s.spawn(|| LutPass::new(ctx));
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
             let sensor_t = s.spawn(|| SensorPass::new(ctx));
@@ -108,6 +113,7 @@ impl GpuPasses {
                 process_post_wb_t.join().expect("process post pass build"),
                 output_sharpen_t.join().expect("output sharpen pass build"),
                 effects_tone_t.join().expect("effects tone pass build"),
+                lut_t.join().expect("lut pass build"),
                 mask_weight_t.join().expect("mask weight pass build"),
                 mask_blend_t.join().expect("mask blend pass build"),
                 sensor_t.join().expect("sensor pass build"),
@@ -126,6 +132,7 @@ impl GpuPasses {
             process_post_wb,
             output_sharpen,
             effects_tone,
+            lut,
             mask_weight,
             mask_blend,
             sensor,

@@ -6,6 +6,7 @@ use crate::services::asset_counts::AssetCountCache;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 use crate::services::job_store::JobStore;
+use crate::services::lut_store::LutStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{RenderCacheOptions, RenderService};
@@ -22,6 +23,7 @@ pub struct AppState {
     pub preview_meta: PreviewMetaStore,
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
+    pub luts: LutStore,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
 }
@@ -44,6 +46,8 @@ impl AppState {
         let jobs = JobStore::new(edits.pool());
         let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
+        let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+            .map_err(|e| anyhow::anyhow!("lut store: {e}"))?;
         let render = RenderService::new(
             immich.clone(),
             RenderCacheOptions {
@@ -53,6 +57,7 @@ impl AppState {
             },
             config.renderer,
             rasters.clone(),
+            luts.clone(),
         );
         let queue = RenderQueue::new(config.render_max_concurrency);
         let edited_thumb =
@@ -68,6 +73,7 @@ impl AppState {
             preview_meta: PreviewMetaStore::new(),
             edited_thumb,
             rasters,
+            luts,
             tag_counts: AssetCountCache::new("tagIds"),
             people_counts: AssetCountCache::new("personIds"),
         })

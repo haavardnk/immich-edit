@@ -140,6 +140,7 @@ fn map_render_err(err: RenderError) -> AppError {
             tracing::error!(error = %err, "render pipeline");
             AppError::Internal
         }
+        RenderError::Lut(m) => AppError::BadRequest(m),
     }
 }
 

@@ -14,6 +14,7 @@ pub mod lens_distortion;
 pub mod lens_profile;
 pub mod lens_vignette;
 pub mod luma_nr;
+pub mod lut;
 pub mod masks;
 pub mod output;
 pub mod sample;
@@ -342,6 +343,7 @@ pub fn default_registry() -> OpRegistry {
         AnyOp::Fused(Box::new(vibrance::VibranceOp)),
         AnyOp::Fused(Box::new(hsl::HslOp)),
         AnyOp::Fused(Box::new(color_grade::ColorGradeOp)),
+        AnyOp::Output(Box::new(lut::Lut3dOp)),
         AnyOp::Spatial(Box::new(transform::TransformOp)),
         AnyOp::Spatial(Box::new(sharpen::SharpenOp)),
         AnyOp::Spatial(Box::new(vignette::VignetteOp)),

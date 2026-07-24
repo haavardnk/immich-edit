@@ -21,6 +21,7 @@ pub struct RenderOptions {
     pub output: OutputFormat,
     pub preview_mode: PreviewMode,
     pub rasters: crate::mask_raster::RasterMap,
+    pub luts: crate::lut::LutMap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -154,6 +155,7 @@ impl Default for RenderOptions {
             },
             preview_mode: PreviewMode::None,
             rasters: crate::mask_raster::empty_rasters(),
+            luts: crate::lut::empty_luts(),
         }
     }
 }

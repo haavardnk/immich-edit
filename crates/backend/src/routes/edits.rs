@@ -148,6 +148,7 @@ pub async fn auto(
             tracing::error!(error = %p, "auto-adjust decode");
             AppError::Internal
         }
+        crate::services::render::RenderError::Lut(m) => AppError::BadRequest(m),
     })?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))

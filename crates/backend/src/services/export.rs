@@ -548,6 +548,7 @@ pub fn map_render_err(err: RenderError) -> AppError {
             tracing::error!(error = %e, "export render");
             AppError::Internal
         }
+        RenderError::Lut(m) => AppError::BadRequest(m),
     }
 }
 

@@ -137,6 +137,7 @@ mod tests {
             color: ColorEdits {
                 hsl: HslEdits { bands },
                 color_grade: Default::default(),
+                lut_3d: Default::default(),
             },
             detail: DetailEdits {
                 sharpen_amount: 60.0,

@@ -7,6 +7,7 @@ use immich_edit_backend::services::asset_counts::AssetCountCache;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 use immich_edit_backend::services::job_store::JobStore;
+use immich_edit_backend::services::lut_store::LutStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
@@ -46,6 +47,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
     };
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     let edits = EditsStore::migrated_memory().await.unwrap();
+    let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
     let jobs = JobStore::new(edits.pool());
     AppState {
         config: Arc::new(config),
@@ -61,11 +63,13 @@ pub async fn test_state(server: &MockServer) -> AppState {
             },
             RendererMode::Cpu,
             rasters.clone(),
+            luts.clone(),
         ),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
         rasters,
+        luts,
         tag_counts: AssetCountCache::new("tagIds"),
         people_counts: AssetCountCache::new("personIds"),
     }
