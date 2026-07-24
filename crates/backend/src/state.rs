@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::immich::ImmichClient;
 use crate::services::asset_counts::AssetCountCache;
 use crate::services::auth_store::AuthStore;
 use crate::services::crypto::InstanceCrypto;
@@ -24,7 +23,6 @@ pub struct AppState {
     pub instance: InstanceStore,
     pub auth: AuthStore,
     pub login_limiter: Arc<LoginLimiter>,
-    pub immich: ImmichClient,
     pub edits: EditsStore,
     pub jobs: JobStore,
     pub render: RenderService,
@@ -40,12 +38,6 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let immich = ImmichClient::with_timeout(
-            config.immich_url.clone(),
-            &config.immich_api_key,
-            std::time::Duration::from_secs(config.original_timeout_secs),
-        )
-        .map_err(|e| anyhow::anyhow!("immich client: {e}"))?;
         if let Some(parent) = std::path::Path::new(&config.cache_dir).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
@@ -62,7 +54,7 @@ impl AppState {
         );
         let auth = AuthStore::new(edits.pool(), crypto.clone());
         let login_limiter = Arc::new(LoginLimiter::new());
-        let jobs = JobStore::new(edits.pool());
+        let jobs = JobStore::new(edits.pool(), crypto.clone());
         let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
@@ -102,7 +94,6 @@ impl AppState {
             instance,
             auth,
             login_limiter,
-            immich,
             edits,
             jobs,
             render,

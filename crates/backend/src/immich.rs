@@ -42,7 +42,7 @@ impl ImmichConnectionStatus {
         let (kind, message, status_code) = match err {
             ImmichError::Unauthorized => (
                 "api_key_rejected",
-                "Immich rejected IMMICH_API_KEY".to_string(),
+                "Immich rejected the current session".to_string(),
                 None,
             ),
             ImmichError::Timeout => (

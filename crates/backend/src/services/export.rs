@@ -664,7 +664,42 @@ async fn job_edits(
     }
 }
 
+pub async fn job_immich(
+    state: &AppState,
+    job: &JobRecord,
+) -> Result<crate::immich::ImmichClient, String> {
+    let (cred, kind) = state
+        .jobs
+        .job_credential(job.id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "job credential unavailable".to_string())?;
+    let cred = cred
+        .to_utf8()
+        .ok_or_else(|| "job credential invalid".to_string())?;
+    let cfg = state.instance.get().await.map_err(|e| e.to_string())?;
+    let url = cfg
+        .immich_url
+        .ok_or_else(|| "instance not configured".to_string())?;
+    let base = url::Url::parse(&url).map_err(|e| e.to_string())?;
+    let auth = match kind {
+        crate::services::auth_store::AuthKind::Password => {
+            crate::immich::client::ImmichAuth::Bearer(cred)
+        }
+        crate::services::auth_store::AuthKind::ApiKey => {
+            crate::immich::client::ImmichAuth::ApiKey(cred)
+        }
+    };
+    crate::immich::ImmichClient::with_auth(
+        base,
+        auth,
+        std::time::Duration::from_secs(state.config.original_timeout_secs),
+    )
+    .map_err(|e| e.to_string())
+}
+
 async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
+    let immich = job_immich(state, job).await?;
     let params = parse_job_params(job)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let body = ExportToImmichBody {
@@ -681,7 +716,7 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
     let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(
         state,
-        &state.immich,
+        &immich,
         job.user_id,
         ExportImmichRequest {
             asset_id,
@@ -696,23 +731,14 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
 }
 
 async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
+    let immich = job_immich(state, job).await?;
     let params = parse_job_params(job)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let suffix = validate_suffix(&params.filename_suffix).map_err(|e| e.to_string())?;
-    let original = state
-        .immich
-        .asset(asset_id)
+    let original = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
+    let (bytes, output) = render_export(state, &immich, asset_id, edits.clamped(), &params.params)
         .await
         .map_err(|e| e.to_string())?;
-    let (bytes, output) = render_export(
-        state,
-        &state.immich,
-        asset_id,
-        edits.clamped(),
-        &params.params,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
     let dir = zip_job_dir(state, job.id);
     tokio::fs::create_dir_all(&dir)
         .await

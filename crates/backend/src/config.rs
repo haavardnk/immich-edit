@@ -41,8 +41,6 @@ impl RendererMode {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub immich_url: Url,
-    pub immich_api_key: String,
     pub bind_addr: String,
     pub bind_socket: SocketAddr,
     pub cache_dir: PathBuf,
@@ -54,19 +52,15 @@ pub struct Config {
     pub gpu_texture_cache_mb: u64,
     pub renderer: RendererMode,
     pub database_url: String,
-    pub auth_token: Option<String>,
     pub allowed_origins: Vec<String>,
     pub debug_endpoints: bool,
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
-    pub insecure: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
 struct FileConfig {
-    immich_url: Option<String>,
-    immich_api_key: Option<String>,
     bind_addr: Option<String>,
     cache_dir: Option<String>,
     preview_max_edge: Option<u32>,
@@ -77,19 +71,15 @@ struct FileConfig {
     gpu_texture_cache_mb: Option<u64>,
     renderer: Option<String>,
     database_url: Option<String>,
-    auth_token: Option<String>,
     allowed_origins: Option<Vec<String>>,
     debug_endpoints: Option<bool>,
     max_body_mb: Option<u64>,
     original_timeout_secs: Option<u64>,
     export_timeout_secs: Option<u64>,
-    insecure: Option<bool>,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("missing required config: {0}")]
-    Missing(&'static str),
     #[error("invalid value for {key}: {value}")]
     InvalidValue { key: String, value: String },
     #[error("config file {path}: {source}")]
@@ -106,10 +96,6 @@ pub enum ConfigError {
         #[source]
         source: std::io::Error,
     },
-    #[error(
-        "AUTH_TOKEN unset and BIND_ADDR is non-loopback ({addr}); set AUTH_TOKEN, bind to 127.0.0.1, or set IMMICH_EDIT_INSECURE=1"
-    )]
-    InsecureBind { addr: String },
 }
 
 impl Config {
@@ -123,25 +109,6 @@ impl Config {
             }
             None => FileConfig::default(),
         };
-
-        let immich_url_raw =
-            pick("IMMICH_URL", file.immich_url).ok_or(ConfigError::Missing("IMMICH_URL"))?;
-        let immich_url = Url::parse(&immich_url_raw).map_err(|_| ConfigError::InvalidValue {
-            key: "IMMICH_URL".into(),
-            value: redact_url_str(&immich_url_raw),
-        })?;
-        if !matches!(immich_url.scheme(), "http" | "https") {
-            return Err(ConfigError::InvalidValue {
-                key: "IMMICH_URL".into(),
-                value: immich_url.scheme().into(),
-            });
-        }
-
-        let immich_api_key = pick("IMMICH_API_KEY", file.immich_api_key)
-            .ok_or(ConfigError::Missing("IMMICH_API_KEY"))?;
-        if immich_api_key.trim().is_empty() {
-            return Err(ConfigError::Missing("IMMICH_API_KEY"));
-        }
 
         let bind_addr = pick("BIND_ADDR", file.bind_addr).unwrap_or_else(|| "0.0.0.0:3000".into());
         let bind_socket: SocketAddr = bind_addr.parse().map_err(|_| ConfigError::InvalidValue {
@@ -219,16 +186,10 @@ impl Config {
             format!("sqlite://{}?mode=rwc", p.display())
         });
 
-        let auth_token = pick("AUTH_TOKEN", file.auth_token).and_then(|s| {
-            let t = s.trim().to_string();
-            if t.is_empty() { None } else { Some(t) }
-        });
-
         let allowed_origins = load_allowed_origins(file.allowed_origins)?;
 
         let debug_endpoints =
             parse_bool("IMMICH_EDIT_DEBUG", file.debug_endpoints)?.unwrap_or(false);
-        let insecure = parse_bool("IMMICH_EDIT_INSECURE", file.insecure)?.unwrap_or(false);
 
         let max_body_mb = parse_or("MAX_BODY_MB", file.max_body_mb, 128u64)?;
         if max_body_mb == 0 {
@@ -242,17 +203,9 @@ impl Config {
         let export_timeout_secs =
             parse_or("EXPORT_TIMEOUT_SECS", file.export_timeout_secs, 300u64)?;
 
-        if !is_loopback(&bind_socket) && auth_token.is_none() && !insecure {
-            return Err(ConfigError::InsecureBind {
-                addr: bind_addr.clone(),
-            });
-        }
-
         ensure_cache_writable(&cache_dir)?;
 
         Ok(Self {
-            immich_url,
-            immich_api_key,
             bind_addr,
             bind_socket,
             cache_dir,
@@ -264,20 +217,16 @@ impl Config {
             gpu_texture_cache_mb,
             renderer,
             database_url,
-            auth_token,
             allowed_origins,
             debug_endpoints,
             max_body_mb,
             original_timeout_secs,
             export_timeout_secs,
-            insecure,
         })
     }
 
     pub fn redacted(&self) -> RedactedConfig {
         RedactedConfig {
-            immich_url: redact_url(&self.immich_url),
-            immich_api_key_present: !self.immich_api_key.is_empty(),
             bind_addr: self.bind_addr.clone(),
             cache_dir: self.cache_dir.display().to_string(),
             preview_max_edge: self.preview_max_edge,
@@ -287,21 +236,17 @@ impl Config {
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             renderer: self.renderer.as_str(),
-            auth_enabled: self.auth_token.is_some(),
             allowed_origins: self.allowed_origins.clone(),
             debug_endpoints: self.debug_endpoints,
             max_body_mb: self.max_body_mb,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
-            insecure: self.insecure,
         }
     }
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct RedactedConfig {
-    pub immich_url: String,
-    pub immich_api_key_present: bool,
     pub bind_addr: String,
     pub cache_dir: String,
     pub preview_max_edge: u32,
@@ -311,13 +256,11 @@ pub struct RedactedConfig {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
     pub renderer: &'static str,
-    pub auth_enabled: bool,
     pub allowed_origins: Vec<String>,
     pub debug_endpoints: bool,
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
-    pub insecure: bool,
 }
 
 fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {
@@ -397,10 +340,6 @@ fn invalid_origin(raw: &str) -> ConfigError {
     }
 }
 
-fn is_loopback(addr: &SocketAddr) -> bool {
-    addr.ip().is_loopback()
-}
-
 fn ensure_cache_writable(dir: &PathBuf) -> Result<(), ConfigError> {
     std::fs::create_dir_all(dir).map_err(|source| ConfigError::CacheDir {
         path: dir.clone(),
@@ -415,27 +354,12 @@ fn ensure_cache_writable(dir: &PathBuf) -> Result<(), ConfigError> {
     Ok(())
 }
 
-fn redact_url(url: &Url) -> String {
-    let mut out = url.clone();
-    let _ = out.set_username("");
-    let _ = out.set_password(None);
-    out.to_string()
-}
-
-fn redact_url_str(raw: &str) -> String {
-    Url::parse(raw)
-        .map(|u| redact_url(&u))
-        .unwrap_or_else(|_| "<invalid>".into())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn clear_env() {
         for k in [
-            "IMMICH_URL",
-            "IMMICH_API_KEY",
             "BIND_ADDR",
             "CACHE_DIR",
             "PREVIEW_MAX_EDGE",
@@ -446,10 +370,8 @@ mod tests {
             "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
-            "AUTH_TOKEN",
             "ALLOWED_ORIGINS",
             "IMMICH_EDIT_DEBUG",
-            "IMMICH_EDIT_INSECURE",
             "MAX_BODY_MB",
             "ORIGINAL_TIMEOUT_SECS",
             "EXPORT_TIMEOUT_SECS",
@@ -468,14 +390,9 @@ mod tests {
         let _g = lock();
         clear_env();
         unsafe {
-            std::env::set_var("IMMICH_URL", "http://example.local:2283");
-            std::env::set_var("IMMICH_API_KEY", "secret-key");
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
         }
         let cfg = Config::load().unwrap();
-        if cfg.immich_url.as_str() != "http://example.local:2283/" {
-            panic!("url: {}", cfg.immich_url);
-        }
         if cfg.preview_max_edge != 4096 {
             panic!("max_edge");
         }
@@ -494,77 +411,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_url() {
-        let _g = lock();
-        clear_env();
-        unsafe { std::env::set_var("IMMICH_API_KEY", "x") };
-        let err = Config::load().unwrap_err();
-        if !matches!(err, ConfigError::Missing("IMMICH_URL")) {
-            panic!("err {err:?}");
-        }
-    }
-
-    #[test]
-    fn rejects_blank_key() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "   ");
-        }
-        let err = Config::load().unwrap_err();
-        if !matches!(err, ConfigError::Missing("IMMICH_API_KEY")) {
-            panic!("err {err:?}");
-        }
-    }
-
-    #[test]
-    fn rejects_bad_scheme() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "ftp://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
-        }
-        let err = Config::load().unwrap_err();
-        if !matches!(err, ConfigError::InvalidValue { .. }) {
-            panic!("err {err:?}");
-        }
-    }
-
-    #[test]
-    fn redacts_key_and_credentials() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "http://user:pw@example.local");
-            std::env::set_var("IMMICH_API_KEY", "supersecret");
-            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
-        }
-        let cfg = Config::load().unwrap();
-        let red = cfg.redacted();
-        if red.immich_url.contains("supersecret") {
-            panic!("key leak");
-        }
-        if red.immich_url.contains("user") || red.immich_url.contains("pw") {
-            panic!("creds leak: {}", red.immich_url);
-        }
-        if !red.immich_api_key_present {
-            panic!("flag");
-        }
-        let json = serde_json::to_string(&red).unwrap();
-        if json.contains("supersecret") {
-            panic!("serialized leak");
-        }
-    }
-
-    #[test]
     fn renderer_parses() {
         let _g = lock();
         clear_env();
         unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
             std::env::set_var("IMMICH_EDIT_RENDERER", "auto");
         }
@@ -575,59 +425,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_loopback_without_auth() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
-            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
-        }
-        let err = Config::load().unwrap_err();
-        if !matches!(err, ConfigError::InsecureBind { .. }) {
-            panic!("err {err:?}");
-        }
-    }
-
-    #[test]
-    fn allows_non_loopback_with_auth() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
-            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
-            std::env::set_var("AUTH_TOKEN", "tok");
-        }
-        let cfg = Config::load().unwrap();
-        if cfg.auth_token.as_deref() != Some("tok") {
-            panic!("auth");
-        }
-    }
-
-    #[test]
-    fn allows_non_loopback_with_insecure_flag() {
-        let _g = lock();
-        clear_env();
-        unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
-            std::env::set_var("BIND_ADDR", "0.0.0.0:3000");
-            std::env::set_var("IMMICH_EDIT_INSECURE", "1");
-        }
-        let cfg = Config::load().unwrap();
-        if !cfg.insecure {
-            panic!("flag");
-        }
-    }
-
-    #[test]
     fn parses_allowed_origins_csv() {
         let _g = lock();
         clear_env();
         unsafe {
-            std::env::set_var("IMMICH_URL", "http://x");
-            std::env::set_var("IMMICH_API_KEY", "k");
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
             std::env::set_var("ALLOWED_ORIGINS", "http://a.local, https://b.local:8443");
         }
@@ -652,8 +453,6 @@ mod tests {
         ] {
             clear_env();
             unsafe {
-                std::env::set_var("IMMICH_URL", "http://x");
-                std::env::set_var("IMMICH_API_KEY", "k");
                 std::env::set_var("BIND_ADDR", "127.0.0.1:0");
                 std::env::set_var("ALLOWED_ORIGINS", bad);
             }

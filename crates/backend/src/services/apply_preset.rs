@@ -48,11 +48,8 @@ pub async fn run_apply_preset_item(
         .map_err(|e| e.to_string())?;
     let merged = merge_preset(current, preset.manifest.to_edits(), &params);
     let manifest = EditManifest::from_edits(&merged);
-    let asset = state
-        .immich
-        .asset(asset_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let immich = crate::services::export::job_immich(state, job).await?;
+    let asset = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
     let action = format!("Apply preset: {}", preset.name);
     let saved = state
         .edits

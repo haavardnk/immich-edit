@@ -24,7 +24,7 @@ fn req_get(uri: &str) -> Request<Body> {
 #[tokio::test]
 async fn get_edits_returns_default_when_missing() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let id = asset_id();
     let resp = app
         .oneshot(req_get(&format!("/api/assets/{id}/edits")))
@@ -63,7 +63,7 @@ async fn put_then_get_then_delete_edits() {
         .mount(&server)
         .await;
     let state = test_state(&server).await;
-    let app = router(state);
+    let app = seed_and_wrap(&server, state).await;
 
     let put_body = serde_json::json!({
         "schema_version": 2,
@@ -150,7 +150,7 @@ async fn put_with_if_match_conflict_returns_current() {
         })))
         .mount(&server)
         .await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let first = serde_json::json!({
         "schema_version": 2,
@@ -245,7 +245,7 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let body = serde_json::json!({"max_edge": 512, "edits": {"basic": {"exposure_ev": 1.0}}});
     let resp = app
@@ -307,7 +307,7 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
 async fn live_preview_rejects_bad_max_edge() {
     let server = MockServer::start().await;
     let id = asset_id();
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let body = serde_json::json!({"max_edge": 10});
     let resp = app
         .oneshot(
@@ -334,7 +334,7 @@ async fn export_returns_full_res_jpeg() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let body = serde_json::json!({"edits": {}});
     let resp = app
@@ -412,7 +412,7 @@ async fn put_writes_history_revision() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_asset_metadata(&server, id, "abc").await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     put_edits(
         &app,
@@ -452,7 +452,7 @@ async fn restore_returns_previous_edits() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_asset_metadata(&server, id, "abc").await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let first = put_edits(
         &app,

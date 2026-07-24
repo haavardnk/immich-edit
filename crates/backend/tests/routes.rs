@@ -20,8 +20,7 @@ async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
 async fn health_returns_ok_with_redacted_config() {
     let server = MockServer::start().await;
     mock_ping_ok(&server).await;
-    let state = test_state(&server).await;
-    let app = router(state);
+    let app = test_app(&server).await;
 
     let resp = app
         .oneshot(
@@ -53,9 +52,6 @@ async fn health_returns_ok_with_redacted_config() {
     if json["immich_status"]["kind"] != "ok" {
         panic!("immich status: {}", json["immich_status"]);
     }
-    if json["config"]["immich_api_key_present"] != true {
-        panic!("redacted flag");
-    }
 }
 
 #[tokio::test]
@@ -66,7 +62,7 @@ async fn health_reports_specific_immich_failure() {
     ] {
         let server = MockServer::start().await;
         mock_ping_status(&server, status).await;
-        let app = router(test_state(&server).await);
+        let app = test_app(&server).await;
 
         let resp = app
             .oneshot(
@@ -97,7 +93,7 @@ async fn health_reports_specific_immich_failure() {
 async fn lists_albums() {
     let server = MockServer::start().await;
     mock_albums(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let resp = app
         .oneshot(
@@ -121,7 +117,7 @@ async fn lists_albums() {
 async fn album_detail_returns_assets() {
     let server = MockServer::start().await;
     mock_album_detail(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -144,7 +140,7 @@ async fn album_detail_returns_assets() {
 async fn asset_thumb_proxies_bytes_and_content_type() {
     let server = MockServer::start().await;
     mock_thumb(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -175,7 +171,7 @@ async fn asset_thumb_proxies_bytes_and_content_type() {
 #[tokio::test]
 async fn asset_thumb_rejects_bad_size() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -193,7 +189,7 @@ async fn asset_thumb_rejects_bad_size() {
 #[tokio::test]
 async fn unknown_api_returns_json_404() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -224,7 +220,7 @@ async fn unknown_api_returns_json_404() {
 #[tokio::test]
 async fn unknown_non_api_returns_plain_404() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -251,7 +247,7 @@ async fn unknown_non_api_returns_plain_404() {
 #[tokio::test]
 async fn upstream_404_maps_to_404() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -270,7 +266,7 @@ async fn upstream_404_maps_to_404() {
 async fn asset_detail_returns_exif_and_favorite() {
     let server = MockServer::start().await;
     mock_asset_detail(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -302,7 +298,7 @@ async fn asset_detail_returns_exif_and_favorite() {
 async fn asset_update_proxies_to_immich() {
     let server = MockServer::start().await;
     mock_asset_update(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -327,7 +323,7 @@ async fn asset_update_proxies_to_immich() {
 async fn tags_upsert_proxies_to_immich() {
     let server = MockServer::start().await;
     mock_tag_upsert(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -352,7 +348,7 @@ async fn tags_upsert_proxies_to_immich() {
 async fn tags_list_includes_asset_counts() {
     let server = MockServer::start().await;
     mock_tag_list_with_stats(&server, 42).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -376,7 +372,7 @@ async fn tags_list_includes_asset_counts() {
 async fn people_list_includes_asset_counts() {
     let server = MockServer::start().await;
     mock_people_list_with_stats(&server, 17).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -401,7 +397,7 @@ async fn tag_asset_add_and_remove_proxy() {
     let server = MockServer::start().await;
     mock_tag_asset(&server).await;
     mock_untag_asset(&server).await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
 
     let resp = app
         .clone()
@@ -442,8 +438,7 @@ async fn tag_asset_add_and_remove_proxy() {
 #[tokio::test]
 async fn raster_upload_get_roundtrip() {
     let server = MockServer::start().await;
-    let state = test_state(&server).await;
-    let app = router(state);
+    let app = test_app(&server).await;
     let bytes = vec![0xABu8; 4 * 3];
     let resp = app
         .clone()
@@ -477,8 +472,7 @@ async fn raster_upload_get_roundtrip() {
 #[tokio::test]
 async fn raster_upload_rejects_bad_size() {
     let server = MockServer::start().await;
-    let state = test_state(&server).await;
-    let app = router(state);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::post("/api/rasters?width=4&height=3")
@@ -494,11 +488,7 @@ async fn raster_upload_rejects_bad_size() {
 #[tokio::test]
 async fn live_endpoint_works_without_auth() {
     let server = MockServer::start().await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.auth_token = Some("secret".into());
-    state.config = std::sync::Arc::new(cfg);
-    let app = router(state);
+    let app = router(test_state(&server).await);
     let resp = app
         .oneshot(
             Request::builder()
@@ -535,62 +525,14 @@ async fn protected_route_requires_session_when_configured() {
 async fn protected_route_accepts_bearer_token() {
     let server = MockServer::start().await;
     mock_ping_ok(&server).await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.auth_token = Some("secret".into());
-    state.config = std::sync::Arc::new(cfg);
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
     let app = router(state);
     let resp = app
         .oneshot(
             Request::builder()
                 .uri("/api/health")
-                .header("authorization", "Bearer secret")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn login_sets_cookie_then_protects() {
-    let server = MockServer::start().await;
-    mock_ping_ok(&server).await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.auth_token = Some("secret".into());
-    state.config = std::sync::Arc::new(cfg);
-    let app = router(state);
-
-    let resp = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/auth/login")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"token":"secret"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let cookie = resp
-        .headers()
-        .get("set-cookie")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-    assert!(cookie.contains("immich_edit_auth=secret"));
-
-    let send_cookie = cookie.split(';').next().unwrap().to_string();
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/health")
-                .header("cookie", send_cookie)
+                .header("authorization", format!("Bearer {token}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -606,7 +548,7 @@ async fn debug_timings_hidden_when_disabled() {
     let mut cfg = (*state.config).clone();
     cfg.debug_endpoints = false;
     state.config = std::sync::Arc::new(cfg);
-    let app = router(state);
+    let app = seed_and_wrap(&server, state).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -657,7 +599,7 @@ async fn protected_route_rejects_invalid_session_when_configured() {
 #[tokio::test]
 async fn error_body_request_id_matches_inbound_header() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -714,7 +656,7 @@ async fn create_job_expands_search_target_via_paging() {
         .mount(&server)
         .await;
 
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let create = app
         .clone()
         .oneshot(
@@ -777,7 +719,7 @@ async fn search_smart_proxies_to_immich() {
         .mount(&server)
         .await;
 
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -800,7 +742,7 @@ async fn search_smart_proxies_to_immich() {
 #[tokio::test]
 async fn create_job_without_ids_or_target_is_bad_request() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -822,7 +764,7 @@ async fn create_job_with_unknown_kind_is_bad_request() {
     use uuid::Uuid;
 
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -851,7 +793,7 @@ async fn create_paste_edits_job_creates_items_for_ids() {
     use uuid::Uuid;
 
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let id1 = Uuid::new_v4();
     let id2 = Uuid::new_v4();
 
@@ -885,7 +827,7 @@ async fn create_reset_edits_job_creates_items_for_ids() {
     use uuid::Uuid;
 
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let id1 = Uuid::new_v4();
     let id2 = Uuid::new_v4();
 
@@ -915,9 +857,9 @@ async fn create_reset_edits_job_creates_items_for_ids() {
 }
 
 #[tokio::test]
-async fn admin_users_empty_on_fresh_instance() {
+async fn admin_users_lists_current_admin() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()
@@ -930,13 +872,14 @@ async fn admin_users_empty_on_fresh_instance() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
-    assert_eq!(json["users"].as_array().unwrap().len(), 0);
+    assert_eq!(json["users"].as_array().unwrap().len(), 1);
+    assert_eq!(json["users"][0]["is_admin"], true);
 }
 
 #[tokio::test]
 async fn admin_instance_reports_epoch() {
     let server = MockServer::start().await;
-    let app = router(test_state(&server).await);
+    let app = test_app(&server).await;
     let resp = app
         .oneshot(
             Request::builder()

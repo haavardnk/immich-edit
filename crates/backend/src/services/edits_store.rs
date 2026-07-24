@@ -10,7 +10,6 @@ use uuid::Uuid;
 
 pub const RENDERER_VERSION: &str = "0.1.0";
 const SCHEMA_VERSION: i64 = 2;
-pub const LEGACY_OWNER_ID: &str = "00000000-0000-0000-0000-000000000000";
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
@@ -73,7 +72,9 @@ impl EditsStore {
     }
 
     pub async fn migrated_memory() -> Result<Self, EditsStoreError> {
-        let opts = SqliteConnectOptions::from_str("sqlite::memory:")?.create_if_missing(true);
+        let opts = SqliteConnectOptions::from_str("sqlite::memory:")?
+            .create_if_missing(true)
+            .foreign_keys(true);
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect_with(opts)

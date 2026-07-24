@@ -55,7 +55,6 @@ pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(routes::health::health))
         .route("/health/live", get(routes::health::live))
-        .route("/auth/login", post(routes::auth::login))
         .route("/auth/login/password", post(routes::auth::login_password))
         .route("/auth/login/api-key", post(routes::auth::login_api_key))
         .route("/auth/logout", post(routes::auth::logout_session))
@@ -258,7 +257,6 @@ async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
     if matches!(
         path,
         "/health/live"
-            | "/auth/login"
             | "/auth/logout"
             | "/auth/login/password"
             | "/auth/login/api-key"

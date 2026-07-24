@@ -2,9 +2,9 @@
 
 use immich_edit_backend::app;
 use immich_edit_backend::config::{Config, RendererMode};
-use immich_edit_backend::immich::ImmichClient;
+use immich_edit_backend::immich::client::ImmichUser;
 use immich_edit_backend::services::asset_counts::AssetCountCache;
-use immich_edit_backend::services::auth_store::AuthStore;
+use immich_edit_backend::services::auth_store::{AuthKind, AuthStore};
 use immich_edit_backend::services::crypto::InstanceCrypto;
 use immich_edit_backend::services::dcp_store::DcpStore;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
@@ -19,18 +19,19 @@ use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
-use url::Url;
 use uuid::Uuid;
 use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+pub const TEST_API_KEY: &str = "test-key";
+
+pub fn test_user_id() -> Uuid {
+    Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap()
+}
+
 pub async fn test_state(server: &MockServer) -> AppState {
-    let base = Url::parse(&server.uri()).unwrap();
-    let immich = ImmichClient::new(base.clone(), "test-key").unwrap();
     let cache_dir = tempfile::tempdir().unwrap().keep();
     let config = Config {
-        immich_url: base,
-        immich_api_key: "test-key".into(),
         bind_addr: "127.0.0.1:0".into(),
         bind_socket: "127.0.0.1:0".parse().unwrap(),
         cache_dir: cache_dir.clone(),
@@ -42,14 +43,13 @@ pub async fn test_state(server: &MockServer) -> AppState {
         gpu_texture_cache_mb: 256,
         renderer: RendererMode::Cpu,
         database_url: "sqlite::memory:".into(),
-        auth_token: None,
         allowed_origins: Vec::new(),
         debug_endpoints: true,
         max_body_mb: 128,
         original_timeout_secs: 120,
         export_timeout_secs: 300,
-        insecure: true,
     };
+    let _ = server;
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     let edits = EditsStore::migrated_memory().await.unwrap();
     let instance = InstanceStore::new(edits.pool());
@@ -59,14 +59,13 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let login_limiter = Arc::new(LoginLimiter::new());
     let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
     let dcp = DcpStore::new(edits.pool(), &cache_dir).unwrap();
-    let jobs = JobStore::new(edits.pool());
+    let jobs = JobStore::new(edits.pool(), crypto.clone());
     AppState {
         config: Arc::new(config),
         crypto,
         instance,
         auth,
         login_limiter,
-        immich: immich.clone(),
         edits,
         jobs,
         render: RenderService::new(
@@ -93,6 +92,54 @@ pub async fn test_state(server: &MockServer) -> AppState {
 
 pub fn router(state: AppState) -> axum::Router {
     app::router(state)
+}
+
+pub async fn seed_session(server: &MockServer, state: &AppState) -> String {
+    state.instance.claim(&server.uri()).await.unwrap();
+    let cfg = state.instance.get().await.unwrap();
+    let user = ImmichUser {
+        id: test_user_id(),
+        email: "admin@test.local".into(),
+        name: "Admin".into(),
+        is_admin: true,
+    };
+    let rec = state.auth.upsert_user(&user).await.unwrap();
+    state
+        .auth
+        .create_session(
+            rec.id,
+            AuthKind::ApiKey,
+            TEST_API_KEY.as_bytes(),
+            cfg.server_epoch,
+            None,
+            None,
+        )
+        .await
+        .unwrap()
+}
+
+pub async fn seed_and_wrap(server: &MockServer, state: AppState) -> axum::Router {
+    let token = seed_session(server, &state).await;
+    wrap_auth(app::router(state), token)
+}
+
+pub async fn test_app(server: &MockServer) -> axum::Router {
+    seed_and_wrap(server, test_state(server).await).await
+}
+
+fn wrap_auth(app: axum::Router, token: String) -> axum::Router {
+    use axum::extract::Request;
+    use axum::http::HeaderValue;
+    use axum::middleware::{self, Next};
+    app.layer(middleware::from_fn(move |mut req: Request, next: Next| {
+        let cookie = format!("immich_edit_auth={token}");
+        async move {
+            if let Ok(v) = HeaderValue::from_str(&cookie) {
+                req.headers_mut().insert("cookie", v);
+            }
+            next.run(req).await
+        }
+    }))
 }
 
 pub fn album_id() -> Uuid {

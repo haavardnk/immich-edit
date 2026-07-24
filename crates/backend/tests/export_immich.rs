@@ -106,7 +106,7 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     state
         .edits
         .put_export_job_uploaded(
-            uuid::Uuid::nil(),
+            test_user_id(),
             asset,
             "key-1",
             &hash,
@@ -118,11 +118,11 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         .unwrap();
     state
         .edits
-        .complete_export_job(uuid::Uuid::nil(), asset, "key-1", &[])
+        .complete_export_job(test_user_id(), asset, "key-1", &[])
         .await
         .unwrap();
 
-    let app = router(state);
+    let app = seed_and_wrap(&server, state).await;
     let req_body = serde_json::json!({"filename_suffix": "_edit"});
     let resp = app
         .oneshot(

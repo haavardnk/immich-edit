@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::immich::ImmichConnectionStatus;
+use crate::routes::auth::AuthCtx;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -24,8 +25,8 @@ pub async fn live() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
-pub async fn health(State(state): State<AppState>) -> Json<Health> {
-    let immich_status = ImmichConnectionStatus::from_ping(state.immich.ping().await);
+pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health> {
+    let immich_status = ImmichConnectionStatus::from_ping(ctx.immich.ping().await);
     let db_ready = state.edits.ready().await.is_ok();
     let db_migration_version = state.edits.migration_version().await.ok().flatten();
     Json(Health {

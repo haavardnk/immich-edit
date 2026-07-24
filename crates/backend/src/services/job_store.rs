@@ -1,8 +1,12 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
+use std::sync::Arc;
 use tokio::sync::broadcast;
 use uuid::Uuid;
+
+use crate::services::auth_store::AuthKind;
+use crate::services::crypto::{InstanceCrypto, SecretBytes};
 
 #[derive(Debug, thiserror::Error)]
 pub enum JobStoreError {
@@ -10,6 +14,8 @@ pub enum JobStoreError {
     Db(#[from] sqlx::Error),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
+    #[error("crypto: {0}")]
+    Crypto(#[from] crate::services::crypto::CryptoError),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,13 +110,18 @@ pub struct NewJobItem {
 #[derive(Clone)]
 pub struct JobStore {
     pool: SqlitePool,
+    crypto: Arc<InstanceCrypto>,
     events: broadcast::Sender<JobRecord>,
 }
 
 impl JobStore {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: SqlitePool, crypto: Arc<InstanceCrypto>) -> Self {
         let (events, _) = broadcast::channel(256);
-        Self { pool, events }
+        Self {
+            pool,
+            crypto,
+            events,
+        }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<JobRecord> {
@@ -121,6 +132,7 @@ impl JobStore {
         let _ = self.events.send(job.clone());
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_job(
         &self,
         owner: Uuid,
@@ -128,12 +140,15 @@ impl JobStore {
         target: &serde_json::Value,
         params: &serde_json::Value,
         items: &[NewJobItem],
+        cred: &[u8],
+        auth_kind: AuthKind,
     ) -> Result<JobRecord, JobStoreError> {
         let id = Uuid::new_v4();
         let now = Utc::now().to_rfc3339();
         let target_json = serde_json::to_string(target)?;
         let params_json = serde_json::to_string(params)?;
         let total = items.len() as i64;
+        let enc = self.crypto.encrypt(cred)?;
 
         let mut tx = self.pool.begin().await?;
         sqlx::query(
@@ -148,6 +163,18 @@ impl JobStore {
         .bind(&now)
         .bind(&now)
         .bind(owner.to_string())
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO job_credentials (job_id, ciphertext, nonce, key_version, auth_kind) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+        )
+        .bind(id.to_string())
+        .bind(enc.ciphertext)
+        .bind(enc.nonce)
+        .bind(enc.key_version)
+        .bind(auth_kind.as_str())
         .execute(&mut *tx)
         .await?;
 
@@ -170,6 +197,37 @@ impl JobStore {
         let job = self.get_job(id).await?.ok_or(sqlx::Error::RowNotFound)?;
         self.publish(&job);
         Ok(job)
+    }
+
+    pub async fn job_credential(
+        &self,
+        job_id: Uuid,
+    ) -> Result<Option<(SecretBytes, AuthKind)>, JobStoreError> {
+        let row = sqlx::query(
+            "SELECT ciphertext, nonce, key_version, auth_kind FROM job_credentials WHERE job_id = ?1",
+        )
+        .bind(job_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let enc = crate::services::crypto::Encrypted {
+            ciphertext: row.get::<Vec<u8>, _>("ciphertext"),
+            nonce: row.get::<Vec<u8>, _>("nonce"),
+            key_version: row.get::<i64, _>("key_version"),
+        };
+        let cred = self.crypto.decrypt(&enc)?;
+        let auth_kind = AuthKind::from_wire(&row.get::<String, _>("auth_kind"));
+        Ok(Some((cred, auth_kind)))
+    }
+
+    pub async fn delete_credential(&self, job_id: Uuid) -> Result<(), JobStoreError> {
+        sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
+            .bind(job_id.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
@@ -329,6 +387,7 @@ impl JobStore {
                 .bind(job_id.to_string())
                 .execute(&self.pool)
                 .await?;
+            self.delete_credential(job_id).await?;
         }
 
         if let Some(job) = self.get_job(job_id).await? {
@@ -349,8 +408,11 @@ impl JobStore {
         .execute(&self.pool)
         .await?;
         let cancelled = res.rows_affected() > 0;
-        if cancelled && let Some(job) = self.get_job(id).await? {
-            self.publish(&job);
+        if cancelled {
+            self.delete_credential(id).await?;
+            if let Some(job) = self.get_job(id).await? {
+                self.publish(&job);
+            }
         }
         Ok(cancelled)
     }
@@ -362,6 +424,13 @@ impl JobStore {
              WHERE user_id = ?2 AND status IN ('pending', 'running')",
         )
         .bind(&now)
+        .bind(owner.to_string())
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "DELETE FROM job_credentials WHERE job_id IN \
+             (SELECT id FROM jobs WHERE user_id = ?1 AND status = 'cancelled')",
+        )
         .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
@@ -476,12 +545,18 @@ fn item_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobItemRecord, JobStor
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::crypto::InstanceCrypto;
     use crate::services::edits_store::EditsStore;
     use serde_json::json;
 
     async fn store() -> JobStore {
         let edits = EditsStore::migrated_memory().await.expect("memory store");
-        JobStore::new(edits.pool())
+        let dir = tempfile::tempdir().unwrap();
+        let crypto = std::sync::Arc::new(
+            InstanceCrypto::load_or_create(&dir.path().join("instance.key"), false).unwrap(),
+        );
+        std::mem::forget(dir);
+        JobStore::new(edits.pool(), crypto)
     }
 
     fn items(ids: &[&str]) -> Vec<NewJobItem> {
@@ -493,19 +568,40 @@ mod tests {
             .collect()
     }
 
+    async fn create(
+        store: &JobStore,
+        owner: Uuid,
+        kind: &str,
+        target: &serde_json::Value,
+        params: &serde_json::Value,
+        items: &[NewJobItem],
+    ) -> JobRecord {
+        store
+            .create_job(
+                owner,
+                kind,
+                target,
+                params,
+                items,
+                b"test-key",
+                AuthKind::ApiKey,
+            )
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn create_and_claim_drains_items() {
         let store = store().await;
-        let job = store
-            .create_job(
-                Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &items(&["a", "b"]),
-            )
-            .await
-            .unwrap();
+        let job = create(
+            &store,
+            Uuid::nil(),
+            "test",
+            &json!(null),
+            &json!(null),
+            &items(&["a", "b"]),
+        )
+        .await;
         assert_eq!(job.total, 2);
         assert_eq!(job.status, JobStatus::Pending);
 
@@ -531,16 +627,15 @@ mod tests {
     #[tokio::test]
     async fn cancel_blocks_further_claims() {
         let store = store().await;
-        let job = store
-            .create_job(
-                Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &items(&["a", "b"]),
-            )
-            .await
-            .unwrap();
+        let job = create(
+            &store,
+            Uuid::nil(),
+            "test",
+            &json!(null),
+            &json!(null),
+            &items(&["a", "b"]),
+        )
+        .await;
         assert!(store.cancel_job(job.id).await.unwrap());
         assert!(store.claim_next_item().await.unwrap().is_none());
 
@@ -553,16 +648,15 @@ mod tests {
     #[tokio::test]
     async fn requeue_resets_running_state() {
         let store = store().await;
-        let job = store
-            .create_job(
-                Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &items(&["a"]),
-            )
-            .await
-            .unwrap();
+        let job = create(
+            &store,
+            Uuid::nil(),
+            "test",
+            &json!(null),
+            &json!(null),
+            &items(&["a"]),
+        )
+        .await;
         let claimed = store.claim_next_item().await.unwrap().unwrap();
         assert_eq!(claimed.status, JobItemStatus::Running);
 

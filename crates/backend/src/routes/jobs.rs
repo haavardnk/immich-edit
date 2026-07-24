@@ -94,7 +94,15 @@ pub async fn create(
         .collect();
     let job = state
         .jobs
-        .create_job(ctx.owner, kind, &body.target, &body.params, &items)
+        .create_job(
+            ctx.owner,
+            kind,
+            &body.target,
+            &body.params,
+            &items,
+            ctx.cred.as_slice(),
+            ctx.auth_kind,
+        )
         .await?;
     Ok(Json(job))
 }

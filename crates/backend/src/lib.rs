@@ -21,7 +21,8 @@ pub async fn run() -> anyhow::Result<()> {
 
     let state = state::AppState::new(config).await?;
     let queue = state.queue.clone();
-    let immich = state.immich.clone();
+    let instance = state.instance.clone();
+    let ping_timeout = state.config.original_timeout_secs;
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let runner = services::job_runner::JobRunner::new(
@@ -32,7 +33,24 @@ pub async fn run() -> anyhow::Result<()> {
     let runner_handle = tokio::spawn(runner.run(shutdown_rx));
 
     tokio::spawn(async move {
-        let status = immich::ImmichConnectionStatus::from_ping(immich.ping().await);
+        let Ok(cfg) = instance.get().await else {
+            return;
+        };
+        let Some(url) = cfg.immich_url else {
+            tracing::info!("instance not configured; complete setup in the browser");
+            return;
+        };
+        let Ok(base) = url::Url::parse(&url) else {
+            return;
+        };
+        let Ok(client) = immich::ImmichClient::with_auth(
+            base,
+            immich::client::ImmichAuth::ApiKey(String::new()),
+            Duration::from_secs(ping_timeout),
+        ) else {
+            return;
+        };
+        let status = immich::ImmichConnectionStatus::from_ping(client.ping().await);
         if status.ok {
             return;
         }

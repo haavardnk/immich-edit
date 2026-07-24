@@ -29,11 +29,8 @@ pub async fn run_paste_edits_item(
         .await
         .map_err(|e| e.to_string())?;
     let mut merged = merge_edits(current, params.manifest.to_edits(), params.sections);
-    let asset = state
-        .immich
-        .asset(asset_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let immich = crate::services::export::job_immich(state, job).await?;
+    let asset = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
     if params.sections.lens {
         merged.lens = crate::lens_profile::reproject_lens(merged.lens, asset.exif_info.as_ref());
     }

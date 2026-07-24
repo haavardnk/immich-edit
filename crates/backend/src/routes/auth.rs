@@ -6,6 +6,7 @@ use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::json;
+use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 use uuid::Uuid;
@@ -13,10 +14,10 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichUser};
 use crate::services::auth_store::{AuthContext, AuthKind};
+use crate::services::crypto::SecretBytes;
 use crate::state::AppState;
 
 pub const AUTH_COOKIE: &str = "immich_edit_auth";
-pub const LEGACY_OWNER: Uuid = Uuid::nil();
 
 #[derive(Clone)]
 pub struct AuthCtx {
@@ -24,6 +25,8 @@ pub struct AuthCtx {
     pub server_epoch: i64,
     pub is_admin: bool,
     pub immich: ImmichClient,
+    pub cred: Arc<SecretBytes>,
+    pub auth_kind: AuthKind,
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for AuthCtx {
@@ -54,78 +57,28 @@ impl<S: Send + Sync> FromRequestParts<S> for AdminCtx {
 }
 
 pub async fn build_auth_ctx(state: &AppState, headers: &HeaderMap) -> Option<AuthCtx> {
-    if let Some(token) = extract_token(headers)
-        && let Ok(Some(actx)) = state.auth.authenticate(&token).await
-    {
-        let base = resolve_immich_base(state).await.ok()?;
-        let cred = actx.immich_cred.to_utf8()?;
-        let auth = match actx.auth_kind {
-            AuthKind::Password => ImmichAuth::Bearer(cred),
-            AuthKind::ApiKey => ImmichAuth::ApiKey(cred),
-        };
-        let immich = ImmichClient::with_auth(
-            base,
-            auth,
-            Duration::from_secs(state.config.original_timeout_secs),
-        )
-        .ok()?;
-        return Some(AuthCtx {
-            owner: actx.user.id,
-            server_epoch: actx.server_epoch,
-            is_admin: actx.user.is_admin,
-            immich,
-        });
-    }
-    let cfg = state.instance.get().await.ok()?;
-    if !cfg.is_configured() {
-        return Some(AuthCtx {
-            owner: LEGACY_OWNER,
-            server_epoch: 0,
-            is_admin: true,
-            immich: state.immich.clone(),
-        });
-    }
-    None
-}
-
-#[derive(Deserialize)]
-pub struct LoginBody {
-    pub token: String,
-}
-
-pub async fn login(State(state): State<AppState>, Json(body): Json<LoginBody>) -> Response {
-    let Some(expected) = state.config.auth_token.as_deref() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"code":"auth_disabled","message":"auth not configured"})),
-        )
-            .into_response();
+    let token = extract_token(headers)?;
+    let actx = state.auth.authenticate(&token).await.ok()??;
+    let base = resolve_immich_base(state).await.ok()?;
+    let cred = actx.immich_cred.to_utf8()?;
+    let auth = match actx.auth_kind {
+        AuthKind::Password => ImmichAuth::Bearer(cred),
+        AuthKind::ApiKey => ImmichAuth::ApiKey(cred),
     };
-    if !ct_eq(body.token.as_bytes(), expected.as_bytes()) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({"code":"unauthorized","message":"invalid token"})),
-        )
-            .into_response();
-    }
-    let cookie = format!(
-        "{AUTH_COOKIE}={}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000",
-        body.token
-    );
-    let mut resp = (StatusCode::OK, Json(json!({"ok": true}))).into_response();
-    if let Ok(v) = HeaderValue::from_str(&cookie) {
-        resp.headers_mut().insert(SET_COOKIE, v);
-    }
-    resp
-}
-
-pub async fn logout() -> Response {
-    let cookie = format!("{AUTH_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
-    let mut resp = (StatusCode::OK, Json(json!({"ok": true}))).into_response();
-    if let Ok(v) = HeaderValue::from_str(&cookie) {
-        resp.headers_mut().insert(SET_COOKIE, v);
-    }
-    resp
+    let immich = ImmichClient::with_auth(
+        base,
+        auth,
+        Duration::from_secs(state.config.original_timeout_secs),
+    )
+    .ok()?;
+    Some(AuthCtx {
+        owner: actx.user.id,
+        server_epoch: actx.server_epoch,
+        is_admin: actx.user.is_admin,
+        immich,
+        cred: Arc::new(actx.immich_cred),
+        auth_kind: actx.auth_kind,
+    })
 }
 
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
@@ -147,17 +100,6 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
     None
 }
 
-pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
-}
-
 #[derive(Deserialize)]
 pub struct PasswordLoginBody {
     pub email: String,
@@ -170,12 +112,9 @@ pub struct ApiKeyLoginBody {
 }
 
 pub async fn resolve_immich_base(state: &AppState) -> Result<Url, AppError> {
-    if let Ok(cfg) = state.instance.get().await
-        && let Some(url) = cfg.immich_url
-    {
-        return Url::parse(&url).map_err(|_| AppError::Internal);
-    }
-    Ok(state.config.immich_url.clone())
+    let cfg = state.instance.get().await.map_err(|_| AppError::Internal)?;
+    let url = cfg.immich_url.ok_or(AppError::SetupRequired)?;
+    Url::parse(&url).map_err(|_| AppError::Internal)
 }
 
 pub fn validate_candidate_url(raw: &str) -> Result<Url, AppError> {

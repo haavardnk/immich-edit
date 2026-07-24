@@ -136,7 +136,15 @@ mod tests {
     #[tokio::test]
     async fn runner_processes_all_items() {
         let edits = EditsStore::migrated_memory().await.unwrap();
-        let store = JobStore::new(edits.pool());
+        let dir = tempfile::tempdir().unwrap();
+        let crypto = Arc::new(
+            crate::services::crypto::InstanceCrypto::load_or_create(
+                &dir.path().join("instance.key"),
+                false,
+            )
+            .unwrap(),
+        );
+        let store = JobStore::new(edits.pool(), crypto);
         let runs = Arc::new(AtomicUsize::new(0));
         let executor = Arc::new(CountingExecutor { runs: runs.clone() });
 
@@ -156,6 +164,8 @@ mod tests {
                         idempotency_key: None,
                     },
                 ],
+                b"test-key",
+                crate::services::auth_store::AuthKind::ApiKey,
             )
             .await
             .unwrap();

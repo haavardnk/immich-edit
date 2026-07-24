@@ -30,14 +30,14 @@ pub enum AuthKind {
 }
 
 impl AuthKind {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Password => "password",
             Self::ApiKey => "apikey",
         }
     }
 
-    fn from_str(s: &str) -> Self {
+    pub fn from_wire(s: &str) -> Self {
         match s {
             "apikey" => Self::ApiKey,
             _ => Self::Password,
@@ -229,7 +229,7 @@ impl AuthStore {
             user,
             session_id,
             server_epoch: row.try_get("server_epoch")?,
-            auth_kind: AuthKind::from_str(&row.try_get::<String, _>("auth_kind")?),
+            auth_kind: AuthKind::from_wire(&row.try_get::<String, _>("auth_kind")?),
             immich_cred,
         }))
     }
@@ -320,7 +320,7 @@ fn session_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<SessionRecord, Auth
     Ok(SessionRecord {
         id: parse_uuid(row.try_get::<String, _>("id")?)?,
         user_id: parse_uuid(row.try_get::<String, _>("user_id")?)?,
-        auth_kind: AuthKind::from_str(&row.try_get::<String, _>("auth_kind")?),
+        auth_kind: AuthKind::from_wire(&row.try_get::<String, _>("auth_kind")?),
         server_epoch: row.try_get("server_epoch")?,
         created_at: row.try_get("created_at")?,
         expires_at: row.try_get("expires_at")?,
