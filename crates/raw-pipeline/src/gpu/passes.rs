@@ -1,3 +1,4 @@
+pub mod dcp_huesat;
 pub mod dehaze;
 pub mod demosaic;
 pub mod effects_tone;
@@ -20,6 +21,7 @@ use super::context::GpuContext;
 use crate::gpu::shader_builder::StageMask;
 use crate::ops::{OpRegistry, default_registry};
 
+use dcp_huesat::DcpHueSatPass;
 use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
 use effects_tone::EffectsTonePass;
@@ -50,6 +52,8 @@ pub struct GpuPasses {
     pub output_sharpen: OutputSharpenPass,
     pub effects_tone: EffectsTonePass,
     pub lut: LutPass,
+    pub dcp_huesat: DcpHueSatPass,
+    pub dcp_look: DcpHueSatPass,
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub sensor: SensorPass,
@@ -73,6 +77,8 @@ impl GpuPasses {
             output_sharpen,
             effects_tone,
             lut,
+            dcp_huesat,
+            dcp_look,
             mask_weight,
             mask_blend,
             sensor,
@@ -97,6 +103,8 @@ impl GpuPasses {
             let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
             let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx));
             let lut_t = s.spawn(|| LutPass::new(ctx));
+            let dcp_huesat_t = s.spawn(|| DcpHueSatPass::new(ctx));
+            let dcp_look_t = s.spawn(|| DcpHueSatPass::new_look(ctx));
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
             let sensor_t = s.spawn(|| SensorPass::new(ctx));
@@ -114,6 +122,8 @@ impl GpuPasses {
                 output_sharpen_t.join().expect("output sharpen pass build"),
                 effects_tone_t.join().expect("effects tone pass build"),
                 lut_t.join().expect("lut pass build"),
+                dcp_huesat_t.join().expect("dcp huesat pass build"),
+                dcp_look_t.join().expect("dcp look pass build"),
                 mask_weight_t.join().expect("mask weight pass build"),
                 mask_blend_t.join().expect("mask blend pass build"),
                 sensor_t.join().expect("sensor pass build"),
@@ -133,6 +143,8 @@ impl GpuPasses {
             output_sharpen,
             effects_tone,
             lut,
+            dcp_huesat,
+            dcp_look,
             mask_weight,
             mask_blend,
             sensor,

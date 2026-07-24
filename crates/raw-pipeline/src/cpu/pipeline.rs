@@ -17,6 +17,13 @@ use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, 
 use rayon::prelude::*;
 use std::sync::Arc;
 
+type DcpFinish<'a> = (
+    Option<&'a crate::dcp::HueSatMap>,
+    Option<&'a [[f32; 2]]>,
+    &'a [[f32; 3]; 3],
+    &'a [[f32; 3]; 3],
+);
+
 pub fn render(
     frame: &RawFrame,
     edits: &Edits,
@@ -43,12 +50,22 @@ pub fn render_with_cancel(
 
     let xyz_to_cam =
         crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
-    let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
+    let dcp_active = frame.is_raw && edits.color.dcp.is_active() && options.dcp.is_some();
+    let (cam_to_srgb, dcp_resolved) = if dcp_active {
+        let profile = options.dcp.as_ref().expect("dcp active");
+        let (mat, resolved) = crate::ops::resolve_dcp(profile, frame.wb_coeffs, &edits.color.dcp);
+        let gain = crate::auto::raw_baseline_gain(frame, mat);
+        let mut m = crate::auto::scale_matrix(mat, gain);
+        if edits.color.dcp.use_baseline_exposure {
+            m = crate::auto::scale_matrix(m, 2f32.powf(profile.baseline_exposure_offset));
+        }
+        (m, Some(std::sync::Arc::new(resolved)))
+    } else if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
         let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
         let gain = crate::auto::raw_baseline_gain(frame, m);
-        crate::auto::scale_matrix(m, gain)
+        (crate::auto::scale_matrix(m, gain), None)
     } else {
-        crate::color::identity_3x3()
+        (crate::color::identity_3x3(), None)
     };
     let ctx = OpContext {
         render: RenderContext {
@@ -56,6 +73,7 @@ pub fn render_with_cancel(
             cam_to_srgb,
             is_raw: frame.is_raw,
             preview_mode: options.preview_mode.clone(),
+            dcp: dcp_resolved,
         },
         scratch: OpScratch { shadows_blur: None },
     };
@@ -99,8 +117,26 @@ pub fn render_with_cancel(
     cancel::check(cancel)?;
     let lut_resolved = resolve_lut(&edits, options)?;
     let lut_ref = lut_resolved.as_ref().map(|(l, a)| (l.as_ref(), *a));
-    let (rgb_u8, rgb_u16, histogram, linear_histogram) =
-        finish_output(rgb, w, h, want_16bit, edits.output, display_ready, lut_ref);
+    let dcp_active = ctx.render.dcp.is_some();
+    let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
+        (
+            d.look_table.as_ref(),
+            d.tone_curve.as_deref(),
+            &d.to_pp,
+            &d.from_pp,
+        )
+    });
+    let (rgb_u8, rgb_u16, histogram, linear_histogram) = finish_output(
+        rgb,
+        w,
+        h,
+        want_16bit,
+        edits.output,
+        display_ready,
+        lut_ref,
+        dcp_active,
+        dcp_finish,
+    );
     cancel::check(cancel)?;
 
     let bytes = if want_16bit {
@@ -151,6 +187,7 @@ pub fn run_pipeline_ops(
                 cam_to_srgb: ctx.render.cam_to_srgb,
                 is_raw: ctx.render.is_raw,
                 preview_mode: crate::frame::PreviewMode::None,
+                dcp: ctx.render.dcp.clone(),
             },
             scratch: OpScratch::default(),
         };
@@ -201,6 +238,7 @@ pub fn run_pipeline_ops(
                 cam_to_srgb: ctx.render.cam_to_srgb,
                 is_raw: ctx.render.is_raw,
                 preview_mode: ctx.render.preview_mode.clone(),
+                dcp: ctx.render.dcp.clone(),
             },
             scratch: OpScratch {
                 shadows_blur: Some(shadows_blur),
@@ -463,6 +501,7 @@ fn resolve_lut(
     )))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finish_output(
     linear: Vec<f32>,
     w: usize,
@@ -471,6 +510,8 @@ fn finish_output(
     output: crate::edits::OutputEdits,
     display_ready: bool,
     lut: Option<(&crate::lut::Lut3d, f32)>,
+    dcp_active: bool,
+    dcp_finish: Option<DcpFinish>,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -501,6 +542,20 @@ fn finish_output(
         )
     };
 
+    let finalize = |lr: f32, lg: f32, lb: f32| -> [f32; 3] {
+        if display_ready {
+            return [lr, lg, lb];
+        }
+        let finished = match dcp_finish {
+            Some((look, curve, to_pp, from_pp)) => {
+                crate::color::apply_dcp_finish(look, curve, to_pp, from_pp, [lr, lg, lb])
+            }
+            None => [lr, lg, lb],
+        };
+        let display = crate::tone::apply_rgb_dcp(finished, output, dcp_active);
+        apply_display_lut(display, lut)
+    };
+
     let (lin_bins, dis_bins) = if want_16bit {
         linear
             .par_chunks(chunk)
@@ -515,11 +570,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = if display_ready {
-                        [lr, lg, lb]
-                    } else {
-                        apply_display_lut(crate::tone::apply_rgb([lr, lg, lb], output), lut)
-                    };
+                    let [tr, tg, tb] = finalize(lr, lg, lb);
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -555,11 +606,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = if display_ready {
-                        [lr, lg, lb]
-                    } else {
-                        apply_display_lut(crate::tone::apply_rgb([lr, lg, lb], output), lut)
-                    };
+                    let [tr, tg, tb] = finalize(lr, lg, lb);
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -603,6 +650,8 @@ mod tests {
             false,
             Default::default(),
             true,
+            None,
+            false,
             None,
         );
         if rgb.iter().any(|value| !(126..=129).contains(value)) {

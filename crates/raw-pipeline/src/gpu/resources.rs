@@ -59,7 +59,8 @@ impl OutputTargets {
                 format: TextureFormat::Rgba8Unorm,
                 usage: TextureUsages::STORAGE_BINDING
                     | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
+                    | TextureUsages::COPY_SRC
+                    | TextureUsages::COPY_DST,
                 view_formats: &[],
             }),
             readback: make_readback_buffer(device, need_w, need_h),

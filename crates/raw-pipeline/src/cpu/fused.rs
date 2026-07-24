@@ -64,6 +64,11 @@ pub enum CpuFusedOp {
         clarity_blur: Option<Arc<Vec<f32>>>,
         dehaze_blur: Option<Arc<Vec<f32>>>,
     },
+    DcpHueSat {
+        map: Arc<crate::dcp::HueSatMap>,
+        to_pp: [[f32; 3]; 3],
+        from_pp: [[f32; 3]; 3],
+    },
 }
 
 #[derive(Default, Clone, Debug)]
@@ -278,6 +283,16 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
                 *b = (*b * scale).max(0.0);
             }
         }
+        CpuFusedOp::DcpHueSat {
+            map,
+            to_pp,
+            from_pp,
+        } => {
+            let out = crate::color::apply_huesat(map, to_pp, from_pp, [*r, *g, *b]);
+            *r = out[0];
+            *g = out[1];
+            *b = out[2];
+        }
     }
 }
 
@@ -434,6 +449,7 @@ mod tests {
                 cam_to_srgb: identity_3x3(),
                 is_raw: false,
                 preview_mode: crate::frame::PreviewMode::None,
+                dcp: None,
             },
             scratch: OpScratch { shadows_blur: None },
         };

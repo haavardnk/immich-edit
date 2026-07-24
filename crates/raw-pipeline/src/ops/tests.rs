@@ -20,6 +20,7 @@ fn ctx() -> OpContext {
             cam_to_srgb: crate::color::identity_3x3(),
             is_raw: false,
             preview_mode: crate::frame::PreviewMode::None,
+            dcp: None,
         },
         scratch: OpScratch { shadows_blur: None },
     }
@@ -523,6 +524,7 @@ fn hsl_red_saturation_only_affects_red() {
             hsl: HslEdits { bands },
             color_grade: Default::default(),
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };
@@ -547,6 +549,7 @@ fn hsl_gray_pixel_barely_shifts_under_max_bands() {
             hsl: HslEdits { bands },
             color_grade: Default::default(),
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };
@@ -581,6 +584,7 @@ fn hsl_band_overlap_does_not_stack() {
             hsl: HslEdits { bands: single },
             color_grade: Default::default(),
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };
@@ -589,6 +593,7 @@ fn hsl_band_overlap_does_not_stack() {
             hsl: HslEdits { bands: both },
             color_grade: Default::default(),
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };
@@ -712,6 +717,7 @@ fn color_grade_shadows_affect_dark_more_than_bright() {
                 ..Default::default()
             },
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };
@@ -741,6 +747,7 @@ fn color_grade_global_lum_brightens() {
                 ..Default::default()
             },
             lut_3d: Default::default(),
+            dcp: Default::default(),
         },
         ..Default::default()
     };

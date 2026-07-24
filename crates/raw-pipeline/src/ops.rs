@@ -5,6 +5,7 @@ pub mod color_matrix;
 pub mod color_nr;
 pub mod contrast;
 pub mod curves;
+pub mod dcp_huesat;
 pub mod dehaze;
 pub mod exposure;
 pub mod grain;
@@ -86,6 +87,59 @@ pub struct RenderContext {
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
     pub preview_mode: crate::frame::PreviewMode,
+    pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
+}
+
+#[derive(Clone)]
+pub struct ResolvedDcp {
+    pub base_table: Option<crate::dcp::HueSatMap>,
+    pub look_table: Option<crate::dcp::HueSatMap>,
+    pub tone_curve: Option<Vec<[f32; 2]>>,
+    pub to_pp: [[f32; 3]; 3],
+    pub from_pp: [[f32; 3]; 3],
+}
+
+pub fn resolve_dcp(
+    profile: &crate::dcp::DcpProfile,
+    wb_coeffs: [f32; 4],
+    edits: &crate::edits::DcpEdits,
+) -> ([[f32; 3]; 3], ResolvedDcp) {
+    let cam_to_srgb = crate::color::dcp_cam_to_srgb(profile, wb_coeffs, edits.illuminant);
+    let g = crate::color::dcp_weight(profile, wb_coeffs, edits.illuminant);
+    let base_table = if edits.use_base_table {
+        match (&profile.huesatmap1, &profile.huesatmap2) {
+            (Some(a), Some(b)) => Some(crate::color::merge_huesat(a, b, g)),
+            (Some(a), None) => Some(a.clone()),
+            (None, Some(b)) => Some(b.clone()),
+            (None, None) => None,
+        }
+    } else {
+        None
+    };
+    let look_table = if edits.use_look_table {
+        profile.look_table.clone()
+    } else {
+        None
+    };
+    let tone_curve = if edits.use_tone_curve {
+        if profile.has_tone_curve() {
+            profile.tone_curve.clone()
+        } else if profile.is_adobe() {
+            Some(crate::color::ACR_DEFAULT_TONE_CURVE.to_vec())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let resolved = ResolvedDcp {
+        base_table,
+        look_table,
+        tone_curve,
+        to_pp: crate::color::srgb_lin_to_prophoto_matrix(),
+        from_pp: crate::color::prophoto_to_srgb_lin_matrix(),
+    };
+    (cam_to_srgb, resolved)
 }
 
 #[derive(Clone, Default)]
@@ -343,6 +397,7 @@ pub fn default_registry() -> OpRegistry {
         AnyOp::Fused(Box::new(vibrance::VibranceOp)),
         AnyOp::Fused(Box::new(hsl::HslOp)),
         AnyOp::Fused(Box::new(color_grade::ColorGradeOp)),
+        AnyOp::Fused(Box::new(dcp_huesat::DcpHueSatOp)),
         AnyOp::Output(Box::new(lut::Lut3dOp)),
         AnyOp::Spatial(Box::new(transform::TransformOp)),
         AnyOp::Spatial(Box::new(sharpen::SharpenOp)),

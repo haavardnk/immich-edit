@@ -602,6 +602,7 @@ mod tests {
             cpp: 3,
             orientation: (false, false, false),
             is_raw: false,
+            model: String::new(),
             exif: None,
         }
     }

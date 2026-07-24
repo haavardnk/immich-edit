@@ -3,6 +3,7 @@ struct EffectsToneParams {
     vignette: vec4<f32>,
     grain: vec4<f32>,
     output: vec4<u32>,
+    tone_lut: array<vec4<f32>, 16>,
 };
 
 @group(0) @binding(0) var<uniform> p: EffectsToneParams;
@@ -48,6 +49,23 @@ fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
     let c = hash2(xi, yi + 1, seed);
     let d = hash2(xi + 1, yi + 1, seed);
     return mix(mix(a, b, u), mix(c, d, u), v);
+}
+
+fn lut_get(k: i32) -> f32 {
+    let v = p.tone_lut[k / 4];
+    let m = k % 4;
+    if (m == 0) { return v.x; }
+    if (m == 1) { return v.y; }
+    if (m == 2) { return v.z; }
+    return v.w;
+}
+
+fn tone_lut_sample(x: f32) -> f32 {
+    let pos = clamp(x, 0.0, 1.0) * 63.0;
+    let i0 = i32(floor(pos));
+    let i1 = min(i0 + 1, 63);
+    let f = pos - f32(i0);
+    return mix(lut_get(i0), lut_get(i1), f);
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -107,7 +125,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
-    let outc = tone_apply_rgb(lin, p.output.x);
+    var outc: vec3<f32>;
+    if (p.output.y == 1u) {
+        outc = tone_dcp_rgb(lin);
+    } else {
+        outc = tone_apply_rgb(lin, p.output.x);
+    }
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
     textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, 1.0));
 }

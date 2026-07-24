@@ -225,6 +225,7 @@ mod tests {
                 cam_to_srgb: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
                 is_raw: false,
                 preview_mode: PreviewMode::None,
+                dcp: None,
             },
             scratch: OpScratch { shadows_blur: None },
         }

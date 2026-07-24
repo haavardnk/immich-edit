@@ -1,4 +1,3 @@
-// color-space: linear scene-referred Rgba16Float in → sRGB-encoded Rgba8Unorm + linear Rgba16Float out (vignette + grain in linear, then tone-map)
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -10,21 +9,27 @@ use wgpu::{
 
 use crate::gpu::context::GpuContext;
 
-use super::demosaic::linear_format_str;
+pub const DCP_HUESAT_UNIFORM_SIZE: u64 = 1152;
 
-pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = 320;
-
-pub struct EffectsTonePass {
+pub struct DcpHueSatPass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
 }
 
-impl EffectsTonePass {
+impl DcpHueSatPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
+        Self::with_format(ctx, wgpu::TextureFormat::Rgba16Float, "dcp-huesat")
+    }
+
+    pub fn new_look(ctx: &Arc<GpuContext>) -> Self {
+        Self::with_format(ctx, wgpu::TextureFormat::Rgba8Unorm, "dcp-look")
+    }
+
+    fn with_format(ctx: &Arc<GpuContext>, out_format: wgpu::TextureFormat, label: &str) -> Self {
         let device = &ctx.device;
 
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("effects-tone-bgl"),
+            label: Some(&format!("{label}-bgl")),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
@@ -32,7 +37,7 @@ impl EffectsTonePass {
                     ty: BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(EFFECTS_TONE_UNIFORM_SIZE),
+                        min_binding_size: BufferSize::new(DCP_HUESAT_UNIFORM_SIZE),
                     },
                     count: None,
                 },
@@ -40,7 +45,7 @@ impl EffectsTonePass {
                     binding: 1,
                     visibility: ShaderStages::COMPUTE,
                     ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
+                        sample_type: TextureSampleType::Float { filterable: false },
                         view_dimension: TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -49,10 +54,10 @@ impl EffectsTonePass {
                 BindGroupLayoutEntry {
                     binding: 2,
                     visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                        view_dimension: TextureViewDimension::D2,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: false },
+                        view_dimension: TextureViewDimension::D3,
+                        multisampled: false,
                     },
                     count: None,
                 },
@@ -61,27 +66,26 @@ impl EffectsTonePass {
                     visibility: ShaderStages::COMPUTE,
                     ty: BindingType::StorageTexture {
                         access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
+                        format: out_format,
                         view_dimension: TextureViewDimension::D2,
                     },
                     count: None,
                 },
             ],
         });
-        let src = include_str!("../../../assets/shaders/effects_tone.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format))
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
+        let src = include_str!("../../../assets/shaders/dcp_huesat.wgsl")
+            .replace("rgba16float", storage_format_str(out_format));
         let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("effects_tone.wgsl"),
+            label: Some("dcp_huesat.wgsl"),
             source: ShaderSource::Wgsl(Cow::Owned(src)),
         });
         let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("effects-tone-pl"),
+            label: Some(&format!("{label}-pl")),
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("effects-tone-cp"),
+            label: Some(&format!("{label}-cp")),
             layout: Some(&pl),
             module: &module,
             entry_point: Some("main"),
@@ -90,5 +94,12 @@ impl EffectsTonePass {
         });
 
         Self { layout, pipeline }
+    }
+}
+
+fn storage_format_str(f: wgpu::TextureFormat) -> &'static str {
+    match f {
+        wgpu::TextureFormat::Rgba8Unorm => "rgba8unorm",
+        _ => "rgba16float",
     }
 }

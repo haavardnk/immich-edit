@@ -106,6 +106,7 @@ mod tests {
                 cam_to_srgb: crate::color::identity_3x3(),
                 is_raw: false,
                 preview_mode: PreviewMode::None,
+                dcp: None,
             },
             scratch: OpScratch { shadows_blur: None },
         }

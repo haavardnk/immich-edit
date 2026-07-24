@@ -367,3 +367,137 @@ fn gpu_vs_cpu_parity_with_lut() {
         panic!("lut parity below floor: {}", failed.join("; "));
     }
 }
+
+fn make_huesat_profile() -> raw_pipeline::DcpProfile {
+    use raw_pipeline::dcp::{DcpProfile, HsvEncoding, HueSatMap};
+    let hue = 6u32;
+    let sat = 4u32;
+    let val = 1u32;
+    let data = vec![[12.0, 1.15, 1.0]; (hue * sat * val) as usize];
+    let fm = [
+        [0.9642 * 0.5, 0.9642 * 0.3, 0.9642 * 0.2],
+        [0.4, 0.35, 0.25],
+        [0.8249 * 0.1, 0.8249 * 0.3, 0.8249 * 0.6],
+    ];
+    DcpProfile {
+        name: None,
+        copyright: None,
+        unique_camera_model: None,
+        calibration_illuminant1: 21,
+        calibration_illuminant2: None,
+        color_matrix1: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        color_matrix2: None,
+        forward_matrix1: Some(fm),
+        forward_matrix2: None,
+        huesatmap1: Some(HueSatMap {
+            hue_div: hue,
+            sat_div: sat,
+            val_div: val,
+            encoding: HsvEncoding::Linear,
+            data,
+        }),
+        huesatmap2: None,
+        look_table: None,
+        tone_curve: None,
+        baseline_exposure_offset: 0.0,
+        default_black_render: 0,
+        embed_policy: 0,
+    }
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_huesat() {
+    run_dcp_parity(make_huesat_profile());
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_tone() {
+    let mut profile = make_huesat_profile();
+    profile.tone_curve = Some(vec![
+        [0.0, 0.0],
+        [0.25, 0.18],
+        [0.5, 0.52],
+        [0.75, 0.84],
+        [1.0, 1.0],
+    ]);
+    run_dcp_parity(profile);
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_look() {
+    use raw_pipeline::dcp::{HsvEncoding, HueSatMap};
+    let mut profile = make_huesat_profile();
+    let hue = 6u32;
+    let sat = 4u32;
+    let val = 1u32;
+    profile.look_table = Some(HueSatMap {
+        hue_div: hue,
+        sat_div: sat,
+        val_div: val,
+        encoding: HsvEncoding::Srgb,
+        data: vec![[-8.0, 1.1, 0.97]; (hue * sat * val) as usize],
+    });
+    run_dcp_parity(profile);
+}
+
+fn run_dcp_parity(profile: raw_pipeline::DcpProfile) {
+    use raw_pipeline::edits::DcpMode;
+    use std::sync::Arc;
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures; skipping");
+        return;
+    }
+    let opts = RenderOptions {
+        max_edge: 512,
+        dcp: Some(Arc::new(profile)),
+        ..Default::default()
+    };
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = DcpMode::Profile;
+    edits.color.dcp.profile_id = Some("test".to_string());
+
+    let mut failed: Vec<String> = Vec::new();
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let frame = match decode::decode(&bytes) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
+            continue;
+        };
+        decoded += 1;
+        let p_db = psnr(&cpu_rgb, &gpu_rgb);
+        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
+        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
+        eprintln!(
+            "{name} (dcp): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}"
+        );
+        if p_db < PSNR_FLOOR_DB {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        }
+        if s < SSIM_FLOOR {
+            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
+        }
+        if de_mean > DE2000_MEAN_CEIL {
+            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
+        }
+        if de_p95 > DE2000_P95_CEIL {
+            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
+        }
+    }
+    if decoded == 0 {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    }
+    if !failed.is_empty() {
+        panic!("dcp parity below floor: {}", failed.join("; "));
+    }
+}

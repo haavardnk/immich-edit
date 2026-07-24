@@ -174,6 +174,7 @@ fn synthetic_frame(w: usize, h: usize) -> RawFrame {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        model: String::new(),
         exif: None,
     }
 }
@@ -473,6 +474,7 @@ fn gpu_exif_orientation_matches_cpu() {
             cpp: 3,
             orientation: orient,
             is_raw: false,
+            model: String::new(),
             exif: None,
         };
 
@@ -521,6 +523,7 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        model: String::new(),
         exif: None,
     };
     let mut edits = Edits::default();
@@ -576,6 +579,7 @@ fn gpu_dehaze_matches_cpu() {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        model: String::new(),
         exif: None,
     };
     let mut edits = Edits::default();
@@ -627,6 +631,7 @@ fn gpu_shadows_match_cpu_via_pyramid() {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        model: String::new(),
         exif: None,
     };
     let mut edits = Edits::default();
@@ -905,6 +910,7 @@ fn synthetic_bayer_frame(w: usize, h: usize, cfa_pattern: &str) -> RawFrame {
         cpp: 1,
         orientation: (false, false, false),
         is_raw: false,
+        model: String::new(),
         exif: None,
     }
 }
