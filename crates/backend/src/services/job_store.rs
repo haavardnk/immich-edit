@@ -134,8 +134,8 @@ impl JobStore {
 
         let mut tx = self.pool.begin().await?;
         sqlx::query(
-            "INSERT INTO jobs (id, kind, status, target_json, params_json, total, completed, failed, created_at, updated_at) \
-             VALUES (?, ?, 'pending', ?, ?, ?, 0, 0, ?, ?)",
+            "INSERT INTO jobs (id, kind, status, target_json, params_json, total, completed, failed, created_at, updated_at, user_id) \
+             VALUES (?, ?, 'pending', ?, ?, ?, 0, 0, ?, ?, ?)",
         )
         .bind(id.to_string())
         .bind(kind)
@@ -144,6 +144,7 @@ impl JobStore {
         .bind(total)
         .bind(&now)
         .bind(&now)
+        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
         .execute(&mut *tx)
         .await?;
 
@@ -171,9 +172,10 @@ impl JobStore {
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
         let row = sqlx::query(
             "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at \
-             FROM jobs WHERE id = ?",
+             FROM jobs WHERE id = ?1 AND user_id = ?2",
         )
         .bind(id.to_string())
+        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         row.as_ref().map(job_from_row).transpose()
@@ -182,9 +184,10 @@ impl JobStore {
     pub async fn list_jobs(&self, limit: i64) -> Result<Vec<JobRecord>, JobStoreError> {
         let rows = sqlx::query(
             "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at \
-             FROM jobs ORDER BY created_at DESC LIMIT ?",
+             FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
+        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
         .fetch_all(&self.pool)
         .await?;
         rows.iter().map(job_from_row).collect()

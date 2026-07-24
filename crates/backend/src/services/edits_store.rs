@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 pub const RENDERER_VERSION: &str = "0.1.0";
 const SCHEMA_VERSION: i64 = 2;
+pub const LEGACY_OWNER_ID: &str = "00000000-0000-0000-0000-000000000000";
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
@@ -103,9 +104,10 @@ impl EditsStore {
     pub async fn get(&self, asset_id: Uuid) -> Result<Option<EditRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
-             immich_checksum, updated_at FROM edits WHERE asset_id = ?1",
+             immich_checksum, updated_at FROM edits WHERE user_id = ?2 AND asset_id = ?1",
         )
         .bind(asset_id.to_string())
+        .bind(LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -132,8 +134,9 @@ impl EditsStore {
     }
 
     pub async fn get_edits_or_default(&self, asset_id: Uuid) -> Result<Edits, EditsStoreError> {
-        let row = sqlx::query("SELECT edits_json FROM edits WHERE asset_id = ?1")
+        let row = sqlx::query("SELECT edits_json FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
+            .bind(LEGACY_OWNER_ID)
             .fetch_optional(&self.pool)
             .await?;
         let Some(row) = row else {
@@ -157,10 +160,10 @@ impl EditsStore {
         let edits_json = serde_json::to_string(&edits)?;
         let renderer_version = RENDERER_VERSION.to_string();
         sqlx::query(
-            "INSERT INTO edits (asset_id, edits_json, schema_version, renderer_version, \
+            "INSERT INTO edits (user_id, asset_id, edits_json, schema_version, renderer_version, \
              immich_updated_at, immich_checksum, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
-             ON CONFLICT(asset_id) DO UPDATE SET \
+             VALUES (?8, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
+             ON CONFLICT(user_id, asset_id) DO UPDATE SET \
                edits_json = excluded.edits_json, \
                schema_version = excluded.schema_version, \
                renderer_version = excluded.renderer_version, \
@@ -175,6 +178,7 @@ impl EditsStore {
         .bind(&immich_updated_at)
         .bind(&immich_checksum)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
@@ -194,8 +198,10 @@ impl EditsStore {
 
     pub async fn list_edited_assets(&self) -> Result<Vec<EditedAssetEntry>, EditsStoreError> {
         let rows = sqlx::query(
-            "SELECT asset_id, edits_json, updated_at FROM edits ORDER BY updated_at DESC",
+            "SELECT asset_id, edits_json, updated_at FROM edits WHERE user_id = ?1 \
+             ORDER BY updated_at DESC",
         )
+        .bind(LEGACY_OWNER_ID)
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -223,8 +229,9 @@ impl EditsStore {
         asset_id: Uuid,
         action: Option<&str>,
     ) -> Result<bool, EditsStoreError> {
-        let res = sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
+        let res = sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
+            .bind(LEGACY_OWNER_ID)
             .execute(&self.pool)
             .await?;
         let deleted = res.rows_affected() > 0;
@@ -246,8 +253,8 @@ impl EditsStore {
     ) -> Result<(), EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
-            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at, action) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO edits_history (user_id, asset_id, manifest_hash, edits_json, deleted, created_at, action) \
+             VALUES (?7, ?1, ?2, ?3, ?4, ?5, ?6)",
         )
         .bind(asset_id.to_string())
         .bind(manifest_hash)
@@ -255,16 +262,18 @@ impl EditsStore {
         .bind(if deleted { 1 } else { 0 })
         .bind(&now)
         .bind(action)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         sqlx::query(
-            "DELETE FROM edits_history WHERE asset_id = ?1 AND id NOT IN (\
-                SELECT id FROM edits_history WHERE asset_id = ?1 \
+            "DELETE FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND id NOT IN (\
+                SELECT id FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 \
                 ORDER BY created_at DESC, id DESC LIMIT ?2\
              )",
         )
         .bind(asset_id.to_string())
         .bind(HISTORY_LIMIT_PER_ASSET)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -276,9 +285,10 @@ impl EditsStore {
     ) -> Result<Vec<EditHistoryEntry>, EditsStoreError> {
         let rows = sqlx::query(
             "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
-             FROM edits_history WHERE asset_id = ?1 ORDER BY created_at DESC, id DESC",
+             FROM edits_history WHERE user_id = ?2 AND asset_id = ?1 ORDER BY created_at DESC, id DESC",
         )
         .bind(asset_id.to_string())
+        .bind(LEGACY_OWNER_ID)
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -308,14 +318,16 @@ impl EditsStore {
         let current = self.get(asset_id).await?;
         let immich_updated_at = current.as_ref().and_then(|r| r.immich_updated_at.clone());
         let immich_checksum = current.as_ref().and_then(|r| r.immich_checksum.clone());
-        sqlx::query("DELETE FROM edits_history WHERE asset_id = ?1 AND id > ?2")
+        sqlx::query("DELETE FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND id > ?2")
             .bind(asset_id.to_string())
             .bind(entry.id)
+            .bind(LEGACY_OWNER_ID)
             .execute(&self.pool)
             .await?;
         if entry.deleted || entry.edits.is_none() {
-            sqlx::query("DELETE FROM edits WHERE asset_id = ?1")
+            sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
                 .bind(asset_id.to_string())
+                .bind(LEGACY_OWNER_ID)
                 .execute(&self.pool)
                 .await?;
             return Ok(None);
@@ -325,10 +337,10 @@ impl EditsStore {
         let renderer_version = RENDERER_VERSION.to_string();
         let now = Utc::now().to_rfc3339();
         sqlx::query(
-            "INSERT INTO edits (asset_id, edits_json, schema_version, renderer_version, \
+            "INSERT INTO edits (user_id, asset_id, edits_json, schema_version, renderer_version, \
              immich_updated_at, immich_checksum, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
-             ON CONFLICT(asset_id) DO UPDATE SET \
+             VALUES (?8, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
+             ON CONFLICT(user_id, asset_id) DO UPDATE SET \
                edits_json = excluded.edits_json, \
                schema_version = excluded.schema_version, \
                renderer_version = excluded.renderer_version, \
@@ -341,6 +353,7 @@ impl EditsStore {
         .bind(&immich_updated_at)
         .bind(&immich_checksum)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
@@ -363,10 +376,11 @@ impl EditsStore {
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
-             FROM edits_history WHERE asset_id = ?1 AND id = ?2",
+             FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND id = ?2",
         )
         .bind(asset_id.to_string())
         .bind(entry_id)
+        .bind(LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -394,11 +408,12 @@ impl EditsStore {
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
-             FROM edits_history WHERE asset_id = ?1 AND manifest_hash = ?2 \
+             FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND manifest_hash = ?2 \
              ORDER BY created_at DESC, id DESC LIMIT 1",
         )
         .bind(asset_id.to_string())
         .bind(manifest_hash)
+        .bind(LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -426,10 +441,11 @@ impl EditsStore {
     ) -> Result<Option<ExportJobRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT request_hash, status, immich_asset_id, filename, upload_status, warnings_json \
-             FROM export_jobs WHERE asset_id = ?1 AND idempotency_key = ?2",
+             FROM export_jobs WHERE user_id = ?3 AND asset_id = ?1 AND idempotency_key = ?2",
         )
         .bind(asset_id.to_string())
         .bind(key)
+        .bind(LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -466,10 +482,10 @@ impl EditsStore {
     ) -> Result<(), EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
-            "INSERT INTO export_jobs (asset_id, idempotency_key, request_hash, status, \
+            "INSERT INTO export_jobs (user_id, asset_id, idempotency_key, request_hash, status, \
              immich_asset_id, filename, upload_status, warnings_json, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, 'uploaded', ?4, ?5, ?6, '[]', ?7, ?7) \
-             ON CONFLICT(asset_id, idempotency_key) DO UPDATE SET \
+             VALUES (?8, ?1, ?2, ?3, 'uploaded', ?4, ?5, ?6, '[]', ?7, ?7) \
+             ON CONFLICT(user_id, asset_id, idempotency_key) DO UPDATE SET \
                status = excluded.status, \
                immich_asset_id = excluded.immich_asset_id, \
                filename = excluded.filename, \
@@ -483,6 +499,7 @@ impl EditsStore {
         .bind(filename)
         .bind(upload_status)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -498,12 +515,13 @@ impl EditsStore {
         let warnings_json = serde_json::to_string(warnings)?;
         sqlx::query(
             "UPDATE export_jobs SET status = 'completed', warnings_json = ?3, updated_at = ?4 \
-             WHERE asset_id = ?1 AND idempotency_key = ?2",
+             WHERE user_id = ?5 AND asset_id = ?1 AND idempotency_key = ?2",
         )
         .bind(asset_id.to_string())
         .bind(key)
         .bind(&warnings_json)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -512,8 +530,9 @@ impl EditsStore {
     pub async fn list_presets(&self) -> Result<Vec<PresetRecord>, EditsStoreError> {
         let rows = sqlx::query(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
-             FROM presets ORDER BY group_name IS NULL, group_name, name",
+             FROM presets WHERE user_id = ?1 ORDER BY group_name IS NULL, group_name, name",
         )
+        .bind(LEGACY_OWNER_ID)
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -526,9 +545,10 @@ impl EditsStore {
     pub async fn get_preset(&self, id: Uuid) -> Result<Option<PresetRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
-             FROM presets WHERE id = ?1",
+             FROM presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
+        .bind(LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -548,7 +568,7 @@ impl EditsStore {
         let manifest_json = serde_json::to_string(manifest)?;
         sqlx::query(
             "INSERT INTO presets (id, name, group_name, manifest_json, schema_version, \
-             created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+             created_at, updated_at, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)",
         )
         .bind(id.to_string())
         .bind(name)
@@ -556,6 +576,7 @@ impl EditsStore {
         .bind(&manifest_json)
         .bind(manifest.schema_version as i64)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         Ok(PresetRecord {
@@ -579,7 +600,7 @@ impl EditsStore {
         let manifest_json = serde_json::to_string(manifest)?;
         let res = sqlx::query(
             "UPDATE presets SET name = ?2, group_name = ?3, manifest_json = ?4, \
-             schema_version = ?5, updated_at = ?6 WHERE id = ?1",
+             schema_version = ?5, updated_at = ?6 WHERE user_id = ?7 AND id = ?1",
         )
         .bind(id.to_string())
         .bind(name)
@@ -587,6 +608,7 @@ impl EditsStore {
         .bind(&manifest_json)
         .bind(manifest.schema_version as i64)
         .bind(&now)
+        .bind(LEGACY_OWNER_ID)
         .execute(&self.pool)
         .await?;
         if res.rows_affected() == 0 {
@@ -596,8 +618,9 @@ impl EditsStore {
     }
 
     pub async fn delete_preset(&self, id: Uuid) -> Result<bool, EditsStoreError> {
-        let res = sqlx::query("DELETE FROM presets WHERE id = ?1")
+        let res = sqlx::query("DELETE FROM presets WHERE user_id = ?2 AND id = ?1")
             .bind(id.to_string())
+            .bind(LEGACY_OWNER_ID)
             .execute(&self.pool)
             .await?;
         Ok(res.rows_affected() > 0)
