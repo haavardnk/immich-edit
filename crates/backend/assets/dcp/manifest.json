@@ -1,0 +1,789 @@
+{
+  "source": "RawTherapee (rtdata/dcpprofiles)",
+  "source_url": "https://github.com/Beep6581/RawTherapee",
+  "license": "GPL-3.0-or-later (project license); individual profiles marked CC0/public domain where noted in the copyright field",
+  "note": "Bundled from the RawTherapee project, distributed under GPLv3. Per-profile copyright is preserved in the copyright field.",
+  "count": 156,
+  "profiles": [
+    {
+      "file": "Canon EOS 100D.dcp",
+      "camera_model": "Canon EOS 100D",
+      "copyright": "RawTherapee"
+    },
+    {
+      "file": "Canon EOS 1300D.dcp",
+      "camera_model": "Canon EOS 1300D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 20D.dcp",
+      "camera_model": "Canon EOS 20D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "CANON EOS 250D.dcp",
+      "camera_model": "CANON EOS REBEL SL3",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS 400D.dcp",
+      "camera_model": "Canon EOS 400D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 40D.dcp",
+      "camera_model": "Canon EOS 40D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 450D.dcp",
+      "camera_model": "Canon EOS 450D",
+      "copyright": null
+    },
+    {
+      "file": "Canon EOS 50D.dcp",
+      "camera_model": "Canon EOS 50D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 550D.dcp",
+      "camera_model": "EOS 550D",
+      "copyright": null
+    },
+    {
+      "file": "Canon EOS 5D Mark II.dcp",
+      "camera_model": "Canon EOS 5D Mark II",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "Canon EOS 5D Mark III.dcp",
+      "camera_model": "Canon EOS 5D Mark III",
+      "copyright": null
+    },
+    {
+      "file": "Canon EOS 5D Mark IV.dcp",
+      "camera_model": "CANON EOS 5D MARK IV",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS 5D.dcp",
+      "camera_model": "Canon EOS 5D",
+      "copyright": null
+    },
+    {
+      "file": "Canon EOS 600D.dcp",
+      "camera_model": "Canon EOS 600D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 60D.dcp",
+      "camera_model": "Canon EOS 60D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 650D.dcp",
+      "camera_model": "Canon EOS 650D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 6D Mark II.dcp",
+      "camera_model": "Canon EOS 6D Mark II",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 6D.dcp",
+      "camera_model": "Canon EOS 6D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 7D Mark II.dcp",
+      "camera_model": "Canon EOS 7D Mark II",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS 7D.dcp",
+      "camera_model": "Canon EOS 7D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "CANON EOS 800D.dcp",
+      "camera_model": "CANON EOS 800D",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS 90D.dcp",
+      "camera_model": "Canon EOS 90D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon EOS D60.dcp",
+      "camera_model": "Canon EOS D60",
+      "copyright": null
+    },
+    {
+      "file": "CANON EOS M50.dcp",
+      "camera_model": "CANON EOS M50",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS M6 Mark II.dcp",
+      "camera_model": "CANON EOS M6 MARK II",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS R.dcp",
+      "camera_model": "CANON EOS R",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS R5.dcp",
+      "camera_model": "CANON EOS R5",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS R6.dcp",
+      "camera_model": "CANON EOS R6",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon EOS R8.dcp",
+      "camera_model": "Canon EOS R8",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "Canon EOS RP.dcp",
+      "camera_model": "Canon EOS RP",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "Canon EOS-1D Mark III.dcp",
+      "camera_model": "Canon EOS-1D Mark III",
+      "copyright": null
+    },
+    {
+      "file": "Canon EOS-1D X Mark III.dcp",
+      "camera_model": "Canon EOS-1D X Mark III",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "Canon EOS-1Ds Mark II.dcp",
+      "camera_model": "Canon EOS-1Ds Mark II",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "Canon PowerShot G1 X Mark II.dcp",
+      "camera_model": "CANON POWERSHOT G1 X MARK II",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon PowerShot G10.dcp",
+      "camera_model": "Canon PowerShot G10",
+      "copyright": null
+    },
+    {
+      "file": "Canon PowerShot G12.dcp",
+      "camera_model": "Canon PowerShot G12",
+      "copyright": null
+    },
+    {
+      "file": "CANON POWERSHOT G5 X MARK II.dcp",
+      "camera_model": "CANON POWERSHOT G5 X MARK II",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Canon PowerShot G7 X.dcp",
+      "camera_model": "Canon PowerShot G7 X",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon PowerShot S110.dcp",
+      "camera_model": "Canon PowerShot S110",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Canon PowerShot S120.dcp",
+      "camera_model": "Canon PowerShot S120",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM DBP for GX680.dcp",
+      "camera_model": "FUJIFILM DBP for GX680",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "FUJIFILM FinePix F600EXR.dcp",
+      "camera_model": "Fujifilm FinePix F600EXR",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Fujifilm FinePix S9500.dcp",
+      "camera_model": "Fujifilm FinePix S9000",
+      "copyright": null
+    },
+    {
+      "file": "FUJIFILM GFX 50R.dcp",
+      "camera_model": "Fujifilm GFX 50R",
+      "copyright": "Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-A5.dcp",
+      "camera_model": "FUJIFILM X-A5",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-A7.dcp",
+      "camera_model": "FUJIFILM X-A7",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Fujifilm X-E1.dcp",
+      "camera_model": "Fujifilm X-E1",
+      "copyright": "Copyright, the creator of this profile (generated by DCamProf v0.10.4)"
+    },
+    {
+      "file": "Fujifilm X-E2.dcp",
+      "camera_model": "Fujifilm X-E2",
+      "copyright": "Copyright, the creator of this profile (generated by DCamProf v0.10.4)"
+    },
+    {
+      "file": "FUJIFILM X-E3.dcp",
+      "camera_model": "FUJIFILM X-E3",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-H1.dcp",
+      "camera_model": "FUJIFILM X-H1",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-Pro2.dcp",
+      "camera_model": "Fujifilm X-Pro2",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-Pro3.dcp",
+      "camera_model": "FUJIFILM X-PRO3",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-S1.dcp",
+      "camera_model": "Fujifilm X-S1",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-S10.dcp",
+      "camera_model": "FUJIFILM X-S10",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-T1.dcp",
+      "camera_model": "Fujifilm X-T1",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-T10.dcp",
+      "camera_model": "Fujifilm X-T10",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-T2.dcp",
+      "camera_model": "Fujifilm X-T2",
+      "copyright": "Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-T20.dcp",
+      "camera_model": "Fujifilm X-T20",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-T3.dcp",
+      "camera_model": "FUJIFILM X-T3",
+      "copyright": "public domain"
+    },
+    {
+      "file": "FUJIFILM X-T30.dcp",
+      "camera_model": "Fujifilm X-T30",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X-T4.dcp",
+      "camera_model": "FUJIFILM X-T4",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "FUJIFILM X100S.dcp",
+      "camera_model": "Fujifilm X100S",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "FUJIFILM X100T.dcp",
+      "camera_model": "Fujifilm X100T",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON COOLPIX P7800.dcp",
+      "camera_model": "Nikon Coolpix P7800",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Nikon D200.dcp",
+      "camera_model": "Nikon D200",
+      "copyright": null
+    },
+    {
+      "file": "NIKON D300.dcp",
+      "camera_model": "Nikon D300",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Nikon D3000.dcp",
+      "camera_model": "Nikon D3000",
+      "copyright": null
+    },
+    {
+      "file": "Nikon D3100.dcp",
+      "camera_model": "Nikon D3100",
+      "copyright": null
+    },
+    {
+      "file": "NIKON D3300.dcp",
+      "camera_model": "NIKON D3300",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Nikon D3S.dcp",
+      "camera_model": "Nikon D3S",
+      "copyright": null
+    },
+    {
+      "file": "NIKON D50.dcp",
+      "camera_model": "Nikon D50",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D500.dcp",
+      "camera_model": "NIKON D500",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D5000.dcp",
+      "camera_model": "Nikon D5000",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Nikon D5100.dcp",
+      "camera_model": "Nikon D5100",
+      "copyright": null
+    },
+    {
+      "file": "NIKON D5300.dcp",
+      "camera_model": "NIKON D5300",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D5600.dcp",
+      "camera_model": "Nikon D5600",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D600.dcp",
+      "camera_model": "Nikon D600",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D610.dcp",
+      "camera_model": "NIKON D610",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D700.dcp",
+      "camera_model": "Nikon D700",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Nikon D7000.dcp",
+      "camera_model": "Nikon D7000",
+      "copyright": null
+    },
+    {
+      "file": "NIKON D70s.dcp",
+      "camera_model": "Nikon D70s",
+      "copyright": "Maciej Dworak"
+    },
+    {
+      "file": "NIKON D7100.dcp",
+      "camera_model": "NIKON D7100",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D7200.dcp",
+      "camera_model": "Nikon D7200",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D750.dcp",
+      "camera_model": "Nikon D750",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D7500.dcp",
+      "camera_model": "NIKON D7500",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D80.dcp",
+      "camera_model": "Nikon D80",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D800.dcp",
+      "camera_model": "NIKON D800",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON D800E.dcp",
+      "camera_model": "Nikon D800E",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D810.dcp",
+      "camera_model": "Nikon D810",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "NIKON D850.dcp",
+      "camera_model": "NIKON D850",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 5.dcp",
+      "camera_model": "NIKON Z 5",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 50.dcp",
+      "camera_model": "NIKON Z 50",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 6.dcp",
+      "camera_model": "NIKON Z 6",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 6_2.dcp",
+      "camera_model": "NIKON Z 6_2",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 7.dcp",
+      "camera_model": "NIKON Z 7",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 8.dcp",
+      "camera_model": "NIKON Z 8",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z 9.dcp",
+      "camera_model": "NIKON Z 9",
+      "copyright": "public domain"
+    },
+    {
+      "file": "NIKON Z F.dcp",
+      "camera_model": "NIKON Z F",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Olympus E-1.dcp",
+      "camera_model": "Olympus E-1",
+      "copyright": null
+    },
+    {
+      "file": "OLYMPUS E-510.dcp",
+      "camera_model": "Olympus E-510",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Olympus E-520.dcp",
+      "camera_model": "Olympus E-520",
+      "copyright": null
+    },
+    {
+      "file": "OLYMPUS E-M1.dcp",
+      "camera_model": "OLYMPUS E-M1",
+      "copyright": "public domain"
+    },
+    {
+      "file": "OLYMPUS E-M10.dcp",
+      "camera_model": "Olympus E-M10",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "OLYMPUS E-M1MarkII.dcp",
+      "camera_model": "Olympus E-M1 Mark II",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Olympus E-M5.dcp",
+      "camera_model": "Olympus E-M5",
+      "copyright": null
+    },
+    {
+      "file": "OLYMPUS E-M5MarkII.dcp",
+      "camera_model": "OLYMPUS E-M5MARKII",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Olympus E-P2.dcp",
+      "camera_model": "Olympus E-P2",
+      "copyright": null
+    },
+    {
+      "file": "Olympus XZ-1.dcp",
+      "camera_model": "Olympus XZ-1",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DC-G9.dcp",
+      "camera_model": "Panasonic DC-G9",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DC-GX9.dcp",
+      "camera_model": "Panasonic DC-GX9",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DC-S1.dcp",
+      "camera_model": "Panasonic DC-S1",
+      "copyright": "Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DC-S5.dcp",
+      "camera_model": "Panasonic DC-S5",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "PANASONIC DC-S5M2.dcp",
+      "camera_model": "PANASONIC DC-S5M2",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Panasonic DC-TZ91.dcp",
+      "camera_model": "Panasonic DC-ZS70",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DMC-FZ1000.dcp",
+      "camera_model": "Panasonic DMC-FZ1000",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DMC-FZ150.dcp",
+      "camera_model": "Panasonic DMC-FZ150",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-FZ35.dcp",
+      "camera_model": "Panasonic DMC-FZ35",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-FZ38.dcp",
+      "camera_model": "Panasonic DMC-FZ35",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-G1.dcp",
+      "camera_model": "Panasonic DMC-G1",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-G3.dcp",
+      "camera_model": "Panasonic DMC-G3",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-G5.dcp",
+      "camera_model": "Panasonic DMC-G5",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-GH1.dcp",
+      "camera_model": "Panasonic DMC-GH1",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-GH2.dcp",
+      "camera_model": "Panasonic DMC-GH2",
+      "copyright": null
+    },
+    {
+      "file": "Panasonic DMC-GX7.dcp",
+      "camera_model": "Panasonic DMC-GX7",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Panasonic DMC-GX85.dcp",
+      "camera_model": "Panasonic DMC-GX85",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "PANASONIC DMC-LX100.dcp",
+      "camera_model": "PANASONIC DMC-LX100",
+      "copyright": "public domain"
+    },
+    {
+      "file": "PENTAX K-5 II.dcp",
+      "camera_model": "PENTAX K-5 II",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "PENTAX K-5.dcp",
+      "camera_model": "PENTAX K-5",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "PENTAX K-50.dcp",
+      "camera_model": "PENTAX K-50",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Pentax K-r.dcp",
+      "camera_model": "PENTAX K-r",
+      "copyright": null
+    },
+    {
+      "file": "PENTAX K10D.dcp",
+      "camera_model": "Pentax K10D",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Pentax K200D.dcp",
+      "camera_model": "Pentax K200D",
+      "copyright": null
+    },
+    {
+      "file": "RICOH GR III.dcp",
+      "camera_model": "RICOH GR III",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "RICOH PENTAX K-1.dcp",
+      "camera_model": "PENTAX K-1",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "RICOH PENTAX K-3.dcp",
+      "camera_model": "PENTAX K-3",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY DSC-RX100M6.dcp",
+      "camera_model": "SONY DSC-RX100M6",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY DSLR-A580.dcp",
+      "camera_model": "Sony DSLR-A580",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Sony DSLR-A700.dcp",
+      "camera_model": "Sony DSLR-A700",
+      "copyright": null
+    },
+    {
+      "file": "Sony DSLR-A900.dcp",
+      "camera_model": "Sony DSLR-A900",
+      "copyright": null
+    },
+    {
+      "file": "SONY ILCE-6000.dcp",
+      "camera_model": "Sony ILCE-6000",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-6300.dcp",
+      "camera_model": "Sony ILCE-6300",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-6400.dcp",
+      "camera_model": "SONY ILCE-6400",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-6500.dcp",
+      "camera_model": "Sony ILCE-6500",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-6600.dcp",
+      "camera_model": "SONY ILCE-6600",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-7.dcp",
+      "camera_model": "SONY ILCE-7",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-7C.dcp",
+      "camera_model": "SONY ILCE-7C",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-7M2.dcp",
+      "camera_model": "Sony ILCE-7M2",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-7M3.dcp",
+      "camera_model": "Sony ILCE-7M3",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-7M4.dcp",
+      "camera_model": "SONY ILCE-7M4",
+      "copyright": "RawTherapee CC0"
+    },
+    {
+      "file": "SONY ILCE-7RM3.dcp",
+      "camera_model": "Sony ILCE-7RM3",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "SONY ILCE-7RM4.dcp",
+      "camera_model": "SONY ILCE-7RM4",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-7SM3.dcp",
+      "camera_model": "SONY ILCE-7SM3",
+      "copyright": "public domain"
+    },
+    {
+      "file": "SONY ILCE-9.dcp",
+      "camera_model": "SONY ILCE-9",
+      "copyright": "public domain"
+    },
+    {
+      "file": "Sony NEX-5N.dcp",
+      "camera_model": "Sony NEX-5N",
+      "copyright": null
+    },
+    {
+      "file": "Sony SLT-A55V.dcp",
+      "camera_model": "Sony SLT-A55V",
+      "copyright": null
+    },
+    {
+      "file": "SONY SLT-A99V.dcp",
+      "camera_model": "Sony SLT-A99V",
+      "copyright": "Copyright Maciej Dworak"
+    }
+  ]
+}
