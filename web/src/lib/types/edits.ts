@@ -110,10 +110,42 @@ export function lut3dIsActive(l: Lut3dEdits): boolean {
   return !!l.lut_id && l.amount > 0;
 }
 
+export type DcpMode = 'off' | 'auto' | 'profile';
+export type DcpIlluminant = 'interpolated' | 'first' | 'second';
+
+export interface DcpEdits {
+  mode: DcpMode;
+  profile_id: string | null;
+  illuminant: DcpIlluminant;
+  use_tone_curve: boolean;
+  use_base_table: boolean;
+  use_look_table: boolean;
+  use_baseline_exposure: boolean;
+}
+
+export function neutralDcp(): DcpEdits {
+  return {
+    mode: 'off',
+    profile_id: null,
+    illuminant: 'interpolated',
+    use_tone_curve: true,
+    use_base_table: true,
+    use_look_table: true,
+    use_baseline_exposure: false
+  };
+}
+
+export function dcpIsActive(d: DcpEdits): boolean {
+  if (d.mode === 'off') return false;
+  if (d.mode === 'auto') return true;
+  return !!d.profile_id;
+}
+
 export interface ColorEdits {
   hsl: HslEdits;
   color_grade: ColorGradeEdits;
   lut_3d: Lut3dEdits;
+  dcp: DcpEdits;
 }
 
 export interface DetailEdits {
@@ -417,7 +449,8 @@ export function neutralEdits(): Edits {
     color: {
       hsl: { bands: neutralBands() },
       color_grade: neutralColorGrade(),
-      lut_3d: neutralLut3d()
+      lut_3d: neutralLut3d(),
+      dcp: neutralDcp()
     },
     detail: { ...NEUTRAL_DETAIL },
     effects: { ...NEUTRAL_EFFECTS },
@@ -504,6 +537,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
+    !dcpIsActive(e.color.dcp) &&
     e.detail.sharpen_amount === 0 &&
     e.detail.luma_nr_amount === 0 &&
     e.detail.color_nr_amount === 0 &&
@@ -560,6 +594,16 @@ export function editsToManifest(e: Edits): EditManifest {
   }
   if (lut3dIsActive(e.color.lut_3d))
     ops.lut_3d = { lut_id: e.color.lut_3d.lut_id, amount: e.color.lut_3d.amount };
+  if (dcpIsActive(e.color.dcp))
+    ops.dcp_hue_sat = {
+      mode: e.color.dcp.mode,
+      profile_id: e.color.dcp.profile_id,
+      illuminant: e.color.dcp.illuminant,
+      use_tone_curve: e.color.dcp.use_tone_curve,
+      use_base_table: e.color.dcp.use_base_table,
+      use_look_table: e.color.dcp.use_look_table,
+      use_baseline_exposure: e.color.dcp.use_baseline_exposure
+    };
   if (e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0)
     ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
   if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
@@ -731,6 +775,17 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const lut3d = ops.lut_3d as { lut_id?: string; amount?: number } | undefined;
   if (lut3d?.lut_id !== undefined) edits.color.lut_3d.lut_id = lut3d.lut_id;
   if (lut3d?.amount !== undefined) edits.color.lut_3d.amount = lut3d.amount;
+  const dcp = ops.dcp_hue_sat as Partial<DcpEdits> | undefined;
+  if (dcp) {
+    if (dcp.mode !== undefined) edits.color.dcp.mode = dcp.mode;
+    if (dcp.profile_id !== undefined) edits.color.dcp.profile_id = dcp.profile_id;
+    if (dcp.illuminant !== undefined) edits.color.dcp.illuminant = dcp.illuminant;
+    if (dcp.use_tone_curve !== undefined) edits.color.dcp.use_tone_curve = dcp.use_tone_curve;
+    if (dcp.use_base_table !== undefined) edits.color.dcp.use_base_table = dcp.use_base_table;
+    if (dcp.use_look_table !== undefined) edits.color.dcp.use_look_table = dcp.use_look_table;
+    if (dcp.use_baseline_exposure !== undefined)
+      edits.color.dcp.use_baseline_exposure = dcp.use_baseline_exposure;
+  }
   const wb = ops.white_balance as { temp?: number; tint?: number } | undefined;
   if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
   if (wb?.tint !== undefined) edits.basic.wb_tint = wb.tint;

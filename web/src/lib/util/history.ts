@@ -69,7 +69,11 @@ const FIELDS: FieldDef[] = [
   { kind: 'number', section: 'lens', label: 'Lens Vignetting', get: (e) => e.lens.vignette_amount },
   { kind: 'number', section: 'color', label: 'Color Balance', get: (e) => e.color.color_grade.balance, signed: true },
   { kind: 'number', section: 'color', label: 'Color Blending', get: (e) => e.color.color_grade.blend },
-  { kind: 'number', section: 'color', label: 'LUT Amount', get: (e) => e.color.lut_3d.amount }
+  { kind: 'number', section: 'color', label: 'LUT Amount', get: (e) => e.color.lut_3d.amount },
+  { kind: 'boolean', section: 'color', label: 'DCP Base Table', get: (e) => e.color.dcp.use_base_table },
+  { kind: 'boolean', section: 'color', label: 'DCP Tone Curve', get: (e) => e.color.dcp.use_tone_curve },
+  { kind: 'boolean', section: 'color', label: 'DCP Look Table', get: (e) => e.color.dcp.use_look_table },
+  { kind: 'boolean', section: 'color', label: 'DCP Baseline Exposure', get: (e) => e.color.dcp.use_baseline_exposure }
 ];
 
 const SECTION_LABELS: Record<string, string> = {

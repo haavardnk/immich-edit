@@ -94,6 +94,36 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(editsToManifest(e).ops.lut_3d).toBeUndefined();
   });
 
+  it('preserves dcp profile selection and toggles', () => {
+    const e = neutralEdits();
+    e.color.dcp = {
+      mode: 'profile',
+      profile_id: 'abc123',
+      illuminant: 'second',
+      use_tone_curve: true,
+      use_base_table: false,
+      use_look_table: false,
+      use_baseline_exposure: true
+    };
+    const back = roundTrip(e);
+    expect(back.color.dcp).toEqual(e.color.dcp);
+  });
+
+  it('preserves dcp auto mode', () => {
+    const e = neutralEdits();
+    e.color.dcp.mode = 'auto';
+    const back = roundTrip(e);
+    expect(back.color.dcp.mode).toBe('auto');
+  });
+
+  it('omits inactive dcp from manifest', () => {
+    const e = neutralEdits();
+    expect(editsToManifest(e).ops.dcp_hue_sat).toBeUndefined();
+    e.color.dcp.mode = 'profile';
+    e.color.dcp.profile_id = null;
+    expect(editsToManifest(e).ops.dcp_hue_sat).toBeUndefined();
+  });
+
   it('preserves detail and effects', () => {
     const e = neutralEdits();
     e.detail.sharpen_amount = 40;

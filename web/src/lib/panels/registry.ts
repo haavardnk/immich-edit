@@ -5,6 +5,7 @@ import CurvesPanel from './Curves.svelte';
 import HslPanel from './Hsl.svelte';
 import ColorGradingPanel from './ColorGrading.svelte';
 import LutPanel from './Lut.svelte';
+import DcpPanel from './Dcp.svelte';
 import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import EffectsPanel from './Effects.svelte';
@@ -26,6 +27,7 @@ export const developPanels: PanelDef[] = [
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
   { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: false },
   { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
+  { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
