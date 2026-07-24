@@ -32,7 +32,7 @@ cargo build --workspace
 
 ## Dev workflow
 
-Copy `.env.example` to `.env`, then set `IMMICH_URL`, `IMMICH_API_KEY`, `BIND_ADDR=127.0.0.1:8088`, and `DCP_DIR=crates/backend/assets/dcp`. Vite proxies `/api` there by default. Run the backend and frontend in separate terminals.
+Set `BIND_ADDR=127.0.0.1:8088` and `DCP_DIR=crates/backend/assets/dcp` (via env or a `.env` copied from `.env.example`). Vite proxies `/api` there by default. Run the backend and frontend in separate terminals, then complete the in-app setup wizard with your Immich server URL and an Immich admin account.
 
 Backend (Rust):
 

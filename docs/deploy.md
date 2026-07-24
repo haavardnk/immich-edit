@@ -1,29 +1,24 @@
 # Deploying immich-edit
 
-immich-edit is a single-user backend that talks to Immich over HTTP and serves a static SPA. It does not terminate TLS. For anything beyond a trusted LAN, put it behind a reverse proxy.
+immich-edit talks to Immich over HTTP and serves a static SPA. It does not terminate TLS. For anything beyond a trusted LAN, put it behind a reverse proxy. Users sign in with their own Immich accounts; the Immich connection is configured in the app on first run, not through env vars.
 
 ## Modes
 
 ### Localhost / native
 
-Good for local testing and macOS GPU work. Bind to loopback when `AUTH_TOKEN` is unset.
+Good for local testing and macOS GPU work.
 
 ```bash
-cp .env.example .env
-$EDITOR .env
 cd web && npm ci && npm run build
 cd ..
-set -a
-source .env
-set +a
 cargo run -p immich-edit-backend
 ```
 
-In `.env`, set `BIND_ADDR=127.0.0.1:3000`, `WEB_DIR=web/build`, and `DCP_DIR=crates/backend/assets/dcp` when running from the repository root.
+Set `BIND_ADDR=127.0.0.1:3000`, `WEB_DIR=web/build`, and `DCP_DIR=crates/backend/assets/dcp` when running from the repository root.
 
 Open `http://127.0.0.1:3000`.
 
-### Docker on LAN with built-in token auth
+### Docker on LAN
 
 For a home network where you trust every device that can reach the host.
 
@@ -35,8 +30,6 @@ services:
     image: haavardnk/immich-edit:latest
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     volumes:
       - immich-edit-cache:/cache
     restart: unless-stopped
@@ -45,15 +38,9 @@ volumes:
   immich-edit-cache:
 ```
 
-Set the required values in `.env`:
+Run `docker compose up -d` and open `http://<host>:3000`.
 
-```env
-IMMICH_URL=http://immich-server:2283
-IMMICH_API_KEY=your-api-key-here
-AUTH_TOKEN=choose-a-long-random-token
-```
-
-Then run `docker compose up -d` and open `http://<host>:3000`.
+On first launch, open the app and complete setup: enter the Immich server URL and sign in with an Immich admin account (password or API key). That admin claims the instance and becomes the first user. Everyone else signs in at `/login` with their own Immich credentials, and edits stay per-user. Complete setup before exposing the instance publicly — the first admin to reach the setup screen claims an unconfigured instance.
 
 For local Docker image builds, clone the repository and use [docker-compose.example.yml](../docker-compose.example.yml). It includes a commented build option for development.
 
@@ -61,34 +48,23 @@ For local Docker image builds, clone the repository and use [docker-compose.exam
 
 [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) publishes exact semver tags (`0.2.0`, `0.2`, `0`) plus `latest` for the newest stable release and `edge` for the newest build including prereleases. Prereleases update only `edge` and their exact tag, never `latest`.
 
-`AUTH_TOKEN` is required whenever `BIND_ADDR` is not loopback. Setting `IMMICH_EDIT_INSECURE=1` overrides the startup check; only do this if a reverse proxy is fronting the service.
-
 ### Configuration file
 
-Environment variables are the simplest deployment option. The backend can also read TOML from the path in `IMMICH_EDIT_CONFIG`. Environment variables take precedence over matching file values.
+immich-edit needs no required settings. Optional infrastructure settings can come from the environment or a TOML file at the path in `IMMICH_EDIT_CONFIG`. Environment variables take precedence over matching file values.
 
 ```toml
-immich_url = "http://immich-server:2283"
-immich_api_key = "your-api-key-here"
 bind_addr = "127.0.0.1:3000"
 cache_dir = "./cache"
 renderer = "auto"
 ```
 
-Start the native backend with `IMMICH_EDIT_CONFIG=/path/to/config.toml`. In Docker, mount the file read-only and set `IMMICH_EDIT_CONFIG` to its container path. The file accepts the lowercase forms of the settings in [.env.example](../.env.example), including `auth_token`, `allowed_origins`, cache limits, timeouts, `debug_endpoints`, and `insecure`.
+Start the native backend with `IMMICH_EDIT_CONFIG=/path/to/config.toml`. In Docker, mount the file read-only and set `IMMICH_EDIT_CONFIG` to its container path. The file accepts the lowercase forms of the settings in [.env.example](../.env.example), including `allowed_origins`, cache limits, timeouts, and `debug_endpoints`.
 
-Do not commit a configuration file containing an Immich API key or auth token.
+### Reverse-proxy (recommended for TLS)
 
-### Reverse-proxy auth (recommended for anything exposed)
+immich-edit has its own Immich-federated user system, so a separate auth proxy is optional. A reverse proxy is still recommended to terminate TLS (Caddy, Traefik, nginx). Keep immich-edit on loopback or a private Docker network and let the proxy forward to it.
 
-Let a reverse proxy handle TLS and authentication (Authelia, Authentik, oauth2-proxy, Caddy `basic_auth`, Traefik ForwardAuth). Keep immich-edit on loopback or a private Docker network.
-
-When the proxy authenticates, you can either:
-
-- Leave `AUTH_TOKEN` set and let proxy users still see the token form. Set `IMMICH_EDIT_INSECURE=1` so the backend does not refuse to start on a non-loopback bind.
-- Or unset `AUTH_TOKEN` and bind to loopback (with `IMMICH_EDIT_INSECURE=1` if you bind to `0.0.0.0` for the proxy bridge).
-
-immich-edit has no concept of users itself. The token gate is a single shared secret. Treat it like a SSH key, not a password.
+Each user signs in with their own Immich account; there is no shared password to distribute.
 
 ## Reverse-proxy examples
 
@@ -142,11 +118,6 @@ services:
   immich-edit:
     image: haavardnk/immich-edit:latest
     networks: [proxy]
-    environment:
-      IMMICH_URL: http://immich-server:2283
-      IMMICH_API_KEY: ${IMMICH_API_KEY}
-      AUTH_TOKEN: ${AUTH_TOKEN}
-      IMMICH_EDIT_INSECURE: "1"
     labels:
       - traefik.enable=true
       - traefik.http.routers.immich-edit.rule=Host(`edit.example.com`)
@@ -171,12 +142,7 @@ GPU rendering uses Vulkan inside the container. The image bundles Mesa Vulkan dr
 
 On Unraid (and some other distros without a `render` group), `group_add: [video, render]` fails because the names do not resolve inside the container. Look up the numeric GID of the host group that owns `/dev/dri/renderD128` (`stat -c '%g' /dev/dri/renderD128`) and pass it directly, e.g. `group_add: ["18"]`.
 
-Check which renderer the running instance picked:
-
-```bash
-curl -H "Authorization: Bearer $AUTH_TOKEN" http://localhost:3000/api/health \
-  | jq '{renderer_mode, renderer_active, gpu_adapter}'
-```
+Check which renderer the running instance picked from the in-app **Settings & diagnostics** page (Server section), which shows `renderer_mode`, `renderer_active`, and `gpu_adapter`. The same data is on `GET /api/health`, which requires a signed-in session; `GET /api/health/live` is an unauthenticated liveness probe.
 
 To force the renderer for testing:
 

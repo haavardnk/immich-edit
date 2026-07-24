@@ -45,11 +45,11 @@ body:
   - type: textarea
     id: env
     attributes:
-      label: .env (redacted)
-      description: Replace `IMMICH_API_KEY` and `AUTH_TOKEN` with `***`.
+      label: Environment / config overrides (redacted)
+      description: Any infrastructure settings you changed (BIND_ADDR, ALLOWED_ORIGINS, cache sizes, etc.). Redact anything sensitive.
       render: shell
     validations:
-      required: true
+      required: false
   - type: input
     id: host
     attributes:

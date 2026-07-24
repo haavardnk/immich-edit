@@ -10,7 +10,7 @@ A non-destructive RAW editor for your [Immich](https://immich.app/) library. Bro
 
 ## Why
 
-I wanted Lightroom-style edits on my Immich library without sending photos to the cloud, without exporting to disk first, and without giving up RAW. Nothing in the Immich plugin ecosystem covered this, so I started building it. It is opinionated, single-user, and shaped around how I work.
+I wanted Lightroom-style edits on my Immich library without sending photos to the cloud, without exporting to disk first, and without giving up RAW. Nothing in the Immich plugin ecosystem covered this, so I started building it. It is opinionated and shaped around how I work.
 
 ## What works
 
@@ -56,7 +56,6 @@ Export:
 
 ## What does not work yet
 
-- Single-user only. One shared auth token, no accounts.
 - No HDR output, DNG export, PSD compatibility, or Lightroom/XMP round-trip
 - No AI features
 - Histograms and clipping warnings are basic
@@ -83,22 +82,12 @@ services:
     image: haavardnk/immich-edit:latest
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     volumes:
       - immich-edit-cache:/cache
     restart: unless-stopped
 
 volumes:
   immich-edit-cache:
-```
-
-Create `.env` next to it:
-
-```env
-IMMICH_URL=http://immich-server:2283
-IMMICH_API_KEY=your-api-key-here
-AUTH_TOKEN=choose-a-long-random-token
 ```
 
 Start it:
@@ -109,11 +98,13 @@ docker compose up -d
 
 To build from source or run a local dev setup, see [Development](#development).
 
-Open `http://localhost:3000` and log in with the token.
+Open `http://localhost:3000`. On first run you land on a setup screen: enter your Immich server URL and sign in with an Immich **admin** account (password or API key). That admin claims the instance and becomes the first immich-edit user. After that, anyone with an account on the same Immich server can sign in at `/login` with their own Immich credentials, and each person only ever sees their own edits.
 
-`AUTH_TOKEN` is optional only when the server binds to a loopback address. The Docker Compose example binds to `0.0.0.0`, so set a token unless you also change the bind/security settings.
+> Complete setup before exposing the instance publicly. An unconfigured instance is claimed by the first admin who reaches the setup screen.
 
-For anything beyond a trusted LAN, put immich-edit behind a reverse proxy that handles TLS and authentication (Authelia, Authentik, oauth2-proxy, Caddy `basic_auth`, Traefik ForwardAuth). The shared token is a single secret, not a user system. See [docs/deploy.md](docs/deploy.md) for proxy examples.
+There is no server URL or API key to configure — the Immich connection is set up in the app and each user acts with their own Immich session. Credentials are encrypted at rest.
+
+For anything beyond a trusted LAN, terminate TLS in front of immich-edit with a reverse proxy (Caddy, Traefik, nginx). immich-edit has its own Immich-federated user system, so an extra auth proxy is optional. See [docs/deploy.md](docs/deploy.md) for proxy examples.
 
 ## Documentation
 
@@ -123,9 +114,7 @@ For anything beyond a trusted LAN, put immich-edit behind a reverse proxy that h
 
 ## Configuration
 
-Settings use environment variables or an optional TOML file selected with `IMMICH_EDIT_CONFIG`. Environment variables override values from the file. See [.env.example](.env.example) for the full environment-variable list and [docs/deploy.md](docs/deploy.md#configuration-file) for a TOML example.
-
-`IMMICH_URL` and `IMMICH_API_KEY` are required. Most other settings can stay unset.
+immich-edit needs no required settings — connect to Immich through the in-app setup wizard. Optional infrastructure settings (bind address, cache paths, renderer, cache sizes, timeouts, CORS) use environment variables or an optional TOML file selected with `IMMICH_EDIT_CONFIG`; environment variables override file values. See [.env.example](.env.example) for the full list and [docs/deploy.md](docs/deploy.md#configuration-file) for a TOML example.
 
 ## GPU acceleration
 

@@ -2,10 +2,6 @@
 
 ## Backend will not start
 
-### "Refusing to bind to non-loopback without AUTH_TOKEN"
-
-The backend rejects an exposed bind address with no token. Either set `AUTH_TOKEN`, change `BIND_ADDR` to `127.0.0.1:3000`, or set `IMMICH_EDIT_INSECURE=1` if a reverse proxy is fronting the service.
-
 ### "Cache directory not writable"
 
 The configured `CACHE_DIR` is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
@@ -18,17 +14,31 @@ The default `sqlite://./cache/immich-edit.db?mode=rwc` expects `cache/` to exist
 
 Each CORS origin must be an HTTP or HTTPS origin, not a full URL. Use `https://edit.example.com`, not `https://edit.example.com/api` or `https://edit.example.com/`. Separate env values with commas.
 
+## Sign-in problems
+
+### Stuck on the setup screen
+
+Setup needs an Immich **admin** account for the server you entered. Non-admin credentials are rejected. Confirm the URL is reachable from the immich-edit container and that the account has admin rights in Immich.
+
+### "immich url host is not allowed"
+
+The Immich URL points at a blocked address (link-local, cloud metadata `169.254.169.254`, unspecified, or multicast). Use the server's normal hostname or LAN/private IP. Loopback and private addresses are allowed.
+
+### Cannot log in with a valid Immich account
+
+Password login proxies to Immich; if your Immich uses OAuth-only sign-in, use the **API key** option on the login screen instead. If an admin disabled your access, ask them to re-enable it in Settings. Repeated failures are rate-limited for a few minutes.
+
 ## Immich upstream errors
 
 The Settings page shows a specific Immich status. `/api/health` exposes the same data as `immich_status.kind` and `immich_status.message`.
 
 ### `unreachable`
 
-The backend cannot reach `IMMICH_URL`. Check that the URL is correct, the Immich server is running, and Docker networks let the two containers see each other (typically same Compose network or both on `bridge`).
+The backend cannot reach the configured Immich server. Check that the URL entered during setup is correct, the Immich server is running, and Docker networks let the two containers see each other (typically same Compose network or both on `bridge`). An admin can update the server URL from Settings.
 
 ### `api_key_rejected`
 
-`IMMICH_API_KEY` is rejected. Generate a new key in Immich (Account Settings > API Keys) and restart.
+Your Immich session is no longer valid. Sign out and sign back in; if you signed in with an API key, generate a new key in Immich (Account Settings > API Keys) and use it.
 
 ### `timeout`
 

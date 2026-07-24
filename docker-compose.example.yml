@@ -6,8 +6,6 @@ services:
     # build: .
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     volumes:
       - edit-cache:/cache
     restart: unless-stopped
