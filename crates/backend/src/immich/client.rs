@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use reqwest::Client;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use url::Url;
 use uuid::Uuid;
 
@@ -14,10 +14,40 @@ use super::{ImmichError, ImmichResult};
 
 const API_KEY_HEADER: &str = "x-api-key";
 
+#[derive(Clone)]
+pub enum ImmichAuth {
+    ApiKey(String),
+    Bearer(String),
+}
+
+impl std::fmt::Debug for ImmichAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ApiKey(_) => f.write_str("ApiKey(***)"),
+            Self::Bearer(_) => f.write_str("Bearer(***)"),
+        }
+    }
+}
+
+impl ImmichAuth {
+    fn header(&self) -> ImmichResult<(HeaderName, HeaderValue)> {
+        let (name, value_str) = match self {
+            Self::ApiKey(k) => (HeaderName::from_static(API_KEY_HEADER), k.clone()),
+            Self::Bearer(t) => (reqwest::header::AUTHORIZATION, format!("Bearer {t}")),
+        };
+        let mut value = HeaderValue::from_str(&value_str)
+            .map_err(|_| ImmichError::Decode("invalid auth header".into()))?;
+        value.set_sensitive(true);
+        Ok((name, value))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ImmichClient {
     http: Client,
     base: Url,
+    auth_name: HeaderName,
+    auth_value: HeaderValue,
 }
 
 impl ImmichClient {
@@ -26,20 +56,43 @@ impl ImmichClient {
     }
 
     pub fn with_timeout(base: Url, api_key: &str, request_timeout: Duration) -> ImmichResult<Self> {
-        let mut headers = HeaderMap::new();
-        let mut key_value = HeaderValue::from_str(api_key)
-            .map_err(|_| ImmichError::Decode("invalid api key header".into()))?;
-        key_value.set_sensitive(true);
-        headers.insert(API_KEY_HEADER, key_value);
-        headers.insert("accept", HeaderValue::from_static("application/json"));
+        Self::with_auth(
+            base,
+            ImmichAuth::ApiKey(api_key.to_string()),
+            request_timeout,
+        )
+    }
 
+    pub fn with_auth(base: Url, auth: ImmichAuth, request_timeout: Duration) -> ImmichResult<Self> {
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", HeaderValue::from_static("application/json"));
         let http = Client::builder()
             .default_headers(headers)
             .timeout(request_timeout)
             .connect_timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| ImmichError::Transport(e.to_string()))?;
-        Ok(Self { http, base })
+        let (auth_name, auth_value) = auth.header()?;
+        Ok(Self {
+            http,
+            base,
+            auth_name,
+            auth_value,
+        })
+    }
+
+    pub fn for_auth(&self, auth: ImmichAuth) -> ImmichResult<Self> {
+        let (auth_name, auth_value) = auth.header()?;
+        Ok(Self {
+            http: self.http.clone(),
+            base: self.base.clone(),
+            auth_name,
+            auth_value,
+        })
+    }
+
+    fn authed(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        rb.header(self.auth_name.clone(), self.auth_value.clone())
     }
 
     fn url(&self, path: &str) -> ImmichResult<Url> {
@@ -54,7 +107,23 @@ impl ImmichClient {
 
     pub async fn ping(&self) -> ImmichResult<()> {
         let url = self.url("api/server/ping")?;
-        send(&self.http, self.http.get(url)).await.map(|_| ())
+        send(self.authed(self.http.get(url))).await.map(|_| ())
+    }
+
+    pub async fn login_password(&self, email: &str, password: &str) -> ImmichResult<ImmichLogin> {
+        let url = self.url("api/auth/login")?;
+        let body = serde_json::json!({ "email": email, "password": password });
+        let bytes = send_post_json(self.http.post(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn me(&self) -> ImmichResult<ImmichUser> {
+        self.get_json("api/users/me").await
+    }
+
+    pub async fn logout(&self) -> ImmichResult<()> {
+        let url = self.url("api/auth/logout")?;
+        send(self.authed(self.http.post(url))).await.map(|_| ())
     }
 
     pub async fn list_albums(&self) -> ImmichResult<Vec<AlbumSummary>> {
@@ -71,7 +140,7 @@ impl ImmichClient {
 
     pub async fn thumbnail(&self, id: Uuid, size: ThumbSize) -> ImmichResult<(Bytes, String)> {
         let url = self.url(&format!("api/assets/{id}/thumbnail"))?;
-        let req = self.http.get(url).query(&[("size", size.as_str())]);
+        let req = self.authed(self.http.get(url).query(&[("size", size.as_str())]));
         let resp = run(req).await?;
         let ct = resp
             .headers()
@@ -88,16 +157,17 @@ impl ImmichClient {
 
     pub async fn original(&self, id: Uuid) -> ImmichResult<Bytes> {
         let url = self.url(&format!("api/assets/{id}/original"))?;
-        send(&self.http, self.http.get(url)).await
+        send(self.authed(self.http.get(url))).await
     }
 
     pub async fn list_people(&self, named_only: bool) -> ImmichResult<Vec<PersonSummary>> {
         let url = self.url("api/people")?;
-        let req = self
-            .http
-            .get(url)
-            .query(&[("withHidden", "false"), ("size", "500")]);
-        let bytes = send(&self.http, req).await?;
+        let req = self.authed(
+            self.http
+                .get(url)
+                .query(&[("withHidden", "false"), ("size", "500")]),
+        );
+        let bytes = send(req).await?;
         let resp: PeopleResponse = parse_json(&bytes)?;
         let people = if named_only {
             resp.people
@@ -112,7 +182,7 @@ impl ImmichClient {
 
     pub async fn person_thumb(&self, id: Uuid) -> ImmichResult<(Bytes, String)> {
         let url = self.url(&format!("api/people/{id}/thumbnail"))?;
-        let resp = run(self.http.get(url)).await?;
+        let resp = run(self.authed(self.http.get(url))).await?;
         let ct = resp
             .headers()
             .get(reqwest::header::CONTENT_TYPE)
@@ -136,13 +206,13 @@ impl ImmichClient {
         body: &serde_json::Value,
     ) -> ImmichResult<AssetDetail> {
         let url = self.url(&format!("api/assets/{id}"))?;
-        let bytes = send(&self.http, self.http.put(url).json(body)).await?;
+        let bytes = send(self.authed(self.http.put(url).json(body))).await?;
         parse_json(&bytes)
     }
 
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
         let url = self.url("api/tags")?;
-        let bytes = send(&self.http, self.http.put(url).json(body)).await?;
+        let bytes = send(self.authed(self.http.put(url).json(body))).await?;
         parse_json(&bytes)
     }
 
@@ -153,7 +223,7 @@ impl ImmichClient {
     ) -> ImmichResult<Vec<BulkIdResponse>> {
         let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
         let body = serde_json::json!({ "ids": [asset_id] });
-        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
+        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
         parse_json(&bytes)
     }
 
@@ -164,7 +234,7 @@ impl ImmichClient {
     ) -> ImmichResult<Vec<BulkIdResponse>> {
         let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
         let body = serde_json::json!({ "ids": [asset_id] });
-        let bytes = send(&self.http, self.http.delete(url).json(&body)).await?;
+        let bytes = send(self.authed(self.http.delete(url).json(&body))).await?;
         parse_json(&bytes)
     }
 
@@ -192,7 +262,7 @@ impl ImmichClient {
             .text("fileModifiedAt", file_modified_at.to_string())
             .text("isFavorite", is_favorite.to_string())
             .part("assetData", part);
-        let bytes = send(&self.http, self.http.post(url).multipart(form)).await?;
+        let bytes = send(self.authed(self.http.post(url).multipart(form))).await?;
         parse_json(&bytes)
     }
 
@@ -203,7 +273,7 @@ impl ImmichClient {
     ) -> ImmichResult<Vec<BulkIdResponse>> {
         let url = self.url(&format!("api/albums/{album_id}/assets"))?;
         let body = serde_json::json!({ "ids": asset_ids });
-        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
+        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
         parse_json(&bytes)
     }
 
@@ -214,7 +284,7 @@ impl ImmichClient {
     pub async fn create_stack(&self, asset_ids: &[Uuid]) -> ImmichResult<StackDetail> {
         let url = self.url("api/stacks")?;
         let body = serde_json::json!({ "assetIds": asset_ids });
-        let bytes = send(&self.http, self.http.post(url).json(&body)).await?;
+        let bytes = send(self.authed(self.http.post(url).json(&body))).await?;
         parse_json(&bytes)
     }
 
@@ -225,7 +295,7 @@ impl ImmichClient {
     ) -> ImmichResult<StackDetail> {
         let url = self.url(&format!("api/stacks/{stack_id}"))?;
         let body = serde_json::json!({ "primaryAssetId": primary_asset_id });
-        let bytes = send(&self.http, self.http.put(url).json(&body)).await?;
+        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
         parse_json(&bytes)
     }
 
@@ -235,21 +305,21 @@ impl ImmichClient {
 
     pub async fn folder_assets(&self, path: &str) -> ImmichResult<Vec<AssetDetail>> {
         let url = self.url("api/view/folder")?;
-        let req = self.http.get(url).query(&[("path", path)]);
-        let bytes = send(&self.http, req).await?;
+        let req = self.authed(self.http.get(url).query(&[("path", path)]));
+        let bytes = send(req).await?;
         parse_json(&bytes)
     }
 
     pub async fn search_metadata(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
         let url = self.url("api/search/metadata")?;
-        let bytes = send_post_json(&self.http, url, body).await?;
+        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
         let resp: SearchResponse = parse_json(&bytes)?;
         Ok(resp.assets)
     }
 
     pub async fn search_smart(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
         let url = self.url("api/search/smart")?;
-        let bytes = send_post_json(&self.http, url, body).await?;
+        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
         let resp: SearchResponse = parse_json(&bytes)?;
         Ok(resp.assets)
     }
@@ -259,15 +329,34 @@ impl ImmichClient {
         body: &serde_json::Value,
     ) -> ImmichResult<SearchStatistics> {
         let url = self.url("api/search/statistics")?;
-        let bytes = send_post_json(&self.http, url, body).await?;
+        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
         parse_json(&bytes)
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
         let url = self.url(path)?;
-        let bytes = send(&self.http, self.http.get(url)).await?;
+        let bytes = send(self.authed(self.http.get(url))).await?;
         parse_json(&bytes)
     }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImmichLogin {
+    pub access_token: String,
+    pub user_id: Uuid,
+    pub user_email: String,
+    pub name: String,
+    pub is_admin: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImmichUser {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    pub is_admin: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -293,7 +382,7 @@ impl ThumbSize {
     }
 }
 
-async fn send(_http: &Client, req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
+async fn send(req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
     let resp = run_idempotent(req).await?;
     resp.bytes()
         .await
@@ -304,8 +393,7 @@ fn parse_json<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> ImmichResult<T> {
     serde_json::from_slice(bytes).map_err(|e| ImmichError::Decode(e.to_string()))
 }
 
-async fn send_post_json(http: &Client, url: Url, body: &serde_json::Value) -> ImmichResult<Bytes> {
-    let req = http.post(url).json(body);
+async fn send_post_json(req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
     let resp = run(req).await?;
     resp.bytes()
         .await
