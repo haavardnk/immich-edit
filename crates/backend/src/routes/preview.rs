@@ -9,6 +9,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::render::RenderError;
 use crate::state::AppState;
@@ -36,16 +37,22 @@ pub struct LivePreviewBody {
 
 pub async fn get_preview(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Query(q): Query<PreviewQuery>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
-    let edits = state.edits.get_edits_or_default(id).await.map_err(|e| {
-        tracing::error!(error = %e, "edits store");
-        AppError::Internal
-    })?;
+    let edits = state
+        .edits
+        .get_edits_or_default(ctx.owner, id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "edits store");
+            AppError::Internal
+        })?;
     render_to_response(
         &state,
+        &ctx,
         id,
         edits,
         max_edge,
@@ -58,6 +65,7 @@ pub async fn get_preview(
 
 pub async fn post_preview(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<LivePreviewBody>,
 ) -> Result<Response, AppError> {
@@ -65,6 +73,7 @@ pub async fn post_preview(
     let edits = body.edits.clamped();
     render_to_response(
         &state,
+        &ctx,
         id,
         edits,
         max_edge,
@@ -85,8 +94,10 @@ pub async fn get_meta(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn render_to_response(
     state: &AppState,
+    ctx: &AuthCtx,
     asset_id: Uuid,
     edits: Edits,
     max_edge: u32,
@@ -109,7 +120,7 @@ async fn render_to_response(
         gamut_warn,
         ..Default::default()
     };
-    let work = render.render(asset_id, edits, opts, Some(token));
+    let work = render.render(ctx.immich.clone(), asset_id, edits, opts, Some(token));
     let result = state
         .queue
         .enqueue::<_, _, RenderError>(asset_id, work)

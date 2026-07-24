@@ -6,6 +6,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::routes::auth::AuthCtx;
 use crate::services::edited_thumb::EditedThumbError;
 use crate::state::AppState;
 
@@ -18,11 +19,12 @@ pub struct EditedThumbQuery {
 
 pub async fn get(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Query(q): Query<EditedThumbQuery>,
 ) -> Result<Response, AppError> {
     let size = q.size.unwrap_or(400).clamp(128, 1024);
-    let record = state.edits.get(id).await.map_err(|e| {
+    let record = state.edits.get(ctx.owner, id).await.map_err(|e| {
         tracing::error!(error = %e, "edits store");
         AppError::Internal
     })?;
@@ -32,7 +34,7 @@ pub async fn get(
     let edits = record.manifest.to_edits().clamped();
     let bytes = state
         .edited_thumb
-        .get_or_render(&state.render, id, edits, &q.h, size)
+        .get_or_render(&state.render, ctx.immich.clone(), id, edits, &q.h, size)
         .await
         .map_err(map_err)?;
     let mut resp = Response::new(Body::from(bytes));

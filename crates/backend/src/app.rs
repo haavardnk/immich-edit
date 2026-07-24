@@ -56,7 +56,21 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(routes::health::health))
         .route("/health/live", get(routes::health::live))
         .route("/auth/login", post(routes::auth::login))
-        .route("/auth/logout", post(routes::auth::logout))
+        .route("/auth/login/password", post(routes::auth::login_password))
+        .route("/auth/login/api-key", post(routes::auth::login_api_key))
+        .route("/auth/logout", post(routes::auth::logout_session))
+        .route("/auth/me", get(routes::auth::me))
+        .route("/auth/sessions", get(routes::auth::list_sessions))
+        .route(
+            "/auth/sessions/{id}",
+            axum::routing::delete(routes::auth::revoke_session),
+        )
+        .route(
+            "/auth/sessions/revoke-all",
+            post(routes::auth::revoke_all_sessions),
+        )
+        .route("/setup/status", get(routes::setup::status))
+        .route("/setup/complete", post(routes::setup::complete))
         .route("/debug/timings", get(routes::debug::timings))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
@@ -144,7 +158,8 @@ pub fn router(state: AppState) -> Router {
         )
         .fallback(api_not_found)
         .layer(from_fn_with_state(state.clone(), debug_gate))
-        .layer(from_fn_with_state(state.clone(), auth_middleware))
+        .layer(from_fn(auth_middleware))
+        .layer(from_fn_with_state(state.clone(), inject_auth_context))
         .layer(from_fn(request_id_scope));
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
@@ -218,23 +233,36 @@ fn build_cors(allowed: &[String]) -> CorsLayer {
     base.allow_origin(AllowOrigin::list(origins))
 }
 
-async fn auth_middleware(
+async fn inject_auth_context(
     State(state): State<AppState>,
-    req: Request<Body>,
+    mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    let headers = req.headers().clone();
+    if let Some(ctx) = routes::auth::build_auth_ctx(&state, &headers).await {
+        req.extensions_mut().insert(ctx);
+    }
+    next.run(req).await
+}
+
+async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
     let path = req.uri().path();
-    if path == "/health/live" || path == "/auth/login" {
+    if matches!(
+        path,
+        "/health/live"
+            | "/auth/login"
+            | "/auth/logout"
+            | "/auth/login/password"
+            | "/auth/login/api-key"
+            | "/setup/status"
+            | "/setup/complete"
+    ) {
         return next.run(req).await;
     }
-    let Some(expected) = state.config.auth_token.clone() else {
+    if req.extensions().get::<routes::auth::AuthCtx>().is_some() {
         return next.run(req).await;
-    };
-    let token = routes::auth::extract_token(req.headers());
-    match token {
-        Some(t) if routes::auth::ct_eq(t.as_bytes(), expected.as_bytes()) => next.run(req).await,
-        _ => AppError::Unauthorized.into_response(),
     }
+    AppError::Unauthorized.into_response()
 }
 
 async fn debug_gate(State(state): State<AppState>, req: Request<Body>, next: Next) -> Response {

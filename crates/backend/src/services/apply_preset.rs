@@ -37,13 +37,13 @@ pub async fn run_apply_preset_item(
         .map_err(|e| format!("invalid apply preset params: {e}"))?;
     let preset = state
         .edits
-        .get_preset(params.preset_id)
+        .get_preset(job.user_id, params.preset_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "preset not found".to_string())?;
     let current = state
         .edits
-        .get_edits_or_default(asset_id)
+        .get_edits_or_default(job.user_id, asset_id)
         .await
         .map_err(|e| e.to_string())?;
     let merged = merge_preset(current, preset.manifest.to_edits(), &params);
@@ -57,6 +57,7 @@ pub async fn run_apply_preset_item(
     let saved = state
         .edits
         .put(
+            job.user_id,
             asset_id,
             manifest,
             asset.updated_at,

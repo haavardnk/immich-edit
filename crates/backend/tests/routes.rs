@@ -514,12 +514,10 @@ async fn live_endpoint_works_without_auth() {
 }
 
 #[tokio::test]
-async fn protected_route_requires_auth_when_token_set() {
+async fn protected_route_requires_session_when_configured() {
     let server = MockServer::start().await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.auth_token = Some("secret".into());
-    state.config = std::sync::Arc::new(cfg);
+    let state = test_state(&server).await;
+    state.instance.claim(&server.uri()).await.unwrap();
     let app = router(state);
     let resp = app
         .oneshot(
@@ -638,18 +636,16 @@ async fn request_id_header_propagated() {
 }
 
 #[tokio::test]
-async fn protected_route_rejects_invalid_token() {
+async fn protected_route_rejects_invalid_session_when_configured() {
     let server = MockServer::start().await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.auth_token = Some("secret".into());
-    state.config = std::sync::Arc::new(cfg);
+    let state = test_state(&server).await;
+    state.instance.claim(&server.uri()).await.unwrap();
     let app = router(state);
     let resp = app
         .oneshot(
             Request::builder()
                 .uri("/api/health")
-                .header("authorization", "Bearer wrong")
+                .header("cookie", "immich_edit_auth=bogus")
                 .body(Body::empty())
                 .unwrap(),
         )

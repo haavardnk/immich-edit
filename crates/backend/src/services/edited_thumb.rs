@@ -70,6 +70,7 @@ impl EditedThumbService {
     pub async fn get_or_render(
         &self,
         render: &RenderService,
+        immich: crate::immich::ImmichClient,
         asset_id: Uuid,
         edits: Edits,
         expected_hash: &str,
@@ -104,7 +105,7 @@ impl EditedThumbService {
             preview_mode: PreviewMode::None,
             ..Default::default()
         };
-        let rendered = render.render(asset_id, edits, opts, None).await?;
+        let rendered = render.render(immich, asset_id, edits, opts, None).await?;
         let tmp = path.with_extension("jpg.tmp");
         fs::write(&tmp, &rendered.bytes).await?;
         fs::rename(&tmp, &path).await?;

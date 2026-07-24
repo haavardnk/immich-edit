@@ -16,4 +16,5 @@ pub mod presets;
 pub mod preview;
 pub mod rasters;
 pub mod search;
+pub mod setup;
 pub mod tags;

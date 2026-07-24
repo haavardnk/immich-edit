@@ -67,6 +67,8 @@ impl JobItemStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobRecord {
     pub id: Uuid,
+    #[serde(skip)]
+    pub user_id: Uuid,
     pub kind: String,
     pub status: JobStatus,
     pub target: serde_json::Value,
@@ -121,6 +123,7 @@ impl JobStore {
 
     pub async fn create_job(
         &self,
+        owner: Uuid,
         kind: &str,
         target: &serde_json::Value,
         params: &serde_json::Value,
@@ -144,7 +147,7 @@ impl JobStore {
         .bind(total)
         .bind(&now)
         .bind(&now)
-        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&mut *tx)
         .await?;
 
@@ -171,23 +174,26 @@ impl JobStore {
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
         let row = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at \
-             FROM jobs WHERE id = ?1 AND user_id = ?2",
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id \
+             FROM jobs WHERE id = ?1",
         )
         .bind(id.to_string())
-        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
         .fetch_optional(&self.pool)
         .await?;
         row.as_ref().map(job_from_row).transpose()
     }
 
-    pub async fn list_jobs(&self, limit: i64) -> Result<Vec<JobRecord>, JobStoreError> {
+    pub async fn list_jobs(
+        &self,
+        owner: Uuid,
+        limit: i64,
+    ) -> Result<Vec<JobRecord>, JobStoreError> {
         let rows = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at \
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id \
              FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
-        .bind(crate::services::edits_store::LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_all(&self.pool)
         .await?;
         rows.iter().map(job_from_row).collect()
@@ -394,6 +400,7 @@ fn parse_uuid(s: String) -> Uuid {
 fn job_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord, JobStoreError> {
     Ok(JobRecord {
         id: parse_uuid(row.get("id")),
+        user_id: parse_uuid(row.get("user_id")),
         kind: row.get("kind"),
         status: JobStatus::from_str(&row.get::<String, _>("status")),
         target: serde_json::from_str(&row.get::<String, _>("target_json"))?,
@@ -450,7 +457,13 @@ mod tests {
     async fn create_and_claim_drains_items() {
         let store = store().await;
         let job = store
-            .create_job("test", &json!(null), &json!(null), &items(&["a", "b"]))
+            .create_job(
+                Uuid::nil(),
+                "test",
+                &json!(null),
+                &json!(null),
+                &items(&["a", "b"]),
+            )
             .await
             .unwrap();
         assert_eq!(job.total, 2);
@@ -479,7 +492,13 @@ mod tests {
     async fn cancel_blocks_further_claims() {
         let store = store().await;
         let job = store
-            .create_job("test", &json!(null), &json!(null), &items(&["a", "b"]))
+            .create_job(
+                Uuid::nil(),
+                "test",
+                &json!(null),
+                &json!(null),
+                &items(&["a", "b"]),
+            )
             .await
             .unwrap();
         assert!(store.cancel_job(job.id).await.unwrap());
@@ -495,7 +514,13 @@ mod tests {
     async fn requeue_resets_running_state() {
         let store = store().await;
         let job = store
-            .create_job("test", &json!(null), &json!(null), &items(&["a"]))
+            .create_job(
+                Uuid::nil(),
+                "test",
+                &json!(null),
+                &json!(null),
+                &items(&["a"]),
+            )
             .await
             .unwrap();
         let claimed = store.claim_next_item().await.unwrap().unwrap();

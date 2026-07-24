@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::routes::auth::AuthCtx;
 use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
 use crate::state::AppState;
 
@@ -15,24 +16,30 @@ pub use crate::services::export::{
 
 pub async fn get_export(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Query(params): Query<ExportParams>,
 ) -> Result<Response, AppError> {
-    let edits = state.edits.get_edits_or_default(id).await.map_err(|e| {
-        tracing::error!(error = %e, "edits store");
-        AppError::Internal
-    })?;
-    let (bytes, output) = export::render_export(&state, id, edits, &params).await?;
+    let edits = state
+        .edits
+        .get_edits_or_default(ctx.owner, id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "edits store");
+            AppError::Internal
+        })?;
+    let (bytes, output) = export::render_export(&state, &ctx.immich, id, edits, &params).await?;
     Ok(download_response(id, bytes, output))
 }
 
 pub async fn post_export(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<ExportBody>,
 ) -> Result<Response, AppError> {
     let (bytes, output) =
-        export::render_export(&state, id, body.edits.clamped(), &body.params).await?;
+        export::render_export(&state, &ctx.immich, id, body.edits.clamped(), &body.params).await?;
     Ok(download_response(id, bytes, output))
 }
 
@@ -55,6 +62,7 @@ fn download_response(
 
 pub async fn post_export_immich(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
     Json(body): Json<ExportToImmichBody>,
@@ -62,6 +70,8 @@ pub async fn post_export_immich(
     let idem_key = idempotency_key(&headers)?;
     let result = export::export_to_immich(
         &state,
+        &ctx.immich,
+        ctx.owner,
         ExportImmichRequest {
             asset_id: id,
             body: &body,

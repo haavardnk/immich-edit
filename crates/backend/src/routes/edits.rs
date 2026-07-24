@@ -8,6 +8,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
 };
@@ -39,16 +40,24 @@ pub struct ActionBody {
     pub action: Option<String>,
 }
 
-pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
-    let entries = state.edits.list_edited_assets().await.map_err(map_err)?;
+pub async fn list(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
+    let entries = state
+        .edits
+        .list_edited_assets(ctx.owner)
+        .await
+        .map_err(map_err)?;
     Ok(Json(entries))
 }
 
 pub async fn get(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Json<EditRecord>, AppError> {
-    let record = state.edits.get(id).await.map_err(map_err)?;
+    let record = state.edits.get(ctx.owner, id).await.map_err(map_err)?;
     let record = match record {
         Some(r) => r,
         None => EditRecord {
@@ -67,6 +76,7 @@ pub async fn get(
 
 pub async fn put(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
     Json(body): Json<PutEditsBody>,
@@ -77,7 +87,7 @@ pub async fn put(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim_matches('"').to_string());
     if let Some(expected) = if_match.as_deref() {
-        let current = state.edits.get(id).await?;
+        let current = state.edits.get(ctx.owner, id).await?;
         let current_hash = match &current {
             Some(r) => r.hash.as_str(),
             None => "",
@@ -102,10 +112,11 @@ pub async fn put(
             return Ok((StatusCode::CONFLICT, Json(body)).into_response());
         }
     }
-    let asset = state.immich.asset(id).await?;
+    let asset = ctx.immich.asset(id).await?;
     let saved = state
         .edits
         .put(
+            ctx.owner,
             id,
             manifest,
             asset.updated_at,
@@ -118,6 +129,7 @@ pub async fn put(
 
 pub async fn delete(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     body: Option<Json<ActionBody>>,
 ) -> Result<StatusCode, AppError> {
@@ -126,7 +138,7 @@ pub async fn delete(
         .unwrap_or_else(|| "Reset".to_string());
     state
         .edits
-        .delete(id, Some(action.as_str()))
+        .delete(ctx.owner, id, Some(action.as_str()))
         .await
         .map_err(map_err)?;
     Ok(StatusCode::NO_CONTENT)
@@ -134,6 +146,7 @@ pub async fn delete(
 
 pub async fn auto(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     body: axum::body::Bytes,
 ) -> Result<Json<Edits>, AppError> {
@@ -142,15 +155,19 @@ pub async fn auto(
     } else {
         serde_json::from_slice::<Edits>(&body).unwrap_or_default()
     };
-    let frame = state.render.quality_frame(id).await.map_err(|e| match e {
-        crate::services::render::RenderError::Upstream(u) => u.into(),
-        crate::services::render::RenderError::Pipeline(p) => {
-            tracing::error!(error = %p, "auto-adjust decode");
-            AppError::Internal
-        }
-        crate::services::render::RenderError::Lut(m) => AppError::BadRequest(m),
-        crate::services::render::RenderError::Dcp(m) => AppError::BadRequest(m),
-    })?;
+    let frame = state
+        .render
+        .quality_frame(&ctx.immich, id)
+        .await
+        .map_err(|e| match e {
+            crate::services::render::RenderError::Upstream(u) => u.into(),
+            crate::services::render::RenderError::Pipeline(p) => {
+                tracing::error!(error = %p, "auto-adjust decode");
+                AppError::Internal
+            }
+            crate::services::render::RenderError::Lut(m) => AppError::BadRequest(m),
+            crate::services::render::RenderError::Dcp(m) => AppError::BadRequest(m),
+        })?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
             .await
@@ -165,9 +182,10 @@ fn map_err(err: EditsStoreError) -> AppError {
 
 pub async fn history(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<EditHistoryEntry>>, AppError> {
-    let entries = state.edits.list_history(id).await?;
+    let entries = state.edits.list_history(ctx.owner, id).await?;
     Ok(Json(entries))
 }
 
@@ -178,13 +196,18 @@ pub struct RestoreBody {
 
 pub async fn restore(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<RestoreBody>,
 ) -> Result<Response, AppError> {
-    let Some(entry) = state.edits.get_history_entry(id, body.entry_id).await? else {
+    let Some(entry) = state
+        .edits
+        .get_history_entry(ctx.owner, id, body.entry_id)
+        .await?
+    else {
         return Err(AppError::NotFound);
     };
-    let saved = state.edits.restore_to_entry(id, &entry).await?;
+    let saved = state.edits.restore_to_entry(ctx.owner, id, &entry).await?;
     match saved {
         Some(record) => Ok(Json(record).into_response()),
         None => Ok(StatusCode::NO_CONTENT.into_response()),

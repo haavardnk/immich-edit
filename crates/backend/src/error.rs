@@ -32,6 +32,14 @@ pub enum AppError {
     Conflict(String),
     #[error("superseded")]
     Superseded,
+    #[error("setup required")]
+    SetupRequired,
+    #[error("admin required")]
+    AdminRequired,
+    #[error("access disabled")]
+    AccessDisabled,
+    #[error("rate limited")]
+    RateLimited(Option<u64>),
 }
 
 impl AppError {
@@ -78,6 +86,26 @@ impl AppError {
                 StatusCode::CONFLICT,
                 "superseded",
                 "superseded by newer render".into(),
+            ),
+            Self::SetupRequired => (
+                StatusCode::from_u16(428).unwrap(),
+                "setup_required",
+                "instance setup required".into(),
+            ),
+            Self::AdminRequired => (
+                StatusCode::FORBIDDEN,
+                "admin_required",
+                "administrator access required".into(),
+            ),
+            Self::AccessDisabled => (
+                StatusCode::FORBIDDEN,
+                "access_disabled",
+                "local access is disabled for this account".into(),
+            ),
+            Self::RateLimited(_) => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limited",
+                "too many attempts; try again later".into(),
             ),
         }
     }
@@ -158,7 +186,13 @@ impl IntoResponse for AppError {
         if status.is_server_error() || status == StatusCode::BAD_GATEWAY {
             tracing::warn!(target: "app::error", %request_id, code, message, "request failed");
         }
-        (status, Json(body)).into_response()
+        let mut resp = (status, Json(body)).into_response();
+        if let Self::RateLimited(Some(secs)) = self
+            && let Ok(v) = axum::http::HeaderValue::from_str(&secs.to_string())
+        {
+            resp.headers_mut().insert("retry-after", v);
+        }
+        resp
     }
 }
 

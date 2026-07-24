@@ -1,30 +1,29 @@
 use axum::Json;
-use axum::extract::State;
 
 use crate::error::AppError;
 use crate::immich::dto::{SearchAssets, SearchStatistics};
-use crate::state::AppState;
+use crate::routes::auth::AuthCtx;
 
 pub async fn metadata(
-    State(state): State<AppState>,
+    ctx: AuthCtx,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<SearchAssets>, AppError> {
-    let assets = state.immich.search_metadata(&body).await?;
+    let assets = ctx.immich.search_metadata(&body).await?;
     Ok(Json(assets))
 }
 
 pub async fn smart(
-    State(state): State<AppState>,
+    ctx: AuthCtx,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<SearchAssets>, AppError> {
-    let assets = state.immich.search_smart(&body).await?;
+    let assets = ctx.immich.search_smart(&body).await?;
     Ok(Json(assets))
 }
 
 pub async fn statistics(
-    State(state): State<AppState>,
+    ctx: AuthCtx,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<SearchStatistics>, AppError> {
-    let stats = state.immich.search_statistics(&body).await?;
+    let stats = ctx.immich.search_statistics(&body).await?;
     Ok(Json(stats))
 }

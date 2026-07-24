@@ -105,12 +105,20 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     let hash = hash_request(asset, &body);
     state
         .edits
-        .put_export_job_uploaded(asset, "key-1", &hash, uploaded, "x_edit.jpg", "created")
+        .put_export_job_uploaded(
+            uuid::Uuid::nil(),
+            asset,
+            "key-1",
+            &hash,
+            uploaded,
+            "x_edit.jpg",
+            "created",
+        )
         .await
         .unwrap();
     state
         .edits
-        .complete_export_job(asset, "key-1", &[])
+        .complete_export_job(uuid::Uuid::nil(), asset, "key-1", &[])
         .await
         .unwrap();
 

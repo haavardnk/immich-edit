@@ -224,11 +224,16 @@ pub struct ExportImmichRequest<'a> {
 
 pub async fn render_export(
     state: &AppState,
+    immich: &crate::immich::ImmichClient,
     id: Uuid,
     edits: Edits,
     params: &ExportParams,
 ) -> Result<(Bytes, OutputFormat), AppError> {
-    let frame = state.render.frame(id).await.map_err(map_render_err)?;
+    let frame = state
+        .render
+        .frame(immich, id)
+        .await
+        .map_err(map_render_err)?;
     let output = params.output_format();
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge: EXPORT_MAX_EDGE,
@@ -239,7 +244,7 @@ pub async fn render_export(
     };
     let rendered = state
         .render
-        .render(id, edits, opts, None)
+        .render(immich.clone(), id, edits, opts, None)
         .await
         .map_err(map_render_err)?;
 
@@ -255,6 +260,8 @@ pub async fn render_export(
 
 pub async fn export_to_immich(
     state: &AppState,
+    immich: &crate::immich::ImmichClient,
+    owner: Uuid,
     req: ExportImmichRequest<'_>,
 ) -> Result<ExportToImmichResult, AppError> {
     let id = req.asset_id;
@@ -263,7 +270,7 @@ pub async fn export_to_immich(
     let request_hash = idem_key.as_ref().map(|_| hash_request(id, body));
 
     if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref())
-        && let Some(existing) = state.edits.get_export_job(id, key).await?
+        && let Some(existing) = state.edits.get_export_job(owner, id, key).await?
     {
         if existing.request_hash != hash {
             return Err(AppError::BadRequest(
@@ -273,14 +280,15 @@ pub async fn export_to_immich(
         if existing.status == ExportJobStatus::Completed {
             return Ok(record_to_result(&existing));
         }
-        return resume_export_job(state, id, key, body, existing).await;
+        return resume_export_job(state, immich, owner, id, key, body, existing).await;
     }
 
     let suffix = validate_suffix(&body.filename_suffix)?;
-    let original = state.immich.asset(id).await?;
-    let existing_names = collect_existing_filenames(state, &original).await;
+    let original = immich.asset(id).await?;
+    let existing_names = collect_existing_filenames(immich, &original).await;
 
-    let (bytes, output) = render_export(state, id, body.edits.clamped(), &body.params).await?;
+    let (bytes, output) =
+        render_export(state, immich, id, body.edits.clamped(), &body.params).await?;
     let filename = resolve_filename(
         &original.original_file_name,
         &suffix,
@@ -291,8 +299,7 @@ pub async fn export_to_immich(
         .device_asset_id
         .unwrap_or_else(|| format!("immich-edit-{filename}"));
     let now = Utc::now().to_rfc3339();
-    let upload = state
-        .immich
+    let upload = immich
         .upload_asset(
             &filename,
             output.content_type(),
@@ -310,14 +317,17 @@ pub async fn export_to_immich(
     if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
         state
             .edits
-            .put_export_job_uploaded(id, key, hash, new_id, &filename, &status)
+            .put_export_job_uploaded(owner, id, key, hash, new_id, &filename, &status)
             .await?;
     }
 
-    let warnings = run_post_upload(state, &original, body, new_id, &status).await;
+    let warnings = run_post_upload(state, immich, &original, body, new_id, &status).await;
 
     if let Some(key) = idem_key.as_deref() {
-        state.edits.complete_export_job(id, key, &warnings).await?;
+        state
+            .edits
+            .complete_export_job(owner, id, key, &warnings)
+            .await?;
     }
 
     Ok(ExportToImmichResult {
@@ -368,6 +378,8 @@ fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
 
 async fn resume_export_job(
     state: &AppState,
+    immich: &crate::immich::ImmichClient,
+    owner: Uuid,
     asset_id: Uuid,
     key: &str,
     body: &ExportToImmichBody,
@@ -376,12 +388,12 @@ async fn resume_export_job(
     let Some(new_id) = existing.immich_asset_id else {
         return Err(AppError::Internal);
     };
-    let original = state.immich.asset(asset_id).await?;
+    let original = immich.asset(asset_id).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
-    let warnings = run_post_upload(state, &original, body, new_id, &upload_status).await;
+    let warnings = run_post_upload(state, immich, &original, body, new_id, &upload_status).await;
     state
         .edits
-        .complete_export_job(asset_id, key, &warnings)
+        .complete_export_job(owner, asset_id, key, &warnings)
         .await?;
     Ok(ExportToImmichResult {
         asset_id: new_id,
@@ -393,6 +405,7 @@ async fn resume_export_job(
 
 async fn run_post_upload(
     state: &AppState,
+    immich: &crate::immich::ImmichClient,
     original: &AssetDetail,
     body: &ExportToImmichBody,
     new_id: Uuid,
@@ -403,8 +416,7 @@ async fn run_post_upload(
 
     if body.favorite
         && is_duplicate
-        && let Err(e) = state
-            .immich
+        && let Err(e) = immich
             .update_asset(new_id, &serde_json::json!({ "isFavorite": true }))
             .await
     {
@@ -412,7 +424,7 @@ async fn run_post_upload(
     }
 
     for album_id in &body.album_ids {
-        match state.immich.add_assets_to_album(*album_id, &[new_id]).await {
+        match immich.add_assets_to_album(*album_id, &[new_id]).await {
             Ok(items) => {
                 for item in items {
                     if !item.success {
@@ -428,7 +440,7 @@ async fn run_post_upload(
     }
 
     for tag_id in &body.tag_ids {
-        match state.immich.tag_asset(*tag_id, new_id).await {
+        match immich.tag_asset(*tag_id, new_id).await {
             Ok(items) => {
                 state.tag_counts.invalidate(*tag_id).await;
                 for item in items {
@@ -445,7 +457,7 @@ async fn run_post_upload(
     }
 
     if body.stack_with_original
-        && let Err(e) = stack_with_original(state, original, new_id, body.stack_primary).await
+        && let Err(e) = stack_with_original(immich, original, new_id, body.stack_primary).await
     {
         warnings.push(format!("Stacking failed: {}", short_err(&e)));
     }
@@ -470,12 +482,15 @@ pub fn validate_suffix(raw: &str) -> Result<String, AppError> {
     Ok(trimmed.to_string())
 }
 
-async fn collect_existing_filenames(state: &AppState, original: &AssetDetail) -> Vec<String> {
+async fn collect_existing_filenames(
+    immich: &crate::immich::ImmichClient,
+    original: &AssetDetail,
+) -> Vec<String> {
     let mut names = vec![original.original_file_name.clone()];
     let Some(stack_id) = original.stack_id.or(original.stack.as_ref().map(|s| s.id)) else {
         return names;
     };
-    match state.immich.get_stack(stack_id).await {
+    match immich.get_stack(stack_id).await {
         Ok(stack) => {
             for asset in stack.assets {
                 names.push(asset.original_file_name);
@@ -514,7 +529,7 @@ pub fn resolve_filename(
 }
 
 async fn stack_with_original(
-    state: &AppState,
+    immich: &crate::immich::ImmichClient,
     original: &AssetDetail,
     new_id: Uuid,
     primary: StackPrimary,
@@ -522,7 +537,7 @@ async fn stack_with_original(
     let existing_stack_id = original.stack_id.or(original.stack.as_ref().map(|s| s.id));
     let mut ids: Vec<Uuid> = vec![new_id, original.id];
     if let Some(stack_id) = existing_stack_id
-        && let Ok(stack) = state.immich.get_stack(stack_id).await
+        && let Ok(stack) = immich.get_stack(stack_id).await
     {
         for a in stack.assets {
             if !ids.contains(&a.id) {
@@ -537,12 +552,9 @@ async fn stack_with_original(
     if let Some(pos) = ids.iter().position(|i| *i == primary_id) {
         ids.swap(0, pos);
     }
-    let created = state.immich.create_stack(&ids).await?;
+    let created = immich.create_stack(&ids).await?;
     if created.primary_asset_id != primary_id {
-        state
-            .immich
-            .update_stack_primary(created.id, primary_id)
-            .await?;
+        immich.update_stack_primary(created.id, primary_id).await?;
     }
     Ok(())
 }
@@ -638,6 +650,7 @@ fn parse_job_params(job: &JobRecord) -> Result<ExportJobParams, String> {
 
 async fn job_edits(
     state: &AppState,
+    owner: Uuid,
     params: &ExportJobParams,
     asset_id: Uuid,
 ) -> Result<Edits, String> {
@@ -645,7 +658,7 @@ async fn job_edits(
         Some(manifest) => Ok(manifest.to_edits()),
         None => state
             .edits
-            .get_edits_or_default(asset_id)
+            .get_edits_or_default(owner, asset_id)
             .await
             .map_err(|e| e.to_string()),
     }
@@ -653,7 +666,7 @@ async fn job_edits(
 
 async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
     let params = parse_job_params(job)?;
-    let edits = job_edits(state, &params, asset_id).await?;
+    let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let body = ExportToImmichBody {
         edits: edits.clamped(),
         params: params.params,
@@ -668,6 +681,8 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
     let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(
         state,
+        &state.immich,
+        job.user_id,
         ExportImmichRequest {
             asset_id,
             body: &body,
@@ -682,16 +697,22 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
 
 async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
     let params = parse_job_params(job)?;
-    let edits = job_edits(state, &params, asset_id).await?;
+    let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let suffix = validate_suffix(&params.filename_suffix).map_err(|e| e.to_string())?;
     let original = state
         .immich
         .asset(asset_id)
         .await
         .map_err(|e| e.to_string())?;
-    let (bytes, output) = render_export(state, asset_id, edits.clamped(), &params.params)
-        .await
-        .map_err(|e| e.to_string())?;
+    let (bytes, output) = render_export(
+        state,
+        &state.immich,
+        asset_id,
+        edits.clamped(),
+        &params.params,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     let dir = zip_job_dir(state, job.id);
     tokio::fs::create_dir_all(&dir)
         .await

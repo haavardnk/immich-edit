@@ -101,13 +101,17 @@ impl EditsStore {
         Ok(row.try_get::<Option<i64>, _>("v")?)
     }
 
-    pub async fn get(&self, asset_id: Uuid) -> Result<Option<EditRecord>, EditsStoreError> {
+    pub async fn get(
+        &self,
+        owner: Uuid,
+        asset_id: Uuid,
+    ) -> Result<Option<EditRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
              immich_checksum, updated_at FROM edits WHERE user_id = ?2 AND asset_id = ?1",
         )
         .bind(asset_id.to_string())
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -133,10 +137,14 @@ impl EditsStore {
         }))
     }
 
-    pub async fn get_edits_or_default(&self, asset_id: Uuid) -> Result<Edits, EditsStoreError> {
+    pub async fn get_edits_or_default(
+        &self,
+        owner: Uuid,
+        asset_id: Uuid,
+    ) -> Result<Edits, EditsStoreError> {
         let row = sqlx::query("SELECT edits_json FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
-            .bind(LEGACY_OWNER_ID)
+            .bind(owner.to_string())
             .fetch_optional(&self.pool)
             .await?;
         let Some(row) = row else {
@@ -149,6 +157,7 @@ impl EditsStore {
 
     pub async fn put(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         manifest: EditManifest,
         immich_updated_at: Option<String>,
@@ -178,11 +187,11 @@ impl EditsStore {
         .bind(&immich_updated_at)
         .bind(&immich_checksum)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
-        self.write_history(asset_id, &hash, Some(&edits_json), false, action)
+        self.write_history(owner, asset_id, &hash, Some(&edits_json), false, action)
             .await?;
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
@@ -196,12 +205,15 @@ impl EditsStore {
         })
     }
 
-    pub async fn list_edited_assets(&self) -> Result<Vec<EditedAssetEntry>, EditsStoreError> {
+    pub async fn list_edited_assets(
+        &self,
+        owner: Uuid,
+    ) -> Result<Vec<EditedAssetEntry>, EditsStoreError> {
         let rows = sqlx::query(
             "SELECT asset_id, edits_json, updated_at FROM edits WHERE user_id = ?1 \
              ORDER BY updated_at DESC",
         )
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -226,18 +238,19 @@ impl EditsStore {
 
     pub async fn delete(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         action: Option<&str>,
     ) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
-            .bind(LEGACY_OWNER_ID)
+            .bind(owner.to_string())
             .execute(&self.pool)
             .await?;
         let deleted = res.rows_affected() > 0;
         if deleted {
             let tombstone_hash = Edits::default().stable_hash();
-            self.write_history(asset_id, &tombstone_hash, None, true, action)
+            self.write_history(owner, asset_id, &tombstone_hash, None, true, action)
                 .await?;
         }
         Ok(deleted)
@@ -245,6 +258,7 @@ impl EditsStore {
 
     async fn write_history(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         manifest_hash: &str,
         edits_json: Option<&str>,
@@ -262,7 +276,7 @@ impl EditsStore {
         .bind(if deleted { 1 } else { 0 })
         .bind(&now)
         .bind(action)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         sqlx::query(
@@ -273,7 +287,7 @@ impl EditsStore {
         )
         .bind(asset_id.to_string())
         .bind(HISTORY_LIMIT_PER_ASSET)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -281,6 +295,7 @@ impl EditsStore {
 
     pub async fn list_history(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
     ) -> Result<Vec<EditHistoryEntry>, EditsStoreError> {
         let rows = sqlx::query(
@@ -288,7 +303,7 @@ impl EditsStore {
              FROM edits_history WHERE user_id = ?2 AND asset_id = ?1 ORDER BY created_at DESC, id DESC",
         )
         .bind(asset_id.to_string())
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -312,22 +327,23 @@ impl EditsStore {
 
     pub async fn restore_to_entry(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         entry: &EditHistoryEntry,
     ) -> Result<Option<EditRecord>, EditsStoreError> {
-        let current = self.get(asset_id).await?;
+        let current = self.get(owner, asset_id).await?;
         let immich_updated_at = current.as_ref().and_then(|r| r.immich_updated_at.clone());
         let immich_checksum = current.as_ref().and_then(|r| r.immich_checksum.clone());
         sqlx::query("DELETE FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND id > ?2")
             .bind(asset_id.to_string())
             .bind(entry.id)
-            .bind(LEGACY_OWNER_ID)
+            .bind(owner.to_string())
             .execute(&self.pool)
             .await?;
         if entry.deleted || entry.edits.is_none() {
             sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
                 .bind(asset_id.to_string())
-                .bind(LEGACY_OWNER_ID)
+                .bind(owner.to_string())
                 .execute(&self.pool)
                 .await?;
             return Ok(None);
@@ -353,7 +369,7 @@ impl EditsStore {
         .bind(&immich_updated_at)
         .bind(&immich_checksum)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         let hash = edits.stable_hash();
@@ -371,6 +387,7 @@ impl EditsStore {
 
     pub async fn get_history_entry(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         entry_id: i64,
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
@@ -380,7 +397,7 @@ impl EditsStore {
         )
         .bind(asset_id.to_string())
         .bind(entry_id)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -403,6 +420,7 @@ impl EditsStore {
 
     pub async fn get_history_entry_by_hash(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         manifest_hash: &str,
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
@@ -413,7 +431,7 @@ impl EditsStore {
         )
         .bind(asset_id.to_string())
         .bind(manifest_hash)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -436,6 +454,7 @@ impl EditsStore {
 
     pub async fn get_export_job(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         key: &str,
     ) -> Result<Option<ExportJobRecord>, EditsStoreError> {
@@ -445,7 +464,7 @@ impl EditsStore {
         )
         .bind(asset_id.to_string())
         .bind(key)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -471,8 +490,10 @@ impl EditsStore {
         }))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn put_export_job_uploaded(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         key: &str,
         request_hash: &str,
@@ -499,7 +520,7 @@ impl EditsStore {
         .bind(filename)
         .bind(upload_status)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -507,6 +528,7 @@ impl EditsStore {
 
     pub async fn complete_export_job(
         &self,
+        owner: Uuid,
         asset_id: Uuid,
         key: &str,
         warnings: &[String],
@@ -521,18 +543,18 @@ impl EditsStore {
         .bind(key)
         .bind(&warnings_json)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    pub async fn list_presets(&self) -> Result<Vec<PresetRecord>, EditsStoreError> {
+    pub async fn list_presets(&self, owner: Uuid) -> Result<Vec<PresetRecord>, EditsStoreError> {
         let rows = sqlx::query(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
              FROM presets WHERE user_id = ?1 ORDER BY group_name IS NULL, group_name, name",
         )
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -542,13 +564,17 @@ impl EditsStore {
         Ok(out)
     }
 
-    pub async fn get_preset(&self, id: Uuid) -> Result<Option<PresetRecord>, EditsStoreError> {
+    pub async fn get_preset(
+        &self,
+        owner: Uuid,
+        id: Uuid,
+    ) -> Result<Option<PresetRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
              FROM presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
         let Some(row) = row else {
@@ -559,6 +585,7 @@ impl EditsStore {
 
     pub async fn create_preset(
         &self,
+        owner: Uuid,
         name: &str,
         group_name: Option<&str>,
         manifest: &EditManifest,
@@ -576,7 +603,7 @@ impl EditsStore {
         .bind(&manifest_json)
         .bind(manifest.schema_version as i64)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         Ok(PresetRecord {
@@ -591,6 +618,7 @@ impl EditsStore {
 
     pub async fn update_preset(
         &self,
+        owner: Uuid,
         id: Uuid,
         name: &str,
         group_name: Option<&str>,
@@ -608,19 +636,19 @@ impl EditsStore {
         .bind(&manifest_json)
         .bind(manifest.schema_version as i64)
         .bind(&now)
-        .bind(LEGACY_OWNER_ID)
+        .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
         if res.rows_affected() == 0 {
             return Ok(None);
         }
-        self.get_preset(id).await
+        self.get_preset(owner, id).await
     }
 
-    pub async fn delete_preset(&self, id: Uuid) -> Result<bool, EditsStoreError> {
+    pub async fn delete_preset(&self, owner: Uuid, id: Uuid) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM presets WHERE user_id = ?2 AND id = ?1")
             .bind(id.to_string())
-            .bind(LEGACY_OWNER_ID)
+            .bind(owner.to_string())
             .execute(&self.pool)
             .await?;
         Ok(res.rows_affected() > 0)
@@ -672,6 +700,8 @@ pub struct PresetRecord {
 mod tests {
     use super::*;
 
+    const O: Uuid = Uuid::nil();
+
     fn uid() -> Uuid {
         Uuid::new_v4()
     }
@@ -687,7 +717,7 @@ mod tests {
     #[tokio::test]
     async fn get_missing_returns_none() {
         let s = store().await;
-        if s.get(uid()).await.unwrap().is_some() {
+        if s.get(O, uid()).await.unwrap().is_some() {
             panic!("expected none");
         }
     }
@@ -709,6 +739,7 @@ mod tests {
         });
         let saved = s
             .put(
+                O,
                 id,
                 manifest,
                 Some("2026-01-01T00:00:00Z".into()),
@@ -720,7 +751,7 @@ mod tests {
         if saved.asset_id != id {
             panic!("id");
         }
-        let loaded = s.get(id).await.unwrap().unwrap();
+        let loaded = s.get(O, id).await.unwrap().unwrap();
         let edits = loaded.manifest.to_edits();
         if edits.basic.exposure_ev != 1.0 || edits.geometry.rotate != 90 {
             panic!("edits");
@@ -745,7 +776,7 @@ mod tests {
             },
             ..Default::default()
         });
-        let saved = s.put(id, manifest, None, None, None).await.unwrap();
+        let saved = s.put(O, id, manifest, None, None, None).await.unwrap();
         let edits = saved.manifest.to_edits();
         if edits.basic.exposure_ev > 5.0 {
             panic!("not clamped: {}", edits.basic.exposure_ev);
@@ -759,16 +790,16 @@ mod tests {
     async fn delete_removes() {
         let s = store().await;
         let id = uid();
-        s.put(id, EditManifest::default(), None, None, None)
+        s.put(O, id, EditManifest::default(), None, None, None)
             .await
             .unwrap();
-        if !s.delete(id, None).await.unwrap() {
+        if !s.delete(O, id, None).await.unwrap() {
             panic!("first delete");
         }
-        if s.delete(id, None).await.unwrap() {
+        if s.delete(O, id, None).await.unwrap() {
             panic!("second delete should be false");
         }
-        if s.get(id).await.unwrap().is_some() {
+        if s.get(O, id).await.unwrap().is_some() {
             panic!("still present");
         }
     }
@@ -778,6 +809,7 @@ mod tests {
         let s = store().await;
         let id = uid();
         s.put(
+            O,
             id,
             manifest_with(Edits {
                 basic: raw_pipeline::edits::BasicEdits {
@@ -793,6 +825,7 @@ mod tests {
         .await
         .unwrap();
         s.put(
+            O,
             id,
             manifest_with(Edits {
                 basic: raw_pipeline::edits::BasicEdits {
@@ -807,7 +840,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let loaded = s.get(id).await.unwrap().unwrap();
+        let loaded = s.get(O, id).await.unwrap().unwrap();
         if loaded.manifest.to_edits().basic.exposure_ev != 2.0 {
             panic!("overwrite");
         }
@@ -818,6 +851,7 @@ mod tests {
         let s = store().await;
         let id = uid();
         s.put(
+            O,
             id,
             manifest_with(Edits {
                 basic: raw_pipeline::edits::BasicEdits {
@@ -832,14 +866,14 @@ mod tests {
         )
         .await
         .unwrap();
-        let hist = s.list_history(id).await.unwrap();
+        let hist = s.list_history(O, id).await.unwrap();
         if hist.len() != 1 || hist[0].action.as_deref() != Some("Exposure") {
             panic!("action not stored: {hist:?}");
         }
-        s.put(id, EditManifest::default(), None, None, None)
+        s.put(O, id, EditManifest::default(), None, None, None)
             .await
             .unwrap();
-        let hist = s.list_history(id).await.unwrap();
+        let hist = s.list_history(O, id).await.unwrap();
         if hist.len() != 2 || hist[0].action.is_some() {
             panic!("missing null-action row: {hist:?}");
         }
@@ -849,11 +883,11 @@ mod tests {
     async fn delete_history_roundtrips_action() {
         let s = store().await;
         let id = uid();
-        s.put(id, EditManifest::default(), None, None, Some("Auto"))
+        s.put(O, id, EditManifest::default(), None, None, Some("Auto"))
             .await
             .unwrap();
-        s.delete(id, Some("Brightness")).await.unwrap();
-        let hist = s.list_history(id).await.unwrap();
+        s.delete(O, id, Some("Brightness")).await.unwrap();
+        let hist = s.list_history(O, id).await.unwrap();
         if !hist[0].deleted || hist[0].action.as_deref() != Some("Brightness") {
             panic!("tombstone action: {hist:?}");
         }
@@ -874,12 +908,12 @@ mod tests {
         .execute(&s.pool)
         .await
         .unwrap();
-        let hist = s.list_history(id).await.unwrap();
+        let hist = s.list_history(O, id).await.unwrap();
         if hist.len() != 1 || hist[0].action.is_some() {
             panic!("expected null action: {hist:?}");
         }
         let single = s
-            .get_history_entry_by_hash(id, "deadbeef")
+            .get_history_entry_by_hash(O, id, "deadbeef")
             .await
             .unwrap()
             .unwrap();
@@ -902,20 +936,20 @@ mod tests {
         let s = store().await;
         let asset = uid();
         let new_id = uid();
-        s.put_export_job_uploaded(asset, "k1", "h1", new_id, "f.jpg", "created")
+        s.put_export_job_uploaded(O, asset, "k1", "h1", new_id, "f.jpg", "created")
             .await
             .unwrap();
-        let r = s.get_export_job(asset, "k1").await.unwrap().unwrap();
+        let r = s.get_export_job(O, asset, "k1").await.unwrap().unwrap();
         if r.status != ExportJobStatus::Uploaded
             || r.immich_asset_id != Some(new_id)
             || r.request_hash != "h1"
         {
             panic!("uploaded mismatch: {r:?}");
         }
-        s.complete_export_job(asset, "k1", &["w1".into()])
+        s.complete_export_job(O, asset, "k1", &["w1".into()])
             .await
             .unwrap();
-        let r = s.get_export_job(asset, "k1").await.unwrap().unwrap();
+        let r = s.get_export_job(O, asset, "k1").await.unwrap().unwrap();
         if r.status != ExportJobStatus::Completed || r.warnings != vec!["w1".to_string()] {
             panic!("completed mismatch: {r:?}");
         }
@@ -924,7 +958,7 @@ mod tests {
     #[tokio::test]
     async fn export_job_missing_returns_none() {
         let s = store().await;
-        if s.get_export_job(uid(), "x").await.unwrap().is_some() {
+        if s.get_export_job(O, uid(), "x").await.unwrap().is_some() {
             panic!("expected none");
         }
     }
@@ -940,32 +974,32 @@ mod tests {
             ..Default::default()
         });
         let created = s
-            .create_preset("Warm", Some("Looks"), &manifest)
+            .create_preset(O, "Warm", Some("Looks"), &manifest)
             .await
             .unwrap();
         if created.name != "Warm" || created.group_name.as_deref() != Some("Looks") {
             panic!("create mismatch: {created:?}");
         }
-        let fetched = s.get_preset(created.id).await.unwrap().unwrap();
+        let fetched = s.get_preset(O, created.id).await.unwrap().unwrap();
         if fetched.manifest.to_edits().basic.exposure_ev != 0.5 {
             panic!("manifest not persisted");
         }
         let updated = s
-            .update_preset(created.id, "Cool", None, &EditManifest::default())
+            .update_preset(O, created.id, "Cool", None, &EditManifest::default())
             .await
             .unwrap()
             .unwrap();
         if updated.name != "Cool" || updated.group_name.is_some() {
             panic!("update mismatch: {updated:?}");
         }
-        let all = s.list_presets().await.unwrap();
+        let all = s.list_presets(O).await.unwrap();
         if all.len() != 1 {
             panic!("list len: {}", all.len());
         }
-        if !s.delete_preset(created.id).await.unwrap() {
+        if !s.delete_preset(O, created.id).await.unwrap() {
             panic!("delete returned false");
         }
-        if s.get_preset(created.id).await.unwrap().is_some() {
+        if s.get_preset(O, created.id).await.unwrap().is_some() {
             panic!("preset not deleted");
         }
     }
@@ -974,7 +1008,7 @@ mod tests {
     async fn update_missing_preset_returns_none() {
         let s = store().await;
         let res = s
-            .update_preset(uid(), "x", None, &EditManifest::default())
+            .update_preset(O, uid(), "x", None, &EditManifest::default())
             .await
             .unwrap();
         if res.is_some() {

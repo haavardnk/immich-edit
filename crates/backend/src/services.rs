@@ -1,5 +1,6 @@
 pub mod apply_preset;
 pub mod asset_counts;
+pub mod auth_store;
 pub mod blob_store;
 pub mod crypto;
 pub mod dcp_store;
@@ -10,6 +11,7 @@ pub mod export;
 pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;
+pub mod login_limiter;
 pub mod lut_store;
 pub mod paste_edits;
 pub mod preview_meta;

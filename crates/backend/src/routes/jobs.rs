@@ -13,6 +13,7 @@ use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::routes::auth::AuthCtx;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
@@ -49,13 +50,17 @@ pub struct JobDetail {
     pub items: Vec<JobItemRecord>,
 }
 
-pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<JobRecord>>, AppError> {
-    let jobs = state.jobs.list_jobs(LIST_LIMIT).await?;
+pub async fn list(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+) -> Result<Json<Vec<JobRecord>>, AppError> {
+    let jobs = state.jobs.list_jobs(ctx.owner, LIST_LIMIT).await?;
     Ok(Json(jobs))
 }
 
 pub async fn create(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Json(body): Json<CreateJobBody>,
 ) -> Result<Json<JobRecord>, AppError> {
     let kind = body.kind.trim();
@@ -64,7 +69,7 @@ pub async fn create(
     }
     let asset_ids = if body.asset_ids.is_empty() {
         match body.target.get("search") {
-            Some(query) => expand_search_target(&state, query).await?,
+            Some(query) => expand_search_target(&ctx, query).await?,
             None => {
                 return Err(AppError::BadRequest(
                     "asset_ids or target.search required".into(),
@@ -89,13 +94,13 @@ pub async fn create(
         .collect();
     let job = state
         .jobs
-        .create_job(kind, &body.target, &body.params, &items)
+        .create_job(ctx.owner, kind, &body.target, &body.params, &items)
         .await?;
     Ok(Json(job))
 }
 
 async fn expand_search_target(
-    state: &AppState,
+    ctx: &AuthCtx,
     query: &serde_json::Value,
 ) -> Result<Vec<String>, AppError> {
     let base = query
@@ -109,7 +114,7 @@ async fn expand_search_target(
         if let Some(p) = &page {
             body.insert("page".into(), serde_json::json!(p));
         }
-        let result = state
+        let result = ctx
             .immich
             .search_metadata(&serde_json::Value::Object(body))
             .await?;
@@ -124,17 +129,26 @@ async fn expand_search_target(
 
 pub async fn get(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Json<JobDetail>, AppError> {
     let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.user_id != ctx.owner {
+        return Err(AppError::NotFound);
+    }
     let items = state.jobs.list_items(id).await?;
     Ok(Json(JobDetail { job, items }))
 }
 
 pub async fn cancel(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
+    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.user_id != ctx.owner {
+        return Err(AppError::NotFound);
+    }
     if state.jobs.cancel_job(id).await? {
         Ok(StatusCode::NO_CONTENT)
     } else {
@@ -154,9 +168,13 @@ pub async fn clear(State(state): State<AppState>) -> Result<StatusCode, AppError
 
 pub async fn download(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
     let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.user_id != ctx.owner {
+        return Err(AppError::NotFound);
+    }
     if job.kind != DOWNLOAD_ZIP_KIND {
         return Err(AppError::NotFound);
     }
@@ -185,9 +203,13 @@ pub async fn download(
 
 pub async fn events(
     State(state): State<AppState>,
+    ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
     let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.user_id != ctx.owner {
+        return Err(AppError::NotFound);
+    }
     let rx = state.jobs.subscribe();
     let snapshot = tokio_stream::once(Ok(job_event(&job)));
     let updates = BroadcastStream::new(rx).filter_map(move |res| match res {

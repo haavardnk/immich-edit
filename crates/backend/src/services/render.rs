@@ -41,7 +41,6 @@ pub enum RenderError {
 
 #[derive(Clone)]
 pub struct RenderService {
-    immich: ImmichClient,
     frames: Arc<Mutex<RawFrameCache>>,
     quality_frames: Arc<Mutex<RawFrameCache>>,
     gpu: Arc<RwLock<Option<Arc<GpuRenderer>>>>,
@@ -80,7 +79,6 @@ impl RenderService {
     }
 
     pub fn new(
-        immich: ImmichClient,
         cache: RenderCacheOptions,
         mode: RendererMode,
         rasters: RasterStore,
@@ -90,7 +88,6 @@ impl RenderService {
         let gpu_texture_cache_bytes = cache.gpu_texture_cache_mb.saturating_mul(MB);
         let (gpu, active, gpu_label) = init_gpu(mode, gpu_texture_cache_bytes);
         Self {
-            immich,
             frames: Arc::new(Mutex::new(RawFrameCache::new(
                 cache.raw_frame_cache_mb.saturating_mul(MB),
             ))),
@@ -126,22 +123,30 @@ impl RenderService {
         self.gpu.read().unwrap().as_ref().map(|g| g.pool_stats())
     }
 
-    pub async fn frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
+    pub async fn frame(
+        &self,
+        immich: &ImmichClient,
+        asset_id: Uuid,
+    ) -> Result<Arc<RawFrame>, RenderError> {
         if let Some(f) = self.frames.lock().await.get(&asset_id) {
             return Ok(f);
         }
-        let bytes = self.immich.original(asset_id).await?;
+        let bytes = immich.original(asset_id).await?;
         let frame = decode_blocking(bytes).await?;
         let frame = Arc::new(frame);
         self.frames.lock().await.put(asset_id, frame.clone());
         Ok(frame)
     }
 
-    pub async fn quality_frame(&self, asset_id: Uuid) -> Result<Arc<RawFrame>, RenderError> {
+    pub async fn quality_frame(
+        &self,
+        immich: &ImmichClient,
+        asset_id: Uuid,
+    ) -> Result<Arc<RawFrame>, RenderError> {
         if let Some(f) = self.quality_frames.lock().await.get(&asset_id) {
             return Ok(f);
         }
-        let bytes = self.immich.original(asset_id).await?;
+        let bytes = immich.original(asset_id).await?;
         let frame = decode_quality_blocking(bytes).await?;
         self.quality_frames
             .lock()
@@ -152,15 +157,16 @@ impl RenderService {
 
     pub async fn render(
         &self,
+        immich: ImmichClient,
         asset_id: Uuid,
         edits: Edits,
         mut options: RenderOptions,
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = if options.quality {
-            self.quality_frame(asset_id).await?
+            self.quality_frame(&immich, asset_id).await?
         } else {
-            self.frame(asset_id).await?
+            self.frame(&immich, asset_id).await?
         };
         options.rasters = self.load_rasters_for(&edits).await;
         options.luts = self.load_luts_for(&edits).await?;

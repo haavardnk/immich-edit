@@ -25,7 +25,7 @@ pub async fn run_paste_edits_item(
         .map_err(|e| format!("invalid paste edits params: {e}"))?;
     let current = state
         .edits
-        .get_edits_or_default(asset_id)
+        .get_edits_or_default(job.user_id, asset_id)
         .await
         .map_err(|e| e.to_string())?;
     let mut merged = merge_edits(current, params.manifest.to_edits(), params.sections);
@@ -41,6 +41,7 @@ pub async fn run_paste_edits_item(
     let saved = state
         .edits
         .put(
+            job.user_id,
             asset_id,
             manifest,
             asset.updated_at,
