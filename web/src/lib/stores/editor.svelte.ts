@@ -17,8 +17,8 @@ import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { ConflictError, ApiError } from '$lib/api/client';
 import type { EditRecord } from '$lib/types/edits';
-import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode } from '$lib/api/preview';
-import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
+import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode, type ProofOptions } from '$lib/api/preview';
+import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
@@ -70,6 +70,9 @@ class EditorStore {
   showingOriginal = $state(false);
   splitMode = $state(false);
   splitPos = $state(0.5);
+  proofSpace = $state<ColorSpaceOpt>('srgb');
+  gamutWarn = $state(false);
+  isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
   originalUrl = $state<string | null>(null);
   geometrySession = $state<GeometrySession | null>(null);
   private geometrySessionId = 0;
@@ -109,7 +112,7 @@ class EditorStore {
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       this.pending = true;
-      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, args.previewMode, signal);
+      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, args.previewMode, this.proofOptions(), signal);
       return { url: makeObjectUrl(blob), metaId };
     },
     (args, result) => {
@@ -140,7 +143,7 @@ class EditorStore {
       if (!this.assetId) throw new Error('no asset');
       const snap = $state.snapshot(this.edits) as Edits;
       const edits = originalPreviewEdits(snap);
-      const { blob } = await livePreview(this.assetId, edits, args.edge, 'none', signal);
+      const { blob } = await livePreview(this.assetId, edits, args.edge, 'none', this.proofOptions(), signal);
       return { url: makeObjectUrl(blob) };
     },
     (args, result) => {
@@ -167,11 +170,39 @@ class EditorStore {
     }
   };
 
+  private proofOptions(): ProofOptions {
+    return {
+      colorSpace: this.proofSpace,
+      gamutWarn: this.gamutWarn
+    };
+  }
+
+  private reproof(): void {
+    if (!this.initialised || !this.assetId) return;
+    this.flight.submit({
+      edits: $state.snapshot(this.edits),
+      maxEdge: this.renderedEdge || LIVE_EDGE,
+      previewMode: 'none'
+    });
+    if (this.splitMode) this.refreshOriginal(true);
+  }
+
+  setProofSpace = (space: ColorSpaceOpt): void => {
+    if (this.proofSpace === space) return;
+    this.proofSpace = space;
+    this.reproof();
+  };
+
+  toggleGamutWarn = (): void => {
+    this.gamutWarn = !this.gamutWarn;
+    this.reproof();
+  };
+
   setSplitPos = (p: number): void => {
     this.splitPos = Math.min(1, Math.max(0, p));
   };
 
-  private refreshOriginal(): void {
+  private refreshOriginal(force = false): void {
     if (!this.splitMode || !this.assetId) return;
     const edge = this.renderedEdge || LIVE_EDGE;
     const snap = $state.snapshot(this.edits);
@@ -180,7 +211,7 @@ class EditorStore {
       l: snap.lens,
       d: snap.color.dcp
     });
-    if (this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
+    if (!force && this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
     this.originalFlight.submit({ edge, geomKey });
   }
 

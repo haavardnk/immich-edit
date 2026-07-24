@@ -2,6 +2,7 @@
   import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import ExifSummary from './ExifSummary.svelte';
+  import SoftProofControl from './SoftProofControl.svelte';
   import {
     mdiArrowLeft,
     mdiUndo,
@@ -68,6 +69,7 @@
       disabled={!!editor.geometrySession}
       onclick={editor.toggleSplit}
     />
+    <SoftProofControl />
     {#if editor.assetId}
       <ExifSummary />
     {/if}

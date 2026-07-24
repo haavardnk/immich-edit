@@ -141,6 +141,25 @@ pub fn apply_display_luma(rgb: [f32; 3]) -> f32 {
     0.2126 * display[0] + 0.7152 * display[1] + 0.0722 * display[2]
 }
 
+fn below_gamut(c: [f32; 3]) -> bool {
+    c.iter().any(|&v| v < -1e-4)
+}
+
+pub fn is_out_of_gamut(rgb: [f32; 3], dcp_active: bool, cs: OutputColorSpace) -> bool {
+    if dcp_active {
+        return below_gamut(to_output_space(rgb, cs));
+    }
+    let y = luma(rgb);
+    if y <= 1e-6 {
+        return false;
+    }
+    let scale = highlight_shoulder(y) / y;
+    below_gamut(to_output_space(
+        [rgb[0] * scale, rgb[1] * scale, rgb[2] * scale],
+        cs,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

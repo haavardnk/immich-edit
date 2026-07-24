@@ -1,6 +1,7 @@
 import { getJson, postForBlob } from "./client";
 import type { Edits } from "$lib/types/edits";
 import type { PreviewMeta } from "$lib/types/preview";
+import type { ColorSpaceOpt } from "./export";
 
 export type PreviewMode =
   | "none"
@@ -8,6 +9,11 @@ export type PreviewMode =
   | "sharpen_radius"
   | "sharpen_detail"
   | { mask_weight: { layer_id: string } };
+
+export interface ProofOptions {
+  colorSpace: ColorSpaceOpt;
+  gamutWarn: boolean;
+}
 
 export function maskWeightPreview(layerId: string): PreviewMode {
   return { mask_weight: { layer_id: layerId } };
@@ -26,11 +32,18 @@ export async function livePreview(
   edits: Edits,
   maxEdge: number,
   previewMode: PreviewMode,
+  proof?: ProofOptions,
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     `/api/assets/${assetId}/preview`,
-    { max_edge: maxEdge, edits, preview_mode: previewMode },
+    {
+      max_edge: maxEdge,
+      edits,
+      preview_mode: previewMode,
+      output_color_space: proof?.colorSpace ?? "srgb",
+      gamut_warn: proof?.gamutWarn ?? false,
+    },
     signal,
   );
 }

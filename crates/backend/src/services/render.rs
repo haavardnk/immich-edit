@@ -197,7 +197,7 @@ impl RenderService {
             opts.preview_mode,
             raw_pipeline::frame::PreviewMode::MaskWeight { .. }
         );
-        if matches!(self.gpu_mode, RendererMode::Cpu) || mask_preview {
+        if matches!(self.gpu_mode, RendererMode::Cpu) || mask_preview || opts.gamut_warn {
             return raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel);
         }
         let gpu = self.gpu_or_rebuild();

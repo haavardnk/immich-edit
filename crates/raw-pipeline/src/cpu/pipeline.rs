@@ -24,6 +24,8 @@ type DcpFinish<'a> = (
     &'a [[f32; 3]; 3],
 );
 
+const GAMUT_WARN_RGB: [u8; 3] = [255, 0, 255];
+
 pub fn render(
     frame: &RawFrame,
     edits: &Edits,
@@ -118,6 +120,7 @@ pub fn render_with_cancel(
         dcp_active,
         dcp_finish,
         options.output_color_space,
+        options.gamut_warn,
     );
     cancel::check(cancel)?;
 
@@ -494,6 +497,7 @@ fn finish_output(
     dcp_active: bool,
     dcp_finish: Option<DcpFinish>,
     color_space: OutputColorSpace,
+    gamut_warn: bool,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -524,9 +528,9 @@ fn finish_output(
         )
     };
 
-    let finalize = |lr: f32, lg: f32, lb: f32| -> [f32; 3] {
+    let finalize = |lr: f32, lg: f32, lb: f32| -> ([f32; 3], bool) {
         if display_ready {
-            return [lr, lg, lb];
+            return ([lr, lg, lb], false);
         }
         let finished = match dcp_finish {
             Some((look, curve, to_pp, from_pp)) => {
@@ -534,8 +538,9 @@ fn finish_output(
             }
             None => [lr, lg, lb],
         };
+        let clip = gamut_warn && crate::tone::is_out_of_gamut(finished, dcp_active, color_space);
         let display = crate::tone::apply_rgb_dcp_cs(finished, dcp_active, color_space);
-        apply_display_lut(display, lut)
+        (apply_display_lut(display, lut), clip)
     };
 
     let (lin_bins, dis_bins) = if want_16bit {
@@ -552,7 +557,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = finalize(lr, lg, lb);
+                    let ([tr, tg, tb], clip) = finalize(lr, lg, lb);
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -568,6 +573,11 @@ fn finish_output(
                     if p % step == 0 {
                         fold_linear(&mut acc.0, lr, lg, lb);
                         fold_display(&mut acc.1, ru, gu, bu);
+                    }
+                    if clip {
+                        u8c[i] = GAMUT_WARN_RGB[0];
+                        u8c[i + 1] = GAMUT_WARN_RGB[1];
+                        u8c[i + 2] = GAMUT_WARN_RGB[2];
                     }
                     i += 3;
                     p += 1;
@@ -588,7 +598,7 @@ fn finish_output(
                     let lr = s[i];
                     let lg = s[i + 1];
                     let lb = s[i + 2];
-                    let [tr, tg, tb] = finalize(lr, lg, lb);
+                    let ([tr, tg, tb], clip) = finalize(lr, lg, lb);
                     let abs_px = base_px + p;
                     let px = (abs_px % w) as u32;
                     let py = (abs_px / w) as u32;
@@ -601,6 +611,11 @@ fn finish_output(
                     if p % step == 0 {
                         fold_linear(&mut acc.0, lr, lg, lb);
                         fold_display(&mut acc.1, ru, gu, bu);
+                    }
+                    if clip {
+                        u8c[i] = GAMUT_WARN_RGB[0];
+                        u8c[i + 1] = GAMUT_WARN_RGB[1];
+                        u8c[i + 2] = GAMUT_WARN_RGB[2];
                     }
                     i += 3;
                     p += 1;
@@ -635,9 +650,67 @@ mod tests {
             false,
             None,
             OutputColorSpace::SRgb,
+            false,
         );
         if rgb.iter().any(|value| !(126..=129).contains(value)) {
             panic!("expected display-ready midpoint, got {rgb:?}");
+        }
+    }
+
+    #[test]
+    fn gamut_warn_paints_out_of_gamut_pixels() {
+        let (rgb, _, _, _) = finish_output(
+            vec![0.9, -0.1, 0.2],
+            1,
+            1,
+            false,
+            false,
+            None,
+            false,
+            None,
+            OutputColorSpace::SRgb,
+            true,
+        );
+        if rgb != vec![255, 0, 255] {
+            panic!("expected magenta gamut warning, got {rgb:?}");
+        }
+    }
+
+    #[test]
+    fn gamut_warn_ignores_bright_in_gamut_pixels() {
+        let (rgb, _, _, _) = finish_output(
+            vec![4.0, 0.0, 0.0],
+            1,
+            1,
+            false,
+            false,
+            None,
+            false,
+            None,
+            OutputColorSpace::SRgb,
+            true,
+        );
+        if rgb == vec![255, 0, 255] {
+            panic!("bright in-gamut red must not be flagged out of gamut");
+        }
+    }
+
+    #[test]
+    fn gamut_warn_leaves_in_gamut_pixels() {
+        let (rgb, _, _, _) = finish_output(
+            vec![0.5, 0.5, 0.5],
+            1,
+            1,
+            false,
+            false,
+            None,
+            false,
+            None,
+            OutputColorSpace::SRgb,
+            true,
+        );
+        if rgb == vec![255, 0, 255] {
+            panic!("neutral gray must not be flagged out of gamut");
         }
     }
 

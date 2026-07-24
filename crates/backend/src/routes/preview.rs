@@ -4,7 +4,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::Edits;
-use raw_pipeline::frame::PreviewMode;
+use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -28,6 +28,10 @@ pub struct LivePreviewBody {
     pub edits: Edits,
     #[serde(default)]
     pub preview_mode: PreviewMode,
+    #[serde(default)]
+    pub output_color_space: OutputColorSpace,
+    #[serde(default)]
+    pub gamut_warn: bool,
 }
 
 pub async fn get_preview(
@@ -40,7 +44,16 @@ pub async fn get_preview(
         tracing::error!(error = %e, "edits store");
         AppError::Internal
     })?;
-    render_to_response(&state, id, edits, max_edge, PreviewMode::None).await
+    render_to_response(
+        &state,
+        id,
+        edits,
+        max_edge,
+        PreviewMode::None,
+        OutputColorSpace::SRgb,
+        false,
+    )
+    .await
 }
 
 pub async fn post_preview(
@@ -50,7 +63,16 @@ pub async fn post_preview(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
     let edits = body.edits.clamped();
-    render_to_response(&state, id, edits, max_edge, body.preview_mode).await
+    render_to_response(
+        &state,
+        id,
+        edits,
+        max_edge,
+        body.preview_mode,
+        body.output_color_space,
+        body.gamut_warn,
+    )
+    .await
 }
 
 pub async fn get_meta(
@@ -69,6 +91,8 @@ async fn render_to_response(
     edits: Edits,
     max_edge: u32,
     preview_mode: PreviewMode,
+    output_color_space: OutputColorSpace,
+    gamut_warn: bool,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
     let tracker = state.queue.tracker(asset_id).await;
@@ -80,7 +104,9 @@ async fn render_to_response(
             quality: 85,
             subsampling: raw_pipeline::frame::JpegSubsampling::Chroma444,
         },
+        output_color_space,
         preview_mode: preview_mode.clone(),
+        gamut_warn,
         ..Default::default()
     };
     let work = render.render(asset_id, edits, opts, Some(token));
@@ -99,7 +125,7 @@ async fn render_to_response(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    if matches!(preview_mode, PreviewMode::None) {
+    if matches!(preview_mode, PreviewMode::None) && !gamut_warn {
         let meta = PreviewMeta {
             asset_id,
             width: rendered.width,
