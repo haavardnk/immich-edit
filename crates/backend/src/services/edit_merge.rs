@@ -16,8 +16,6 @@ pub struct MergeSections {
     #[serde(default)]
     pub lens: bool,
     #[serde(default)]
-    pub output: bool,
-    #[serde(default)]
     pub geometry: bool,
     #[serde(default)]
     pub masks: bool,
@@ -32,17 +30,13 @@ impl MergeSections {
             detail: true,
             effects: true,
             lens: true,
-            output: false,
             geometry: false,
             masks: false,
         }
     }
 
     pub fn paste_default() -> Self {
-        Self {
-            output: true,
-            ..Self::look_only()
-        }
+        Self::look_only()
     }
 }
 
@@ -60,7 +54,6 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
         lens: pick(sections.lens, incoming.lens, current.lens),
         geometry: pick(sections.geometry, incoming.geometry, current.geometry),
         masks: pick(sections.masks, incoming.masks, current.masks),
-        output: pick(sections.output, incoming.output, current.output),
         unknown_ops: current.unknown_ops,
     }
 }
@@ -68,18 +61,16 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use raw_pipeline::edits::TonemapKind;
 
     fn incoming() -> Edits {
         let mut e = Edits::default();
         e.effects.vignette_amount = 40.0;
         e.geometry.rotate = 2;
-        e.output.tonemap = TonemapKind::Agx;
         e
     }
 
     #[test]
-    fn paste_default_applies_look_and_output() {
+    fn paste_default_applies_look() {
         let mut current = Edits::default();
         current.geometry.rotate = 3;
         current
@@ -87,7 +78,6 @@ mod tests {
             .insert("future_op".to_string(), serde_json::json!({ "x": 1 }));
         let merged = merge_edits(current, incoming(), MergeSections::paste_default());
         assert_eq!(merged.effects.vignette_amount, 40.0);
-        assert_eq!(merged.output.tonemap, TonemapKind::Agx);
         assert_eq!(merged.geometry.rotate, 3);
         assert!(merged.unknown_ops.contains_key("future_op"));
     }
@@ -104,7 +94,6 @@ mod tests {
                 detail: false,
                 effects: false,
                 lens: false,
-                output: false,
                 geometry: false,
                 masks: false,
             }
@@ -112,14 +101,12 @@ mod tests {
         let merged = merge_edits(current, incoming(), sections);
         assert_eq!(merged.geometry.rotate, 2);
         assert_eq!(merged.effects.vignette_amount, 0.0);
-        assert_eq!(merged.output.tonemap, TonemapKind::Default);
     }
 
     #[test]
-    fn look_only_excludes_output_geometry_masks() {
+    fn look_only_excludes_geometry_masks() {
         let merged = merge_edits(Edits::default(), incoming(), MergeSections::look_only());
         assert_eq!(merged.effects.vignette_amount, 40.0);
         assert_eq!(merged.geometry.rotate, 0);
-        assert_eq!(merged.output.tonemap, TonemapKind::Default);
     }
 }

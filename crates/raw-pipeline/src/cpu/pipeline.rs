@@ -113,7 +113,6 @@ pub fn render_with_cancel(
         w,
         h,
         want_16bit,
-        edits.output,
         display_ready,
         lut_ref,
         dcp_active,
@@ -175,7 +174,7 @@ pub fn run_pipeline_ops(
         };
         run_pipeline_ops(image, &global_ctx, &global_edits, rasters, cancel)?;
         let warp = LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
-        crate::cpu::masked::render_mask_overlay(image, &eval, &warp, edits.output);
+        crate::cpu::masked::render_mask_overlay(image, &eval, &warp);
         let registry = default_registry();
         for op in registry.ops().iter() {
             cancel::check(cancel)?;
@@ -246,14 +245,7 @@ pub fn run_pipeline_ops(
                 segment.clear();
             }
         } else if !segment.is_empty() || layer_segments.iter().any(|s| !s.is_empty()) {
-            apply_segment_masked(
-                image,
-                segment,
-                layer_segments,
-                layer_evals,
-                &lens_warp,
-                edits.output,
-            );
+            apply_segment_masked(image, segment, layer_segments, layer_evals, &lens_warp);
             segment.clear();
             for s in layer_segments.iter_mut() {
                 s.clear();
@@ -489,7 +481,6 @@ fn finish_output(
     w: usize,
     h: usize,
     want_16bit: bool,
-    output: crate::edits::OutputEdits,
     display_ready: bool,
     lut: Option<(&crate::lut::Lut3d, f32)>,
     dcp_active: bool,
@@ -534,7 +525,7 @@ fn finish_output(
             }
             None => [lr, lg, lb],
         };
-        let display = crate::tone::apply_rgb_dcp(finished, output, dcp_active);
+        let display = crate::tone::apply_rgb_dcp(finished, dcp_active);
         apply_display_lut(display, lut)
     };
 
@@ -625,17 +616,8 @@ mod tests {
 
     #[test]
     fn display_ready_output_skips_tone_mapping() {
-        let (rgb, _, _, _) = finish_output(
-            vec![0.5, 0.5, 0.5],
-            1,
-            1,
-            false,
-            Default::default(),
-            true,
-            None,
-            false,
-            None,
-        );
+        let (rgb, _, _, _) =
+            finish_output(vec![0.5, 0.5, 0.5], 1, 1, false, true, None, false, None);
         if rgb.iter().any(|value| !(126..=129).contains(value)) {
             panic!("expected display-ready midpoint, got {rgb:?}");
         }

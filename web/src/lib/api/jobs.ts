@@ -110,7 +110,6 @@ export function createZipExportJob(
 export interface ApplyPresetOptions {
   includeGeometry: boolean;
   includeMasks: boolean;
-  includeOutput: boolean;
 }
 
 export function createApplyPresetJob(
@@ -125,7 +124,6 @@ export function createApplyPresetJob(
       preset_id: presetId,
       include_geometry: opts.includeGeometry,
       include_masks: opts.includeMasks,
-      include_output: opts.includeOutput,
     },
   });
 }

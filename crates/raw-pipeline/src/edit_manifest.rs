@@ -185,7 +185,6 @@ mod tests {
                 aspect: Default::default(),
             },
             masks: Vec::new(),
-            output: Default::default(),
             unknown_ops: Default::default(),
         };
         let manifest = EditManifest::from_edits(&original);

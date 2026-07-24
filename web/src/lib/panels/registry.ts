@@ -9,7 +9,6 @@ import DcpPanel from './Dcp.svelte';
 import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import EffectsPanel from './Effects.svelte';
-import DisplayPanel from './Display.svelte';
 import PresetsPanel from './Presets.svelte';
 
 export interface PanelDef {
@@ -31,6 +30,5 @@ export const developPanels: PanelDef[] = [
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
-  { id: 'display', title: 'Display', component: DisplayPanel, defaultOpen: false },
 ];
 

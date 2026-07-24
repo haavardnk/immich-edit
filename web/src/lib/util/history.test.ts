@@ -197,20 +197,14 @@ describe('historyDetails', () => {
     ]);
   });
 
-  it('summarizes output and hidden lens profile changes', () => {
+  it('summarizes hidden lens profile changes', () => {
     const prev = neutralEdits();
     const curr = neutralEdits();
-    curr.output.tonemap = 'agx';
     curr.lens.k1 = 0.1;
     curr.lens.ca_red_scale_x10000 = 12;
 
     const details = historyDetails(entry({ edits: curr }), entry({ edits: prev }));
 
-    expect(details).toContainEqual({
-      key: 'output',
-      label: 'Output',
-      items: [{ kind: 'summary', text: 'Tonemap: Default → AgX' }]
-    });
     expect(details).toContainEqual({
       key: 'lens',
       label: 'Lens',

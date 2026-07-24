@@ -6,7 +6,6 @@ test('history popover expands details and restores a prior entry', async ({ page
   const latestEdits = neutralEdits();
   latestEdits.basic.exposure_ev = 1.25;
   latestEdits.geometry.rotate = 90;
-  latestEdits.output.tonemap = 'agx';
   const entries = [
     {
       id: 2,
@@ -42,7 +41,6 @@ test('history popover expands details and restores a prior entry', async ({ page
   await page.getByRole('button', { name: 'Expand changes for Latest' }).click();
   await expect(page.getByText('0.00 → +1.25')).toBeVisible();
   await expect(page.getByText('Rotation: 0° → 90°')).toBeVisible();
-  await expect(page.getByText('Tonemap: Default → AgX')).toBeVisible();
   expect(restoreCalled).toBe(false);
   await expect(page.getByText('Initial')).toBeVisible();
   await page.getByText('Initial').click();

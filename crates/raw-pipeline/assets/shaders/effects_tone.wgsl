@@ -111,7 +111,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (p.output.y == 1u) {
         outc = tone_dcp_rgb(lin);
     } else {
-        outc = tone_apply_rgb(lin, p.output.x);
+        outc = tone_apply_rgb(lin);
     }
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
     textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, 1.0));

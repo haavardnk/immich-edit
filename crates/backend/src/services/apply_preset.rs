@@ -17,13 +17,10 @@ pub struct ApplyPresetParams {
     pub include_geometry: bool,
     #[serde(default)]
     pub include_masks: bool,
-    #[serde(default)]
-    pub include_output: bool,
 }
 
 pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -> Edits {
     let sections = MergeSections {
-        output: params.include_output,
         geometry: params.include_geometry,
         masks: params.include_masks,
         ..MergeSections::look_only()
@@ -78,14 +75,12 @@ pub async fn run_apply_preset_item(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use raw_pipeline::edits::TonemapKind;
 
-    fn params(geometry: bool, output: bool) -> ApplyPresetParams {
+    fn params(geometry: bool) -> ApplyPresetParams {
         ApplyPresetParams {
             preset_id: Uuid::nil(),
             include_geometry: geometry,
             include_masks: false,
-            include_output: output,
         }
     }
 
@@ -93,27 +88,24 @@ mod tests {
         let mut e = Edits::default();
         e.effects.vignette_amount = 40.0;
         e.geometry.rotate = 2;
-        e.output.tonemap = TonemapKind::Agx;
         e
     }
 
     #[test]
     fn look_groups_always_replaced() {
-        let merged = merge_preset(Edits::default(), preset_edits(), &params(false, false));
+        let merged = merge_preset(Edits::default(), preset_edits(), &params(false));
         assert_eq!(merged.effects.vignette_amount, 40.0);
     }
 
     #[test]
     fn excluded_groups_keep_current() {
-        let merged = merge_preset(Edits::default(), preset_edits(), &params(false, false));
+        let merged = merge_preset(Edits::default(), preset_edits(), &params(false));
         assert_eq!(merged.geometry.rotate, 0);
-        assert_eq!(merged.output.tonemap, TonemapKind::Default);
     }
 
     #[test]
     fn included_groups_take_preset() {
-        let merged = merge_preset(Edits::default(), preset_edits(), &params(true, true));
+        let merged = merge_preset(Edits::default(), preset_edits(), &params(true));
         assert_eq!(merged.geometry.rotate, 2);
-        assert_eq!(merged.output.tonemap, TonemapKind::Agx);
     }
 }

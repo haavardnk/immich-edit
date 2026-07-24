@@ -2,12 +2,10 @@
   let {
     includeGeometry = $bindable(),
     includeMasks = $bindable(),
-    includeOutput = $bindable(),
     bordered = false
   }: {
     includeGeometry: boolean;
     includeMasks: boolean;
-    includeOutput: boolean;
     bordered?: boolean;
   } = $props();
 </script>
@@ -25,9 +23,5 @@
   <label class="flex items-center gap-2">
     <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeMasks} />
     Masks
-  </label>
-  <label class="flex items-center gap-2">
-    <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeOutput} />
-    Tonemap
   </label>
 </div>

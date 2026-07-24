@@ -7,7 +7,6 @@ export interface CopySections {
   detail: boolean;
   effects: boolean;
   lens: boolean;
-  output: boolean;
   geometry: boolean;
   masks: boolean;
 }
@@ -20,8 +19,7 @@ export const DEVELOP_KEYS: SectionKey[] = [
   'color',
   'detail',
   'lens',
-  'effects',
-  'output'
+  'effects'
 ];
 
 export const SECTION_LABELS: Record<SectionKey, string> = {
@@ -31,7 +29,6 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   detail: 'Detail',
   lens: 'Lens Corrections',
   effects: 'Effects',
-  output: 'Tonemap',
   geometry: 'Geometry & crop',
   masks: 'Masks'
 };
@@ -44,7 +41,6 @@ export function allSections(value: boolean): CopySections {
     detail: value,
     effects: value,
     lens: value,
-    output: value,
     geometry: value,
     masks: value
   };
@@ -75,7 +71,6 @@ export function applyCopySections(current: Edits, incoming: Edits, sections: Cop
     effects: sections.effects ? incoming.effects : current.effects,
     lens: sections.lens ? incoming.lens : current.lens,
     geometry: sections.geometry ? incoming.geometry : current.geometry,
-    masks: sections.masks ? incoming.masks : current.masks,
-    output: sections.output ? incoming.output : current.output
+    masks: sections.masks ? incoming.masks : current.masks
   };
 }

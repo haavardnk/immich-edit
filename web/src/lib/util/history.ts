@@ -248,14 +248,6 @@ export function historyDetails(
     { key: 'masks', label: 'Masks', items: maskItems(prev.masks, curr.masks) },
     { key: 'geometry', label: 'Geometry', items: geometryItems(prev.geometry, curr.geometry) }
   ];
-  if (prev.output.tonemap !== curr.output.tonemap) {
-    const label = (value: Edits['output']['tonemap']): string => value === 'agx' ? 'AgX' : 'Default';
-    nested.push({
-      key: 'output',
-      label: 'Output',
-      items: [{ kind: 'summary', text: `Tonemap: ${label(prev.output.tonemap)} → ${label(curr.output.tonemap)}` }]
-    });
-  }
   if (profileChanged(prev.lens, curr.lens)) {
     let group = groups.get('lens');
     if (!group) {

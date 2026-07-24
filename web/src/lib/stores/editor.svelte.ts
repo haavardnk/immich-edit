@@ -178,7 +178,6 @@ class EditorStore {
     const geomKey = JSON.stringify({
       g: snap.geometry,
       l: snap.lens,
-      o: snap.output,
       d: snap.color.dcp
     });
     if (this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
@@ -375,7 +374,7 @@ class EditorStore {
 
   applyPreset = async (
     manifest: EditManifest,
-    opts: { includeGeometry: boolean; includeMasks: boolean; includeOutput: boolean },
+    opts: { includeGeometry: boolean; includeMasks: boolean },
     name?: string
   ): Promise<void> => {
     if (!this.initialised) return;
@@ -388,8 +387,7 @@ class EditorStore {
       effects: incoming.effects,
       lens: incoming.lens,
       geometry: opts.includeGeometry ? incoming.geometry : this.edits.geometry,
-      masks: opts.includeMasks ? incoming.masks : this.edits.masks,
-      output: opts.includeOutput ? incoming.output : this.edits.output
+      masks: opts.includeMasks ? incoming.masks : this.edits.masks
     };
     this.onLive();
     await this.onCommit(name ? `Preset: ${name}` : 'Preset');

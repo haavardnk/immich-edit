@@ -11,7 +11,6 @@
   let presetId = $state<string | null>(null);
   let includeGeometry = $state(false);
   let includeMasks = $state(false);
-  let includeOutput = $state(false);
   let busy = $state(false);
 
   $effect(() => {
@@ -29,7 +28,7 @@
     const id = presetId;
     busy = true;
     await runBulkJob(
-      (target) => createApplyPresetJob(target, id, { includeGeometry, includeMasks, includeOutput }),
+      (target) => createApplyPresetJob(target, id, { includeGeometry, includeMasks }),
       {
         success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
         error: 'Failed to queue preset',
@@ -52,7 +51,6 @@
     <PresetIncludeToggles
       bind:includeGeometry
       bind:includeMasks
-      bind:includeOutput
       bordered
     />
 

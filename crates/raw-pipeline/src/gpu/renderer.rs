@@ -599,12 +599,7 @@ impl GpuRenderer {
             [lod, shadows_mip_f, 0.0, 0.0],
             [cos_a, sin_a, bw, bh],
             [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
-            [
-                crate::tone::tonemap_kind_index(edits.output.tonemap),
-                0,
-                0,
-                0,
-            ],
+            [0, 0, 0, 0],
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
@@ -832,12 +827,7 @@ impl GpuRenderer {
                     [lod, shadows_mip_f, 0.0, 0.0],
                     [cos_a, sin_a, bw, bh],
                     [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
-                    [
-                        crate::tone::tonemap_kind_index(edits.output.tonemap),
-                        0,
-                        0,
-                        0,
-                    ],
+                    [0, 0, 0, 0],
                 );
                 let mut active_mask_eff: [u32; 4] = [0; 4];
                 for slot in &built.color_ops {
@@ -1556,8 +1546,6 @@ impl GpuRenderer {
         bytes[32..36].copy_from_slice(&gr_amount.to_ne_bytes());
         bytes[36..40].copy_from_slice(&gr_size.to_ne_bytes());
         bytes[40..44].copy_from_slice(&gr_rough.to_ne_bytes());
-        let tone_kind = crate::tone::tonemap_kind_index(edits.output.tonemap);
-        bytes[48..52].copy_from_slice(&tone_kind.to_ne_bytes());
         bytes[52..56].copy_from_slice(&(dcp_active as u32).to_ne_bytes());
         let ub = self
             .uniform_pool

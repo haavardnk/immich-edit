@@ -17,7 +17,6 @@ pub mod lens_vignette;
 pub mod luma_nr;
 pub mod lut;
 pub mod masks;
-pub mod output;
 pub mod sample;
 pub mod saturation;
 pub mod sharpen;
@@ -410,6 +409,5 @@ pub fn default_registry() -> OpRegistry {
         AnyOp::Spatial(Box::new(vignette::VignetteOp)),
         AnyOp::Spatial(Box::new(grain::GrainOp)),
         AnyOp::Spatial(Box::new(masks::MasksOp)),
-        AnyOp::Output(Box::new(output::OutputOp)),
     ])
 }

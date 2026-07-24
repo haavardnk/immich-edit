@@ -9,7 +9,6 @@
 
   let includeGeometry = $state(false);
   let includeMasks = $state(false);
-  let includeOutput = $state(false);
 
   let saving = $state(false);
   let newName = $state('');
@@ -54,7 +53,7 @@
     if (!selected) return;
     void editor.applyPreset(
       selected.manifest,
-      { includeGeometry, includeMasks, includeOutput },
+      { includeGeometry, includeMasks },
       selected.name
     );
   }
@@ -192,7 +191,6 @@
     <PresetIncludeToggles
       bind:includeGeometry
       bind:includeMasks
-      bind:includeOutput
     />
 
     <button

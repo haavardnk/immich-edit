@@ -377,26 +377,6 @@ pub struct ColorEdits {
     pub dcp: DcpEdits,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum TonemapKind {
-    #[default]
-    Default,
-    Agx,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct OutputEdits {
-    #[serde(default)]
-    pub tonemap: TonemapKind,
-}
-
-impl OutputEdits {
-    pub fn is_default(&self) -> bool {
-        self.tonemap == TonemapKind::Default
-    }
-}
-
 fn sharpen_radius_default() -> f64 {
     1.0
 }
@@ -1011,8 +991,6 @@ pub struct Edits {
     pub geometry: GeometryEdits,
     #[serde(default)]
     pub masks: Vec<MaskLayer>,
-    #[serde(default)]
-    pub output: OutputEdits,
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub unknown_ops: std::collections::BTreeMap<String, serde_json::Value>,
 }
@@ -1065,7 +1043,6 @@ impl Edits {
                 aspect: self.geometry.aspect,
             },
             masks: clamp_masks(&self.masks),
-            output: self.output,
             unknown_ops: self.unknown_ops.clone(),
         }
     }
