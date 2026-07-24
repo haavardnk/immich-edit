@@ -1,8 +1,29 @@
 mod common;
 
 use immich_edit_backend::routes::export::{
-    ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
 };
+
+#[test]
+fn hash_request_differs_by_color_space() {
+    let asset = uuid::Uuid::nil();
+    let make = |cs: ColorSpaceOpt| ExportToImmichBody {
+        edits: Default::default(),
+        params: ExportParams {
+            color_space: cs,
+            ..ExportParams::default()
+        },
+        album_ids: Vec::new(),
+        tag_ids: Vec::new(),
+        favorite: false,
+        stack_with_original: false,
+        stack_primary: StackPrimary::default(),
+        filename_suffix: "_edit".into(),
+    };
+    let srgb = hash_request(asset, &make(ColorSpaceOpt::Srgb));
+    let p3 = hash_request(asset, &make(ColorSpaceOpt::Displayp3));
+    assert_ne!(srgb, p3);
+}
 
 #[test]
 fn resolves_with_no_existing() {

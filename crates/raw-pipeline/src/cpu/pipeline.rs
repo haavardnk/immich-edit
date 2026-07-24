@@ -8,7 +8,7 @@ use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
-use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
+use crate::frame::{BitDepth, OutputColorSpace, RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
@@ -117,6 +117,7 @@ pub fn render_with_cancel(
         lut_ref,
         dcp_active,
         dcp_finish,
+        options.output_color_space,
     );
     cancel::check(cancel)?;
 
@@ -126,9 +127,16 @@ pub fn render_with_cancel(
             w as u32,
             h as u32,
             &options.output,
+            options.output_color_space,
         )?
     } else {
-        encode_from_rgb8(&rgb_u8, w as u32, h as u32, &options.output)?
+        encode_from_rgb8(
+            &rgb_u8,
+            w as u32,
+            h as u32,
+            &options.output,
+            options.output_color_space,
+        )?
     };
 
     Ok(RenderedImage {
@@ -485,6 +493,7 @@ fn finish_output(
     lut: Option<(&crate::lut::Lut3d, f32)>,
     dcp_active: bool,
     dcp_finish: Option<DcpFinish>,
+    color_space: OutputColorSpace,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -525,7 +534,7 @@ fn finish_output(
             }
             None => [lr, lg, lb],
         };
-        let display = crate::tone::apply_rgb_dcp(finished, dcp_active);
+        let display = crate::tone::apply_rgb_dcp_cs(finished, dcp_active, color_space);
         apply_display_lut(display, lut)
     };
 
@@ -616,8 +625,17 @@ mod tests {
 
     #[test]
     fn display_ready_output_skips_tone_mapping() {
-        let (rgb, _, _, _) =
-            finish_output(vec![0.5, 0.5, 0.5], 1, 1, false, true, None, false, None);
+        let (rgb, _, _, _) = finish_output(
+            vec![0.5, 0.5, 0.5],
+            1,
+            1,
+            false,
+            true,
+            None,
+            false,
+            None,
+            OutputColorSpace::SRgb,
+        );
         if rgb.iter().any(|value| !(126..=129).contains(value)) {
             panic!("expected display-ready midpoint, got {rgb:?}");
         }

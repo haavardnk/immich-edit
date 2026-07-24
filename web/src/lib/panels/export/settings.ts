@@ -4,6 +4,7 @@ import { listTags } from '$lib/api/tags';
 import { toasts } from '$lib/stores/toasts.svelte';
 import type {
   BitDepthOpt,
+  ColorSpaceOpt,
   ExportFormat,
   ExportOptions,
   ImmichExportOptions,
@@ -22,6 +23,7 @@ export interface ExportForm {
   pngCompression: PngCompressionOpt;
   tiffCompression: TiffCompressionOpt;
   lossless: boolean;
+  colorSpace: ColorSpaceOpt;
   albumIds: string[];
   tagIds: string[];
   favorite: boolean;
@@ -49,6 +51,7 @@ export function defaultExportForm(): ExportForm {
     pngCompression: 'default',
     tiffCompression: 'lzw',
     lossless: false,
+    colorSpace: 'srgb',
     albumIds: [],
     tagIds: [],
     favorite: false,
@@ -71,6 +74,7 @@ export function baseOptions(f: ExportForm): ExportOptions {
     pngCompression: f.pngCompression,
     tiffCompression: f.tiffCompression,
     lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
+    colorSpace: f.colorSpace,
   };
 }
 

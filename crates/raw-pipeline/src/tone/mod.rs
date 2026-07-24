@@ -1,6 +1,7 @@
 pub mod shared;
 pub mod wgsl;
 
+use crate::frame::OutputColorSpace;
 use shared::{
     LUMA_B, LUMA_G, LUMA_R, OETF_LUT_SIZE, S_CURVE_BLEND, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET,
     SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE, TONE_SHOULDER_KNEE,
@@ -83,19 +84,30 @@ fn project_to_gamut(rgb: [f32; 3], neutral: f32) -> [f32; 3] {
     out
 }
 
-fn tone_map_luma_and_project(rgb: [f32; 3]) -> [f32; 3] {
+fn to_output_space(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
+    match cs {
+        OutputColorSpace::SRgb => rgb,
+        OutputColorSpace::DisplayP3 => crate::color::srgb_lin_to_display_p3(rgb),
+    }
+}
+
+fn tone_map_luma_and_project_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
     let y = luma(rgb);
     if y <= 1e-6 {
         return [0.0, 0.0, 0.0];
     }
     let yd = highlight_shoulder(y);
     let scale = yd / y;
-    let mapped = [rgb[0] * scale, rgb[1] * scale, rgb[2] * scale];
+    let mapped = to_output_space([rgb[0] * scale, rgb[1] * scale, rgb[2] * scale], cs);
     project_to_gamut(mapped, yd)
 }
 
 pub fn apply_default_rgb(rgb: [f32; 3]) -> [f32; 3] {
-    let mapped = tone_map_luma_and_project(rgb);
+    apply_default_rgb_cs(rgb, OutputColorSpace::SRgb)
+}
+
+pub fn apply_default_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
+    let mapped = tone_map_luma_and_project_cs(rgb, cs);
     [
         display_encode(mapped[0]),
         display_encode(mapped[1]),
@@ -108,11 +120,15 @@ pub fn apply_rgb(rgb: [f32; 3]) -> [f32; 3] {
 }
 
 pub fn apply_rgb_dcp(rgb: [f32; 3], dcp_active: bool) -> [f32; 3] {
+    apply_rgb_dcp_cs(rgb, dcp_active, OutputColorSpace::SRgb)
+}
+
+pub fn apply_rgb_dcp_cs(rgb: [f32; 3], dcp_active: bool, cs: OutputColorSpace) -> [f32; 3] {
     if !dcp_active {
-        return apply_default_rgb(rgb);
+        return apply_default_rgb_cs(rgb, cs);
     }
     let neutral = luma(rgb).clamp(0.0, 1.0);
-    let mapped = project_to_gamut(rgb, neutral);
+    let mapped = project_to_gamut(to_output_space(rgb, cs), neutral);
     [
         srgb_oetf(mapped[0].clamp(0.0, 1.0)),
         srgb_oetf(mapped[1].clamp(0.0, 1.0)),
@@ -187,7 +203,7 @@ mod tests {
 
     #[test]
     fn default_rgb_projects_negative_channel() {
-        let mapped = tone_map_luma_and_project([-0.2, 0.5, 0.9]);
+        let mapped = tone_map_luma_and_project_cs([-0.2, 0.5, 0.9], OutputColorSpace::SRgb);
         let mn = mapped[0].min(mapped[1]).min(mapped[2]);
         if mn < -1e-6 {
             panic!("negative channel must be projected to >= 0, got {mapped:?}");
@@ -207,7 +223,7 @@ mod tests {
                 continue;
             }
             let yd = highlight_shoulder(y_in);
-            let mapped = tone_map_luma_and_project(rgb);
+            let mapped = tone_map_luma_and_project_cs(rgb, OutputColorSpace::SRgb);
             let y_out = luma(mapped);
             if (y_out - yd).abs() > 1e-4 {
                 panic!(
@@ -234,6 +250,42 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn p3_neutral_matches_srgb() {
+        for v in [0.0f32, 0.25, 0.5, 1.0, 2.0, shared::RAW_LINEAR_CEILING] {
+            let srgb = apply_default_rgb_cs([v, v, v], OutputColorSpace::SRgb);
+            let p3 = apply_default_rgb_cs([v, v, v], OutputColorSpace::DisplayP3);
+            for (a, b) in srgb.iter().zip(p3.iter()) {
+                if (a - b).abs() > 1e-5 {
+                    panic!("neutral gray must be color-space invariant at {v}: {srgb:?} vs {p3:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn p3_srgb_path_is_identity() {
+        let rgb = [0.6, 0.2, 0.9];
+        let base = apply_default_rgb(rgb);
+        let cs = apply_default_rgb_cs(rgb, OutputColorSpace::SRgb);
+        if base != cs {
+            panic!("sRGB color space must be byte-identical to default path: {base:?} vs {cs:?}");
+        }
+    }
+
+    #[test]
+    fn p3_saturated_red_less_saturated_than_srgb() {
+        let rgb = [1.0, 0.0, 0.0];
+        let srgb = apply_default_rgb_cs(rgb, OutputColorSpace::SRgb);
+        let p3 = apply_default_rgb_cs(rgb, OutputColorSpace::DisplayP3);
+        if p3 == srgb {
+            panic!("P3 primary matrix must change saturated red output");
+        }
+        if !(p3[0] < srgb[0] && p3[1] > srgb[1] && p3[2] > srgb[2]) {
+            panic!("sRGB red inside P3 should pull R down and G/B up, got {p3:?} vs {srgb:?}");
         }
     }
 }

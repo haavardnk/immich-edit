@@ -3,7 +3,7 @@ use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{
-    BitDepth, JpegSubsampling, OutputFormat, PngCompression, TiffCompression,
+    BitDepth, JpegSubsampling, OutputColorSpace, OutputFormat, PngCompression, TiffCompression,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -80,6 +80,14 @@ pub enum TiffCompressionOpt {
     Deflate,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ColorSpaceOpt {
+    #[default]
+    Srgb,
+    Displayp3,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ExportParams {
     #[serde(default)]
@@ -96,6 +104,8 @@ pub struct ExportParams {
     pub tiff_compression: TiffCompressionOpt,
     #[serde(default)]
     pub lossless: bool,
+    #[serde(default)]
+    pub color_space: ColorSpaceOpt,
 }
 
 impl Default for ExportParams {
@@ -108,11 +118,19 @@ impl Default for ExportParams {
             png_compression: PngCompressionOpt::default(),
             tiff_compression: TiffCompressionOpt::default(),
             lossless: false,
+            color_space: ColorSpaceOpt::default(),
         }
     }
 }
 
 impl ExportParams {
+    pub fn output_color_space(&self) -> OutputColorSpace {
+        match self.color_space {
+            ColorSpaceOpt::Srgb => OutputColorSpace::SRgb,
+            ColorSpaceOpt::Displayp3 => OutputColorSpace::DisplayP3,
+        }
+    }
+
     pub fn output_format(&self) -> OutputFormat {
         let quality = self.quality.clamp(1, 100);
         let bd = match self.bit_depth {
@@ -216,6 +234,7 @@ pub async fn render_export(
         max_edge: EXPORT_MAX_EDGE,
         quality: true,
         output,
+        output_color_space: params.output_color_space(),
         ..Default::default()
     };
     let rendered = state
@@ -324,6 +343,7 @@ pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
         "png_compression": format!("{:?}", body.params.png_compression),
         "tiff_compression": format!("{:?}", body.params.tiff_compression),
         "lossless": body.params.lossless,
+        "color_space": format!("{:?}", body.params.color_space),
         "album_ids": album_ids,
         "tag_ids": tag_ids,
         "favorite": body.favorite,

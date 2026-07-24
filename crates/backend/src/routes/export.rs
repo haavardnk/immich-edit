@@ -10,7 +10,7 @@ use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImm
 use crate::state::AppState;
 
 pub use crate::services::export::{
-    ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
 };
 
 pub async fn get_export(

@@ -1,4 +1,6 @@
-use raw_pipeline::{cpu, decode, edits::Edits, frame::RawFrame, frame::RenderOptions, gpu};
+use raw_pipeline::{
+    cpu, decode, edits::Edits, frame::OutputColorSpace, frame::RawFrame, frame::RenderOptions, gpu,
+};
 use std::path::{Path, PathBuf};
 
 const RAW_EXTS: &[&str] = &[
@@ -283,6 +285,61 @@ fn gpu_vs_cpu_parity_per_fixture() {
     }
     if !failed.is_empty() {
         panic!("parity below floor: {}", failed.join("; "));
+    }
+}
+
+#[test]
+fn gpu_vs_cpu_parity_display_p3() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures; skipping");
+        return;
+    }
+    let opts = RenderOptions {
+        max_edge: 512,
+        output_color_space: OutputColorSpace::DisplayP3,
+        ..Default::default()
+    };
+    let mut failed: Vec<String> = Vec::new();
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let frame = match decode::decode(&bytes) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &Edits::default(), &opts)
+        else {
+            continue;
+        };
+        decoded += 1;
+        let p_db = psnr(&cpu_rgb, &gpu_rgb);
+        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
+        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
+        eprintln!("{name} (p3): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}");
+        if p_db < PSNR_FLOOR_DB {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        }
+        if s < SSIM_FLOOR {
+            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
+        }
+        if de_mean > DE2000_MEAN_CEIL {
+            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
+        }
+        if de_p95 > DE2000_P95_CEIL {
+            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
+        }
+    }
+    if decoded == 0 {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    }
+    if !failed.is_empty() {
+        panic!("p3 parity below floor: {}", failed.join("; "));
     }
 }
 

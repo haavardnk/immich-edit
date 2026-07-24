@@ -2,6 +2,7 @@ use little_exif::exif_tag::ExifTag;
 use little_exif::filetype::FileExtension;
 use little_exif::metadata::Metadata;
 use raw_pipeline::frame::JpegSubsampling;
+use raw_pipeline::frame::OutputColorSpace;
 use raw_pipeline::{cpu, decode, edits::Edits, encode, frame::RenderOptions};
 
 fn jpeg_with_orientation(width: usize, height: usize, orientation: u16) -> Vec<u8> {
@@ -14,6 +15,7 @@ fn jpeg_with_orientation(width: usize, height: usize, orientation: u16) -> Vec<u
         },
         90,
         JpegSubsampling::Chroma420,
+        OutputColorSpace::SRgb,
     )
     .unwrap();
     let mut meta = Metadata::new();

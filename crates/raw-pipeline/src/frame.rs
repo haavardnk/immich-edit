@@ -20,6 +20,7 @@ pub struct RenderOptions {
     pub max_edge: u32,
     pub quality: bool,
     pub output: OutputFormat,
+    pub output_color_space: OutputColorSpace,
     pub preview_mode: PreviewMode,
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
@@ -37,6 +38,23 @@ pub enum PreviewMode {
     MaskWeight {
         layer_id: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputColorSpace {
+    #[default]
+    SRgb,
+    DisplayP3,
+}
+
+impl OutputColorSpace {
+    pub fn icc_profile(&self) -> &'static [u8] {
+        match self {
+            Self::SRgb => crate::encode::icc::SRGB_ICC,
+            Self::DisplayP3 => crate::encode::icc::DISPLAY_P3_ICC,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,6 +173,7 @@ impl Default for RenderOptions {
                 quality: 85,
                 subsampling: JpegSubsampling::Chroma420,
             },
+            output_color_space: OutputColorSpace::SRgb,
             preview_mode: PreviewMode::None,
             rasters: crate::mask_raster::empty_rasters(),
             luts: crate::lut::empty_luts(),

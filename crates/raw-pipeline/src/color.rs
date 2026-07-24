@@ -10,6 +10,18 @@ pub const SRGB_TO_XYZ_D65: [[f32; 3]; 3] = [
     [0.019_333_9, 0.119_192, 0.950_304_1],
 ];
 
+pub const SRGB_LINEAR_TO_DISPLAY_P3: [[f32; 3]; 3] = [
+    [0.822_461_97, 0.177_538_03, 0.0],
+    [0.033_194_2, 0.966_805_8, 0.0],
+    [0.017_082_63, 0.072_397_07, 0.910_520_3],
+];
+
+pub const DISPLAY_P3_TO_SRGB_LINEAR: [[f32; 3]; 3] = [
+    [1.224_940_2, -0.224_940_18, 0.0],
+    [-0.042_056_96, 1.042_057, 0.0],
+    [-0.019_637_56, -0.078_636_04, 1.098_273_6],
+];
+
 const BRADFORD: [[f32; 3]; 3] = [
     [0.8951, 0.2664, -0.1614],
     [-0.7502, 1.7135, 0.0367],
@@ -207,6 +219,14 @@ pub fn cam_to_srgb_matrix(xyz_to_cam: [[f32; 3]; 4]) -> [[f32; 3]; 3] {
 
 pub fn identity_3x3() -> [[f32; 3]; 3] {
     [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+}
+
+pub fn srgb_lin_to_display_p3(rgb: [f32; 3]) -> [f32; 3] {
+    mat3_vec(&SRGB_LINEAR_TO_DISPLAY_P3, rgb)
+}
+
+pub fn display_p3_to_srgb_lin(rgb: [f32; 3]) -> [f32; 3] {
+    mat3_vec(&DISPLAY_P3_TO_SRGB_LINEAR, rgb)
 }
 
 pub fn is_unusable_matrix(m: &[[f32; 3]; 4]) -> bool {
@@ -636,6 +656,29 @@ mod tests {
         [0.05, 0.1, 0.85],
         [0.0, 0.0, 0.0],
     ];
+
+    #[test]
+    fn display_p3_roundtrip_is_identity() {
+        for c in [[0.2, 0.5, 0.8], [1.0, 0.0, 0.0], [0.3, 0.9, 0.1]] {
+            let back = display_p3_to_srgb_lin(srgb_lin_to_display_p3(c));
+            for i in 0..3 {
+                assert!((back[i] - c[i]).abs() < 1e-4, "roundtrip drift at {i}");
+            }
+        }
+    }
+
+    #[test]
+    fn srgb_red_maps_inside_display_p3() {
+        let p3 = srgb_lin_to_display_p3([1.0, 0.0, 0.0]);
+        assert!(p3.iter().all(|&v| (0.0..=1.0).contains(&v)));
+        assert!(p3[0] < 1.0 && p3[0] > 0.8);
+    }
+
+    #[test]
+    fn display_p3_red_is_outside_srgb() {
+        let srgb = display_p3_to_srgb_lin([1.0, 0.0, 0.0]);
+        assert!(srgb[0] > 1.0 || srgb[1] < 0.0 || srgb[2] < 0.0);
+    }
 
     #[test]
     fn interpolate_at_low_cct_returns_warm_matrix() {

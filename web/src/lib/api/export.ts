@@ -6,6 +6,7 @@ export type ExportFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'heic' | 'tiff' | 
 export type BitDepthOpt = '8' | '16';
 export type PngCompressionOpt = 'fast' | 'default' | 'best';
 export type TiffCompressionOpt = 'none' | 'lzw' | 'deflate';
+export type ColorSpaceOpt = 'srgb' | 'displayp3';
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -15,6 +16,7 @@ export interface ExportOptions {
   pngCompression: PngCompressionOpt;
   tiffCompression: TiffCompressionOpt;
   lossless: boolean;
+  colorSpace: ColorSpaceOpt;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -35,7 +37,8 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
-    lossless: String(opts.lossless)
+    lossless: String(opts.lossless),
+    color_space: opts.colorSpace
   };
 }
 
@@ -69,7 +72,8 @@ export async function downloadExport(
         bit_depth: opts.bitDepth,
         png_compression: opts.pngCompression,
         tiff_compression: opts.tiffCompression,
-        lossless: opts.lossless
+        lossless: opts.lossless,
+        color_space: opts.colorSpace
       })
     });
   }
@@ -117,6 +121,7 @@ export async function uploadToImmich(
       png_compression: opts.pngCompression,
       tiff_compression: opts.tiffCompression,
       lossless: opts.lossless,
+      color_space: opts.colorSpace,
       album_ids: opts.albumIds,
       tag_ids: opts.tagIds,
       favorite: opts.favorite,

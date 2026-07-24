@@ -95,6 +95,37 @@ fn tone_dcp_rgb(c: vec3<f32>) -> vec3<f32> {{
 fn tone_apply_rgb(c: vec3<f32>) -> vec3<f32> {{
     return tone_default_rgb(c);
 }}
+
+fn tone_to_output_space(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    if (p3 == 0u) {{ return c; }}
+    return vec3<f32>(
+        {m00} * c.x + {m01} * c.y + {m02} * c.z,
+        {m10} * c.x + {m11} * c.y + {m12} * c.z,
+        {m20} * c.x + {m21} * c.y + {m22} * c.z,
+    );
+}}
+
+fn tone_default_rgb_cs(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    let y = tone_luma(c);
+    if (y <= 1e-6) {{ return vec3<f32>(0.0, 0.0, 0.0); }}
+    let yd = tone_highlight_shoulder(y);
+    let mapped = tone_project_gamut(tone_to_output_space(c * (yd / y), p3), yd);
+    return vec3<f32>(
+        tone_display_encode(mapped.x),
+        tone_display_encode(mapped.y),
+        tone_display_encode(mapped.z),
+    );
+}}
+
+fn tone_dcp_rgb_cs(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    let neutral = clamp(tone_luma(c), 0.0, 1.0);
+    let mapped = tone_project_gamut(tone_to_output_space(c, p3), neutral);
+    return vec3<f32>(
+        tone_srgb_oetf(clamp(mapped.x, 0.0, 1.0)),
+        tone_srgb_oetf(clamp(mapped.y, 0.0, 1.0)),
+        tone_srgb_oetf(clamp(mapped.z, 0.0, 1.0)),
+    );
+}}
 "#,
         shoulder_knee = TONE_SHOULDER_KNEE,
         srgb_cutoff = SRGB_OETF_LINEAR_CUTOFF,
@@ -106,8 +137,26 @@ fn tone_apply_rgb(c: vec3<f32>) -> vec3<f32> {{
         luma_r = LUMA_R,
         luma_g = LUMA_G,
         luma_b = LUMA_B,
+        m00 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][0]),
+        m01 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][1]),
+        m02 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][2]),
+        m10 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][0]),
+        m11 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][1]),
+        m12 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][2]),
+        m20 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][0]),
+        m21 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][1]),
+        m22 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][2]),
     )
 });
+
+fn wgsl_f32(v: f32) -> String {
+    let s = format!("{v:?}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{s}.0")
+    }
+}
 
 pub fn tone_wgsl() -> &'static str {
     &TONE_WGSL_STR

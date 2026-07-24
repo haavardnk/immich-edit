@@ -1,10 +1,14 @@
-pub const SRGB_ICC: &[u8] = include_bytes!("../../assets/icc/sRGB-v2-micro.icc");
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
+use std::io::Write;
 
-pub fn embed_jpeg_icc(jpeg: Vec<u8>) -> Vec<u8> {
+pub const SRGB_ICC: &[u8] = include_bytes!("../../assets/icc/sRGB-v2-micro.icc");
+pub const DISPLAY_P3_ICC: &[u8] = include_bytes!("../../assets/icc/display-p3.icc");
+
+pub fn embed_jpeg_icc(jpeg: Vec<u8>, icc: &[u8]) -> Vec<u8> {
     if jpeg.len() < 2 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 {
         return jpeg;
     }
-    let icc = SRGB_ICC;
     let chunk_payload_max: usize = 65519;
     let total_chunks = icc.len().div_ceil(chunk_payload_max).max(1);
     if total_chunks > 255 {
@@ -29,11 +33,10 @@ pub fn embed_jpeg_icc(jpeg: Vec<u8>) -> Vec<u8> {
     out
 }
 
-pub fn embed_webp_icc(webp: Vec<u8>) -> Vec<u8> {
+pub fn embed_webp_icc(webp: Vec<u8>, icc: &[u8]) -> Vec<u8> {
     if webp.len() < 30 || &webp[0..4] != b"RIFF" || &webp[8..12] != b"WEBP" {
         return webp;
     }
-    let icc = SRGB_ICC;
     let fourcc = &webp[12..16];
     let payload_size = u32::from_le_bytes([webp[16], webp[17], webp[18], webp[19]]) as usize;
     let chunk_total = 8 + payload_size + (payload_size & 1);
@@ -124,6 +127,44 @@ fn splice_iccp_into_vp8x(mut webp: Vec<u8>, icc: &[u8]) -> Vec<u8> {
     out
 }
 
+pub fn embed_png_icc(png: Vec<u8>, icc: &[u8]) -> Vec<u8> {
+    if png.len() < 8 || &png[0..8] != b"\x89PNG\r\n\x1a\n" {
+        return png;
+    }
+    if png.len() < 16 || &png[12..16] != b"IHDR" {
+        return png;
+    }
+    let ihdr_len = u32::from_be_bytes([png[8], png[9], png[10], png[11]]) as usize;
+    let ihdr_end = 8 + 8 + ihdr_len + 4;
+    if ihdr_end > png.len() {
+        return png;
+    }
+    let mut zlib = ZlibEncoder::new(Vec::new(), Compression::default());
+    if zlib.write_all(icc).is_err() {
+        return png;
+    }
+    let Ok(compressed) = zlib.finish() else {
+        return png;
+    };
+    let mut chunk_data: Vec<u8> = Vec::with_capacity(compressed.len() + 16);
+    chunk_data.extend_from_slice(b"ICC\0");
+    chunk_data.push(0);
+    chunk_data.extend_from_slice(&compressed);
+    let mut chunk: Vec<u8> = Vec::with_capacity(chunk_data.len() + 12);
+    chunk.extend_from_slice(&(chunk_data.len() as u32).to_be_bytes());
+    chunk.extend_from_slice(b"iCCP");
+    chunk.extend_from_slice(&chunk_data);
+    let mut hasher = flate2::Crc::new();
+    hasher.update(b"iCCP");
+    hasher.update(&chunk_data);
+    chunk.extend_from_slice(&hasher.sum().to_be_bytes());
+    let mut out: Vec<u8> = Vec::with_capacity(png.len() + chunk.len());
+    out.extend_from_slice(&png[0..ihdr_end]);
+    out.extend_from_slice(&chunk);
+    out.extend_from_slice(&png[ihdr_end..]);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,7 +230,7 @@ mod tests {
     #[test]
     fn jpeg_unchanged_when_invalid() {
         for input in [vec![], vec![0xFF], vec![0x00, 0x00], vec![0xFF, 0xD9, 0x12]] {
-            let out = embed_jpeg_icc(input.clone());
+            let out = embed_jpeg_icc(input.clone(), SRGB_ICC);
             assert_eq!(out, input);
         }
     }
@@ -197,7 +238,7 @@ mod tests {
     #[test]
     fn jpeg_embeds_app2_icc_profile() {
         let jpeg: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xD9];
-        let out = embed_jpeg_icc(jpeg);
+        let out = embed_jpeg_icc(jpeg, SRGB_ICC);
         assert_eq!(&out[0..2], &[0xFF, 0xD8]);
         let marker_pos = find_subslice(&out, b"ICC_PROFILE\0").expect("ICC marker present");
         assert_eq!(out[marker_pos - 4], 0xFF);
@@ -226,7 +267,7 @@ mod tests {
                 bad
             },
         ] {
-            let out = embed_webp_icc(input.clone());
+            let out = embed_webp_icc(input.clone(), SRGB_ICC);
             assert_eq!(out, input);
         }
     }
@@ -234,7 +275,7 @@ mod tests {
     #[test]
     fn webp_vp8_and_vp8l_wrap_into_vp8x_with_iccp() {
         for input in [make_vp8_webp(100, 80), make_vp8l_webp(99, 79)] {
-            let out = embed_webp_icc(input);
+            let out = embed_webp_icc(input, SRGB_ICC);
             assert_eq!(&out[0..4], b"RIFF");
             assert_eq!(&out[8..12], b"WEBP");
             assert_eq!(&out[12..16], b"VP8X");
@@ -257,7 +298,7 @@ mod tests {
     fn webp_vp8x_splices_iccp_and_updates_riff_size() {
         let input = make_vp8x_webp(123, 45);
         let original_len = input.len();
-        let out = embed_webp_icc(input);
+        let out = embed_webp_icc(input, SRGB_ICC);
         assert!(out.len() > original_len);
         assert_eq!(riff_size(&out) as usize, out.len() - 8);
         assert_eq!(out[20] & 0b0010_0000, 0b0010_0000);

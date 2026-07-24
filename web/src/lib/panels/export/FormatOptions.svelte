@@ -30,6 +30,17 @@
   </select>
 </div>
 
+<div class="flex flex-col gap-1">
+  <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Color space</span>
+  <select
+    class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
+    bind:value={form.colorSpace}
+  >
+    <option value="srgb">sRGB</option>
+    <option value="displayp3">Display P3</option>
+  </select>
+</div>
+
 {#if showQuality}
   <div class="flex flex-col gap-1">
     <div class="flex items-center justify-between text-[11px] leading-none">

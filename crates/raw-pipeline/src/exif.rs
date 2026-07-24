@@ -85,7 +85,7 @@ pub fn inject(
 mod tests {
     use super::*;
     use crate::encode::{ImageRgb8, encode_jpeg_rgb};
-    use crate::frame::JpegSubsampling;
+    use crate::frame::{JpegSubsampling, OutputColorSpace};
 
     fn tiny_jpeg() -> Vec<u8> {
         let rgb = vec![128u8; 16 * 16 * 3];
@@ -94,7 +94,7 @@ mod tests {
             width: 16,
             height: 16,
         };
-        encode_jpeg_rgb(img, 90, JpegSubsampling::Chroma420).unwrap()
+        encode_jpeg_rgb(img, 90, JpegSubsampling::Chroma420, OutputColorSpace::SRgb).unwrap()
     }
 
     #[test]

@@ -823,8 +823,16 @@ impl GpuRenderer {
                 | crate::frame::PreviewMode::SharpenDetail
         );
         let dcp_active = ctx_op.render.dcp.is_some();
-        let final_pass_active =
-            sharpen_active || sharpen_preview || effects_active || has_masks || dcp_active;
+        let p3_active = matches!(
+            opts.output_color_space,
+            crate::frame::OutputColorSpace::DisplayP3
+        );
+        let final_pass_active = sharpen_active
+            || sharpen_preview
+            || effects_active
+            || has_masks
+            || dcp_active
+            || p3_active;
         let sharpen_pool_guard = if final_pass_active {
             let mut spool = self.sharpen_pool.lock();
             if let Some(i) = spool.iter().position(|s| s.fits(out_w, out_h)) {
@@ -866,6 +874,7 @@ impl GpuRenderer {
                     out_h,
                     run_sharpen,
                     dcp_active,
+                    opts.output_color_space,
                 );
             }
         }
@@ -918,7 +927,7 @@ impl GpuRenderer {
                     },
                 )
             },
-            || encode_from_rgba8(&rgba, out_w, out_h, &opts.output),
+            || encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
         );
         let bytes = bytes?;
 
