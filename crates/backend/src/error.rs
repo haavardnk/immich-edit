@@ -110,6 +110,40 @@ impl From<crate::services::job_store::JobStoreError> for AppError {
     }
 }
 
+impl From<crate::services::dcp_store::DcpStoreError> for AppError {
+    fn from(err: crate::services::dcp_store::DcpStoreError) -> Self {
+        use crate::services::dcp_store::DcpStoreError;
+        match err {
+            DcpStoreError::NotFound => Self::NotFound,
+            DcpStoreError::Invalid(m) => Self::BadRequest(m),
+            DcpStoreError::Duplicate(meta) => {
+                Self::Conflict(format!("dcp already exists: {}", meta.id))
+            }
+            e => {
+                tracing::error!(error = %e, "dcp store");
+                Self::Internal
+            }
+        }
+    }
+}
+
+impl From<crate::services::lut_store::LutStoreError> for AppError {
+    fn from(err: crate::services::lut_store::LutStoreError) -> Self {
+        use crate::services::lut_store::LutStoreError;
+        match err {
+            LutStoreError::NotFound => Self::NotFound,
+            LutStoreError::Invalid(m) => Self::BadRequest(m),
+            LutStoreError::Duplicate(meta) => {
+                Self::Conflict(format!("lut already exists: {}", meta.id))
+            }
+            e => {
+                tracing::error!(error = %e, "lut store");
+                Self::Internal
+            }
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let request_id = REQUEST_ID

@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 
 use crate::error::AppError;
-use crate::services::dcp_store::{DcpMeta, DcpStoreError};
+use crate::services::dcp_store::DcpMeta;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -20,7 +20,7 @@ pub struct MatchParams {
 }
 
 pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<DcpMeta>>, AppError> {
-    let profiles = state.dcp.list().await.map_err(map_err)?;
+    let profiles = state.dcp.list().await?;
     Ok(Json(profiles))
 }
 
@@ -28,11 +28,7 @@ pub async fn match_camera(
     State(state): State<AppState>,
     Query(params): Query<MatchParams>,
 ) -> Result<Json<Option<DcpMeta>>, AppError> {
-    let profile = state
-        .dcp
-        .match_camera_meta(&params.model)
-        .await
-        .map_err(map_err)?;
+    let profile = state.dcp.match_camera_meta(&params.model).await?;
     Ok(Json(profile))
 }
 
@@ -49,8 +45,7 @@ pub async fn import(
             false,
             &body,
         )
-        .await
-        .map_err(map_err)?;
+        .await?;
     Ok((StatusCode::CREATED, Json(meta)))
 }
 
@@ -58,20 +53,6 @@ pub async fn delete(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    state.dcp.soft_delete(&id).await.map_err(map_err)?;
+    state.dcp.soft_delete(&id).await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-fn map_err(err: DcpStoreError) -> AppError {
-    match err {
-        DcpStoreError::NotFound => AppError::NotFound,
-        DcpStoreError::Invalid(m) => AppError::BadRequest(m),
-        DcpStoreError::Duplicate(meta) => {
-            AppError::Conflict(format!("dcp already exists: {}", meta.id))
-        }
-        e => {
-            tracing::error!(error = %e, "dcp store");
-            AppError::Internal
-        }
-    }
 }
