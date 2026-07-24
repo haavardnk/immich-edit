@@ -32,6 +32,8 @@ Edits:
 - White balance (camera, auto, custom temp/tint)
 - HSL, saturation, vibrance, color grading
 - Curves (RGB, R, G, B, luma)
+- Camera profiles with automatic DCP matching, bundled profiles, and custom `.dcp` import
+- 3D `.cube` LUT import with a shared library and per-photo amount control
 - Clarity, texture, dehaze, sharpening, luma + color noise reduction
 - Vignette, grain
 - Crop, rotate, flip
@@ -55,7 +57,7 @@ Export:
 ## What does not work yet
 
 - Single-user only. One shared auth token, no accounts.
-- No HDR output, no DNG export, no PSD compatibility, no LUT support
+- No HDR output, DNG export, PSD compatibility, or Lightroom/XMP round-trip
 - No AI features
 - Histograms and clipping warnings are basic
 - No mobile layout
@@ -63,7 +65,7 @@ Export:
 
 ## Data handling
 
-immich-edit never deletes assets. Your photo edits are non-destructive: they are stored in immich-edit's SQLite database, and your Immich originals are never touched.
+immich-edit never deletes assets. Your photo edits are non-destructive: they are stored in immich-edit's SQLite database, and your Immich originals are never touched. Imported DCP profiles and LUTs are stored alongside the database in `CACHE_DIR`.
 
 Some actions do write metadata back to Immich so the two stay in sync: star ratings, favorites, tags, and reject marks (an `immich-edit/reject` tag). Rejecting a photo dims it in the grid and loupe and lets you filter it out, but it stays in your library and nothing is removed.
 

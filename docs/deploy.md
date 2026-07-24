@@ -19,7 +19,7 @@ set +a
 cargo run -p immich-edit-backend
 ```
 
-In `.env`, set `BIND_ADDR=127.0.0.1:3000` and `WEB_DIR=web/build`.
+In `.env`, set `BIND_ADDR=127.0.0.1:3000`, `WEB_DIR=web/build`, and `DCP_DIR=crates/backend/assets/dcp` when running from the repository root.
 
 Open `http://127.0.0.1:3000`.
 
@@ -195,10 +195,13 @@ Reverse-proxy probes should hit `/api/health/live`. Monitoring that needs detail
 
 immich-edit stores everything in `CACHE_DIR` (default `./cache`):
 
-- `immich-edit.db` (sqlite) - edits, edit history, export jobs
-- `rasters/`, `edited-thumb/` - render cache, safe to drop and rebuild
+- `immich-edit.db` (sqlite) - edits, edit history, imported-library metadata, and export jobs
+- `dcp/` - content-addressed user and bundled DCP files referenced by the database
+- `luts/` - imported `.cube` files referenced by edits
+- `rasters/` - brush-mask data referenced by edits
+- `edited-thumb/` - generated thumbnail cache, safe to delete and rebuild
 
-The sqlite database is the file worth backing up. Use `sqlite3 cache/immich-edit.db ".backup cache/backup.db"`, or stop the service and copy the file.
+Back up the database plus `dcp/`, `luts/`, and `rasters/`. Use `sqlite3 cache/immich-edit.db ".backup cache/backup.db"` for a live database snapshot, then copy the referenced directories, or stop the service and copy all of `CACHE_DIR`. Bundled profiles can be restored from the image, but user imports cannot.
 
 Originals stay in Immich; immich-edit never modifies them.
 

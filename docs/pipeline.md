@@ -39,13 +39,14 @@ Main entry: `cpu::render_with_cancel` in `crates/raw-pipeline/src/cpu/pipeline.r
 Flow:
 
 1. Demosaic RAW frames when needed.
-2. Resolve white balance and camera-to-sRGB matrix into `OpContext`.
+2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; DCP matrix selection and baseline gain become `OpContext.cam_to_srgb`.
 3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active.
 4. Apply EXIF orientation.
 5. Run edit ops through `run_pipeline_ops`.
 6. Resize to `RenderOptions::max_edge`.
 7. Run `Stage::Output` ops through `run_output_ops`.
-8. Run `finish_output` and encode.
+8. Run `finish_output`: DCP LookTable and Adobe-style tone curve in linear ProPhoto, output conversion, then the display-referred 3D LUT.
+9. Encode.
 
 `run_pipeline_ops` batches consecutive `FusedOp`s into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
 
@@ -65,7 +66,7 @@ Main entry: `GpuRenderer::render_with_cancel` in `crates/raw-pipeline/src/gpu/re
 Dispatch order:
 
 | Order | Pass | Source | Owns |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | upload / demosaic | `get_or_demosaic`, `passes/demosaic.rs` | RAW or RGB input to linear `Rgba16Float`; mipgen for source textures. |
 | 2 | sensor | `run_sensor`, `passes/sensor.rs` | Active lens sensor ops before orientation/crop sampling. |
 | 3 | wb_prepare | `run_wb_prepare`, `passes/wb_prepare.rs` | White balance plus camera-to-sRGB pre-pass for presence/detail work. |
@@ -73,17 +74,24 @@ Dispatch order:
 | 5 | dehaze | `atmosphere_for`, `run_dehaze`, `passes/dehaze.rs` | Atmosphere estimate and DCP/guided-filter dehaze. |
 | 6 | presence | `run_presence`, `passes/presence.rs`, `passes/luma_pyramid.rs` | Texture and clarity. Shadows builds a luma pyramid later when needed. |
 | 7 | process | `process`, `passes/process.rs`, generated `process.wgsl` | Pointwise ops, crop/rotate/flip/angle sampling, fast-path tone. |
-| 8 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
-| 9 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
-| 10 | effects + tone | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, final tone when final pass is active. |
-| 11 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
+| 8 | DCP base table | `encode_dcp_huesat`, `passes/dcp_huesat.rs` | Camera HueSatMap in linear ProPhoto; skipped when disabled or unmatched. |
+| 9 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
+| 10 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
+| 11 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, gamut projection, and sRGB output when a final pass is active. |
+| 12 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and Adobe hue-preserving profile tone curve. |
+| 13 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
+| 14 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
 
 ## Color-space rules
 
-Intermediate GPU textures from upload through `process` are linear scene-referred sRGB in `Rgba16Float`. Tone mapping happens once:
+Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:
 
 - In `process.wgsl` for the fast path with no sharpen/effects/masks.
-- In `effects_tone.wgsl` whenever sharpen, vignette, grain, or masks require the final pass.
+- In `effects_tone.wgsl` whenever sharpen, vignette, grain, masks, or DCP require the final pass.
+
+DCP tables operate in linear ProPhoto. `ProfileHueSatMapEncoding` and `ProfileLookTableEncoding` affect only the HSV value lookup/scaling axis. The LookTable runs before the profile tone curve. The tone curve follows Adobe's hue-preserving min/max transform rather than applying the curve independently to all RGB channels.
+
+The user LUT is separate from camera profiling: it runs last on display-referred sRGB. CPU and GPU both use tetrahedral interpolation.
 
 There is no type-level distinction between linear and gamma-encoded textures. The one-line `color-space:` headers in pass files are the current guardrail; review new passes carefully.
 
@@ -94,6 +102,8 @@ There is no type-level distinction between linear and gamma-encoded textures. Th
 `transform` is a generated process-pass contribution on GPU. On CPU it is a normal `SpatialOp` in `Stage::Geometry`.
 
 `masks` is not active as a normal registry op. CPU masks are handled inside `run_pipeline_ops`; GPU masks are handled inside `process` with `mask_weight` and `mask_blend` passes.
+
+`DcpProfileOp` retains manifest ID `dcp_hue_sat` for compatibility. It owns profile persistence and CPU base-table dispatch; the GPU renderer uses dedicated 3D-texture passes. Matrix selection and profile setup live in `dcp_pipeline.rs`.
 
 Lens ownership is split. `lens_vignette` is handled by `passes/sensor.rs` on GPU. Lens distortion and chromatic aberration have CPU implementations; the GPU path still uses lens warp parameters for mask sampling.
 
