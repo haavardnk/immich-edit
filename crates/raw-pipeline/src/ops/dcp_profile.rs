@@ -1,14 +1,14 @@
-use std::sync::Arc;
-
 use super::{FusedOp, OpContext, OpMeta, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
-pub struct DcpHueSatOp;
+pub const DCP_PROFILE_OP_ID: &str = "dcp_hue_sat";
 
-impl OpMeta for DcpHueSatOp {
+pub struct DcpProfileOp;
+
+impl OpMeta for DcpProfileOp {
     fn id(&self) -> &'static str {
-        "dcp_hue_sat"
+        DCP_PROFILE_OP_ID
     }
     fn stage(&self) -> Stage {
         Stage::Color
@@ -21,7 +21,7 @@ impl OpMeta for DcpHueSatOp {
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let dcp = &edits.color.dcp;
-        if !dcp.is_active() {
+        if dcp == &crate::edits::DcpEdits::default() {
             return None;
         }
         serde_json::to_value(dcp).ok()
@@ -33,12 +33,12 @@ impl OpMeta for DcpHueSatOp {
     }
 }
 
-impl FusedOp for DcpHueSatOp {
+impl FusedOp for DcpProfileOp {
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         let dcp = ctx.render.dcp.as_ref()?;
         let map = dcp.base_table.as_ref()?;
         Some(CpuFusedOp::DcpHueSat {
-            map: Arc::new(map.clone()),
+            map: map.clone(),
             to_pp: dcp.to_pp,
             from_pp: dcp.from_pp,
         })

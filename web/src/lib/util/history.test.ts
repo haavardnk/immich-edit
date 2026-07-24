@@ -218,6 +218,20 @@ describe('historyDetails', () => {
     });
   });
 
+  it('summarizes camera-profile and LUT selection changes', () => {
+    const prev = neutralEdits();
+    const curr = neutralEdits();
+    curr.color.dcp.mode = 'off';
+    curr.color.lut_3d.lut_id = 'film';
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev }))
+      .find((detail) => detail.key === 'color');
+    expect(group?.items).toContainEqual({
+      kind: 'summary',
+      text: 'Camera profile: Auto → Default Color'
+    });
+    expect(group?.items).toContainEqual({ kind: 'summary', text: 'LUT selection changed' });
+  });
+
   it('returns no details for equivalent snapshots', () => {
     expect(historyDetails(entry({ edits: neutralEdits() }), null)).toEqual([]);
   });

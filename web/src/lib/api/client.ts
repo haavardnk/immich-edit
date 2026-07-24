@@ -116,6 +116,24 @@ export async function sendJson<T>(
   return (await resp.json()) as T;
 }
 
+export async function sendBytes<T>(path: string, bytes: Uint8Array): Promise<T> {
+  const body = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+  const resp = await safeFetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/octet-stream' },
+    body
+  });
+  if (!resp.ok) {
+    const err = await parseError(resp);
+    reportError(err);
+    throw err;
+  }
+  return (await resp.json()) as T;
+}
+
 export async function postForBlob(
   path: string,
   body: unknown,

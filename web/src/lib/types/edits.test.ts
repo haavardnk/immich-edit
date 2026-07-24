@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   neutralEdits,
+  originalPreviewEdits,
+  resetDevelopEdits,
   editsToManifest,
   manifestToEdits,
   isIdentity,
@@ -25,6 +27,49 @@ describe('neutralEdits identity', () => {
     const manifest = editsToManifest(neutralEdits());
     expect(manifest.schema_version).toBe(3);
     expect(Object.keys(manifest.ops)).toHaveLength(0);
+  });
+
+  it('defaults camera profile to auto', () => {
+    expect(neutralEdits().color.dcp.mode).toBe('auto');
+  });
+
+  it('reset preserves camera profile and geometry', () => {
+    const e = neutralEdits();
+    e.basic.exposure_ev = 2;
+    e.color.dcp.mode = 'profile';
+    e.color.dcp.profile_id = 'sony';
+    e.geometry.rotate = 90;
+    const reset = resetDevelopEdits(e);
+    expect(reset.basic.exposure_ev).toBe(0);
+    expect(reset.color.dcp).toEqual(e.color.dcp);
+    expect(reset.geometry).toEqual(e.geometry);
+  });
+
+  it('camera profile alone does not enable develop reset', () => {
+    const e = neutralEdits();
+    e.color.dcp.mode = 'off';
+    expect(isNonGeometryIdentity(e)).toBe(true);
+    expect(isIdentity(e)).toBe(false);
+    e.color.dcp.mode = 'profile';
+    e.color.dcp.profile_id = 'sony';
+    expect(isNonGeometryIdentity(e)).toBe(true);
+    expect(isIdentity(e)).toBe(false);
+  });
+
+  it('original preview keeps rendering baselines only', () => {
+    const e = neutralEdits();
+    e.basic.exposure_ev = 1;
+    e.color.lut_3d.lut_id = 'lut';
+    e.color.dcp.mode = 'profile';
+    e.color.dcp.profile_id = 'sony';
+    e.geometry.rotate = 90;
+    e.lens.profile_enabled = true;
+    const original = originalPreviewEdits(e);
+    expect(original.basic.exposure_ev).toBe(0);
+    expect(original.color.lut_3d.lut_id).toBeNull();
+    expect(original.color.dcp).toEqual(e.color.dcp);
+    expect(original.geometry).toEqual(e.geometry);
+    expect(original.lens).toEqual(e.lens);
   });
 
   it('treats mask-only edits as non-identity', () => {
@@ -109,19 +154,18 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(back.color.dcp).toEqual(e.color.dcp);
   });
 
-  it('preserves dcp auto mode', () => {
+  it('preserves explicit dcp off mode', () => {
     const e = neutralEdits();
-    e.color.dcp.mode = 'auto';
+    e.color.dcp.mode = 'off';
     const back = roundTrip(e);
-    expect(back.color.dcp.mode).toBe('auto');
+    expect(back.color.dcp.mode).toBe('off');
   });
 
-  it('omits inactive dcp from manifest', () => {
+  it('omits default auto dcp and persists explicit off', () => {
     const e = neutralEdits();
     expect(editsToManifest(e).ops.dcp_hue_sat).toBeUndefined();
-    e.color.dcp.mode = 'profile';
-    e.color.dcp.profile_id = null;
-    expect(editsToManifest(e).ops.dcp_hue_sat).toBeUndefined();
+    e.color.dcp.mode = 'off';
+    expect(editsToManifest(e).ops.dcp_hue_sat).toBeDefined();
   });
 
   it('preserves detail and effects', () => {

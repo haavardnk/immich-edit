@@ -1,4 +1,4 @@
-import { neutralEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
+import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
   defaultBrush,
@@ -139,16 +139,7 @@ class EditorStore {
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       const snap = $state.snapshot(this.edits) as Edits;
-      const neutral = neutralEdits();
-      const edits: Edits = {
-        ...snap,
-        basic: neutral.basic,
-        tone: neutral.tone,
-        color: neutral.color,
-        detail: neutral.detail,
-        effects: neutral.effects,
-        masks: []
-      };
+      const edits = originalPreviewEdits(snap);
       const { blob } = await livePreview(this.assetId, edits, args.edge, 'none', signal);
       return { url: makeObjectUrl(blob) };
     },
@@ -184,7 +175,12 @@ class EditorStore {
     if (!this.splitMode || !this.assetId) return;
     const edge = this.renderedEdge || LIVE_EDGE;
     const snap = $state.snapshot(this.edits);
-    const geomKey = JSON.stringify({ g: snap.geometry, l: snap.lens, o: snap.output });
+    const geomKey = JSON.stringify({
+      g: snap.geometry,
+      l: snap.lens,
+      o: snap.output,
+      d: snap.color.dcp
+    });
     if (this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
     this.originalFlight.submit({ edge, geomKey });
   }
@@ -289,16 +285,7 @@ class EditorStore {
   showOriginal(): void {
     if (!this.initialised) return;
     const snap = $state.snapshot(this.edits) as Edits;
-    const neutral = neutralEdits();
-    const edits: Edits = {
-      ...snap,
-      basic: neutral.basic,
-      tone: neutral.tone,
-      color: neutral.color,
-      detail: neutral.detail,
-      effects: neutral.effects,
-      masks: []
-    };
+    const edits = originalPreviewEdits(snap);
     this.flight.submit({ edits, maxEdge: this.renderedEdge || LIVE_EDGE, previewMode: 'none' });
   }
 
@@ -367,7 +354,7 @@ class EditorStore {
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
-    this.edits = { ...neutralEdits(), geometry: this.edits.geometry };
+    this.edits = resetDevelopEdits(this.edits);
     await this.onCommit('Reset');
   };
 

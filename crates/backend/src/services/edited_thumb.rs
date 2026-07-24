@@ -79,7 +79,9 @@ impl EditedThumbService {
         if actual != expected_hash {
             return Err(EditedThumbError::HashMismatch);
         }
-        let path = self.cache_path(asset_id, expected_hash, size);
+        let dcp_revision = render.dcp_revision().await?;
+        let render_hash = format!("{expected_hash}-{dcp_revision}");
+        let path = self.cache_path(asset_id, &render_hash, size);
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);
         }

@@ -184,7 +184,7 @@
         {/if}
       </div>
     {:else}
-      <div class="flex items-center justify-end border-b border-white/10 h-[37px] pr-1.5">
+      <div class="flex h-9.25 items-center justify-end border-b border-white/10 pr-1.5">
         <button
           class="p-1.5 hover:bg-white/10 transition-colors rounded"
           onclick={ui.toggleRight}

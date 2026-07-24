@@ -5,7 +5,7 @@ pub mod color_matrix;
 pub mod color_nr;
 pub mod contrast;
 pub mod curves;
-pub mod dcp_huesat;
+pub mod dcp_profile;
 pub mod dehaze;
 pub mod exposure;
 pub mod grain;
@@ -92,9 +92,9 @@ pub struct RenderContext {
 
 #[derive(Clone)]
 pub struct ResolvedDcp {
-    pub base_table: Option<crate::dcp::HueSatMap>,
-    pub look_table: Option<crate::dcp::HueSatMap>,
-    pub tone_curve: Option<Vec<[f32; 2]>>,
+    pub base_table: Option<std::sync::Arc<crate::dcp::HueSatMap>>,
+    pub look_table: Option<std::sync::Arc<crate::dcp::HueSatMap>>,
+    pub tone_curve: Option<std::sync::Arc<Vec<[f32; 2]>>>,
     pub to_pp: [[f32; 3]; 3],
     pub from_pp: [[f32; 3]; 3],
 }
@@ -108,7 +108,11 @@ pub fn resolve_dcp(
     let g = crate::color::dcp_weight(profile, wb_coeffs, edits.illuminant);
     let base_table = if edits.use_base_table {
         match (&profile.huesatmap1, &profile.huesatmap2) {
-            (Some(a), Some(b)) => Some(crate::color::merge_huesat(a, b, g)),
+            (Some(a), Some(b)) => Some(std::sync::Arc::new(crate::color::merge_huesat(
+                a.as_ref(),
+                b.as_ref(),
+                g,
+            ))),
             (Some(a), None) => Some(a.clone()),
             (None, Some(b)) => Some(b.clone()),
             (None, None) => None,
@@ -125,7 +129,9 @@ pub fn resolve_dcp(
         if profile.has_tone_curve() {
             profile.tone_curve.clone()
         } else if profile.is_adobe() {
-            Some(crate::color::ACR_DEFAULT_TONE_CURVE.to_vec())
+            Some(std::sync::Arc::new(
+                crate::color::ACR_DEFAULT_TONE_CURVE.to_vec(),
+            ))
         } else {
             None
         }
@@ -397,7 +403,7 @@ pub fn default_registry() -> OpRegistry {
         AnyOp::Fused(Box::new(vibrance::VibranceOp)),
         AnyOp::Fused(Box::new(hsl::HslOp)),
         AnyOp::Fused(Box::new(color_grade::ColorGradeOp)),
-        AnyOp::Fused(Box::new(dcp_huesat::DcpHueSatOp)),
+        AnyOp::Fused(Box::new(dcp_profile::DcpProfileOp)),
         AnyOp::Output(Box::new(lut::Lut3dOp)),
         AnyOp::Spatial(Box::new(transform::TransformOp)),
         AnyOp::Spatial(Box::new(sharpen::SharpenOp)),

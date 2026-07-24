@@ -257,10 +257,24 @@ mod tests {
     }
 
     #[test]
-    fn dcp_off_not_serialized() {
+    fn dcp_default_auto_not_serialized() {
         let manifest = EditManifest::from_edits(&Edits::default());
         if manifest.ops.contains_key("dcp_hue_sat") {
-            panic!("dcp should not serialize when Off");
+            panic!("default DCP auto mode should stay sparse");
+        }
+    }
+
+    #[test]
+    fn dcp_explicit_off_roundtrip() {
+        let mut edits = Edits::default();
+        edits.color.dcp.mode = crate::edits::DcpMode::Off;
+        let manifest = EditManifest::from_edits(&edits);
+        if !manifest.ops.contains_key("dcp_hue_sat") {
+            panic!("explicit DCP off mode must be persisted");
+        }
+        let back = manifest.to_edits();
+        if back.color.dcp.mode != crate::edits::DcpMode::Off {
+            panic!("explicit DCP off mode was not restored");
         }
     }
 

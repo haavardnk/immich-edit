@@ -389,13 +389,13 @@ fn make_huesat_profile() -> raw_pipeline::DcpProfile {
         color_matrix2: None,
         forward_matrix1: Some(fm),
         forward_matrix2: None,
-        huesatmap1: Some(HueSatMap {
+        huesatmap1: Some(std::sync::Arc::new(HueSatMap {
             hue_div: hue,
             sat_div: sat,
             val_div: val,
             encoding: HsvEncoding::Linear,
             data,
-        }),
+        })),
         huesatmap2: None,
         look_table: None,
         tone_curve: None,
@@ -413,13 +413,13 @@ fn gpu_vs_cpu_parity_with_dcp_huesat() {
 #[test]
 fn gpu_vs_cpu_parity_with_dcp_tone() {
     let mut profile = make_huesat_profile();
-    profile.tone_curve = Some(vec![
+    profile.tone_curve = Some(std::sync::Arc::new(vec![
         [0.0, 0.0],
         [0.25, 0.18],
         [0.5, 0.52],
         [0.75, 0.84],
         [1.0, 1.0],
-    ]);
+    ]));
     run_dcp_parity(profile);
 }
 
@@ -430,13 +430,13 @@ fn gpu_vs_cpu_parity_with_dcp_look() {
     let hue = 6u32;
     let sat = 4u32;
     let val = 1u32;
-    profile.look_table = Some(HueSatMap {
+    profile.look_table = Some(std::sync::Arc::new(HueSatMap {
         hue_div: hue,
         sat_div: sat,
         val_div: val,
         encoding: HsvEncoding::Srgb,
         data: vec![[-8.0, 1.1, 0.97]; (hue * sat * val) as usize],
-    });
+    }));
     run_dcp_parity(profile);
 }
 

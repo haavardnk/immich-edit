@@ -72,6 +72,13 @@ impl ActiveRenderer {
 }
 
 impl RenderService {
+    pub async fn dcp_revision(&self) -> Result<String, RenderError> {
+        self.dcp
+            .revision()
+            .await
+            .map_err(|e| RenderError::Dcp(e.to_string()))
+    }
+
     pub fn new(
         immich: ImmichClient,
         cache: RenderCacheOptions,

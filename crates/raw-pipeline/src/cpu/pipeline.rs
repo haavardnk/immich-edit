@@ -48,32 +48,14 @@ pub fn render_with_cancel(
         (frame.data.clone(), frame.width, frame.height)
     };
 
-    let xyz_to_cam =
-        crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
-    let dcp_active = frame.is_raw && edits.color.dcp.is_active() && options.dcp.is_some();
-    let (cam_to_srgb, dcp_resolved) = if dcp_active {
-        let profile = options.dcp.as_ref().expect("dcp active");
-        let (mat, resolved) = crate::ops::resolve_dcp(profile, frame.wb_coeffs, &edits.color.dcp);
-        let gain = crate::auto::raw_baseline_gain(frame, mat);
-        let mut m = crate::auto::scale_matrix(mat, gain);
-        if edits.color.dcp.use_baseline_exposure {
-            m = crate::auto::scale_matrix(m, 2f32.powf(profile.baseline_exposure_offset));
-        }
-        (m, Some(std::sync::Arc::new(resolved)))
-    } else if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
-        let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
-        let gain = crate::auto::raw_baseline_gain(frame, m);
-        (crate::auto::scale_matrix(m, gain), None)
-    } else {
-        (crate::color::identity_3x3(), None)
-    };
+    let setup = crate::dcp_pipeline::resolve(frame, &edits, options.dcp.as_deref());
     let ctx = OpContext {
         render: RenderContext {
             wb_coeffs: frame.wb_coeffs,
-            cam_to_srgb,
+            cam_to_srgb: setup.cam_to_srgb,
             is_raw: frame.is_raw,
             preview_mode: options.preview_mode.clone(),
-            dcp: dcp_resolved,
+            dcp: setup.resolved,
         },
         scratch: OpScratch { shadows_blur: None },
     };
@@ -120,8 +102,8 @@ pub fn render_with_cancel(
     let dcp_active = ctx.render.dcp.is_some();
     let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
         (
-            d.look_table.as_ref(),
-            d.tone_curve.as_deref(),
+            d.look_table.as_deref(),
+            d.tone_curve.as_deref().map(Vec::as_slice),
             &d.to_pp,
             &d.from_pp,
         )

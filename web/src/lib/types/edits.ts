@@ -125,7 +125,7 @@ export interface DcpEdits {
 
 export function neutralDcp(): DcpEdits {
   return {
-    mode: 'off',
+    mode: 'auto',
     profile_id: null,
     illuminant: 'interpolated',
     use_tone_curve: true,
@@ -135,10 +135,17 @@ export function neutralDcp(): DcpEdits {
   };
 }
 
-export function dcpIsActive(d: DcpEdits): boolean {
-  if (d.mode === 'off') return false;
-  if (d.mode === 'auto') return true;
-  return !!d.profile_id;
+export function dcpIsDefault(d: DcpEdits): boolean {
+  const neutral = neutralDcp();
+  return (
+    d.mode === neutral.mode &&
+    d.profile_id === neutral.profile_id &&
+    d.illuminant === neutral.illuminant &&
+    d.use_tone_curve === neutral.use_tone_curve &&
+    d.use_base_table === neutral.use_base_table &&
+    d.use_look_table === neutral.use_look_table &&
+    d.use_baseline_exposure === neutral.use_baseline_exposure
+  );
 }
 
 export interface ColorEdits {
@@ -468,6 +475,31 @@ export function neutralEdits(): Edits {
   };
 }
 
+export function resetDevelopEdits(edits: Edits): Edits {
+  const neutral = neutralEdits();
+  return {
+    ...neutral,
+    color: {
+      ...neutral.color,
+      dcp: { ...edits.color.dcp }
+    },
+    geometry: edits.geometry
+  };
+}
+
+export function originalPreviewEdits(edits: Edits): Edits {
+  const neutral = neutralEdits();
+  return {
+    ...edits,
+    basic: neutral.basic,
+    tone: neutral.tone,
+    color: { ...neutral.color, dcp: edits.color.dcp },
+    detail: neutral.detail,
+    effects: neutral.effects,
+    masks: []
+  };
+}
+
 export const NEUTRAL_EDITS: Edits = neutralEdits();
 
 function bandsAllZero(bands: HslBand[]): boolean {
@@ -508,7 +540,8 @@ export function curvesEditsIsIdentity(c: CurvesEdits): boolean {
 }
 
 export function isIdentity(e: Edits): boolean {
-  return isNonGeometryIdentity(e) &&
+  return dcpIsDefault(e.color.dcp) &&
+    isNonGeometryIdentity(e) &&
     e.geometry.rotate === 0 &&
     Math.abs(e.geometry.rotate_angle) < 1e-4 &&
     !e.geometry.flip_h &&
@@ -537,7 +570,6 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
-    !dcpIsActive(e.color.dcp) &&
     e.detail.sharpen_amount === 0 &&
     e.detail.luma_nr_amount === 0 &&
     e.detail.color_nr_amount === 0 &&
@@ -594,7 +626,7 @@ export function editsToManifest(e: Edits): EditManifest {
   }
   if (lut3dIsActive(e.color.lut_3d))
     ops.lut_3d = { lut_id: e.color.lut_3d.lut_id, amount: e.color.lut_3d.amount };
-  if (dcpIsActive(e.color.dcp))
+  if (!dcpIsDefault(e.color.dcp))
     ops.dcp_hue_sat = {
       mode: e.color.dcp.mode,
       profile_id: e.color.dcp.profile_id,

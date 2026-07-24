@@ -1,7 +1,8 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import LutPicker from './lut/LutPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiUpload, mdiDelete, mdiRestore, mdiCheck, mdiClose, mdiAlertCircleOutline } from '@mdi/js';
+  import { mdiAlertCircleOutline, mdiCheck, mdiClose, mdiDelete, mdiRestore, mdiUpload } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { listLuts, importLut, deleteLut, type LutMeta } from '$lib/api/luts';
   import { ApiError } from '$lib/api/client';
@@ -10,12 +11,12 @@
   let luts = $state<LutMeta[]>([]);
   let loaded = $state(false);
   let importing = $state(false);
-  let pendingDelete = $state<string | null>(null);
+  let pendingDelete = $state(false);
   let fileInput: HTMLInputElement | null = $state(null);
 
   const selectedId = $derived(editor.edits.color.lut_3d.lut_id);
-  const selected = $derived(luts.find((l) => l.id === selectedId) ?? null);
-  const missingSelected = $derived(!!selectedId && !selected);
+  const selected = $derived(luts.find((lut) => lut.id === selectedId) ?? null);
+  const missingSelected = $derived(loaded && !!selectedId && !selected);
 
   $effect(() => {
     if (!loaded) void load();
@@ -25,13 +26,14 @@
     try {
       luts = await listLuts();
     } catch {
-      /* reported by client */
+      luts = [];
     }
     loaded = true;
   }
 
   function select(id: string | null): void {
     editor.edits.color.lut_3d.lut_id = id;
+    pendingDelete = false;
     editor.onCommit(id ? 'Select LUT' : 'Remove LUT');
   }
 
@@ -55,7 +57,7 @@
       if (err instanceof ApiError && err.status === 409) {
         const existing = err.message.split(':').pop()?.trim();
         await load();
-        if (existing && luts.some((l) => l.id === existing)) {
+        if (existing && luts.some((lut) => lut.id === existing)) {
           select(existing);
           toasts.push('info', 'LUT already imported — selected existing.');
         }
@@ -69,19 +71,39 @@
     }
   }
 
-  async function confirmDelete(id: string): Promise<void> {
+  async function confirmDelete(): Promise<void> {
+    if (!selected) return;
     try {
-      await deleteLut(id);
+      await deleteLut(selected.id);
+      select(null);
+      await load();
     } catch {
-      /* reported by client */
+      toasts.push('error', 'LUT delete failed.');
     }
-    pendingDelete = null;
-    if (selectedId === id) select(null);
-    await load();
+    pendingDelete = false;
+  }
+
+  function reset(): void {
+    editor.edits.color.lut_3d.lut_id = null;
+    editor.edits.color.lut_3d.amount = 100;
+    pendingDelete = false;
+    editor.onCommit('Reset LUT');
   }
 </script>
 
 <div class="flex flex-col gap-2.5 pb-1">
+  <div class="flex items-center justify-between">
+    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">LUT</div>
+    <button
+      type="button"
+      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+      title="Reset LUT"
+      aria-label="Reset LUT"
+      onclick={reset}
+    >
+      <Icon path={mdiRestore} size={14} />
+    </button>
+  </div>
   <input
     bind:this={fileInput}
     type="file"
@@ -89,8 +111,48 @@
     class="hidden"
     onchange={(e) => void onFile(e)}
   />
+
+  <div class="flex items-center gap-1">
+    <div class="min-w-0 flex-1">
+      <LutPicker {luts} {selectedId} onSelect={select} />
+    </div>
+    {#if selected}
+      {#if pendingDelete}
+        <button
+          type="button"
+          class="flex items-center justify-center rounded-lg p-1.5 text-red-400 transition-colors hover:bg-white/10 hover:text-red-300"
+          title="Confirm delete"
+          aria-label="Confirm delete"
+          onclick={() => void confirmDelete()}
+        >
+          <Icon path={mdiCheck} size={14} />
+        </button>
+        <button
+          type="button"
+          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-immich-dark-fg"
+          title="Cancel"
+          aria-label="Cancel delete"
+          onclick={() => (pendingDelete = false)}
+        >
+          <Icon path={mdiClose} size={14} />
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-red-400"
+          title="Delete LUT"
+          aria-label="Delete LUT"
+          onclick={() => (pendingDelete = true)}
+        >
+          <Icon path={mdiDelete} size={14} />
+        </button>
+      {/if}
+    {/if}
+  </div>
+
   <button
-    class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    type="button"
+    class="flex items-center justify-center gap-1.5 rounded-lg bg-white/5 py-1.5 text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
     disabled={importing}
     onclick={triggerImport}
   >
@@ -101,10 +163,10 @@
   {#if missingSelected}
     <div class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300">
       <Icon path={mdiAlertCircleOutline} size={14} />
-      <span class="flex-1 min-w-0 truncate">Referenced LUT is unavailable</span>
+      <span class="min-w-0 flex-1 truncate">Referenced LUT is unavailable</span>
       <button
         type="button"
-        class="text-amber-300/70 hover:text-amber-200 transition-colors"
+        class="text-amber-300/70 transition-colors hover:text-amber-200"
         title="Remove LUT"
         aria-label="Remove LUT"
         onclick={() => select(null)}
@@ -114,94 +176,8 @@
     </div>
   {/if}
 
-  {#if luts.length === 0}
-    {#if loaded}
-      <div class="text-xs text-immich-dark-fg/30 py-1">No LUTs imported yet.</div>
-    {/if}
-  {:else}
-    <div class="flex flex-col gap-0.5">
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors {selectedId
-          ? 'hover:bg-white/5 text-immich-dark-fg/60'
-          : 'bg-white/10 text-immich-dark-fg'}"
-        onclick={() => select(null)}
-      >
-        <span class="w-3.5 shrink-0">
-          {#if !selectedId}<Icon path={mdiCheck} size={14} />{/if}
-        </span>
-        None
-      </button>
-      {#each luts as lut (lut.id)}
-        <div
-          class="group flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors {selectedId ===
-          lut.id
-            ? 'bg-white/10 text-immich-dark-fg'
-            : 'hover:bg-white/5 text-immich-dark-fg/70'}"
-        >
-          <button
-            type="button"
-            class="flex flex-1 min-w-0 items-center gap-1.5 text-left"
-            title="{lut.lut_size}×{lut.lut_size}×{lut.lut_size} grid"
-            onclick={() => select(lut.id)}
-          >
-            <span class="w-3.5 shrink-0">
-              {#if selectedId === lut.id}<Icon path={mdiCheck} size={14} />{/if}
-            </span>
-            <span class="truncate">{lut.name}</span>
-          </button>
-          {#if pendingDelete === lut.id}
-            <button
-              type="button"
-              class="text-red-400 hover:text-red-300 transition-colors"
-              title="Confirm delete"
-              aria-label="Confirm delete"
-              onclick={() => void confirmDelete(lut.id)}
-            >
-              <Icon path={mdiCheck} size={14} />
-            </button>
-            <button
-              type="button"
-              class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-              title="Cancel"
-              aria-label="Cancel"
-              onclick={() => (pendingDelete = null)}
-            >
-              <Icon path={mdiClose} size={14} />
-            </button>
-          {:else}
-            <button
-              type="button"
-              class="text-immich-dark-fg/0 group-hover:text-immich-dark-fg/40 hover:!text-red-400 transition-colors"
-              title="Delete LUT"
-              aria-label="Delete LUT"
-              onclick={() => (pendingDelete = lut.id)}
-            >
-              <Icon path={mdiDelete} size={14} />
-            </button>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
   {#if selected}
-    <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2">
-      <div class="flex items-center justify-between px-1">
-        <span class="text-[10px] uppercase tracking-wide text-immich-dark-fg/60">Amount</span>
-        <button
-          type="button"
-          class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-          title="Reset amount"
-          aria-label="Reset amount"
-          onclick={() => {
-            editor.edits.color.lut_3d.amount = 100;
-            editor.onCommit('LUT Amount');
-          }}
-        >
-          <Icon path={mdiRestore} size={14} />
-        </button>
-      </div>
+    <div class="border-t border-white/10 pt-2">
       <SliderRow
         label="Amount"
         commitAction="LUT Amount"

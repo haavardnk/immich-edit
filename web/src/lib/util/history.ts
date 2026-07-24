@@ -215,6 +215,12 @@ function profileChanged(prev: LensEdits, curr: LensEdits): boolean {
   return LENS_PROFILE_KEYS.some((key) => Math.abs(prev[key] - curr[key]) > 1e-4);
 }
 
+function dcpLabel(edits: Edits): string {
+  if (edits.color.dcp.mode === 'off') return 'Default Color';
+  if (edits.color.dcp.mode === 'auto') return 'Auto';
+  return edits.color.dcp.profile_id ? 'Imported profile' : 'Unavailable profile';
+}
+
 export function historyDetails(
   entry: EditHistoryEntry,
   previous: EditHistoryEntry | null
@@ -257,6 +263,29 @@ export function historyDetails(
       groups.set('lens', group);
     }
     group.items.push({ kind: 'summary', text: 'Profile data changed' });
+  }
+  if (
+    prev.color.dcp.mode !== curr.color.dcp.mode ||
+    prev.color.dcp.profile_id !== curr.color.dcp.profile_id ||
+    prev.color.dcp.illuminant !== curr.color.dcp.illuminant
+  ) {
+    let group = groups.get('color');
+    if (!group) {
+      group = { key: 'color', label: 'Color', items: [] };
+      groups.set('color', group);
+    }
+    group.items.push({
+      kind: 'summary',
+      text: `Camera profile: ${dcpLabel(prev)} → ${dcpLabel(curr)}`
+    });
+  }
+  if (prev.color.lut_3d.lut_id !== curr.color.lut_3d.lut_id) {
+    let group = groups.get('color');
+    if (!group) {
+      group = { key: 'color', label: 'Color', items: [] };
+      groups.set('color', group);
+    }
+    group.items.push({ kind: 'summary', text: 'LUT selection changed' });
   }
   return [...groups.values(), ...nested.filter((group) => group.items.length > 0)];
 }

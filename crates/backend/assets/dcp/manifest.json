@@ -1,6 +1,7 @@
 {
   "source": "RawTherapee (rtdata/dcpprofiles)",
   "source_url": "https://github.com/Beep6581/RawTherapee",
+  "source_revision": "039b9b89d43315be6b42e8fbb33b8cfb39edd4bf",
   "license": "GPL-3.0-or-later (project license); individual profiles marked CC0/public domain where noted in the copyright field",
   "note": "Bundled from the RawTherapee project, distributed under GPLv3. Per-profile copyright is preserved in the copyright field.",
   "count": 156,

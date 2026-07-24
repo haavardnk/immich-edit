@@ -20,7 +20,6 @@ use crate::{PipelineError, PipelineResult};
 use super::context::GpuContext;
 use super::helpers::{DemosaicParams, cfa_to_indices, mip_count, scale_to_max};
 use super::passes::GpuPasses;
-use super::passes::dcp_huesat::DCP_HUESAT_UNIFORM_SIZE;
 use super::passes::effects_tone::EFFECTS_TONE_UNIFORM_SIZE;
 use super::passes::luma_pyramid::LumaPyramidPass;
 use super::passes::lut::LUT_UNIFORM_SIZE;
@@ -31,6 +30,8 @@ use super::texture_pool::{PooledTexture, TextureKey, TexturePool};
 use super::uniform_pool::UniformPool;
 use super::uniforms::{write_active_mask, write_header};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
+
+mod dcp;
 
 const CACHE_ITEMS: usize = 2;
 
@@ -129,16 +130,6 @@ const NR_CACHE_ITEMS: usize = 2;
 const LUT_TEX_CACHE_ITEMS: usize = 4;
 const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 
-fn identity_huesat_map() -> &'static crate::dcp::HueSatMap {
-    static MAP: std::sync::OnceLock<crate::dcp::HueSatMap> = std::sync::OnceLock::new();
-    MAP.get_or_init(|| crate::dcp::HueSatMap {
-        hue_div: 1,
-        sat_div: 1,
-        val_div: 1,
-        encoding: crate::dcp::HsvEncoding::Linear,
-        data: vec![[0.0, 1.0, 1.0]],
-    })
-}
 const ATLAS_CACHE_ITEMS: usize = 32;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
@@ -519,7 +510,7 @@ impl GpuRenderer {
             if op.id() == "dehaze" {
                 continue;
             }
-            if op.id() == "dcp_hue_sat" {
+            if op.id() == crate::ops::dcp_profile::DCP_PROFILE_OP_ID {
                 continue;
             }
             if op.stage() == crate::ops::Stage::Output {
@@ -575,39 +566,14 @@ impl GpuRenderer {
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
 
-        let xyz_to_cam = crate::color::resolve_xyz_to_cam(
-            &frame.color_matrices,
-            frame.wb_coeffs,
-            frame.xyz_to_cam,
-        );
-        let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
-            let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
-            let gain = crate::auto::raw_baseline_gain(frame, m);
-            crate::auto::scale_matrix(m, gain)
-        } else {
-            crate::color::identity_3x3()
-        };
-        let dcp_active = frame.is_raw && edits.color.dcp.is_active() && opts.dcp.is_some();
-        let (cam_to_srgb, dcp_resolved) = if dcp_active {
-            let profile = opts.dcp.as_ref().expect("dcp active");
-            let (mat, resolved) =
-                crate::ops::resolve_dcp(profile, frame.wb_coeffs, &edits.color.dcp);
-            let gain = crate::auto::raw_baseline_gain(frame, mat);
-            let mut m = crate::auto::scale_matrix(mat, gain);
-            if edits.color.dcp.use_baseline_exposure {
-                m = crate::auto::scale_matrix(m, 2f32.powf(profile.baseline_exposure_offset));
-            }
-            (m, Some(std::sync::Arc::new(resolved)))
-        } else {
-            (cam_to_srgb, None)
-        };
+        let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
                 wb_coeffs: frame.wb_coeffs,
-                cam_to_srgb,
+                cam_to_srgb: setup.cam_to_srgb,
                 is_raw: frame.is_raw,
                 preview_mode: opts.preview_mode.clone(),
-                dcp: dcp_resolved,
+                dcp: setup.resolved,
             },
             scratch: OpScratch { shadows_blur: None },
         };
@@ -1107,12 +1073,6 @@ impl GpuRenderer {
                 | crate::frame::PreviewMode::SharpenRadius
                 | crate::frame::PreviewMode::SharpenDetail
         );
-        let dcp_base_active = ctx_op
-            .render
-            .dcp
-            .as_ref()
-            .and_then(|d| d.base_table.as_ref())
-            .is_some();
         let dcp_active = ctx_op.render.dcp.is_some();
         let final_pass_active =
             sharpen_active || sharpen_preview || effects_active || has_masks || dcp_active;
@@ -1133,59 +1093,14 @@ impl GpuRenderer {
         } else {
             None
         };
-        let _huesat_scratch = if dcp_base_active && !sharpen_preview {
-            ctx_op.render.dcp.as_ref().and_then(|resolved| {
-                resolved.base_table.as_ref().map(|map| {
-                    let table_tex = self.get_or_upload_huesat_texture(map);
-                    let scratch = self.texture_pool.acquire(
-                        &self.ctx.device,
-                        TextureKey::new(
-                            wgpu::TextureFormat::Rgba16Float,
-                            out_w,
-                            out_h,
-                            1,
-                            TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
-                        ),
-                        "dcp-huesat-scratch",
-                    );
-                    self.encode_dcp_huesat(
-                        &mut encoder,
-                        &p.linear_texture,
-                        &table_tex,
-                        &scratch,
-                        resolved,
-                        map,
-                        out_w,
-                        out_h,
-                        false,
-                        true,
-                        None,
-                    );
-                    encoder.copy_texture_to_texture(
-                        wgpu::TexelCopyTextureInfo {
-                            texture: scratch.texture(),
-                            mip_level: 0,
-                            origin: wgpu::Origin3d::ZERO,
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        wgpu::TexelCopyTextureInfo {
-                            texture: &p.linear_texture,
-                            mip_level: 0,
-                            origin: wgpu::Origin3d::ZERO,
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        Extent3d {
-                            width: out_w,
-                            height: out_h,
-                            depth_or_array_layers: 1,
-                        },
-                    );
-                    scratch
-                })
-            })
-        } else {
-            None
-        };
+        let _huesat_scratch = self.run_dcp_base_table(
+            &mut encoder,
+            ctx_op.render.dcp.as_deref(),
+            &p.linear_texture,
+            out_w,
+            out_h,
+            sharpen_preview,
+        );
         if let Some(spool) = sharpen_pool_guard.as_ref() {
             let s = &spool[0];
             let run_sharpen = sharpen_active || sharpen_preview;
@@ -1202,72 +1117,21 @@ impl GpuRenderer {
                     out_h,
                     run_sharpen,
                     dcp_active,
-                    None,
                 );
             }
         }
 
-        let _dcp_finish_scratch = if !sharpen_preview {
-            ctx_op.render.dcp.as_ref().and_then(|resolved| {
-                let tone = resolved.tone_curve.as_deref();
-                if resolved.look_table.is_none() && tone.is_none() {
-                    None
-                } else {
-                    let map = resolved
-                        .look_table
-                        .as_ref()
-                        .unwrap_or_else(|| identity_huesat_map());
-                    let table_tex = self.get_or_upload_huesat_texture(map);
-                    let scratch = self.texture_pool.acquire(
-                        &self.ctx.device,
-                        TextureKey::new(
-                            wgpu::TextureFormat::Rgba8Unorm,
-                            out_w,
-                            out_h,
-                            1,
-                            TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
-                        ),
-                        "dcp-finish-scratch",
-                    );
-                    let spool = sharpen_pool_guard.as_ref().expect("dcp final pass targets");
-                    self.encode_dcp_huesat(
-                        &mut encoder,
-                        &spool[0].post_lin,
-                        &table_tex,
-                        &scratch,
-                        resolved,
-                        map,
-                        out_w,
-                        out_h,
-                        true,
-                        resolved.look_table.is_some(),
-                        tone,
-                    );
-                    encoder.copy_texture_to_texture(
-                        wgpu::TexelCopyTextureInfo {
-                            texture: scratch.texture(),
-                            mip_level: 0,
-                            origin: wgpu::Origin3d::ZERO,
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        wgpu::TexelCopyTextureInfo {
-                            texture: &p.texture,
-                            mip_level: 0,
-                            origin: wgpu::Origin3d::ZERO,
-                            aspect: wgpu::TextureAspect::All,
-                        },
-                        Extent3d {
-                            width: out_w,
-                            height: out_h,
-                            depth_or_array_layers: 1,
-                        },
-                    );
-                    Some(scratch)
-                }
-            })
-        } else {
-            None
-        };
+        let _dcp_finish_scratch = sharpen_pool_guard.as_ref().and_then(|spool| {
+            self.run_dcp_finish(
+                &mut encoder,
+                ctx_op.render.dcp.as_deref(),
+                &spool[0].post_lin,
+                &p.texture,
+                out_w,
+                out_h,
+                sharpen_preview,
+            )
+        });
 
         let lut_target = if sharpen_preview {
             None
@@ -1648,161 +1512,6 @@ impl GpuRenderer {
         cp.dispatch_workgroups(gx, gy, 1);
     }
 
-    fn get_or_upload_huesat_texture(&self, map: &crate::dcp::HueSatMap) -> Arc<Texture> {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        map.hue_div.hash(&mut hasher);
-        map.sat_div.hash(&mut hasher);
-        map.val_div.hash(&mut hasher);
-        for px in &map.data {
-            px[0].to_bits().hash(&mut hasher);
-            px[1].to_bits().hash(&mut hasher);
-            px[2].to_bits().hash(&mut hasher);
-        }
-        let key = hasher.finish();
-        if let Some(t) = self.huesat_tex_cache.lock().get(&key).cloned() {
-            return t;
-        }
-        let hue = map.hue_div;
-        let sat = map.sat_div;
-        let val = map.val_div.max(1);
-        let rgba: Vec<f32> = map
-            .data
-            .iter()
-            .flat_map(|px| [px[0], px[1], px[2], 0.0])
-            .collect();
-        let tex = self.ctx.device.create_texture(&TextureDescriptor {
-            label: Some("dcp-huesat-3d"),
-            size: Extent3d {
-                width: hue,
-                height: sat,
-                depth_or_array_layers: val,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D3,
-            format: wgpu::TextureFormat::Rgba32Float,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-        self.ctx.queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &tex,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            bytemuck::cast_slice(&rgba),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(hue * 16),
-                rows_per_image: Some(sat),
-            },
-            Extent3d {
-                width: hue,
-                height: sat,
-                depth_or_array_layers: val,
-            },
-        );
-        let tex = Arc::new(tex);
-        self.huesat_tex_cache.lock().put(key, tex.clone());
-        tex
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn encode_dcp_huesat(
-        &self,
-        encoder: &mut CommandEncoder,
-        src: &Texture,
-        table_tex: &Texture,
-        dst: &Texture,
-        resolved: &crate::ops::ResolvedDcp,
-        map: &crate::dcp::HueSatMap,
-        w: u32,
-        h: u32,
-        output: bool,
-        apply_table: bool,
-        tone_curve: Option<&[[f32; 2]]>,
-    ) {
-        let device = &self.ctx.device;
-        let pass = if output {
-            &self.passes.dcp_look
-        } else {
-            &self.passes.dcp_huesat
-        };
-        let src_view = src.create_view(&TextureViewDescriptor::default());
-        let table_view = table_tex.create_view(&TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::D3),
-            ..Default::default()
-        });
-        let dst_view = dst.create_view(&TextureViewDescriptor::default());
-
-        let mut bytes = [0u8; DCP_HUESAT_UNIFORM_SIZE as usize];
-        bytes[0..4].copy_from_slice(&map.hue_div.to_ne_bytes());
-        bytes[4..8].copy_from_slice(&map.sat_div.to_ne_bytes());
-        bytes[8..12].copy_from_slice(&map.val_div.max(1).to_ne_bytes());
-        let encoding: u32 = matches!(map.encoding, crate::dcp::HsvEncoding::Srgb) as u32;
-        bytes[12..16].copy_from_slice(&encoding.to_ne_bytes());
-        let write_mat = |bytes: &mut [u8], base: usize, m: &[[f32; 3]; 3]| {
-            for (i, row) in m.iter().enumerate() {
-                let off = base + i * 16;
-                bytes[off..off + 4].copy_from_slice(&row[0].to_ne_bytes());
-                bytes[off + 4..off + 8].copy_from_slice(&row[1].to_ne_bytes());
-                bytes[off + 8..off + 12].copy_from_slice(&row[2].to_ne_bytes());
-            }
-        };
-        write_mat(&mut bytes, 16, &resolved.to_pp);
-        write_mat(&mut bytes, 64, &resolved.from_pp);
-        bytes[112..116].copy_from_slice(&(output as u32).to_ne_bytes());
-        bytes[116..120].copy_from_slice(&(apply_table as u32).to_ne_bytes());
-        bytes[120..124].copy_from_slice(&(tone_curve.is_some() as u32).to_ne_bytes());
-        if let Some(curve) = tone_curve {
-            for i in 0..256 {
-                let x = i as f32 / 255.0;
-                let y = crate::color::eval_tone_curve(curve, x);
-                let off = 128 + i * 4;
-                bytes[off..off + 4].copy_from_slice(&y.to_ne_bytes());
-            }
-        }
-
-        let ub = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("dcp-huesat-uniform"),
-            contents: &bytes,
-            usage: BufferUsages::UNIFORM,
-        });
-        let bg = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dcp-huesat-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: ub.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&table_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
-            ],
-        });
-        let gx = w.div_ceil(16);
-        let gy = h.div_ceil(16);
-        let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-            label: Some("dcp-huesat"),
-            timestamp_writes: None,
-        });
-        cp.set_pipeline(&pass.pipeline);
-        cp.set_bind_group(0, &bg, &[]);
-        cp.dispatch_workgroups(gx, gy, 1);
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn encode_effects_tone(
         &self,
@@ -1814,7 +1523,6 @@ impl GpuRenderer {
         h: u32,
         sharpen_ran: bool,
         dcp_active: bool,
-        dcp_tone: Option<&[[f32; 2]]>,
     ) {
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -1851,16 +1559,6 @@ impl GpuRenderer {
         let tone_kind = crate::tone::tonemap_kind_index(edits.output.tonemap);
         bytes[48..52].copy_from_slice(&tone_kind.to_ne_bytes());
         bytes[52..56].copy_from_slice(&(dcp_active as u32).to_ne_bytes());
-        let has_curve = dcp_active && dcp_tone.is_some();
-        bytes[56..60].copy_from_slice(&(has_curve as u32).to_ne_bytes());
-        if let Some(curve) = dcp_tone.filter(|_| dcp_active) {
-            for i in 0..64 {
-                let x = i as f32 / 63.0;
-                let y = crate::color::eval_tone_curve(curve, x);
-                let off = 64 + i * 4;
-                bytes[off..off + 4].copy_from_slice(&y.to_ne_bytes());
-            }
-        }
         let ub = self
             .uniform_pool
             .acquire(device, queue, &bytes, "effects-tone-uniform");

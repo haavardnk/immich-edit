@@ -12,7 +12,7 @@ use crate::gpu::context::GpuContext;
 
 use super::demosaic::linear_format_str;
 
-pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = 320;
+pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = 64;
 
 pub struct EffectsTonePass {
     pub layout: BindGroupLayout,

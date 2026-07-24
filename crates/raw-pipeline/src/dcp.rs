@@ -2,12 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub const DCP_MAX_SOURCE_BYTES: usize = 16 * 1024 * 1024;
-
-pub type DcpMap = HashMap<String, Arc<DcpProfile>>;
-
-pub fn empty_dcp() -> DcpMap {
-    HashMap::new()
-}
+const DCP_MAX_TABLE_DIM: u32 = 256;
+const DCP_MAX_TABLE_ENTRIES: usize = DCP_MAX_SOURCE_BYTES / (3 * size_of::<f32>());
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DcpParseError {
@@ -63,8 +59,10 @@ pub struct HueSatMap {
 }
 
 impl HueSatMap {
-    fn expected_len(&self) -> usize {
-        (self.hue_div * self.sat_div * self.val_div.max(1)) as usize
+    fn expected_len(&self) -> Option<usize> {
+        (self.hue_div as usize)
+            .checked_mul(self.sat_div as usize)?
+            .checked_mul(self.val_div.max(1) as usize)
     }
 }
 
@@ -79,10 +77,10 @@ pub struct DcpProfile {
     pub color_matrix2: Option<[[f32; 3]; 3]>,
     pub forward_matrix1: Option<[[f32; 3]; 3]>,
     pub forward_matrix2: Option<[[f32; 3]; 3]>,
-    pub huesatmap1: Option<HueSatMap>,
-    pub huesatmap2: Option<HueSatMap>,
-    pub look_table: Option<HueSatMap>,
-    pub tone_curve: Option<Vec<[f32; 2]>>,
+    pub huesatmap1: Option<Arc<HueSatMap>>,
+    pub huesatmap2: Option<Arc<HueSatMap>>,
+    pub look_table: Option<Arc<HueSatMap>>,
+    pub tone_curve: Option<Arc<Vec<[f32; 2]>>>,
     pub baseline_exposure_offset: f32,
     pub default_black_render: u32,
     pub embed_policy: u32,
@@ -95,14 +93,6 @@ impl DcpProfile {
 
     pub fn has_tone_curve(&self) -> bool {
         self.tone_curve.as_ref().is_some_and(|c| c.len() >= 2)
-    }
-
-    pub fn has_base_table(&self) -> bool {
-        self.huesatmap1.is_some()
-    }
-
-    pub fn has_look_table(&self) -> bool {
-        self.look_table.is_some()
     }
 
     pub fn has_forward_matrix(&self) -> bool {
@@ -183,20 +173,23 @@ pub fn parse_dcp(bytes: &[u8]) -> Result<DcpProfile, DcpParseError> {
             map.get(&T_HUESAT_DIMS),
             map.get(&T_HUESAT_DATA1),
             map.get(&T_HUESAT_ENCODING),
-        ),
+        )
+        .map(Arc::new),
         huesatmap2: read_huesat(
             &tiff,
             map.get(&T_HUESAT_DIMS),
             map.get(&T_HUESAT_DATA2),
             map.get(&T_HUESAT_ENCODING),
-        ),
+        )
+        .map(Arc::new),
         look_table: read_huesat(
             &tiff,
             map.get(&T_LOOK_DIMS),
             map.get(&T_LOOK_DATA),
             map.get(&T_LOOK_ENCODING),
-        ),
-        tone_curve: read_tone_curve(&tiff, map.get(&T_TONE_CURVE)),
+        )
+        .map(Arc::new),
+        tone_curve: read_tone_curve(&tiff, map.get(&T_TONE_CURVE)).map(Arc::new),
         baseline_exposure_offset: map
             .get(&T_BASELINE_EXPOSURE_OFFSET)
             .and_then(|e| tiff.f32_vec(e))
@@ -237,8 +230,20 @@ fn read_huesat(
     let hue = dims[0] as usize;
     let sat = dims[1] as usize;
     let val = dims[2].max(1) as usize;
+    if dims[0] == 0
+        || dims[1] == 0
+        || dims[0] > DCP_MAX_TABLE_DIM
+        || dims[1] > DCP_MAX_TABLE_DIM
+        || dims[2].max(1) > DCP_MAX_TABLE_DIM
+    {
+        return None;
+    }
+    let expected = hue.checked_mul(sat)?.checked_mul(val)?;
+    if expected > DCP_MAX_TABLE_ENTRIES {
+        return None;
+    }
     let file: Vec<[f32; 3]> = raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
-    if hue == 0 || sat == 0 || file.len() != hue * sat * val {
+    if file.len() != expected {
         return None;
     }
     let mut data = vec![[0.0f32; 3]; file.len()];
@@ -256,7 +261,7 @@ fn read_huesat(
         encoding,
         data,
     };
-    if map.hue_div == 0 || map.sat_div == 0 || map.data.len() != map.expected_len() {
+    if map.data.len() != map.expected_len()? {
         return None;
     }
     Some(map)
@@ -648,6 +653,27 @@ mod tests {
         let hs = p.huesatmap1.as_ref().expect("huesat");
         let shifts: Vec<f32> = hs.data.iter().map(|d| d[0]).collect();
         assert_eq!(shifts, vec![0.0, 10.0, 1.0, 11.0]);
+    }
+
+    #[test]
+    fn excessive_huesat_dimensions_are_ignored() {
+        let tiff = build_tiff(vec![
+            matrix_tag(T_COLOR_MATRIX1, CM1),
+            TagVal {
+                tag: T_HUESAT_DIMS,
+                typ: 4,
+                count: 3,
+                bytes: longs(&[DCP_MAX_TABLE_DIM + 1, 1, 1]),
+            },
+            TagVal {
+                tag: T_HUESAT_DATA1,
+                typ: 11,
+                count: 3,
+                bytes: floats(&[0.0, 1.0, 1.0]),
+            },
+        ]);
+        let profile = parse_dcp(&tiff).unwrap();
+        assert!(profile.huesatmap1.is_none());
     }
 
     #[test]

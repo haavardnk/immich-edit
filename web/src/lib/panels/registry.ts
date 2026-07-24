@@ -21,13 +21,13 @@ export interface PanelDef {
 
 export const developPanels: PanelDef[] = [
   { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
+  { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
   { id: 'presets', title: 'Presets', component: PresetsPanel, defaultOpen: false },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
   { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
   { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: false },
   { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
-  { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },

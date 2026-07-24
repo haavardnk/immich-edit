@@ -287,8 +287,8 @@ impl Lut3dEdits {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DcpMode {
-    #[default]
     Off,
+    #[default]
     Auto,
     Profile,
 }
@@ -318,7 +318,7 @@ fn bool_true() -> bool {
 impl Default for DcpEdits {
     fn default() -> Self {
         Self {
-            mode: DcpMode::Off,
+            mode: DcpMode::Auto,
             profile_id: None,
             illuminant: crate::dcp::DcpIlluminant::default(),
             use_tone_curve: true,
@@ -1098,10 +1098,6 @@ impl Edits {
             .as_ref()
             .filter(|id| !id.is_empty())
             .cloned()
-    }
-
-    pub fn referenced_dcp_id(&self) -> Option<String> {
-        self.color.dcp.referenced_profile_id()
     }
 }
 

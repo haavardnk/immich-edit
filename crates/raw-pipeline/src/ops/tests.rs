@@ -675,7 +675,7 @@ fn registry_skips_inactive_ops() {
     let reg = default_registry();
     let edits = Edits::default();
     let active: Vec<&str> = reg.active(&edits).map(|o| o.id()).collect();
-    assert_eq!(active, vec!["camera_wb", "color_matrix"]);
+    assert_eq!(active, vec!["camera_wb", "color_matrix", "dcp_hue_sat"]);
 }
 
 #[test]

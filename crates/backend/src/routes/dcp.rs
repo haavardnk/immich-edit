@@ -14,9 +14,26 @@ pub struct ImportParams {
     pub camera: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct MatchParams {
+    pub model: String,
+}
+
 pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<DcpMeta>>, AppError> {
     let profiles = state.dcp.list().await.map_err(map_err)?;
     Ok(Json(profiles))
+}
+
+pub async fn match_camera(
+    State(state): State<AppState>,
+    Query(params): Query<MatchParams>,
+) -> Result<Json<Option<DcpMeta>>, AppError> {
+    let profile = state
+        .dcp
+        .match_camera_meta(&params.model)
+        .await
+        .map_err(map_err)?;
+    Ok(Json(profile))
 }
 
 pub async fn import(

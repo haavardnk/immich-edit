@@ -5,10 +5,11 @@ use std::sync::{Arc, Mutex};
 use chrono::Utc;
 use raw_pipeline::lut::{LUT_MAX_SOURCE_BYTES, Lut3d};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use sqlx::{Row, SqlitePool};
 use tokio::fs;
 use uuid::Uuid;
+
+use super::blob_store;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LutStoreError {
@@ -74,22 +75,13 @@ impl LutStore {
         if name.is_empty() {
             return Err(LutStoreError::Invalid("name is empty".into()));
         }
-        let content_hash = hex::encode(Sha256::digest(bytes));
+        let content_hash = blob_store::content_hash(bytes);
 
-        if let Some(existing) = sqlx::query(
-            "SELECT id, name, lut_size, size, created_at FROM luts WHERE content_hash = ? AND deleted = 0",
-        )
-        .bind(&content_hash)
-        .fetch_optional(&self.pool)
-        .await?
-        {
-            return Err(LutStoreError::Duplicate(Self::row_to_meta(&existing)));
+        if let Some(existing) = self.find_active_hash(&content_hash).await? {
+            return Err(LutStoreError::Duplicate(existing));
         }
 
-        let blob = self.blob_path(&content_hash);
-        if !fs::try_exists(&blob).await? {
-            fs::write(&blob, bytes).await?;
-        }
+        blob_store::write_blob_atomic(&self.blob_path(&content_hash), bytes).await?;
         self.cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -100,7 +92,7 @@ impl LutStore {
         let created_at = Utc::now().to_rfc3339();
         let lut_size = lut.size() as i64;
         let size = bytes.len() as i64;
-        sqlx::query(
+        if let Err(e) = sqlx::query(
             "INSERT INTO luts (id, name, content_hash, size, lut_size, deleted, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
         )
         .bind(&id)
@@ -110,7 +102,15 @@ impl LutStore {
         .bind(lut_size)
         .bind(&created_at)
         .execute(&self.pool)
-        .await?;
+        .await
+        {
+            if blob_store::is_unique_violation(&e)
+                && let Some(existing) = self.find_active_hash(&content_hash).await?
+            {
+                return Err(LutStoreError::Duplicate(existing));
+            }
+            return Err(e.into());
+        }
 
         Ok(LutMeta {
             id,
@@ -119,6 +119,16 @@ impl LutStore {
             size: bytes.len() as u64,
             created_at,
         })
+    }
+
+    async fn find_active_hash(&self, content_hash: &str) -> Result<Option<LutMeta>, LutStoreError> {
+        let row = sqlx::query(
+            "SELECT id, name, lut_size, size, created_at FROM luts WHERE content_hash = ? AND deleted = 0",
+        )
+        .bind(content_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(Self::row_to_meta))
     }
 
     pub async fn list(&self) -> Result<Vec<LutMeta>, LutStoreError> {

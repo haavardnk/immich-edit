@@ -5,8 +5,9 @@ with immich-edit for camera-model auto-matching.
 
 ## Source
 
-RawTherapee — https://github.com/Beep6581/RawTherapee
+Source: [RawTherapee](https://github.com/Beep6581/RawTherapee)
 Path: `rtdata/dcpprofiles/`
+Revision: `039b9b89d43315be6b42e8fbb33b8cfb39edd4bf`
 
 ## License
 
@@ -19,8 +20,8 @@ Some individual profiles carry a `ProfileCopyright` tag of **CC0-1.0** or
 **public domain**; those are additionally free of attribution requirements. The
 per-profile copyright is preserved in `manifest.json`.
 
-- GPL-3.0: https://www.gnu.org/licenses/gpl-3.0.html
-- CC0-1.0: https://creativecommons.org/publicdomain/zero/1.0/
+- [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)
+- [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 
 ## Notes
 
