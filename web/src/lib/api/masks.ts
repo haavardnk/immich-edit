@@ -69,12 +69,16 @@ export function clickMask(
   assetId: string,
   points: ClickPoint[],
   grow = 0,
-  feather = 0
+  feather = 0,
+  baseRasterId?: string,
+  subtract = false
 ): Promise<GeneratedMask> {
   return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/click`, {
     points,
     grow,
-    feather
+    feather,
+    base_raster_id: baseRasterId ?? null,
+    subtract
   });
 }
 

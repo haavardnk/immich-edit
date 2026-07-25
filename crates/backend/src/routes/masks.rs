@@ -35,6 +35,23 @@ pub struct ClickRequest {
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
+    #[serde(default)]
+    pub base_raster_id: Option<String>,
+    #[serde(default)]
+    pub subtract: bool,
+}
+
+fn combine_coverage(base: &[u8], patch: &[u8], subtract: bool) -> Vec<u8> {
+    base.iter()
+        .zip(patch)
+        .map(|(b, p)| {
+            if subtract {
+                ((*b as u16 * (255 - *p) as u16 + 127) / 255) as u8
+            } else {
+                (*b).max(*p)
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -309,6 +326,22 @@ pub async fn click(
     let params = bake_params(req.grow, req.feather, None)?;
 
     let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
+    let base = match &req.base_raster_id {
+        Some(id) => {
+            let (meta, bytes) = state
+                .rasters
+                .load(ctx.server_epoch, ctx.owner, id)
+                .await
+                .map_err(|_| AppError::NotFound)?;
+            if meta.width != width || meta.height != height {
+                return Err(AppError::Conflict(
+                    "shape raster does not match the current scene size".into(),
+                ));
+            }
+            Some(bytes)
+        }
+        None => None,
+    };
     let points: Vec<ClickPoint> = req
         .points
         .iter()
@@ -328,13 +361,26 @@ pub async fn click(
     };
     let result = state
         .segment
-        .click(key, rgb8, points, params)
+        .click(key, rgb8.clone(), points, params)
         .await
         .map_err(map_segment_err)?;
 
+    let (baked_bytes, prob_bytes) = match base {
+        Some(base) => {
+            let prob = combine_coverage(&base, &result.prob, req.subtract);
+            let baked = state
+                .segment
+                .rebake(prob.clone(), rgb8, width, height, params)
+                .await
+                .map_err(map_segment_err)?;
+            (baked, prob)
+        }
+        None => (result.bytes, result.prob),
+    };
+
     let baked = state
         .rasters
-        .store(ctx.server_epoch, ctx.owner, &result.bytes, width, height)
+        .store(ctx.server_epoch, ctx.owner, &baked_bytes, width, height)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "raster store");
@@ -342,7 +388,7 @@ pub async fn click(
         })?;
     let prob = state
         .rasters
-        .store(ctx.server_epoch, ctx.owner, &result.prob, width, height)
+        .store(ctx.server_epoch, ctx.owner, &prob_bytes, width, height)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "raster store");
@@ -358,4 +404,21 @@ pub async fn click(
         backend: result.backend,
         elapsed_ms: result.elapsed_ms,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::combine_coverage;
+
+    #[test]
+    fn adding_keeps_the_strongest_coverage() {
+        let out = combine_coverage(&[0, 128, 255], &[64, 32, 0], false);
+        assert_eq!(out, vec![64, 128, 255]);
+    }
+
+    #[test]
+    fn subtracting_carves_the_patch_out() {
+        let out = combine_coverage(&[255, 255, 128], &[255, 0, 128], true);
+        assert_eq!(out, vec![0, 255, 64]);
+    }
 }
