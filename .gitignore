@@ -25,7 +25,7 @@ dist
 .env.*
 !.env.example
 *.log
-config.toml
+/config.toml
 cache/
 docker-compose.dev.yml
 Dockerfile.dev

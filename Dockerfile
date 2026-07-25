@@ -10,6 +10,7 @@ RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
 FROM rust:1.96-trixie AS chef
 RUN cargo install cargo-chef cargo-edit --locked
 WORKDIR /build
+COPY .cargo/ .cargo/
 
 FROM chef AS planner
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
@@ -35,7 +36,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 RUN cargo set-version --workspace "$APP_VERSION" && \
     cargo build --locked --release --bin immich-edit -j "$(nproc)" && \
-    strip target/release/immich-edit
+    strip target/release/immich-edit && \
+    mkdir -p /build/dylibs && \
+    find target/release -maxdepth 1 -name '*.so*' -exec cp -L {} /build/dylibs/ \;
 
 FROM debian:trixie-slim
 RUN apt-get update && \
@@ -53,6 +56,7 @@ RUN mkdir -p /cache && \
     chown 10001:10001 /cache
 WORKDIR /app
 COPY --from=backend --chown=10001:10001 /build/target/release/immich-edit /app/immich-edit
+COPY --from=backend --chown=10001:10001 /build/dylibs/ /app/
 COPY --from=frontend --chown=10001:10001 /build/web/build /app/web
 COPY --chown=10001:10001 crates/backend/assets/dcp /app/assets/dcp
 ENV WEB_DIR=/app/web \
@@ -60,6 +64,7 @@ ENV WEB_DIR=/app/web \
     CACHE_DIR=/cache \
     BIND_ADDR=0.0.0.0:3000 \
     IMMICH_EDIT_RENDERER=auto \
+    SEGMENT_RUNTIME=auto \
     XDG_CACHE_HOME=/cache
 USER 10001:10001
 EXPOSE 3000
