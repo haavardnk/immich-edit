@@ -14,6 +14,8 @@ import {
 } from './edits';
 import { v4 as uuidv4 } from 'uuid';
 
+export type ManualTool = 'linear' | 'radial' | 'brush' | 'luma_range' | 'color_range';
+
 const PALETTE = [
   '#ff3b30',
   '#ff9500',

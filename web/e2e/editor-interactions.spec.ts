@@ -33,7 +33,7 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Masks' }).click();
-  await page.getByRole('button', { name: 'Add mask layer' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
 
   const maskPreview = page.getByRole('button', { name: 'Toggle mask preview', exact: true });
