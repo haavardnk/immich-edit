@@ -13,6 +13,14 @@ export const JPEG_BLOB: Buffer = Buffer.from(
 
 export const ASSET_ID = '00000000-0000-0000-0000-000000000001';
 
+export const SESSION_USER = {
+  id: '00000000-0000-0000-0000-0000000000aa',
+  email: 'user@example.com',
+  name: 'Test User',
+  is_admin: true,
+  auth_kind: 'password'
+};
+
 export const ASSET_SUMMARY = {
   id: ASSET_ID,
   originalFileName: 'IMG_0001.ARW',
@@ -76,6 +84,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const url = new URL(req.url());
     const p = url.pathname;
     const method = req.method();
+
+    if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
+    if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
 
     if (p === '/api/search/smart') {
       if (opts.onSmart) opts.onSmart((req.postDataJSON() as Record<string, unknown>) ?? {});
