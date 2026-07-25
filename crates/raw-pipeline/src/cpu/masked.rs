@@ -323,13 +323,27 @@ pub fn apply_segment_masked(
         });
 }
 
-pub fn render_mask_overlay(image: &mut LinearImage, layer: &LayerEval, lens_warp: &LensWarpParams) {
+pub fn render_mask_overlay(
+    image: &mut LinearImage,
+    layer: &LayerEval,
+    lens_warp: &LensWarpParams,
+    dcp: Option<&crate::ops::ResolvedDcp>,
+) {
     let w = image.width;
     let h = image.height;
     let inv_w = 1.0 / w.max(1) as f32;
     let inv_h = 1.0 / h.max(1) as f32;
     let row_floats = w * 3;
     let warp_active = !lens_warp.is_identity();
+    let dcp_active = dcp.is_some();
+    let finish = dcp.map(|d| {
+        (
+            d.look_table.as_deref(),
+            d.tone_curve.as_deref().map(Vec::as_slice),
+            &d.to_pp,
+            &d.from_pp,
+        )
+    });
     image
         .rgb
         .par_chunks_exact_mut(row_floats)
@@ -344,7 +358,17 @@ pub fn render_mask_overlay(image: &mut LinearImage, layer: &LayerEval, lens_warp
                 } else {
                     (u, v)
                 };
-                let display_rgb = crate::tone::apply_rgb([px[0], px[1], px[2]]);
+                let finished = match finish {
+                    Some((look, curve, to_pp, from_pp)) => crate::color::apply_dcp_finish(
+                        look,
+                        curve,
+                        to_pp,
+                        from_pp,
+                        [px[0], px[1], px[2]],
+                    ),
+                    None => [px[0], px[1], px[2]],
+                };
+                let display_rgb = crate::tone::apply_rgb_dcp(finished, dcp_active);
                 let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
                 let alpha = lw * 0.55;
                 px[0] = display_rgb[0] + (1.0 - display_rgb[0]) * alpha;
@@ -560,7 +584,7 @@ mod tests {
         };
         let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
         let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
-        render_mask_overlay(&mut image, &eval, &warp);
+        render_mask_overlay(&mut image, &eval, &warp, None);
         let left = [image.rgb[0], image.rgb[1], image.rgb[2]];
         let right_index = 3 * (w - 1);
         let right = [
@@ -783,9 +807,9 @@ mod tests {
             panic!("warp should be non-identity for anchoring test");
         }
         let mut img_warp = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-        render_mask_overlay(&mut img_warp, &eval, &warp);
+        render_mask_overlay(&mut img_warp, &eval, &warp, None);
         let mut img_id = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-        render_mask_overlay(&mut img_id, &eval, &identity);
+        render_mask_overlay(&mut img_id, &eval, &identity, None);
         let samples = [(0.5, 0.5), (0.7, 0.5), (0.5, 0.3), (0.8, 0.7)];
         for (u, v) in samples {
             let mx = ((u * w as f32) as usize).min(w - 1);

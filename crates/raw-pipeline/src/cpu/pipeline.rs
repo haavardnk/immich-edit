@@ -184,8 +184,9 @@ pub fn run_pipeline_ops(
             scratch: OpScratch::default(),
         };
         run_pipeline_ops(image, &global_ctx, &global_edits, rasters, cancel)?;
+        run_output_ops(image, &global_ctx, &global_edits, cancel)?;
         let warp = LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
-        crate::cpu::masked::render_mask_overlay(image, &eval, &warp);
+        crate::cpu::masked::render_mask_overlay(image, &eval, &warp, ctx.render.dcp.as_deref());
         let registry = default_registry();
         for op in registry.ops().iter() {
             cancel::check(cancel)?;
