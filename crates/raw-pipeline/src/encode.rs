@@ -371,6 +371,7 @@ pub fn encode_from_rgb8(
             let rgb16: Vec<u16> = rgb.iter().map(|&v| (v as u16) * 257).collect();
             encode_jxl16(&rgb16, width, height, cs)
         }
+        OutputFormat::Rgb8 => Ok(rgb.to_vec()),
     }
 }
 

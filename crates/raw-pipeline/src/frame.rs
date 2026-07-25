@@ -111,6 +111,7 @@ pub enum OutputFormat {
     Jxl {
         bit_depth: BitDepth,
     },
+    Rgb8,
 }
 
 impl OutputFormat {
@@ -123,6 +124,7 @@ impl OutputFormat {
             Self::Heic { .. } => "image/heic",
             Self::Tiff { .. } => "image/tiff",
             Self::Jxl { .. } => "image/jxl",
+            Self::Rgb8 => "application/octet-stream",
         }
     }
 
@@ -135,14 +137,17 @@ impl OutputFormat {
             Self::Heic { .. } => "heic",
             Self::Tiff { .. } => "tif",
             Self::Jxl { .. } => "jxl",
+            Self::Rgb8 => "rgb",
         }
     }
 
     pub fn bit_depth(&self) -> BitDepth {
         match self {
-            Self::Jpeg { .. } | Self::Webp { .. } | Self::Avif { .. } | Self::Heic { .. } => {
-                BitDepth::Eight
-            }
+            Self::Jpeg { .. }
+            | Self::Webp { .. }
+            | Self::Avif { .. }
+            | Self::Heic { .. }
+            | Self::Rgb8 => BitDepth::Eight,
             Self::Png { bit_depth, .. }
             | Self::Tiff { bit_depth, .. }
             | Self::Jxl { bit_depth } => *bit_depth,
@@ -152,7 +157,7 @@ impl OutputFormat {
     pub fn exif_file_extension(&self) -> little_exif::filetype::FileExtension {
         use little_exif::filetype::FileExtension;
         match self {
-            Self::Jpeg { .. } => FileExtension::JPEG,
+            Self::Jpeg { .. } | Self::Rgb8 => FileExtension::JPEG,
             Self::Png { .. } => FileExtension::PNG {
                 as_zTXt_chunk: true,
             },
