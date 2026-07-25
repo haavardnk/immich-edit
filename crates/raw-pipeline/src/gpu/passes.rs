@@ -5,6 +5,7 @@ pub mod effects_tone;
 pub mod luma_pyramid;
 pub mod lut;
 pub mod mask_blend;
+pub mod mask_overlay;
 pub mod mask_weight;
 pub mod mipgen;
 pub mod nr;
@@ -28,6 +29,7 @@ use effects_tone::EffectsTonePass;
 use luma_pyramid::LumaPyramidPass;
 use lut::LutPass;
 use mask_blend::MaskBlendPass;
+use mask_overlay::MaskOverlayPass;
 use mask_weight::MaskWeightPass;
 use mipgen::MipgenPass;
 use nr::NrPass;
@@ -56,6 +58,7 @@ pub struct GpuPasses {
     pub dcp_look: DcpHueSatPass,
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
+    pub mask_overlay: MaskOverlayPass,
     pub sensor: SensorPass,
     pub registry: OpRegistry,
 }
@@ -81,6 +84,7 @@ impl GpuPasses {
             dcp_look,
             mask_weight,
             mask_blend,
+            mask_overlay,
             sensor,
         ) = std::thread::scope(|s| {
             let dehaze_t = s.spawn(|| DehazePasses::new(ctx));
@@ -107,6 +111,7 @@ impl GpuPasses {
             let dcp_look_t = s.spawn(|| DcpHueSatPass::new_look(ctx));
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
+            let mask_overlay_t = s.spawn(|| MaskOverlayPass::new(ctx));
             let sensor_t = s.spawn(|| SensorPass::new(ctx));
             (
                 dehaze_t.join().expect("dehaze pass build"),
@@ -126,6 +131,7 @@ impl GpuPasses {
                 dcp_look_t.join().expect("dcp look pass build"),
                 mask_weight_t.join().expect("mask weight pass build"),
                 mask_blend_t.join().expect("mask blend pass build"),
+                mask_overlay_t.join().expect("mask overlay pass build"),
                 sensor_t.join().expect("sensor pass build"),
             )
         });
@@ -147,6 +153,7 @@ impl GpuPasses {
             dcp_look,
             mask_weight,
             mask_blend,
+            mask_overlay,
             sensor,
             registry,
         }

@@ -16,6 +16,7 @@ use crate::services::render_queue::RenderKey;
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
+const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewQuery {
@@ -120,6 +121,11 @@ async fn render_to_response(
     };
     let tracker = state.queue.tracker(key).await;
     let token = tracker.next();
+    let max_edge = if matches!(preview_mode, PreviewMode::MaskWeight { .. }) {
+        max_edge.min(MASK_PREVIEW_MAX_EDGE)
+    } else {
+        max_edge
+    };
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
         quality: false,

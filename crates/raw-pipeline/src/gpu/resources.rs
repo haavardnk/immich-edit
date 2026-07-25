@@ -98,7 +98,9 @@ impl OutputTargets {
                 sample_count: 1,
                 dimension: TextureDimension::D2,
                 format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::STORAGE_BINDING,
+                usage: TextureUsages::STORAGE_BINDING
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC,
                 view_formats: &[],
             }),
             mask_weight: device.create_texture(&TextureDescriptor {

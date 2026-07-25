@@ -218,11 +218,7 @@ impl RenderService {
             sensor_h = frame.height,
             "render orientation"
         );
-        let mask_preview = matches!(
-            opts.preview_mode,
-            raw_pipeline::frame::PreviewMode::MaskWeight { .. }
-        );
-        if matches!(self.gpu_mode, RendererMode::Cpu) || mask_preview || opts.gamut_warn {
+        if matches!(self.gpu_mode, RendererMode::Cpu) || opts.gamut_warn {
             return raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel);
         }
         let gpu = self.gpu_or_rebuild();
