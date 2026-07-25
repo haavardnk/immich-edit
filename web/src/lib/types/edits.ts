@@ -312,12 +312,26 @@ export type MaskComponentKind =
       softness: number;
     };
 
+export interface ClickPointMeta {
+  x: number;
+  y: number;
+  positive: boolean;
+}
+
+export interface RangeMeta {
+  min: number;
+  max: number;
+  softness: number;
+}
+
 export interface GeneratedMeta {
   model_id: string;
   kind: string;
   prob_raster_id: string;
   grow: number;
   feather: number;
+  points?: ClickPointMeta[];
+  range?: RangeMeta;
 }
 
 export interface MaskComponent {
@@ -950,13 +964,40 @@ function parseGeneratedMeta(raw: unknown): GeneratedMeta | undefined {
   const r = raw as Record<string, unknown>;
   if (typeof r.model_id !== 'string' || typeof r.kind !== 'string') return undefined;
   if (typeof r.prob_raster_id !== 'string') return undefined;
+  const points = parseClickPoints(r.points);
+  const range = parseRangeMeta(r.range);
   return {
     model_id: r.model_id,
     kind: r.kind,
     prob_raster_id: r.prob_raster_id,
     grow: typeof r.grow === 'number' ? r.grow : 0,
-    feather: typeof r.feather === 'number' ? r.feather : 0
+    feather: typeof r.feather === 'number' ? r.feather : 0,
+    ...(points.length > 0 ? { points } : {}),
+    ...(range ? { range } : {})
   };
+}
+
+function parseRangeMeta(raw: unknown): RangeMeta | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.min !== 'number' || typeof r.max !== 'number') return undefined;
+  return {
+    min: r.min,
+    max: r.max,
+    softness: typeof r.softness === 'number' ? r.softness : 0
+  };
+}
+
+function parseClickPoints(raw: unknown): ClickPointMeta[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ClickPointMeta[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Record<string, unknown>;
+    if (typeof p.x !== 'number' || typeof p.y !== 'number') continue;
+    out.push({ x: p.x, y: p.y, positive: p.positive !== false });
+  }
+  return out;
 }
 
 function parseVec2f(raw: unknown): Vec2f | null {

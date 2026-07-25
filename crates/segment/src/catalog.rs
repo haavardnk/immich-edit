@@ -16,6 +16,13 @@ pub struct Cost {
 }
 
 #[derive(Debug, Clone)]
+pub struct CatalogFile {
+    pub url: &'static str,
+    pub sha256: &'static str,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Clone)]
 pub struct CatalogEntry {
     pub id: &'static str,
     pub name: &'static str,
@@ -24,11 +31,18 @@ pub struct CatalogEntry {
     pub url: &'static str,
     pub sha256: &'static str,
     pub size_bytes: u64,
+    pub aux: Option<CatalogFile>,
     pub license: &'static str,
     pub source: &'static str,
     pub notes: &'static str,
     pub spec: ModelSpec,
     pub cost: Cost,
+}
+
+impl CatalogEntry {
+    pub fn total_bytes(&self) -> u64 {
+        self.size_bytes + self.aux.as_ref().map_or(0, |a| a.size_bytes)
+    }
 }
 
 pub const CATALOG: &[CatalogEntry] = &[
@@ -40,6 +54,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         url: "https://huggingface.co/schirrmacher/ormbg/resolve/main/ormbg.onnx",
         sha256: "89b47dd4fa46a76e91b06affeb5ec7881894a27792e41f7dfaf69987653f31d3",
         size_bytes: 176_182_050,
+        aux: None,
         license: "Apache-2.0",
         source: "schirrmacher/ormbg",
         notes: "Soft per-strand alpha; keeps hair and small jewellery.",
@@ -59,6 +74,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         url: "https://huggingface.co/PramaLLC/BEN2/resolve/main/BEN2_Base.onnx",
         sha256: "22cea62108ff53b7ccc20f7a008bf30494228d84b1687f29ecbe76936a998101",
         size_bytes: 222_932_053,
+        aux: None,
         license: "MIT",
         source: "PramaLLC/BEN2",
         notes: "Crisper silhouette than ormbg but harder edges; emits float16.",
@@ -78,6 +94,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         url: "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
         sha256: "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
         size_bytes: 4_574_861,
+        aux: None,
         license: "Apache-2.0",
         source: "xuebinqin/U-2-Net",
         notes: "320px only; blobby at high resolution. For constrained hosts.",
@@ -97,6 +114,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         url: "https://huggingface.co/JianyuanWang/skyseg/resolve/main/skyseg.onnx",
         sha256: "ab9c34c64c3d821220a2886a4a06da4642ffa14d5b30e8d5339056a089aa1d39",
         size_bytes: 175_997_079,
+        aux: None,
         license: "MIT",
         source: "xiongzhu666/Sky-Segmentation-and-Post-processing",
         notes: "U2-Net trained for sky. Training dataset undisclosed.",
@@ -116,6 +134,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         url: "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/depth_anything_v2_vits.onnx",
         sha256: "d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be",
         size_bytes: 99_373_606,
+        aux: None,
         license: "Apache-2.0",
         source: "DepthAnything/Depth-Anything-V2",
         notes: "Only the Small variant is Apache-2.0; Base and Large are non-commercial.",
@@ -127,9 +146,38 @@ pub const CATALOG: &[CatalogEntry] = &[
             cpu_mb: 350,
         },
     },
+    CatalogEntry {
+        id: "mobilesam",
+        name: "MobileSAM",
+        kind: ModelKind::Click,
+        tier: Tier::Recommended,
+        url: "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/vit_t_encoder.onnx",
+        sha256: "8b8168033ea6687bb55ba242222b67a301ac9da30fd5cbfd04dcebbb180ec2a8",
+        size_bytes: 28_106_845,
+        aux: Some(CatalogFile {
+            url: "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/vit_t_decoder.onnx",
+            sha256: "1b216fb3b8ceeee00a65f89670c01e4c0d823fcacec39dd9accc233f85341dc4",
+            size_bytes: 16_501_324,
+        }),
+        license: "Apache-2.0",
+        source: "ChaoningZhang/MobileSAM",
+        notes: "Click to add or remove parts of a mask. Encodes the photo once, then each click is fast.",
+        spec: ModelSpec::MOBILE_SAM,
+        cost: Cost {
+            gpu_ms: 1131,
+            gpu_mb: 512,
+            cpu_ms: 4200,
+            cpu_mb: 600,
+        },
+    },
 ];
 
-pub const KINDS: &[ModelKind] = &[ModelKind::Subject, ModelKind::Sky, ModelKind::Depth];
+pub const KINDS: &[ModelKind] = &[
+    ModelKind::Subject,
+    ModelKind::Sky,
+    ModelKind::Depth,
+    ModelKind::Click,
+];
 
 pub fn find(id: &str) -> Option<&'static CatalogEntry> {
     CATALOG.iter().find(|e| e.id == id)
@@ -173,6 +221,17 @@ mod tests {
             assert!(e.sha256.chars().all(|c| c.is_ascii_hexdigit()), "{}", e.id);
             assert!(e.size_bytes > 0, "{}", e.id);
             assert!(e.url.starts_with("https://"), "{}", e.id);
+            if let Some(aux) = &e.aux {
+                assert_eq!(aux.sha256.len(), 64, "{} aux", e.id);
+                assert!(
+                    aux.sha256.chars().all(|c| c.is_ascii_hexdigit()),
+                    "{} aux",
+                    e.id
+                );
+                assert!(aux.size_bytes > 0, "{} aux", e.id);
+                assert!(aux.url.starts_with("https://"), "{} aux", e.id);
+                assert_ne!(aux.sha256, e.sha256, "{} aux", e.id);
+            }
         }
     }
 

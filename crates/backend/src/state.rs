@@ -7,6 +7,8 @@ use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
+#[cfg(feature = "segment")]
+use crate::services::embedding_cache::EmbeddingCache;
 use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
@@ -100,7 +102,9 @@ impl AppState {
         let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
         #[cfg(feature = "segment")]
-        let segment = SegmentService::new(&config, models.clone());
+        let embeddings = EmbeddingCache::new(std::path::Path::new(&config.cache_dir))?;
+        #[cfg(feature = "segment")]
+        let segment = SegmentService::new(&config, models.clone(), embeddings);
         Ok(Self {
             config: Arc::new(config),
             crypto,

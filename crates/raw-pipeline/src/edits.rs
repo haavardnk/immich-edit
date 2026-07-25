@@ -812,6 +812,22 @@ impl MaskedEdits {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct ClickPointMeta {
+    pub x: f32,
+    pub y: f32,
+    #[serde(default = "default_true")]
+    pub positive: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct RangeMeta {
+    pub min: f32,
+    pub max: f32,
+    #[serde(default)]
+    pub softness: f32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GeneratedMeta {
     pub model_id: String,
@@ -821,6 +837,10 @@ pub struct GeneratedMeta {
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub points: Vec<ClickPointMeta>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<RangeMeta>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

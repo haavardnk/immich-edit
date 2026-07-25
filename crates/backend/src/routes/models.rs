@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use crate::error::AppError;
 use crate::routes::auth::{AdminCtx, AuthCtx};
-use crate::services::model_download::{DownloadError, fetch_catalog_model};
+use crate::services::model_download::{DownloadError, fetch_catalog_aux, fetch_catalog_model};
 use crate::services::model_store::ModelStoreError;
 use crate::state::AppState;
 
@@ -43,6 +43,16 @@ pub struct SelectBody {
     pub model_id: String,
 }
 
+fn map_download_err(e: DownloadError) -> AppError {
+    match e {
+        DownloadError::TooLarge => {
+            AppError::BadRequest("model download exceeded the declared size".into())
+        }
+        DownloadError::InsecureUrl => AppError::BadRequest("model url is not https".into()),
+        DownloadError::Status(_) | DownloadError::Http(_) => AppError::UpstreamUnavailable,
+    }
+}
+
 fn tier_name(tier: segment::Tier) -> &'static str {
     match tier {
         segment::Tier::Recommended => "recommended",
@@ -68,7 +78,7 @@ async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
             license: entry.license,
             source: entry.source,
             notes: entry.notes,
-            size_bytes: entry.size_bytes,
+            size_bytes: entry.total_bytes(),
             input_edge: entry.spec.input_edge,
             gpu_ms: entry.cost.gpu_ms,
             gpu_mb: entry.cost.gpu_mb,
@@ -141,17 +151,12 @@ pub async fn install(
         ));
     }
 
-    let bytes = fetch_catalog_model(entry).await.map_err(|e| match e {
-        DownloadError::TooLarge => {
-            AppError::BadRequest("model download exceeded the declared size".into())
-        }
-        DownloadError::InsecureUrl => AppError::BadRequest("model url is not https".into()),
-        DownloadError::Status(_) | DownloadError::Http(_) => AppError::UpstreamUnavailable,
-    })?;
+    let bytes = fetch_catalog_model(entry).await.map_err(map_download_err)?;
+    let aux = fetch_catalog_aux(entry).await.map_err(map_download_err)?;
 
     let meta = state
         .models
-        .install_verified(entry, &bytes)
+        .install_verified(entry, &bytes, aux.as_deref())
         .await
         .map_err(|e| match e {
             ModelStoreError::Checksum { .. } => {

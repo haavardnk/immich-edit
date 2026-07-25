@@ -7,6 +7,8 @@ pub mod dcp_store;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;
+#[cfg(feature = "segment")]
+pub mod embedding_cache;
 pub mod export;
 pub mod instance_store;
 pub mod job_runner;

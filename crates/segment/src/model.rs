@@ -4,6 +4,7 @@ pub enum ModelKind {
     People,
     Sky,
     Depth,
+    Click,
 }
 
 impl ModelKind {
@@ -13,6 +14,7 @@ impl ModelKind {
             Self::People => "people",
             Self::Sky => "sky",
             Self::Depth => "depth",
+            Self::Click => "click",
         }
     }
 }
@@ -138,5 +140,13 @@ impl ModelSpec {
         fit: Fit::Contain,
         normalization: Normalization::IMAGENET,
         activation: Activation::MinMax,
+    };
+    pub const MOBILE_SAM: Self = Self {
+        kind: ModelKind::Click,
+        input_edge: 1024,
+        layout: Layout::Nchw,
+        fit: Fit::Contain,
+        normalization: Normalization::IMAGENET,
+        activation: Activation::Sigmoid,
     };
 }

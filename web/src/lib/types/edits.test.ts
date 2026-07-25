@@ -301,6 +301,43 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(roundTrip(e).masks).toEqual(e.masks);
   });
 
+  it('preserves click points on a refinable mask', () => {
+    const e = neutralEdits();
+    e.masks = [
+      {
+        id: 'layer',
+        name: 'Click',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        components: [
+          {
+            id: 'gen',
+            enabled: true,
+            mode: 'add',
+            opacity: 1,
+            invert: false,
+            kind: { kind: 'brush', raster_id: 'baked' },
+            source: 'generated',
+            generated: {
+              model_id: 'mobilesam',
+              kind: 'click',
+              prob_raster_id: 'prob',
+              grow: 0,
+              feather: 0,
+              points: [
+                { x: 0.25, y: 0.5, positive: true },
+                { x: 0.8, y: 0.1, positive: false }
+              ]
+            }
+          }
+        ],
+        edits: { exposure_ev: 0.5 }
+      }
+    ];
+    expect(roundTrip(e).masks).toEqual(e.masks);
+  });
+
   it('drops malformed color range samples', () => {
     const edits = manifestToEdits({
       schema_version: 3,

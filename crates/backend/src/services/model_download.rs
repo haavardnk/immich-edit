@@ -21,12 +21,22 @@ pub enum DownloadError {
 }
 
 pub async fn fetch_catalog_model(entry: &CatalogEntry) -> Result<Vec<u8>, DownloadError> {
-    if !entry.url.starts_with("https://") {
+    fetch_url(entry.url, entry.size_bytes).await
+}
+
+pub async fn fetch_catalog_aux(entry: &CatalogEntry) -> Result<Option<Vec<u8>>, DownloadError> {
+    match &entry.aux {
+        Some(aux) => fetch_url(aux.url, aux.size_bytes).await.map(Some),
+        None => Ok(None),
+    }
+}
+
+async fn fetch_url(url: &str, size_bytes: u64) -> Result<Vec<u8>, DownloadError> {
+    if !url.starts_with("https://") {
         return Err(DownloadError::InsecureUrl);
     }
-    let limit = entry
-        .size_bytes
-        .saturating_add(entry.size_bytes / 10)
+    let limit = size_bytes
+        .saturating_add(size_bytes / 10)
         .min(MAX_MODEL_BYTES);
 
     let client = reqwest::Client::builder()
@@ -36,7 +46,7 @@ pub async fn fetch_catalog_model(entry: &CatalogEntry) -> Result<Vec<u8>, Downlo
         .map_err(|e| DownloadError::Http(e.to_string()))?;
 
     let response = client
-        .get(entry.url)
+        .get(url)
         .send()
         .await
         .map_err(|e| DownloadError::Http(e.to_string()))?;
@@ -49,7 +59,7 @@ pub async fn fetch_catalog_model(entry: &CatalogEntry) -> Result<Vec<u8>, Downlo
         return Err(DownloadError::TooLarge);
     }
 
-    let mut buf: Vec<u8> = Vec::with_capacity(entry.size_bytes as usize);
+    let mut buf: Vec<u8> = Vec::with_capacity(size_bytes as usize);
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| DownloadError::Http(e.to_string()))?;
@@ -78,6 +88,9 @@ mod tests {
     async fn every_catalog_url_is_https() {
         for entry in catalog::CATALOG {
             assert!(entry.url.starts_with("https://"), "{}", entry.id);
+            if let Some(aux) = &entry.aux {
+                assert!(aux.url.starts_with("https://"), "{} aux", entry.id);
+            }
         }
     }
 }

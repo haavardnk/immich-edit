@@ -1,18 +1,49 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
-use segment::{BakeParams, ModelKind};
+use segment::{BakeParams, ClickPoint, ModelKind, RangeWindow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::preview::map_render_err;
+use crate::services::embedding_cache::EmbeddingKey;
 use crate::services::render::RenderIdentity;
 use crate::services::segment::SegmentServiceError;
 use crate::state::AppState;
 
 const MAX_REFINE_PX: f32 = 128.0;
+const MAX_POINTS: usize = 32;
+
+#[derive(Debug, Deserialize)]
+pub struct ClickPointBody {
+    pub x: f32,
+    pub y: f32,
+    #[serde(default = "default_true")]
+    pub positive: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClickRequest {
+    pub points: Vec<ClickPointBody>,
+    #[serde(default)]
+    pub grow: f32,
+    #[serde(default)]
+    pub feather: f32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RangeBody {
+    pub min: f32,
+    pub max: f32,
+    #[serde(default)]
+    pub softness: f32,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateRequest {
@@ -21,6 +52,8 @@ pub struct GenerateRequest {
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
+    #[serde(default)]
+    pub range: Option<RangeBody>,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,6 +75,8 @@ pub struct RebakeRequest {
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
+    #[serde(default)]
+    pub range: Option<RangeBody>,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,7 +96,7 @@ fn parse_kind(kind: &str) -> Result<ModelKind, AppError> {
     }
 }
 
-fn bake_params(grow: f32, feather: f32) -> Result<BakeParams, AppError> {
+fn bake_params(grow: f32, feather: f32, range: Option<&RangeBody>) -> Result<BakeParams, AppError> {
     if !grow.is_finite() || !feather.is_finite() {
         return Err(AppError::BadRequest(
             "grow and feather must be finite".into(),
@@ -75,9 +110,30 @@ fn bake_params(grow: f32, feather: f32) -> Result<BakeParams, AppError> {
             "feather out of range: {feather}"
         )));
     }
+    let window = match range {
+        Some(r) => {
+            if !r.min.is_finite() || !r.max.is_finite() || !r.softness.is_finite() {
+                return Err(AppError::BadRequest("range must be finite".into()));
+            }
+            if !(0.0..=1.0).contains(&r.min) || !(0.0..=1.0).contains(&r.max) {
+                return Err(AppError::BadRequest("range must be within 0..1".into()));
+            }
+            if !(0.0..=1.0).contains(&r.softness) {
+                return Err(AppError::BadRequest("softness must be within 0..1".into()));
+            }
+            let window = RangeWindow {
+                min: r.min,
+                max: r.max,
+                softness: r.softness,
+            };
+            if window.is_full() { None } else { Some(window) }
+        }
+        None => None,
+    };
     Ok(BakeParams {
         grow,
         feather,
+        range: window,
         ..Default::default()
     })
 }
@@ -144,7 +200,7 @@ pub async fn generate(
         ));
     }
     let kind = parse_kind(&req.kind)?;
-    let params = bake_params(req.grow, req.feather)?;
+    let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
 
     let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
     let result = state
@@ -186,7 +242,7 @@ pub async fn rebake(
     ctx: AuthCtx,
     Json(req): Json<RebakeRequest>,
 ) -> Result<Json<RebakeResponse>, AppError> {
-    let params = bake_params(req.grow, req.feather)?;
+    let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
     let (meta, prob) = state
         .rasters
         .load(ctx.server_epoch, ctx.owner, &req.prob_raster_id)
@@ -218,5 +274,88 @@ pub async fn rebake(
         raster_id: baked.raster_id,
         width,
         height,
+    }))
+}
+
+pub async fn click(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(asset_id): Path<Uuid>,
+    Json(req): Json<ClickRequest>,
+) -> Result<Json<GenerateResponse>, AppError> {
+    if !state.segment.enabled() {
+        return Err(AppError::BadRequest(
+            "segmentation is disabled on this server".into(),
+        ));
+    }
+    if req.points.is_empty() {
+        return Err(AppError::BadRequest("no points given".into()));
+    }
+    if req.points.len() > MAX_POINTS {
+        return Err(AppError::BadRequest(format!(
+            "too many points: {} (max {MAX_POINTS})",
+            req.points.len()
+        )));
+    }
+    if !req
+        .points
+        .iter()
+        .all(|p| (0.0..=1.0).contains(&p.x) && (0.0..=1.0).contains(&p.y))
+    {
+        return Err(AppError::BadRequest(
+            "point coordinates must be within 0..1".into(),
+        ));
+    }
+    let params = bake_params(req.grow, req.feather, None)?;
+
+    let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
+    let points: Vec<ClickPoint> = req
+        .points
+        .iter()
+        .map(|p| ClickPoint {
+            x: p.x * width as f32,
+            y: p.y * height as f32,
+            positive: p.positive,
+        })
+        .collect();
+
+    let key = EmbeddingKey {
+        server_epoch: ctx.server_epoch,
+        owner: ctx.owner,
+        asset_id,
+        width,
+        height,
+    };
+    let result = state
+        .segment
+        .click(key, rgb8, points, params)
+        .await
+        .map_err(map_segment_err)?;
+
+    let baked = state
+        .rasters
+        .store(ctx.server_epoch, ctx.owner, &result.bytes, width, height)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "raster store");
+            AppError::Internal
+        })?;
+    let prob = state
+        .rasters
+        .store(ctx.server_epoch, ctx.owner, &result.prob, width, height)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "raster store");
+            AppError::Internal
+        })?;
+
+    Ok(Json(GenerateResponse {
+        raster_id: baked.raster_id,
+        prob_raster_id: prob.raster_id,
+        width,
+        height,
+        model_id: result.model_id,
+        backend: result.backend,
+        elapsed_ms: result.elapsed_ms,
     }))
 }

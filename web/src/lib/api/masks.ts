@@ -1,6 +1,6 @@
 import { getJson, sendJson } from './client';
 
-export type MaskKind = 'subject' | 'people' | 'sky' | 'depth';
+export type MaskKind = 'subject' | 'people' | 'sky' | 'depth' | 'click';
 
 export interface MaskModel {
   id: string;
@@ -59,17 +59,44 @@ export function generateMask(
   });
 }
 
+export interface ClickPoint {
+  x: number;
+  y: number;
+  positive: boolean;
+}
+
+export function clickMask(
+  assetId: string,
+  points: ClickPoint[],
+  grow = 0,
+  feather = 0
+): Promise<GeneratedMask> {
+  return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/click`, {
+    points,
+    grow,
+    feather
+  });
+}
+
+export interface MaskRange {
+  min: number;
+  max: number;
+  softness: number;
+}
+
 export function rebakeMask(
   assetId: string,
   probRasterId: string,
   grow: number,
-  feather: number
+  feather: number,
+  range?: MaskRange
 ): Promise<RebakedMask> {
   return sendJson<RebakedMask>('POST', '/api/masks/rebake', {
     asset_id: assetId,
     prob_raster_id: probRasterId,
     grow,
-    feather
+    feather,
+    range: range ?? null
   });
 }
 

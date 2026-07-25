@@ -9,6 +9,8 @@ use immich_edit_backend::services::crypto::InstanceCrypto;
 use immich_edit_backend::services::dcp_store::DcpStore;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
+#[cfg(feature = "segment")]
+use immich_edit_backend::services::embedding_cache::EmbeddingCache;
 use immich_edit_backend::services::instance_store::InstanceStore;
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
@@ -71,7 +73,9 @@ pub async fn test_state(server: &MockServer) -> AppState {
     #[cfg(feature = "segment")]
     let models = ModelStore::new(edits.pool(), &cache_dir).unwrap();
     #[cfg(feature = "segment")]
-    let segment = SegmentService::new(&config, models.clone());
+    let embeddings = EmbeddingCache::new(&cache_dir).unwrap();
+    #[cfg(feature = "segment")]
+    let segment = SegmentService::new(&config, models.clone(), embeddings);
     AppState {
         config: Arc::new(config),
         crypto,

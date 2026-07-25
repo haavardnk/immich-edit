@@ -3,10 +3,12 @@ pub mod image;
 pub mod model;
 pub mod refine;
 pub mod runtime;
+pub mod sam;
 pub mod segmenter;
 
-pub use catalog::{CATALOG, CatalogEntry, Cost, Tier};
+pub use catalog::{CATALOG, CatalogEntry, CatalogFile, Cost, Tier};
 pub use model::{Activation, Fit, Layout, ModelKind, ModelSpec, Normalization};
-pub use refine::{BakeParams, bake};
+pub use refine::{BakeParams, RangeWindow, bake};
 pub use runtime::{Backend, RuntimeMode, SegmentError, SegmentRuntime, SessionConfig};
+pub use sam::{ClickPoint, Embedding, SamDecoder, SamEncoder};
 pub use segmenter::{Mask, Segmenter};

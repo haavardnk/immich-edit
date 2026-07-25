@@ -2,10 +2,14 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use segment::runtime::SessionConfig;
-use segment::{BakeParams, ModelKind, RuntimeMode, Segmenter, bake, catalog};
+use segment::{
+    BakeParams, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter, bake,
+    catalog,
+};
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::config::{Config, SegmentRuntimeMode};
+use crate::services::embedding_cache::{EmbeddingCache, EmbeddingKey};
 use crate::services::model_store::{ModelStore, ModelStoreError};
 
 #[derive(Debug, thiserror::Error)]
@@ -45,26 +49,41 @@ struct Loaded {
     used_at: Instant,
 }
 
+struct LoadedSam {
+    catalog_id: String,
+    encoder: SamEncoder,
+    decoder: SamDecoder,
+    used_at: Instant,
+}
+
 #[derive(Clone)]
 pub struct SegmentService {
     models: ModelStore,
+    embeddings: EmbeddingCache,
     mode: SegmentRuntimeMode,
     max_edge: u32,
     idle: Duration,
     permits: Arc<Semaphore>,
     loaded: Arc<Mutex<Option<Loaded>>>,
+    sam: Arc<Mutex<Option<LoadedSam>>>,
 }
 
 impl SegmentService {
-    pub fn new(config: &Config, models: ModelStore) -> Self {
+    pub fn new(config: &Config, models: ModelStore, embeddings: EmbeddingCache) -> Self {
         Self {
             models,
+            embeddings,
             mode: config.segment_runtime,
             max_edge: config.segment_max_edge,
             idle: Duration::from_secs(config.segment_idle_secs),
             permits: Arc::new(Semaphore::new(config.segment_max_concurrency)),
             loaded: Arc::new(Mutex::new(None)),
+            sam: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn embeddings(&self) -> &EmbeddingCache {
+        &self.embeddings
     }
 
     pub fn enabled(&self) -> bool {
@@ -217,6 +236,130 @@ impl SegmentService {
         .map_err(|_| SegmentServiceError::Worker)
     }
 
+    pub async fn click(
+        &self,
+        key: EmbeddingKey,
+        rgb8: Vec<u8>,
+        points: Vec<ClickPoint>,
+        params: BakeParams,
+    ) -> Result<MaskResult, SegmentServiceError> {
+        if !self.enabled() {
+            return Err(SegmentServiceError::Disabled);
+        }
+        if points.is_empty() {
+            return Err(SegmentServiceError::Inference("no points given".into()));
+        }
+        let catalog_id = self.resolve(ModelKind::Click).await?;
+        let (encoder_path, decoder_path) = self.models.resolve_paths(&catalog_id).await?;
+        let decoder_path = decoder_path.ok_or(SegmentServiceError::ModelMissing("click"))?;
+
+        let _permit = self
+            .permits
+            .acquire()
+            .await
+            .map_err(|_| SegmentServiceError::Worker)?;
+
+        let width = key.width;
+        let height = key.height;
+        let cached = self.embeddings.get(&key).await;
+
+        let slot = self.sam.clone();
+        let mode = self.runtime_mode();
+        let idle = self.idle;
+        let id_for_task = catalog_id.clone();
+        let started = Instant::now();
+
+        let (bytes, prob, backend, embedding, fresh) = tokio::task::spawn_blocking(move || {
+            let mut guard = slot.blocking_lock();
+            let stale = guard
+                .as_ref()
+                .is_some_and(|l| l.catalog_id != id_for_task || l.used_at.elapsed() > idle);
+            if stale {
+                *guard = None;
+            }
+            if guard.is_none() {
+                let config = SessionConfig::default();
+                let encoder = SamEncoder::open(&encoder_path, mode, &config)
+                    .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
+                let decoder = SamDecoder::open(&decoder_path, mode, &config)
+                    .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
+                *guard = Some(LoadedSam {
+                    catalog_id: id_for_task.clone(),
+                    encoder,
+                    decoder,
+                    used_at: Instant::now(),
+                });
+            }
+            let loaded = guard.as_mut().ok_or(SegmentServiceError::Worker)?;
+
+            let fresh = cached.is_none();
+            let embedding = match cached {
+                Some(e) => e,
+                None => Arc::new(
+                    loaded
+                        .encoder
+                        .encode(&rgb8, width, height)
+                        .map_err(|e| SegmentServiceError::Inference(e.to_string()))?,
+                ),
+            };
+            let mask = loaded
+                .decoder
+                .decode(&embedding, &points)
+                .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
+            loaded.used_at = Instant::now();
+            let backend = loaded.decoder.backend().as_str();
+            drop(guard);
+
+            if mask.width != width as usize || mask.height != height as usize {
+                return Err(SegmentServiceError::Inference(format!(
+                    "decoder returned {}x{}, expected {width}x{height}",
+                    mask.width, mask.height
+                )));
+            }
+            let guide = luma_guide(&rgb8);
+            let bytes = bake(
+                &mask.values,
+                &guide,
+                width as usize,
+                height as usize,
+                params,
+            );
+            let prob: Vec<u8> = mask
+                .values
+                .iter()
+                .map(|v| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
+                .collect();
+            Ok::<_, SegmentServiceError>((bytes, prob, backend, embedding, fresh))
+        })
+        .await
+        .map_err(|_| SegmentServiceError::Worker)??;
+
+        if fresh {
+            self.embeddings
+                .put(key, Arc::unwrap_or_clone(embedding))
+                .await;
+        }
+
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        tracing::info!(
+            model = %catalog_id,
+            backend,
+            elapsed_ms,
+            encoded = fresh,
+            "clicked mask"
+        );
+
+        Ok(MaskResult {
+            bytes,
+            prob,
+            width,
+            height,
+            backend,
+            model_id: catalog_id,
+            elapsed_ms,
+        })
+    }
+
     pub async fn release_idle(&self) {
         let mut guard = self.loaded.lock().await;
         let expired = guard
@@ -224,6 +367,14 @@ impl SegmentService {
             .is_some_and(|l| l.used_at.elapsed() > self.idle);
         if expired {
             *guard = None;
+        }
+        let mut sam = self.sam.lock().await;
+        let sam_expired = sam
+            .as_ref()
+            .is_some_and(|l| l.used_at.elapsed() > self.idle);
+        if sam_expired {
+            *sam = None;
+            self.embeddings.clear_memory().await;
         }
     }
 }

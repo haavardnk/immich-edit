@@ -4,6 +4,7 @@
   import CropOverlay from './CropOverlay.svelte';
   import MaskOverlay from './MaskOverlay.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
+  import ClickCanvas from './ClickCanvas.svelte';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
@@ -149,6 +150,7 @@
       />
       <MaskOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />
+      <ClickCanvas img={imgEl} />
     {/if}
   {:else if editor.error}
     <div class="text-red-400 text-sm">{editor.error}</div>

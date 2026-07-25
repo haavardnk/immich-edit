@@ -13,7 +13,14 @@ import {
 } from '$lib/types/masks';
 import { blankBuffer, type BrushBuffer } from '$lib/utils/brush';
 import { fetchRaster, uploadRaster } from '$lib/api/rasters';
-import { generateMask, rebakeMask, type MaskKind } from '$lib/api/masks';
+import {
+  clickMask,
+  generateMask,
+  rebakeMask,
+  type ClickPoint,
+  type MaskKind,
+  type MaskRange
+} from '$lib/api/masks';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
@@ -92,6 +99,7 @@ class EditorStore {
     mode: 'paint'
   });
   brushBuffers = $state<Record<string, BrushBuffer>>({});
+  clickTool = $state<{ active: boolean; negative: boolean }>({ active: false, negative: false });
 
   private history = $state<Edits[]>([]);
   private historyCursor = $state(-1);
@@ -869,7 +877,8 @@ class EditorStore {
     layerId: string,
     componentId: string,
     grow: number,
-    feather: number
+    feather: number,
+    range?: MaskRange
   ): Promise<void> => {
     const assetId = this.assetId;
     const layer = this.edits.masks.find((l) => l.id === layerId);
@@ -877,7 +886,7 @@ class EditorStore {
     if (!assetId || !comp?.generated || this.maskGenerating) return;
     this.maskGenerating = true;
     try {
-      const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather);
+      const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather, range);
       this.brushBuffers = Object.fromEntries(
         Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
       );
@@ -887,7 +896,7 @@ class EditorStore {
         componentId,
         {
           kind: { kind: 'brush', raster_id: res.raster_id },
-          generated: { ...comp.generated, grow, feather }
+          generated: { ...comp.generated, grow, feather, ...(range ? { range } : {}) }
         },
         false
       );
@@ -897,6 +906,99 @@ class EditorStore {
     } finally {
       this.maskGenerating = false;
     }
+  };
+
+  clickRefineComponent = async (
+    layerId: string,
+    componentId: string,
+    points: ClickPoint[]
+  ): Promise<void> => {
+    const assetId = this.assetId;
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    const comp = layer?.components.find((c) => c.id === componentId);
+    if (!assetId || !comp?.generated || this.maskGenerating) return;
+    if (points.length === 0) return;
+    const grow = comp.generated.grow;
+    const feather = comp.generated.feather;
+    this.maskGenerating = true;
+    try {
+      const res = await clickMask(assetId, points, grow, feather);
+      this.brushBuffers = Object.fromEntries(
+        Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
+      );
+      await this.ensureBrushBuffer(componentId, res.raster_id);
+      this.patchMaskComponent(
+        layerId,
+        componentId,
+        {
+          kind: { kind: 'brush', raster_id: res.raster_id },
+          generated: {
+            ...comp.generated,
+            model_id: res.model_id,
+            prob_raster_id: res.prob_raster_id,
+            points
+          }
+        },
+        false
+      );
+      await this.onCommit('Masks');
+    } catch (e) {
+      this.error = (e as Error).message;
+    } finally {
+      this.maskGenerating = false;
+    }
+  };
+
+  addClickLayer = async (points: ClickPoint[]): Promise<string | null> => {
+    const assetId = this.assetId;
+    if (!assetId || this.maskGenerating || points.length === 0) return null;
+    const cap = maskCapacity(this.edits, null);
+    if (cap.layersFull || cap.totalFull) return null;
+    this.maskGenerating = true;
+    try {
+      const res = await clickMask(assetId, points);
+      const layer = makeGeneratedLayer(
+        nextLayerName(this.edits.masks),
+        this.edits.masks.length,
+        res.raster_id,
+        {
+          model_id: res.model_id,
+          kind: 'click',
+          prob_raster_id: res.prob_raster_id,
+          grow: 0,
+          feather: 0,
+          points
+        }
+      );
+      this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
+      this.activeLayerId = layer.id;
+      const compId = layer.components[0]?.id ?? null;
+      this.activeMaskComponentId = compId;
+      if (compId) await this.ensureBrushBuffer(compId, res.raster_id);
+      await this.onCommit('Masks');
+      return layer.id;
+    } catch (e) {
+      this.error = (e as Error).message;
+      return null;
+    } finally {
+      this.maskGenerating = false;
+    }
+  };
+
+  addClickPoint = async (x: number, y: number, positive: boolean): Promise<void> => {
+    if (this.maskGenerating) return;
+    const layer = this.activeLayerId
+      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      : null;
+    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
+    const point = { x, y, positive };
+    if (layer && comp?.generated?.kind === 'click') {
+      const points = [...(comp.generated.points ?? []), point];
+      await this.clickRefineComponent(layer.id, comp.id, points);
+      return;
+    }
+    if (!positive) return;
+    await this.addClickLayer([point]);
   };
 
   addBrushComponent = async (layerId: string): Promise<string | null> => {

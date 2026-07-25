@@ -36,6 +36,7 @@ pub struct ModelMeta {
     pub name: String,
     pub kind: String,
     pub content_hash: String,
+    pub aux_hash: Option<String>,
     pub size: u64,
     pub license: String,
     pub source_url: Option<String>,
@@ -66,6 +67,7 @@ impl ModelStore {
             name: row.get("name"),
             kind: row.get("kind"),
             content_hash: row.get("content_hash"),
+            aux_hash: row.get("aux_hash"),
             size: row.get::<i64, _>("size") as u64,
             license: row.get("license"),
             source_url: row.get("source_url"),
@@ -77,6 +79,7 @@ impl ModelStore {
         &self,
         entry: &CatalogEntry,
         bytes: &[u8],
+        aux_bytes: Option<&[u8]>,
     ) -> Result<ModelMeta, ModelStoreError> {
         if bytes.is_empty() {
             return Err(ModelStoreError::Invalid("empty model file".into()));
@@ -93,6 +96,25 @@ impl ModelStore {
             });
         }
 
+        let mut aux_hash = None;
+        if let Some(aux) = &entry.aux {
+            let payload = aux_bytes
+                .ok_or_else(|| ModelStoreError::Invalid("missing second model file".into()))?;
+            if payload.len() as u64 > MAX_MODEL_BYTES {
+                return Err(ModelStoreError::Invalid("model exceeds size limit".into()));
+            }
+            let hash = blob_store::content_hash(payload);
+            if hash != aux.sha256 {
+                return Err(ModelStoreError::Checksum {
+                    id: format!("{} (second file)", entry.id),
+                    expected: aux.sha256.to_string(),
+                    actual: hash,
+                });
+            }
+            blob_store::write_blob_atomic(&self.blob_path(&hash), payload).await?;
+            aux_hash = Some(hash);
+        }
+
         blob_store::write_blob_atomic(&self.blob_path(&content_hash), bytes).await?;
 
         if let Some(existing) = self.find_by_catalog(entry.id).await? {
@@ -101,15 +123,16 @@ impl ModelStore {
 
         let id = Uuid::new_v4().to_string();
         let created_at = Utc::now().to_rfc3339();
-        let size = bytes.len() as i64;
+        let size = (bytes.len() + aux_bytes.map_or(0, |b| b.len())) as i64;
         let result = sqlx::query(
-            "INSERT INTO models (id, catalog_id, name, kind, content_hash, size, license, source_url, deleted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)",
+            "INSERT INTO models (id, catalog_id, name, kind, content_hash, aux_hash, size, license, source_url, deleted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)",
         )
         .bind(&id)
         .bind(entry.id)
         .bind(entry.name)
         .bind(entry.kind.as_str())
         .bind(&content_hash)
+        .bind(&aux_hash)
         .bind(size)
         .bind(entry.license)
         .bind(entry.url)
@@ -133,7 +156,8 @@ impl ModelStore {
             name: entry.name.to_string(),
             kind: entry.kind.as_str().to_string(),
             content_hash,
-            size: bytes.len() as u64,
+            aux_hash,
+            size: size as u64,
             license: entry.license.to_string(),
             source_url: Some(entry.url.to_string()),
             created_at,
@@ -145,7 +169,7 @@ impl ModelStore {
         catalog_id: &str,
     ) -> Result<Option<ModelMeta>, ModelStoreError> {
         let row = sqlx::query(
-            "SELECT id, catalog_id, name, kind, content_hash, size, license, source_url, created_at FROM models WHERE catalog_id = ? AND deleted = 0",
+            "SELECT id, catalog_id, name, kind, content_hash, aux_hash, size, license, source_url, created_at FROM models WHERE catalog_id = ? AND deleted = 0",
         )
         .bind(catalog_id)
         .fetch_optional(&self.pool)
@@ -154,6 +178,13 @@ impl ModelStore {
     }
 
     pub async fn resolve_path(&self, catalog_id: &str) -> Result<PathBuf, ModelStoreError> {
+        Ok(self.resolve_paths(catalog_id).await?.0)
+    }
+
+    pub async fn resolve_paths(
+        &self,
+        catalog_id: &str,
+    ) -> Result<(PathBuf, Option<PathBuf>), ModelStoreError> {
         let meta = self
             .find_by_catalog(catalog_id)
             .await?
@@ -162,7 +193,17 @@ impl ModelStore {
         if !fs::try_exists(&path).await? {
             return Err(ModelStoreError::NotFound);
         }
-        Ok(path)
+        let aux = match &meta.aux_hash {
+            Some(hash) => {
+                let aux_path = self.blob_path(hash);
+                if !fs::try_exists(&aux_path).await? {
+                    return Err(ModelStoreError::NotFound);
+                }
+                Some(aux_path)
+            }
+            None => None,
+        };
+        Ok((path, aux))
     }
 
     pub async fn remove(&self, catalog_id: &str) -> Result<(), ModelStoreError> {
@@ -179,6 +220,9 @@ impl ModelStore {
             .execute(&self.pool)
             .await?;
         let _ = fs::remove_file(self.blob_path(&meta.content_hash)).await;
+        if let Some(hash) = &meta.aux_hash {
+            let _ = fs::remove_file(self.blob_path(hash)).await;
+        }
         Ok(())
     }
 
@@ -231,7 +275,7 @@ mod tests {
         let (store, _dir) = store().await;
         let entry = catalog::find("ormbg").unwrap();
         let err = store
-            .install_verified(entry, b"not the real model")
+            .install_verified(entry, b"not the real model", None)
             .await
             .unwrap_err();
         assert!(matches!(err, ModelStoreError::Checksum { .. }));
@@ -241,7 +285,7 @@ mod tests {
     async fn rejects_empty_model() {
         let (store, _dir) = store().await;
         let entry = catalog::find("ormbg").unwrap();
-        let err = store.install_verified(entry, b"").await.unwrap_err();
+        let err = store.install_verified(entry, b"", None).await.unwrap_err();
         assert!(matches!(err, ModelStoreError::Invalid(_)));
     }
 
@@ -257,7 +301,7 @@ mod tests {
         let mut e = entry();
         let hash = blob_store::content_hash(&bytes);
         e.sha256 = Box::leak(hash.into_boxed_str());
-        store.install_verified(&e, &bytes).await.unwrap();
+        store.install_verified(&e, &bytes, None).await.unwrap();
 
         store.set_preferred("subject", "ormbg").await.unwrap();
         assert_eq!(
@@ -277,8 +321,8 @@ mod tests {
         let hash = blob_store::content_hash(&bytes);
         e.sha256 = Box::leak(hash.into_boxed_str());
 
-        let first = store.install_verified(&e, &bytes).await.unwrap();
-        let second = store.install_verified(&e, &bytes).await.unwrap();
+        let first = store.install_verified(&e, &bytes, None).await.unwrap();
+        let second = store.install_verified(&e, &bytes, None).await.unwrap();
         assert_eq!(first.id, second.id);
         assert!(store.find_by_catalog("ormbg").await.unwrap().is_some());
 

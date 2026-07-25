@@ -1,9 +1,23 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RangeWindow {
+    pub min: f32,
+    pub max: f32,
+    pub softness: f32,
+}
+
+impl RangeWindow {
+    pub fn is_full(&self) -> bool {
+        self.min <= 0.0 && self.max >= 1.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BakeParams {
     pub grow: f32,
     pub feather: f32,
     pub guided_radius: usize,
     pub guided_eps: f32,
+    pub range: Option<RangeWindow>,
 }
 
 impl Default for BakeParams {
@@ -13,8 +27,29 @@ impl Default for BakeParams {
             feather: 0.0,
             guided_radius: 8,
             guided_eps: 1e-4,
+            range: None,
         }
     }
+}
+
+fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    if edge1 - edge0 <= 1e-6 {
+        return if x < edge0 { 0.0 } else { 1.0 };
+    }
+    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+pub fn range_weight(value: f32, window: RangeWindow) -> f32 {
+    let lo = window.min.min(window.max);
+    let hi = window.min.max(window.max);
+    let soft = window.softness.max(0.0);
+    if soft <= 1e-6 {
+        return if value >= lo && value <= hi { 1.0 } else { 0.0 };
+    }
+    let rising = smoothstep(lo - soft, lo, value);
+    let falling = 1.0 - smoothstep(hi, hi + soft, value);
+    rising.min(falling)
 }
 
 fn integral(src: &[f32], w: usize, h: usize) -> Vec<f64> {
@@ -172,10 +207,21 @@ pub fn grow(mask: &[f32], w: usize, h: usize, pixels: f32) -> Vec<f32> {
 }
 
 pub fn bake(prob: &[f32], guide: &[f32], w: usize, h: usize, params: BakeParams) -> Vec<u8> {
+    let windowed = match params.range {
+        Some(window) => prob.iter().map(|v| range_weight(*v, window)).collect(),
+        None => prob.to_vec(),
+    };
     let mut mask = if params.guided_radius > 0 {
-        guided_filter(guide, prob, w, h, params.guided_radius, params.guided_eps)
+        guided_filter(
+            guide,
+            &windowed,
+            w,
+            h,
+            params.guided_radius,
+            params.guided_eps,
+        )
     } else {
-        prob.to_vec()
+        windowed
     };
     if params.grow.abs() >= 0.5 {
         mask = grow(&mask, w, h, params.grow);
@@ -257,6 +303,40 @@ mod tests {
         let guide = step_mask(w, h);
         let out = bake(&prob, &guide, w, h, BakeParams::default());
         assert_eq!(out.len(), w * h);
+        assert_eq!(out[0], 255);
+        assert_eq!(out[w - 1], 0);
+    }
+
+    #[test]
+    fn range_weight_selects_a_band_with_soft_edges() {
+        let window = RangeWindow {
+            min: 0.4,
+            max: 0.6,
+            softness: 0.1,
+        };
+        assert_eq!(range_weight(0.5, window), 1.0);
+        assert_eq!(range_weight(0.2, window), 0.0);
+        assert_eq!(range_weight(0.9, window), 0.0);
+        let edge = range_weight(0.35, window);
+        assert!(edge > 0.0 && edge < 1.0);
+    }
+
+    #[test]
+    fn bake_keeps_only_the_selected_depth_band() {
+        let w = 8;
+        let h = 1;
+        let prob: Vec<f32> = (0..w).map(|x| x as f32 / (w - 1) as f32).collect();
+        let guide = vec![0.0f32; w];
+        let params = BakeParams {
+            guided_radius: 0,
+            range: Some(RangeWindow {
+                min: 0.0,
+                max: 0.3,
+                softness: 0.0,
+            }),
+            ..Default::default()
+        };
+        let out = bake(&prob, &guide, w, h, params);
         assert_eq!(out[0], 255);
         assert_eq!(out[w - 1], 0);
     }

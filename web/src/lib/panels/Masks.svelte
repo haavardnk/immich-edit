@@ -76,6 +76,9 @@
   let refineCompId = $state<string | null>(null);
   let growValue = $state(0);
   let featherPxValue = $state(0);
+  let depthMinValue = $state(0);
+  let depthMaxValue = $state(1);
+  let depthSoftnessValue = $state(0.1);
 
   $effect(() => {
     const id = activeComp?.generated ? activeComp.id : null;
@@ -83,6 +86,9 @@
     refineCompId = id;
     growValue = activeComp?.generated?.grow ?? 0;
     featherPxValue = activeComp?.generated?.feather ?? 0;
+    depthMinValue = activeComp?.generated?.range?.min ?? 0;
+    depthMaxValue = activeComp?.generated?.range?.max ?? 1;
+    depthSoftnessValue = activeComp?.generated?.range?.softness ?? 0.1;
   });
 
   $effect(() => {
@@ -106,7 +112,17 @@
 
   async function rebakeGenerated(): Promise<void> {
     if (!active || !activeComp?.generated) return;
-    await editor.rebakeGeneratedComponent(active.id, activeComp.id, growValue, featherPxValue);
+    const range =
+      activeComp.generated.kind === 'depth'
+        ? { min: depthMinValue, max: depthMaxValue, softness: depthSoftnessValue }
+        : undefined;
+    await editor.rebakeGeneratedComponent(
+      active.id,
+      activeComp.id,
+      growValue,
+      featherPxValue,
+      range
+    );
   }
   const lumaMinValue = $derived(
     activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
@@ -191,6 +207,11 @@
 
   async function addGenerated(kind: MaskKind): Promise<void> {
     addLayerOpen = false;
+    if (kind === 'click') {
+      editor.clickTool = { active: true, negative: false };
+      toasts.push('info', 'Click the photo to build a mask. Shift-click removes areas.');
+      return;
+    }
     await editor.addGeneratedLayer(kind);
   }
 
@@ -211,6 +232,7 @@
     if (kind === 'people') return 'People';
     if (kind === 'sky') return 'Sky';
     if (kind === 'depth') return 'Depth';
+    if (kind === 'click') return 'Click to select';
     return kind;
   }
 
@@ -748,6 +770,68 @@
         <div class="px-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
           {generatedLabel(activeComp.generated.kind)} · {activeComp.generated.model_id}
         </div>
+        {#if activeComp.generated.kind === 'click'}
+          <div class="flex items-center justify-between gap-2 px-1">
+            <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
+              <button
+                type="button"
+                class="px-2 leading-5 transition-colors {editor.clickTool.active &&
+                !editor.clickTool.negative
+                  ? 'bg-white/15 text-immich-dark-fg'
+                  : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                onclick={() => (editor.clickTool = { active: true, negative: false })}>Add</button
+              >
+              <button
+                type="button"
+                class="px-2 leading-5 transition-colors {editor.clickTool.active &&
+                editor.clickTool.negative
+                  ? 'bg-white/15 text-immich-dark-fg'
+                  : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                onclick={() => (editor.clickTool = { active: true, negative: true })}>Remove</button
+              >
+            </div>
+            <button
+              type="button"
+              class="text-[10px] text-immich-dark-fg/50 hover:text-immich-dark-fg"
+              onclick={() => (editor.clickTool = { active: false, negative: false })}>Done</button
+            >
+          </div>
+        {/if}
+        {#if activeComp.generated.kind === 'depth'}
+          <SliderRow
+            label="Near"
+            value={depthMinValue}
+            min={0}
+            max={1}
+            step={0.01}
+            defaultValue={0}
+            onLive={(v: number) => (depthMinValue = Math.min(v, depthMaxValue))}
+            onCommit={rebakeGenerated}
+            format={(v: number) => v.toFixed(2)}
+          />
+          <SliderRow
+            label="Far"
+            value={depthMaxValue}
+            min={0}
+            max={1}
+            step={0.01}
+            defaultValue={1}
+            onLive={(v: number) => (depthMaxValue = Math.max(v, depthMinValue))}
+            onCommit={rebakeGenerated}
+            format={(v: number) => v.toFixed(2)}
+          />
+          <SliderRow
+            label="Softness"
+            value={depthSoftnessValue}
+            min={0}
+            max={1}
+            step={0.01}
+            defaultValue={0.1}
+            onLive={(v: number) => (depthSoftnessValue = v)}
+            onCommit={rebakeGenerated}
+            format={(v: number) => v.toFixed(2)}
+          />
+        {/if}
         <SliderRow
           label="Grow"
           value={growValue}
