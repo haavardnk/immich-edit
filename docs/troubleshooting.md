@@ -2,13 +2,13 @@
 
 ## Backend will not start
 
-### "Cache directory not writable"
+### "Data directory not writable"
 
-The configured `CACHE_DIR` is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
+The configured `DATA_DIR` (or its deprecated `CACHE_DIR` alias) is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
 
 ### "DATABASE_URL invalid" / sqlite open errors
 
-The default `sqlite://./cache/immich-edit.db?mode=rwc` expects `cache/` to exist and be writable. If you override `DATABASE_URL`, keep `?mode=rwc` so sqlite creates the file on first start.
+The default `sqlite://./data/immich-edit.db?mode=rwc` expects `data/` to exist and be writable. If you override `DATABASE_URL`, keep `?mode=rwc` so sqlite creates the file on first start.
 
 ### "invalid value for ALLOWED_ORIGINS"
 
@@ -81,6 +81,28 @@ GPU drivers occasionally drop the wgpu device under memory pressure or after a d
 
 The first render warms up GPU pipelines and uploads textures; expect a delay of 1 to 3 seconds. Subsequent edits to the same asset should be sub-second.
 
+## AI masks
+
+### A mask type is missing from the New mask menu
+
+An admin must install a model for that mask type under **Settings > Mask models**. Subject, sky, depth, and click-guided masks use separate models. If the whole section is disabled, check `config.segment_runtime` on `GET /api/health`; `off` disables model inference.
+
+### Model installation fails
+
+The server downloads catalog models over HTTPS from GitHub or Hugging Face. Check outbound network access from the container, free space under `DATA_DIR/models/`, and backend logs. The installer rejects an interrupted or changed download when its SHA-256 hash does not match the catalog.
+
+### Mask generation is slow or fails on the GPU
+
+`SEGMENT_RUNTIME=auto` tries WebGPU first and falls back to CPU if the provider cannot start. The backend logs the selected backend and elapsed time after each generation. CPU inference can take several seconds, depending on the model.
+
+`SEGMENT_RUNTIME=gpu` is stricter: it fails the request when WebGPU cannot start. Use `auto` for fallback or `cpu` to skip WebGPU. AI inference uses the same Vulkan or Metal access described in [GPU rendering](#gpu-rendering), but it has its own runtime setting.
+
+The first request after a model is loaded is slower. On a memory-constrained server, keep `SEGMENT_MAX_CONCURRENCY=1` and lower `SEGMENT_IDLE_SECS` so inactive sessions are released sooner.
+
+### A luminance or color range changes after a global edit
+
+Range masks select from the maskless, display-referred image. Global exposure and color edits can therefore change the selection. The local adjustment inside the mask does not feed back into its own selection.
+
 ## Edits and history
 
 ### "409 Conflict" when saving
@@ -105,7 +127,7 @@ Use the GPU if at all possible. CPU demosaic + tone on a 24MP RAW takes several 
 
 ### Memory keeps growing
 
-`MASK_CACHE_MB` (default 1024) is the largest tunable. Lower it to 256 if running on a small VM. The render cache on disk (`CACHE_DIR/rasters`) grows until evicted; it is safe to delete the directory while the service is stopped.
+`MASK_CACHE_MB` (default 1024) is the largest tunable. Lower it to 256 if running on a small VM. The render cache on disk (`DATA_DIR/rasters`) grows until evicted; it is safe to delete the directory while the service is stopped.
 
 Retained render memory is bounded by three byte budgets that you can lower without touching render quality or speed:
 

@@ -2,7 +2,7 @@
 
 A non-destructive RAW editor for your [Immich](https://immich.app/) library. Browse albums in the browser, render previews and exports on the server, and keep the edits outside Immich. Originals stay untouched.
 
-> **Active development.** Expect breaking changes and occasional migrations that require clearing the cache or database. There is no upgrade path between 0.x releases yet. Run it against a backup, not your only copy.
+> **Active development.** The 0.x releases can include breaking changes and occasional migrations. Back up `DATA_DIR`, read the release notes before upgrading, and do not run it against your only copy.
 
 ![immich-edit editor](docs/image/editor.png)
 
@@ -38,6 +38,7 @@ Edits:
 - Vignette, grain
 - Crop, rotate, flip
 - Local masks (radial, linear, brush, luminance range, color range) with adjustable parameters
+- Optional local AI masks for subjects, skies, and depth, plus click-guided selection and refinement
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
 - Undo/redo while editing, plus saved edit history with expandable change details and restore
@@ -52,19 +53,20 @@ Batch:
 Export:
 
 - JPEG, PNG (8/16-bit), WebP, AVIF, HEIC, TIFF (8/16-bit), JPEG XL (8/16-bit)
+- sRGB or Display P3 output, with soft proofing and an optional gamut warning
 - Push edited results back to Immich as a new asset
 
 ## What does not work yet
 
 - No HDR output, DNG export, PSD compatibility, or Lightroom/XMP round-trip
-- No AI features
+- No person- or face-aware masking from Immich people data
 - Histograms and clipping warnings are basic
 - No mobile layout
 - CPU rendering is slow; use the GPU path if you can
 
 ## Data handling
 
-immich-edit never deletes assets. Your photo edits are non-destructive: they are stored in immich-edit's SQLite database, and your Immich originals are never touched. Imported DCP profiles and LUTs are stored alongside the database in `CACHE_DIR`.
+immich-edit never deletes assets. Your photo edits are non-destructive: they are stored in immich-edit's SQLite database, and your Immich originals are never touched. Imported DCP profiles, LUTs, AI models, and mask rasters are stored alongside the database in `DATA_DIR`.
 
 Some actions do write metadata back to Immich so the two stay in sync: star ratings, favorites, tags, and reject marks (an `immich-edit/reject` tag). Rejecting a photo dims it in the grid and loupe and lets you filter it out, but it stays in your library and nothing is removed.
 
@@ -72,7 +74,7 @@ The first time you do one of these actions, immich-edit asks you to confirm. Aft
 
 ## Quick start
 
-The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest stable release; `edge` tracks the newest build including prereleases. Pin an exact tag like `0.2.0` if you want upgrades to be explicit. See [available tags](docs/deploy.md#image-tags).
+The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest stable release; `edge` tracks the newest build including prereleases. Pin an exact tag like `0.3.0` if you want upgrades to be explicit. See [available tags](docs/deploy.md#image-tags).
 
 Create `compose.yaml`:
 
@@ -83,11 +85,11 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - immich-edit-cache:/cache
+      - immich-edit-data:/data
     restart: unless-stopped
 
 volumes:
-  immich-edit-cache:
+  immich-edit-data:
 ```
 
 Start it:
@@ -123,7 +125,7 @@ GPU rendering is much faster than CPU rendering, especially on large RAWs. `wgpu
 To enable a GPU in Docker, uncomment the matching block in [docker-compose.example.yml](docker-compose.example.yml) and restart.
 
 | Host | Backend | Setup |
-|---|---|---|
+| --- | --- | --- |
 | Linux, AMD or Intel iGPU | Vulkan | Pass `/dev/dri` and add `video` + `render` groups. The image includes Mesa Vulkan drivers. |
 | Linux, NVIDIA | Vulkan | Install `nvidia-container-toolkit` on the host and use the `deploy.resources.reservations.devices` block. |
 | macOS, native | Metal | Run the binary directly. |
@@ -136,6 +138,8 @@ To enable a GPU in Docker, uncomment the matching block in [docker-compose.examp
 - `cpu`: use CPU only
 
 If the GPU path is not active, check the backend startup logs for the wgpu adapter line.
+
+AI masks run locally through ONNX Runtime. Models are not bundled; an admin installs only the ones the server needs from **Settings > Mask models**. In `auto` mode, inference tries WebGPU through Vulkan or Metal and falls back to CPU. See [GPU passthrough](docs/deploy.md#gpu-passthrough) and [AI mask models](docs/deploy.md#ai-mask-models).
 
 ## Development
 
@@ -153,5 +157,6 @@ Use it, modify it, run it on your own server. If you host a modified version whe
 - [RapidRAW](https://github.com/CyberTimon/RapidRAW) for pipeline inspiration
 - [rawler](https://github.com/dnglab/dnglab) for RAW parsing
 - [wgpu](https://wgpu.rs/) for GPU rendering in Rust
+- [ONNX Runtime](https://onnxruntime.ai/) for local mask inference
 - [lensfun](https://lensfun.github.io/) for the lens correction database
 - [RawTherapee](https://github.com/Beep6581/RawTherapee) for the bundled DNG camera profiles (GPL-3.0)

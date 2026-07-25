@@ -30,6 +30,8 @@ Build the Rust workspace, including the RAW pipeline crate:
 cargo build --workspace
 ```
 
+The default backend build includes local AI mask inference and downloads the pinned ONNX Runtime and WebGPU runtime artifacts during the first build. To compile the backend without that feature, use `cargo build -p immich-edit-backend --no-default-features`.
+
 ## Dev workflow
 
 Set `BIND_ADDR=127.0.0.1:8088` and `DCP_DIR=crates/backend/assets/dcp` (via env or a `.env` copied from `.env.example`). Vite proxies `/api` there by default. Run the backend and frontend in separate terminals, then complete the in-app setup wizard with your Immich server URL and an Immich admin account.

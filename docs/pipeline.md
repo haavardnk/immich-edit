@@ -22,7 +22,7 @@ Every operator implements `OpMeta`:
 
 `SpatialOp` is for neighbourhood or geometry work. It has an `apply_cpu` implementation and may opt into `GpuOpKind::Presence` or `GpuOpKind::Detail`. `GpuOpKind::Normal` is the default; active normal ops in the GPU process pass must return `gpu()` unless the renderer handles them specially.
 
-`OutputStageOp` currently only wraps the persisted output settings. CPU output effects are separate `SpatialOp`s with `Stage::Output`; final tone/output conversion happens after `run_output_ops` in `finish_output` and encode.
+`OutputStageOp` is currently the orchestration hook for the persisted 3D LUT. CPU output effects are separate `SpatialOp`s with `Stage::Output`; final tone/output conversion and the resolved LUT run after `run_output_ops` in `finish_output` and encode.
 
 `GpuOpKind` currently has three values:
 
@@ -50,7 +50,7 @@ Flow:
 
 `run_pipeline_ops` batches consecutive `FusedOp`s into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
 
-Mask preview mode is a separate path: `render_mask_weight` writes the mask view, then only active `Geometry` ops run.
+Mask preview mode is a separate path. It omits the previewed layer's local adjustments, evaluates the complete layer weight, runs geometry and output effects, applies the DCP finish, then blends the translucent red overlay. The creative LUT and non-sRGB output conversion still live beyond the CPU overlay's early `display_ready` return and are not applied on this path.
 
 Current CPU detail behaviour is important: `GpuOpKind::Detail` ops are skipped in `run_pipeline_ops`. Today that means luma NR, color NR, and sharpen are GPU-owned in the normal render path. If CPU parity for those edits becomes required, change the code and this document together.
 
@@ -77,17 +77,18 @@ Dispatch order:
 | 8 | DCP base table | `encode_dcp_huesat`, `passes/dcp_huesat.rs` | Camera HueSatMap in linear ProPhoto; skipped when disabled or unmatched. |
 | 9 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
 | 10 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
-| 11 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, gamut projection, and sRGB output when a final pass is active. |
+| 11 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, destination-gamut projection, and output conversion when a final pass is active. |
 | 12 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and Adobe hue-preserving profile tone curve. |
 | 13 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
-| 14 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
+| 14 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
+| 15 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
 
 ## Color-space rules
 
 Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:
 
 - In `process.wgsl` for the fast path with no sharpen/effects/masks.
-- In `effects_tone.wgsl` whenever sharpen, vignette, grain, masks, or DCP require the final pass.
+- In `effects_tone.wgsl` whenever sharpen, vignette, grain, masks, DCP, or Display P3 output require the final pass.
 
 DCP tables operate in linear ProPhoto. `ProfileHueSatMapEncoding` and `ProfileLookTableEncoding` affect only the HSV value lookup/scaling axis. The LookTable runs before the profile tone curve. The tone curve follows Adobe's hue-preserving min/max transform rather than applying the curve independently to all RGB channels.
 
@@ -101,11 +102,19 @@ There is no type-level distinction between linear and gamma-encoded textures. Th
 
 `transform` is a generated process-pass contribution on GPU. On CPU it is a normal `SpatialOp` in `Stage::Geometry`.
 
-`masks` is not active as a normal registry op. CPU masks are handled inside `run_pipeline_ops`; GPU masks are handled inside `process` with `mask_weight` and `mask_blend` passes.
+`masks` is not active as a normal registry op. CPU masks are handled inside `run_pipeline_ops`; GPU masks use `mask_weight` and `mask_blend`. A GPU mask preview evaluates the selected layer into `mask_weight`, skips normal local-mask blending, and runs `mask_overlay` after DCP and LUT.
 
 `DcpProfileOp` retains manifest ID `dcp_hue_sat` for compatibility. It owns profile persistence and CPU base-table dispatch; the GPU renderer uses dedicated 3D-texture passes. Matrix selection and profile setup live in `dcp_pipeline.rs`.
 
 Lens ownership is split. `lens_vignette` is handled by `passes/sensor.rs` on GPU. Lens distortion and chromatic aberration have CPU implementations; the GPU path still uses lens warp parameters for mask sampling.
+
+## Mask generation renders
+
+AI mask generation first renders an `OutputFormat::Rgb8` frame for the segmentation service. The backend loads the saved edits, then clears geometry, lens, effects, and masks. Exposure, white balance, camera profiling, and other global color edits remain, so the model sees a useful image while its raster stays in the same scene-space coordinates as manual masks.
+
+`Rgb8` is raw interleaved RGB bytes with no image container. It is an internal pipeline output and is not accepted by public preview or export requests.
+
+Inference runs outside raw-pipeline in the backend `SegmentService`. The result and its probability map are stored as `r8` rasters. Rendering sees the result as a normal brush component, so generated masks use the same CPU and GPU paths as painted masks.
 
 ## Adding an operator
 
