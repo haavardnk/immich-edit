@@ -341,6 +341,7 @@ mod tests {
                         feather: 0.1,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
                 MaskComponent {
                     id: "c2".into(),
@@ -354,6 +355,7 @@ mod tests {
                         feather: 0.2,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
                 MaskComponent {
                     id: "c3".into(),
@@ -367,6 +369,7 @@ mod tests {
                         softness: 0.1,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
                 MaskComponent {
                     id: "c4".into(),
@@ -380,6 +383,7 @@ mod tests {
                         softness: 0.04,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
             ],
             edits: MaskedEdits {

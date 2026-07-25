@@ -312,6 +312,14 @@ export type MaskComponentKind =
       softness: number;
     };
 
+export interface GeneratedMeta {
+  model_id: string;
+  kind: string;
+  prob_raster_id: string;
+  grow: number;
+  feather: number;
+}
+
 export interface MaskComponent {
   id: string;
   enabled: boolean;
@@ -320,6 +328,7 @@ export interface MaskComponent {
   invert: boolean;
   kind: MaskComponentKind;
   source: MaskSource;
+  generated?: GeneratedMeta;
 }
 
 export type MaskedEditKey =
@@ -923,6 +932,7 @@ function parseMaskComponent(raw: unknown): MaskComponent | null {
   const kind = parseMaskKind(r.kind);
   if (!kind) return null;
   const mode = r.mode === 'subtract' || r.mode === 'intersect' ? r.mode : 'add';
+  const generated = parseGeneratedMeta(r.generated);
   return {
     id: r.id,
     enabled: r.enabled !== false,
@@ -930,7 +940,22 @@ function parseMaskComponent(raw: unknown): MaskComponent | null {
     opacity: typeof r.opacity === 'number' ? r.opacity : 1,
     invert: r.invert === true,
     kind,
-    source: r.source === 'generated' ? 'generated' : 'manual'
+    source: r.source === 'generated' ? 'generated' : 'manual',
+    ...(generated ? { generated } : {})
+  };
+}
+
+function parseGeneratedMeta(raw: unknown): GeneratedMeta | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.model_id !== 'string' || typeof r.kind !== 'string') return undefined;
+  if (typeof r.prob_raster_id !== 'string') return undefined;
+  return {
+    model_id: r.model_id,
+    kind: r.kind,
+    prob_raster_id: r.prob_raster_id,
+    grow: typeof r.grow === 'number' ? r.grow : 0,
+    feather: typeof r.feather === 'number' ? r.feather : 0
   };
 }
 

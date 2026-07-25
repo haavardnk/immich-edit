@@ -1007,6 +1007,7 @@ fn gpu_masks_match_cpu_within_tolerance() {
                     feather: 0.4,
                 },
                 source: MaskSource::Manual,
+                generated: None,
             },
             MaskComponent {
                 id: "c2".into(),
@@ -1020,6 +1021,7 @@ fn gpu_masks_match_cpu_within_tolerance() {
                     feather: 0.3,
                 },
                 source: MaskSource::Manual,
+                generated: None,
             },
         ],
         edits: MaskedEdits {
@@ -1105,6 +1107,7 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
                 raster_id: "brush_a".into(),
             },
             source: MaskSource::Manual,
+            generated: None,
         }],
         edits: MaskedEdits {
             exposure_ev: Some(1.5),
@@ -1165,6 +1168,7 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
                         softness: 0.15,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
                 MaskComponent {
                     id: "luma".into(),
@@ -1178,6 +1182,7 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
                         softness: 0.15,
                     },
                     source: MaskSource::Manual,
+                    generated: None,
                 },
             ],
             edits: MaskedEdits {

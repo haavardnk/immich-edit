@@ -813,6 +813,17 @@ impl MaskedEdits {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GeneratedMeta {
+    pub model_id: String,
+    pub kind: String,
+    pub prob_raster_id: String,
+    #[serde(default)]
+    pub grow: f32,
+    #[serde(default)]
+    pub feather: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MaskComponent {
     pub id: String,
     #[serde(default = "default_true")]
@@ -826,6 +837,8 @@ pub struct MaskComponent {
     pub kind: MaskComponentKind,
     #[serde(default)]
     pub source: MaskSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated: Option<GeneratedMeta>,
 }
 
 fn default_true() -> bool {
@@ -944,6 +957,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
         invert: c.invert,
         kind,
         source: c.source,
+        generated: c.generated.clone(),
     }
 }
 
@@ -1159,6 +1173,7 @@ mod tests {
                     raster_id: "abc123".into(),
                 },
                 source: MaskSource::Manual,
+                generated: None,
             }],
             edits: MaskedEdits {
                 exposure_ev: Some(1.0),
@@ -1187,6 +1202,7 @@ mod tests {
                 raster_id: raster.into(),
             },
             source: MaskSource::Manual,
+            generated: None,
         };
         e.masks.push(MaskLayer {
             id: "l1".into(),
@@ -1231,6 +1247,7 @@ mod tests {
                     raster_id: "keep-me".into(),
                 },
                 source: MaskSource::Manual,
+                generated: None,
             }],
             edits: MaskedEdits::default(),
         });

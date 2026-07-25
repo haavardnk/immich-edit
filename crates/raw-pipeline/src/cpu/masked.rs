@@ -407,6 +407,7 @@ mod tests {
             invert: false,
             kind: MaskComponentKind::Linear { p0, p1, feather },
             source: MaskSource::Manual,
+            generated: None,
         }
     }
 
@@ -594,6 +595,7 @@ mod tests {
                 raster_id: "r1".into(),
             },
             source: MaskSource::Manual,
+            generated: None,
         };
         let layer = MaskLayer {
             id: "l".into(),
@@ -631,6 +633,7 @@ mod tests {
                 raster_id: "missing".into(),
             },
             source: MaskSource::Manual,
+            generated: None,
         };
         let layer = MaskLayer {
             id: "l".into(),
@@ -662,6 +665,7 @@ mod tests {
                 softness: 0.2,
             },
             source: MaskSource::Manual,
+            generated: None,
         };
         let layer = MaskLayer {
             id: "l".into(),
@@ -701,6 +705,7 @@ mod tests {
                 softness: 0.05,
             },
             source: MaskSource::Manual,
+            generated: None,
         };
         let layer = MaskLayer {
             id: "l".into(),

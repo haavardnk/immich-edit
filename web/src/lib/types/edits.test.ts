@@ -268,6 +268,39 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(roundTrip(e).masks).toEqual(e.masks);
   });
 
+  it('preserves generated mask provenance', () => {
+    const e = neutralEdits();
+    e.masks = [
+      {
+        id: 'layer',
+        name: 'Subject',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        components: [
+          {
+            id: 'gen',
+            enabled: true,
+            mode: 'add',
+            opacity: 1,
+            invert: false,
+            kind: { kind: 'brush', raster_id: 'baked' },
+            source: 'generated',
+            generated: {
+              model_id: 'ormbg',
+              kind: 'subject',
+              prob_raster_id: 'prob',
+              grow: -2,
+              feather: 4
+            }
+          }
+        ],
+        edits: { exposure_ev: 0.5 }
+      }
+    ];
+    expect(roundTrip(e).masks).toEqual(e.masks);
+  });
+
   it('drops malformed color range samples', () => {
     const edits = manifestToEdits({
       schema_version: 3,
