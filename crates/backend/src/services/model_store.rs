@@ -174,7 +174,35 @@ impl ModelStore {
             .bind(&meta.id)
             .execute(&self.pool)
             .await?;
+        sqlx::query("DELETE FROM model_prefs WHERE catalog_id = ?")
+            .bind(catalog_id)
+            .execute(&self.pool)
+            .await?;
         let _ = fs::remove_file(self.blob_path(&meta.content_hash)).await;
+        Ok(())
+    }
+
+    pub async fn preferred(&self, kind: &str) -> Result<Option<String>, ModelStoreError> {
+        let row = sqlx::query("SELECT catalog_id FROM model_prefs WHERE kind = ?")
+            .bind(kind)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.map(|r| r.get("catalog_id")))
+    }
+
+    pub async fn set_preferred(&self, kind: &str, catalog_id: &str) -> Result<(), ModelStoreError> {
+        if self.find_by_catalog(catalog_id).await?.is_none() {
+            return Err(ModelStoreError::NotFound);
+        }
+        sqlx::query(
+            "INSERT INTO model_prefs (kind, catalog_id, updated_at) VALUES (?, ?, ?) \
+             ON CONFLICT(kind) DO UPDATE SET catalog_id = excluded.catalog_id, updated_at = excluded.updated_at",
+        )
+        .bind(kind)
+        .bind(catalog_id)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 }
@@ -215,6 +243,30 @@ mod tests {
         let entry = catalog::find("ormbg").unwrap();
         let err = store.install_verified(entry, b"").await.unwrap_err();
         assert!(matches!(err, ModelStoreError::Invalid(_)));
+    }
+
+    #[tokio::test]
+    async fn preference_requires_install_and_clears_on_remove() {
+        let (store, _dir) = store().await;
+        assert!(matches!(
+            store.set_preferred("subject", "ormbg").await.unwrap_err(),
+            ModelStoreError::NotFound
+        ));
+
+        let bytes = b"pretend onnx payload".to_vec();
+        let mut e = entry();
+        let hash = blob_store::content_hash(&bytes);
+        e.sha256 = Box::leak(hash.into_boxed_str());
+        store.install_verified(&e, &bytes).await.unwrap();
+
+        store.set_preferred("subject", "ormbg").await.unwrap();
+        assert_eq!(
+            store.preferred("subject").await.unwrap().as_deref(),
+            Some("ormbg")
+        );
+
+        store.remove("ormbg").await.unwrap();
+        assert!(store.preferred("subject").await.unwrap().is_none());
     }
 
     #[tokio::test]

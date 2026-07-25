@@ -18,6 +18,8 @@
     listMaskModels,
     installMaskModel,
     removeMaskModel,
+    selectMaskModel,
+    type MaskKind,
     type MaskModel,
     type MaskModelsResponse
   } from '$lib/api/masks';
@@ -201,7 +203,10 @@
 
   let models = $state<MaskModelsResponse | null>(null);
   let modelsError = $state<string | null>(null);
-  let busyModel = $state<string | null>(null);
+  let busyModels = $state<string[]>([]);
+
+  const modelKinds = $derived([...new Set((models?.models ?? []).map((m) => m.kind))]);
+  const notInstalled = $derived((models?.models ?? []).filter((m) => !m.installed));
 
   async function loadModels(): Promise<void> {
     try {
@@ -212,8 +217,8 @@
   }
 
   async function toggleModel(m: MaskModel): Promise<void> {
-    if (busyModel) return;
-    busyModel = m.id;
+    if (busyModels.includes(m.id)) return;
+    busyModels = [...busyModels, m.id];
     modelsError = null;
     try {
       if (m.installed) {
@@ -225,8 +230,35 @@
     } catch (e) {
       modelsError = (e as Error).message;
     } finally {
-      busyModel = null;
+      busyModels = busyModels.filter((id) => id !== m.id);
     }
+  }
+
+  async function downloadAll(): Promise<void> {
+    modelsError = null;
+    await Promise.all(notInstalled.map((m) => toggleModel(m)));
+  }
+
+  async function chooseModel(kind: MaskKind, modelId: string): Promise<void> {
+    modelsError = null;
+    try {
+      await selectMaskModel(kind, modelId);
+      await loadModels();
+    } catch (e) {
+      modelsError = (e as Error).message;
+    }
+  }
+
+  function kindLabel(kind: string): string {
+    if (kind === 'subject') return 'Subject';
+    if (kind === 'people') return 'People';
+    if (kind === 'sky') return 'Sky';
+    if (kind === 'depth') return 'Depth';
+    return kind;
+  }
+
+  function formatSeconds(ms: number): string {
+    return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`;
   }
 
   function formatMb(bytes: number): string {
@@ -490,18 +522,58 @@
               Runtime: <span class="font-mono">{models.runtime}</span>. Models are downloaded on
               demand and loaded only while a mask is being generated.
             </p>
+
+            {#if modelKinds.length > 0}
+              <div class="space-y-1">
+                {#each modelKinds as kind (kind)}
+                  {@const installed = models.models.filter((m) => m.kind === kind && m.installed)}
+                  <div class="flex items-center justify-between gap-2 text-xs">
+                    <span class="text-immich-dark-fg/50">{kindLabel(kind)} masks use</span>
+                    {#if installed.length === 0}
+                      <span class="text-immich-dark-fg/40">nothing installed</span>
+                    {:else}
+                      <select
+                        class="rounded bg-black/30 border border-white/10 px-2 py-1"
+                        value={models.active[kind] ?? installed[0].id}
+                        onchange={(e) => void chooseModel(kind, e.currentTarget.value)}
+                      >
+                        {#each installed as m (m.id)}
+                          <option value={m.id}>{m.name}</option>
+                        {/each}
+                      </select>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            {#if notInstalled.length > 0}
+              <button
+                class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
+                onclick={() => void downloadAll()}
+                disabled={busyModels.length > 0}
+              >
+                Download all {notInstalled.length} missing ({formatMb(
+                  notInstalled.reduce((n, m) => n + m.size_bytes, 0)
+                )})
+              </button>
+            {/if}
+
             <ul class="space-y-1">
               {#each models.models as m (m.id)}
                 <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
                   <div class="min-w-0">
                     <div class="truncate">
                       {m.name}
-                      <span class="text-immich-dark-fg/40"> · {m.kind}</span>
+                      <span class="text-immich-dark-fg/40"> · {kindLabel(m.kind)}</span>
                       {#if m.tier === 'recommended'}<span class="text-immich-primary"> · recommended</span>{/if}
                     </div>
                     <div class="text-immich-dark-fg/40 truncate">
-                      {formatMb(m.size_bytes)} · {m.gpu_mb} MB on GPU · {m.license}
+                      {formatMb(m.size_bytes)} download · ~{m.gpu_mb} MB memory while running · ~{formatSeconds(
+                        m.gpu_ms
+                      )} per photo on GPU, ~{formatSeconds(m.cpu_ms)} on CPU
                     </div>
+                    <div class="text-immich-dark-fg/40 truncate">{m.notes} · {m.license}</div>
                   </div>
                   <div class="flex items-center gap-2 shrink-0 ml-2">
                     <button
@@ -509,9 +581,9 @@
                         ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
                         : 'bg-white/5 hover:bg-white/10'}"
                       onclick={() => void toggleModel(m)}
-                      disabled={busyModel === m.id}
+                      disabled={busyModels.includes(m.id)}
                     >
-                      {#if busyModel === m.id}
+                      {#if busyModels.includes(m.id)}
                         {m.installed ? 'Removing…' : 'Downloading…'}
                       {:else}
                         {m.installed ? 'Remove' : 'Download'}

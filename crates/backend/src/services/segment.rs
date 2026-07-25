@@ -83,7 +83,16 @@ impl SegmentService {
         }
     }
 
+    pub async fn active_model(&self, kind: ModelKind) -> Option<String> {
+        self.resolve(kind).await.ok()
+    }
+
     async fn resolve(&self, kind: ModelKind) -> Result<String, SegmentServiceError> {
+        if let Some(id) = self.models.preferred(kind.as_str()).await?
+            && self.models.find_by_catalog(&id).await?.is_some()
+        {
+            return Ok(id);
+        }
         if let Some(entry) = catalog::default_for(kind)
             && self.models.find_by_catalog(entry.id).await?.is_some()
         {

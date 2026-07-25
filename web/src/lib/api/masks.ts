@@ -23,6 +23,7 @@ export interface MaskModelsResponse {
   runtime: string;
   enabled: boolean;
   models: MaskModel[];
+  active: Partial<Record<MaskKind, string>>;
 }
 
 export interface GeneratedMask {
@@ -78,4 +79,8 @@ export function installMaskModel(id: string): Promise<void> {
 
 export function removeMaskModel(id: string): Promise<void> {
   return sendJson<void>('DELETE', `/api/admin/models/${id}`, undefined);
+}
+
+export function selectMaskModel(kind: MaskKind, modelId: string): Promise<void> {
+  return sendJson<void>('PUT', '/api/admin/masks/default', { kind, model_id: modelId });
 }

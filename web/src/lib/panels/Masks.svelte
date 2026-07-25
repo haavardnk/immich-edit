@@ -30,11 +30,15 @@
     mdiInvertColors,
     mdiPalette,
     mdiCircleOpacity,
-    mdiAutoFix
+    mdiAutoFix,
+    mdiDownloadOutline
   } from '@mdi/js';
   import { listMaskModels, type MaskKind } from '$lib/api/masks';
+  import { session } from '$lib/stores/session.svelte';
+  import { toasts } from '$lib/stores/toasts.svelte';
+  import { goto } from '$app/navigation';
 
-  let generateKinds = $state<MaskKind[]>([]);
+  let maskKinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
   let segmentEnabled = $state(false);
   let modelsRequested = $state(false);
 
@@ -87,13 +91,16 @@
     listMaskModels()
       .then((m) => {
         segmentEnabled = m.enabled;
-        generateKinds = m.enabled
-          ? [...new Set(m.models.filter((x) => x.installed).map((x) => x.kind))]
+        maskKinds = m.enabled
+          ? [...new Set(m.models.map((x) => x.kind))].map((kind) => ({
+              kind,
+              installed: m.models.some((x) => x.kind === kind && x.installed)
+            }))
           : [];
       })
       .catch(() => {
         segmentEnabled = false;
-        generateKinds = [];
+        maskKinds = [];
       });
   });
 
@@ -185,6 +192,18 @@
   async function addGenerated(kind: MaskKind): Promise<void> {
     addLayerOpen = false;
     await editor.addGeneratedLayer(kind);
+  }
+
+  function promptInstall(kind: MaskKind): void {
+    addLayerOpen = false;
+    if (session.isAdmin) {
+      void goto('/settings');
+      return;
+    }
+    toasts.push(
+      'info',
+      `${generatedLabel(kind)} masks need a model. Ask an administrator to download one in Settings.`
+    );
   }
 
   function generatedLabel(kind: string): string {
@@ -340,26 +359,33 @@
             class="fixed z-50 bg-immich-dark-bg border border-white/10 rounded-md shadow-lg min-w-40"
             style="top: {addLayerPos.top}px; right: {addLayerPos.right}px"
           >
-            {#each generateKinds as kind (kind)}
-              <button
-                type="button"
-                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left disabled:opacity-40"
-                disabled={editor.maskGenerating}
-                onclick={() => void addGenerated(kind)}
-              >
-                <Icon path={mdiAutoFix} size={14} />
-                {generatedLabel(kind)}{editor.maskGenerating ? '…' : ''}
-              </button>
+            {#each maskKinds as entry (entry.kind)}
+              {#if entry.installed}
+                <button
+                  type="button"
+                  class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left disabled:opacity-40"
+                  disabled={editor.maskGenerating}
+                  onclick={() => void addGenerated(entry.kind)}
+                >
+                  <Icon path={mdiAutoFix} size={14} />
+                  {generatedLabel(entry.kind)}{editor.maskGenerating ? '…' : ''}
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  class="flex items-center justify-between gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left text-immich-dark-fg/40"
+                  title="Needs a model download"
+                  onclick={() => promptInstall(entry.kind)}
+                >
+                  <span class="flex items-center gap-2">
+                    <Icon path={mdiAutoFix} size={14} />
+                    {generatedLabel(entry.kind)}
+                  </span>
+                  <Icon path={mdiDownloadOutline} size={13} />
+                </button>
+              {/if}
             {/each}
-            {#if segmentEnabled && generateKinds.length === 0}
-              <a
-                href="/settings"
-                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left text-immich-dark-fg/50"
-              >
-                <Icon path={mdiAutoFix} size={14} /> Download a mask model…
-              </a>
-            {/if}
-            {#if segmentEnabled}
+            {#if segmentEnabled && maskKinds.length > 0}
               <div class="border-t border-white/10"></div>
             {/if}
             <button

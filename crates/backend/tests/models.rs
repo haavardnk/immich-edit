@@ -63,6 +63,80 @@ async fn models_list_reports_catalog_and_install_state() {
     assert_eq!(ormbg["installed"], false);
     assert!(ormbg["size_bytes"].as_u64().unwrap() > 0);
     assert!(ormbg["gpu_mb"].as_u64().unwrap() > 0);
+
+    assert_eq!(json["active"].as_object().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn selecting_unknown_model_is_not_found() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/admin/masks/default")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"kind":"subject","model_id":"nope"}"#.to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn selecting_model_of_wrong_kind_is_rejected() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/admin/masks/default")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"kind":"sky","model_id":"ormbg"}"#.to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn selecting_uninstalled_model_is_rejected() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/admin/masks/default")
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"kind":"subject","model_id":"ormbg"}"#.to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

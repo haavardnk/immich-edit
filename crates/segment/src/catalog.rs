@@ -129,6 +129,8 @@ pub const CATALOG: &[CatalogEntry] = &[
     },
 ];
 
+pub const KINDS: &[ModelKind] = &[ModelKind::Subject, ModelKind::Sky, ModelKind::Depth];
+
 pub fn find(id: &str) -> Option<&'static CatalogEntry> {
     CATALOG.iter().find(|e| e.id == id)
 }
@@ -156,8 +158,8 @@ mod tests {
 
     #[test]
     fn every_kind_has_exactly_one_recommended() {
-        for kind in [ModelKind::Subject, ModelKind::Sky, ModelKind::Depth] {
-            let n = for_kind(kind)
+        for kind in KINDS {
+            let n = for_kind(*kind)
                 .filter(|e| e.tier == Tier::Recommended)
                 .count();
             assert_eq!(n, 1, "{} has {n} recommended entries", kind.as_str());

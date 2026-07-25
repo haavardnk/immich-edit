@@ -47,6 +47,7 @@ fn model_routes() -> Router<AppState> {
         .route("/masks/models", get(routes::models::list))
         .route("/assets/{id}/masks/generate", post(routes::masks::generate))
         .route("/masks/rebake", post(routes::masks::rebake))
+        .route("/admin/masks/default", put(routes::models::select))
         .route(
             "/admin/models/{id}",
             post(routes::models::install).delete(routes::models::remove),

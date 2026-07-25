@@ -2,7 +2,8 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use segment::catalog;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::error::AppError;
 use crate::routes::auth::{AdminCtx, AuthCtx};
@@ -33,6 +34,13 @@ pub struct ModelsResponse {
     pub runtime: &'static str,
     pub enabled: bool,
     pub models: Vec<CatalogView>,
+    pub active: BTreeMap<&'static str, String>,
+}
+
+#[derive(Deserialize)]
+pub struct SelectBody {
+    pub kind: String,
+    pub model_id: String,
 }
 
 fn tier_name(tier: segment::Tier) -> &'static str {
@@ -76,11 +84,42 @@ pub async fn list(
     State(state): State<AppState>,
     _ctx: AuthCtx,
 ) -> Result<Json<ModelsResponse>, AppError> {
+    let models = catalog_view(&state).await?;
+    let mut active = BTreeMap::new();
+    for kind in catalog::KINDS {
+        if let Some(id) = state.segment.active_model(*kind).await {
+            active.insert(kind.as_str(), id);
+        }
+    }
     Ok(Json(ModelsResponse {
         runtime: state.config.segment_runtime.as_str(),
         enabled: state.segment.enabled(),
-        models: catalog_view(&state).await?,
+        models,
+        active,
     }))
+}
+
+pub async fn select(
+    State(state): State<AppState>,
+    _admin: AdminCtx,
+    Json(body): Json<SelectBody>,
+) -> Result<StatusCode, AppError> {
+    let entry = catalog::find(&body.model_id).ok_or(AppError::NotFound)?;
+    if entry.kind.as_str() != body.kind {
+        return Err(AppError::BadRequest(format!(
+            "{} is not a {} model",
+            entry.id, body.kind
+        )));
+    }
+    state
+        .models
+        .set_preferred(&body.kind, entry.id)
+        .await
+        .map_err(|e| match e {
+            ModelStoreError::NotFound => AppError::BadRequest("model is not installed".into()),
+            _ => AppError::Internal,
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn install(
