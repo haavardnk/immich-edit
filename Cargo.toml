@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/backend", "crates/raw-pipeline"]
+members = ["crates/backend", "crates/raw-pipeline", "crates/segment"]
 
 [workspace.package]
 version = "0.0.0"
