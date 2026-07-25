@@ -5,6 +5,7 @@ import {
   defaultLinear,
   defaultMaskColor,
   makeComponent,
+  makeGeneratedLayer,
   makeLayer,
   maskCapacity,
   nextLayerName,
@@ -12,6 +13,7 @@ import {
 } from '$lib/types/masks';
 import { blankBuffer, type BrushBuffer } from '$lib/utils/brush';
 import { fetchRaster, uploadRaster } from '$lib/api/rasters';
+import { generateMask, rebakeMask, type MaskKind } from '$lib/api/masks';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
@@ -79,6 +81,7 @@ class EditorStore {
 
   activeLayerId = $state<string | null>(null);
   activeMaskComponentId = $state<string | null>(null);
+  maskGenerating = $state(false);
   maskOverlayVisible = $state(true);
   maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
@@ -825,6 +828,75 @@ class EditorStore {
     if (compId) this.brushBuffers = { ...this.brushBuffers, [compId]: buf };
     await this.onCommit('Masks');
     return layer.id;
+  };
+
+  addGeneratedLayer = async (kind: MaskKind): Promise<string | null> => {
+    const assetId = this.assetId;
+    if (!assetId || this.maskGenerating) return null;
+    const cap = maskCapacity(this.edits, null);
+    if (cap.layersFull || cap.totalFull) return null;
+    this.maskGenerating = true;
+    try {
+      const res = await generateMask(assetId, kind);
+      const layer = makeGeneratedLayer(
+        nextLayerName(this.edits.masks),
+        this.edits.masks.length,
+        res.raster_id,
+        {
+          model_id: res.model_id,
+          kind,
+          prob_raster_id: res.prob_raster_id,
+          grow: 0,
+          feather: 0
+        }
+      );
+      this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
+      this.activeLayerId = layer.id;
+      const compId = layer.components[0]?.id ?? null;
+      this.activeMaskComponentId = compId;
+      if (compId) await this.ensureBrushBuffer(compId, res.raster_id);
+      await this.onCommit('Masks');
+      return layer.id;
+    } catch (e) {
+      this.error = (e as Error).message;
+      return null;
+    } finally {
+      this.maskGenerating = false;
+    }
+  };
+
+  rebakeGeneratedComponent = async (
+    layerId: string,
+    componentId: string,
+    grow: number,
+    feather: number
+  ): Promise<void> => {
+    const assetId = this.assetId;
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    const comp = layer?.components.find((c) => c.id === componentId);
+    if (!assetId || !comp?.generated || this.maskGenerating) return;
+    this.maskGenerating = true;
+    try {
+      const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather);
+      this.brushBuffers = Object.fromEntries(
+        Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
+      );
+      await this.ensureBrushBuffer(componentId, res.raster_id);
+      this.patchMaskComponent(
+        layerId,
+        componentId,
+        {
+          kind: { kind: 'brush', raster_id: res.raster_id },
+          generated: { ...comp.generated, grow, feather }
+        },
+        false
+      );
+      await this.onCommit('Masks');
+    } catch (e) {
+      this.error = (e as Error).message;
+    } finally {
+      this.maskGenerating = false;
+    }
   };
 
   addBrushComponent = async (layerId: string): Promise<string | null> => {

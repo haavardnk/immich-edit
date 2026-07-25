@@ -14,6 +14,13 @@
     type InstanceInfo
   } from '$lib/api/admin';
   import { getHealth, getDebugTimings, type HealthInfo, type DebugTimings } from '$lib/api/diagnostics';
+  import {
+    listMaskModels,
+    installMaskModel,
+    removeMaskModel,
+    type MaskModel,
+    type MaskModelsResponse
+  } from '$lib/api/masks';
   import Spinner from '$lib/components/Spinner.svelte';
 
   let health = $state<HealthInfo | null>(null);
@@ -189,6 +196,41 @@
     } finally {
       usersLoading = false;
     }
+    await loadModels();
+  }
+
+  let models = $state<MaskModelsResponse | null>(null);
+  let modelsError = $state<string | null>(null);
+  let busyModel = $state<string | null>(null);
+
+  async function loadModels(): Promise<void> {
+    try {
+      models = await listMaskModels();
+    } catch (e) {
+      modelsError = (e as Error).message;
+    }
+  }
+
+  async function toggleModel(m: MaskModel): Promise<void> {
+    if (busyModel) return;
+    busyModel = m.id;
+    modelsError = null;
+    try {
+      if (m.installed) {
+        await removeMaskModel(m.id);
+      } else {
+        await installMaskModel(m.id);
+      }
+      await loadModels();
+    } catch (e) {
+      modelsError = (e as Error).message;
+    } finally {
+      busyModel = null;
+    }
+  }
+
+  function formatMb(bytes: number): string {
+    return `${Math.round(bytes / 1_000_000)} MB`;
   }
 
   async function toggleAccess(u: AdminUser): Promise<void> {
@@ -429,6 +471,56 @@
                 </button>
               </div>
             </div>
+          {/if}
+        </section>
+
+        <section class="space-y-2">
+          <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Mask models</h2>
+          {#if modelsError}
+            <p class="text-xs text-red-300">{modelsError}</p>
+          {/if}
+          {#if !models}
+            <Spinner label="Loading…" />
+          {:else if !models.enabled}
+            <p class="text-xs text-immich-dark-fg/50">
+              Segmentation is disabled. Set SEGMENT_RUNTIME to auto, gpu or cpu to enable it.
+            </p>
+          {:else}
+            <p class="text-xs text-immich-dark-fg/50">
+              Runtime: <span class="font-mono">{models.runtime}</span>. Models are downloaded on
+              demand and loaded only while a mask is being generated.
+            </p>
+            <ul class="space-y-1">
+              {#each models.models as m (m.id)}
+                <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
+                  <div class="min-w-0">
+                    <div class="truncate">
+                      {m.name}
+                      <span class="text-immich-dark-fg/40"> · {m.kind}</span>
+                      {#if m.tier === 'recommended'}<span class="text-immich-primary"> · recommended</span>{/if}
+                    </div>
+                    <div class="text-immich-dark-fg/40 truncate">
+                      {formatMb(m.size_bytes)} · {m.gpu_mb} MB on GPU · {m.license}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0 ml-2">
+                    <button
+                      class="px-2 py-1 rounded disabled:opacity-50 {m.installed
+                        ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                        : 'bg-white/5 hover:bg-white/10'}"
+                      onclick={() => void toggleModel(m)}
+                      disabled={busyModel === m.id}
+                    >
+                      {#if busyModel === m.id}
+                        {m.installed ? 'Removing…' : 'Downloading…'}
+                      {:else}
+                        {m.installed ? 'Remove' : 'Download'}
+                      {/if}
+                    </button>
+                  </div>
+                </li>
+              {/each}
+            </ul>
           {/if}
         </section>
 

@@ -29,8 +29,14 @@
     mdiEyedropperVariant,
     mdiInvertColors,
     mdiPalette,
-    mdiCircleOpacity
+    mdiCircleOpacity,
+    mdiAutoFix
   } from '@mdi/js';
+  import { listMaskModels, type MaskKind } from '$lib/api/masks';
+
+  let generateKinds = $state<MaskKind[]>([]);
+  let segmentEnabled = $state(false);
+  let modelsRequested = $state(false);
 
   let addLayerOpen = $state(false);
   let addComponentOpen = $state(false);
@@ -62,6 +68,39 @@
   const brushSizeValue = $derived(editor.brushTool.size);
   const brushHardnessValue = $derived(editor.brushTool.hardness);
   const brushFlowValue = $derived(editor.brushTool.flow);
+
+  let refineCompId = $state<string | null>(null);
+  let growValue = $state(0);
+  let featherPxValue = $state(0);
+
+  $effect(() => {
+    const id = activeComp?.generated ? activeComp.id : null;
+    if (id === refineCompId) return;
+    refineCompId = id;
+    growValue = activeComp?.generated?.grow ?? 0;
+    featherPxValue = activeComp?.generated?.feather ?? 0;
+  });
+
+  $effect(() => {
+    if (modelsRequested) return;
+    modelsRequested = true;
+    listMaskModels()
+      .then((m) => {
+        segmentEnabled = m.enabled;
+        generateKinds = m.enabled
+          ? [...new Set(m.models.filter((x) => x.installed).map((x) => x.kind))]
+          : [];
+      })
+      .catch(() => {
+        segmentEnabled = false;
+        generateKinds = [];
+      });
+  });
+
+  async function rebakeGenerated(): Promise<void> {
+    if (!active || !activeComp?.generated) return;
+    await editor.rebakeGeneratedComponent(active.id, activeComp.id, growValue, featherPxValue);
+  }
   const lumaMinValue = $derived(
     activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
   );
@@ -141,6 +180,19 @@
   async function addBrushLayer(): Promise<void> {
     addLayerOpen = false;
     await editor.addBrushLayer();
+  }
+
+  async function addGenerated(kind: MaskKind): Promise<void> {
+    addLayerOpen = false;
+    await editor.addGeneratedLayer(kind);
+  }
+
+  function generatedLabel(kind: string): string {
+    if (kind === 'subject') return 'Subject';
+    if (kind === 'people') return 'People';
+    if (kind === 'sky') return 'Sky';
+    if (kind === 'depth') return 'Depth';
+    return kind;
   }
 
   async function addComponent(kind: MaskComponentKind): Promise<void> {
@@ -288,6 +340,28 @@
             class="fixed z-50 bg-immich-dark-bg border border-white/10 rounded-md shadow-lg min-w-40"
             style="top: {addLayerPos.top}px; right: {addLayerPos.right}px"
           >
+            {#each generateKinds as kind (kind)}
+              <button
+                type="button"
+                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left disabled:opacity-40"
+                disabled={editor.maskGenerating}
+                onclick={() => void addGenerated(kind)}
+              >
+                <Icon path={mdiAutoFix} size={14} />
+                {generatedLabel(kind)}{editor.maskGenerating ? '…' : ''}
+              </button>
+            {/each}
+            {#if segmentEnabled && generateKinds.length === 0}
+              <a
+                href="/settings"
+                class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left text-immich-dark-fg/50"
+              >
+                <Icon path={mdiAutoFix} size={14} /> Download a mask model…
+              </a>
+            {/if}
+            {#if segmentEnabled}
+              <div class="border-t border-white/10"></div>
+            {/if}
             <button
               type="button"
               class="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-white/5 text-left"
@@ -555,9 +629,9 @@
             >
               <Icon path={comp.enabled ? mdiEye : mdiEyeOff} size={12} />
             </button>
-            <Icon path={kindIcon(comp.kind)} size={12} class="opacity-50 shrink-0" />
+            <Icon path={comp.generated ? mdiAutoFix : kindIcon(comp.kind)} size={12} class="opacity-50 shrink-0" />
             <span class="text-[11px] text-immich-dark-fg/70 truncate flex-1">
-              {i + 1}. {kindLabel(comp.kind)}
+              {i + 1}. {comp.generated ? generatedLabel(comp.generated.kind) : kindLabel(comp.kind)}
             </span>
             {#if i > 0}
               <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
@@ -643,7 +717,35 @@
       </div>
     {/if}
 
-    {#if activeComp && activeComp.kind.kind === 'brush'}
+    {#if activeComp?.generated}
+      <div class="mt-2 flex flex-col gap-2.5">
+        <div class="px-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
+          {generatedLabel(activeComp.generated.kind)} · {activeComp.generated.model_id}
+        </div>
+        <SliderRow
+          label="Grow"
+          value={growValue}
+          min={-32}
+          max={32}
+          step={1}
+          defaultValue={0}
+          onLive={(v: number) => (growValue = v)}
+          onCommit={rebakeGenerated}
+          format={(v: number) => v.toFixed(0)}
+        />
+        <SliderRow
+          label="Feather"
+          value={featherPxValue}
+          min={0}
+          max={32}
+          step={1}
+          defaultValue={0}
+          onLive={(v: number) => (featherPxValue = v)}
+          onCommit={rebakeGenerated}
+          format={(v: number) => v.toFixed(0)}
+        />
+      </div>
+    {:else if activeComp && activeComp.kind.kind === 'brush'}
       <div class="mt-2 flex flex-col gap-2">
         <div class="flex items-center justify-between px-1">
           <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Brush</div>

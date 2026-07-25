@@ -3,6 +3,7 @@ import {
   N_MAX_MASK_LAYERS,
   N_MAX_TOTAL_COMPONENTS,
   type Edits,
+  type GeneratedMeta,
   type MaskComponent,
   type MaskComponentKind,
   type MaskComponentMode,
@@ -88,6 +89,23 @@ export function makeLayer(name: string, index: number, kind: MaskComponentKind =
     amount: 1,
     components: [makeComponent(kind)],
     edits: {}
+  };
+}
+
+export function makeGeneratedLayer(
+  name: string,
+  index: number,
+  rasterId: string,
+  generated: GeneratedMeta
+): MaskLayer {
+  const layer = makeLayer(name, index, defaultBrush(rasterId));
+  return {
+    ...layer,
+    components: layer.components.map((c): MaskComponent => ({
+      ...c,
+      source: 'generated',
+      generated
+    }))
   };
 }
 
