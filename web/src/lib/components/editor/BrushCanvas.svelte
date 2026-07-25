@@ -118,6 +118,7 @@
 
   $effect(() => {
     if (!show || !canvasEl || !activeComp || activeComp.kind.kind !== 'brush') return;
+    void activeComp.invert;
     void repaint(activeComp.id, activeComp.kind.raster_id);
   });
 
@@ -147,19 +148,20 @@
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
     const color = active ? parseHexColor(active.color) : ([255, 60, 60] as [number, number, number]);
+    const invert = activeComp?.invert === true;
     if (allIdentity) {
       const off = document.createElement('canvas');
       off.width = buf.width;
       off.height = buf.height;
       const offCtx = off.getContext('2d');
       if (!offCtx) return;
-      offCtx.putImageData(bufferToImageData(buf, color, 0.6), 0, 0);
+      offCtx.putImageData(bufferToImageData(buf, color, 0.6, invert), 0, 0);
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(off, 0, 0, w, h);
     } else {
       ctx.clearRect(0, 0, w, h);
       const img = ctx.createImageData(w, h);
-      sampleBufferToImageData(buf, w, h, color, img.data);
+      sampleBufferToImageData(buf, w, h, color, invert, img.data);
       ctx.putImageData(img, 0, 0);
     }
     lastCompId = componentId;
@@ -170,6 +172,7 @@
     w: number,
     h: number,
     color: [number, number, number],
+    invert: boolean,
     out: Uint8ClampedArray
   ): void {
     const bw = buf.width;
@@ -188,7 +191,7 @@
           out[o + 3] = 0;
           continue;
         }
-        const a = bytes[by * bw + bx];
+        const a = invert ? 255 - bytes[by * bw + bx] : bytes[by * bw + bx];
         out[o] = r;
         out[o + 1] = g;
         out[o + 2] = b;
@@ -245,7 +248,8 @@
     const h = Math.min(1, Math.max(0, editor.brushTool.hardness));
     const inner = Math.max(0, rPx * h);
     const grad = ctx.createRadialGradient(cxPx, cyPx, inner, cxPx, cyPx, Math.max(inner + 0.5, rPx));
-    if (erase) {
+    const clears = erase !== (activeComp?.invert === true);
+    if (clears) {
       ctx.globalCompositeOperation = 'destination-out';
       grad.addColorStop(0, `rgba(0,0,0,${editor.brushTool.flow * 0.6})`);
       grad.addColorStop(1, 'rgba(0,0,0,0)');

@@ -53,13 +53,14 @@ export function stampBuffer(
 export function bufferToImageData(
   buf: BrushBuffer,
   color: [number, number, number],
-  intensity: number
+  intensity: number,
+  invert = false
 ): ImageData {
   const data = new Uint8ClampedArray(buf.width * buf.height * 4);
   const [r, g, b] = color;
   const k = Math.max(0, Math.min(1, intensity));
   for (let i = 0; i < buf.bytes.length; i++) {
-    const a = buf.bytes[i];
+    const a = invert ? 255 - buf.bytes[i] : buf.bytes[i];
     const j = i * 4;
     data[j] = r;
     data[j + 1] = g;
