@@ -7,8 +7,15 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - edit-cache:/cache
+      - edit-data:/data
     restart: unless-stopped
+
+    # --- AI mask inference (optional overrides) ---
+    # environment:
+    #   SEGMENT_RUNTIME: auto
+    #   SEGMENT_MAX_EDGE: 2048
+    #   SEGMENT_MAX_CONCURRENCY: 1
+    #   SEGMENT_IDLE_SECS: 60
 
     # --- AMD GPU (uncomment) ---
     # devices:
@@ -38,4 +45,4 @@ services:
     #           capabilities: [gpu]
 
 volumes:
-  edit-cache:
+  edit-data:

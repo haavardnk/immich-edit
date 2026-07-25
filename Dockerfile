@@ -52,8 +52,8 @@ RUN apt-get update && \
     libvulkan1 \
     mesa-vulkan-drivers && \
     rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /cache && \
-    chown 10001:10001 /cache
+RUN mkdir -p /data && \
+    chown 10001:10001 /data
 WORKDIR /app
 COPY --from=backend --chown=10001:10001 /build/target/release/immich-edit /app/immich-edit
 COPY --from=backend --chown=10001:10001 /build/dylibs/ /app/
@@ -61,14 +61,14 @@ COPY --from=frontend --chown=10001:10001 /build/web/build /app/web
 COPY --chown=10001:10001 crates/backend/assets/dcp /app/assets/dcp
 ENV WEB_DIR=/app/web \
     DCP_DIR=/app/assets/dcp \
-    CACHE_DIR=/cache \
+    DATA_DIR=/data \
     BIND_ADDR=0.0.0.0:3000 \
     IMMICH_EDIT_RENDERER=auto \
     SEGMENT_RUNTIME=auto \
-    XDG_CACHE_HOME=/cache
+    XDG_CACHE_HOME=/data/cache
 USER 10001:10001
 EXPOSE 3000
-VOLUME /cache
+VOLUME /data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -fsS http://127.0.0.1:3000/api/health/live || exit 1
 ENTRYPOINT ["/app/immich-edit"]

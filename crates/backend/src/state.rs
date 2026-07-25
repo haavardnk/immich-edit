@@ -48,16 +48,17 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        if let Some(parent) = std::path::Path::new(&config.cache_dir).parent() {
+        if let Some(parent) = std::path::Path::new(&config.data_dir).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
+        std::fs::create_dir_all(&config.data_dir).ok();
         std::fs::create_dir_all(&config.cache_dir).ok();
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
         let instance = InstanceStore::new(edits.pool());
         let has_secrets = instance.has_encrypted_secrets().await.unwrap_or(false);
-        let key_path = std::path::Path::new(&config.cache_dir).join("instance.key");
+        let key_path = std::path::Path::new(&config.data_dir).join("instance.key");
         let crypto = Arc::new(
             InstanceCrypto::load_or_create(&key_path, has_secrets)
                 .map_err(|e| anyhow::anyhow!("instance key: {e}"))?,
@@ -65,11 +66,11 @@ impl AppState {
         let auth = AuthStore::new(edits.pool(), crypto.clone());
         let login_limiter = Arc::new(LoginLimiter::new());
         let jobs = JobStore::new(edits.pool(), crypto.clone());
-        let rasters = RasterStore::new(&config.cache_dir, config.mask_cache_mb)
+        let rasters = RasterStore::new(&config.data_dir, config.mask_cache_mb)
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
-        let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+        let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("lut store: {e}"))?;
-        let dcp = DcpStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+        let dcp = DcpStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("dcp store: {e}"))?;
         let dcp_dir = std::env::var("DCP_DIR").unwrap_or_else(|_| "./assets/dcp".into());
         let dcp_dir_path = std::path::Path::new(&dcp_dir);
@@ -99,7 +100,7 @@ impl AppState {
             EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)
                 .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
         #[cfg(feature = "segment")]
-        let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+        let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
         #[cfg(feature = "segment")]
         let embeddings = EmbeddingCache::new(std::path::Path::new(&config.cache_dir))?;

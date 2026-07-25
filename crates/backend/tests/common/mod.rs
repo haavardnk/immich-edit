@@ -40,6 +40,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let config = Config {
         bind_addr: "127.0.0.1:0".into(),
         bind_socket: "127.0.0.1:0".parse().unwrap(),
+        data_dir: cache_dir.clone(),
         cache_dir: cache_dir.clone(),
         preview_max_edge: 1024,
         render_max_concurrency: 1,

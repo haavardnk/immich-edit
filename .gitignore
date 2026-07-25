@@ -27,6 +27,7 @@ dist
 *.log
 /config.toml
 cache/
+data/
 docker-compose.dev.yml
 Dockerfile.dev
 dev.sh

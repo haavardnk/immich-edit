@@ -43,6 +43,7 @@ impl RendererMode {
 pub struct Config {
     pub bind_addr: String,
     pub bind_socket: SocketAddr,
+    pub data_dir: PathBuf,
     pub cache_dir: PathBuf,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
@@ -103,6 +104,7 @@ impl std::str::FromStr for SegmentRuntimeMode {
 #[derive(Debug, Deserialize, Default)]
 struct FileConfig {
     bind_addr: Option<String>,
+    data_dir: Option<String>,
     cache_dir: Option<String>,
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
@@ -135,8 +137,8 @@ pub enum ConfigError {
     },
     #[error("config file parse: {0}")]
     Parse(#[from] toml::de::Error),
-    #[error("cache dir not writable: {path}: {source}")]
-    CacheDir {
+    #[error("data dir not writable: {path}: {source}")]
+    DataDir {
         path: PathBuf,
         #[source]
         source: std::io::Error,
@@ -160,8 +162,19 @@ impl Config {
             key: "BIND_ADDR".into(),
             value: bind_addr.clone(),
         })?;
-        let cache_dir =
-            PathBuf::from(pick("CACHE_DIR", file.cache_dir).unwrap_or_else(|| "./cache".into()));
+        let data_dir = match pick("DATA_DIR", file.data_dir) {
+            Some(dir) => PathBuf::from(dir),
+            None => match pick("CACHE_DIR", file.cache_dir) {
+                Some(dir) => {
+                    tracing::warn!(
+                        "CACHE_DIR is deprecated; rename it to DATA_DIR. It now points at the durable data directory (database, keys, imported profiles)."
+                    );
+                    PathBuf::from(dir)
+                }
+                None => PathBuf::from("./data"),
+            },
+        };
+        let cache_dir = data_dir.join("cache");
 
         let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 4096u32)?;
         if !(256..=8192).contains(&preview_max_edge) {
@@ -226,7 +239,7 @@ impl Config {
         };
 
         let database_url = pick("DATABASE_URL", file.database_url).unwrap_or_else(|| {
-            let mut p = cache_dir.clone();
+            let mut p = data_dir.clone();
             p.push("immich-edit.db");
             format!("sqlite://{}?mode=rwc", p.display())
         });
@@ -272,11 +285,12 @@ impl Config {
         }
         let segment_idle_secs = parse_or("SEGMENT_IDLE_SECS", file.segment_idle_secs, 60u64)?;
 
-        ensure_cache_writable(&cache_dir)?;
+        ensure_dir_writable(&data_dir)?;
 
         Ok(Self {
             bind_addr,
             bind_socket,
+            data_dir,
             cache_dir,
             preview_max_edge,
             render_max_concurrency,
@@ -301,6 +315,7 @@ impl Config {
     pub fn redacted(&self) -> RedactedConfig {
         RedactedConfig {
             bind_addr: self.bind_addr.clone(),
+            data_dir: self.data_dir.display().to_string(),
             cache_dir: self.cache_dir.display().to_string(),
             preview_max_edge: self.preview_max_edge,
             render_max_concurrency: self.render_max_concurrency,
@@ -325,6 +340,7 @@ impl Config {
 #[derive(Debug, serde::Serialize)]
 pub struct RedactedConfig {
     pub bind_addr: String,
+    pub data_dir: String,
     pub cache_dir: String,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
@@ -421,13 +437,13 @@ fn invalid_origin(raw: &str) -> ConfigError {
     }
 }
 
-fn ensure_cache_writable(dir: &PathBuf) -> Result<(), ConfigError> {
-    std::fs::create_dir_all(dir).map_err(|source| ConfigError::CacheDir {
+fn ensure_dir_writable(dir: &PathBuf) -> Result<(), ConfigError> {
+    std::fs::create_dir_all(dir).map_err(|source| ConfigError::DataDir {
         path: dir.clone(),
         source,
     })?;
     let probe = dir.join(".immich-edit-write-probe");
-    std::fs::write(&probe, b"ok").map_err(|source| ConfigError::CacheDir {
+    std::fs::write(&probe, b"ok").map_err(|source| ConfigError::DataDir {
         path: dir.clone(),
         source,
     })?;
@@ -442,6 +458,7 @@ mod tests {
     fn clear_env() {
         for k in [
             "BIND_ADDR",
+            "DATA_DIR",
             "CACHE_DIR",
             "PREVIEW_MAX_EDGE",
             "RAW_FRAME_CACHE_MB",
