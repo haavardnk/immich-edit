@@ -57,6 +57,47 @@ pub struct Config {
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
+    pub segment_runtime: SegmentRuntimeMode,
+    pub segment_max_edge: u32,
+    pub segment_max_concurrency: usize,
+    pub segment_idle_secs: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SegmentRuntimeMode {
+    #[default]
+    Auto,
+    Gpu,
+    Cpu,
+    Off,
+}
+
+impl SegmentRuntimeMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Gpu => "gpu",
+            Self::Cpu => "cpu",
+            Self::Off => "off",
+        }
+    }
+}
+
+impl std::str::FromStr for SegmentRuntimeMode {
+    type Err = ConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "auto" => Ok(Self::Auto),
+            "gpu" => Ok(Self::Gpu),
+            "cpu" => Ok(Self::Cpu),
+            "off" | "disabled" => Ok(Self::Off),
+            other => Err(ConfigError::InvalidValue {
+                key: "SEGMENT_RUNTIME".into(),
+                value: other.into(),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -76,6 +117,10 @@ struct FileConfig {
     max_body_mb: Option<u64>,
     original_timeout_secs: Option<u64>,
     export_timeout_secs: Option<u64>,
+    segment_runtime: Option<String>,
+    segment_max_edge: Option<u32>,
+    segment_max_concurrency: Option<usize>,
+    segment_idle_secs: Option<u64>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -203,6 +248,30 @@ impl Config {
         let export_timeout_secs =
             parse_or("EXPORT_TIMEOUT_SECS", file.export_timeout_secs, 300u64)?;
 
+        let segment_runtime = match pick("SEGMENT_RUNTIME", file.segment_runtime) {
+            Some(s) => s.parse()?,
+            None => SegmentRuntimeMode::Auto,
+        };
+        let segment_max_edge = parse_or("SEGMENT_MAX_EDGE", file.segment_max_edge, 2048u32)?;
+        if !(256..=8192).contains(&segment_max_edge) {
+            return Err(ConfigError::InvalidValue {
+                key: "SEGMENT_MAX_EDGE".into(),
+                value: segment_max_edge.to_string(),
+            });
+        }
+        let segment_max_concurrency = parse_or(
+            "SEGMENT_MAX_CONCURRENCY",
+            file.segment_max_concurrency,
+            1usize,
+        )?;
+        if segment_max_concurrency == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "SEGMENT_MAX_CONCURRENCY".into(),
+                value: "0".into(),
+            });
+        }
+        let segment_idle_secs = parse_or("SEGMENT_IDLE_SECS", file.segment_idle_secs, 60u64)?;
+
         ensure_cache_writable(&cache_dir)?;
 
         Ok(Self {
@@ -222,6 +291,10 @@ impl Config {
             max_body_mb,
             original_timeout_secs,
             export_timeout_secs,
+            segment_runtime,
+            segment_max_edge,
+            segment_max_concurrency,
+            segment_idle_secs,
         })
     }
 
@@ -241,6 +314,10 @@ impl Config {
             max_body_mb: self.max_body_mb,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
+            segment_runtime: self.segment_runtime.as_str(),
+            segment_max_edge: self.segment_max_edge,
+            segment_max_concurrency: self.segment_max_concurrency,
+            segment_idle_secs: self.segment_idle_secs,
         }
     }
 }
@@ -261,6 +338,10 @@ pub struct RedactedConfig {
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
+    pub segment_runtime: &'static str,
+    pub segment_max_edge: u32,
+    pub segment_max_concurrency: usize,
+    pub segment_idle_secs: u64,
 }
 
 fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {

@@ -48,6 +48,21 @@ pub async fn run() -> anyhow::Result<()> {
         }
     });
 
+    #[cfg(feature = "segment")]
+    {
+        let segment = state.segment.clone();
+        let mut segment_shutdown = shutdown_tx.subscribe();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(15));
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => segment.release_idle().await,
+                    _ = segment_shutdown.changed() => break,
+                }
+            }
+        });
+    }
+
     tokio::spawn(async move {
         let Ok(cfg) = instance.get().await else {
             return;

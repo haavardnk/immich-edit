@@ -11,10 +11,14 @@ use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
+#[cfg(feature = "segment")]
+use crate::services::model_store::ModelStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
+#[cfg(feature = "segment")]
+use crate::services::segment::SegmentService;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -32,6 +36,10 @@ pub struct AppState {
     pub rasters: RasterStore,
     pub luts: LutStore,
     pub dcp: DcpStore,
+    #[cfg(feature = "segment")]
+    pub models: ModelStore,
+    #[cfg(feature = "segment")]
+    pub segment: SegmentService,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
 }
@@ -88,6 +96,11 @@ impl AppState {
         let edited_thumb =
             EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)
                 .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
+        #[cfg(feature = "segment")]
+        let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.cache_dir))
+            .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
+        #[cfg(feature = "segment")]
+        let segment = SegmentService::new(&config, models.clone());
         Ok(Self {
             config: Arc::new(config),
             crypto,
@@ -103,6 +116,10 @@ impl AppState {
             rasters,
             luts,
             dcp,
+            #[cfg(feature = "segment")]
+            models,
+            #[cfg(feature = "segment")]
+            segment,
             tag_counts: AssetCountCache::new("tagIds"),
             people_counts: AssetCountCache::new("personIds"),
         })

@@ -12,6 +12,10 @@ pub mod health;
 pub mod jobs;
 pub mod lens_profile;
 pub mod luts;
+#[cfg(feature = "segment")]
+pub mod masks;
+#[cfg(feature = "segment")]
+pub mod models;
 pub mod people;
 pub mod presets;
 pub mod preview;

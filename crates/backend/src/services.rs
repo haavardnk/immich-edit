@@ -13,6 +13,10 @@ pub mod job_runner;
 pub mod job_store;
 pub mod login_limiter;
 pub mod lut_store;
+#[cfg(feature = "segment")]
+pub mod model_download;
+#[cfg(feature = "segment")]
+pub mod model_store;
 pub mod paste_edits;
 pub mod preview_meta;
 pub mod raster_store;
@@ -21,3 +25,5 @@ pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;
 pub mod reset_edits;
+#[cfg(feature = "segment")]
+pub mod segment;

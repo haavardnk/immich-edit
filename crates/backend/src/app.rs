@@ -41,6 +41,23 @@ impl MakeRequestId for UuidRequestId {
     }
 }
 
+#[cfg(feature = "segment")]
+fn model_routes() -> Router<AppState> {
+    Router::new()
+        .route("/masks/models", get(routes::models::list))
+        .route("/assets/{id}/masks/generate", post(routes::masks::generate))
+        .route("/masks/rebake", post(routes::masks::rebake))
+        .route(
+            "/admin/models/{id}",
+            post(routes::models::install).delete(routes::models::remove),
+        )
+}
+
+#[cfg(not(feature = "segment"))]
+fn model_routes() -> Router<AppState> {
+    Router::new()
+}
+
 pub fn router(state: AppState) -> Router {
     let heavy_cfg = std::sync::Arc::new(
         GovernorConfigBuilder::default()
@@ -154,6 +171,7 @@ pub fn router(state: AppState) -> Router {
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
+        .merge(model_routes())
         .merge(
             Router::new()
                 .route("/luts", get(routes::luts::list).post(routes::luts::import))

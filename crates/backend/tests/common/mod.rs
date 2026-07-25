@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use immich_edit_backend::app;
-use immich_edit_backend::config::{Config, RendererMode};
+use immich_edit_backend::config::{Config, RendererMode, SegmentRuntimeMode};
 use immich_edit_backend::immich::client::ImmichUser;
 use immich_edit_backend::services::asset_counts::AssetCountCache;
 use immich_edit_backend::services::auth_store::{AuthKind, AuthStore};
@@ -13,10 +13,14 @@ use immich_edit_backend::services::instance_store::InstanceStore;
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
 use immich_edit_backend::services::lut_store::LutStore;
+#[cfg(feature = "segment")]
+use immich_edit_backend::services::model_store::ModelStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
+#[cfg(feature = "segment")]
+use immich_edit_backend::services::segment::SegmentService;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -48,6 +52,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
         max_body_mb: 128,
         original_timeout_secs: 120,
         export_timeout_secs: 300,
+        segment_runtime: SegmentRuntimeMode::Off,
+        segment_max_edge: 2048,
+        segment_max_concurrency: 1,
+        segment_idle_secs: 60,
     };
     let _ = server;
     let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
@@ -60,6 +68,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
     let dcp = DcpStore::new(edits.pool(), &cache_dir).unwrap();
     let jobs = JobStore::new(edits.pool(), crypto.clone());
+    #[cfg(feature = "segment")]
+    let models = ModelStore::new(edits.pool(), &cache_dir).unwrap();
+    #[cfg(feature = "segment")]
+    let segment = SegmentService::new(&config, models.clone());
     AppState {
         config: Arc::new(config),
         crypto,
@@ -85,6 +97,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
         rasters,
         luts,
         dcp,
+        #[cfg(feature = "segment")]
+        models,
+        #[cfg(feature = "segment")]
+        segment,
         tag_counts: AssetCountCache::new("tagIds"),
         people_counts: AssetCountCache::new("personIds"),
     }

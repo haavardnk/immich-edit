@@ -183,7 +183,7 @@ fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
     Ok(value.min(default))
 }
 
-fn map_render_err(err: RenderError) -> AppError {
+pub(crate) fn map_render_err(err: RenderError) -> AppError {
     match err {
         RenderError::Upstream(e) => e.into(),
         RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {

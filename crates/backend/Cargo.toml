@@ -8,11 +8,17 @@ license.workspace = true
 name = "immich-edit"
 path = "src/main.rs"
 
+[features]
+default = ["segment"]
+segment = ["dep:segment"]
+
 [dependencies]
 raw-pipeline = { path = "../raw-pipeline" }
+segment = { path = "../segment", optional = true }
 anyhow = "1"
 axum = "0.8"
 tokio = { workspace = true }
+futures-util = { version = "0.3", default-features = false }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = { version = "0.5", features = ["util"] }
