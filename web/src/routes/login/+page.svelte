@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { loginApiKey, loginPassword } from '$lib/api/auth';
-  import { ApiError } from '$lib/api/client';
+  import { ApiError, isBackendDown } from '$lib/api/client';
   import Logo from '$lib/components/Logo.svelte';
 
   let method = $state<'password' | 'apikey'>('password');
@@ -51,7 +51,11 @@
       }
       window.location.replace(safeNext());
     } catch (err: unknown) {
-      error = err instanceof ApiError ? messageFor(err) : ((err as Error)?.message ?? 'Login failed');
+      error = isBackendDown(err)
+        ? 'The immich-edit server is not responding. Check that it is running.'
+        : err instanceof ApiError
+          ? messageFor(err)
+          : ((err as Error)?.message ?? 'Login failed');
       submitting = false;
     }
   }

@@ -4,29 +4,35 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { setupStatus } from '$lib/api/auth';
+  import { isBackendDown } from '$lib/api/client';
   import { session } from '$lib/stores/session.svelte';
+  import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
   import Shell from '$lib/components/shell/Shell.svelte';
   import Toasts from '$lib/components/shell/Toasts.svelte';
 
   let { children } = $props();
 
-  let booted = $state(false);
+  let bootState = $state<'loading' | 'ready' | 'unreachable'>('loading');
   let configured = $state(false);
 
   const bare = $derived(page.url.pathname === '/login' || page.url.pathname === '/setup');
 
-  onMount(async () => {
+  async function boot(): Promise<void> {
+    bootState = 'loading';
     try {
       const st = await setupStatus();
       configured = st.configured;
       if (configured) await session.load();
-    } finally {
-      booted = true;
+      bootState = 'ready';
+    } catch (err: unknown) {
+      bootState = isBackendDown(err) ? 'unreachable' : 'ready';
     }
-  });
+  }
+
+  onMount(boot);
 
   $effect(() => {
-    if (!booted) return;
+    if (bootState !== 'ready') return;
     const path = page.url.pathname;
     if (session.user) {
       if (path === '/login' || path === '/setup') void goto('/', { replaceState: true });
@@ -43,9 +49,13 @@
   });
 </script>
 
-{#if !booted}
+{#if bootState === 'loading'}
   <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center">
     <div class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"></div>
+  </div>
+{:else if bootState === 'unreachable'}
+  <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg">
+    <BackendUnavailable retry={boot} />
   </div>
 {:else if bare}
   <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg">

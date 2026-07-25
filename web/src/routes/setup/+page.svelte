@@ -1,6 +1,6 @@
 <script lang="ts">
   import { completeSetup } from '$lib/api/auth';
-  import { ApiError } from '$lib/api/client';
+  import { ApiError, isBackendDown } from '$lib/api/client';
   import Logo from '$lib/components/Logo.svelte';
 
   let immichUrl = $state('');
@@ -49,7 +49,11 @@
       await completeSetup(body);
       window.location.replace('/');
     } catch (err: unknown) {
-      error = err instanceof ApiError ? messageFor(err) : ((err as Error)?.message ?? 'Setup failed');
+      error = isBackendDown(err)
+        ? 'The immich-edit server is not responding. Check that it is running.'
+        : err instanceof ApiError
+          ? messageFor(err)
+          : ((err as Error)?.message ?? 'Setup failed');
       submitting = false;
     }
   }
