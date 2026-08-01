@@ -50,6 +50,34 @@ struct DcpRecord {
     content_hash: String,
 }
 
+#[derive(Deserialize)]
+struct BundledManifest {
+    profiles: Vec<BundledEntry>,
+}
+
+#[derive(Deserialize)]
+struct BundledEntry {
+    file: String,
+    camera_model: Option<String>,
+}
+
+async fn bundled_camera_models(dir: &Path) -> HashMap<String, String> {
+    let Ok(bytes) = fs::read(dir.join("manifest.json")).await else {
+        return HashMap::new();
+    };
+    match serde_json::from_slice::<BundledManifest>(&bytes) {
+        Ok(manifest) => manifest
+            .profiles
+            .into_iter()
+            .filter_map(|entry| entry.camera_model.map(|model| (entry.file, model)))
+            .collect(),
+        Err(e) => {
+            tracing::warn!(error = %e, "bundled dcp manifest unreadable");
+            HashMap::new()
+        }
+    }
+}
+
 impl DcpStore {
     pub fn new(pool: SqlitePool, cache_dir: &Path) -> Result<Self, DcpStoreError> {
         let dir = cache_dir.join("dcp");
@@ -151,6 +179,7 @@ impl DcpStore {
         if !fs::try_exists(dir).await? {
             return Ok(0);
         }
+        let manifest_models = bundled_camera_models(dir).await;
         let mut count = 0;
         let mut rd = fs::read_dir(dir).await?;
         while let Some(entry) = rd.next_entry().await? {
@@ -159,9 +188,21 @@ impl DcpStore {
                 continue;
             }
             let bytes = fs::read(&path).await?;
-            match self.import(None, None, true, &bytes).await {
+            let camera = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| manifest_models.get(name))
+                .map(String::as_str);
+            match self.import(None, camera, true, &bytes).await {
                 Ok(_) => count += 1,
-                Err(DcpStoreError::Duplicate(_) | DcpStoreError::Invalid(_)) => {}
+                Err(DcpStoreError::Duplicate(_)) => {}
+                Err(DcpStoreError::Invalid(reason)) => {
+                    tracing::warn!(
+                        path = %path.display(),
+                        reason,
+                        "skipped invalid bundled dcp profile"
+                    );
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -503,6 +544,30 @@ mod tests {
         if deleted != initial {
             panic!("profile deletion did not restore revision");
         }
+    }
+
+    #[tokio::test]
+    async fn every_bundled_profile_matches_on_auto() {
+        let (store, _dir) = store().await;
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/dcp");
+        store.import_bundled(&assets).await.unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(assets.join("manifest.json")).unwrap()).unwrap();
+        let mut unmatched = Vec::new();
+        for profile in manifest["profiles"].as_array().unwrap() {
+            let Some(model) = profile["camera_model"].as_str() else {
+                continue;
+            };
+            if store.match_camera_meta(model).await.unwrap().is_none() {
+                unmatched.push(model.to_string());
+            }
+            let normalized = normalize_model(model);
+            let core = strip_make(&normalized).to_string();
+            if store.match_camera_meta(&core).await.unwrap().is_none() {
+                unmatched.push(format!("{model} (as {core})"));
+            }
+        }
+        assert!(unmatched.is_empty(), "no auto match for: {unmatched:#?}");
     }
 
     #[test]
