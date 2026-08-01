@@ -149,6 +149,16 @@ pub fn encode_webp_rgb(
     Ok(icc::embed_webp_icc(mem.to_vec(), cs.icc_profile()))
 }
 
+fn heif_encoder_hint(format: CompressionFormat) -> &'static str {
+    match format {
+        CompressionFormat::Hevc => "HEVC encoder plugin missing (install libheif-plugin-x265)",
+        CompressionFormat::Av1 => {
+            "AV1 encoder plugin missing (install libheif-plugin-aomenc or libheif-plugin-rav1e)"
+        }
+        _ => "libheif encoder plugin missing for this format",
+    }
+}
+
 fn encode_heif_rgb(
     img: ImageRgb8<'_>,
     quality: u8,
@@ -179,9 +189,9 @@ fn encode_heif_rgb(
                 .copy_from_slice(&img.rgb[src_off..src_off + row_bytes]);
         }
     }
-    let mut encoder = lib_heif
-        .encoder_for_format(format)
-        .map_err(|e| PipelineError::Encode(format!("heif encoder: {e}")))?;
+    let mut encoder = lib_heif.encoder_for_format(format).map_err(|e| {
+        PipelineError::Encode(format!("heif encoder: {e}; {}", heif_encoder_hint(format)))
+    })?;
     encoder
         .set_quality(EncoderQuality::Lossy(quality))
         .map_err(|e| PipelineError::Encode(format!("heif quality: {e}")))?;

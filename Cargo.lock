@@ -2305,7 +2305,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d2593dda939875015d3e1a9deccdb57381d4ef1fc9a96120731b25990579689"
 dependencies = [
  "cfg-if",
- "cmake",
  "libc",
  "system-deps",
  "vcpkg",

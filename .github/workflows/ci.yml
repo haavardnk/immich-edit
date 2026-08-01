@@ -17,21 +17,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            container: rust:1.96-trixie
+          - os: macos-latest
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Install Linux deps
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             nasm cmake ninja-build pkg-config libclang-dev \
-            libturbojpeg0-dev
+            libturbojpeg0-dev libheif-dev libheif-plugins-all
       - name: Cache Homebrew downloads
         if: runner.os == 'macOS'
         uses: actions/cache@v6

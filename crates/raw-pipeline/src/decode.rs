@@ -548,7 +548,7 @@ fn decode_heif(
     data: &[u8],
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
-    use libheif_rs::{ColorSpace, HeifContext, LibHeif, RgbChroma};
+    use libheif_rs::{ColorSpace, HeifContext, HeifErrorCode, LibHeif, RgbChroma};
     let lib_heif = LibHeif::new();
     let ctx = HeifContext::read_from_bytes(data)
         .map_err(|e| PipelineError::Decode(format!("heif: {e}")))?;
@@ -557,7 +557,17 @@ fn decode_heif(
         .map_err(|e| PipelineError::Decode(format!("heif handle: {e}")))?;
     let image = lib_heif
         .decode(&handle, ColorSpace::Rgb(RgbChroma::Rgb), None)
-        .map_err(|e| PipelineError::Decode(format!("heif decode: {e}")))?;
+        .map_err(|e| {
+            let hint = match e.code {
+                HeifErrorCode::DecoderPluginError
+                | HeifErrorCode::PluginLoadingError
+                | HeifErrorCode::UnsupportedFileType => {
+                    "; codec plugin missing (install libheif-plugin-libde265 for HEIC, libheif-plugin-dav1d for AVIF)"
+                }
+                _ => "",
+            };
+            PipelineError::Decode(format!("heif decode: {e}{hint}"))
+        })?;
     let width = image.width() as usize;
     let height = image.height() as usize;
     let planes = image.planes();

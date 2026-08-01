@@ -1,5 +1,6 @@
 pub mod auto;
 pub mod cancel;
+pub mod codecs;
 pub mod color;
 pub mod cpu;
 pub mod dcp;
