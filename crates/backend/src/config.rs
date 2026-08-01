@@ -204,8 +204,7 @@ impl Config {
             });
         }
 
-        let embedding_cache_mb =
-            parse_or("EMBEDDING_CACHE_MB", file.embedding_cache_mb, 512u64)?;
+        let embedding_cache_mb = parse_or("EMBEDDING_CACHE_MB", file.embedding_cache_mb, 512u64)?;
         if embedding_cache_mb == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "EMBEDDING_CACHE_MB".into(),

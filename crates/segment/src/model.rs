@@ -85,14 +85,6 @@ pub struct ModelSpec {
 }
 
 impl ModelSpec {
-    pub const ISNET: Self = Self {
-        kind: ModelKind::Subject,
-        input_edge: 1024,
-        layout: Layout::Nchw,
-        fit: Fit::Stretch,
-        normalization: Normalization::HALF_MEAN,
-        activation: Activation::MinMax,
-    };
     pub const U2NET: Self = Self {
         kind: ModelKind::Subject,
         input_edge: 320,
@@ -108,14 +100,6 @@ impl ModelSpec {
         fit: Fit::Stretch,
         normalization: Normalization::UNIT,
         activation: Activation::MinMax,
-    };
-    pub const BEN2: Self = Self {
-        kind: ModelKind::Subject,
-        input_edge: 1024,
-        layout: Layout::Nchw,
-        fit: Fit::Stretch,
-        normalization: Normalization::IMAGENET,
-        activation: Activation::None,
     };
     pub const MODNET: Self = Self {
         kind: ModelKind::People,
