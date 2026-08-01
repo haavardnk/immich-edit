@@ -48,6 +48,7 @@ pub struct Config {
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
+    pub embedding_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
@@ -109,6 +110,7 @@ struct FileConfig {
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
     mask_cache_mb: Option<u64>,
+    embedding_cache_mb: Option<u64>,
     raw_frame_cache_mb: Option<u64>,
     quality_frame_cache_mb: Option<u64>,
     gpu_texture_cache_mb: Option<u64>,
@@ -196,7 +198,7 @@ impl Config {
             });
         }
 
-        let mask_cache_mb = parse_or("MASK_CACHE_MB", file.mask_cache_mb, 1024u64)?;
+        let mask_cache_mb = parse_or("MASK_CACHE_MB", file.mask_cache_mb, 512u64)?;
         if mask_cache_mb == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "MASK_CACHE_MB".into(),
@@ -204,7 +206,16 @@ impl Config {
             });
         }
 
-        let raw_frame_cache_mb = parse_or("RAW_FRAME_CACHE_MB", file.raw_frame_cache_mb, 1024u64)?;
+        let embedding_cache_mb =
+            parse_or("EMBEDDING_CACHE_MB", file.embedding_cache_mb, 512u64)?;
+        if embedding_cache_mb == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "EMBEDDING_CACHE_MB".into(),
+                value: "0".into(),
+            });
+        }
+
+        let raw_frame_cache_mb = parse_or("RAW_FRAME_CACHE_MB", file.raw_frame_cache_mb, 512u64)?;
         if !(64..=16384).contains(&raw_frame_cache_mb) {
             return Err(ConfigError::InvalidValue {
                 key: "RAW_FRAME_CACHE_MB".into(),
@@ -295,6 +306,7 @@ impl Config {
             preview_max_edge,
             render_max_concurrency,
             mask_cache_mb,
+            embedding_cache_mb,
             raw_frame_cache_mb,
             quality_frame_cache_mb,
             gpu_texture_cache_mb,
@@ -320,6 +332,7 @@ impl Config {
             preview_max_edge: self.preview_max_edge,
             render_max_concurrency: self.render_max_concurrency,
             mask_cache_mb: self.mask_cache_mb,
+            embedding_cache_mb: self.embedding_cache_mb,
             raw_frame_cache_mb: self.raw_frame_cache_mb,
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
@@ -345,6 +358,7 @@ pub struct RedactedConfig {
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
     pub mask_cache_mb: u64,
+    pub embedding_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
@@ -494,8 +508,14 @@ mod tests {
         if cfg.preview_max_edge != 4096 {
             panic!("max_edge");
         }
-        if cfg.raw_frame_cache_mb != 1024 {
+        if cfg.raw_frame_cache_mb != 512 {
             panic!("raw_frame_cache_mb");
+        }
+        if cfg.mask_cache_mb != 512 {
+            panic!("mask_cache_mb");
+        }
+        if cfg.embedding_cache_mb != 512 {
+            panic!("embedding_cache_mb");
         }
         if cfg.quality_frame_cache_mb != 512 {
             panic!("quality_frame_cache_mb");

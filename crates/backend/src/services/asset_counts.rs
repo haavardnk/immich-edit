@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
+use lru::LruCache;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use uuid::Uuid;
@@ -8,6 +10,7 @@ use uuid::Uuid;
 use crate::immich::ImmichClient;
 
 const FETCH_CONCURRENCY: usize = 6;
+const CACHE_CAP: usize = 4096;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct CountKey {
@@ -19,19 +22,21 @@ struct CountKey {
 #[derive(Clone)]
 pub struct AssetCountCache {
     field: &'static str,
-    inner: Arc<Mutex<HashMap<CountKey, u64>>>,
+    inner: Arc<Mutex<LruCache<CountKey, u64>>>,
 }
 
 impl AssetCountCache {
     pub fn new(field: &'static str) -> Self {
         Self {
             field,
-            inner: Arc::new(Mutex::new(HashMap::new())),
+            inner: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(CACHE_CAP).unwrap(),
+            ))),
         }
     }
 
     pub async fn invalidate(&self, owner: Uuid, server_epoch: i64, id: Uuid) {
-        self.inner.lock().await.remove(&CountKey {
+        self.inner.lock().await.pop(&CountKey {
             owner,
             server_epoch,
             entity_id: id,
@@ -39,10 +44,15 @@ impl AssetCountCache {
     }
 
     pub async fn clear_tenant(&self, owner: Uuid, server_epoch: i64) {
-        self.inner
-            .lock()
-            .await
-            .retain(|key, _| key.owner != owner || key.server_epoch != server_epoch);
+        let mut cache = self.inner.lock().await;
+        let stale: Vec<CountKey> = cache
+            .iter()
+            .map(|(key, _)| *key)
+            .filter(|key| key.owner == owner && key.server_epoch == server_epoch)
+            .collect();
+        for key in stale {
+            cache.pop(&key);
+        }
     }
 
     pub async fn clear(&self) {
@@ -59,7 +69,7 @@ impl AssetCountCache {
         let mut result: HashMap<Uuid, u64> = HashMap::new();
         let mut missing: Vec<Uuid> = Vec::new();
         {
-            let cache = self.inner.lock().await;
+            let mut cache = self.inner.lock().await;
             for id in ids {
                 let key = CountKey {
                     owner,
@@ -87,7 +97,7 @@ impl AssetCountCache {
             };
             if let Some(count) = count {
                 result.insert(id, count);
-                self.inner.lock().await.insert(
+                self.inner.lock().await.put(
                     CountKey {
                         owner,
                         server_epoch,

@@ -103,7 +103,10 @@ impl AppState {
         let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
         #[cfg(feature = "segment")]
-        let embeddings = EmbeddingCache::new(std::path::Path::new(&config.cache_dir))?;
+        let embeddings = EmbeddingCache::new(
+            std::path::Path::new(&config.cache_dir),
+            config.embedding_cache_mb,
+        )?;
         #[cfg(feature = "segment")]
         let segment = SegmentService::new(&config, models.clone(), embeddings);
         Ok(Self {

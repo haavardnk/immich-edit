@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
+use lru::LruCache;
 use raw_pipeline::dcp::{DCP_MAX_SOURCE_BYTES, DcpProfile};
 use raw_pipeline::parse_dcp;
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,8 @@ use tokio::fs;
 use uuid::Uuid;
 
 use super::blob_store;
+
+const PROFILE_CACHE_CAP: usize = 8;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DcpStoreError {
@@ -42,7 +46,7 @@ pub struct DcpMeta {
 pub struct DcpStore {
     pool: SqlitePool,
     dir: PathBuf,
-    cache: Arc<Mutex<HashMap<String, Arc<DcpProfile>>>>,
+    cache: Arc<Mutex<LruCache<String, Arc<DcpProfile>>>>,
 }
 
 struct DcpRecord {
@@ -85,7 +89,9 @@ impl DcpStore {
         Ok(Self {
             pool,
             dir,
-            cache: Arc::new(Mutex::new(HashMap::new())),
+            cache: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(PROFILE_CACHE_CAP).unwrap(),
+            ))),
         })
     }
 
@@ -136,8 +142,7 @@ impl DcpStore {
         self.cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .entry(content_hash.clone())
-            .or_insert_with(|| Arc::new(profile));
+            .put(content_hash.clone(), Arc::new(profile));
 
         let id = Uuid::new_v4().to_string();
         let created_at = Utc::now().to_rfc3339();
@@ -321,7 +326,7 @@ impl DcpStore {
         self.cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .insert(content_hash.to_string(), profile.clone());
+            .put(content_hash.to_string(), profile.clone());
         Ok(profile)
     }
 }

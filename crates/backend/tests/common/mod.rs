@@ -45,6 +45,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         preview_max_edge: 1024,
         render_max_concurrency: 1,
         mask_cache_mb: 1024,
+        embedding_cache_mb: 512,
         raw_frame_cache_mb: 256,
         quality_frame_cache_mb: 256,
         gpu_texture_cache_mb: 256,
@@ -74,7 +75,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
     #[cfg(feature = "segment")]
     let models = ModelStore::new(edits.pool(), &cache_dir).unwrap();
     #[cfg(feature = "segment")]
-    let embeddings = EmbeddingCache::new(&cache_dir).unwrap();
+    let embeddings = EmbeddingCache::new(&cache_dir, 512).unwrap();
     #[cfg(feature = "segment")]
     let segment = SegmentService::new(&config, models.clone(), embeddings);
     AppState {

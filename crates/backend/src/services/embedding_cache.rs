@@ -1,13 +1,18 @@
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::SystemTime;
 
+use lru::LruCache;
 use segment::Embedding;
 use tokio::fs;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 const MEMORY_SLOTS: usize = 3;
+const DISK_SLOTS: usize = 8192;
+const MB: u64 = 1024 * 1024;
 const MAGIC: &[u8; 4] = b"IESE";
 
 #[derive(Debug, thiserror::Error)]
@@ -35,20 +40,91 @@ impl EmbeddingKey {
 
 type MemorySlots = Arc<Mutex<VecDeque<(EmbeddingKey, Arc<Embedding>)>>>;
 
+struct DiskState {
+    lru: LruCache<PathBuf, u64>,
+    total_bytes: u64,
+    cap_bytes: u64,
+}
+
 #[derive(Clone)]
 pub struct EmbeddingCache {
     dir: PathBuf,
     memory: MemorySlots,
+    disk: Arc<Mutex<DiskState>>,
+}
+
+fn collect_files(dir: &Path, out: &mut Vec<(PathBuf, u64, SystemTime)>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let meta = entry.metadata()?;
+        if meta.is_dir() {
+            collect_files(&path, out)?;
+        } else if path.extension().and_then(|e| e.to_str()) == Some("emb") {
+            out.push((path, meta.len(), meta.modified()?));
+        }
+    }
+    Ok(())
 }
 
 impl EmbeddingCache {
-    pub fn new(cache_dir: &Path) -> Result<Self, EmbeddingCacheError> {
+    pub fn new(cache_dir: &Path, cap_mb: u64) -> Result<Self, EmbeddingCacheError> {
         let dir = cache_dir.join("embeddings");
         std::fs::create_dir_all(&dir)?;
+
+        let mut entries: Vec<(PathBuf, u64, SystemTime)> = Vec::new();
+        collect_files(&dir, &mut entries)?;
+        entries.sort_by_key(|(_, _, modified)| *modified);
+
+        let mut lru = LruCache::new(NonZeroUsize::new(DISK_SLOTS).unwrap());
+        let mut total_bytes = 0u64;
+        for (path, size, _) in entries {
+            total_bytes = total_bytes.saturating_add(size);
+            lru.put(path, size);
+        }
+
+        let mut state = DiskState {
+            lru,
+            total_bytes,
+            cap_bytes: cap_mb.saturating_mul(MB),
+        };
+        while state.total_bytes > state.cap_bytes {
+            let Some((path, size)) = state.lru.pop_lru() else {
+                break;
+            };
+            state.total_bytes = state.total_bytes.saturating_sub(size);
+            let _ = std::fs::remove_file(&path);
+        }
+
         Ok(Self {
             dir,
             memory: Arc::new(Mutex::new(VecDeque::new())),
+            disk: Arc::new(Mutex::new(state)),
         })
+    }
+
+    pub async fn disk_bytes(&self) -> (u64, u64) {
+        let st = self.disk.lock().await;
+        (st.total_bytes, st.cap_bytes)
+    }
+
+    async fn evict_to_cap(&self) {
+        loop {
+            let victim = {
+                let mut st = self.disk.lock().await;
+                if st.total_bytes <= st.cap_bytes {
+                    return;
+                }
+                match st.lru.pop_lru() {
+                    Some((path, size)) => {
+                        st.total_bytes = st.total_bytes.saturating_sub(size);
+                        path
+                    }
+                    None => return,
+                }
+            };
+            let _ = fs::remove_file(&victim).await;
+        }
     }
 
     fn path(&self, key: &EmbeddingKey) -> PathBuf {
@@ -79,10 +155,20 @@ impl EmbeddingCache {
         self.push_memory(key.clone(), shared.clone()).await;
         let path = self.path(&key);
         let bytes = encode(&shared);
+        let size = bytes.len() as u64;
         if let Some(parent) = path.parent()
             && fs::create_dir_all(parent).await.is_ok()
+            && fs::write(&path, bytes).await.is_ok()
         {
-            let _ = fs::write(&path, bytes).await;
+            {
+                let mut st = self.disk.lock().await;
+                if let Some(previous) = st.lru.pop(&path) {
+                    st.total_bytes = st.total_bytes.saturating_sub(previous);
+                }
+                st.total_bytes = st.total_bytes.saturating_add(size);
+                st.lru.put(path, size);
+            }
+            self.evict_to_cap().await;
         }
         shared
     }
@@ -105,7 +191,21 @@ impl EmbeddingCache {
             .dir
             .join(server_epoch.to_string())
             .join(owner.to_string());
-        let _ = fs::remove_dir_all(dir).await;
+        let _ = fs::remove_dir_all(&dir).await;
+        {
+            let mut st = self.disk.lock().await;
+            let stale: Vec<PathBuf> = st
+                .lru
+                .iter()
+                .map(|(path, _)| path.clone())
+                .filter(|path| path.starts_with(&dir))
+                .collect();
+            for path in stale {
+                if let Some(size) = st.lru.pop(&path) {
+                    st.total_bytes = st.total_bytes.saturating_sub(size);
+                }
+            }
+        }
         let mut mem = self.memory.lock().await;
         mem.retain(|(k, _)| !(k.server_epoch == server_epoch && k.owner == owner));
     }
@@ -226,7 +326,7 @@ mod tests {
     #[tokio::test]
     async fn survives_memory_eviction_via_disk() {
         let dir = tempfile::tempdir().unwrap();
-        let cache = EmbeddingCache::new(dir.path()).unwrap();
+        let cache = EmbeddingCache::new(dir.path(), 512).unwrap();
         let first = key(Uuid::from_u128(1));
         cache.put(first.clone(), sample()).await;
         for i in 2..=(MEMORY_SLOTS as u128 + 2) {
@@ -240,10 +340,26 @@ mod tests {
     #[tokio::test]
     async fn purge_owner_drops_disk_and_memory() {
         let dir = tempfile::tempdir().unwrap();
-        let cache = EmbeddingCache::new(dir.path()).unwrap();
+        let cache = EmbeddingCache::new(dir.path(), 512).unwrap();
         let k = key(Uuid::from_u128(7));
         cache.put(k.clone(), sample()).await;
         cache.purge_owner(k.server_epoch, k.owner).await;
         assert!(cache.get(&k).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn disk_cache_evicts_over_cap() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = EmbeddingCache::new(dir.path(), 1).unwrap();
+        let first = key(Uuid::from_u128(1));
+        cache.put(first.clone(), sample()).await;
+        for i in 2..=64u128 {
+            cache.put(key(Uuid::from_u128(i)), sample()).await;
+        }
+        cache.clear_memory().await;
+        let (used, cap) = cache.disk_bytes().await;
+        if used > cap {
+            panic!("embedding disk cache over cap: {used} > {cap}");
+        }
     }
 }
