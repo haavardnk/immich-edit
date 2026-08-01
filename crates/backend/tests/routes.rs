@@ -542,13 +542,9 @@ async fn protected_route_accepts_bearer_token() {
 }
 
 #[tokio::test]
-async fn debug_timings_hidden_when_disabled() {
+async fn debug_timings_requires_admin() {
     let server = MockServer::start().await;
-    let mut state = test_state(&server).await;
-    let mut cfg = (*state.config).clone();
-    cfg.debug_endpoints = false;
-    state.config = std::sync::Arc::new(cfg);
-    let app = seed_and_wrap(&server, state).await;
+    let app = router(test_state(&server).await);
     let resp = app
         .oneshot(
             Request::builder()
@@ -558,7 +554,23 @@ async fn debug_timings_hidden_when_disabled() {
         )
         .await
         .unwrap();
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn debug_timings_served_to_admin() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/debug/timings")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
 }
 
 #[tokio::test]

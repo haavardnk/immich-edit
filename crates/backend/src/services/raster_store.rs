@@ -44,7 +44,6 @@ pub struct RasterStore {
     dir: PathBuf,
     state: Arc<Mutex<CacheState>>,
 }
-
 impl RasterStore {
     pub fn new(cache_dir: &Path, cap_mb: u64) -> Result<Self, RasterStoreError> {
         let dir = cache_dir.join("rasters");
@@ -107,6 +106,11 @@ impl RasterStore {
         let store = Self { dir, state };
         store.evict_to_cap();
         Ok(store)
+    }
+
+    pub fn disk_bytes(&self) -> (u64, u64) {
+        let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        (st.total_bytes, st.cap_bytes)
     }
 
     fn paths(&self, server_epoch: i64, owner: Uuid, raster_id: &str) -> (PathBuf, PathBuf) {

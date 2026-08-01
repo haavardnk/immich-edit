@@ -184,7 +184,6 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
         .fallback(api_not_found)
-        .layer(from_fn_with_state(state.clone(), debug_gate))
         .layer(from_fn(auth_middleware))
         .layer(from_fn_with_state(state.clone(), inject_auth_context))
         .layer(from_fn_with_state(state.clone(), csrf_guard))
@@ -291,13 +290,6 @@ async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
         return next.run(req).await;
     }
     AppError::Unauthorized.into_response()
-}
-
-async fn debug_gate(State(state): State<AppState>, req: Request<Body>, next: Next) -> Response {
-    if req.uri().path() == "/debug/timings" && !state.config.debug_endpoints {
-        return AppError::NotFound.into_response();
-    }
-    next.run(req).await
 }
 
 fn origin_allowed(origin: &str, host: Option<&str>, allowed: &[String]) -> bool {

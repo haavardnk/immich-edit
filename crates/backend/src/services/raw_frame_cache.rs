@@ -61,6 +61,10 @@ impl RawFrameCache {
         self.current_bytes
     }
 
+    pub fn max_bytes(&self) -> u64 {
+        self.max_bytes
+    }
+
     pub fn clear(&mut self) {
         self.map.clear();
         self.current_bytes = 0;

@@ -27,6 +27,14 @@ pub struct RenderCacheOptions {
     pub gpu_texture_cache_mb: u64,
 }
 
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct FrameCacheBytes {
+    pub preview_used: u64,
+    pub preview_cap: u64,
+    pub quality_used: u64,
+    pub quality_cap: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RenderIdentity {
     pub owner: Uuid,
@@ -127,6 +135,17 @@ impl RenderService {
 
     pub fn gpu_pool_stats(&self) -> Option<raw_pipeline::GpuPoolStats> {
         self.gpu.read().unwrap().as_ref().map(|g| g.pool_stats())
+    }
+
+    pub async fn frame_cache_bytes(&self) -> FrameCacheBytes {
+        let preview = self.frames.lock().await;
+        let quality = self.quality_frames.lock().await;
+        FrameCacheBytes {
+            preview_used: preview.current_bytes(),
+            preview_cap: preview.max_bytes(),
+            quality_used: quality.current_bytes(),
+            quality_cap: quality.max_bytes(),
+        }
     }
 
     pub async fn clear_frame_caches(&self) {

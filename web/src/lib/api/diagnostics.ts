@@ -1,11 +1,19 @@
 import { getJson } from './client';
 
+export interface HeifCodecs {
+  hevc_decode: boolean;
+  hevc_encode: boolean;
+  av1_decode: boolean;
+  av1_encode: boolean;
+}
+
 export interface HealthInfo {
   status: string;
   version: string;
   renderer_mode: string;
   renderer_active: string;
   gpu_adapter: string | null;
+  heif_codecs: HeifCodecs;
   immich_reachable: boolean;
   immich_status: ImmichConnectionStatus;
   db_ready: boolean;
@@ -39,10 +47,20 @@ export interface GpuPoolBytes {
   total: number;
 }
 
+export interface CacheBytes {
+  preview_frames_used: number;
+  preview_frames_cap: number;
+  quality_frames_used: number;
+  quality_frames_cap: number;
+  rasters_disk_used: number;
+  rasters_disk_cap: number;
+}
+
 export interface DebugTimings {
   renderer_active: string;
   render_latency: { cpu: LatencyStats; gpu: LatencyStats };
   gpu_pool_bytes: GpuPoolBytes | null;
+  cache_bytes: CacheBytes;
 }
 
 export function getHealth(): Promise<HealthInfo> {

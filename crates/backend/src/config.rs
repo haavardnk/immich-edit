@@ -55,7 +55,6 @@ pub struct Config {
     pub renderer: RendererMode,
     pub database_url: String,
     pub allowed_origins: Vec<String>,
-    pub debug_endpoints: bool,
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
@@ -117,7 +116,6 @@ struct FileConfig {
     renderer: Option<String>,
     database_url: Option<String>,
     allowed_origins: Option<Vec<String>>,
-    debug_endpoints: Option<bool>,
     max_body_mb: Option<u64>,
     original_timeout_secs: Option<u64>,
     export_timeout_secs: Option<u64>,
@@ -257,9 +255,6 @@ impl Config {
 
         let allowed_origins = load_allowed_origins(file.allowed_origins)?;
 
-        let debug_endpoints =
-            parse_bool("IMMICH_EDIT_DEBUG", file.debug_endpoints)?.unwrap_or(false);
-
         let max_body_mb = parse_or("MAX_BODY_MB", file.max_body_mb, 128u64)?;
         if max_body_mb == 0 {
             return Err(ConfigError::InvalidValue {
@@ -313,7 +308,6 @@ impl Config {
             renderer,
             database_url,
             allowed_origins,
-            debug_endpoints,
             max_body_mb,
             original_timeout_secs,
             export_timeout_secs,
@@ -338,7 +332,6 @@ impl Config {
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             renderer: self.renderer.as_str(),
             allowed_origins: self.allowed_origins.clone(),
-            debug_endpoints: self.debug_endpoints,
             max_body_mb: self.max_body_mb,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
@@ -364,7 +357,6 @@ pub struct RedactedConfig {
     pub gpu_texture_cache_mb: u64,
     pub renderer: &'static str,
     pub allowed_origins: Vec<String>,
-    pub debug_endpoints: bool,
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
@@ -394,21 +386,6 @@ where
         });
     }
     Ok(file_value.unwrap_or(default))
-}
-
-fn parse_bool(env_key: &str, file_value: Option<bool>) -> Result<Option<bool>, ConfigError> {
-    if let Ok(v) = std::env::var(env_key) {
-        let lowered = v.to_ascii_lowercase();
-        return match lowered.as_str() {
-            "1" | "true" | "yes" | "on" => Ok(Some(true)),
-            "0" | "false" | "no" | "off" | "" => Ok(Some(false)),
-            _ => Err(ConfigError::InvalidValue {
-                key: env_key.into(),
-                value: v,
-            }),
-        };
-    }
-    Ok(file_value)
 }
 
 fn load_allowed_origins(file_value: Option<Vec<String>>) -> Result<Vec<String>, ConfigError> {
@@ -483,7 +460,6 @@ mod tests {
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
             "ALLOWED_ORIGINS",
-            "IMMICH_EDIT_DEBUG",
             "MAX_BODY_MB",
             "ORIGINAL_TIMEOUT_SECS",
             "EXPORT_TIMEOUT_SECS",

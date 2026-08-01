@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
 
+use crate::routes::auth::AdminCtx;
 use crate::services::render_telemetry::TelemetrySnapshot;
 use crate::state::AppState;
 
@@ -18,13 +19,24 @@ pub struct GpuPoolBytes {
 }
 
 #[derive(Serialize)]
+pub struct CacheBytes {
+    pub preview_frames_used: u64,
+    pub preview_frames_cap: u64,
+    pub quality_frames_used: u64,
+    pub quality_frames_cap: u64,
+    pub rasters_disk_used: u64,
+    pub rasters_disk_cap: u64,
+}
+
+#[derive(Serialize)]
 pub struct Timings {
     pub renderer_active: &'static str,
     pub render_latency: TelemetrySnapshot,
     pub gpu_pool_bytes: Option<GpuPoolBytes>,
+    pub cache_bytes: CacheBytes,
 }
 
-pub async fn timings(State(state): State<AppState>) -> Json<Timings> {
+pub async fn timings(State(state): State<AppState>, _admin: AdminCtx) -> Json<Timings> {
     let snapshot = state.render.telemetry().snapshot();
     let gpu_pool_bytes = state.render.gpu_pool_stats().map(|s| GpuPoolBytes {
         texture_pool: s.texture_pool,
@@ -42,9 +54,19 @@ pub async fn timings(State(state): State<AppState>) -> Json<Timings> {
             + s.nr_cache
             + s.atlas_cache,
     });
+    let frames = state.render.frame_cache_bytes().await;
+    let (rasters_used, rasters_cap) = state.rasters.disk_bytes();
     Json(Timings {
         renderer_active: state.render.active().as_str(),
         render_latency: snapshot,
         gpu_pool_bytes,
+        cache_bytes: CacheBytes {
+            preview_frames_used: frames.preview_used,
+            preview_frames_cap: frames.preview_cap,
+            quality_frames_used: frames.quality_used,
+            quality_frames_cap: frames.quality_cap,
+            rasters_disk_used: rasters_used,
+            rasters_disk_cap: rasters_cap,
+        },
     })
 }
