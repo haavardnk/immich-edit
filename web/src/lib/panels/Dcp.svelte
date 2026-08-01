@@ -29,6 +29,7 @@
   const selected = $derived(dcps.find((profile) => profile.id === selectedId) ?? null);
   const missingSelected = $derived(loaded && !!selectedId && !selected);
   const cameraModel = $derived(editor.asset?.exifInfo?.model ?? null);
+  const cameraMake = $derived(editor.asset?.exifInfo?.make ?? null);
 
   const illuminants: { value: DcpIlluminant; label: string }[] = [
     { value: 'interpolated', label: 'Auto' },
@@ -42,10 +43,11 @@
 
   $effect(() => {
     const model = cameraModel;
+    const make = cameraMake;
     if (!model) {
       autoMatch = null;
     } else {
-      void loadAutoMatch(model);
+      void loadAutoMatch(model, make);
     }
   });
 
@@ -58,9 +60,9 @@
     loaded = true;
   }
 
-  async function loadAutoMatch(model: string): Promise<void> {
+  async function loadAutoMatch(model: string, make: string | null): Promise<void> {
     try {
-      autoMatch = await matchDcp(model);
+      autoMatch = await matchDcp(model, make);
     } catch {
       autoMatch = null;
     }
@@ -156,6 +158,7 @@
         mode={dcp.mode}
         {selectedId}
         {autoMatch}
+        {cameraModel}
         onSelect={select}
       />
     </div>

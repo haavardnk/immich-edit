@@ -17,6 +17,7 @@ pub struct ImportParams {
 #[derive(Debug, Deserialize)]
 pub struct MatchParams {
     pub model: String,
+    pub make: Option<String>,
 }
 
 pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<DcpMeta>>, AppError> {
@@ -28,8 +29,15 @@ pub async fn match_camera(
     State(state): State<AppState>,
     Query(params): Query<MatchParams>,
 ) -> Result<Json<Option<DcpMeta>>, AppError> {
-    let profile = state.dcp.match_camera_meta(&params.model).await?;
-    Ok(Json(profile))
+    if let Some(profile) = state.dcp.match_camera_meta(&params.model).await? {
+        return Ok(Json(Some(profile)));
+    }
+    let make = params.make.as_deref().map(str::trim).unwrap_or_default();
+    if make.is_empty() {
+        return Ok(Json(None));
+    }
+    let qualified = format!("{make} {}", params.model);
+    Ok(Json(state.dcp.match_camera_meta(&qualified).await?))
 }
 
 pub async fn import(

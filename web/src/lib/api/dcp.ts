@@ -14,8 +14,10 @@ export async function listDcps(): Promise<DcpMeta[]> {
   return getJson<DcpMeta[]>('/api/dcp');
 }
 
-export async function matchDcp(model: string): Promise<DcpMeta | null> {
-  return getJson<DcpMeta | null>(`/api/dcp/match?model=${encodeURIComponent(model)}`);
+export async function matchDcp(model: string, make?: string | null): Promise<DcpMeta | null> {
+  const params = new URLSearchParams({ model });
+  if (make) params.set('make', make);
+  return getJson<DcpMeta | null>(`/api/dcp/match?${params.toString()}`);
 }
 
 export async function importDcp(name: string, bytes: Uint8Array): Promise<DcpMeta> {
