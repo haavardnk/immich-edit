@@ -76,23 +76,7 @@ The first time you do one of these actions, immich-edit asks you to confirm. Aft
 
 The published container image is [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) on Docker Hub. `latest` tracks the newest stable release; `edge` tracks the newest build including prereleases. Pin an exact tag like `0.3.0` if you want upgrades to be explicit. See [available tags](docs/deploy.md#image-tags).
 
-Create `compose.yaml`:
-
-```yaml
-services:
-  immich-edit:
-    image: haavardnk/immich-edit:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - immich-edit-data:/data
-    restart: unless-stopped
-
-volumes:
-  immich-edit-data:
-```
-
-Start it:
+Copy [docker-compose.example.yml](docker-compose.example.yml) to `compose.yaml` and edit it. Uncomment the GPU block if you have one.
 
 ```bash
 docker compose up -d
@@ -106,7 +90,7 @@ Open `http://localhost:3000`. On first run you land on a setup screen: enter you
 
 There is no server URL or API key to configure — the Immich connection is set up in the app and each user acts with their own Immich session. Credentials are encrypted at rest.
 
-For anything beyond a trusted LAN, terminate TLS in front of immich-edit with a reverse proxy (Caddy, Traefik, nginx). immich-edit has its own Immich-federated user system, so an extra auth proxy is optional. See [docs/deploy.md](docs/deploy.md) for proxy examples.
+If the instance is reachable from anywhere you do not control, terminate TLS in front of it with a reverse proxy (Caddy, Traefik, nginx). immich-edit has its own Immich-federated user system, so an extra auth proxy is optional. See [docs/deploy.md](docs/deploy.md) for proxy examples.
 
 ## Documentation
 
@@ -120,7 +104,7 @@ immich-edit needs no required settings — connect to Immich through the in-app 
 
 ## GPU acceleration
 
-GPU rendering is much faster than CPU rendering, especially on large RAWs. `wgpu` picks the backend at startup. Check `GET /api/health` to see which renderer is active.
+GPU rendering is much faster than CPU rendering, especially on large RAWs. `wgpu` picks the backend at startup. Settings -> Diagnostics shows which renderer is active and which GPU it picked; the startup log reports the same thing.
 
 To enable a GPU in Docker, uncomment the matching block in [docker-compose.example.yml](docker-compose.example.yml) and restart.
 

@@ -54,6 +54,21 @@ The backend retries idempotent GETs with jittered exponential backoff. Persisten
 
 The decoder relies on [rawler](https://github.com/dnglab/dnglab/tree/main/rawler). If a specific camera body is missing, file an issue with the file extension, camera model, and a sample file if possible. As a workaround, convert the file to DNG with Adobe DNG Converter.
 
+### HEIC will not open, or HEIC/AVIF export fails
+
+Look for `DecoderPluginError` when opening or `UnsupportedFileType` when exporting. Both mean libheif is present but the codec plugin behind it is not.
+
+Settings -> Diagnostics lists decode and export separately for HEIC and AVIF. They come from different packages, so one can work while the other fails:
+
+| Need | Package |
+|---|---|
+| HEIC decode | `libheif-plugin-libde265` |
+| HEIC export | `libheif-plugin-x265` |
+| AVIF decode | `libheif-plugin-dav1d` |
+| AVIF export | `libheif-plugin-aomenc` or `libheif-plugin-rav1e` |
+
+The official Docker image installs `libheif-plugins-all` and needs nothing extra. If you build your own image or run from source, install the plugins for the formats you use.
+
 ### Demosaiced colors look wrong
 
 Check that camera white balance is selected, not auto. If colors are still off, the camera's color matrix may be missing in rawler. Try setting custom temp/tint manually.
@@ -115,11 +130,13 @@ The upload is recorded as complete; tag/album/stack steps are best-effort. The r
 
 ## Performance
 
-### How do I read `/api/debug/timings`?
+### Where do I find render timings?
 
-Set `IMMICH_EDIT_DEBUG=1` and authenticate. The endpoint returns recent render latency buckets for CPU and GPU (`count`, `p50_us`, `p95_us`, `p99_us`, `max_us`) plus GPU pool memory when the GPU renderer is active.
+Settings -> Diagnostics, as an admin. It shows render latency for CPU and GPU (`count`, `p50`, `p95`, `p99`, `max`), cache usage against each budget, GPU pool memory when the GPU renderer is active, and which HEIF codecs the build can actually use.
 
-Use it to compare CPU and GPU runs, spot slow tail latency, and see whether GPU texture pools are growing. The Settings page shows the same data.
+Use it to compare CPU and GPU runs, spot slow tail latency, and see whether caches are sitting at their cap. "Copy support bundle" puts the same data on the clipboard for a bug report.
+
+The same data is served by `GET /api/debug/timings`, which requires an admin session. There is no longer an environment variable to enable it.
 
 ### CPU rendering is slow
 
@@ -127,15 +144,22 @@ Use the GPU if at all possible. CPU demosaic + tone on a 24MP RAW takes several 
 
 ### Memory keeps growing
 
-`MASK_CACHE_MB` (default 1024) is the largest tunable. Lower it to 256 if running on a small VM. The render cache on disk (`DATA_DIR/rasters`) grows until evicted; it is safe to delete the directory while the service is stopped.
+Retained render memory is bounded by byte budgets you can lower without touching render quality or speed:
 
-Retained render memory is bounded by three byte budgets that you can lower without touching render quality or speed:
-
-- `RAW_FRAME_CACHE_MB` (default 1024) — decoded preview frames kept in RAM.
+- `RAW_FRAME_CACHE_MB` (default 512) — decoded preview frames kept in RAM.
 - `QUALITY_FRAME_CACHE_MB` (default 512) — decoded full-quality frames kept in RAM.
 - `GPU_TEXTURE_CACHE_MB` (default 512) — retained free GPU textures reused between renders.
 
-On a memory-constrained host with a shared GPU (for example Unraid), start with `RENDER_MAX_CONCURRENCY=1`, `RAW_FRAME_CACHE_MB=512`, `QUALITY_FRAME_CACHE_MB=256`, `GPU_TEXTURE_CACHE_MB=256`, and `MASK_CACHE_MB=256`. Only drop `PREVIEW_MAX_EDGE` to 2048 if OOM continues, since that reduces preview resolution.
+Two more budgets cover disk rather than memory:
+
+- `MASK_CACHE_MB` (default 512) — rendered mask rasters under `DATA_DIR/cache/rasters`.
+- `EMBEDDING_CACHE_MB` (default 512) — click-to-select model embeddings under `DATA_DIR/cache/embeddings`.
+
+Both evict least-recently-used entries once they pass the cap, and both directories are safe to delete while the service is stopped.
+
+Check current usage in Settings -> Diagnostics before guessing. A cache sitting well under its cap is not your problem.
+
+On a memory-constrained host with a shared GPU (for example Unraid), start with `RENDER_MAX_CONCURRENCY=1`, `RAW_FRAME_CACHE_MB=256`, `QUALITY_FRAME_CACHE_MB=256`, `GPU_TEXTURE_CACHE_MB=256`, and `MASK_CACHE_MB=256`. Only drop `PREVIEW_MAX_EDGE` to 2048 if OOM continues, since that reduces preview resolution.
 
 ## Logs and request IDs
 

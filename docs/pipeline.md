@@ -102,7 +102,7 @@ There is no type-level distinction between linear and gamma-encoded textures. Th
 
 `transform` is a generated process-pass contribution on GPU. On CPU it is a normal `SpatialOp` in `Stage::Geometry`.
 
-`masks` is not active as a normal registry op. CPU masks are handled inside `run_pipeline_ops`; GPU masks use `mask_weight` and `mask_blend`. A GPU mask preview evaluates the selected layer into `mask_weight`, skips normal local-mask blending, and runs `mask_overlay` after DCP and LUT.
+`masks` is registered in `default_registry()` so its parameters persist through `to_doc`/`from_doc`, but `is_active()` always returns false, so it never runs as a normal op. CPU masks are handled inside `run_pipeline_ops`; GPU masks use `mask_weight` and `mask_blend`, both submitted from within `process()` on the same command encoder rather than as separate calls. A GPU mask preview evaluates the selected layer into `mask_weight`, skips normal local-mask blending, and runs `mask_overlay` after DCP and LUT.
 
 `DcpProfileOp` retains manifest ID `dcp_hue_sat` for compatibility. It owns profile persistence and CPU base-table dispatch; the GPU renderer uses dedicated 3D-texture passes. Matrix selection and profile setup live in `dcp_pipeline.rs`.
 

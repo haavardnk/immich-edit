@@ -1,26 +1,35 @@
 # Deploying immich-edit
 
-immich-edit talks to Immich over HTTP and serves a static SPA. It does not terminate TLS. For anything beyond a trusted LAN, put it behind a reverse proxy. Users sign in with their own Immich accounts; the Immich connection is configured in the app on first run, not through env vars.
+immich-edit talks to Immich over HTTP and serves a static SPA. It does not terminate TLS, so put a reverse proxy in front of it if it is reachable from anywhere you do not control. Users sign in with their own Immich accounts; the Immich connection is configured in the app on first run, not through env vars.
 
 ## Modes
 
-### Localhost / native
+### Native
 
-Good for local testing and macOS GPU work.
+Use this for local testing and on macOS, where Metal only works outside Docker.
+
+You need Rust (pinned by `rust-toolchain.toml`), Node 26, and the system libraries listed in [CONTRIBUTING.md](../CONTRIBUTING.md) — including libheif and its codec plugins, without which HEIC and AVIF fail at runtime.
+
+Build the frontend, then run the backend:
 
 ```bash
-cd web && npm ci && npm run build
+cd web
+npm ci
+npm run build
 cd ..
-cargo run -p immich-edit-backend
+BIND_ADDR=127.0.0.1:3000 \
+  WEB_DIR=web/build \
+  DCP_DIR=crates/backend/assets/dcp \
+  cargo run -p immich-edit-backend --release
 ```
 
-Set `BIND_ADDR=127.0.0.1:3000`, `WEB_DIR=web/build`, and `DCP_DIR=crates/backend/assets/dcp` when running from the repository root.
+`npm ci` installs from `package-lock.json`. Re-run it only when the lockfile changes.
 
 Open `http://127.0.0.1:3000`.
 
-### Docker on LAN
+For day-to-day development, `bash dev.sh` watches the backend and runs Vite with hot reload instead.
 
-For a home network where you trust every device that can reach the host.
+### Docker
 
 Use the published Docker Hub image unless you are developing locally:
 
@@ -141,11 +150,12 @@ GPU rendering and AI mask inference use Vulkan inside the container. The image b
 | Linux, AMD | Vulkan (radv) | `devices: [/dev/dri:/dev/dri]` + `group_add: [video, render]` |
 | Linux, Intel | Vulkan (anv) | `devices: [/dev/dri:/dev/dri]` + `group_add: [video, render]` |
 | Linux, NVIDIA | Vulkan (proprietary) | Install [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then `deploy.resources.reservations.devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]` |
+| Windows, any GPU | Vulkan via WSL2 | Run Docker Desktop with the WSL2 backend and install the vendor's WSL driver on the host. NVIDIA also needs the toolkit block above; AMD and Intel work through `/dev/dxg`, which Docker Desktop passes in automatically. |
 | macOS | Metal | Run native (`cargo run`). Metal does not pass into Docker. |
 
 On Unraid (and some other distros without a `render` group), `group_add: [video, render]` fails because the names do not resolve inside the container. Look up the numeric GID of the host group that owns `/dev/dri/renderD128` (`stat -c '%g' /dev/dri/renderD128`) and pass it directly, e.g. `group_add: ["18"]`.
 
-Check which renderer the running instance picked from the in-app **Settings & diagnostics** page (Server section), which shows `renderer_mode`, `renderer_active`, and `gpu_adapter`. The same data is on `GET /api/health`, which requires a signed-in session; `GET /api/health/live` is an unauthenticated liveness probe.
+Settings -> Diagnostics shows which renderer the running instance picked, along with the GPU adapter and the HEIF codecs the build can use. `GET /api/health` returns the same data for a signed-in session; `GET /api/health/live` is an unauthenticated liveness probe.
 
 To force the renderer for testing:
 
@@ -207,19 +217,19 @@ Check release notes before upgrading across multiple versions.
 
 ### Upgrading from v0.2.x to v0.3.0
 
-v0.3.0 replaces the shared Immich URL and API key with in-app setup and per-user Immich sign-in. `IMMICH_URL`, `IMMICH_API_KEY`, and `AUTH_TOKEN` are no longer read. Remove them, start the new version, and complete `/setup` with an Immich admin account.
+Two things changed at once: how you connect to Immich, and where data lives on disk.
 
-Database migrations preserve old edits, history, presets, and jobs under a legacy owner, but they are not assigned to the new accounts and do not appear after sign-in. There is no supported reassignment tool. Keep the pre-upgrade backup if those records matter.
+**Immich connection.** v0.3.0 replaces the shared Immich URL and API key with in-app setup and per-user sign-in. `IMMICH_URL`, `IMMICH_API_KEY`, and `AUTH_TOKEN` are no longer read. Remove them, start the new version, and complete `/setup` with an Immich admin account.
 
-### Directory layout changes in v0.3.0
+Migrations preserve old edits, history, presets, and jobs under a legacy owner, but they are not assigned to the new accounts and do not appear after sign-in. There is no reassignment tool. Keep the pre-upgrade backup if those records matter.
 
-Earlier releases stored everything under `CACHE_DIR` (`/cache` in Docker). 0.3.0 renames this to `DATA_DIR` and moves regenerable caches into a `cache/` subdirectory. `CACHE_DIR` still works as a deprecated alias, so native setups need no change; the backend logs a warning until you rename it to `DATA_DIR`.
+**Directory layout.** Earlier releases stored everything under `CACHE_DIR` (`/cache` in Docker). v0.3.0 renames this to `DATA_DIR` and moves regenerable caches into a `cache/` subdirectory. `CACHE_DIR` still works as a deprecated alias, so native setups need no change; the backend warns until you rename it.
 
-Docker users must remount their existing volume from `/cache` to `/data` (the data sits at the volume root, so only the target path changes):
+Docker users must remount the existing volume from `/cache` to `/data`. The data sits at the volume root, so only the target path changes:
 
 ```yaml
     volumes:
       - immich-edit-cache:/data
 ```
 
-Keep the old volume name if you want; only the mount target matters. The stale `edited-thumb/` and `embeddings/` directories left at the volume root are harmless and can be deleted.
+Keep the old volume name if you like; only the mount target matters. Stale `edited-thumb/` and `embeddings/` directories left at the volume root are harmless and can be deleted.
