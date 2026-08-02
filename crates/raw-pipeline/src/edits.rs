@@ -837,6 +837,8 @@ pub struct GeneratedMeta {
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub painted: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub points: Vec<ClickPointMeta>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1289,6 +1291,7 @@ mod tests {
                     prob_raster_id: "prob".into(),
                     grow: 0.0,
                     feather: 0.0,
+                    painted: false,
                     points: Vec::new(),
                     range: None,
                 }),

@@ -858,6 +858,12 @@
         <div class="px-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
           {generatedLabel(activeComp.generated.kind)} · {activeComp.generated.model_id}
         </div>
+        {#if activeComp.generated.painted}
+          <div class="mx-1 rounded bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-200/90">
+            You have painted on this mask. Moving these sliders regenerates it from the model and
+            discards those strokes.
+          </div>
+        {/if}
         {#if activeComp.generated.kind === 'depth'}
           <SliderRow
             label="Near"

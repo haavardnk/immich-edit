@@ -330,6 +330,7 @@ export interface GeneratedMeta {
   prob_raster_id: string;
   grow: number;
   feather: number;
+  painted?: boolean;
   points?: ClickPointMeta[];
   range?: RangeMeta;
 }
@@ -972,6 +973,7 @@ function parseGeneratedMeta(raw: unknown): GeneratedMeta | undefined {
     prob_raster_id: r.prob_raster_id,
     grow: typeof r.grow === 'number' ? r.grow : 0,
     feather: typeof r.feather === 'number' ? r.feather : 0,
+    ...(r.painted === true ? { painted: true } : {}),
     ...(points.length > 0 ? { points } : {}),
     ...(range ? { range } : {})
   };

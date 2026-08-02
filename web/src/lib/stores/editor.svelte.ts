@@ -99,6 +99,7 @@ class EditorStore {
     mode: 'paint'
   });
   brushBuffers = $state<Record<string, BrushBuffer>>({});
+  private brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
     active: boolean;
     negative: boolean;
@@ -290,6 +291,7 @@ class EditorStore {
     this.maskPreviewLayerId = null;
     this.colorPicker = null;
     this.brushBuffers = {};
+    this.brushBufferSource = {};
   }
 
   private pushHistory(): void {
@@ -752,6 +754,7 @@ class EditorStore {
       const { [componentId]: _drop, ...rest } = this.brushBuffers;
       this.brushBuffers = rest;
     }
+    delete this.brushBufferSource[componentId];
     await this.onCommit('Masks');
   };
 
@@ -803,13 +806,15 @@ class EditorStore {
     componentId: string,
     rasterId: string | null
   ): Promise<BrushBuffer> => {
+    const key = rasterId ?? '';
     const existing = this.brushBuffers[componentId];
-    if (existing) return existing;
+    if (existing && this.brushBufferSource[componentId] === key) return existing;
     if (rasterId) {
       try {
         const r = await fetchRaster(rasterId);
         const buf: BrushBuffer = { width: r.width, height: r.height, bytes: r.bytes };
         this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
+        this.brushBufferSource[componentId] = key;
         return buf;
       } catch {
         // fall through to blank
@@ -818,6 +823,7 @@ class EditorStore {
     const { width, height } = this.brushDims();
     const buf = blankBuffer(width, height);
     this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
+    this.brushBufferSource[componentId] = key;
     return buf;
   };
 
@@ -935,16 +941,19 @@ class EditorStore {
     this.maskGenerating = true;
     try {
       const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather, range);
-      this.brushBuffers = Object.fromEntries(
-        Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
-      );
       await this.ensureBrushBuffer(componentId, res.raster_id);
       this.patchMaskComponent(
         layerId,
         componentId,
         {
           kind: { kind: 'brush', raster_id: res.raster_id },
-          generated: { ...comp.generated, grow, feather, ...(range ? { range } : {}) }
+          generated: {
+            ...comp.generated,
+            grow,
+            feather,
+            painted: false,
+            ...(range ? { range } : {})
+          }
         },
         false
       );
@@ -971,9 +980,6 @@ class EditorStore {
     this.maskGenerating = true;
     try {
       const res = await clickMask(assetId, points, grow, feather);
-      this.brushBuffers = Object.fromEntries(
-        Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
-      );
       await this.ensureBrushBuffer(componentId, res.raster_id);
       this.patchMaskComponent(
         layerId,
@@ -984,6 +990,7 @@ class EditorStore {
             ...comp.generated,
             model_id: res.model_id,
             prob_raster_id: res.prob_raster_id,
+            painted: false,
             points
           }
         },
@@ -1088,9 +1095,6 @@ class EditorStore {
     this.maskGenerating = true;
     try {
       const res = await clickMask(assetId, [{ ...point, positive: true }], grow, feather, base, subtract);
-      this.brushBuffers = Object.fromEntries(
-        Object.entries(this.brushBuffers).filter(([k]) => k !== componentId)
-      );
       await this.ensureBrushBuffer(componentId, res.raster_id);
       this.patchMaskComponent(
         layerId,
@@ -1171,12 +1175,21 @@ class EditorStore {
       const layer = this.edits.masks.find((l) => l.id === layerId);
       const comp = layer?.components.find((c) => c.id === componentId);
       if (!comp || comp.kind.kind !== 'brush') return;
+      this.brushBufferSource[componentId] = meta.raster_id;
       this.updateMaskComponentKind(
         layerId,
         componentId,
         { kind: 'brush', raster_id: meta.raster_id },
         false
       );
+      if (comp.generated && !comp.generated.painted) {
+        this.patchMaskComponent(
+          layerId,
+          componentId,
+          { generated: { ...comp.generated, painted: true } },
+          false
+        );
+      }
       await this.onCommit('Masks');
     } catch (e) {
       this.error = (e as Error).message;
