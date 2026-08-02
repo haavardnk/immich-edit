@@ -665,57 +665,7 @@
                 class="shrink-0 text-[9px] uppercase tracking-wider text-immich-dark-fg/30"
                 title="The first shape starts the mask">Base</span
               >
-            {:else}
-              <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-                {#each MODES as m (m.value)}
-                  <button
-                    type="button"
-                    class="px-1.5 leading-5 transition-colors {comp.mode === m.value
-                      ? 'bg-white/15 text-immich-dark-fg'
-                      : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-                    title={m.hint}
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      setMode(active, comp, m.value);
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                {/each}
-              </div>
             {/if}
-            <button
-              type="button"
-              class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {comp.invert
-                ? 'text-immich-dark-primary'
-                : ''}"
-              title={comp.invert ? 'Invert on' : 'Invert off'}
-              aria-label="Invert shape"
-              onclick={(e) => {
-                e.stopPropagation();
-                toggleInvert(active, comp);
-              }}
-            >
-              <Icon path={mdiInvertColors} size={12} />
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={comp.opacity}
-              oninput={(e) =>
-                setCompOpacity(
-                  active,
-                  comp,
-                  parseFloat((e.currentTarget as HTMLInputElement).value)
-                )}
-              onpointerup={commitComp}
-              onkeyup={commitComp}
-              onclick={(e) => e.stopPropagation()}
-              class="w-14 slider-range"
-              title="Opacity"
-            />
             <button
               type="button"
               class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
@@ -729,6 +679,55 @@
               <Icon path={mdiClose} size={12} />
             </button>
           </div>
+          {#if isCompActive}
+            <div class="flex items-center gap-2 px-2 pb-1.5 pt-1">
+              {#if i > 0}
+                <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
+                  {#each MODES as m (m.value)}
+                    <button
+                      type="button"
+                      class="px-1.5 leading-5 transition-colors {comp.mode === m.value
+                        ? 'bg-white/15 text-immich-dark-fg'
+                        : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                      title={m.hint}
+                      onclick={() => setMode(active, comp, m.value)}
+                    >
+                      {m.label}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+              <button
+                type="button"
+                class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {comp.invert
+                  ? 'text-immich-dark-primary'
+                  : ''}"
+                title={comp.invert ? 'Invert on' : 'Invert off'}
+                aria-label="Invert shape"
+                onclick={() => toggleInvert(active, comp)}
+              >
+                <Icon path={mdiInvertColors} size={12} />
+              </button>
+              <span class="text-[10px] text-immich-dark-fg/40">Opacity</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={comp.opacity}
+                oninput={(e) =>
+                  setCompOpacity(
+                    active,
+                    comp,
+                    parseFloat((e.currentTarget as HTMLInputElement).value)
+                  )}
+                onpointerup={commitComp}
+                onkeyup={commitComp}
+                class="flex-1 slider-range"
+                title="Opacity"
+              />
+            </div>
+          {/if}
         {/each}
       {/if}
     </div>
