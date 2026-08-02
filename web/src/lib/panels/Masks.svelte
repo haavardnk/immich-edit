@@ -9,6 +9,8 @@
   import { editor } from '$lib/stores/editor.svelte';
   import {
     N_MAX_MASK_LAYERS,
+    N_MAX_COMPONENTS_PER_LAYER,
+    N_MAX_TOTAL_COMPONENTS,
     type MaskComponent,
     type MaskComponentKind,
     type MaskComponentMode,
@@ -37,7 +39,9 @@
     mdiInvertColors,
     mdiPalette,
     mdiCircleOpacity,
-    mdiAutoFix
+    mdiAutoFix,
+    mdiChevronDown,
+    mdiChevronRight
   } from '@mdi/js';
   import MaskToolPicker from '$lib/components/editor/MaskToolPicker.svelte';
   import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
@@ -74,12 +78,17 @@
       : null
   );
   const cap = $derived(editor.maskCapacityFor(editor.activeLayerId));
-  const isPreviewingActive = $derived(active !== null && editor.maskPreviewLayerId === active.id);
   const refineActive = $derived(
     editor.clickTool.active && active !== null && editor.clickTool.layerId === active.id
   );
 
-  const amountValue = $derived(active?.amount ?? 1);
+  let refineOverride = $state<Record<string, boolean>>({});
+  const refineOpen = $derived(
+    active
+      ? (refineOverride[active.id] ?? (active.components.length === 0 || activeComp !== null))
+      : false
+  );
+
   const featherValue = $derived(
     activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')
       ? activeComp.kind.feather
@@ -111,12 +120,9 @@
     activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
   );
 
-  function onAmountLive(v: number): void {
-    if (active) editor.setMaskLayerAmount(active.id, v);
-  }
-
-  function onAmountCommit(): void {
-    void editor.commitMasks();
+  function toggleRefine(): void {
+    if (!active) return;
+    refineOverride = { ...refineOverride, [active.id]: !refineOpen };
   }
 
   function onFeatherLive(v: number): void {
@@ -355,10 +361,10 @@
     else editor.previewMaskWeight(layer.id);
   }
 
-  const MODES: { value: MaskComponentMode; label: string; hint: string }[] = [
-    { value: 'add', label: '+', hint: 'Add this shape to the mask' },
-    { value: 'subtract', label: '−', hint: 'Cut this shape out of the mask' },
-    { value: 'intersect', label: '∩', hint: 'Keep only where this shape overlaps' }
+  const MODES: { value: MaskComponentMode; icon: string; hint: string }[] = [
+    { value: 'add', icon: mdiPlus, hint: 'Add: add this shape to the mask' },
+    { value: 'subtract', icon: mdiMinus, hint: 'Subtract: cut this shape out of the mask' },
+    { value: 'intersect', icon: mdiSetCenter, hint: 'Intersect: keep only where this shape overlaps' }
   ];
 
   function focusOnMount(node: HTMLInputElement): void {
@@ -376,6 +382,7 @@
 
   function openAddComponent(mode: MaskComponentMode): void {
     pendingMode = mode;
+    if (active) refineOverride = { ...refineOverride, [active.id]: true };
     if (!addComponentOpen && addComponentBtn) {
       const r = addComponentBtn.getBoundingClientRect();
       addComponentPos = { top: r.bottom + 4, left: r.left };
@@ -450,7 +457,11 @@
           bind:this={addLayerBtn}
           type="button"
           class="inline-flex items-center gap-1 h-5 px-1.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Create a new mask"
+          title={cap.layersFull
+            ? `You have used all ${N_MAX_MASK_LAYERS} masks. Delete one to add another.`
+            : cap.totalFull
+              ? `You have used all ${N_MAX_TOTAL_COMPONENTS} shapes across every mask. Delete one to add another.`
+              : 'Create a new mask'}
           aria-label="New mask"
           disabled={cap.layersFull || cap.totalFull}
           onclick={toggleAddLayer}
@@ -507,16 +518,11 @@
             if (e.key === 'Enter' || e.key === ' ') editor.setActiveLayer(layer.id);
           }}
         >
-          <button
-            type="button"
+          <div
             class="w-3 h-3 rounded-sm ring-1 ring-white/20 shrink-0"
             style="background-color: {layer.color}"
-            title="Layer color"
-            aria-label="Layer color"
-            onclick={(e) => {
-              e.stopPropagation();
-            }}
-          ></button>
+            title="Overlay colour for this mask"
+          ></div>
           <button
             type="button"
             class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
@@ -567,7 +573,7 @@
             class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {isPreview
               ? 'text-immich-dark-primary'
               : ''}"
-            title={isPreview ? 'Hide mask overlay' : 'Show mask overlay'}
+            title={isPreview ? 'Hide the mask overlay' : 'Show this mask over the photo'}
             aria-label="Toggle mask preview"
             onclick={(e) => {
               e.stopPropagation();
@@ -606,267 +612,276 @@
     </div>
   {/if}
 
+  {#if layers.length > 0 && !active}
+    <div class="px-1.5 pt-1 text-[11px] text-immich-dark-fg/40">Select a mask to adjust it.</div>
+  {/if}
+
   {#if active}
-    <div class="mt-2 border-t border-white/10 pt-3 flex flex-col gap-2.5">
-      <SliderRow
-        label="Amount"
-        value={amountValue}
-        min={0}
-        max={1}
-        step={0.01}
-        defaultValue={1}
-        onLive={onAmountLive}
-        onCommit={onAmountCommit}
-        format={(v: number) => v.toFixed(2)}
-      />
-    </div>
-
-    <div class="mt-3 flex flex-col gap-1.5">
-      <div class="flex items-center justify-between px-1">
-        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-          Shapes ({active.components.length})
-        </div>
+    <div class="mt-2 border-t border-white/10 pt-2 flex flex-col gap-1.5">
+      <div class="flex items-center gap-1 px-1">
         <button
           type="button"
-          class="inline-flex items-center gap-1 h-5 px-1.5 rounded text-[10px] transition-colors {isPreviewingActive
-            ? 'bg-white/15 text-immich-dark-fg'
-            : 'text-immich-dark-fg/50 hover:bg-white/10 hover:text-immich-dark-fg'}"
-          title="Show the finished mask over the photo"
-          onclick={() => togglePreview(active)}
+          class="flex items-center gap-1 flex-1 min-w-0 text-left rounded hover:bg-white/5 transition-colors"
+          aria-expanded={refineOpen}
+          title={refineOpen
+            ? 'Hide the shapes that build this mask'
+            : 'Show the shapes that build this mask'}
+          onclick={toggleRefine}
         >
-          <Icon path={mdiCircleOpacity} size={12} /> Show mask
+          <Icon
+            path={refineOpen ? mdiChevronDown : mdiChevronRight}
+            size={14}
+            class="opacity-40 shrink-0"
+          />
+          <span class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40 truncate">
+            Refine ({active.components.length}/{N_MAX_COMPONENTS_PER_LAYER})
+          </span>
         </button>
       </div>
 
-      <div class="relative flex items-center gap-1 px-1">
-        <button
-          bind:this={addComponentBtn}
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Add another shape to this mask"
-          disabled={cap.componentsFull || cap.totalFull}
-          onclick={() => openAddComponent('add')}
-        >
-          <Icon path={mdiPlus} size={12} /> Add
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Cut a shape out of this mask"
-          disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
-          onclick={() => openAddComponent('subtract')}
-        >
-          <Icon path={mdiMinus} size={12} /> Subtract
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Keep only where this shape overlaps the mask"
-          disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
-          onclick={() => openAddComponent('intersect')}
-        >
-          <Icon path={mdiSetCenter} size={12} /> Intersect
-        </button>
-        {#if addComponentOpen && addComponentPos}
-          <div
-            bind:this={addComponentMenu}
-            class="fixed z-50 bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl"
-            style="top: {addComponentPos.top}px; left: {addComponentPos.left}px"
+      {#if refineOpen}
+        <div class="relative flex items-center gap-1 px-1">
+          <button
+            bind:this={addComponentBtn}
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Add another shape to this mask"
+            disabled={cap.componentsFull || cap.totalFull}
+            onclick={() => openAddComponent('add')}
           >
+            <Icon path={mdiPlus} size={12} /> Add
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Cut a shape out of this mask"
+            disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
+            onclick={() => openAddComponent('subtract')}
+          >
+            <Icon path={mdiMinus} size={12} /> Subtract
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-immich-dark-fg/70 hover:bg-white/10 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Keep only where this shape overlaps the mask"
+            disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
+            onclick={() => openAddComponent('intersect')}
+          >
+            <Icon path={mdiSetCenter} size={12} /> Intersect
+          </button>
+          {#if addComponentOpen && addComponentPos}
             <div
-              class="px-3 pt-2 text-[10px] uppercase tracking-wider text-immich-dark-fg/40 border-b border-white/10 pb-2"
+              bind:this={addComponentMenu}
+              class="fixed z-50 bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl"
+              style="top: {addComponentPos.top}px; left: {addComponentPos.left}px"
             >
-              {modeVerb(pendingMode)} with
-            </div>
-            <MaskToolPicker
-              aiKinds={maskKinds}
-              semanticClasses={semanticClasses}
-              busy={editor.maskGenerating}
-              onManual={(tool) => void pickShapeManual(tool)}
-              onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
-              onBox={armShapeBox}
-              onBackground={() => void addBackgroundComp()}
-            />
-          </div>
-        {/if}
-      </div>
-
-      {#if active.components.length === 0}
-        <div class="px-1 py-2 text-[11px] text-immich-dark-fg/30 italic">
-          Empty mask. Use Add to pick a tool.
-        </div>
-      {:else}
-        {#each active.components as comp, i (comp.id)}
-          {@const isCompActive = editor.activeMaskComponentId === comp.id}
-          <div
-            class="flex items-center gap-1.5 px-1 py-0.5 rounded transition-colors cursor-pointer {isCompActive
-              ? 'bg-white/10'
-              : 'hover:bg-white/5'}"
-            role="button"
-            tabindex="0"
-            onclick={() => editor.setActiveMaskComponent(isCompActive ? null : comp.id)}
-            onkeydown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ')
-                editor.setActiveMaskComponent(isCompActive ? null : comp.id);
-            }}
-          >
-            <button
-              type="button"
-              class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
-              title={comp.enabled ? 'Disable shape' : 'Enable shape'}
-              aria-label="Toggle shape"
-              onclick={(e) => {
-                e.stopPropagation();
-                toggleComp(active, comp);
-              }}
-            >
-              <Icon path={comp.enabled ? mdiEye : mdiEyeOff} size={12} />
-            </button>
-            <Icon
-              path={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
-              size={12}
-              class="opacity-50 shrink-0"
-            />
-            <span class="text-[11px] text-immich-dark-fg/70 truncate flex-1">
-              {comp.generated ? generatedLabel(comp.generated.kind) : kindLabel(comp.kind)}
-            </span>
-            {#if i === 0}
-              <span
-                class="shrink-0 text-[9px] uppercase tracking-wider text-immich-dark-fg/30"
-                title="The first shape starts the mask">Base</span
+              <div
+                class="px-3 pt-2 text-[10px] uppercase tracking-wider text-immich-dark-fg/40 border-b border-white/10 pb-2"
               >
-            {/if}
-            <button
-              type="button"
-              class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
-              title="Delete shape"
-              aria-label="Delete shape"
-              onclick={(e) => {
-                e.stopPropagation();
-                void editor.removeMaskComponent(active.id, comp.id);
-              }}
-            >
-              <Icon path={mdiClose} size={12} />
-            </button>
-          </div>
-          {#if isCompActive}
-            <div class="flex items-center gap-2 px-2 pb-1.5 pt-1">
-              {#if i > 0}
-                <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-                  {#each MODES as m (m.value)}
-                    <button
-                      type="button"
-                      class="px-1.5 leading-5 transition-colors {comp.mode === m.value
-                        ? 'bg-white/15 text-immich-dark-fg'
-                        : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-                      title={m.hint}
-                      onclick={() => setMode(active, comp, m.value)}
-                    >
-                      {m.label}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-              <button
-                type="button"
-                class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {comp.invert
-                  ? 'text-immich-dark-primary'
-                  : ''}"
-                title={comp.invert ? 'Invert on' : 'Invert off'}
-                aria-label="Invert shape"
-                onclick={() => toggleInvert(active, comp)}
-              >
-                <Icon path={mdiInvertColors} size={12} />
-              </button>
-              <span class="text-[10px] text-immich-dark-fg/40">Opacity</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={comp.opacity}
-                oninput={(e) =>
-                  setCompOpacity(
-                    active,
-                    comp,
-                    parseFloat((e.currentTarget as HTMLInputElement).value)
-                  )}
-                onpointerup={commitComp}
-                onkeyup={commitComp}
-                class="flex-1 slider-range"
-                title="Opacity"
+                {modeVerb(pendingMode)} with
+              </div>
+              <MaskToolPicker
+                aiKinds={maskKinds}
+                semanticClasses={semanticClasses}
+                busy={editor.maskGenerating}
+                onManual={(tool) => void pickShapeManual(tool)}
+                onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
+                onBox={armShapeBox}
+                onBackground={() => void addBackgroundComp()}
               />
             </div>
           {/if}
-        {/each}
+        </div>
+
+        {#if cap.componentsFull || cap.totalFull}
+          <div class="px-1 text-[10px] text-immich-dark-fg/40">
+            {cap.componentsFull
+              ? `This mask is full at ${N_MAX_COMPONENTS_PER_LAYER} shapes. Delete one to add another.`
+              : `You have used all ${N_MAX_TOTAL_COMPONENTS} shapes across every mask. Delete one to add another.`}
+          </div>
+        {/if}
+
+        {#if active.components.length === 0}
+          <div class="px-1 py-2 text-[11px] text-immich-dark-fg/30 italic">
+            Empty mask. Use Add to pick a tool.
+          </div>
+        {:else}
+          {#each active.components as comp, i (comp.id)}
+            {@const isCompActive = editor.activeMaskComponentId === comp.id}
+            <div
+              class="flex items-center gap-1.5 px-1 py-0.5 rounded transition-colors cursor-pointer {isCompActive
+                ? 'bg-white/10'
+                : 'hover:bg-white/5'}"
+              role="button"
+              tabindex="0"
+              onclick={() => editor.setActiveMaskComponent(isCompActive ? null : comp.id)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ')
+                  editor.setActiveMaskComponent(isCompActive ? null : comp.id);
+              }}
+            >
+              <button
+                type="button"
+                class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
+                title={comp.enabled ? 'Disable shape' : 'Enable shape'}
+                aria-label="Toggle shape"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  toggleComp(active, comp);
+                }}
+              >
+                <Icon path={comp.enabled ? mdiEye : mdiEyeOff} size={12} />
+              </button>
+              <Icon
+                path={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
+                size={12}
+                class="opacity-50 shrink-0"
+              />
+              <span class="text-[11px] text-immich-dark-fg/70 truncate flex-1">
+                {comp.generated ? generatedLabel(comp.generated.kind) : kindLabel(comp.kind)}
+              </span>
+              {#if i === 0}
+                <span
+                  class="shrink-0 text-[9px] uppercase tracking-wider text-immich-dark-fg/30"
+                  title="The first shape starts the mask">Base</span
+                >
+              {/if}
+              <button
+                type="button"
+                class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
+                title="Delete shape"
+                aria-label="Delete shape"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  void editor.removeMaskComponent(active.id, comp.id);
+                }}
+              >
+                <Icon path={mdiClose} size={12} />
+              </button>
+            </div>
+            {#if isCompActive}
+              <div class="flex items-center gap-2 px-2 pb-1.5 pt-1">
+                {#if i > 0}
+                  <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
+                    {#each MODES as m (m.value)}
+                      <button
+                        type="button"
+                        class="px-1.5 h-5 inline-flex items-center transition-colors {comp.mode ===
+                        m.value
+                          ? 'bg-white/15 text-immich-dark-fg'
+                          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                        title={m.hint}
+                        aria-label={m.hint}
+                        onclick={() => setMode(active, comp, m.value)}
+                      >
+                        <Icon path={m.icon} size={12} />
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+                <button
+                  type="button"
+                  class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {comp.invert
+                    ? 'text-immich-dark-primary'
+                    : ''}"
+                  title={comp.invert ? 'Invert on' : 'Invert off'}
+                  aria-label="Invert shape"
+                  onclick={() => toggleInvert(active, comp)}
+                >
+                  <Icon path={mdiInvertColors} size={12} />
+                </button>
+                <span class="text-[10px] text-immich-dark-fg/40">Opacity</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={comp.opacity}
+                  oninput={(e) =>
+                    setCompOpacity(
+                      active,
+                      comp,
+                      parseFloat((e.currentTarget as HTMLInputElement).value)
+                    )}
+                  onpointerup={commitComp}
+                  onkeyup={commitComp}
+                  class="flex-1 slider-range"
+                  title="Opacity"
+                />
+              </div>
+            {/if}
+          {/each}
+        {/if}
+
+        {#if activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')}
+          <div class="mt-1 flex flex-col gap-2.5">
+            <SliderRow
+              label="Feather"
+              value={featherValue}
+              min={0}
+              max={1}
+              step={0.01}
+              defaultValue={0.5}
+              onLive={onFeatherLive}
+              onCommit={onFeatherCommit}
+              format={(v: number) => v.toFixed(2)}
+            />
+          </div>
+        {/if}
+
+        {#if activeComp && activeComp.kind.kind === 'brush' && clickInstalled}
+          <div class="mt-1 flex items-center justify-between gap-2 px-1">
+            <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
+              Click to refine
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
+                <button
+                  type="button"
+                  class="px-2 leading-5 transition-colors {refineActive && !editor.clickTool.negative
+                    ? 'bg-white/15 text-immich-dark-fg'
+                    : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                  title="Click the photo to add that area to this shape"
+                  onclick={() => setRefine(false)}>Add</button
+                >
+                <button
+                  type="button"
+                  class="px-2 leading-5 transition-colors {refineActive && editor.clickTool.negative
+                    ? 'bg-white/15 text-immich-dark-fg'
+                    : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+                  title="Click the photo to cut that area out of this shape"
+                  onclick={() => setRefine(true)}>Remove</button
+                >
+              </div>
+              {#if refineActive}
+                <button
+                  type="button"
+                  class="text-[10px] text-immich-dark-fg/50 hover:text-immich-dark-fg"
+                  onclick={stopRefine}>Done</button
+                >
+              {/if}
+            </div>
+          </div>
+          {#if editor.maskGenerating}
+            <div class="px-1 text-[10px] text-immich-dark-fg/40">Working…</div>
+          {/if}
+        {/if}
+
+        {#if activeComp?.generated}
+          <MaskGeneratedControls layerId={active.id} component={activeComp} />
+        {:else if activeComp && activeComp.kind.kind === 'brush'}
+          <MaskBrushControls />
+        {/if}
+
+        {#if activeComp && (activeComp.kind.kind === 'luma_range' || activeComp.kind.kind === 'color_range')}
+          <MaskRangeControls layerId={active.id} component={activeComp} />
+        {/if}
+
+        {#if activeComp && activeComp.kind.kind === 'polygon'}
+          <MaskPolygonControls layerId={active.id} component={activeComp} />
+        {/if}
       {/if}
     </div>
-
-    {#if activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')}
-      <div class="mt-2 flex flex-col gap-2.5">
-        <SliderRow
-          label="Feather"
-          value={featherValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.5}
-          onLive={onFeatherLive}
-          onCommit={onFeatherCommit}
-          format={(v: number) => v.toFixed(2)}
-        />
-      </div>
-    {/if}
-
-    {#if activeComp && activeComp.kind.kind === 'brush' && clickInstalled}
-      <div class="mt-2 flex items-center justify-between gap-2 px-1">
-        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Click to refine</div>
-        <div class="flex items-center gap-2">
-          <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-            <button
-              type="button"
-              class="px-2 leading-5 transition-colors {refineActive && !editor.clickTool.negative
-                ? 'bg-white/15 text-immich-dark-fg'
-                : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-              title="Click the photo to add that area to this shape"
-              onclick={() => setRefine(false)}>Add</button
-            >
-            <button
-              type="button"
-              class="px-2 leading-5 transition-colors {refineActive && editor.clickTool.negative
-                ? 'bg-white/15 text-immich-dark-fg'
-                : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-              title="Click the photo to cut that area out of this shape"
-              onclick={() => setRefine(true)}>Remove</button
-            >
-          </div>
-          {#if refineActive}
-            <button
-              type="button"
-              class="text-[10px] text-immich-dark-fg/50 hover:text-immich-dark-fg"
-              onclick={stopRefine}>Done</button
-            >
-          {/if}
-        </div>
-      </div>
-      {#if editor.maskGenerating}
-        <div class="px-1 text-[10px] text-immich-dark-fg/40">Working…</div>
-      {/if}
-    {/if}
-
-    {#if activeComp?.generated}
-      <MaskGeneratedControls layerId={active.id} component={activeComp} />
-    {:else if activeComp && activeComp.kind.kind === 'brush'}
-      <MaskBrushControls />
-    {/if}
-
-    {#if activeComp && (activeComp.kind.kind === 'luma_range' || activeComp.kind.kind === 'color_range')}
-      <MaskRangeControls layerId={active.id} component={activeComp} />
-    {/if}
-
-    {#if activeComp && activeComp.kind.kind === 'polygon'}
-      <MaskPolygonControls layerId={active.id} component={activeComp} />
-    {/if}
 
     <MaskAdjustments layerId={active.id} />
   {/if}

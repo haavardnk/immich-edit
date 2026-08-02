@@ -737,6 +737,11 @@ class EditorStore {
     this.patchMaskLayer(id, { edits: setMaskedEdit(layer.edits, key, value) }, true);
   };
 
+  resetMaskLayerEdits = async (id: string): Promise<void> => {
+    this.patchMaskLayer(id, { amount: 1, edits: {} }, false);
+    await this.onCommit('Masks');
+  };
+
   beginPolygon = (layerId: string | null, mode: MaskComponentMode = 'add'): void => {
     this.setActiveMaskComponent(null);
     this.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
