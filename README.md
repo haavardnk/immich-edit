@@ -37,8 +37,9 @@ Edits:
 - Clarity, texture, dehaze, sharpening, luma + color noise reduction
 - Vignette, grain
 - Crop, rotate, flip
-- Local masks (radial, linear, brush, luminance range, color range) with adjustable parameters
-- Optional local AI masks for subjects, skies, and depth, plus click-guided selection and refinement
+- Local masks (radial, linear, brush, polygon, luminance range, color range) with adjustable parameters
+- Optional local AI masks: subject, background, people, sky, depth, and thirteen scene classes such as water, foliage, buildings and roads
+- Click or drag a box on the photo to select an object, then refine it point by point
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
 - Undo/redo while editing, plus saved edit history with expandable change details and restore

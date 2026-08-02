@@ -100,7 +100,7 @@ The first render warms up GPU pipelines and uploads textures; expect a delay of 
 
 ### A mask type is missing from the New mask menu
 
-An admin must install a model for that mask type under **Settings > Mask models**. Subject, sky, depth, and click-guided masks use separate models. If the whole section is disabled, check `config.segment_runtime` on `GET /api/health`; `off` disables model inference.
+An admin must install a model for that mask type under **Settings > Mask models**. Subject, people, sky, depth, scene classes, and click-guided masks each use a separate model. If the whole section is disabled, check `config.segment_runtime` on `GET /api/health`; `off` disables model inference.
 
 ### Model installation fails
 

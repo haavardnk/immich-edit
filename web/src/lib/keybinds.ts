@@ -61,5 +61,17 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Esc', description: 'Close Geometry / brush / popover / fullscreen' },
       { keys: '?', description: 'Toggle this help' }
     ]
+  },
+  {
+    title: 'Masks',
+    mode: 'editor',
+    binds: [
+      { keys: '⌫ / Del', description: 'Delete the selected shape' },
+      { keys: 'Double-click', description: 'Rename a mask · remove a polygon corner' },
+      { keys: 'Esc', description: 'Cancel drawing, box select or the eyedropper' },
+      { keys: '⇧Click', description: 'Exclude an area when clicking to select' },
+      { keys: 'Right-click', description: 'Exclude an area · undo the last polygon corner' },
+      { keys: 'Enter', description: 'Close the polygon you are drawing' }
+    ]
   }
 ];

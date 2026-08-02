@@ -167,6 +167,8 @@ To force the renderer for testing:
 
 AI masks run on the server. No model is bundled with the image. An admin chooses models under **Settings > Mask models**, where the app shows download size, licence, and estimated CPU and GPU cost. Models are shared by all users and stored under `DATA_DIR/models/`.
 
+There is a model kind per mask type: subject, people, sky, depth, scene classes, and click. Each kind offers a recommended model and usually a smaller low-memory alternative, so a constrained host can install the cheap ones and skip the rest. The click models ship as an encoder plus a decoder and are the largest download in the catalog.
+
 Installing a model requires outbound HTTPS to its catalog source. The current catalog uses GitHub and Hugging Face. Every download is checked against a pinned SHA-256 hash before it is installed.
 
 Segmentation has separate runtime settings from the image renderer:
