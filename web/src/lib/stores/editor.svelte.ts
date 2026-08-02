@@ -731,6 +731,13 @@ class EditorStore {
     this.patchMaskLayer(id, { amount: Math.max(0, Math.min(1, amount)) }, true);
   };
 
+  toggleMaskLayerInvert = async (id: string): Promise<void> => {
+    const layer = this.edits.masks.find((l) => l.id === id);
+    if (!layer) return;
+    this.patchMaskLayer(id, { invert: !layer.invert }, false);
+    await this.onCommit('Masks');
+  };
+
   setMaskLayerEdit = (id: string, key: MaskedEditKey, value: number): void => {
     const layer = this.edits.masks.find((l) => l.id === id);
     if (!layer) return;

@@ -167,6 +167,7 @@ pub fn run_pipeline_ops(
             Some(l) => crate::cpu::masked::build_layer_eval(l, rasters),
             None => crate::cpu::masked::LayerEval {
                 amount: 0.0,
+                invert: false,
                 components: Vec::new(),
             },
         };

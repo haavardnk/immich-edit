@@ -91,6 +91,7 @@ export function makeLayer(name: string, index: number, kind: MaskComponentKind =
     enabled: true,
     color: defaultMaskColor(index),
     amount: 1,
+    invert: false,
     components: [makeComponent(kind)],
     edits: {}
   };
@@ -160,6 +161,7 @@ export function cloneLayerWithNewIds(layer: MaskLayer, color: string, name: stri
     enabled: layer.enabled,
     color,
     amount: layer.amount,
+    invert: layer.invert,
     components: layer.components.map((c) => ({ ...c, id: nextId(), kind: cloneKind(c.kind) })),
     edits: { ...layer.edits }
   };

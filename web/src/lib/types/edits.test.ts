@@ -81,6 +81,7 @@ describe('neutralEdits identity', () => {
         enabled: true,
         color: '#ff3b30',
         amount: 1,
+        invert: false,
         components: [
           {
             id: 'luma',
@@ -236,6 +237,7 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
         enabled: true,
         color: '#ff3b30',
         amount: 1,
+        invert: false,
         components: [
           {
             id: 'luma',
@@ -274,6 +276,7 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
         enabled: true,
         color: '#ff3b30',
         amount: 1,
+        invert: false,
         components: [
           {
             id: 'poly',
@@ -307,6 +310,7 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
         enabled: true,
         color: '#ff3b30',
         amount: 1,
+        invert: false,
         components: [
           {
             id: 'gen',
@@ -339,6 +343,7 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
         enabled: true,
         color: '#ff3b30',
         amount: 1,
+        invert: false,
         components: [
           {
             id: 'gen',

@@ -589,7 +589,7 @@ impl GpuRenderer {
                     edits.geometry.rotate as u32,
                     edits.geometry.flip_h as u32,
                     edits.geometry.flip_v as u32,
-                    0,
+                    eval.invert as u32,
                 ],
                 [cos_a, sin_a, bw, bh],
                 [
@@ -817,7 +817,7 @@ impl GpuRenderer {
                         edits.geometry.rotate as u32,
                         edits.geometry.flip_h as u32,
                         edits.geometry.flip_v as u32,
-                        0,
+                        eval.invert as u32,
                     ],
                     [cos_a, sin_a, bw, bh],
                     [

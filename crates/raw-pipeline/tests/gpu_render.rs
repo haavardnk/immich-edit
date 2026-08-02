@@ -988,72 +988,75 @@ fn gpu_masks_match_cpu_within_tolerance() {
         ..Default::default()
     };
 
-    let layer = MaskLayer {
-        id: "L1".into(),
-        name: "".into(),
-        enabled: true,
-        color: "#ff3b30".into(),
-        amount: 1.0,
-        components: vec![
-            MaskComponent {
-                id: "c1".into(),
-                enabled: true,
-                mode: MaskComponentMode::Add,
-                invert: false,
-                kind: MaskComponentKind::Linear {
-                    p0: Vec2f { x: 0.0, y: 0.5 },
-                    p1: Vec2f { x: 1.0, y: 0.5 },
-                    feather: 0.4,
+    for invert in [false, true] {
+        let layer = MaskLayer {
+            id: "L1".into(),
+            name: "".into(),
+            enabled: true,
+            color: "#ff3b30".into(),
+            amount: 1.0,
+            invert,
+            components: vec![
+                MaskComponent {
+                    id: "c1".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Add,
+                    invert: false,
+                    kind: MaskComponentKind::Linear {
+                        p0: Vec2f { x: 0.0, y: 0.5 },
+                        p1: Vec2f { x: 1.0, y: 0.5 },
+                        feather: 0.4,
+                    },
+                    source: MaskSource::Manual,
+                    generated: None,
                 },
-                source: MaskSource::Manual,
-                generated: None,
-            },
-            MaskComponent {
-                id: "c2".into(),
-                enabled: true,
-                mode: MaskComponentMode::Subtract,
-                invert: false,
-                kind: MaskComponentKind::Radial {
-                    center: Vec2f { x: 0.25, y: 0.5 },
-                    radius_xy: Vec2f { x: 0.2, y: 0.2 },
-                    feather: 0.3,
+                MaskComponent {
+                    id: "c2".into(),
+                    enabled: true,
+                    mode: MaskComponentMode::Subtract,
+                    invert: false,
+                    kind: MaskComponentKind::Radial {
+                        center: Vec2f { x: 0.25, y: 0.5 },
+                        radius_xy: Vec2f { x: 0.2, y: 0.2 },
+                        feather: 0.3,
+                    },
+                    source: MaskSource::Manual,
+                    generated: None,
                 },
-                source: MaskSource::Manual,
-                generated: None,
+            ],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.2),
+                brightness: Some(25.0),
+                saturation: Some(30.0),
+                contrast: Some(20.0),
+                wb_temp: Some(15.0),
+                ..Default::default()
             },
-        ],
-        edits: MaskedEdits {
-            exposure_ev: Some(1.2),
-            brightness: Some(25.0),
-            saturation: Some(30.0),
-            contrast: Some(20.0),
-            wb_temp: Some(15.0),
+        };
+
+        let edits = Edits {
+            masks: vec![layer],
             ..Default::default()
-        },
-    };
+        };
 
-    let edits = Edits {
-        masks: vec![layer],
-        ..Default::default()
-    };
-
-    let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
-    if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
-        panic!(
-            "dim mismatch CPU {}x{} vs GPU {}x{}",
-            cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
-        );
-    }
-    let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
-    let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
-    if (cw, ch) != (gw, gh) {
-        panic!("decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
-    }
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("masks parity: mean abs delta = {delta:.3}");
-    if delta > 1.5 {
-        panic!("CPU vs GPU mask drift: {delta:.3} > 1.5");
+        let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
+        if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
+            panic!(
+                "dim mismatch CPU {}x{} vs GPU {}x{}",
+                cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
+            );
+        }
+        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
+        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
+        if (cw, ch) != (gw, gh) {
+            panic!("decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
+        }
+        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+        eprintln!("masks parity (invert={invert}): mean abs delta = {delta:.3}");
+        if delta > 1.5 {
+            panic!("CPU vs GPU mask drift with invert={invert}: {delta:.3} > 1.5");
+        }
     }
 }
 
@@ -1095,6 +1098,7 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
         enabled: true,
         color: "#ff3b30".into(),
         amount: 1.0,
+        invert: false,
         components: vec![MaskComponent {
             id: "b1".into(),
             enabled: true,
@@ -1152,6 +1156,7 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
             enabled: true,
             color: "#ff3b30".into(),
             amount: 1.0,
+            invert: false,
             components: vec![
                 MaskComponent {
                     id: "color".into(),

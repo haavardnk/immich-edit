@@ -23,6 +23,7 @@ function mask(id: string, name: string): MaskLayer {
     enabled: true,
     color: '#ff0000',
     amount: 1,
+    invert: false,
     components: [
       {
         id: `${id}-component`,

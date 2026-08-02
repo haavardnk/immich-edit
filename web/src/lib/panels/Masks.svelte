@@ -629,6 +629,20 @@
             Refine ({active.components.length}/{N_MAX_COMPONENTS_PER_LAYER})
           </span>
         </button>
+        <button
+          type="button"
+          class="shrink-0 px-1.5 py-0.5 rounded text-[11px] transition-colors disabled:opacity-30 disabled:cursor-not-allowed {active.invert
+            ? 'bg-white/15 text-immich-dark-fg'
+            : 'text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg'}"
+          aria-pressed={active.invert}
+          title={active.invert
+            ? 'Editing everything outside the shapes. Click to go back.'
+            : 'Edit everything outside the shapes instead'}
+          disabled={active.components.length === 0}
+          onclick={() => void editor.toggleMaskLayerInvert(active.id)}
+        >
+          Invert
+        </button>
       </div>
 
       {#if refineOpen}

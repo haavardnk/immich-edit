@@ -328,6 +328,7 @@ mod tests {
             enabled: true,
             color: "#3399ff".into(),
             amount: 0.8,
+            invert: false,
             components: vec![
                 MaskComponent {
                     id: "c1".into(),

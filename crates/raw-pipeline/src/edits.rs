@@ -891,6 +891,8 @@ pub struct MaskLayer {
     #[serde(default = "default_amount")]
     pub amount: f32,
     #[serde(default)]
+    pub invert: bool,
+    #[serde(default)]
     pub components: Vec<MaskComponent>,
     #[serde(default)]
     pub edits: MaskedEdits,
@@ -1012,6 +1014,7 @@ fn clamp_masks(layers: &[MaskLayer]) -> Vec<MaskLayer> {
             enabled: layer.enabled,
             color: layer.color.clone(),
             amount: layer.amount.clamp(0.0, 1.0),
+            invert: layer.invert,
             components,
             edits: clamp_masked_edits(&layer.edits),
         });
@@ -1211,6 +1214,7 @@ mod tests {
             enabled: true,
             color: "#ff3b30".into(),
             amount: 1.0,
+            invert: false,
             components: vec![MaskComponent {
                 id: "c1".into(),
                 enabled: true,
@@ -1256,6 +1260,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![make_comp("a", "r1"), make_comp("b", "r2")],
             edits: MaskedEdits::default(),
         });
@@ -1265,6 +1270,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![make_comp("c", "r1")],
             edits: MaskedEdits::default(),
         });
@@ -1283,6 +1289,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![MaskComponent {
                 id: "a".into(),
                 enabled: true,
@@ -1322,6 +1329,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 2.0,
+            invert: false,
             components: vec![MaskComponent {
                 id: "c".into(),
                 enabled: true,

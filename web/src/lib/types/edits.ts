@@ -382,6 +382,7 @@ export interface MaskLayer {
   enabled: boolean;
   color: string;
   amount: number;
+  invert: boolean;
   components: MaskComponent[];
   edits: MaskedEdits;
 }
@@ -936,6 +937,7 @@ function parseMaskLayer(raw: unknown): MaskLayer | null {
     enabled: r.enabled !== false,
     color: typeof r.color === 'string' ? r.color : '#ff3b30',
     amount: typeof r.amount === 'number' ? r.amount : 1,
+    invert: r.invert === true,
     components,
     edits
   };

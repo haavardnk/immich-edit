@@ -242,6 +242,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
             w = w * cw;
         }
     }
+    if (p.flags.w == 1u) { w = 1.0 - w; }
     let final_w = clamp(w * p.layer_amount, 0.0, 1.0);
     textureStore(weight_out, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(final_w, 0.0, 0.0, 1.0));
 }

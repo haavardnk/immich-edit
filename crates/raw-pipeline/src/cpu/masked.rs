@@ -50,6 +50,7 @@ pub struct ComponentEval {
 #[derive(Clone, Debug)]
 pub struct LayerEval {
     pub amount: f32,
+    pub invert: bool,
     pub components: Vec<ComponentEval>,
 }
 
@@ -135,6 +136,7 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
         .collect();
     LayerEval {
         amount: layer.amount.clamp(0.0, 1.0),
+        invert: layer.invert,
         components,
     }
 }
@@ -299,6 +301,9 @@ pub fn fold_layer_weight_with_display(
             MaskComponentMode::Subtract => w * (1.0 - cw),
             MaskComponentMode::Intersect => w * cw,
         };
+    }
+    if layer.invert {
+        w = 1.0 - w;
     }
     (w * layer.amount).clamp(0.0, 1.0)
 }
@@ -492,6 +497,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![linear(
                 "c",
                 Vec2f { x: 0.0, y: 0.0 },
@@ -529,6 +535,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![comp],
             edits: Default::default(),
         };
@@ -540,6 +547,41 @@ mod tests {
         }
         if outside > 0.05 {
             panic!("expected ~0 outside, got {outside}");
+        }
+    }
+
+    #[test]
+    fn layer_invert_flips_the_folded_weight() {
+        let mut comp = linear("c", Vec2f { x: 0.0, y: 0.0 }, Vec2f { x: 0.0, y: 0.0 }, 0.0);
+        comp.kind = MaskComponentKind::Radial {
+            center: Vec2f { x: 0.5, y: 0.5 },
+            radius_xy: Vec2f { x: 0.2, y: 0.2 },
+            feather: 0.1,
+        };
+        let mut layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            invert: true,
+            components: vec![comp],
+            edits: Default::default(),
+        };
+        let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+        let inside = fold_layer_weight(&eval, 0.5, 0.5);
+        let outside = fold_layer_weight(&eval, 0.9, 0.9);
+        if inside > 0.05 {
+            panic!("expected inverted centre cleared, got {inside}");
+        }
+        if outside < 0.95 {
+            panic!("expected inverted surround selected, got {outside}");
+        }
+        layer.amount = 0.5;
+        let scaled = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+        let half = fold_layer_weight(&scaled, 0.9, 0.9);
+        if (half - 0.5).abs() > 0.05 {
+            panic!("expected amount to scale after invert, got {half}");
         }
     }
 
@@ -559,6 +601,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![add, sub],
             edits: Default::default(),
         };
@@ -585,6 +628,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![linear(
                 "c",
                 Vec2f { x: 0.0, y: 0.0 },
@@ -623,6 +667,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![linear(
                 "c",
                 Vec2f { x: 0.0, y: 0.0 },
@@ -675,6 +720,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![comp],
             edits: Default::default(),
         };
@@ -700,6 +746,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![MaskComponent {
                 id: "c".into(),
                 enabled: true,
@@ -804,6 +851,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![comp],
             edits: Default::default(),
         };
@@ -835,6 +883,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![component],
             edits: Default::default(),
         };
@@ -874,6 +923,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![component],
             edits: Default::default(),
         };
@@ -898,6 +948,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![],
             edits: Default::default(),
         };
@@ -923,6 +974,7 @@ mod tests {
             enabled: true,
             color: "#fff".into(),
             amount: 1.0,
+            invert: false,
             components: vec![linear(
                 "c",
                 Vec2f { x: 0.0, y: 0.0 },
