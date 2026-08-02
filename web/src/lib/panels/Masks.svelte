@@ -348,14 +348,6 @@
     void editor.commitMasks();
   }
 
-  function setCompOpacity(layer: MaskLayer, comp: MaskComponent, opacity: number): void {
-    editor.patchMaskComponent(layer.id, comp.id, { opacity }, true);
-  }
-
-  function commitComp(): void {
-    void editor.commitMasks();
-  }
-
   function togglePreview(layer: MaskLayer): void {
     if (editor.maskPreviewLayerId === layer.id) editor.endMaskPreview();
     else editor.previewMaskWeight(layer.id);
@@ -781,33 +773,18 @@
                 {/if}
                 <button
                   type="button"
-                  class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {comp.invert
-                    ? 'text-immich-dark-primary'
-                    : ''}"
-                  title={comp.invert ? 'Invert on' : 'Invert off'}
-                  aria-label="Invert shape"
+                  class="shrink-0 inline-flex items-center gap-1 px-1.5 h-5 rounded ring-1 ring-white/10 text-[10px] transition-colors {comp.invert
+                    ? 'bg-white/15 text-immich-dark-fg'
+                    : 'text-immich-dark-fg/50 hover:bg-white/10 hover:text-immich-dark-fg'}"
+                  aria-pressed={comp.invert}
+                  title={comp.invert
+                    ? 'Using everything outside this shape. Click to go back.'
+                    : 'Use everything outside this shape instead'}
                   onclick={() => toggleInvert(active, comp)}
                 >
-                  <Icon path={mdiInvertColors} size={12} />
+                  <Icon path={mdiInvertColors} size={11} />
+                  Invert
                 </button>
-                <span class="text-[10px] text-immich-dark-fg/40">Opacity</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={comp.opacity}
-                  oninput={(e) =>
-                    setCompOpacity(
-                      active,
-                      comp,
-                      parseFloat((e.currentTarget as HTMLInputElement).value)
-                    )}
-                  onpointerup={commitComp}
-                  onkeyup={commitComp}
-                  class="flex-1 slider-range"
-                  title="Opacity"
-                />
               </div>
             {/if}
           {/each}

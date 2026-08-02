@@ -999,7 +999,6 @@ fn gpu_masks_match_cpu_within_tolerance() {
                 id: "c1".into(),
                 enabled: true,
                 mode: MaskComponentMode::Add,
-                opacity: 1.0,
                 invert: false,
                 kind: MaskComponentKind::Linear {
                     p0: Vec2f { x: 0.0, y: 0.5 },
@@ -1013,7 +1012,6 @@ fn gpu_masks_match_cpu_within_tolerance() {
                 id: "c2".into(),
                 enabled: true,
                 mode: MaskComponentMode::Subtract,
-                opacity: 1.0,
                 invert: false,
                 kind: MaskComponentKind::Radial {
                     center: Vec2f { x: 0.25, y: 0.5 },
@@ -1101,7 +1099,6 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
             id: "b1".into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::Brush {
                 raster_id: "brush_a".into(),
@@ -1160,7 +1157,6 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
                     id: "color".into(),
                     enabled: true,
                     mode: MaskComponentMode::Add,
-                    opacity: 1.0,
                     invert: false,
                     kind: MaskComponentKind::ColorRange {
                         sample_rgb: [0.65, 0.45, 0.35],
@@ -1174,7 +1170,6 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
                     id: "luma".into(),
                     enabled: true,
                     mode: MaskComponentMode::Intersect,
-                    opacity: 1.0,
                     invert: false,
                     kind: MaskComponentKind::LumaRange {
                         min: 0.15,

@@ -43,7 +43,6 @@ pub enum ComponentKindEval {
 #[derive(Clone, Debug)]
 pub struct ComponentEval {
     pub mode: MaskComponentMode,
-    pub opacity: f32,
     pub invert: bool,
     pub kind: ComponentKindEval,
 }
@@ -66,7 +65,7 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
     let components: Vec<ComponentEval> = layer
         .components
         .iter()
-        .filter(|c| c.enabled && c.opacity.abs() > 1e-6)
+        .filter(|c| c.enabled)
         .map(|c| {
             let kind = match &c.kind {
                 MaskComponentKind::Linear { p0, p1, feather } => {
@@ -129,7 +128,6 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
             };
             ComponentEval {
                 mode: c.mode,
-                opacity: c.opacity.clamp(0.0, 1.0),
                 invert: c.invert,
                 kind,
             }
@@ -278,7 +276,7 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) ->
         ComponentKindEval::Polygon { points, feather } => polygon_weight(points, u, v, *feather),
     };
     let r = if c.invert { 1.0 - raw } else { raw };
-    (r * c.opacity).clamp(0.0, 1.0)
+    r.clamp(0.0, 1.0)
 }
 
 #[inline(always)]
@@ -479,7 +477,6 @@ mod tests {
             id: id.into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::Linear { p0, p1, feather },
             source: MaskSource::Manual,
@@ -665,7 +662,6 @@ mod tests {
             id: "c".into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::Brush {
                 raster_id: "r1".into(),
@@ -708,7 +704,6 @@ mod tests {
                 id: "c".into(),
                 enabled: true,
                 mode: MaskComponentMode::Add,
-                opacity: 1.0,
                 invert: false,
                 kind: MaskComponentKind::Polygon { points, feather },
                 source: MaskSource::Manual,
@@ -796,7 +791,6 @@ mod tests {
             id: "c".into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::Brush {
                 raster_id: "missing".into(),
@@ -826,7 +820,6 @@ mod tests {
             id: "c".into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::LumaRange {
                 min: 0.4,
@@ -866,7 +859,6 @@ mod tests {
             id: "c".into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::ColorRange {
                 sample_rgb: [0.9, 0.1, 0.1],

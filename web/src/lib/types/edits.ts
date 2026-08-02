@@ -341,7 +341,6 @@ export interface MaskComponent {
   id: string;
   enabled: boolean;
   mode: MaskComponentMode;
-  opacity: number;
   invert: boolean;
   kind: MaskComponentKind;
   source: MaskSource;
@@ -393,7 +392,7 @@ export function maskedEditsIsZero(m: MaskedEdits): boolean {
 
 export function maskLayerIsEffective(l: MaskLayer): boolean {
   if (!l.enabled || Math.abs(l.amount) < 1e-6) return false;
-  const hasComp = l.components.some((c) => c.enabled && Math.abs(c.opacity) > 1e-6);
+  const hasComp = l.components.some((c) => c.enabled);
   return hasComp && !maskedEditsIsZero(l.edits);
 }
 
@@ -954,7 +953,6 @@ function parseMaskComponent(raw: unknown): MaskComponent | null {
     id: r.id,
     enabled: r.enabled !== false,
     mode,
-    opacity: typeof r.opacity === 'number' ? r.opacity : 1,
     invert: r.invert === true,
     kind,
     source: r.source === 'generated' ? 'generated' : 'manual',

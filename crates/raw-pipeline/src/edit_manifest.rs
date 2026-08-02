@@ -333,7 +333,6 @@ mod tests {
                     id: "c1".into(),
                     enabled: true,
                     mode: MaskComponentMode::Add,
-                    opacity: 1.0,
                     invert: false,
                     kind: MaskComponentKind::Linear {
                         p0: Vec2f { x: 0.5, y: 0.0 },
@@ -347,7 +346,6 @@ mod tests {
                     id: "c2".into(),
                     enabled: true,
                     mode: MaskComponentMode::Subtract,
-                    opacity: 0.7,
                     invert: false,
                     kind: MaskComponentKind::Radial {
                         center: Vec2f { x: 0.3, y: 0.2 },
@@ -361,7 +359,6 @@ mod tests {
                     id: "c3".into(),
                     enabled: true,
                     mode: MaskComponentMode::Intersect,
-                    opacity: 0.9,
                     invert: false,
                     kind: MaskComponentKind::LumaRange {
                         min: 0.2,
@@ -375,7 +372,6 @@ mod tests {
                     id: "c4".into(),
                     enabled: true,
                     mode: MaskComponentMode::Intersect,
-                    opacity: 1.0,
                     invert: false,
                     kind: MaskComponentKind::ColorRange {
                         sample_rgb: [0.2, 0.5, 0.9],

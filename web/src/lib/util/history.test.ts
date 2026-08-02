@@ -28,7 +28,6 @@ function mask(id: string, name: string): MaskLayer {
         id: `${id}-component`,
         enabled: true,
         mode: 'add',
-        opacity: 1,
         invert: false,
         kind: { kind: 'linear', p0: { x: 0, y: 0 }, p1: { x: 1, y: 1 }, feather: 0.5 },
         source: 'manual'

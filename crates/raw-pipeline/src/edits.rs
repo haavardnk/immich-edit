@@ -860,8 +860,6 @@ pub struct MaskComponent {
     pub enabled: bool,
     #[serde(default)]
     pub mode: MaskComponentMode,
-    #[serde(default = "default_opacity")]
-    pub opacity: f32,
     #[serde(default)]
     pub invert: bool,
     pub kind: MaskComponentKind,
@@ -873,9 +871,6 @@ pub struct MaskComponent {
 
 fn default_true() -> bool {
     true
-}
-fn default_opacity() -> f32 {
-    1.0
 }
 fn default_color() -> String {
     "#ff3b30".into()
@@ -906,10 +901,7 @@ impl MaskLayer {
         if !self.enabled || self.amount.abs() < 1e-6 {
             return false;
         }
-        let has_component = self
-            .components
-            .iter()
-            .any(|c| c.enabled && c.opacity.abs() > 1e-6);
+        let has_component = self.components.iter().any(|c| c.enabled);
         has_component && !self.edits.is_zero()
     }
 }
@@ -994,7 +986,6 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
         id: c.id.clone(),
         enabled: c.enabled,
         mode: c.mode,
-        opacity: c.opacity.clamp(0.0, 1.0),
         invert: c.invert,
         kind,
         source: c.source,
@@ -1224,7 +1215,6 @@ mod tests {
                 id: "c1".into(),
                 enabled: true,
                 mode: MaskComponentMode::Add,
-                opacity: 1.0,
                 invert: false,
                 kind: MaskComponentKind::Brush {
                     raster_id: "abc123".into(),
@@ -1253,7 +1243,6 @@ mod tests {
             id: id.into(),
             enabled: true,
             mode: MaskComponentMode::Add,
-            opacity: 1.0,
             invert: false,
             kind: MaskComponentKind::Brush {
                 raster_id: raster.into(),
@@ -1298,7 +1287,6 @@ mod tests {
                 id: "a".into(),
                 enabled: true,
                 mode: MaskComponentMode::Add,
-                opacity: 1.0,
                 invert: false,
                 kind: MaskComponentKind::Brush {
                     raster_id: "baked".into(),
@@ -1338,7 +1326,6 @@ mod tests {
                 id: "c".into(),
                 enabled: true,
                 mode: MaskComponentMode::Add,
-                opacity: 2.0,
                 invert: false,
                 kind: MaskComponentKind::Brush {
                     raster_id: "keep-me".into(),
@@ -1350,7 +1337,6 @@ mod tests {
         });
         let c = e.clamped();
         assert_eq!(c.masks[0].amount, 1.0);
-        assert_eq!(c.masks[0].components[0].opacity, 1.0);
         match &c.masks[0].components[0].kind {
             MaskComponentKind::Brush { raster_id } => assert_eq!(raster_id, "keep-me"),
             _ => panic!("expected brush kind"),

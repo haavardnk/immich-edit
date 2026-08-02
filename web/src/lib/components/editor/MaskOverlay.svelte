@@ -445,8 +445,8 @@
         {@const hi = { x: mx + half * dx, y: my + half * dy }}
         {@const guideLen = 60}
         {@const gradId = `mask-linear-${comp.id}`}
-        {@const fillOp = (comp.invert ? 0.0 : 0.55) * comp.opacity}
-        {@const emptyOp = (comp.invert ? 0.55 : 0.0) * comp.opacity}
+        {@const fillOp = comp.invert ? 0.0 : 0.55}
+        {@const emptyOp = comp.invert ? 0.55 : 0.0}
         {@const stopLo = Math.max(0, 0.5 - half)}
         {@const stopHi = Math.min(1, 0.5 + half)}
         <g style="pointer-events: auto;">
@@ -604,8 +604,8 @@
         {@const isSel = activeCompId === comp.id}
         {@const innerScale = 1 - comp.kind.feather}
         {@const gradId = `mask-radial-${comp.id}`}
-        {@const fillOp = (comp.invert ? 0.0 : 0.55) * comp.opacity}
-        {@const emptyOp = (comp.invert ? 0.55 : 0.0) * comp.opacity}
+        {@const fillOp = comp.invert ? 0.0 : 0.55}
+        {@const emptyOp = comp.invert ? 0.55 : 0.0}
         {@const rMax = Math.max(h.rx, h.ry, 1)}
         <g style="pointer-events: auto;">
           {#if isSel}

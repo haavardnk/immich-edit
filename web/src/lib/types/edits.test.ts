@@ -86,7 +86,6 @@ describe('neutralEdits identity', () => {
             id: 'luma',
             enabled: true,
             mode: 'add',
-            opacity: 1,
             invert: false,
             kind: { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 },
             source: 'manual'
@@ -242,7 +241,6 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
             id: 'luma',
             enabled: true,
             mode: 'add',
-            opacity: 1,
             invert: false,
             kind: { kind: 'luma_range', min: 0.2, max: 0.8, softness: 0.1 },
             source: 'manual'
@@ -251,7 +249,6 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
             id: 'color',
             enabled: true,
             mode: 'intersect',
-            opacity: 0.9,
             invert: false,
             kind: {
               kind: 'color_range',
@@ -282,7 +279,6 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
             id: 'poly',
             enabled: true,
             mode: 'add',
-            opacity: 1,
             invert: false,
             kind: {
               kind: 'polygon',
@@ -316,7 +312,6 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
             id: 'gen',
             enabled: true,
             mode: 'add',
-            opacity: 1,
             invert: false,
             kind: { kind: 'brush', raster_id: 'baked' },
             source: 'generated',
@@ -349,7 +344,6 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
             id: 'gen',
             enabled: true,
             mode: 'add',
-            opacity: 1,
             invert: false,
             kind: { kind: 'brush', raster_id: 'baked' },
             source: 'generated',

@@ -14,7 +14,7 @@ use wgpu::{
 use crate::gpu::context::GpuContext;
 use crate::mask_raster::MaskRaster;
 
-pub const COMPONENT_BYTES: usize = 64;
+pub const COMPONENT_BYTES: usize = 48;
 pub const MAX_COMPONENTS: usize = 32;
 pub const MAX_COMPONENTS_BYTES: usize = COMPONENT_BYTES * MAX_COMPONENTS;
 pub const PARAMS_BYTES: usize = 96;
@@ -36,7 +36,6 @@ struct MaskParams {
 
 struct Component {
     kind_mode_invert_pad: vec4<u32>,
-    opacity_pad: vec4<f32>,
     geom_a: vec4<f32>,
     geom_b: vec4<f32>,
 };
@@ -215,8 +214,7 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
     let inverted = c.kind_mode_invert_pad.z;
     var r = raw;
     if (inverted == 1u) { r = 1.0 - r; }
-    let op = clamp(c.opacity_pad.x, 0.0, 1.0);
-    return clamp(r * op, 0.0, 1.0);
+    return clamp(r, 0.0, 1.0);
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -461,18 +459,16 @@ pub fn pack_layer_eval(
             crate::edits::MaskComponentMode::Intersect => 2u32,
         };
         let invert = if c.invert { 1u32 } else { 0u32 };
-        let opacity = c.opacity.clamp(0.0, 1.0);
         let mut buf = [0u8; COMPONENT_BYTES];
         buf[0..4].copy_from_slice(&kind.to_ne_bytes());
         buf[4..8].copy_from_slice(&mode.to_ne_bytes());
         buf[8..12].copy_from_slice(&invert.to_ne_bytes());
         buf[12..16].copy_from_slice(&slot.to_ne_bytes());
-        buf[16..20].copy_from_slice(&opacity.to_ne_bytes());
         for (i, f) in geom_a.iter().enumerate() {
-            buf[32 + i * 4..36 + i * 4].copy_from_slice(&f.to_ne_bytes());
+            buf[16 + i * 4..20 + i * 4].copy_from_slice(&f.to_ne_bytes());
         }
         for (i, f) in geom_b.iter().enumerate() {
-            buf[48 + i * 4..52 + i * 4].copy_from_slice(&f.to_ne_bytes());
+            buf[32 + i * 4..36 + i * 4].copy_from_slice(&f.to_ne_bytes());
         }
         out.extend_from_slice(&buf);
         n += 1;

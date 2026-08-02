@@ -78,7 +78,6 @@ export function makeComponent(kind: MaskComponentKind, mode: MaskComponentMode =
     id: nextId(),
     enabled: true,
     mode,
-    opacity: 1,
     invert: false,
     kind,
     source: 'manual'
