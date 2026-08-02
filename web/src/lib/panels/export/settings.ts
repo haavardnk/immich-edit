@@ -93,12 +93,16 @@ export function immichOptions(f: ExportForm): ImmichExportOptions {
 export function ensureLibraryLoaded(): void {
   if (library.albums.length === 0) {
     void listAlbums()
-      .then((a) => (library.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName))))
+      .then((a) => {
+        library.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
+      })
       .catch((e: unknown) => toasts.push('error', `albums: ${(e as Error).message}`));
   }
   if (library.tags.length === 0) {
     void listTags()
-      .then((t) => (library.tags = t))
+      .then((t) => {
+        library.tags = t;
+      })
       .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
   }
 }

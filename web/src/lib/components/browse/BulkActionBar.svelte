@@ -40,7 +40,9 @@
     if (selection.active && !tagsLoaded) {
       tagsLoaded = true;
       listTags()
-        .then((t) => (tags = t.filter((tag) => !isManagedTag(toTagRef(tag)))))
+        .then((t) => {
+          tags = t.filter((tag) => !isManagedTag(toTagRef(tag)));
+        })
         .catch(() => (tagsLoaded = false));
     }
   });

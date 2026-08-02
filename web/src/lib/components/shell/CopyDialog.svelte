@@ -44,13 +44,17 @@
         <div class="flex gap-1.5">
           <button
             class="text-[11px] px-2 py-0.5 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
-            onclick={() => (copyDialog.sections = allSections(true))}
+            onclick={() => {
+              copyDialog.sections = allSections(true);
+            }}
           >
             Check all
           </button>
           <button
             class="text-[11px] px-2 py-0.5 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
-            onclick={() => (copyDialog.sections = allSections(false))}
+            onclick={() => {
+              copyDialog.sections = allSections(false);
+            }}
           >
             Check none
           </button>
