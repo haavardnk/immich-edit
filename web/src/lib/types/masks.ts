@@ -128,6 +128,18 @@ const DEDICATED_KIND_CLASSES: Record<string, MaskKind> = {
   person: 'people'
 };
 
+export function numberRepeats(labels: string[]): string[] {
+  const total = new Map<string, number>();
+  for (const label of labels) total.set(label, (total.get(label) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return labels.map((label) => {
+    if ((total.get(label) ?? 0) < 2) return label;
+    const n = (seen.get(label) ?? 0) + 1;
+    seen.set(label, n);
+    return `${label} ${n}`;
+  });
+}
+
 export function visibleSceneClasses<T extends { id: string }>(
   classes: T[],
   kinds: { kind: MaskKind }[]

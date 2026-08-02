@@ -701,6 +701,19 @@ class EditorStore {
     await this.onCommit('Masks');
   };
 
+  reorderMaskComponent = async (layerId: string, id: string, toIndex: number): Promise<void> => {
+    const layer = this.edits.masks.find((l) => l.id === layerId);
+    if (!layer) return;
+    const from = layer.components.findIndex((c) => c.id === id);
+    if (from < 0) return;
+    const components = [...layer.components];
+    const [comp] = components.splice(from, 1);
+    const clamped = Math.max(0, Math.min(toIndex, components.length));
+    components.splice(clamped, 0, clamped === 0 ? { ...comp, mode: 'add' } : comp);
+    this.patchMaskLayer(layerId, { components }, false);
+    await this.onCommit('Masks');
+  };
+
   patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
     const masks = this.edits.masks.map((l) => (l.id === id ? { ...l, ...patch } : l));
     this.edits = { ...this.edits, masks };

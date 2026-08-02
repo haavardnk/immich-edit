@@ -11,6 +11,7 @@
     N_MAX_MASK_LAYERS,
     N_MAX_COMPONENTS_PER_LAYER,
     N_MAX_TOTAL_COMPONENTS,
+    maskedEditsIsZero,
     type MaskComponent,
     type MaskComponentKind,
     type MaskComponentMode,
@@ -21,6 +22,7 @@
     defaultLinear,
     defaultLumaRange,
     defaultRadial,
+    numberRepeats,
     type ManualTool
   } from '$lib/types/masks';
   import {
@@ -41,7 +43,8 @@
     mdiCircleOpacity,
     mdiAutoFix,
     mdiChevronDown,
-    mdiChevronRight
+    mdiChevronRight,
+    mdiChevronUp
   } from '@mdi/js';
   import MaskToolPicker from '$lib/components/editor/MaskToolPicker.svelte';
   import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
@@ -87,6 +90,15 @@
       : null
   );
   const cap = $derived(editor.maskCapacityFor(editor.activeLayerId));
+  const compLabels = $derived(
+    active
+      ? numberRepeats(
+          active.components.map((c) =>
+            c.generated ? generatedLabel(c.generated.kind) : kindLabel(c.kind)
+          )
+        )
+      : []
+  );
   const refineActive = $derived(
     editor.clickTool.active && active !== null && editor.clickTool.layerId === active.id
   );
@@ -534,7 +546,7 @@
     </div>
   {:else}
     <div class="flex flex-col gap-0.5">
-      {#each layers as layer (layer.id)}
+      {#each layers as layer, li (layer.id)}
         {@const isActive = editor.activeLayerId === layer.id}
         {@const isPreview = editor.maskPreviewLayerId === layer.id}
         <div
@@ -598,6 +610,18 @@
               {layer.name}
             </button>
           {/if}
+          <span
+            class="shrink-0 text-[10px] tabular-nums text-immich-dark-fg/30"
+            title="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
+          >
+            {layer.components.length}
+          </span>
+          {#if !maskedEditsIsZero(layer.edits)}
+            <span
+              class="shrink-0 w-1.5 h-1.5 rounded-full bg-immich-dark-primary/70"
+              title="This mask has adjustments"
+            ></span>
+          {/if}
           <button
             type="button"
             class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {isPreview
@@ -612,6 +636,34 @@
           >
             <Icon path={mdiCircleOpacity} size={13} />
           </button>
+          {#if isActive && layers.length > 1}
+            <button
+              type="button"
+              class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+              title="Move up. Masks further down the list are applied on top."
+              aria-label="Move mask up"
+              disabled={li === 0}
+              onclick={(e) => {
+                e.stopPropagation();
+                void editor.reorderMaskLayer(layer.id, li - 1);
+              }}
+            >
+              <Icon path={mdiChevronUp} size={13} />
+            </button>
+            <button
+              type="button"
+              class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+              title="Move down. Masks further down the list are applied on top."
+              aria-label="Move mask down"
+              disabled={li === layers.length - 1}
+              onclick={(e) => {
+                e.stopPropagation();
+                void editor.reorderMaskLayer(layer.id, li + 1);
+              }}
+            >
+              <Icon path={mdiChevronDown} size={13} />
+            </button>
+          {/if}
           <button
             type="button"
             class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -783,7 +835,7 @@
                 class="opacity-50 shrink-0"
               />
               <span class="text-[11px] text-immich-dark-fg/70 truncate flex-1">
-                {comp.generated ? generatedLabel(comp.generated.kind) : kindLabel(comp.kind)}
+                {compLabels[i]}
               </span>
               {#if i === 0}
                 <span
@@ -838,6 +890,40 @@
                   <Icon path={mdiInvertColors} size={11} />
                   Invert
                 </button>
+                {#if active.components.length > 1}
+                  <div class="ml-auto flex items-center gap-1">
+                    {#if i > 0}
+                      <button
+                        type="button"
+                        class="px-1.5 py-0.5 rounded text-[10px] text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
+                        title="Start the mask from this shape"
+                        onclick={() => void editor.reorderMaskComponent(active.id, comp.id, 0)}
+                      >
+                        Make base
+                      </button>
+                    {/if}
+                    <button
+                      type="button"
+                      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                      title="Apply this shape earlier"
+                      aria-label="Move shape up"
+                      disabled={i === 0}
+                      onclick={() => void editor.reorderMaskComponent(active.id, comp.id, i - 1)}
+                    >
+                      <Icon path={mdiChevronUp} size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                      title="Apply this shape later"
+                      aria-label="Move shape down"
+                      disabled={i === active.components.length - 1}
+                      onclick={() => void editor.reorderMaskComponent(active.id, comp.id, i + 1)}
+                    >
+                      <Icon path={mdiChevronDown} size={12} />
+                    </button>
+                  </div>
+                {/if}
               </div>
             {/if}
           {/each}

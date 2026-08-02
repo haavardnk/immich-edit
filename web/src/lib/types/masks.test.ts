@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { visibleSceneClasses } from './masks';
+import { numberRepeats, visibleSceneClasses } from './masks';
 import type { MaskKind } from '$lib/api/masks';
 
 const CLASSES = [
@@ -17,5 +17,15 @@ describe('visibleSceneClasses', () => {
   ])('hides $kinds duplicates', ({ kinds, expected }) => {
     const available = kinds.map((kind) => ({ kind: kind as MaskKind }));
     expect(visibleSceneClasses(CLASSES, available).map((c) => c.id)).toEqual(expected);
+  });
+});
+
+describe('numberRepeats', () => {
+  it.each([
+    { labels: ['Brush', 'Sky', 'Brush'], expected: ['Brush 1', 'Sky', 'Brush 2'] },
+    { labels: ['Brush', 'Sky'], expected: ['Brush', 'Sky'] },
+    { labels: [], expected: [] }
+  ])('numbers only repeated labels', ({ labels, expected }) => {
+    expect(numberRepeats(labels)).toEqual(expected);
   });
 });
