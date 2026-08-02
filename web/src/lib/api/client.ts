@@ -88,17 +88,26 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
   }
 }
 
-export async function getJson<T>(
+export async function request(
   path: string,
   init?: RequestInit,
   opts?: { silent?: boolean }
-): Promise<T> {
+): Promise<Response> {
   const resp = await safeFetch(path, init);
   if (!resp.ok) {
     const err = await parseError(resp);
     if (!opts?.silent) reportError(err);
     throw err;
   }
+  return resp;
+}
+
+export async function getJson<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: { silent?: boolean }
+): Promise<T> {
+  const resp = await request(path, init, opts);
   return (await resp.json()) as T;
 }
 
@@ -109,20 +118,19 @@ export async function sendJson<T>(
   init?: RequestInit,
   opts?: { silent?: boolean }
 ): Promise<T> {
-  const resp = await safeFetch(path, {
-    ...init,
-    method,
-    headers: {
-      'content-type': 'application/json',
-      ...(init?.headers ?? {})
+  const resp = await request(
+    path,
+    {
+      ...init,
+      method,
+      headers: {
+        'content-type': 'application/json',
+        ...(init?.headers ?? {})
+      },
+      body: body === undefined ? undefined : JSON.stringify(body)
     },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-  if (!resp.ok) {
-    const err = await parseError(resp);
-    if (!opts?.silent) reportError(err);
-    throw err;
-  }
+    opts
+  );
   if (resp.status === 204) return undefined as T;
   return (await resp.json()) as T;
 }
@@ -132,16 +140,11 @@ export async function sendBytes<T>(path: string, bytes: Uint8Array): Promise<T> 
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength
   ) as ArrayBuffer;
-  const resp = await safeFetch(path, {
+  const resp = await request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/octet-stream' },
     body
   });
-  if (!resp.ok) {
-    const err = await parseError(resp);
-    reportError(err);
-    throw err;
-  }
   return (await resp.json()) as T;
 }
 
@@ -150,17 +153,12 @@ export async function postForBlob(
   body: unknown,
   signal?: AbortSignal
 ): Promise<{ blob: Blob; metaId: string | null }> {
-  const resp = await safeFetch(path, {
+  const resp = await request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
     signal
   });
-  if (!resp.ok) {
-    const err = await parseError(resp);
-    reportError(err);
-    throw err;
-  }
   const metaId = resp.headers.get('x-preview-meta-id');
   const blob = await resp.blob();
   return { blob, metaId };

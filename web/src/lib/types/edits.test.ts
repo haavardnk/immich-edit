@@ -181,6 +181,61 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(back.effects).toEqual(e.effects);
   });
 
+  it('preserves every flat op field', () => {
+    const e = neutralEdits();
+    e.basic.exposure_ev = 1.5;
+    e.basic.brightness = 11;
+    e.basic.contrast = 12;
+    e.basic.saturation = 13;
+    e.basic.vibrance = 14;
+    e.basic.texture = 15;
+    e.basic.clarity = 16;
+    e.basic.dehaze = 17;
+    e.basic.wb_temp = 18;
+    e.basic.wb_tint = 19;
+    e.tone.highlights = 21;
+    e.tone.shadows = 22;
+    e.tone.blacks = 23;
+    e.tone.whites = 24;
+    e.detail.sharpen_amount = 31;
+    e.detail.sharpen_radius = 3.2;
+    e.detail.sharpen_detail = 33;
+    e.detail.sharpen_masking = 34;
+    e.detail.luma_nr_amount = 35;
+    e.detail.luma_nr_detail = 36;
+    e.detail.luma_nr_contrast = 37;
+    e.detail.color_nr_amount = 38;
+    e.detail.color_nr_detail = 39;
+    e.detail.color_nr_smoothness = 40;
+    e.effects.vignette_amount = 41;
+    e.effects.vignette_midpoint = 42;
+    e.effects.vignette_feather = 43;
+    e.effects.vignette_roundness = 44;
+    e.effects.grain_amount = 45;
+    e.effects.grain_size = 46;
+    e.effects.grain_roughness = 47;
+    e.lens.profile_enabled = true;
+    e.lens.ca_enabled = true;
+    e.lens.constrain_crop = true;
+    e.lens.distortion_amount = 51;
+    e.lens.vignette_amount = 52;
+    e.lens.k1 = 53;
+    e.lens.k2 = 54;
+    e.lens.k3 = 55;
+    e.lens.vk1 = 56;
+    e.lens.vk2 = 57;
+    e.lens.vk3 = 58;
+    e.lens.ca_red_scale_x10000 = 59;
+    e.lens.ca_blue_scale_x10000 = 60;
+    const back = roundTrip(e);
+    expect(back.basic.curves).toEqual(e.basic.curves);
+    expect(back.tone).toEqual(e.tone);
+    expect(back.detail).toEqual(e.detail);
+    expect(back.effects).toEqual(e.effects);
+    expect(back.lens).toEqual(e.lens);
+    expect(back.basic).toEqual(e.basic);
+  });
+
   it('preserves a custom composite curve', () => {
     const e = neutralEdits();
     e.basic.curves.composite = [

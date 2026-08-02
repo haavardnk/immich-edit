@@ -1,3 +1,4 @@
+import { request, sendJson } from '$lib/api/client';
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 import { v4 as uuidv4 } from 'uuid';
@@ -56,28 +57,25 @@ export async function downloadExport(
   opts: ExportOptions
 ): Promise<Blob> {
   const base = `/api/assets/${assetId}/export`;
-  let resp: Response;
   if (isIdentity(edits)) {
-    resp = await fetch(base + queryString(opts), { credentials: 'same-origin' });
-  } else {
-    resp = await fetch(base, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        edits,
-        format: opts.format,
-        quality: opts.quality,
-        include_exif: opts.includeExif,
-        bit_depth: opts.bitDepth,
-        png_compression: opts.pngCompression,
-        tiff_compression: opts.tiffCompression,
-        lossless: opts.lossless,
-        color_space: opts.colorSpace
-      })
-    });
+    const resp = await request(base + queryString(opts));
+    return resp.blob();
   }
-  if (!resp.ok) throw new Error(`export failed: ${resp.status}`);
+  const resp = await request(base, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      edits,
+      format: opts.format,
+      quality: opts.quality,
+      include_exif: opts.includeExif,
+      bit_depth: opts.bitDepth,
+      png_compression: opts.pngCompression,
+      tiff_compression: opts.tiffCompression,
+      lossless: opts.lossless,
+      color_space: opts.colorSpace
+    })
+  });
   return resp.blob();
 }
 
@@ -105,14 +103,10 @@ export async function uploadToImmich(
   opts: ImmichExportOptions,
   idempotencyKey: string = uuidv4()
 ): Promise<ImmichExportResult> {
-  const resp = await fetch(`/api/assets/${assetId}/export/immich`, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'content-type': 'application/json',
-      'idempotency-key': idempotencyKey
-    },
-    body: JSON.stringify({
+  return sendJson<ImmichExportResult>(
+    'POST',
+    `/api/assets/${assetId}/export/immich`,
+    {
       edits,
       format: opts.format,
       quality: opts.quality,
@@ -128,17 +122,7 @@ export async function uploadToImmich(
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
       filename_suffix: opts.filenameSuffix
-    })
-  });
-  if (!resp.ok) {
-    let msg = `upload failed: ${resp.status}`;
-    try {
-      const body = await resp.json();
-      if (typeof body?.message === 'string') msg = body.message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return (await resp.json()) as ImmichExportResult;
+    },
+    { headers: { 'idempotency-key': idempotencyKey } }
+  );
 }

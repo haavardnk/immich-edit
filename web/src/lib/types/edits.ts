@@ -555,6 +555,268 @@ export function curvesEditsIsIdentity(c: CurvesEdits): boolean {
   );
 }
 
+type NumericKeys<T> = { [K in keyof T]: T[K] extends number ? K : never }[keyof T];
+
+interface NumField {
+  key: string;
+  get: (e: Edits) => number;
+  set: (e: Edits, v: number) => void;
+}
+
+interface BoolField {
+  key: string;
+  get: (e: Edits) => boolean;
+  set: (e: Edits, v: boolean) => void;
+}
+
+interface FlatOp {
+  id: string;
+  legacyId?: string;
+  nums: NumField[];
+  bools?: BoolField[];
+  active: (e: Edits) => boolean;
+  identity?: (e: Edits) => boolean;
+}
+
+function nf(key: string, get: (e: Edits) => number, set: (e: Edits, v: number) => void): NumField {
+  return { key, get, set };
+}
+
+function bf(
+  key: string,
+  get: (e: Edits) => boolean,
+  set: (e: Edits, v: boolean) => void
+): BoolField {
+  return { key, get, set };
+}
+
+function basicOp(id: string, key: string, field: NumericKeys<BasicEdits>): FlatOp {
+  return {
+    id,
+    nums: [
+      nf(
+        key,
+        (e) => e.basic[field],
+        (e, v) => {
+          e.basic[field] = v;
+        }
+      )
+    ],
+    active: (e) => e.basic[field] !== 0
+  };
+}
+
+function toneField(field: NumericKeys<ToneEdits>): NumField {
+  return nf(
+    field,
+    (e) => e.tone[field],
+    (e, v) => {
+      e.tone[field] = v;
+    }
+  );
+}
+
+function detailField(key: string, field: NumericKeys<DetailEdits>): NumField {
+  return nf(
+    key,
+    (e) => e.detail[field],
+    (e, v) => {
+      e.detail[field] = v;
+    }
+  );
+}
+
+function effectsField(key: string, field: NumericKeys<EffectsEdits>): NumField {
+  return nf(
+    key,
+    (e) => e.effects[field],
+    (e, v) => {
+      e.effects[field] = v;
+    }
+  );
+}
+
+function lensField(key: string, field: NumericKeys<LensEdits>): NumField {
+  return nf(
+    key,
+    (e) => e.lens[field],
+    (e, v) => {
+      e.lens[field] = v;
+    }
+  );
+}
+
+const FLAT_OPS: FlatOp[] = [
+  basicOp('exposure', 'ev', 'exposure_ev'),
+  basicOp('brightness', 'amount', 'brightness'),
+  basicOp('contrast', 'amount', 'contrast'),
+  basicOp('saturation', 'amount', 'saturation'),
+  basicOp('vibrance', 'amount', 'vibrance'),
+  basicOp('texture', 'amount', 'texture'),
+  basicOp('clarity', 'amount', 'clarity'),
+  basicOp('dehaze', 'amount', 'dehaze'),
+  {
+    id: 'white_balance',
+    nums: [
+      nf(
+        'temp',
+        (e) => e.basic.wb_temp,
+        (e, v) => {
+          e.basic.wb_temp = v;
+        }
+      ),
+      nf(
+        'tint',
+        (e) => e.basic.wb_tint,
+        (e, v) => {
+          e.basic.wb_tint = v;
+        }
+      )
+    ],
+    active: (e) => e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0
+  },
+  {
+    id: 'tone_regions',
+    legacyId: 'highlights_shadows',
+    nums: [
+      toneField('highlights'),
+      toneField('shadows'),
+      toneField('blacks'),
+      toneField('whites')
+    ],
+    active: (e) =>
+      e.tone.highlights !== 0 || e.tone.shadows !== 0 || e.tone.blacks !== 0 || e.tone.whites !== 0
+  },
+  {
+    id: 'sharpen',
+    nums: [
+      detailField('amount', 'sharpen_amount'),
+      detailField('radius', 'sharpen_radius'),
+      detailField('detail', 'sharpen_detail'),
+      detailField('masking', 'sharpen_masking')
+    ],
+    active: (e) => e.detail.sharpen_amount !== 0
+  },
+  {
+    id: 'luma_nr',
+    nums: [
+      detailField('amount', 'luma_nr_amount'),
+      detailField('detail', 'luma_nr_detail'),
+      detailField('contrast', 'luma_nr_contrast')
+    ],
+    active: (e) => e.detail.luma_nr_amount !== 0
+  },
+  {
+    id: 'color_nr',
+    nums: [
+      detailField('amount', 'color_nr_amount'),
+      detailField('detail', 'color_nr_detail'),
+      detailField('smoothness', 'color_nr_smoothness')
+    ],
+    active: (e) => e.detail.color_nr_amount !== 0
+  },
+  {
+    id: 'vignette',
+    nums: [
+      effectsField('amount', 'vignette_amount'),
+      effectsField('midpoint', 'vignette_midpoint'),
+      effectsField('feather', 'vignette_feather'),
+      effectsField('roundness', 'vignette_roundness')
+    ],
+    active: (e) => e.effects.vignette_amount !== 0
+  },
+  {
+    id: 'grain',
+    nums: [
+      effectsField('amount', 'grain_amount'),
+      effectsField('size', 'grain_size'),
+      effectsField('roughness', 'grain_roughness')
+    ],
+    active: (e) => e.effects.grain_amount !== 0
+  },
+  {
+    id: 'lens_profile',
+    nums: [
+      lensField('distortion_amount', 'distortion_amount'),
+      lensField('vignette_amount', 'vignette_amount'),
+      lensField('k1', 'k1'),
+      lensField('k2', 'k2'),
+      lensField('k3', 'k3'),
+      lensField('vk1', 'vk1'),
+      lensField('vk2', 'vk2'),
+      lensField('vk3', 'vk3'),
+      lensField('ca_red', 'ca_red_scale_x10000'),
+      lensField('ca_blue', 'ca_blue_scale_x10000')
+    ],
+    bools: [
+      bf(
+        'profile_enabled',
+        (e) => e.lens.profile_enabled,
+        (e, v) => {
+          e.lens.profile_enabled = v;
+        }
+      ),
+      bf(
+        'ca_enabled',
+        (e) => e.lens.ca_enabled,
+        (e, v) => {
+          e.lens.ca_enabled = v;
+        }
+      ),
+      bf(
+        'constrain_crop',
+        (e) => e.lens.constrain_crop,
+        (e, v) => {
+          e.lens.constrain_crop = v;
+        }
+      )
+    ],
+    active: (e) =>
+      e.lens.profile_enabled ||
+      e.lens.ca_enabled ||
+      e.lens.constrain_crop ||
+      e.lens.k1 !== 0 ||
+      e.lens.k2 !== 0 ||
+      e.lens.k3 !== 0 ||
+      e.lens.vk1 !== 0 ||
+      e.lens.vk2 !== 0 ||
+      e.lens.vk3 !== 0 ||
+      e.lens.ca_red_scale_x10000 !== 0 ||
+      e.lens.ca_blue_scale_x10000 !== 0,
+    identity: (e) => lensIsZero(e.lens)
+  }
+];
+
+function flatOpsAreIdentity(e: Edits): boolean {
+  return FLAT_OPS.every((op) => (op.identity ? op.identity(e) : !op.active(e)));
+}
+
+function encodeFlatOps(e: Edits, ops: Record<string, unknown>): void {
+  for (const op of FLAT_OPS) {
+    if (!op.active(e)) continue;
+    const obj: Record<string, number | boolean> = {};
+    for (const f of op.nums) obj[f.key] = f.get(e);
+    for (const f of op.bools ?? []) obj[f.key] = f.get(e);
+    ops[op.id] = obj;
+  }
+}
+
+function decodeFlatOps(ops: Record<string, unknown>, e: Edits): void {
+  for (const op of FLAT_OPS) {
+    const src = ops[op.id] ?? (op.legacyId ? ops[op.legacyId] : undefined);
+    if (!src || typeof src !== 'object') continue;
+    const raw = src as Record<string, unknown>;
+    for (const f of op.nums) {
+      const v = raw[f.key];
+      if (typeof v === 'number') f.set(e, v);
+    }
+    for (const f of op.bools ?? []) {
+      const v = raw[f.key];
+      if (typeof v === 'boolean') f.set(e, v);
+    }
+  }
+}
+
 export function isIdentity(e: Edits): boolean {
   return dcpIsDefault(e.color.dcp) &&
     isNonGeometryIdentity(e) &&
@@ -568,39 +830,18 @@ export function isIdentity(e: Edits): boolean {
 
 export function isNonGeometryIdentity(e: Edits): boolean {
   return (
-    e.basic.exposure_ev === 0 &&
-    e.basic.brightness === 0 &&
-    e.basic.contrast === 0 &&
-    e.basic.saturation === 0 &&
-    e.basic.vibrance === 0 &&
-    e.basic.wb_temp === 0 &&
-    e.basic.wb_tint === 0 &&
-    e.basic.texture === 0 &&
-    e.basic.clarity === 0 &&
-    e.basic.dehaze === 0 &&
+    flatOpsAreIdentity(e) &&
     curvesEditsIsIdentity(e.basic.curves) &&
-    e.tone.highlights === 0 &&
-    e.tone.shadows === 0 &&
-    e.tone.blacks === 0 &&
-    e.tone.whites === 0 &&
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
-    e.detail.sharpen_amount === 0 &&
-    e.detail.luma_nr_amount === 0 &&
-    e.detail.color_nr_amount === 0 &&
-    e.effects.vignette_amount === 0 &&
-    e.effects.grain_amount === 0 &&
-    lensIsZero(e.lens) &&
     e.masks.length === 0
   );
 }
 
 export function editsToManifest(e: Edits): EditManifest {
   const ops: Record<string, unknown> = {};
-  if (e.basic.exposure_ev !== 0) ops.exposure = { ev: e.basic.exposure_ev };
-  if (e.basic.brightness !== 0) ops.brightness = { amount: e.basic.brightness };
-  if (e.basic.contrast !== 0) ops.contrast = { amount: e.basic.contrast };
+  encodeFlatOps(e, ops);
   if (!curvesEditsIsIdentity(e.basic.curves)) {
     const obj: Record<string, [number, number][]> = {};
     const c = e.basic.curves;
@@ -611,20 +852,6 @@ export function editsToManifest(e: Edits): EditManifest {
     if (!curvesAreIdentity(c.luma)) obj.luma = c.luma.map((p) => [p.x, p.y]);
     ops.curves = obj;
   }
-  if (
-    e.tone.highlights !== 0 ||
-    e.tone.shadows !== 0 ||
-    e.tone.blacks !== 0 ||
-    e.tone.whites !== 0
-  )
-    ops.tone_regions = {
-      highlights: e.tone.highlights,
-      shadows: e.tone.shadows,
-      blacks: e.tone.blacks,
-      whites: e.tone.whites
-    };
-  if (e.basic.saturation !== 0) ops.saturation = { amount: e.basic.saturation };
-  if (e.basic.vibrance !== 0) ops.vibrance = { amount: e.basic.vibrance };
   if (!bandsAllZero(e.color.hsl.bands))
     ops.hsl = { bands: e.color.hsl.bands.map((b) => ({ hue: b.hue, sat: b.sat, lum: b.lum })) };
   if (!colorGradeIsZero(e.color.color_grade)) {
@@ -651,71 +878,6 @@ export function editsToManifest(e: Edits): EditManifest {
       use_look_table: e.color.dcp.use_look_table,
       use_baseline_exposure: e.color.dcp.use_baseline_exposure
     };
-  if (e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0)
-    ops.white_balance = { temp: e.basic.wb_temp, tint: e.basic.wb_tint };
-  if (e.basic.texture !== 0) ops.texture = { amount: e.basic.texture };
-  if (e.basic.clarity !== 0) ops.clarity = { amount: e.basic.clarity };
-  if (e.basic.dehaze !== 0) ops.dehaze = { amount: e.basic.dehaze };
-  if (e.detail.sharpen_amount !== 0)
-    ops.sharpen = {
-      amount: e.detail.sharpen_amount,
-      radius: e.detail.sharpen_radius,
-      detail: e.detail.sharpen_detail,
-      masking: e.detail.sharpen_masking
-    };
-  if (e.detail.luma_nr_amount !== 0)
-    ops.luma_nr = {
-      amount: e.detail.luma_nr_amount,
-      detail: e.detail.luma_nr_detail,
-      contrast: e.detail.luma_nr_contrast
-    };
-  if (e.detail.color_nr_amount !== 0)
-    ops.color_nr = {
-      amount: e.detail.color_nr_amount,
-      detail: e.detail.color_nr_detail,
-      smoothness: e.detail.color_nr_smoothness
-    };
-  if (e.effects.vignette_amount !== 0)
-    ops.vignette = {
-      amount: e.effects.vignette_amount,
-      midpoint: e.effects.vignette_midpoint,
-      feather: e.effects.vignette_feather,
-      roundness: e.effects.vignette_roundness
-    };
-  if (e.effects.grain_amount !== 0)
-    ops.grain = {
-      amount: e.effects.grain_amount,
-      size: e.effects.grain_size,
-      roughness: e.effects.grain_roughness
-    };
-  const lensActive =
-    e.lens.profile_enabled ||
-    e.lens.ca_enabled ||
-    e.lens.constrain_crop ||
-    e.lens.k1 !== 0 ||
-    e.lens.k2 !== 0 ||
-    e.lens.k3 !== 0 ||
-    e.lens.vk1 !== 0 ||
-    e.lens.vk2 !== 0 ||
-    e.lens.vk3 !== 0 ||
-    e.lens.ca_red_scale_x10000 !== 0 ||
-    e.lens.ca_blue_scale_x10000 !== 0;
-  if (lensActive)
-    ops.lens_profile = {
-      profile_enabled: e.lens.profile_enabled,
-      ca_enabled: e.lens.ca_enabled,
-      constrain_crop: e.lens.constrain_crop,
-      distortion_amount: e.lens.distortion_amount,
-      vignette_amount: e.lens.vignette_amount,
-      k1: e.lens.k1,
-      k2: e.lens.k2,
-      k3: e.lens.k3,
-      vk1: e.lens.vk1,
-      vk2: e.lens.vk2,
-      vk3: e.lens.vk3,
-      ca_red: e.lens.ca_red_scale_x10000,
-      ca_blue: e.lens.ca_blue_scale_x10000
-    };
   const cropActive = !isFullCrop(e.geometry.crop);
   const angleActive = Math.abs(e.geometry.rotate_angle) > 1e-4;
   const aspectActive = e.geometry.aspect.kind !== 'original';
@@ -740,12 +902,7 @@ export function editsToManifest(e: Edits): EditManifest {
 export function manifestToEdits(doc: EditManifest): Edits {
   const edits = neutralEdits();
   const ops = doc.ops ?? {};
-  const exposure = ops.exposure as { ev?: number } | undefined;
-  if (exposure?.ev !== undefined) edits.basic.exposure_ev = exposure.ev;
-  const brightness = ops.brightness as { amount?: number } | undefined;
-  if (brightness?.amount !== undefined) edits.basic.brightness = brightness.amount;
-  const contrast = ops.contrast as { amount?: number } | undefined;
-  if (contrast?.amount !== undefined) edits.basic.contrast = contrast.amount;
+  decodeFlatOps(ops, edits);
   const curves = ops.curves as
     | { points?: number[][]; composite?: number[][]; r?: number[][]; g?: number[][]; b?: number[][]; luma?: number[][] }
     | undefined;
@@ -770,17 +927,6 @@ export function manifestToEdits(doc: EditManifest): Edits {
       if (luma) edits.basic.curves.luma = luma;
     }
   }
-  const tr = (ops.tone_regions ?? ops.highlights_shadows) as
-    | { highlights?: number; shadows?: number; blacks?: number; whites?: number }
-    | undefined;
-  if (tr?.highlights !== undefined) edits.tone.highlights = tr.highlights;
-  if (tr?.shadows !== undefined) edits.tone.shadows = tr.shadows;
-  if (tr?.blacks !== undefined) edits.tone.blacks = tr.blacks;
-  if (tr?.whites !== undefined) edits.tone.whites = tr.whites;
-  const sat = ops.saturation as { amount?: number } | undefined;
-  if (sat?.amount !== undefined) edits.basic.saturation = sat.amount;
-  const vib = ops.vibrance as { amount?: number } | undefined;
-  if (vib?.amount !== undefined) edits.basic.vibrance = vib.amount;
   const hsl = ops.hsl as { bands?: HslBand[] } | undefined;
   if (hsl?.bands) {
     for (let i = 0; i < HSL_BANDS && i < hsl.bands.length; i++) {
@@ -827,79 +973,6 @@ export function manifestToEdits(doc: EditManifest): Edits {
     if (dcp.use_look_table !== undefined) edits.color.dcp.use_look_table = dcp.use_look_table;
     if (dcp.use_baseline_exposure !== undefined)
       edits.color.dcp.use_baseline_exposure = dcp.use_baseline_exposure;
-  }
-  const wb = ops.white_balance as { temp?: number; tint?: number } | undefined;
-  if (wb?.temp !== undefined) edits.basic.wb_temp = wb.temp;
-  if (wb?.tint !== undefined) edits.basic.wb_tint = wb.tint;
-  const tex = ops.texture as { amount?: number } | undefined;
-  if (tex?.amount !== undefined) edits.basic.texture = tex.amount;
-  const cla = ops.clarity as { amount?: number } | undefined;
-  if (cla?.amount !== undefined) edits.basic.clarity = cla.amount;
-  const dhz = ops.dehaze as { amount?: number } | undefined;
-  if (dhz?.amount !== undefined) edits.basic.dehaze = dhz.amount;
-  const sh = ops.sharpen as
-    | { amount?: number; radius?: number; detail?: number; masking?: number }
-    | undefined;
-  if (sh?.amount !== undefined) edits.detail.sharpen_amount = sh.amount;
-  if (sh?.radius !== undefined) edits.detail.sharpen_radius = sh.radius;
-  if (sh?.detail !== undefined) edits.detail.sharpen_detail = sh.detail;
-  if (sh?.masking !== undefined) edits.detail.sharpen_masking = sh.masking;
-  const lnr = ops.luma_nr as
-    | { amount?: number; detail?: number; contrast?: number }
-    | undefined;
-  if (lnr?.amount !== undefined) edits.detail.luma_nr_amount = lnr.amount;
-  if (lnr?.detail !== undefined) edits.detail.luma_nr_detail = lnr.detail;
-  if (lnr?.contrast !== undefined) edits.detail.luma_nr_contrast = lnr.contrast;
-  const cnr = ops.color_nr as
-    | { amount?: number; detail?: number; smoothness?: number }
-    | undefined;
-  if (cnr?.amount !== undefined) edits.detail.color_nr_amount = cnr.amount;
-  if (cnr?.detail !== undefined) edits.detail.color_nr_detail = cnr.detail;
-  if (cnr?.smoothness !== undefined) edits.detail.color_nr_smoothness = cnr.smoothness;
-  const vig = ops.vignette as
-    | { amount?: number; midpoint?: number; feather?: number; roundness?: number }
-    | undefined;
-  if (vig?.amount !== undefined) edits.effects.vignette_amount = vig.amount;
-  if (vig?.midpoint !== undefined) edits.effects.vignette_midpoint = vig.midpoint;
-  if (vig?.feather !== undefined) edits.effects.vignette_feather = vig.feather;
-  if (vig?.roundness !== undefined) edits.effects.vignette_roundness = vig.roundness;
-  const gr = ops.grain as
-    | { amount?: number; size?: number; roughness?: number }
-    | undefined;
-  if (gr?.amount !== undefined) edits.effects.grain_amount = gr.amount;
-  if (gr?.size !== undefined) edits.effects.grain_size = gr.size;
-  if (gr?.roughness !== undefined) edits.effects.grain_roughness = gr.roughness;
-  const lensProf = ops.lens_profile as
-    | {
-        profile_enabled?: boolean;
-        ca_enabled?: boolean;
-        constrain_crop?: boolean;
-        distortion_amount?: number;
-        vignette_amount?: number;
-        k1?: number;
-        k2?: number;
-        k3?: number;
-        vk1?: number;
-        vk2?: number;
-        vk3?: number;
-        ca_red?: number;
-        ca_blue?: number;
-      }
-    | undefined;
-  if (lensProf) {
-    if (lensProf.profile_enabled !== undefined) edits.lens.profile_enabled = lensProf.profile_enabled;
-    if (lensProf.ca_enabled !== undefined) edits.lens.ca_enabled = lensProf.ca_enabled;
-    if (lensProf.constrain_crop !== undefined) edits.lens.constrain_crop = lensProf.constrain_crop;
-    if (lensProf.distortion_amount !== undefined) edits.lens.distortion_amount = lensProf.distortion_amount;
-    if (lensProf.vignette_amount !== undefined) edits.lens.vignette_amount = lensProf.vignette_amount;
-    if (lensProf.k1 !== undefined) edits.lens.k1 = lensProf.k1;
-    if (lensProf.k2 !== undefined) edits.lens.k2 = lensProf.k2;
-    if (lensProf.k3 !== undefined) edits.lens.k3 = lensProf.k3;
-    if (lensProf.vk1 !== undefined) edits.lens.vk1 = lensProf.vk1;
-    if (lensProf.vk2 !== undefined) edits.lens.vk2 = lensProf.vk2;
-    if (lensProf.vk3 !== undefined) edits.lens.vk3 = lensProf.vk3;
-    if (lensProf.ca_red !== undefined) edits.lens.ca_red_scale_x10000 = lensProf.ca_red;
-    if (lensProf.ca_blue !== undefined) edits.lens.ca_blue_scale_x10000 = lensProf.ca_blue;
   }
   const transform = ops.transform as
     | { rotate?: number; flip_h?: boolean; flip_v?: boolean; angle?: number; crop?: CropRect; aspect?: AspectLock }
