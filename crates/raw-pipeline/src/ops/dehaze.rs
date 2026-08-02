@@ -14,7 +14,7 @@ impl Op for DehazeOp {
         Stage::Tone
     }
     fn order(&self) -> i32 {
-        -10
+        -35
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.dehaze != 0.0

@@ -660,6 +660,17 @@ fn registry_orders_by_stage() {
 }
 
 #[test]
+fn dehaze_runs_after_nr_and_before_presence() {
+    let reg = default_registry();
+    let ids: Vec<&str> = reg.ops().iter().map(|o| o.id()).collect();
+    let pos = |id: &str| ids.iter().position(|s| *s == id).unwrap();
+    assert!(pos("luma_nr") < pos("dehaze"));
+    assert!(pos("color_nr") < pos("dehaze"));
+    assert!(pos("dehaze") < pos("texture"));
+    assert!(pos("dehaze") < pos("clarity"));
+}
+
+#[test]
 fn registry_skips_inactive_ops() {
     let reg = default_registry();
     let edits = Edits::default();

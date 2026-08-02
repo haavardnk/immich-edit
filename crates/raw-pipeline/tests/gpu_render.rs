@@ -179,6 +179,37 @@ fn synthetic_frame(w: usize, h: usize) -> RawFrame {
     }
 }
 
+fn haze_frame(w: usize, h: usize) -> RawFrame {
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let fx = x as f32 / w as f32;
+            let fy = y as f32 / h as f32;
+            let base = 0.15 + 0.6 * fx;
+            let haze = 0.45 * (1.0 - fy);
+            data[i] = (base + haze).min(1.0);
+            data[i + 1] = (base * 0.9 + haze).min(1.0);
+            data[i + 2] = (base * 0.8 + haze * 1.1).min(1.0);
+        }
+    }
+    RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        model: String::new(),
+        exif: None,
+    }
+}
+
 fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
     let img: turbojpeg::Image<Vec<u8>> =
         turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
@@ -552,36 +583,7 @@ fn gpu_dehaze_matches_cpu() {
         max_edge: 128,
         ..Default::default()
     };
-    let w: usize = 96;
-    let h: usize = 64;
-    let mut data = vec![0.0f32; w * h * 3];
-    for y in 0..h {
-        for x in 0..w {
-            let i = (y * w + x) * 3;
-            let fx = x as f32 / w as f32;
-            let fy = y as f32 / h as f32;
-            let base = 0.15 + 0.6 * fx;
-            let haze = 0.45 * (1.0 - fy);
-            data[i] = (base + haze).min(1.0);
-            data[i + 1] = (base * 0.9 + haze).min(1.0);
-            data[i + 2] = (base * 0.8 + haze * 1.1).min(1.0);
-        }
-    }
-    let frame = RawFrame {
-        width: w,
-        height: h,
-        cfa_pattern: String::new(),
-        bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
-        data,
-        cpp: 3,
-        orientation: (false, false, false),
-        is_raw: false,
-        model: String::new(),
-        exif: None,
-    };
+    let frame = haze_frame(96, 64);
     let mut edits = Edits::default();
     edits.basic.dehaze = 60.0;
 
@@ -595,6 +597,32 @@ fn gpu_dehaze_matches_cpu() {
     eprintln!("dehaze mean abs delta = {delta:.3}");
     if delta > 10.0 {
         panic!("dehaze GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_dehaze_with_presence_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 128,
+        ..Default::default()
+    };
+    let frame = haze_frame(96, 64);
+    let mut edits = Edits::default();
+    edits.basic.dehaze = 60.0;
+    edits.basic.clarity = 80.0;
+    edits.basic.texture = 80.0;
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("dehaze+presence mean abs delta = {delta:.3}");
+    if delta > 1.2 {
+        panic!("dehaze+presence GPU/CPU mean abs delta too high: {delta:.3}");
     }
 }
 
