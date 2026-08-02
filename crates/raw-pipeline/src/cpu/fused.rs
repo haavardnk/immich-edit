@@ -58,10 +58,8 @@ pub enum CpuFusedOp {
     Presence {
         texture: f32,
         clarity: f32,
-        dehaze: f32,
         texture_blur: Option<Arc<Vec<f32>>>,
         clarity_blur: Option<Arc<Vec<f32>>>,
-        dehaze_blur: Option<Arc<Vec<f32>>>,
     },
     DcpHueSat {
         map: Arc<crate::dcp::HueSatMap>,
@@ -197,18 +195,14 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
         CpuFusedOp::Presence {
             texture,
             clarity,
-            dehaze,
             texture_blur,
             clarity_blur,
-            dehaze_blur,
         } => presence::apply_presence(
             presence::PresenceParams {
                 texture: *texture,
                 clarity: *clarity,
-                dehaze: *dehaze,
                 texture_blur: texture_blur.as_ref(),
                 clarity_blur: clarity_blur.as_ref(),
-                dehaze_blur: dehaze_blur.as_ref(),
             },
             i,
             r,

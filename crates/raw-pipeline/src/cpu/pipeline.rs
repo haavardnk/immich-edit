@@ -344,16 +344,12 @@ fn run_pipeline_ops_inner(
                     needs(|a| a.texture).then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih)));
                 let clarity_blur =
                     needs(|a| a.clarity).then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih)));
-                let dehaze_blur =
-                    needs(|a| a.dehaze).then(|| Arc::new(pyramid.upsample(mips.dehaze, iw, ih)));
                 drop(pyramid);
                 let make_op = |a: &crate::presence::PresenceAmounts| CpuFusedOp::Presence {
                     texture: a.texture,
                     clarity: a.clarity,
-                    dehaze: a.dehaze,
                     texture_blur: texture_blur.clone(),
                     clarity_blur: clarity_blur.clone(),
-                    dehaze_blur: dehaze_blur.clone(),
                 };
                 if !amounts.is_zero() {
                     segment.push(make_op(&amounts));

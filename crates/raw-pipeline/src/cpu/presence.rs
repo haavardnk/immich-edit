@@ -45,11 +45,7 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
                 let gate = smoothstep(0.015, 0.12, ratio.abs());
                 log_gain += amounts.clarity * mt * gate * ratio;
             }
-            let mut new_y = y0 * log_gain.exp2();
-            if amounts.dehaze != 0.0 {
-                let b = pyramid.sample(mips.dehaze, fx, fy);
-                new_y += amounts.dehaze * (y0 - b);
-            }
+            let new_y = y0 * log_gain.exp2();
             let goal = new_y.max(0.0);
             if y0 <= 1e-5 {
                 px[0] = goal;

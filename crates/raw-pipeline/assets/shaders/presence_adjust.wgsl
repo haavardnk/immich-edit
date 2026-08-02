@@ -58,12 +58,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let gate = smoothstep(0.015, 0.12, abs(ratio));
         log_gain = log_gain + p.amounts.y * mt * gate * ratio;
     }
-    var new_y = y0 * exp2(log_gain);
-    if (p.amounts.z != 0.0) {
-        let b = sampled_luma(p.mips.z, fx, fy);
-        new_y = new_y + p.amounts.z * (y0 - b);
-    }
-
+    let new_y = y0 * exp2(log_gain);
     let goal = max(new_y, 0.0);
     var scale: f32 = 1.0;
     if (y0 > 1e-5) { scale = goal / y0; }

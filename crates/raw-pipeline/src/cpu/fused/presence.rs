@@ -48,10 +48,8 @@ pub fn apply_white_balance(
 pub struct PresenceParams<'a> {
     pub texture: f32,
     pub clarity: f32,
-    pub dehaze: f32,
     pub texture_blur: Option<&'a Arc<Vec<f32>>>,
     pub clarity_blur: Option<&'a Arc<Vec<f32>>>,
-    pub dehaze_blur: Option<&'a Arc<Vec<f32>>>,
 }
 
 #[inline(always)]
@@ -70,10 +68,7 @@ pub fn apply_presence(p: PresenceParams<'_>, i: usize, r: &mut f32, g: &mut f32,
         let gate = smoothstep(0.015, 0.12, ratio.abs());
         log_gain += p.clarity * mt * gate * ratio;
     }
-    let mut new_y = y0 * log_gain.exp2();
-    if let Some(buf) = p.dehaze_blur {
-        new_y += p.dehaze * (y0 - buf[i]);
-    }
+    let new_y = y0 * log_gain.exp2();
     let goal = new_y.max(0.0);
     if y0 <= 1e-5 {
         *r = goal;

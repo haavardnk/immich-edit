@@ -761,9 +761,9 @@ impl GpuRenderer {
         });
 
         let amts = presence_amounts(&edits);
-        let amounts: [f32; 4] = [amts.texture, amts.clarity, amts.dehaze, 0.0];
+        let amounts: [f32; 4] = [amts.texture, amts.clarity, 0.0, 0.0];
         let mip_sel = presence_mips(w, h, radii);
-        let mips: [u32; 4] = [mip_sel.texture, mip_sel.clarity, mip_sel.dehaze, 0];
+        let mips: [u32; 4] = [mip_sel.texture, mip_sel.clarity, 0, 0];
 
         let mut uniform_bytes = vec![0u8; PRESENCE_UNIFORM_SIZE as usize];
         uniform_bytes[0..4].copy_from_slice(&w.to_le_bytes());
