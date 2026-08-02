@@ -52,7 +52,16 @@
   let maskKinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
   let semanticClasses = $state<SemanticClass[]>([]);
   let segmentEnabled = $state(false);
-  let modelsRequested = $state(false);
+  let modelsFailed = $state(false);
+  const aiUnavailable = $derived(
+    modelsFailed
+      ? 'Could not reach the server to check for AI models.'
+      : !segmentEnabled
+        ? 'AI masks are turned off on this server. An administrator can enable the segmentation runtime.'
+        : maskKinds.length === 0
+          ? 'No AI mask models are available on this server.'
+          : null
+  );
   const clickInstalled = $derived(
     maskKinds.some((entry) => entry.kind === 'click' && entry.installed)
   );
@@ -96,10 +105,9 @@
   );
 
   $effect(() => {
-    if (modelsRequested) return;
-    modelsRequested = true;
     listMaskModels()
       .then((m) => {
+        modelsFailed = false;
         segmentEnabled = m.enabled;
         semanticClasses = m.semantic_classes ?? [];
         maskKinds = m.enabled
@@ -110,6 +118,7 @@
           : [];
       })
       .catch(() => {
+        modelsFailed = true;
         segmentEnabled = false;
         maskKinds = [];
         semanticClasses = [];
@@ -469,6 +478,7 @@
             <MaskToolPicker
               aiKinds={maskKinds}
               semanticClasses={semanticClasses}
+              {aiUnavailable}
               busy={editor.maskGenerating}
               onManual={(tool) => void pickLayerManual(tool)}
               onAi={(kind, installed, cls) => void pickLayerAi(kind, installed, cls)}
@@ -480,6 +490,34 @@
       </div>
     </div>
   </div>
+
+  {#if editor.maskError}
+    <div
+      class="mx-1 px-2 py-1.5 rounded bg-red-500/10 border border-red-500/25 flex items-start gap-2"
+      role="alert"
+    >
+      <div class="flex-1 text-[11px] text-red-200/90 leading-snug">
+        Could not build that mask. {editor.maskError}
+      </div>
+      <div class="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          class="px-1.5 py-0.5 rounded text-[11px] text-red-100 bg-red-500/20 hover:bg-red-500/30 transition-colors disabled:opacity-40"
+          disabled={editor.maskGenerating}
+          onclick={() => void editor.retryMask()}
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          class="px-1.5 py-0.5 rounded text-[11px] text-red-100/70 hover:bg-red-500/20 transition-colors"
+          onclick={editor.dismissMaskError}
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  {/if}
 
   {#if layers.length === 0}
     <div class="px-3 py-5 flex flex-col items-center gap-2 text-center">
@@ -689,6 +727,7 @@
               <MaskToolPicker
                 aiKinds={maskKinds}
                 semanticClasses={semanticClasses}
+                {aiUnavailable}
                 busy={editor.maskGenerating}
                 onManual={(tool) => void pickShapeManual(tool)}
                 onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}

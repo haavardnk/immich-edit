@@ -91,6 +91,8 @@ class EditorStore {
   activeLayerId = $state<string | null>(null);
   activeMaskComponentId = $state<string | null>(null);
   maskGenerating = $state(false);
+  maskError = $state<string | null>(null);
+  private maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
   maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
@@ -912,6 +914,24 @@ class EditorStore {
     return layer.id;
   };
 
+  private failMask = (e: unknown, retry: () => Promise<unknown>): void => {
+    this.maskError = (e as Error).message;
+    this.maskRetry = retry;
+  };
+
+  retryMask = async (): Promise<void> => {
+    const retry = this.maskRetry;
+    if (!retry) return;
+    this.maskError = null;
+    this.maskRetry = null;
+    await retry();
+  };
+
+  dismissMaskError = (): void => {
+    this.maskError = null;
+    this.maskRetry = null;
+  };
+
   addGeneratedComponent = async (
     layerId: string,
     kind: MaskKind,
@@ -926,6 +946,7 @@ class EditorStore {
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return null;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await generateMask(assetId, kind, 0, 0, maskClass);
       const comp: MaskComponent = {
@@ -947,7 +968,7 @@ class EditorStore {
       await this.onCommit('Masks');
       return comp.id;
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () => this.addGeneratedComponent(layerId, kind, mode, maskClass, invert));
       return null;
     } finally {
       this.maskGenerating = false;
@@ -965,6 +986,7 @@ class EditorStore {
     const cap = maskCapacity(this.edits, null);
     if (cap.layersFull || cap.totalFull) return null;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await generateMask(assetId, kind, 0, 0, maskClass);
       const layer = makeGeneratedLayer(
@@ -989,7 +1011,7 @@ class EditorStore {
       await this.onCommit('Masks');
       return layer.id;
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () => this.addGeneratedLayer(kind, maskClass, invert));
       return null;
     } finally {
       this.maskGenerating = false;
@@ -1008,6 +1030,7 @@ class EditorStore {
     const comp = layer?.components.find((c) => c.id === componentId);
     if (!assetId || !comp?.generated || this.maskGenerating) return;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather, range);
       await this.ensureBrushBuffer(componentId, res.raster_id);
@@ -1028,7 +1051,9 @@ class EditorStore {
       );
       await this.onCommit('Masks');
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () =>
+        this.rebakeGeneratedComponent(layerId, componentId, grow, feather, range)
+      );
     } finally {
       this.maskGenerating = false;
     }
@@ -1047,6 +1072,7 @@ class EditorStore {
     const grow = comp.generated.grow;
     const feather = comp.generated.feather;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await clickMask(assetId, points, grow, feather);
       await this.ensureBrushBuffer(componentId, res.raster_id);
@@ -1067,7 +1093,7 @@ class EditorStore {
       );
       await this.onCommit('Masks');
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () => this.clickRefineComponent(layerId, componentId, points));
     } finally {
       this.maskGenerating = false;
     }
@@ -1079,6 +1105,7 @@ class EditorStore {
     const cap = maskCapacity(this.edits, null);
     if (cap.layersFull || cap.totalFull) return null;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
       const layer = makeGeneratedLayer(
@@ -1102,7 +1129,7 @@ class EditorStore {
       await this.onCommit('Masks');
       return layer.id;
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () => this.addClickLayer(points, bbox));
       return null;
     } finally {
       this.maskGenerating = false;
@@ -1139,6 +1166,7 @@ class EditorStore {
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return null;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
       const comp: MaskComponent = {
@@ -1159,7 +1187,7 @@ class EditorStore {
       await this.onCommit('Masks');
       return comp.id;
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () => this.addClickComponent(layerId, points, mode, bbox));
       return null;
     } finally {
       this.maskGenerating = false;
@@ -1181,6 +1209,7 @@ class EditorStore {
     const grow = comp.generated?.grow ?? 0;
     const feather = comp.generated?.feather ?? 0;
     this.maskGenerating = true;
+    this.maskError = null;
     try {
       const res = await clickMask(
         assetId,
@@ -1211,7 +1240,9 @@ class EditorStore {
       );
       await this.onCommit('Masks');
     } catch (e) {
-      this.error = (e as Error).message;
+      this.failMask(e, () =>
+        this.clickRefineRaster(layerId, componentId, points, subtract, bbox)
+      );
     } finally {
       this.maskGenerating = false;
     }

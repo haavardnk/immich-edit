@@ -21,6 +21,7 @@
   let {
     aiKinds,
     semanticClasses = [],
+    aiUnavailable = null,
     busy = false,
     onManual,
     onAi,
@@ -29,6 +30,7 @@
   }: {
     aiKinds: { kind: MaskKind; installed: boolean }[];
     semanticClasses?: SemanticClass[];
+    aiUnavailable?: string | null;
     busy?: boolean;
     onManual: (tool: ManualTool) => void;
     onAi: (kind: MaskKind, installed: boolean, maskClass?: string) => void;
@@ -178,6 +180,14 @@
         {/each}
       {/if}
     {/each}
+    <div class="my-1 border-t border-white/10"></div>
+  {:else if aiUnavailable}
+    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
+      AI
+    </div>
+    <div class="px-3 pb-2 text-[10px] text-immich-dark-fg/40 leading-snug">
+      {aiUnavailable}
+    </div>
     <div class="my-1 border-t border-white/10"></div>
   {/if}
   <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
