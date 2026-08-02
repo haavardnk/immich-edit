@@ -196,7 +196,7 @@
     addLayerOpen = false;
     if (kind === 'click') {
       editor.setActiveMaskComponent(null);
-      editor.clickTool = { active: true, negative: false, layerId: null, mode: 'add' };
+      editor.clickTool = { active: true, negative: false, box: false, layerId: null, mode: 'add' };
       toasts.push('info', 'Click the photo to build a mask. Shift-click removes areas.');
       return;
     }
@@ -245,7 +245,34 @@
       return;
     }
     editor.setActiveMaskComponent(null);
-    editor.clickTool = { active: true, negative: false, layerId: active.id, mode: pendingMode };
+    editor.clickTool = {
+      active: true,
+      negative: false,
+      box: false,
+      layerId: active.id,
+      mode: pendingMode
+    };
+  }
+
+  function armLayerBox(): void {
+    addLayerOpen = false;
+    editor.setActiveMaskComponent(null);
+    editor.clickTool = { active: true, negative: false, box: true, layerId: null, mode: 'add' };
+    toasts.push('info', 'Drag a box around the subject.');
+  }
+
+  function armShapeBox(): void {
+    if (!active) return;
+    addComponentOpen = false;
+    editor.setActiveMaskComponent(null);
+    editor.clickTool = {
+      active: true,
+      negative: false,
+      box: true,
+      layerId: active.id,
+      mode: pendingMode
+    };
+    toasts.push('info', 'Drag a box around the subject.');
   }
 
   async function addGeneratedComp(kind: MaskKind, maskClass?: string): Promise<void> {
@@ -331,11 +358,11 @@
 
   function setRefine(negative: boolean): void {
     if (!active) return;
-    editor.clickTool = { active: true, negative, layerId: active.id, mode: 'add' };
+    editor.clickTool = { active: true, negative, box: false, layerId: active.id, mode: 'add' };
   }
 
   function stopRefine(): void {
-    editor.clickTool = { active: false, negative: false, layerId: null, mode: 'add' };
+    editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
   }
 
   $effect(() => {
@@ -409,6 +436,7 @@
               busy={editor.maskGenerating}
               onManual={(tool) => void pickLayerManual(tool)}
               onAi={(kind, installed, cls) => void pickLayerAi(kind, installed, cls)}
+              onBox={armLayerBox}
             />
           </div>
         {/if}
@@ -622,6 +650,7 @@
               busy={editor.maskGenerating}
               onManual={(tool) => void pickShapeManual(tool)}
               onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
+              onBox={armShapeBox}
             />
           </div>
         {/if}

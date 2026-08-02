@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
-use segment::{BakeParams, ClickPoint, ModelKind, RangeWindow};
+use segment::{BakeParams, BoxPrompt, ClickPoint, ModelKind, RangeWindow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -15,6 +15,7 @@ use crate::state::AppState;
 
 const MAX_REFINE_PX: f32 = 128.0;
 const MAX_POINTS: usize = 32;
+const MIN_BOX: f32 = 0.005;
 
 #[derive(Debug, Deserialize)]
 pub struct ClickPointBody {
@@ -30,7 +31,10 @@ fn default_true() -> bool {
 
 #[derive(Debug, Deserialize)]
 pub struct ClickRequest {
+    #[serde(default)]
     pub points: Vec<ClickPointBody>,
+    #[serde(default)]
+    pub bbox: Option<BoxBody>,
     #[serde(default)]
     pub grow: f32,
     #[serde(default)]
@@ -39,6 +43,35 @@ pub struct ClickRequest {
     pub base_raster_id: Option<String>,
     #[serde(default)]
     pub subtract: bool,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct BoxBody {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+}
+
+fn scene_box(b: &BoxBody) -> Result<BoxBody, AppError> {
+    let unit = [b.x0, b.y0, b.x1, b.y1]
+        .iter()
+        .all(|v| (0.0..=1.0).contains(v));
+    if !unit {
+        return Err(AppError::BadRequest(
+            "box coordinates must be within 0..1".into(),
+        ));
+    }
+    let out = BoxBody {
+        x0: b.x0.min(b.x1),
+        y0: b.y0.min(b.y1),
+        x1: b.x0.max(b.x1),
+        y1: b.y0.max(b.y1),
+    };
+    if out.x1 - out.x0 < MIN_BOX || out.y1 - out.y0 < MIN_BOX {
+        return Err(AppError::BadRequest("box is too small".into()));
+    }
+    Ok(out)
 }
 
 fn combine_coverage(base: &[u8], patch: &[u8], subtract: bool) -> Vec<u8> {
@@ -311,7 +344,7 @@ pub async fn click(
             "segmentation is disabled on this server".into(),
         ));
     }
-    if req.points.is_empty() {
+    if req.points.is_empty() && req.bbox.is_none() {
         return Err(AppError::BadRequest("no points given".into()));
     }
     if req.points.len() > MAX_POINTS {
@@ -330,6 +363,10 @@ pub async fn click(
         ));
     }
     let params = bake_params(req.grow, req.feather, None)?;
+    let bbox = match req.bbox {
+        Some(b) => Some(scene_box(&b)?),
+        None => None,
+    };
 
     let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
     let base = match &req.base_raster_id {
@@ -358,6 +395,13 @@ pub async fn click(
         })
         .collect();
 
+    let bbox = bbox.map(|b| BoxPrompt {
+        x0: b.x0 * width as f32,
+        y0: b.y0 * height as f32,
+        x1: b.x1 * width as f32,
+        y1: b.y1 * height as f32,
+    });
+
     let key = EmbeddingKey {
         server_epoch: ctx.server_epoch,
         owner: ctx.owner,
@@ -367,7 +411,7 @@ pub async fn click(
     };
     let result = state
         .segment
-        .click(key, rgb8.clone(), points, params)
+        .click(key, rgb8.clone(), points, bbox, params)
         .await
         .map_err(map_segment_err)?;
 

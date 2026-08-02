@@ -8,6 +8,7 @@
     mdiPalette,
     mdiAutoFix,
     mdiCursorDefaultClick,
+    mdiSelectDrag,
     mdiChevronDown,
     mdiChevronUp,
     mdiDownloadOutline
@@ -20,13 +21,15 @@
     semanticClasses = [],
     busy = false,
     onManual,
-    onAi
+    onAi,
+    onBox
   }: {
     aiKinds: { kind: MaskKind; installed: boolean }[];
     semanticClasses?: SemanticClass[];
     busy?: boolean;
     onManual: (tool: ManualTool) => void;
     onAi: (kind: MaskKind, installed: boolean, maskClass?: string) => void;
+    onBox: () => void;
   } = $props();
 
   let semanticOpen = $state(false);
@@ -119,6 +122,22 @@
           <Icon path={semanticOpen ? mdiChevronUp : mdiChevronDown} size={13} class="mt-0.5 shrink-0" />
         {/if}
       </button>
+      {#if entry.kind === 'click' && entry.installed}
+        <button
+          type="button"
+          class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10"
+          aria-label="Box select"
+          onclick={onBox}
+        >
+          <Icon path={mdiSelectDrag} size={14} class="mt-0.5 shrink-0 opacity-70" />
+          <span class="flex-1 min-w-0">
+            <span class="block text-xs truncate">Box select</span>
+            <span class="block text-[10px] text-immich-dark-fg/40 truncate">
+              Drag a box around a subject
+            </span>
+          </span>
+        </button>
+      {/if}
       {#if entry.kind === 'semantic' && entry.installed && semanticOpen}
         {#each sceneClasses as cls (cls.id)}
           <button

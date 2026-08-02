@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use segment::runtime::SessionConfig;
-use segment::{ClickPoint, RuntimeMode, SamDecoder, SamEncoder};
+use segment::{BoxPrompt, ClickPoint, RuntimeMode, SamDecoder, SamEncoder};
 
 fn fixture(name: &str) -> Option<PathBuf> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -65,6 +65,28 @@ fn round_trip(encoder_name: &str, decoder_name: &str, tensors: usize) {
     let corner = mask.values[0];
     assert!(centre > 0.5, "{encoder_name} centre {centre}");
     assert!(corner < 0.5, "{encoder_name} corner {corner}");
+
+    let r = width.min(height) as f32 / 4.0;
+    let boxed = decoder
+        .decode_with(
+            &embedding,
+            &[],
+            Some(BoxPrompt {
+                x0: width as f32 / 2.0 - r,
+                y0: height as f32 / 2.0 - r,
+                x1: width as f32 / 2.0 + r,
+                y1: height as f32 / 2.0 + r,
+            }),
+        )
+        .unwrap();
+    assert_eq!(
+        (boxed.width, boxed.height),
+        (width as usize, height as usize)
+    );
+    let centre = boxed.values[(height as usize / 2) * width as usize + width as usize / 2];
+    let corner = boxed.values[0];
+    assert!(centre > 0.5, "{encoder_name} box centre {centre}");
+    assert!(corner < 0.5, "{encoder_name} box corner {corner}");
 }
 
 #[test]

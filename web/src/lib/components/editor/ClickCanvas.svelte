@@ -23,6 +23,23 @@
   let rectY = $state(0);
   let rectW = $state(0);
   let rectH = $state(0);
+  let boxStart = $state<[number, number] | null>(null);
+  let boxNow = $state<[number, number] | null>(null);
+
+  const MIN_DRAG_PX = 6;
+
+  function onKeyDown(e: KeyboardEvent): void {
+    if (e.key !== 'Escape' || !editor.clickTool.box) return;
+    e.preventDefault();
+    boxStart = null;
+    boxNow = null;
+    editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
+  }
+
+  $effect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   function recompute(): void {
     if (!img) return;
@@ -99,12 +116,31 @@
   const show = $derived(
     editor.clickTool.active && editor.maskPreviewLayerId === null && rectW > 0 && rectH > 0
   );
+  const dragRect = $derived(
+    boxStart && boxNow
+      ? {
+          left: Math.min(boxStart[0], boxNow[0]),
+          top: Math.min(boxStart[1], boxNow[1]),
+          width: Math.abs(boxNow[0] - boxStart[0]),
+          height: Math.abs(boxNow[1] - boxStart[1])
+        }
+      : null
+  );
+
+  function sceneUvFromDisplay(du: number, dv: number): [number, number] {
+    return maskUvToSceneUv(lensP, displayUvToMaskUv(geomT, [du, dv]));
+  }
 
   function sceneUvAt(e: PointerEvent): [number, number] {
     const rect = (e.currentTarget as Element).getBoundingClientRect();
     const du = (e.clientX - rect.left) / Math.max(1, rect.width);
     const dv = (e.clientY - rect.top) / Math.max(1, rect.height);
-    return maskUvToSceneUv(lensP, displayUvToMaskUv(geomT, [du, dv]));
+    return sceneUvFromDisplay(du, dv);
+  }
+
+  function localPx(e: PointerEvent): [number, number] {
+    const rect = (e.currentTarget as Element).getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
   }
 
   function markerPos(x: number, y: number): { left: number; top: number } | null {
@@ -132,10 +168,50 @@
   async function onPointerDown(e: PointerEvent): Promise<void> {
     if (editor.maskGenerating) return;
     e.preventDefault();
+    if (editor.clickTool.box) {
+      boxStart = localPx(e);
+      boxNow = boxStart;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
     const [x, y] = sceneUvAt(e);
     if (x < 0 || y < 0 || x > 1 || y > 1) return;
     const positive = !(e.button === 2 || e.shiftKey || editor.clickTool.negative);
     await editor.addClickPoint(x, y, positive);
+  }
+
+  function onPointerMove(e: PointerEvent): void {
+    if (!boxStart) return;
+    boxNow = localPx(e);
+  }
+
+  async function onPointerUp(e: PointerEvent): Promise<void> {
+    if (!boxStart || !boxNow) return;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    const [ax, ay] = boxStart;
+    const [bx, by] = boxNow;
+    boxStart = null;
+    boxNow = null;
+    if (Math.abs(bx - ax) < MIN_DRAG_PX || Math.abs(by - ay) < MIN_DRAG_PX) return;
+    const corners: [number, number][] = [
+      [ax, ay],
+      [bx, ay],
+      [ax, by],
+      [bx, by]
+    ];
+    const scene = corners.map(([px, py]) =>
+      sceneUvFromDisplay(px / Math.max(1, rectW), py / Math.max(1, rectH))
+    );
+    const xs = scene.map((s) => s[0]);
+    const ys = scene.map((s) => s[1]);
+    const bbox = {
+      x0: Math.max(0, Math.min(...xs)),
+      y0: Math.max(0, Math.min(...ys)),
+      x1: Math.min(1, Math.max(...xs)),
+      y1: Math.min(1, Math.max(...ys))
+    };
+    if (bbox.x1 - bbox.x0 < 0.005 || bbox.y1 - bbox.y0 < 0.005) return;
+    await editor.addClickBox(bbox);
   }
 </script>
 
@@ -144,13 +220,29 @@
     class="absolute"
     role="button"
     tabindex="-1"
-    aria-label="Click to refine the mask"
+    aria-label={editor.clickTool.box ? 'Drag a box around the subject' : 'Click to refine the mask'}
     style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px; touch-action: none; cursor: {editor.maskGenerating
       ? 'wait'
       : 'crosshair'};"
     onpointerdown={onPointerDown}
+    onpointermove={onPointerMove}
+    onpointerup={onPointerUp}
+    onpointercancel={onPointerUp}
     oncontextmenu={(e) => e.preventDefault()}
   >
+    {#if dragRect}
+      <div
+        class="pointer-events-none absolute border-2 border-immich-primary bg-immich-primary/15"
+        style="left: {dragRect.left}px; top: {dragRect.top}px; width: {dragRect.width}px; height: {dragRect.height}px;"
+      ></div>
+    {/if}
+    {#if editor.clickTool.box && !dragRect}
+      <div
+        class="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-black/70 px-2.5 py-1 text-[11px] text-white shadow"
+      >
+        Drag a box around the subject · Esc cancels
+      </div>
+    {/if}
     {#each points as p, i (i)}
       {@const pos = markerPos(p.x, p.y)}
       {#if pos}

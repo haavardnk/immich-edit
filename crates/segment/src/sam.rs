@@ -10,12 +10,22 @@ pub const SAM_EDGE: usize = 1024;
 const SAM_MEAN: [f32; 3] = [123.675, 116.28, 103.53];
 const SAM_STD: [f32; 3] = [58.395, 57.12, 57.375];
 const LOW_RES: usize = 256;
+const BOX_TOP_LEFT: f32 = 2.0;
+const BOX_BOTTOM_RIGHT: f32 = 3.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClickPoint {
     pub x: f32,
     pub y: f32,
     pub positive: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BoxPrompt {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -142,15 +152,33 @@ impl SamDecoder {
         embedding: &Embedding,
         points: &[ClickPoint],
     ) -> Result<Mask, SegmentError> {
-        if points.is_empty() {
+        self.decode_with(embedding, points, None)
+    }
+
+    pub fn decode_with(
+        &mut self,
+        embedding: &Embedding,
+        points: &[ClickPoint],
+        bbox: Option<BoxPrompt>,
+    ) -> Result<Mask, SegmentError> {
+        if points.is_empty() && bbox.is_none() {
             return Err(SegmentError::Input("no points given".into()));
         }
-        let mut coords: Vec<f32> = Vec::with_capacity(points.len() * 2);
-        let mut labels: Vec<f32> = Vec::with_capacity(points.len());
+        let prompts = points.len() + if bbox.is_some() { 2 } else { 0 };
+        let mut coords: Vec<f32> = Vec::with_capacity(prompts * 2);
+        let mut labels: Vec<f32> = Vec::with_capacity(prompts);
         for p in points {
             coords.push(p.x * embedding.scale);
             coords.push(p.y * embedding.scale);
             labels.push(if p.positive { 1.0 } else { 0.0 });
+        }
+        if let Some(b) = bbox {
+            coords.push(b.x0.min(b.x1) * embedding.scale);
+            coords.push(b.y0.min(b.y1) * embedding.scale);
+            labels.push(BOX_TOP_LEFT);
+            coords.push(b.x0.max(b.x1) * embedding.scale);
+            coords.push(b.y0.max(b.y1) * embedding.scale);
+            labels.push(BOX_BOTTOM_RIGHT);
         }
         let mask_input = vec![0f32; LOW_RES * LOW_RES];
         let has_mask = vec![0f32; 1];
@@ -170,10 +198,10 @@ impl SamDecoder {
         for name in &names {
             let value = match name.as_str() {
                 "point_coords" => {
-                    TensorRef::from_array_view((vec![1usize, points.len(), 2], coords.as_slice()))
+                    TensorRef::from_array_view((vec![1usize, prompts, 2], coords.as_slice()))
                 }
                 "point_labels" => {
-                    TensorRef::from_array_view((vec![1usize, points.len()], labels.as_slice()))
+                    TensorRef::from_array_view((vec![1usize, prompts], labels.as_slice()))
                 }
                 "mask_input" => TensorRef::from_array_view((
                     vec![1usize, 1, LOW_RES, LOW_RES],

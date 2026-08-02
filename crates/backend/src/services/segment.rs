@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use segment::model::Activation;
 use segment::runtime::SessionConfig;
 use segment::{
-    BakeParams, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter, bake,
-    catalog,
+    BakeParams, BoxPrompt, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter,
+    bake, catalog,
 };
 use tokio::sync::{Mutex, Semaphore};
 
@@ -255,12 +255,13 @@ impl SegmentService {
         key: EmbeddingKey,
         rgb8: Vec<u8>,
         points: Vec<ClickPoint>,
+        bbox: Option<BoxPrompt>,
         params: BakeParams,
     ) -> Result<MaskResult, SegmentServiceError> {
         if !self.enabled() {
             return Err(SegmentServiceError::Disabled);
         }
-        if points.is_empty() {
+        if points.is_empty() && bbox.is_none() {
             return Err(SegmentServiceError::Inference("no points given".into()));
         }
         let catalog_id = self.resolve(ModelKind::Click).await?;
@@ -318,7 +319,7 @@ impl SegmentService {
             };
             let mask = loaded
                 .decoder
-                .decode(&embedding, &points)
+                .decode_with(&embedding, &points, bbox)
                 .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
             loaded.used_at = Instant::now();
             let backend = loaded.decoder.backend().as_str();

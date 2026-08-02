@@ -18,6 +18,7 @@ import {
   generateMask,
   rebakeMask,
   type ClickPoint,
+  type MaskBox,
   type MaskKind,
   type MaskRange
 } from '$lib/api/masks';
@@ -103,11 +104,13 @@ class EditorStore {
   clickTool = $state<{
     active: boolean;
     negative: boolean;
+    box: boolean;
     layerId: string | null;
     mode: MaskComponentMode;
   }>({
     active: false,
     negative: false,
+    box: false,
     layerId: null,
     mode: 'add'
   });
@@ -1007,14 +1010,14 @@ class EditorStore {
     }
   };
 
-  addClickLayer = async (points: ClickPoint[]): Promise<string | null> => {
+  addClickLayer = async (points: ClickPoint[], bbox?: MaskBox): Promise<string | null> => {
     const assetId = this.assetId;
-    if (!assetId || this.maskGenerating || points.length === 0) return null;
+    if (!assetId || this.maskGenerating || (points.length === 0 && !bbox)) return null;
     const cap = maskCapacity(this.edits, null);
     if (cap.layersFull || cap.totalFull) return null;
     this.maskGenerating = true;
     try {
-      const res = await clickMask(assetId, points);
+      const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
       const layer = makeGeneratedLayer(
         nextLayerName(this.edits.masks),
         this.edits.masks.length,
@@ -1046,17 +1049,18 @@ class EditorStore {
   addClickComponent = async (
     layerId: string,
     points: ClickPoint[],
-    mode: MaskComponentMode = 'add'
+    mode: MaskComponentMode = 'add',
+    bbox?: MaskBox
   ): Promise<string | null> => {
     const assetId = this.assetId;
-    if (!assetId || this.maskGenerating || points.length === 0) return null;
+    if (!assetId || this.maskGenerating || (points.length === 0 && !bbox)) return null;
     const cap = maskCapacity(this.edits, layerId);
     if (cap.componentsFull || cap.totalFull) return null;
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return null;
     this.maskGenerating = true;
     try {
-      const res = await clickMask(assetId, points);
+      const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
       const comp: MaskComponent = {
         ...makeComponent({ kind: 'brush', raster_id: res.raster_id }, mode),
         source: 'generated',
@@ -1085,8 +1089,9 @@ class EditorStore {
   clickRefineRaster = async (
     layerId: string,
     componentId: string,
-    point: ClickPoint,
-    subtract: boolean
+    points: ClickPoint[],
+    subtract: boolean,
+    bbox?: MaskBox
   ): Promise<void> => {
     const assetId = this.assetId;
     const layer = this.edits.masks.find((l) => l.id === layerId);
@@ -1097,7 +1102,15 @@ class EditorStore {
     const feather = comp.generated?.feather ?? 0;
     this.maskGenerating = true;
     try {
-      const res = await clickMask(assetId, [{ ...point, positive: true }], grow, feather, base, subtract);
+      const res = await clickMask(
+        assetId,
+        points.map((p) => ({ ...p, positive: true })),
+        grow,
+        feather,
+        base,
+        subtract,
+        bbox
+      );
       await this.ensureBrushBuffer(componentId, res.raster_id);
       this.patchMaskComponent(
         layerId,
@@ -1137,7 +1150,7 @@ class EditorStore {
       return;
     }
     if (layer && comp && comp.kind.kind === 'brush') {
-      await this.clickRefineRaster(layer.id, comp.id, point, !positive);
+      await this.clickRefineRaster(layer.id, comp.id, [point], !positive);
       return;
     }
     if (!positive) return;
@@ -1147,6 +1160,24 @@ class EditorStore {
       return;
     }
     await this.addClickLayer([point]);
+  };
+
+  addClickBox = async (bbox: MaskBox): Promise<void> => {
+    if (this.maskGenerating) return;
+    const layer = this.activeLayerId
+      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      : null;
+    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
+    if (layer && comp && comp.kind.kind === 'brush') {
+      await this.clickRefineRaster(layer.id, comp.id, [], this.clickTool.negative, bbox);
+      return;
+    }
+    const target = this.clickTool.layerId;
+    if (target && this.edits.masks.some((l) => l.id === target)) {
+      await this.addClickComponent(target, [], this.clickTool.mode, bbox);
+      return;
+    }
+    await this.addClickLayer([], bbox);
   };
 
   addBrushComponent = async (

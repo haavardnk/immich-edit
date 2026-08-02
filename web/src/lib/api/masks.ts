@@ -73,20 +73,29 @@ export interface ClickPoint {
   positive: boolean;
 }
 
+export interface MaskBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
 export function clickMask(
   assetId: string,
   points: ClickPoint[],
   grow = 0,
   feather = 0,
   baseRasterId?: string,
-  subtract = false
+  subtract = false,
+  bbox?: MaskBox
 ): Promise<GeneratedMask> {
   return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/click`, {
     points,
     grow,
     feather,
     base_raster_id: baseRasterId ?? null,
-    subtract
+    subtract,
+    bbox: bbox ?? null
   });
 }
 
