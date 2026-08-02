@@ -5,7 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { listEditHistory, restoreEdits, type EditHistoryEntry } from '$lib/api/edits';
   import { manifestToEdits } from '$lib/types/edits';
-  import { historyDetails, historyLabel } from '$lib/util/history';
+  import { historyDetails, historyLabel } from '$lib/utils/history';
 
   let open = $state(false);
   let entries = $state<EditHistoryEntry[]>([]);

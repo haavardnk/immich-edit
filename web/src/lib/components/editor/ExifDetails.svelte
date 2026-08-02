@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { exifDetailRows } from '$lib/util/exif';
+  import { exifDetailRows } from '$lib/utils/exif';
 
   const rows = $derived(exifDetailRows(editor.asset?.exifInfo ?? null));
 </script>
