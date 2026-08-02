@@ -249,12 +249,21 @@
     {#each points as p, i (i)}
       {@const pos = markerPos(p.x, p.y)}
       {#if pos}
-        <span
-          class="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+        <button
+          type="button"
+          class="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow transition hover:scale-125 hover:ring-2 hover:ring-white/60 disabled:cursor-wait"
           class:bg-emerald-500={p.positive}
           class:bg-red-500={!p.positive}
           style="left: {pos.left}px; top: {pos.top}px;"
-        ></span>
+          title="Remove this point"
+          aria-label="Remove this point"
+          disabled={editor.maskGenerating}
+          onpointerdown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            void editor.removeClickPoint(i);
+          }}
+        ></button>
       {/if}
     {/each}
   </div>

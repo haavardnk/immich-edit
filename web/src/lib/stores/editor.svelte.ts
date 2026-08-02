@@ -1046,6 +1046,23 @@ class EditorStore {
     }
   };
 
+  removeClickPoint = async (index: number): Promise<void> => {
+    if (this.maskGenerating) return;
+    const layer = this.activeLayerId
+      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      : null;
+    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
+    if (!layer || !comp || comp.generated?.kind !== 'click') return;
+    const points = comp.generated.points ?? [];
+    if (index < 0 || index >= points.length) return;
+    const next = points.filter((_, i) => i !== index);
+    if (next.length === 0) {
+      await this.removeMaskComponent(layer.id, comp.id);
+      return;
+    }
+    await this.clickRefineComponent(layer.id, comp.id, next);
+  };
+
   addClickComponent = async (
     layerId: string,
     points: ClickPoint[],

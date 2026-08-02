@@ -197,7 +197,10 @@
     if (kind === 'click') {
       editor.setActiveMaskComponent(null);
       editor.clickTool = { active: true, negative: false, box: false, layerId: null, mode: 'add' };
-      toasts.push('info', 'Click the photo to build a mask. Shift-click removes areas.');
+      toasts.push(
+        'info',
+        'Click the photo to build a mask. Shift-click excludes an area, and clicking a dot deletes it.'
+      );
       return;
     }
     await editor.addGeneratedLayer(kind, maskClass);
