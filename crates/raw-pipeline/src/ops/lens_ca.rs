@@ -1,13 +1,13 @@
 use super::LinearImage;
 use super::sample::sample_channel_bicubic;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensCaOp;
 
-impl OpMeta for LensCaOp {
+impl Op for LensCaOp {
     fn id(&self) -> &'static str {
         "lens_ca"
     }
@@ -23,9 +23,6 @@ impl OpMeta for LensCaOp {
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
         None
     }
-}
-
-impl SpatialOp for LensCaOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

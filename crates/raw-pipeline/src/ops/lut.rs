@@ -1,9 +1,9 @@
-use super::{Edits, LinearImage, OpContext, OpMeta, OutputStageOp, Stage};
+use super::{Edits, LinearImage, Op, OpContext, Stage};
 use crate::PipelineResult;
 
 pub struct Lut3dOp;
 
-impl OpMeta for Lut3dOp {
+impl Op for Lut3dOp {
     fn id(&self) -> &'static str {
         "lut_3d"
     }
@@ -34,9 +34,6 @@ impl OpMeta for Lut3dOp {
             edits.color.lut_3d.amount = amount;
         }
     }
-}
-
-impl OutputStageOp for Lut3dOp {
     fn apply_cpu(
         &self,
         _image: &mut LinearImage,

@@ -16,6 +16,7 @@ pub mod gpu;
 pub mod histogram;
 pub mod lut;
 pub mod mask_raster;
+pub mod math;
 pub mod ops;
 pub mod presence;
 pub mod tone;

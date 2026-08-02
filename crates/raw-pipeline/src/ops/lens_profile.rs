@@ -1,11 +1,11 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::Edits;
 
 pub struct LensProfileOp;
 
-impl OpMeta for LensProfileOp {
+impl Op for LensProfileOp {
     fn id(&self) -> &'static str {
         "lens_profile"
     }
@@ -92,9 +92,6 @@ impl OpMeta for LensProfileOp {
             l.ca_blue_scale_x10000 = v;
         }
     }
-}
-
-impl SpatialOp for LensProfileOp {
     fn apply_cpu(
         &self,
         _image: &mut LinearImage,

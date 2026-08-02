@@ -1,12 +1,12 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::dehaze::apply_dehaze;
 use crate::edits::Edits;
 
 pub struct DehazeOp;
 
-impl OpMeta for DehazeOp {
+impl Op for DehazeOp {
     fn id(&self) -> &'static str {
         "dehaze"
     }
@@ -30,9 +30,6 @@ impl OpMeta for DehazeOp {
             edits.basic.dehaze = v;
         }
     }
-}
-
-impl SpatialOp for DehazeOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

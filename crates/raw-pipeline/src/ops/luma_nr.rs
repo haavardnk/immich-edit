@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
+use super::{GpuOpKind, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -11,7 +11,7 @@ const KB: f32 = 0.0722;
 
 pub struct LumaNrOp;
 
-impl OpMeta for LumaNrOp {
+impl Op for LumaNrOp {
     fn id(&self) -> &'static str {
         "luma_nr"
     }
@@ -47,9 +47,6 @@ impl OpMeta for LumaNrOp {
             d.luma_nr_contrast = v;
         }
     }
-}
-
-impl SpatialOp for LumaNrOp {
     fn gpu_kind(&self) -> GpuOpKind {
         GpuOpKind::Detail
     }

@@ -1,7 +1,6 @@
 use crate::edits::HSL_BANDS;
 use crate::ops::LinearImage;
 use crate::ops::curves::{CurveLuts, apply_curves_pixel};
-use crate::tone::shared::{HL_RECONSTRUCT_BIAS, HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE};
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -90,45 +89,17 @@ impl FusedSegment {
     }
 }
 
+pub mod color_grade;
+pub mod hsl;
+pub mod presence;
+
 #[inline(always)]
 pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
     match op {
         CpuFusedOp::WhiteBalance {
             coeffs,
             reconstruct,
-        } => {
-            let pr = *r;
-            let pg = *g;
-            let pb = *b;
-            let mut wr = pr * coeffs[0];
-            let mut wg = pg * coeffs[1];
-            let mut wb = pb * coeffs[2];
-            if *reconstruct {
-                let cr = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pr);
-                let cg = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pg);
-                let cb = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pb);
-                if cr.max(cg).max(cb) > 0.0 {
-                    let ur = 1.0 - cr;
-                    let ug = 1.0 - cg;
-                    let ub = 1.0 - cb;
-                    let wmax = wr.max(wg).max(wb);
-                    let target = (ur * wr + ug * wg + ub * wb + HL_RECONSTRUCT_BIAS * wmax)
-                        / (ur + ug + ub + HL_RECONSTRUCT_BIAS);
-                    if wr < target {
-                        wr += (target - wr) * cr;
-                    }
-                    if wg < target {
-                        wg += (target - wg) * cg;
-                    }
-                    if wb < target {
-                        wb += (target - wb) * cb;
-                    }
-                }
-            }
-            *r = wr;
-            *g = wg;
-            *b = wb;
-        }
+        } => presence::apply_white_balance(coeffs, *reconstruct, r, g, b),
         CpuFusedOp::ColorMatrix { m } => {
             let nr = m[0][0] * *r + m[0][1] * *g + m[0][2] * *b;
             let ng = m[1][0] * *r + m[1][1] * *g + m[1][2] * *b;
@@ -189,39 +160,12 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *g = ng;
             *b = nb;
         }
-        CpuFusedOp::Curves { luts } => {
-            apply_curves_pixel(luts.as_ref(), r, g, b);
-        }
+        CpuFusedOp::Curves { luts } => apply_curves_pixel(luts.as_ref(), r, g, b),
         CpuFusedOp::Hsl {
             hue_shifts,
             sat_gains,
             lum_gains,
-        } => {
-            let (h, s, l) = rgb_to_hsl(r.clamp(0.0, 2.0), g.clamp(0.0, 2.0), b.clamp(0.0, 2.0));
-            if s < 1e-4 {
-                return;
-            }
-            let w = band_weights(h);
-            let gate = smoothstep(0.05, 0.20, s);
-            let mut hue_delta = 0.0f32;
-            let mut sat_delta = 0.0f32;
-            let mut lum_delta = 0.0f32;
-            for i in 0..HSL_BANDS {
-                hue_delta += hue_shifts[i] * w[i];
-                sat_delta += sat_gains[i] * w[i];
-                lum_delta += lum_gains[i] * w[i];
-            }
-            hue_delta *= gate;
-            sat_delta *= gate;
-            lum_delta *= gate;
-            let new_h = h + hue_delta;
-            let new_s = (s * (1.0 + sat_delta)).clamp(0.0, 1.0);
-            let new_l = (l + lum_delta * 0.3).clamp(0.0, 1.0);
-            let (nr, ng, nb) = hsl_to_rgb(new_h, new_s, new_l);
-            *r = nr;
-            *g = ng;
-            *b = nb;
-        }
+        } => hsl::apply_hsl(hue_shifts, sat_gains, lum_gains, r, g, b),
         CpuFusedOp::ColorGrade {
             s_off,
             s_lum,
@@ -233,18 +177,23 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             g_lum,
             balance,
             blend,
-        } => {
-            const STRENGTH: f32 = 0.5;
-            let y = (0.2126 * *r + 0.7152 * *g + 0.0722 * *b).clamp(0.0, 1.0);
-            let (ws, wm, wh) = cg_weights(y, *balance, *blend);
-            let or = (ws * s_off[0] + wm * m_off[0] + wh * h_off[0] + g_off[0]) * STRENGTH;
-            let og = (ws * s_off[1] + wm * m_off[1] + wh * h_off[1] + g_off[1]) * STRENGTH;
-            let ob = (ws * s_off[2] + wm * m_off[2] + wh * h_off[2] + g_off[2]) * STRENGTH;
-            let lum = (ws * *s_lum + wm * *m_lum + wh * *h_lum + *g_lum) * STRENGTH;
-            *r = (*r + or + lum).max(0.0);
-            *g = (*g + og + lum).max(0.0);
-            *b = (*b + ob + lum).max(0.0);
-        }
+        } => color_grade::apply_color_grade(
+            color_grade::ColorGradeParams {
+                s_off,
+                s_lum: *s_lum,
+                m_off,
+                m_lum: *m_lum,
+                h_off,
+                h_lum: *h_lum,
+                g_off,
+                g_lum: *g_lum,
+                balance: *balance,
+                blend: *blend,
+            },
+            r,
+            g,
+            b,
+        ),
         CpuFusedOp::Presence {
             texture,
             clarity,
@@ -252,37 +201,20 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             texture_blur,
             clarity_blur,
             dehaze_blur,
-        } => {
-            let y0 = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
-            let y0c = y0.max(1e-5);
-            let mut log_gain = 0.0f32;
-            if let Some(buf) = texture_blur {
-                log_gain += *texture * (y0c / buf[i].max(1e-5)).log2();
-            }
-            if let Some(buf) = clarity_blur {
-                let mt = smoothstep(0.0, 0.1, y0)
-                    * (1.0 - smoothstep(0.9, 1.0, y0))
-                    * (1.0 - (2.0 * y0 - 1.0).abs()).max(0.0);
-                let ratio = (y0c / buf[i].max(1e-5)).log2();
-                let gate = smoothstep(0.015, 0.12, ratio.abs());
-                log_gain += *clarity * mt * gate * ratio;
-            }
-            let mut new_y = y0 * log_gain.exp2();
-            if let Some(buf) = dehaze_blur {
-                new_y += *dehaze * (y0 - buf[i]);
-            }
-            let goal = new_y.max(0.0);
-            if y0 <= 1e-5 {
-                *r = goal;
-                *g = goal;
-                *b = goal;
-            } else {
-                let scale = goal / y0;
-                *r = (*r * scale).max(0.0);
-                *g = (*g * scale).max(0.0);
-                *b = (*b * scale).max(0.0);
-            }
-        }
+        } => presence::apply_presence(
+            presence::PresenceParams {
+                texture: *texture,
+                clarity: *clarity,
+                dehaze: *dehaze,
+                texture_blur: texture_blur.as_ref(),
+                clarity_blur: clarity_blur.as_ref(),
+                dehaze_blur: dehaze_blur.as_ref(),
+            },
+            i,
+            r,
+            g,
+            b,
+        ),
         CpuFusedOp::DcpHueSat {
             map,
             to_pp,
@@ -294,116 +226,6 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *b = out[2];
         }
     }
-}
-
-const BAND_CENTERS_DEG: [f32; HSL_BANDS] = [0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0];
-const BAND_SIGMA_DEG: f32 = 25.0;
-
-#[inline(always)]
-fn rgb_to_hsl(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-    let max = r.max(g).max(b);
-    let min = r.min(g).min(b);
-    let l = (max + min) * 0.5;
-    let d = max - min;
-    if d < 1e-6 {
-        return (0.0, 0.0, l);
-    }
-    let s = if l > 0.5 {
-        d / (2.0 - max - min)
-    } else {
-        d / (max + min)
-    };
-    let mut h = if max == r {
-        (g - b) / d + if g < b { 6.0 } else { 0.0 }
-    } else if max == g {
-        (b - r) / d + 2.0
-    } else {
-        (r - g) / d + 4.0
-    };
-    h *= 60.0;
-    (h, s, l)
-}
-
-#[inline(always)]
-fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
-    if t < 0.0 {
-        t += 1.0;
-    }
-    if t > 1.0 {
-        t -= 1.0;
-    }
-    if t < 1.0 / 6.0 {
-        return p + (q - p) * 6.0 * t;
-    }
-    if t < 0.5 {
-        return q;
-    }
-    if t < 2.0 / 3.0 {
-        return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
-    }
-    p
-}
-
-#[inline(always)]
-fn hsl_to_rgb(h_deg: f32, s: f32, l: f32) -> (f32, f32, f32) {
-    if s <= 0.0 {
-        return (l, l, l);
-    }
-    let h = (h_deg.rem_euclid(360.0)) / 360.0;
-    let q = if l < 0.5 {
-        l * (1.0 + s)
-    } else {
-        l + s - l * s
-    };
-    let p = 2.0 * l - q;
-    (
-        hue_to_rgb(p, q, h + 1.0 / 3.0),
-        hue_to_rgb(p, q, h),
-        hue_to_rgb(p, q, h - 1.0 / 3.0),
-    )
-}
-
-#[inline(always)]
-fn hue_dist(a: f32, b: f32) -> f32 {
-    let d = (a - b).rem_euclid(360.0);
-    d.min(360.0 - d)
-}
-
-#[inline(always)]
-fn band_weights(h_deg: f32) -> [f32; HSL_BANDS] {
-    let mut w = [0.0f32; HSL_BANDS];
-    let sigma2 = BAND_SIGMA_DEG * BAND_SIGMA_DEG;
-    for i in 0..HSL_BANDS {
-        let d = hue_dist(h_deg, BAND_CENTERS_DEG[i]);
-        w[i] = (-(d * d) / (2.0 * sigma2)).exp();
-    }
-    let sum: f32 = w.iter().sum();
-    if sum > 1.0 {
-        for v in &mut w {
-            *v /= sum;
-        }
-    }
-    w
-}
-
-#[inline(always)]
-fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
-    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-#[inline(always)]
-fn cg_weights(y: f32, balance: f32, blend: f32) -> (f32, f32, f32) {
-    let pivot = 0.5 + 0.3 * balance;
-    let feather = 0.15 + 0.25 * blend;
-    let s_hi = (pivot + feather * 0.5).clamp(0.001, 0.999);
-    let s_lo = (pivot - feather - feather * 0.5).clamp(0.0, s_hi - 0.001);
-    let h_lo = (pivot - feather * 0.5).clamp(0.001, 0.999);
-    let h_hi = (pivot + feather + feather * 0.5).clamp(h_lo + 0.001, 1.0);
-    let shadow = 1.0 - smoothstep(s_lo, s_hi, y);
-    let highlight = smoothstep(h_lo, h_hi, y);
-    let mid = (1.0 - shadow - highlight).max(0.0);
-    (shadow, mid, highlight)
 }
 
 pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
@@ -438,7 +260,7 @@ pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
 mod tests {
     use crate::color::identity_3x3;
     use crate::edits::Edits;
-    use crate::ops::FusedOp;
+    use crate::ops::Op;
     use crate::ops::{OpContext, OpScratch, RenderContext, color_matrix};
 
     #[test]

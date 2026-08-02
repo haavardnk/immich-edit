@@ -1,5 +1,6 @@
 use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
+use crate::math::smoothstep;
 use crate::ops::LinearImage;
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
@@ -61,10 +62,4 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
                 px[2] = (px[2] * scale).max(0.0);
             }
         });
-}
-
-#[inline(always)]
-fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
-    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
 }

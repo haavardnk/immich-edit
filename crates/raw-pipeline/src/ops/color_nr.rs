@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
+use super::{GpuOpKind, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -13,7 +13,7 @@ const PR_DEN: f32 = 1.5748;
 
 pub struct ColorNrOp;
 
-impl OpMeta for ColorNrOp {
+impl Op for ColorNrOp {
     fn id(&self) -> &'static str {
         "color_nr"
     }
@@ -49,9 +49,6 @@ impl OpMeta for ColorNrOp {
             d.color_nr_smoothness = v;
         }
     }
-}
-
-impl SpatialOp for ColorNrOp {
     fn gpu_kind(&self) -> GpuOpKind {
         GpuOpKind::Detail
     }

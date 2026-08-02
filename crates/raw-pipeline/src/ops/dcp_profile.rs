@@ -1,4 +1,4 @@
-use super::{FusedOp, OpContext, OpMeta, Stage};
+use super::{Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
@@ -6,7 +6,7 @@ pub const DCP_PROFILE_OP_ID: &str = "dcp_hue_sat";
 
 pub struct DcpProfileOp;
 
-impl OpMeta for DcpProfileOp {
+impl Op for DcpProfileOp {
     fn id(&self) -> &'static str {
         DCP_PROFILE_OP_ID
     }
@@ -31,9 +31,6 @@ impl OpMeta for DcpProfileOp {
             edits.color.dcp = dcp;
         }
     }
-}
-
-impl FusedOp for DcpProfileOp {
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         let dcp = ctx.render.dcp.as_ref()?;
         let map = dcp.base_table.as_ref()?;

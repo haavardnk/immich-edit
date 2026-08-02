@@ -1,13 +1,13 @@
 use super::LinearImage;
 use super::sample::sample_rgb_bicubic;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensDistortionOp;
 
-impl OpMeta for LensDistortionOp {
+impl Op for LensDistortionOp {
     fn id(&self) -> &'static str {
         "lens_distortion"
     }
@@ -23,9 +23,6 @@ impl OpMeta for LensDistortionOp {
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
         None
     }
-}
-
-impl SpatialOp for LensDistortionOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

@@ -1,4 +1,4 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
 
@@ -124,7 +124,7 @@ pub fn apply_curves_pixel(luts: &CurveLuts, r: &mut f32, g: &mut f32, b: &mut f3
     }
 }
 
-impl OpMeta for CurvesOp {
+impl Op for CurvesOp {
     fn id(&self) -> &'static str {
         "curves"
     }
@@ -181,9 +181,6 @@ impl OpMeta for CurvesOp {
         read("b", &mut edits.basic.curves.b);
         read("luma", &mut edits.basic.curves.luma);
     }
-}
-
-impl FusedOp for CurvesOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         Some(CpuFusedOp::Curves {
             luts: Box::new(CurveLuts::from_edits(&edits.basic.curves)),

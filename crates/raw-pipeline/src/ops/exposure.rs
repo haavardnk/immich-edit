@@ -1,10 +1,10 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct ExposureOp;
 
-impl OpMeta for ExposureOp {
+impl Op for ExposureOp {
     fn id(&self) -> &'static str {
         "exposure"
     }
@@ -28,9 +28,6 @@ impl OpMeta for ExposureOp {
             edits.basic.exposure_ev = v;
         }
     }
-}
-
-impl FusedOp for ExposureOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let factor = 2.0f32.powf(edits.basic.exposure_ev as f32);
         Some(CpuFusedOp::Exposure { factor })

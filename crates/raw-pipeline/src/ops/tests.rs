@@ -43,11 +43,6 @@ fn exposure_doubles_at_one_ev() {
 }
 
 #[test]
-fn exposure_inactive_when_zero() {
-    assert!(!exposure::ExposureOp.is_active(&Edits::default()));
-}
-
-#[test]
 fn brightness_zero_is_identity() {
     let mut img = solid_image(2, 2, [0.3, 0.6, 0.2]);
     let edits = Edits::default();
@@ -623,12 +618,6 @@ fn white_balance_temp_warms() {
 }
 
 #[test]
-fn user_wb_inactive_at_zero() {
-    let edits = Edits::default();
-    assert!(!user_wb::UserWbOp.is_active(&edits));
-}
-
-#[test]
 fn user_wb_cool_shifts_blue() {
     let mut img = solid_image(1, 1, [0.4, 0.5, 0.6]);
     let edits = Edits {
@@ -759,11 +748,6 @@ fn color_grade_global_lum_brightens() {
 }
 
 #[test]
-fn texture_inactive_when_zero() {
-    assert!(!texture::TextureOp.is_active(&Edits::default()));
-}
-
-#[test]
 fn texture_positive_amplifies_detail() {
     let w: usize = 256;
     let h: usize = 128;
@@ -817,11 +801,6 @@ fn texture_positive_amplifies_detail() {
         neg_spread < base_spread * 0.9,
         "texture -100 should reduce mid-frequency: base={base_spread} neg={neg_spread}"
     );
-}
-
-#[test]
-fn clarity_inactive_when_zero() {
-    assert!(!clarity::ClarityOp.is_active(&Edits::default()));
 }
 
 #[test]
@@ -911,11 +890,6 @@ fn clarity_protects_clipped_highlights_and_crushed_shadows() {
             panic!("clarity moved protected patch v={v}: max_d={max_d}");
         }
     }
-}
-
-#[test]
-fn dehaze_inactive_when_zero() {
-    assert!(!dehaze::DehazeOp.is_active(&Edits::default()));
 }
 
 #[test]
@@ -1020,11 +994,6 @@ fn dehaze_negative_pushes_toward_atmosphere() {
             img.rgb[i]
         );
     }
-}
-
-#[test]
-fn sharpen_inactive_when_amount_zero() {
-    assert!(!sharpen::SharpenOp.is_active(&Edits::default()));
 }
 
 #[test]
@@ -1142,5 +1111,24 @@ fn highlights_neg_desaturates_clipped_color() {
             "clipped specular not desaturated: r={} g={} b={}",
             img.rgb[0], img.rgb[1], img.rgb[2]
         );
+    }
+}
+
+#[test]
+fn ops_inactive_on_default_edits() {
+    let ops: Vec<Box<dyn Op>> = vec![
+        Box::new(exposure::ExposureOp),
+        Box::new(brightness::BrightnessOp),
+        Box::new(user_wb::UserWbOp),
+        Box::new(texture::TextureOp),
+        Box::new(clarity::ClarityOp),
+        Box::new(dehaze::DehazeOp),
+        Box::new(sharpen::SharpenOp),
+    ];
+    let edits = Edits::default();
+    for op in ops {
+        if op.is_active(&edits) {
+            panic!("{} active on default edits", op.id());
+        }
     }
 }

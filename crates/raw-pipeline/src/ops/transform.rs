@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 
 use super::LinearImage;
-use super::{GpuOp, OpContext, OpMeta, SpatialOp, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
@@ -9,7 +9,7 @@ use crate::geom;
 
 pub struct TransformOp;
 
-impl OpMeta for TransformOp {
+impl Op for TransformOp {
     fn id(&self) -> &'static str {
         "transform"
     }
@@ -79,9 +79,6 @@ impl OpMeta for TransformOp {
             }
         }
     }
-}
-
-impl SpatialOp for TransformOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

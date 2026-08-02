@@ -1,20 +1,9 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
+use crate::math::{hue_dist, smoothstep};
 
 pub struct VibranceOp;
-
-#[inline(always)]
-fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
-    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-#[inline(always)]
-fn hue_dist(a: f32, b: f32) -> f32 {
-    let d = (a - b).rem_euclid(360.0);
-    d.min(360.0 - d)
-}
 
 #[inline(always)]
 pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
@@ -51,7 +40,7 @@ pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f
     )
 }
 
-impl OpMeta for VibranceOp {
+impl Op for VibranceOp {
     fn id(&self) -> &'static str {
         "vibrance"
     }
@@ -75,9 +64,6 @@ impl OpMeta for VibranceOp {
             edits.basic.vibrance = v;
         }
     }
-}
-
-impl FusedOp for VibranceOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let amount = edits.basic.vibrance as f32 / 100.0;
         Some(CpuFusedOp::Vibrance { amount })
@@ -85,7 +71,7 @@ impl FusedOp for VibranceOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "vibrance",
-            VIBRANCE_WGSL,
+            include_str!("../../assets/shaders/ops/vibrance.wgsl"),
             "lin = vibrance_apply(lin, p.vibrance.x);",
         ))
     }
@@ -93,43 +79,3 @@ impl FusedOp for VibranceOp {
         dst[0] = edits.basic.vibrance as f32 / 100.0;
     }
 }
-
-const VIBRANCE_WGSL: &str = r#"
-fn vib_hue_dist(a: f32, b: f32) -> f32 {
-    let raw = a - b;
-    let wrapped = raw - floor(raw / 360.0) * 360.0;
-    return min(wrapped, 360.0 - wrapped);
-}
-fn vibrance_apply(c: vec3<f32>, amount: f32) -> vec3<f32> {
-    if (amount == 0.0) { return c; }
-    let mx = max(max(c.r, c.g), c.b);
-    let mn = min(min(c.r, c.g), c.b);
-    let d = mx - mn;
-    let chroma = clamp(d, 0.0, 1.0);
-    var hue: f32 = 0.0;
-    if (d >= 1e-6) {
-        if (mx == c.r) {
-            var k = (c.g - c.b) / d;
-            if (c.g < c.b) { k = k + 6.0; }
-            hue = k * 60.0;
-        } else if (mx == c.g) {
-            hue = ((c.b - c.r) / d + 2.0) * 60.0;
-        } else {
-            hue = ((c.r - c.g) / d + 4.0) * 60.0;
-        }
-    }
-    var effective: f32;
-    if (amount > 0.0) {
-        let base = amount * 3.0 * (1.0 - smoothstep(0.4, 0.9, chroma));
-        var skin = 1.0 - smoothstep(10.0, 35.0, vib_hue_dist(hue, 25.0));
-        skin = skin * smoothstep(0.05, 0.20, chroma);
-        effective = base * (1.0 + (0.6 - 1.0) * skin);
-    } else {
-        effective = amount * (1.0 - smoothstep(0.2, 0.8, chroma));
-    }
-    if (abs(effective) < 1e-5) { return c; }
-    let factor = 1.0 + effective;
-    let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-    return vec3<f32>(luma) + (c - vec3<f32>(luma)) * factor;
-}
-"#;

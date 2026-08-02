@@ -1,10 +1,10 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct SaturationOp;
 
-impl OpMeta for SaturationOp {
+impl Op for SaturationOp {
     fn id(&self) -> &'static str {
         "saturation"
     }
@@ -25,9 +25,6 @@ impl OpMeta for SaturationOp {
             edits.basic.saturation = v;
         }
     }
-}
-
-impl FusedOp for SaturationOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let factor = 1.0 + edits.basic.saturation as f32 / 100.0;
         Some(CpuFusedOp::Saturation { factor })
@@ -35,7 +32,7 @@ impl FusedOp for SaturationOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "saturation",
-            "fn saturation_apply(c: vec3<f32>, p: vec4<f32>) -> vec3<f32> { if (p.x == 0.0) { return c; } let f = 1.0 + p.x; let luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return vec3<f32>(luma) + (c - vec3<f32>(luma)) * f; }",
+            include_str!("../../assets/shaders/ops/saturation.wgsl"),
             "lin = saturation_apply(lin, p.saturation);",
         ))
     }

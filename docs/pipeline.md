@@ -4,13 +4,13 @@ This is the contributor map for render-pass ownership. Keep it in sync when an o
 
 ## Operator model
 
-`crates/raw-pipeline/src/ops.rs` defines shared metadata plus three operator roles. The registry stores them as `AnyOp` and sorts by `(stage, order)`.
+`crates/raw-pipeline/src/ops.rs` defines a single `Op` trait. The registry stores operators as `Box<dyn Op>` and sorts by `(stage, order)`.
 
 Stages run in this order:
 
 `Sensor -> WhiteBalance -> Tone -> Color -> Geometry -> Output`
 
-Every operator implements `OpMeta`:
+Every operator implements the metadata half of `Op`:
 
 - `id() -> &'static str`
 - `stage() -> Stage`
@@ -18,11 +18,13 @@ Every operator implements `OpMeta`:
 - `is_active(&Edits) -> bool`
 - `to_doc` / `from_doc` for persisted edit data
 
-`FusedOp` is for pointwise work. It returns a `CpuFusedOp`, can contribute WGSL through `gpu()`, and is batched into generated CPU/GPU process passes. Exposure, contrast, curves, HSL, white balance, and color matrix live here.
+The behaviour half has defaults, so each operator only implements what it needs.
 
-`SpatialOp` is for neighbourhood or geometry work. It has an `apply_cpu` implementation and may opt into `GpuOpKind::Presence` or `GpuOpKind::Detail`. `GpuOpKind::Normal` is the default; active normal ops in the GPU process pass must return `gpu()` unless the renderer handles them specially.
+Pointwise operators implement `cpu_fused`, returning a `CpuFusedOp` that is batched into generated CPU/GPU process passes, and can contribute WGSL through `gpu()`. Exposure, contrast, curves, HSL, white balance, and color matrix work this way. The default `apply_cpu` runs `cpu_fused` as a one-op segment, so a fused operator never needs its own `apply_cpu`.
 
-`OutputStageOp` is currently the orchestration hook for the persisted 3D LUT. CPU output effects are separate `SpatialOp`s with `Stage::Output`; final tone/output conversion and the resolved LUT run after `run_output_ops` in `finish_output` and encode.
+Neighbourhood and geometry operators override `apply_cpu` directly and may opt into `GpuOpKind::Presence` or `GpuOpKind::Detail`. `GpuOpKind::Normal` is the default; active normal ops in the GPU process pass must return `gpu()` unless the renderer handles them specially.
+
+The persisted 3D LUT is an `Op` with `Stage::Output` that acts as an orchestration hook. Other CPU output effects are ordinary `Stage::Output` operators; final tone/output conversion and the resolved LUT run after `run_output_ops` in `finish_output` and encode.
 
 `GpuOpKind` currently has three values:
 
@@ -30,7 +32,7 @@ Every operator implements `OpMeta`:
 - `Presence` - handled by the presence/luma-pyramid path
 - `Detail` - handled by dedicated detail passes
 
-`dehaze` is a special case: it is a `SpatialOp` with no generated WGSL contribution. The GPU renderer detects `op.id() == "dehaze"` and runs `passes/dehaze.rs` when `basic.dehaze` is active.
+`dehaze` is a special case: it overrides `apply_cpu` with no generated WGSL contribution. The GPU renderer detects `op.id() == "dehaze"` and runs `passes/dehaze.rs` when `basic.dehaze` is active.
 
 ## CPU path
 
@@ -48,7 +50,7 @@ Flow:
 8. Run `finish_output`: DCP LookTable and Adobe-style tone curve in linear ProPhoto, output conversion, then the display-referred 3D LUT.
 9. Encode.
 
-`run_pipeline_ops` batches consecutive `FusedOp`s into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
+`run_pipeline_ops` batches consecutive fused operators into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
 
 Mask preview mode is a separate path. It omits the previewed layer's local adjustments, evaluates the complete layer weight, runs geometry and output effects, applies the DCP finish, then blends the translucent red overlay. The creative LUT and non-sRGB output conversion still live beyond the CPU overlay's early `display_ready` return and are not applied on this path.
 

@@ -1,10 +1,10 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct UserWbOp;
 
-impl OpMeta for UserWbOp {
+impl Op for UserWbOp {
     fn id(&self) -> &'static str {
         "white_balance"
     }
@@ -34,9 +34,6 @@ impl OpMeta for UserWbOp {
             edits.basic.wb_tint = v;
         }
     }
-}
-
-impl FusedOp for UserWbOp {
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
         Some(CpuFusedOp::ColorMatrix { m })

@@ -1,10 +1,10 @@
-use super::{LinearImage, OpContext, OpMeta, SpatialOp, Stage};
+use super::{LinearImage, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, MaskLayer};
 
 pub struct MasksOp;
 
-impl OpMeta for MasksOp {
+impl Op for MasksOp {
     fn id(&self) -> &'static str {
         "masks"
     }
@@ -33,9 +33,6 @@ impl OpMeta for MasksOp {
             .collect();
         edits.masks = layers;
     }
-}
-
-impl SpatialOp for MasksOp {
     fn apply_cpu(
         &self,
         _image: &mut LinearImage,

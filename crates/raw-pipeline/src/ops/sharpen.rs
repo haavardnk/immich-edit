@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, OpContext, OpMeta, SpatialOp, Stage};
+use super::{GpuOpKind, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -7,7 +7,7 @@ use rayon::prelude::*;
 
 pub struct SharpenOp;
 
-impl OpMeta for SharpenOp {
+impl Op for SharpenOp {
     fn id(&self) -> &'static str {
         "sharpen"
     }
@@ -47,9 +47,6 @@ impl OpMeta for SharpenOp {
             d.sharpen_masking = v;
         }
     }
-}
-
-impl SpatialOp for SharpenOp {
     fn gpu_kind(&self) -> GpuOpKind {
         GpuOpKind::Detail
     }

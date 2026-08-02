@@ -1,12 +1,12 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
 use rayon::prelude::*;
 
 pub struct LensVignetteOp;
 
-impl OpMeta for LensVignetteOp {
+impl Op for LensVignetteOp {
     fn id(&self) -> &'static str {
         "lens_vignette"
     }
@@ -22,9 +22,6 @@ impl OpMeta for LensVignetteOp {
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
         None
     }
-}
-
-impl SpatialOp for LensVignetteOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

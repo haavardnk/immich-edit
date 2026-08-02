@@ -1,12 +1,12 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, ResourceNeed, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::presence::apply_presence;
 use crate::edits::Edits;
 
 pub struct TextureOp;
 
-impl OpMeta for TextureOp {
+impl Op for TextureOp {
     fn id(&self) -> &'static str {
         "texture"
     }
@@ -29,15 +29,6 @@ impl OpMeta for TextureOp {
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             edits.basic.texture = v;
         }
-    }
-}
-
-impl SpatialOp for TextureOp {
-    fn resource_needs(&self, edits: &Edits) -> Vec<ResourceNeed> {
-        if !self.is_active(edits) {
-            return Vec::new();
-        }
-        vec![ResourceNeed::LumaPyramid { max_radius_px: 6 }]
     }
     fn gpu_kind(&self) -> super::GpuOpKind {
         super::GpuOpKind::Presence

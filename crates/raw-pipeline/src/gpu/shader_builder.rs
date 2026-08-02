@@ -117,6 +117,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
 
     let process_chain = build_process_chain(mask);
     let tone_wgsl = crate::tone::wgsl::tone_wgsl();
+    let prelude = include_str!("../../assets/shaders/ops/prelude.wgsl");
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -148,6 +149,7 @@ fn is_active(bit: u32) -> bool {{
 
 {tone_wgsl}
 
+{prelude}
 {functions}
 fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
     var lin = c;
@@ -336,4 +338,34 @@ fn build_process_chain(mask: StageMask) -> String {
         }
     }
     expr
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::gpu::context::GpuContext;
+    use crate::ops::default_registry;
+
+    #[test]
+    fn process_shaders_compile() {
+        let Ok(ctx) = GpuContext::new() else { return };
+        let registry = default_registry();
+        let sources = [
+            build(&registry).wgsl,
+            build_for(&registry, StageMask::tone_color()).wgsl,
+            build_prepare_wb(&registry).wgsl,
+        ];
+        for src in sources {
+            let scope = ctx.device.push_error_scope(wgpu::ErrorFilter::Validation);
+            let _module = ctx
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: None,
+                    source: wgpu::ShaderSource::Wgsl(src.into()),
+                });
+            if let Some(err) = pollster::block_on(scope.pop()) {
+                panic!("shader validation failed: {err}");
+            }
+        }
+    }
 }

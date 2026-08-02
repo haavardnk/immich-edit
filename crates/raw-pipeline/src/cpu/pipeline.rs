@@ -301,12 +301,12 @@ fn run_pipeline_ops_inner(
             }
         }
     };
-    let op_active = |op: &crate::ops::AnyOp| -> bool {
+    let op_active = |op: &dyn crate::ops::Op| -> bool {
         op.is_active(edits) || layer_edits.iter().any(|e| op.is_active(e))
     };
     for op in registry.ops().iter() {
         cancel::check(cancel)?;
-        if !op_active(op) {
+        if !op_active(op.as_ref()) {
             continue;
         }
         if op.stage() == crate::ops::Stage::Output {

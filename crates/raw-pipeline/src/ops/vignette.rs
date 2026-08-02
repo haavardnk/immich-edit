@@ -1,12 +1,12 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct VignetteOp;
 
-impl OpMeta for VignetteOp {
+impl Op for VignetteOp {
     fn id(&self) -> &'static str {
         "vignette"
     }
@@ -46,9 +46,6 @@ impl OpMeta for VignetteOp {
             e.vignette_roundness = v;
         }
     }
-}
-
-impl SpatialOp for VignetteOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

@@ -1,12 +1,12 @@
 use super::LinearImage;
-use super::{OpContext, OpMeta, SpatialOp, Stage};
+use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct GrainOp;
 
-impl OpMeta for GrainOp {
+impl Op for GrainOp {
     fn id(&self) -> &'static str {
         "grain"
     }
@@ -42,9 +42,6 @@ impl OpMeta for GrainOp {
             e.grain_roughness = v;
         }
     }
-}
-
-impl SpatialOp for GrainOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,

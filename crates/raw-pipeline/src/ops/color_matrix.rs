@@ -1,10 +1,10 @@
-use super::{FusedOp, GpuOp, OpContext, OpMeta, Stage};
+use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
 pub struct ColorMatrixOp;
 
-impl OpMeta for ColorMatrixOp {
+impl Op for ColorMatrixOp {
     fn id(&self) -> &'static str {
         "color_matrix"
     }
@@ -17,9 +17,6 @@ impl OpMeta for ColorMatrixOp {
     fn is_active(&self, _edits: &Edits) -> bool {
         true
     }
-}
-
-impl FusedOp for ColorMatrixOp {
     fn cpu_fused(&self, _edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
         if !ctx.render.is_raw {
             return None;
