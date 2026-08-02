@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -5,6 +6,7 @@ use chrono::Utc;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sqlx::SqlitePool;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
@@ -18,6 +20,8 @@ pub enum RasterStoreError {
     Io(#[from] std::io::Error),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
+    #[error("db: {0}")]
+    Db(#[from] sqlx::Error),
     #[error("invalid: {0}")]
     Invalid(String),
     #[error("not found")]
@@ -42,10 +46,15 @@ struct CacheState {
 #[derive(Clone)]
 pub struct RasterStore {
     dir: PathBuf,
+    pool: SqlitePool,
     state: Arc<Mutex<CacheState>>,
 }
 impl RasterStore {
-    pub fn new(cache_dir: &Path, cap_mb: u64) -> Result<Self, RasterStoreError> {
+    pub async fn new(
+        cache_dir: &Path,
+        cap_mb: u64,
+        pool: SqlitePool,
+    ) -> Result<Self, RasterStoreError> {
         let dir = cache_dir.join("rasters");
         std::fs::create_dir_all(&dir)?;
         let cap_bytes = cap_mb.saturating_mul(1024 * 1024);
@@ -103,8 +112,8 @@ impl RasterStore {
             total_bytes: total,
             cap_bytes,
         }));
-        let store = Self { dir, state };
-        store.evict_to_cap();
+        let store = Self { dir, pool, state };
+        store.evict_to_cap().await?;
         Ok(store)
     }
 
@@ -123,16 +132,52 @@ impl RasterStore {
         (bin, meta)
     }
 
-    fn evict_to_cap(&self) {
+    async fn pinned_ids(&self) -> Result<HashSet<String>, RasterStoreError> {
+        let ids: Vec<String> = sqlx::query_scalar("SELECT DISTINCT raster_id FROM raster_refs")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(ids.into_iter().collect())
+    }
+
+    async fn evict_to_cap(&self) -> Result<(), RasterStoreError> {
+        {
+            let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            if st.total_bytes <= st.cap_bytes {
+                return Ok(());
+            }
+        }
+        let pinned = self.pinned_ids().await?;
         loop {
             let victim: Option<((i64, Uuid, String), u64)> = {
                 let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-                if st.total_bytes <= st.cap_bytes || st.lru.is_empty() {
-                    return;
+                if st.total_bytes <= st.cap_bytes {
+                    return Ok(());
                 }
-                let (k, v) = st.lru.pop_lru().expect("non-empty");
-                st.total_bytes = st.total_bytes.saturating_sub(v);
-                Some((k, v))
+                let next = st
+                    .lru
+                    .iter()
+                    .rev()
+                    .map(|(k, _)| k.clone())
+                    .find(|(_, _, id)| !pinned.contains(id));
+                match next {
+                    Some(key) => {
+                        let size = st.lru.pop(&key).unwrap_or(0);
+                        st.total_bytes = st.total_bytes.saturating_sub(size);
+                        Some((key, size))
+                    }
+                    None => {
+                        let used = st.total_bytes;
+                        let cap = st.cap_bytes;
+                        drop(st);
+                        tracing::warn!(
+                            used_bytes = used,
+                            cap_bytes = cap,
+                            "mask raster cache is over its cap but every remaining raster is \
+                             referenced by saved edits; raise MASK_CACHE_MB"
+                        );
+                        return Ok(());
+                    }
+                }
             };
             if let Some(((server_epoch, owner, id), _)) = victim {
                 let (bin, meta) = self.paths(server_epoch, owner, &id);
@@ -148,17 +193,14 @@ impl RasterStore {
     }
 
     fn insert(&self, server_epoch: i64, owner: Uuid, raster_id: &str, size: u64) {
+        let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(prev) = st
+            .lru
+            .put((server_epoch, owner, raster_id.to_string()), size)
         {
-            let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(prev) = st
-                .lru
-                .put((server_epoch, owner, raster_id.to_string()), size)
-            {
-                st.total_bytes = st.total_bytes.saturating_sub(prev);
-            }
-            st.total_bytes = st.total_bytes.saturating_add(size);
+            st.total_bytes = st.total_bytes.saturating_sub(prev);
         }
-        self.evict_to_cap();
+        st.total_bytes = st.total_bytes.saturating_add(size);
     }
 
     pub async fn store(
@@ -215,6 +257,7 @@ impl RasterStore {
             fs::write(&meta_path, json).await?;
         }
         self.insert(server_epoch, owner, &raster_id, bytes.len() as u64);
+        self.evict_to_cap().await?;
         Ok(meta)
     }
 
@@ -293,6 +336,7 @@ impl RasterStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::edits_store::EditsStore;
     use tempfile::tempdir;
 
     fn unlimited() -> u64 {
@@ -307,10 +351,26 @@ mod tests {
         1
     }
 
+    async fn pool() -> SqlitePool {
+        EditsStore::migrated_memory().await.unwrap().pool()
+    }
+
+    async fn pin(pool: &SqlitePool, raster_id: &str) {
+        sqlx::query("INSERT INTO raster_refs (user_id, asset_id, raster_id) VALUES (?1, ?2, ?3)")
+            .bind(owner().to_string())
+            .bind(Uuid::nil().to_string())
+            .bind(raster_id)
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn roundtrip_and_dedupes() {
         let dir = tempdir().unwrap();
-        let store = RasterStore::new(dir.path(), unlimited()).unwrap();
+        let store = RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap();
         let bytes = vec![0x42u8; 4 * 3];
         let m1 = store.store(epoch(), owner(), &bytes, 4, 3).await.unwrap();
         let m2 = store.store(epoch(), owner(), &bytes, 4, 3).await.unwrap();
@@ -329,7 +389,9 @@ mod tests {
     #[tokio::test]
     async fn rejects_size_mismatch() {
         let dir = tempdir().unwrap();
-        let store = RasterStore::new(dir.path(), unlimited()).unwrap();
+        let store = RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap();
         let r = store.store(epoch(), owner(), &[0u8; 5], 4, 3).await;
         if !matches!(r, Err(RasterStoreError::Invalid(_))) {
             panic!("expected invalid");
@@ -339,7 +401,9 @@ mod tests {
     #[tokio::test]
     async fn missing_load_is_not_found() {
         let dir = tempdir().unwrap();
-        let store = RasterStore::new(dir.path(), unlimited()).unwrap();
+        let store = RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap();
         let r = store.load(epoch(), owner(), "deadbeef").await;
         if !matches!(r, Err(RasterStoreError::NotFound)) {
             panic!("expected not found");
@@ -352,7 +416,9 @@ mod tests {
         let store = {
             let bytes = (1024 * 1024) as u64;
             let cap_mb = (3 * bytes).div_ceil(1024 * 1024);
-            RasterStore::new(dir.path(), cap_mb).unwrap()
+            RasterStore::new(dir.path(), cap_mb, pool().await)
+                .await
+                .unwrap()
         };
         let mk = |fill: u8| vec![fill; 1024 * 1024];
         let a = store
@@ -386,7 +452,9 @@ mod tests {
     async fn populates_lru_from_existing_dir() {
         let dir = tempdir().unwrap();
         {
-            let store = RasterStore::new(dir.path(), 1024).unwrap();
+            let store = RasterStore::new(dir.path(), 1024, pool().await)
+                .await
+                .unwrap();
             for fill in 1u8..=3 {
                 store
                     .store(epoch(), owner(), &vec![fill; 1024 * 1024], 1024, 1024)
@@ -394,13 +462,82 @@ mod tests {
                     .unwrap();
             }
         }
-        let reopened = RasterStore::new(dir.path(), 2).unwrap();
+        let reopened = RasterStore::new(dir.path(), 2, pool().await).await.unwrap();
         let state = reopened.state.lock().unwrap();
         if state.total_bytes > state.cap_bytes {
             panic!(
                 "reopen should evict to cap: total={} cap={}",
                 state.total_bytes, state.cap_bytes
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn referenced_raster_survives_eviction() {
+        let dir = tempdir().unwrap();
+        let pool = pool().await;
+        let cap_mb = (3 * (1024 * 1024) as u64).div_ceil(1024 * 1024);
+        let store = RasterStore::new(dir.path(), cap_mb, pool.clone())
+            .await
+            .unwrap();
+        let mk = |fill: u8| vec![fill; 1024 * 1024];
+        let a = store
+            .store(epoch(), owner(), &mk(1), 1024, 1024)
+            .await
+            .unwrap();
+        pin(&pool, &a.raster_id).await;
+        let b = store
+            .store(epoch(), owner(), &mk(2), 1024, 1024)
+            .await
+            .unwrap();
+        let c = store
+            .store(epoch(), owner(), &mk(3), 1024, 1024)
+            .await
+            .unwrap();
+        let d = store
+            .store(epoch(), owner(), &mk(4), 1024, 1024)
+            .await
+            .unwrap();
+        if store.load(epoch(), owner(), &a.raster_id).await.is_err() {
+            panic!("a is referenced by a saved edit and must not be evicted");
+        }
+        if store.load(epoch(), owner(), &b.raster_id).await.is_ok() {
+            panic!("b is unreferenced and least recently used, so it should go");
+        }
+        for id in [&c.raster_id, &d.raster_id] {
+            if store.load(epoch(), owner(), id).await.is_err() {
+                panic!("{id} should survive");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn all_pinned_over_cap_stops_instead_of_looping() {
+        let dir = tempdir().unwrap();
+        let pool = pool().await;
+        let mut ids = Vec::new();
+        {
+            let store = RasterStore::new(dir.path(), 1024, pool.clone())
+                .await
+                .unwrap();
+            for fill in 1u8..=3 {
+                let meta = store
+                    .store(epoch(), owner(), &vec![fill; 1024 * 1024], 1024, 1024)
+                    .await
+                    .unwrap();
+                pin(&pool, &meta.raster_id).await;
+                ids.push(meta.raster_id);
+            }
+        }
+        let reopened = RasterStore::new(dir.path(), 1, pool.clone()).await.unwrap();
+        for id in &ids {
+            if reopened.load(epoch(), owner(), id).await.is_err() {
+                panic!("{id} is pinned and must survive even when over cap");
+            }
+        }
+        let (used, cap) = reopened.disk_bytes();
+        if used <= cap {
+            panic!("test should leave the store over cap: used={used} cap={cap}");
         }
     }
 }

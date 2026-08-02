@@ -56,6 +56,11 @@ impl AppState {
         let edits = EditsStore::connect(&config.database_url)
             .await
             .map_err(|e| anyhow::anyhow!("edits store: {e}"))?;
+        let pinned_rasters = edits
+            .rebuild_raster_refs()
+            .await
+            .map_err(|e| anyhow::anyhow!("raster refs: {e}"))?;
+        tracing::debug!(count = pinned_rasters, "rebuilt mask raster references");
         let instance = InstanceStore::new(edits.pool());
         let has_secrets = instance.has_encrypted_secrets().await.unwrap_or(false);
         let key_path = std::path::Path::new(&config.data_dir).join("instance.key");
@@ -66,7 +71,8 @@ impl AppState {
         let auth = AuthStore::new(edits.pool(), crypto.clone());
         let login_limiter = Arc::new(LoginLimiter::new());
         let jobs = JobStore::new(edits.pool(), crypto.clone());
-        let rasters = RasterStore::new(&config.data_dir, config.mask_cache_mb)
+        let rasters = RasterStore::new(&config.data_dir, config.mask_cache_mb, edits.pool())
+            .await
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("lut store: {e}"))?;

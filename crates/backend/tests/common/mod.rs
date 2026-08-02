@@ -61,8 +61,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
         segment_idle_secs: 60,
     };
     let _ = server;
-    let rasters = RasterStore::new(&cache_dir, 1024).unwrap();
     let edits = EditsStore::migrated_memory().await.unwrap();
+    let rasters = RasterStore::new(&cache_dir, 1024, edits.pool())
+        .await
+        .unwrap();
     let instance = InstanceStore::new(edits.pool());
     let crypto =
         Arc::new(InstanceCrypto::load_or_create(&cache_dir.join("instance.key"), false).unwrap());

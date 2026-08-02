@@ -1102,6 +1102,22 @@ impl Edits {
         out
     }
 
+    pub fn retained_raster_ids(&self) -> Vec<String> {
+        let mut out = self.referenced_raster_ids();
+        for layer in &self.masks {
+            for comp in &layer.components {
+                let Some(meta) = &comp.generated else {
+                    continue;
+                };
+                if !meta.prob_raster_id.is_empty() && !out.iter().any(|s| s == &meta.prob_raster_id)
+                {
+                    out.push(meta.prob_raster_id.clone());
+                }
+            }
+        }
+        out
+    }
+
     pub fn referenced_lut_id(&self) -> Option<String> {
         self.color
             .lut_3d
@@ -1246,6 +1262,44 @@ mod tests {
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&"r1".to_string()));
         assert!(ids.contains(&"r2".to_string()));
+    }
+
+    #[test]
+    fn retained_raster_ids_includes_probability_maps() {
+        let mut e = Edits::default();
+        e.masks.push(MaskLayer {
+            id: "l1".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![MaskComponent {
+                id: "a".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                opacity: 1.0,
+                invert: false,
+                kind: MaskComponentKind::Brush {
+                    raster_id: "baked".into(),
+                },
+                source: MaskSource::Generated,
+                generated: Some(GeneratedMeta {
+                    model_id: "ormbg".into(),
+                    kind: "subject".into(),
+                    prob_raster_id: "prob".into(),
+                    grow: 0.0,
+                    feather: 0.0,
+                    points: Vec::new(),
+                    range: None,
+                }),
+            }],
+            edits: MaskedEdits::default(),
+        });
+        assert_eq!(e.referenced_raster_ids(), vec!["baked".to_string()]);
+        let retained = e.retained_raster_ids();
+        assert_eq!(retained.len(), 2);
+        assert!(retained.contains(&"baked".to_string()));
+        assert!(retained.contains(&"prob".to_string()));
     }
 
     #[test]
