@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{
-    EditHistoryEntry, EditRecord, EditedAssetEntry, EditsStoreError, RENDERER_VERSION,
+    EditHistoryEntry, EditRecord, EditedAssetEntry, RENDERER_VERSION,
 };
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
@@ -45,11 +45,7 @@ pub async fn list(
     State(state): State<AppState>,
     ctx: AuthCtx,
 ) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
-    let entries = state
-        .edits
-        .list_edited_assets(ctx.owner)
-        .await
-        .map_err(map_err)?;
+    let entries = state.edits.list_edited_assets(ctx.owner).await?;
     Ok(Json(entries))
 }
 
@@ -58,7 +54,7 @@ pub async fn get(
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Json<EditRecord>, AppError> {
-    let record = state.edits.get(ctx.owner, id).await.map_err(map_err)?;
+    let record = state.edits.get(ctx.owner, id).await?;
     let record = match record {
         Some(r) => r,
         None => EditRecord {
@@ -140,8 +136,7 @@ pub async fn delete(
     state
         .edits
         .delete(ctx.owner, id, Some(action.as_str()))
-        .await
-        .map_err(map_err)?;
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -181,11 +176,6 @@ pub async fn auto(
             .await
             .map_err(|_| AppError::Internal)?;
     Ok(Json(edits))
-}
-
-fn map_err(err: EditsStoreError) -> AppError {
-    tracing::error!(error = %err, "edits store");
-    AppError::Internal
 }
 
 pub async fn history(

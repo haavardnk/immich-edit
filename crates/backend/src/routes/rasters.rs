@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::raster_store::{RasterMeta, RasterStoreError};
+use crate::services::raster_store::RasterMeta;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -31,8 +31,7 @@ pub async fn upload(
             params.width,
             params.height,
         )
-        .await
-        .map_err(map_err)?;
+        .await?;
     Ok(Json(meta))
 }
 
@@ -44,8 +43,7 @@ pub async fn get(
     let (meta, bytes) = state
         .rasters
         .load(ctx.server_epoch, ctx.owner, &raster_id)
-        .await
-        .map_err(map_err)?;
+        .await?;
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,
@@ -68,18 +66,6 @@ pub async fn meta(
     let m = state
         .rasters
         .meta(ctx.server_epoch, ctx.owner, &raster_id)
-        .await
-        .map_err(map_err)?;
+        .await?;
     Ok(Json(m))
-}
-
-fn map_err(err: RasterStoreError) -> AppError {
-    match err {
-        RasterStoreError::NotFound => AppError::NotFound,
-        RasterStoreError::Invalid(m) => AppError::BadRequest(m),
-        e => {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        }
-    }
 }

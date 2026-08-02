@@ -131,53 +131,61 @@ impl From<ImmichError> for AppError {
     }
 }
 
-impl From<crate::services::edits_store::EditsStoreError> for AppError {
-    fn from(err: crate::services::edits_store::EditsStoreError) -> Self {
-        tracing::error!(error = %err, "edits store");
-        Self::Internal
-    }
-}
-
-impl From<crate::services::job_store::JobStoreError> for AppError {
-    fn from(err: crate::services::job_store::JobStoreError) -> Self {
-        tracing::error!(error = %err, "job store");
-        Self::Internal
-    }
-}
-
-impl From<crate::services::dcp_store::DcpStoreError> for AppError {
-    fn from(err: crate::services::dcp_store::DcpStoreError) -> Self {
-        use crate::services::dcp_store::DcpStoreError;
-        match err {
-            DcpStoreError::NotFound => Self::NotFound,
-            DcpStoreError::Invalid(m) => Self::BadRequest(m),
-            DcpStoreError::Duplicate(meta) => {
-                Self::Conflict(format!("dcp already exists: {}", meta.id))
-            }
-            e => {
-                tracing::error!(error = %e, "dcp store");
+macro_rules! internal_from {
+    ($ty:path, $ctx:literal) => {
+        impl From<$ty> for AppError {
+            fn from(err: $ty) -> Self {
+                tracing::error!(error = %err, $ctx);
                 Self::Internal
             }
         }
-    }
+    };
 }
 
-impl From<crate::services::lut_store::LutStoreError> for AppError {
-    fn from(err: crate::services::lut_store::LutStoreError) -> Self {
-        use crate::services::lut_store::LutStoreError;
-        match err {
-            LutStoreError::NotFound => Self::NotFound,
-            LutStoreError::Invalid(m) => Self::BadRequest(m),
-            LutStoreError::Duplicate(meta) => {
-                Self::Conflict(format!("lut already exists: {}", meta.id))
-            }
-            e => {
-                tracing::error!(error = %e, "lut store");
-                Self::Internal
+macro_rules! store_from {
+    ($ty:path, $ctx:literal) => {
+        impl From<$ty> for AppError {
+            fn from(err: $ty) -> Self {
+                use $ty as E;
+                match err {
+                    E::NotFound => Self::NotFound,
+                    E::Invalid(m) => Self::BadRequest(m),
+                    e => {
+                        tracing::error!(error = %e, $ctx);
+                        Self::Internal
+                    }
+                }
             }
         }
-    }
+    };
+    ($ty:path, $ctx:literal, dup) => {
+        impl From<$ty> for AppError {
+            fn from(err: $ty) -> Self {
+                use $ty as E;
+                match err {
+                    E::NotFound => Self::NotFound,
+                    E::Invalid(m) => Self::BadRequest(m),
+                    E::Duplicate(meta) => {
+                        Self::Conflict(format!(concat!($ctx, " already exists: {}"), meta.id))
+                    }
+                    e => {
+                        tracing::error!(error = %e, $ctx);
+                        Self::Internal
+                    }
+                }
+            }
+        }
+    };
 }
+
+internal_from!(crate::services::edits_store::EditsStoreError, "edits store");
+internal_from!(crate::services::job_store::JobStoreError, "job store");
+store_from!(crate::services::dcp_store::DcpStoreError, "dcp", dup);
+store_from!(crate::services::lut_store::LutStoreError, "lut", dup);
+store_from!(
+    crate::services::raster_store::RasterStoreError,
+    "raster store"
+);
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {

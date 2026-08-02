@@ -214,11 +214,7 @@ async fn scene_render(
     let mut edits = state
         .edits
         .get_edits_or_default(ctx.owner, asset_id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "edits store");
-            AppError::Internal
-        })?;
+        .await?;
     edits.geometry = Default::default();
     edits.lens = Default::default();
     edits.effects = Default::default();
@@ -268,19 +264,11 @@ pub async fn generate(
     let baked = state
         .rasters
         .store(ctx.server_epoch, ctx.owner, &result.bytes, width, height)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        })?;
+        .await?;
     let prob = state
         .rasters
         .store(ctx.server_epoch, ctx.owner, &result.prob, width, height)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        })?;
+        .await?;
 
     Ok(Json(GenerateResponse {
         raster_id: baked.raster_id,
@@ -320,11 +308,7 @@ pub async fn rebake(
     let baked = state
         .rasters
         .store(ctx.server_epoch, ctx.owner, &bytes, width, height)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        })?;
+        .await?;
 
     Ok(Json(RebakeResponse {
         raster_id: baked.raster_id,
@@ -431,19 +415,11 @@ pub async fn click(
     let baked = state
         .rasters
         .store(ctx.server_epoch, ctx.owner, &baked_bytes, width, height)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        })?;
+        .await?;
     let prob = state
         .rasters
         .store(ctx.server_epoch, ctx.owner, &prob_bytes, width, height)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "raster store");
-            AppError::Internal
-        })?;
+        .await?;
 
     Ok(Json(GenerateResponse {
         raster_id: baked.raster_id,

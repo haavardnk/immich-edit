@@ -25,10 +25,7 @@ pub async fn get(
     Query(q): Query<EditedThumbQuery>,
 ) -> Result<Response, AppError> {
     let size = q.size.unwrap_or(400).clamp(128, 1024);
-    let record = state.edits.get(ctx.owner, id).await.map_err(|e| {
-        tracing::error!(error = %e, "edits store");
-        AppError::Internal
-    })?;
+    let record = state.edits.get(ctx.owner, id).await?;
     let Some(record) = record else {
         return Err(AppError::NotFound);
     };

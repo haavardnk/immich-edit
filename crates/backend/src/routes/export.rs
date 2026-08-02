@@ -21,14 +21,7 @@ pub async fn get_export(
     Path(id): Path<Uuid>,
     Query(params): Query<ExportParams>,
 ) -> Result<Response, AppError> {
-    let edits = state
-        .edits
-        .get_edits_or_default(ctx.owner, id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "edits store");
-            AppError::Internal
-        })?;
+    let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
     let (bytes, output) = export::render_export(
         &state,
         RenderIdentity {

@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderName, HeaderValue, StatusCode, header};
+use axum::http::{HeaderName, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
@@ -44,14 +44,7 @@ pub async fn get_preview(
     Query(q): Query<PreviewQuery>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
-    let edits = state
-        .edits
-        .get_edits_or_default(ctx.owner, id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "edits store");
-            AppError::Internal
-        })?;
+    let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
     render_to_response(
         &state,
         &ctx,
@@ -204,6 +197,3 @@ pub(crate) fn map_render_err(err: RenderError) -> AppError {
         RenderError::Dcp(m) => AppError::BadRequest(m),
     }
 }
-
-#[allow(dead_code)]
-fn _used(_: StatusCode) {}
