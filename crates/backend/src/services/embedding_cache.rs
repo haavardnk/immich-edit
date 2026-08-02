@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use lru::LruCache;
-use segment::Embedding;
+use segment::{Embedding, EmbeddingTensor};
 use tokio::fs;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -14,6 +14,8 @@ const MEMORY_SLOTS: usize = 3;
 const DISK_SLOTS: usize = 8192;
 const MB: u64 = 1024 * 1024;
 const MAGIC: &[u8; 4] = b"IESE";
+const FORMAT_VERSION: u32 = 2;
+const MAX_TENSORS: usize = 8;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EmbeddingCacheError {
@@ -212,70 +214,98 @@ impl EmbeddingCache {
 }
 
 fn encode(embedding: &Embedding) -> Vec<u8> {
-    let mut out = Vec::with_capacity(32 + embedding.values.len() * 4);
+    let mut out = Vec::with_capacity(32);
     out.extend_from_slice(MAGIC);
-    out.extend_from_slice(&(embedding.dims.len() as u32).to_le_bytes());
-    for d in &embedding.dims {
-        out.extend_from_slice(&d.to_le_bytes());
-    }
+    out.extend_from_slice(&FORMAT_VERSION.to_le_bytes());
     out.extend_from_slice(&embedding.scale.to_le_bytes());
     out.extend_from_slice(&embedding.width.to_le_bytes());
     out.extend_from_slice(&embedding.height.to_le_bytes());
-    for v in &embedding.values {
-        out.extend_from_slice(&v.to_le_bytes());
+    out.extend_from_slice(&(embedding.tensors.len() as u32).to_le_bytes());
+    for t in &embedding.tensors {
+        out.extend_from_slice(&(t.name.len() as u32).to_le_bytes());
+        out.extend_from_slice(t.name.as_bytes());
+        out.extend_from_slice(&(t.dims.len() as u32).to_le_bytes());
+        for d in &t.dims {
+            out.extend_from_slice(&d.to_le_bytes());
+        }
+        out.extend_from_slice(&(t.values.len() as u64).to_le_bytes());
+        for v in &t.values {
+            out.extend_from_slice(&v.to_le_bytes());
+        }
     }
     out
 }
 
+struct Reader<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Reader<'a> {
+    fn take(&mut self, n: usize) -> Result<&'a [u8], EmbeddingCacheError> {
+        let end = self.at.checked_add(n).ok_or(EmbeddingCacheError::Corrupt)?;
+        if end > self.bytes.len() {
+            return Err(EmbeddingCacheError::Corrupt);
+        }
+        let out = &self.bytes[self.at..end];
+        self.at = end;
+        Ok(out)
+    }
+
+    fn u32(&mut self) -> Result<u32, EmbeddingCacheError> {
+        let b = self.take(4)?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    fn u64(&mut self) -> Result<u64, EmbeddingCacheError> {
+        let b = self.take(8)?;
+        Ok(u64::from_le_bytes(
+            b.try_into().map_err(|_| EmbeddingCacheError::Corrupt)?,
+        ))
+    }
+
+    fn f32(&mut self) -> Result<f32, EmbeddingCacheError> {
+        let b = self.take(4)?;
+        Ok(f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+}
+
 fn decode(bytes: &[u8]) -> Result<Embedding, EmbeddingCacheError> {
-    if bytes.len() < 8 || &bytes[..4] != MAGIC {
+    let mut r = Reader { bytes, at: 0 };
+    if r.take(4)? != MAGIC || r.u32()? != FORMAT_VERSION {
         return Err(EmbeddingCacheError::Corrupt);
     }
-    let rank = u32::from_le_bytes(
-        bytes[4..8]
-            .try_into()
-            .map_err(|_| EmbeddingCacheError::Corrupt)?,
-    ) as usize;
-    let dims_end = 8 + rank * 8;
-    let header_end = dims_end + 12;
-    if rank > 8 || bytes.len() < header_end {
+    let scale = r.f32()?;
+    let width = r.u32()?;
+    let height = r.u32()?;
+    let count = r.u32()? as usize;
+    if count > MAX_TENSORS {
         return Err(EmbeddingCacheError::Corrupt);
     }
-    let mut dims = Vec::with_capacity(rank);
-    for i in 0..rank {
-        let start = 8 + i * 8;
-        dims.push(i64::from_le_bytes(
-            bytes[start..start + 8]
-                .try_into()
-                .map_err(|_| EmbeddingCacheError::Corrupt)?,
-        ));
+    let mut tensors = Vec::with_capacity(count);
+    for _ in 0..count {
+        let name_len = r.u32()? as usize;
+        let name = std::str::from_utf8(r.take(name_len)?)
+            .map_err(|_| EmbeddingCacheError::Corrupt)?
+            .to_string();
+        let rank = r.u32()? as usize;
+        if rank > 8 {
+            return Err(EmbeddingCacheError::Corrupt);
+        }
+        let mut dims = Vec::with_capacity(rank);
+        for _ in 0..rank {
+            dims.push(r.u64()? as i64);
+        }
+        let len = r.u64()? as usize;
+        let raw = r.take(len.checked_mul(4).ok_or(EmbeddingCacheError::Corrupt)?)?;
+        let values = raw
+            .chunks_exact(4)
+            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+            .collect();
+        tensors.push(EmbeddingTensor { name, dims, values });
     }
-    let scale = f32::from_le_bytes(
-        bytes[dims_end..dims_end + 4]
-            .try_into()
-            .map_err(|_| EmbeddingCacheError::Corrupt)?,
-    );
-    let width = u32::from_le_bytes(
-        bytes[dims_end + 4..dims_end + 8]
-            .try_into()
-            .map_err(|_| EmbeddingCacheError::Corrupt)?,
-    );
-    let height = u32::from_le_bytes(
-        bytes[dims_end + 8..header_end]
-            .try_into()
-            .map_err(|_| EmbeddingCacheError::Corrupt)?,
-    );
-    let payload = &bytes[header_end..];
-    if payload.len() % 4 != 0 {
-        return Err(EmbeddingCacheError::Corrupt);
-    }
-    let values = payload
-        .chunks_exact(4)
-        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
-        .collect();
     Ok(Embedding {
-        values,
-        dims,
+        tensors,
         scale,
         width,
         height,
@@ -288,8 +318,18 @@ mod tests {
 
     fn sample() -> Embedding {
         Embedding {
-            values: vec![0.5, -1.25, 3.0, 0.0],
-            dims: vec![1, 1, 2, 2],
+            tensors: vec![
+                EmbeddingTensor {
+                    name: "image_embed".into(),
+                    dims: vec![1, 1, 2, 2],
+                    values: vec![0.5, -1.25, 3.0, 0.0],
+                },
+                EmbeddingTensor {
+                    name: "high_res_feats_0".into(),
+                    dims: vec![1, 2],
+                    values: vec![1.5, 2.5],
+                },
+            ],
             scale: 0.25,
             width: 4096,
             height: 2048,
@@ -310,8 +350,7 @@ mod tests {
     fn round_trips_through_bytes() {
         let e = sample();
         let back = decode(&encode(&e)).unwrap();
-        assert_eq!(back.values, e.values);
-        assert_eq!(back.dims, e.dims);
+        assert_eq!(back.tensors, e.tensors);
         assert_eq!(back.scale, e.scale);
         assert_eq!(back.width, e.width);
         assert_eq!(back.height, e.height);
@@ -321,6 +360,19 @@ mod tests {
     fn rejects_garbage() {
         assert!(decode(b"nope").is_err());
         assert!(decode(&[]).is_err());
+    }
+
+    #[test]
+    fn rejects_an_older_format_version() {
+        let mut bytes = encode(&sample());
+        bytes[4] = 1;
+        assert!(decode(&bytes).is_err());
+    }
+
+    #[test]
+    fn rejects_a_truncated_payload() {
+        let bytes = encode(&sample());
+        assert!(decode(&bytes[..bytes.len() - 4]).is_err());
     }
 
     #[tokio::test]
@@ -334,7 +386,7 @@ mod tests {
         }
         assert_eq!(cache.memory.lock().await.len(), MEMORY_SLOTS);
         let hit = cache.get(&first).await.expect("served from disk");
-        assert_eq!(hit.values, sample().values);
+        assert_eq!(hit.tensors, sample().tensors);
     }
 
     #[tokio::test]

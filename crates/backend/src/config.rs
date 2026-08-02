@@ -204,7 +204,7 @@ impl Config {
             });
         }
 
-        let embedding_cache_mb = parse_or("EMBEDDING_CACHE_MB", file.embedding_cache_mb, 512u64)?;
+        let embedding_cache_mb = parse_or("EMBEDDING_CACHE_MB", file.embedding_cache_mb, 2048u64)?;
         if embedding_cache_mb == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "EMBEDDING_CACHE_MB".into(),
@@ -489,7 +489,7 @@ mod tests {
         if cfg.mask_cache_mb != 512 {
             panic!("mask_cache_mb");
         }
-        if cfg.embedding_cache_mb != 512 {
+        if cfg.embedding_cache_mb != 2048 {
             panic!("embedding_cache_mb");
         }
         if cfg.quality_frame_cache_mb != 512 {

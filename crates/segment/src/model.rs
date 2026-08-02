@@ -127,7 +127,7 @@ impl ModelSpec {
         normalization: Normalization::IMAGENET,
         activation: Activation::MinMax,
     };
-    pub const MOBILE_SAM: Self = Self {
+    pub const SAM: Self = Self {
         kind: ModelKind::Click,
         input_edge: 1024,
         layout: Layout::Nchw,

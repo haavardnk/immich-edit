@@ -153,7 +153,7 @@ Retained render memory is bounded by byte budgets you can lower without touching
 Two more budgets cover disk rather than memory:
 
 - `MASK_CACHE_MB` (default 512) — rendered mask rasters under `DATA_DIR/cache/rasters`.
-- `EMBEDDING_CACHE_MB` (default 512) — click-to-select model embeddings under `DATA_DIR/cache/embeddings`.
+- `EMBEDDING_CACHE_MB` (default 2048) — click-to-select model embeddings under `DATA_DIR/cache/embeddings`.
 
 Both evict least-recently-used entries once they pass the cap, and both directories are safe to delete while the service is stopped.
 
