@@ -169,6 +169,7 @@
     if (editor.maskGenerating) return;
     e.preventDefault();
     if (editor.clickTool.box) {
+      e.stopPropagation();
       boxStart = localPx(e);
       boxNow = boxStart;
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -182,11 +183,13 @@
 
   function onPointerMove(e: PointerEvent): void {
     if (!boxStart) return;
+    e.stopPropagation();
     boxNow = localPx(e);
   }
 
   async function onPointerUp(e: PointerEvent): Promise<void> {
     if (!boxStart || !boxNow) return;
+    e.stopPropagation();
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
     const [ax, ay] = boxStart;
     const [bx, by] = boxNow;

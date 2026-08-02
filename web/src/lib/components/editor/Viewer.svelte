@@ -5,6 +5,8 @@
   import MaskOverlay from './MaskOverlay.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiLoading } from '@mdi/js';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
@@ -151,6 +153,20 @@
       <MaskOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />
+    {/if}
+    {#if editor.maskGenerating}
+      <div
+        class="pointer-events-none absolute inset-0 flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
+        <span
+          class="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-immich-dark-fg shadow-lg backdrop-blur-sm"
+        >
+          <Icon path={mdiLoading} size={14} class="animate-spin" />
+          Building mask…
+        </span>
+      </div>
     {/if}
   {:else if editor.error}
     <div class="text-red-400 text-sm">{editor.error}</div>
