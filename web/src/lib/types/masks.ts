@@ -12,6 +12,7 @@ import {
   type MaskedEdits,
   type Vec2f
 } from './edits';
+import type { MaskKind } from '$lib/api/masks';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ManualTool = 'linear' | 'radial' | 'brush' | 'luma_range' | 'color_range';
@@ -116,6 +117,21 @@ export function nextLayerName(layers: MaskLayer[]): string {
   const taken = new Set(layers.map((l) => l.name));
   while (taken.has(`Mask ${i}`)) i++;
   return `Mask ${i}`;
+}
+
+const DEDICATED_KIND_CLASSES: Record<string, MaskKind> = {
+  sky: 'sky',
+  person: 'people'
+};
+
+export function visibleSceneClasses<T extends { id: string }>(
+  classes: T[],
+  kinds: { kind: MaskKind }[]
+): T[] {
+  return classes.filter((c) => {
+    const dedicated = DEDICATED_KIND_CLASSES[c.id];
+    return !dedicated || !kinds.some((k) => k.kind === dedicated);
+  });
 }
 
 export interface MaskCapacity {

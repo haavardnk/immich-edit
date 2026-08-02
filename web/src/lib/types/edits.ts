@@ -328,6 +328,7 @@ export interface GeneratedMeta {
   model_id: string;
   kind: string;
   prob_raster_id: string;
+  class?: string;
   grow: number;
   feather: number;
   painted?: boolean;
@@ -971,6 +972,7 @@ function parseGeneratedMeta(raw: unknown): GeneratedMeta | undefined {
     model_id: r.model_id,
     kind: r.kind,
     prob_raster_id: r.prob_raster_id,
+    ...(typeof r.class === 'string' ? { class: r.class } : {}),
     grow: typeof r.grow === 'number' ? r.grow : 0,
     feather: typeof r.feather === 'number' ? r.feather : 0,
     ...(r.painted === true ? { painted: true } : {}),

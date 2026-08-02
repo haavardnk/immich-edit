@@ -22,6 +22,84 @@ pub struct CatalogFile {
     pub size_bytes: u64,
 }
 
+pub struct SemanticClass {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub channel: usize,
+}
+
+pub const SEMANTIC_CLASSES: &[SemanticClass] = &[
+    SemanticClass {
+        id: "sky",
+        name: "Sky",
+        channel: 2,
+    },
+    SemanticClass {
+        id: "water",
+        name: "Water",
+        channel: 21,
+    },
+    SemanticClass {
+        id: "sea",
+        name: "Sea",
+        channel: 26,
+    },
+    SemanticClass {
+        id: "tree",
+        name: "Trees",
+        channel: 4,
+    },
+    SemanticClass {
+        id: "grass",
+        name: "Grass",
+        channel: 9,
+    },
+    SemanticClass {
+        id: "plant",
+        name: "Plants",
+        channel: 17,
+    },
+    SemanticClass {
+        id: "mountain",
+        name: "Mountain",
+        channel: 16,
+    },
+    SemanticClass {
+        id: "rock",
+        name: "Rock",
+        channel: 34,
+    },
+    SemanticClass {
+        id: "sand",
+        name: "Sand",
+        channel: 46,
+    },
+    SemanticClass {
+        id: "earth",
+        name: "Ground",
+        channel: 13,
+    },
+    SemanticClass {
+        id: "building",
+        name: "Buildings",
+        channel: 1,
+    },
+    SemanticClass {
+        id: "road",
+        name: "Road",
+        channel: 6,
+    },
+    SemanticClass {
+        id: "person",
+        name: "People",
+        channel: 12,
+    },
+];
+
+pub fn semantic_class(id: &str) -> Option<&'static SemanticClass> {
+    SEMANTIC_CLASSES.iter().find(|c| c.id == id)
+}
+
 #[derive(Debug, Clone)]
 pub struct CatalogEntry {
     pub id: &'static str,
@@ -167,6 +245,46 @@ pub const CATALOG: &[CatalogEntry] = &[
         },
     },
     CatalogEntry {
+        id: "segformer_b2_ade",
+        name: "Scene Classes",
+        kind: ModelKind::Semantic,
+        tier: Tier::Recommended,
+        url: "https://huggingface.co/Xenova/segformer-b2-finetuned-ade-512-512/resolve/main/onnx/model.onnx",
+        sha256: "819c15e6af8c4de3359c1de7ab0a17d0dde495df1d16f8908a7163f8038e0fa0",
+        size_bytes: 110_445_327,
+        aux: None,
+        license: "NVIDIA Source Code License (non-commercial)",
+        source: "nvidia/segformer-b2-finetuned-ade-512-512",
+        notes: "One model for sky, water, foliage, buildings, ground and people. Pick the class when you add the mask.",
+        spec: ModelSpec::SEGFORMER_ADE,
+        cost: Cost {
+            gpu_ms: 332,
+            gpu_mb: 371,
+            cpu_ms: 527,
+            cpu_mb: 752,
+        },
+    },
+    CatalogEntry {
+        id: "segformer_b0_ade",
+        name: "Scene Classes Small",
+        kind: ModelKind::Semantic,
+        tier: Tier::LowMemory,
+        url: "https://huggingface.co/Xenova/segformer-b0-finetuned-ade-512-512/resolve/main/onnx/model.onnx",
+        sha256: "3e5c18a4be395f16646438d54c42377ddc202edfa33d5eced0c9506de75c44c2",
+        size_bytes: 15_335_446,
+        aux: None,
+        license: "NVIDIA Source Code License (non-commercial)",
+        source: "nvidia/segformer-b0-finetuned-ade-512-512",
+        notes: "Same classes at a seventh of the download and four times the speed. Edges are looser on thin detail.",
+        spec: ModelSpec::SEGFORMER_ADE,
+        cost: Cost {
+            gpu_ms: 71,
+            gpu_mb: 133,
+            cpu_ms: 109,
+            cpu_mb: 251,
+        },
+    },
+    CatalogEntry {
         id: "mobilesam",
         name: "MobileSAM",
         kind: ModelKind::Click,
@@ -197,6 +315,7 @@ pub const KINDS: &[ModelKind] = &[
     ModelKind::People,
     ModelKind::Sky,
     ModelKind::Depth,
+    ModelKind::Semantic,
     ModelKind::Click,
 ];
 
@@ -259,5 +378,23 @@ mod tests {
     #[test]
     fn subject_default_is_ormbg() {
         assert_eq!(default_for(ModelKind::Subject).unwrap().id, "ormbg");
+    }
+
+    #[test]
+    fn semantic_classes_are_unique_and_resolvable() {
+        let mut ids: Vec<&str> = SEMANTIC_CLASSES.iter().map(|c| c.id).collect();
+        let count = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), count, "class ids must be unique");
+        for class in SEMANTIC_CLASSES {
+            assert!(class.channel < 150, "{} is outside ADE20K", class.id);
+            assert_eq!(
+                semantic_class(class.id).map(|c| c.channel),
+                Some(class.channel)
+            );
+        }
+        assert_eq!(semantic_class("sky").unwrap().channel, 2);
+        assert!(semantic_class("nope").is_none());
     }
 }

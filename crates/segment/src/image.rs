@@ -111,8 +111,11 @@ pub fn activate(values: &[f32], w: usize, h: usize, activation: Activation) -> V
         }
         Activation::Softmax { channel } => {
             let plane = w * h;
-            let classes = values.len() / plane;
+            let classes = values.len() / plane.max(1);
             let mut out = vec![0.0f32; plane];
+            if plane == 0 || channel >= classes {
+                return out;
+            }
             for i in 0..plane {
                 let mut max = f32::NEG_INFINITY;
                 for c in 0..classes {
@@ -246,6 +249,14 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert!((out[0] - expect).abs() < 1e-5);
         assert!((out[1] - expect).abs() < 1e-5);
+    }
+
+    #[test]
+    fn softmax_out_of_range_channel_is_empty_not_a_panic() {
+        let values = vec![0.0, 0.0, 2.0, 2.0, 0.0, 0.0];
+        let out = activate(&values, 2, 1, Activation::Softmax { channel: 9 });
+        assert_eq!(out.len(), 2);
+        assert!(out.iter().all(|v| *v == 0.0));
     }
 
     #[test]

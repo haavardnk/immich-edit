@@ -171,6 +171,8 @@
     if (kind === 'people') return 'People';
     if (kind === 'sky') return 'Sky';
     if (kind === 'depth') return 'Depth';
+    if (kind === 'semantic') return 'Scene classes';
+    if (kind === 'click') return 'Click to select';
     return kind;
   }
 

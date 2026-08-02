@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use segment::model::Activation;
 use segment::runtime::SessionConfig;
 use segment::{
     BakeParams, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter, bake,
@@ -22,6 +23,8 @@ pub enum SegmentServiceError {
     Store(#[from] ModelStoreError),
     #[error("inference: {0}")]
     Inference(String),
+    #[error("unknown mask class: {0}")]
+    UnknownClass(String),
     #[error("worker crashed")]
     Worker,
 }
@@ -132,6 +135,7 @@ impl SegmentService {
         width: u32,
         height: u32,
         params: BakeParams,
+        class: Option<String>,
     ) -> Result<MaskResult, SegmentServiceError> {
         if !self.enabled() {
             return Err(SegmentServiceError::Disabled);
@@ -142,6 +146,16 @@ impl SegmentService {
             .ok_or(SegmentServiceError::ModelMissing(kind.as_str()))?
             .spec
             .clone();
+        let activation = match &class {
+            Some(id) => {
+                let entry = catalog::semantic_class(id)
+                    .ok_or_else(|| SegmentServiceError::UnknownClass(id.clone()))?;
+                Activation::Softmax {
+                    channel: entry.channel,
+                }
+            }
+            None => spec.activation,
+        };
 
         let _permit = self
             .permits
@@ -175,7 +189,7 @@ impl SegmentService {
             let loaded = guard.as_mut().ok_or(SegmentServiceError::Worker)?;
             let mask = loaded
                 .segmenter
-                .run(&rgb8, width, height)
+                .run_with(&rgb8, width, height, activation)
                 .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
             loaded.used_at = Instant::now();
             let backend = loaded.segmenter.backend().as_str();

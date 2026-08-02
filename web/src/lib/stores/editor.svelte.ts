@@ -857,7 +857,8 @@ class EditorStore {
   addGeneratedComponent = async (
     layerId: string,
     kind: MaskKind,
-    mode: MaskComponentMode = 'add'
+    mode: MaskComponentMode = 'add',
+    maskClass?: string
   ): Promise<string | null> => {
     const assetId = this.assetId;
     if (!assetId || this.maskGenerating) return null;
@@ -867,7 +868,7 @@ class EditorStore {
     if (!layer) return null;
     this.maskGenerating = true;
     try {
-      const res = await generateMask(assetId, kind);
+      const res = await generateMask(assetId, kind, 0, 0, maskClass);
       const comp: MaskComponent = {
         ...makeComponent({ kind: 'brush', raster_id: res.raster_id }, mode),
         source: 'generated',
@@ -876,7 +877,8 @@ class EditorStore {
           kind,
           prob_raster_id: res.prob_raster_id,
           grow: 0,
-          feather: 0
+          feather: 0,
+          ...(maskClass ? { class: maskClass } : {})
         }
       };
       this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
@@ -892,14 +894,14 @@ class EditorStore {
     }
   };
 
-  addGeneratedLayer = async (kind: MaskKind): Promise<string | null> => {
+  addGeneratedLayer = async (kind: MaskKind, maskClass?: string): Promise<string | null> => {
     const assetId = this.assetId;
     if (!assetId || this.maskGenerating) return null;
     const cap = maskCapacity(this.edits, null);
     if (cap.layersFull || cap.totalFull) return null;
     this.maskGenerating = true;
     try {
-      const res = await generateMask(assetId, kind);
+      const res = await generateMask(assetId, kind, 0, 0, maskClass);
       const layer = makeGeneratedLayer(
         nextLayerName(this.edits.masks),
         this.edits.masks.length,
@@ -909,7 +911,8 @@ class EditorStore {
           kind,
           prob_raster_id: res.prob_raster_id,
           grow: 0,
-          feather: 0
+          feather: 0,
+          ...(maskClass ? { class: maskClass } : {})
         }
       );
       this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };

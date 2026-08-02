@@ -1,6 +1,11 @@
 import { getJson, sendJson } from './client';
 
-export type MaskKind = 'subject' | 'people' | 'sky' | 'depth' | 'click';
+export type MaskKind = 'subject' | 'people' | 'sky' | 'depth' | 'semantic' | 'click';
+
+export interface SemanticClass {
+  id: string;
+  name: string;
+}
 
 export interface MaskModel {
   id: string;
@@ -24,6 +29,7 @@ export interface MaskModelsResponse {
   enabled: boolean;
   models: MaskModel[];
   active: Partial<Record<MaskKind, string>>;
+  semantic_classes: SemanticClass[];
 }
 
 export interface GeneratedMask {
@@ -50,12 +56,14 @@ export function generateMask(
   assetId: string,
   kind: MaskKind,
   grow = 0,
-  feather = 0
+  feather = 0,
+  maskClass?: string
 ): Promise<GeneratedMask> {
   return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/generate`, {
     kind,
     grow,
-    feather
+    feather,
+    ...(maskClass ? { class: maskClass } : {})
   });
 }
 

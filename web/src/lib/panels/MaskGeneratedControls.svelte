@@ -29,6 +29,7 @@
     if (kind === 'people') return 'People';
     if (kind === 'sky') return 'Sky';
     if (kind === 'depth') return 'Depth';
+    if (kind === 'semantic') return 'Scene';
     if (kind === 'click') return 'Click to select';
     return kind;
   }
@@ -46,7 +47,7 @@
 {#if meta}
   <div class="mt-2 flex flex-col gap-2.5">
     <div class="px-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-      {label(meta.kind)} · {meta.model_id}
+      {label(meta.kind)}{meta.class ? ` · ${meta.class}` : ''} · {meta.model_id}
     </div>
     {#if meta.painted}
       <div class="mx-1 rounded bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-200/90">

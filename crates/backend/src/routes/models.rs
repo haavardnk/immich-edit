@@ -30,11 +30,18 @@ pub struct CatalogView {
 }
 
 #[derive(Serialize)]
+pub struct SemanticClassView {
+    pub id: &'static str,
+    pub name: &'static str,
+}
+
+#[derive(Serialize)]
 pub struct ModelsResponse {
     pub runtime: &'static str,
     pub enabled: bool,
     pub models: Vec<CatalogView>,
     pub active: BTreeMap<&'static str, String>,
+    pub semantic_classes: Vec<SemanticClassView>,
 }
 
 #[derive(Deserialize)]
@@ -106,6 +113,13 @@ pub async fn list(
         enabled: state.segment.enabled(),
         models,
         active,
+        semantic_classes: catalog::SEMANTIC_CLASSES
+            .iter()
+            .map(|c| SemanticClassView {
+                id: c.id,
+                name: c.name,
+            })
+            .collect(),
     }))
 }
 

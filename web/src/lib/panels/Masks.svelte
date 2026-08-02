@@ -38,12 +38,13 @@
     mdiAutoFix
   } from '@mdi/js';
   import MaskToolPicker from '$lib/components/editor/MaskToolPicker.svelte';
-  import { listMaskModels, type MaskKind } from '$lib/api/masks';
+  import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
   import { session } from '$lib/stores/session.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { goto } from '$app/navigation';
 
   let maskKinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
+  let semanticClasses = $state<SemanticClass[]>([]);
   let segmentEnabled = $state(false);
   let modelsRequested = $state(false);
   const clickInstalled = $derived(
@@ -89,6 +90,7 @@
     listMaskModels()
       .then((m) => {
         segmentEnabled = m.enabled;
+        semanticClasses = m.semantic_classes ?? [];
         maskKinds = m.enabled
           ? [...new Set(m.models.map((x) => x.kind))].map((kind) => ({
               kind,
@@ -99,6 +101,7 @@
       .catch(() => {
         segmentEnabled = false;
         maskKinds = [];
+        semanticClasses = [];
       });
   });
 
@@ -162,12 +165,12 @@
     else await addBrushLayer();
   }
 
-  async function pickLayerAi(kind: MaskKind, installed: boolean): Promise<void> {
+  async function pickLayerAi(kind: MaskKind, installed: boolean, maskClass?: string): Promise<void> {
     if (!installed) {
       promptInstall(kind);
       return;
     }
-    await addGenerated(kind);
+    await addGenerated(kind, maskClass);
   }
 
   async function pickShapeManual(tool: ManualTool): Promise<void> {
@@ -176,7 +179,7 @@
     else await addBrushComp();
   }
 
-  async function pickShapeAi(kind: MaskKind, installed: boolean): Promise<void> {
+  async function pickShapeAi(kind: MaskKind, installed: boolean, maskClass?: string): Promise<void> {
     if (!installed) {
       addComponentOpen = false;
       promptInstall(kind);
@@ -186,10 +189,10 @@
       armClickComponent();
       return;
     }
-    await addGeneratedComp(kind);
+    await addGeneratedComp(kind, maskClass);
   }
 
-  async function addGenerated(kind: MaskKind): Promise<void> {
+  async function addGenerated(kind: MaskKind, maskClass?: string): Promise<void> {
     addLayerOpen = false;
     if (kind === 'click') {
       editor.setActiveMaskComponent(null);
@@ -197,7 +200,7 @@
       toasts.push('info', 'Click the photo to build a mask. Shift-click removes areas.');
       return;
     }
-    await editor.addGeneratedLayer(kind);
+    await editor.addGeneratedLayer(kind, maskClass);
   }
 
   function promptInstall(kind: MaskKind): void {
@@ -217,6 +220,7 @@
     if (kind === 'people') return 'People';
     if (kind === 'sky') return 'Sky';
     if (kind === 'depth') return 'Depth';
+    if (kind === 'semantic') return 'Scene';
     if (kind === 'click') return 'Click to select';
     return kind;
   }
@@ -244,10 +248,10 @@
     editor.clickTool = { active: true, negative: false, layerId: active.id, mode: pendingMode };
   }
 
-  async function addGeneratedComp(kind: MaskKind): Promise<void> {
+  async function addGeneratedComp(kind: MaskKind, maskClass?: string): Promise<void> {
     if (!active) return;
     addComponentOpen = false;
-    await editor.addGeneratedComponent(active.id, kind, pendingMode);
+    await editor.addGeneratedComponent(active.id, kind, pendingMode, maskClass);
   }
 
   function beginRename(layer: MaskLayer): void {
@@ -401,9 +405,10 @@
           >
             <MaskToolPicker
               aiKinds={maskKinds}
+              semanticClasses={semanticClasses}
               busy={editor.maskGenerating}
               onManual={(tool) => void pickLayerManual(tool)}
-              onAi={(kind, installed) => void pickLayerAi(kind, installed)}
+              onAi={(kind, installed, cls) => void pickLayerAi(kind, installed, cls)}
             />
           </div>
         {/if}
@@ -613,9 +618,10 @@
             </div>
             <MaskToolPicker
               aiKinds={maskKinds}
+              semanticClasses={semanticClasses}
               busy={editor.maskGenerating}
               onManual={(tool) => void pickShapeManual(tool)}
-              onAi={(kind, installed) => void pickShapeAi(kind, installed)}
+              onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
             />
           </div>
         {/if}

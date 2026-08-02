@@ -833,6 +833,8 @@ pub struct GeneratedMeta {
     pub model_id: String,
     pub kind: String,
     pub prob_raster_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
     #[serde(default)]
     pub grow: f32,
     #[serde(default)]
@@ -1289,6 +1291,7 @@ mod tests {
                     model_id: "ormbg".into(),
                     kind: "subject".into(),
                     prob_raster_id: "prob".into(),
+                    class: None,
                     grow: 0.0,
                     feather: 0.0,
                     painted: false,

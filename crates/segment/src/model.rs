@@ -4,6 +4,7 @@ pub enum ModelKind {
     People,
     Sky,
     Depth,
+    Semantic,
     Click,
 }
 
@@ -14,6 +15,7 @@ impl ModelKind {
             Self::People => "people",
             Self::Sky => "sky",
             Self::Depth => "depth",
+            Self::Semantic => "semantic",
             Self::Click => "click",
         }
     }
@@ -132,5 +134,13 @@ impl ModelSpec {
         fit: Fit::Contain,
         normalization: Normalization::IMAGENET,
         activation: Activation::Sigmoid,
+    };
+    pub const SEGFORMER_ADE: Self = Self {
+        kind: ModelKind::Semantic,
+        input_edge: 512,
+        layout: Layout::Nchw,
+        fit: Fit::Stretch,
+        normalization: Normalization::IMAGENET,
+        activation: Activation::Softmax { channel: 0 },
     };
 }

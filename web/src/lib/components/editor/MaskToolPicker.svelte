@@ -8,22 +8,30 @@
     mdiPalette,
     mdiAutoFix,
     mdiCursorDefaultClick,
+    mdiChevronDown,
+    mdiChevronUp,
     mdiDownloadOutline
   } from '@mdi/js';
-  import type { MaskKind } from '$lib/api/masks';
-  import type { ManualTool } from '$lib/types/masks';
+  import type { MaskKind, SemanticClass } from '$lib/api/masks';
+  import { visibleSceneClasses, type ManualTool } from '$lib/types/masks';
 
   let {
     aiKinds,
+    semanticClasses = [],
     busy = false,
     onManual,
     onAi
   }: {
     aiKinds: { kind: MaskKind; installed: boolean }[];
+    semanticClasses?: SemanticClass[];
     busy?: boolean;
     onManual: (tool: ManualTool) => void;
-    onAi: (kind: MaskKind, installed: boolean) => void;
+    onAi: (kind: MaskKind, installed: boolean, maskClass?: string) => void;
   } = $props();
+
+  let semanticOpen = $state(false);
+
+  const sceneClasses = $derived(visibleSceneClasses(semanticClasses, aiKinds));
 
   const MANUAL: { tool: ManualTool; label: string; hint: string; icon: string }[] = [
     {
@@ -58,6 +66,7 @@
     people: 'Finds every person',
     sky: 'Finds the sky',
     depth: 'Selects a distance band',
+    semantic: 'Water, foliage, buildings and more',
     click: 'Click the photo to select'
   };
 
@@ -66,6 +75,7 @@
     if (kind === 'people') return 'People';
     if (kind === 'sky') return 'Sky';
     if (kind === 'depth') return 'Depth';
+    if (kind === 'semantic') return 'Scene';
     if (kind === 'click') return 'Click to select';
     return kind;
   }
@@ -84,7 +94,13 @@
           : 'text-immich-dark-fg/40'}"
         disabled={busy && entry.installed && entry.kind !== 'click'}
         aria-label={aiLabel(entry.kind)}
-        onclick={() => onAi(entry.kind, entry.installed)}
+        onclick={() => {
+          if (entry.kind === 'semantic' && entry.installed) {
+            semanticOpen = !semanticOpen;
+            return;
+          }
+          onAi(entry.kind, entry.installed);
+        }}
       >
         <Icon
           path={entry.kind === 'click' ? mdiCursorDefaultClick : mdiAutoFix}
@@ -99,8 +115,22 @@
         </span>
         {#if !entry.installed}
           <Icon path={mdiDownloadOutline} size={13} class="mt-0.5 shrink-0" />
+        {:else if entry.kind === 'semantic'}
+          <Icon path={semanticOpen ? mdiChevronUp : mdiChevronDown} size={13} class="mt-0.5 shrink-0" />
         {/if}
       </button>
+      {#if entry.kind === 'semantic' && entry.installed && semanticOpen}
+        {#each sceneClasses as cls (cls.id)}
+          <button
+            type="button"
+            class="flex w-full items-center gap-2.5 py-1 pl-10 pr-3 text-left text-xs transition-colors hover:bg-white/10 disabled:opacity-40"
+            disabled={busy}
+            onclick={() => onAi('semantic', true, cls.id)}
+          >
+            {cls.name}
+          </button>
+        {/each}
+      {/if}
     {/each}
     <div class="my-1 border-t border-white/10"></div>
   {/if}

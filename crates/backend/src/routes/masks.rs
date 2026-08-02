@@ -66,6 +66,8 @@ pub struct RangeBody {
 pub struct GenerateRequest {
     pub kind: String,
     #[serde(default)]
+    pub class: Option<String>,
+    #[serde(default)]
     pub grow: f32,
     #[serde(default)]
     pub feather: f32,
@@ -109,6 +111,7 @@ fn parse_kind(kind: &str) -> Result<ModelKind, AppError> {
         "people" => Ok(ModelKind::People),
         "sky" => Ok(ModelKind::Sky),
         "depth" => Ok(ModelKind::Depth),
+        "semantic" => Ok(ModelKind::Semantic),
         other => Err(AppError::BadRequest(format!("unknown mask kind: {other}"))),
     }
 }
@@ -217,12 +220,15 @@ pub async fn generate(
         ));
     }
     let kind = parse_kind(&req.kind)?;
+    if kind == ModelKind::Semantic && req.class.is_none() {
+        return Err(AppError::BadRequest("semantic masks need a class".into()));
+    }
     let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
 
     let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
     let result = state
         .segment
-        .generate(kind, rgb8, width, height, params)
+        .generate(kind, rgb8, width, height, params, req.class)
         .await
         .map_err(map_segment_err)?;
 
