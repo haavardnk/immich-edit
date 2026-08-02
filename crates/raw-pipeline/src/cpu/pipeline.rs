@@ -210,7 +210,7 @@ pub fn run_pipeline_ops(
         .map(|l| effective_edits_for_layer(edits, l))
         .collect();
     let n_layers = layer_evals.len();
-    let presence_active = has_presence(edits);
+    let presence_active = has_presence(edits) || layer_edits.iter().any(has_presence);
     let shadows_active =
         edits.tone.shadows != 0.0 || layer_edits.iter().any(|e| e.tone.shadows != 0.0);
     let mut pyramid_cache: Option<LumaPyramid> = None;
@@ -286,6 +286,8 @@ pub fn run_pipeline_ops(
             if !presence_done && presence_active {
                 flush(image, &mut segment, &mut layer_segments, &layer_evals);
                 let amounts = presence_amounts(edits);
+                let layer_amounts: Vec<crate::presence::PresenceAmounts> =
+                    layer_edits.iter().map(presence_amounts).collect();
                 let w = image.width as u32;
                 let h = image.height as u32;
                 let radii = presence_radii(w, h);
@@ -299,24 +301,32 @@ pub fn run_pipeline_ops(
                 };
                 let iw = image.width;
                 let ih = image.height;
-                let texture_blur = (amounts.texture != 0.0)
-                    .then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih)));
-                let clarity_blur = (amounts.clarity != 0.0)
-                    .then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih)));
-                let dehaze_blur = (amounts.dehaze != 0.0)
-                    .then(|| Arc::new(pyramid.upsample(mips.dehaze, iw, ih)));
-                drop(pyramid);
-                let presence_op = CpuFusedOp::Presence {
-                    texture: amounts.texture,
-                    clarity: amounts.clarity,
-                    dehaze: amounts.dehaze,
-                    texture_blur,
-                    clarity_blur,
-                    dehaze_blur,
+                let needs = |pick: fn(&crate::presence::PresenceAmounts) -> f32| {
+                    pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
-                segment.push(presence_op.clone());
-                for s in layer_segments.iter_mut() {
-                    s.push(presence_op.clone());
+                let texture_blur =
+                    needs(|a| a.texture).then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih)));
+                let clarity_blur =
+                    needs(|a| a.clarity).then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih)));
+                let dehaze_blur =
+                    needs(|a| a.dehaze).then(|| Arc::new(pyramid.upsample(mips.dehaze, iw, ih)));
+                drop(pyramid);
+                let make_op = |a: &crate::presence::PresenceAmounts| CpuFusedOp::Presence {
+                    texture: a.texture,
+                    clarity: a.clarity,
+                    dehaze: a.dehaze,
+                    texture_blur: texture_blur.clone(),
+                    clarity_blur: clarity_blur.clone(),
+                    dehaze_blur: dehaze_blur.clone(),
+                };
+                if !amounts.is_zero() {
+                    segment.push(make_op(&amounts));
+                }
+                for (i, s) in layer_segments.iter_mut().enumerate() {
+                    if layer_amounts[i].is_zero() {
+                        continue;
+                    }
+                    s.push(make_op(&layer_amounts[i]));
                 }
                 presence_done = true;
             }

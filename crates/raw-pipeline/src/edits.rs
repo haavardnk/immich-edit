@@ -800,6 +800,10 @@ pub struct MaskedEdits {
     pub whites: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blacks: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clarity: Option<f64>,
 }
 
 impl MaskedEdits {
@@ -815,6 +819,8 @@ impl MaskedEdits {
             && self.shadows.is_none()
             && self.whites.is_none()
             && self.blacks.is_none()
+            && self.texture.is_none()
+            && self.clarity.is_none()
     }
 }
 
@@ -929,6 +935,8 @@ fn clamp_masked_edits(m: &MaskedEdits) -> MaskedEdits {
         shadows: clamp_masked_delta(m.shadows, -100.0, 100.0),
         whites: clamp_masked_delta(m.whites, -100.0, 100.0),
         blacks: clamp_masked_delta(m.blacks, -100.0, 100.0),
+        texture: clamp_masked_delta(m.texture, -100.0, 100.0),
+        clarity: clamp_masked_delta(m.clarity, -100.0, 100.0),
     }
 }
 

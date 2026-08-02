@@ -50,10 +50,16 @@ impl RenderPlan {
     pub fn select(edits: &Edits) -> Self {
         let b = &edits.basic;
         let d = &edits.detail;
+        let masked_presence = edits
+            .masks
+            .iter()
+            .filter(|l| l.is_effective())
+            .any(|l| l.edits.texture.is_some() || l.edits.clarity.is_some());
         if b.texture != 0.0
             || b.clarity != 0.0
             || b.dehaze != 0.0
             || edits.tone.shadows != 0.0
+            || masked_presence
             || d.luma_nr_active()
             || d.color_nr_active()
         {
@@ -312,6 +318,7 @@ impl GpuRenderer {
         edits: &Edits,
         opts: &RenderOptions,
         shadows_blur: Option<&wgpu::TextureView>,
+        layer_srcs: &std::collections::HashMap<String, Arc<Texture>>,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let device = &self.ctx.device;
@@ -720,6 +727,10 @@ impl GpuRenderer {
 
             for layer in &effective_layers {
                 let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
+                let layer_src_view = layer_srcs
+                    .get(&layer.id)
+                    .map(|t| t.create_view(&TextureViewDescriptor::default()));
+                let layer_src_view_ref = layer_src_view.as_ref().unwrap_or(&src_view);
                 let mut eff_uniform = vec![0u8; built.uniform_size];
                 write_header(
                     &mut eff_uniform,
@@ -765,7 +776,7 @@ impl GpuRenderer {
                         },
                         BindGroupEntry {
                             binding: 1,
-                            resource: BindingResource::TextureView(&src_view),
+                            resource: BindingResource::TextureView(layer_src_view_ref),
                         },
                         BindGroupEntry {
                             binding: 2,
@@ -1163,6 +1174,41 @@ impl GpuRenderer {
         })
     }
 
+    fn layer_presence_sources(
+        &self,
+        src: &Arc<Texture>,
+        dims: (u32, u32),
+        edits: &Edits,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<std::collections::HashMap<String, Arc<Texture>>> {
+        let mut out = std::collections::HashMap::new();
+        let global_amts = crate::presence::presence_amounts(edits);
+        let mut cache: std::collections::HashMap<(u32, u32), Arc<Texture>> =
+            std::collections::HashMap::new();
+        for layer in edits.masks.iter().filter(|l| l.is_effective()) {
+            let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
+            let amts = crate::presence::presence_amounts(&eff);
+            if amts.texture == global_amts.texture && amts.clarity == global_amts.clarity {
+                continue;
+            }
+            let key = (amts.texture.to_bits(), amts.clarity.to_bits());
+            if let Some(t) = cache.get(&key) {
+                out.insert(layer.id.clone(), t.clone());
+                continue;
+            }
+            let t = if amts.texture == 0.0 && amts.clarity == 0.0 {
+                src.clone()
+            } else {
+                let t = self.run_presence(src, dims, &eff)?;
+                crate::cancel::check(cancel)?;
+                t
+            };
+            cache.insert(key, t.clone());
+            out.insert(layer.id.clone(), t);
+        }
+        Ok(out)
+    }
+
     pub fn render(
         &self,
         frame: &RawFrame,
@@ -1205,6 +1251,7 @@ impl GpuRenderer {
                     edits,
                     options,
                     None,
+                    &std::collections::HashMap::new(),
                     cancel,
                 )?;
                 crate::cancel::check(cancel)?;
@@ -1250,16 +1297,19 @@ impl GpuRenderer {
                 } else {
                     None
                 };
-                let post_dehaze_src: &Texture = dehaze_out.as_deref().unwrap_or(presence_src);
+                let base_src: Arc<Texture> = match dehaze_out {
+                    Some(t) => t,
+                    None => nr_out.unwrap_or(wb_base),
+                };
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
-                    self.run_presence(post_dehaze_src, spatial_dims, &edits_c)?
-                } else if let Some(t) = dehaze_out {
-                    t
+                    self.run_presence(&base_src, spatial_dims, &edits_c)?
                 } else {
-                    nr_out.unwrap_or(wb_base)
+                    base_src.clone()
                 };
                 crate::cancel::check(cancel)?;
+                let layer_srcs =
+                    self.layer_presence_sources(&base_src, spatial_dims, &edits_c, cancel)?;
                 let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
                     Some(self.build_luma_pyramid(&processed_src, spatial_dims)?)
                 } else {
@@ -1276,6 +1326,7 @@ impl GpuRenderer {
                     edits,
                     options,
                     shadows_view.as_ref(),
+                    &layer_srcs,
                     cancel,
                 )?;
                 crate::cancel::check(cancel)?;

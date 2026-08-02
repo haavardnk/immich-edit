@@ -469,6 +469,12 @@ pub fn effective_edits_for_layer(global: &Edits, layer: &MaskLayer) -> Edits {
     if let Some(v) = d.blacks {
         out.tone.blacks = (out.tone.blacks + v).clamp(-100.0, 100.0);
     }
+    if let Some(v) = d.texture {
+        out.basic.texture = (out.basic.texture + v).clamp(-100.0, 100.0);
+    }
+    if let Some(v) = d.clarity {
+        out.basic.clarity = (out.basic.clarity + v).clamp(-100.0, 100.0);
+    }
     out
 }
 

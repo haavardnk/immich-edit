@@ -1140,6 +1140,80 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
 }
 
 #[test]
+fn gpu_masked_presence_matches_cpu_and_changes_output() {
+    use raw_pipeline::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+        Vec2f,
+    };
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = RenderOptions {
+        max_edge: 96,
+        ..Default::default()
+    };
+    let layer = MaskLayer {
+        id: "L1".into(),
+        name: String::new(),
+        enabled: true,
+        color: "#ff3b30".into(),
+        amount: 1.0,
+        invert: false,
+        components: vec![MaskComponent {
+            id: "c1".into(),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            invert: false,
+            kind: MaskComponentKind::Linear {
+                p0: Vec2f { x: 0.0, y: 0.5 },
+                p1: Vec2f { x: 1.0, y: 0.5 },
+                feather: 0.2,
+            },
+            source: MaskSource::Manual,
+            generated: None,
+        }],
+        edits: MaskedEdits {
+            texture: Some(80.0),
+            clarity: Some(60.0),
+            ..Default::default()
+        },
+    };
+    let edits = Edits {
+        masks: vec![layer],
+        ..Default::default()
+    };
+    let plain = Edits::default();
+
+    let cpu_out = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let cpu_plain = raw_pipeline::cpu::render(&frame, &plain, &opts).unwrap();
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu_out.bytes);
+    let (cpu_plain_rgb, _, _) = decode_jpeg_rgb(&cpu_plain.bytes);
+    let cpu_effect = mean_abs_delta(&cpu_rgb, &cpu_plain_rgb);
+    eprintln!("masked presence cpu effect = {cpu_effect:.3}");
+    if cpu_effect < 0.5 {
+        panic!("masked texture and clarity had no effect on the CPU path: {cpu_effect:.3}");
+    }
+
+    let gpu_out = renderer.render(&frame, &edits, &opts).unwrap();
+    let gpu_plain = renderer.render(&frame, &plain, &opts).unwrap();
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu_out.bytes);
+    let (gpu_plain_rgb, _, _) = decode_jpeg_rgb(&gpu_plain.bytes);
+    let gpu_effect = mean_abs_delta(&gpu_rgb, &gpu_plain_rgb);
+    eprintln!("masked presence gpu effect = {gpu_effect:.3}");
+    if gpu_effect < 0.5 {
+        panic!("masked texture and clarity had no effect on the GPU path: {gpu_effect:.3}");
+    }
+
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("masked presence parity = {delta:.3}");
+    if delta > 8.0 {
+        panic!("CPU vs GPU masked presence drift: {delta:.3} > 8.0");
+    }
+}
+
+#[test]
 fn gpu_range_masks_match_cpu_within_tolerance() {
     use raw_pipeline::edits::{
         MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
