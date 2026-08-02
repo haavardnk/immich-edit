@@ -268,6 +268,40 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(roundTrip(e).masks).toEqual(e.masks);
   });
 
+  it('round trips polygon components', () => {
+    const e = neutralEdits();
+    e.masks = [
+      {
+        id: 'layer',
+        name: 'Shapes',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        components: [
+          {
+            id: 'poly',
+            enabled: true,
+            mode: 'add',
+            opacity: 1,
+            invert: false,
+            kind: {
+              kind: 'polygon',
+              points: [
+                { x: 0.1, y: 0.2 },
+                { x: 0.8, y: 0.15 },
+                { x: 0.5, y: 0.9 }
+              ],
+              feather: 0.08
+            },
+            source: 'manual'
+          }
+        ],
+        edits: {}
+      }
+    ];
+    expect(roundTrip(e).masks).toEqual(e.masks);
+  });
+
   it('preserves generated mask provenance', () => {
     const e = neutralEdits();
     e.masks = [

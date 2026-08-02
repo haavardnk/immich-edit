@@ -310,7 +310,8 @@ export type MaskComponentKind =
       sample_rgb: [number, number, number];
       tolerance: number;
       softness: number;
-    };
+    }
+  | { kind: 'polygon'; points: Vec2f[]; feather: number };
 
 export interface ClickPointMeta {
   x: number;
@@ -1063,6 +1064,20 @@ function parseMaskKind(raw: unknown): MaskComponentKind | null {
       sample_rgb,
       tolerance: r.tolerance,
       softness: r.softness
+    };
+  }
+  if (r.kind === 'polygon') {
+    if (!Array.isArray(r.points)) return null;
+    const points: Vec2f[] = [];
+    for (const raw of r.points) {
+      const p = raw as Record<string, unknown>;
+      if (typeof p?.x !== 'number' || typeof p?.y !== 'number') return null;
+      points.push({ x: p.x, y: p.y });
+    }
+    return {
+      kind: 'polygon',
+      points,
+      feather: typeof r.feather === 'number' ? r.feather : 0
     };
   }
   return null;

@@ -7,6 +7,7 @@ pub const N_MAX_MASK_LAYERS: usize = 8;
 pub const N_MAX_COMPONENTS_PER_LAYER: usize = 8;
 pub const N_MAX_TOTAL_COMPONENTS: usize = 32;
 pub const N_MAX_RASTER_SLOTS: usize = 16;
+pub const N_MAX_POLYGON_POINTS: usize = 64;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CurvePoint {
@@ -768,6 +769,11 @@ pub enum MaskComponentKind {
         tolerance: f32,
         softness: f32,
     },
+    Polygon {
+        points: Vec<Vec2f>,
+        #[serde(default)]
+        feather: f32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -971,6 +977,17 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
             sample_rgb: sample_rgb.map(|v| v.clamp(0.0, 1.0)),
             tolerance: tolerance.clamp(0.0, 1.0),
             softness: softness.clamp(0.0, 1.0),
+        },
+        MaskComponentKind::Polygon { points, feather } => MaskComponentKind::Polygon {
+            points: points
+                .iter()
+                .take(N_MAX_POLYGON_POINTS)
+                .map(|p| Vec2f {
+                    x: p.x.clamp(-1.0, 2.0),
+                    y: p.y.clamp(-1.0, 2.0),
+                })
+                .collect(),
+            feather: feather.clamp(0.0, 1.0),
         },
     };
     MaskComponent {

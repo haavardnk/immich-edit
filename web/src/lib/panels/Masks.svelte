@@ -5,6 +5,7 @@
   import MaskBrushControls from './MaskBrushControls.svelte';
   import MaskGeneratedControls from './MaskGeneratedControls.svelte';
   import MaskRangeControls from './MaskRangeControls.svelte';
+  import MaskPolygonControls from './MaskPolygonControls.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import {
     N_MAX_MASK_LAYERS,
@@ -32,6 +33,7 @@
     mdiCircleOutline,
     mdiBrush,
     mdiBrightness6,
+    mdiVectorPolygon,
     mdiInvertColors,
     mdiPalette,
     mdiCircleOpacity,
@@ -130,6 +132,7 @@
     if (k.kind === 'radial') return 'Radial gradient';
     if (k.kind === 'brush') return 'Brush';
     if (k.kind === 'luma_range') return 'Luminance range';
+    if (k.kind === 'polygon') return 'Polygon';
     return 'Color range';
   }
 
@@ -138,6 +141,7 @@
     if (k.kind === 'radial') return mdiCircleOutline;
     if (k.kind === 'brush') return mdiBrush;
     if (k.kind === 'luma_range') return mdiBrightness6;
+    if (k.kind === 'polygon') return mdiVectorPolygon;
     return mdiPalette;
   }
 
@@ -159,7 +163,18 @@
     return null;
   }
 
+  function startPolygon(layerId: string | null, mode: MaskComponentMode): void {
+    addLayerOpen = false;
+    addComponentOpen = false;
+    editor.beginPolygon(layerId, mode);
+    toasts.push('info', 'Click to place corners. Click the first one, or press Enter, to close.');
+  }
+
   async function pickLayerManual(tool: ManualTool): Promise<void> {
+    if (tool === 'polygon') {
+      startPolygon(null, 'add');
+      return;
+    }
     const kind = manualKind(tool);
     if (kind) await addLayer(kind);
     else await addBrushLayer();
@@ -174,6 +189,11 @@
   }
 
   async function pickShapeManual(tool: ManualTool): Promise<void> {
+    if (tool === 'polygon') {
+      if (!active) return;
+      startPolygon(active.id, pendingMode);
+      return;
+    }
     const kind = manualKind(tool);
     if (kind) await addComponent(kind);
     else await addBrushComp();
@@ -842,6 +862,10 @@
 
     {#if activeComp && (activeComp.kind.kind === 'luma_range' || activeComp.kind.kind === 'color_range')}
       <MaskRangeControls layerId={active.id} component={activeComp} />
+    {/if}
+
+    {#if activeComp && activeComp.kind.kind === 'polygon'}
+      <MaskPolygonControls layerId={active.id} component={activeComp} />
     {/if}
 
     <MaskAdjustments layerId={active.id} />

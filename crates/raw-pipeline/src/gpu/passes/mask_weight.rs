@@ -20,6 +20,7 @@ pub const MAX_COMPONENTS_BYTES: usize = COMPONENT_BYTES * MAX_COMPONENTS;
 pub const PARAMS_BYTES: usize = 96;
 pub const ATLAS_DIM: u32 = 1024;
 pub const ATLAS_LAYERS: u32 = 16;
+pub const MAX_POLY_VERTS: usize = MAX_COMPONENTS * crate::edits::N_MAX_POLYGON_POINTS;
 
 const SHADER: &str = r#"
 struct MaskParams {
@@ -46,6 +47,7 @@ struct Component {
 @group(0) @binding(3) var atlas: texture_2d_array<f32>;
 @group(0) @binding(4) var samp: sampler;
 @group(0) @binding(5) var display_tex: texture_2d<f32>;
+@group(0) @binding(6) var<storage, read> poly: array<vec2<f32>>;
 
 fn smoothstep_calc(e0: f32, e1: f32, x: f32) -> f32 {
     let t = clamp((x - e0) / max(e1 - e0, 1e-6), 0.0, 1.0);
@@ -97,6 +99,36 @@ fn color_range_weight(
         return 0.0;
     }
     return 1.0 - smoothstep_calc(tolerance, tolerance + softness, distance);
+}
+
+fn point_segment_distance(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
+    let d = b - a;
+    let len2 = dot(d, d);
+    var t = 0.0;
+    if (len2 > 1e-12) {
+        t = clamp(dot(p - a, d) / len2, 0.0, 1.0);
+    }
+    return length(p - (a + t * d));
+}
+
+fn polygon_weight(offset: u32, count: u32, uv: vec2<f32>, feather: f32) -> f32 {
+    if (count < 3u) { return 0.0; }
+    var inside = false;
+    var nearest = 1e30;
+    var j = count - 1u;
+    for (var i: u32 = 0u; i < count; i = i + 1u) {
+        let pi = poly[offset + i];
+        let pj = poly[offset + j];
+        if ((pi.y > uv.y) != (pj.y > uv.y)) {
+            let t = (uv.y - pi.y) / (pj.y - pi.y);
+            if (uv.x < pi.x + t * (pj.x - pi.x)) { inside = !inside; }
+        }
+        nearest = min(nearest, point_segment_distance(uv, pi, pj));
+        j = i;
+    }
+    if (!inside) { return 0.0; }
+    if (feather <= 1e-6) { return 1.0; }
+    return smoothstep_calc(0.0, feather, nearest);
 }
 
 fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
@@ -172,6 +204,13 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
         raw = luma_range_weight(luma, c.geom_a.x, c.geom_a.y, c.geom_a.z);
     } else if (kind == 4u) {
         raw = color_range_weight(display_rgb, c.geom_a.xyz, c.geom_b.x, c.geom_b.y);
+    } else if (kind == 5u) {
+        raw = polygon_weight(
+            u32(c.geom_a.x),
+            u32(c.geom_a.y),
+            vec2<f32>(u, v),
+            c.geom_a.z,
+        );
     }
     let inverted = c.kind_mode_invert_pad.z;
     var r = raw;
@@ -277,6 +316,16 @@ impl MaskWeightPass {
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let module = device.create_shader_module(ShaderModuleDescriptor {
@@ -332,8 +381,10 @@ pub fn resample_raster_to_atlas(raster: &MaskRaster) -> Vec<u8> {
 pub fn pack_layer_eval(
     layer: &crate::cpu::masked::LayerEval,
     slot_map: &HashMap<String, u32>,
-) -> (Vec<u8>, u32) {
+) -> (Vec<u8>, u32, Vec<u8>) {
     let mut out = Vec::with_capacity(layer.components.len() * COMPONENT_BYTES);
+    let mut verts: Vec<u8> = Vec::new();
+    let mut vert_count: usize = 0;
     let mut n: u32 = 0;
     for c in &layer.components {
         if n as usize >= MAX_COMPONENTS {
@@ -383,6 +434,26 @@ pub fn pack_layer_eval(
                 [sample_lab[0], sample_lab[1], sample_lab[2], 0.0],
                 [*tolerance, *softness, 0.0, 0.0],
             ),
+            crate::cpu::masked::ComponentKindEval::Polygon { points, feather } => {
+                let take = points
+                    .len()
+                    .min(crate::edits::N_MAX_POLYGON_POINTS)
+                    .min(MAX_POLY_VERTS.saturating_sub(vert_count));
+                if take < 3 {
+                    continue;
+                }
+                let offset = vert_count as f32;
+                for p in points.iter().take(take) {
+                    verts.extend_from_slice(&p.0.to_ne_bytes());
+                    verts.extend_from_slice(&p.1.to_ne_bytes());
+                }
+                vert_count += take;
+                (
+                    5u32,
+                    [offset, take as f32, *feather, 0.0],
+                    [0.0, 0.0, 0.0, 0.0],
+                )
+            }
         };
         let mode = match c.mode {
             crate::edits::MaskComponentMode::Add => 0u32,
@@ -406,7 +477,7 @@ pub fn pack_layer_eval(
         out.extend_from_slice(&buf);
         n += 1;
     }
-    (out, n)
+    (out, n, verts)
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -34,6 +34,10 @@ pub enum ComponentKindEval {
         tolerance: f32,
         softness: f32,
     },
+    Polygon {
+        points: Vec<(f32, f32)>,
+        feather: f32,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +122,10 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
                     tolerance: tolerance.clamp(0.0, 1.0),
                     softness: softness.clamp(0.0, 1.0),
                 },
+                MaskComponentKind::Polygon { points, feather } => ComponentKindEval::Polygon {
+                    points: points.iter().map(|p| (p.x, p.y)).collect(),
+                    feather: feather.clamp(0.0, 1.0),
+                },
             };
             ComponentEval {
                 mode: c.mode,
@@ -162,6 +170,49 @@ fn display_srgb_to_oklab(rgb: [f32; 3]) -> [f32; 3] {
         1.977_998_5 * l - 2.428_592_2 * m + 0.450_593_7 * s,
         0.025_904_037 * l + 0.782_771_77 * m - 0.808_675_77 * s,
     ]
+}
+
+#[inline(always)]
+fn point_segment_distance(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32) -> f32 {
+    let dx = bx - ax;
+    let dy = by - ay;
+    let len2 = dx * dx + dy * dy;
+    let t = if len2 <= 1e-12 {
+        0.0
+    } else {
+        (((px - ax) * dx + (py - ay) * dy) / len2).clamp(0.0, 1.0)
+    };
+    let cx = ax + t * dx;
+    let cy = ay + t * dy;
+    ((px - cx).powi(2) + (py - cy).powi(2)).sqrt()
+}
+
+fn polygon_weight(points: &[(f32, f32)], u: f32, v: f32, feather: f32) -> f32 {
+    if points.len() < 3 {
+        return 0.0;
+    }
+    let mut inside = false;
+    let mut nearest = f32::MAX;
+    let mut j = points.len() - 1;
+    for i in 0..points.len() {
+        let (xi, yi) = points[i];
+        let (xj, yj) = points[j];
+        if (yi > v) != (yj > v) {
+            let t = (v - yi) / (yj - yi);
+            if u < xi + t * (xj - xi) {
+                inside = !inside;
+            }
+        }
+        nearest = nearest.min(point_segment_distance(u, v, xi, yi, xj, yj));
+        j = i;
+    }
+    if !inside {
+        return 0.0;
+    }
+    if feather <= 1e-6 {
+        return 1.0;
+    }
+    smoothstep(0.0, feather, nearest)
 }
 
 #[inline(always)]
@@ -224,6 +275,7 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) ->
             tolerance,
             softness,
         } => color_range_weight(display_rgb, *sample_lab, *tolerance, *softness),
+        ComponentKindEval::Polygon { points, feather } => polygon_weight(points, u, v, *feather),
     };
     let r = if c.invert { 1.0 - raw } else { raw };
     (r * c.opacity).clamp(0.0, 1.0)
@@ -642,6 +694,99 @@ mod tests {
         }
         if (mid - 0.5).abs() > 0.1 {
             panic!("expected ~0.5 at center, got {mid}");
+        }
+    }
+
+    fn polygon_layer(points: Vec<Vec2f>, feather: f32) -> MaskLayer {
+        MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            components: vec![MaskComponent {
+                id: "c".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                opacity: 1.0,
+                invert: false,
+                kind: MaskComponentKind::Polygon { points, feather },
+                source: MaskSource::Manual,
+                generated: None,
+            }],
+            edits: Default::default(),
+        }
+    }
+
+    #[test]
+    fn polygon_selects_inside_and_rejects_outside() {
+        let square = vec![
+            Vec2f { x: 0.2, y: 0.2 },
+            Vec2f { x: 0.8, y: 0.2 },
+            Vec2f { x: 0.8, y: 0.8 },
+            Vec2f { x: 0.2, y: 0.8 },
+        ];
+        let eval = build_layer_eval(&polygon_layer(square, 0.0), &RasterMap::new());
+        let inside = fold_layer_weight(&eval, 0.5, 0.5);
+        let outside = fold_layer_weight(&eval, 0.05, 0.5);
+        let corner = fold_layer_weight(&eval, 0.9, 0.9);
+        if inside < 0.99 {
+            panic!("expected inside selected, got {inside}");
+        }
+        if outside > 1e-6 {
+            panic!("expected outside rejected, got {outside}");
+        }
+        if corner > 1e-6 {
+            panic!("expected corner rejected, got {corner}");
+        }
+    }
+
+    #[test]
+    fn polygon_handles_a_concave_shape() {
+        let arrow = vec![
+            Vec2f { x: 0.1, y: 0.1 },
+            Vec2f { x: 0.9, y: 0.1 },
+            Vec2f { x: 0.5, y: 0.5 },
+            Vec2f { x: 0.9, y: 0.9 },
+            Vec2f { x: 0.1, y: 0.9 },
+        ];
+        let eval = build_layer_eval(&polygon_layer(arrow, 0.0), &RasterMap::new());
+        let filled = fold_layer_weight(&eval, 0.2, 0.5);
+        let notch = fold_layer_weight(&eval, 0.8, 0.5);
+        if filled < 0.99 {
+            panic!("expected filled side selected, got {filled}");
+        }
+        if notch > 1e-6 {
+            panic!("expected concave notch rejected, got {notch}");
+        }
+    }
+
+    #[test]
+    fn polygon_feather_softens_the_inner_edge() {
+        let square = vec![
+            Vec2f { x: 0.2, y: 0.2 },
+            Vec2f { x: 0.8, y: 0.2 },
+            Vec2f { x: 0.8, y: 0.8 },
+            Vec2f { x: 0.2, y: 0.8 },
+        ];
+        let eval = build_layer_eval(&polygon_layer(square, 0.2), &RasterMap::new());
+        let centre = fold_layer_weight(&eval, 0.5, 0.5);
+        let near_edge = fold_layer_weight(&eval, 0.25, 0.5);
+        if centre < 0.99 {
+            panic!("expected centre fully selected, got {centre}");
+        }
+        if !(1e-6..0.99).contains(&near_edge) {
+            panic!("expected softened edge, got {near_edge}");
+        }
+    }
+
+    #[test]
+    fn polygon_under_three_points_is_empty() {
+        let line = vec![Vec2f { x: 0.2, y: 0.2 }, Vec2f { x: 0.8, y: 0.8 }];
+        let eval = build_layer_eval(&polygon_layer(line, 0.0), &RasterMap::new());
+        let w = fold_layer_weight(&eval, 0.5, 0.5);
+        if w > 1e-6 {
+            panic!("expected zero weight for a degenerate polygon, got {w}");
         }
     }
 

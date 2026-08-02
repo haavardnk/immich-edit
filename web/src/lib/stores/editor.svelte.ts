@@ -1,10 +1,11 @@
-import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey } from '$lib/types/edits';
+import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey, type Vec2f } from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
   defaultBrush,
   defaultLinear,
   defaultMaskColor,
   makeComponent,
+  MAX_POLYGON_POINTS,
   makeGeneratedLayer,
   makeLayer,
   maskCapacity,
@@ -114,6 +115,11 @@ class EditorStore {
     layerId: null,
     mode: 'add'
   });
+  polygonDraft = $state<{
+    layerId: string | null;
+    mode: MaskComponentMode;
+    points: Vec2f[];
+  } | null>(null);
 
   private history = $state<Edits[]>([]);
   private historyCursor = $state(-1);
@@ -731,12 +737,49 @@ class EditorStore {
     this.patchMaskLayer(id, { edits: setMaskedEdit(layer.edits, key, value) }, true);
   };
 
+  beginPolygon = (layerId: string | null, mode: MaskComponentMode = 'add'): void => {
+    this.setActiveMaskComponent(null);
+    this.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
+    this.polygonDraft = { layerId, mode, points: [] };
+  };
+
+  addPolygonPoint = (point: Vec2f): void => {
+    const draft = this.polygonDraft;
+    if (!draft || draft.points.length >= MAX_POLYGON_POINTS) return;
+    this.polygonDraft = { ...draft, points: [...draft.points, point] };
+  };
+
+  undoPolygonPoint = (): void => {
+    const draft = this.polygonDraft;
+    if (!draft || draft.points.length === 0) return;
+    this.polygonDraft = { ...draft, points: draft.points.slice(0, -1) };
+  };
+
+  cancelPolygon = (): void => {
+    this.polygonDraft = null;
+  };
+
+  finishPolygon = async (): Promise<void> => {
+    const draft = this.polygonDraft;
+    if (!draft || draft.points.length < 3) return;
+    this.polygonDraft = null;
+    const kind: MaskComponentKind = {
+      kind: 'polygon',
+      points: draft.points,
+      feather: 0.05
+    };
+    if (draft.layerId && this.edits.masks.some((l) => l.id === draft.layerId)) {
+      await this.addMaskComponent(draft.layerId, kind, draft.mode);
+      return;
+    }
+    await this.addMaskLayer(kind);
+  };
+
   addMaskComponent = async (
     layerId: string,
     kind: MaskComponentKind,
     mode: MaskComponentMode = 'add'
-  ): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, layerId);
+  ): Promise<string | null> => {    const cap = maskCapacity(this.edits, layerId);
     if (cap.componentsFull || cap.totalFull) return null;
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return null;
@@ -898,6 +941,7 @@ class EditorStore {
       this.maskGenerating = false;
     }
   };
+
 
   addGeneratedLayer = async (
     kind: MaskKind,

@@ -572,7 +572,7 @@ impl GpuRenderer {
             let atlas_sampler = crate::gpu::passes::mask_weight::make_atlas_sampler(&self.ctx);
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
             let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
-            let (comp_bytes, n_components) =
+            let (comp_bytes, n_components, poly_bytes) =
                 crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
             let lens_warp = crate::ops::lens_distortion::LensWarpParams::from_edits(
                 &edits.lens,
@@ -615,6 +615,16 @@ impl GpuRenderer {
                 contents: &comp_buf_bytes,
                 usage: BufferUsages::STORAGE,
             });
+            let poly_buf_bytes = if poly_bytes.is_empty() {
+                vec![0u8; 8]
+            } else {
+                poly_bytes
+            };
+            let mw_poly_buf = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("mask-preview-poly"),
+                contents: &poly_buf_bytes,
+                usage: BufferUsages::STORAGE,
+            });
             let mw_bind = device.create_bind_group(&BindGroupDescriptor {
                 label: Some("mask-preview-bg"),
                 layout: &self.passes.mask_weight.layout,
@@ -643,6 +653,10 @@ impl GpuRenderer {
                         binding: 5,
                         resource: BindingResource::TextureView(&out_view),
                     },
+                    BindGroupEntry {
+                        binding: 6,
+                        resource: mw_poly_buf.as_entire_binding(),
+                    },
                 ],
             });
             {
@@ -658,6 +672,7 @@ impl GpuRenderer {
             }
             _retained_bufs.push(mw_params_buf);
             _retained_bufs.push(mw_comp_buf);
+            _retained_bufs.push(mw_poly_buf);
             _retained_binds.push(mw_bind);
             _preview_atlas = Some(atlas);
         }
@@ -785,7 +800,7 @@ impl GpuRenderer {
                 _retained_binds.push(layer_bind);
 
                 let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
-                let (comp_bytes, n_components) =
+                let (comp_bytes, n_components, poly_bytes) =
                     crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
                 let lens_warp = crate::ops::lens_distortion::LensWarpParams::from_edits(
                     &edits.lens,
@@ -828,6 +843,16 @@ impl GpuRenderer {
                     contents: &comp_buf_bytes,
                     usage: BufferUsages::STORAGE,
                 });
+                let poly_buf_bytes = if poly_bytes.is_empty() {
+                    vec![0u8; 8]
+                } else {
+                    poly_bytes
+                };
+                let mw_poly_buf = device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("mask-weight-poly"),
+                    contents: &poly_buf_bytes,
+                    usage: BufferUsages::STORAGE,
+                });
                 let mw_bind = device.create_bind_group(&BindGroupDescriptor {
                     label: Some("mask-weight-bg"),
                     layout: &self.passes.mask_weight.layout,
@@ -856,6 +881,10 @@ impl GpuRenderer {
                             binding: 5,
                             resource: BindingResource::TextureView(&out_view),
                         },
+                        BindGroupEntry {
+                            binding: 6,
+                            resource: mw_poly_buf.as_entire_binding(),
+                        },
                     ],
                 });
                 {
@@ -871,6 +900,7 @@ impl GpuRenderer {
                 }
                 _retained_bufs.push(mw_params_buf);
                 _retained_bufs.push(mw_comp_buf);
+                _retained_bufs.push(mw_poly_buf);
                 _retained_binds.push(mw_bind);
 
                 let (curr_view, dst_view) = if accum_in_alt {

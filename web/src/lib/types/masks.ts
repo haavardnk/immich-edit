@@ -15,7 +15,7 @@ import {
 import type { MaskKind } from '$lib/api/masks';
 import { v4 as uuidv4 } from 'uuid';
 
-export type ManualTool = 'linear' | 'radial' | 'brush' | 'luma_range' | 'color_range';
+export type ManualTool = 'linear' | 'radial' | 'brush' | 'polygon' | 'luma_range' | 'color_range';
 
 const PALETTE = [
   '#ff3b30',
@@ -61,6 +61,8 @@ export function defaultBrush(rasterId: string): MaskComponentKind {
 export function defaultLumaRange(): MaskComponentKind {
   return { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 };
 }
+
+export const MAX_POLYGON_POINTS = 64;
 
 export function defaultColorRange(): MaskComponentKind {
   return {
@@ -179,6 +181,13 @@ function cloneKind(k: MaskComponentKind): MaskComponentKind {
   if (k.kind === 'brush') return { kind: 'brush', raster_id: k.raster_id };
   if (k.kind === 'luma_range') {
     return { kind: 'luma_range', min: k.min, max: k.max, softness: k.softness };
+  }
+  if (k.kind === 'polygon') {
+    return {
+      kind: 'polygon',
+      points: k.points.map((p) => ({ ...p })),
+      feather: k.feather
+    };
   }
   return {
     kind: 'color_range',

@@ -10,6 +10,7 @@
     mdiCursorDefaultClick,
     mdiSelectDrag,
     mdiVectorDifference,
+    mdiVectorPolygon,
     mdiChevronDown,
     mdiChevronUp,
     mdiDownloadOutline
@@ -53,6 +54,12 @@
       icon: mdiCircleOutline
     },
     { tool: 'brush', label: 'Brush', hint: 'Paint the area by hand', icon: mdiBrush },
+    {
+      tool: 'polygon',
+      label: 'Polygon',
+      hint: 'Drag the corners to fit a shape',
+      icon: mdiVectorPolygon
+    },
     {
       tool: 'luma_range',
       label: 'Luminance range',

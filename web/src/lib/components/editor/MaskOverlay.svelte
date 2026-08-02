@@ -1,7 +1,9 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { toasts } from '$lib/stores/toasts.svelte';
   import { type MaskComponent, type MaskComponentKind, type Vec2f } from '$lib/types/edits';
+  import { MAX_POLYGON_POINTS } from '$lib/types/masks';
   import {
     lensWarpFromEdits,
     maskUvToSceneUv,
@@ -145,7 +147,9 @@
     | { kind: 'radial-center' }
     | { kind: 'radial-rx'; sign: 1 | -1 }
     | { kind: 'radial-ry'; sign: 1 | -1 }
-    | { kind: 'radial-feather' };
+    | { kind: 'radial-feather' }
+    | { kind: 'polygon-vertex'; index: number }
+    | { kind: 'polygon-move'; start: Vec2f[]; downAtN: Vec2f };
 
   let drag = $state<{
     layerId: string;
@@ -178,6 +182,7 @@
       return;
     }
     if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+    if (ui.editorTab !== 'masks') return;
     const t = e.target as HTMLElement | null;
     if (t) {
       const tag = t.tagName;
@@ -186,6 +191,7 @@
     if (!active || !editor.activeMaskComponentId) return;
     e.preventDefault();
     void editor.removeMaskComponent(active.id, editor.activeMaskComponentId);
+    toasts.push('info', 'Shape deleted. Undo with Cmd+Z.');
   }
 
   $effect(() => {
@@ -240,6 +246,16 @@
       const d = Math.sqrt(ex * ex + ey * ey);
       const feather = clamp01(1 - d);
       next = { ...comp.kind, feather };
+    } else if (drag.kind.kind === 'polygon-vertex' && comp.kind.kind === 'polygon') {
+      const index = drag.kind.index;
+      next = { ...comp.kind, points: comp.kind.points.map((p, i) => (i === index ? n : p)) };
+    } else if (drag.kind.kind === 'polygon-move' && comp.kind.kind === 'polygon') {
+      const dx = n.x - drag.kind.downAtN.x;
+      const dy = n.y - drag.kind.downAtN.y;
+      next = {
+        ...comp.kind,
+        points: drag.kind.start.map((p) => ({ x: clamp01(p.x + dx), y: clamp01(p.y + dy) }))
+      };
     }
     if (next) editor.updateMaskComponentKind(layer.id, comp.id, next, true);
   }
@@ -284,8 +300,92 @@
     void editor.commitColorSample([pixel[0] / 255, pixel[1] / 255, pixel[2] / 255]);
   }
 
-  function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {
-    const a = sceneToPx(k.p0);
+  const draft = $derived(editor.polygonDraft);
+  const drafting = $derived(!!draft && rectW > 0 && rectH > 0);
+  let draftCursor = $state<{ x: number; y: number } | null>(null);
+
+  function draftPointerMove(e: PointerEvent): void {
+    const svg = e.currentTarget as SVGSVGElement;
+    const r = svg.getBoundingClientRect();
+    draftCursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function draftClick(e: PointerEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const svg = e.currentTarget as SVGSVGElement;
+    const r = svg.getBoundingClientRect();
+    const p = fromPxScene(e.clientX - r.left, e.clientY - r.top);
+    if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
+    if (editor.polygonDraft && editor.polygonDraft.points.length >= MAX_POLYGON_POINTS) {
+      toasts.push('info', `A polygon can have at most ${MAX_POLYGON_POINTS} corners.`);
+      return;
+    }
+    editor.addPolygonPoint(p);
+  }
+
+  function onDraftKey(e: KeyboardEvent): void {
+    if (!editor.polygonDraft) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      editor.cancelPolygon();
+      draftCursor = null;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      void editor.finishPolygon();
+      draftCursor = null;
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      editor.undoPolygonPoint();
+    }
+  }
+
+  $effect(() => {
+    if (!editor.polygonDraft) return;
+    window.addEventListener('keydown', onDraftKey);
+    return () => window.removeEventListener('keydown', onDraftKey);
+  });
+
+  function polygonPath(k: Extract<MaskComponentKind, { kind: 'polygon' }>): string {
+    return k.points
+      .map((p) => {
+        const px = sceneToPx(p);
+        return `${px.x},${px.y}`;
+      })
+      .join(' ');
+  }
+
+  function insertVertex(
+    layerId: string,
+    comp: MaskComponent,
+    k: Extract<MaskComponentKind, { kind: 'polygon' }>,
+    after: number
+  ): void {
+    if (k.points.length >= MAX_POLYGON_POINTS) {
+      toasts.push('info', `A polygon can have at most ${MAX_POLYGON_POINTS} corners.`);
+      return;
+    }
+    const a = k.points[after];
+    const b = k.points[(after + 1) % k.points.length];
+    const points = [...k.points];
+    points.splice(after + 1, 0, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    editor.updateMaskComponentKind(layerId, comp.id, { ...k, points }, false);
+    void editor.commitMasks();
+  }
+
+  function deleteVertex(
+    layerId: string,
+    comp: MaskComponent,
+    k: Extract<MaskComponentKind, { kind: 'polygon' }>,
+    index: number
+  ): void {
+    if (k.points.length <= 3) return;
+    const points = k.points.filter((_, i) => i !== index);
+    editor.updateMaskComponentKind(layerId, comp.id, { ...k, points }, false);
+    void editor.commitMasks();
+  }
+
+  function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {    const a = sceneToPx(k.p0);
     const b = sceneToPx(k.p1);
     return { a, b, comp };
   }
@@ -326,8 +426,7 @@
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
-  >
-    {#each active.components as comp (comp.id)}
+  >    {#each active.components as comp (comp.id)}
       {#if comp.enabled && activeCompId === comp.id && comp.kind.kind === 'linear'}
         {@const h = linearHandles(comp, comp.kind)}
         {@const isSel = activeCompId === comp.id}
@@ -654,7 +753,154 @@
             />
           {/if}
         </g>
+      {:else if comp.enabled && activeCompId === comp.id && comp.kind.kind === 'polygon'}
+        {@const k = comp.kind}
+        {@const pts = polygonPath(k)}
+        <g style="pointer-events: auto;">
+          <polygon
+            points={pts}
+            fill={active.color}
+            fill-opacity="0.12"
+            stroke={active.color}
+            stroke-width="1.5"
+            style="cursor: move;"
+            role="button"
+            aria-label="Move polygon"
+            tabindex="-1"
+            onpointerdown={(e) => {
+              if (comp.kind.kind !== 'polygon') return;
+              const svg = (e.currentTarget as SVGElement).ownerSVGElement!;
+              const r = svg.getBoundingClientRect();
+              startDrag(e, active.id, comp.id, {
+                kind: 'polygon-move',
+                start: comp.kind.points.map((p) => ({ ...p })),
+                downAtN: fromPxScene(e.clientX - r.left, e.clientY - r.top)
+              });
+            }}
+          />
+          {#each k.points as p, i (i)}
+            {@const mid = sceneToPx({
+              x: (p.x + k.points[(i + 1) % k.points.length].x) / 2,
+              y: (p.y + k.points[(i + 1) % k.points.length].y) / 2
+            })}
+            <circle
+              cx={mid.x}
+              cy={mid.y}
+              r="5"
+              fill="white"
+              fill-opacity="0.6"
+              stroke={active.color}
+              stroke-width="1.5"
+              style="cursor: copy;"
+              role="button"
+              aria-label="Add polygon corner"
+              tabindex="-1"
+              onpointerdown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                insertVertex(active.id, comp, k, i);
+              }}
+            />
+          {/each}
+          {#each k.points as p, i (i)}
+            {@const px = sceneToPx(p)}
+            <circle
+              cx={px.x}
+              cy={px.y}
+              r="7"
+              fill={active.color}
+              stroke="white"
+              stroke-width="2"
+              style="cursor: move;"
+              role="button"
+              aria-label="Polygon corner"
+              tabindex="-1"
+              onpointerdown={(e) => startDrag(e, active.id, comp.id, {
+                kind: 'polygon-vertex',
+                index: i
+              })}
+              ondblclick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteVertex(active.id, comp, k, i);
+              }}
+            />
+          {/each}
+        </g>
       {/if}
     {/each}
+  </svg>
+{/if}
+
+{#if drafting && draft}
+  {@const pts = draft.points.map((p) => sceneToPx(p))}
+  {@const first = pts[0]}
+  <svg
+    class="absolute inset-0"
+    width="100%"
+    height="100%"
+    role="presentation"
+    style="cursor: crosshair;"
+    onpointermove={draftPointerMove}
+    onpointerdown={draftClick}
+    oncontextmenu={(e) => {
+      e.preventDefault();
+      editor.undoPolygonPoint();
+    }}
+  >
+    {#if pts.length > 0}
+      <polyline
+        points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="1.5"
+        stroke-dasharray="4 3"
+        style="pointer-events: none;"
+      />
+      {#if draftCursor}
+        <line
+          x1={pts[pts.length - 1].x}
+          y1={pts[pts.length - 1].y}
+          x2={draftCursor.x}
+          y2={draftCursor.y}
+          stroke="#ffffff"
+          stroke-width="1.5"
+          stroke-dasharray="4 3"
+          opacity="0.7"
+          style="pointer-events: none;"
+        />
+      {/if}
+      {#each pts as p, i (i)}
+        <circle
+          cx={p.x}
+          cy={p.y}
+          r={i === 0 ? 8 : 5}
+          fill={i === 0 ? '#ffffff' : '#111111'}
+          stroke="#ffffff"
+          stroke-width="2"
+          style={i === 0 && draft.points.length >= 3 ? 'cursor: pointer;' : 'pointer-events: none;'}
+          role={i === 0 && draft.points.length >= 3 ? 'button' : undefined}
+          aria-label={i === 0 && draft.points.length >= 3 ? 'Close polygon' : undefined}
+          onpointerdown={(e) => {
+            if (i !== 0 || draft.points.length < 3) return;
+            e.preventDefault();
+            e.stopPropagation();
+            void editor.finishPolygon();
+            draftCursor = null;
+          }}
+        />
+      {/each}
+    {/if}
+    <text
+      x={rectX + 12}
+      y={rectY + 22}
+      fill="#ffffff"
+      font-size="12"
+      style="pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 3px;"
+    >
+      {draft.points.length < 3
+        ? `Click to place corners (${draft.points.length}/${MAX_POLYGON_POINTS})`
+        : 'Click the first corner or press Enter to close. Esc cancels.'}
+    </text>
   </svg>
 {/if}
