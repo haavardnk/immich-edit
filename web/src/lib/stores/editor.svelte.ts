@@ -861,7 +861,8 @@ class EditorStore {
     layerId: string,
     kind: MaskKind,
     mode: MaskComponentMode = 'add',
-    maskClass?: string
+    maskClass?: string,
+    invert = false
   ): Promise<string | null> => {
     const assetId = this.assetId;
     if (!assetId || this.maskGenerating) return null;
@@ -874,6 +875,7 @@ class EditorStore {
       const res = await generateMask(assetId, kind, 0, 0, maskClass);
       const comp: MaskComponent = {
         ...makeComponent({ kind: 'brush', raster_id: res.raster_id }, mode),
+        invert,
         source: 'generated',
         generated: {
           model_id: res.model_id,
@@ -897,7 +899,11 @@ class EditorStore {
     }
   };
 
-  addGeneratedLayer = async (kind: MaskKind, maskClass?: string): Promise<string | null> => {
+  addGeneratedLayer = async (
+    kind: MaskKind,
+    maskClass?: string,
+    invert = false
+  ): Promise<string | null> => {
     const assetId = this.assetId;
     if (!assetId || this.maskGenerating) return null;
     const cap = maskCapacity(this.edits, null);
@@ -916,7 +922,8 @@ class EditorStore {
           grow: 0,
           feather: 0,
           ...(maskClass ? { class: maskClass } : {})
-        }
+        },
+        invert
       );
       this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
       this.activeLayerId = layer.id;

@@ -99,13 +99,15 @@ export function makeGeneratedLayer(
   name: string,
   index: number,
   rasterId: string,
-  generated: GeneratedMeta
+  generated: GeneratedMeta,
+  invert = false
 ): MaskLayer {
   const layer = makeLayer(name, index, defaultBrush(rasterId));
   return {
     ...layer,
     components: layer.components.map((c): MaskComponent => ({
       ...c,
+      invert,
       source: 'generated',
       generated
     }))

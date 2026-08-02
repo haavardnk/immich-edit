@@ -9,6 +9,7 @@
     mdiAutoFix,
     mdiCursorDefaultClick,
     mdiSelectDrag,
+    mdiVectorDifference,
     mdiChevronDown,
     mdiChevronUp,
     mdiDownloadOutline
@@ -22,7 +23,8 @@
     busy = false,
     onManual,
     onAi,
-    onBox
+    onBox,
+    onBackground
   }: {
     aiKinds: { kind: MaskKind; installed: boolean }[];
     semanticClasses?: SemanticClass[];
@@ -30,6 +32,7 @@
     onManual: (tool: ManualTool) => void;
     onAi: (kind: MaskKind, installed: boolean, maskClass?: string) => void;
     onBox: () => void;
+    onBackground: () => void;
   } = $props();
 
   let semanticOpen = $state(false);
@@ -122,6 +125,23 @@
           <Icon path={semanticOpen ? mdiChevronUp : mdiChevronDown} size={13} class="mt-0.5 shrink-0" />
         {/if}
       </button>
+      {#if entry.kind === 'subject' && entry.installed}
+        <button
+          type="button"
+          class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10 disabled:opacity-40"
+          aria-label="Background"
+          disabled={busy}
+          onclick={onBackground}
+        >
+          <Icon path={mdiVectorDifference} size={14} class="mt-0.5 shrink-0 opacity-70" />
+          <span class="flex-1 min-w-0">
+            <span class="block text-xs truncate">Background</span>
+            <span class="block text-[10px] text-immich-dark-fg/40 truncate">
+              Everything but the subject
+            </span>
+          </span>
+        </button>
+      {/if}
       {#if entry.kind === 'click' && entry.installed}
         <button
           type="button"

@@ -257,8 +257,7 @@
     };
   }
 
-  function armLayerBox(): void {
-    addLayerOpen = false;
+  function armLayerBox(): void {    addLayerOpen = false;
     editor.setActiveMaskComponent(null);
     editor.clickTool = { active: true, negative: false, box: true, layerId: null, mode: 'add' };
     toasts.push('info', 'Drag a box around the subject.');
@@ -282,6 +281,17 @@
     if (!active) return;
     addComponentOpen = false;
     await editor.addGeneratedComponent(active.id, kind, pendingMode, maskClass);
+  }
+
+  async function addBackgroundLayer(): Promise<void> {
+    addLayerOpen = false;
+    await editor.addGeneratedLayer('subject', undefined, true);
+  }
+
+  async function addBackgroundComp(): Promise<void> {
+    if (!active) return;
+    addComponentOpen = false;
+    await editor.addGeneratedComponent(active.id, 'subject', pendingMode, undefined, true);
   }
 
   function beginRename(layer: MaskLayer): void {
@@ -440,6 +450,7 @@
               onManual={(tool) => void pickLayerManual(tool)}
               onAi={(kind, installed, cls) => void pickLayerAi(kind, installed, cls)}
               onBox={armLayerBox}
+              onBackground={() => void addBackgroundLayer()}
             />
           </div>
         {/if}
@@ -654,6 +665,7 @@
               onManual={(tool) => void pickShapeManual(tool)}
               onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
               onBox={armShapeBox}
+              onBackground={() => void addBackgroundComp()}
             />
           </div>
         {/if}
