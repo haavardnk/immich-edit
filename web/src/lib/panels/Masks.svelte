@@ -1,7 +1,10 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import MaskedEditSlider from './MaskedEditSlider.svelte';
+  import MaskAdjustments from './MaskAdjustments.svelte';
+  import MaskBrushControls from './MaskBrushControls.svelte';
+  import MaskGeneratedControls from './MaskGeneratedControls.svelte';
+  import MaskRangeControls from './MaskRangeControls.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import {
     N_MAX_MASK_LAYERS,
@@ -29,7 +32,6 @@
     mdiCircleOutline,
     mdiBrush,
     mdiBrightness6,
-    mdiEyedropperVariant,
     mdiInvertColors,
     mdiPalette,
     mdiCircleOpacity,
@@ -80,27 +82,6 @@
       ? activeComp.kind.feather
       : 0.5
   );
-  const brushSizeValue = $derived(editor.brushTool.size);
-  const brushHardnessValue = $derived(editor.brushTool.hardness);
-  const brushFlowValue = $derived(editor.brushTool.flow);
-
-  let refineCompId = $state<string | null>(null);
-  let growValue = $state(0);
-  let featherPxValue = $state(0);
-  let depthMinValue = $state(0);
-  let depthMaxValue = $state(1);
-  let depthSoftnessValue = $state(0.1);
-
-  $effect(() => {
-    const id = activeComp?.generated ? activeComp.id : null;
-    if (id === refineCompId) return;
-    refineCompId = id;
-    growValue = activeComp?.generated?.grow ?? 0;
-    featherPxValue = activeComp?.generated?.feather ?? 0;
-    depthMinValue = activeComp?.generated?.range?.min ?? 0;
-    depthMaxValue = activeComp?.generated?.range?.max ?? 1;
-    depthSoftnessValue = activeComp?.generated?.range?.softness ?? 0.1;
-  });
 
   $effect(() => {
     if (modelsRequested) return;
@@ -121,33 +102,8 @@
       });
   });
 
-  async function rebakeGenerated(): Promise<void> {
-    if (!active || !activeComp?.generated) return;
-    const range =
-      activeComp.generated.kind === 'depth'
-        ? { min: depthMinValue, max: depthMaxValue, softness: depthSoftnessValue }
-        : undefined;
-    await editor.rebakeGeneratedComponent(
-      active.id,
-      activeComp.id,
-      growValue,
-      featherPxValue,
-      range
-    );
-  }
   const lumaMinValue = $derived(
     activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
-  );
-  const lumaMaxValue = $derived(
-    activeComp?.kind.kind === 'luma_range' ? activeComp.kind.max : 0.75
-  );
-  const rangeSoftnessValue = $derived(
-    activeComp?.kind.kind === 'luma_range' || activeComp?.kind.kind === 'color_range'
-      ? activeComp.kind.softness
-      : 0.1
-  );
-  const colorToleranceValue = $derived(
-    activeComp?.kind.kind === 'color_range' ? activeComp.kind.tolerance : 0.1
   );
 
   function onAmountLive(v: number): void {
@@ -180,30 +136,6 @@
     if (k.kind === 'brush') return mdiBrush;
     if (k.kind === 'luma_range') return mdiBrightness6;
     return mdiPalette;
-  }
-
-  function updateLumaRange(field: 'min' | 'max' | 'softness', value: number): void {
-    if (!active || !activeComp || activeComp.kind.kind !== 'luma_range') return;
-    const kind = activeComp.kind;
-    const next = { ...kind, [field]: value };
-    if (field === 'min') next.min = Math.min(value, kind.max);
-    if (field === 'max') next.max = Math.max(value, kind.min);
-    editor.updateMaskComponentKind(active.id, activeComp.id, next, true);
-  }
-
-  function updateColorRange(field: 'tolerance' | 'softness', value: number): void {
-    if (!active || !activeComp || activeComp.kind.kind !== 'color_range') return;
-    editor.updateMaskComponentKind(
-      active.id,
-      activeComp.id,
-      { ...activeComp.kind, [field]: value },
-      true
-    );
-  }
-
-  function colorCss(rgb: [number, number, number]): string {
-    const channels = rgb.map((value) => Math.round(Math.max(0, Math.min(1, value)) * 255));
-    return `rgb(${channels[0]} ${channels[1]} ${channels[2]})`;
   }
 
   async function addLayer(kind: MaskComponentKind): Promise<void> {
@@ -854,278 +786,15 @@
     {/if}
 
     {#if activeComp?.generated}
-      <div class="mt-2 flex flex-col gap-2.5">
-        <div class="px-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-          {generatedLabel(activeComp.generated.kind)} · {activeComp.generated.model_id}
-        </div>
-        {#if activeComp.generated.painted}
-          <div class="mx-1 rounded bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-200/90">
-            You have painted on this mask. Moving these sliders regenerates it from the model and
-            discards those strokes.
-          </div>
-        {/if}
-        {#if activeComp.generated.kind === 'depth'}
-          <SliderRow
-            label="Near"
-            value={depthMinValue}
-            min={0}
-            max={1}
-            step={0.01}
-            defaultValue={0}
-            onLive={(v: number) => (depthMinValue = Math.min(v, depthMaxValue))}
-            onCommit={rebakeGenerated}
-            format={(v: number) => v.toFixed(2)}
-          />
-          <SliderRow
-            label="Far"
-            value={depthMaxValue}
-            min={0}
-            max={1}
-            step={0.01}
-            defaultValue={1}
-            onLive={(v: number) => (depthMaxValue = Math.max(v, depthMinValue))}
-            onCommit={rebakeGenerated}
-            format={(v: number) => v.toFixed(2)}
-          />
-          <SliderRow
-            label="Softness"
-            value={depthSoftnessValue}
-            min={0}
-            max={1}
-            step={0.01}
-            defaultValue={0.1}
-            onLive={(v: number) => (depthSoftnessValue = v)}
-            onCommit={rebakeGenerated}
-            format={(v: number) => v.toFixed(2)}
-          />
-        {/if}
-        <SliderRow
-          label="Grow"
-          value={growValue}
-          min={-32}
-          max={32}
-          step={1}
-          defaultValue={0}
-          onLive={(v: number) => (growValue = v)}
-          onCommit={rebakeGenerated}
-          format={(v: number) => v.toFixed(0)}
-        />
-        <SliderRow
-          label="Feather"
-          value={featherPxValue}
-          min={0}
-          max={32}
-          step={1}
-          defaultValue={0}
-          onLive={(v: number) => (featherPxValue = v)}
-          onCommit={rebakeGenerated}
-          format={(v: number) => v.toFixed(0)}
-        />
-      </div>
+      <MaskGeneratedControls layerId={active.id} component={activeComp} />
     {:else if activeComp && activeComp.kind.kind === 'brush'}
-      <div class="mt-2 flex flex-col gap-2">
-        <div class="flex items-center justify-between px-1">
-          <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Brush</div>
-          <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-            <button
-              type="button"
-              class="px-2 leading-5 transition-colors {editor.brushTool.mode === 'paint'
-                ? 'bg-white/15 text-immich-dark-fg'
-                : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-              onclick={() => editor.setBrushTool({ mode: 'paint' })}
-            >
-              Paint
-            </button>
-            <button
-              type="button"
-              class="px-2 leading-5 transition-colors {editor.brushTool.mode === 'erase'
-                ? 'bg-white/15 text-immich-dark-fg'
-                : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-              onclick={() => editor.setBrushTool({ mode: 'erase' })}
-            >
-              Erase
-            </button>
-          </div>
-        </div>
-        <SliderRow
-          label="Size"
-          value={brushSizeValue}
-          min={0.005}
-          max={0.5}
-          step={0.005}
-          defaultValue={0.08}
-          onLive={(v: number) => editor.setBrushTool({ size: v })}
-          onCommit={() => editor.setBrushTool({ size: brushSizeValue })}
-          format={(v: number) => v.toFixed(3)}
-        />
-        <SliderRow
-          label="Hardness"
-          value={brushHardnessValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.5}
-          onLive={(v: number) => editor.setBrushTool({ hardness: v })}
-          onCommit={() => editor.setBrushTool({ hardness: brushHardnessValue })}
-          format={(v: number) => v.toFixed(2)}
-        />
-        <SliderRow
-          label="Flow"
-          value={brushFlowValue}
-          min={0.01}
-          max={1}
-          step={0.01}
-          defaultValue={0.8}
-          onLive={(v: number) => editor.setBrushTool({ flow: v })}
-          onCommit={() => editor.setBrushTool({ flow: brushFlowValue })}
-          format={(v: number) => v.toFixed(2)}
-        />
-      </div>
+      <MaskBrushControls />
     {/if}
 
-    {#if activeComp && activeComp.kind.kind === 'luma_range'}
-      <div class="mt-2 flex flex-col gap-2.5">
-        <SliderRow
-          label="Min"
-          value={lumaMinValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.25}
-          onLive={(value: number) => updateLumaRange('min', value)}
-          onCommit={onFeatherCommit}
-          format={(value: number) => value.toFixed(2)}
-        />
-        <SliderRow
-          label="Max"
-          value={lumaMaxValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.75}
-          onLive={(value: number) => updateLumaRange('max', value)}
-          onCommit={onFeatherCommit}
-          format={(value: number) => value.toFixed(2)}
-        />
-        <SliderRow
-          label="Softness"
-          value={rangeSoftnessValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.1}
-          onLive={(value: number) => updateLumaRange('softness', value)}
-          onCommit={onFeatherCommit}
-          format={(value: number) => value.toFixed(2)}
-        />
-      </div>
+    {#if activeComp && (activeComp.kind.kind === 'luma_range' || activeComp.kind.kind === 'color_range')}
+      <MaskRangeControls layerId={active.id} component={activeComp} />
     {/if}
 
-    {#if activeComp && activeComp.kind.kind === 'color_range'}
-      <div class="mt-2 flex flex-col gap-2.5">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-[11px] text-immich-dark-fg/70">Sample</span>
-          <div class="flex items-center gap-2">
-            <span
-              class="w-5 h-5 rounded-sm ring-1 ring-white/20"
-              style="background-color: {colorCss(activeComp.kind.sample_rgb)}"
-            ></span>
-            <button
-              type="button"
-              class="inline-flex items-center justify-center w-6 h-6 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors {editor.colorPicker
-                ? 'bg-white/10 text-immich-dark-primary'
-                : ''}"
-              title={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
-              aria-label={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
-              onclick={() => {
-                if (editor.colorPicker) editor.cancelColorPicker();
-                else if (active) editor.beginColorPicker(active.id, activeComp.id);
-              }}
-            >
-              <Icon path={mdiEyedropperVariant} size={14} />
-            </button>
-          </div>
-        </div>
-        <SliderRow
-          label="Tolerance"
-          value={colorToleranceValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.1}
-          onLive={(value: number) => updateColorRange('tolerance', value)}
-          onCommit={onFeatherCommit}
-          format={(value: number) => value.toFixed(2)}
-        />
-        <SliderRow
-          label="Softness"
-          value={rangeSoftnessValue}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={0.05}
-          onLive={(value: number) => updateColorRange('softness', value)}
-          onCommit={onFeatherCommit}
-          format={(value: number) => value.toFixed(2)}
-        />
-      </div>
-    {/if}
-
-    <div class="mt-3 border-t border-white/10 pt-3 flex flex-col gap-2.5">
-      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40 px-1">Adjustments</div>
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="exposure_ev"
-        label="Exposure"
-        min={-5}
-        max={5}
-        step={0.05}
-        format={(v: number) => v.toFixed(2)}
-      />
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="brightness"
-        label="Brightness"
-        min={-100}
-        max={100}
-      />
-      <MaskedEditSlider layerId={active.id} eKey="contrast" label="Contrast" min={-100} max={100} />
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="highlights"
-        label="Highlights"
-        min={-100}
-        max={100}
-      />
-      <MaskedEditSlider layerId={active.id} eKey="shadows" label="Shadows" min={-100} max={100} />
-      <MaskedEditSlider layerId={active.id} eKey="whites" label="Whites" min={-100} max={100} />
-      <MaskedEditSlider layerId={active.id} eKey="blacks" label="Blacks" min={-100} max={100} />
-      <div class="border-t border-white/5"></div>
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="saturation"
-        label="Saturation"
-        min={-100}
-        max={100}
-      />
-      <MaskedEditSlider layerId={active.id} eKey="vibrance" label="Vibrance" min={-100} max={100} />
-      <div class="border-t border-white/5"></div>
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="wb_temp"
-        label="Temperature"
-        min={-100}
-        max={100}
-        gradient="linear-gradient(to right, #4a90d9, #b8a44c)"
-      />
-      <MaskedEditSlider
-        layerId={active.id}
-        eKey="wb_tint"
-        label="Tint"
-        min={-100}
-        max={100}
-        gradient="linear-gradient(to right, #b8508a, #6ab04c)"
-      />
-    </div>
+    <MaskAdjustments layerId={active.id} />
   {/if}
 </div>
