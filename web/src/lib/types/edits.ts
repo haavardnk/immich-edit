@@ -360,7 +360,8 @@ export type MaskedEditKey =
   | 'whites'
   | 'blacks'
   | 'texture'
-  | 'clarity';
+  | 'clarity'
+  | 'sharpen';
 
 export const MASKED_EDIT_KEYS: readonly MaskedEditKey[] = [
   'exposure_ev',
@@ -375,7 +376,8 @@ export const MASKED_EDIT_KEYS: readonly MaskedEditKey[] = [
   'whites',
   'blacks',
   'texture',
-  'clarity'
+  'clarity',
+  'sharpen'
 ];
 
 export type MaskedEdits = Partial<Record<MaskedEditKey, number>>;

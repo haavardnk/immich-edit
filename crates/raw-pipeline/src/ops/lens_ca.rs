@@ -89,7 +89,7 @@ mod tests {
                 preview_mode: PreviewMode::None,
                 dcp: None,
             },
-            scratch: OpScratch { shadows_blur: None },
+            scratch: OpScratch::default(),
         }
     }
 

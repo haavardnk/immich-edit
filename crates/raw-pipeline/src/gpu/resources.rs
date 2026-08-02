@@ -15,6 +15,7 @@ pub(super) struct OutputTargets {
     pub mask_scratch_linear: Texture,
     pub mask_scratch_tone: Texture,
     pub mask_weight: Texture,
+    pub mask_sharpen: Texture,
     pub alloc_w: u32,
     pub alloc_h: u32,
 }
@@ -115,6 +116,22 @@ impl OutputTargets {
                 dimension: TextureDimension::D2,
                 format: TextureFormat::R32Float,
                 usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            }),
+            mask_sharpen: device.create_texture(&TextureDescriptor {
+                label: Some("mask-sharpen"),
+                size: Extent3d {
+                    width: need_w,
+                    height: need_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::R32Float,
+                usage: TextureUsages::STORAGE_BINDING
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST,
                 view_formats: &[],
             }),
             alloc_w: need_w,

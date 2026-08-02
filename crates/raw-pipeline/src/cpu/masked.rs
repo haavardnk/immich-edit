@@ -378,6 +378,48 @@ pub fn apply_segment_masked(
         });
 }
 
+pub fn build_sharpen_delta_image(
+    image: &LinearImage,
+    layers: &[LayerEval],
+    deltas: &[f32],
+    lens_warp: &LensWarpParams,
+) -> LinearImage {
+    let w = image.width;
+    let h = image.height;
+    let inv_w = 1.0 / w.max(1) as f32;
+    let inv_h = 1.0 / h.max(1) as f32;
+    let warp_active = !lens_warp.is_identity();
+    let mut out = vec![0.0f32; w * h * 3];
+    out.par_chunks_exact_mut(w * 3)
+        .zip(image.rgb.par_chunks_exact(w * 3))
+        .enumerate()
+        .for_each(|(y, (row, src))| {
+            let v = (y as f32 + 0.5) * inv_h;
+            for x in 0..w {
+                let u = (x as f32 + 0.5) * inv_w;
+                let (su, sv) = if warp_active {
+                    let s = mask_uv_to_scene_uv(lens_warp, [u, v]);
+                    (s[0], s[1])
+                } else {
+                    (u, v)
+                };
+                let i = x * 3;
+                let display_rgb = crate::tone::apply_rgb([src[i], src[i + 1], src[i + 2]]);
+                let mut acc = 0.0;
+                for (li, layer) in layers.iter().enumerate() {
+                    if deltas[li] == 0.0 {
+                        continue;
+                    }
+                    acc += fold_layer_weight_with_display(layer, su, sv, display_rgb) * deltas[li];
+                }
+                row[i] = acc;
+                row[i + 1] = acc;
+                row[i + 2] = acc;
+            }
+        });
+    LinearImage::new(out, w, h)
+}
+
 pub fn render_mask_overlay(
     image: &mut LinearImage,
     layer: &LayerEval,
@@ -659,6 +701,42 @@ mod tests {
         }
         if (right - 2.0).abs() > 1e-3 {
             panic!("expected right ~2.0 (4x base), got {right}");
+        }
+    }
+
+    #[test]
+    fn sharpen_delta_image_follows_mask_weight() {
+        let w = 8;
+        let h = 4;
+        let image = LinearImage::new(vec![0.5f32; w * h * 3], w, h);
+        let layer = MaskLayer {
+            id: "l".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            invert: false,
+            components: vec![linear(
+                "c",
+                Vec2f { x: 0.0, y: 0.0 },
+                Vec2f { x: 1.0, y: 0.0 },
+                0.0,
+            )],
+            edits: crate::edits::MaskedEdits {
+                sharpen: Some(100.0),
+                ..Default::default()
+            },
+        };
+        let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+        let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
+        let delta = build_sharpen_delta_image(&image, &[eval], &[100.0], &warp);
+        let left = delta.rgb[0];
+        let right = delta.rgb[3 * (w - 1)];
+        if left.abs() > 1e-3 {
+            panic!("expected zero delta on the left, got {left}");
+        }
+        if (right - 100.0).abs() > 1e-3 {
+            panic!("expected full delta on the right, got {right}");
         }
     }
 

@@ -21,6 +21,7 @@ impl GpuRenderer {
         w: u32,
         h: u32,
         preview: &crate::frame::PreviewMode,
+        masked_sharpen: bool,
     ) {
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -43,11 +44,12 @@ impl GpuRenderer {
             crate::frame::PreviewMode::SharpenDetail => 3,
             crate::frame::PreviewMode::MaskWeight { .. } => 0,
         };
-        let use_mask = if (sharpen_active && masking > 0.0) || preview_mode_u == 1 {
-            1u32
-        } else {
-            0u32
-        };
+        let use_mask =
+            if ((sharpen_active || masked_sharpen) && masking > 0.0) || preview_mode_u == 1 {
+                1u32
+            } else {
+                0u32
+            };
         let masking_thresh = masking * 0.15;
         let masking_softness = 0.15f32;
 
@@ -60,6 +62,9 @@ impl GpuRenderer {
             .sharpened_lin
             .create_view(&TextureViewDescriptor::default());
         let out_view = out.texture.create_view(&TextureViewDescriptor::default());
+        let mask_sharpen_view = out
+            .mask_sharpen
+            .create_view(&TextureViewDescriptor::default());
 
         let pass_h = &self.passes.output_sharpen;
 
@@ -133,7 +138,7 @@ impl GpuRenderer {
             cp.dispatch_workgroups(gx, gy, 1);
         }
 
-        let mut sh_bytes = [0u8; 32];
+        let mut sh_bytes = [0u8; 48];
         sh_bytes[0..4].copy_from_slice(&amount.to_ne_bytes());
         sh_bytes[4..8].copy_from_slice(&detail_weight.to_ne_bytes());
         sh_bytes[8..12].copy_from_slice(&masking_thresh.to_ne_bytes());
@@ -142,6 +147,7 @@ impl GpuRenderer {
         sh_bytes[20..24].copy_from_slice(&h.to_ne_bytes());
         sh_bytes[24..28].copy_from_slice(&use_mask.to_ne_bytes());
         sh_bytes[28..32].copy_from_slice(&preview_mode_u.to_ne_bytes());
+        sh_bytes[32..36].copy_from_slice(&u32::from(masked_sharpen).to_ne_bytes());
         let ub_c = self
             .uniform_pool
             .acquire(device, queue, &sh_bytes, "sharpen-uniform");
@@ -168,6 +174,10 @@ impl GpuRenderer {
                 BindGroupEntry {
                     binding: 4,
                     resource: BindingResource::TextureView(&sharpened_lin_view),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: BindingResource::TextureView(&mask_sharpen_view),
                 },
             ],
         });

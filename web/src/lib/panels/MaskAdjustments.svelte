@@ -73,6 +73,7 @@
   <div class="border-t border-white/5"></div>
   <MaskedEditSlider {layerId} eKey="texture" label="Texture" min={-100} max={100} />
   <MaskedEditSlider {layerId} eKey="clarity" label="Clarity" min={-100} max={100} />
+  <MaskedEditSlider {layerId} eKey="sharpen" label="Sharpening" min={-150} max={150} />
   <div class="border-t border-white/5"></div>
   <MaskedEditSlider {layerId} eKey="saturation" label="Saturation" min={-100} max={100} />
   <MaskedEditSlider {layerId} eKey="vibrance" label="Vibrance" min={-100} max={100} />

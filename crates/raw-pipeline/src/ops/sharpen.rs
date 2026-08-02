@@ -18,7 +18,7 @@ impl OpMeta for SharpenOp {
         0
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.detail.sharpen_active()
+        edits.detail.sharpen_active() || edits.masked_sharpen_active()
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let d = &edits.detail;
@@ -59,12 +59,22 @@ impl SpatialOp for SharpenOp {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_sharpen(image, &edits.detail, &ctx.render.preview_mode);
+        apply_sharpen(
+            image,
+            &edits.detail,
+            &ctx.render.preview_mode,
+            ctx.scratch.sharpen_delta.as_ref(),
+        );
         Ok(())
     }
 }
 
-fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: &crate::frame::PreviewMode) {
+fn apply_sharpen(
+    image: &mut LinearImage,
+    d: &DetailEdits,
+    preview: &crate::frame::PreviewMode,
+    delta: Option<&super::SharpenDeltaMap>,
+) {
     let amount = (d.sharpen_amount / 25.0) as f32;
     let sigma = d.sharpen_radius as f32;
     let detail_weight = 0.5 + 0.5 * (d.sharpen_detail / 100.0) as f32;
@@ -86,6 +96,7 @@ fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: &crate::fram
         return;
     }
     let strength = amount * detail_weight;
+    let base_amount = d.sharpen_amount as f32;
     image
         .rgb
         .par_chunks_mut(w * 3)
@@ -98,7 +109,13 @@ fn apply_sharpen(image: &mut LinearImage, d: &DetailEdits, preview: &crate::fram
                     Some(m) => m[y * w + x],
                     None => 1.0,
                 };
-                let k = strength * m;
+                let k = match delta {
+                    Some(map) => {
+                        let amt = (base_amount + map.sample(x, y, w, h)).clamp(-150.0, 150.0);
+                        amt / 25.0 * detail_weight * m
+                    }
+                    None => strength * m,
+                };
                 for c in 0..3 {
                     let v = row[i + c];
                     let high = v - brow[i + c];

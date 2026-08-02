@@ -49,7 +49,7 @@ fn ctx() -> OpContext {
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             dcp: None,
         },
-        scratch: OpScratch { shadows_blur: None },
+        scratch: OpScratch::default(),
     }
 }
 

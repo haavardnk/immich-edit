@@ -13,7 +13,7 @@ use crate::gpu::context::GpuContext;
 use super::demosaic::linear_format_str;
 
 pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = 32;
-pub const SHARPEN_UNIFORM_SIZE: u64 = 32;
+pub const SHARPEN_UNIFORM_SIZE: u64 = 48;
 
 pub struct OutputSharpenPass {
     pub blur_layout: BindGroupLayout,
@@ -131,6 +131,16 @@ impl OutputSharpenPass {
                         access: StorageTextureAccess::WriteOnly,
                         format: ctx.linear_format,
                         view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: false },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
                     },
                     count: None,
                 },

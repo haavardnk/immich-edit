@@ -938,7 +938,7 @@ impl GpuRenderer {
                 preview_mode: crate::frame::PreviewMode::None,
                 dcp: None,
             },
-            scratch: OpScratch { shadows_blur: None },
+            scratch: OpScratch::default(),
         };
 
         let pass = &self.passes.wb_prepare;

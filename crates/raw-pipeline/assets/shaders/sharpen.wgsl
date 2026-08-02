@@ -1,6 +1,7 @@
 struct SharpenParams {
     sharpen: vec4<f32>,
     dims_flags: vec4<u32>,
+    masked: vec4<u32>,
 };
 
 @group(0) @binding(0) var<uniform> p: SharpenParams;
@@ -8,6 +9,7 @@ struct SharpenParams {
 @group(0) @binding(2) var src_blur: texture_2d<f32>;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(4) var sharpened_lin: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(5) var mask_sharpen: texture_2d<f32>;
 
 fn luma(c: vec3<f32>) -> f32 {
     return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
@@ -60,7 +62,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     let strength = (amount / 25.0) * detail_weight * mask;
-    let lin = orig + hp * strength;
+    var lin = orig + hp * strength;
+    if (p.masked.x == 1u) {
+        let amt = clamp(amount + textureLoad(mask_sharpen, vec2<i32>(x, y), 0).r, -150.0, 150.0);
+        lin = orig + hp * ((amt / 25.0) * detail_weight * mask);
+    }
 
     textureStore(sharpened_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
 

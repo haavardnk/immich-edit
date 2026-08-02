@@ -59,7 +59,7 @@ pub fn render_with_cancel(
             preview_mode: options.preview_mode.clone(),
             dcp: setup.resolved,
         },
-        scratch: OpScratch { shadows_blur: None },
+        scratch: OpScratch::default(),
     };
 
     let mut sensor_image = LinearImage::new(rgb, src_w, src_h);
@@ -79,7 +79,7 @@ pub fn render_with_cancel(
 
     let mut image = LinearImage::new(rgb, w, h);
 
-    run_pipeline_ops(&mut image, &ctx, &edits, &options.rasters, cancel)?;
+    let sharpen_delta = run_pipeline_ops_inner(&mut image, &ctx, &edits, &options.rasters, cancel)?;
 
     cancel::check(cancel)?;
     let (rgb, w, h) =
@@ -91,7 +91,25 @@ pub fn render_with_cancel(
         crate::frame::PreviewMode::MaskWeight { .. }
     );
     if !display_ready {
-        run_output_ops(&mut out_image, &ctx, &edits, cancel)?;
+        let out_ctx;
+        let ctx: &OpContext = match sharpen_delta {
+            Some(d) => {
+                out_ctx = OpContext {
+                    render: ctx.render.clone(),
+                    scratch: OpScratch {
+                        shadows_blur: None,
+                        sharpen_delta: Some(crate::ops::SharpenDeltaMap {
+                            width: d.width,
+                            height: d.height,
+                            values: Arc::new(d.rgb.iter().step_by(3).copied().collect()),
+                        }),
+                    },
+                };
+                &out_ctx
+            }
+            None => &ctx,
+        };
+        run_output_ops(&mut out_image, ctx, &edits, cancel)?;
     }
     let rgb = out_image.rgb;
     let w = out_image.width;
@@ -161,6 +179,16 @@ pub fn run_pipeline_ops(
     rasters: &crate::mask_raster::RasterMap,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
+    run_pipeline_ops_inner(image, ctx, edits, rasters, cancel).map(|_| ())
+}
+
+fn run_pipeline_ops_inner(
+    image: &mut LinearImage,
+    ctx: &OpContext,
+    edits: &Edits,
+    rasters: &crate::mask_raster::RasterMap,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<Option<LinearImage>> {
     if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.render.preview_mode {
         let layer = edits.masks.iter().find(|l| &l.id == layer_id);
         let eval = match layer {
@@ -199,7 +227,7 @@ pub fn run_pipeline_ops(
             }
             op.apply_cpu(image, ctx, edits)?;
         }
-        return Ok(());
+        return Ok(None);
     }
     let registry = default_registry();
     let layer_evals = build_layer_evals(&edits.masks, rasters);
@@ -236,6 +264,7 @@ pub fn run_pipeline_ops(
             },
             scratch: OpScratch {
                 shadows_blur: Some(shadows_blur),
+                sharpen_delta: None,
             },
         };
         &ctx_local
@@ -243,6 +272,13 @@ pub fn run_pipeline_ops(
         ctx
     };
     let mut presence_done = false;
+    let mut sharpen_delta: Option<LinearImage> = None;
+    let sharpen_deltas: Vec<f32> = edits
+        .masks
+        .iter()
+        .filter(|l| l.is_effective())
+        .map(|l| l.edits.sharpen.unwrap_or(0.0) as f32)
+        .collect();
     let mut segment = FusedSegment::default();
     let mut layer_segments: Vec<FusedSegment> =
         (0..n_layers).map(|_| FusedSegment::default()).collect();
@@ -342,10 +378,26 @@ pub fn run_pipeline_ops(
             continue;
         }
         flush(image, &mut segment, &mut layer_segments, &layer_evals);
+        if op.stage() == crate::ops::Stage::Geometry
+            && sharpen_delta.is_none()
+            && sharpen_deltas.iter().any(|d| *d != 0.0)
+        {
+            sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
+                image,
+                &layer_evals,
+                &sharpen_deltas,
+                &lens_warp,
+            ));
+        }
         op.apply_cpu(image, ctx, edits)?;
+        if let Some(d) = sharpen_delta.as_mut()
+            && op.stage() == crate::ops::Stage::Geometry
+        {
+            op.apply_cpu(d, ctx, edits)?;
+        }
     }
     flush(image, &mut segment, &mut layer_segments, &layer_evals);
-    Ok(())
+    Ok(sharpen_delta)
 }
 
 pub fn run_output_ops(

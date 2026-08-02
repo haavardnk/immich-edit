@@ -147,9 +147,25 @@ pub fn resolve_dcp(
     (cam_to_srgb, resolved)
 }
 
+#[derive(Clone)]
+pub struct SharpenDeltaMap {
+    pub values: std::sync::Arc<Vec<f32>>,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl SharpenDeltaMap {
+    pub fn sample(&self, x: usize, y: usize, w: usize, h: usize) -> f32 {
+        let sx = (x * self.width / w.max(1)).min(self.width.saturating_sub(1));
+        let sy = (y * self.height / h.max(1)).min(self.height.saturating_sub(1));
+        self.values[sy * self.width + sx]
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct OpScratch {
     pub shadows_blur: Option<std::sync::Arc<Vec<f32>>>,
+    pub sharpen_delta: Option<SharpenDeltaMap>,
 }
 
 #[derive(Clone)]

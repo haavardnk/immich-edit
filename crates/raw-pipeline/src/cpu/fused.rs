@@ -451,7 +451,7 @@ mod tests {
                 preview_mode: crate::frame::PreviewMode::None,
                 dcp: None,
             },
-            scratch: OpScratch { shadows_blur: None },
+            scratch: OpScratch::default(),
         };
         let edits = Edits::default();
         if color_matrix::ColorMatrixOp

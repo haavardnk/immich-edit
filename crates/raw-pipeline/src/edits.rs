@@ -804,6 +804,8 @@ pub struct MaskedEdits {
     pub texture: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clarity: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sharpen: Option<f64>,
 }
 
 impl MaskedEdits {
@@ -821,6 +823,7 @@ impl MaskedEdits {
             && self.blacks.is_none()
             && self.texture.is_none()
             && self.clarity.is_none()
+            && self.sharpen.is_none()
     }
 }
 
@@ -937,6 +940,7 @@ fn clamp_masked_edits(m: &MaskedEdits) -> MaskedEdits {
         blacks: clamp_masked_delta(m.blacks, -100.0, 100.0),
         texture: clamp_masked_delta(m.texture, -100.0, 100.0),
         clarity: clamp_masked_delta(m.clarity, -100.0, 100.0),
+        sharpen: clamp_masked_delta(m.sharpen, -150.0, 150.0),
     }
 }
 
@@ -1055,6 +1059,12 @@ pub struct Edits {
 impl Edits {
     pub fn is_identity(&self) -> bool {
         *self == Self::default()
+    }
+
+    pub fn masked_sharpen_active(&self) -> bool {
+        self.masks
+            .iter()
+            .any(|l| l.is_effective() && l.edits.sharpen.is_some())
     }
 
     pub fn clamped(&self) -> Self {

@@ -326,6 +326,7 @@ impl GpuRenderer {
 
         let edits = edits.clamped();
         let sharpen_active = edits.detail.sharpen_active();
+        let masked_sharpen = edits.masked_sharpen_active();
         let effects_active = edits.effects.any_active();
 
         for op in self.passes.registry.active(&edits) {
@@ -403,7 +404,7 @@ impl GpuRenderer {
                 preview_mode: opts.preview_mode.clone(),
                 dcp: setup.resolved,
             },
-            scratch: OpScratch { shadows_blur: None },
+            scratch: OpScratch::default(),
         };
         let built = &pass.built;
         let registry = &self.passes.registry;
@@ -691,6 +692,9 @@ impl GpuRenderer {
                 .mask_scratch_tone
                 .create_view(&TextureViewDescriptor::default());
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
+            let sharpen_accum_view = p
+                .mask_sharpen
+                .create_view(&TextureViewDescriptor::default());
             let accum_alt_view = p
                 .mask_accum_alt
                 .create_view(&TextureViewDescriptor::default());
@@ -725,7 +729,7 @@ impl GpuRenderer {
             });
             let atlas_sampler = crate::gpu::passes::mask_weight::make_atlas_sampler(&self.ctx);
 
-            for layer in &effective_layers {
+            for (layer_index, layer) in effective_layers.iter().enumerate() {
                 let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
                 let layer_src_view = layer_srcs
                     .get(&layer.id)
@@ -919,7 +923,19 @@ impl GpuRenderer {
                 } else {
                     (&linear_view2, &accum_alt_view)
                 };
-                let bl_params = crate::gpu::passes::mask_blend::pack_params(out_w, out_h);
+                let sharpen_flags = if !masked_sharpen {
+                    0u32
+                } else if layer_index == 0 {
+                    1u32
+                } else {
+                    2u32
+                };
+                let bl_params = crate::gpu::passes::mask_blend::pack_params(
+                    out_w,
+                    out_h,
+                    layer.edits.sharpen.unwrap_or(0.0) as f32,
+                    sharpen_flags,
+                );
                 let bl_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("mask-blend-uniform"),
                     contents: &bl_params,
@@ -948,6 +964,10 @@ impl GpuRenderer {
                         BindGroupEntry {
                             binding: 4,
                             resource: BindingResource::TextureView(dst_view),
+                        },
+                        BindGroupEntry {
+                            binding: 5,
+                            resource: BindingResource::TextureView(&sharpen_accum_view),
                         },
                     ],
                 });
@@ -1035,9 +1055,18 @@ impl GpuRenderer {
         );
         if let Some(spool) = sharpen_pool_guard.as_ref() {
             let s = &spool[0];
-            let run_sharpen = sharpen_active || sharpen_preview;
+            let run_sharpen = sharpen_active || masked_sharpen || sharpen_preview;
             if run_sharpen {
-                self.encode_sharpen(&mut encoder, &edits, p, s, out_w, out_h, &opts.preview_mode);
+                self.encode_sharpen(
+                    &mut encoder,
+                    &edits,
+                    p,
+                    s,
+                    out_w,
+                    out_h,
+                    &opts.preview_mode,
+                    masked_sharpen,
+                );
             }
             if !sharpen_preview {
                 self.encode_effects_tone(
