@@ -348,6 +348,48 @@ fn finalize_stats(hist: [u32; HIST_BINS], total: u32, sat_sum: f64, sat_n: u32) 
     })
 }
 
+fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
+    if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
+        return None;
+    }
+    let (dim, table) = cfa_block(&frame.cfa_pattern);
+    let bw = frame.width / dim;
+    let bh = frame.height / dim;
+    if bw == 0 || bh == 0 {
+        return None;
+    }
+    let stride = ((bw * bh) / SAMPLE_TARGET).isqrt().clamp(1, bw.min(bh));
+    let out_w = bw / stride;
+    let out_h = bh / stride;
+    let mut data = Vec::with_capacity(out_w * out_h * 3);
+    for (oy, ox) in (0..out_h).flat_map(|oy| (0..out_w).map(move |ox| (oy, ox))) {
+        let rgb = mosaic_block_rgb(
+            &frame.data,
+            frame.width,
+            dim,
+            &table,
+            ox * stride * dim,
+            oy * stride * dim,
+        );
+        data.extend_from_slice(&rgb);
+    }
+    Some(RawFrame {
+        width: out_w,
+        height: out_h,
+        cfa_pattern: String::new(),
+        bps: frame.bps,
+        wb_coeffs: frame.wb_coeffs,
+        xyz_to_cam: frame.xyz_to_cam,
+        color_matrices: frame.color_matrices.clone(),
+        data,
+        cpp: 3,
+        orientation: frame.orientation,
+        is_raw: frame.is_raw,
+        model: frame.model.clone(),
+        exif: None,
+    })
+}
+
 fn collect_stats_direct(frame: &RawFrame, wb: [f32; 3], m: [[f32; 3]; 3]) -> Option<Stats> {
     if frame.cpp < 3 {
         return None;
@@ -487,6 +529,8 @@ fn needs_output_pass(edits: &Edits) -> bool {
 pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
     let context = context.clamped();
     let (wb, m) = display_color(frame);
+    let decimated = decimate_mosaic(frame);
+    let frame = decimated.as_ref().unwrap_or(frame);
     let stats = if needs_output_pass(&context) {
         collect_stats_output(frame, &context, wb, m).or_else(|| collect_stats_direct(frame, wb, m))
     } else {
@@ -596,6 +640,37 @@ mod tests {
 
     fn make_frame_luma(luma: f32, w: usize, h: usize) -> RawFrame {
         make_frame_with(w, h, |_, _| luma)
+    }
+
+    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
+    fn make_mosaic_frame_with<F: Fn(usize, usize) -> f32>(
+        w: usize,
+        h: usize,
+        cfa: &str,
+        f: F,
+    ) -> RawFrame {
+        let mut data = Vec::with_capacity(w * h);
+        for y in 0..h {
+            for x in 0..w {
+                data.push(f(x, y));
+            }
+        }
+        RawFrame {
+            width: w,
+            height: h,
+            cfa_pattern: cfa.to_string(),
+            bps: 16,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            data,
+            cpp: 1,
+            orientation: (false, false, false),
+            is_raw: false,
+            model: String::new(),
+            exif: None,
+        }
     }
 
     fn make_frame_with<F: Fn(usize, usize) -> f32>(w: usize, h: usize, f: F) -> RawFrame {
@@ -779,6 +854,72 @@ mod tests {
                 "expected crop to remove dark half and reduce exposure; with={} without={}",
                 with_crop.basic.exposure_ev, without.basic.exposure_ev
             );
+        }
+    }
+
+    #[test]
+    fn mosaic_auto_matches_demosaiced_auto() {
+        let scene = |x: usize, y: usize| {
+            let u = x as f32 / 384.0;
+            let v = y as f32 / 384.0;
+            (0.02 + 0.55 * v + 0.15 * u).clamp(0.0, 1.0)
+        };
+        let cropped = Edits {
+            geometry: GeometryEdits {
+                crop: Some(CropRect {
+                    x: 0.25,
+                    y: 0.25,
+                    w: 0.5,
+                    h: 0.5,
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let rgb = make_frame_with(384, 384, scene);
+        for cfa in ["RGGB", XTRANS] {
+            let mosaic = make_mosaic_frame_with(384, 384, cfa, scene);
+            for context in [Edits::default(), cropped.clone()] {
+                let want = auto_adjust(&rgb, &context);
+                let got = auto_adjust(&mosaic, &context);
+                if got == Edits::default() {
+                    panic!("auto produced no edits for cfa '{cfa}'");
+                }
+                if (got.basic.exposure_ev - want.basic.exposure_ev).abs() > 0.1 {
+                    panic!(
+                        "cfa '{cfa}': mosaic exposure {} disagrees with demosaiced {}",
+                        got.basic.exposure_ev, want.basic.exposure_ev
+                    );
+                }
+                if (got.basic.contrast - want.basic.contrast).abs() > 1.0 {
+                    panic!(
+                        "cfa '{cfa}': mosaic contrast {} disagrees with demosaiced {}",
+                        got.basic.contrast, want.basic.contrast
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mosaic_auto_reads_scene_brightness() {
+        for cfa in ["RGGB", XTRANS] {
+            let dark = make_mosaic_frame_with(384, 384, cfa, |_, _| 0.01);
+            let bright = make_mosaic_frame_with(384, 384, cfa, |_, _| 0.8);
+            let e_dark = auto_adjust(&dark, &Edits::default());
+            let e_bright = auto_adjust(&bright, &Edits::default());
+            if e_dark.basic.exposure_ev <= 0.0 {
+                panic!(
+                    "cfa '{cfa}': dark mosaic should lift exposure, got {}",
+                    e_dark.basic.exposure_ev
+                );
+            }
+            if e_bright.basic.exposure_ev >= e_dark.basic.exposure_ev {
+                panic!(
+                    "cfa '{cfa}': bright mosaic should need less exposure than dark; bright={} dark={}",
+                    e_bright.basic.exposure_ev, e_dark.basic.exposure_ev
+                );
+            }
         }
     }
 

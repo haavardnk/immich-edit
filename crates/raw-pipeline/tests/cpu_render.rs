@@ -74,6 +74,16 @@ fn decode_metadata() {
 }
 
 #[test]
+fn auto_adjust_reads_every_fixture() {
+    each_fixture(|name, frame| {
+        let e = raw_pipeline::auto::auto_adjust(frame, &Edits::default());
+        if e == Edits::default() {
+            panic!("{name}: auto produced no edits (cpp {})", frame.cpp);
+        }
+    });
+}
+
+#[test]
 fn xtrans_renders_neutral_greys() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
