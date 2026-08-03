@@ -3,6 +3,7 @@ mod curves;
 mod geometry;
 mod lens;
 mod masks;
+mod retouch;
 #[cfg(test)]
 mod tests;
 
@@ -21,8 +22,10 @@ pub use masks::{
     MaskSource, MaskedEdits, N_MAX_COMPONENTS_PER_LAYER, N_MAX_MASK_LAYERS, N_MAX_POLYGON_POINTS,
     N_MAX_RASTER_SLOTS, N_MAX_TOTAL_COMPONENTS, RangeMeta, Vec2f,
 };
+pub use retouch::{N_MAX_RETOUCH_POINTS, N_MAX_RETOUCH_STROKES, RetouchMode, RetouchStroke};
 
 use masks::clamp_masks;
+use retouch::clamp_retouch;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct BasicEdits {
@@ -287,6 +290,8 @@ pub struct Edits {
     pub geometry: GeometryEdits,
     #[serde(default)]
     pub masks: Vec<MaskLayer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retouch: Vec<RetouchStroke>,
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub unknown_ops: std::collections::BTreeMap<String, serde_json::Value>,
 }
@@ -312,6 +317,7 @@ impl Edits {
             lens: self.lens.clamped(),
             geometry: self.geometry.clamped(),
             masks: clamp_masks(&self.masks),
+            retouch: clamp_retouch(&self.retouch),
             unknown_ops: self.unknown_ops.clone(),
         }
     }

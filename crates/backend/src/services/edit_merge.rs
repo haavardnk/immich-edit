@@ -54,6 +54,7 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
         lens: pick(sections.lens, incoming.lens, current.lens),
         geometry: pick(sections.geometry, incoming.geometry, current.geometry),
         masks: pick(sections.masks, incoming.masks, current.masks),
+        retouch: current.retouch,
         unknown_ops: current.unknown_ops,
     }
 }

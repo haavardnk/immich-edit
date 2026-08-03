@@ -1,3 +1,4 @@
+pub mod blur;
 pub mod brightness;
 pub mod clarity;
 pub mod color_grade;
@@ -17,6 +18,7 @@ pub mod lens_vignette;
 pub mod luma_nr;
 pub mod lut;
 pub mod masks;
+pub mod retouch;
 pub mod sample;
 pub mod saturation;
 pub mod sharpen;
@@ -251,6 +253,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(white_balance::WhiteBalanceOp),
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(user_wb::UserWbOp),
+        Box::new(retouch::RetouchOp),
         Box::new(luma_nr::LumaNrOp),
         Box::new(color_nr::ColorNrOp),
         Box::new(texture::TextureOp),

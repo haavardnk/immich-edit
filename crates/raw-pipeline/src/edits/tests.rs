@@ -49,7 +49,7 @@ fn stable_hash_is_pinned() {
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "c82a1f5fa7b530d589d3178add30ad63"
+        "29f6beebc43c653aac8ce3be54879251"
     );
 }
 
@@ -424,6 +424,16 @@ fn populated_edits() -> Edits {
                 clarity: Some(-60.0),
                 sharpen: Some(70.0),
             },
+        }],
+        retouch: vec![RetouchStroke {
+            id: "stroke-1".into(),
+            mode: RetouchMode::Clone,
+            points: vec![Vec2f { x: 0.2, y: 0.3 }, Vec2f { x: 0.25, y: 0.35 }],
+            radius: 0.05,
+            hardness: 0.4,
+            opacity: 0.9,
+            source: Vec2f { x: 0.6, y: 0.7 },
+            enabled: true,
         }],
         unknown_ops: std::collections::BTreeMap::from([(
             "future_op".to_string(),

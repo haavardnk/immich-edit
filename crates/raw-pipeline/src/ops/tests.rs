@@ -2,7 +2,7 @@ use super::LinearImage;
 use super::*;
 use crate::edits::{
     BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, DetailEdits, Edits, GeometryEdits,
-    HslBand, HslEdits, ToneEdits,
+    HslBand, HslEdits, RetouchMode, RetouchStroke, ToneEdits, Vec2f,
 };
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
@@ -1135,11 +1135,57 @@ fn ops_inactive_on_default_edits() {
         Box::new(clarity::ClarityOp),
         Box::new(dehaze::DehazeOp),
         Box::new(sharpen::SharpenOp),
+        Box::new(retouch::RetouchOp),
     ];
     let edits = Edits::default();
     for op in ops {
         if op.is_active(&edits) {
             panic!("{} active on default edits", op.id());
+        }
+    }
+}
+
+fn split_image(w: usize, h: usize) -> LinearImage {
+    let mut buf = vec![0.0f32; w * h * 3];
+    for (i, px) in buf.chunks_mut(3).enumerate() {
+        px.fill(if (i % w) >= w / 2 { 0.8 } else { 0.2 });
+    }
+    LinearImage::new(buf, w, h)
+}
+
+fn retouched(mode: RetouchMode) -> LinearImage {
+    let mut img = split_image(64, 64);
+    let edits = Edits {
+        retouch: vec![RetouchStroke {
+            id: "s".into(),
+            mode,
+            points: vec![Vec2f { x: 0.25, y: 0.5 }],
+            radius: 0.05,
+            hardness: 1.0,
+            opacity: 1.0,
+            source: Vec2f { x: 0.75, y: 0.5 },
+            enabled: true,
+        }],
+        ..Default::default()
+    };
+    retouch::RetouchOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    img
+}
+
+#[test]
+fn retouch_clone_takes_source_heal_keeps_destination_tone() {
+    for (mode, expected) in [(RetouchMode::Clone, 0.8f32), (RetouchMode::Heal, 0.2f32)] {
+        let img = retouched(mode);
+        let center = (32 * 64 + 16) * 3;
+        let outside = (32 * 64 + 2) * 3;
+        let got = img.rgb[center];
+        if (got - expected).abs() > 1e-3 {
+            panic!("{mode:?} center {got} expected {expected}");
+        }
+        if (img.rgb[outside] - 0.2).abs() > 1e-6 {
+            panic!("{mode:?} leaked outside stroke radius");
         }
     }
 }
