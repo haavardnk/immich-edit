@@ -1,3 +1,4 @@
+pub mod common;
 pub mod dcp_huesat;
 pub mod dehaze;
 pub mod demosaic;
@@ -17,6 +18,8 @@ pub mod sharpen;
 pub mod wb_prepare;
 
 use std::sync::Arc;
+
+use wgpu::{AddressMode, FilterMode, MipmapFilterMode, Sampler, SamplerDescriptor};
 
 use super::context::GpuContext;
 use crate::gpu::shader_builder::StageMask;
@@ -60,6 +63,8 @@ pub struct GpuPasses {
     pub mask_blend: MaskBlendPass,
     pub mask_overlay: MaskOverlayPass,
     pub sensor: SensorPass,
+    pub linear_sampler: Sampler,
+    pub atlas_sampler: Sampler,
     pub registry: OpRegistry,
 }
 
@@ -155,6 +160,17 @@ impl GpuPasses {
             mask_blend,
             mask_overlay,
             sensor,
+            linear_sampler: ctx.device.create_sampler(&SamplerDescriptor {
+                label: Some("linear-samp"),
+                address_mode_u: AddressMode::ClampToEdge,
+                address_mode_v: AddressMode::ClampToEdge,
+                address_mode_w: AddressMode::ClampToEdge,
+                mag_filter: FilterMode::Linear,
+                min_filter: FilterMode::Linear,
+                mipmap_filter: MipmapFilterMode::Linear,
+                ..Default::default()
+            }),
+            atlas_sampler: mask_weight::make_atlas_sampler(ctx),
             registry,
         }
     }

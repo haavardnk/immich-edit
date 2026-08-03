@@ -1,18 +1,19 @@
 // color-space: linear scene-referred Rgba16Float in → R16Float weight out
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use wgpu::{
-    AddressMode, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, ComputePipeline, ComputePipelineDescriptor, FilterMode,
-    PipelineLayoutDescriptor, Sampler, SamplerBindingType, SamplerDescriptor,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
-    TextureSampleType, TextureViewDimension,
+    AddressMode, BindGroupLayout, ComputePipeline, FilterMode, Sampler, SamplerDescriptor,
+    TextureFormat, TextureViewDimension,
 };
 
 use crate::gpu::context::GpuContext;
 use crate::mask_raster::MaskRaster;
+
+use super::common::{
+    make_layout, make_pipeline_raw, sampler_entry, storage_buffer_entry, storage_entry, tex_entry,
+    tex_entry_with, uniform_entry_unsized,
+};
 
 pub const COMPONENT_BYTES: usize = 48;
 pub const MAX_COMPONENTS: usize = 32;
@@ -255,95 +256,20 @@ pub struct MaskWeightPass {
 
 impl MaskWeightPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("mask-weight-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: TextureFormat::R32Float,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2Array,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 4,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 5,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 6,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
+        let layout = make_layout(
+            ctx,
+            "mask-weight-bgl",
+            &[
+                uniform_entry_unsized(0),
+                storage_buffer_entry(1),
+                storage_entry(2, TextureFormat::R32Float),
+                tex_entry_with(3, true, TextureViewDimension::D2Array),
+                sampler_entry(4),
+                tex_entry(5),
+                storage_buffer_entry(6),
             ],
-        });
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("mask-weight.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Borrowed(SHADER)),
-        });
-        let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("mask-weight-pl"),
-            bind_group_layouts: &[Some(&layout)],
-            immediate_size: 0,
-        });
-        let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("mask-weight-cp"),
-            layout: Some(&pl),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", SHADER);
         Self { layout, pipeline }
     }
 }

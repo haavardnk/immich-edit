@@ -1,15 +1,13 @@
 // color-space: display-referred Rgba8Unorm in/out (tints the finished image by mask weight)
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
-    TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
+
+use super::common::{
+    make_layout, make_pipeline_raw, storage_entry, tex_entry_with, uniform_entry_unsized,
+};
 
 pub const PARAMS_BYTES: usize = 16;
 pub const OVERLAY_ALPHA: f32 = 0.55;
@@ -49,65 +47,18 @@ pub struct MaskOverlayPass {
 
 impl MaskOverlayPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("mask-overlay-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                tex_entry(1),
-                tex_entry(2),
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: TextureFormat::Rgba8Unorm,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
+        let layout = make_layout(
+            ctx,
+            "mask-overlay-bgl",
+            &[
+                uniform_entry_unsized(0),
+                tex_entry_with(1, false, TextureViewDimension::D2),
+                tex_entry_with(2, false, TextureViewDimension::D2),
+                storage_entry(3, TextureFormat::Rgba8Unorm),
             ],
-        });
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("mask-overlay.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Borrowed(SHADER)),
-        });
-        let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("mask-overlay-pl"),
-            bind_group_layouts: &[Some(&layout)],
-            immediate_size: 0,
-        });
-        let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("mask-overlay-cp"),
-            layout: Some(&pl),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-overlay.wgsl", SHADER);
         Self { layout, pipeline }
-    }
-}
-
-fn tex_entry(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Texture {
-            sample_type: TextureSampleType::Float { filterable: false },
-            view_dimension: TextureViewDimension::D2,
-            multisampled: false,
-        },
-        count: None,
     }
 }
 

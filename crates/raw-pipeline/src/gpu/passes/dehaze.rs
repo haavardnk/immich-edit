@@ -1,17 +1,13 @@
 // color-space: linear scene-referred Rgba16Float in/out
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferSize,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, Sampler,
-    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StorageTextureAccess, TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, Sampler, SamplerDescriptor};
 
 use crate::gpu::context::GpuContext;
 
-use super::demosaic::linear_format_str;
+use super::common::{
+    make_layout, make_pipeline, sampler_entry, storage_entry, tex_entry, uniform_entry,
+};
 
 pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = 16;
 pub const NORM_UNIFORM_SIZE: u64 = 32;
@@ -21,131 +17,56 @@ pub const BOX_UNIFORM_SIZE: u64 = 16;
 pub const AB_UNIFORM_SIZE: u64 = 16;
 pub const APPLY_UNIFORM_SIZE: u64 = 48;
 
-fn make_pipeline(
-    ctx: &Arc<GpuContext>,
-    layout: &BindGroupLayout,
-    label: &str,
-    wgsl: &str,
-) -> ComputePipeline {
-    let device = &ctx.device;
-    let src = wgsl.replace("rgba16float", linear_format_str(ctx.linear_format));
-    let module = device.create_shader_module(ShaderModuleDescriptor {
-        label: Some(label),
-        source: ShaderSource::Wgsl(Cow::Owned(src)),
-    });
-    let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-        label: Some(label),
-        bind_group_layouts: &[Some(layout)],
-        immediate_size: 0,
-    });
-    device.create_compute_pipeline(&ComputePipelineDescriptor {
-        label: Some(label),
-        layout: Some(&pl),
-        module: &module,
-        entry_point: Some("main"),
-        compilation_options: Default::default(),
-        cache: None,
-    })
-}
-
-fn uniform_entry(size: u64) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding: 0,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Uniform,
-            has_dynamic_offset: false,
-            min_binding_size: BufferSize::new(size),
-        },
-        count: None,
-    }
-}
-
-fn tex_entry(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Texture {
-            sample_type: TextureSampleType::Float { filterable: true },
-            view_dimension: TextureViewDimension::D2,
-            multisampled: false,
-        },
-        count: None,
-    }
-}
-
-fn storage_entry(binding: u32, format: wgpu::TextureFormat) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::StorageTexture {
-            access: StorageTextureAccess::WriteOnly,
-            format,
-            view_dimension: TextureViewDimension::D2,
-        },
-        count: None,
-    }
-}
-
 fn make_layout_3(ctx: &Arc<GpuContext>, label: &str, uniform_size: u64) -> BindGroupLayout {
-    ctx.device
-        .create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(label),
-            entries: &[
-                uniform_entry(uniform_size),
-                tex_entry(1),
-                storage_entry(2, ctx.linear_format),
-            ],
-        })
+    make_layout(
+        ctx,
+        label,
+        &[
+            uniform_entry(0, uniform_size),
+            tex_entry(1),
+            storage_entry(2, ctx.linear_format),
+        ],
+    )
 }
 
 fn make_layout_4(ctx: &Arc<GpuContext>, label: &str, uniform_size: u64) -> BindGroupLayout {
-    ctx.device
-        .create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(label),
-            entries: &[
-                uniform_entry(uniform_size),
-                tex_entry(1),
-                tex_entry(2),
-                storage_entry(3, ctx.linear_format),
-            ],
-        })
-}
-
-fn sampler_entry(binding: u32) -> BindGroupLayoutEntry {
-    BindGroupLayoutEntry {
-        binding,
-        visibility: ShaderStages::COMPUTE,
-        ty: BindingType::Sampler(SamplerBindingType::Filtering),
-        count: None,
-    }
+    make_layout(
+        ctx,
+        label,
+        &[
+            uniform_entry(0, uniform_size),
+            tex_entry(1),
+            tex_entry(2),
+            storage_entry(3, ctx.linear_format),
+        ],
+    )
 }
 
 fn make_layout_downsample(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout {
-    ctx.device
-        .create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(label),
-            entries: &[
-                uniform_entry(DOWNSAMPLE_UNIFORM_SIZE),
-                tex_entry(1),
-                sampler_entry(2),
-                storage_entry(3, ctx.linear_format),
-            ],
-        })
+    make_layout(
+        ctx,
+        label,
+        &[
+            uniform_entry(0, DOWNSAMPLE_UNIFORM_SIZE),
+            tex_entry(1),
+            sampler_entry(2),
+            storage_entry(3, ctx.linear_format),
+        ],
+    )
 }
 
 fn make_layout_apply(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout {
-    ctx.device
-        .create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(label),
-            entries: &[
-                uniform_entry(APPLY_UNIFORM_SIZE),
-                tex_entry(1),
-                tex_entry(2),
-                sampler_entry(3),
-                storage_entry(4, ctx.linear_format),
-            ],
-        })
+    make_layout(
+        ctx,
+        label,
+        &[
+            uniform_entry(0, APPLY_UNIFORM_SIZE),
+            tex_entry(1),
+            tex_entry(2),
+            sampler_entry(3),
+            storage_entry(4, ctx.linear_format),
+        ],
+    )
 }
 
 pub struct DehazePasses {

@@ -4,9 +4,9 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    AddressMode, BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages,
-    CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor,
-    Texture, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
+    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoderDescriptor,
+    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
+    TextureViewDescriptor,
 };
 
 use crate::edits::Edits;
@@ -451,16 +451,6 @@ impl GpuRenderer {
                 .acquire(device, queue, &uniform_bytes, "process-uniform");
 
         let src_view = src_texture.create_view(&TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("linear-samp"),
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
-            ..Default::default()
-        });
 
         let mut pool = self.output_pool.lock();
         if let Some(i) = pool.iter().position(|p| p.fits(out_w, out_h)) {
@@ -505,7 +495,7 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: BindingResource::Sampler(&sampler),
+                    resource: BindingResource::Sampler(&self.passes.linear_sampler),
                 },
                 BindGroupEntry {
                     binding: 3,
@@ -577,7 +567,7 @@ impl GpuRenderer {
                 dimension: Some(wgpu::TextureViewDimension::D2Array),
                 ..Default::default()
             });
-            let atlas_sampler = crate::gpu::passes::mask_weight::make_atlas_sampler(&self.ctx);
+            let atlas_sampler = &self.passes.atlas_sampler;
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
             let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
             let (comp_bytes, n_components, poly_bytes) =
@@ -655,7 +645,7 @@ impl GpuRenderer {
                     },
                     BindGroupEntry {
                         binding: 4,
-                        resource: BindingResource::Sampler(&atlas_sampler),
+                        resource: BindingResource::Sampler(atlas_sampler),
                     },
                     BindGroupEntry {
                         binding: 5,
@@ -727,7 +717,7 @@ impl GpuRenderer {
                 dimension: Some(wgpu::TextureViewDimension::D2Array),
                 ..Default::default()
             });
-            let atlas_sampler = crate::gpu::passes::mask_weight::make_atlas_sampler(&self.ctx);
+            let atlas_sampler = &self.passes.atlas_sampler;
 
             for (layer_index, layer) in effective_layers.iter().enumerate() {
                 let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
@@ -784,7 +774,7 @@ impl GpuRenderer {
                         },
                         BindGroupEntry {
                             binding: 2,
-                            resource: BindingResource::Sampler(&sampler),
+                            resource: BindingResource::Sampler(&self.passes.linear_sampler),
                         },
                         BindGroupEntry {
                             binding: 3,
@@ -890,7 +880,7 @@ impl GpuRenderer {
                         },
                         BindGroupEntry {
                             binding: 4,
-                            resource: BindingResource::Sampler(&atlas_sampler),
+                            resource: BindingResource::Sampler(atlas_sampler),
                         },
                         BindGroupEntry {
                             binding: 5,

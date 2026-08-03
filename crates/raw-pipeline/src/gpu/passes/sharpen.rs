@@ -1,16 +1,13 @@
 // color-space: linear scene-referred Rgba16Float in/out; tone-map applied later in effects_tone.wgsl
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferSize,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StorageTextureAccess, TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
 
-use super::demosaic::linear_format_str;
+use super::common::{
+    make_layout, make_pipeline, storage_entry, tex_entry, tex_entry_with, uniform_entry,
+};
 
 pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = 32;
 pub const SHARPEN_UNIFORM_SIZE: u64 = 48;
@@ -24,147 +21,40 @@ pub struct OutputSharpenPass {
 
 impl OutputSharpenPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-
-        let blur_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("sharpen-blur-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(SHARPEN_BLUR_UNIFORM_SIZE),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
+        let blur_layout = make_layout(
+            ctx,
+            "sharpen-blur-bgl",
+            &[
+                uniform_entry(0, SHARPEN_BLUR_UNIFORM_SIZE),
+                tex_entry(1),
+                storage_entry(2, ctx.linear_format),
             ],
-        });
-        let blur_src = include_str!("../../../assets/shaders/sharpen_blur.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
-        let blur_module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("sharpen_blur.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(blur_src)),
-        });
-        let blur_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("sharpen-blur-pl"),
-            bind_group_layouts: &[Some(&blur_layout)],
-            immediate_size: 0,
-        });
-        let blur_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("sharpen-blur-cp"),
-            layout: Some(&blur_pl),
-            module: &blur_module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let blur_pipeline = make_pipeline(
+            ctx,
+            &blur_layout,
+            "sharpen_blur.wgsl",
+            include_str!("../../../assets/shaders/sharpen_blur.wgsl"),
+        );
 
-        let sharpen_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("sharpen-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(SHARPEN_UNIFORM_SIZE),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 4,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 5,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: false },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
+        let sharpen_layout = make_layout(
+            ctx,
+            "sharpen-bgl",
+            &[
+                uniform_entry(0, SHARPEN_UNIFORM_SIZE),
+                tex_entry(1),
+                tex_entry(2),
+                storage_entry(3, wgpu::TextureFormat::Rgba8Unorm),
+                storage_entry(4, ctx.linear_format),
+                tex_entry_with(5, false, TextureViewDimension::D2),
             ],
-        });
-        let sharpen_src = include_str!("../../../assets/shaders/sharpen.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
-        let sharpen_module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("sharpen.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(sharpen_src)),
-        });
-        let sharpen_pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("sharpen-pl"),
-            bind_group_layouts: &[Some(&sharpen_layout)],
-            immediate_size: 0,
-        });
-        let sharpen_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("sharpen-cp"),
-            layout: Some(&sharpen_pl),
-            module: &sharpen_module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let sharpen_pipeline = make_pipeline(
+            ctx,
+            &sharpen_layout,
+            "sharpen.wgsl",
+            include_str!("../../../assets/shaders/sharpen.wgsl"),
+        );
 
         Self {
             blur_layout,

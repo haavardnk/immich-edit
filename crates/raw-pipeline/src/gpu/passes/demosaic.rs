@@ -1,15 +1,13 @@
 // color-space: Bayer u16 in → linear scene-referred Rgba16Float out
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    BufferBindingType, ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
-    TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat};
 
 use crate::gpu::context::GpuContext;
+
+use super::common::{
+    make_layout, make_pipeline, storage_buffer_entry, storage_entry, uniform_entry_unsized,
+};
 
 pub struct DemosaicPass {
     pub layout: BindGroupLayout,
@@ -18,61 +16,21 @@ pub struct DemosaicPass {
 
 impl DemosaicPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("demosaic-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
+        let layout = make_layout(
+            ctx,
+            "demosaic-bgl",
+            &[
+                uniform_entry_unsized(0),
+                storage_buffer_entry(1),
+                storage_entry(2, ctx.linear_format),
             ],
-        });
-        let src = include_str!("../../../assets/shaders/demosaic.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("demosaic.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(src)),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("demosaic-pl"),
-            bind_group_layouts: &[Some(&layout)],
-            immediate_size: 0,
-        });
-        let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("demosaic-cp"),
-            layout: Some(&pipeline_layout),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let pipeline = make_pipeline(
+            ctx,
+            &layout,
+            "demosaic.wgsl",
+            include_str!("../../../assets/shaders/demosaic.wgsl"),
+        );
         Self { layout, pipeline }
     }
 }

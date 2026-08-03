@@ -1,13 +1,10 @@
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferSize,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StorageTextureAccess, TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
+
+use super::common::{make_layout, make_pipeline_raw, storage_entry, tex_entry_with, uniform_entry};
 
 pub const DCP_HUESAT_UNIFORM_SIZE: u64 = 1152;
 
@@ -26,72 +23,19 @@ impl DcpHueSatPass {
     }
 
     fn with_format(ctx: &Arc<GpuContext>, out_format: wgpu::TextureFormat, label: &str) -> Self {
-        let device = &ctx.device;
-
-        let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(&format!("{label}-bgl")),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(DCP_HUESAT_UNIFORM_SIZE),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: false },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: false },
-                        view_dimension: TextureViewDimension::D3,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: out_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
+        let layout = make_layout(
+            ctx,
+            &format!("{label}-bgl"),
+            &[
+                uniform_entry(0, DCP_HUESAT_UNIFORM_SIZE),
+                tex_entry_with(1, false, TextureViewDimension::D2),
+                tex_entry_with(2, false, TextureViewDimension::D3),
+                storage_entry(3, out_format),
             ],
-        });
+        );
         let src = include_str!("../../../assets/shaders/dcp_huesat.wgsl")
             .replace("rgba16float", storage_format_str(out_format));
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("dcp_huesat.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(src)),
-        });
-        let pl = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some(&format!("{label}-pl")),
-            bind_group_layouts: &[Some(&layout)],
-            immediate_size: 0,
-        });
-        let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some(&format!("{label}-cp")),
-            layout: Some(&pl),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label}-cp"), &src);
 
         Self { layout, pipeline }
     }

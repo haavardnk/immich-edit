@@ -1,17 +1,14 @@
 // color-space: linear scene-referred Rgba16Float in → R16Float luma pyramid out
-use std::borrow::Cow;
 use std::sync::Arc;
 
 use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, ComputePipeline,
-    ComputePipelineDescriptor, Extent3d, PipelineLayoutDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StorageTextureAccess, Texture, TextureDescriptor, TextureDimension,
-    TextureSampleType, TextureUsages, TextureViewDimension,
+    BindGroupLayout, ComputePipeline, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages,
 };
 
 use crate::gpu::context::GpuContext;
 
-use super::demosaic::linear_format_str;
+use super::common::{make_layout, make_pipeline, storage_entry, tex_entry};
 
 pub struct LumaPyramidPass {
     pub extract_layout: BindGroupLayout,
@@ -20,51 +17,17 @@ pub struct LumaPyramidPass {
 
 impl LumaPyramidPass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-        let extract_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("luma-extract-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-            ],
-        });
-        let src = include_str!("../../../assets/shaders/luma_extract.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("luma_extract.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(src)),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("luma-extract-pl"),
-            bind_group_layouts: &[Some(&extract_layout)],
-            immediate_size: 0,
-        });
-        let extract_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("luma-extract-cp"),
-            layout: Some(&pipeline_layout),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        let extract_layout = make_layout(
+            ctx,
+            "luma-extract-bgl",
+            &[tex_entry(0), storage_entry(1, ctx.linear_format)],
+        );
+        let extract_pipeline = make_pipeline(
+            ctx,
+            &extract_layout,
+            "luma_extract.wgsl",
+            include_str!("../../../assets/shaders/luma_extract.wgsl"),
+        );
         Self {
             extract_layout,
             extract_pipeline,

@@ -1,16 +1,11 @@
 // color-space: linear scene-referred Rgba16Float in/out
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BufferSize,
-    ComputePipeline, ComputePipelineDescriptor, PipelineLayoutDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, StorageTextureAccess, TextureSampleType, TextureViewDimension,
-};
+use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::gpu::context::GpuContext;
 
-use super::demosaic::linear_format_str;
+use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
 pub const PRESENCE_UNIFORM_SIZE: u64 = 48;
 
@@ -21,71 +16,22 @@ pub struct PresencePass {
 
 impl PresencePass {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
-        let device = &ctx.device;
-        let adjust_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("presence-adjust-bgl"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(PRESENCE_UNIFORM_SIZE),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::StorageTexture {
-                        access: StorageTextureAccess::WriteOnly,
-                        format: ctx.linear_format,
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
+        let adjust_layout = make_layout(
+            ctx,
+            "presence-adjust-bgl",
+            &[
+                uniform_entry(0, PRESENCE_UNIFORM_SIZE),
+                tex_entry(1),
+                tex_entry(2),
+                storage_entry(3, ctx.linear_format),
             ],
-        });
-        let src = include_str!("../../../assets/shaders/presence_adjust.wgsl")
-            .replace("rgba16float", linear_format_str(ctx.linear_format));
-        let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("presence_adjust.wgsl"),
-            source: ShaderSource::Wgsl(Cow::Owned(src)),
-        });
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("presence-adjust-pl"),
-            bind_group_layouts: &[Some(&adjust_layout)],
-            immediate_size: 0,
-        });
-        let adjust_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("presence-adjust-cp"),
-            layout: Some(&pipeline_layout),
-            module: &module,
-            entry_point: Some("main"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
+        );
+        let adjust_pipeline = make_pipeline(
+            ctx,
+            &adjust_layout,
+            "presence_adjust.wgsl",
+            include_str!("../../../assets/shaders/presence_adjust.wgsl"),
+        );
         Self {
             adjust_layout,
             adjust_pipeline,
