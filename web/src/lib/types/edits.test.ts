@@ -98,6 +98,24 @@ describe('neutralEdits identity', () => {
     expect(isIdentity(e)).toBe(false);
     expect(isNonGeometryIdentity(e)).toBe(false);
   });
+
+  it('treats retouch-only edits as non-identity', () => {
+    const e = neutralEdits();
+    e.retouch = [
+      {
+        id: 'spot',
+        mode: 'heal',
+        points: [{ x: 0.4, y: 0.5 }],
+        radius: 0.05,
+        hardness: 0.5,
+        opacity: 1,
+        source: { x: 0.6, y: 0.5 },
+        enabled: true
+      }
+    ];
+    expect(isIdentity(e)).toBe(false);
+    expect(isNonGeometryIdentity(e)).toBe(false);
+  });
 });
 
 describe('editsToManifest / manifestToEdits round-trip', () => {
@@ -260,6 +278,47 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(back.geometry.flip_h).toBe(true);
     expect(back.geometry.crop).toEqual(e.geometry.crop);
     expect(back.geometry.aspect).toEqual(e.geometry.aspect);
+  });
+
+  it('preserves retouch strokes', () => {
+    const e = neutralEdits();
+    e.retouch = [
+      {
+        id: 'spot-1',
+        mode: 'clone',
+        points: [
+          { x: 0.3, y: 0.35 },
+          { x: 0.32, y: 0.37 }
+        ],
+        radius: 0.08,
+        hardness: 0.4,
+        opacity: 0.9,
+        source: { x: 0.6, y: 0.55 },
+        enabled: false
+      }
+    ];
+    const back = roundTrip(e);
+    expect(back.retouch).toEqual(e.retouch);
+  });
+
+  it('caps retouch stroke points and drops pointless strokes', () => {
+    const many = Array.from({ length: 400 }, (_, i) => ({ x: i / 400, y: 0.5 }));
+    const edits = manifestToEdits({
+      schema_version: 3,
+      ops: {
+        retouch: {
+          strokes: [
+            { id: 'a', mode: 'heal', points: many, radius: 0.05, source: { x: 0.8, y: 0.5 } },
+            { id: 'b', mode: 'heal', points: [], radius: 0.05, source: { x: 0.8, y: 0.5 } },
+            { id: 'c', mode: 'heal', points: [{ x: 0.1, y: 0.1 }], radius: 0.05 }
+          ]
+        }
+      }
+    });
+    expect(edits.retouch).toHaveLength(1);
+    expect(edits.retouch[0].points).toHaveLength(256);
+    expect(edits.retouch[0].opacity).toBe(1);
+    expect(edits.retouch[0].enabled).toBe(true);
   });
 
   it('decodes a legacy single-curve points payload', () => {

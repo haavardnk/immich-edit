@@ -4,17 +4,12 @@
   import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
   import { bufferToImageData, parseHexColor, stampBuffer, type BrushBuffer } from '$lib/utils/brush';
   import {
-    lensWarpFromEdits,
-    lensWarpActive,
-    maskUvToSceneUv,
-    type LensWarpParams
-  } from '$lib/utils/lensWarp';
-  import {
-    displayUvToMaskUv,
-    geometryIsIdentity,
-    type GeometryTransform,
-    type RotateQuarter
-  } from '$lib/utils/geomTransform';
+    displayUvToSceneUv as toSceneUv,
+    scenePerDisplayAt as scenePerDisplay,
+    steppedSegment,
+    viewIsIdentity,
+    viewTransform
+  } from '$lib/utils/canvasCoords';
 
   let {
     img
@@ -68,34 +63,9 @@
     return () => cancelAnimationFrame(id);
   });
 
-  const geomT = $derived.by<GeometryTransform>(() => {
-    const g = editor.edits.geometry;
-    const sw = editor.meta?.source_w ?? 1;
-    const sh = editor.meta?.source_h ?? 1;
-    const dw = editor.meta?.width ?? sw;
-    const dh = editor.meta?.height ?? sh;
-    return {
-      inputW: sw,
-      inputH: sh,
-      rotateQuarter: g.rotate as RotateQuarter,
-      flipH: g.flip_h,
-      flipV: g.flip_v,
-      angleDeg: g.rotate_angle,
-      crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
-      outputW: dw,
-      outputH: dh
-    };
-  });
+  const view = $derived(viewTransform(editor.edits, editor.meta ?? null));
 
-  const lensP = $derived.by<LensWarpParams>(() =>
-    lensWarpFromEdits(
-      editor.edits.lens,
-      editor.meta?.source_w ?? 1,
-      editor.meta?.source_h ?? 1
-    )
-  );
-
-  const allIdentity = $derived(geometryIsIdentity(geomT) && !lensWarpActive(lensP));
+  const allIdentity = $derived(viewIsIdentity(view));
 
   const active = $derived<MaskLayer | null>(
     editor.activeLayerId
@@ -123,18 +93,11 @@
   });
 
   function displayUvToSceneUv(du: number, dv: number): [number, number] {
-    const m = displayUvToMaskUv(geomT, [du, dv]);
-    return maskUvToSceneUv(lensP, m);
+    return toSceneUv(view, du, dv);
   }
 
   function scenePerDisplayAt(du: number, dv: number): number {
-    const eps = 1e-3;
-    const s0 = displayUvToSceneUv(du, dv);
-    const sx = displayUvToSceneUv(du + eps, dv);
-    const sy = displayUvToSceneUv(du, dv + eps);
-    const jx = Math.hypot(sx[0] - s0[0], sx[1] - s0[1]) / eps;
-    const jy = Math.hypot(sy[0] - s0[0], sy[1] - s0[1]) / eps;
-    return Math.max(1e-6, (jx + jy) * 0.5);
+    return scenePerDisplay(view, du, dv);
   }
 
   async function repaint(componentId: string, rasterId: string): Promise<void> {
@@ -208,15 +171,15 @@
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
     if (lastPx !== null && lastPy !== null) {
-      const dx = px - lastPx;
-      const dy = py - lastPy;
-      const dist = Math.hypot(dx, dy);
       const radiusPx = editor.brushTool.size * 0.5 * Math.min(rect.width, rect.height);
-      const step = Math.max(1, radiusPx * 0.5);
-      const n = Math.max(1, Math.ceil(dist / step));
-      for (let i = 1; i <= n; i++) {
-        const t = i / n;
-        stampAtPx(buf, rect, lastPx + dx * t, lastPy + dy * t);
+      for (const [sx, sy] of steppedSegment(
+        lastPx,
+        lastPy,
+        px,
+        py,
+        Math.max(1, radiusPx * 0.5)
+      )) {
+        stampAtPx(buf, rect, sx, sy);
       }
     } else {
       stampAtPx(buf, rect, px, py);
@@ -267,8 +230,9 @@
   }
 
   async function onPointerDown(e: PointerEvent): Promise<void> {
-    if (!activeComp || activeComp.kind.kind !== 'brush' || !active) return;
+    if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return;
     e.preventDefault();
+    e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     strokeActive = true;
     lastPx = null;

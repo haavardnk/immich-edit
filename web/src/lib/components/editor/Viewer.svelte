@@ -5,6 +5,7 @@
   import MaskOverlay from './MaskOverlay.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
+  import RetouchOverlay from './RetouchOverlay.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiLoading } from '@mdi/js';
 
@@ -61,10 +62,16 @@
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!e.ctrlKey && !e.metaKey) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -10 : 10;
+      ui.setZoom(ui.zoom + delta);
+      return;
+    }
+    if (ui.zoom <= 100) return;
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -10 : 10;
-    ui.setZoom(ui.zoom + delta);
+    ui.panX -= e.deltaX;
+    ui.panY -= e.deltaY;
   }
 
   function onDblClick(): void {
@@ -153,6 +160,7 @@
       <MaskOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />
+      <RetouchOverlay img={imgEl} />
     {/if}
     {#if editor.maskGenerating}
       <div

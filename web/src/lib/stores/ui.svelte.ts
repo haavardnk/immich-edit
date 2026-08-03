@@ -1,5 +1,5 @@
 export type AspectRatio = 'free' | 'original' | '1:1' | '4:3' | '3:2' | '16:9' | '5:4' | '7:5';
-export type EditorTab = 'develop' | 'masks' | 'geometry' | 'export';
+export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
 export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | null }[] = [
   { id: 'free', label: 'Free', value: null },
@@ -39,6 +39,12 @@ class UiStore {
     this.fullscreen = false;
     this.rightCollapsed = false;
     this.editorTab = 'geometry';
+  };
+
+  openRetouch = (): void => {
+    this.fullscreen = false;
+    this.rightCollapsed = false;
+    this.editorTab = 'retouch';
   };
 
   toggleFilmstrip = (): void => {

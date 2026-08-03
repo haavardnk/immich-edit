@@ -403,6 +403,26 @@ export function maskLayerIsEffective(l: MaskLayer): boolean {
   return hasComp && !maskedEditsIsZero(l.edits);
 }
 
+export type RetouchMode = 'heal' | 'clone';
+
+export const MAX_RETOUCH_STROKES = 64;
+export const MAX_RETOUCH_POINTS = 256;
+
+export interface RetouchStroke {
+  id: string;
+  mode: RetouchMode;
+  points: Vec2f[];
+  radius: number;
+  hardness: number;
+  opacity: number;
+  source: Vec2f;
+  enabled: boolean;
+}
+
+export function retouchStrokeIsEffective(s: RetouchStroke): boolean {
+  return s.enabled && s.points.length > 0 && s.radius > 0 && s.opacity > 0;
+}
+
 export interface Edits {
   basic: BasicEdits;
   tone: ToneEdits;
@@ -412,6 +432,7 @@ export interface Edits {
   lens: LensEdits;
   geometry: GeometryEdits;
   masks: MaskLayer[];
+  retouch: RetouchStroke[];
 }
 
 export interface EditManifest {
@@ -487,7 +508,8 @@ export function neutralEdits(): Edits {
       crop: null,
       aspect: { kind: 'original' }
     },
-    masks: []
+    masks: [],
+    retouch: []
   };
 }
 
@@ -512,7 +534,8 @@ export function originalPreviewEdits(edits: Edits): Edits {
     color: { ...neutral.color, dcp: edits.color.dcp },
     detail: neutral.detail,
     effects: neutral.effects,
-    masks: []
+    masks: [],
+    retouch: []
   };
 }
 
@@ -835,7 +858,8 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
-    e.masks.length === 0
+    e.masks.length === 0 &&
+    e.retouch.length === 0
   );
 }
 
@@ -895,6 +919,9 @@ export function editsToManifest(e: Edits): EditManifest {
   }
   if (e.masks.length > 0) {
     ops.masks = { layers: e.masks };
+  }
+  if (e.retouch.length > 0) {
+    ops.retouch = { strokes: e.retouch };
   }
   return { schema_version: 3, ops };
 }
@@ -990,7 +1017,37 @@ export function manifestToEdits(doc: EditManifest): Edits {
       .map((raw) => parseMaskLayer(raw))
       .filter((l): l is MaskLayer => l !== null);
   }
+  const retouch = ops.retouch as { strokes?: unknown[] } | undefined;
+  if (retouch?.strokes) {
+    edits.retouch = retouch.strokes
+      .map((raw) => parseRetouchStroke(raw))
+      .filter((s): s is RetouchStroke => s !== null)
+      .slice(0, MAX_RETOUCH_STROKES);
+  }
   return edits;
+}
+
+function parseRetouchStroke(raw: unknown): RetouchStroke | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string') return null;
+  const source = parseVec2f(r.source);
+  if (!source) return null;
+  const points = (Array.isArray(r.points) ? r.points : [])
+    .map((p) => parseVec2f(p))
+    .filter((p): p is Vec2f => p !== null)
+    .slice(0, MAX_RETOUCH_POINTS);
+  if (points.length === 0) return null;
+  return {
+    id: r.id,
+    mode: r.mode === 'clone' ? 'clone' : 'heal',
+    points,
+    radius: typeof r.radius === 'number' ? r.radius : 0,
+    hardness: typeof r.hardness === 'number' ? r.hardness : 0.5,
+    opacity: typeof r.opacity === 'number' ? r.opacity : 1,
+    source,
+    enabled: r.enabled !== false
+  };
 }
 
 function parseMaskLayer(raw: unknown): MaskLayer | null {

@@ -53,6 +53,9 @@
       } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
         e.preventDefault();
         ui.editorTab = 'develop';
+      } else if (ui.editorTab === 'retouch' && editor.activeRetouchId) {
+        e.preventDefault();
+        editor.activeRetouchId = null;
       } else if (editor.activeMaskComponentId) {
         e.preventDefault();
         editor.setActiveMaskComponent(null);
@@ -139,7 +142,7 @@
       }
       return;
     }
-    if ((e.key === 'c' || e.key === 'C') && !meta && !e.shiftKey && !e.altKey) {
+    if ((e.key === 'g' || e.key === 'G') && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       ui.openGeometry();
       return;
@@ -148,6 +151,36 @@
       e.preventDefault();
       void editor.onReset();
       return;
+    }
+    if ((e.key === 'v' || e.key === 'V') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      ui.openRetouch();
+      return;
+    }
+    if (ui.editorTab === 'retouch' && !meta && !e.shiftKey && !e.altKey) {
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        editor.setRetouchMode('heal');
+        return;
+      }
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        editor.setRetouchMode('clone');
+        return;
+      }
+      if (e.key === '[' || e.key === ']') {
+        e.preventDefault();
+        const step = e.key === '[' ? -0.005 : 0.005;
+        editor.setRetouchTool({
+          size: Math.min(0.3, Math.max(0.005, editor.retouchTool.size + step))
+        });
+        return;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && editor.activeRetouchId) {
+        e.preventDefault();
+        void editor.removeRetouchStroke(editor.activeRetouchId);
+        return;
+      }
     }
   }
 

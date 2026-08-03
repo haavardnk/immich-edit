@@ -12,7 +12,6 @@ export const JPEG_BLOB: Buffer = Buffer.from(
 );
 
 export const ASSET_ID = '00000000-0000-0000-0000-000000000001';
-
 export const SESSION_USER = {
   id: '00000000-0000-0000-0000-0000000000aa',
   email: 'user@example.com',
@@ -57,6 +56,11 @@ export function png(): Parameters<Route['fulfill']>[0] {
   return { status: 200, contentType: 'image/png', body: PNG_1X1 };
 }
 
+export const PNG_64: Buffer = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAATUlEQVR4nO3PMQEAAAgDoOU0sbGM4LUPGpAp27IICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICHwOg/Mxlm5wPxYAAAAASUVORK5CYII=',
+  'base64'
+);
+
 export interface PreviewRequest {
   max_edge: number;
   edits: Record<string, unknown>;
@@ -74,10 +78,15 @@ export interface InstallOpts {
   onSmart?: (body: Record<string, unknown>) => void;
   onMetadata?: (body: Record<string, unknown>) => void;
   smartFails?: boolean;
+  previewBody?: Buffer;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
+  const previewPng = (): Parameters<Route['fulfill']>[0] =>
+    opts.previewBody
+      ? { status: 200, contentType: 'image/png', body: opts.previewBody }
+      : png();
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();
@@ -168,9 +177,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         const body = req.postDataJSON() as PreviewRequest | null;
         if (body) opts.onPreview(body);
       }
-      return route.fulfill(png());
+      return route.fulfill(previewPng());
     }
-    if (p.match(/^\/api\/assets\/[^/]+\/preview/)) return route.fulfill(png());
+    if (p.match(/^\/api\/assets\/[^/]+\/preview/)) return route.fulfill(previewPng());
     if (p.endsWith('/thumbnail') || p.endsWith('/thumb') || p.endsWith('/edited-thumb'))
       return route.fulfill(png());
 

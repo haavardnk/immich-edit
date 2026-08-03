@@ -50,7 +50,8 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Space / Z', description: 'Toggle zoom (fit ↔ 200%)' },
       { keys: 'I', description: 'Toggle EXIF info' },
       { keys: 'T', description: 'Toggle tags' },
-      { keys: 'C', description: 'Open Geometry' },
+      { keys: 'G', description: 'Open Geometry' },
+      { keys: 'V', description: 'Open Retouch' },
       { keys: 'R', description: 'Reset edits' },
       { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
@@ -72,6 +73,17 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: '⇧Click', description: 'Exclude an area when clicking to select' },
       { keys: 'Right-click', description: 'Exclude an area · undo the last polygon corner' },
       { keys: 'Enter', description: 'Close the polygon you are drawing' }
+    ]
+  },
+  {
+    title: 'Retouch',
+    mode: 'editor',
+    binds: [
+      { keys: 'H / C', description: 'Heal / clone mode' },
+      { keys: 'Hold Alt + click', description: 'Set the source point' },
+      { keys: '[ / ]', description: 'Smaller / larger brush' },
+      { keys: '⌫ / Del', description: 'Delete the selected stroke' },
+      { keys: 'Esc', description: 'Deselect the current stroke' }
     ]
   }
 ];

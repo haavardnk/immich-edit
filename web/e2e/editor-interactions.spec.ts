@@ -123,14 +123,14 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
-test('C opens Geometry and Escape returns to Develop', async ({ page }) => {
+test('G opens Geometry and Escape returns to Develop', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'collapse edit panel' }).click();
   await expect(page.getByRole('button', { name: 'expand edit panel' })).toBeVisible();
 
-  await page.keyboard.press('c');
+  await page.keyboard.press('g');
   await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Angle', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();

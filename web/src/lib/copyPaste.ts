@@ -71,6 +71,7 @@ export function applyCopySections(current: Edits, incoming: Edits, sections: Cop
     effects: sections.effects ? incoming.effects : current.effects,
     lens: sections.lens ? incoming.lens : current.lens,
     geometry: sections.geometry ? incoming.geometry : current.geometry,
-    masks: sections.masks ? incoming.masks : current.masks
+    masks: sections.masks ? incoming.masks : current.masks,
+    retouch: current.retouch
   };
 }

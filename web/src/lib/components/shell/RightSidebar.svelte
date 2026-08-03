@@ -10,6 +10,7 @@
   import BulkApplyPresetPanel from '$lib/panels/BulkApplyPreset.svelte';
   import BulkCopyPastePanel from '$lib/panels/BulkCopyPaste.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
+  import RetouchPanel from '$lib/panels/Retouch.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
@@ -19,7 +20,20 @@
     mdiChevronLeft,
     mdiAutoFix,
     mdiRestore,
+    mdiTuneVariant,
+    mdiLayersOutline,
+    mdiBandage,
+    mdiCropRotate,
+    mdiExport,
   } from '@mdi/js';
+
+  const editorTabs: { id: EditorTab; label: string; icon: string; hint: string }[] = [
+    { id: 'develop', label: 'Develop', icon: mdiTuneVariant, hint: 'Develop' },
+    { id: 'masks', label: 'Masks', icon: mdiLayersOutline, hint: 'Masks' },
+    { id: 'retouch', label: 'Retouch', icon: mdiBandage, hint: 'Retouch (V)' },
+    { id: 'geometry', label: 'Geometry', icon: mdiCropRotate, hint: 'Geometry (G)' },
+    { id: 'export', label: 'Export', icon: mdiExport, hint: 'Export' },
+  ];
 
   type BulkTab = 'export' | 'preset';
   let bulkTab = $state<BulkTab>('preset');
@@ -32,6 +46,7 @@
       editor.setActiveLayer(null);
       editor.setActiveMaskComponent(null);
     }
+    if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
   });
 
   function toggle(id: string): void {
@@ -62,14 +77,18 @@
     {#if editor.assetId}
       <div class="flex items-center border-b border-white/10">
         <nav class="flex flex-1">
-          {#each [{ id: 'develop', label: 'Develop' }, { id: 'masks', label: 'Masks' }, { id: 'geometry', label: 'Geometry' }, { id: 'export', label: 'Export' }] as tab (tab.id)}
+          {#each editorTabs as tab (tab.id)}
             <button
-              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {ui.editorTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
+              class="flex-1 flex items-center justify-center py-2.5 transition-colors {ui.editorTab ===
+              tab.id
+                ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary'
+                : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70 border-b-2 border-transparent'}"
               aria-pressed={ui.editorTab === tab.id}
-              title={tab.id === 'geometry' ? 'Geometry (C)' : tab.label}
-              onclick={() => (ui.editorTab = tab.id as EditorTab)}
+              aria-label={tab.label}
+              title={tab.hint}
+              onclick={() => (ui.editorTab = tab.id)}
             >
-              {tab.label}
+              <Icon path={tab.icon} size={17} />
             </button>
           {/each}
         </nav>
@@ -136,6 +155,10 @@
         {:else if ui.editorTab === 'masks'}
           <div class="px-4 py-3">
             <MasksPanel />
+          </div>
+        {:else if ui.editorTab === 'retouch'}
+          <div class="px-4 py-3">
+            <RetouchPanel />
           </div>
         {:else if ui.editorTab === 'geometry'}
           <div class="px-4 py-3">

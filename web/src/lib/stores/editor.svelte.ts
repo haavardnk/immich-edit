@@ -1,4 +1,4 @@
-import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey, type Vec2f } from '$lib/types/edits';
+import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, MAX_RETOUCH_STROKES, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey, type RetouchMode, type RetouchStroke, type Vec2f } from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
   defaultBrush,
@@ -122,6 +122,20 @@ class EditorStore {
     mode: MaskComponentMode;
     points: Vec2f[];
   } | null>(null);
+
+  retouchTool = $state<{
+    mode: RetouchMode;
+    size: number;
+    hardness: number;
+    opacity: number;
+  }>({
+    mode: 'heal',
+    size: 0.05,
+    hardness: 0.5,
+    opacity: 1
+  });
+  activeRetouchId = $state<string | null>(null);
+  retouchAnchor = $state<Vec2f | null>(null);
 
   private history = $state<Edits[]>([]);
   private historyCursor = $state(-1);
@@ -300,6 +314,8 @@ class EditorStore {
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskPreviewLayerId = null;
+    this.activeRetouchId = null;
+    this.retouchAnchor = null;
     this.colorPicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
@@ -452,7 +468,8 @@ class EditorStore {
       effects: incoming.effects,
       lens: incoming.lens,
       geometry: opts.includeGeometry ? incoming.geometry : this.edits.geometry,
-      masks: opts.includeMasks ? incoming.masks : this.edits.masks
+      masks: opts.includeMasks ? incoming.masks : this.edits.masks,
+      retouch: this.edits.retouch
     };
     this.onLive();
     await this.onCommit(name ? `Preset: ${name}` : 'Preset');
@@ -587,6 +604,61 @@ class EditorStore {
 
   toggleMaskOverlay = (): void => {
     this.maskOverlayVisible = !this.maskOverlayVisible;
+  };
+
+  retouchFull = $derived(this.edits.retouch.length >= MAX_RETOUCH_STROKES);
+
+  addRetouchStroke = async (stroke: RetouchStroke): Promise<void> => {
+    if (!this.initialised || this.edits.retouch.length >= MAX_RETOUCH_STROKES) return;
+    this.edits.retouch.push(stroke);
+    this.activeRetouchId = stroke.id;
+    this.onLive();
+    await this.onCommit('Retouch');
+  };
+
+  updateRetouchStroke = (id: string, patch: Partial<RetouchStroke>): void => {
+    const i = this.edits.retouch.findIndex((s) => s.id === id);
+    if (i < 0) return;
+    this.edits.retouch[i] = { ...this.edits.retouch[i], ...patch };
+  };
+
+  setRetouchStroke = async (
+    id: string,
+    patch: Partial<RetouchStroke>,
+    commit: boolean
+  ): Promise<void> => {
+    this.updateRetouchStroke(id, patch);
+    this.onLive();
+    if (commit) await this.onCommit('Retouch');
+  };
+
+  commitRetouch = async (): Promise<void> => {
+    await this.onCommit('Retouch');
+  };
+
+  removeRetouchStroke = async (id: string): Promise<void> => {
+    const i = this.edits.retouch.findIndex((s) => s.id === id);
+    if (i < 0) return;
+    this.edits.retouch.splice(i, 1);
+    if (this.activeRetouchId === id) this.activeRetouchId = null;
+    this.onLive();
+    await this.onCommit('Remove Retouch');
+  };
+
+  toggleRetouchStroke = async (id: string): Promise<void> => {
+    const s = this.edits.retouch.find((r) => r.id === id);
+    if (!s) return;
+    s.enabled = !s.enabled;
+    this.onLive();
+    await this.onCommit(s.enabled ? 'Enable Retouch' : 'Disable Retouch');
+  };
+
+  clearRetouch = async (): Promise<void> => {
+    if (this.edits.retouch.length === 0) return;
+    this.edits.retouch = [];
+    this.activeRetouchId = null;
+    this.onLive();
+    await this.onCommit('Clear Retouch');
   };
 
   previewMaskWeight = (layerId: string): void => {
@@ -862,6 +934,17 @@ class EditorStore {
     patch: Partial<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>
   ): void => {
     this.brushTool = { ...this.brushTool, ...patch };
+  };
+
+  setRetouchTool = (
+    patch: Partial<{ mode: RetouchMode; size: number; hardness: number; opacity: number }>
+  ): void => {
+    this.retouchTool = { ...this.retouchTool, ...patch };
+  };
+
+  setRetouchMode = (mode: RetouchMode): void => {
+    this.retouchTool = { ...this.retouchTool, mode };
+    if (this.activeRetouchId) void this.setRetouchStroke(this.activeRetouchId, { mode }, true);
   };
 
   private brushDims = (): { width: number; height: number } => {
