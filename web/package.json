@@ -16,22 +16,22 @@
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.61.1",
+		"@playwright/test": "^1.62.1",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.69.2",
+		"@sveltejs/kit": "^2.70.2",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@tailwindcss/vite": "^4.3.2",
-		"@types/node": "^26.1.1",
+		"@types/node": "^26.1.2",
 		"@types/uuid": "^11.0.0",
 		"@vitest/coverage-v8": "^4.1.10",
 		"jsdom": "^29.1.1",
 		"serve": "^14.2.6",
 		"svelte": "^5.56.4",
-		"svelte-check": "^4.7.2",
+		"svelte-check": "^4.7.4",
 		"tailwindcss": "^4.3.0",
 		"typescript": "^6.0.2",
-		"vite": "^8.1.4",
+		"vite": "^8.2.0",
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
