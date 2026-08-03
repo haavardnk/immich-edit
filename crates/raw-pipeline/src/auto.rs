@@ -59,6 +59,29 @@ fn cfa_block(cfa_pattern: &str) -> (usize, Vec<usize>) {
     }
 }
 
+fn mosaic_block_rgb(
+    data: &[f32],
+    w: usize,
+    dim: usize,
+    table: &[usize],
+    bx: usize,
+    by: usize,
+) -> [f32; 3] {
+    let mut acc = [0.0f32; 3];
+    let mut counts = [0.0f32; 3];
+    for (dy, dx) in (0..dim).flat_map(|dy| (0..dim).map(move |dx| (dy, dx))) {
+        let ch = table[dy * dim + dx];
+        acc[ch] += data[(by + dy) * w + bx + dx];
+        counts[ch] += 1.0;
+    }
+    for ch in 0..3 {
+        if counts[ch] > 0.0 {
+            acc[ch] /= counts[ch];
+        }
+    }
+    acc
+}
+
 fn collect_scene_luma_hist(
     frame: &RawFrame,
     cam_to_srgb: [[f32; 3]; 3],
@@ -106,19 +129,8 @@ fn collect_scene_luma_hist(
         while i < block_count {
             let bx = (i % bw) * dim;
             let by = (i / bw) * dim;
-            let mut acc = [0.0f32; 3];
-            let mut counts = [0.0f32; 3];
-            for (dy, dx) in (0..dim).flat_map(|dy| (0..dim).map(move |dx| (dy, dx))) {
-                let ch = table[dy * dim + dx];
-                acc[ch] += frame.data[(by + dy) * w + bx + dx];
-                counts[ch] += 1.0;
-            }
-            for ch in 0..3 {
-                if counts[ch] > 0.0 {
-                    acc[ch] /= counts[ch];
-                }
-            }
-            push(scene_luma(acc, wb, cam_to_srgb));
+            let rgb = mosaic_block_rgb(&frame.data, w, dim, &table, bx, by);
+            push(scene_luma(rgb, wb, cam_to_srgb));
             i += step;
         }
     } else {
@@ -336,7 +348,7 @@ fn finalize_stats(hist: [u32; HIST_BINS], total: u32, sat_sum: f64, sat_n: u32) 
     })
 }
 
-fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
+fn collect_stats_direct(frame: &RawFrame, wb: [f32; 3], m: [[f32; 3]; 3]) -> Option<Stats> {
     if frame.cpp < 3 {
         return None;
     }
@@ -345,7 +357,6 @@ fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
         return None;
     }
     let step = (pixel_count / SAMPLE_TARGET).max(1);
-    let (wb, m) = display_color(frame);
 
     let mut hist = [0u32; HIST_BINS];
     let mut sat_sum: f64 = 0.0;
@@ -367,13 +378,17 @@ fn collect_stats_direct(frame: &RawFrame) -> Option<Stats> {
     finalize_stats(hist, total, sat_sum, sat_n)
 }
 
-fn collect_stats_output(frame: &RawFrame, edits: &Edits) -> Option<Stats> {
+fn collect_stats_output(
+    frame: &RawFrame,
+    edits: &Edits,
+    wb: [f32; 3],
+    m: [[f32; 3]; 3],
+) -> Option<Stats> {
     let w = frame.width;
     let h = frame.height;
     if w == 0 || h == 0 || frame.cpp < 3 {
         return None;
     }
-    let (wb, m) = display_color(frame);
 
     let (orient_t, _, _) = frame.orientation;
     let (oriented_w, oriented_h) = if orient_t { (h, w) } else { (w, h) };
@@ -471,10 +486,11 @@ fn needs_output_pass(edits: &Edits) -> bool {
 
 pub fn auto_adjust(frame: &RawFrame, context: &Edits) -> Edits {
     let context = context.clamped();
+    let (wb, m) = display_color(frame);
     let stats = if needs_output_pass(&context) {
-        collect_stats_output(frame, &context).or_else(|| collect_stats_direct(frame))
+        collect_stats_output(frame, &context, wb, m).or_else(|| collect_stats_direct(frame, wb, m))
     } else {
-        collect_stats_direct(frame)
+        collect_stats_direct(frame, wb, m)
     };
     let Some(s) = stats else {
         return Edits::default();
