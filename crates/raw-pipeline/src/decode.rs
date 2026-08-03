@@ -217,6 +217,10 @@ fn decode_raw_quality(
     {
         match (config.cfa.width, config.cfa.height) {
             (0, 0) | (2, 2) => {}
+            (6, 6) => {
+                let cfa_name = config.cfa.name.clone();
+                return decode_raw_xtrans(raw_image, exif, &cfa_name);
+            }
             (w, h) => {
                 return Err(PipelineError::Unsupported(format!(
                     "unsupported {w}x{h} CFA pattern '{}'",
@@ -279,6 +283,62 @@ fn decode_raw_quality(
         color_matrices,
         data,
         cpp: 3,
+        orientation,
+        is_raw: true,
+        model: raw_image.clean_model.clone(),
+        exif,
+    })
+}
+
+fn decode_raw_xtrans(
+    mut raw_image: rawler::RawImage,
+    exif: Option<little_exif::metadata::Metadata>,
+    cfa_name: &str,
+) -> crate::PipelineResult<RawFrame> {
+    let Some(pattern) = crate::cpu::demosaic::parse_xtrans(cfa_name) else {
+        return Err(PipelineError::Unsupported(format!(
+            "unsupported 6x6 CFA pattern '{cfa_name}'"
+        )));
+    };
+
+    let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
+        extract_common(&mut raw_image, &exif);
+
+    let develop = RawDevelop {
+        steps: vec![ProcessingStep::Rescale],
+    };
+    let intermediate = develop
+        .develop_intermediate(&raw_image)
+        .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
+
+    let Intermediate::Monochrome(pixels) = intermediate else {
+        return Err(PipelineError::Decode(
+            "X-Trans develop did not yield a mosaic".into(),
+        ));
+    };
+
+    let (data, width, height, pattern) = if let Some(area) = raw_image.active_area {
+        let shifted = crate::cpu::demosaic::shift_xtrans(&pattern, area.p.x, area.p.y);
+        let cropped = pixels.crop(area);
+        let w = cropped.width;
+        let h = cropped.height;
+        (cropped.into_inner(), w, h, shifted)
+    } else {
+        let w = pixels.width;
+        let h = pixels.height;
+        (pixels.into_inner(), w, h, pattern)
+    };
+
+    Ok(RawFrame {
+        width,
+        height,
+        cfa_pattern: pattern.iter().map(|b| *b as char).collect(),
+        bps: 16,
+        wb_coeffs,
+        xyz_to_cam,
+        color_matrices,
+        data,
+        cpp: 1,
         orientation,
         is_raw: true,
         model: raw_image.clean_model.clone(),

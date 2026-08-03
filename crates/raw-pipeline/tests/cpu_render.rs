@@ -58,6 +58,12 @@ fn decode_metadata() {
         if frame.cfa_pattern.is_empty() && frame.cpp == 1 {
             panic!("{name}: bayer without cfa pattern");
         }
+        if frame.cpp == 1 && !matches!(frame.cfa_pattern.len(), 4 | 36) {
+            panic!(
+                "{name}: mosaic frame with unsupported cfa '{}'",
+                frame.cfa_pattern
+            );
+        }
         if frame.bps == 0 || frame.bps > 16 {
             panic!("{name}: bad bps {}", frame.bps);
         }
@@ -65,6 +71,60 @@ fn decode_metadata() {
             panic!("{name}: no pixel data");
         }
     });
+}
+
+#[test]
+fn xtrans_renders_neutral_greys() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
+    let Ok(bytes) = std::fs::read(&path) else {
+        eprintln!("no X-Trans fixture; skipping");
+        return;
+    };
+    let frame = decode::decode(&bytes).expect("decode X-Trans");
+    if frame.cpp != 1 || cpu::demosaic::parse_xtrans(&frame.cfa_pattern).is_none() {
+        panic!(
+            "X-Trans frame did not reach the pipeline as a 6x6 mosaic: cpp {} cfa '{}'",
+            frame.cpp, frame.cfa_pattern
+        );
+    }
+
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
+    let out = cpu::render(&frame, &Edits::default(), &opts).expect("render X-Trans");
+    let img: turbojpeg::Image<Vec<u8>> =
+        turbojpeg::decompress(&out.bytes, turbojpeg::PixelFormat::RGB).expect("decompress");
+    for (cx, cy) in GREY_PATCHES {
+        let mean = patch_mean(&img, cx, cy);
+        let spread = mean[0].max(mean[1]).max(mean[2]) - mean[0].min(mean[1]).min(mean[2]);
+        if spread > GREY_SPREAD_CEIL {
+            panic!("grey patch at {cx},{cy} is not neutral: rgb {mean:.1?} spread {spread:.1}");
+        }
+    }
+}
+
+const GREY_PATCHES: [(usize, usize); 3] = [(190, 95), (170, 140), (215, 130)];
+const GREY_SPREAD_CEIL: f64 = 25.0;
+
+fn patch_mean(img: &turbojpeg::Image<Vec<u8>>, cx: usize, cy: usize) -> [f64; 3] {
+    let mut sum = [0u64; 3];
+    let mut n = 0u64;
+    for y in cy - 6..=cy + 6 {
+        for x in cx - 6..=cx + 6 {
+            let i = (y * img.pitch) + x * 3;
+            sum[0] += img.pixels[i] as u64;
+            sum[1] += img.pixels[i + 1] as u64;
+            sum[2] += img.pixels[i + 2] as u64;
+            n += 1;
+        }
+    }
+    [
+        sum[0] as f64 / n as f64,
+        sum[1] as f64 / n as f64,
+        sum[2] as f64 / n as f64,
+    ]
 }
 
 #[test]

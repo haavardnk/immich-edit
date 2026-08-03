@@ -33,20 +33,30 @@ fn scene_luma(raw: [f32; 3], wb: [f32; 3], cam_to_srgb: [[f32; 3]; 3]) -> f32 {
     (LUMA_R * lr + LUMA_G * lg + LUMA_B * lb).max(0.0)
 }
 
-fn cfa_channel(cfa: &[u8; 4], x: usize, y: usize) -> usize {
-    match cfa[(y & 1) * 2 + (x & 1)] {
-        b'R' => 0,
-        b'B' => 2,
-        _ => 1,
-    }
-}
-
 fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
     let mut cfa = [b'R', b'G', b'G', b'B'];
     for (i, b) in cfa_pattern.bytes().take(4).enumerate() {
         cfa[i] = b;
     }
     cfa
+}
+
+fn cfa_block(cfa_pattern: &str) -> (usize, Vec<usize>) {
+    let to_channel = |b: u8| match b {
+        b'R' => 0usize,
+        b'B' => 2,
+        _ => 1,
+    };
+    match crate::cpu::demosaic::parse_xtrans(cfa_pattern) {
+        Some(pattern) => (6, pattern.iter().map(|b| to_channel(*b)).collect()),
+        None => (
+            2,
+            parse_cfa(cfa_pattern)
+                .iter()
+                .map(|b| to_channel(*b))
+                .collect(),
+        ),
+    }
 }
 
 fn collect_scene_luma_hist(
@@ -84,32 +94,29 @@ fn collect_scene_luma_hist(
     } else if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
         let w = frame.width;
         let h = frame.height;
-        let bw = w / 2;
-        let bh = h / 2;
+        let (dim, table) = cfa_block(&frame.cfa_pattern);
+        let bw = w / dim;
+        let bh = h / dim;
         let block_count = bw * bh;
         if block_count == 0 {
             return None;
         }
-        let cfa = parse_cfa(&frame.cfa_pattern);
         let step = (block_count / SAMPLE_TARGET).max(1);
         let mut i = 0;
         while i < block_count {
-            let bx = (i % bw) * 2;
-            let by = (i / bw) * 2;
+            let bx = (i % bw) * dim;
+            let by = (i / bw) * dim;
             let mut acc = [0.0f32; 3];
-            let mut gcount = 0.0f32;
-            for dy in 0..2 {
-                for dx in 0..2 {
-                    let ch = cfa_channel(&cfa, bx + dx, by + dy);
-                    let v = frame.data[(by + dy) * w + bx + dx];
-                    acc[ch] += v;
-                    if ch == 1 {
-                        gcount += 1.0;
-                    }
-                }
+            let mut counts = [0.0f32; 3];
+            for (dy, dx) in (0..dim).flat_map(|dy| (0..dim).map(move |dx| (dy, dx))) {
+                let ch = table[dy * dim + dx];
+                acc[ch] += frame.data[(by + dy) * w + bx + dx];
+                counts[ch] += 1.0;
             }
-            if gcount > 0.0 {
-                acc[1] /= gcount;
+            for ch in 0..3 {
+                if counts[ch] > 0.0 {
+                    acc[ch] /= counts[ch];
+                }
             }
             push(scene_luma(acc, wb, cam_to_srgb));
             i += step;

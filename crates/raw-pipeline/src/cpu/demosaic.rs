@@ -119,6 +119,140 @@ pub fn malvar_he_cutler(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> 
     out
 }
 
+const XTRANS_DIM: usize = 6;
+const XTRANS_LEN: usize = XTRANS_DIM * XTRANS_DIM;
+
+const GREEN_NEIGHBORS: [(i32, i32, f32); 8] = [
+    (-1, 0, 1.0),
+    (1, 0, 1.0),
+    (0, -1, 1.0),
+    (0, 1, 1.0),
+    (-1, -1, 0.5),
+    (1, -1, 0.5),
+    (-1, 1, 0.5),
+    (1, 1, 0.5),
+];
+
+pub fn parse_xtrans(cfa_pattern: &str) -> Option<[u8; XTRANS_LEN]> {
+    let bytes = cfa_pattern.as_bytes();
+    if bytes.len() != XTRANS_LEN || bytes.iter().any(|b| !matches!(b, b'R' | b'G' | b'B')) {
+        return None;
+    }
+    let mut pattern = [b'G'; XTRANS_LEN];
+    pattern.copy_from_slice(bytes);
+    Some(pattern)
+}
+
+pub fn shift_xtrans(pattern: &[u8; XTRANS_LEN], dx: usize, dy: usize) -> [u8; XTRANS_LEN] {
+    let mut out = [b'G'; XTRANS_LEN];
+    for (i, slot) in out.iter_mut().enumerate() {
+        let x = (i % XTRANS_DIM + dx) % XTRANS_DIM;
+        let y = (i / XTRANS_DIM + dy) % XTRANS_DIM;
+        *slot = pattern[y * XTRANS_DIM + x];
+    }
+    out
+}
+
+fn xtrans_channel(pattern: &[u8; XTRANS_LEN], x: usize, y: usize) -> usize {
+    match pattern[(y % XTRANS_DIM) * XTRANS_DIM + x % XTRANS_DIM] {
+        b'R' => 0,
+        b'B' => 2,
+        _ => 1,
+    }
+}
+
+fn xtrans_green(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> Vec<f32> {
+    let mut green = vec![0.0f32; w * h];
+    green.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
+        for (x, slot) in row.iter_mut().enumerate() {
+            if xtrans_channel(pattern, x, y) == 1 {
+                *slot = data[y * w + x];
+                continue;
+            }
+            let mut sum = 0.0f32;
+            let mut weight = 0.0f32;
+            for (dx, dy, wgt) in GREEN_NEIGHBORS {
+                let nx = x as i32 + dx;
+                let ny = y as i32 + dy;
+                if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 {
+                    continue;
+                }
+                let nx = nx as usize;
+                let ny = ny as usize;
+                if xtrans_channel(pattern, nx, ny) != 1 {
+                    continue;
+                }
+                sum += data[ny * w + nx] * wgt;
+                weight += wgt;
+            }
+            *slot = if weight > 0.0 {
+                (sum / weight).clamp(0.0, RAW_LINEAR_CEILING)
+            } else {
+                data[y * w + x]
+            };
+        }
+    });
+    green
+}
+
+fn xtrans_chroma(
+    data: &[f32],
+    green: &[f32],
+    dim: (usize, usize),
+    pattern: &[u8; XTRANS_LEN],
+    pos: (usize, usize),
+    ch: usize,
+) -> f32 {
+    let (w, h) = dim;
+    let (x, y) = pos;
+    let mut sum = 0.0f32;
+    let mut weight = 0.0f32;
+    for dy in -2i32..=2 {
+        for dx in -2i32..=2 {
+            let nx = x as i32 + dx;
+            let ny = y as i32 + dy;
+            if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 {
+                continue;
+            }
+            let nx = nx as usize;
+            let ny = ny as usize;
+            if xtrans_channel(pattern, nx, ny) != ch {
+                continue;
+            }
+            let wgt = 1.0 / ((dx * dx + dy * dy) as f32);
+            let n = ny * w + nx;
+            sum += (data[n] - green[n]) * wgt;
+            weight += wgt;
+        }
+    }
+    if weight > 0.0 { sum / weight } else { 0.0 }
+}
+
+pub fn xtrans(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> Vec<f32> {
+    let green = xtrans_green(data, w, h, pattern);
+    let mut out = vec![0.0f32; w * h * 3];
+    out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
+        for x in 0..w {
+            let i = y * w + x;
+            let off = x * 3;
+            let own = xtrans_channel(pattern, x, y);
+            row[off + 1] = green[i];
+            if own != 1 {
+                row[off + own] = data[i];
+            }
+            for ch in [0usize, 2] {
+                if ch == own {
+                    continue;
+                }
+                row[off + ch] = (green[i]
+                    + xtrans_chroma(data, &green, (w, h), pattern, (x, y), ch))
+                .clamp(0.0, RAW_LINEAR_CEILING);
+            }
+        }
+    });
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,6 +297,80 @@ mod tests {
         let h = 16;
         let data = flat_bayer(2.5, w, h);
         let out = malvar_he_cutler(&data, w, h, "RGGB");
+        for y in 2..h - 2 {
+            for x in 2..w - 2 {
+                let off = (y * w + x) * 3;
+                for c in 0..3 {
+                    if (out[off + c] - 2.5).abs() > 1e-3 {
+                        panic!("clamped headroom at {x},{y} c{c}: {}", out[off + c]);
+                    }
+                }
+            }
+        }
+    }
+
+    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
+    fn xtrans_mosaic(color: [f32; 3], w: usize, h: usize) -> (Vec<f32>, [u8; XTRANS_LEN]) {
+        let pattern = parse_xtrans(XTRANS).expect("valid pattern");
+        let data = (0..w * h)
+            .map(|i| color[xtrans_channel(&pattern, i % w, i / w)])
+            .collect();
+        (data, pattern)
+    }
+
+    #[test]
+    fn parse_xtrans_rejects_non_xtrans_patterns() {
+        for pattern in ["RGGB", "", "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRE"] {
+            if parse_xtrans(pattern).is_some() {
+                panic!("accepted {pattern}");
+            }
+        }
+    }
+
+    #[test]
+    fn shift_xtrans_matches_offset_lookup() {
+        let pattern = parse_xtrans(XTRANS).expect("valid pattern");
+        for (dx, dy) in [(0, 0), (1, 0), (0, 1), (2, 3), (7, 11)] {
+            let shifted = shift_xtrans(&pattern, dx, dy);
+            for i in 0..XTRANS_LEN {
+                let x = i % XTRANS_DIM;
+                let y = i / XTRANS_DIM;
+                if xtrans_channel(&shifted, x, y) != xtrans_channel(&pattern, x + dx, y + dy) {
+                    panic!("shift {dx},{dy} wrong at {x},{y}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn xtrans_reconstructs_constant_color() {
+        let w = 24;
+        let h = 24;
+        let color = [0.8f32, 0.5, 0.2];
+        let (data, pattern) = xtrans_mosaic(color, w, h);
+        let out = xtrans(&data, w, h, &pattern);
+        if out.len() != w * h * 3 {
+            panic!("size mismatch");
+        }
+        for y in 2..h - 2 {
+            for x in 2..w - 2 {
+                let off = (y * w + x) * 3;
+                for c in 0..3 {
+                    if (out[off + c] - color[c]).abs() > 1e-4 {
+                        panic!("at {x},{y} c{c}: {} want {}", out[off + c], color[c]);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn xtrans_preserves_highlight_headroom() {
+        let w = 24;
+        let h = 24;
+        let (data, pattern) = xtrans_mosaic([2.5, 2.5, 2.5], w, h);
+        let out = xtrans(&data, w, h, &pattern);
         for y in 2..h - 2 {
             for x in 2..w - 2 {
                 let off = (y * w + x) * 3;
