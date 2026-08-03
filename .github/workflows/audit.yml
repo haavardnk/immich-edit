@@ -23,10 +23,13 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v7
+      # RUSTSEC-2026-0194/0195 quick-xml: transitive via little_exif, EXIF-only use
+      # RUSTSEC-2024-0436 paste: unmaintained proc-macro via little_exif, no fix available
+      # RUSTSEC-2026-0221 event-listener: transitive via sqlx-core, tagged API unused
       - name: Audit Rust dependencies
         uses: actions-rust-lang/audit@v1
         with:
-          ignore: RUSTSEC-2026-0194,RUSTSEC-2026-0195
+          ignore: RUSTSEC-2026-0194,RUSTSEC-2026-0195,RUSTSEC-2024-0436,RUSTSEC-2026-0221
           createIssues: ${{ github.event_name == 'schedule' }}
 
   npm-audit:
