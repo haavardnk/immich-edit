@@ -64,7 +64,8 @@
     <ToolbarButton
       path={mdiCompare}
       size={18}
-      title="Before/After split"
+      title="Before/After split (B)"
+      ariaLabel="Before/After split"
       active={editor.splitMode}
       disabled={!!editor.geometrySession}
       onclick={editor.toggleSplit}

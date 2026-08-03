@@ -66,6 +66,7 @@
             <button
               class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {ui.editorTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
               aria-pressed={ui.editorTab === tab.id}
+              title={tab.id === 'geometry' ? 'Geometry (C)' : tab.label}
               onclick={() => (ui.editorTab = tab.id as EditorTab)}
             >
               {tab.label}
@@ -96,6 +97,7 @@
             <button
               class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
               disabled={neutral || editor.saving}
+              title="Reset edits (R)"
               onclick={() => void editor.onReset()}
             >
               <Icon path={mdiRestore} size={14} />

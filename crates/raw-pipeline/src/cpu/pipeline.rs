@@ -315,9 +315,6 @@ fn run_pipeline_ops_inner(
         if op.stage() == crate::ops::Stage::Sensor {
             continue;
         }
-        if op.gpu_kind() == GpuOpKind::Detail {
-            continue;
-        }
         if op.gpu_kind() == GpuOpKind::Presence {
             if !presence_done && presence_active {
                 flush(image, &mut segment, &mut layer_segments, &layer_evals);

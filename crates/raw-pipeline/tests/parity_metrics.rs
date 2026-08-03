@@ -425,6 +425,72 @@ fn gpu_vs_cpu_parity_with_lut() {
     }
 }
 
+#[test]
+fn gpu_vs_cpu_parity_with_noise_reduction() {
+    use raw_pipeline::edits::DetailEdits;
+
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures; skipping");
+        return;
+    }
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
+    let edits = Edits {
+        detail: DetailEdits {
+            luma_nr_amount: 55.0,
+            luma_nr_detail: 40.0,
+            color_nr_amount: 60.0,
+            color_nr_smoothness: 60.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let mut failed: Vec<String> = Vec::new();
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let frame = match decode::decode(&bytes) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
+            continue;
+        };
+        decoded += 1;
+        let p_db = psnr(&cpu_rgb, &gpu_rgb);
+        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
+        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
+        eprintln!("{name} (nr): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}");
+        if p_db < PSNR_FLOOR_DB {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        }
+        if s < SSIM_FLOOR {
+            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
+        }
+        if de_mean > DE2000_MEAN_CEIL {
+            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
+        }
+        if de_p95 > DE2000_P95_CEIL {
+            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
+        }
+    }
+    if decoded == 0 {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    }
+    if !failed.is_empty() {
+        panic!("nr parity below floor: {}", failed.join("; "));
+    }
+}
+
 fn make_huesat_profile() -> raw_pipeline::DcpProfile {
     use raw_pipeline::dcp::{DcpProfile, HsvEncoding, HueSatMap};
     let hue = 6u32;
