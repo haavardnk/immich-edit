@@ -30,6 +30,7 @@ mod dcp;
 mod detail;
 mod effects;
 mod lut;
+mod retouch;
 mod upload;
 
 const CACHE_ITEMS: usize = 2;
@@ -62,6 +63,7 @@ impl RenderPlan {
             || masked_presence
             || d.luma_nr_active()
             || d.color_nr_active()
+            || edits.retouch.iter().any(|s| s.is_effective())
         {
             Self::Presence
         } else {
@@ -337,6 +339,9 @@ impl GpuRenderer {
                 continue;
             }
             if op.id() == "dehaze" {
+                continue;
+            }
+            if op.id() == "retouch" {
                 continue;
             }
             if op.id() == crate::ops::dcp_profile::DCP_PROFILE_OP_ID {
@@ -1294,6 +1299,13 @@ impl GpuRenderer {
                     (preview_dims, downsampled)
                 } else {
                     (dims, wb_base)
+                };
+                let wb_base = if edits_c.retouch.iter().any(|s| s.is_effective()) {
+                    let t = self.run_retouch(wb_base, spatial_dims, frame, &edits_c)?;
+                    crate::cancel::check(cancel)?;
+                    t
+                } else {
+                    wb_base
                 };
                 let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
                 {

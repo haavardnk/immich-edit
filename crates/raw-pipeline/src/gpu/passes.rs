@@ -13,6 +13,7 @@ pub mod nr;
 pub mod nr_smooth;
 pub mod presence;
 pub mod process;
+pub mod retouch;
 pub mod sensor;
 pub mod sharpen;
 pub mod wb_prepare;
@@ -40,6 +41,7 @@ use nr::NrPass;
 use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
+use retouch::RetouchPasses;
 use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
 use wb_prepare::WbPreparePass;
@@ -54,6 +56,7 @@ pub struct GpuPasses {
     pub nr: NrPass,
     pub nr_smooth: NrSmoothPass,
     pub presence: PresencePass,
+    pub retouch: RetouchPasses,
     pub wb_prepare: WbPreparePass,
     pub process_fast: ProcessFastPass,
     pub process_post_wb: ProcessFastPass,
@@ -83,6 +86,7 @@ impl GpuPasses {
             nr,
             nr_smooth,
             presence,
+            retouch,
             wb_prepare,
             process_fast,
             process_post_wb,
@@ -104,6 +108,7 @@ impl GpuPasses {
             let nr_t = s.spawn(|| NrPass::new(ctx));
             let nr_smooth_t = s.spawn(|| NrSmoothPass::new(ctx));
             let presence_t = s.spawn(|| PresencePass::new(ctx));
+            let retouch_t = s.spawn(|| RetouchPasses::new(ctx));
             let wb_prepare_t = s.spawn(|| WbPreparePass::new(ctx, &registry));
             let process_fast_t = s.spawn(|| ProcessFastPass::new(ctx, &registry));
             let process_post_wb_t = s.spawn(|| {
@@ -132,6 +137,7 @@ impl GpuPasses {
                 nr_t.join().expect("nr pass build"),
                 nr_smooth_t.join().expect("nr smooth pass build"),
                 presence_t.join().expect("presence pass build"),
+                retouch_t.join().expect("retouch pass build"),
                 wb_prepare_t.join().expect("wb prepare pass build"),
                 process_fast_t.join().expect("process fast pass build"),
                 process_post_wb_t.join().expect("process post pass build"),
@@ -155,6 +161,7 @@ impl GpuPasses {
             nr,
             nr_smooth,
             presence,
+            retouch,
             wb_prepare,
             process_fast,
             process_post_wb,

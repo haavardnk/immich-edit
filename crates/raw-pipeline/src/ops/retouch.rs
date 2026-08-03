@@ -51,11 +51,81 @@ impl Op for RetouchOp {
     }
 }
 
-struct Bbox {
-    x0: usize,
-    y0: usize,
-    x1: usize,
-    y1: usize,
+const SIGMA_MAX_UV: f32 = 0.02;
+const SAMPLE_MARGIN: f32 = 2.0;
+
+pub(crate) struct Bbox {
+    pub x0: usize,
+    pub y0: usize,
+    pub x1: usize,
+    pub y1: usize,
+}
+
+pub(crate) struct StrokeGeom {
+    pub points: Vec<(f32, f32)>,
+    pub radius_px: f32,
+    pub sigma: f32,
+    pub off_x: f32,
+    pub off_y: f32,
+    pub bbox: Bbox,
+}
+
+pub(crate) fn stroke_geometry(
+    stroke: &RetouchStroke,
+    w: usize,
+    h: usize,
+    orient: crate::frame::OrientFlips,
+) -> Option<StrokeGeom> {
+    if w < 2 || h < 2 || stroke.points.is_empty() {
+        return None;
+    }
+    let map = |p: &crate::edits::Vec2f| {
+        let (t, hf, vf) = orient;
+        let mut u = p.x;
+        let mut v = p.y;
+        if t {
+            std::mem::swap(&mut u, &mut v);
+        }
+        if hf {
+            u = 1.0 - u;
+        }
+        if vf {
+            v = 1.0 - v;
+        }
+        (u * w as f32, v * h as f32)
+    };
+    let points: Vec<(f32, f32)> = stroke.points.iter().map(map).collect();
+    let scale = w.min(h) as f32;
+    let radius_px = stroke.radius * scale;
+    if radius_px < 0.5 {
+        return None;
+    }
+    let bbox = stroke_bbox(&points, radius_px, w, h)?;
+    let cx = points.iter().map(|p| p.0).sum::<f32>() / points.len() as f32;
+    let cy = points.iter().map(|p| p.1).sum::<f32>() / points.len() as f32;
+    let source = map(&stroke.source);
+    let off_x = clamp_offset(source.0 - cx, bbox.x0, bbox.x1, w);
+    let off_y = clamp_offset(source.1 - cy, bbox.y0, bbox.y1, h);
+    if off_x.abs() < 0.5 && off_y.abs() < 0.5 {
+        return None;
+    }
+    Some(StrokeGeom {
+        points,
+        radius_px,
+        sigma: (radius_px * 0.5).min(scale * SIGMA_MAX_UV).max(1.0),
+        off_x,
+        off_y,
+        bbox,
+    })
+}
+
+fn clamp_offset(off: f32, lo: usize, hi: usize, extent: usize) -> f32 {
+    let min_off = SAMPLE_MARGIN - lo as f32;
+    let max_off = (extent as f32 - SAMPLE_MARGIN) - hi as f32;
+    if min_off > max_off {
+        return (min_off + max_off) * 0.5;
+    }
+    off.clamp(min_off, max_off)
 }
 
 fn stroke_bbox(points: &[(f32, f32)], radius_px: f32, w: usize, h: usize) -> Option<Bbox> {
@@ -104,7 +174,7 @@ fn point_polyline_distance(px: f32, py: f32, points: &[(f32, f32)]) -> f32 {
 }
 
 #[inline]
-fn coverage(dist: f32, radius_px: f32, hardness: f32) -> f32 {
+pub(crate) fn coverage(dist: f32, radius_px: f32, hardness: f32) -> f32 {
     if dist >= radius_px {
         return 0.0;
     }
@@ -123,30 +193,14 @@ fn coverage(dist: f32, radius_px: f32, hardness: f32) -> f32 {
 fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
     let w = image.width;
     let h = image.height;
-    if w < 2 || h < 2 {
-        return;
-    }
-    let scale = w.min(h) as f32;
-    let points: Vec<(f32, f32)> = stroke
-        .points
-        .iter()
-        .map(|p| (p.x * w as f32, p.y * h as f32))
-        .collect();
-    let radius_px = stroke.radius * scale;
-    if radius_px < 0.5 {
-        return;
-    }
-    let Some(bb) = stroke_bbox(&points, radius_px, w, h) else {
+    let Some(geom) = stroke_geometry(stroke, w, h, (false, false, false)) else {
         return;
     };
-
-    let cx = points.iter().map(|p| p.0).sum::<f32>() / points.len() as f32;
-    let cy = points.iter().map(|p| p.1).sum::<f32>() / points.len() as f32;
-    let off_x = stroke.source.x * w as f32 - cx;
-    let off_y = stroke.source.y * h as f32 - cy;
-    if off_x.abs() < 0.5 && off_y.abs() < 0.5 {
-        return;
-    }
+    let points = geom.points;
+    let radius_px = geom.radius_px;
+    let off_x = geom.off_x;
+    let off_y = geom.off_y;
+    let bb = geom.bbox;
 
     let pw = bb.x1 - bb.x0;
     let ph = bb.y1 - bb.y0;
@@ -176,7 +230,7 @@ fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
                 let src_row = (bb.y0 + row) * w * 3 + bb.x0 * 3;
                 out.copy_from_slice(&image.rgb[src_row..src_row + pw * 3]);
             });
-        let kernel = gaussian_kernel((radius_px * 0.5).clamp(1.0, 64.0));
+        let kernel = gaussian_kernel(geom.sigma);
         let bd = gaussian_blur_rgb(&dst_patch, pw, ph, &kernel);
         let bs = gaussian_blur_rgb(&src_patch, pw, ph, &kernel);
         (Some(bd), Some(bs))
@@ -206,7 +260,9 @@ fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
                 let i = x * 3;
                 for c in 0..3 {
                     let source = match (&blur_dst, &blur_src) {
-                        (Some(bd), Some(bs)) => src_patch[pi + c] + bd[pi + c] - bs[pi + c],
+                        (Some(bd), Some(bs)) => {
+                            (src_patch[pi + c] + bd[pi + c] - bs[pi + c]).max(0.0)
+                        }
                         _ => src_patch[pi + c],
                     };
                     row[i + c] = row[i + c] * (1.0 - cov) + source * cov;

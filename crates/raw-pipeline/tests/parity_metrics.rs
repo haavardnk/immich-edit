@@ -1,3 +1,4 @@
+use raw_pipeline::edits::{RetouchMode, RetouchStroke, Vec2f};
 use raw_pipeline::{
     cpu, decode, edits::Edits, frame::OutputColorSpace, frame::RawFrame, frame::RenderOptions, gpu,
 };
@@ -622,5 +623,85 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile) {
     }
     if !failed.is_empty() {
         panic!("dcp parity below floor: {}", failed.join("; "));
+    }
+}
+
+fn retouch_edits() -> Edits {
+    let stroke = |id: &str, mode: RetouchMode, pts: &[(f32, f32)], src: (f32, f32)| RetouchStroke {
+        id: id.to_string(),
+        mode,
+        points: pts.iter().map(|p| Vec2f { x: p.0, y: p.1 }).collect(),
+        radius: 0.12,
+        hardness: 0.5,
+        opacity: 1.0,
+        source: Vec2f { x: src.0, y: src.1 },
+        enabled: true,
+    };
+    Edits {
+        retouch: vec![
+            stroke("heal", RetouchMode::Heal, &[(0.3, 0.35)], (0.62, 0.55)),
+            stroke(
+                "clone",
+                RetouchMode::Clone,
+                &[(0.55, 0.7), (0.68, 0.78)],
+                (0.3, 0.4),
+            ),
+        ],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn gpu_vs_cpu_parity_retouch() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures; skipping");
+        return;
+    }
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
+    let edits = retouch_edits();
+    let mut failed: Vec<String> = Vec::new();
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let Ok(frame) = decode::decode(&bytes) else {
+            continue;
+        };
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
+            continue;
+        };
+        decoded += 1;
+        let p_db = psnr(&cpu_rgb, &gpu_rgb);
+        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
+        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
+        eprintln!(
+            "retouch {name}: PSNR={p_db:.2}dB SSIM={s:.4} ΔE2000 mean={de_mean:.2} p95={de_p95:.2}"
+        );
+        if p_db < PSNR_FLOOR_DB {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        }
+        if s < SSIM_FLOOR {
+            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
+        }
+        if de_mean > DE2000_MEAN_CEIL {
+            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
+        }
+        if de_p95 > DE2000_P95_CEIL {
+            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
+        }
+    }
+    if decoded == 0 {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    }
+    if !failed.is_empty() {
+        panic!("retouch parity below floor: {}", failed.join("; "));
     }
 }

@@ -1189,3 +1189,32 @@ fn retouch_clone_takes_source_heal_keeps_destination_tone() {
         }
     }
 }
+
+#[test]
+fn retouch_source_patch_stays_inside_the_frame() {
+    for (name, source) in [
+        ("above", Vec2f { x: 0.5, y: -0.4 }),
+        ("below", Vec2f { x: 0.5, y: 1.4 }),
+        ("left", Vec2f { x: -0.4, y: 0.5 }),
+        ("right", Vec2f { x: 1.4, y: 0.5 }),
+    ] {
+        let stroke = RetouchStroke {
+            id: name.into(),
+            mode: RetouchMode::Clone,
+            points: vec![Vec2f { x: 0.5, y: 0.5 }],
+            radius: 0.1,
+            hardness: 1.0,
+            opacity: 1.0,
+            source,
+            enabled: true,
+        };
+        let geom = retouch::stroke_geometry(&stroke, 200, 200, (false, false, false)).unwrap();
+        let x0 = geom.bbox.x0 as f32 + geom.off_x;
+        let x1 = geom.bbox.x1 as f32 + geom.off_x;
+        let y0 = geom.bbox.y0 as f32 + geom.off_y;
+        let y1 = geom.bbox.y1 as f32 + geom.off_y;
+        if x0 < 0.0 || y0 < 0.0 || x1 > 200.0 || y1 > 200.0 {
+            panic!("{name}: sampled patch {x0}..{x1} x {y0}..{y1} leaves the frame");
+        }
+    }
+}
