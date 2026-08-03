@@ -61,6 +61,9 @@ async fn models_list_reports_catalog_and_install_state() {
     assert_eq!(ormbg["tier"], "recommended");
     assert_eq!(ormbg["license"], "Apache-2.0");
     assert_eq!(ormbg["installed"], false);
+    assert_eq!(ormbg["installing"], false);
+    assert_eq!(ormbg["progress_bytes"], 0);
+    assert!(ormbg["install_error"].is_null());
     assert!(ormbg["size_bytes"].as_u64().unwrap() > 0);
     assert!(ormbg["gpu_mb"].as_u64().unwrap() > 0);
 

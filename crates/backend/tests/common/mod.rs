@@ -16,6 +16,8 @@ use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
 use immich_edit_backend::services::lut_store::LutStore;
 #[cfg(feature = "segment")]
+use immich_edit_backend::services::model_install::ModelInstaller;
+#[cfg(feature = "segment")]
 use immich_edit_backend::services::model_store::ModelStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
@@ -76,6 +78,8 @@ pub async fn test_state(server: &MockServer) -> AppState {
     #[cfg(feature = "segment")]
     let models = ModelStore::new(edits.pool(), &cache_dir).unwrap();
     #[cfg(feature = "segment")]
+    let installs = ModelInstaller::new(models.clone());
+    #[cfg(feature = "segment")]
     let embeddings = EmbeddingCache::new(&cache_dir, 512).unwrap();
     #[cfg(feature = "segment")]
     let segment = SegmentService::new(&config, models.clone(), embeddings);
@@ -106,6 +110,8 @@ pub async fn test_state(server: &MockServer) -> AppState {
         dcp,
         #[cfg(feature = "segment")]
         models,
+        #[cfg(feature = "segment")]
+        installs,
         #[cfg(feature = "segment")]
         segment,
         tag_counts: AssetCountCache::new("tagIds"),

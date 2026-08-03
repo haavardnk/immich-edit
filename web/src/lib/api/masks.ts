@@ -22,6 +22,9 @@ export interface MaskModel {
   cpu_ms: number;
   cpu_mb: number;
   installed: boolean;
+  installing: boolean;
+  progress_bytes: number;
+  install_error: string | null;
 }
 
 export interface MaskModelsResponse {
@@ -122,7 +125,7 @@ export function rebakeMask(
 }
 
 export function installMaskModel(id: string): Promise<void> {
-  return sendJson<void>('POST', `/api/admin/models/${id}`, undefined);
+  return sendJson<void>('POST', `/api/admin/models/${id}`, undefined, undefined, { silent: true });
 }
 
 export function removeMaskModel(id: string): Promise<void> {

@@ -18,6 +18,8 @@ pub mod lut_store;
 #[cfg(feature = "segment")]
 pub mod model_download;
 #[cfg(feature = "segment")]
+pub mod model_install;
+#[cfg(feature = "segment")]
 pub mod model_store;
 pub mod paste_edits;
 pub mod preview_meta;

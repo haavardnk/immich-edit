@@ -14,6 +14,8 @@ use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
 #[cfg(feature = "segment")]
+use crate::services::model_install::ModelInstaller;
+#[cfg(feature = "segment")]
 use crate::services::model_store::ModelStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
@@ -40,6 +42,8 @@ pub struct AppState {
     pub dcp: DcpStore,
     #[cfg(feature = "segment")]
     pub models: ModelStore,
+    #[cfg(feature = "segment")]
+    pub installs: ModelInstaller,
     #[cfg(feature = "segment")]
     pub segment: SegmentService,
     pub tag_counts: AssetCountCache,
@@ -109,6 +113,8 @@ impl AppState {
         let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
         #[cfg(feature = "segment")]
+        let installs = ModelInstaller::new(models.clone());
+        #[cfg(feature = "segment")]
         let embeddings = EmbeddingCache::new(
             std::path::Path::new(&config.cache_dir),
             config.embedding_cache_mb,
@@ -132,6 +138,8 @@ impl AppState {
             dcp,
             #[cfg(feature = "segment")]
             models,
+            #[cfg(feature = "segment")]
+            installs,
             #[cfg(feature = "segment")]
             segment,
             tag_counts: AssetCountCache::new("tagIds"),

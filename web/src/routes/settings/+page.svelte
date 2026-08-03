@@ -23,6 +23,8 @@
     type MaskModelsResponse
   } from '$lib/api/masks';
   import Spinner from '$lib/components/Spinner.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiChevronDown, mdiChevronRight } from '@mdi/js';
 
   onMount(() => {
     editor.unload();
@@ -111,11 +113,25 @@
   let models = $state<MaskModelsResponse | null>(null);
   let modelsError = $state<string | null>(null);
   let busyModels = $state<string[]>([]);
+  let modelsOpen = $state(false);
 
   const modelKinds = $derived([...new Set((models?.models ?? []).map((m) => m.kind))]);
   const missingRecommended = $derived(
-    (models?.models ?? []).filter((m) => !m.installed && m.tier === 'recommended')
+    (models?.models ?? []).filter((m) => !m.installed && !m.installing && m.tier === 'recommended')
   );
+  const installedCount = $derived((models?.models ?? []).filter((m) => m.installed).length);
+  const installing = $derived((models?.models ?? []).filter((m) => m.installing));
+
+  $effect(() => {
+    if (installing.length === 0) return;
+    const timer = setInterval(() => void loadModels(), 1000);
+    return () => clearInterval(timer);
+  });
+
+  function installPercent(m: MaskModel): number {
+    if (m.size_bytes <= 0) return 0;
+    return Math.min(100, Math.round((m.progress_bytes / m.size_bytes) * 100));
+  }
 
   let expandedKinds = $state<string[]>([]);
 
@@ -134,7 +150,7 @@
   }
 
   async function toggleModel(m: MaskModel): Promise<void> {
-    if (busyModels.includes(m.id)) return;
+    if (busyModels.includes(m.id) || m.installing) return;
     busyModels = [...busyModels, m.id];
     modelsError = null;
     try {
@@ -403,112 +419,147 @@
         </section>
 
         <section class="space-y-2">
-          <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Mask models</h2>
+          <button
+            class="-mx-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-white/5"
+            onclick={() => (modelsOpen = !modelsOpen)}
+            aria-expanded={modelsOpen}
+          >
+            <Icon
+              path={modelsOpen ? mdiChevronDown : mdiChevronRight}
+              size={16}
+              class="flex-none text-immich-dark-fg/50"
+            />
+            <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Mask models</h2>
+            <span class="ml-auto text-xs text-immich-dark-fg/40">
+              {#if installing.length > 0}
+                Downloading {installPercent(installing[0])}%
+              {:else if models}
+                {installedCount} of {models.models.length} installed
+              {/if}
+            </span>
+          </button>
           {#if modelsError}
             <p class="text-xs text-red-300">{modelsError}</p>
           {/if}
-          {#if !models}
-            <Spinner label="Loading…" />
-          {:else if !models.enabled}
-            <p class="text-xs text-immich-dark-fg/50">
-              Segmentation is disabled. Set SEGMENT_RUNTIME to auto, gpu or cpu to enable it.
-            </p>
-          {:else}
-            <p class="text-xs text-immich-dark-fg/50">
-              Runtime: <span class="font-mono">{models.runtime}</span>. Models are downloaded on
-              demand and loaded only while a mask is being generated.
-            </p>
+          {#if modelsOpen}
+            {#if !models}
+              <Spinner label="Loading…" />
+            {:else if !models.enabled}
+              <p class="text-xs text-immich-dark-fg/50">
+                Segmentation is disabled. Set SEGMENT_RUNTIME to auto, gpu or cpu to enable it.
+              </p>
+            {:else}
+              <p class="text-xs text-immich-dark-fg/50">
+                Runtime: <span class="font-mono">{models.runtime}</span>. Models are downloaded on
+                demand and loaded only while a mask is being generated.
+              </p>
 
-            {#if missingRecommended.length > 0}
-              <button
-                class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
-                onclick={() => void downloadRecommended()}
-                disabled={busyModels.length > 0}
-              >
-                Download {missingRecommended.length} recommended ({formatMb(
-                  missingRecommended.reduce((n, m) => n + m.size_bytes, 0)
-                )})
-              </button>
-            {/if}
+              {#if missingRecommended.length > 0}
+                <button
+                  class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
+                  onclick={() => void downloadRecommended()}
+                  disabled={busyModels.length > 0 || installing.length > 0}
+                >
+                  Download {missingRecommended.length} recommended ({formatMb(
+                    missingRecommended.reduce((n, m) => n + m.size_bytes, 0)
+                  )})
+                </button>
+              {/if}
 
-            {#snippet modelRow(m: MaskModel)}
-              <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
-                <div class="min-w-0 flex-1">
-                  <div class="truncate">
-                    {m.name}
-                    {#if m.tier === 'recommended'}<span class="text-immich-primary"> · recommended</span>{/if}
-                    <span class="text-immich-dark-fg/40"> · {m.license}</span>
-                  </div>
-                  <div class="text-immich-dark-fg/40 truncate">{m.notes}</div>
-                  <div class="text-immich-dark-fg/40 truncate">
-                    {formatMb(m.size_bytes)} download · ~{m.gpu_mb} MB while running · ~{formatSeconds(
-                      m.gpu_ms
-                    )} per photo on GPU{#if m.cpu_ms > 0}, ~{formatSeconds(m.cpu_ms)} on CPU{/if}
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0 ml-2">
-                  <button
-                    class="px-2 py-1 rounded disabled:opacity-50 {m.installed
-                      ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
-                      : 'bg-white/5 hover:bg-white/10'}"
-                    onclick={() => void toggleModel(m)}
-                    disabled={busyModels.includes(m.id)}
-                  >
-                    {#if busyModels.includes(m.id)}
-                      {m.installed ? 'Removing…' : 'Downloading…'}
-                    {:else}
-                      {m.installed ? 'Remove' : 'Download'}
-                    {/if}
-                  </button>
-                </div>
-              </li>
-            {/snippet}
-
-            <div class="space-y-3">
-              {#each modelKinds as kind (kind)}
-                {@const inKind = models.models.filter((m) => m.kind === kind)}
-                {@const installed = inKind.filter((m) => m.installed)}
-                {@const primary = installed.length > 0 ? installed : inKind.filter((m) => m.tier === 'recommended')}
-                {@const alternatives = inKind.filter((m) => !primary.includes(m))}
-                {@const open = expandedKinds.includes(kind)}
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between gap-2 text-xs">
-                    <span class="text-immich-dark-fg/50">{kindLabel(kind)} masks use</span>
-                    {#if installed.length === 0}
-                      <span class="text-immich-dark-fg/40">nothing installed</span>
-                    {:else}
-                      <select
-                        class="rounded bg-black/30 border border-white/10 px-2 py-1"
-                        value={models.active[kind] ?? installed[0].id}
-                        onchange={(e) => void chooseModel(kind, e.currentTarget.value)}
-                      >
-                        {#each installed as m (m.id)}
-                          <option value={m.id}>{m.name}</option>
-                        {/each}
-                      </select>
+              {#snippet modelRow(m: MaskModel)}
+                <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate">
+                      {m.name}
+                      {#if m.tier === 'recommended'}<span class="text-immich-primary"> · recommended</span>{/if}
+                      <span class="text-immich-dark-fg/40"> · {m.license}</span>
+                    </div>
+                    <div class="text-immich-dark-fg/40 truncate">{m.notes}</div>
+                    <div class="text-immich-dark-fg/40 truncate">
+                      {formatMb(m.size_bytes)} download · ~{m.gpu_mb} MB while running · ~{formatSeconds(
+                        m.gpu_ms
+                      )} per photo on GPU{#if m.cpu_ms > 0}, ~{formatSeconds(m.cpu_ms)} on CPU{/if}
+                    </div>
+                    {#if m.install_error}
+                      <div class="text-red-300 truncate">Download failed: {m.install_error}</div>
                     {/if}
                   </div>
-                  <ul class="space-y-1">
-                    {#each primary as m (m.id)}
-                      {@render modelRow(m)}
-                    {/each}
-                    {#if open}
-                      {#each alternatives as m (m.id)}
+                  <div class="flex items-center gap-2 shrink-0 ml-2">
+                    <button
+                      class="relative w-24 overflow-hidden px-2 py-1 rounded text-center disabled:opacity-50 {m.installed
+                        ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20'
+                        : 'bg-white/5 hover:bg-white/10'}"
+                      onclick={() => void toggleModel(m)}
+                      disabled={busyModels.includes(m.id) || m.installing}
+                    >
+                      {#if m.installing}
+                        <span
+                          class="absolute inset-y-0 left-0 bg-immich-primary/30"
+                          style:width="{installPercent(m)}%"
+                        ></span>
+                      {/if}
+                      <span class="relative">
+                        {#if m.installing}
+                          {installPercent(m)}%
+                        {:else if busyModels.includes(m.id)}
+                          {m.installed ? 'Removing…' : 'Starting…'}
+                        {:else if m.install_error}
+                          Retry
+                        {:else}
+                          {m.installed ? 'Remove' : 'Download'}
+                        {/if}
+                      </span>
+                    </button>
+                  </div>
+                </li>
+              {/snippet}
+
+              <div class="space-y-3">
+                {#each modelKinds as kind (kind)}
+                  {@const inKind = models.models.filter((m) => m.kind === kind)}
+                  {@const installed = inKind.filter((m) => m.installed)}
+                  {@const primary = installed.length > 0 ? installed : inKind.filter((m) => m.tier === 'recommended')}
+                  {@const alternatives = inKind.filter((m) => !primary.includes(m))}
+                  {@const open = expandedKinds.includes(kind)}
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                      <span class="text-immich-dark-fg/50">{kindLabel(kind)} masks use</span>
+                      {#if installed.length === 0}
+                        <span class="text-immich-dark-fg/40">nothing installed</span>
+                      {:else}
+                        <select
+                          class="rounded bg-black/30 border border-white/10 px-2 py-1"
+                          value={models.active[kind] ?? installed[0].id}
+                          onchange={(e) => void chooseModel(kind, e.currentTarget.value)}
+                        >
+                          {#each installed as m (m.id)}
+                            <option value={m.id}>{m.name}</option>
+                          {/each}
+                        </select>
+                      {/if}
+                    </div>
+                    <ul class="space-y-1">
+                      {#each primary as m (m.id)}
                         {@render modelRow(m)}
                       {/each}
+                      {#if open}
+                        {#each alternatives as m (m.id)}
+                          {@render modelRow(m)}
+                        {/each}
+                      {/if}
+                    </ul>
+                    {#if alternatives.length > 0}
+                      <button
+                        class="text-xs text-immich-dark-fg/50 hover:text-immich-dark-fg/80"
+                        onclick={() => toggleKind(kind)}
+                      >
+                        {open ? 'Hide' : 'Show'} {alternatives.length} alternative{alternatives.length === 1 ? '' : 's'}
+                      </button>
                     {/if}
-                  </ul>
-                  {#if alternatives.length > 0}
-                    <button
-                      class="text-xs text-immich-dark-fg/50 hover:text-immich-dark-fg/80"
-                      onclick={() => toggleKind(kind)}
-                    >
-                      {open ? 'Hide' : 'Show'} {alternatives.length} alternative{alternatives.length === 1 ? '' : 's'}
-                    </button>
-                  {/if}
-                </div>
-              {/each}
-            </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           {/if}
         </section>
 

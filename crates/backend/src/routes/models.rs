@@ -7,7 +7,6 @@ use std::collections::BTreeMap;
 
 use crate::error::AppError;
 use crate::routes::auth::{AdminCtx, AuthCtx};
-use crate::services::model_download::{DownloadError, fetch_catalog_aux, fetch_catalog_model};
 use crate::services::model_store::ModelStoreError;
 use crate::state::AppState;
 
@@ -27,6 +26,9 @@ pub struct CatalogView {
     pub cpu_ms: u32,
     pub cpu_mb: u32,
     pub installed: bool,
+    pub installing: bool,
+    pub progress_bytes: u64,
+    pub install_error: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -50,16 +52,6 @@ pub struct SelectBody {
     pub model_id: String,
 }
 
-fn map_download_err(e: DownloadError) -> AppError {
-    match e {
-        DownloadError::TooLarge => {
-            AppError::BadRequest("model download exceeded the declared size".into())
-        }
-        DownloadError::InsecureUrl => AppError::BadRequest("model url is not https".into()),
-        DownloadError::Status(_) | DownloadError::Http(_) => AppError::UpstreamUnavailable,
-    }
-}
-
 fn tier_name(tier: segment::Tier) -> &'static str {
     match tier {
         segment::Tier::Recommended => "recommended",
@@ -69,6 +61,7 @@ fn tier_name(tier: segment::Tier) -> &'static str {
 }
 
 async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
+    let installs = state.installs.snapshot();
     let mut out = Vec::with_capacity(catalog::CATALOG.len());
     for entry in catalog::CATALOG {
         let installed = state
@@ -77,6 +70,7 @@ async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
             .await
             .map_err(|_| AppError::Internal)?
             .is_some();
+        let install = installs.get(entry.id);
         out.push(CatalogView {
             id: entry.id,
             name: entry.name,
@@ -92,6 +86,9 @@ async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
             cpu_ms: entry.cost.cpu_ms,
             cpu_mb: entry.cost.cpu_mb,
             installed,
+            installing: install.is_some_and(|i| i.error.is_none()),
+            progress_bytes: install.map_or(0, |i| i.received),
+            install_error: install.and_then(|i| i.error.clone()),
         });
     }
     Ok(out)
@@ -165,29 +162,11 @@ pub async fn install(
         ));
     }
 
-    let bytes = fetch_catalog_model(entry).await.map_err(map_download_err)?;
-    let aux = fetch_catalog_aux(entry).await.map_err(map_download_err)?;
-
-    let meta = state
-        .models
-        .install_verified(entry, &bytes, aux.as_deref())
-        .await
-        .map_err(|e| match e {
-            ModelStoreError::Checksum { .. } => {
-                AppError::BadRequest("model checksum mismatch; download rejected".into())
-            }
-            ModelStoreError::Invalid(m) => AppError::BadRequest(m),
-            _ => AppError::Internal,
-        })?;
+    state.installs.start(entry);
 
     Ok((
-        StatusCode::CREATED,
-        Json(serde_json::json!({
-            "id": meta.catalog_id,
-            "name": meta.name,
-            "size": meta.size,
-            "installed": true,
-        })),
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({ "id": entry.id, "installing": true })),
     ))
 }
 
