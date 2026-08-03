@@ -199,10 +199,10 @@ immich-edit keeps durable data in `DATA_DIR` (default `./data`, `/data` in Docke
 - `dcp/` - content-addressed user and bundled DCP files referenced by the database
 - `luts/` - imported `.cube` files referenced by edits
 - `models/` - downloaded AI mask models; reinstallable from Settings
-- `rasters/` - brush-mask data referenced by edits
-- `cache/` - regenerable thumbnail, embedding, and export staging caches; safe to delete
+- `cache/` - regenerable thumbnail, embedding, and export staging caches; safe to delete apart from `cache/rasters/`
+- `cache/rasters/` - brush and AI mask pixels referenced by edits; these sit under `cache/` but cannot be regenerated
 
-Back up the whole of `DATA_DIR` except `cache/`. Use `sqlite3 data/immich-edit.db ".backup data/backup.db"` for a live database snapshot, then copy `instance.key` and the referenced directories, or stop the service and copy all of `DATA_DIR`. Keep `instance.key` with the database; a database restored without its key cannot decrypt stored credentials. Bundled profiles and catalog models can be restored, but user imports and generated mask rasters cannot.
+Back up all of `DATA_DIR` except `cache/`, plus `cache/rasters/`. Use `sqlite3 data/immich-edit.db ".backup data/backup.db"` for a live database snapshot, then copy `instance.key` and the referenced directories, or stop the service and copy all of `DATA_DIR`. Keep `instance.key` with the database; a database restored without its key cannot decrypt stored credentials. Bundled profiles and catalog models can be restored, but user imports and generated mask rasters cannot.
 
 Originals stay in Immich; immich-edit never modifies them.
 

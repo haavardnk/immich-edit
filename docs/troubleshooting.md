@@ -155,7 +155,7 @@ Two more budgets cover disk rather than memory:
 - `MASK_CACHE_MB` (default 512) — rendered mask rasters under `DATA_DIR/cache/rasters`.
 - `EMBEDDING_CACHE_MB` (default 2048) — click-to-select model embeddings under `DATA_DIR/cache/embeddings`.
 
-Both evict least-recently-used entries once they pass the cap, and both directories are safe to delete while the service is stopped.
+Both evict least-recently-used entries once they pass the cap. `cache/embeddings` is safe to delete while the service is stopped, since it rebuilds on the next click-to-select. `cache/rasters` is not: a raster referenced by a saved edit is never evicted, but deleting the directory by hand still destroys every brush and AI mask. Back it up with the rest of `DATA_DIR`.
 
 Check current usage in Settings -> Diagnostics before guessing. A cache sitting well under its cap is not your problem.
 
