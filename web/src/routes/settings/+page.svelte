@@ -446,7 +446,7 @@
               <Spinner label="Loading…" />
             {:else if !models.enabled}
               <p class="text-xs text-immich-dark-fg/50">
-                Segmentation is disabled. Set SEGMENT_RUNTIME to auto, gpu or cpu to enable it.
+                Segmentation is disabled. Set ML_RUNTIME to auto, gpu or cpu to enable it.
               </p>
             {:else}
               <p class="text-xs text-immich-dark-fg/50">

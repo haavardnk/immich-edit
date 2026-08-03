@@ -4,7 +4,7 @@
 
 ### "Data directory not writable"
 
-The configured `DATA_DIR` (or its deprecated `CACHE_DIR` alias) is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
+The configured `DATA_DIR` is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
 
 ### "DATABASE_URL invalid" / sqlite open errors
 
@@ -100,7 +100,7 @@ The first render warms up GPU pipelines and uploads textures; expect a delay of 
 
 ### A mask type is missing from the New mask menu
 
-An admin must install a model for that mask type under **Settings > Mask models**. Subject, people, sky, depth, scene classes, and click-guided masks each use a separate model. If the whole section is disabled, check `config.segment_runtime` on `GET /api/health`; `off` disables model inference.
+An admin must install a model for that mask type under **Settings > Mask models**. Subject, people, sky, depth, scene classes, and click-guided masks each use a separate model. If the whole section is disabled, check `config.ml_runtime` on `GET /api/health`; `off` disables model inference.
 
 ### Model installation fails
 
@@ -108,11 +108,11 @@ The server downloads catalog models over HTTPS from GitHub or Hugging Face. Chec
 
 ### Mask generation is slow or fails on the GPU
 
-`SEGMENT_RUNTIME=auto` tries WebGPU first and falls back to CPU if the provider cannot start. The backend logs the selected backend and elapsed time after each generation. CPU inference can take several seconds, depending on the model.
+`ML_RUNTIME=auto` tries WebGPU first and falls back to CPU if the provider cannot start. The backend logs the selected backend and elapsed time after each generation. CPU inference can take several seconds, depending on the model.
 
-`SEGMENT_RUNTIME=gpu` is stricter: it fails the request when WebGPU cannot start. Use `auto` for fallback or `cpu` to skip WebGPU. AI inference uses the same Vulkan or Metal access described in [GPU rendering](#gpu-rendering), but it has its own runtime setting.
+`ML_RUNTIME=gpu` is stricter: it fails the request when WebGPU cannot start. Use `auto` for fallback or `cpu` to skip WebGPU. AI inference uses the same Vulkan or Metal access described in [GPU rendering](#gpu-rendering), but it has its own runtime setting.
 
-The first request after a model is loaded is slower. On a memory-constrained server, keep `SEGMENT_MAX_CONCURRENCY=1` and lower `SEGMENT_IDLE_SECS` so inactive sessions are released sooner.
+The first request after a model is loaded is slower. On a memory-constrained server, keep `ML_MAX_CONCURRENCY=1` and lower `ML_IDLE_SECS` so inactive sessions are released sooner.
 
 ### A luminance or color range changes after a global edit
 

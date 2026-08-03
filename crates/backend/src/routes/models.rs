@@ -106,7 +106,7 @@ pub async fn list(
         }
     }
     Ok(Json(ModelsResponse {
-        runtime: state.config.segment_runtime.as_str(),
+        runtime: state.config.ml_runtime.as_str(),
         enabled: state.segment.enabled(),
         models,
         active,

@@ -58,14 +58,14 @@ pub struct Config {
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
-    pub segment_runtime: SegmentRuntimeMode,
-    pub segment_max_edge: u32,
-    pub segment_max_concurrency: usize,
-    pub segment_idle_secs: u64,
+    pub ml_runtime: MlRuntimeMode,
+    pub ml_max_edge: u32,
+    pub ml_max_concurrency: usize,
+    pub ml_idle_secs: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum SegmentRuntimeMode {
+pub enum MlRuntimeMode {
     #[default]
     Auto,
     Gpu,
@@ -73,7 +73,7 @@ pub enum SegmentRuntimeMode {
     Off,
 }
 
-impl SegmentRuntimeMode {
+impl MlRuntimeMode {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Auto => "auto",
@@ -84,7 +84,7 @@ impl SegmentRuntimeMode {
     }
 }
 
-impl std::str::FromStr for SegmentRuntimeMode {
+impl std::str::FromStr for MlRuntimeMode {
     type Err = ConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -94,7 +94,7 @@ impl std::str::FromStr for SegmentRuntimeMode {
             "cpu" => Ok(Self::Cpu),
             "off" | "disabled" => Ok(Self::Off),
             other => Err(ConfigError::InvalidValue {
-                key: "SEGMENT_RUNTIME".into(),
+                key: "ML_RUNTIME".into(),
                 value: other.into(),
             }),
         }
@@ -105,7 +105,6 @@ impl std::str::FromStr for SegmentRuntimeMode {
 struct FileConfig {
     bind_addr: Option<String>,
     data_dir: Option<String>,
-    cache_dir: Option<String>,
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
     mask_cache_mb: Option<u64>,
@@ -119,10 +118,10 @@ struct FileConfig {
     max_body_mb: Option<u64>,
     original_timeout_secs: Option<u64>,
     export_timeout_secs: Option<u64>,
-    segment_runtime: Option<String>,
-    segment_max_edge: Option<u32>,
-    segment_max_concurrency: Option<usize>,
-    segment_idle_secs: Option<u64>,
+    ml_runtime: Option<String>,
+    ml_max_edge: Option<u32>,
+    ml_max_concurrency: Option<usize>,
+    ml_idle_secs: Option<u64>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -137,6 +136,11 @@ pub enum ConfigError {
     },
     #[error("config file parse: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("{key} was removed; use {replacement} instead")]
+    RemovedKey {
+        key: &'static str,
+        replacement: &'static str,
+    },
     #[error("data dir not writable: {path}: {source}")]
     DataDir {
         path: PathBuf,
@@ -147,15 +151,20 @@ pub enum ConfigError {
 
 impl Config {
     pub fn load() -> Result<Self, ConfigError> {
-        let file = match std::env::var("IMMICH_EDIT_CONFIG").ok() {
+        let (file, file_table) = match std::env::var("IMMICH_EDIT_CONFIG").ok() {
             Some(path) => {
                 let path = PathBuf::from(path);
                 let text = std::fs::read_to_string(&path)
                     .map_err(|source| ConfigError::File { path, source })?;
-                toml::from_str::<FileConfig>(&text)?
+                (
+                    toml::from_str::<FileConfig>(&text)?,
+                    toml::from_str::<toml::Table>(&text)?,
+                )
             }
-            None => FileConfig::default(),
+            None => (FileConfig::default(), toml::Table::new()),
         };
+
+        reject_removed_keys(&file_table)?;
 
         let bind_addr = pick("BIND_ADDR", file.bind_addr).unwrap_or_else(|| "0.0.0.0:3000".into());
         let bind_socket: SocketAddr = bind_addr.parse().map_err(|_| ConfigError::InvalidValue {
@@ -164,15 +173,7 @@ impl Config {
         })?;
         let data_dir = match pick("DATA_DIR", file.data_dir) {
             Some(dir) => PathBuf::from(dir),
-            None => match pick("CACHE_DIR", file.cache_dir) {
-                Some(dir) => {
-                    tracing::warn!(
-                        "CACHE_DIR is deprecated; rename it to DATA_DIR. It now points at the durable data directory (database, keys, imported profiles)."
-                    );
-                    PathBuf::from(dir)
-                }
-                None => PathBuf::from("./data"),
-            },
+            None => PathBuf::from("./data"),
         };
         let cache_dir = data_dir.join("cache");
 
@@ -266,29 +267,25 @@ impl Config {
         let export_timeout_secs =
             parse_or("EXPORT_TIMEOUT_SECS", file.export_timeout_secs, 300u64)?;
 
-        let segment_runtime = match pick("SEGMENT_RUNTIME", file.segment_runtime) {
+        let ml_runtime = match pick("ML_RUNTIME", file.ml_runtime) {
             Some(s) => s.parse()?,
-            None => SegmentRuntimeMode::Auto,
+            None => MlRuntimeMode::Auto,
         };
-        let segment_max_edge = parse_or("SEGMENT_MAX_EDGE", file.segment_max_edge, 2048u32)?;
-        if !(256..=8192).contains(&segment_max_edge) {
+        let ml_max_edge = parse_or("ML_MAX_EDGE", file.ml_max_edge, 2048u32)?;
+        if !(256..=8192).contains(&ml_max_edge) {
             return Err(ConfigError::InvalidValue {
-                key: "SEGMENT_MAX_EDGE".into(),
-                value: segment_max_edge.to_string(),
+                key: "ML_MAX_EDGE".into(),
+                value: ml_max_edge.to_string(),
             });
         }
-        let segment_max_concurrency = parse_or(
-            "SEGMENT_MAX_CONCURRENCY",
-            file.segment_max_concurrency,
-            1usize,
-        )?;
-        if segment_max_concurrency == 0 {
+        let ml_max_concurrency = parse_or("ML_MAX_CONCURRENCY", file.ml_max_concurrency, 1usize)?;
+        if ml_max_concurrency == 0 {
             return Err(ConfigError::InvalidValue {
-                key: "SEGMENT_MAX_CONCURRENCY".into(),
+                key: "ML_MAX_CONCURRENCY".into(),
                 value: "0".into(),
             });
         }
-        let segment_idle_secs = parse_or("SEGMENT_IDLE_SECS", file.segment_idle_secs, 60u64)?;
+        let ml_idle_secs = parse_or("ML_IDLE_SECS", file.ml_idle_secs, 60u64)?;
 
         ensure_dir_writable(&data_dir)?;
 
@@ -310,10 +307,10 @@ impl Config {
             max_body_mb,
             original_timeout_secs,
             export_timeout_secs,
-            segment_runtime,
-            segment_max_edge,
-            segment_max_concurrency,
-            segment_idle_secs,
+            ml_runtime,
+            ml_max_edge,
+            ml_max_concurrency,
+            ml_idle_secs,
         })
     }
 
@@ -334,10 +331,10 @@ impl Config {
             max_body_mb: self.max_body_mb,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
-            segment_runtime: self.segment_runtime.as_str(),
-            segment_max_edge: self.segment_max_edge,
-            segment_max_concurrency: self.segment_max_concurrency,
-            segment_idle_secs: self.segment_idle_secs,
+            ml_runtime: self.ml_runtime.as_str(),
+            ml_max_edge: self.ml_max_edge,
+            ml_max_concurrency: self.ml_max_concurrency,
+            ml_idle_secs: self.ml_idle_secs,
         }
     }
 }
@@ -359,10 +356,29 @@ pub struct RedactedConfig {
     pub max_body_mb: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
-    pub segment_runtime: &'static str,
-    pub segment_max_edge: u32,
-    pub segment_max_concurrency: usize,
-    pub segment_idle_secs: u64,
+    pub ml_runtime: &'static str,
+    pub ml_max_edge: u32,
+    pub ml_max_concurrency: usize,
+    pub ml_idle_secs: u64,
+}
+
+const REMOVED_KEYS: [(&str, &str); 5] = [
+    ("CACHE_DIR", "DATA_DIR"),
+    ("SEGMENT_RUNTIME", "ML_RUNTIME"),
+    ("SEGMENT_MAX_EDGE", "ML_MAX_EDGE"),
+    ("SEGMENT_MAX_CONCURRENCY", "ML_MAX_CONCURRENCY"),
+    ("SEGMENT_IDLE_SECS", "ML_IDLE_SECS"),
+];
+
+fn reject_removed_keys(file: &toml::Table) -> Result<(), ConfigError> {
+    for (key, replacement) in REMOVED_KEYS {
+        let in_env = std::env::var(key).is_ok_and(|v| !v.is_empty());
+        let in_file = file.contains_key(&key.to_ascii_lowercase());
+        if in_env || in_file {
+            return Err(ConfigError::RemovedKey { key, replacement });
+        }
+    }
+    Ok(())
 }
 
 fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {
@@ -450,6 +466,10 @@ mod tests {
             "BIND_ADDR",
             "DATA_DIR",
             "CACHE_DIR",
+            "SEGMENT_RUNTIME",
+            "SEGMENT_MAX_EDGE",
+            "SEGMENT_MAX_CONCURRENCY",
+            "SEGMENT_IDLE_SECS",
             "PREVIEW_MAX_EDGE",
             "RAW_FRAME_CACHE_MB",
             "QUALITY_FRAME_CACHE_MB",
@@ -500,6 +520,23 @@ mod tests {
         }
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
+        }
+    }
+
+    #[test]
+    fn rejects_removed_env_keys() {
+        for (key, replacement) in REMOVED_KEYS {
+            let _g = lock();
+            clear_env();
+            unsafe {
+                std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+                std::env::set_var(key, "whatever");
+            }
+            match Config::load() {
+                Err(ConfigError::RemovedKey { key: k, .. }) if k == key => {}
+                other => panic!("{key} should be rejected in favour of {replacement}: {other:?}"),
+            }
+            unsafe { std::env::remove_var(key) };
         }
     }
 

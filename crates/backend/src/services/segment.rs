@@ -9,7 +9,7 @@ use ml::{
 };
 use tokio::sync::{Mutex, Semaphore};
 
-use crate::config::{Config, SegmentRuntimeMode};
+use crate::config::{Config, MlRuntimeMode};
 use crate::services::embedding_cache::{EmbeddingCache, EmbeddingKey};
 use crate::services::model_store::{ModelStore, ModelStoreError};
 
@@ -63,7 +63,7 @@ struct LoadedSam {
 pub struct SegmentService {
     models: ModelStore,
     embeddings: EmbeddingCache,
-    mode: SegmentRuntimeMode,
+    mode: MlRuntimeMode,
     max_edge: u32,
     idle: Duration,
     permits: Arc<Semaphore>,
@@ -76,10 +76,10 @@ impl SegmentService {
         Self {
             models,
             embeddings,
-            mode: config.segment_runtime,
-            max_edge: config.segment_max_edge,
-            idle: Duration::from_secs(config.segment_idle_secs),
-            permits: Arc::new(Semaphore::new(config.segment_max_concurrency)),
+            mode: config.ml_runtime,
+            max_edge: config.ml_max_edge,
+            idle: Duration::from_secs(config.ml_idle_secs),
+            permits: Arc::new(Semaphore::new(config.ml_max_concurrency)),
             loaded: Arc::new(Mutex::new(None)),
             sam: Arc::new(Mutex::new(None)),
         }
@@ -90,7 +90,7 @@ impl SegmentService {
     }
 
     pub fn enabled(&self) -> bool {
-        self.mode != SegmentRuntimeMode::Off
+        self.mode != MlRuntimeMode::Off
     }
 
     pub fn max_edge(&self) -> u32 {
@@ -99,8 +99,8 @@ impl SegmentService {
 
     fn runtime_mode(&self) -> RuntimeMode {
         match self.mode {
-            SegmentRuntimeMode::Gpu => RuntimeMode::Gpu,
-            SegmentRuntimeMode::Cpu => RuntimeMode::Cpu,
+            MlRuntimeMode::Gpu => RuntimeMode::Gpu,
+            MlRuntimeMode::Cpu => RuntimeMode::Cpu,
             _ => RuntimeMode::Auto,
         }
     }

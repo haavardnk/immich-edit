@@ -10,12 +10,12 @@ services:
       - edit-data:/data
     restart: unless-stopped
 
-    # --- AI mask inference (optional overrides) ---
+    # --- AI inference (optional overrides) ---
     # environment:
-    #   SEGMENT_RUNTIME: auto
-    #   SEGMENT_MAX_EDGE: 2048
-    #   SEGMENT_MAX_CONCURRENCY: 1
-    #   SEGMENT_IDLE_SECS: 60
+    #   ML_RUNTIME: auto
+    #   ML_MAX_EDGE: 2048
+    #   ML_MAX_CONCURRENCY: 1
+    #   ML_IDLE_SECS: 60
 
     # --- AMD GPU (uncomment) ---
     # devices:

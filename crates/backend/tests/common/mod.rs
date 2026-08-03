@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use immich_edit_backend::app;
-use immich_edit_backend::config::{Config, RendererMode, SegmentRuntimeMode};
+use immich_edit_backend::config::{Config, MlRuntimeMode, RendererMode};
 use immich_edit_backend::immich::client::ImmichUser;
 use immich_edit_backend::services::asset_counts::AssetCountCache;
 use immich_edit_backend::services::auth_store::{AuthKind, AuthStore};
@@ -57,10 +57,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
         max_body_mb: 128,
         original_timeout_secs: 120,
         export_timeout_secs: 300,
-        segment_runtime: SegmentRuntimeMode::Off,
-        segment_max_edge: 2048,
-        segment_max_concurrency: 1,
-        segment_idle_secs: 60,
+        ml_runtime: MlRuntimeMode::Off,
+        ml_max_edge: 2048,
+        ml_max_concurrency: 1,
+        ml_idle_secs: 60,
     };
     let _ = server;
     let edits = EditsStore::migrated_memory().await.unwrap();

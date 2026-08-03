@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use ml::{BakeParams, BoxPrompt, ClickPoint, ModelKind, RangeWindow};
+use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

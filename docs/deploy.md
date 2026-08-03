@@ -82,7 +82,7 @@ immich-edit needs no required settings. Optional infrastructure settings can com
 bind_addr = "127.0.0.1:3000"
 data_dir = "./data"
 renderer = "auto"
-segment_runtime = "auto"
+ml_runtime = "auto"
 ```
 
 Start the native backend with `IMMICH_EDIT_CONFIG=/path/to/config.toml`. In Docker, mount the file read-only and set `IMMICH_EDIT_CONFIG` to its container path. The file accepts the lowercase forms of the settings in [.env.example](../.env.example), including `allowed_origins`, cache limits, timeouts, and `debug_endpoints`.
@@ -190,13 +190,13 @@ Installing a model requires outbound HTTPS to its catalog source. The current ca
 
 Segmentation has separate runtime settings from the image renderer:
 
-- `SEGMENT_RUNTIME=auto` (default) - try WebGPU, then fall back to CPU if it cannot start
-- `SEGMENT_RUNTIME=gpu` - require WebGPU; mask generation fails instead of falling back
-- `SEGMENT_RUNTIME=cpu` - run inference on CPU
-- `SEGMENT_RUNTIME=off` - disable AI masks
-- `SEGMENT_MAX_EDGE=2048` - cap the source image sent to inference; valid range is 256 to 8192
-- `SEGMENT_MAX_CONCURRENCY=1` - limit concurrent inference jobs
-- `SEGMENT_IDLE_SECS=60` - unload inactive model sessions after this many seconds
+- `ML_RUNTIME=auto` (default) - try WebGPU, then fall back to CPU if it cannot start
+- `ML_RUNTIME=gpu` - require WebGPU; mask generation fails instead of falling back
+- `ML_RUNTIME=cpu` - run inference on CPU
+- `ML_RUNTIME=off` - disable AI masks
+- `ML_MAX_EDGE=2048` - cap the source image sent to inference, for both mask detection and erase; valid range is 256 to 8192
+- `ML_MAX_CONCURRENCY=1` - limit concurrent inference jobs
+- `ML_IDLE_SECS=60` - unload inactive model sessions after this many seconds
 
 On arm64 Linux there is no WebGPU build of ONNX Runtime, so `auto` goes straight to the CPU and `gpu` never succeeds. Use `cpu` there to make the intent explicit.
 
@@ -244,7 +244,7 @@ Two things changed at once: how you connect to Immich, and where data lives on d
 
 Migrations preserve old edits, history, presets, and jobs under a legacy owner, but they are not assigned to the new accounts and do not appear after sign-in. There is no reassignment tool. Keep the pre-upgrade backup if those records matter.
 
-**Directory layout.** Earlier releases stored everything under `CACHE_DIR` (`/cache` in Docker). v0.3.0 renames this to `DATA_DIR` and moves regenerable caches into a `cache/` subdirectory. `CACHE_DIR` still works as a deprecated alias, so native setups need no change; the backend warns until you rename it.
+**Directory layout.** Earlier releases stored everything under `CACHE_DIR` (`/cache` in Docker). v0.3.0 renamed this to `DATA_DIR` and moved regenerable caches into a `cache/` subdirectory. v0.4.0 removes the `CACHE_DIR` alias: the backend now refuses to start if it is still set, naming `DATA_DIR` as the replacement.
 
 Docker users must remount the existing volume from `/cache` to `/data`. The data sits at the volume root, so only the target path changes:
 

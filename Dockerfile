@@ -70,7 +70,7 @@ ENV WEB_DIR=/app/web \
     DATA_DIR=/data \
     BIND_ADDR=0.0.0.0:3000 \
     IMMICH_EDIT_RENDERER=auto \
-    SEGMENT_RUNTIME=auto \
+    ML_RUNTIME=auto \
     XDG_CACHE_HOME=/data/cache
 USER 10001:10001
 EXPOSE 3000
