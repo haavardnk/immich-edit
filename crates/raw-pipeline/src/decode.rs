@@ -156,7 +156,11 @@ fn decode_raw_fast(
         return decode_raw_quality(raw_image, exif);
     }
     let cfa_name = match &raw_image.photometric {
-        RawPhotometricInterpretation::Cfa(config) if config.cfa.is_rgb() => config.cfa.name.clone(),
+        RawPhotometricInterpretation::Cfa(config)
+            if config.cfa.is_rgb() && config.cfa.width == 2 && config.cfa.height == 2 =>
+        {
+            config.cfa.name.clone()
+        }
         _ => return decode_raw_quality(raw_image, exif),
     };
 
@@ -208,6 +212,20 @@ fn decode_raw_quality(
     mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
+    if raw_image.cpp == 1
+        && let RawPhotometricInterpretation::Cfa(config) = &raw_image.photometric
+    {
+        match (config.cfa.width, config.cfa.height) {
+            (0, 0) | (2, 2) => {}
+            (w, h) => {
+                return Err(PipelineError::Unsupported(format!(
+                    "unsupported {w}x{h} CFA pattern '{}'",
+                    config.cfa.name
+                )));
+            }
+        }
+    }
+
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
