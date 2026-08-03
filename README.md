@@ -94,6 +94,14 @@ There is no server URL or API key to configure — the Immich connection is set 
 
 If the instance is reachable from anywhere you do not control, terminate TLS in front of it with a reverse proxy (Caddy, Traefik, nginx). immich-edit has its own Immich-federated user system, so an extra auth proxy is optional. See [docs/deploy.md](docs/deploy.md) for proxy examples.
 
+## Platform support
+
+The image is published for `linux/amd64` and `linux/arm64`, so `docker pull` picks the right one automatically.
+
+RAW rendering and AI masks are heavy. Plan for 8 GB of RAM and a reasonably modern CPU; a Raspberry Pi will run it, but a 60 MP RAW and a mask model will both take a long time. On arm64 the GPU renderer only works on Linux hosts with a Vulkan-capable GPU passed into the container, and AI masks always run on the CPU there because ONNX Runtime ships no WebGPU build for aarch64 Linux. Apple Silicon in Docker is CPU-only because Metal cannot cross the VM boundary — run the binary natively on macOS if you want Metal.
+
+The amd64 build of ONNX Runtime targets the x86-64-v3 baseline (Haswell, 2013 and newer). AI masks will not start on older CPUs; everything else still works.
+
 ## Documentation
 
 - [Deploy guide](docs/deploy.md) - Docker, native, reverse-proxy, GPU passthrough, backups, upgrades
@@ -125,7 +133,7 @@ To enable a GPU in Docker, uncomment the matching block in [docker-compose.examp
 
 If the GPU path is not active, check the backend startup logs for the wgpu adapter line.
 
-AI masks run locally through ONNX Runtime. Models are not bundled; an admin installs only the ones the server needs from **Settings > Mask models**. In `auto` mode, inference tries WebGPU through Vulkan or Metal and falls back to CPU. See [GPU passthrough](docs/deploy.md#gpu-passthrough) and [AI mask models](docs/deploy.md#ai-mask-models).
+AI masks run locally through ONNX Runtime. Models are not bundled; an admin installs only the ones the server needs from **Settings > Mask models**. In `auto` mode, inference tries WebGPU through Vulkan or Metal and falls back to CPU. On arm64 Linux it always runs on the CPU, even with a GPU passed in, because ONNX Runtime ships no WebGPU build for that platform; GPU rendering is unaffected. See [GPU passthrough](docs/deploy.md#gpu-passthrough) and [AI mask models](docs/deploy.md#ai-mask-models).
 
 ## Development
 

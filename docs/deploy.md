@@ -57,6 +57,23 @@ For local Docker image builds, clone the repository and use [docker-compose.exam
 
 [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) publishes exact semver tags (`0.3.0`, `0.3`, `0`) plus `latest` for the newest stable release and `edge` for the newest build including prereleases. Prereleases update only `edge` and their exact tag, never `latest`.
 
+### Architectures
+
+Every tag is a manifest list covering `linux/amd64` and `linux/arm64`. Docker resolves the right one, so nothing extra is needed on ARM hosts.
+
+Both builds run the same code. What differs is the hardware you can reach:
+
+| Host | Renderer | Notes |
+| --- | --- | --- |
+| amd64, Linux, with GPU | Vulkan | Pass `/dev/dri` or use the NVIDIA toolkit. See [GPU passthrough](#gpu-passthrough). |
+| amd64, Linux, no GPU | CPU | Requires an x86-64-v3 CPU (Haswell, 2013 and newer) for AI masks. |
+| arm64, Linux, with GPU | Vulkan | Works where the host exposes a Vulkan-capable GPU to the container. RAW rendering only; AI masks stay on the CPU. |
+| arm64, macOS (Docker Desktop, OrbStack) | CPU | Metal cannot be passed into the Linux VM. Run the native binary for Metal. |
+
+Sizing is the same on both: 8 GB of RAM is a comfortable floor, and single-core speed drives RAW render times. Small ARM SBCs work but are slow, particularly for AI masks, which take tens of seconds per run on a few CPU cores.
+
+The AI mask runtime on amd64 is built against the x86-64-v3 baseline. On a pre-2013 CPU the app runs normally but mask models fail to load.
+
 ### Configuration file
 
 immich-edit needs no required settings. Optional infrastructure settings can come from the environment or a TOML file at the path in `IMMICH_EDIT_CONFIG`. Environment variables take precedence over matching file values.
@@ -143,7 +160,7 @@ networks:
 
 ## GPU passthrough
 
-GPU rendering and AI mask inference use Vulkan inside the container. The image bundles Mesa Vulkan drivers (AMD, Intel) and the Vulkan loader. NVIDIA needs the host runtime.
+GPU rendering uses Vulkan inside the container on both architectures. AI mask inference also uses Vulkan on amd64, but runs on the CPU on arm64 Linux regardless of passthrough. The image bundles Mesa Vulkan drivers (AMD, Intel) and the Vulkan loader. NVIDIA needs the host runtime.
 
 | Host | Backend | Compose snippet |
 | --- | --- | --- |
@@ -180,6 +197,8 @@ Segmentation has separate runtime settings from the image renderer:
 - `SEGMENT_MAX_EDGE=2048` - cap the source image sent to inference; valid range is 256 to 8192
 - `SEGMENT_MAX_CONCURRENCY=1` - limit concurrent inference jobs
 - `SEGMENT_IDLE_SECS=60` - unload inactive model sessions after this many seconds
+
+On arm64 Linux there is no WebGPU build of ONNX Runtime, so `auto` goes straight to the CPU and `gpu` never succeeds. Use `cpu` there to make the intent explicit.
 
 The first generation after installing a model or after its session unloads takes longer because the runtime has to load the model again. Existing generated masks are ordinary local rasters and continue to render if their model is removed.
 

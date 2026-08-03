@@ -107,7 +107,7 @@ fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, SegmentError> 
     Ok(builder)
 }
 
-#[cfg(feature = "webgpu")]
+#[cfg(not(all(target_arch = "aarch64", target_os = "linux")))]
 fn build_webgpu(path: &Path, config: &SessionConfig) -> Result<Session, SegmentError> {
     use ort::ep::WebGPU;
 
@@ -122,7 +122,9 @@ fn build_webgpu(path: &Path, config: &SessionConfig) -> Result<Session, SegmentE
         .map_err(ort_err)
 }
 
-#[cfg(not(feature = "webgpu"))]
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
 fn build_webgpu(_path: &Path, _config: &SessionConfig) -> Result<Session, SegmentError> {
-    Err(SegmentError::Ort("built without the webgpu feature".into()))
+    Err(SegmentError::Ort(
+        "onnxruntime ships no webgpu build for aarch64 linux".into(),
+    ))
 }

@@ -6,6 +6,7 @@ node_modules
 .DS_Store
 .idea
 .vscode
+crates/*/examples
 *.md
 !README.md
 PLAN.md
