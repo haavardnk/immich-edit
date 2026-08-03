@@ -24,6 +24,7 @@ RUN apt-get update && \
     cmake \
     libclang-dev \
     libheif-dev \
+    libheif-plugins-all \
     libjxl-dev \
     libturbojpeg0-dev \
     nasm \
@@ -31,7 +32,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=planner /build/recipe.json recipe.json
 COPY rust-toolchain.toml ./
-RUN cargo chef cook --release --recipe-path recipe.json -j "$(nproc)"
+RUN cargo chef cook --release --tests --recipe-path recipe.json -j "$(nproc)"
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 RUN cargo set-version --workspace "$APP_VERSION" && \
@@ -39,6 +40,10 @@ RUN cargo set-version --workspace "$APP_VERSION" && \
     strip target/release/immich-edit && \
     mkdir -p /build/dylibs && \
     find target/release -maxdepth 1 -name '*.so*' -exec cp -L {} /build/dylibs/ \;
+
+FROM backend AS test
+RUN cargo test --locked --release --workspace -j "$(nproc)" && \
+    touch /build/.tests-passed
 
 FROM debian:trixie-slim
 RUN apt-get update && \
@@ -55,6 +60,7 @@ RUN apt-get update && \
 RUN mkdir -p /data && \
     chown 10001:10001 /data
 WORKDIR /app
+COPY --from=test /build/.tests-passed /app/.tests-passed
 COPY --from=backend --chown=10001:10001 /build/target/release/immich-edit /app/immich-edit
 COPY --from=backend --chown=10001:10001 /build/dylibs/ /app/
 COPY --from=frontend --chown=10001:10001 /build/web/build /app/web
