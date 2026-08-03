@@ -33,6 +33,7 @@ impl GpuContext {
                 power_preference: PowerPreference::HighPerformance,
                 compatible_surface: None,
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             })
             .await
             .map_err(|e| PipelineError::Unsupported(format!("gpu adapter: {e}")))?;

@@ -305,7 +305,7 @@ impl GpuRenderer {
 
         crate::gpu::readback::map_buffer_cancellable(&self.ctx, &buf, cancel)?;
         let slice = buf.slice(..);
-        let data = slice.get_mapped_range();
+        let data = crate::gpu::readback::mapped_range(&slice)?;
         let px_count = (wl * hl) as usize;
         let mut rgb = Vec::with_capacity(px_count * 3);
         let unpadded_bytes = (wl * 8) as usize;

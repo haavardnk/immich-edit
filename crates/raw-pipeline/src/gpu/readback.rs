@@ -130,6 +130,12 @@ pub fn map_buffer_cancellable(
     }
 }
 
+pub fn mapped_range(slice: &wgpu::BufferSlice) -> PipelineResult<wgpu::BufferView> {
+    slice
+        .get_mapped_range()
+        .map_err(|e| PipelineError::Render(format!("readback range: {e}")))
+}
+
 pub fn read_rgba8(
     ctx: &GpuContext,
     buffer: &Buffer,
@@ -142,7 +148,7 @@ pub fn read_rgba8(
     map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);
 
-    let data = slice.get_mapped_range();
+    let data = mapped_range(&slice)?;
     let mut out = Vec::with_capacity(unpadded * height as usize);
     for row in 0..height as usize {
         let start = row * padded;
@@ -165,7 +171,7 @@ pub fn read_rgba16f_as_rgb(
     map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);
 
-    let data = slice.get_mapped_range();
+    let data = mapped_range(&slice)?;
     let px_count = (width * height) as usize;
     let mut out = Vec::with_capacity(px_count * 3);
     for row in 0..height as usize {

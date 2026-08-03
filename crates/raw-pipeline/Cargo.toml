@@ -15,7 +15,7 @@ rawler = "0.7"
 turbojpeg = "1"
 sha2 = "0.11"
 hex = "0.4"
-wgpu = "29"
+wgpu = "30"
 bytemuck = { version = "1", features = ["derive"] }
 pollster = "1.0"
 parking_lot = "0.12"
