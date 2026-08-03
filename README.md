@@ -17,6 +17,7 @@ I wanted Lightroom-style edits on my Immich library without sending photos to th
 Rendering and decoding:
 
 - All RAW formats that [rawler](https://github.com/dnglab/dnglab/tree/main/rawler) supports (.arw, .cr2, .cr3, .nef, .dng, etc.)
+- Fujifilm X-Trans (.raf), with a demosaic written for the 6x6 sensor rather than a Bayer approximation
 - JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, BMP
 - GPU rendering via wgpu (Vulkan on Linux, Metal on macOS), CPU fallback always available
 

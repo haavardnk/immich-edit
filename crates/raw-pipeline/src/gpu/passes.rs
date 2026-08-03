@@ -16,6 +16,7 @@ pub mod process;
 pub mod sensor;
 pub mod sharpen;
 pub mod wb_prepare;
+pub mod xtrans;
 
 use std::sync::Arc;
 
@@ -42,10 +43,12 @@ use process::ProcessFastPass;
 use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
 use wb_prepare::WbPreparePass;
+use xtrans::XtransPasses;
 
 pub struct GpuPasses {
     pub dehaze: DehazePasses,
     pub demosaic: DemosaicPass,
+    pub xtrans: XtransPasses,
     pub mipgen: MipgenPass,
     pub luma_pyramid: LumaPyramidPass,
     pub nr: NrPass,
@@ -74,6 +77,7 @@ impl GpuPasses {
         let (
             dehaze,
             demosaic,
+            xtrans,
             mipgen,
             luma_pyramid,
             nr,
@@ -94,6 +98,7 @@ impl GpuPasses {
         ) = std::thread::scope(|s| {
             let dehaze_t = s.spawn(|| DehazePasses::new(ctx));
             let demosaic_t = s.spawn(|| DemosaicPass::new(ctx));
+            let xtrans_t = s.spawn(|| XtransPasses::new(ctx));
             let mipgen_t = s.spawn(|| MipgenPass::new(ctx));
             let luma_pyramid_t = s.spawn(|| LumaPyramidPass::new(ctx));
             let nr_t = s.spawn(|| NrPass::new(ctx));
@@ -121,6 +126,7 @@ impl GpuPasses {
             (
                 dehaze_t.join().expect("dehaze pass build"),
                 demosaic_t.join().expect("demosaic pass build"),
+                xtrans_t.join().expect("xtrans pass build"),
                 mipgen_t.join().expect("mipgen pass build"),
                 luma_pyramid_t.join().expect("luma pyramid pass build"),
                 nr_t.join().expect("nr pass build"),
@@ -143,6 +149,7 @@ impl GpuPasses {
         Self {
             dehaze,
             demosaic,
+            xtrans,
             mipgen,
             luma_pyramid,
             nr,

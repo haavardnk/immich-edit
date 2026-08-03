@@ -69,7 +69,7 @@ Dispatch order:
 
 | Order | Pass | Source | Owns |
 | --- | --- | --- | --- |
-| 1 | upload / demosaic | `get_or_demosaic`, `passes/demosaic.rs` | RAW or RGB input to linear `Rgba16Float`; mipgen for source textures. |
+| 1 | upload / demosaic | `get_or_demosaic`, `passes/demosaic.rs`, `passes/xtrans.rs` | RAW or RGB input to linear `Rgba16Float`; Bayer takes one dispatch, X-Trans takes two; mipgen for source textures. |
 | 2 | sensor | `run_sensor`, `passes/sensor.rs` | Active lens sensor ops before orientation/crop sampling. |
 | 3 | wb_prepare | `run_wb_prepare`, `passes/wb_prepare.rs` | White balance plus camera-to-sRGB pre-pass for presence/detail work. |
 | 4 | NR | `run_nr`, `passes/nr.rs`, `passes/nr_smooth.rs` | `luma_nr`, `color_nr` detail work. |

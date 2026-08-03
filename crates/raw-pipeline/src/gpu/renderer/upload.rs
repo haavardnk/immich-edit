@@ -8,7 +8,9 @@ use wgpu::{
 };
 
 use crate::frame::RawFrame;
-use crate::gpu::helpers::{DemosaicParams, cfa_to_indices, mip_count};
+use crate::gpu::helpers::{
+    DemosaicParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
+};
 use crate::{PipelineError, PipelineResult};
 
 use super::{CachedFrame, GpuRenderer};
@@ -116,6 +118,15 @@ impl GpuRenderer {
                 "gpu demosaic requires single-plane bayer frame".into(),
             ));
         }
+        if let Some(pattern) = crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern) {
+            return self.xtrans_to_texture(frame, &pattern);
+        }
+        if frame.cfa_pattern.len() != 4 {
+            return Err(PipelineError::Unsupported(format!(
+                "gpu demosaic requires a 2x2 or 6x6 CFA pattern, got '{}'",
+                frame.cfa_pattern
+            )));
+        }
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = frame.width as u32;
@@ -192,6 +203,137 @@ impl GpuRenderer {
             pass.set_bind_group(0, &bind, &[]);
             let gx = w.div_ceil(16);
             let gy = h.div_ceil(16);
+            pass.dispatch_workgroups(gx, gy, 1);
+        }
+        self.encode_mipgen(&mut encoder, &texture, w, h);
+        queue.submit(Some(encoder.finish()));
+
+        Ok(Arc::new(CachedFrame {
+            texture: Arc::new(texture),
+            width: w,
+            height: h,
+        }))
+    }
+
+    fn xtrans_to_texture(
+        &self,
+        frame: &RawFrame,
+        pattern: &[u8; 36],
+    ) -> PipelineResult<Arc<CachedFrame>> {
+        let _span = tracing::debug_span!(
+            "gpu.xtrans",
+            w = frame.width as u32,
+            h = frame.height as u32
+        )
+        .entered();
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let w = frame.width as u32;
+        let h = frame.height as u32;
+
+        let params = XtransParams {
+            size: [w, h],
+            _pad: [0, 0],
+            pattern: xtrans_to_indices(pattern),
+        };
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, bytemuck::bytes_of(&params), "xtrans-uniform");
+
+        let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("xtrans-raw-storage"),
+            contents: bytemuck::cast_slice(&frame.data),
+            usage: BufferUsages::STORAGE,
+        });
+        let green_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("xtrans-green-storage"),
+            size: (frame.width as u64) * (frame.height as u64) * 4,
+            usage: BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
+        let texture = device.create_texture(&TextureDescriptor {
+            label: Some("linear-cached"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+
+        let green_bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("xtrans-green-bg"),
+            layout: &self.passes.xtrans.green.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: raw_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: green_buf.as_entire_binding(),
+                },
+            ],
+        });
+        let rgb_bind = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("xtrans-rgb-bg"),
+            layout: &self.passes.xtrans.rgb.layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: raw_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: green_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&view),
+                },
+            ],
+        });
+
+        let gx = w.div_ceil(16);
+        let gy = h.div_ceil(16);
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("xtrans-enc"),
+        });
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("xtrans-green-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.xtrans.green.pipeline);
+            pass.set_bind_group(0, &green_bind, &[]);
+            pass.dispatch_workgroups(gx, gy, 1);
+        }
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("xtrans-rgb-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.passes.xtrans.rgb.pipeline);
+            pass.set_bind_group(0, &rgb_bind, &[]);
             pass.dispatch_workgroups(gx, gy, 1);
         }
         self.encode_mipgen(&mut encoder, &texture, w, h);

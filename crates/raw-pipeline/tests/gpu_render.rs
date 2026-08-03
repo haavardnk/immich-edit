@@ -1001,6 +1001,84 @@ fn gpu_demosaic_matches_cpu_mhc() {
 }
 
 #[test]
+fn gpu_xtrans_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 96,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Eight,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+
+    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+    let sizes: &[(usize, usize)] = &[(96, 66), (86, 58)];
+
+    let mut failed: Vec<String> = Vec::new();
+    for (w, h) in sizes {
+        let frame = synthetic_bayer_frame(*w, *h, XTRANS);
+        let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+        let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        if cpu.width != gpu.width || cpu.height != gpu.height {
+            panic!(
+                "{w}x{h}: dim mismatch CPU {}x{} vs GPU {}x{}",
+                cpu.width, cpu.height, gpu.width, gpu.height
+            );
+        }
+        let (cpu_rgb, _, _) = decode_png_rgb(&cpu.bytes);
+        let (gpu_rgb, _, _) = decode_png_rgb(&gpu.bytes);
+        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+        eprintln!("xtrans {w}x{h}: mean abs delta = {delta:.3}");
+        if delta > 1.0 {
+            failed.push(format!("{w}x{h}: {delta:.3} > 1.0"));
+        }
+    }
+    if !failed.is_empty() {
+        panic!("GPU X-Trans demosaic drift: {}", failed.join("; "));
+    }
+}
+
+#[test]
+fn gpu_xtrans_fixture_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
+    let Ok(bytes) = std::fs::read(&path) else {
+        eprintln!("no X-Trans fixture; skipping");
+        return;
+    };
+    let frame = decode::decode(&bytes).unwrap();
+    let opts = RenderOptions {
+        max_edge: 4096,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Eight,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+    let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    if cpu.width != gpu.width || cpu.height != gpu.height {
+        panic!(
+            "dim mismatch CPU {}x{} vs GPU {}x{}",
+            cpu.width, cpu.height, gpu.width, gpu.height
+        );
+    }
+    let (cpu_rgb, _, _) = decode_png_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_png_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("xtrans fixture mean abs delta = {delta:.3}");
+    if delta > 2.0 {
+        panic!("GPU X-Trans fixture drift too high: {delta:.3}");
+    }
+}
+
+#[test]
 fn gpu_masks_match_cpu_within_tolerance() {
     use raw_pipeline::edits::{
         MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,

@@ -39,11 +39,19 @@ pub(super) fn uniform_entry_unsized(binding: u32) -> BindGroupLayoutEntry {
 }
 
 pub(super) fn storage_buffer_entry(binding: u32) -> BindGroupLayoutEntry {
+    storage_buffer_entry_with(binding, true)
+}
+
+pub(super) fn storage_buffer_entry_rw(binding: u32) -> BindGroupLayoutEntry {
+    storage_buffer_entry_with(binding, false)
+}
+
+fn storage_buffer_entry_with(binding: u32, read_only: bool) -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding,
         visibility: ShaderStages::COMPUTE,
         ty: BindingType::Buffer {
-            ty: wgpu::BufferBindingType::Storage { read_only: true },
+            ty: wgpu::BufferBindingType::Storage { read_only },
             has_dynamic_offset: false,
             min_binding_size: None,
         },

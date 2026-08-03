@@ -27,6 +27,26 @@ pub(super) fn cfa_to_indices(pattern: &str) -> [u32; 4] {
     out
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(super) struct XtransParams {
+    pub size: [u32; 2],
+    pub _pad: [u32; 2],
+    pub pattern: [[u32; 4]; 9],
+}
+
+pub(super) fn xtrans_to_indices(pattern: &[u8; 36]) -> [[u32; 4]; 9] {
+    let mut out = [[1u32; 4]; 9];
+    for (i, b) in pattern.iter().enumerate() {
+        out[i / 4][i % 4] = match b {
+            b'R' => 0,
+            b'B' => 2,
+            _ => 1,
+        };
+    }
+    out
+}
+
 pub(super) fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {
     if w <= max_edge && h <= max_edge {
         return (w, h);
