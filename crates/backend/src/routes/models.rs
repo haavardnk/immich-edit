@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use segment::catalog;
+use ml::catalog;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -52,11 +52,11 @@ pub struct SelectBody {
     pub model_id: String,
 }
 
-fn tier_name(tier: segment::Tier) -> &'static str {
+fn tier_name(tier: ml::Tier) -> &'static str {
     match tier {
-        segment::Tier::Recommended => "recommended",
-        segment::Tier::Alternative => "alternative",
-        segment::Tier::LowMemory => "low_memory",
+        ml::Tier::Recommended => "recommended",
+        ml::Tier::Alternative => "alternative",
+        ml::Tier::LowMemory => "low_memory",
     }
 }
 

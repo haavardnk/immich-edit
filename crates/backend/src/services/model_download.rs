@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use segment::CatalogEntry;
+use ml::CatalogEntry;
 use sha2::{Digest, Sha256};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -139,7 +139,7 @@ async fn download_to_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use segment::catalog;
+    use ml::catalog;
     use wiremock::matchers::method;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

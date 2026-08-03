@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use segment::model::Activation;
-use segment::runtime::SessionConfig;
-use segment::{
+use ml::model::Activation;
+use ml::runtime::SessionConfig;
+use ml::{
     BakeParams, BoxPrompt, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter,
     bake, catalog,
 };

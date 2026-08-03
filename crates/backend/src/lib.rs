@@ -48,7 +48,7 @@ pub async fn run() -> anyhow::Result<()> {
         }
     });
 
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     {
         let segment = state.segment.clone();
         let mut segment_shutdown = shutdown_tx.subscribe();

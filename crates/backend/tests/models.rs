@@ -1,4 +1,4 @@
-#![cfg(feature = "segment")]
+#![cfg(feature = "ml")]
 
 mod common;
 

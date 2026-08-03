@@ -12,9 +12,9 @@ pub mod health;
 pub mod jobs;
 pub mod lens_profile;
 pub mod luts;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod masks;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod models;
 pub mod people;
 pub mod presets;

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use segment::CatalogEntry;
+use ml::CatalogEntry;
 use tokio::sync::Semaphore;
 
 use crate::services::model_download::{DownloadError, fetch_catalog_aux, fetch_catalog_model};
@@ -134,7 +134,7 @@ fn store_message(err: &ModelStoreError) -> String {
 mod tests {
     use super::*;
     use crate::services::edits_store::EditsStore;
-    use segment::catalog;
+    use ml::catalog;
 
     async fn installer() -> (ModelInstaller, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();

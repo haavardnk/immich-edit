@@ -7,21 +7,21 @@ use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use crate::services::embedding_cache::EmbeddingCache;
 use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use crate::services::model_install::ModelInstaller;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use crate::services::model_store::ModelStore;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use crate::services::segment::SegmentService;
 
 #[derive(Clone)]
@@ -40,11 +40,11 @@ pub struct AppState {
     pub rasters: RasterStore,
     pub luts: LutStore,
     pub dcp: DcpStore,
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     pub models: ModelStore,
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     pub installs: ModelInstaller,
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     pub segment: SegmentService,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
@@ -109,17 +109,17 @@ impl AppState {
         let edited_thumb =
             EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)
                 .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         let installs = ModelInstaller::new(models.clone());
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         let embeddings = EmbeddingCache::new(
             std::path::Path::new(&config.cache_dir),
             config.embedding_cache_mb,
         )?;
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         let segment = SegmentService::new(&config, models.clone(), embeddings);
         Ok(Self {
             config: Arc::new(config),
@@ -136,11 +136,11 @@ impl AppState {
             rasters,
             luts,
             dcp,
-            #[cfg(feature = "segment")]
+            #[cfg(feature = "ml")]
             models,
-            #[cfg(feature = "segment")]
+            #[cfg(feature = "ml")]
             installs,
-            #[cfg(feature = "segment")]
+            #[cfg(feature = "ml")]
             segment,
             tag_counts: AssetCountCache::new("tagIds"),
             people_counts: AssetCountCache::new("personIds"),

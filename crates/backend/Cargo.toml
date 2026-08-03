@@ -9,12 +9,12 @@ name = "immich-edit"
 path = "src/main.rs"
 
 [features]
-default = ["segment"]
-segment = ["dep:segment"]
+default = ["ml"]
+ml = ["dep:ml"]
 
 [dependencies]
 raw-pipeline = { path = "../raw-pipeline" }
-segment = { path = "../segment", optional = true }
+ml = { path = "../ml", optional = true }
 anyhow = "1"
 axum = "0.8"
 tokio = { workspace = true }

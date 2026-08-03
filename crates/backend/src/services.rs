@@ -7,7 +7,7 @@ pub mod dcp_store;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod embedding_cache;
 pub mod export;
 pub mod instance_store;
@@ -15,11 +15,11 @@ pub mod job_runner;
 pub mod job_store;
 pub mod login_limiter;
 pub mod lut_store;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod model_download;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod model_install;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod model_store;
 pub mod paste_edits;
 pub mod preview_meta;
@@ -29,5 +29,5 @@ pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;
 pub mod reset_edits;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 pub mod segment;

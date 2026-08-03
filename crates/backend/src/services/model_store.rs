@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
-use segment::CatalogEntry;
+use ml::CatalogEntry;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tokio::fs;
@@ -260,7 +260,7 @@ impl ModelStore {
 mod tests {
     use super::*;
     use crate::services::edits_store::EditsStore;
-    use segment::catalog;
+    use ml::catalog;
 
     async fn store() -> (ModelStore, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();

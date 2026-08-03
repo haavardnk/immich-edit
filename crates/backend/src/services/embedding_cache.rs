@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use lru::LruCache;
-use segment::{Embedding, EmbeddingTensor};
+use ml::{Embedding, EmbeddingTensor};
 use tokio::fs;
 use tokio::sync::Mutex;
 use uuid::Uuid;

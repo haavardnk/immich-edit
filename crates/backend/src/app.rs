@@ -41,7 +41,7 @@ impl MakeRequestId for UuidRequestId {
     }
 }
 
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 fn model_routes() -> Router<AppState> {
     Router::new()
         .route("/masks/models", get(routes::models::list))
@@ -55,7 +55,7 @@ fn model_routes() -> Router<AppState> {
         )
 }
 
-#[cfg(not(feature = "segment"))]
+#[cfg(not(feature = "ml"))]
 fn model_routes() -> Router<AppState> {
     Router::new()
 }

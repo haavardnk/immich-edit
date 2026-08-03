@@ -1814,10 +1814,10 @@ dependencies = [
  "lensfun",
  "lru",
  "mimalloc",
+ "ml",
  "rand 0.9.5",
  "raw-pipeline",
  "reqwest",
- "segment",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -2484,6 +2484,16 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "ml"
+version = "0.0.0"
+dependencies = [
+ "half",
+ "ort",
+ "thiserror 2.0.19",
+ "tracing",
 ]
 
 [[package]]
@@ -3721,16 +3731,6 @@ checksum = "6ce2691df843ecc5d231c0b14ece2acc3efb62c0a398c7e1d875f3983ce020e3"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "segment"
-version = "0.0.0"
-dependencies = [
- "half",
- "ort",
- "thiserror 2.0.19",
- "tracing",
 ]
 
 [[package]]

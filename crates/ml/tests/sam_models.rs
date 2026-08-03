@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use segment::runtime::SessionConfig;
-use segment::{BoxPrompt, ClickPoint, RuntimeMode, SamDecoder, SamEncoder};
+use ml::runtime::SessionConfig;
+use ml::{BoxPrompt, ClickPoint, RuntimeMode, SamDecoder, SamEncoder};
 
 fn fixture(name: &str) -> Option<PathBuf> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

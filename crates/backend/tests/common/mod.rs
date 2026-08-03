@@ -9,21 +9,21 @@ use immich_edit_backend::services::crypto::InstanceCrypto;
 use immich_edit_backend::services::dcp_store::DcpStore;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use immich_edit_backend::services::embedding_cache::EmbeddingCache;
 use immich_edit_backend::services::instance_store::InstanceStore;
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
 use immich_edit_backend::services::lut_store::LutStore;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use immich_edit_backend::services::model_install::ModelInstaller;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use immich_edit_backend::services::model_store::ModelStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
-#[cfg(feature = "segment")]
+#[cfg(feature = "ml")]
 use immich_edit_backend::services::segment::SegmentService;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
@@ -75,13 +75,13 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
     let dcp = DcpStore::new(edits.pool(), &cache_dir).unwrap();
     let jobs = JobStore::new(edits.pool(), crypto.clone());
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     let models = ModelStore::new(edits.pool(), &cache_dir).unwrap();
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     let installs = ModelInstaller::new(models.clone());
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     let embeddings = EmbeddingCache::new(&cache_dir, 512).unwrap();
-    #[cfg(feature = "segment")]
+    #[cfg(feature = "ml")]
     let segment = SegmentService::new(&config, models.clone(), embeddings);
     AppState {
         config: Arc::new(config),
@@ -108,11 +108,11 @@ pub async fn test_state(server: &MockServer) -> AppState {
         rasters,
         luts,
         dcp,
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         models,
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         installs,
-        #[cfg(feature = "segment")]
+        #[cfg(feature = "ml")]
         segment,
         tag_counts: AssetCountCache::new("tagIds"),
         people_counts: AssetCountCache::new("personIds"),
