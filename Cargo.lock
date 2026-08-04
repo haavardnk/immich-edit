@@ -1815,7 +1815,7 @@ dependencies = [
  "lru",
  "mimalloc",
  "ml",
- "rand 0.9.5",
+ "rand 0.10.2",
  "raw-pipeline",
  "reqwest",
  "serde",
