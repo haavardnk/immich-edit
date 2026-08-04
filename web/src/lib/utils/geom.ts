@@ -35,7 +35,7 @@ export function aspectRatioFor(aspect: AspectLock, sw: number, sh: number): numb
   }
 }
 
-export function pointInRotatedSource(
+export function pointInWarpedSource(
   p: Point,
   sw: number,
   sh: number,
@@ -65,7 +65,7 @@ export function pointInRotatedSource(
   );
 }
 
-export function cropRectInsideRotatedSource(
+export function cropRectInsideWarpedSource(
   rect: CropRect,
   sw: number,
   sh: number,
@@ -83,7 +83,7 @@ export function cropRectInsideRotatedSource(
     { x: x1, y: y1 },
     { x: x0, y: y1 }
   ];
-  return corners.every((p) => pointInRotatedSource(p, sw, sh, angleDeg, perspInv));
+  return corners.every((p) => pointInWarpedSource(p, sw, sh, angleDeg, perspInv));
 }
 
 export function largestInscribedRect(
@@ -107,7 +107,7 @@ export function largestInscribedRect(
     const nx = (bbox.w - wPx) / 2 / bbox.w;
     const ny = (bbox.h - hPx) / 2 / bbox.h;
     const rect: CropRect = { x: nx, y: ny, w: wPx / bbox.w, h: hPx / bbox.h };
-    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg, perspInv)) {
+    if (cropRectInsideWarpedSource(rect, sw, sh, angleDeg, perspInv)) {
       lo = mid;
     } else {
       hi = mid;
@@ -159,7 +159,7 @@ export function refitCropAtAspect(
       w: wPx / bbox.w,
       h: hPx / bbox.h
     };
-    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg, perspInv)) {
+    if (cropRectInsideWarpedSource(rect, sw, sh, angleDeg, perspInv)) {
       best = rect;
       lo = t;
     } else {
@@ -185,9 +185,9 @@ export function constrainCropRect(
   };
   if (clipped.x + clipped.w > 1) clipped.w = 1 - clipped.x;
   if (clipped.y + clipped.h > 1) clipped.h = 1 - clipped.y;
-  if (cropRectInsideRotatedSource(clipped, sw, sh, angleDeg, perspInv)) return clipped;
+  if (cropRectInsideWarpedSource(clipped, sw, sh, angleDeg, perspInv)) return clipped;
   const base = previous ?? FULL_CROP;
-  if (!cropRectInsideRotatedSource(base, sw, sh, angleDeg, perspInv)) {
+  if (!cropRectInsideWarpedSource(base, sw, sh, angleDeg, perspInv)) {
     return largestInscribedRect(
       sw,
       sh,
@@ -207,7 +207,7 @@ export function constrainCropRect(
       w: base.w + (clipped.w - base.w) * t,
       h: base.h + (clipped.h - base.h) * t
     };
-    if (cropRectInsideRotatedSource(r, sw, sh, angleDeg, perspInv)) {
+    if (cropRectInsideWarpedSource(r, sw, sh, angleDeg, perspInv)) {
       best = r;
       lo = t;
     } else {

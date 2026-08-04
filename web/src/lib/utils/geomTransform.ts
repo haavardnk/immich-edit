@@ -1,6 +1,13 @@
-import type { CropRect } from '../types/edits';
+import type { CropRect, GeometryEdits } from '../types/edits';
+import type { PreviewMeta } from '../types/preview';
 import { rotatedBbox, degToRad, type Size } from './geom';
-import { IDENTITY_MAT3, mat3Apply, type Mat3 } from './perspective';
+import {
+  IDENTITY_MAT3,
+  mat3Apply,
+  perspectiveForward,
+  perspectiveInverse,
+  type Mat3
+} from './perspective';
 
 export type RotateQuarter = 0 | 90 | 180 | 270;
 
@@ -16,6 +23,27 @@ export interface GeometryTransform {
   perspectiveInverse: Mat3;
   outputW: number;
   outputH: number;
+}
+
+export function geometryTransformFrom(
+  g: GeometryEdits,
+  meta: PreviewMeta | null
+): GeometryTransform {
+  const sw = meta?.source_w ?? 1;
+  const sh = meta?.source_h ?? 1;
+  return {
+    inputW: sw,
+    inputH: sh,
+    rotateQuarter: g.rotate as RotateQuarter,
+    flipH: g.flip_h,
+    flipV: g.flip_v,
+    angleDeg: g.rotate_angle,
+    crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+    perspectiveForward: perspectiveForward(g.perspective),
+    perspectiveInverse: perspectiveInverse(g.perspective),
+    outputW: meta?.width ?? sw,
+    outputH: meta?.height ?? sh
+  };
 }
 
 export function geometryIsIdentity(t: GeometryTransform): boolean {

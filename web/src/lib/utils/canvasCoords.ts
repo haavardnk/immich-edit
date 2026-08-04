@@ -10,11 +10,10 @@ import {
 import {
   displayUvToMaskUv,
   geometryIsIdentity,
+  geometryTransformFrom,
   maskUvToDisplayUv,
-  type GeometryTransform,
-  type RotateQuarter
+  type GeometryTransform
 } from '$lib/utils/geomTransform';
-import { perspectiveForward, perspectiveInverse } from '$lib/utils/perspective';
 
 export interface ViewTransform {
   geom: GeometryTransform;
@@ -22,23 +21,10 @@ export interface ViewTransform {
 }
 
 export function viewTransform(edits: Edits, meta: PreviewMeta | null): ViewTransform {
-  const g = edits.geometry;
   const sw = meta?.source_w ?? 1;
   const sh = meta?.source_h ?? 1;
   return {
-    geom: {
-      inputW: sw,
-      inputH: sh,
-      rotateQuarter: g.rotate as RotateQuarter,
-      flipH: g.flip_h,
-      flipV: g.flip_v,
-      angleDeg: g.rotate_angle,
-      crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
-      perspectiveForward: perspectiveForward(g.perspective),
-      perspectiveInverse: perspectiveInverse(g.perspective),
-      outputW: meta?.width ?? sw,
-      outputH: meta?.height ?? sh
-    },
+    geom: geometryTransformFrom(edits.geometry, meta),
     lens: lensWarpFromEdits(edits.lens, sw, sh)
   };
 }

@@ -3,8 +3,8 @@ import {
   degToRad,
   rotatedBbox,
   aspectRatioFor,
-  pointInRotatedSource,
-  cropRectInsideRotatedSource,
+  pointInWarpedSource,
+  cropRectInsideWarpedSource,
   largestInscribedRect,
   refitCropAtAspect,
   constrainCropRect
@@ -59,33 +59,33 @@ describe('aspectRatioFor', () => {
   });
 });
 
-describe('pointInRotatedSource', () => {
+describe('pointInWarpedSource', () => {
   it('accepts the center point', () => {
     const b = rotatedBbox(100, 60, 30);
-    expect(pointInRotatedSource({ x: b.w / 2, y: b.h / 2 }, 100, 60, 30)).toBe(true);
+    expect(pointInWarpedSource({ x: b.w / 2, y: b.h / 2 }, 100, 60, 30)).toBe(true);
   });
 
   it('rejects a far corner of the bbox at an angle', () => {
     const b = rotatedBbox(100, 60, 30);
-    expect(pointInRotatedSource({ x: 0, y: 0 }, 100, 60, 30)).toBe(false);
+    expect(pointInWarpedSource({ x: 0, y: 0 }, 100, 60, 30)).toBe(false);
     expect(b.w).toBeGreaterThan(100);
   });
 });
 
-describe('cropRectInsideRotatedSource', () => {
+describe('cropRectInsideWarpedSource', () => {
   it('accepts the full crop at angle 0', () => {
-    expect(cropRectInsideRotatedSource(FULL_CROP, 100, 60, 0)).toBe(true);
+    expect(cropRectInsideWarpedSource(FULL_CROP, 100, 60, 0)).toBe(true);
   });
 
   it('rejects the full crop once rotated', () => {
-    expect(cropRectInsideRotatedSource(FULL_CROP, 100, 60, 20)).toBe(false);
+    expect(cropRectInsideWarpedSource(FULL_CROP, 100, 60, 20)).toBe(false);
   });
 });
 
 describe('largestInscribedRect', () => {
   it('fits inside the rotated source', () => {
     const rect = largestInscribedRect(100, 60, 15, 100 / 60);
-    expect(cropRectInsideRotatedSource(rect, 100, 60, 15)).toBe(true);
+    expect(cropRectInsideWarpedSource(rect, 100, 60, 15)).toBe(true);
   });
 
   it('matches the requested aspect ratio', () => {
@@ -107,7 +107,7 @@ describe('refitCropAtAspect', () => {
   it('produces a crop inside the rotated source', () => {
     const prev: CropRect = { x: 0.3, y: 0.3, w: 0.4, h: 0.4 };
     const rect = refitCropAtAspect(prev, 100, 60, 12, 1);
-    expect(cropRectInsideRotatedSource(rect, 100, 60, 12)).toBe(true);
+    expect(cropRectInsideWarpedSource(rect, 100, 60, 12)).toBe(true);
   });
 });
 
@@ -128,6 +128,6 @@ describe('constrainCropRect', () => {
   it('returns a valid crop when rotation invalidates the candidate', () => {
     const candidate: CropRect = { x: 0, y: 0, w: 1, h: 1 };
     const out = constrainCropRect(candidate, null, 100, 60, 20);
-    expect(cropRectInsideRotatedSource(out, 100, 60, 20)).toBe(true);
+    expect(cropRectInsideWarpedSource(out, 100, 60, 20)).toBe(true);
   });
 });

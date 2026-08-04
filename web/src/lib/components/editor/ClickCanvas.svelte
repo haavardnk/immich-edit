@@ -9,10 +9,9 @@
   } from '$lib/utils/lensWarp';
   import {
     displayUvToMaskUv,
-    type GeometryTransform,
-    type RotateQuarter
+    geometryTransformFrom,
+    type GeometryTransform
   } from '$lib/utils/geomTransform';
-  import { perspectiveForward, perspectiveInverse } from '$lib/utils/perspective';
 
   let {
     img
@@ -78,26 +77,9 @@
     return () => cancelAnimationFrame(id);
   });
 
-  const geomT = $derived.by<GeometryTransform>(() => {
-    const g = editor.edits.geometry;
-    const sw = editor.meta?.source_w ?? 1;
-    const sh = editor.meta?.source_h ?? 1;
-    const dw = editor.meta?.width ?? sw;
-    const dh = editor.meta?.height ?? sh;
-    return {
-      inputW: sw,
-      inputH: sh,
-      rotateQuarter: g.rotate as RotateQuarter,
-      flipH: g.flip_h,
-      flipV: g.flip_v,
-      angleDeg: g.rotate_angle,
-      crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
-      perspectiveForward: perspectiveForward(g.perspective),
-      perspectiveInverse: perspectiveInverse(g.perspective),
-      outputW: dw,
-      outputH: dh
-    };
-  });
+  const geomT = $derived.by<GeometryTransform>(() =>
+    geometryTransformFrom(editor.edits.geometry, editor.meta)
+  );
 
   const lensP = $derived.by<LensWarpParams>(() =>
     lensWarpFromEdits(editor.edits.lens, editor.meta?.source_w ?? 1, editor.meta?.source_h ?? 1)
