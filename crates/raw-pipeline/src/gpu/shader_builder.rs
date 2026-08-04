@@ -7,6 +7,8 @@ pub const ACTIVE_MASK_OFFSET: usize = 64;
 pub const OUTPUT_UNIFORM_OFFSET: usize = 112;
 pub const MAX_OPS: u32 = 128;
 
+pub const GEOMETRY_WGSL: &str = include_str!("../../assets/shaders/geometry.wgsl");
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StageMask(u8);
 
@@ -118,6 +120,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let process_chain = build_process_chain(mask);
     let tone_wgsl = crate::tone::wgsl::tone_wgsl();
     let prelude = include_str!("../../assets/shaders/ops/prelude.wgsl");
+    let geometry_wgsl = GEOMETRY_WGSL;
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -149,6 +152,8 @@ fn is_active(bit: u32) -> bool {{
 
 {tone_wgsl}
 
+{geometry_wgsl}
+
 {prelude}
 {functions}
 fn apply_wb_stage(c: vec3<f32>) -> vec3<f32> {{
@@ -176,34 +181,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let ow = f32(p.out_size.x);
     let oh = f32(p.out_size.y);
-    var u = (f32(gid.x) + 0.5) / ow;
-    var v = (f32(gid.y) + 0.5) / oh;
+    let disp_uv = vec2<f32>((f32(gid.x) + 0.5) / ow, (f32(gid.y) + 0.5) / oh);
 
-    let bx_rel = p.crop.x + u * p.crop.z;
-    let by_rel = p.crop.y + v * p.crop.w;
-    let cx_px = (bx_rel - 0.5) * p.geom_extra2.z;
-    let cy_px = (by_rel - 0.5) * p.geom_extra2.w;
-    let sx_px = cx_px * p.geom_extra2.x + cy_px * p.geom_extra2.y;
-    let sy_px = -cx_px * p.geom_extra2.y + cy_px * p.geom_extra2.x;
-    u = sx_px / p.geom_extra3.x + 0.5;
-    v = sy_px / p.geom_extra3.y + 0.5;
-
-    let rot = p.flags.x;
-    let flip_h = p.flags.y;
-    let flip_v = p.flags.z;
-
-    var cu = u;
-    var cv = v;
-
-    if (flip_h == 1u) {{ cu = 1.0 - cu; }}
-    if (flip_v == 1u) {{ cv = 1.0 - cv; }}
-
-    var su: f32;
-    var sv: f32;
-    if (rot == 90u) {{ su = cv; sv = 1.0 - cu; }}
-    else if (rot == 180u) {{ su = 1.0 - cu; sv = 1.0 - cv; }}
-    else if (rot == 270u) {{ su = 1.0 - cv; sv = cu; }}
-    else {{ su = cu; sv = cv; }}
+    let oriented_uv = geom_display_to_oriented(p.crop, p.geom_extra2, p.geom_extra3, disp_uv);
+    let src_uv = geom_ortho_inverse(p.flags, oriented_uv);
+    var su = src_uv.x;
+    var sv = src_uv.y;
 
     let orient = p.flags.w;
     let oh_h = (orient & 1u) != 0u;

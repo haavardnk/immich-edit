@@ -196,24 +196,55 @@ fn ortho_inverse(rot: u16, flip_h: bool, flip_v: bool, u: f32, v: f32) -> (f32, 
     }
 }
 
+pub fn display_uv_to_oriented_uv(
+    crop: CropRect,
+    bbox: Size,
+    ow: f32,
+    oh: f32,
+    angle_deg: f32,
+    uv: [f32; 2],
+) -> [f32; 2] {
+    let a = deg_to_rad(angle_deg);
+    let cos_a = a.cos();
+    let sin_a = a.sin();
+    let bx_rel = crop.x + uv[0] * crop.w;
+    let by_rel = crop.y + uv[1] * crop.h;
+    let cx_px = (bx_rel - 0.5) * bbox.w;
+    let cy_px = (by_rel - 0.5) * bbox.h;
+    let sx_px = cx_px * cos_a + cy_px * sin_a;
+    let sy_px = -cx_px * sin_a + cy_px * cos_a;
+    [sx_px / ow + 0.5, sy_px / oh + 0.5]
+}
+
+pub fn oriented_uv_to_display_uv(
+    crop: CropRect,
+    bbox: Size,
+    ow: f32,
+    oh: f32,
+    angle_deg: f32,
+    uv: [f32; 2],
+) -> [f32; 2] {
+    let a = deg_to_rad(angle_deg);
+    let cos_a = a.cos();
+    let sin_a = a.sin();
+    let sx_px = (uv[0] - 0.5) * ow;
+    let sy_px = (uv[1] - 0.5) * oh;
+    let cx_px = sx_px * cos_a - sy_px * sin_a;
+    let cy_px = sx_px * sin_a + sy_px * cos_a;
+    let bx_rel = cx_px / bbox.w + 0.5;
+    let by_rel = cy_px / bbox.h + 0.5;
+    let crop_w = crop.w.max(1e-9);
+    let crop_h = crop.h.max(1e-9);
+    [(bx_rel - crop.x) / crop_w, (by_rel - crop.y) / crop_h]
+}
+
 pub fn display_uv_to_mask_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
     if t.is_identity() {
         return uv;
     }
     let (ow, oh) = t.oriented_size();
-    let bbox = t.bbox();
-    let a = deg_to_rad(t.angle_deg);
-    let cos_a = a.cos();
-    let sin_a = a.sin();
-    let bx_rel = t.crop.x + uv[0] * t.crop.w;
-    let by_rel = t.crop.y + uv[1] * t.crop.h;
-    let cx_px = (bx_rel - 0.5) * bbox.w;
-    let cy_px = (by_rel - 0.5) * bbox.h;
-    let sx_px = cx_px * cos_a + cy_px * sin_a;
-    let sy_px = -cx_px * sin_a + cy_px * cos_a;
-    let u_o = sx_px / ow as f32 + 0.5;
-    let v_o = sy_px / oh as f32 + 0.5;
-    let (mu, mv) = ortho_inverse(t.rotate_quarter, t.flip_h, t.flip_v, u_o, v_o);
+    let o = display_uv_to_oriented_uv(t.crop, t.bbox(), ow as f32, oh as f32, t.angle_deg, uv);
+    let (mu, mv) = ortho_inverse(t.rotate_quarter, t.flip_h, t.flip_v, o[0], o[1]);
     [mu, mv]
 }
 
@@ -222,20 +253,15 @@ pub fn mask_uv_to_display_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
         return uv;
     }
     let (ow, oh) = t.oriented_size();
-    let bbox = t.bbox();
-    let a = deg_to_rad(t.angle_deg);
-    let cos_a = a.cos();
-    let sin_a = a.sin();
     let (u_o, v_o) = ortho_forward(t.rotate_quarter, t.flip_h, t.flip_v, uv[0], uv[1]);
-    let sx_px = (u_o - 0.5) * ow as f32;
-    let sy_px = (v_o - 0.5) * oh as f32;
-    let cx_px = sx_px * cos_a - sy_px * sin_a;
-    let cy_px = sx_px * sin_a + sy_px * cos_a;
-    let bx_rel = cx_px / bbox.w + 0.5;
-    let by_rel = cy_px / bbox.h + 0.5;
-    let crop_w = t.crop.w.max(1e-9);
-    let crop_h = t.crop.h.max(1e-9);
-    [(bx_rel - t.crop.x) / crop_w, (by_rel - t.crop.y) / crop_h]
+    oriented_uv_to_display_uv(
+        t.crop,
+        t.bbox(),
+        ow as f32,
+        oh as f32,
+        t.angle_deg,
+        [u_o, v_o],
+    )
 }
 
 #[cfg(test)]

@@ -112,13 +112,8 @@ impl Op for TransformOp {
         let angle = g.rotate_angle;
         let crop = g.crop.unwrap_or(CropRect::full());
         let bbox = geom::rotated_bbox(sw, sh, angle);
-        let bw = bbox.w;
-        let bh = bbox.h;
-        let out_w = (crop.w * bw).round().max(1.0) as usize;
-        let out_h = (crop.h * bh).round().max(1.0) as usize;
-        let a = geom::deg_to_rad(angle);
-        let cos_a = a.cos();
-        let sin_a = a.sin();
+        let out_w = (crop.w * bbox.w).round().max(1.0) as usize;
+        let out_h = (crop.h * bbox.h).round().max(1.0) as usize;
         let src = &image.rgb;
         let src_w = image.width;
         let src_h = image.height;
@@ -129,14 +124,9 @@ impl Op for TransformOp {
                 let v = (oy as f32 + 0.5) / out_h as f32;
                 for ox in 0..out_w {
                     let u = (ox as f32 + 0.5) / out_w as f32;
-                    let bx_rel = crop.x + u * crop.w;
-                    let by_rel = crop.y + v * crop.h;
-                    let cx = (bx_rel - 0.5) * bw;
-                    let cy = (by_rel - 0.5) * bh;
-                    let sx = cx * cos_a + cy * sin_a;
-                    let sy = -cx * sin_a + cy * cos_a;
-                    let fx = sx + sw / 2.0 - 0.5;
-                    let fy = sy + sh / 2.0 - 0.5;
+                    let o = geom::display_uv_to_oriented_uv(crop, bbox, sw, sh, angle, [u, v]);
+                    let fx = o[0] * sw - 0.5;
+                    let fy = o[1] * sh - 0.5;
                     let d = ox * 3;
                     if fx < 0.0 || fy < 0.0 || fx > (src_w - 1) as f32 || fy > (src_h - 1) as f32 {
                         row[d] = 0.0;

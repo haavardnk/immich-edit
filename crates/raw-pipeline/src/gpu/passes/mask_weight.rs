@@ -132,27 +132,10 @@ fn polygon_weight(offset: u32, count: u32, uv: vec2<f32>, feather: f32) -> f32 {
 }
 
 fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
-    let bx_rel = p.crop.x + disp_u * p.crop.z;
-    let by_rel = p.crop.y + disp_v * p.crop.w;
-    let cx_px = (bx_rel - 0.5) * p.geom_extra2.z;
-    let cy_px = (by_rel - 0.5) * p.geom_extra2.w;
-    let sx_px = cx_px * p.geom_extra2.x + cy_px * p.geom_extra2.y;
-    let sy_px = -cx_px * p.geom_extra2.y + cy_px * p.geom_extra2.x;
-    let u = sx_px / p.geom_extra3.x + 0.5;
-    let v = sy_px / p.geom_extra3.y + 0.5;
-    let rot = p.flags.x;
-    let flip_h = p.flags.y;
-    let flip_v = p.flags.z;
-    var cu = u;
-    var cv = v;
-    if (flip_h == 1u) { cu = 1.0 - cu; }
-    if (flip_v == 1u) { cv = 1.0 - cv; }
-    var mu: f32;
-    var mv: f32;
-    if (rot == 90u) { mu = cv; mv = 1.0 - cu; }
-    else if (rot == 180u) { mu = 1.0 - cu; mv = 1.0 - cv; }
-    else if (rot == 270u) { mu = 1.0 - cv; mv = cu; }
-    else { mu = cu; mv = cv; }
+    let oriented = geom_display_to_oriented(p.crop, p.geom_extra2, p.geom_extra3, vec2<f32>(disp_u, disp_v));
+    let m = geom_ortho_inverse(p.flags, oriented);
+    let mu = m.x;
+    let mv = m.y;
     let k1 = p.lens.x;
     let k2 = p.lens.y;
     let k3 = p.lens.z;
@@ -269,7 +252,8 @@ impl MaskWeightPass {
                 storage_buffer_entry(6),
             ],
         );
-        let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", SHADER);
+        let source = format!("{}\n{}", crate::gpu::shader_builder::GEOMETRY_WGSL, SHADER);
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", &source);
         Self { layout, pipeline }
     }
 }
