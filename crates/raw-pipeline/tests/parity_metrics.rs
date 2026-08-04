@@ -531,7 +531,7 @@ fn make_huesat_profile() -> raw_pipeline::DcpProfile {
 
 #[test]
 fn gpu_vs_cpu_parity_with_dcp_huesat() {
-    run_dcp_parity(make_huesat_profile());
+    run_dcp_parity(make_huesat_profile(), false);
 }
 
 #[test]
@@ -544,7 +544,7 @@ fn gpu_vs_cpu_parity_with_dcp_tone() {
         [0.75, 0.84],
         [1.0, 1.0],
     ]));
-    run_dcp_parity(profile);
+    run_dcp_parity(profile, false);
 }
 
 #[test]
@@ -561,10 +561,15 @@ fn gpu_vs_cpu_parity_with_dcp_look() {
         encoding: HsvEncoding::Srgb,
         data: vec![[-8.0, 1.1, 0.97]; (hue * sat * val) as usize],
     }));
-    run_dcp_parity(profile);
+    run_dcp_parity(profile, false);
 }
 
-fn run_dcp_parity(profile: raw_pipeline::DcpProfile) {
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_presence() {
+    run_dcp_parity(make_huesat_profile(), true);
+}
+
+fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
     use raw_pipeline::edits::DcpMode;
     use std::sync::Arc;
 
@@ -584,6 +589,12 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile) {
     let mut edits = Edits::default();
     edits.color.dcp.mode = DcpMode::Profile;
     edits.color.dcp.profile_id = Some("test".to_string());
+    if presence {
+        edits.detail.luma_nr_amount = 55.0;
+        edits.detail.luma_nr_detail = 40.0;
+        edits.detail.color_nr_amount = 60.0;
+        edits.detail.color_nr_smoothness = 60.0;
+    }
 
     let mut failed: Vec<String> = Vec::new();
     let mut decoded = 0;

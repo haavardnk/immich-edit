@@ -1282,7 +1282,8 @@ impl GpuRenderer {
                 Ok(out)
             }
             RenderPlan::Presence => {
-                let wb_base = self.run_wb_prepare(&cached, frame, &edits_c)?;
+                let setup = crate::dcp_pipeline::resolve(frame, &edits_c, options.dcp.as_deref());
+                let wb_base = self.run_wb_prepare(&cached, frame, &edits_c, &setup)?;
                 crate::cancel::check(cancel)?;
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
                 let src_max = dims.0.max(dims.1);
@@ -1309,7 +1310,8 @@ impl GpuRenderer {
                 };
                 let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
                 {
-                    let t = self.run_nr(&wb_base, spatial_dims, &edits_c, frame)?;
+                    let t =
+                        self.run_nr(&wb_base, spatial_dims, &edits_c, frame, setup.cam_to_srgb)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
                 } else {
@@ -1511,7 +1513,12 @@ fn atmosphere_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u6
     h.finish()
 }
 
-fn wb_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
+fn wb_cache_key(
+    frame: &RawFrame,
+    edits: &Edits,
+    dims: (u32, u32),
+    cam_to_srgb: [[f32; 3]; 3],
+) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     GpuRenderer::frame_key(frame).hash(&mut h);
@@ -1519,15 +1526,25 @@ fn wb_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
     dims.1.hash(&mut h);
     edits.basic.wb_temp.to_bits().hash(&mut h);
     edits.basic.wb_tint.to_bits().hash(&mut h);
+    for row in cam_to_srgb {
+        for v in row {
+            v.to_bits().hash(&mut h);
+        }
+    }
     let lens_json = serde_json::to_vec(&edits.lens).unwrap_or_default();
     lens_json.hash(&mut h);
     h.finish()
 }
 
-fn nr_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
+fn nr_cache_key(
+    frame: &RawFrame,
+    edits: &Edits,
+    dims: (u32, u32),
+    cam_to_srgb: [[f32; 3]; 3],
+) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
-    wb_cache_key(frame, edits, dims).hash(&mut h);
+    wb_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
     let d = &edits.detail;
     d.luma_nr_amount.to_bits().hash(&mut h);
     d.luma_nr_detail.to_bits().hash(&mut h);

@@ -27,8 +27,9 @@ impl GpuRenderer {
         dims: (u32, u32),
         edits: &Edits,
         frame: &RawFrame,
+        cam_to_srgb: [[f32; 3]; 3],
     ) -> PipelineResult<Arc<Texture>> {
-        let key = nr_cache_key(frame, edits, dims);
+        let key = nr_cache_key(frame, edits, dims, cam_to_srgb);
         if let Some(t) = self.nr_cache.lock().get(&key).cloned() {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
@@ -905,8 +906,14 @@ impl GpuRenderer {
         cached: &CachedFrame,
         frame: &RawFrame,
         edits: &Edits,
+        setup: &crate::dcp_pipeline::DcpSetup,
     ) -> PipelineResult<Arc<Texture>> {
-        let key = wb_cache_key(frame, edits, (cached.width, cached.height));
+        let key = wb_cache_key(
+            frame,
+            edits,
+            (cached.width, cached.height),
+            setup.cam_to_srgb,
+        );
         if let Some(t) = self.wb_cache.lock().get(&key).cloned() {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);
@@ -918,25 +925,13 @@ impl GpuRenderer {
         let w = cached.width;
         let h = cached.height;
 
-        let xyz_to_cam = crate::color::resolve_xyz_to_cam(
-            &frame.color_matrices,
-            frame.wb_coeffs,
-            frame.xyz_to_cam,
-        );
-        let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
-            let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
-            let gain = crate::auto::raw_baseline_gain(frame, m);
-            crate::auto::scale_matrix(m, gain)
-        } else {
-            crate::color::identity_3x3()
-        };
         let ctx_op = OpContext {
             render: RenderContext {
                 wb_coeffs: frame.wb_coeffs,
-                cam_to_srgb,
+                cam_to_srgb: setup.cam_to_srgb,
                 is_raw: frame.is_raw,
                 preview_mode: crate::frame::PreviewMode::None,
-                dcp: None,
+                dcp: setup.resolved.clone(),
             },
             scratch: OpScratch::default(),
         };
