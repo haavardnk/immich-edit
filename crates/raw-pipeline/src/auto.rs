@@ -304,6 +304,8 @@ fn geometry_transform(
         flip_v: g.flip_v,
         angle_deg: g.rotate_angle,
         crop,
+        perspective_forward: g.perspective_forward(),
+        perspective_inverse: g.perspective_inverse(),
         output_w: oriented_w,
         output_h: oriented_h,
     };

@@ -2,9 +2,10 @@ use std::fmt::Write;
 
 use crate::ops::{OpRegistry, Stage};
 
-pub const HEADER_BYTES: usize = 128;
+pub const HEADER_BYTES: usize = 176;
 pub const ACTIVE_MASK_OFFSET: usize = 64;
 pub const OUTPUT_UNIFORM_OFFSET: usize = 112;
+pub const PERSPECTIVE_UNIFORM_OFFSET: usize = 128;
 pub const MAX_OPS: u32 = 128;
 
 pub const GEOMETRY_WGSL: &str = include_str!("../../assets/shaders/geometry.wgsl");
@@ -133,6 +134,9 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
     output: vec4<u32>,
+    persp0: vec4<f32>,
+    persp1: vec4<f32>,
+    persp2: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
@@ -183,7 +187,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let oh = f32(p.out_size.y);
     let disp_uv = vec2<f32>((f32(gid.x) + 0.5) / ow, (f32(gid.y) + 0.5) / oh);
 
-    let oriented_uv = geom_display_to_oriented(p.crop, p.geom_extra2, p.geom_extra3, disp_uv);
+    let oriented_uv = geom_display_to_oriented(
+        p.crop,
+        p.geom_extra2,
+        p.geom_extra3,
+        p.persp0,
+        p.persp1,
+        p.persp2,
+        disp_uv,
+    );
     let src_uv = geom_ortho_inverse(p.flags, oriented_uv);
     var su = src_uv.x;
     var sv = src_uv.y;
@@ -273,6 +285,9 @@ pub fn build_prepare_wb(registry: &OpRegistry) -> BuiltProcessShader {
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
     output: vec4<u32>,
+    persp0: vec4<f32>,
+    persp1: vec4<f32>,
+    persp2: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;

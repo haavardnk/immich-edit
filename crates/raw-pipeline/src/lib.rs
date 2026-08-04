@@ -18,6 +18,7 @@ pub mod lut;
 pub mod mask_raster;
 pub mod math;
 pub mod ops;
+pub mod perspective;
 pub mod presence;
 pub mod tone;
 

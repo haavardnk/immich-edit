@@ -6,6 +6,7 @@ use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
 use crate::geom;
+use crate::perspective::PerspectiveEdits;
 
 pub struct TransformOp;
 
@@ -19,7 +20,13 @@ impl Op for TransformOp {
     fn is_active(&self, edits: &Edits) -> bool {
         let g = &edits.geometry;
         let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
-        g.rotate != 0 || g.flip_h || g.flip_v || g.rotate_angle.abs() > 1e-4 || crop_active
+        let persp_active = g.perspective.map(|p| !p.is_identity()).unwrap_or(false);
+        g.rotate != 0
+            || g.flip_h
+            || g.flip_v
+            || g.rotate_angle.abs() > 1e-4
+            || crop_active
+            || persp_active
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let g = &edits.geometry;
@@ -28,7 +35,14 @@ impl Op for TransformOp {
         let aspect_active = !matches!(g.aspect, AspectLock::Original);
         let rotate_active = g.rotate != 0;
         let flip_active = g.flip_h || g.flip_v;
-        if !crop_active && !angle_active && !aspect_active && !rotate_active && !flip_active {
+        let persp_active = g.perspective.map(|p| !p.is_identity()).unwrap_or(false);
+        if !crop_active
+            && !angle_active
+            && !aspect_active
+            && !rotate_active
+            && !flip_active
+            && !persp_active
+        {
             return None;
         }
         let mut obj = serde_json::Map::new();
@@ -51,6 +65,12 @@ impl Op for TransformOp {
             );
         }
         obj.insert("aspect".into(), serde_json::to_value(g.aspect).ok()?);
+        if persp_active {
+            obj.insert(
+                "perspective".into(),
+                serde_json::to_value(g.perspective?).ok()?,
+            );
+        }
         Some(serde_json::Value::Object(obj))
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
@@ -78,6 +98,12 @@ impl Op for TransformOp {
                 edits.geometry.aspect = v;
             }
         }
+        if let Some(p) = value.get("perspective") {
+            if let Ok(v) = serde_json::from_value::<PerspectiveEdits>(p.clone()) {
+                let clamped = v.clamped();
+                edits.geometry.perspective = (!clamped.is_identity()).then_some(clamped);
+            }
+        }
     }
     fn apply_cpu(
         &self,
@@ -103,7 +129,9 @@ impl Op for TransformOp {
 
         let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
         let angle_active = g.rotate_angle.abs() > 1e-4;
-        if !crop_active && !angle_active {
+        let persp_inv = g.perspective_inverse();
+        let persp_active = persp_inv != crate::perspective::IDENTITY;
+        if !crop_active && !angle_active && !persp_active {
             return Ok(());
         }
 
@@ -124,7 +152,15 @@ impl Op for TransformOp {
                 let v = (oy as f32 + 0.5) / out_h as f32;
                 for ox in 0..out_w {
                     let u = (ox as f32 + 0.5) / out_w as f32;
-                    let o = geom::display_uv_to_oriented_uv(crop, bbox, sw, sh, angle, [u, v]);
+                    let o = geom::display_uv_to_oriented_uv(
+                        crop,
+                        bbox,
+                        sw,
+                        sh,
+                        angle,
+                        &persp_inv,
+                        [u, v],
+                    );
                     let fx = o[0] * sw - 0.5;
                     let fy = o[1] * sh - 0.5;
                     let d = ox * 3;

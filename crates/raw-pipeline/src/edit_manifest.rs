@@ -183,6 +183,12 @@ mod tests {
                 flip_v: false,
                 crop: None,
                 aspect: Default::default(),
+                perspective: Some(crate::perspective::PerspectiveEdits {
+                    vertical: 25.0,
+                    horizontal: -10.0,
+                    scale: 110.0,
+                    ..Default::default()
+                }),
             },
             masks: Vec::new(),
             retouch: Vec::new(),

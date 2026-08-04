@@ -18,7 +18,7 @@ use super::common::{
 pub const COMPONENT_BYTES: usize = 48;
 pub const MAX_COMPONENTS: usize = 32;
 pub const MAX_COMPONENTS_BYTES: usize = COMPONENT_BYTES * MAX_COMPONENTS;
-pub const PARAMS_BYTES: usize = 96;
+pub const PARAMS_BYTES: usize = 144;
 pub const ATLAS_DIM: u32 = 1024;
 pub const ATLAS_LAYERS: u32 = 16;
 pub const MAX_POLY_VERTS: usize = MAX_COMPONENTS * crate::edits::N_MAX_POLYGON_POINTS;
@@ -33,6 +33,9 @@ struct MaskParams {
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
     lens: vec4<f32>,
+    persp0: vec4<f32>,
+    persp1: vec4<f32>,
+    persp2: vec4<f32>,
 };
 
 struct Component {
@@ -132,7 +135,15 @@ fn polygon_weight(offset: u32, count: u32, uv: vec2<f32>, feather: f32) -> f32 {
 }
 
 fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
-    let oriented = geom_display_to_oriented(p.crop, p.geom_extra2, p.geom_extra3, vec2<f32>(disp_u, disp_v));
+    let oriented = geom_display_to_oriented(
+        p.crop,
+        p.geom_extra2,
+        p.geom_extra3,
+        p.persp0,
+        p.persp1,
+        p.persp2,
+        vec2<f32>(disp_u, disp_v),
+    );
     let m = geom_ortho_inverse(p.flags, oriented);
     let mu = m.x;
     let mv = m.y;
@@ -398,6 +409,7 @@ pub fn pack_params(
     geom_extra2: [f32; 4],
     geom_extra3: [f32; 4],
     lens: [f32; 4],
+    perspective: [f32; 12],
 ) -> [u8; PARAMS_BYTES] {
     let mut buf = [0u8; PARAMS_BYTES];
     buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
@@ -409,5 +421,6 @@ pub fn pack_params(
     buf[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
     buf[64..80].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
     buf[80..96].copy_from_slice(bytemuck::cast_slice(&lens));
+    buf[96..144].copy_from_slice(bytemuck::cast_slice(&perspective));
     buf
 }

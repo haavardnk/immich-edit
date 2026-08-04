@@ -336,6 +336,32 @@ fn gpu_matches_cpu_within_tolerance() {
             },
         ),
         (
+            "perspective+rotate+crop",
+            2.5,
+            Edits {
+                geometry: GeometryEdits {
+                    rotate_angle: 6.0,
+                    crop: Some(CropRect {
+                        x: 0.12,
+                        y: 0.12,
+                        w: 0.7,
+                        h: 0.7,
+                    }),
+                    perspective: Some(raw_pipeline::perspective::PerspectiveEdits {
+                        vertical: 45.0,
+                        horizontal: -20.0,
+                        aspect: 15.0,
+                        scale: 110.0,
+                        offset_x: 5.0,
+                        offset_y: -8.0,
+                        corners: None,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
             "per_channel_curves",
             2.0,
             Edits {

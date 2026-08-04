@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::perspective::PerspectiveEdits;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CropRect {
     pub x: f32,
@@ -60,6 +62,8 @@ pub struct GeometryEdits {
     pub crop: Option<CropRect>,
     #[serde(default)]
     pub aspect: AspectLock,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<PerspectiveEdits>,
 }
 
 impl GeometryEdits {
@@ -74,6 +78,19 @@ impl GeometryEdits {
             flip_v: self.flip_v,
             crop: self.crop.map(|c| c.clamped()),
             aspect: self.aspect,
+            perspective: self.perspective.map(|p| p.clamped()),
         }
+    }
+
+    pub fn perspective_forward(&self) -> crate::perspective::Mat3 {
+        self.perspective
+            .map(|p| p.forward())
+            .unwrap_or(crate::perspective::IDENTITY)
+    }
+
+    pub fn perspective_inverse(&self) -> crate::perspective::Mat3 {
+        self.perspective
+            .map(|p| p.inverse())
+            .unwrap_or(crate::perspective::IDENTITY)
     }
 }

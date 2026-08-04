@@ -1,4 +1,6 @@
-use crate::gpu::shader_builder::{ACTIVE_MASK_OFFSET, OUTPUT_UNIFORM_OFFSET};
+use crate::gpu::shader_builder::{
+    ACTIVE_MASK_OFFSET, OUTPUT_UNIFORM_OFFSET, PERSPECTIVE_UNIFORM_OFFSET,
+};
 
 pub(super) const ACTIVE_MASK_WORDS: usize = 4;
 
@@ -13,6 +15,7 @@ pub(super) fn write_header(
     geom_extra2: [f32; 4],
     geom_extra3: [f32; 4],
     output: [u32; 4],
+    perspective: [f32; 12],
 ) {
     dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
     dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
@@ -23,6 +26,8 @@ pub(super) fn write_header(
     dst[96..112].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
     dst[OUTPUT_UNIFORM_OFFSET..OUTPUT_UNIFORM_OFFSET + 16]
         .copy_from_slice(bytemuck::cast_slice(&output));
+    dst[PERSPECTIVE_UNIFORM_OFFSET..PERSPECTIVE_UNIFORM_OFFSET + 48]
+        .copy_from_slice(bytemuck::cast_slice(&perspective));
 }
 
 pub(super) fn write_active_mask(dst: &mut [u8], mask: [u32; ACTIVE_MASK_WORDS]) {

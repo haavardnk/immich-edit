@@ -1,4 +1,5 @@
 use crate::edits::{AspectLock, CropRect};
+use crate::perspective::{IDENTITY, Mat3, mat3_apply};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Size {
@@ -56,23 +57,35 @@ pub fn aspect_ratio_for(aspect: AspectLock, sw: f32, sh: f32) -> Option<f32> {
     }
 }
 
-pub fn point_in_rotated_source(p: Point, sw: f32, sh: f32, angle_deg: f32) -> bool {
+pub fn point_in_warped_source(
+    p: Point,
+    sw: f32,
+    sh: f32,
+    angle_deg: f32,
+    persp_inv: &Mat3,
+) -> bool {
     let bbox = rotated_bbox(sw, sh, angle_deg);
-    let a = deg_to_rad(angle_deg);
-    let c = a.cos();
-    let s = a.sin();
-    let cx = bbox.w / 2.0;
-    let cy = bbox.h / 2.0;
-    let dx = p.x - cx;
-    let dy = p.y - cy;
-    let ux = dx * c + dy * s;
-    let uy = -dx * s + dy * c;
-    let hw = sw / 2.0;
-    let hh = sh / 2.0;
-    ux.abs() <= hw + 1e-3 && uy.abs() <= hh + 1e-3
+    let uv = display_uv_to_oriented_uv(
+        CropRect::full(),
+        bbox,
+        sw,
+        sh,
+        angle_deg,
+        persp_inv,
+        [p.x / bbox.w, p.y / bbox.h],
+    );
+    let eps_u = 1e-3 / sw;
+    let eps_v = 1e-3 / sh;
+    uv[0] >= -eps_u && uv[0] <= 1.0 + eps_u && uv[1] >= -eps_v && uv[1] <= 1.0 + eps_v
 }
 
-pub fn crop_rect_inside_rotated_source(rect: CropRect, sw: f32, sh: f32, angle_deg: f32) -> bool {
+pub fn crop_rect_inside_warped_source(
+    rect: CropRect,
+    sw: f32,
+    sh: f32,
+    angle_deg: f32,
+    persp_inv: &Mat3,
+) -> bool {
     let bbox = rotated_bbox(sw, sh, angle_deg);
     let x0 = rect.x * bbox.w;
     let y0 = rect.y * bbox.h;
@@ -86,10 +99,16 @@ pub fn crop_rect_inside_rotated_source(rect: CropRect, sw: f32, sh: f32, angle_d
     ];
     corners
         .iter()
-        .all(|p| point_in_rotated_source(*p, sw, sh, angle_deg))
+        .all(|p| point_in_warped_source(*p, sw, sh, angle_deg, persp_inv))
 }
 
-pub fn largest_inscribed_rect(sw: f32, sh: f32, angle_deg: f32, aspect: f32) -> CropRect {
+pub fn largest_inscribed_rect(
+    sw: f32,
+    sh: f32,
+    angle_deg: f32,
+    aspect: f32,
+    persp_inv: &Mat3,
+) -> CropRect {
     let bbox = rotated_bbox(sw, sh, angle_deg);
     let target_aspect = aspect.max(1e-6);
     let bbox_aspect = bbox.w / bbox.h;
@@ -112,7 +131,7 @@ pub fn largest_inscribed_rect(sw: f32, sh: f32, angle_deg: f32, aspect: f32) -> 
             w: w_px / bbox.w,
             h: h_px / bbox.h,
         };
-        if crop_rect_inside_rotated_source(rect, sw, sh, angle_deg) {
+        if crop_rect_inside_warped_source(rect, sw, sh, angle_deg, persp_inv) {
             lo = mid;
         } else {
             hi = mid;
@@ -139,6 +158,8 @@ pub struct GeometryTransform {
     pub flip_v: bool,
     pub angle_deg: f32,
     pub crop: CropRect,
+    pub perspective_forward: Mat3,
+    pub perspective_inverse: Mat3,
     pub output_w: u32,
     pub output_h: u32,
 }
@@ -150,6 +171,7 @@ impl GeometryTransform {
             && !self.flip_v
             && self.angle_deg.abs() < 1e-4
             && self.crop.is_full()
+            && self.perspective_forward == IDENTITY
     }
     pub fn oriented_size(&self) -> (u32, u32) {
         match self.rotate_quarter {
@@ -202,6 +224,7 @@ pub fn display_uv_to_oriented_uv(
     ow: f32,
     oh: f32,
     angle_deg: f32,
+    persp_inv: &Mat3,
     uv: [f32; 2],
 ) -> [f32; 2] {
     let a = deg_to_rad(angle_deg);
@@ -213,7 +236,7 @@ pub fn display_uv_to_oriented_uv(
     let cy_px = (by_rel - 0.5) * bbox.h;
     let sx_px = cx_px * cos_a + cy_px * sin_a;
     let sy_px = -cx_px * sin_a + cy_px * cos_a;
-    [sx_px / ow + 0.5, sy_px / oh + 0.5]
+    mat3_apply(persp_inv, [sx_px / ow + 0.5, sy_px / oh + 0.5])
 }
 
 pub fn oriented_uv_to_display_uv(
@@ -222,13 +245,15 @@ pub fn oriented_uv_to_display_uv(
     ow: f32,
     oh: f32,
     angle_deg: f32,
+    persp_fwd: &Mat3,
     uv: [f32; 2],
 ) -> [f32; 2] {
     let a = deg_to_rad(angle_deg);
     let cos_a = a.cos();
     let sin_a = a.sin();
-    let sx_px = (uv[0] - 0.5) * ow;
-    let sy_px = (uv[1] - 0.5) * oh;
+    let warped = mat3_apply(persp_fwd, uv);
+    let sx_px = (warped[0] - 0.5) * ow;
+    let sy_px = (warped[1] - 0.5) * oh;
     let cx_px = sx_px * cos_a - sy_px * sin_a;
     let cy_px = sx_px * sin_a + sy_px * cos_a;
     let bx_rel = cx_px / bbox.w + 0.5;
@@ -243,7 +268,15 @@ pub fn display_uv_to_mask_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
         return uv;
     }
     let (ow, oh) = t.oriented_size();
-    let o = display_uv_to_oriented_uv(t.crop, t.bbox(), ow as f32, oh as f32, t.angle_deg, uv);
+    let o = display_uv_to_oriented_uv(
+        t.crop,
+        t.bbox(),
+        ow as f32,
+        oh as f32,
+        t.angle_deg,
+        &t.perspective_inverse,
+        uv,
+    );
     let (mu, mv) = ortho_inverse(t.rotate_quarter, t.flip_h, t.flip_v, o[0], o[1]);
     [mu, mv]
 }
@@ -260,6 +293,7 @@ pub fn mask_uv_to_display_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
         ow as f32,
         oh as f32,
         t.angle_deg,
+        &t.perspective_forward,
         [u_o, v_o],
     )
 }
@@ -284,7 +318,7 @@ mod tests {
 
     #[test]
     fn inscribed_identity_at_zero() {
-        let r = largest_inscribed_rect(100.0, 50.0, 0.0, 2.0);
+        let r = largest_inscribed_rect(100.0, 50.0, 0.0, 2.0, &IDENTITY);
         let bbox = rotated_bbox(100.0, 50.0, 0.0);
         let w_px = r.w * bbox.w;
         let h_px = r.h * bbox.h;
@@ -298,12 +332,32 @@ mod tests {
             for &aspect in &[1.0_f32, 4.0 / 3.0, 3.0 / 4.0, 16.0 / 9.0] {
                 let sw = 1200.0;
                 let sh = 800.0;
-                let r = largest_inscribed_rect(sw, sh, angle, aspect);
+                let r = largest_inscribed_rect(sw, sh, angle, aspect, &IDENTITY);
                 assert!(
-                    crop_rect_inside_rotated_source(r, sw, sh, angle),
+                    crop_rect_inside_warped_source(r, sw, sh, angle, &IDENTITY),
                     "angle={angle} aspect={aspect} rect={r:?}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn inscribed_inside_warped_source() {
+        let p = crate::perspective::PerspectiveEdits {
+            vertical: 40.0,
+            horizontal: -20.0,
+            ..Default::default()
+        };
+        let inv = p.inverse();
+        for &angle in &[0.0_f32, 8.0, -12.0] {
+            let sw = 1200.0;
+            let sh = 800.0;
+            let r = largest_inscribed_rect(sw, sh, angle, 1.5, &inv);
+            assert!(r.w > 0.1 && r.h > 0.1, "angle={angle} rect={r:?}");
+            assert!(
+                crop_rect_inside_warped_source(r, sw, sh, angle, &inv),
+                "angle={angle} rect={r:?}"
+            );
         }
     }
 
@@ -327,6 +381,18 @@ mod tests {
         angle: f32,
         crop: CropRect,
     ) -> GeometryTransform {
+        xform_with(rot, flip_h, flip_v, angle, crop, IDENTITY, IDENTITY)
+    }
+
+    fn xform_with(
+        rot: u16,
+        flip_h: bool,
+        flip_v: bool,
+        angle: f32,
+        crop: CropRect,
+        persp_fwd: Mat3,
+        persp_inv: Mat3,
+    ) -> GeometryTransform {
         let (iw, ih) = (1200u32, 800u32);
         let (ow, oh) = match rot {
             90 | 270 => (ih, iw),
@@ -343,6 +409,8 @@ mod tests {
             flip_v,
             angle_deg: angle,
             crop,
+            perspective_forward: persp_fwd,
+            perspective_inverse: persp_inv,
             output_w: out_w,
             output_h: out_h,
         }
@@ -384,6 +452,43 @@ mod tests {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn geom_round_trip_with_perspective() {
+        let p = crate::perspective::PerspectiveEdits {
+            vertical: 55.0,
+            horizontal: -30.0,
+            scale: 120.0,
+            ..Default::default()
+        };
+        for &rot in &[0u16, 90, 270] {
+            for &angle in &[0.0f32, 6.0] {
+                let t = xform_with(
+                    rot,
+                    false,
+                    true,
+                    angle,
+                    CropRect {
+                        x: 0.1,
+                        y: 0.05,
+                        w: 0.75,
+                        h: 0.8,
+                    },
+                    p.forward(),
+                    p.inverse(),
+                );
+                assert!(!t.is_identity());
+                for uv in [[0.2, 0.3], [0.5, 0.5], [0.9, 0.7]] {
+                    let m = display_uv_to_mask_uv(&t, uv);
+                    let d = mask_uv_to_display_uv(&t, m);
+                    assert!(
+                        (d[0] - uv[0]).abs() < 1e-3 && (d[1] - uv[1]).abs() < 1e-3,
+                        "rot={rot} angle={angle} uv={uv:?} back={d:?}"
+                    );
                 }
             }
         }

@@ -396,6 +396,7 @@ impl GpuRenderer {
         let a_rad = crate::geom::deg_to_rad(angle);
         let cos_a = a_rad.cos();
         let sin_a = a_rad.sin();
+        let persp_rows = crate::perspective::mat3_rows(&edits.geometry.perspective_inverse());
 
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
@@ -434,6 +435,7 @@ impl GpuRenderer {
             [cos_a, sin_a, bw, bh],
             [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
             [0, 0, 0, 0],
+            persp_rows,
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
@@ -602,6 +604,7 @@ impl GpuRenderer {
                     display_h as f32,
                 ],
                 [lens_warp.k1, lens_warp.k2, lens_warp.k3, lens_warp.zoom],
+                persp_rows,
             );
             let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("mask-preview-uniform"),
@@ -746,6 +749,7 @@ impl GpuRenderer {
                     [cos_a, sin_a, bw, bh],
                     [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
                     [0, 0, 0, 0],
+                    persp_rows,
                 );
                 let mut active_mask_eff: [u32; 4] = [0; 4];
                 for slot in &built.color_ops {
@@ -837,6 +841,7 @@ impl GpuRenderer {
                         display_h as f32,
                     ],
                     [lens_warp.k1, lens_warp.k2, lens_warp.k3, lens_warp.zoom],
+                    persp_rows,
                 );
                 let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("mask-weight-uniform"),

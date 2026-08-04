@@ -35,3 +35,7 @@ dev.sh
 
 # Local notes
 notes/
+
+# Local bench and probe examples, not part of the build
+crates/ml/examples/
+crates/raw-pipeline/examples/

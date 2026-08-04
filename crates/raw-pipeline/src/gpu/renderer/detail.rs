@@ -950,6 +950,7 @@ impl GpuRenderer {
             [0.0; 4],
             [0.0; 4],
             [0, 0, 0, 0],
+            crate::perspective::IDENTITY_ROWS,
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
