@@ -210,7 +210,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let rgb = textureSampleLevel(src_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.x).rgb;
     shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
-    let outc_lin = process_color(rgb);
+    var outc_lin = process_color(rgb);
+    let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);
+    if (p.geom_extra3.z > 0.5 && (src_px.x < 0.0 || src_px.y < 0.0 || src_px.x > p.geom_extra3.x - 1.0 || src_px.y > p.geom_extra3.y - 1.0)) {{
+        outc_lin = vec3<f32>(0.0);
+    }}
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
     let outc = tone_apply_rgb(outc_lin);
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);

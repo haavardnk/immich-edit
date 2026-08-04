@@ -7,16 +7,11 @@ pub const IDENTITY_ROWS: [f32; 12] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.
 
 const KEYSTONE_GAIN: f32 = 0.005;
 const ASPECT_BASE: f32 = 1.5;
-const OFFSET_GAIN: f32 = 0.005;
 const MIN_W: f32 = 0.05;
 const MIN_QUAD_AREA: f32 = 0.05;
 const CORNER_LIMIT: f32 = 0.25;
 
-fn default_scale() -> f32 {
-    100.0
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub struct PerspectiveEdits {
     #[serde(default)]
     pub vertical: f32,
@@ -24,28 +19,8 @@ pub struct PerspectiveEdits {
     pub horizontal: f32,
     #[serde(default)]
     pub aspect: f32,
-    #[serde(default = "default_scale")]
-    pub scale: f32,
-    #[serde(default)]
-    pub offset_x: f32,
-    #[serde(default)]
-    pub offset_y: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub corners: Option<[[f32; 2]; 4]>,
-}
-
-impl Default for PerspectiveEdits {
-    fn default() -> Self {
-        Self {
-            vertical: 0.0,
-            horizontal: 0.0,
-            aspect: 0.0,
-            scale: 100.0,
-            offset_x: 0.0,
-            offset_y: 0.0,
-            corners: None,
-        }
-    }
 }
 
 impl PerspectiveEdits {
@@ -53,9 +28,6 @@ impl PerspectiveEdits {
         self.vertical.abs() < 1e-4
             && self.horizontal.abs() < 1e-4
             && self.aspect.abs() < 1e-4
-            && (self.scale - 100.0).abs() < 1e-4
-            && self.offset_x.abs() < 1e-4
-            && self.offset_y.abs() < 1e-4
             && self
                 .corners
                 .map(|c| c.iter().flatten().all(|v| v.abs() < 1e-6))
@@ -67,9 +39,6 @@ impl PerspectiveEdits {
             vertical: self.vertical.clamp(-100.0, 100.0),
             horizontal: self.horizontal.clamp(-100.0, 100.0),
             aspect: self.aspect.clamp(-100.0, 100.0),
-            scale: self.scale.clamp(50.0, 200.0),
-            offset_x: self.offset_x.clamp(-100.0, 100.0),
-            offset_y: self.offset_y.clamp(-100.0, 100.0),
             corners: self.corners.map(clamp_corners),
         }
     }
@@ -87,7 +56,8 @@ impl PerspectiveEdits {
             return (IDENTITY, IDENTITY);
         }
         let c = self.clamped();
-        let forward = mat3_mul(&centered_to_uv(&c.params_matrix()), &c.corner_matrix());
+        let raw = mat3_mul(&centered_to_uv(&c.params_matrix()), &c.corner_matrix());
+        let forward = mat3_mul(&fit_to_frame(&raw), &raw);
         let Some(inverse) = mat3_inverse(&forward) else {
             return (IDENTITY, IDENTITY);
         };
@@ -104,17 +74,10 @@ impl PerspectiveEdits {
         let kv = self.vertical * KEYSTONE_GAIN;
         let kh = self.horizontal * KEYSTONE_GAIN;
         let a = ASPECT_BASE.powf(self.aspect / 100.0);
-        let s = self.scale / 100.0;
-        let dx = self.offset_x * OFFSET_GAIN;
-        let dy = self.offset_y * OFFSET_GAIN;
         let keystone_v = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, kv, 1.0];
         let keystone_h = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, kh, 0.0, 1.0];
         let aspect = [a, 0.0, 0.0, 0.0, 1.0 / a, 0.0, 0.0, 0.0, 1.0];
-        let scale = [s, 0.0, 0.0, 0.0, s, 0.0, 0.0, 0.0, 1.0];
-        let offset = [1.0, 0.0, dx, 0.0, 1.0, dy, 0.0, 0.0, 1.0];
-        let m = mat3_mul(&offset, &scale);
-        let m = mat3_mul(&m, &aspect);
-        let m = mat3_mul(&m, &keystone_v);
+        let m = mat3_mul(&aspect, &keystone_v);
         mat3_mul(&m, &keystone_h)
     }
 
@@ -225,6 +188,20 @@ pub fn square_to_quad(quad: &[[f32; 2]; 4]) -> Option<Mat3> {
     ])
 }
 
+fn fit_to_frame(m: &Mat3) -> Mat3 {
+    let pts = unit_square_corners().map(|p| mat3_apply(m, p));
+    let min_x = pts.iter().map(|p| p[0]).fold(f32::INFINITY, f32::min);
+    let max_x = pts.iter().map(|p| p[0]).fold(f32::NEG_INFINITY, f32::max);
+    let min_y = pts.iter().map(|p| p[1]).fold(f32::INFINITY, f32::min);
+    let max_y = pts.iter().map(|p| p[1]).fold(f32::NEG_INFINITY, f32::max);
+    let w = (max_x - min_x).max(1e-6);
+    let h = (max_y - min_y).max(1e-6);
+    let s = (1.0 / w).min(1.0 / h).min(1.0);
+    let cx = (min_x + max_x) * 0.5;
+    let cy = (min_y + max_y) * 0.5;
+    [s, 0.0, 0.5 - s * cx, 0.0, s, 0.5 - s * cy, 0.0, 0.0, 1.0]
+}
+
 fn homogeneous_w(m: &Mat3, p: [f32; 2]) -> f32 {
     m[6] * p[0] + m[7] * p[1] + m[8]
 }
@@ -294,9 +271,7 @@ mod tests {
             PerspectiveEdits {
                 vertical: 25.0,
                 horizontal: 15.0,
-                scale: 130.0,
-                offset_x: 20.0,
-                offset_y: -35.0,
+                aspect: -20.0,
                 ..Default::default()
             },
             PerspectiveEdits {
@@ -319,15 +294,49 @@ mod tests {
     }
 
     #[test]
-    fn scale_zooms_about_center() {
+    fn aspect_stretches_about_center() {
         let p = PerspectiveEdits {
-            scale: 200.0,
+            aspect: 100.0,
             ..Default::default()
         };
         let center = mat3_apply(&p.forward(), [0.5, 0.5]);
         assert!((center[0] - 0.5).abs() < 1e-5 && (center[1] - 0.5).abs() < 1e-5);
         let corner = mat3_apply(&p.forward(), [1.0, 1.0]);
-        assert!((corner[0] - 1.5).abs() < 1e-5 && (corner[1] - 1.5).abs() < 1e-5);
+        assert!((corner[0] - 1.0).abs() < 1e-5 && (corner[1] - 0.5 - 2.0 / 9.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn warped_quad_always_fits_the_frame() {
+        let cases = [
+            PerspectiveEdits {
+                vertical: 100.0,
+                ..Default::default()
+            },
+            PerspectiveEdits {
+                vertical: 100.0,
+                horizontal: 100.0,
+                aspect: 40.0,
+                ..Default::default()
+            },
+            PerspectiveEdits {
+                corners: Some([[-0.25, -0.25], [0.25, -0.25], [0.25, 0.25], [-0.25, 0.25]]),
+                ..Default::default()
+            },
+        ];
+        for p in cases {
+            let f = p.forward();
+            for uv in unit_square_corners() {
+                let out = mat3_apply(&f, uv);
+                assert!(
+                    out[0] >= -1e-4 && out[0] <= 1.0 + 1e-4,
+                    "{p:?} uv={uv:?} out={out:?}"
+                );
+                assert!(
+                    out[1] >= -1e-4 && out[1] <= 1.0 + 1e-4,
+                    "{p:?} uv={uv:?} out={out:?}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -365,18 +374,12 @@ mod tests {
             vertical: 500.0,
             horizontal: -500.0,
             aspect: 900.0,
-            scale: 5.0,
-            offset_x: -400.0,
-            offset_y: 400.0,
             corners: Some([[9.0, 9.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]),
         }
         .clamped();
         assert_eq!(p.vertical, 100.0);
         assert_eq!(p.horizontal, -100.0);
         assert_eq!(p.aspect, 100.0);
-        assert_eq!(p.scale, 50.0);
-        assert_eq!(p.offset_x, -100.0);
-        assert_eq!(p.offset_y, 100.0);
         assert_eq!(p.corners.unwrap()[0], [0.25, 0.25]);
     }
 }

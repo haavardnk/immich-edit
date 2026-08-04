@@ -462,7 +462,7 @@ mod tests {
         let p = crate::perspective::PerspectiveEdits {
             vertical: 55.0,
             horizontal: -30.0,
-            scale: 120.0,
+            aspect: 20.0,
             ..Default::default()
         };
         for &rot in &[0u16, 90, 270] {

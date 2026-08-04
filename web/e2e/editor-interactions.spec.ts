@@ -9,6 +9,12 @@ function exposureSlider(page: import('@playwright/test').Page) {
     .getByRole('slider');
 }
 
+function geometrySlider(page: import('@playwright/test').Page, label: string) {
+  return page
+    .locator('div.group', { has: page.getByRole('button', { name: label, exact: true }) })
+    .getByRole('slider');
+}
+
 test('adjusting a slider requests a live preview with the new edit', async ({ page }) => {
   const requests: PreviewRequest[] = [];
   await installMocks(page, { onPreview: (req) => requests.push(req) });
@@ -104,10 +110,10 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Geometry' }).click();
   await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('Angle', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
-  await page.getByRole('slider', { name: 'Angle' }).fill('5');
+  await geometrySlider(page, 'Angle').fill('5');
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
@@ -121,6 +127,58 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   expect(body.action).toBe('Geometry');
   await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
+});
+
+test('perspective sliders save into the transform op', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Geometry' }).click();
+  await geometrySlider(page, 'Vertical').fill('40');
+  await geometrySlider(page, 'Aspect').fill('-25');
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await page.getByRole('button', { name: 'Develop' }).click();
+  const request = await saved;
+  const body = request.postDataJSON() as {
+    manifest: { ops: { transform?: { perspective?: { vertical?: number; aspect?: number } } } };
+  };
+  expect(body.manifest.ops.transform?.perspective?.vertical).toBe(40);
+  expect(body.manifest.ops.transform?.perspective?.aspect).toBe(-25);
+});
+
+test('perspective corner handles drag into the transform op', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Geometry' }).click();
+  await expect(page.getByRole('button', { name: 'perspective corner 1' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Corner handles' }).click();
+  const handle = page.getByRole('button', { name: 'perspective corner 1' });
+  await expect(handle).toBeVisible();
+
+  const box = await handle.boundingBox();
+  if (!box) throw new Error('corner handle has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 20, { steps: 5 });
+  await page.mouse.up();
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await page.getByRole('button', { name: 'Develop' }).click();
+  const request = await saved;
+  const body = request.postDataJSON() as {
+    manifest: { ops: { transform?: { perspective?: { corners?: number[][] } } } };
+  };
+  const corners = body.manifest.ops.transform?.perspective?.corners;
+  expect(corners).toBeDefined();
+  expect(corners?.[0][0]).toBeGreaterThan(0);
+  expect(corners?.[0][1]).toBeGreaterThan(0);
 });
 
 test('G opens Geometry and Escape returns to Develop', async ({ page }) => {

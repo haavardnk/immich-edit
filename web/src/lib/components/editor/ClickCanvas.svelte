@@ -12,6 +12,7 @@
     type GeometryTransform,
     type RotateQuarter
   } from '$lib/utils/geomTransform';
+  import { perspectiveForward, perspectiveInverse } from '$lib/utils/perspective';
 
   let {
     img
@@ -91,6 +92,8 @@
       flipV: g.flip_v,
       angleDeg: g.rotate_angle,
       crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+      perspectiveForward: perspectiveForward(g.perspective),
+      perspectiveInverse: perspectiveInverse(g.perspective),
       outputW: dw,
       outputH: dh
     };

@@ -1,6 +1,13 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { rotatedBbox, aspectRatioFor } from '$lib/utils/geom';
+  import { ui } from '$lib/stores/ui.svelte';
+  import { rotatedBbox, aspectRatioFor, degToRad } from '$lib/utils/geom';
+  import {
+    cornerOffsetsFor,
+    mat3Apply,
+    perspectiveCssMatrix,
+    perspectiveForward
+  } from '$lib/utils/perspective';
   import type { CropRect } from '$lib/types/edits';
 
   let container = $state<HTMLDivElement | null>(null);
@@ -39,6 +46,33 @@
   const bboxH = $derived(bbox.h * scale);
   const imgW = $derived((sess?.srcW ?? 1) * scale);
   const imgH = $derived((sess?.srcH ?? 1) * scale);
+  const orientedW = $derived(swapped ? imgH : imgW);
+  const orientedH = $derived(swapped ? imgW : imgH);
+  const perspCss = $derived(
+    sess
+      ? perspectiveCssMatrix(perspectiveForward(sess.draftPerspective), orientedW, orientedH)
+      : 'none'
+  );
+  const cornerHandles = $derived.by<{ x: number; y: number }[]>(() => {
+    if (!sess) return [];
+    const f = perspectiveForward(sess.draftPerspective);
+    const a = degToRad(sess.draftAngle);
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const base: [number, number][] = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1]
+    ];
+    return base.map((b) => {
+      const uv = mat3Apply(f, b);
+      const px = (uv[0] - 0.5) * orientedW;
+      const py = (uv[1] - 0.5) * orientedH;
+      return { x: px * cos - py * sin + bboxW / 2, y: px * sin + py * cos + bboxH / 2 };
+    });
+  });
+  const quadPoints = $derived(cornerHandles.map((c) => `${c.x},${c.y}`).join(' '));
   const crop = $derived(sess?.draftCrop ?? { x: 0, y: 0, w: 1, h: 1 });
   const cropPx = $derived({
     x: crop.x * bboxW,
@@ -141,6 +175,42 @@
     dragStartCrop = null;
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   }
+
+  let cornerDrag = $state<number | null>(null);
+
+  function startCornerDrag(e: PointerEvent, index: number): void {
+    e.preventDefault();
+    e.stopPropagation();
+    cornerDrag = index;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onCornerMove(e: PointerEvent): void {
+    if (cornerDrag === null || !sess || !container) return;
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).offsetParent?.getBoundingClientRect();
+    if (!rect) return;
+    const a = degToRad(sess.draftAngle);
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const dx = e.clientX - rect.left - bboxW / 2;
+    const dy = e.clientY - rect.top - bboxH / 2;
+    const px = dx * cos + dy * sin;
+    const py = -dx * sin + dy * cos;
+    const uv: [number, number] = [
+      px / Math.max(orientedW, 1) + 0.5,
+      py / Math.max(orientedH, 1) + 0.5
+    ];
+    editor.updateGeometryDraftPerspective({
+      corners: cornerOffsetsFor(sess.draftPerspective, cornerDrag, uv)
+    });
+  }
+
+  function onCornerUp(e: PointerEvent): void {
+    e.stopPropagation();
+    cornerDrag = null;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  }
 </script>
 
 <div
@@ -157,7 +227,7 @@
         alt=""
         draggable="false"
         class="absolute block"
-        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) scaleY({sess.draftFlipV ? -1 : 1}) scaleX({sess.draftFlipH ? -1 : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
+        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) {perspCss} scaleY({sess.draftFlipV ? -1 : 1}) scaleX({sess.draftFlipH ? -1 : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
       />
 
       <div
@@ -208,6 +278,34 @@
           ></button>
         {/each}
       </div>
+
+      {#if ui.perspectiveCorners}
+        <svg
+          class="absolute inset-0 pointer-events-none"
+          width={bboxW}
+          height={bboxH}
+          aria-hidden="true"
+        >
+          <polygon
+            points={quadPoints}
+            fill="none"
+            stroke="rgb(var(--immich-dark-primary))"
+            stroke-width="1"
+            stroke-dasharray="4 3"
+          />
+        </svg>
+        {#each cornerHandles as c, i (i)}
+          <button
+            class="absolute rounded-full bg-immich-dark-primary border border-black/60 cursor-grab active:cursor-grabbing"
+            style="width: 14px; height: 14px; left: {c.x - 7}px; top: {c.y - 7}px;"
+            onpointerdown={(e) => startCornerDrag(e, i)}
+            onpointermove={onCornerMove}
+            onpointerup={onCornerUp}
+            onpointercancel={onCornerUp}
+            aria-label="perspective corner {i + 1}"
+          ></button>
+        {/each}
+      {/if}
     </div>
   {/if}
 </div>

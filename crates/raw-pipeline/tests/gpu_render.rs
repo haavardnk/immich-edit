@@ -351,9 +351,6 @@ fn gpu_matches_cpu_within_tolerance() {
                         vertical: 45.0,
                         horizontal: -20.0,
                         aspect: 15.0,
-                        scale: 110.0,
-                        offset_x: 5.0,
-                        offset_y: -8.0,
                         corners: None,
                     }),
                     ..Default::default()

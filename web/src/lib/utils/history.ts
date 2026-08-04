@@ -1,6 +1,7 @@
 import type { EditHistoryEntry } from '$lib/api/edits';
 import type { CurveChannel, Edits, GeometryEdits, LensEdits, MaskLayer } from '$lib/types/edits';
 import { CURVE_CHANNELS, HSL_BAND_NAMES, isFullCrop, neutralEdits } from '$lib/types/edits';
+import { neutralPerspective } from '$lib/utils/perspective';
 
 type NumberFieldDef = {
   kind: 'number';
@@ -197,8 +198,29 @@ function geometryItems(prev: GeometryEdits, curr: GeometryEdits): HistoryDetailI
     const text = beforeFull ? 'Crop added' : afterFull ? 'Crop removed' : 'Crop adjusted';
     items.push({ kind: 'summary', text });
   }
+  const prevP = prev.perspective ?? neutralPerspective();
+  const currP = curr.perspective ?? neutralPerspective();
+  for (const key of PERSPECTIVE_KEYS) {
+    if (Math.abs(prevP[key] - currP[key]) > 1e-4) {
+      items.push({
+        kind: 'summary',
+        text: `${PERSPECTIVE_LABELS[key]}: ${Math.round(prevP[key])} → ${Math.round(currP[key])}`
+      });
+    }
+  }
+  if (JSON.stringify(prevP.corners) !== JSON.stringify(currP.corners)) {
+    items.push({ kind: 'summary', text: 'Perspective corners adjusted' });
+  }
   return items;
 }
+
+const PERSPECTIVE_LABELS = {
+  vertical: 'Perspective vertical',
+  horizontal: 'Perspective horizontal',
+  aspect: 'Perspective aspect'
+} as const;
+
+const PERSPECTIVE_KEYS = Object.keys(PERSPECTIVE_LABELS) as (keyof typeof PERSPECTIVE_LABELS)[];
 
 const LENS_PROFILE_KEYS = [
   'k1',

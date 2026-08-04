@@ -186,7 +186,6 @@ mod tests {
                 perspective: Some(crate::perspective::PerspectiveEdits {
                     vertical: 25.0,
                     horizontal: -10.0,
-                    scale: 110.0,
                     ..Default::default()
                 }),
             },

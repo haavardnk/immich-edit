@@ -1,3 +1,10 @@
+import {
+  clampPerspective,
+  neutralPerspective,
+  perspectiveIsIdentity,
+  type PerspectiveEdits
+} from '$lib/utils/perspective';
+
 export interface CurvePoint {
   x: number;
   y: number;
@@ -273,6 +280,7 @@ export interface GeometryEdits {
   flip_v: boolean;
   crop: CropRect | null;
   aspect: AspectLock;
+  perspective: PerspectiveEdits | null;
 }
 
 export const FULL_CROP: CropRect = { x: 0, y: 0, w: 1, h: 1 };
@@ -506,7 +514,8 @@ export function neutralEdits(): Edits {
       flip_h: false,
       flip_v: false,
       crop: null,
-      aspect: { kind: 'original' }
+      aspect: { kind: 'original' },
+      perspective: null
     },
     masks: [],
     retouch: []
@@ -848,7 +857,8 @@ export function isIdentity(e: Edits): boolean {
     !e.geometry.flip_h &&
     !e.geometry.flip_v &&
     isFullCrop(e.geometry.crop) &&
-    e.geometry.aspect.kind === 'original';
+    e.geometry.aspect.kind === 'original' &&
+    perspectiveIsIdentity(e.geometry.perspective);
 }
 
 export function isNonGeometryIdentity(e: Edits): boolean {
@@ -907,13 +917,16 @@ export function editsToManifest(e: Edits): EditManifest {
   const aspectActive = e.geometry.aspect.kind !== 'original';
   const rotateActive = e.geometry.rotate !== 0;
   const flipActive = e.geometry.flip_h || e.geometry.flip_v;
-  if (cropActive || angleActive || aspectActive || rotateActive || flipActive) {
+  const perspActive = !perspectiveIsIdentity(e.geometry.perspective);
+  if (cropActive || angleActive || aspectActive || rotateActive || flipActive || perspActive) {
     const obj: Record<string, unknown> = {};
     if (rotateActive) obj.rotate = e.geometry.rotate;
     if (e.geometry.flip_h) obj.flip_h = true;
     if (e.geometry.flip_v) obj.flip_v = true;
     if (angleActive) obj.angle = e.geometry.rotate_angle;
     if (e.geometry.crop && cropActive) obj.crop = e.geometry.crop;
+    if (perspActive && e.geometry.perspective)
+      obj.perspective = clampPerspective(e.geometry.perspective);
     obj.aspect = e.geometry.aspect;
     ops.transform = obj;
   }
@@ -1002,7 +1015,15 @@ export function manifestToEdits(doc: EditManifest): Edits {
       edits.color.dcp.use_baseline_exposure = dcp.use_baseline_exposure;
   }
   const transform = ops.transform as
-    | { rotate?: number; flip_h?: boolean; flip_v?: boolean; angle?: number; crop?: CropRect; aspect?: AspectLock }
+    | {
+        rotate?: number;
+        flip_h?: boolean;
+        flip_v?: boolean;
+        angle?: number;
+        crop?: CropRect;
+        aspect?: AspectLock;
+        perspective?: PerspectiveEdits;
+      }
     | undefined;
   if (transform?.rotate !== undefined)
     edits.geometry.rotate = transform.rotate as GeometryEdits['rotate'];
@@ -1011,6 +1032,10 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (transform?.angle !== undefined) edits.geometry.rotate_angle = transform.angle;
   if (transform?.crop) edits.geometry.crop = transform.crop;
   if (transform?.aspect) edits.geometry.aspect = transform.aspect;
+  if (transform?.perspective) {
+    const p = clampPerspective({ ...neutralPerspective(), ...transform.perspective });
+    edits.geometry.perspective = perspectiveIsIdentity(p) ? null : p;
+  }
   const masks = ops.masks as { layers?: unknown[] } | undefined;
   if (masks?.layers) {
     edits.masks = masks.layers

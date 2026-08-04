@@ -51,6 +51,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'I', description: 'Toggle EXIF info' },
       { keys: 'T', description: 'Toggle tags' },
       { keys: 'G', description: 'Open Geometry' },
+      { keys: 'P', description: 'Toggle perspective corner handles' },
       { keys: 'V', description: 'Open Retouch' },
       { keys: 'R', description: 'Reset edits' },
       { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },

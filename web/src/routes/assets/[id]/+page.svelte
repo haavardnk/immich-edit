@@ -50,6 +50,9 @@
       if (ui.keybindsHelpOpen) {
         e.preventDefault();
         ui.closeKeybindsHelp();
+      } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
+        e.preventDefault();
+        ui.perspectiveCorners = false;
       } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
         e.preventDefault();
         ui.editorTab = 'develop';
@@ -145,6 +148,12 @@
     if ((e.key === 'g' || e.key === 'G') && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       ui.openGeometry();
+      return;
+    }
+    if ((e.key === 'p' || e.key === 'P') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      if (ui.editorTab !== 'geometry') ui.openGeometry();
+      ui.togglePerspectiveCorners();
       return;
     }
     if ((e.key === 'r' || e.key === 'R') && !meta && !e.shiftKey && !e.altKey) {

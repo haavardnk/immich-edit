@@ -400,6 +400,9 @@ impl GpuRenderer {
 
         let (ot, oh_h, oh_v) = frame.orientation;
         let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
+        let geom_warps = !crop.is_full()
+            || angle.abs() > 1e-4
+            || edits.geometry.perspective_inverse() != crate::perspective::IDENTITY;
 
         let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
@@ -433,7 +436,12 @@ impl GpuRenderer {
             ],
             [lod, shadows_mip_f, 0.0, 0.0],
             [cos_a, sin_a, bw, bh],
-            [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
+            [
+                oriented_w as f32,
+                oriented_h as f32,
+                if geom_warps { 1.0 } else { 0.0 },
+                0.0,
+            ],
             [0, 0, 0, 0],
             persp_rows,
         );

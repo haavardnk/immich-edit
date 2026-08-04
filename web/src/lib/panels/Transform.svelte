@@ -1,8 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { type AspectLock } from '$lib/types/edits';
+  import { neutralPerspective, type PerspectiveEdits } from '$lib/utils/perspective';
   import {
     mdiRotateLeft,
     mdiRotateRight,
@@ -10,7 +13,8 @@
     mdiFlipVertical,
     mdiRestore,
     mdiCropLandscape,
-    mdiCropPortrait
+    mdiCropPortrait,
+    mdiVectorSquare
   } from '@mdi/js';
 
   $effect(() => {
@@ -36,8 +40,8 @@
     editor.flipStep('v');
   }
 
-  function reset(): void {
-    editor.resetGeometryDraft();
+  function resetCrop(): void {
+    editor.updateGeometryDraftAspect({ kind: 'original' });
   }
 
   const aspectOptions: Array<{ label: string; value: AspectLock }> = [
@@ -94,54 +98,118 @@
     });
   }
 
+  const perspectiveSliders: Array<{
+    key: keyof PerspectiveEdits & ('vertical' | 'horizontal' | 'aspect');
+    label: string;
+  }> = [
+    { key: 'vertical', label: 'Vertical' },
+    { key: 'horizontal', label: 'Horizontal' },
+    { key: 'aspect', label: 'Aspect' }
+  ];
+
+  function onPerspectiveLive(key: (typeof perspectiveSliders)[number]['key'], v: number): void {
+    editor.updateGeometryDraftPerspective({ [key]: v });
+  }
+
+  function resetTransform(): void {
+    editor.updateGeometryDraftAngle(0);
+    editor.updateGeometryDraftPerspective(neutralPerspective());
+  }
+
+  function noCommit(): void {}
 </script>
 
-<div class="flex flex-col gap-3">
+<div class="flex flex-col divide-y divide-white/5">
   {#if editor.geometrySession}
-    <div class="flex flex-col gap-2 text-xs">
-      <label class="flex flex-col gap-1">
-        <span class="flex justify-between"><span>Angle</span><span class="opacity-60">{editor.geometrySession.draftAngle.toFixed(1)}°</span></span>
-        <input
-          type="range"
-          aria-label="Angle"
-          min="-45"
-          max="45"
-          step="0.1"
-          value={editor.geometrySession.draftAngle}
-          oninput={(e) => editor.updateGeometryDraftAngle(parseFloat((e.currentTarget as HTMLInputElement).value))}
-          class="range range-xs"
-        />
-      </label>
-      <label class="flex flex-col gap-1">
-        <span>Aspect Ratio</span>
-        <div class="flex gap-1.5 items-center">
-          <select
-            aria-label="Aspect Ratio"
-            class="select bg-white/5 flex-1 rounded-lg text-xs h-auto py-1.5 min-h-0"
-            value={aspectKey(editor.geometrySession.draftAspect)}
-            onchange={onAspectChange}
-          >
-            {#each aspectOptions as o}
-              <option value={aspectKey(o.value)}>{o.label}</option>
-            {/each}
-          </select>
+    <div class="flex flex-col gap-2.5 pb-3">
+      <div class="flex items-center justify-between">
+        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Crop</div>
+        <button
+          type="button"
+          class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+          title="Reset Crop"
+          aria-label="Reset Crop"
+          onclick={resetCrop}
+        >
+          <Icon path={mdiRestore} size={14} />
+        </button>
+      </div>
+      <div class="flex gap-1.5 items-center">
+        <select
+          aria-label="Aspect Ratio"
+          class="select bg-white/5 flex-1 rounded-lg text-xs h-auto py-1.5 min-h-0"
+          value={aspectKey(editor.geometrySession.draftAspect)}
+          onchange={onAspectChange}
+        >
+          {#each aspectOptions as o (aspectKey(o.value))}
+            <option value={aspectKey(o.value)}>{o.label}</option>
+          {/each}
+        </select>
+        <button
+          type="button"
+          class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable ? 'bg-white/5 hover:bg-white/10' : 'bg-white/5 opacity-40 cursor-not-allowed'}"
+          onclick={toggleOrientation}
+          disabled={!orientationAvailable}
+          aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
+          title={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
+        >
+          <Icon path={isPortrait ? mdiCropPortrait : mdiCropLandscape} size={16} />
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2.5 py-3">
+      <div class="flex items-center justify-between">
+        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Transform</div>
+        <div class="flex items-center gap-2">
           <button
             type="button"
-            class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable ? 'bg-white/5 hover:bg-white/10' : 'bg-white/5 opacity-40 cursor-not-allowed'}"
-            onclick={toggleOrientation}
-            disabled={!orientationAvailable}
-            aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
-            title={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
+            class="transition-colors {ui.perspectiveCorners
+              ? 'text-immich-dark-primary'
+              : 'text-immich-dark-fg/40 hover:text-immich-dark-fg'}"
+            aria-pressed={ui.perspectiveCorners}
+            onclick={ui.togglePerspectiveCorners}
+            aria-label="Corner handles"
+            title="Corner handles (P)"
           >
-            <Icon path={isPortrait ? mdiCropPortrait : mdiCropLandscape} size={16} />
+            <Icon path={mdiVectorSquare} size={14} />
+          </button>
+          <button
+            type="button"
+            class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+            title="Reset Transform"
+            aria-label="Reset Transform"
+            onclick={resetTransform}
+          >
+            <Icon path={mdiRestore} size={14} />
           </button>
         </div>
-      </label>
-      <button class="flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs" onclick={reset}>
-        <Icon path={mdiRestore} size={14} /> Reset crop
-      </button>
+      </div>
+      <SliderRow
+        label="Angle"
+        value={editor.geometrySession.draftAngle}
+        min={-45}
+        max={45}
+        step={0.1}
+        onLive={editor.updateGeometryDraftAngle}
+        onCommit={noCommit}
+        format={(v: number) => `${v.toFixed(1)}°`}
+      />
+      {#each perspectiveSliders as s (s.key)}
+        <SliderRow
+          label={s.label}
+          value={editor.geometrySession.draftPerspective[s.key]}
+          min={-100}
+          max={100}
+          step={1}
+          onLive={(v: number) => onPerspectiveLive(s.key, v)}
+          onCommit={noCommit}
+          format={(v: number) => v.toFixed(0)}
+        />
+      {/each}
     </div>
-    <div class="grid grid-cols-2 gap-1.5">
+
+    <div class="grid grid-cols-2 gap-1.5 pt-3">
       <button
         class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
         aria-label="Rotate left 90°"

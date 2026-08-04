@@ -44,6 +44,15 @@ import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
 import { constrainCropRect, largestInscribedRect, refitCropAtAspect, aspectRatioFor } from '$lib/utils/geom';
+import {
+  clampPerspective,
+  limitPerspective,
+  neutralPerspective,
+  perspectiveInverse,
+  perspectiveIsIdentity,
+  type Mat3,
+  type PerspectiveEdits
+} from '$lib/utils/perspective';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
@@ -1616,6 +1625,7 @@ class EditorStore {
       draftAngle: baseEdits.geometry.rotate_angle,
       draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
       draftAspect: baseEdits.geometry.aspect,
+      draftPerspective: baseEdits.geometry.perspective ?? neutralPerspective(),
       userEditedCrop: baseEdits.geometry.crop !== null
     };
     void this.loadGeometryPreview(baseEdits, sessionId);
@@ -1631,7 +1641,8 @@ class EditorStore {
         flip_h: false,
         flip_v: false,
         rotate_angle: 0,
-        crop: null
+        crop: null,
+        perspective: null
       }
     };
     let url: string | null = null;
@@ -1675,7 +1686,10 @@ class EditorStore {
       flip_v: sess.draftFlipV,
       rotate_angle: sess.draftAngle,
       crop: full ? null : sess.draftCrop,
-      aspect: sess.draftAspect
+      aspect: sess.draftAspect,
+      perspective: perspectiveIsIdentity(sess.draftPerspective)
+        ? null
+        : clampPerspective(sess.draftPerspective)
     };
     if (JSON.stringify(this.edits.geometry) === JSON.stringify(geometry)) return;
     this.edits = {
@@ -1694,7 +1708,7 @@ class EditorStore {
       const sh = swapped ? sess.srcW : sess.srcH;
       const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
       sess.draftCrop = ratio !== null
-        ? largestInscribedRect(sw, sh, sess.draftAngle, ratio)
+        ? largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess))
         : FULL_CROP;
       sess.userEditedCrop = false;
       return;
@@ -1718,23 +1732,48 @@ class EditorStore {
   updateGeometryDraftAngle = (angle: number): void => {
     const sess = this.geometrySession;
     if (!sess) return;
-    const { sw, sh } = sourceDims(sess);
     sess.draftAngle = angle;
+    this.refitGeometryDraftCrop(sess);
+  };
+
+  updateGeometryDraftPerspective = (patch: Partial<PerspectiveEdits>): void => {
+    const sess = this.geometrySession;
+    if (!sess) return;
+    sess.draftPerspective = limitPerspective(
+      sess.draftPerspective,
+      clampPerspective({ ...sess.draftPerspective, ...patch })
+    );
+    this.refitGeometryDraftCrop(sess);
+  };
+
+  private refitGeometryDraftCrop(sess: GeometrySession): void {
+    const { sw, sh } = sourceDims(sess);
+    const angle = sess.draftAngle;
+    const persp = draftPerspInv(sess);
     const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
     if (ratio !== null) {
-      sess.draftCrop = refitCropAtAspect(sess.draftCrop, sw, sh, angle, ratio);
-    } else if (!sess.userEditedCrop) {
-      sess.draftCrop = largestInscribedRect(sw, sh, angle, sw / sh);
-    } else {
-      sess.draftCrop = constrainCropRect(sess.draftCrop, sess.draftCrop, sw, sh, angle);
+      sess.draftCrop = refitCropAtAspect(sess.draftCrop, sw, sh, angle, ratio, persp);
+      return;
     }
-  };
+    if (!sess.userEditedCrop) {
+      sess.draftCrop = largestInscribedRect(sw, sh, angle, sw / sh, persp);
+      return;
+    }
+    sess.draftCrop = constrainCropRect(sess.draftCrop, sess.draftCrop, sw, sh, angle, persp);
+  }
 
   updateGeometryDraftCrop = (crop: CropRect): void => {
     const sess = this.geometrySession;
     if (!sess) return;
     const { sw, sh } = sourceDims(sess);
-    sess.draftCrop = constrainCropRect(crop, sess.draftCrop, sw, sh, sess.draftAngle);
+    sess.draftCrop = constrainCropRect(
+      crop,
+      sess.draftCrop,
+      sw,
+      sh,
+      sess.draftAngle,
+      draftPerspInv(sess)
+    );
     sess.userEditedCrop = true;
   };
 
@@ -1745,7 +1784,13 @@ class EditorStore {
     sess.draftAspect = aspect;
     const ratio = aspectRatioFor(aspect, sw, sh);
     if (ratio !== null) {
-      sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio);
+      sess.draftCrop = largestInscribedRect(
+        sw,
+        sh,
+        sess.draftAngle,
+        ratio,
+        draftPerspInv(sess)
+      );
       sess.userEditedCrop = false;
     }
   };
@@ -1756,8 +1801,13 @@ class EditorStore {
     sess.draftAngle = 0;
     sess.draftAspect = { kind: 'original' };
     sess.draftCrop = FULL_CROP;
+    sess.draftPerspective = neutralPerspective();
     sess.userEditedCrop = false;
   };
+}
+
+function draftPerspInv(sess: GeometrySession): Mat3 {
+  return perspectiveInverse(sess.draftPerspective);
 }
 
 function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
@@ -1777,6 +1827,7 @@ interface GeometrySession {
   draftAngle: number;
   draftCrop: CropRect;
   draftAspect: AspectLock;
+  draftPerspective: PerspectiveEdits;
   userEditedCrop: boolean;
 }
 

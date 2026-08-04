@@ -1,5 +1,6 @@
 import type { CropRect } from '../types/edits';
 import { rotatedBbox, degToRad, type Size } from './geom';
+import { IDENTITY_MAT3, mat3Apply, type Mat3 } from './perspective';
 
 export type RotateQuarter = 0 | 90 | 180 | 270;
 
@@ -11,6 +12,8 @@ export interface GeometryTransform {
   flipV: boolean;
   angleDeg: number;
   crop: CropRect;
+  perspectiveForward: Mat3;
+  perspectiveInverse: Mat3;
   outputW: number;
   outputH: number;
 }
@@ -24,7 +27,8 @@ export function geometryIsIdentity(t: GeometryTransform): boolean {
     t.crop.x === 0 &&
     t.crop.y === 0 &&
     t.crop.w === 1 &&
-    t.crop.h === 1
+    t.crop.h === 1 &&
+    t.perspectiveForward === IDENTITY_MAT3
   );
 }
 
@@ -110,9 +114,8 @@ export function displayUvToMaskUv(
   const cyPx = (byRel - 0.5) * bbox.h;
   const sxPx = cxPx * cosA + cyPx * sinA;
   const syPx = -cxPx * sinA + cyPx * cosA;
-  const uO = sxPx / o.w + 0.5;
-  const vO = syPx / o.h + 0.5;
-  return orthoInverse(t.rotateQuarter, t.flipH, t.flipV, uO, vO);
+  const warped = mat3Apply(t.perspectiveInverse, [sxPx / o.w + 0.5, syPx / o.h + 0.5]);
+  return orthoInverse(t.rotateQuarter, t.flipH, t.flipV, warped[0], warped[1]);
 }
 
 export function maskUvToDisplayUv(
@@ -126,8 +129,9 @@ export function maskUvToDisplayUv(
   const cosA = Math.cos(a);
   const sinA = Math.sin(a);
   const [uO, vO] = orthoForward(t.rotateQuarter, t.flipH, t.flipV, uv[0], uv[1]);
-  const sxPx = (uO - 0.5) * o.w;
-  const syPx = (vO - 0.5) * o.h;
+  const [pu, pv] = mat3Apply(t.perspectiveForward, [uO, vO]);
+  const sxPx = (pu - 0.5) * o.w;
+  const syPx = (pv - 0.5) * o.h;
   const cxPx = sxPx * cosA - syPx * sinA;
   const cyPx = sxPx * sinA + syPx * cosA;
   const bxRel = cxPx / bbox.w + 0.5;

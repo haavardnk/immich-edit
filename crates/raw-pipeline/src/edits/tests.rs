@@ -49,7 +49,7 @@ fn stable_hash_is_pinned() {
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "ee0f0f7158a01123557670cd7e826a61"
+        "8d987bf1d62581072312552b402f7707"
     );
 }
 
@@ -355,9 +355,6 @@ fn populated_edits() -> Edits {
                 vertical: 18.0,
                 horizontal: -6.0,
                 aspect: 12.0,
-                scale: 105.0,
-                offset_x: 4.0,
-                offset_y: -3.0,
                 corners: None,
             }),
         },

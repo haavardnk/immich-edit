@@ -26,6 +26,11 @@ class UiStore {
   tagsPopoverOpen = $state(false);
   zoomPopoverOpen = $state(false);
   editorTab = $state<EditorTab>('develop');
+  perspectiveCorners = $state(false);
+
+  togglePerspectiveCorners = (): void => {
+    this.perspectiveCorners = !this.perspectiveCorners;
+  };
 
   toggleLeft = (): void => {
     this.leftCollapsed = !this.leftCollapsed;

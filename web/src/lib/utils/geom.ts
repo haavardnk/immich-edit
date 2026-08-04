@@ -1,5 +1,6 @@
 import type { AspectLock, CropRect } from '../types/edits';
 import { FULL_CROP } from '../types/edits';
+import { IDENTITY_MAT3, mat3Apply, type Mat3 } from './perspective';
 
 export interface Size {
   w: number;
@@ -38,7 +39,8 @@ export function pointInRotatedSource(
   p: Point,
   sw: number,
   sh: number,
-  angleDeg: number
+  angleDeg: number,
+  perspInv: Mat3 = IDENTITY_MAT3
 ): boolean {
   const bbox = rotatedBbox(sw, sh, angleDeg);
   const a = degToRad(angleDeg);
@@ -50,16 +52,25 @@ export function pointInRotatedSource(
   const dy = p.y - cy;
   const ux = dx * c + dy * s;
   const uy = -dx * s + dy * c;
-  const hw = sw / 2;
-  const hh = sh / 2;
-  return Math.abs(ux) <= hw + 1e-3 && Math.abs(uy) <= hh + 1e-3;
+  if (perspInv === IDENTITY_MAT3) {
+    const hw = sw / 2;
+    const hh = sh / 2;
+    return Math.abs(ux) <= hw + 1e-3 && Math.abs(uy) <= hh + 1e-3;
+  }
+  const warped = mat3Apply(perspInv, [ux / sw + 0.5, uy / sh + 0.5]);
+  const eu = 1e-3 / sw;
+  const ev = 1e-3 / sh;
+  return (
+    warped[0] >= -eu && warped[0] <= 1 + eu && warped[1] >= -ev && warped[1] <= 1 + ev
+  );
 }
 
 export function cropRectInsideRotatedSource(
   rect: CropRect,
   sw: number,
   sh: number,
-  angleDeg: number
+  angleDeg: number,
+  perspInv: Mat3 = IDENTITY_MAT3
 ): boolean {
   const bbox = rotatedBbox(sw, sh, angleDeg);
   const x0 = rect.x * bbox.w;
@@ -72,14 +83,15 @@ export function cropRectInsideRotatedSource(
     { x: x1, y: y1 },
     { x: x0, y: y1 }
   ];
-  return corners.every((p) => pointInRotatedSource(p, sw, sh, angleDeg));
+  return corners.every((p) => pointInRotatedSource(p, sw, sh, angleDeg, perspInv));
 }
 
 export function largestInscribedRect(
   sw: number,
   sh: number,
   angleDeg: number,
-  aspect: number
+  aspect: number,
+  perspInv: Mat3 = IDENTITY_MAT3
 ): CropRect {
   const bbox = rotatedBbox(sw, sh, angleDeg);
   const target = Math.max(aspect, 1e-6);
@@ -95,7 +107,7 @@ export function largestInscribedRect(
     const nx = (bbox.w - wPx) / 2 / bbox.w;
     const ny = (bbox.h - hPx) / 2 / bbox.h;
     const rect: CropRect = { x: nx, y: ny, w: wPx / bbox.w, h: hPx / bbox.h };
-    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg)) {
+    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg, perspInv)) {
       lo = mid;
     } else {
       hi = mid;
@@ -118,7 +130,8 @@ export function refitCropAtAspect(
   sw: number,
   sh: number,
   angleDeg: number,
-  aspect: number
+  aspect: number,
+  perspInv: Mat3 = IDENTITY_MAT3
 ): CropRect {
   const bbox = rotatedBbox(sw, sh, angleDeg);
   const target = Math.max(aspect, 1e-6);
@@ -146,7 +159,7 @@ export function refitCropAtAspect(
       w: wPx / bbox.w,
       h: hPx / bbox.h
     };
-    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg)) {
+    if (cropRectInsideRotatedSource(rect, sw, sh, angleDeg, perspInv)) {
       best = rect;
       lo = t;
     } else {
@@ -161,7 +174,8 @@ export function constrainCropRect(
   previous: CropRect | null,
   sw: number,
   sh: number,
-  angleDeg: number
+  angleDeg: number,
+  perspInv: Mat3 = IDENTITY_MAT3
 ): CropRect {
   const clipped: CropRect = {
     x: clamp01(candidate.x),
@@ -171,10 +185,16 @@ export function constrainCropRect(
   };
   if (clipped.x + clipped.w > 1) clipped.w = 1 - clipped.x;
   if (clipped.y + clipped.h > 1) clipped.h = 1 - clipped.y;
-  if (cropRectInsideRotatedSource(clipped, sw, sh, angleDeg)) return clipped;
+  if (cropRectInsideRotatedSource(clipped, sw, sh, angleDeg, perspInv)) return clipped;
   const base = previous ?? FULL_CROP;
-  if (!cropRectInsideRotatedSource(base, sw, sh, angleDeg)) {
-    return largestInscribedRect(sw, sh, angleDeg, clipped.w / Math.max(clipped.h, 1e-6));
+  if (!cropRectInsideRotatedSource(base, sw, sh, angleDeg, perspInv)) {
+    return largestInscribedRect(
+      sw,
+      sh,
+      angleDeg,
+      clipped.w / Math.max(clipped.h, 1e-6),
+      perspInv
+    );
   }
   let lo = 0;
   let hi = 1;
@@ -187,7 +207,7 @@ export function constrainCropRect(
       w: base.w + (clipped.w - base.w) * t,
       h: base.h + (clipped.h - base.h) * t
     };
-    if (cropRectInsideRotatedSource(r, sw, sh, angleDeg)) {
+    if (cropRectInsideRotatedSource(r, sw, sh, angleDeg, perspInv)) {
       best = r;
       lo = t;
     } else {
