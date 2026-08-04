@@ -47,6 +47,7 @@ pub struct Config {
     pub cache_dir: PathBuf,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
+    pub thumb_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub embedding_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
@@ -107,6 +108,7 @@ struct FileConfig {
     data_dir: Option<String>,
     preview_max_edge: Option<u32>,
     render_max_concurrency: Option<usize>,
+    thumb_max_concurrency: Option<usize>,
     mask_cache_mb: Option<u64>,
     embedding_cache_mb: Option<u64>,
     raw_frame_cache_mb: Option<u64>,
@@ -185,14 +187,30 @@ impl Config {
             });
         }
 
+        let cores = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(2);
+
         let render_max_concurrency = parse_or(
             "RENDER_MAX_CONCURRENCY",
             file.render_max_concurrency,
-            2usize,
+            (cores / 2).clamp(2, 4),
         )?;
         if render_max_concurrency == 0 {
             return Err(ConfigError::InvalidValue {
                 key: "RENDER_MAX_CONCURRENCY".into(),
+                value: "0".into(),
+            });
+        }
+
+        let thumb_max_concurrency = parse_or(
+            "THUMB_MAX_CONCURRENCY",
+            file.thumb_max_concurrency,
+            (cores / 4).clamp(2, 4),
+        )?;
+        if thumb_max_concurrency == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "THUMB_MAX_CONCURRENCY".into(),
                 value: "0".into(),
             });
         }
@@ -213,7 +231,11 @@ impl Config {
             });
         }
 
-        let raw_frame_cache_mb = parse_or("RAW_FRAME_CACHE_MB", file.raw_frame_cache_mb, 512u64)?;
+        let raw_frame_cache_mb = parse_or(
+            "RAW_FRAME_CACHE_MB",
+            file.raw_frame_cache_mb,
+            (render_max_concurrency as u64 * 256).max(512),
+        )?;
         if !(64..=16384).contains(&raw_frame_cache_mb) {
             return Err(ConfigError::InvalidValue {
                 key: "RAW_FRAME_CACHE_MB".into(),
@@ -296,6 +318,7 @@ impl Config {
             cache_dir,
             preview_max_edge,
             render_max_concurrency,
+            thumb_max_concurrency,
             mask_cache_mb,
             embedding_cache_mb,
             raw_frame_cache_mb,
@@ -321,6 +344,7 @@ impl Config {
             cache_dir: self.cache_dir.display().to_string(),
             preview_max_edge: self.preview_max_edge,
             render_max_concurrency: self.render_max_concurrency,
+            thumb_max_concurrency: self.thumb_max_concurrency,
             mask_cache_mb: self.mask_cache_mb,
             embedding_cache_mb: self.embedding_cache_mb,
             raw_frame_cache_mb: self.raw_frame_cache_mb,
@@ -346,6 +370,7 @@ pub struct RedactedConfig {
     pub cache_dir: String,
     pub preview_max_edge: u32,
     pub render_max_concurrency: usize,
+    pub thumb_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub embedding_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
@@ -475,6 +500,7 @@ mod tests {
             "QUALITY_FRAME_CACHE_MB",
             "GPU_TEXTURE_CACHE_MB",
             "RENDER_MAX_CONCURRENCY",
+            "THUMB_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
@@ -503,8 +529,14 @@ mod tests {
         if cfg.preview_max_edge != 4096 {
             panic!("max_edge");
         }
-        if cfg.raw_frame_cache_mb != 512 {
+        if cfg.raw_frame_cache_mb != (cfg.render_max_concurrency as u64 * 256).max(512) {
             panic!("raw_frame_cache_mb");
+        }
+        if !(2..=4).contains(&cfg.render_max_concurrency) {
+            panic!("render_max_concurrency");
+        }
+        if !(2..=4).contains(&cfg.thumb_max_concurrency) {
+            panic!("thumb_max_concurrency");
         }
         if cfg.mask_cache_mb != 512 {
             panic!("mask_cache_mb");

@@ -106,9 +106,8 @@ impl AppState {
             dcp.clone(),
         );
         let queue = RenderQueue::new(config.render_max_concurrency);
-        let edited_thumb =
-            EditedThumbService::new(&config.cache_dir, config.render_max_concurrency)
-                .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
+        let edited_thumb = EditedThumbService::new(&config.cache_dir, config.thumb_max_concurrency)
+            .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
         #[cfg(feature = "ml")]
         let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("model store: {e}"))?;

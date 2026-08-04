@@ -46,6 +46,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         cache_dir: cache_dir.clone(),
         preview_max_edge: 1024,
         render_max_concurrency: 1,
+        thumb_max_concurrency: 1,
         mask_cache_mb: 1024,
         embedding_cache_mb: 512,
         raw_frame_cache_mb: 256,

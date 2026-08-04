@@ -146,7 +146,7 @@ Use the GPU if at all possible. CPU demosaic + tone on a 24MP RAW takes several 
 
 Retained render memory is bounded by byte budgets you can lower without touching render quality or speed:
 
-- `RAW_FRAME_CACHE_MB` (default 512) — decoded preview frames kept in RAM.
+- `RAW_FRAME_CACHE_MB` (default `RENDER_MAX_CONCURRENCY * 256`, minimum 512) — decoded preview frames kept in RAM.
 - `QUALITY_FRAME_CACHE_MB` (default 512) — decoded full-quality frames kept in RAM.
 - `GPU_TEXTURE_CACHE_MB` (default 512) — retained free GPU textures reused between renders.
 
@@ -159,7 +159,7 @@ Both evict least-recently-used entries once they pass the cap. `cache/embeddings
 
 Check current usage in Settings -> Diagnostics before guessing. A cache sitting well under its cap is not your problem.
 
-On a memory-constrained host with a shared GPU (for example Unraid), start with `RENDER_MAX_CONCURRENCY=1`, `RAW_FRAME_CACHE_MB=256`, `QUALITY_FRAME_CACHE_MB=256`, `GPU_TEXTURE_CACHE_MB=256`, and `MASK_CACHE_MB=256`. Only drop `PREVIEW_MAX_EDGE` to 2048 if OOM continues, since that reduces preview resolution.
+On a memory-constrained host with a shared GPU (for example Unraid), start with `RENDER_MAX_CONCURRENCY=1`, `THUMB_MAX_CONCURRENCY=1`, `RAW_FRAME_CACHE_MB=256`, `QUALITY_FRAME_CACHE_MB=256`, `GPU_TEXTURE_CACHE_MB=256`, and `MASK_CACHE_MB=256`. Only drop `PREVIEW_MAX_EDGE` to 2048 if OOM continues, since that reduces preview resolution.
 
 ## Logs and request IDs
 
