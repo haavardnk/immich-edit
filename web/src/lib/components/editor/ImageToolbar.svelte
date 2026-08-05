@@ -4,6 +4,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
+  import { hint } from '$lib/keybinds';
   import {
     mdiArrowLeft,
     mdiUndo,
@@ -31,7 +32,7 @@
 
 <div class="relative z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
   <div class="flex items-center gap-1 justify-self-start min-w-0">
-    <ToolbarButton path={mdiArrowLeft} size={18} title="Back" onclick={goBack} />
+    <ToolbarButton path={mdiArrowLeft} size={18} title={hint('Back', 'backToGrid')} onclick={goBack} />
     {#if editor.asset}
       <span class="text-[13px] font-medium truncate text-immich-dark-fg/80">{editor.asset.originalFileName}</span>
     {/if}
@@ -41,14 +42,14 @@
     <ToolbarButton
       path={mdiUndo}
       size={18}
-      title="Undo (Ctrl+Z)"
+      title={hint('Undo', 'undo')}
       disabled={!editor.canUndo}
       onclick={editor.undo}
     />
     <ToolbarButton
       path={mdiRedo}
       size={18}
-      title="Redo (Ctrl+Shift+Z)"
+      title={hint('Redo', 'redo')}
       disabled={!editor.canRedo}
       onclick={editor.redo}
     />
@@ -58,7 +59,8 @@
     <ToolbarButton
       path={mdiEyeOutline}
       size={18}
-      title="View Original (hold \)"
+      title={hint('View original', 'holdOriginal')}
+      ariaLabel="View original"
       onpointerdown={() => holdOriginal(true)}
       onpointerup={() => holdOriginal(false)}
       onpointerleave={() => { if (editor.showingOriginal) holdOriginal(false); }}
@@ -66,7 +68,7 @@
     <ToolbarButton
       path={mdiCompare}
       size={18}
-      title="Before/After split (B)"
+      title={hint('Before/after split', 'beforeAfter')}
       ariaLabel="Before/After split"
       active={editor.splitMode}
       disabled={!!editor.geometrySession}
@@ -75,7 +77,7 @@
     <ToolbarButton
       path={mdiTriangleOutline}
       size={18}
-      title="Clipping overlay (O)"
+      title={hint('Clipping overlay', 'clipWarn')}
       ariaLabel="Clipping overlay"
       active={ui.clipWarn}
       pressed={ui.clipWarn}

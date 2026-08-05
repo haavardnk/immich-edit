@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { AssetSummary } from '$lib/types/album';
+  import { hint } from '$lib/keybinds';
   import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
   import { isRejected } from '$lib/reject';
@@ -120,7 +121,7 @@
     type="button"
     onclick={onLoupeClick}
     aria-label="Quick review"
-    title="Quick review (Space)"
+    title={hint('Quick review', 'openLoupe')}
     class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-md rounded-full p-1.5 bg-black/40 hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100"
   >
     <Icon path={mdiEyeOutline} size={22} />

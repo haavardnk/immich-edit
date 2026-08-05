@@ -21,21 +21,21 @@ async function openLoupe(page: Page): Promise<void> {
   await page.goto('/search?q=IMG');
   await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
-  await expect(page.getByTitle('Close (Esc)')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Close/ })).toBeVisible();
 }
 
-test('loupe navigates with j and k and closes with escape', async ({ page }) => {
+test('loupe navigates with the arrow keys and closes with escape', async ({ page }) => {
   await openLoupe(page);
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 
-  await page.keyboard.press('k');
+  await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
 
-  await page.keyboard.press('j');
+  await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByTitle('Close (Esc)')).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Close/ })).toBeHidden();
 
   await page.keyboard.press(' ');
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
@@ -59,18 +59,18 @@ test('number keys rate the loupe asset', async ({ page }) => {
   await expect(page.getByRole('radio', { name: '3 stars' })).toBeChecked();
 });
 
-test('o toggles the clipping overlay', async ({ page }) => {
+test('j toggles the clipping overlay', async ({ page }) => {
   await openLoupe(page);
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
-  const button = page.getByTitle('Clipping overlay (O)');
+  const button = page.getByRole('button', { name: /^Clipping overlay/ });
 
   await expect(image).toHaveAttribute('src', /clip=false/);
   await expect(button).toHaveAttribute('aria-pressed', 'false');
 
-  await page.keyboard.press('o');
+  await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=true/);
   await expect(button).toHaveAttribute('aria-pressed', 'true');
 
-  await page.keyboard.press('o');
+  await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=false/);
 });

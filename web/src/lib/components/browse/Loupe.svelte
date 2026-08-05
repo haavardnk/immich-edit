@@ -5,7 +5,7 @@
   import { compare, CENTERED } from '$lib/stores/compare.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { getAsset } from '$lib/api/assets';
   import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
@@ -24,6 +24,7 @@
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { matchKeybind, hint, type KeybindContext } from '$lib/keybinds';
   import {
     mdiClose,
     mdiCompare,
@@ -43,6 +44,9 @@
 
   const currentId = $derived(browseView.loupeId);
   const multi = $derived(compare.mode !== 'single');
+  const contexts = $derived<KeybindContext[]>(
+    compare.mode === 'single' ? ['loupe', 'global'] : [compare.mode, 'global']
+  );
   const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
   const focusedId = $derived(multi ? compare.focusedId : currentId);
   const asset = $derived(
@@ -269,112 +273,111 @@
     void goto(`/assets/${id}`);
   }
 
+  function unflag(): void {
+    const id = focusedId;
+    if (!id) return;
+    void clearFlags(id).then((ok) => {
+      if (!ok) return;
+      const updated = browsing.assets.find((a) => a.id === id);
+      if (updated) setTags(id, updated.tags);
+    });
+  }
+
   function onKeydown(e: KeyboardEvent): void {
     if (!currentId) return;
     const el = document.activeElement;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
       return;
     }
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-      e.preventDefault();
-      ui.toggleKeybindsHelp();
-      return;
-    }
+    const bind = matchKeybind(e, contexts);
+    if (!bind) return;
 
-    switch (e.key) {
-      case 'Escape':
+    switch (bind) {
+      case 'help':
         e.preventDefault();
-        if (multi) return leaveMulti();
+        return ui.toggleKeybindsHelp();
+      case 'loupeClose':
+        e.preventDefault();
         return browseView.closeLoupe();
-      case 'Tab':
-        if (!multi) break;
+      case 'compareExit':
+      case 'surveyExit':
+        e.preventDefault();
+        return leaveMulti();
+      case 'backToGrid':
+        e.preventDefault();
+        if (multi) leaveMulti();
+        return browseView.closeLoupe();
+      case 'loupeNav':
+        e.preventDefault();
+        return go(e.key === 'ArrowRight' ? 1 : -1);
+      case 'compareFocus':
+        e.preventDefault();
+        return compare.focusDelta(e.key === 'ArrowRight' ? 1 : -1);
+      case 'surveyFocus':
+        e.preventDefault();
+        if (e.key === 'ArrowRight') return compare.focusDelta(1);
+        if (e.key === 'ArrowLeft') return compare.focusDelta(-1);
+        return compare.focusDelta(e.key === 'ArrowDown' ? cols : -cols);
+      case 'paneFocusCycle':
         e.preventDefault();
         return compare.focusDelta(e.shiftKey ? -1 : 1);
-      case 'ArrowRight':
+      case 'paneSwap':
         e.preventDefault();
-        return multi ? compare.focusDelta(1) : go(1);
-      case 'ArrowLeft':
-        e.preventDefault();
-        return multi ? compare.focusDelta(-1) : go(-1);
-      case 'ArrowDown':
-        if (!multi) break;
-        e.preventDefault();
-        return compare.focusDelta(cols);
-      case 'ArrowUp':
-        if (!multi) break;
-        e.preventDefault();
-        return compare.focusDelta(-cols);
-      case 'Backspace':
-      case 'Delete':
-        if (!multi) break;
+        return advanceFocused(e.key === 'ArrowRight' ? 1 : -1);
+      case 'paneDrop':
         e.preventDefault();
         return dropFocused();
-      case 'k':
-      case 'K':
-        e.preventDefault();
-        return multi ? advanceFocused(1) : go(1);
-      case 'j':
-      case 'J':
-        e.preventDefault();
-        return multi ? advanceFocused(-1) : go(-1);
-      case 'c':
-      case 'C':
-        e.preventDefault();
-        return enterMulti('compare');
-      case 'n':
-      case 'N':
-        e.preventDefault();
-        return enterMulti('survey');
-      case 'y':
-      case 'Y':
+      case 'paneSync':
         e.preventDefault();
         compare.syncView = !compare.syncView;
         return;
-      case 'f':
-      case 'F':
+      case 'panePromote':
+        e.preventDefault();
+        return compare.promote(compare.focusIndex);
+      case 'surveyKeep':
+        e.preventDefault();
+        return compare.keepOnly(compare.focusIndex);
+      case 'enterCompare':
+        e.preventDefault();
+        return enterMulti('compare');
+      case 'enterSurvey':
+        e.preventDefault();
+        return enterMulti('survey');
+      case 'openEditor':
+      case 'paneOpenEditor':
+        e.preventDefault();
+        return openEditor();
+      case 'favorite':
         e.preventDefault();
         return favorite();
-      case 'x':
-      case 'X':
+      case 'reject':
         e.preventDefault();
         return reject();
-      case 'z':
-      case 'Z':
-      case ' ':
+      case 'unflag':
         e.preventDefault();
-        toggleZoom();
-        return;
-      case 'i':
-      case 'I':
+        return unflag();
+      case 'zoomToggle':
+        e.preventDefault();
+        return toggleZoom();
+      case 'toggleInfo':
         e.preventDefault();
         browseView.loupeInfoOpen = !browseView.loupeInfoOpen;
         return;
-      case 't':
-      case 'T':
+      case 'toggleTags':
         e.preventDefault();
         browseView.loupeTagsOpen = !browseView.loupeTagsOpen;
         return;
-      case 'o':
-      case 'O':
+      case 'clipWarn':
         e.preventDefault();
         ui.toggleClipWarn();
         return;
-      case 'Enter':
+      case 'rate': {
+        const next = nextRatingFromKey(e.key, rating);
+        if (next === undefined) return;
         e.preventDefault();
-        if (compare.mode === 'survey') return compare.keepOnly(compare.focusIndex);
-        if (multi) return compare.promote(compare.focusIndex);
-        return openEditor();
-      case 'e':
-      case 'E':
-        e.preventDefault();
-        return openEditor();
-    }
-    const next = nextRatingFromKey(e.key, rating);
-    if (next !== undefined) {
-      e.preventDefault();
-      rate(next);
+        return rate(next);
+      }
     }
   }
 
@@ -412,7 +415,7 @@
       <ToolbarButton
         path={mdiInformationOutline}
         size={18}
-        title="Info (I)"
+        title={hint('Info', 'toggleInfo')}
         active={browseView.loupeInfoOpen}
         onclick={() => (browseView.loupeInfoOpen = !browseView.loupeInfoOpen)}
       />
@@ -427,7 +430,7 @@
       <ToolbarButton
         path={mdiCompare}
         size={18}
-        title="Compare (C)"
+        title={hint('Compare', 'enterCompare')}
         active={compare.mode === 'compare'}
         pressed={compare.mode === 'compare'}
         onclick={() => enterMulti('compare')}
@@ -435,7 +438,7 @@
       <ToolbarButton
         path={mdiViewGridOutline}
         size={18}
-        title="Survey (N)"
+        title={hint('Survey', 'enterSurvey')}
         active={compare.mode === 'survey'}
         pressed={compare.mode === 'survey'}
         onclick={() => enterMulti('survey')}
@@ -443,7 +446,7 @@
       <ToolbarButton
         path={mdiTriangleOutline}
         size={18}
-        title="Clipping overlay (O)"
+        title={hint('Clipping overlay', 'clipWarn')}
         active={ui.clipWarn}
         pressed={ui.clipWarn}
         onclick={() => ui.toggleClipWarn()}
@@ -451,19 +454,19 @@
       <ToolbarButton
         path={mdiKeyboardOutline}
         size={18}
-        title="Keyboard shortcuts (?)"
+        title={hint('Keyboard shortcuts', 'help')}
         onclick={() => ui.toggleKeybindsHelp()}
       />
       <ToolbarButton
         path={mdiPencilOutline}
         size={18}
-        title="Edit (E)"
+        title={hint('Edit', 'openEditor')}
         onclick={openEditor}
       />
       <ToolbarButton
         path={mdiClose}
         size={18}
-        title="Close (Esc)"
+        title={hint('Close', 'loupeClose')}
         onclick={() => browseView.closeLoupe()}
       />
     </div>
@@ -490,7 +493,7 @@
         <button
           type="button"
           class="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white"
-          title="Previous (←)"
+          title="Previous"
           onclick={() => go(-1)}
         >
           <Icon path={mdiChevronLeft} size={24} />
@@ -500,7 +503,7 @@
         <button
           type="button"
           class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white"
-          title="Next (→)"
+          title="Next"
           onclick={() => go(1)}
         >
           <Icon path={mdiChevronRight} size={24} />

@@ -2,6 +2,7 @@
   import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
@@ -52,14 +53,14 @@
             class="w-28 h-1 accent-immich-dark-primary"
           />
           <ToolbarButton path={mdiMagnifyPlusOutline} size={16} title="Zoom In" onclick={ui.zoomIn} />
-          <ToolbarButton path={mdiFitToScreenOutline} size={16} title="Fit to Screen (Space / Z)" onclick={ui.zoomFit} />
+          <ToolbarButton path={mdiFitToScreenOutline} size={16} title={hint('Fit to screen', 'zoomToggle')} onclick={ui.zoomFit} />
         </div>
       {/snippet}
     </Popover>
     <ToolbarButton
       path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}
       size={18}
-      title="Fullscreen (⇧F)"
+      title={hint('Fullscreen', 'fullscreen')}
       onclick={ui.toggleFullscreen}
     />
   </div>

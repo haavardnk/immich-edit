@@ -50,6 +50,7 @@
   import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
   import { session } from '$lib/stores/session.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { keyLabel } from '$lib/keybinds';
   import { goto } from '$app/navigation';
 
   let maskKinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
@@ -194,7 +195,10 @@
     addLayerOpen = false;
     addComponentOpen = false;
     editor.beginPolygon(layerId, mode);
-    toasts.push('info', 'Click to place corners. Click the first one, or press Enter, to close.');
+    toasts.push(
+      'info',
+      `Click to place corners. Click the first one, or press ${keyLabel('Enter')}, to close.`
+    );
   }
 
   async function pickLayerManual(tool: ManualTool): Promise<void> {
@@ -246,7 +250,7 @@
       editor.clickTool = { active: true, negative: false, box: false, layerId: null, mode: 'add' };
       toasts.push(
         'info',
-        'Click the photo to build a mask. Shift-click excludes an area, and clicking a dot deletes it.'
+        `Click the photo to build a mask. ${keyLabel('Shift')}-click excludes an area, and clicking a dot deletes it.`
       );
       return;
     }

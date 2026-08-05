@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import Icon from '$lib/components/Icon.svelte';
@@ -170,7 +171,7 @@
             aria-pressed={ui.perspectiveCorners}
             onclick={ui.togglePerspectiveCorners}
             aria-label="Corner handles"
-            title="Corner handles (P)"
+            title={hint('Corner handles', 'perspective')}
           >
             <Icon path={mdiVectorSquare} size={14} />
           </button>

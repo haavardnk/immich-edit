@@ -11,9 +11,12 @@
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { isRejected } from '$lib/reject';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { matchKeybind, type KeybindContext } from '$lib/keybinds';
+
+  const GRID_CONTEXTS: KeybindContext[] = ['grid', 'global'];
 
   let {
     assets,
@@ -155,6 +158,16 @@
     targets().forEach((id) => void toggleReject(id));
   }
 
+  function applyUnflag(): void {
+    targets().forEach((id) => void clearFlags(id));
+  }
+
+  function moveAndShow(e: KeyboardEvent, delta: number): void {
+    e.preventDefault();
+    const id = browseView.moveActive(delta);
+    if (id) ensureVisible(id);
+  }
+
   function openMulti(mode: MultiMode): void {
     const members = multiMembers(
       mode,
@@ -173,91 +186,72 @@
   function onKeydown(e: KeyboardEvent): void {
     if (browseView.loupeId || isTyping()) return;
 
-    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-      e.preventDefault();
-      ui.toggleKeybindsHelp();
-      return;
-    }
+    const bind = matchKeybind(e, GRID_CONTEXTS);
+    if (!bind) return;
 
-    if (e.key === 'Escape' && selection.active) {
-      e.preventDefault();
-      selection.clear();
-      return;
-    }
-
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    const { cols } = layout;
-    const moveAndShow = (delta: number): void => {
-      e.preventDefault();
-      const id = browseView.moveActive(delta);
-      if (id) ensureVisible(id);
-    };
-
-    switch (e.key) {
-      case 'ArrowRight':
-        return moveAndShow(1);
-      case 'ArrowLeft':
-        return moveAndShow(-1);
-      case 'ArrowDown':
-        return moveAndShow(cols);
-      case 'ArrowUp':
-        return moveAndShow(-cols);
-      case 'Home':
-        return moveAndShow(-assets.length);
-      case 'End':
-        return moveAndShow(assets.length);
-      case 'PageDown':
-        return moveAndShow(cols * Math.max(1, Math.floor(parentHeight / layout.rowStride)));
-      case 'PageUp':
-        return moveAndShow(-cols * Math.max(1, Math.floor(parentHeight / layout.rowStride)));
-      case '-':
-      case '_':
+    switch (bind) {
+      case 'help':
         e.preventDefault();
-        return browseView.stepGridSize(-1);
-      case '+':
-      case '=':
+        return ui.toggleKeybindsHelp();
+      case 'gridClearSelection':
+        if (!selection.active) return;
         e.preventDefault();
-        return browseView.stepGridSize(1);
-      case 'f':
-      case 'F':
+        return selection.clear();
+      case 'gridSelectAll':
+        e.preventDefault();
+        return selection.selectLoaded(items.map((a) => a.id));
+      case 'gridMove': {
+        const { cols } = layout;
+        if (e.key === 'ArrowRight') return moveAndShow(e, 1);
+        if (e.key === 'ArrowLeft') return moveAndShow(e, -1);
+        if (e.key === 'ArrowDown') return moveAndShow(e, cols);
+        return moveAndShow(e, -cols);
+      }
+      case 'gridEdge':
+        return moveAndShow(e, e.key === 'Home' ? -assets.length : assets.length);
+      case 'gridPage': {
+        const page = layout.cols * Math.max(1, Math.floor(parentHeight / layout.rowStride));
+        return moveAndShow(e, e.key === 'PageUp' ? -page : page);
+      }
+      case 'gridSize':
+        e.preventDefault();
+        return browseView.stepGridSize(e.key === '-' || e.key === '_' ? -1 : 1);
+      case 'favorite':
         e.preventDefault();
         return applyFavorite();
-      case 'x':
-      case 'X':
+      case 'reject':
         e.preventDefault();
         return applyReject();
-      case 'c':
-      case 'C':
+      case 'unflag':
+        e.preventDefault();
+        return applyUnflag();
+      case 'enterCompare':
         e.preventDefault();
         return openMulti('compare');
-      case 'n':
-      case 'N':
+      case 'enterSurvey':
         e.preventDefault();
         return openMulti('survey');
-      case 'Enter':
-        if (browseView.activeId) {
-          e.preventDefault();
-          void goto(`/assets/${browseView.activeId}`);
-        }
+      case 'openEditor':
+        if (!browseView.activeId) return;
+        e.preventDefault();
+        void goto(`/assets/${browseView.activeId}`);
         return;
-      case ' ':
-        if (browseView.activeId) {
-          e.preventDefault();
-          browseView.openLoupe(browseView.activeId);
-        }
+      case 'openLoupe':
+        if (!browseView.activeId) return;
+        e.preventDefault();
+        browseView.openLoupe(browseView.activeId);
         return;
-    }
-
-    if (e.key === '0' || (e.key >= '1' && e.key <= '5')) {
-      const ids = targets();
-      if (ids.length === 0) return;
-      e.preventDefault();
-      const idSet = new Set(ids);
-      const ratings = items.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
-      const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
-      const next = nextRatingFromKey(e.key, current);
-      if (next !== undefined) applyRating(next);
+      case 'rate': {
+        const ids = targets();
+        if (ids.length === 0) return;
+        e.preventDefault();
+        const idSet = new Set(ids);
+        const ratings = items.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
+        const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
+        const next = nextRatingFromKey(e.key, current);
+        if (next !== undefined) applyRating(next);
+        return;
+      }
     }
   }
 

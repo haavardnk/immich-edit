@@ -1,20 +1,32 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { ui } from '$lib/stores/ui.svelte';
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { compare } from '$lib/stores/compare.svelte';
-  import { KEYBIND_GROUPS, type KeybindMode } from '$lib/keybinds';
+  import { KEYBINDS, isKeybind, keysFor, type KeybindContext } from '$lib/keybinds';
+  import { activeContexts } from '$lib/keybindContext';
+  import Icon from '$lib/components/Icon.svelte';
+  import { mdiMagnify } from '@mdi/js';
 
-  const mode = $derived<KeybindMode>(
-    page.url.pathname.startsWith('/assets/')
-      ? 'editor'
-      : compare.mode !== 'single'
-        ? compare.mode
-        : browseView.loupeId
-          ? 'loupe'
-          : 'grid'
-  );
-  const groups = $derived(KEYBIND_GROUPS.filter((g) => g.mode === mode));
+  type HelpBind = { id: string; keys: string; label: string };
+  type HelpGroup = { title: string; active: boolean; binds: HelpBind[] };
+
+  let query = $state('');
+  let input = $state<HTMLInputElement | null>(null);
+
+  const contexts = $derived(ui.keybindsHelpOpen ? activeContexts() : []);
+
+  const groups = $derived.by<HelpGroup[]>(() => {
+    const needle = query.trim().toLowerCase();
+    const byTitle = new Map<string, HelpGroup>();
+    for (const bind of KEYBINDS) {
+      const keys = keysFor(bind.id);
+      if (needle && !`${bind.label} ${keys}`.toLowerCase().includes(needle)) continue;
+      const group = byTitle.get(bind.group) ?? { title: bind.group, active: false, binds: [] };
+      if (bind.contexts.some((c: KeybindContext) => contexts.includes(c))) group.active = true;
+      group.binds.push({ id: bind.id, keys, label: bind.label });
+      byTitle.set(bind.group, group);
+    }
+    const all = [...byTitle.values()];
+    return [...all.filter((g) => g.active), ...all.filter((g) => !g.active)];
+  });
 
   function onBackdropClick(e: MouseEvent): void {
     if (e.currentTarget === e.target) ui.closeKeybindsHelp();
@@ -22,52 +34,82 @@
 
   function onWindowKeydown(e: KeyboardEvent): void {
     if (!ui.keybindsHelpOpen) return;
-    if (e.key === 'Escape' || e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    if (isKeybind(e, 'editorEscape') || (isKeybind(e, 'help') && e.target !== input)) {
       e.preventDefault();
       ui.closeKeybindsHelp();
     }
     e.stopPropagation();
   }
+
+  $effect(() => {
+    if (!ui.keybindsHelpOpen) return;
+    query = '';
+    input?.focus();
+  });
 </script>
 
 <svelte:window onkeydowncapture={onWindowKeydown} />
 
 {#if ui.keybindsHelpOpen}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-8"
     role="presentation"
     onclick={onBackdropClick}
   >
     <div
-      class="bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl p-5 min-w-[320px] max-w-105"
+      class="bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl flex flex-col max-h-full w-full max-w-4xl"
       role="dialog"
       aria-modal="true"
       aria-label="Keyboard shortcuts"
     >
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-medium text-immich-dark-fg">Keyboard shortcuts</h2>
+      <div class="flex items-center gap-3 px-5 py-3 border-b border-white/10">
+        <h2 class="text-sm font-medium text-immich-dark-fg flex-none">Keyboard shortcuts</h2>
+        <div
+          class="flex items-center gap-2 flex-1 min-w-0 bg-black/30 rounded-md px-2 py-1 border border-white/10 focus-within:border-immich-primary/60"
+        >
+          <Icon path={mdiMagnify} size={16} class="text-immich-dark-fg/40 flex-none" />
+          <input
+            bind:this={input}
+            bind:value={query}
+            type="text"
+            placeholder="Filter shortcuts"
+            aria-label="Filter shortcuts"
+            class="flex-1 min-w-0 bg-transparent text-xs text-immich-dark-fg placeholder:text-immich-dark-fg/30 outline-none"
+          />
+        </div>
         <button
-          class="text-xs px-2 py-0.5 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
+          class="flex-none text-xs px-2 py-0.5 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
           onclick={ui.closeKeybindsHelp}
           aria-label="close"
         >
-          Esc
+          {keysFor('editorEscape')}
         </button>
       </div>
-      <div class="flex flex-col gap-4">
-        {#each groups as group (group.title)}
-          <div>
-            <h3 class="text-[11px] uppercase tracking-wider text-immich-dark-fg/40 mb-1.5">
-              {group.title}
-            </h3>
-            <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-              {#each group.binds as s (s.keys + s.description)}
-                <kbd class="font-mono text-immich-dark-fg/90 whitespace-nowrap">{s.keys}</kbd>
-                <span class="text-immich-dark-fg/70">{s.description}</span>
-              {/each}
-            </div>
+
+      <div class="overflow-y-auto px-5 py-4">
+        {#if groups.length === 0}
+          <p class="text-xs text-immich-dark-fg/50">No shortcuts match “{query}”.</p>
+        {:else}
+          <div class="columns-1 sm:columns-2 gap-8">
+            {#each groups as group (group.title)}
+              <div class="break-inside-avoid mb-5">
+                <h3
+                  class="text-[11px] uppercase tracking-wider mb-1.5 {group.active
+                    ? 'text-immich-primary'
+                    : 'text-immich-dark-fg/40'}"
+                >
+                  {group.title}
+                </h3>
+                <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+                  {#each group.binds as bind (bind.id)}
+                    <kbd class="font-mono text-immich-dark-fg/90 whitespace-nowrap">{bind.keys}</kbd>
+                    <span class="text-immich-dark-fg/70">{bind.label}</span>
+                  {/each}
+                </div>
+              </div>
+            {/each}
           </div>
-        {/each}
+        {/if}
       </div>
     </div>
   </div>

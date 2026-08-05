@@ -59,6 +59,15 @@ test('leaving survey selects the survivors', async ({ page }) => {
   await expect(page.getByText('2 selected')).toBeVisible();
 });
 
+test('g leaves survey straight for the grid with the survivors selected', async ({ page }) => {
+  await openSurvey(page);
+
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('g');
+
+  await expect(page.getByText('2 selected')).toBeVisible();
+});
+
 test('leaving an untouched survey selects nothing', async ({ page }) => {
   await openSurvey(page);
 

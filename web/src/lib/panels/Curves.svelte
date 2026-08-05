@@ -2,6 +2,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
+  import { keyLabel } from '$lib/keybinds';
   import {
     CURVE_CHANNELS,
     identityCurve,
@@ -370,7 +371,9 @@
     <button
       type="button"
       class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-      title="Reset {channelLabels[activeChannel]} curve  —  shift-click to reset all channels"
+      title="Reset {channelLabels[activeChannel]} curve  —  {keyLabel(
+        'Shift'
+      )}-click to reset all channels"
       aria-label="Reset {channelLabels[activeChannel]} curve"
       onclick={(e) => (e.shiftKey ? resetAll() : resetActive())}
     >

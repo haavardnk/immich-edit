@@ -57,6 +57,31 @@ class UiStore {
     this.editorTab = 'retouch';
   };
 
+  openMasks = (): void => {
+    this.fullscreen = false;
+    this.rightCollapsed = false;
+    this.editorTab = 'masks';
+  };
+
+  openExport = (): void => {
+    this.fullscreen = false;
+    this.rightCollapsed = false;
+    this.editorTab = 'export';
+  };
+
+  toggleChrome = (): void => {
+    const hidden = this.leftCollapsed && this.rightCollapsed && this.filmstripCollapsed;
+    this.leftCollapsed = !hidden;
+    this.rightCollapsed = !hidden;
+    this.filmstripCollapsed = !hidden;
+  };
+
+  togglePanels = (): void => {
+    const hidden = this.leftCollapsed && this.rightCollapsed;
+    this.leftCollapsed = !hidden;
+    this.rightCollapsed = !hidden;
+  };
+
   toggleFilmstrip = (): void => {
     this.filmstripCollapsed = !this.filmstripCollapsed;
   };

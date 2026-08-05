@@ -1,6 +1,7 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { isKeybind, keyLabel } from '$lib/keybinds';
   import type { MaskComponent, MaskLayer } from '$lib/types/edits';
   import {
     lensWarpFromEdits,
@@ -29,7 +30,7 @@
   const MIN_DRAG_PX = 6;
 
   function onKeyDown(e: KeyboardEvent): void {
-    if (e.key !== 'Escape' || !editor.clickTool.box) return;
+    if (!isKeybind(e, 'maskCancelDraw') || !editor.clickTool.box) return;
     e.preventDefault();
     boxStart = null;
     boxNow = null;
@@ -228,7 +229,7 @@
       <div
         class="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-black/70 px-2.5 py-1 text-[11px] text-white shadow"
       >
-        Drag a box around the subject · Esc cancels
+        Drag a box around the subject · {keyLabel('Escape')} cancels
       </div>
     {/if}
     {#each points as p, i (i)}

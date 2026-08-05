@@ -2,6 +2,7 @@
   import type { AssetSummary } from '$lib/types/album';
   import type { AssetDetail } from '$lib/types/asset';
   import { selection } from '$lib/stores/selection.svelte';
+  import { hint } from '$lib/keybinds';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { listTags, addTagToAsset, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
@@ -189,7 +190,7 @@
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
         disabled={!canCompare}
         onclick={() => onMulti('compare')}
-        title="Compare selected (C)"
+        title={hint('Compare selected', 'enterCompare')}
         aria-label="Compare selected"
       >
         <Icon path={mdiCompare} size={16} />
@@ -198,7 +199,7 @@
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
         disabled={!canCompare}
         onclick={() => onMulti('survey')}
-        title="Survey selected (N)"
+        title={hint('Survey selected', 'enterSurvey')}
         aria-label="Survey selected"
       >
         <Icon path={mdiViewGridOutline} size={16} />
@@ -286,7 +287,7 @@
       <button
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
         onclick={selection.clear}
-        title="Clear selection (Esc)"
+        title={hint('Clear selection', 'gridClearSelection')}
         aria-label="Clear selection"
       >
         <Icon path={mdiClose} size={16} />

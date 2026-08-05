@@ -14,6 +14,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
+  import { hint } from '$lib/keybinds';
   import {
     mdiChevronDown,
     mdiChevronRight,
@@ -29,10 +30,20 @@
 
   const editorTabs: { id: EditorTab; label: string; icon: string; hint: string }[] = [
     { id: 'develop', label: 'Develop', icon: mdiTuneVariant, hint: 'Develop' },
-    { id: 'masks', label: 'Masks', icon: mdiLayersOutline, hint: 'Masks' },
-    { id: 'retouch', label: 'Retouch', icon: mdiBandage, hint: 'Retouch (V)' },
-    { id: 'geometry', label: 'Geometry', icon: mdiCropRotate, hint: 'Geometry (G)' },
-    { id: 'export', label: 'Export', icon: mdiExport, hint: 'Export' },
+    { id: 'masks', label: 'Masks', icon: mdiLayersOutline, hint: hint('Masks', 'openMasks') },
+    {
+      id: 'retouch',
+      label: 'Retouch',
+      icon: mdiBandage,
+      hint: hint('Retouch', 'openRetouch')
+    },
+    {
+      id: 'geometry',
+      label: 'Geometry',
+      icon: mdiCropRotate,
+      hint: hint('Geometry', 'openGeometry')
+    },
+    { id: 'export', label: 'Export', icon: mdiExport, hint: hint('Export', 'openExport') }
   ];
 
   type BulkTab = 'export' | 'preset';
@@ -116,7 +127,7 @@
             <button
               class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
               disabled={neutral || editor.saving}
-              title="Reset edits (R)"
+              title={hint('Reset edits', 'resetEdits')}
               onclick={() => void editor.onReset()}
             >
               <Icon path={mdiRestore} size={14} />
@@ -125,8 +136,10 @@
             <CopyPasteButtons
               canCopy={!!editor.assetId && editor.hasEdits}
               canPaste={!!editor.assetId && editor.hasClipboard && !editor.saving}
-              copyTitle={editor.hasEdits ? 'Copy edits' : 'Nothing to copy'}
-              pasteTitle={editor.hasClipboard ? 'Paste edits' : 'Nothing copied'}
+              copyTitle={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
+              pasteTitle={editor.hasClipboard
+                ? hint('Paste edits', 'pasteEdits')
+                : 'Nothing copied'}
               onCopy={editor.copyEdits}
               onPaste={() => void editor.pasteEdits()}
             />

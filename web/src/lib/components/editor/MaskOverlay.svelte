@@ -2,6 +2,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { isKeybind, isTypingTarget, keyLabel, keysFor } from '$lib/keybinds';
   import { type MaskComponent, type MaskComponentKind, type Vec2f } from '$lib/types/edits';
   import { MAX_POLYGON_POINTS } from '$lib/types/masks';
   import {
@@ -161,22 +162,17 @@
   }
 
   function onKeyDown(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && editor.colorPicker) {
+    if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
       e.preventDefault();
       editor.cancelColorPicker();
       return;
     }
-    if (e.key !== 'Backspace' && e.key !== 'Delete') return;
-    if (ui.editorTab !== 'masks') return;
-    const t = e.target as HTMLElement | null;
-    if (t) {
-      const tag = t.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || t.isContentEditable) return;
-    }
+    if (!isKeybind(e, 'maskDelete')) return;
+    if (ui.editorTab !== 'masks' || isTypingTarget(e)) return;
     if (!active || !editor.activeMaskComponentId) return;
     e.preventDefault();
     void editor.removeMaskComponent(active.id, editor.activeMaskComponentId);
-    toasts.push('info', 'Shape deleted. Undo with Cmd+Z.');
+    toasts.push('info', `Shape deleted. Undo with ${keysFor('undo')}.`);
   }
 
   $effect(() => {
@@ -311,15 +307,15 @@
 
   function onDraftKey(e: KeyboardEvent): void {
     if (!editor.polygonDraft) return;
-    if (e.key === 'Escape') {
+    if (isKeybind(e, 'maskCancelDraw')) {
       e.preventDefault();
       editor.cancelPolygon();
       draftCursor = null;
-    } else if (e.key === 'Enter') {
+    } else if (isKeybind(e, 'maskClosePolygon')) {
       e.preventDefault();
       void editor.finishPolygon();
       draftCursor = null;
-    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+    } else if (isKeybind(e, 'maskDelete')) {
       e.preventDefault();
       editor.undoPolygonPoint();
     }
@@ -885,7 +881,7 @@
     >
       {draft.points.length < 3
         ? `Click to place corners (${draft.points.length}/${MAX_POLYGON_POINTS})`
-        : 'Click the first corner or press Enter to close. Esc cancels.'}
+        : `Click the first corner or press ${keyLabel('Enter')} to close. ${keyLabel('Escape')} cancels.`}
     </text>
   </svg>
 {/if}

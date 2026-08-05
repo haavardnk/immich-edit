@@ -1562,6 +1562,12 @@ class EditorStore {
     }
   };
 
+  clearFlags = async (): Promise<void> => {
+    if (!this.asset) return;
+    if (this.asset.isFavorite) await this.toggleFavorite();
+    if (this.asset && isRejected(this.asset)) await this.toggleReject();
+  };
+
   createAndAddTag = async (value: string): Promise<TagRef | null> => {
     if (!this.assetId || !this.asset) return null;
     if (!(await metadataConsent.gate())) return null;

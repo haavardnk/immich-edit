@@ -20,10 +20,10 @@ async function openCompare(page: Page): Promise<void> {
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
 }
 
-test('k swaps only the focused compare pane', async ({ page }) => {
+test('shift+arrow swaps only the focused compare pane', async ({ page }) => {
   await openCompare(page);
 
-  await page.keyboard.press('k');
+  await page.keyboard.press('Shift+ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
@@ -37,7 +37,7 @@ test('escape returns to a single pane before closing', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByTitle('Close (Esc)')).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Close/ })).toBeHidden();
 });
 
 test('the filmstrip ring follows the focused pane', async ({ page }) => {
@@ -82,7 +82,7 @@ test('a swapped pane keeps the zoom of the photo it replaced', async ({ page }) 
   await openCompare(page);
 
   await page.keyboard.press('z');
-  await page.keyboard.press('k');
+  await page.keyboard.press('Shift+ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toHaveAttribute(
     'style',
     /scale\(2\.5\)/

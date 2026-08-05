@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import { hint, keyLabel } from '$lib/keybinds';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '$lib/types/edits';
@@ -44,7 +45,7 @@
         class="flex items-center gap-1 px-2 leading-5 transition-colors {mode === 'heal'
           ? 'bg-white/15 text-immich-dark-fg'
           : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-        title="Heal (H) — blends texture from the source into the target"        onclick={() => setMode('heal')}
+        title="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"        onclick={() => setMode('heal')}
       >
         <Icon path={mdiBandage} size={12} />
         Heal
@@ -54,7 +55,7 @@
         class="flex items-center gap-1 px-2 leading-5 transition-colors {mode === 'clone'
           ? 'bg-white/15 text-immich-dark-fg'
           : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-        title="Clone (C) — copies the source pixels exactly"
+        title="{hint('Clone', 'retouchClone')} — copies the source pixels exactly"
         onclick={() => setMode('clone')}
       >
         <Icon path={mdiStamper} size={12} />
@@ -100,15 +101,15 @@
   {#if editor.retouchAnchor}
     <p class="text-[11px] text-immich-dark-fg/40 leading-snug">
       Drag over a blemish to paint it out. The source follows your brush, offset from the point you
-      sampled. Hold <kbd class="px-1 rounded bg-white/10 font-sans">Alt</kbd> and click to sample
-      somewhere else, or drag the green circle to move one stroke's source.
+      sampled. Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click
+      to sample somewhere else, or drag the green circle to move one stroke's source.
     </p>
   {:else}
     <p
       class="text-[11px] text-immich-dark-primary/90 leading-snug rounded-lg bg-immich-dark-primary/10 px-2 py-1.5"
     >
-      Hold <kbd class="px-1 rounded bg-white/10 font-sans">Alt</kbd> and click a clean patch of the
-      photo to set the source. Painting is disabled until you do.
+      Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click a clean
+      patch of the photo to set the source. Painting is disabled until you do.
     </p>
   {/if}
 

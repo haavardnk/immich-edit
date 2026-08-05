@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { hint } from '$lib/keybinds';
   import Icon from '$lib/components/Icon.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { library } from '$lib/stores/library.svelte';
@@ -159,7 +160,7 @@
         class="shrink-0 p-1 rounded hover:bg-white/10 text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors {open
           ? 'bg-white/10'
           : ''}"
-        title="Tags (T)"
+        title={hint('Tags', 'toggleTags')}
         onclick={onToggle}
       >
         <Icon path={mdiPlus} size={14} />

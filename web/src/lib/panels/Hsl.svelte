@@ -3,6 +3,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
+  import { keyLabel } from '$lib/keybinds';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS, HSL_BAND_HUES } from '$lib/types/edits';
 
   let activeBand = $state(0);
@@ -56,7 +57,7 @@
     <button
       type="button"
       class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-      title="Reset {HSL_BAND_NAMES[activeBand]}  —  shift-click to reset all bands"
+      title="Reset {HSL_BAND_NAMES[activeBand]}  —  {keyLabel('Shift')}-click to reset all bands"
       aria-label="Reset {HSL_BAND_NAMES[activeBand]}"
       onclick={(e) => (e.shiftKey ? resetAllHsl() : resetBand(activeBand))}
     >

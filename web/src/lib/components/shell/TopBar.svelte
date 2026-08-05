@@ -2,6 +2,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { album } from '$lib/stores/album.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { hint } from '$lib/keybinds';
   import Icon from '$lib/components/Icon.svelte';
   import Logo from '$lib/components/Logo.svelte';
   import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks, mdiKeyboardOutline, mdiMagnify } from '@mdi/js';
@@ -116,7 +117,7 @@
     type="button"
     onclick={() => ui.toggleKeybindsHelp()}
     class="p-1.5 hover:bg-white/10 rounded transition-colors text-immich-dark-fg/60 hover:text-immich-dark-fg"
-    title="Keyboard shortcuts (?)"
+    title={hint('Keyboard shortcuts', 'help')}
     aria-label="Keyboard shortcuts"
   >
     <Icon path={mdiKeyboardOutline} size={16} />

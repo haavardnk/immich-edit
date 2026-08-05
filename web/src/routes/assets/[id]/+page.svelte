@@ -6,6 +6,8 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { isKeybind, isTypingTarget, matchKeybind } from '$lib/keybinds';
+  import { activeContexts } from '$lib/keybindContext';
   import Viewer from '$lib/components/editor/Viewer.svelte';
   import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
   import BottomBar from '$lib/components/editor/BottomBar.svelte';
@@ -21,185 +23,186 @@
     void editor.finishGeometrySession().finally(() => editor.unload());
   });
 
-  function isTypingTarget(e: KeyboardEvent): boolean {
-    const el = e.target as HTMLElement | null;
-    if (!el) return false;
-    const tag = el.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-    return el.isContentEditable;
-  }
-
-  function onKeyDown(e: KeyboardEvent): void {
-    const meta = e.metaKey || e.ctrlKey;
-    if (meta && e.shiftKey && e.key === 'z') {
+  function onEscape(e: KeyboardEvent): void {
+    if (ui.closeMetadataPopovers()) {
       e.preventDefault();
-      editor.redo();
-      return;
-    }
-    if (meta && e.key === 'z') {
-      e.preventDefault();
-      editor.undo();
-      return;
-    }
-    if (e.key === 'Escape') {
-      if (ui.closeMetadataPopovers()) {
-        e.preventDefault();
-        return;
-      }
-      if (isTypingTarget(e)) return;
-      if (ui.keybindsHelpOpen) {
-        e.preventDefault();
-        ui.closeKeybindsHelp();
-      } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
-        e.preventDefault();
-        ui.perspectiveCorners = false;
-      } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
-        e.preventDefault();
-        ui.editorTab = 'develop';
-      } else if (ui.editorTab === 'retouch' && editor.activeRetouchId) {
-        e.preventDefault();
-        editor.activeRetouchId = null;
-      } else if (editor.activeMaskComponentId) {
-        e.preventDefault();
-        editor.setActiveMaskComponent(null);
-      } else if (ui.fullscreen) {
-        e.preventDefault();
-        ui.toggleFullscreen();
-      }
       return;
     }
     if (isTypingTarget(e)) return;
-    if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    if (ui.keybindsHelpOpen) {
+      e.preventDefault();
+      ui.closeKeybindsHelp();
+    } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
+      e.preventDefault();
+      ui.perspectiveCorners = false;
+    } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
+      e.preventDefault();
+      ui.editorTab = 'develop';
+    } else if (ui.editorTab === 'retouch' && editor.activeRetouchId) {
+      e.preventDefault();
+      editor.activeRetouchId = null;
+    } else if (editor.activeMaskComponentId) {
+      e.preventDefault();
+      editor.setActiveMaskComponent(null);
+    } else if (ui.fullscreen) {
+      e.preventDefault();
+      ui.toggleFullscreen();
+    }
+  }
+
+  function stepBrush(key: string, patch: (delta: number) => void): void {
+    patch(key === '[' || key === '{' ? -1 : 1);
+  }
+
+  function onKeyDown(e: KeyboardEvent): void {
+    if (isKeybind(e, 'editorEscape')) {
+      onEscape(e);
+      return;
+    }
+    if (isTypingTarget(e)) return;
+    if (isKeybind(e, 'help')) {
       e.preventDefault();
       ui.toggleKeybindsHelp();
       return;
     }
     if (ui.keybindsHelpOpen) return;
-    if ((e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') && !meta && !e.altKey) {
-      const prev = browsing.prevOf(id);
-      if (!prev) return;
-      e.preventDefault();
-      void goto(`/assets/${prev.id}`, { replaceState: true });
-      return;
-    }
-    if ((e.key === 'ArrowRight' || e.key === 'k' || e.key === 'K') && !meta && !e.altKey) {
-      const next = browsing.nextOf(id);
-      if (!next) return;
-      e.preventDefault();
-      void goto(`/assets/${next.id}`, { replaceState: true });
-      return;
-    }
-    if ((e.key === ' ' || e.key === 'z' || e.key === 'Z') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.zoomToggle();
-      return;
-    }
-    if (e.key === 'i' && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.toggleExifPopover();
-      return;
-    }
-    if (e.key === 't' && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.toggleTagsPopover();
-      return;
-    }
-    if (e.key === 'F' && !meta && e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.toggleFullscreen();
-      return;
-    }
-    if (e.key === 'f' && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      void editor.toggleFavorite();
-      return;
-    }
-    if ((e.key === 'x' || e.key === 'X') && !meta && !e.altKey) {
-      e.preventDefault();
-      void editor.toggleReject();
-      return;
-    }
-    if (!meta && !e.shiftKey && !e.altKey) {
-      const next = nextRatingFromKey(e.key, editor.asset?.exifInfo?.rating ?? null);
-      if (next !== undefined) {
-        e.preventDefault();
-        void editor.setRating(next);
+
+    const bind = matchKeybind(e, activeContexts());
+    if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon') return;
+    e.preventDefault();
+
+    switch (bind) {
+      case 'editorNav': {
+        const target =
+          e.key === 'ArrowLeft' ? browsing.prevOf(id) : browsing.nextOf(id);
+        if (target) void goto(`/assets/${target.id}`, { replaceState: true });
         return;
       }
-    }
-    if (e.key === '\\' && !meta) {
-      e.preventDefault();
-      if (!editor.showingOriginal) {
-        editor.showingOriginal = true;
-        editor.showOriginal();
+      case 'backToGrid':
+        if (window.history.length > 1) window.history.back();
+        return;
+      case 'undo':
+        editor.undo();
+        return;
+      case 'redo':
+        editor.redo();
+        return;
+      case 'zoomToggle':
+        ui.zoomToggle();
+        return;
+      case 'toggleInfo':
+        ui.toggleExifPopover();
+        return;
+      case 'toggleTags':
+        ui.toggleTagsPopover();
+        return;
+      case 'clipWarn':
+        editor.toggleClipWarn();
+        return;
+      case 'beforeAfter':
+        editor.toggleSplit();
+        return;
+      case 'holdOriginal':
+        if (!editor.showingOriginal) {
+          editor.showingOriginal = true;
+          editor.showOriginal();
+        }
+        return;
+      case 'togglePanels':
+        ui.togglePanels();
+        return;
+      case 'toggleChrome':
+        ui.toggleChrome();
+        return;
+      case 'fullscreen':
+        ui.toggleFullscreen();
+        return;
+      case 'openGeometry':
+        ui.openGeometry();
+        return;
+      case 'openRetouch':
+        ui.openRetouch();
+        return;
+      case 'openMasks':
+        ui.openMasks();
+        return;
+      case 'openExport':
+        ui.openExport();
+        return;
+      case 'perspective':
+        if (ui.editorTab !== 'geometry') ui.openGeometry();
+        ui.togglePerspectiveCorners();
+        return;
+      case 'resetEdits':
+        void editor.onReset();
+        return;
+      case 'copyEdits':
+        editor.copyEdits();
+        return;
+      case 'pasteEdits':
+        void editor.pasteEdits();
+        return;
+      case 'favorite':
+        void editor.toggleFavorite();
+        return;
+      case 'reject':
+        void editor.toggleReject();
+        return;
+      case 'unflag':
+        void editor.clearFlags();
+        return;
+      case 'rate': {
+        const next = nextRatingFromKey(e.key, editor.asset?.exifInfo?.rating ?? null);
+        if (next !== undefined) void editor.setRating(next);
+        return;
       }
-    }
-    if ((e.key === 'b' || e.key === 'B') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      if (editor.showingOriginal) {
-        editor.showingOriginal = false;
-        editor.onLive();
-      } else {
-        editor.showingOriginal = true;
-        editor.showOriginal();
-      }
-      return;
-    }
-    if ((e.key === 'o' || e.key === 'O') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      editor.toggleClipWarn();
-      return;
-    }
-    if ((e.key === 'g' || e.key === 'G') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.openGeometry();
-      return;
-    }
-    if ((e.key === 'p' || e.key === 'P') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      if (ui.editorTab !== 'geometry') ui.openGeometry();
-      ui.togglePerspectiveCorners();
-      return;
-    }
-    if ((e.key === 'r' || e.key === 'R') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      void editor.onReset();
-      return;
-    }
-    if ((e.key === 'v' || e.key === 'V') && !meta && !e.shiftKey && !e.altKey) {
-      e.preventDefault();
-      ui.openRetouch();
-      return;
-    }
-    if (ui.editorTab === 'retouch' && !meta && !e.shiftKey && !e.altKey) {
-      if (e.key === 'h' || e.key === 'H') {
-        e.preventDefault();
+      case 'maskOverlay':
+        editor.toggleMaskOverlay();
+        return;
+      case 'retouchHeal':
         editor.setRetouchMode('heal');
         return;
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
+      case 'retouchClone':
         editor.setRetouchMode('clone');
         return;
-      }
-      if (e.key === '[' || e.key === ']') {
-        e.preventDefault();
-        const step = e.key === '[' ? -0.005 : 0.005;
-        editor.setRetouchTool({
-          size: Math.min(0.3, Math.max(0.005, editor.retouchTool.size + step))
-        });
+      case 'retouchDelete':
+        if (editor.activeRetouchId) void editor.removeRetouchStroke(editor.activeRetouchId);
         return;
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && editor.activeRetouchId) {
-        e.preventDefault();
-        void editor.removeRetouchStroke(editor.activeRetouchId);
+      case 'brushSize':
+        if (ui.editorTab === 'retouch') {
+          stepBrush(e.key, (d) =>
+            editor.setRetouchTool({
+              size: Math.min(0.3, Math.max(0.005, editor.retouchTool.size + d * 0.005))
+            })
+          );
+        } else {
+          stepBrush(e.key, (d) =>
+            editor.setBrushTool({
+              size: Math.min(0.5, Math.max(0.005, editor.brushTool.size + d * 0.01))
+            })
+          );
+        }
         return;
-      }
+      case 'brushHardness':
+        if (ui.editorTab === 'retouch') {
+          stepBrush(e.key, (d) =>
+            editor.setRetouchTool({
+              hardness: Math.min(1, Math.max(0, editor.retouchTool.hardness + d * 0.1))
+            })
+          );
+        } else {
+          stepBrush(e.key, (d) =>
+            editor.setBrushTool({
+              hardness: Math.min(1, Math.max(0, editor.brushTool.hardness + d * 0.1))
+            })
+          );
+        }
+        return;
     }
   }
 
   function onKeyUp(e: KeyboardEvent): void {
-    if (e.key === '\\' && editor.showingOriginal) {
+    if (isKeybind(e, 'holdOriginal') && editor.showingOriginal) {
       editor.showingOriginal = false;
       editor.onLive();
     }

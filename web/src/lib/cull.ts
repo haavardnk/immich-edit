@@ -56,6 +56,15 @@ export async function toggleFavorite(id: string): Promise<boolean> {
   return true;
 }
 
+export async function clearFlags(id: string): Promise<boolean> {
+  const asset = browsing.assets.find((a) => a.id === id);
+  if (!asset) return false;
+  let changed = false;
+  if (asset.isFavorite) changed = (await toggleFavorite(id)) || changed;
+  if (isRejected(asset)) changed = (await toggleReject(id)) || changed;
+  return changed;
+}
+
 export async function toggleReject(id: string): Promise<boolean> {
   const asset = browsing.assets.find((a) => a.id === id);
   if (!asset) return false;

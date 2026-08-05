@@ -5,6 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { mdiInformationOutline } from '@mdi/js';
+  import { hint } from '$lib/keybinds';
 
   const hasExif = $derived((editor.asset?.exifInfo ?? null) != null);
 </script>
@@ -21,7 +22,7 @@
       <ToolbarButton
         path={mdiInformationOutline}
         size={18}
-        title="Info (I)"
+        title={hint('Info', 'toggleInfo')}
         active={ui.exifPopoverOpen}
         onclick={ui.toggleExifPopover}
       />
