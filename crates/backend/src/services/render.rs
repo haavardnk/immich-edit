@@ -237,7 +237,7 @@ impl RenderService {
             sensor_h = frame.height,
             "render orientation"
         );
-        if matches!(self.gpu_mode, RendererMode::Cpu) || opts.gamut_warn {
+        if matches!(self.gpu_mode, RendererMode::Cpu) {
             return raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel);
         }
         let gpu = self.gpu_or_rebuild();

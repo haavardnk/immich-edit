@@ -22,6 +22,8 @@ const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
 pub struct PreviewQuery {
     #[serde(default)]
     pub max: Option<u32>,
+    #[serde(default)]
+    pub clip: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +37,8 @@ pub struct LivePreviewBody {
     pub output_color_space: OutputColorSpace,
     #[serde(default)]
     pub gamut_warn: bool,
+    #[serde(default)]
+    pub clip_warn: bool,
 }
 
 pub async fn get_preview(
@@ -48,11 +52,12 @@ pub async fn get_preview(
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
     let dcp_revision = state.render.dcp_revision().await.map_err(map_render_err)?;
     let etag = format!(
-        "\"{}-{}-{}-{}\"",
+        "\"{}-{}-{}-{}-{}\"",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
-        dcp_revision
+        dcp_revision,
+        q.clip as u8
     );
     let unchanged = headers
         .get(header::IF_NONE_MATCH)
@@ -72,6 +77,7 @@ pub async fn get_preview(
         PreviewMode::None,
         OutputColorSpace::SRgb,
         false,
+        q.clip,
     )
     .await?;
     attach_validators(&mut resp, &etag);
@@ -105,6 +111,7 @@ pub async fn post_preview(
         body.preview_mode,
         body.output_color_space,
         body.gamut_warn,
+        body.clip_warn,
     )
     .await
 }
@@ -131,6 +138,7 @@ async fn render_to_response(
     preview_mode: PreviewMode,
     output_color_space: OutputColorSpace,
     gamut_warn: bool,
+    clip_warn: bool,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
     let identity = RenderIdentity {
@@ -159,6 +167,7 @@ async fn render_to_response(
         output_color_space,
         preview_mode: preview_mode.clone(),
         gamut_warn,
+        clip_warn,
         ..Default::default()
     };
     let work = render.render(
@@ -181,7 +190,7 @@ async fn render_to_response(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    if matches!(preview_mode, PreviewMode::None) && !gamut_warn {
+    if matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn {
         let meta = PreviewMeta {
             owner: ctx.owner,
             asset_id,

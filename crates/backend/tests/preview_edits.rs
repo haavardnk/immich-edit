@@ -326,6 +326,86 @@ async fn live_preview_rejects_bad_max_edge() {
 }
 
 #[tokio::test]
+async fn live_preview_with_clip_warn_skips_meta() {
+    if arw_fixture().is_none() {
+        eprintln!("sample.arw missing, skipping");
+        return;
+    }
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    let app = test_app(&server).await;
+
+    let body = serde_json::json!({"max_edge": 512, "clip_warn": true});
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/preview"))
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    if resp.headers().contains_key("x-preview-meta-id") {
+        panic!("clip warn render must not publish preview meta");
+    }
+}
+
+#[tokio::test]
+async fn persisted_preview_etag_varies_with_clip_flag() {
+    if arw_fixture().is_none() {
+        eprintln!("sample.arw missing, skipping");
+        return;
+    }
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    let app = test_app(&server).await;
+
+    let etag_for = async |clip: bool| {
+        let resp = app
+            .clone()
+            .oneshot(req_get(&format!(
+                "/api/assets/{id}/preview?max=512&clip={clip}"
+            )))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("status {}", resp.status());
+        }
+        resp.headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string)
+            .expect("etag")
+    };
+    let plain = etag_for(false).await;
+    let clipped = etag_for(true).await;
+    if plain == clipped {
+        panic!("clip flag must change the etag: {plain}");
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/assets/{id}/preview?max=512&clip=true"))
+                .header("if-none-match", plain.clone())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("stale etag must not revalidate: {}", resp.status());
+    }
+}
+
+#[tokio::test]
 async fn export_returns_full_res_jpeg() {
     if arw_fixture().is_none() {
         eprintln!("sample.arw missing, skipping");
