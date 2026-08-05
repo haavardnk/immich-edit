@@ -1,4 +1,5 @@
 import { browsing } from './browsing.svelte';
+import { compare } from './compare.svelte';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -43,9 +44,6 @@ class BrowseViewStore {
   gridSize = $state<GridSize>('md');
   activeId = $state<string | null>(null);
   loupeId = $state<string | null>(null);
-  loupeZoomed = $state(false);
-  loupePanX = $state(0);
-  loupePanY = $state(0);
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
@@ -114,9 +112,7 @@ class BrowseViewStore {
   }
 
   resetLoupeView(): void {
-    this.loupeZoomed = false;
-    this.loupePanX = 0;
-    this.loupePanY = 0;
+    compare.exit();
   }
 
   openLoupe(id: string): void {
