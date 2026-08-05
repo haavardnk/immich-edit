@@ -24,7 +24,7 @@
     mdiStarOutline,
     mdiSelectAll,
     mdiTagOutline,
-    mdiViewGridOutline,
+    mdiViewGridOutline
   } from '@mdi/js';
 
   let { assets, onMulti }: { assets: AssetSummary[]; onMulti: (mode: MultiMode) => void } =
@@ -39,7 +39,7 @@
   let metaBusy = $derived(busy || selection.allFiltered);
   let canCompare = $derived(!selection.allFiltered && selection.count >= 2);
   let showSelectAll = $derived(
-    browsing.query !== null && browsing.total !== undefined && browsing.total > 0,
+    browsing.query !== null && browsing.total !== undefined && browsing.total > 0
   );
 
   $effect(() => {
@@ -53,7 +53,11 @@
     }
   });
 
-  async function runPool<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  async function runPool<T>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<void>
+  ): Promise<void> {
     let next = 0;
     const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
       while (next < items.length) {
@@ -273,7 +277,9 @@
       <div class="w-px h-5 bg-white/10"></div>
 
       <button
-        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 {showTags ? 'bg-white/10' : ''}"
+        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 {showTags
+          ? 'bg-white/10'
+          : ''}"
         disabled={metaBusy}
         onclick={() => (showTags = !showTags)}
         title="Tags"

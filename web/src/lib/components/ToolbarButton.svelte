@@ -16,7 +16,7 @@
     onpointerdown,
     onpointerup,
     onpointerleave,
-    children,
+    children
   }: {
     path?: string;
     title?: string;
@@ -42,9 +42,7 @@
         : 'text-immich-dark-fg/70 hover:text-immich-dark-fg hover:bg-white/10'
   );
   const shapeClass = $derived(
-    variant === 'text'
-      ? 'h-7 min-w-13 px-2 font-mono text-xs'
-      : 'size-7'
+    variant === 'text' ? 'h-7 min-w-13 px-2 font-mono text-xs' : 'size-7'
   );
 </script>
 

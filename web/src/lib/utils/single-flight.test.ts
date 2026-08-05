@@ -78,14 +78,11 @@ describe('SingleFlight', () => {
   it('cancel aborts the current call and clears the queue', async () => {
     const d = deferred<number>();
     const onResult = vi.fn();
-    const sf = new SingleFlight<number, number>(
-      async (_n, signal) => {
-        await d.promise;
-        if (signal.aborted) throw new DOMException('aborted', 'AbortError');
-        return 1;
-      },
-      onResult
-    );
+    const sf = new SingleFlight<number, number>(async (_n, signal) => {
+      await d.promise;
+      if (signal.aborted) throw new DOMException('aborted', 'AbortError');
+      return 1;
+    }, onResult);
     sf.submit(1);
     await Promise.resolve();
     sf.cancel();

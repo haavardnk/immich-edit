@@ -72,7 +72,13 @@ export function bufferToImageData(
 
 export function parseHexColor(hex: string): [number, number, number] {
   const m = hex.replace('#', '');
-  const v = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
+  const v =
+    m.length === 3
+      ? m
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : m;
   const n = parseInt(v, 16);
   if (Number.isNaN(n)) return [255, 60, 60];
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];

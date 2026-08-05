@@ -83,11 +83,11 @@
   let nameDraft = $state('');
   const layers = $derived(editor.edits.masks);
   const active = $derived<MaskLayer | null>(
-    editor.activeLayerId ? layers.find((l) => l.id === editor.activeLayerId) ?? null : null
+    editor.activeLayerId ? (layers.find((l) => l.id === editor.activeLayerId) ?? null) : null
   );
   const activeComp = $derived<MaskComponent | null>(
     active && editor.activeMaskComponentId
-      ? active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null
+      ? (active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null)
       : null
   );
   const cap = $derived(editor.maskCapacityFor(editor.activeLayerId));
@@ -211,7 +211,11 @@
     else await addBrushLayer();
   }
 
-  async function pickLayerAi(kind: MaskKind, installed: boolean, maskClass?: string): Promise<void> {
+  async function pickLayerAi(
+    kind: MaskKind,
+    installed: boolean,
+    maskClass?: string
+  ): Promise<void> {
     if (!installed) {
       promptInstall(kind);
       return;
@@ -230,7 +234,11 @@
     else await addBrushComp();
   }
 
-  async function pickShapeAi(kind: MaskKind, installed: boolean, maskClass?: string): Promise<void> {
+  async function pickShapeAi(
+    kind: MaskKind,
+    installed: boolean,
+    maskClass?: string
+  ): Promise<void> {
     if (!installed) {
       addComponentOpen = false;
       promptInstall(kind);
@@ -308,7 +316,8 @@
     };
   }
 
-  function armLayerBox(): void {    addLayerOpen = false;
+  function armLayerBox(): void {
+    addLayerOpen = false;
     editor.setActiveMaskComponent(null);
     editor.clickTool = { active: true, negative: false, box: true, layerId: null, mode: 'add' };
     toasts.push('info', 'Drag a box around the subject.');
@@ -381,7 +390,11 @@
   const MODES: { value: MaskComponentMode; icon: string; hint: string }[] = [
     { value: 'add', icon: mdiPlus, hint: 'Add: add this shape to the mask' },
     { value: 'subtract', icon: mdiMinus, hint: 'Subtract: cut this shape out of the mask' },
-    { value: 'intersect', icon: mdiSetCenter, hint: 'Intersect: keep only where this shape overlaps' }
+    {
+      value: 'intersect',
+      icon: mdiSetCenter,
+      hint: 'Intersect: keep only where this shape overlaps'
+    }
   ];
 
   function focusOnMount(node: HTMLInputElement): void {
@@ -493,7 +506,7 @@
           >
             <MaskToolPicker
               aiKinds={maskKinds}
-              semanticClasses={semanticClasses}
+              {semanticClasses}
               {aiUnavailable}
               busy={editor.maskGenerating}
               onManual={(tool) => void pickLayerManual(tool)}
@@ -616,7 +629,9 @@
           {/if}
           <span
             class="shrink-0 text-[10px] tabular-nums text-immich-dark-fg/30"
-            title="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
+            title="{layer.components.length} shape{layer.components.length === 1
+              ? ''
+              : 's'} in this mask"
           >
             {layer.components.length}
           </span>
@@ -782,7 +797,7 @@
               </div>
               <MaskToolPicker
                 aiKinds={maskKinds}
-                semanticClasses={semanticClasses}
+                {semanticClasses}
                 {aiUnavailable}
                 busy={editor.maskGenerating}
                 onManual={(tool) => void pickShapeManual(tool)}
@@ -958,7 +973,8 @@
               <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
                 <button
                   type="button"
-                  class="px-2 leading-5 transition-colors {refineActive && !editor.clickTool.negative
+                  class="px-2 leading-5 transition-colors {refineActive &&
+                  !editor.clickTool.negative
                     ? 'bg-white/15 text-immich-dark-fg'
                     : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
                   title="Click the photo to add that area to this shape"

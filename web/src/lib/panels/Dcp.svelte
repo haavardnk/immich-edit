@@ -72,7 +72,8 @@
     dcp.mode = mode;
     dcp.profile_id = id;
     pendingDelete = false;
-    const action = mode === 'auto' ? 'DCP Auto Match' : mode === 'off' ? 'Disable DCP' : 'Select DCP Profile';
+    const action =
+      mode === 'auto' ? 'DCP Auto Match' : mode === 'off' ? 'Disable DCP' : 'Select DCP Profile';
     editor.onCommit(action);
   }
 
@@ -207,7 +208,9 @@
   </button>
 
   {#if missingSelected}
-    <div class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300">
+    <div
+      class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300"
+    >
       <Icon path={mdiAlertCircleOutline} size={14} />
       <span class="min-w-0 flex-1 truncate">Referenced profile is unavailable</span>
       <button

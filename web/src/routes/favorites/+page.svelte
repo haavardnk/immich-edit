@@ -22,12 +22,24 @@
 {#if feed.loading && !feed.loadedOnce}
   <div class="flex-1 flex items-center justify-center"><Spinner label="Loading favorites…" /></div>
 {:else}
-  <BrowseHeader title="Favorites" loaded={feed.assets.length} totalCount={feed.totalCount} favoriteLocked />
+  <BrowseHeader
+    title="Favorites"
+    loaded={feed.assets.length}
+    totalCount={feed.totalCount}
+    favoriteLocked
+  />
   {#if feed.assets.length === 0}
-    <EmptyState title="No favorites yet" message="Mark photos as favorites in Immich to see them here." />
+    <EmptyState
+      title="No favorites yet"
+      message="Mark photos as favorites in Immich to see them here."
+    />
   {:else}
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+      <AssetGrid
+        assets={feed.assets}
+        loadingMore={feed.loadingMore}
+        onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+      />
     </div>
   {/if}
 {/if}

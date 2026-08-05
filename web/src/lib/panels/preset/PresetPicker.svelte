@@ -7,7 +7,7 @@
   let {
     selectedId = $bindable(),
     disabled = false,
-    placeholder = 'Select a preset…',
+    placeholder = 'Select a preset…'
   }: {
     selectedId: string | null;
     disabled?: boolean;
@@ -26,7 +26,7 @@
     return presets.grouped
       .map(({ group, items }) => ({
         group,
-        items: items.filter((p) => p.name.toLowerCase().includes(q)),
+        items: items.filter((p) => p.name.toLowerCase().includes(q))
       }))
       .filter(({ items }) => items.length > 0);
   });
@@ -43,7 +43,12 @@
   }
 </script>
 
-<Popover {open} onClose={close} rootClass="w-full" contentClass="w-full max-h-72 overflow-hidden flex flex-col">
+<Popover
+  {open}
+  onClose={close}
+  rootClass="w-full"
+  contentClass="w-full max-h-72 overflow-hidden flex flex-col"
+>
   {#snippet trigger()}
     <button
       class="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -76,7 +81,9 @@
     {:else}
       {#each filtered as { group, items } (group)}
         {#if group}
-          <div class="px-3 pt-1.5 pb-0.5 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
+          <div
+            class="px-3 pt-1.5 pb-0.5 text-[10px] uppercase tracking-wider text-immich-dark-fg/40"
+          >
             {group}
           </div>
         {/if}

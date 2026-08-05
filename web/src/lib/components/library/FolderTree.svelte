@@ -30,7 +30,11 @@
           class="flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-white/5 transition-colors text-left w-full"
           onclick={() => toggle(node.path)}
         >
-          <Icon path={expanded.has(node.path) ? mdiChevronDown : mdiChevronRight} size={14} class="opacity-40 flex-none" />
+          <Icon
+            path={expanded.has(node.path) ? mdiChevronDown : mdiChevronRight}
+            size={14}
+            class="opacity-40 flex-none"
+          />
           <Icon path={mdiFolderOutline} size={14} class="opacity-40 flex-none" />
           <span class="truncate text-[13px] leading-tight pr-2">{node.name}</span>
         </button>

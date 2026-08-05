@@ -67,7 +67,10 @@
 
 {#if !query}
   <BrowseHeader title="Search" loaded={0} hideSort hideFilenameFilter />
-  <EmptyState title="Search your library" message="Type a description in the search bar to find photos." />
+  <EmptyState
+    title="Search your library"
+    message="Type a description in the search bar to find photos."
+  />
 {:else if feed.loading && !feed.loadedOnce}
   <div class="flex-1 flex items-center justify-center"><Spinner label="Searching…" /></div>
 {:else}

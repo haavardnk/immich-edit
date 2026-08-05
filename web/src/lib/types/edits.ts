@@ -81,9 +81,7 @@ export const HSL_BAND_NAMES: readonly string[] = [
 
 export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 300, 340];
 
-export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map(
-  (h) => `hsl(${h}, 70%, 65%)`
-);
+export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map((h) => `hsl(${h}, 70%, 65%)`);
 
 export interface HslEdits {
   bands: HslBand[];
@@ -241,17 +239,11 @@ export const NEUTRAL_LENS: LensEdits = {
 };
 
 export function lensDistortionActive(l: LensEdits): boolean {
-  return (
-    l.profile_enabled &&
-    l.distortion_amount !== 0 &&
-    (l.k1 !== 0 || l.k2 !== 0 || l.k3 !== 0)
-  );
+  return l.profile_enabled && l.distortion_amount !== 0 && (l.k1 !== 0 || l.k2 !== 0 || l.k3 !== 0);
 }
 export function lensVignetteActive(l: LensEdits): boolean {
   return (
-    l.profile_enabled &&
-    l.vignette_amount !== 0 &&
-    (l.vk1 !== 0 || l.vk2 !== 0 || l.vk3 !== 0)
+    l.profile_enabled && l.vignette_amount !== 0 && (l.vk1 !== 0 || l.vk2 !== 0 || l.vk3 !== 0)
   );
 }
 export function lensCaActive(l: LensEdits): boolean {
@@ -269,9 +261,7 @@ export interface CropRect {
 }
 
 export type AspectLock =
-  | { kind: 'original' }
-  | { kind: 'free' }
-  | { kind: 'ratio'; num: number; den: number };
+  { kind: 'original' } | { kind: 'free' } | { kind: 'ratio'; num: number; den: number };
 
 export interface GeometryEdits {
   rotate: 0 | 90 | 180 | 270;
@@ -710,12 +700,7 @@ const FLAT_OPS: FlatOp[] = [
   {
     id: 'tone_regions',
     legacyId: 'highlights_shadows',
-    nums: [
-      toneField('highlights'),
-      toneField('shadows'),
-      toneField('blacks'),
-      toneField('whites')
-    ],
+    nums: [toneField('highlights'), toneField('shadows'), toneField('blacks'), toneField('whites')],
     active: (e) =>
       e.tone.highlights !== 0 || e.tone.shadows !== 0 || e.tone.blacks !== 0 || e.tone.whites !== 0
   },
@@ -850,7 +835,8 @@ function decodeFlatOps(ops: Record<string, unknown>, e: Edits): void {
 }
 
 export function isIdentity(e: Edits): boolean {
-  return dcpIsDefault(e.color.dcp) &&
+  return (
+    dcpIsDefault(e.color.dcp) &&
     isNonGeometryIdentity(e) &&
     e.geometry.rotate === 0 &&
     Math.abs(e.geometry.rotate_angle) < 1e-4 &&
@@ -858,7 +844,8 @@ export function isIdentity(e: Edits): boolean {
     !e.geometry.flip_v &&
     isFullCrop(e.geometry.crop) &&
     e.geometry.aspect.kind === 'original' &&
-    perspectiveIsIdentity(e.geometry.perspective);
+    perspectiveIsIdentity(e.geometry.perspective)
+  );
 }
 
 export function isNonGeometryIdentity(e: Edits): boolean {
@@ -944,7 +931,14 @@ export function manifestToEdits(doc: EditManifest): Edits {
   const ops = doc.ops ?? {};
   decodeFlatOps(ops, edits);
   const curves = ops.curves as
-    | { points?: number[][]; composite?: number[][]; r?: number[][]; g?: number[][]; b?: number[][]; luma?: number[][] }
+    | {
+        points?: number[][];
+        composite?: number[][];
+        r?: number[][];
+        g?: number[][];
+        b?: number[][];
+        luma?: number[][];
+      }
     | undefined;
   if (curves) {
     const decode = (pts: number[][] | undefined): CurvePoint[] | null => {
@@ -1204,21 +1198,13 @@ function parseMaskKind(raw: unknown): MaskComponentKind | null {
     return { kind: 'brush', raster_id: r.raster_id };
   }
   if (r.kind === 'luma_range') {
-    if (
-      typeof r.min !== 'number' ||
-      typeof r.max !== 'number' ||
-      typeof r.softness !== 'number'
-    )
+    if (typeof r.min !== 'number' || typeof r.max !== 'number' || typeof r.softness !== 'number')
       return null;
     return { kind: 'luma_range', min: r.min, max: r.max, softness: r.softness };
   }
   if (r.kind === 'color_range') {
     const sample_rgb = parseRgb(r.sample_rgb);
-    if (
-      !sample_rgb ||
-      typeof r.tolerance !== 'number' ||
-      typeof r.softness !== 'number'
-    )
+    if (!sample_rgb || typeof r.tolerance !== 'number' || typeof r.softness !== 'number')
       return null;
     return {
       kind: 'color_range',

@@ -74,7 +74,9 @@
     <p class="text-sm opacity-70">
       Connect this instance to your Immich server. Sign in as an Immich administrator to claim it.
     </p>
-    <div class="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+    <div
+      class="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+    >
       Complete setup before exposing this instance publicly. The first Immich admin to finish claims
       the instance.
     </div>
@@ -95,14 +97,18 @@
       <button
         type="button"
         onclick={() => (method = 'password')}
-        class="flex-1 rounded px-2 py-1 {method === 'password' ? 'bg-immich-primary text-white' : 'opacity-70'}"
+        class="flex-1 rounded px-2 py-1 {method === 'password'
+          ? 'bg-immich-primary text-white'
+          : 'opacity-70'}"
       >
         Email &amp; password
       </button>
       <button
         type="button"
         onclick={() => (method = 'apikey')}
-        class="flex-1 rounded px-2 py-1 {method === 'apikey' ? 'bg-immich-primary text-white' : 'opacity-70'}"
+        class="flex-1 rounded px-2 py-1 {method === 'apikey'
+          ? 'bg-immich-primary text-white'
+          : 'opacity-70'}"
       >
         API key
       </button>

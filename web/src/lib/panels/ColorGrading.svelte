@@ -61,17 +61,23 @@
 
 <div class="flex flex-col gap-2.5">
   <div class="flex items-center justify-between px-1">
-    <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px] uppercase tracking-wide">
+    <div
+      class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px] uppercase tracking-wide"
+    >
       <button
         type="button"
-        class="px-2 py-1 transition-colors {mode === 'three_way' ? 'bg-white/15 text-immich-dark-fg' : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
+        class="px-2 py-1 transition-colors {mode === 'three_way'
+          ? 'bg-white/15 text-immich-dark-fg'
+          : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
         onclick={() => (mode = 'three_way')}
       >
         3-Way
       </button>
       <button
         type="button"
-        class="px-2 py-1 transition-colors {mode === 'global' ? 'bg-white/15 text-immich-dark-fg' : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
+        class="px-2 py-1 transition-colors {mode === 'global'
+          ? 'bg-white/15 text-immich-dark-fg'
+          : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
         onclick={() => (mode = 'global')}
       >
         Global
@@ -187,7 +193,9 @@
       Adjust — {REGION_LABELS[activeRegion]}
     </button>
     {#if adjustOpen}
-      <div class="flex items-center justify-between text-[10px] font-mono tabular-nums text-immich-dark-fg/50 px-1">
+      <div
+        class="flex items-center justify-between text-[10px] font-mono tabular-nums text-immich-dark-fg/50 px-1"
+      >
         <span>H: {Math.round(activeRegionData.hue)}</span>
         <span>S: {Math.round(activeRegionData.sat)}</span>
         <button
@@ -293,7 +301,9 @@
     border-radius: 9999px;
     background: transparent;
     border: 1px solid transparent;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
     cursor: pointer;
   }
   .cg-wheel-btn:hover {
@@ -315,7 +325,9 @@
     padding: 2px 6px;
     border-radius: 4px;
     cursor: pointer;
-    transition: color 0.15s, background-color 0.15s;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
   .cg-label-btn:hover {
     color: rgba(255, 255, 255, 0.85);

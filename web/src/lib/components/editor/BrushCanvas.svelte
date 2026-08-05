@@ -2,7 +2,12 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
-  import { bufferToImageData, parseHexColor, stampBuffer, type BrushBuffer } from '$lib/utils/brush';
+  import {
+    bufferToImageData,
+    parseHexColor,
+    stampBuffer,
+    type BrushBuffer
+  } from '$lib/utils/brush';
   import {
     displayUvToSceneUv as toSceneUv,
     scenePerDisplayAt as scenePerDisplay,
@@ -69,12 +74,12 @@
 
   const active = $derived<MaskLayer | null>(
     editor.activeLayerId
-      ? editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null
+      ? (editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null)
       : null
   );
   const activeComp = $derived<MaskComponent | null>(
     active && editor.activeMaskComponentId
-      ? active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null
+      ? (active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null)
       : null
   );
   const isBrush = $derived(!!activeComp && activeComp.kind.kind === 'brush');
@@ -110,7 +115,9 @@
     if (canvasEl.height !== h) canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
-    const color = active ? parseHexColor(active.color) : ([255, 60, 60] as [number, number, number]);
+    const color = active
+      ? parseHexColor(active.color)
+      : ([255, 60, 60] as [number, number, number]);
     const invert = activeComp?.invert === true;
     if (allIdentity) {
       const off = document.createElement('canvas');
@@ -172,13 +179,7 @@
     const py = e.clientY - rect.top;
     if (lastPx !== null && lastPy !== null) {
       const radiusPx = editor.brushTool.size * 0.5 * Math.min(rect.width, rect.height);
-      for (const [sx, sy] of steppedSegment(
-        lastPx,
-        lastPy,
-        px,
-        py,
-        Math.max(1, radiusPx * 0.5)
-      )) {
+      for (const [sx, sy] of steppedSegment(lastPx, lastPy, px, py, Math.max(1, radiusPx * 0.5))) {
         stampAtPx(buf, rect, sx, sy);
       }
     } else {
@@ -210,7 +211,14 @@
     const rPx = radiusN * Math.min(canvasEl.width, canvasEl.height);
     const h = Math.min(1, Math.max(0, editor.brushTool.hardness));
     const inner = Math.max(0, rPx * h);
-    const grad = ctx.createRadialGradient(cxPx, cyPx, inner, cxPx, cyPx, Math.max(inner + 0.5, rPx));
+    const grad = ctx.createRadialGradient(
+      cxPx,
+      cyPx,
+      inner,
+      cxPx,
+      cyPx,
+      Math.max(inner + 0.5, rPx)
+    );
     const clears = erase !== (activeComp?.invert === true);
     if (clears) {
       ctx.globalCompositeOperation = 'destination-out';

@@ -13,10 +13,7 @@ const NEXT_IMAGE = 'IMG_0002.ARW';
 async function openLoupe(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.addInitScript(() => {
-    localStorage.setItem(
-      'immich-edit:settings',
-      JSON.stringify({ metadataPushConsented: true })
-    );
+    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
   await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();

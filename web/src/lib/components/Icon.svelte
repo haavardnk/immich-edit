@@ -2,7 +2,7 @@
   let {
     path,
     size = 24,
-    class: className = '',
+    class: className = ''
   }: { path: string; size?: number; class?: string } = $props();
 </script>
 

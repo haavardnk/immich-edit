@@ -43,10 +43,14 @@ describe('compare store', () => {
     ['dropped', (): void => compare.drop(1), true],
     ['kept one', (): void => compare.keepOnly(0), true],
     ['swapped', (): void => compare.setMember(1, 'd'), false],
-    ['grown then dropped back', (): void => {
-      compare.addMember('d');
-      compare.drop(3);
-    }, true]
+    [
+      'grown then dropped back',
+      (): void => {
+        compare.addMember('d');
+        compare.drop(3);
+      },
+      true
+    ]
   ])('a %s survey reports pruned %s', (_name, act, expected) => {
     compare.enter('survey', ['a', 'b', 'c']);
     act();

@@ -1,13 +1,13 @@
-import { getJson, postForBlob } from "./client";
-import type { Edits } from "$lib/types/edits";
-import type { PreviewMeta } from "$lib/types/preview";
-import type { ColorSpaceOpt } from "./export";
+import { getJson, postForBlob } from './client';
+import type { Edits } from '$lib/types/edits';
+import type { PreviewMeta } from '$lib/types/preview';
+import type { ColorSpaceOpt } from './export';
 
 export type PreviewMode =
-  | "none"
-  | "sharpen_mask"
-  | "sharpen_radius"
-  | "sharpen_detail"
+  | 'none'
+  | 'sharpen_mask'
+  | 'sharpen_radius'
+  | 'sharpen_detail'
   | { mask_weight: { layer_id: string } };
 
 export interface ProofOptions {
@@ -21,7 +21,7 @@ export function maskWeightPreview(layerId: string): PreviewMode {
 }
 
 export function previewModeIsNone(m: PreviewMode): boolean {
-  return m === "none";
+  return m === 'none';
 }
 
 export function persistedPreviewUrl(assetId: string, max: number, clipWarn = false): string {
@@ -34,7 +34,7 @@ export async function livePreview(
   maxEdge: number,
   previewMode: PreviewMode,
   proof?: ProofOptions,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     `/api/assets/${assetId}/preview`,
@@ -42,17 +42,14 @@ export async function livePreview(
       max_edge: maxEdge,
       edits,
       preview_mode: previewMode,
-      output_color_space: proof?.colorSpace ?? "srgb",
+      output_color_space: proof?.colorSpace ?? 'srgb',
       gamut_warn: proof?.gamutWarn ?? false,
-      clip_warn: proof?.clipWarn ?? false,
+      clip_warn: proof?.clipWarn ?? false
     },
-    signal,
+    signal
   );
 }
 
-export function getPreviewMeta(
-  assetId: string,
-  metaId: string,
-): Promise<PreviewMeta> {
+export function getPreviewMeta(assetId: string, metaId: string): Promise<PreviewMeta> {
   return getJson(`/api/assets/${assetId}/preview/meta/${metaId}`);
 }

@@ -13,14 +13,7 @@ export interface CopySections {
 
 export type SectionKey = keyof CopySections;
 
-export const DEVELOP_KEYS: SectionKey[] = [
-  'basic',
-  'tone',
-  'color',
-  'detail',
-  'lens',
-  'effects'
-];
+export const DEVELOP_KEYS: SectionKey[] = ['basic', 'tone', 'color', 'detail', 'lens', 'effects'];
 
 export const SECTION_LABELS: Record<SectionKey, string> = {
   basic: 'Basic',

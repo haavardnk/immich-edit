@@ -11,7 +11,7 @@
     mdiRedo,
     mdiEyeOutline,
     mdiCompare,
-    mdiTriangleOutline,
+    mdiTriangleOutline
   } from '@mdi/js';
 
   function goBack(): void {
@@ -30,11 +30,20 @@
   }
 </script>
 
-<div class="relative z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5">
+<div
+  class="relative z-30 grid grid-cols-[1fr_auto_1fr] items-center px-3 py-1.5 bg-immich-dark-bg/80 backdrop-blur-sm border-b border-white/5"
+>
   <div class="flex items-center gap-1 justify-self-start min-w-0">
-    <ToolbarButton path={mdiArrowLeft} size={18} title={hint('Back', 'backToGrid')} onclick={goBack} />
+    <ToolbarButton
+      path={mdiArrowLeft}
+      size={18}
+      title={hint('Back', 'backToGrid')}
+      onclick={goBack}
+    />
     {#if editor.asset}
-      <span class="text-[13px] font-medium truncate text-immich-dark-fg/80">{editor.asset.originalFileName}</span>
+      <span class="text-[13px] font-medium truncate text-immich-dark-fg/80"
+        >{editor.asset.originalFileName}</span
+      >
     {/if}
   </div>
 
@@ -63,7 +72,9 @@
       ariaLabel="View original"
       onpointerdown={() => holdOriginal(true)}
       onpointerup={() => holdOriginal(false)}
-      onpointerleave={() => { if (editor.showingOriginal) holdOriginal(false); }}
+      onpointerleave={() => {
+        if (editor.showingOriginal) holdOriginal(false);
+      }}
     />
     <ToolbarButton
       path={mdiCompare}

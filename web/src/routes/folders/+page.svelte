@@ -31,7 +31,7 @@
       checksum: a.checksum,
       isFavorite: a.isFavorite ?? false,
       exifInfo: a.exifInfo ?? null,
-      tags: [],
+      tags: []
     }));
     browsing.set(assets);
     loading = false;
@@ -51,7 +51,10 @@
 {#if loading}
   <div class="flex-1 flex items-center justify-center"><Spinner label="Loading folder…" /></div>
 {:else if !folderPath}
-  <EmptyState title="Select a folder" message="Pick a folder from the sidebar to browse its photos." />
+  <EmptyState
+    title="Select a folder"
+    message="Pick a folder from the sidebar to browse its photos."
+  />
 {:else if assets.length === 0}
   <EmptyState title="No photos in this folder" />
 {:else}

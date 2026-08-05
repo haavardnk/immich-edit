@@ -50,8 +50,12 @@
 </script>
 
 {#if bootState === 'loading'}
-  <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center">
-    <div class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"></div>
+  <div
+    class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center"
+  >
+    <div
+      class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"
+    ></div>
   </div>
 {:else if bootState === 'unreachable'}
   <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg">
@@ -67,7 +71,11 @@
     {@render children()}
   </Shell>
 {:else}
-  <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center">
-    <div class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"></div>
+  <div
+    class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center"
+  >
+    <div
+      class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"
+    ></div>
   </div>
 {/if}

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -38,7 +38,8 @@
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     letter-spacing: 0.1px;
     color: var(--immich-dark-fg);
     background-color: rgb(var(--immich-dark-bg));
@@ -60,4 +61,3 @@
 @utility immich-scrollbar {
   scrollbar-width: thin;
 }
-

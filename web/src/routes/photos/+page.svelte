@@ -24,10 +24,17 @@
 {:else}
   <BrowseHeader title="Photos" loaded={feed.assets.length} totalCount={feed.totalCount} />
   {#if feed.assets.length === 0}
-    <EmptyState title="No photos" message="Connect an Immich library or upload assets to get started." />
+    <EmptyState
+      title="No photos"
+      message="Connect an Immich library or upload assets to get started."
+    />
   {:else}
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+      <AssetGrid
+        assets={feed.assets}
+        loadingMore={feed.loadingMore}
+        onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+      />
     </div>
   {/if}
 {/if}

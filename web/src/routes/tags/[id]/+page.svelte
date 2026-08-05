@@ -35,12 +35,16 @@
 {#if feed.loading && !feed.loadedOnce}
   <div class="flex-1 flex items-center justify-center"><Spinner label="Loading tag…" /></div>
 {:else}
-  <BrowseHeader title={title} loaded={feed.assets.length} totalCount={feed.totalCount} />
+  <BrowseHeader {title} loaded={feed.assets.length} totalCount={feed.totalCount} />
   {#if feed.assets.length === 0}
     <EmptyState title="No photos with this tag" />
   {:else}
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-      <AssetGrid assets={feed.assets} loadingMore={feed.loadingMore} onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined} />
+      <AssetGrid
+        assets={feed.assets}
+        loadingMore={feed.loadingMore}
+        onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+      />
     </div>
   {/if}
 {/if}

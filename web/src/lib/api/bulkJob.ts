@@ -5,7 +5,7 @@ import { toasts } from '$lib/stores/toasts.svelte';
 
 export async function runBulkJob(
   create: (target: JobTarget) => Promise<unknown>,
-  opts: { success: (count: number) => string; error: string },
+  opts: { success: (count: number) => string; error: string }
 ): Promise<boolean> {
   const count = selection.targetCount;
   if (count === 0) return false;

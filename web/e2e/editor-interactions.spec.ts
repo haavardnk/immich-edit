@@ -25,7 +25,9 @@ test('adjusting a slider requests a live preview with the new edit', async ({ pa
   await slider.fill('1');
 
   await expect
-    .poll(() => requests.some((r) => (r.edits as { basic: { exposure_ev: number } }).basic.exposure_ev === 1))
+    .poll(() =>
+      requests.some((r) => (r.edits as { basic: { exposure_ev: number } }).basic.exposure_ev === 1)
+    )
     .toBe(true);
 });
 
@@ -166,7 +168,10 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Geometry' }).click();
-  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
@@ -182,7 +187,10 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   };
   expect(body.manifest.ops.transform?.angle).toBe(5);
   expect(body.action).toBe('Geometry');
-  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
@@ -246,12 +254,18 @@ test('R opens Geometry and Escape returns to Develop', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'expand edit panel' })).toBeVisible();
 
   await page.keyboard.press('r');
-  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await expect(page.getByText('Angle', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
@@ -298,9 +312,13 @@ test('lens reset clears all profile edits', async ({ page }) => {
   await expect(page.getByLabel('Remove Chromatic Aberration')).not.toBeChecked();
   await expect(page.getByLabel('Constrain Crop')).not.toBeChecked();
   await expect(
-    page.locator('div.group', { has: page.getByRole('button', { name: 'Distortion' }) }).getByRole('slider')
+    page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Distortion' }) })
+      .getByRole('slider')
   ).toHaveValue('100');
   await expect(
-    page.locator('div.group', { has: page.getByRole('button', { name: 'Vignetting' }) }).getByRole('slider')
+    page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Vignetting' }) })
+      .getByRole('slider')
   ).toHaveValue('100');
 });

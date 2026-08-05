@@ -25,8 +25,30 @@ describe('perspectiveIsIdentity', () => {
     ['neutral', neutralPerspective(), true],
     ['vertical', withParams({ vertical: 20 }), false],
     ['aspect', withParams({ aspect: 120 }), false],
-    ['zero corners', withParams({ corners: [[0, 0], [0, 0], [0, 0], [0, 0]] }), true],
-    ['moved corner', withParams({ corners: [[0.1, 0], [0, 0], [0, 0], [0, 0]] }), false]
+    [
+      'zero corners',
+      withParams({
+        corners: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      }),
+      true
+    ],
+    [
+      'moved corner',
+      withParams({
+        corners: [
+          [0.1, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      }),
+      false
+    ]
   ])('%s', (_label, value, expected) => {
     expect(perspectiveIsIdentity(value)).toBe(expected);
   });
@@ -42,7 +64,14 @@ describe('perspective matrices', () => {
     withParams({ vertical: 60 }),
     withParams({ horizontal: -45, aspect: 30 }),
     withParams({ vertical: 25, horizontal: 15, aspect: -20 }),
-    withParams({ corners: [[0.1, 0.05], [-0.08, 0.02], [0.04, -0.06], [-0.03, -0.02]] })
+    withParams({
+      corners: [
+        [0.1, 0.05],
+        [-0.08, 0.02],
+        [0.04, -0.06],
+        [-0.03, -0.02]
+      ]
+    })
   ])('round trips forward and inverse', (p) => {
     const f = perspectiveForward(p);
     const inv = perspectiveInverse(p);

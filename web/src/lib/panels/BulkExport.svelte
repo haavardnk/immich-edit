@@ -14,7 +14,7 @@
     ensureLibraryLoaded,
     formatLabel,
     immichOptions,
-    type Destination,
+    type Destination
   } from './export/settings';
 
   let destination = $state<Destination>('download');
@@ -36,8 +36,8 @@
           : createZipExportJob(target, baseOptions(form), form.filenameSuffix),
       {
         success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue export',
-      },
+        error: 'Failed to queue export'
+      }
     );
     busy = false;
   }
@@ -83,4 +83,3 @@
 
   <div class="h-4"></div>
 </div>
-

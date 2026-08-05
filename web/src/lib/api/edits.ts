@@ -50,9 +50,7 @@ export async function putEdits(
 export async function deleteEdits(assetId: string, action?: string): Promise<void> {
   await sendJson<void>('DELETE', `/api/assets/${assetId}/edits`, { action: action ?? null });
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } })
-    );
+    window.dispatchEvent(new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } }));
   }
 }
 
@@ -73,10 +71,7 @@ export function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
   return getJson(`/api/assets/${assetId}/edits/history`);
 }
 
-export async function restoreEdits(
-  assetId: string,
-  entryId: number
-): Promise<EditRecord | null> {
+export async function restoreEdits(assetId: string, entryId: number): Promise<EditRecord | null> {
   const saved = await sendJson<EditRecord | undefined>(
     'POST',
     `/api/assets/${assetId}/edits/restore`,

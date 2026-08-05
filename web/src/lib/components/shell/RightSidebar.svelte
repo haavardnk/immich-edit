@@ -25,7 +25,7 @@
     mdiLayersOutline,
     mdiBandage,
     mdiCropRotate,
-    mdiExport,
+    mdiExport
   } from '@mdi/js';
 
   const editorTabs: { id: EditorTab; label: string; icon: string; hint: string }[] = [
@@ -154,7 +154,11 @@
                 class="w-full flex items-center gap-1.5 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/60 hover:bg-white/5 transition-colors select-none"
                 onclick={() => toggle(panel.id)}
               >
-                <Icon path={isOpen ? mdiChevronDown : mdiChevronRight} size={14} class="opacity-50" />
+                <Icon
+                  path={isOpen ? mdiChevronDown : mdiChevronRight}
+                  size={14}
+                  class="opacity-50"
+                />
                 {panel.title}
               </button>
               {#if isOpen}
@@ -186,7 +190,10 @@
         <nav class="flex flex-1">
           {#each [{ id: 'preset', label: 'Bulk Edit' }, { id: 'export', label: 'Bulk Export' }] as tab (tab.id)}
             <button
-              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {bulkTab === tab.id ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary' : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
+              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {bulkTab ===
+              tab.id
+                ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary'
+                : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
               onclick={() => (bulkTab = tab.id as BulkTab)}
             >
               {tab.label}
@@ -212,7 +219,11 @@
               class="w-full flex items-center gap-1.5 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/60 hover:bg-white/5 transition-colors select-none"
               onclick={() => (bulkPresetOpen = !bulkPresetOpen)}
             >
-              <Icon path={bulkPresetOpen ? mdiChevronDown : mdiChevronRight} size={14} class="opacity-50" />
+              <Icon
+                path={bulkPresetOpen ? mdiChevronDown : mdiChevronRight}
+                size={14}
+                class="opacity-50"
+              />
               Presets
             </button>
             {#if bulkPresetOpen}
@@ -232,7 +243,9 @@
           <Icon path={mdiChevronRight} size={14} class="opacity-40" />
         </button>
       </div>
-      <div class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center">
+      <div
+        class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center"
+      >
         Select an asset to edit
       </div>
     {/if}

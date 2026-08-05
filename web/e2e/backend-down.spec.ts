@@ -46,7 +46,9 @@ test('recovers automatically once the backend comes back', async ({ page }) => {
   await expect(page).toHaveURL(/\/setup$/);
 });
 
-test('still routes to setup when the backend reports an unconfigured instance', async ({ page }) => {
+test('still routes to setup when the backend reports an unconfigured instance', async ({
+  page
+}) => {
   await page.route('**/api/**', (route) => {
     const path = new URL(route.request().url()).pathname;
     const body = path === '/api/setup/status' ? { configured: false } : {};

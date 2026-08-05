@@ -105,7 +105,7 @@ class LibraryStore {
       listAlbums().catch(() => [] as AlbumSummary[]),
       listPeople().catch(() => [] as PersonSummary[]),
       listTags().catch(() => [] as TagSummary[]),
-      folderPaths().catch(() => [] as string[]),
+      folderPaths().catch(() => [] as string[])
     ]);
     await editedThumbs.loadOnce().catch(() => undefined);
     if (stats) this.photosCount = stats.total;

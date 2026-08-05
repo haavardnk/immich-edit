@@ -37,9 +37,7 @@
   async function rebake(): Promise<void> {
     if (!meta) return;
     const range =
-      meta.kind === 'depth'
-        ? { min: depthMin, max: depthMax, softness: depthSoftness }
-        : undefined;
+      meta.kind === 'depth' ? { min: depthMin, max: depthMax, softness: depthSoftness } : undefined;
     await editor.rebakeGeneratedComponent(layerId, component.id, grow, featherPx, range);
   }
 </script>

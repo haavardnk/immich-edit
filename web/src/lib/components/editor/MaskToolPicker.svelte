@@ -98,9 +98,7 @@
 
 <div class="w-56 py-1">
   {#if aiKinds.length > 0}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-      AI
-    </div>
+    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">AI</div>
     {#each aiKinds as entry (entry.kind)}
       <button
         type="button"
@@ -131,7 +129,11 @@
         {#if !entry.installed}
           <Icon path={mdiDownloadOutline} size={13} class="mt-0.5 shrink-0" />
         {:else if entry.kind === 'semantic'}
-          <Icon path={semanticOpen ? mdiChevronUp : mdiChevronDown} size={13} class="mt-0.5 shrink-0" />
+          <Icon
+            path={semanticOpen ? mdiChevronUp : mdiChevronDown}
+            size={13}
+            class="mt-0.5 shrink-0"
+          />
         {/if}
       </button>
       {#if entry.kind === 'subject' && entry.installed}
@@ -182,9 +184,7 @@
     {/each}
     <div class="my-1 border-t border-white/10"></div>
   {:else if aiUnavailable}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-      AI
-    </div>
+    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">AI</div>
     <div class="px-3 pb-2 text-[10px] text-immich-dark-fg/40 leading-snug">
       {aiUnavailable}
     </div>

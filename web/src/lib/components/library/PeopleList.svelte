@@ -20,9 +20,13 @@
             class="w-full h-full object-cover"
           />
         </div>
-        <span class="flex-1 min-w-0 truncate text-[13px] leading-tight pr-2">{p.name || 'Unknown'}</span>
+        <span class="flex-1 min-w-0 truncate text-[13px] leading-tight pr-2"
+          >{p.name || 'Unknown'}</span
+        >
         {#if p.assetCount != null}
-          <span class="text-[11px] text-immich-dark-fg/30 tabular-nums flex-none">{p.assetCount}</span>
+          <span class="text-[11px] text-immich-dark-fg/30 tabular-nums flex-none"
+            >{p.assetCount}</span
+          >
         {/if}
       </a>
     {/each}

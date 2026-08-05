@@ -235,11 +235,7 @@
     ctx.restore();
   }
 
-  function tracePath(
-    ctx: CanvasRenderingContext2D,
-    pts: [number, number][],
-    rPx: number
-  ): void {
+  function tracePath(ctx: CanvasRenderingContext2D, pts: [number, number][], rPx: number): void {
     const r = Math.max(0.5, rPx);
     if (pts.length === 1) {
       ctx.beginPath();
@@ -348,7 +344,11 @@
       if (strokeOffset) {
         const last = drawPts[drawPts.length - 1];
         const sc = displayUvToSceneUv(view, last[0], last[1]);
-        const [sxN, syN] = sceneUvToDisplayUv(view, sc[0] + strokeOffset[0], sc[1] + strokeOffset[1]);
+        const [sxN, syN] = sceneUvToDisplayUv(
+          view,
+          sc[0] + strokeOffset[0],
+          sc[1] + strokeOffset[1]
+        );
         ring(ctx, sxN * w, syN * h, rPx, 'rgba(120,220,140,0.95)', true);
         crosshair(ctx, sxN * w, syN * h, 'rgba(120,220,140,0.95)');
       }

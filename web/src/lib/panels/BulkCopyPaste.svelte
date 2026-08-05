@@ -16,7 +16,7 @@
   let copyId = $derived(
     selection.filterQuery === null && selection.selected.size === 1
       ? [...selection.selected][0]
-      : null,
+      : null
   );
 
   let canCopy = $derived(copyId !== null && editedThumbs.getHash(copyId) !== undefined);
@@ -27,7 +27,7 @@
     try {
       const record = await getEdits(copyId);
       copyDialog.show(manifestToEdits(record.manifest), () =>
-        toasts.push('success', 'Copied settings', 3000),
+        toasts.push('success', 'Copied settings', 3000)
       );
     } catch (e) {
       toasts.push('error', `Failed to copy edits: ${(e as Error).message}`, 6000);
@@ -45,8 +45,8 @@
       (target) => createPasteEditsJob(target, editsToManifest(snap.edits), snap.sections),
       {
         success: (count) => `Queued paste on ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue paste',
-      },
+        error: 'Failed to queue paste'
+      }
     );
     busy = false;
   }
@@ -56,7 +56,7 @@
     busy = true;
     await runBulkJob((target) => createResetEditsJob(target), {
       success: (count) => `Queued reset on ${count} asset${count === 1 ? '' : 's'}`,
-      error: 'Failed to queue reset',
+      error: 'Failed to queue reset'
     });
     busy = false;
   }

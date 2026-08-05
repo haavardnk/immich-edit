@@ -57,7 +57,14 @@ describe('mask/scene UV round-trip', () => {
   });
 
   it('inverts maskUvToSceneUv via sceneUvToMaskUv', () => {
-    const p: LensWarpParams = { k1: 0.15, k2: -0.05, k3: 0.02, zoom: 0.9, width: 4000, height: 3000 };
+    const p: LensWarpParams = {
+      k1: 0.15,
+      k2: -0.05,
+      k3: 0.02,
+      zoom: 0.9,
+      width: 4000,
+      height: 3000
+    };
     const mask: [number, number] = [0.62, 0.4];
     const scene = maskUvToSceneUv(p, mask);
     const back = sceneUvToMaskUv(p, scene);

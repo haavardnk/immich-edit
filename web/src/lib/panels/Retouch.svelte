@@ -8,7 +8,7 @@
 
   const strokes = $derived(editor.edits.retouch);
   const selected = $derived<RetouchStroke | null>(
-    editor.activeRetouchId ? strokes.find((s) => s.id === editor.activeRetouchId) ?? null : null
+    editor.activeRetouchId ? (strokes.find((s) => s.id === editor.activeRetouchId) ?? null) : null
   );
   const mode = $derived(selected ? selected.mode : editor.retouchTool.mode);
   const size = $derived(selected ? selected.radius : editor.retouchTool.size);
@@ -19,7 +19,10 @@
     editor.setRetouchMode(m);
   }
 
-  function live(patch: Partial<RetouchStroke>, toolPatch: Partial<typeof editor.retouchTool>): void {
+  function live(
+    patch: Partial<RetouchStroke>,
+    toolPatch: Partial<typeof editor.retouchTool>
+  ): void {
     if (selected) {
       void editor.setRetouchStroke(selected.id, patch, false);
       return;
@@ -45,7 +48,8 @@
         class="flex items-center gap-1 px-2 leading-5 transition-colors {mode === 'heal'
           ? 'bg-white/15 text-immich-dark-fg'
           : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-        title="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"        onclick={() => setMode('heal')}
+        title="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"
+        onclick={() => setMode('heal')}
       >
         <Icon path={mdiBandage} size={12} />
         Heal
@@ -108,8 +112,8 @@
     <p
       class="text-[11px] text-immich-dark-primary/90 leading-snug rounded-lg bg-immich-dark-primary/10 px-2 py-1.5"
     >
-      Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click a clean
-      patch of the photo to set the source. Painting is disabled until you do.
+      Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click a clean patch
+      of the photo to set the source. Painting is disabled until you do.
     </p>
   {/if}
 
@@ -133,7 +137,11 @@
             size={13}
             class="shrink-0 opacity-50"
           />
-          <span class="flex-1 text-xs text-immich-dark-fg/90 truncate {stroke.enabled ? '' : 'opacity-50'}">
+          <span
+            class="flex-1 text-xs text-immich-dark-fg/90 truncate {stroke.enabled
+              ? ''
+              : 'opacity-50'}"
+          >
             {label(stroke, i)}
           </span>
           <button

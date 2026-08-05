@@ -69,4 +69,3 @@ export function exifDetailRows(exif: ExifInfo | null): ExifRow[] {
     .filter((r): r is [string, string] => r[1] != null && r[1] !== '')
     .map(([key, value]) => ({ key, value }));
 }
-

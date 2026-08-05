@@ -127,11 +127,7 @@
       />
     </svg>
   {/if}
-  <div
-    class="wheel-thumb"
-    style:left="{thumb.x}px"
-    style:top="{thumb.y}px"
-  ></div>
+  <div class="wheel-thumb" style:left="{thumb.x}px" style:top="{thumb.y}px"></div>
 </div>
 
 <style>

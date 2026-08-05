@@ -66,13 +66,11 @@ function baseParams(opts: ExportOptions): Record<string, unknown> {
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
-    lossless: opts.lossless,
+    lossless: opts.lossless
   };
 }
 
-export type JobTarget =
-  | { assetIds: string[] }
-  | { search: Record<string, unknown> };
+export type JobTarget = { assetIds: string[] } | { search: Record<string, unknown> };
 
 function targetFields(target: JobTarget): Record<string, unknown> {
   if ('assetIds' in target) return { asset_ids: target.assetIds };
@@ -90,20 +88,20 @@ export function createImmichExportJob(target: JobTarget, opts: ImmichExportOptio
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
-      filename_suffix: opts.filenameSuffix,
-    },
+      filename_suffix: opts.filenameSuffix
+    }
   });
 }
 
 export function createZipExportJob(
   target: JobTarget,
   opts: ExportOptions,
-  filenameSuffix: string,
+  filenameSuffix: string
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'download_zip',
     ...targetFields(target),
-    params: { ...baseParams(opts), filename_suffix: filenameSuffix },
+    params: { ...baseParams(opts), filename_suffix: filenameSuffix }
   });
 }
 
@@ -115,7 +113,7 @@ export interface ApplyPresetOptions {
 export function createApplyPresetJob(
   target: JobTarget,
   presetId: string,
-  opts: ApplyPresetOptions,
+  opts: ApplyPresetOptions
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'apply_preset',
@@ -123,20 +121,20 @@ export function createApplyPresetJob(
     params: {
       preset_id: presetId,
       include_geometry: opts.includeGeometry,
-      include_masks: opts.includeMasks,
-    },
+      include_masks: opts.includeMasks
+    }
   });
 }
 
 export function createPasteEditsJob(
   target: JobTarget,
   manifest: EditManifest,
-  sections: CopySections,
+  sections: CopySections
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'paste_edits',
     ...targetFields(target),
-    params: { manifest, sections },
+    params: { manifest, sections }
   });
 }
 
@@ -144,6 +142,6 @@ export function createResetEditsJob(target: JobTarget): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'reset_edits',
     ...targetFields(target),
-    params: {},
+    params: {}
   });
 }

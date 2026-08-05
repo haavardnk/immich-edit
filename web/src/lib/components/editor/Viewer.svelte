@@ -107,7 +107,10 @@
       <div
         bind:this={splitWrap}
         class="relative shadow-2xl rounded overflow-hidden"
-        style="aspect-ratio: {splitNatW || 1} / {splitNatH || 1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; transform: scale({ui.zoom / 100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY / (ui.zoom / 100)}px); transform-origin: center;"
+        style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
+          1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; transform: scale({ui.zoom /
+          100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY /
+          (ui.zoom / 100)}px); transform-origin: center;"
       >
         <img
           bind:this={imgEl}
@@ -146,7 +149,9 @@
           onpointermove={onSplitPointerMove}
           onpointerup={onSplitPointerUp}
           onpointercancel={onSplitPointerUp}
-        >↔</div>
+        >
+          ↔
+        </div>
       </div>
     {:else}
       <img
@@ -154,7 +159,8 @@
         src={editor.previewUrl}
         alt={editor.asset?.originalFileName ?? ''}
         class="max-w-full max-h-full object-contain shadow-2xl rounded select-none"
-        style="transform: scale({ui.zoom / 100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY / (ui.zoom / 100)}px); transform-origin: center; image-orientation: none;"
+        style="transform: scale({ui.zoom / 100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY /
+          (ui.zoom / 100)}px); transform-origin: center; image-orientation: none;"
         draggable="false"
       />
       <MaskOverlay img={imgEl} />
@@ -180,9 +186,18 @@
     <div class="text-red-400 text-sm">{editor.error}</div>
   {:else}
     <div class="flex gap-1">
-      <div class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce" style="animation-delay: 0ms"></div>
-      <div class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce" style="animation-delay: 150ms"></div>
-      <div class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce" style="animation-delay: 300ms"></div>
+      <div
+        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        style="animation-delay: 0ms"
+      ></div>
+      <div
+        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        style="animation-delay: 150ms"
+      ></div>
+      <div
+        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        style="animation-delay: 300ms"
+      ></div>
     </div>
   {/if}
 </div>

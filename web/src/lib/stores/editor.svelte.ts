@@ -1,4 +1,24 @@
-import { neutralEdits, originalPreviewEdits, resetDevelopEdits, isIdentity, manifestToEdits, FULL_CROP, MAX_RETOUCH_STROKES, type AspectLock, type CropRect, type Edits, type EditManifest, type MaskComponent, type MaskComponentKind, type MaskComponentMode, type MaskLayer, type MaskedEditKey, type RetouchMode, type RetouchStroke, type Vec2f } from '$lib/types/edits';
+import {
+  neutralEdits,
+  originalPreviewEdits,
+  resetDevelopEdits,
+  isIdentity,
+  manifestToEdits,
+  FULL_CROP,
+  MAX_RETOUCH_STROKES,
+  type AspectLock,
+  type CropRect,
+  type Edits,
+  type EditManifest,
+  type MaskComponent,
+  type MaskComponentKind,
+  type MaskComponentMode,
+  type MaskLayer,
+  type MaskedEditKey,
+  type RetouchMode,
+  type RetouchStroke,
+  type Vec2f
+} from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
   defaultBrush,
@@ -28,8 +48,23 @@ import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { ConflictError, ApiError } from '$lib/api/client';
 import type { EditRecord } from '$lib/types/edits';
-import { livePreview, persistedPreviewUrl, getPreviewMeta, previewModeIsNone, maskWeightPreview, type PreviewMode, type ProofOptions } from '$lib/api/preview';
-import { downloadExport, EXTENSION_BY_FORMAT, uploadToImmich, type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
+import {
+  livePreview,
+  persistedPreviewUrl,
+  getPreviewMeta,
+  previewModeIsNone,
+  maskWeightPreview,
+  type PreviewMode,
+  type ProofOptions
+} from '$lib/api/preview';
+import {
+  downloadExport,
+  EXTENSION_BY_FORMAT,
+  uploadToImmich,
+  type ColorSpaceOpt,
+  type ExportOptions,
+  type ImmichExportOptions
+} from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
@@ -44,7 +79,12 @@ import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
-import { constrainCropRect, largestInscribedRect, refitCropAtAspect, aspectRatioFor } from '$lib/utils/geom';
+import {
+  constrainCropRect,
+  largestInscribedRect,
+  refitCropAtAspect,
+  aspectRatioFor
+} from '$lib/utils/geom';
 import {
   clampPerspective,
   limitPerspective,
@@ -59,7 +99,6 @@ const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
 const HIRES_DEBOUNCE_MS = 300;
 const MAX_HISTORY = 50;
-
 
 function computeHiresEdge(zoom: number): number {
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
@@ -169,7 +208,14 @@ class EditorStore {
     async (args, signal) => {
       if (!this.assetId) throw new Error('no asset');
       this.pending = true;
-      const { blob, metaId } = await livePreview(this.assetId, args.edits, args.maxEdge, args.previewMode, this.proofOptions(), signal);
+      const { blob, metaId } = await livePreview(
+        this.assetId,
+        args.edits,
+        args.maxEdge,
+        args.previewMode,
+        this.proofOptions(),
+        signal
+      );
       return { url: makeObjectUrl(blob), metaId };
     },
     (args, result) => {
@@ -200,7 +246,14 @@ class EditorStore {
       if (!this.assetId) throw new Error('no asset');
       const snap = $state.snapshot(this.edits) as Edits;
       const edits = originalPreviewEdits(snap);
-      const { blob } = await livePreview(this.assetId, edits, args.edge, 'none', this.proofOptions(), signal);
+      const { blob } = await livePreview(
+        this.assetId,
+        edits,
+        args.edge,
+        'none',
+        this.proofOptions(),
+        signal
+      );
       return { url: makeObjectUrl(blob) };
     },
     (args, result) => {
@@ -274,7 +327,13 @@ class EditorStore {
       l: snap.lens,
       d: snap.color.dcp
     });
-    if (!force && this.originalEdge === edge && this.originalGeomKey === geomKey && this.originalUrl) return;
+    if (
+      !force &&
+      this.originalEdge === edge &&
+      this.originalGeomKey === geomKey &&
+      this.originalUrl
+    )
+      return;
     this.originalFlight.submit({ edge, geomKey });
   }
 
@@ -293,10 +352,18 @@ class EditorStore {
       this.pushHistory();
       const hiresEdge = computeHiresEdge(100);
       if (hiresEdge > LIVE_EDGE) {
-        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: 'none' });
+        this.flight.submit({
+          edits: $state.snapshot(this.edits),
+          maxEdge: LIVE_EDGE,
+          previewMode: 'none'
+        });
         this.scheduleHires();
       } else {
-        this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: hiresEdge, previewMode: 'none' });
+        this.flight.submit({
+          edits: $state.snapshot(this.edits),
+          maxEdge: hiresEdge,
+          previewMode: 'none'
+        });
       }
     } catch (e) {
       this.error = (e as Error).message;
@@ -306,7 +373,10 @@ class EditorStore {
   unload(): void {
     this.flight.cancel();
     this.originalFlight.cancel();
-    if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
+    if (this.hiresTimer) {
+      clearTimeout(this.hiresTimer);
+      this.hiresTimer = null;
+    }
     if (this.geometrySession) {
       if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);
       this.geometrySession = null;
@@ -387,14 +457,25 @@ class EditorStore {
 
   onLive = (): void => {
     if (!this.initialised) return;
-    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: 'none' });
+    this.flight.submit({
+      edits: $state.snapshot(this.edits),
+      maxEdge: LIVE_EDGE,
+      previewMode: 'none'
+    });
     this.scheduleHires();
   };
 
   onPreview = (mode: PreviewMode): void => {
     if (!this.initialised) return;
-    if (this.hiresTimer) { clearTimeout(this.hiresTimer); this.hiresTimer = null; }
-    this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: LIVE_EDGE, previewMode: mode });
+    if (this.hiresTimer) {
+      clearTimeout(this.hiresTimer);
+      this.hiresTimer = null;
+    }
+    this.flight.submit({
+      edits: $state.snapshot(this.edits),
+      maxEdge: LIVE_EDGE,
+      previewMode: mode
+    });
   };
 
   endPreview = (): void => {
@@ -490,7 +571,6 @@ class EditorStore {
     this.onLive();
     await this.onCommit(name ? `Preset: ${name}` : 'Preset');
   };
-
 
   onAutoAdjust = async (): Promise<void> => {
     if (!this.assetId || !this.initialised) return;
@@ -602,11 +682,7 @@ class EditorStore {
     this.activeMaskComponentId = id;
   };
 
-  setMaskComponentFeather = (
-    layerId: string,
-    componentId: string,
-    feather: number
-  ): void => {
+  setMaskComponentFeather = (layerId: string, componentId: string, feather: number): void => {
     const layer = this.edits.masks.find((l) => l.id === layerId);
     const comp = layer?.components.find((c) => c.id === componentId);
     if (!comp) return;
@@ -894,7 +970,8 @@ class EditorStore {
     layerId: string,
     kind: MaskComponentKind,
     mode: MaskComponentMode = 'add'
-  ): Promise<string | null> => {    const cap = maskCapacity(this.edits, layerId);
+  ): Promise<string | null> => {
+    const cap = maskCapacity(this.edits, layerId);
     if (cap.componentsFull || cap.totalFull) return null;
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return null;
@@ -927,9 +1004,7 @@ class EditorStore {
   ): void => {
     const layer = this.edits.masks.find((l) => l.id === layerId);
     if (!layer) return;
-    const components = layer.components.map((c) =>
-      c.id === componentId ? { ...c, ...patch } : c
-    );
+    const components = layer.components.map((c) => (c.id === componentId ? { ...c, ...patch } : c));
     this.patchMaskLayer(layerId, { components }, live);
   };
 
@@ -1086,7 +1161,6 @@ class EditorStore {
       this.maskGenerating = false;
     }
   };
-
 
   addGeneratedLayer = async (
     kind: MaskKind,
@@ -1251,7 +1325,7 @@ class EditorStore {
   removeClickPoint = async (index: number): Promise<void> => {
     if (this.maskGenerating) return;
     const layer = this.activeLayerId
-      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
       : null;
     const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
     if (!layer || !comp || comp.generated?.kind !== 'click') return;
@@ -1352,9 +1426,7 @@ class EditorStore {
       );
       await this.onCommit('Masks');
     } catch (e) {
-      this.failMask(e, () =>
-        this.clickRefineRaster(layerId, componentId, points, subtract, bbox)
-      );
+      this.failMask(e, () => this.clickRefineRaster(layerId, componentId, points, subtract, bbox));
     } finally {
       this.maskGenerating = false;
     }
@@ -1363,7 +1435,7 @@ class EditorStore {
   addClickPoint = async (x: number, y: number, positive: boolean): Promise<void> => {
     if (this.maskGenerating) return;
     const layer = this.activeLayerId
-      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
       : null;
     const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
     const point = { x, y, positive };
@@ -1388,7 +1460,7 @@ class EditorStore {
   addClickBox = async (bbox: MaskBox): Promise<void> => {
     if (this.maskGenerating) return;
     const layer = this.activeLayerId
-      ? this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null
+      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
       : null;
     const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
     if (layer && comp && comp.kind.kind === 'brush') {
@@ -1602,7 +1674,11 @@ class EditorStore {
       if (!this.initialised) return;
       const edge = computeHiresEdge(zoom);
       if (edge <= this.renderedEdge) return;
-      this.flight.submit({ edits: $state.snapshot(this.edits), maxEdge: edge, previewMode: 'none' });
+      this.flight.submit({
+        edits: $state.snapshot(this.edits),
+        maxEdge: edge,
+        previewMode: 'none'
+      });
     }, HIRES_DEBOUNCE_MS);
   }
 
@@ -1720,9 +1796,10 @@ class EditorStore {
       const sw = swapped ? sess.srcH : sess.srcW;
       const sh = swapped ? sess.srcW : sess.srcH;
       const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
-      sess.draftCrop = ratio !== null
-        ? largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess))
-        : FULL_CROP;
+      sess.draftCrop =
+        ratio !== null
+          ? largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess))
+          : FULL_CROP;
       sess.userEditedCrop = false;
       return;
     }
@@ -1797,13 +1874,7 @@ class EditorStore {
     sess.draftAspect = aspect;
     const ratio = aspectRatioFor(aspect, sw, sh);
     if (ratio !== null) {
-      sess.draftCrop = largestInscribedRect(
-        sw,
-        sh,
-        sess.draftAngle,
-        ratio,
-        draftPerspInv(sess)
-      );
+      sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess));
       sess.userEditedCrop = false;
     }
   };

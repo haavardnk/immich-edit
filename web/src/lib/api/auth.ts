@@ -30,13 +30,9 @@ export async function completeSetup(body: SetupBody): Promise<SessionUser> {
 }
 
 export async function loginPassword(email: string, password: string): Promise<SessionUser> {
-  return sendJson<SessionUser>(
-    'POST',
-    '/api/auth/login/password',
-    { email, password },
-    undefined,
-    { silent: true }
-  );
+  return sendJson<SessionUser>('POST', '/api/auth/login/password', { email, password }, undefined, {
+    silent: true
+  });
 }
 
 export async function loginApiKey(apiKey: string): Promise<SessionUser> {

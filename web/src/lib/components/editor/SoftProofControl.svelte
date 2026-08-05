@@ -13,7 +13,13 @@
   });
 </script>
 
-<Popover {open} anchor="bottom" align="end" onClose={() => (open = false)} contentClass="p-2.5 w-56">
+<Popover
+  {open}
+  anchor="bottom"
+  align="end"
+  onClose={() => (open = false)}
+  contentClass="p-2.5 w-56"
+>
   {#snippet trigger()}
     <ToolbarButton
       path={mdiMonitorEye}
@@ -30,7 +36,8 @@
         <select
           class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2 min-h-0"
           value={editor.proofSpace}
-          onchange={(e) => editor.setProofSpace((e.currentTarget as HTMLSelectElement).value as ColorSpaceOpt)}
+          onchange={(e) =>
+            editor.setProofSpace((e.currentTarget as HTMLSelectElement).value as ColorSpaceOpt)}
         >
           <option value="srgb">sRGB</option>
           <option value="displayp3" disabled={!wideGamut}>Display P3</option>

@@ -33,14 +33,9 @@
   const swapped = $derived(sess ? sess.draftRotate === 90 || sess.draftRotate === 270 : false);
   const sourceW = $derived(sess ? (swapped ? sess.srcH : sess.srcW) : 1);
   const sourceH = $derived(sess ? (swapped ? sess.srcW : sess.srcH) : 1);
-  const bbox = $derived(
-    sess ? rotatedBbox(sourceW, sourceH, sess.draftAngle) : { w: 1, h: 1 }
-  );
+  const bbox = $derived(sess ? rotatedBbox(sourceW, sourceH, sess.draftAngle) : { w: 1, h: 1 });
   const scale = $derived(
-    Math.min(
-      (containerW * 0.92) / Math.max(bbox.w, 1),
-      (containerH * 0.92) / Math.max(bbox.h, 1)
-    )
+    Math.min((containerW * 0.92) / Math.max(bbox.w, 1), (containerH * 0.92) / Math.max(bbox.h, 1))
   );
   const bboxW = $derived(bbox.w * scale);
   const bboxH = $derived(bbox.h * scale);
@@ -81,16 +76,7 @@
     h: crop.h * bboxH
   });
 
-  type DragKind =
-    | 'move'
-    | 'nw'
-    | 'n'
-    | 'ne'
-    | 'e'
-    | 'se'
-    | 's'
-    | 'sw'
-    | 'w';
+  type DragKind = 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
   let dragKind = $state<DragKind | null>(null);
   let dragStartX = 0;
@@ -147,10 +133,10 @@
         if (isHorzEdge) {
           newW = (hPx * ratio) / bboxW;
         } else if (isVertEdge) {
-          newH = (wPx / ratio) / bboxH;
+          newH = wPx / ratio / bboxH;
         } else if (isCorner) {
           if (wPx / hPx > ratio) {
-            newH = (wPx / ratio) / bboxH;
+            newH = wPx / ratio / bboxH;
           } else {
             newW = (hPx * ratio) / bboxW;
           }
@@ -213,21 +199,19 @@
   }
 </script>
 
-<div
-  bind:this={container}
-  class="absolute inset-0 flex items-center justify-center select-none"
->
+<div bind:this={container} class="absolute inset-0 flex items-center justify-center select-none">
   {#if sess && sess.pinnedReady && sess.pinnedUrl}
-    <div
-      class="relative"
-      style="width: {bboxW}px; height: {bboxH}px;"
-    >
+    <div class="relative" style="width: {bboxW}px; height: {bboxH}px;">
       <img
         src={sess.pinnedUrl}
         alt=""
         draggable="false"
         class="absolute block"
-        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) {perspCss} scaleY({sess.draftFlipV ? -1 : 1}) scaleX({sess.draftFlipH ? -1 : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
+        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) {perspCss} scaleY({sess.draftFlipV
+          ? -1
+          : 1}) scaleX({sess.draftFlipH
+          ? -1
+          : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
       />
 
       <div
@@ -268,7 +252,13 @@
               {h.includes('e') ? 'right: -6px;' : ''}
               {h === 'n' || h === 's' ? 'left: calc(50% - 6px);' : ''}
               {h === 'w' || h === 'e' ? 'top: calc(50% - 6px);' : ''}
-              cursor: {h === 'n' || h === 's' ? 'ns-resize' : h === 'e' || h === 'w' ? 'ew-resize' : h === 'nw' || h === 'se' ? 'nwse-resize' : 'nesw-resize'};
+              cursor: {h === 'n' || h === 's'
+              ? 'ns-resize'
+              : h === 'e' || h === 'w'
+                ? 'ew-resize'
+                : h === 'nw' || h === 'se'
+                  ? 'nwse-resize'
+                  : 'nesw-resize'};
             "
             onpointerdown={(e) => startDrag(e, h)}
             onpointermove={onMove}

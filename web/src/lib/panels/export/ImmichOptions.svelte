@@ -8,7 +8,7 @@
 
   let {
     form = $bindable<ExportForm>(),
-    radioName = 'stackPrimary',
+    radioName = 'stackPrimary'
   }: { form: ExportForm; radioName?: string } = $props();
 </script>
 

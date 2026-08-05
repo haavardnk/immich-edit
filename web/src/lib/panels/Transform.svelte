@@ -148,7 +148,9 @@
         </select>
         <button
           type="button"
-          class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable ? 'bg-white/5 hover:bg-white/10' : 'bg-white/5 opacity-40 cursor-not-allowed'}"
+          class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable
+            ? 'bg-white/5 hover:bg-white/10'
+            : 'bg-white/5 opacity-40 cursor-not-allowed'}"
           onclick={toggleOrientation}
           disabled={!orientationAvailable}
           aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
@@ -228,7 +230,10 @@
         90°
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor
+          .geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h)
+          ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
+          : 'bg-white/5 hover:bg-white/10'}"
         aria-pressed={editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h}
         onclick={toggleFlipH}
       >
@@ -236,7 +241,10 @@
         Flip Horizontal
       </button>
       <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v) ? 'bg-immich-dark-primary/20 text-immich-dark-primary' : 'bg-white/5 hover:bg-white/10'}"
+        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor
+          .geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v)
+          ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
+          : 'bg-white/5 hover:bg-white/10'}"
         aria-pressed={editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v}
         onclick={toggleFlipV}
       >

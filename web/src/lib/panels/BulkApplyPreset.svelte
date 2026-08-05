@@ -31,8 +31,8 @@
       (target) => createApplyPresetJob(target, id, { includeGeometry, includeMasks }),
       {
         success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue preset',
-      },
+        error: 'Failed to queue preset'
+      }
     );
     busy = false;
   }
@@ -48,11 +48,7 @@
   {:else}
     <PresetPicker bind:selectedId={presetId} />
 
-    <PresetIncludeToggles
-      bind:includeGeometry
-      bind:includeMasks
-      bordered
-    />
+    <PresetIncludeToggles bind:includeGeometry bind:includeMasks bordered />
 
     <button
       class="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

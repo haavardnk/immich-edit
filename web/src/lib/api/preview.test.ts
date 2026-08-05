@@ -7,9 +7,10 @@ describe('persistedPreviewUrl', () => {
     [false, 'clip=false'],
     [true, 'clip=true']
   ] as const)('encodes clip warning %s', (clipWarn, expected) => {
-    const url = clipWarn === undefined
-      ? persistedPreviewUrl('a', 512)
-      : persistedPreviewUrl('a', 512, clipWarn);
+    const url =
+      clipWarn === undefined
+        ? persistedPreviewUrl('a', 512)
+        : persistedPreviewUrl('a', 512, clipWarn);
     expect(url).toBe(`/api/assets/a/preview?max=512&${expected}`);
   });
 });

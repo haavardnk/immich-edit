@@ -9,7 +9,7 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
   { id: '3:2', label: '3:2', value: 3 / 2 },
   { id: '16:9', label: '16:9', value: 16 / 9 },
   { id: '5:4', label: '5:4', value: 5 / 4 },
-  { id: '7:5', label: '7:5', value: 7 / 5 },
+  { id: '7:5', label: '7:5', value: 7 / 5 }
 ];
 
 class UiStore {
@@ -96,7 +96,10 @@ class UiStore {
 
   zoomOut = (): void => {
     this.zoom = Math.max(this.zoom - 25, 25);
-    if (this.zoom <= 100) { this.panX = 0; this.panY = 0; }
+    if (this.zoom <= 100) {
+      this.panX = 0;
+      this.panY = 0;
+    }
   };
 
   zoomFit = (): void => {
@@ -185,7 +188,10 @@ class UiStore {
 
   setZoom = (value: number): void => {
     this.zoom = Math.round(Math.max(25, Math.min(400, value)));
-    if (this.zoom <= 100) { this.panX = 0; this.panY = 0; }
+    if (this.zoom <= 100) {
+      this.panX = 0;
+      this.panY = 0;
+    }
   };
 }
 

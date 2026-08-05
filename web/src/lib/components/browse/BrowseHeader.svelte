@@ -6,12 +6,7 @@
     type Visibility
   } from '$lib/stores/browseControls.svelte';
   import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
-  import {
-    mdiSortAscending,
-    mdiSortDescending,
-    mdiFilterOutline,
-    mdiClose
-  } from '@mdi/js';
+  import { mdiSortAscending, mdiSortDescending, mdiFilterOutline, mdiClose } from '@mdi/js';
 
   let {
     title,

@@ -73,7 +73,10 @@ export function defaultColorRange(): MaskComponentKind {
   };
 }
 
-export function makeComponent(kind: MaskComponentKind, mode: MaskComponentMode = 'add'): MaskComponent {
+export function makeComponent(
+  kind: MaskComponentKind,
+  mode: MaskComponentMode = 'add'
+): MaskComponent {
   return {
     id: nextId(),
     enabled: true,
@@ -84,7 +87,11 @@ export function makeComponent(kind: MaskComponentKind, mode: MaskComponentMode =
   };
 }
 
-export function makeLayer(name: string, index: number, kind: MaskComponentKind = defaultLinear()): MaskLayer {
+export function makeLayer(
+  name: string,
+  index: number,
+  kind: MaskComponentKind = defaultLinear()
+): MaskLayer {
   return {
     id: nextId(),
     name,
@@ -158,7 +165,7 @@ export interface MaskCapacity {
 
 export function maskCapacity(edits: Edits, layerId: string | null): MaskCapacity {
   const total = edits.masks.reduce((n, l) => n + l.components.length, 0);
-  const layer = layerId ? edits.masks.find((l) => l.id === layerId) ?? null : null;
+  const layer = layerId ? (edits.masks.find((l) => l.id === layerId) ?? null) : null;
   return {
     layersFull: edits.masks.length >= N_MAX_MASK_LAYERS,
     componentsFull: layer ? layer.components.length >= N_MAX_COMPONENTS_PER_LAYER : false,

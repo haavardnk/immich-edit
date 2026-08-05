@@ -19,7 +19,7 @@
     mdiTagMultipleOutline,
     mdiPencilOutline,
     mdiChevronRight,
-    mdiChevronLeft,
+    mdiChevronLeft
   } from '@mdi/js';
 
   type ExpandableSection = 'people' | 'albums' | 'tags' | 'folders';
@@ -60,7 +60,10 @@
     </button>
   {:else}
     <div class="flex items-center border-b border-white/10">
-      <span class="flex-1 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/40 font-semibold">Library</span>
+      <span
+        class="flex-1 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/40 font-semibold"
+        >Library</span
+      >
       <button
         class="p-1.5 hover:bg-white/10 transition-colors"
         onclick={ui.toggleLeft}

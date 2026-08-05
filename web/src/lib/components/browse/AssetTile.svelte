@@ -83,7 +83,7 @@
 >
   <a href={`/assets/${asset.id}`} onclick={onClick} class="block w-full h-full">
     <img
-      src={src}
+      {src}
       alt=""
       loading="lazy"
       class="object-cover w-full h-full transition-transform group-hover:scale-105"

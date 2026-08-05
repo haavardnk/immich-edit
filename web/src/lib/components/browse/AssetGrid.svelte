@@ -300,7 +300,11 @@
         selected={selection.has(asset.id)}
         selectionActive={selection.active}
         onToggle={() => selection.toggle(asset.id)}
-        onRange={() => selection.range(items.map((a) => a.id), asset.id)}
+        onRange={() =>
+          selection.range(
+            items.map((a) => a.id),
+            asset.id
+          )}
         onActivate={() => browseView.setActive(asset.id)}
         onLoupe={() => browseView.openLoupe(asset.id)}
       />

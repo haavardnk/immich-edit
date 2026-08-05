@@ -32,4 +32,3 @@ test('login page can switch to the API key method', async ({ page }) => {
   await page.getByRole('button', { name: /use an immich api key/i }).click();
   await expect(page.getByLabel('Immich API key')).toBeVisible();
 });
-

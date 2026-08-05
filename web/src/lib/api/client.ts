@@ -62,7 +62,10 @@ function reportError(err: unknown): void {
       return;
     }
     if (err.code === 'upstream_unavailable') {
-      toasts.push('error', 'Immich server unavailable. Check the server URL and that Immich is running.');
+      toasts.push(
+        'error',
+        'Immich server unavailable. Check the server URL and that Immich is running.'
+      );
     } else if (err.code === 'upstream_auth') {
       toasts.push('error', 'Immich rejected your session. Sign out and sign back in.');
     } else if (err.code === 'upstream_timeout') {

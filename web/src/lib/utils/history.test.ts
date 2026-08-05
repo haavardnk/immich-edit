@@ -83,10 +83,7 @@ describe('historyLabel', () => {
     prev.basic.exposure_ev = 1;
     const curr = neutralEdits();
     curr.basic.exposure_ev = 1.5;
-    const out = historyLabel(
-      entry({ id: 2, edits: curr }),
-      entry({ id: 1, edits: prev })
-    );
+    const out = historyLabel(entry({ id: 2, edits: curr }), entry({ id: 1, edits: prev }));
     expect(out.label).toBe('Exposure');
     expect(out.delta).toBe('+0.50');
   });
@@ -145,11 +142,19 @@ describe('historyDetails', () => {
   it('summarizes curve channels and point counts', () => {
     const prev = neutralEdits();
     const curr = neutralEdits();
-    curr.basic.curves.composite = [{ x: 0, y: 0 }, { x: 1, y: 0.9 }];
-    curr.basic.curves.r = [{ x: 0, y: 0 }, { x: 0.5, y: 0.6 }, { x: 1, y: 1 }];
+    curr.basic.curves.composite = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0.9 }
+    ];
+    curr.basic.curves.r = [
+      { x: 0, y: 0 },
+      { x: 0.5, y: 0.6 },
+      { x: 1, y: 1 }
+    ];
 
-    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev }))
-      .find((detail) => detail.key === 'curves');
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'curves'
+    );
 
     expect(group?.items).toEqual([
       { kind: 'summary', text: 'RGB: adjusted' },
@@ -165,10 +170,12 @@ describe('historyDetails', () => {
     const reordered = neutralEdits();
     reordered.masks = [mask('b', 'B'), mask('a', 'A')];
 
-    const changedGroup = historyDetails(entry({ edits: changed }), entry({ edits: prev }))
-      .find((detail) => detail.key === 'masks');
-    const reorderedGroup = historyDetails(entry({ edits: reordered }), entry({ edits: prev }))
-      .find((detail) => detail.key === 'masks');
+    const changedGroup = historyDetails(entry({ edits: changed }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'masks'
+    );
+    const reorderedGroup = historyDetails(entry({ edits: reordered }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'masks'
+    );
 
     expect(changedGroup?.items).toEqual([
       { kind: 'summary', text: '1 added, 1 removed, 1 modified' }
@@ -185,8 +192,9 @@ describe('historyDetails', () => {
     curr.geometry.aspect = { kind: 'ratio', num: 3, den: 2 };
     curr.geometry.crop = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
 
-    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev }))
-      .find((detail) => detail.key === 'geometry');
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'geometry'
+    );
 
     expect(group?.items).toEqual([
       { kind: 'summary', text: 'Rotation: 0° → 90°' },
@@ -217,8 +225,9 @@ describe('historyDetails', () => {
     const curr = neutralEdits();
     curr.color.dcp.mode = 'off';
     curr.color.lut_3d.lut_id = 'film';
-    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev }))
-      .find((detail) => detail.key === 'color');
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'color'
+    );
     expect(group?.items).toContainEqual({
       kind: 'summary',
       text: 'Camera profile: Auto → Default Color'

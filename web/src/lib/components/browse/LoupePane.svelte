@@ -165,7 +165,7 @@
   {#if box.w > 0}
     <img
       bind:this={image}
-      src={src}
+      {src}
       {alt}
       draggable="false"
       class="max-w-full max-h-full object-contain select-none"

@@ -88,7 +88,7 @@
     <button
       type="button"
       class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
-      'profile' && selectedId === profile.id
+        'profile' && selectedId === profile.id
         ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
         : 'hover:bg-white/10'}"
       title={profileLabel(profile)}
@@ -102,7 +102,12 @@
   {/each}
 {/snippet}
 
-<Popover {open} onClose={close} rootClass="w-full" contentClass="w-full max-h-80 overflow-hidden flex flex-col">
+<Popover
+  {open}
+  onClose={close}
+  rootClass="w-full"
+  contentClass="w-full max-h-80 overflow-hidden flex flex-col"
+>
   {#snippet trigger()}
     <button
       type="button"
@@ -124,7 +129,9 @@
         : 'hover:bg-white/10'}"
       onclick={() => pick('auto', null)}
     >
-      <span class="w-3.5 shrink-0">{#if mode === 'auto'}<Icon path={mdiCheck} size={14} />{/if}</span>
+      <span class="w-3.5 shrink-0"
+        >{#if mode === 'auto'}<Icon path={mdiCheck} size={14} />{/if}</span
+      >
       <span class="min-w-0 flex-1">
         <span class="block truncate">Auto match</span>
         <span class="block truncate text-[10px] opacity-60">{autoDetail}</span>
@@ -138,7 +145,9 @@
         : 'hover:bg-white/10'}"
       onclick={() => pick('off', null)}
     >
-      <span class="w-3.5 shrink-0">{#if mode === 'off'}<Icon path={mdiCheck} size={14} />{/if}</span>
+      <span class="w-3.5 shrink-0"
+        >{#if mode === 'off'}<Icon path={mdiCheck} size={14} />{/if}</span
+      >
       <span>Default Color</span>
     </button>
   </div>

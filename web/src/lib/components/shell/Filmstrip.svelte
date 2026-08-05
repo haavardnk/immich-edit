@@ -140,7 +140,9 @@
                       </span>
                     {/if}
                     {#if showBadges && asset.isFavorite}
-                      <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
+                      <div
+                        class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
+                      >
                         <Icon path={mdiHeart} size={13} />
                       </div>
                     {/if}
@@ -159,7 +161,11 @@
                       >
                         <div class="flex items-center gap-0.5">
                           {#each [1, 2, 3, 4, 5] as n (n)}
-                            <Icon path={mdiStar} size={9} class={n <= rating ? 'opacity-100' : 'opacity-30'} />
+                            <Icon
+                              path={mdiStar}
+                              size={9}
+                              class={n <= rating ? 'opacity-100' : 'opacity-30'}
+                            />
                           {/each}
                         </div>
                       </div>
@@ -185,7 +191,9 @@
                       class:grayscale={rejected}
                     />
                     {#if showBadges && asset.isFavorite}
-                      <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
+                      <div
+                        class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
+                      >
                         <Icon path={mdiHeart} size={13} />
                       </div>
                     {/if}
@@ -204,7 +212,11 @@
                       >
                         <div class="flex items-center gap-0.5">
                           {#each [1, 2, 3, 4, 5] as n (n)}
-                            <Icon path={mdiStar} size={9} class={n <= rating ? 'opacity-100' : 'opacity-30'} />
+                            <Icon
+                              path={mdiStar}
+                              size={9}
+                              class={n <= rating ? 'opacity-100' : 'opacity-30'}
+                            />
                           {/each}
                         </div>
                       </div>

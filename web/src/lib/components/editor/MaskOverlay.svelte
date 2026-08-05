@@ -66,11 +66,7 @@
   });
 
   const lensP = $derived.by<LensWarpParams>(() =>
-    lensWarpFromEdits(
-      editor.edits.lens,
-      editor.meta?.source_w ?? 1,
-      editor.meta?.source_h ?? 1
-    )
+    lensWarpFromEdits(editor.edits.lens, editor.meta?.source_w ?? 1, editor.meta?.source_h ?? 1)
   );
 
   const geomT = $derived.by<GeometryTransform>(() =>
@@ -79,7 +75,7 @@
 
   const active = $derived(
     editor.activeLayerId
-      ? editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null
+      ? (editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null)
       : null
   );
 
@@ -90,9 +86,7 @@
       rectW > 0 &&
       rectH > 0
   );
-  const showColorPicker = $derived(
-    !!editor.colorPicker?.ready && rectW > 0 && rectH > 0 && !!img
-  );
+  const showColorPicker = $derived(!!editor.colorPicker?.ready && rectW > 0 && rectH > 0 && !!img);
 
   function sceneToDisplay(scene: Vec2f): Vec2f {
     const m = sceneUvToMaskUv(lensP, [scene.x, scene.y]);
@@ -143,12 +137,7 @@
     kind: DragKind;
   } | null>(null);
 
-  function startDrag(
-    e: PointerEvent,
-    layerId: string,
-    componentId: string,
-    kind: DragKind
-  ): void {
+  function startDrag(e: PointerEvent, layerId: string, componentId: string, kind: DragKind): void {
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -366,7 +355,8 @@
     void editor.commitMasks();
   }
 
-  function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {    const a = sceneToPx(k.p0);
+  function linearHandles(comp: MaskComponent, k: Extract<MaskComponentKind, { kind: 'linear' }>) {
+    const a = sceneToPx(k.p0);
     const b = sceneToPx(k.p1);
     return { a, b, comp };
   }
@@ -407,7 +397,8 @@
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
-  >    {#each active.components as comp (comp.id)}
+  >
+    {#each active.components as comp (comp.id)}
       {#if comp.enabled && activeCompId === comp.id && comp.kind.kind === 'linear'}
         {@const h = linearHandles(comp, comp.kind)}
         {@const isSel = activeCompId === comp.id}
@@ -796,10 +787,11 @@
               role="button"
               aria-label="Polygon corner"
               tabindex="-1"
-              onpointerdown={(e) => startDrag(e, active.id, comp.id, {
-                kind: 'polygon-vertex',
-                index: i
-              })}
+              onpointerdown={(e) =>
+                startDrag(e, active.id, comp.id, {
+                  kind: 'polygon-vertex',
+                  index: i
+                })}
               ondblclick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

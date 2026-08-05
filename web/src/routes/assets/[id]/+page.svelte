@@ -73,8 +73,7 @@
 
     switch (bind) {
       case 'editorNav': {
-        const target =
-          e.key === 'ArrowLeft' ? browsing.prevOf(id) : browsing.nextOf(id);
+        const target = e.key === 'ArrowLeft' ? browsing.prevOf(id) : browsing.nextOf(id);
         if (target) void goto(`/assets/${target.id}`, { replaceState: true });
         return;
       }
@@ -212,20 +211,27 @@
   const tooNarrow = $derived(viewportWidth < 768);
 </script>
 
-<svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onresize={() => (viewportWidth = window.innerWidth)} />
+<svelte:window
+  onkeydown={onKeyDown}
+  onkeyup={onKeyUp}
+  onresize={() => (viewportWidth = window.innerWidth)}
+/>
 
 {#if tooNarrow}
   <div class="flex-1 flex items-center justify-center p-6 text-center">
     <div class="max-w-sm space-y-2">
       <h2 class="text-sm font-medium text-immich-dark-fg">Desktop required</h2>
       <p class="text-xs text-immich-dark-fg/60">
-        immich-edit requires a desktop browser (≥ 768px) for editing. Please switch to a larger screen.
+        immich-edit requires a desktop browser (≥ 768px) for editing. Please switch to a larger
+        screen.
       </p>
     </div>
   </div>
 {:else}
   {#if editor.error}
-    <div class="px-4 py-2 text-xs text-red-400 bg-red-400/10 border-b border-red-400/20">{editor.error}</div>
+    <div class="px-4 py-2 text-xs text-red-400 bg-red-400/10 border-b border-red-400/20">
+      {editor.error}
+    </div>
   {/if}
   <ImageToolbar />
   <Viewer />

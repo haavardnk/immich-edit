@@ -1,7 +1,13 @@
 <script lang="ts">
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiAlertCircleOutline, mdiAlertOutline, mdiInformationOutline, mdiCheckCircleOutline, mdiClose } from '@mdi/js';
+  import {
+    mdiAlertCircleOutline,
+    mdiAlertOutline,
+    mdiInformationOutline,
+    mdiCheckCircleOutline,
+    mdiClose
+  } from '@mdi/js';
 
   const iconFor = (kind: string): string => {
     if (kind === 'error') return mdiAlertCircleOutline;

@@ -7,10 +7,10 @@
     form.format === 'jpeg' ||
       form.format === 'avif' ||
       form.format === 'heic' ||
-      (form.format === 'webp' && !(form.lossless || form.includeExif)),
+      (form.format === 'webp' && !(form.lossless || form.includeExif))
   );
   let showBitDepth = $derived(
-    form.format === 'png' || form.format === 'tiff' || form.format === 'jxl',
+    form.format === 'png' || form.format === 'tiff' || form.format === 'jxl'
   );
   let showPngCompression = $derived(form.format === 'png');
   let showTiffCompression = $derived(form.format === 'tiff');

@@ -126,10 +126,7 @@ function orthoInverse(
   }
 }
 
-export function displayUvToMaskUv(
-  t: GeometryTransform,
-  uv: [number, number]
-): [number, number] {
+export function displayUvToMaskUv(t: GeometryTransform, uv: [number, number]): [number, number] {
   if (geometryIsIdentity(t)) return [uv[0], uv[1]];
   const o = geometryOrientedSize(t);
   const bbox = geometryBbox(t);
@@ -146,10 +143,7 @@ export function displayUvToMaskUv(
   return orthoInverse(t.rotateQuarter, t.flipH, t.flipV, warped[0], warped[1]);
 }
 
-export function maskUvToDisplayUv(
-  t: GeometryTransform,
-  uv: [number, number]
-): [number, number] {
+export function maskUvToDisplayUv(t: GeometryTransform, uv: [number, number]): [number, number] {
   if (geometryIsIdentity(t)) return [uv[0], uv[1]];
   const o = geometryOrientedSize(t);
   const bbox = geometryBbox(t);

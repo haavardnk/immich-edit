@@ -63,7 +63,7 @@ class BrowseControlsStore {
       size: 500,
       order: this.sortDir,
       visibility: this.visibility,
-      type: 'IMAGE',
+      type: 'IMAGE'
     };
     if (this.favoriteOnly && !('isFavorite' in base)) {
       body.isFavorite = true;
@@ -100,7 +100,7 @@ class BrowseControlsStore {
       withExif: true,
       size: 500,
       visibility: this.visibility,
-      type: 'IMAGE',
+      type: 'IMAGE'
     };
     if (this.favoriteOnly && !('isFavorite' in base)) {
       body.isFavorite = true;
@@ -127,10 +127,9 @@ class BrowseControlsStore {
       this.filename,
       this.visibility,
       this.takenAfter,
-      this.takenBefore,
+      this.takenBefore
     ].join('|');
   }
 }
 
 export const browseControls = new BrowseControlsStore();
-

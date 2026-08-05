@@ -324,7 +324,15 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
   it('decodes a legacy single-curve points payload', () => {
     const edits = manifestToEdits({
       schema_version: 3,
-      ops: { curves: { points: [[0, 0], [0.5, 0.7], [1, 1]] } }
+      ops: {
+        curves: {
+          points: [
+            [0, 0],
+            [0.5, 0.7],
+            [1, 1]
+          ]
+        }
+      }
     });
     expect(edits.basic.curves.composite).toEqual([
       { x: 0, y: 0 },

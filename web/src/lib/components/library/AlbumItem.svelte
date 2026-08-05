@@ -7,7 +7,9 @@
 
 <a
   href={`/albums/${album.id}`}
-  class="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg transition-colors {active ? 'bg-immich-dark-primary/15 text-immich-dark-primary' : 'hover:bg-white/5'}"
+  class="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg transition-colors {active
+    ? 'bg-immich-dark-primary/15 text-immich-dark-primary'
+    : 'hover:bg-white/5'}"
 >
   <div class="w-8 h-8 rounded-lg bg-white/5 overflow-hidden flex-none">
     {#if album.albumThumbnailAssetId}

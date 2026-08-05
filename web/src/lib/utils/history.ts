@@ -32,49 +32,206 @@ export type HistoryDetailGroup = {
 };
 
 const FIELDS: FieldDef[] = [
-  { kind: 'number', section: 'basic', label: 'Exposure', get: (e) => e.basic.exposure_ev, precision: 2, signed: true },
-  { kind: 'number', section: 'basic', label: 'Brightness', get: (e) => e.basic.brightness, signed: true },
-  { kind: 'number', section: 'basic', label: 'Contrast', get: (e) => e.basic.contrast, signed: true },
-  { kind: 'number', section: 'basic', label: 'Vibrance', get: (e) => e.basic.vibrance, signed: true },
-  { kind: 'number', section: 'basic', label: 'Saturation', get: (e) => e.basic.saturation, signed: true },
-  { kind: 'number', section: 'basic', label: 'Temperature', get: (e) => e.basic.wb_temp, signed: true },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Exposure',
+    get: (e) => e.basic.exposure_ev,
+    precision: 2,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Brightness',
+    get: (e) => e.basic.brightness,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Contrast',
+    get: (e) => e.basic.contrast,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Vibrance',
+    get: (e) => e.basic.vibrance,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Saturation',
+    get: (e) => e.basic.saturation,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'basic',
+    label: 'Temperature',
+    get: (e) => e.basic.wb_temp,
+    signed: true
+  },
   { kind: 'number', section: 'basic', label: 'Tint', get: (e) => e.basic.wb_tint, signed: true },
   { kind: 'number', section: 'basic', label: 'Texture', get: (e) => e.basic.texture, signed: true },
   { kind: 'number', section: 'basic', label: 'Clarity', get: (e) => e.basic.clarity, signed: true },
   { kind: 'number', section: 'basic', label: 'Dehaze', get: (e) => e.basic.dehaze, signed: true },
-  { kind: 'number', section: 'tone', label: 'Highlights', get: (e) => e.tone.highlights, signed: true },
+  {
+    kind: 'number',
+    section: 'tone',
+    label: 'Highlights',
+    get: (e) => e.tone.highlights,
+    signed: true
+  },
   { kind: 'number', section: 'tone', label: 'Shadows', get: (e) => e.tone.shadows, signed: true },
   { kind: 'number', section: 'tone', label: 'Whites', get: (e) => e.tone.whites, signed: true },
   { kind: 'number', section: 'tone', label: 'Blacks', get: (e) => e.tone.blacks, signed: true },
-  { kind: 'number', section: 'detail', label: 'Sharpen Amount', get: (e) => e.detail.sharpen_amount },
-  { kind: 'number', section: 'detail', label: 'Sharpen Radius', get: (e) => e.detail.sharpen_radius, precision: 1 },
-  { kind: 'number', section: 'detail', label: 'Sharpen Detail', get: (e) => e.detail.sharpen_detail },
-  { kind: 'number', section: 'detail', label: 'Sharpen Masking', get: (e) => e.detail.sharpen_masking },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Sharpen Amount',
+    get: (e) => e.detail.sharpen_amount
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Sharpen Radius',
+    get: (e) => e.detail.sharpen_radius,
+    precision: 1
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Sharpen Detail',
+    get: (e) => e.detail.sharpen_detail
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Sharpen Masking',
+    get: (e) => e.detail.sharpen_masking
+  },
   { kind: 'number', section: 'detail', label: 'Luminance NR', get: (e) => e.detail.luma_nr_amount },
-  { kind: 'number', section: 'detail', label: 'Luminance NR Detail', get: (e) => e.detail.luma_nr_detail },
-  { kind: 'number', section: 'detail', label: 'Luminance NR Contrast', get: (e) => e.detail.luma_nr_contrast },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Luminance NR Detail',
+    get: (e) => e.detail.luma_nr_detail
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Luminance NR Contrast',
+    get: (e) => e.detail.luma_nr_contrast
+  },
   { kind: 'number', section: 'detail', label: 'Color NR', get: (e) => e.detail.color_nr_amount },
-  { kind: 'number', section: 'detail', label: 'Color NR Detail', get: (e) => e.detail.color_nr_detail },
-  { kind: 'number', section: 'detail', label: 'Color NR Smoothness', get: (e) => e.detail.color_nr_smoothness },
-  { kind: 'number', section: 'effects', label: 'Vignette Amount', get: (e) => e.effects.vignette_amount, signed: true },
-  { kind: 'number', section: 'effects', label: 'Vignette Midpoint', get: (e) => e.effects.vignette_midpoint },
-  { kind: 'number', section: 'effects', label: 'Vignette Feather', get: (e) => e.effects.vignette_feather },
-  { kind: 'number', section: 'effects', label: 'Vignette Roundness', get: (e) => e.effects.vignette_roundness, signed: true },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Color NR Detail',
+    get: (e) => e.detail.color_nr_detail
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'Color NR Smoothness',
+    get: (e) => e.detail.color_nr_smoothness
+  },
+  {
+    kind: 'number',
+    section: 'effects',
+    label: 'Vignette Amount',
+    get: (e) => e.effects.vignette_amount,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'effects',
+    label: 'Vignette Midpoint',
+    get: (e) => e.effects.vignette_midpoint
+  },
+  {
+    kind: 'number',
+    section: 'effects',
+    label: 'Vignette Feather',
+    get: (e) => e.effects.vignette_feather
+  },
+  {
+    kind: 'number',
+    section: 'effects',
+    label: 'Vignette Roundness',
+    get: (e) => e.effects.vignette_roundness,
+    signed: true
+  },
   { kind: 'number', section: 'effects', label: 'Grain Amount', get: (e) => e.effects.grain_amount },
   { kind: 'number', section: 'effects', label: 'Grain Size', get: (e) => e.effects.grain_size },
-  { kind: 'number', section: 'effects', label: 'Grain Roughness', get: (e) => e.effects.grain_roughness },
-  { kind: 'boolean', section: 'lens', label: 'Profile Corrections', get: (e) => e.lens.profile_enabled },
-  { kind: 'boolean', section: 'lens', label: 'Chromatic Aberration', get: (e) => e.lens.ca_enabled },
+  {
+    kind: 'number',
+    section: 'effects',
+    label: 'Grain Roughness',
+    get: (e) => e.effects.grain_roughness
+  },
+  {
+    kind: 'boolean',
+    section: 'lens',
+    label: 'Profile Corrections',
+    get: (e) => e.lens.profile_enabled
+  },
+  {
+    kind: 'boolean',
+    section: 'lens',
+    label: 'Chromatic Aberration',
+    get: (e) => e.lens.ca_enabled
+  },
   { kind: 'boolean', section: 'lens', label: 'Constrain Crop', get: (e) => e.lens.constrain_crop },
-  { kind: 'number', section: 'lens', label: 'Lens Distortion', get: (e) => e.lens.distortion_amount },
+  {
+    kind: 'number',
+    section: 'lens',
+    label: 'Lens Distortion',
+    get: (e) => e.lens.distortion_amount
+  },
   { kind: 'number', section: 'lens', label: 'Lens Vignetting', get: (e) => e.lens.vignette_amount },
-  { kind: 'number', section: 'color', label: 'Color Balance', get: (e) => e.color.color_grade.balance, signed: true },
-  { kind: 'number', section: 'color', label: 'Color Blending', get: (e) => e.color.color_grade.blend },
+  {
+    kind: 'number',
+    section: 'color',
+    label: 'Color Balance',
+    get: (e) => e.color.color_grade.balance,
+    signed: true
+  },
+  {
+    kind: 'number',
+    section: 'color',
+    label: 'Color Blending',
+    get: (e) => e.color.color_grade.blend
+  },
   { kind: 'number', section: 'color', label: 'LUT Amount', get: (e) => e.color.lut_3d.amount },
-  { kind: 'boolean', section: 'color', label: 'DCP Base Table', get: (e) => e.color.dcp.use_base_table },
-  { kind: 'boolean', section: 'color', label: 'DCP Tone Curve', get: (e) => e.color.dcp.use_tone_curve },
-  { kind: 'boolean', section: 'color', label: 'DCP Look Table', get: (e) => e.color.dcp.use_look_table },
-  { kind: 'boolean', section: 'color', label: 'DCP Baseline Exposure', get: (e) => e.color.dcp.use_baseline_exposure }
+  {
+    kind: 'boolean',
+    section: 'color',
+    label: 'DCP Base Table',
+    get: (e) => e.color.dcp.use_base_table
+  },
+  {
+    kind: 'boolean',
+    section: 'color',
+    label: 'DCP Tone Curve',
+    get: (e) => e.color.dcp.use_tone_curve
+  },
+  {
+    kind: 'boolean',
+    section: 'color',
+    label: 'DCP Look Table',
+    get: (e) => e.color.dcp.use_look_table
+  },
+  {
+    kind: 'boolean',
+    section: 'color',
+    label: 'DCP Baseline Exposure',
+    get: (e) => e.color.dcp.use_baseline_exposure
+  }
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -97,18 +254,54 @@ const CURVE_LABELS: Record<CurveChannel, string> = {
 for (const region of ['Shadows', 'Midtones', 'Highlights', 'Global'] as const) {
   const key = region.toLowerCase() as 'shadows' | 'midtones' | 'highlights' | 'global';
   FIELDS.push(
-    { kind: 'number', section: 'color', label: `${region} Hue`, get: (e) => e.color.color_grade[key].hue, signed: true },
-    { kind: 'number', section: 'color', label: `${region} Saturation`, get: (e) => e.color.color_grade[key].sat, signed: true },
-    { kind: 'number', section: 'color', label: `${region} Luminance`, get: (e) => e.color.color_grade[key].lum, signed: true }
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${region} Hue`,
+      get: (e) => e.color.color_grade[key].hue,
+      signed: true
+    },
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${region} Saturation`,
+      get: (e) => e.color.color_grade[key].sat,
+      signed: true
+    },
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${region} Luminance`,
+      get: (e) => e.color.color_grade[key].lum,
+      signed: true
+    }
   );
 }
 
 for (let i = 0; i < HSL_BAND_NAMES.length; i++) {
   const name = HSL_BAND_NAMES[i];
   FIELDS.push(
-    { kind: 'number', section: 'color', label: `${name} Hue`, get: (e) => e.color.hsl.bands[i].hue, signed: true },
-    { kind: 'number', section: 'color', label: `${name} Saturation`, get: (e) => e.color.hsl.bands[i].sat, signed: true },
-    { kind: 'number', section: 'color', label: `${name} Luminance`, get: (e) => e.color.hsl.bands[i].lum, signed: true }
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${name} Hue`,
+      get: (e) => e.color.hsl.bands[i].hue,
+      signed: true
+    },
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${name} Saturation`,
+      get: (e) => e.color.hsl.bands[i].sat,
+      signed: true
+    },
+    {
+      kind: 'number',
+      section: 'color',
+      label: `${name} Luminance`,
+      get: (e) => e.color.hsl.bands[i].lum,
+      signed: true
+    }
   );
 }
 
@@ -139,8 +332,9 @@ function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): 
 }
 
 function curvesEqual(a: { x: number; y: number }[], b: { x: number; y: number }[]): boolean {
-  return a.length === b.length && a.every((point, i) =>
-    Math.abs(point.x - b[i].x) <= 1e-4 && Math.abs(point.y - b[i].y) <= 1e-4
+  return (
+    a.length === b.length &&
+    a.every((point, i) => Math.abs(point.x - b[i].x) <= 1e-4 && Math.abs(point.y - b[i].y) <= 1e-4)
   );
 }
 
@@ -149,9 +343,8 @@ function curveItems(prev: Edits, curr: Edits): HistoryDetailItem[] {
     const before = prev.basic.curves[channel];
     const after = curr.basic.curves[channel];
     if (curvesEqual(before, after)) return [];
-    const suffix = before.length === after.length
-      ? 'adjusted'
-      : `${before.length} → ${after.length} points`;
+    const suffix =
+      before.length === after.length ? 'adjusted' : `${before.length} → ${after.length} points`;
     return [{ kind: 'summary' as const, text: `${CURVE_LABELS[channel]}: ${suffix}` }];
   });
 }
@@ -183,14 +376,29 @@ function aspectLabel(aspect: GeometryEdits['aspect']): string {
 
 function geometryItems(prev: GeometryEdits, curr: GeometryEdits): HistoryDetailItem[] {
   const items: HistoryDetailItem[] = [];
-  if (prev.rotate !== curr.rotate) items.push({ kind: 'summary', text: `Rotation: ${prev.rotate}° → ${curr.rotate}°` });
+  if (prev.rotate !== curr.rotate)
+    items.push({ kind: 'summary', text: `Rotation: ${prev.rotate}° → ${curr.rotate}°` });
   if (Math.abs(prev.rotate_angle - curr.rotate_angle) > 1e-4) {
-    items.push({ kind: 'summary', text: `Angle: ${prev.rotate_angle.toFixed(1)}° → ${curr.rotate_angle.toFixed(1)}°` });
+    items.push({
+      kind: 'summary',
+      text: `Angle: ${prev.rotate_angle.toFixed(1)}° → ${curr.rotate_angle.toFixed(1)}°`
+    });
   }
-  if (prev.flip_h !== curr.flip_h) items.push({ kind: 'summary', text: `Horizontal flip: ${prev.flip_h ? 'On' : 'Off'} → ${curr.flip_h ? 'On' : 'Off'}` });
-  if (prev.flip_v !== curr.flip_v) items.push({ kind: 'summary', text: `Vertical flip: ${prev.flip_v ? 'On' : 'Off'} → ${curr.flip_v ? 'On' : 'Off'}` });
+  if (prev.flip_h !== curr.flip_h)
+    items.push({
+      kind: 'summary',
+      text: `Horizontal flip: ${prev.flip_h ? 'On' : 'Off'} → ${curr.flip_h ? 'On' : 'Off'}`
+    });
+  if (prev.flip_v !== curr.flip_v)
+    items.push({
+      kind: 'summary',
+      text: `Vertical flip: ${prev.flip_v ? 'On' : 'Off'} → ${curr.flip_v ? 'On' : 'Off'}`
+    });
   if (JSON.stringify(prev.aspect) !== JSON.stringify(curr.aspect)) {
-    items.push({ kind: 'summary', text: `Aspect: ${aspectLabel(prev.aspect)} → ${aspectLabel(curr.aspect)}` });
+    items.push({
+      kind: 'summary',
+      text: `Aspect: ${aspectLabel(prev.aspect)} → ${aspectLabel(curr.aspect)}`
+    });
   }
   if (JSON.stringify(prev.crop) !== JSON.stringify(curr.crop)) {
     const beforeFull = isFullCrop(prev.crop);
@@ -256,12 +464,18 @@ export function historyDetails(
       group = { key: field.section, label: SECTION_LABELS[field.section], items: [] };
       groups.set(field.section, group);
     }
-    const before = field.kind === 'boolean'
-      ? field.get(prev) ? 'On' : 'Off'
-      : fmtNumber(field.get(prev), field);
-    const after = field.kind === 'boolean'
-      ? field.get(curr) ? 'On' : 'Off'
-      : fmtNumber(field.get(curr), field);
+    const before =
+      field.kind === 'boolean'
+        ? field.get(prev)
+          ? 'On'
+          : 'Off'
+        : fmtNumber(field.get(prev), field);
+    const after =
+      field.kind === 'boolean'
+        ? field.get(curr)
+          ? 'On'
+          : 'Off'
+        : fmtNumber(field.get(curr), field);
     group.items.push({ kind: 'value', label: field.label, before, after });
   }
 

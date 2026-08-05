@@ -102,7 +102,9 @@
       {label}
     </button>
     <span
-      class="font-mono tabular-nums text-[10px] transition-opacity {isDefault ? 'text-immich-dark-fg/20' : 'text-immich-dark-fg/50'}"
+      class="font-mono tabular-nums text-[10px] transition-opacity {isDefault
+        ? 'text-immich-dark-fg/20'
+        : 'text-immich-dark-fg/50'}"
     >
       {format(value)}
     </span>

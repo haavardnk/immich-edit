@@ -10,7 +10,7 @@ import type {
   ImmichExportOptions,
   PngCompressionOpt,
   StackPrimary,
-  TiffCompressionOpt,
+  TiffCompressionOpt
 } from '$lib/api/export';
 
 export type Destination = 'download' | 'immich';
@@ -39,7 +39,7 @@ export const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: 'avif', label: 'AVIF' },
   { value: 'heic', label: 'HEIC' },
   { value: 'tiff', label: 'TIFF' },
-  { value: 'jxl', label: 'JPEG XL' },
+  { value: 'jxl', label: 'JPEG XL' }
 ];
 
 export function defaultExportForm(): ExportForm {
@@ -57,7 +57,7 @@ export function defaultExportForm(): ExportForm {
     favorite: false,
     stackWithOriginal: false,
     stackPrimary: 'edited',
-    filenameSuffix: '_edit',
+    filenameSuffix: '_edit'
   };
 }
 
@@ -74,7 +74,7 @@ export function baseOptions(f: ExportForm): ExportOptions {
     pngCompression: f.pngCompression,
     tiffCompression: f.tiffCompression,
     lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
-    colorSpace: f.colorSpace,
+    colorSpace: f.colorSpace
   };
 }
 
@@ -86,7 +86,7 @@ export function immichOptions(f: ExportForm): ImmichExportOptions {
     favorite: f.favorite,
     stackWithOriginal: f.stackWithOriginal,
     stackPrimary: f.stackPrimary,
-    filenameSuffix: f.filenameSuffix,
+    filenameSuffix: f.filenameSuffix
   };
 }
 

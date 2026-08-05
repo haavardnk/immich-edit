@@ -39,7 +39,8 @@
   };
 
   const channelSwatchStyle: Record<CurveChannel, string> = {
-    composite: 'background: linear-gradient(90deg, hsl(0,70%,65%), hsl(120,70%,65%), hsl(240,70%,65%))',
+    composite:
+      'background: linear-gradient(90deg, hsl(0,70%,65%), hsl(120,70%,65%), hsl(240,70%,65%))',
     r: 'background: hsl(0, 70%, 65%)',
     g: 'background: hsl(120, 70%, 65%)',
     b: 'background: hsl(240, 70%, 65%)',
@@ -356,7 +357,10 @@
     {#each CURVE_CHANNELS as ch (ch)}
       <button
         type="button"
-        class="h-7 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow flex items-center justify-center overflow-hidden {activeChannel === ch ? 'ring-2 ring-white/80' : ''}"
+        class="h-7 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow flex items-center justify-center overflow-hidden {activeChannel ===
+        ch
+          ? 'ring-2 ring-white/80'
+          : ''}"
         style={channelSwatchStyle[ch]}
         title={channelLabels[ch]}
         aria-label="Edit {channelLabels[ch]} curve"
@@ -406,16 +410,44 @@
       {/each}
 
       {#each gridLines as l}
-        <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="rgba(255,255,255,0.06)" stroke-width="0.5" />
+        <line
+          x1={l.x1}
+          y1={l.y1}
+          x2={l.x2}
+          y2={l.y2}
+          stroke="rgba(255,255,255,0.06)"
+          stroke-width="0.5"
+        />
       {/each}
 
-      <line x1={pad} y1={pad + inner} x2={pad + inner} y2={pad} stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3,3" />
+      <line
+        x1={pad}
+        y1={pad + inner}
+        x2={pad + inner}
+        y2={pad}
+        stroke="rgba(255,255,255,0.15)"
+        stroke-width="1"
+        stroke-dasharray="3,3"
+      />
 
       {#each overlayPaths as overlay (overlay.ch)}
-        <path d={overlay.d} fill="none" stroke={channelStroke[overlay.ch]} stroke-width="1.25" stroke-linecap="round" opacity="0.25" />
+        <path
+          d={overlay.d}
+          fill="none"
+          stroke={channelStroke[overlay.ch]}
+          stroke-width="1.25"
+          stroke-linecap="round"
+          opacity="0.25"
+        />
       {/each}
 
-      <path d={activePath} fill="none" stroke={channelStroke[activeChannel]} stroke-width="2" stroke-linecap="round" />
+      <path
+        d={activePath}
+        fill="none"
+        stroke={channelStroke[activeChannel]}
+        stroke-width="2"
+        stroke-linecap="round"
+      />
 
       {#each activeCurve as pt, i}
         {@const sp = toSvg(pt)}
@@ -423,7 +455,11 @@
           cx={sp.x}
           cy={sp.y}
           r={dragging === i || selected === i ? 7 : 5}
-          fill={dragging === i ? channelStroke[activeChannel] : selected === i ? 'rgba(255,255,255,0.9)' : 'rgba(30,30,30,0.9)'}
+          fill={dragging === i
+            ? channelStroke[activeChannel]
+            : selected === i
+              ? 'rgba(255,255,255,0.9)'
+              : 'rgba(30,30,30,0.9)'}
           stroke={channelStroke[activeChannel]}
           stroke-width="2"
         />
@@ -431,4 +467,3 @@
     </svg>
   </div>
 </div>
-

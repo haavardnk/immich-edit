@@ -471,10 +471,7 @@
       />
     </div>
 
-    <div
-      class="flex-1 min-h-0 relative {multi ? 'grid gap-1 p-1' : 'flex'}"
-      style={gridStyle}
-    >
+    <div class="flex-1 min-h-0 relative {multi ? 'grid gap-1 p-1' : 'flex'}" style={gridStyle}>
       {#each panes as id, index (id)}
         <LoupePane
           assetId={id}
@@ -525,7 +522,9 @@
             {#if exif.focalLength}<span>{exif.focalLength}mm</span>{/if}
           </div>
           {#if exif.exifImageWidth && exif.exifImageHeight}
-            <span class="text-immich-dark-fg/50">{exif.exifImageWidth} × {exif.exifImageHeight}</span>
+            <span class="text-immich-dark-fg/50"
+              >{exif.exifImageWidth} × {exif.exifImageHeight}</span
+            >
           {/if}
           {#if exif.dateTimeOriginal}
             <span class="text-immich-dark-fg/50">{exif.dateTimeOriginal}</span>

@@ -37,11 +37,7 @@ function constrainZoom(k1: number, k2: number, k3: number): number {
   return z;
 }
 
-export function lensWarpFromEdits(
-  lens: LensLike,
-  width: number,
-  height: number
-): LensWarpParams {
+export function lensWarpFromEdits(lens: LensLike, width: number, height: number): LensWarpParams {
   if (!lens.profile_enabled) {
     return { k1: 0, k2: 0, k3: 0, zoom: 1, width, height };
   }

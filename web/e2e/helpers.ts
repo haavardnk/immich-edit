@@ -84,9 +84,7 @@ export interface InstallOpts {
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const previewPng = (): Parameters<Route['fulfill']>[0] =>
-    opts.previewBody
-      ? { status: 200, contentType: 'image/png', body: opts.previewBody }
-      : png();
+    opts.previewBody ? { status: 200, contentType: 'image/png', body: opts.previewBody } : png();
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();

@@ -35,7 +35,12 @@
   }
 </script>
 
-<Popover {open} onClose={close} rootClass="w-full" contentClass="w-full max-h-72 overflow-hidden flex flex-col">
+<Popover
+  {open}
+  onClose={close}
+  rootClass="w-full"
+  contentClass="w-full max-h-72 overflow-hidden flex flex-col"
+>
   {#snippet trigger()}
     <button
       type="button"
@@ -58,7 +63,9 @@
       : 'hover:bg-white/10'}"
     onclick={() => pick(null)}
   >
-    <span class="w-3.5 shrink-0">{#if selectedId === null}<Icon path={mdiCheck} size={14} />{/if}</span>
+    <span class="w-3.5 shrink-0"
+      >{#if selectedId === null}<Icon path={mdiCheck} size={14} />{/if}</span
+    >
     No LUT
   </button>
 
@@ -91,7 +98,9 @@
           title={`${lut.name} · ${lut.lut_size}³`}
           onclick={() => pick(lut.id)}
         >
-          <span class="w-3.5 shrink-0">{#if selectedId === lut.id}<Icon path={mdiCheck} size={14} />{/if}</span>
+          <span class="w-3.5 shrink-0"
+            >{#if selectedId === lut.id}<Icon path={mdiCheck} size={14} />{/if}</span
+          >
           <span class="min-w-0 flex-1 truncate">{lut.name}</span>
           <span class="text-[10px] text-immich-dark-fg/30">{lut.lut_size}³</span>
         </button>

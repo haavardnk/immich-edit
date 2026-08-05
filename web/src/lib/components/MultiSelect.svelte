@@ -55,7 +55,9 @@
   {#if selectedItems.length > 0}
     <div class="flex flex-wrap gap-1">
       {#each selectedItems as item (getId(item))}
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white/10">
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white/10"
+        >
           {getLabel(item)}
           <button class="hover:text-red-400" title="Remove" onclick={() => remove(getId(item))}>
             <Icon path={mdiClose} size={12} />

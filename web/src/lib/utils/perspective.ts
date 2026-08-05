@@ -1,6 +1,11 @@
 export type Mat3 = [number, number, number, number, number, number, number, number, number];
 
-export type CornerOffsets = [[number, number], [number, number], [number, number], [number, number]];
+export type CornerOffsets = [
+  [number, number],
+  [number, number],
+  [number, number],
+  [number, number]
+];
 
 export interface PerspectiveEdits {
   vertical: number;
@@ -134,10 +139,7 @@ export function mat3Inverse(m: Mat3): Mat3 | null {
 export function mat3Apply(m: Mat3, p: [number, number]): [number, number] {
   const w = m[6] * p[0] + m[7] * p[1] + m[8];
   if (Math.abs(w) < 1e-9) return [p[0], p[1]];
-  return [
-    (m[0] * p[0] + m[1] * p[1] + m[2]) / w,
-    (m[3] * p[0] + m[4] * p[1] + m[5]) / w
-  ];
+  return [(m[0] * p[0] + m[1] * p[1] + m[2]) / w, (m[3] * p[0] + m[4] * p[1] + m[5]) / w];
 }
 
 export function squareToQuad(quad: [number, number][]): Mat3 | null {
@@ -257,7 +259,9 @@ function paramsMatrix(p: PerspectiveEdits): Mat3 {
 function cornerMatrix(p: PerspectiveEdits): Mat3 {
   if (!p.corners) return IDENTITY_MAT3;
   const base = unitSquareCorners();
-  const quad = base.map((b, i) => [b[0] + p.corners![i][0], b[1] + p.corners![i][1]] as [number, number]);
+  const quad = base.map(
+    (b, i) => [b[0] + p.corners![i][0], b[1] + p.corners![i][1]] as [number, number]
+  );
   if (!quadIsUsable(quad)) return IDENTITY_MAT3;
   return squareToQuad(quad) ?? IDENTITY_MAT3;
 }

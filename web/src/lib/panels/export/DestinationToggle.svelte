@@ -4,7 +4,7 @@
   let {
     value = $bindable<Destination>(),
     downloadLabel = 'Download',
-    immichLabel = 'To Immich',
+    immichLabel = 'To Immich'
   }: {
     value: Destination;
     downloadLabel?: string;

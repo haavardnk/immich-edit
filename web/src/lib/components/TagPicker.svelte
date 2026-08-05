@@ -188,9 +188,7 @@
               }}
             >
               {#if s.color}
-                <span
-                  class="w-2 h-2 rounded-full shrink-0"
-                  style="background-color: {s.color}"
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {s.color}"
                 ></span>
               {/if}
               <span class="truncate">{s.value}</span>

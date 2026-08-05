@@ -1,14 +1,7 @@
 import { isMac } from './platform';
 
 export type KeybindContext =
-  | 'global'
-  | 'grid'
-  | 'loupe'
-  | 'compare'
-  | 'survey'
-  | 'editor'
-  | 'masks'
-  | 'retouch';
+  'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'masks' | 'retouch';
 
 export interface Keybind {
   readonly id: string;

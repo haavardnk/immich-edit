@@ -28,7 +28,9 @@
 
 <div class="mt-3 border-t border-white/10 pt-3 flex flex-col gap-2.5">
   <div class="flex items-center gap-1 px-1">
-    <div class="flex-1 min-w-0 text-[10px] uppercase tracking-wider text-immich-dark-fg/40 truncate">
+    <div
+      class="flex-1 min-w-0 text-[10px] uppercase tracking-wider text-immich-dark-fg/40 truncate"
+    >
       Adjustments · {layer?.name ?? ''}
     </div>
     <button

@@ -2,7 +2,14 @@
   import Icon from '$lib/components/Icon.svelte';
   import PresetIncludeToggles from './preset/IncludeToggles.svelte';
   import PresetPicker from './preset/PresetPicker.svelte';
-  import { mdiDelete, mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline, mdiAutoFix } from '@mdi/js';
+  import {
+    mdiDelete,
+    mdiPencil,
+    mdiCheck,
+    mdiClose,
+    mdiContentSaveOutline,
+    mdiAutoFix
+  } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { presets } from '$lib/stores/presets.svelte';
   import { editsToManifest, isIdentity } from '$lib/types/edits';
@@ -51,11 +58,7 @@
 
   function apply(): void {
     if (!selected) return;
-    void editor.applyPreset(
-      selected.manifest,
-      { includeGeometry, includeMasks },
-      selected.name
-    );
+    void editor.applyPreset(selected.manifest, { includeGeometry, includeMasks }, selected.name);
   }
 
   function startRename(): void {
@@ -188,10 +191,7 @@
       </div>
     {/if}
 
-    <PresetIncludeToggles
-      bind:includeGeometry
-      bind:includeMasks
-    />
+    <PresetIncludeToggles bind:includeGeometry bind:includeMasks />
 
     <button
       class="flex items-center justify-center gap-2 py-2 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

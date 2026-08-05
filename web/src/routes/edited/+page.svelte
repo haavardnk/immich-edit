@@ -22,7 +22,7 @@
       checksum: null,
       isFavorite: false,
       exifInfo: null,
-      tags: [],
+      tags: []
     }))
   );
 
@@ -39,7 +39,9 @@
 </script>
 
 {#if loading}
-  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading edited photos…" /></div>
+  <div class="flex-1 flex items-center justify-center">
+    <Spinner label="Loading edited photos…" />
+  </div>
 {:else if assets.length === 0}
   <EmptyState title="No edited photos yet" message="Open a photo and make edits to see it here." />
 {:else}

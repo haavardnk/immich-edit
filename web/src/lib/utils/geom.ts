@@ -60,9 +60,7 @@ export function pointInWarpedSource(
   const warped = mat3Apply(perspInv, [ux / sw + 0.5, uy / sh + 0.5]);
   const eu = 1e-3 / sw;
   const ev = 1e-3 / sh;
-  return (
-    warped[0] >= -eu && warped[0] <= 1 + eu && warped[1] >= -ev && warped[1] <= 1 + ev
-  );
+  return warped[0] >= -eu && warped[0] <= 1 + eu && warped[1] >= -ev && warped[1] <= 1 + ev;
 }
 
 export function cropRectInsideWarpedSource(
@@ -188,13 +186,7 @@ export function constrainCropRect(
   if (cropRectInsideWarpedSource(clipped, sw, sh, angleDeg, perspInv)) return clipped;
   const base = previous ?? FULL_CROP;
   if (!cropRectInsideWarpedSource(base, sw, sh, angleDeg, perspInv)) {
-    return largestInscribedRect(
-      sw,
-      sh,
-      angleDeg,
-      clipped.w / Math.max(clipped.h, 1e-6),
-      perspInv
-    );
+    return largestInscribedRect(sw, sh, angleDeg, clipped.w / Math.max(clipped.h, 1e-6), perspInv);
   }
   let lo = 0;
   let hi = 1;

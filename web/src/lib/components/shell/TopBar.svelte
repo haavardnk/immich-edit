@@ -5,15 +5,20 @@
   import { hint } from '$lib/keybinds';
   import Icon from '$lib/components/Icon.svelte';
   import Logo from '$lib/components/Logo.svelte';
-  import { mdiLoading, mdiCogOutline, mdiClose, mdiFormatListChecks, mdiKeyboardOutline, mdiMagnify } from '@mdi/js';
+  import {
+    mdiLoading,
+    mdiCogOutline,
+    mdiClose,
+    mdiFormatListChecks,
+    mdiKeyboardOutline,
+    mdiMagnify
+  } from '@mdi/js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
 
-  const subtitle = $derived(
-    !editor.assetId && album.current ? album.current.albumName : ''
-  );
+  const subtitle = $derived(!editor.assetId && album.current ? album.current.albumName : '');
 
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
 
@@ -73,9 +78,15 @@
 <header
   class="flex items-center h-11 bg-immich-dark-gray border-b border-white/10 px-3 gap-2 flex-none select-none"
 >
-  <a href="/" class="flex items-center gap-2 text-sm font-semibold tracking-tight hover:opacity-80 transition-opacity">
+  <a
+    href="/"
+    class="flex items-center gap-2 text-sm font-semibold tracking-tight hover:opacity-80 transition-opacity"
+  >
     <Logo size={18} />
-    <span><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span></span>
+    <span
+      ><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span
+      ></span
+    >
   </a>
 
   {#if editor.assetId}
@@ -143,7 +154,9 @@
   <button
     type="button"
     onclick={toggleSettings}
-    class="p-1.5 hover:bg-white/10 rounded transition-colors {onSettings ? 'text-immich-dark-fg' : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
+    class="p-1.5 hover:bg-white/10 rounded transition-colors {onSettings
+      ? 'text-immich-dark-fg'
+      : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
     title={onSettings ? 'Close settings' : 'Settings & diagnostics'}
     aria-label={onSettings ? 'Close settings' : 'Settings'}
     aria-pressed={onSettings}
@@ -151,5 +164,3 @@
     <Icon path={onSettings ? mdiClose : mdiCogOutline} size={16} />
   </button>
 </header>
-
-

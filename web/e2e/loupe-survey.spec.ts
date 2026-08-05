@@ -3,7 +3,11 @@ import { ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
 
 const ASSETS = [
   ASSET_SUMMARY,
-  { ...ASSET_SUMMARY, id: '00000000-0000-0000-0000-000000000002', originalFileName: 'IMG_0002.ARW' },
+  {
+    ...ASSET_SUMMARY,
+    id: '00000000-0000-0000-0000-000000000002',
+    originalFileName: 'IMG_0002.ARW'
+  },
   { ...ASSET_SUMMARY, id: '00000000-0000-0000-0000-000000000003', originalFileName: 'IMG_0003.ARW' }
 ];
 

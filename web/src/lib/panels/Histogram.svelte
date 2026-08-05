@@ -40,7 +40,9 @@
 <div class="flex flex-col gap-1">
   <div class="bg-white/5 rounded-lg overflow-hidden relative">
     {#if !show(hist)}
-      <div class="text-[11px] text-immich-dark-fg/30 h-16 flex items-center justify-center">no data</div>
+      <div class="text-[11px] text-immich-dark-fg/30 h-16 flex items-center justify-center">
+        no data
+      </div>
     {:else if hist}
       <svg viewBox="0 0 256 64" class="w-full h-16 block" preserveAspectRatio="none">
         <path d={path(hist.r)} fill="rgba(239,68,68,0.45)" />
@@ -49,10 +51,20 @@
         <path d={path(hist.l)} fill="none" stroke="rgba(229,229,229,0.6)" stroke-width="1" />
       </svg>
       {#if shadowClip > 0.1}
-        <div class="absolute bottom-0.5 left-1 text-[9px] font-mono text-blue-400" title="Shadow clipping">▼</div>
+        <div
+          class="absolute bottom-0.5 left-1 text-[9px] font-mono text-blue-400"
+          title="Shadow clipping"
+        >
+          ▼
+        </div>
       {/if}
       {#if highlightClip > 0.1}
-        <div class="absolute bottom-0.5 right-1 text-[9px] font-mono text-red-400" title="Highlight clipping">▲</div>
+        <div
+          class="absolute bottom-0.5 right-1 text-[9px] font-mono text-red-400"
+          title="Highlight clipping"
+        >
+          ▲
+        </div>
       {/if}
     {/if}
   </div>

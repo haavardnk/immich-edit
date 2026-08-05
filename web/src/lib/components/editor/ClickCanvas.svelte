@@ -3,11 +3,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { isKeybind, keyLabel } from '$lib/keybinds';
   import type { MaskComponent, MaskLayer } from '$lib/types/edits';
-  import {
-    lensWarpFromEdits,
-    maskUvToSceneUv,
-    type LensWarpParams
-  } from '$lib/utils/lensWarp';
+  import { lensWarpFromEdits, maskUvToSceneUv, type LensWarpParams } from '$lib/utils/lensWarp';
   import {
     displayUvToMaskUv,
     geometryTransformFrom,
@@ -88,12 +84,12 @@
 
   const active = $derived<MaskLayer | null>(
     editor.activeLayerId
-      ? editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null
+      ? (editor.edits.masks.find((l) => l.id === editor.activeLayerId) ?? null)
       : null
   );
   const activeComp = $derived<MaskComponent | null>(
     active && editor.activeMaskComponentId
-      ? active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null
+      ? (active.components.find((c) => c.id === editor.activeMaskComponentId) ?? null)
       : null
   );
   const points = $derived(

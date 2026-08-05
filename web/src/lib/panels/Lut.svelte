@@ -2,7 +2,14 @@
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import LutPicker from './lut/LutPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiAlertCircleOutline, mdiCheck, mdiClose, mdiDelete, mdiRestore, mdiUpload } from '@mdi/js';
+  import {
+    mdiAlertCircleOutline,
+    mdiCheck,
+    mdiClose,
+    mdiDelete,
+    mdiRestore,
+    mdiUpload
+  } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { listLuts, importLut, deleteLut, type LutMeta } from '$lib/api/luts';
   import { ApiError } from '$lib/api/client';
@@ -161,7 +168,9 @@
   </button>
 
   {#if missingSelected}
-    <div class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300">
+    <div
+      class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300"
+    >
       <Icon path={mdiAlertCircleOutline} size={14} />
       <span class="min-w-0 flex-1 truncate">Referenced LUT is unavailable</span>
       <button

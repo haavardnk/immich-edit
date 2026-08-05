@@ -12,7 +12,8 @@
   let error = $state<string | null>(null);
 
   const canSubmit = $derived(
-    !submitting && (method === 'password' ? email.length > 0 && password.length > 0 : apiKey.length > 0)
+    !submitting &&
+      (method === 'password' ? email.length > 0 && password.length > 0 : apiKey.length > 0)
   );
 
   function messageFor(e: ApiError): string {
@@ -68,7 +69,10 @@
   >
     <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
       <Logo size={26} />
-      <span><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span></span>
+      <span
+        ><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span
+        ></span
+      >
     </h1>
 
     {#if method === 'password'}

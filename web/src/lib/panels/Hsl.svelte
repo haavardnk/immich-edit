@@ -27,7 +27,7 @@
 
   const bandHue = $derived(HSL_BAND_HUES[activeBand]);
   const currentBand = $derived(editor.edits.color.hsl.bands[activeBand]);
-  const effectiveHue = $derived(((bandHue + currentBand.hue + 360) % 360));
+  const effectiveHue = $derived((bandHue + currentBand.hue + 360) % 360);
   const effectiveSat = $derived(Math.max(0, Math.min(100, (currentBand.sat + 100) / 2)));
   const hueGradient = $derived(
     `linear-gradient(to right, hsl(${(bandHue - 100 + 360) % 360}, 50%, 50%), hsl(${bandHue}, 50%, 50%), hsl(${(bandHue + 100) % 360}, 50%, 50%))`
@@ -45,7 +45,10 @@
     {#each HSL_BAND_NAMES as name, i (name)}
       <button
         type="button"
-        class="h-6 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow {activeBand === i ? 'ring-2 ring-white/80' : ''}"
+        class="h-6 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow {activeBand ===
+        i
+          ? 'ring-2 ring-white/80'
+          : ''}"
         style="background-color: {HSL_BAND_COLORS[i]}"
         title={name}
         onclick={() => (activeBand = i)}

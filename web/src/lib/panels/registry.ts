@@ -29,6 +29,5 @@ export const developPanels: PanelDef[] = [
   { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
-  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
+  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false }
 ];
-
