@@ -12,6 +12,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { isRejected } from '$lib/reject';
+  import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { putBounded } from '$lib/utils/boundedRecord';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
@@ -169,51 +170,22 @@
     }
   }
 
-  function selectedInOrder(): string[] {
-    return browsing.assets.filter((a) => selection.selected.has(a.id)).map((a) => a.id);
-  }
-
-  function compareMembers(): string[] {
-    const ordered = selectedInOrder();
-    if (ordered.length >= 2) return ordered.slice(0, 2);
-    if (!currentId) return [];
-    const next = browsing.nextOf(currentId);
-    return next ? [currentId, next.id] : [currentId];
-  }
-
-  function surveyMembers(): string[] {
-    const ordered = selectedInOrder();
-    if (ordered.length >= 2) return ordered.slice(0, 9);
-    if (!currentId) return [];
-    const start = browsing.assets.findIndex((a) => a.id === currentId);
-    if (start < 0) return [currentId];
-    return browsing.assets.slice(start, start + 6).map((a) => a.id);
-  }
-
-  function enterCompare(): void {
+  function enterMulti(mode: MultiMode): void {
     if (multi) {
       leaveMulti();
       return;
     }
-    const members = compareMembers();
+    const members = multiMembers(
+      mode,
+      browsing.assets.map((a) => a.id),
+      selection.selected,
+      currentId
+    );
     if (members.length < 2) {
-      toasts.push('info', 'compare needs two photos');
+      toasts.push('info', `${mode} needs two photos`);
       return;
     }
-    compare.enter('compare', members);
-  }
-
-  function enterSurvey(): void {
-    if (multi) {
-      leaveMulti();
-      return;
-    }
-    const members = surveyMembers();
-    if (members.length < 2) {
-      toasts.push('info', 'survey needs two photos');
-      return;
-    }
-    compare.enter('survey', members);
+    compare.enter(mode, members);
   }
 
   function leaveMulti(): void {
@@ -227,6 +199,23 @@
   function dropFocused(): void {
     if (compare.members.length <= 1) return;
     compare.drop(compare.focusIndex);
+  }
+
+  function togglePane(id: string): void {
+    const at = compare.members.indexOf(id);
+    if (at < 0) return compare.addMember(id);
+    if (compare.members.length > 2) return compare.drop(at);
+    browseView.openLoupe(compare.members.find((member) => member !== id) ?? id);
+  }
+
+  function pickFromStrip(id: string, additive: boolean): void {
+    if (!additive) {
+      if (multi) compare.setMember(compare.focusIndex, id);
+      else browseView.openLoupe(id);
+      return;
+    }
+    if (multi) return togglePane(id);
+    if (currentId && id !== currentId) compare.enter('compare', [currentId, id], 1);
   }
 
   function toggleZoom(): void {
@@ -332,11 +321,11 @@
       case 'c':
       case 'C':
         e.preventDefault();
-        return enterCompare();
+        return enterMulti('compare');
       case 'n':
       case 'N':
         e.preventDefault();
-        return enterSurvey();
+        return enterMulti('survey');
       case 'y':
       case 'Y':
         e.preventDefault();
@@ -435,7 +424,7 @@
         title="Compare (C)"
         active={compare.mode === 'compare'}
         pressed={compare.mode === 'compare'}
-        onclick={enterCompare}
+        onclick={() => enterMulti('compare')}
       />
       <ToolbarButton
         path={mdiViewGridOutline}
@@ -443,7 +432,7 @@
         title="Survey (N)"
         active={compare.mode === 'survey'}
         pressed={compare.mode === 'survey'}
-        onclick={enterSurvey}
+        onclick={() => enterMulti('survey')}
       />
       <ToolbarButton
         path={mdiKeyboardOutline}
@@ -531,8 +520,7 @@
     <Filmstrip
       currentId={focusedId}
       highlightIds={compare.members}
-      onSelect={(id) =>
-        multi ? compare.setMember(compare.focusIndex, id) : browseView.openLoupe(id)}
+      onSelect={pickFromStrip}
       size={72}
       showBadges
     />

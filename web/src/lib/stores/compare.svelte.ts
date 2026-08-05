@@ -8,6 +8,8 @@ export interface PaneView {
 
 export const CENTERED: PaneView = { zoomed: false, cx: 0.5, cy: 0.5 };
 
+export const MAX_PANES = 9;
+
 class CompareStore {
   mode = $state<CompareMode>('single');
   members = $state<string[]>([]);
@@ -54,6 +56,16 @@ class CompareStore {
     const inherited = this.views[previous];
     delete this.views[previous];
     if (inherited) this.views[id] = { ...inherited };
+  }
+
+  addMember(id: string): void {
+    if (this.members.includes(id) || this.members.length >= MAX_PANES) return;
+    const view = this.focusedId ? this.viewOf(this.focusedId) : CENTERED;
+    this.members.push(id);
+    this.views[id] = { ...view };
+    this.focusIndex = this.members.length - 1;
+    this.startCount = this.members.length;
+    if (this.members.length > 2) this.mode = 'survey';
   }
 
   drop(index: number): void {

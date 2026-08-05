@@ -106,3 +106,12 @@ test('clicking an unfocused pane selects it without zooming', async ({ page }) =
   await second.click({ position: { x: 10, y: 10 } });
   await expect(second).toHaveAttribute('style', /scale\(2\.5\)/);
 });
+
+test('modifier-clicking the filmstrip adds a pane', async ({ page }) => {
+  await openCompare(page);
+
+  await page.getByRole('button', { name: 'IMG_0003.ARW' }).click({ modifiers: ['ControlOrMeta'] });
+  for (const name of ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW']) {
+    await expect(page.getByRole('img', { name })).toBeVisible();
+  }
+});

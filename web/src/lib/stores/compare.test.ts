@@ -42,11 +42,34 @@ describe('compare store', () => {
     ['untouched', (): void => {}, false],
     ['dropped', (): void => compare.drop(1), true],
     ['kept one', (): void => compare.keepOnly(0), true],
-    ['swapped', (): void => compare.setMember(1, 'd'), false]
+    ['swapped', (): void => compare.setMember(1, 'd'), false],
+    ['grown then dropped back', (): void => {
+      compare.addMember('d');
+      compare.drop(3);
+    }, true]
   ])('a %s survey reports pruned %s', (_name, act, expected) => {
     compare.enter('survey', ['a', 'b', 'c']);
     act();
     expect(compare.pruned).toBe(expected);
+  });
+
+  it('adds a pane, focuses it and inherits the current view', () => {
+    compare.enter('compare', ['a', 'b'], 1);
+    compare.applyView('b', { zoomed: true, cx: 0.3, cy: 0.6 });
+    compare.addMember('c');
+    expect(compare.members).toEqual(['a', 'b', 'c']);
+    expect(compare.focusIndex).toBe(2);
+    expect(compare.mode).toBe('survey');
+    expect(compare.viewOf('c')).toEqual({ zoomed: true, cx: 0.3, cy: 0.6 });
+  });
+
+  it.each([
+    ['a photo already on screen', ['a', 'b', 'c'], 'c'],
+    ['a tenth pane', ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], 'j']
+  ])('refuses to add %s', (_name, members, added) => {
+    compare.enter('survey', members);
+    compare.addMember(added);
+    expect(compare.members).toEqual(members);
   });
 
   it('a replacement member inherits the view of the photo it replaced', () => {

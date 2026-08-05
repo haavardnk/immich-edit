@@ -24,7 +24,9 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'X', description: 'Toggle reject' },
       { keys: '− / +', description: 'Thumbnail size' },
       { keys: 'Enter', description: 'Open editor' },
-      { keys: 'Space', description: 'Open quick-review loupe' }
+      { keys: 'Space', description: 'Open quick-review loupe' },
+      { keys: 'C', description: 'Compare the selected photos' },
+      { keys: 'N', description: 'Survey the selected photos' }
     ]
   },
   {
@@ -40,6 +42,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'T', description: 'Toggle tags' },
       { keys: 'C', description: 'Compare two photos' },
       { keys: 'N', description: 'Survey several photos' },
+      { keys: '⌘Click filmstrip', description: 'Compare with the clicked photo' },
       { keys: 'E / Enter', description: 'Open editor' },
       { keys: 'Esc', description: 'Close loupe' }
     ]
@@ -50,6 +53,8 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
     binds: [
       { keys: '← / → · Tab', description: 'Move focus between panes' },
       { keys: 'J / K', description: 'Swap the focused pane for another photo' },
+      { keys: 'Click filmstrip', description: 'Put the clicked photo in the focused pane' },
+      { keys: '⌘Click filmstrip', description: 'Add a pane, or drop the clicked pane' },
       { keys: 'Enter', description: 'Promote the focused pane to the left' },
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'Y', description: 'Toggle synced zoom and pan' },
@@ -63,6 +68,8 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
     mode: 'survey',
     binds: [
       { keys: '← / → / ↑ / ↓ · Tab', description: 'Move focus between panes' },
+      { keys: 'J / K', description: 'Swap the focused pane for another photo' },
+      { keys: '⌘Click filmstrip', description: 'Add a pane (up to 9), or drop the clicked pane' },
       { keys: '⌫ / Del', description: 'Drop the focused photo from the survey' },
       { keys: 'Enter', description: 'Keep only the focused photo' },
       { keys: 'Z / Space', description: 'Toggle zoom' },

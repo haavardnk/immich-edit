@@ -7,6 +7,9 @@
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { compare } from '$lib/stores/compare.svelte';
+  import { multiMembers, type MultiMode } from '$lib/compareEntry';
+  import { toasts } from '$lib/stores/toasts.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
   import { isRejected } from '$lib/reject';
@@ -152,6 +155,21 @@
     targets().forEach((id) => void toggleReject(id));
   }
 
+  function openMulti(mode: MultiMode): void {
+    const members = multiMembers(
+      mode,
+      items.map((a) => a.id),
+      selection.selected,
+      browseView.activeId
+    );
+    if (members.length < 2) {
+      toasts.push('info', `${mode} needs two photos`);
+      return;
+    }
+    browseView.openLoupe(members[0]);
+    compare.enter(mode, members);
+  }
+
   function onKeydown(e: KeyboardEvent): void {
     if (browseView.loupeId || isTyping()) return;
 
@@ -209,6 +227,14 @@
       case 'X':
         e.preventDefault();
         return applyReject();
+      case 'c':
+      case 'C':
+        e.preventDefault();
+        return openMulti('compare');
+      case 'n':
+      case 'N':
+        e.preventDefault();
+        return openMulti('survey');
       case 'Enter':
         if (browseView.activeId) {
           e.preventDefault();
@@ -291,4 +317,4 @@
   <div class="py-4 text-center text-xs text-immich-dark-fg/30">loading…</div>
 {/if}
 
-<BulkActionBar {assets} />
+<BulkActionBar {assets} onMulti={openMulti} />

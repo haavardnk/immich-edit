@@ -15,7 +15,7 @@
     highlightIds
   }: {
     currentId?: string | null;
-    onSelect?: (id: string) => void;
+    onSelect?: (id: string, additive: boolean) => void;
     size?: number;
     showBadges?: boolean;
     highlightIds?: string[];
@@ -110,7 +110,7 @@
                 {#if onSelect}
                   <button
                     type="button"
-                    onclick={() => onSelect(asset.id)}
+                    onclick={(e) => onSelect(asset.id, e.metaKey || e.ctrlKey || e.shiftKey)}
                     class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
                       ? 'ring-2 ring-immich-dark-primary'
                       : isMember

@@ -11,19 +11,23 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import MultiSelect from '$lib/components/MultiSelect.svelte';
+  import type { MultiMode } from '$lib/compareEntry';
   import {
     mdiClose,
     mdiCloseCircle,
     mdiCloseCircleOutline,
+    mdiCompare,
     mdiHeart,
     mdiHeartOutline,
     mdiStar,
     mdiStarOutline,
     mdiSelectAll,
     mdiTagOutline,
+    mdiViewGridOutline,
   } from '@mdi/js';
 
-  let { assets }: { assets: AssetSummary[] } = $props();
+  let { assets, onMulti }: { assets: AssetSummary[]; onMulti: (mode: MultiMode) => void } =
+    $props();
 
   let busy = $state(false);
   let tags = $state<TagSummary[]>([]);
@@ -32,6 +36,7 @@
   let chosenTags = $state<string[]>([]);
 
   let metaBusy = $derived(busy || selection.allFiltered);
+  let canCompare = $derived(!selection.allFiltered && selection.count >= 2);
   let showSelectAll = $derived(
     browsing.query !== null && browsing.total !== undefined && browsing.total > 0,
   );
@@ -177,6 +182,27 @@
           Select all
         </button>
       {/if}
+
+      <div class="w-px h-5 bg-white/10"></div>
+
+      <button
+        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
+        disabled={!canCompare}
+        onclick={() => onMulti('compare')}
+        title="Compare selected (C)"
+        aria-label="Compare selected"
+      >
+        <Icon path={mdiCompare} size={16} />
+      </button>
+      <button
+        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
+        disabled={!canCompare}
+        onclick={() => onMulti('survey')}
+        title="Survey selected (N)"
+        aria-label="Survey selected"
+      >
+        <Icon path={mdiViewGridOutline} size={16} />
+      </button>
 
       <div class="w-px h-5 bg-white/10"></div>
 

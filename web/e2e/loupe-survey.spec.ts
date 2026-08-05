@@ -9,6 +9,16 @@ const ASSETS = [
 
 const PANES = ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW'];
 
+async function openGrid(page: Page): Promise<void> {
+  await installMocks(page, { assets: ASSETS });
+  await page.goto('/search?q=IMG');
+  await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
+}
+
+async function selectTile(page: Page, name: string): Promise<void> {
+  await page.locator(`div[title="${name}"]`).getByLabel('Select', { exact: true }).click();
+}
+
 async function openSurvey(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
@@ -65,4 +75,41 @@ test('zoom applies to every survey pane', async ({ page }) => {
   for (const name of PANES) {
     await expect(page.getByRole('img', { name })).toHaveAttribute('style', /scale\(2\.5\)/);
   }
+});
+
+test('modifier-clicking a survey member drops its pane', async ({ page }) => {
+  await openSurvey(page);
+
+  await page.getByRole('button', { name: 'IMG_0002.ARW' }).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeHidden();
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'IMG_0001.ARW' }).click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
+});
+
+test('the bulk bar opens a survey of the grid selection', async ({ page }) => {
+  await openGrid(page);
+  await selectTile(page, 'IMG_0002.ARW');
+  await selectTile(page, 'IMG_0003.ARW');
+
+  await page.getByLabel('Survey selected').click();
+
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
+});
+
+test('c opens a compare of the grid selection', async ({ page }) => {
+  await openGrid(page);
+  await selectTile(page, 'IMG_0001.ARW');
+  await selectTile(page, 'IMG_0003.ARW');
+
+  await page.keyboard.press('c');
+
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeHidden();
 });
