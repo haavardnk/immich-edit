@@ -24,8 +24,6 @@ type DcpFinish<'a> = (
     &'a [[f32; 3]; 3],
 );
 
-const GAMUT_WARN_RGB: [u8; 3] = [255, 0, 255];
-
 pub fn render(
     frame: &RawFrame,
     edits: &Edits,
@@ -146,6 +144,7 @@ pub fn render_with_cancel(
         dcp_finish,
         options.output_color_space,
         options.gamut_warn,
+        options.clip_warn,
     );
     cancel::check(cancel)?;
 
@@ -562,6 +561,7 @@ fn finish_output(
     dcp_finish: Option<DcpFinish>,
     color_space: OutputColorSpace,
     gamut_warn: bool,
+    clip_warn: bool,
 ) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
@@ -638,10 +638,10 @@ fn finish_output(
                         fold_linear(&mut acc.0, lr, lg, lb);
                         fold_display(&mut acc.1, ru, gu, bu);
                     }
-                    if clip {
-                        u8c[i] = GAMUT_WARN_RGB[0];
-                        u8c[i + 1] = GAMUT_WARN_RGB[1];
-                        u8c[i + 2] = GAMUT_WARN_RGB[2];
+                    if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, clip_warn) {
+                        u8c[i] = paint[0];
+                        u8c[i + 1] = paint[1];
+                        u8c[i + 2] = paint[2];
                     }
                     i += 3;
                     p += 1;
@@ -676,10 +676,10 @@ fn finish_output(
                         fold_linear(&mut acc.0, lr, lg, lb);
                         fold_display(&mut acc.1, ru, gu, bu);
                     }
-                    if clip {
-                        u8c[i] = GAMUT_WARN_RGB[0];
-                        u8c[i + 1] = GAMUT_WARN_RGB[1];
-                        u8c[i + 2] = GAMUT_WARN_RGB[2];
+                    if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, clip_warn) {
+                        u8c[i] = paint[0];
+                        u8c[i + 1] = paint[1];
+                        u8c[i + 2] = paint[2];
                     }
                     i += 3;
                     p += 1;
@@ -715,6 +715,7 @@ mod tests {
             None,
             OutputColorSpace::SRgb,
             false,
+            false,
         );
         if rgb.iter().any(|value| !(126..=129).contains(value)) {
             panic!("expected display-ready midpoint, got {rgb:?}");
@@ -734,6 +735,7 @@ mod tests {
             None,
             OutputColorSpace::SRgb,
             true,
+            false,
         );
         if rgb != vec![255, 0, 255] {
             panic!("expected magenta gamut warning, got {rgb:?}");
@@ -753,6 +755,7 @@ mod tests {
             None,
             OutputColorSpace::SRgb,
             true,
+            false,
         );
         if rgb == vec![255, 0, 255] {
             panic!("bright in-gamut red must not be flagged out of gamut");
@@ -772,9 +775,70 @@ mod tests {
             None,
             OutputColorSpace::SRgb,
             true,
+            false,
         );
         if rgb == vec![255, 0, 255] {
             panic!("neutral gray must not be flagged out of gamut");
+        }
+    }
+
+    #[test]
+    fn clip_warn_paints_blown_and_crushed_pixels() {
+        let cases = [
+            ([4.0f32, 4.0, 4.0], Some(crate::warn::HIGHLIGHT_WARN_RGB)),
+            ([0.05, 4.0, 0.05], Some(crate::warn::HIGHLIGHT_WARN_RGB)),
+            ([0.0, 0.0, 0.0], Some(crate::warn::SHADOW_WARN_RGB)),
+            ([0.5, 0.5, 0.5], None),
+            ([0.2, 0.25, 0.22], None),
+        ];
+        for (linear, want) in cases {
+            let (rgb, _, _, _) = finish_output(
+                linear.to_vec(),
+                1,
+                1,
+                false,
+                false,
+                None,
+                false,
+                None,
+                OutputColorSpace::SRgb,
+                false,
+                true,
+            );
+            match want {
+                Some(paint) => {
+                    if rgb != paint.to_vec() {
+                        panic!("clip warning for {linear:?} = {rgb:?}, want {paint:?}");
+                    }
+                }
+                None => {
+                    if rgb == crate::warn::HIGHLIGHT_WARN_RGB.to_vec()
+                        || rgb == crate::warn::SHADOW_WARN_RGB.to_vec()
+                    {
+                        panic!("midtone {linear:?} must not be flagged, got {rgb:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clip_warn_off_leaves_blown_pixels_alone() {
+        let (rgb, _, _, _) = finish_output(
+            vec![4.0, 4.0, 4.0],
+            1,
+            1,
+            false,
+            false,
+            None,
+            false,
+            None,
+            OutputColorSpace::SRgb,
+            false,
+            false,
+        );
+        if rgb != vec![255, 255, 255] {
+            panic!("expected untouched white, got {rgb:?}");
         }
     }
 
