@@ -13,6 +13,7 @@ export type PreviewMode =
 export interface ProofOptions {
   colorSpace: ColorSpaceOpt;
   gamutWarn: boolean;
+  clipWarn: boolean;
 }
 
 export function maskWeightPreview(layerId: string): PreviewMode {
@@ -23,8 +24,8 @@ export function previewModeIsNone(m: PreviewMode): boolean {
   return m === "none";
 }
 
-export function persistedPreviewUrl(assetId: string, max: number): string {
-  return `/api/assets/${assetId}/preview?max=${max}`;
+export function persistedPreviewUrl(assetId: string, max: number, clipWarn = false): string {
+  return `/api/assets/${assetId}/preview?max=${max}&clip=${clipWarn}`;
 }
 
 export async function livePreview(
@@ -43,6 +44,7 @@ export async function livePreview(
       preview_mode: previewMode,
       output_color_space: proof?.colorSpace ?? "srgb",
       gamut_warn: proof?.gamutWarn ?? false,
+      clip_warn: proof?.clipWarn ?? false,
     },
     signal,
   );

@@ -1,6 +1,7 @@
 <script lang="ts">
   import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
   import {
@@ -9,6 +10,7 @@
     mdiRedo,
     mdiEyeOutline,
     mdiCompare,
+    mdiTriangleOutline,
   } from '@mdi/js';
 
   function goBack(): void {
@@ -69,6 +71,15 @@
       active={editor.splitMode}
       disabled={!!editor.geometrySession}
       onclick={editor.toggleSplit}
+    />
+    <ToolbarButton
+      path={mdiTriangleOutline}
+      size={18}
+      title="Clipping overlay (O)"
+      ariaLabel="Clipping overlay"
+      active={ui.clipWarn}
+      pressed={ui.clipWarn}
+      onclick={editor.toggleClipWarn}
     />
     <SoftProofControl />
     {#if editor.assetId}

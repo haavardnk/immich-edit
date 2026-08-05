@@ -145,6 +145,11 @@
       }
       return;
     }
+    if ((e.key === 'o' || e.key === 'O') && !meta && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      editor.toggleClipWarn();
+      return;
+    }
     if ((e.key === 'g' || e.key === 'G') && !meta && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       ui.openGeometry();

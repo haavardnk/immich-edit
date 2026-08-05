@@ -1,5 +1,6 @@
 <script lang="ts">
   import { persistedPreviewUrl } from '$lib/api/preview';
+  import { ui } from '$lib/stores/ui.svelte';
   import type { PaneView } from '$lib/stores/compare.svelte';
 
   const ZOOM = 2.5;
@@ -40,7 +41,7 @@
 
   const scale = typeof window === 'undefined' ? 1 : Math.min(2, window.devicePixelRatio || 1);
   const maxEdge = $derived(quantize(box.w * scale * (view.zoomed ? ZOOM : 1)));
-  const src = $derived(persistedPreviewUrl(assetId, maxEdge));
+  const src = $derived(persistedPreviewUrl(assetId, maxEdge, ui.clipWarn));
   const zoomBox = $derived.by(() => {
     if (!box.w || !box.h || !natural.w || !natural.h) return null;
     const fit = Math.min(box.w / natural.w, box.h / natural.h);

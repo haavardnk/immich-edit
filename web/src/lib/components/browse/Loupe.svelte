@@ -27,6 +27,7 @@
   import {
     mdiClose,
     mdiCompare,
+    mdiTriangleOutline,
     mdiInformationOutline,
     mdiSkipNextOutline,
     mdiKeyboardOutline,
@@ -144,7 +145,7 @@
     for (const neighbor of [browsing.nextOf(currentId), browsing.prevOf(currentId)]) {
       if (neighbor) {
         const img = new Image();
-        img.src = persistedPreviewUrl(neighbor.id, paneMaxEdge);
+        img.src = persistedPreviewUrl(neighbor.id, paneMaxEdge, ui.clipWarn);
       }
     }
   });
@@ -355,6 +356,11 @@
         e.preventDefault();
         browseView.loupeTagsOpen = !browseView.loupeTagsOpen;
         return;
+      case 'o':
+      case 'O':
+        e.preventDefault();
+        ui.toggleClipWarn();
+        return;
       case 'Enter':
         e.preventDefault();
         if (compare.mode === 'survey') return compare.keepOnly(compare.focusIndex);
@@ -433,6 +439,14 @@
         active={compare.mode === 'survey'}
         pressed={compare.mode === 'survey'}
         onclick={() => enterMulti('survey')}
+      />
+      <ToolbarButton
+        path={mdiTriangleOutline}
+        size={18}
+        title="Clipping overlay (O)"
+        active={ui.clipWarn}
+        pressed={ui.clipWarn}
+        onclick={() => ui.toggleClipWarn()}
       />
       <ToolbarButton
         path={mdiKeyboardOutline}

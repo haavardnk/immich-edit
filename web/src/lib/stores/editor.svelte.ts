@@ -38,6 +38,7 @@ import { rejected } from '$lib/stores/rejected.svelte';
 import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
+import { ui } from '$lib/stores/ui.svelte';
 import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
@@ -229,7 +230,8 @@ class EditorStore {
   private proofOptions(): ProofOptions {
     return {
       colorSpace: this.proofSpace,
-      gamutWarn: this.gamutWarn
+      gamutWarn: this.gamutWarn,
+      clipWarn: ui.clipWarn
     };
   }
 
@@ -251,6 +253,11 @@ class EditorStore {
 
   toggleGamutWarn = (): void => {
     this.gamutWarn = !this.gamutWarn;
+    this.reproof();
+  };
+
+  toggleClipWarn = (): void => {
+    ui.toggleClipWarn();
     this.reproof();
   };
 
@@ -367,7 +374,7 @@ class EditorStore {
   loadPersisted(): void {
     if (!this.assetId) return;
     const prev = this.previewUrl;
-    this.previewUrl = persistedPreviewUrl(this.assetId, MAX_EDGE) + `&_=${Date.now()}`;
+    this.previewUrl = persistedPreviewUrl(this.assetId, MAX_EDGE, ui.clipWarn) + `&_=${Date.now()}`;
     if (prev?.startsWith('blob:')) revoke(prev);
   }
 

@@ -58,3 +58,19 @@ test('number keys rate the loupe asset', async ({ page }) => {
   await page.keyboard.press('3');
   await expect(page.getByRole('radio', { name: '3 stars' })).toBeChecked();
 });
+
+test('o toggles the clipping overlay', async ({ page }) => {
+  await openLoupe(page);
+  const image = page.getByRole('img', { name: LOUPE_IMAGE });
+  const button = page.getByTitle('Clipping overlay (O)');
+
+  await expect(image).toHaveAttribute('src', /clip=false/);
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+
+  await page.keyboard.press('o');
+  await expect(image).toHaveAttribute('src', /clip=true/);
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+
+  await page.keyboard.press('o');
+  await expect(image).toHaveAttribute('src', /clip=false/);
+});

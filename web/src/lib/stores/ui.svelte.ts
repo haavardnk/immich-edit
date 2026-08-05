@@ -27,6 +27,11 @@ class UiStore {
   zoomPopoverOpen = $state(false);
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
+  clipWarn = $state(false);
+
+  toggleClipWarn = (): void => {
+    this.clipWarn = !this.clipWarn;
+  };
 
   togglePerspectiveCorners = (): void => {
     this.perspectiveCorners = !this.perspectiveCorners;

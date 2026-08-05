@@ -40,6 +40,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'I', description: 'Toggle info' },
       { keys: 'T', description: 'Toggle tags' },
+      { keys: 'O', description: 'Toggle clipping overlay' },
       { keys: 'C', description: 'Compare two photos' },
       { keys: 'N', description: 'Survey several photos' },
       { keys: '⌘Click filmstrip', description: 'Compare with the clicked photo' },
@@ -58,6 +59,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Enter', description: 'Promote the focused pane to the left' },
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'Y', description: 'Toggle synced zoom and pan' },
+      { keys: 'O', description: 'Toggle clipping overlay' },
       { keys: 'Alt-drag', description: 'Pan only the pane under the pointer' },
       { keys: '1 – 5 / 0 · F · X', description: 'Rate, favorite or reject the focused pane' },
       { keys: 'Esc', description: 'Back to a single photo' }
@@ -74,6 +76,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Enter', description: 'Keep only the focused photo' },
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'Y', description: 'Toggle synced zoom and pan' },
+      { keys: 'O', description: 'Toggle clipping overlay' },
       { keys: '1 – 5 / 0 · F · X', description: 'Rate, favorite or reject the focused pane' },
       { keys: 'Esc', description: 'Exit and select the survivors' }
     ]
@@ -91,6 +94,7 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'V', description: 'Open Retouch' },
       { keys: 'R', description: 'Reset edits' },
       { keys: 'B / \\ (hold)', description: 'Before / after — toggle or hold for original' },
+      { keys: 'O', description: 'Toggle clipping overlay' },
       { keys: '1 – 5 / 0', description: 'Set / toggle / clear rating' },
       { keys: 'F', description: 'Toggle favorite' },
       { keys: 'X', description: 'Toggle reject' },
