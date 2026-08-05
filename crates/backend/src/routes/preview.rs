@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderName, HeaderValue, header};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
@@ -42,10 +42,28 @@ pub async fn get_preview(
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Query(q): Query<PreviewQuery>,
+    headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
-    render_to_response(
+    let dcp_revision = state.render.dcp_revision().await.map_err(map_render_err)?;
+    let etag = format!(
+        "\"{}-{}-{}-{}\"",
+        edits.stable_hash(),
+        max_edge,
+        ctx.server_epoch,
+        dcp_revision
+    );
+    let unchanged = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == etag));
+    if unchanged {
+        let mut resp = StatusCode::NOT_MODIFIED.into_response();
+        attach_validators(&mut resp, &etag);
+        return Ok(resp);
+    }
+    let mut resp = render_to_response(
         &state,
         &ctx,
         id,
@@ -55,7 +73,19 @@ pub async fn get_preview(
         OutputColorSpace::SRgb,
         false,
     )
-    .await
+    .await?;
+    attach_validators(&mut resp, &etag);
+    Ok(resp)
+}
+
+fn attach_validators(resp: &mut Response, etag: &str) {
+    if let Ok(value) = HeaderValue::from_str(etag) {
+        resp.headers_mut().insert(header::ETAG, value);
+    }
+    resp.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, max-age=0, must-revalidate"),
+    );
 }
 
 pub async fn post_preview(

@@ -514,3 +514,82 @@ async fn restore_returns_previous_edits() {
         panic!("get-after-restore: {current}");
     }
 }
+
+#[tokio::test]
+async fn persisted_preview_revalidates_with_etag() {
+    if arw_fixture().is_none() {
+        eprintln!("sample.arw missing, skipping");
+        return;
+    }
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    mock_asset_metadata(&server, id, "abc").await;
+    let app = test_app(&server).await;
+
+    let uri = format!("/api/assets/{id}/preview?max=512");
+    let resp = app.clone().oneshot(req_get(&uri)).await.unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("first status {}", resp.status());
+    }
+    let etag = resp
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+        .expect("etag on first render");
+    let cache_control = resp
+        .headers()
+        .get("cache-control")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    if !cache_control.contains("must-revalidate") {
+        panic!("cache-control: {cache_control}");
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(&uri)
+                .header("if-none-match", &etag)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NOT_MODIFIED {
+        panic!("expected 304, got {}", resp.status());
+    }
+
+    put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 1.5}}}),
+    )
+    .await;
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri(&uri)
+                .header("if-none-match", &etag)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("edited preview should re-render, got {}", resp.status());
+    }
+    let next = resp
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    if next == etag {
+        panic!("etag unchanged after edit: {next}");
+    }
+}
