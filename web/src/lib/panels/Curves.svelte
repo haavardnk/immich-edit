@@ -403,13 +403,13 @@
     >
       <rect x={pad} y={pad} width={inner} height={inner} fill="rgba(0,0,0,0.3)" rx="2" />
 
-      {#each histLayers as layer}
+      {#each histLayers as layer (layer.fill)}
         {#if layer.d}
           <path d={layer.d} fill={layer.fill} style:mix-blend-mode="screen" />
         {/if}
       {/each}
 
-      {#each gridLines as l}
+      {#each gridLines as l, i (i)}
         <line
           x1={l.x1}
           y1={l.y1}
@@ -449,7 +449,7 @@
         stroke-linecap="round"
       />
 
-      {#each activeCurve as pt, i}
+      {#each activeCurve as pt, i (i)}
         {@const sp = toSvg(pt)}
         <circle
           cx={sp.x}

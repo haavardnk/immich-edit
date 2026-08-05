@@ -279,7 +279,7 @@
   });
 
   $effect(() => {
-    items.length;
+    const _tracked = items.length;
     measure();
     restoreScroll();
   });

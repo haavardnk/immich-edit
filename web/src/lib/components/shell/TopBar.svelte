@@ -1,6 +1,5 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { album } from '$lib/stores/album.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { hint } from '$lib/keybinds';
   import Icon from '$lib/components/Icon.svelte';
@@ -17,8 +16,6 @@
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
-
-  const subtitle = $derived(!editor.assetId && album.current ? album.current.albumName : '');
 
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
 

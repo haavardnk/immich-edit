@@ -807,7 +807,6 @@
 
 {#if drafting && draft}
   {@const pts = draft.points.map((p) => sceneToPx(p))}
-  {@const first = pts[0]}
   <svg
     class="absolute inset-0"
     width="100%"

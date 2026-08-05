@@ -138,10 +138,6 @@
       });
   });
 
-  const lumaMinValue = $derived(
-    activeComp?.kind.kind === 'luma_range' ? activeComp.kind.min : 0.25
-  );
-
   function toggleRefine(): void {
     if (!active) return;
     refineOverride = { ...refineOverride, [active.id]: !refineOpen };

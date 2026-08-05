@@ -27,8 +27,6 @@
         onclick={ui.toggleExifPopover}
       />
     {/snippet}
-    {#snippet children()}
-      <ExifDetails />
-    {/snippet}
+    <ExifDetails />
   </Popover>
 {/if}

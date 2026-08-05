@@ -57,7 +57,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
         working-directory: web
-      - run: npm run format:check
+      - run: npm run lint
         working-directory: web
       - run: npm run check
         working-directory: web

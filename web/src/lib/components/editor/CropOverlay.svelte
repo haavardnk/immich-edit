@@ -241,7 +241,7 @@
           <div class="absolute left-1/3 top-0 bottom-0 border-l border-white/30"></div>
           <div class="absolute left-2/3 top-0 bottom-0 border-l border-white/30"></div>
         </div>
-        {#each ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const as h}
+        {#each ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const as h (h)}
           <button
             class="absolute bg-white border border-black/60 rounded-sm"
             style="

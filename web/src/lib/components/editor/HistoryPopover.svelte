@@ -192,7 +192,7 @@
                       {group.label}
                     </div>
                     <div class="space-y-0.5">
-                      {#each group.items as item}
+                      {#each group.items as item, i (i)}
                         {#if item.kind === 'value'}
                           <div class="flex items-baseline justify-between gap-2 text-[10px]">
                             <span class="text-immich-dark-fg/60 truncate">{item.label}</span>

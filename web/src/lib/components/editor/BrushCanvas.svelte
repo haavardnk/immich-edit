@@ -28,7 +28,6 @@
   let rectH = $state(0);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let strokeActive = $state(false);
-  let lastCompId = $state<string | null>(null);
   let lastPx: number | null = null;
   let lastPy: number | null = null;
 
@@ -134,7 +133,6 @@
       sampleBufferToImageData(buf, w, h, color, invert, img.data);
       ctx.putImageData(img, 0, 0);
     }
-    lastCompId = componentId;
   }
 
   function sampleBufferToImageData(

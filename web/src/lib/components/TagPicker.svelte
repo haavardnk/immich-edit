@@ -7,7 +7,7 @@
   import { listTags, type TagSummary } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { TagRef } from '$lib/types/asset';
-  import { isManagedTag, MANAGED_TAG_PREFIX } from '$lib/reject';
+  import { isManagedTag } from '$lib/reject';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
 
   type Anchor = 'top' | 'bottom';
@@ -166,52 +166,50 @@
         <Icon path={mdiPlus} size={14} />
       </button>
     {/snippet}
-    {#snippet children()}
-      <input
-        bind:this={inputEl}
-        type="text"
-        placeholder="Add tag…"
-        class="w-full bg-white/5 text-[11px] rounded px-2 py-1 outline-none focus:bg-white/10"
-        value={input}
-        oninput={(e) => (input = e.currentTarget.value)}
-        onkeydown={onKey}
-      />
-      {#if suggestions.length > 0 || canCreate}
-        <div class="mt-1 max-h-48 overflow-y-auto scrollbar-hidden">
-          {#each suggestions as s (s.id)}
-            <button
-              type="button"
-              class="flex items-center gap-1.5 w-full text-left px-2 py-1 text-[11px] rounded hover:bg-white/10"
-              onmousedown={(e) => {
-                e.preventDefault();
-                void pick(s);
-              }}
-            >
-              {#if s.color}
-                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {s.color}"
-                ></span>
-              {/if}
-              <span class="truncate">{s.value}</span>
-            </button>
-          {/each}
-          {#if canCreate}
-            <button
-              type="button"
-              class="flex items-center gap-1 w-full text-left px-2 py-1 text-[11px] rounded hover:bg-white/10 {suggestions.length >
-              0
-                ? 'border-t border-white/5 mt-1'
-                : ''}"
-              onmousedown={(e) => {
-                e.preventDefault();
-                void create();
-              }}
-            >
-              <Icon path={mdiPlus} size={12} />
-              Create "{input.trim()}"
-            </button>
-          {/if}
-        </div>
-      {/if}
-    {/snippet}
+    <input
+      bind:this={inputEl}
+      type="text"
+      placeholder="Add tag…"
+      class="w-full bg-white/5 text-[11px] rounded px-2 py-1 outline-none focus:bg-white/10"
+      value={input}
+      oninput={(e) => (input = e.currentTarget.value)}
+      onkeydown={onKey}
+    />
+    {#if suggestions.length > 0 || canCreate}
+      <div class="mt-1 max-h-48 overflow-y-auto scrollbar-hidden">
+        {#each suggestions as s (s.id)}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 w-full text-left px-2 py-1 text-[11px] rounded hover:bg-white/10"
+            onmousedown={(e) => {
+              e.preventDefault();
+              void pick(s);
+            }}
+          >
+            {#if s.color}
+              <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {s.color}"
+              ></span>
+            {/if}
+            <span class="truncate">{s.value}</span>
+          </button>
+        {/each}
+        {#if canCreate}
+          <button
+            type="button"
+            class="flex items-center gap-1 w-full text-left px-2 py-1 text-[11px] rounded hover:bg-white/10 {suggestions.length >
+            0
+              ? 'border-t border-white/5 mt-1'
+              : ''}"
+            onmousedown={(e) => {
+              e.preventDefault();
+              void create();
+            }}
+          >
+            <Icon path={mdiPlus} size={12} />
+            Create "{input.trim()}"
+          </button>
+        {/if}
+      </div>
+    {/if}
   </Popover>
 </div>

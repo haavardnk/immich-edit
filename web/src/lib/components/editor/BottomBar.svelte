@@ -48,37 +48,30 @@
           onclick={ui.toggleZoomPopover}
         />
       {/snippet}
-      {#snippet children()}
-        <div class="flex items-center gap-2">
-          <ToolbarButton
-            path={mdiMagnifyMinusOutline}
-            size={16}
-            title="Zoom Out"
-            onclick={ui.zoomOut}
-          />
-          <input
-            type="range"
-            min="25"
-            max="400"
-            step="5"
-            value={ui.zoom}
-            oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
-            class="w-28 h-1 accent-immich-dark-primary"
-          />
-          <ToolbarButton
-            path={mdiMagnifyPlusOutline}
-            size={16}
-            title="Zoom In"
-            onclick={ui.zoomIn}
-          />
-          <ToolbarButton
-            path={mdiFitToScreenOutline}
-            size={16}
-            title={hint('Fit to screen', 'zoomToggle')}
-            onclick={ui.zoomFit}
-          />
-        </div>
-      {/snippet}
+      <div class="flex items-center gap-2">
+        <ToolbarButton
+          path={mdiMagnifyMinusOutline}
+          size={16}
+          title="Zoom Out"
+          onclick={ui.zoomOut}
+        />
+        <input
+          type="range"
+          min="25"
+          max="400"
+          step="5"
+          value={ui.zoom}
+          oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
+          class="w-28 h-1 accent-immich-dark-primary"
+        />
+        <ToolbarButton path={mdiMagnifyPlusOutline} size={16} title="Zoom In" onclick={ui.zoomIn} />
+        <ToolbarButton
+          path={mdiFitToScreenOutline}
+          size={16}
+          title={hint('Fit to screen', 'zoomToggle')}
+          onclick={ui.zoomFit}
+        />
+      </div>
     </Popover>
     <ToolbarButton
       path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}

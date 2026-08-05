@@ -91,7 +91,7 @@
     <ul
       class="text-[11px] leading-relaxed px-3 py-2 rounded-md border border-amber-500/40 bg-amber-950/40 text-amber-100 space-y-1"
     >
-      {#each editor.lastWarnings as w}
+      {#each editor.lastWarnings as w (w)}
         <li class="flex items-start gap-1.5">
           <Icon path={mdiAlertOutline} size={12} class="mt-0.5 shrink-0" />
           <span>{w}</span>
