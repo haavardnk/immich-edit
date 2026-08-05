@@ -117,6 +117,20 @@ test('keyboard help filters shortcuts and labels keys for the platform', async (
   await expect(page.getByText('Undo', { exact: true })).toHaveCount(0);
 });
 
+test('keyboard help splits binds by the current context', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.keyboard.press('Shift+/');
+  await expect(page.getByRole('heading', { name: 'Available in the editor' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Elsewhere in the app' })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('m');
+  await page.keyboard.press('Shift+/');
+  await expect(page.getByRole('heading', { name: 'Available in the Masks panel' })).toBeVisible();
+});
+
 test('Q opens Retouch and M opens Masks', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
