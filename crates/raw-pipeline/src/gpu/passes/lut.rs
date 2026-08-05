@@ -29,7 +29,8 @@ impl LutPass {
             ctx,
             &layout,
             "lut.wgsl",
-            include_str!("../../../assets/shaders/lut.wgsl"),
+            &include_str!("../../../assets/shaders/lut.wgsl")
+                .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl()),
         );
 
         Self { layout, pipeline }

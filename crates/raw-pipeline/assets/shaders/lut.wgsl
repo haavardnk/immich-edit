@@ -10,6 +10,8 @@ struct LutParams {
 @group(0) @binding(2) var lut_tex: texture_3d<f32>;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 
+// TONE_WGSL_INJECT
+
 fn lut_at(coord: vec3<i32>) -> vec3<f32> {
     return textureLoad(lut_tex, coord, 0).rgb;
 }
@@ -74,5 +76,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let amount = p.misc.x;
     let sampled = lut_sample(src.rgb);
     let blended = clamp(src.rgb + amount * (sampled - src.rgb), vec3<f32>(0.0), vec3<f32>(1.0));
-    textureStore(out_tex, coord, vec4<f32>(blended, src.a));
+    var alpha = src.a;
+    if (alpha != 0.0) {
+        alpha = warn_clip_alpha(blended);
+    }
+    textureStore(out_tex, coord, vec4<f32>(blended, alpha));
 }

@@ -1035,7 +1035,10 @@ impl GpuRenderer {
             || effects_active
             || has_masks
             || dcp_active
-            || p3_active;
+            || p3_active
+            || opts.gamut_warn
+            || opts.clip_warn;
+        let warn_flags = opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1);
         let sharpen_pool_guard = if final_pass_active {
             let mut spool = self.sharpen_pool.lock();
             if let Some(i) = spool.iter().position(|s| s.fits(out_w, out_h)) {
@@ -1087,6 +1090,7 @@ impl GpuRenderer {
                     run_sharpen,
                     dcp_active,
                     opts.output_color_space,
+                    warn_flags,
                 );
             }
         }
@@ -1100,6 +1104,7 @@ impl GpuRenderer {
                 out_w,
                 out_h,
                 sharpen_preview,
+                warn_flags | ((p3_active as u32) << 2),
             )
         });
 
@@ -1173,10 +1178,14 @@ impl GpuRenderer {
         copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);
         queue.submit(Some(encoder.finish()));
 
-        let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h, cancel)?;
+        let mut rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h, cancel)?;
         let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel)?;
         drop(lut_target);
         drop(pool);
+
+        if opts.gamut_warn || opts.clip_warn {
+            crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
+        }
 
         let ((histogram, linear_histogram), bytes) = rayon::join(
             || {

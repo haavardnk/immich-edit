@@ -114,5 +114,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         outc = tone_default_rgb_cs(lin, p.output.z);
     }
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
-    textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, 1.0));
+    var alpha = 1.0;
+    if ((p.output.w & 1u) != 0u && tone_is_out_of_gamut(lin, p.output.y, p.output.z)) {
+        alpha = 0.0;
+    } else if ((p.output.w & 2u) != 0u) {
+        alpha = warn_clip_alpha(outc);
+    }
+    textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, alpha));
 }

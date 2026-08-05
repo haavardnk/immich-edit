@@ -15,6 +15,8 @@ struct Params {
 @group(0) @binding(2) var lut_tex: texture_3d<f32>;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba16float, write>;
 
+// TONE_WGSL_INJECT
+
 fn to_pp(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(
         dot(p.to_pp0.xyz, c),
@@ -278,7 +280,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
             srgb_gamma(clamp(mapped.g, 0.0, 1.0)),
             srgb_gamma(clamp(mapped.b, 0.0, 1.0)),
         );
-        textureStore(out_tex, coord, vec4<f32>(display, src.a));
+        var alpha = src.a;
+        if ((p.flags.w & 1u) != 0u) {
+            let p3 = (p.flags.w >> 2u) & 1u;
+            alpha = select(1.0, 0.0, tone_below_gamut(tone_to_output_space(lin, p3)));
+        }
+        if (alpha != 0.0 && (p.flags.w & 2u) != 0u) {
+            alpha = warn_clip_alpha(display);
+        }
+        textureStore(out_tex, coord, vec4<f32>(display, alpha));
     } else {
         textureStore(out_tex, coord, vec4<f32>(lin, src.a));
     }

@@ -1509,3 +1509,59 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
         }
     }
 }
+
+fn warn_pixels(rgb: &[u8], color: [u8; 3]) -> Vec<usize> {
+    rgb.chunks_exact(3)
+        .enumerate()
+        .filter(|(_, p)| p[0] == color[0] && p[1] == color[1] && p[2] == color[2])
+        .map(|(i, _)| i)
+        .collect()
+}
+
+#[test]
+fn gpu_matches_cpu_for_clipping_warnings() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    for (exposure, saturation, color) in [
+        (3.0, 0.0, raw_pipeline::warn::HIGHLIGHT_WARN_RGB),
+        (-14.0, 0.0, raw_pipeline::warn::SHADOW_WARN_RGB),
+        (0.0, 100.0, raw_pipeline::warn::GAMUT_WARN_RGB),
+    ] {
+        let edits = Edits {
+            basic: BasicEdits {
+                exposure_ev: exposure,
+                saturation,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let opts = RenderOptions {
+            max_edge: 96,
+            output: OutputFormat::Rgb8,
+            clip_warn: true,
+            gamut_warn: true,
+            ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let c = warn_pixels(&cpu.bytes, color);
+        let g = warn_pixels(&gpu.bytes, color);
+        if c.is_empty() {
+            panic!("cpu produced no {color:?} warning pixels; test is vacuous");
+        }
+        let only_cpu = c.iter().filter(|i| !g.contains(i)).count();
+        let only_gpu = g.iter().filter(|i| !c.contains(i)).count();
+        let drift = (only_cpu + only_gpu) as f64 / c.len() as f64;
+        eprintln!(
+            "{color:?}: cpu={} gpu={} disagree={} ({drift:.4})",
+            c.len(),
+            g.len(),
+            only_cpu + only_gpu
+        );
+        if drift > 0.01 {
+            panic!("warning drift for {color:?}: {drift:.4} > 0.01");
+        }
+    }
+}

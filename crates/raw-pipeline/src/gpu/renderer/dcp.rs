@@ -30,6 +30,7 @@ impl DcpHueSatUniform {
         output: bool,
         apply_table: bool,
         tone_curve: Option<&[[f32; 2]]>,
+        warn_flags: u32,
     ) -> Self {
         let mat = |m: &[[f32; 3]; 3]| {
             [
@@ -58,7 +59,7 @@ impl DcpHueSatUniform {
                 output as u32,
                 apply_table as u32,
                 tone_curve.is_some() as u32,
-                0,
+                warn_flags,
             ],
             tone_lut,
         }
@@ -115,6 +116,7 @@ impl GpuRenderer {
             false,
             true,
             None,
+            0,
         );
         encoder.copy_texture_to_texture(
             wgpu::TexelCopyTextureInfo {
@@ -148,6 +150,7 @@ impl GpuRenderer {
         out_w: u32,
         out_h: u32,
         sharpen_preview: bool,
+        warn_flags: u32,
     ) -> Option<PooledTexture> {
         if sharpen_preview {
             return None;
@@ -185,6 +188,7 @@ impl GpuRenderer {
             true,
             resolved.look_table.is_some(),
             tone,
+            warn_flags,
         );
         encoder.copy_texture_to_texture(
             wgpu::TexelCopyTextureInfo {
@@ -283,6 +287,7 @@ impl GpuRenderer {
         output: bool,
         apply_table: bool,
         tone_curve: Option<&[[f32; 2]]>,
+        warn_flags: u32,
     ) {
         let device = &self.ctx.device;
         let pass = if output {
@@ -297,7 +302,8 @@ impl GpuRenderer {
         });
         let dst_view = dst.create_view(&TextureViewDescriptor::default());
 
-        let uniform = DcpHueSatUniform::new(map, resolved, output, apply_table, tone_curve);
+        let uniform =
+            DcpHueSatUniform::new(map, resolved, output, apply_table, tone_curve, warn_flags);
         let ub = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("dcp-huesat-uniform"),
             contents: bytemuck::bytes_of(&uniform),

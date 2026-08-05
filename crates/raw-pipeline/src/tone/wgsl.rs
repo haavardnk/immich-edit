@@ -126,7 +126,31 @@ fn tone_dcp_rgb_cs(c: vec3<f32>, p3: u32) -> vec3<f32> {{
         tone_srgb_oetf(clamp(mapped.z, 0.0, 1.0)),
     );
 }}
+
+fn tone_below_gamut(c: vec3<f32>) -> bool {{
+    return min(c.x, min(c.y, c.z)) < -1e-4;
+}}
+
+fn tone_is_out_of_gamut(c: vec3<f32>, dcp_active: u32, p3: u32) -> bool {{
+    if (dcp_active == 1u) {{
+        return tone_below_gamut(tone_to_output_space(c, p3));
+    }}
+    let y = tone_luma(c);
+    if (y <= 1e-6) {{ return false; }}
+    let scale = tone_highlight_shoulder(y) / y;
+    return tone_below_gamut(tone_to_output_space(c * scale, p3));
+}}
+
+fn warn_clip_alpha(c: vec3<f32>) -> f32 {{
+    if (any(c >= vec3<f32>({clip_high}))) {{ return {alpha_highlight}; }}
+    if (any(c <= vec3<f32>({clip_low}))) {{ return {alpha_shadow}; }}
+    return 1.0;
+}}
 "#,
+        alpha_highlight = crate::warn::ALPHA_HIGHLIGHT as f32 / 255.0,
+        alpha_shadow = crate::warn::ALPHA_SHADOW as f32 / 255.0,
+        clip_high = crate::warn::HIGHLIGHT_CLIP,
+        clip_low = crate::warn::SHADOW_CLIP,
         shoulder_knee = TONE_SHOULDER_KNEE,
         srgb_cutoff = SRGB_OETF_LINEAR_CUTOFF,
         srgb_slope = SRGB_OETF_LINEAR_SLOPE,

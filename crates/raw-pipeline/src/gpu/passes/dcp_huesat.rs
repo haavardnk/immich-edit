@@ -34,7 +34,8 @@ impl DcpHueSatPass {
             ],
         );
         let src = include_str!("../../../assets/shaders/dcp_huesat.wgsl")
-            .replace("rgba16float", storage_format_str(out_format));
+            .replace("rgba16float", storage_format_str(out_format))
+            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label}-cp"), &src);
 
         Self { layout, pipeline }
