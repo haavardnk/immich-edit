@@ -3,6 +3,7 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { compare, CENTERED } from '$lib/stores/compare.svelte';
+  import { selection } from '$lib/stores/selection.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
@@ -24,12 +25,14 @@
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import {
     mdiClose,
+    mdiCompare,
     mdiInformationOutline,
     mdiSkipNextOutline,
     mdiKeyboardOutline,
     mdiPencilOutline,
     mdiChevronLeft,
-    mdiChevronRight
+    mdiChevronRight,
+    mdiViewGridOutline
   } from '@mdi/js';
 
   const MAX_EDGE = 2560;
@@ -37,20 +40,27 @@
   let paneMaxEdge = $state(MAX_EDGE);
 
   const currentId = $derived(browseView.loupeId);
+  const multi = $derived(compare.mode !== 'single');
+  const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
+  const focusedId = $derived(multi ? compare.focusedId : currentId);
   const asset = $derived(
-    currentId ? (browsing.assets.find((a) => a.id === currentId) ?? null) : null
+    focusedId ? (browsing.assets.find((a) => a.id === focusedId) ?? null) : null
   );
   const rating = $derived(asset?.exifInfo?.rating ?? 0);
   const rejected = $derived(asset ? isRejected(asset) : false);
   const exif = $derived(asset?.exifInfo ?? null);
-  const zoomed = $derived(currentId ? compare.viewOf(currentId).zoomed : false);
+  const zoomed = $derived(focusedId ? compare.viewOf(focusedId).zoomed : false);
+  const cols = $derived(panes.length <= 4 ? 2 : 3);
+  const gridStyle = $derived(
+    multi ? `grid-template-columns: repeat(${Math.min(cols, panes.length)}, minmax(0, 1fr));` : ''
+  );
 
   let tagCache = $state<Record<string, TagRef[]>>({});
   let tagOrder = $state<string[]>([]);
-  const currentTags = $derived(currentId ? (tagCache[currentId] ?? []) : []);
+  const currentTags = $derived(focusedId ? (tagCache[focusedId] ?? []) : []);
 
   $effect(() => {
-    const id = currentId;
+    const id = focusedId;
     if (!id || tagCache[id]) return;
     void getAsset(id)
       .then((a) => setTags(id, a.tags))
@@ -64,7 +74,7 @@
   }
 
   async function addTag(tag: TagRef): Promise<void> {
-    const id = currentId;
+    const id = focusedId;
     if (!id) return;
     const prev = tagCache[id] ?? [];
     if (prev.some((t) => t.id === tag.id)) return;
@@ -79,7 +89,7 @@
   }
 
   async function removeTag(tagId: string): Promise<void> {
-    const id = currentId;
+    const id = focusedId;
     if (!id) return;
     const prev = tagCache[id] ?? [];
     if (!(await metadataConsent.gate())) return;
@@ -96,7 +106,7 @@
   }
 
   async function createAndAddTag(value: string): Promise<TagRef | null> {
-    const id = currentId;
+    const id = focusedId;
     if (!id) return null;
     if (!(await metadataConsent.gate())) return null;
     try {
@@ -129,7 +139,7 @@
   }
 
   $effect(() => {
-    if (!currentId) return;
+    if (multi || !currentId) return;
     for (const neighbor of [browsing.nextOf(currentId), browsing.prevOf(currentId)]) {
       if (neighbor) {
         const img = new Image();
@@ -144,41 +154,127 @@
     if (next) browseView.openLoupe(next.id);
   }
 
+  function advanceFocused(delta: number): void {
+    const id = compare.focusedId;
+    if (!id) return;
+    let cursor = id;
+    for (;;) {
+      const next = delta > 0 ? browsing.nextOf(cursor) : browsing.prevOf(cursor);
+      if (!next) return;
+      if (!compare.members.includes(next.id)) {
+        compare.setMember(compare.focusIndex, next.id);
+        return;
+      }
+      cursor = next.id;
+    }
+  }
+
+  function selectedInOrder(): string[] {
+    return browsing.assets.filter((a) => selection.selected.has(a.id)).map((a) => a.id);
+  }
+
+  function compareMembers(): string[] {
+    const ordered = selectedInOrder();
+    if (ordered.length >= 2) return ordered.slice(0, 2);
+    if (!currentId) return [];
+    const next = browsing.nextOf(currentId);
+    return next ? [currentId, next.id] : [currentId];
+  }
+
+  function surveyMembers(): string[] {
+    const ordered = selectedInOrder();
+    if (ordered.length >= 2) return ordered.slice(0, 9);
+    if (!currentId) return [];
+    const start = browsing.assets.findIndex((a) => a.id === currentId);
+    if (start < 0) return [currentId];
+    return browsing.assets.slice(start, start + 6).map((a) => a.id);
+  }
+
+  function enterCompare(): void {
+    if (multi) {
+      leaveMulti();
+      return;
+    }
+    const members = compareMembers();
+    if (members.length < 2) {
+      toasts.push('info', 'compare needs two photos');
+      return;
+    }
+    compare.enter('compare', members);
+  }
+
+  function enterSurvey(): void {
+    if (multi) {
+      leaveMulti();
+      return;
+    }
+    const members = surveyMembers();
+    if (members.length < 2) {
+      toasts.push('info', 'survey needs two photos');
+      return;
+    }
+    compare.enter('survey', members);
+  }
+
+  function leaveMulti(): void {
+    const id = compare.focusedId;
+    const survivors = compare.mode === 'survey' && compare.pruned ? [...compare.members] : [];
+    compare.exit();
+    if (survivors.length > 0) selection.selectLoaded(survivors);
+    if (id) browseView.openLoupe(id);
+  }
+
+  function dropFocused(): void {
+    if (compare.members.length <= 1) return;
+    compare.drop(compare.focusIndex);
+  }
+
   function toggleZoom(): void {
-    if (!currentId) return;
-    if (zoomed) compare.applyView(currentId, CENTERED);
-    else compare.applyView(currentId, { zoomed: true, cx: 0.5, cy: 0.5 });
+    const id = focusedId;
+    if (!id) return;
+    if (zoomed) compare.applyView(id, CENTERED);
+    else compare.applyView(id, { zoomed: true, cx: 0.5, cy: 0.5 });
+  }
+
+  function autoAdvance(id: string): void {
+    if (!browseView.loupeAutoAdvance) return;
+    if (!multi) {
+      go(1);
+      return;
+    }
+    if (compare.focusedId === id) advanceFocused(1);
   }
 
   function rate(value: number | null): void {
-    if (!currentId) return;
-    const id = currentId;
+    const id = focusedId;
+    if (!id) return;
     void rateAsset(id, value).then((ok) => {
-      if (ok && browseView.loupeAutoAdvance) go(1);
+      if (ok) autoAdvance(id);
     });
   }
 
   function favorite(): void {
-    if (!currentId) return;
-    void toggleFavorite(currentId).then((ok) => {
-      if (ok && browseView.loupeAutoAdvance) go(1);
+    const id = focusedId;
+    if (!id) return;
+    void toggleFavorite(id).then((ok) => {
+      if (ok) autoAdvance(id);
     });
   }
 
   function reject(): void {
-    if (!currentId) return;
-    const id = currentId;
+    const id = focusedId;
+    if (!id) return;
     void toggleReject(id).then((ok) => {
       if (!ok) return;
       const updated = browsing.assets.find((a) => a.id === id);
       if (updated) setTags(id, updated.tags);
-      if (browseView.loupeAutoAdvance) go(1);
+      autoAdvance(id);
     });
   }
 
   function openEditor(): void {
-    if (!currentId) return;
-    const id = currentId;
+    const id = focusedId;
+    if (!id) return;
     browseView.closeLoupe();
     void goto(`/assets/${id}`);
   }
@@ -200,17 +296,52 @@
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
+        if (multi) return leaveMulti();
         return browseView.closeLoupe();
+      case 'Tab':
+        if (!multi) break;
+        e.preventDefault();
+        return compare.focusDelta(e.shiftKey ? -1 : 1);
       case 'ArrowRight':
+        e.preventDefault();
+        return multi ? compare.focusDelta(1) : go(1);
+      case 'ArrowLeft':
+        e.preventDefault();
+        return multi ? compare.focusDelta(-1) : go(-1);
+      case 'ArrowDown':
+        if (!multi) break;
+        e.preventDefault();
+        return compare.focusDelta(cols);
+      case 'ArrowUp':
+        if (!multi) break;
+        e.preventDefault();
+        return compare.focusDelta(-cols);
+      case 'Backspace':
+      case 'Delete':
+        if (!multi) break;
+        e.preventDefault();
+        return dropFocused();
       case 'k':
       case 'K':
         e.preventDefault();
-        return go(1);
-      case 'ArrowLeft':
+        return multi ? advanceFocused(1) : go(1);
       case 'j':
       case 'J':
         e.preventDefault();
-        return go(-1);
+        return multi ? advanceFocused(-1) : go(-1);
+      case 'c':
+      case 'C':
+        e.preventDefault();
+        return enterCompare();
+      case 'n':
+      case 'N':
+        e.preventDefault();
+        return enterSurvey();
+      case 'y':
+      case 'Y':
+        e.preventDefault();
+        compare.syncView = !compare.syncView;
+        return;
       case 'f':
       case 'F':
         e.preventDefault();
@@ -235,9 +366,13 @@
         e.preventDefault();
         browseView.loupeTagsOpen = !browseView.loupeTagsOpen;
         return;
+      case 'Enter':
+        e.preventDefault();
+        if (compare.mode === 'survey') return compare.keepOnly(compare.focusIndex);
+        if (multi) return compare.promote(compare.focusIndex);
+        return openEditor();
       case 'e':
       case 'E':
-      case 'Enter':
         e.preventDefault();
         return openEditor();
     }
@@ -248,8 +383,8 @@
     }
   }
 
-  const hasPrev = $derived(currentId ? browsing.prevOf(currentId) !== null : false);
-  const hasNext = $derived(currentId ? browsing.nextOf(currentId) !== null : false);
+  const hasPrev = $derived(!multi && currentId ? browsing.prevOf(currentId) !== null : false);
+  const hasNext = $derived(!multi && currentId ? browsing.nextOf(currentId) !== null : false);
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -295,6 +430,22 @@
         onclick={() => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)}
       />
       <ToolbarButton
+        path={mdiCompare}
+        size={18}
+        title="Compare (C)"
+        active={compare.mode === 'compare'}
+        pressed={compare.mode === 'compare'}
+        onclick={enterCompare}
+      />
+      <ToolbarButton
+        path={mdiViewGridOutline}
+        size={18}
+        title="Survey (N)"
+        active={compare.mode === 'survey'}
+        pressed={compare.mode === 'survey'}
+        onclick={enterSurvey}
+      />
+      <ToolbarButton
         path={mdiKeyboardOutline}
         size={18}
         title="Keyboard shortcuts (?)"
@@ -314,16 +465,23 @@
       />
     </div>
 
-    <div class="flex-1 min-h-0 relative flex">
-      {#if currentId && asset}
+    <div
+      class="flex-1 min-h-0 relative {multi ? 'grid gap-1 p-1' : 'flex'}"
+      style={gridStyle}
+    >
+      {#each panes as id, index (id)}
         <LoupePane
-          assetId={currentId}
-          alt={asset.originalFileName}
-          view={compare.viewOf(currentId)}
-          onView={(next) => compare.applyView(currentId, next)}
+          assetId={id}
+          alt={browsing.assets.find((a) => a.id === id)?.originalFileName ?? ''}
+          view={compare.viewOf(id)}
+          focused={id === focusedId}
+          showFocus={multi}
+          badge={multi ? index + 1 : undefined}
+          onFocus={() => (compare.focusIndex = index)}
+          onView={(next, solo) => compare.applyView(id, next, solo)}
           onSize={(size) => (paneMaxEdge = size)}
         />
-      {/if}
+      {/each}
 
       {#if hasPrev}
         <button
@@ -370,6 +528,13 @@
       {/if}
     </div>
 
-    <Filmstrip currentId={currentId} onSelect={(id) => browseView.openLoupe(id)} size={72} showBadges />
+    <Filmstrip
+      currentId={focusedId}
+      highlightIds={compare.members}
+      onSelect={(id) =>
+        multi ? compare.setMember(compare.focusIndex, id) : browseView.openLoupe(id)}
+      size={72}
+      showBadges
+    />
   </div>
 {/if}

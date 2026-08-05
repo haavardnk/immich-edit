@@ -3,7 +3,7 @@ export interface KeybindEntry {
   description: string;
 }
 
-export type KeybindMode = 'grid' | 'loupe' | 'editor';
+export type KeybindMode = 'grid' | 'loupe' | 'compare' | 'survey' | 'editor';
 
 export interface KeybindGroup {
   title: string;
@@ -38,8 +38,37 @@ export const KEYBIND_GROUPS: KeybindGroup[] = [
       { keys: 'Z / Space', description: 'Toggle zoom' },
       { keys: 'I', description: 'Toggle info' },
       { keys: 'T', description: 'Toggle tags' },
+      { keys: 'C', description: 'Compare two photos' },
+      { keys: 'N', description: 'Survey several photos' },
       { keys: 'E / Enter', description: 'Open editor' },
       { keys: 'Esc', description: 'Close loupe' }
+    ]
+  },
+  {
+    title: 'Compare',
+    mode: 'compare',
+    binds: [
+      { keys: '← / → · Tab', description: 'Move focus between panes' },
+      { keys: 'J / K', description: 'Swap the focused pane for another photo' },
+      { keys: 'Enter', description: 'Promote the focused pane to the left' },
+      { keys: 'Z / Space', description: 'Toggle zoom' },
+      { keys: 'Y', description: 'Toggle synced zoom and pan' },
+      { keys: 'Alt-drag', description: 'Pan only the pane under the pointer' },
+      { keys: '1 – 5 / 0 · F · X', description: 'Rate, favorite or reject the focused pane' },
+      { keys: 'Esc', description: 'Back to a single photo' }
+    ]
+  },
+  {
+    title: 'Survey',
+    mode: 'survey',
+    binds: [
+      { keys: '← / → / ↑ / ↓ · Tab', description: 'Move focus between panes' },
+      { keys: '⌫ / Del', description: 'Drop the focused photo from the survey' },
+      { keys: 'Enter', description: 'Keep only the focused photo' },
+      { keys: 'Z / Space', description: 'Toggle zoom' },
+      { keys: 'Y', description: 'Toggle synced zoom and pan' },
+      { keys: '1 – 5 / 0 · F · X', description: 'Rate, favorite or reject the focused pane' },
+      { keys: 'Esc', description: 'Exit and select the survivors' }
     ]
   },
   {

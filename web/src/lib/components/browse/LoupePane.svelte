@@ -12,6 +12,7 @@
     view,
     focused = false,
     showFocus = false,
+    badge,
     onView,
     onFocus,
     onSize
@@ -21,7 +22,8 @@
     view: PaneView;
     focused?: boolean;
     showFocus?: boolean;
-    onView: (view: PaneView) => void;
+    badge?: number;
+    onView: (view: PaneView, solo?: boolean) => void;
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
   } = $props();
@@ -34,6 +36,7 @@
   let lastX = 0;
   let lastY = 0;
   let totalDrag = 0;
+  let wasFocused = false;
 
   const scale = typeof window === 'undefined' ? 1 : Math.min(2, window.devicePixelRatio || 1);
   const maxEdge = $derived(quantize(box.w * scale * (view.zoomed ? ZOOM : 1)));
@@ -71,19 +74,20 @@
     if (image) natural = { w: image.naturalWidth, h: image.naturalHeight };
   }
 
-  function zoomInAt(clientX: number, clientY: number): void {
+  function zoomInAt(clientX: number, clientY: number, solo: boolean): void {
     if (!zoomBox || !container) {
-      onView({ zoomed: true, cx: 0.5, cy: 0.5 });
+      onView({ zoomed: true, cx: 0.5, cy: 0.5 }, solo);
       return;
     }
     const rect = container.getBoundingClientRect();
     const cx = 0.5 + ((clientX - (rect.left + rect.width / 2)) * ZOOM) / zoomBox.w;
     const cy = 0.5 + ((clientY - (rect.top + rect.height / 2)) * ZOOM) / zoomBox.h;
-    onView(clampCenter({ zoomed: true, cx, cy }));
+    onView(clampCenter({ zoomed: true, cx, cy }), solo);
   }
 
   function onPointerDown(e: PointerEvent): void {
     e.preventDefault();
+    wasFocused = focused || !showFocus;
     onFocus?.();
     lastX = e.clientX;
     lastY = e.clientY;
@@ -101,15 +105,19 @@
     lastX = e.clientX;
     lastY = e.clientY;
     totalDrag += Math.abs(dx) + Math.abs(dy);
-    onView(clampCenter({ zoomed: true, cx: view.cx - dx / zoomBox.w, cy: view.cy - dy / zoomBox.h }));
+    onView(
+      clampCenter({ zoomed: true, cx: view.cx - dx / zoomBox.w, cy: view.cy - dy / zoomBox.h }),
+      e.altKey
+    );
   }
 
   function onPointerUp(e: PointerEvent): void {
     const wasDragging = dragging;
     dragging = false;
     if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
-    if (view.zoomed) onView({ zoomed: false, cx: 0.5, cy: 0.5 });
-    else zoomInAt(e.clientX, e.clientY);
+    if (!wasFocused) return;
+    if (view.zoomed) onView({ zoomed: false, cx: 0.5, cy: 0.5 }, e.altKey);
+    else zoomInAt(e.clientX, e.clientY, e.altKey);
   }
 
   $effect(() => {
@@ -136,14 +144,23 @@
       : 'cursor-grab'
     : 'cursor-zoom-in'} {showFocus
     ? focused
-      ? 'ring-2 ring-immich-dark-primary rounded-lg'
-      : 'ring-1 ring-white/10 rounded-lg'
+      ? 'relative ring-2 ring-immich-dark-primary rounded-lg'
+      : 'relative ring-1 ring-white/10 rounded-lg'
     : ''}"
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
 >
+  {#if badge !== undefined}
+    <span
+      class="absolute left-2 top-2 z-10 min-w-5 px-1.5 rounded text-xs font-medium text-center pointer-events-none {focused
+        ? 'bg-immich-dark-primary text-black'
+        : 'bg-black/60 text-white/70'}"
+    >
+      {badge}
+    </span>
+  {/if}
   {#if box.w > 0}
     <img
       bind:this={image}

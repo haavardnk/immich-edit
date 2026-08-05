@@ -2,14 +2,17 @@
   import { page } from '$app/state';
   import { ui } from '$lib/stores/ui.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
+  import { compare } from '$lib/stores/compare.svelte';
   import { KEYBIND_GROUPS, type KeybindMode } from '$lib/keybinds';
 
   const mode = $derived<KeybindMode>(
     page.url.pathname.startsWith('/assets/')
       ? 'editor'
-      : browseView.loupeId
-        ? 'loupe'
-        : 'grid'
+      : compare.mode !== 'single'
+        ? compare.mode
+        : browseView.loupeId
+          ? 'loupe'
+          : 'grid'
   );
   const groups = $derived(KEYBIND_GROUPS.filter((g) => g.mode === mode));
 

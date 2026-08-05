@@ -11,12 +11,14 @@
     currentId: currentIdProp = null,
     onSelect,
     size = 64,
-    showBadges = false
+    showBadges = false,
+    highlightIds
   }: {
     currentId?: string | null;
     onSelect?: (id: string) => void;
     size?: number;
     showBadges?: boolean;
+    highlightIds?: string[];
   } = $props();
 
   const GAP = 4;
@@ -63,7 +65,9 @@
 
   $effect(() => {
     if (!scrollContainer || currentIndex < 0) return;
-    const target = PAD + currentIndex * STRIDE + size / 2 - containerWidth / 2;
+    const left = PAD + currentIndex * STRIDE;
+    if (left >= scrollLeft && left + size <= scrollLeft + containerWidth) return;
+    const target = left + size / 2 - containerWidth / 2;
     const max = Math.max(0, totalWidth - containerWidth);
     scrollContainer.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
   });
@@ -99,6 +103,8 @@
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
               {#each visibleAssets as asset (asset.id)}
                 {@const isCurrent = asset.id === currentId}
+                {@const paneNumber = (highlightIds?.indexOf(asset.id) ?? -1) + 1}
+                {@const isMember = !isCurrent && paneNumber > 0}
                 {@const rating = asset.exifInfo?.rating ?? 0}
                 {@const rejected = isRejected(asset)}
                 {#if onSelect}
@@ -107,20 +113,32 @@
                     onclick={() => onSelect(asset.id)}
                     class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
                       ? 'ring-2 ring-immich-dark-primary'
-                      : ''}"
+                      : isMember
+                        ? 'ring-2 ring-immich-dark-primary/50'
+                        : ''}"
                     style:width="{size}px"
                     style:height="{size}px"
                     title={asset.originalFileName}
+                    aria-label={asset.originalFileName}
                   >
                     <img
                       src={assetThumbUrl(asset.id)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover transition-opacity {isCurrent
+                      class="w-full h-full object-cover transition-opacity {isCurrent || isMember
                         ? 'opacity-100'
                         : 'opacity-50 group-hover:opacity-80'}"
                       class:grayscale={rejected}
                     />
+                    {#if paneNumber > 0}
+                      <span
+                        class="absolute left-1 top-1 min-w-4 px-1 rounded text-[10px] leading-4 font-medium text-center pointer-events-none {isCurrent
+                          ? 'bg-immich-dark-primary text-black'
+                          : 'bg-black/60 text-white/70'}"
+                      >
+                        {paneNumber}
+                      </span>
+                    {/if}
                     {#if showBadges && asset.isFavorite}
                       <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
                         <Icon path={mdiHeart} size={13} />

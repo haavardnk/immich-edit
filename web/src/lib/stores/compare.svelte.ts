@@ -14,9 +14,14 @@ class CompareStore {
   focusIndex = $state(0);
   syncView = $state(true);
   views = $state<Record<string, PaneView>>({});
+  startCount = $state(0);
 
   get focusedId(): string | null {
     return this.members[this.focusIndex] ?? null;
+  }
+
+  get pruned(): boolean {
+    return this.members.length < this.startCount;
   }
 
   enter(mode: CompareMode, ids: string[], focus = 0): void {
@@ -24,6 +29,7 @@ class CompareStore {
     this.members = ids;
     this.focusIndex = Math.min(Math.max(0, focus), Math.max(0, ids.length - 1));
     this.views = {};
+    this.startCount = ids.length;
   }
 
   exit(): void {
@@ -31,6 +37,7 @@ class CompareStore {
     this.members = [];
     this.focusIndex = 0;
     this.views = {};
+    this.startCount = 0;
   }
 
   focusDelta(delta: number): void {
@@ -42,8 +49,11 @@ class CompareStore {
   setMember(index: number, id: string): void {
     if (index < 0 || index >= this.members.length) return;
     const previous = this.members[index];
+    if (previous === id) return;
     this.members[index] = id;
-    if (previous !== id) delete this.views[previous];
+    const inherited = this.views[previous];
+    delete this.views[previous];
+    if (inherited) this.views[id] = { ...inherited };
   }
 
   drop(index: number): void {
@@ -71,8 +81,8 @@ class CompareStore {
     return this.views[id] ?? CENTERED;
   }
 
-  applyView(id: string, view: PaneView): void {
-    if (this.syncView && this.mode !== 'single') {
+  applyView(id: string, view: PaneView, solo = false): void {
+    if (this.syncView && !solo && this.mode !== 'single') {
       for (const member of this.members) this.views[member] = { ...view };
       return;
     }

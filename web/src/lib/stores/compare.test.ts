@@ -38,11 +38,23 @@ describe('compare store', () => {
     expect(compare.focusIndex).toBe(0);
   });
 
-  it('replacing a member forgets its view', () => {
+  it.each([
+    ['untouched', (): void => {}, false],
+    ['dropped', (): void => compare.drop(1), true],
+    ['kept one', (): void => compare.keepOnly(0), true],
+    ['swapped', (): void => compare.setMember(1, 'd'), false]
+  ])('a %s survey reports pruned %s', (_name, act, expected) => {
+    compare.enter('survey', ['a', 'b', 'c']);
+    act();
+    expect(compare.pruned).toBe(expected);
+  });
+
+  it('a replacement member inherits the view of the photo it replaced', () => {
     compare.enter('compare', ['a', 'b']);
     compare.applyView('a', { zoomed: true, cx: 0.1, cy: 0.9 });
     compare.setMember(0, 'c');
     expect(compare.members).toEqual(['c', 'b']);
+    expect(compare.viewOf('c')).toEqual({ zoomed: true, cx: 0.1, cy: 0.9 });
     expect(compare.viewOf('a')).toEqual(CENTERED);
   });
 
