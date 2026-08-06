@@ -27,7 +27,7 @@ pub fn bilinear(data: &[f32], w: usize, h: usize, cfa_pattern: &str) -> Vec<f32>
 }
 
 fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
-    let mut cfa = [b'R', b'G', b'G', b'B'];
+    let mut cfa = *b"RGGB";
     for (i, b) in cfa_pattern.bytes().take(4).enumerate() {
         cfa[i] = b;
     }

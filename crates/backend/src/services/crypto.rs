@@ -2,8 +2,8 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use aes_gcm::aead::{Aead, OsRng};
-use aes_gcm::{AeadCore, Aes256Gcm, Key, KeyInit};
+use aes_gcm::aead::{Aead, Generate, Nonce};
+use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const KEY_VERSION: i64 = 1;
@@ -101,14 +101,14 @@ impl InstanceCrypto {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let key = Aes256Gcm::generate_key(OsRng);
+        let key = Key::<Aes256Gcm>::generate();
         let bytes = key.to_vec();
         write_secret_file(path, &bytes)?;
         Ok(bytes)
     }
 
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Encrypted, CryptoError> {
-        let nonce = Aes256Gcm::generate_nonce(OsRng);
+        let nonce = Nonce::<Aes256Gcm>::generate();
         let ciphertext = self
             .cipher
             .encrypt(&nonce, plaintext)
@@ -129,7 +129,7 @@ impl InstanceCrypto {
         }
         let mut nonce_bytes = [0u8; NONCE_LEN];
         nonce_bytes.copy_from_slice(&enc.nonce);
-        let nonce = aes_gcm::aead::Nonce::<Aes256Gcm>::from(nonce_bytes);
+        let nonce = Nonce::<Aes256Gcm>::from(nonce_bytes);
         let plaintext = self
             .cipher
             .decrypt(&nonce, enc.ciphertext.as_slice())

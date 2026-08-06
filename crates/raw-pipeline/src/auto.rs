@@ -34,7 +34,7 @@ fn scene_luma(raw: [f32; 3], wb: [f32; 3], cam_to_srgb: [[f32; 3]; 3]) -> f32 {
 }
 
 fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
-    let mut cfa = [b'R', b'G', b'G', b'B'];
+    let mut cfa = *b"RGGB";
     for (i, b) in cfa_pattern.bytes().take(4).enumerate() {
         cfa[i] = b;
     }

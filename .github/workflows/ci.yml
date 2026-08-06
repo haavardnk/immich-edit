@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            container: rust:1.96-trixie
+            container: rust:1.97-trixie
           - os: macos-latest
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
