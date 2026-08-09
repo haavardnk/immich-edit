@@ -230,3 +230,55 @@ async fn rejects_a_copy_id_with_a_bad_index() {
         panic!("_0 should not parse as a copy key");
     }
 }
+
+#[tokio::test]
+async fn album_listing_places_copies_after_their_master() {
+    let server = MockServer::start().await;
+    mock_asset_detail(&server).await;
+    mock_album_detail(&server).await;
+    let id = asset_id();
+    let app = test_app(&server).await;
+
+    for name in ["Warm", "Mono"] {
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/assets/{id}/copies"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(r#"{{"name":"{name}"}}"#)))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::CREATED {
+            panic!("create status {}", resp.status());
+        }
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/albums/{}", album_id()))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let album = body_json(resp).await;
+    let assets = album["assets"].as_array().cloned().unwrap_or_default();
+    let ids: Vec<&str> = assets.iter().filter_map(|a| a["id"].as_str()).collect();
+    if ids != [id.to_string(), format!("{id}_1"), format!("{id}_2")] {
+        panic!("expansion order: {ids:?}");
+    }
+    if assets[1]["copyOf"] != id.to_string() || assets[1]["copyLabel"] != "Warm" {
+        panic!("copy metadata: {}", assets[1]);
+    }
+    if assets[0].get("copyOf").is_some() {
+        panic!("master should not carry copyOf: {}", assets[0]);
+    }
+    if assets[2]["originalFileName"] != "DSC0001.ARW" {
+        panic!("copies should inherit master metadata: {}", assets[2]);
+    }
+}

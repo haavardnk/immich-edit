@@ -12,7 +12,11 @@ use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
 
 pub async fn detail(ctx: AuthCtx, Path(id): Path<AssetKey>) -> Result<Json<AssetDetail>, AppError> {
-    let asset = ctx.immich.asset(id.source()).await?;
+    let mut asset = ctx.immich.asset(id.source()).await?;
+    if id.is_copy() {
+        asset.id = id;
+        asset.copy_of = Some(id.source());
+    }
     Ok(Json(asset))
 }
 
@@ -21,7 +25,11 @@ pub async fn update(
     Path(id): Path<AssetKey>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<AssetDetail>, AppError> {
-    let asset = ctx.immich.update_asset(id.source(), &body).await?;
+    let mut asset = ctx.immich.update_asset(id.source(), &body).await?;
+    if id.is_copy() {
+        asset.id = id;
+        asset.copy_of = Some(id.source());
+    }
     Ok(Json(asset))
 }
 

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlbumSummary {
     pub id: Uuid,
@@ -29,7 +31,7 @@ pub struct AlbumDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetSummary {
-    pub id: Uuid,
+    pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
     #[serde(rename = "type", default)]
@@ -46,11 +48,15 @@ pub struct AssetSummary {
     pub exif_info: Option<ExifInfo>,
     #[serde(default)]
     pub tags: Vec<TagSummary>,
+    #[serde(rename = "copyOf", default, skip_serializing_if = "Option::is_none")]
+    pub copy_of: Option<Uuid>,
+    #[serde(rename = "copyLabel", default, skip_serializing_if = "Option::is_none")]
+    pub copy_label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetDetail {
-    pub id: Uuid,
+    pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
     #[serde(rename = "type", default)]
@@ -73,6 +79,10 @@ pub struct AssetDetail {
     pub stack_id: Option<Uuid>,
     #[serde(default)]
     pub stack: Option<StackSummary>,
+    #[serde(rename = "copyOf", default, skip_serializing_if = "Option::is_none")]
+    pub copy_of: Option<Uuid>,
+    #[serde(rename = "copyLabel", default, skip_serializing_if = "Option::is_none")]
+    pub copy_label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

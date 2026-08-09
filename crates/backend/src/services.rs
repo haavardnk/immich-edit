@@ -2,6 +2,7 @@ pub mod apply_preset;
 pub mod asset_counts;
 pub mod auth_store;
 pub mod blob_store;
+pub mod copy_expand;
 pub mod crypto;
 pub mod dcp_store;
 pub mod edit_merge;

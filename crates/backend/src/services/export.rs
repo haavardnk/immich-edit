@@ -607,19 +607,19 @@ async fn stack_with_original(
     primary: StackPrimary,
 ) -> Result<(), crate::immich::ImmichError> {
     let existing_stack_id = original.stack_id.or(original.stack.as_ref().map(|s| s.id));
-    let mut ids: Vec<Uuid> = vec![new_id, original.id];
+    let mut ids: Vec<Uuid> = vec![new_id, original.id.source()];
     if let Some(stack_id) = existing_stack_id
         && let Ok(stack) = immich.get_stack(stack_id).await
     {
         for a in stack.assets {
-            if !ids.contains(&a.id) {
-                ids.push(a.id);
+            if !ids.contains(&a.id.source()) {
+                ids.push(a.id.source());
             }
         }
     }
     let primary_id = match primary {
         StackPrimary::Edited => new_id,
-        StackPrimary::Original => original.id,
+        StackPrimary::Original => original.id.source(),
     };
     if let Some(pos) = ids.iter().position(|i| *i == primary_id) {
         ids.swap(0, pos);

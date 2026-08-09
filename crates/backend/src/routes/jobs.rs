@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
+use crate::services::copy_expand::expand_assets;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
 };
@@ -69,7 +70,7 @@ pub async fn create(
     }
     let asset_ids = if body.asset_ids.is_empty() {
         match body.target.get("search") {
-            Some(query) => expand_search_target(&ctx, query).await?,
+            Some(query) => expand_search_target(&state, &ctx, query).await?,
             None => {
                 return Err(AppError::BadRequest(
                     "asset_ids or target.search required".into(),
@@ -110,6 +111,7 @@ pub async fn create(
 }
 
 async fn expand_search_target(
+    state: &AppState,
     ctx: &AuthCtx,
     query: &serde_json::Value,
 ) -> Result<Vec<String>, AppError> {
@@ -128,7 +130,8 @@ async fn expand_search_target(
             .immich
             .search_metadata(&serde_json::Value::Object(body))
             .await?;
-        ids.extend(result.items.into_iter().map(|a| a.id.to_string()));
+        let items = expand_assets(&state.edits, ctx.owner, result.items).await?;
+        ids.extend(items.into_iter().map(|a| a.id.to_string()));
         match result.next_page {
             Some(next) if ids.len() <= MAX_ITEMS => page = Some(next),
             _ => break,
