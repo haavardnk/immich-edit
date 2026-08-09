@@ -5,14 +5,22 @@
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
   import { hint } from '$lib/keybinds';
+  import { copyIndex, isCopy } from '$lib/assetKey';
+  import { createVirtualCopy } from '$lib/copies';
   import {
     mdiArrowLeft,
     mdiUndo,
     mdiRedo,
     mdiEyeOutline,
     mdiCompare,
+    mdiContentDuplicate,
     mdiTriangleOutline
   } from '@mdi/js';
+
+  const assetId = $derived(editor.assetId);
+  const copyBadge = $derived(
+    assetId && isCopy(assetId) ? (editor.asset?.copyLabel ?? `Copy ${copyIndex(assetId)}`) : null
+  );
 
   function goBack(): void {
     if (window.history.length > 1) {
@@ -45,6 +53,12 @@
         >{editor.asset.originalFileName}</span
       >
     {/if}
+    {#if copyBadge}
+      <span
+        class="shrink-0 px-1.5 py-0.5 rounded bg-white/10 text-[11px] text-immich-dark-fg/70 truncate max-w-40"
+        >{copyBadge}</span
+      >
+    {/if}
   </div>
 
   <div class="flex items-center gap-0.5 justify-self-center">
@@ -65,6 +79,13 @@
   </div>
 
   <div class="flex items-center gap-0.5 justify-self-end">
+    <ToolbarButton
+      path={mdiContentDuplicate}
+      size={18}
+      title={hint('Create a virtual copy', 'createVirtualCopy')}
+      disabled={!assetId}
+      onclick={() => assetId && void createVirtualCopy(assetId)}
+    />
     <ToolbarButton
       path={mdiEyeOutline}
       size={18}

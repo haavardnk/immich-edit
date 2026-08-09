@@ -61,6 +61,13 @@ export const PNG_64: Buffer = Buffer.from(
   'base64'
 );
 
+export interface CopyRecord {
+  id: string;
+  source_asset_id: string;
+  name: string | null;
+  created_at: string;
+}
+
 export interface PreviewRequest {
   max_edge: number;
   edits: Record<string, unknown>;
@@ -83,6 +90,14 @@ export interface InstallOpts {
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
+  const copies: CopyRecord[] = [];
+  const expanded = () =>
+    assets.flatMap((a) => [
+      a,
+      ...copies
+        .filter((c) => c.source_asset_id === a.id)
+        .map((c) => ({ ...a, id: c.id, copyOf: a.id, copyLabel: c.name }))
+    ]);
   const previewPng = (): Parameters<Route['fulfill']>[0] =>
     opts.previewBody ? { status: 200, contentType: 'image/png', body: opts.previewBody } : png();
 
@@ -99,14 +114,16 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       if (opts.onSmart) opts.onSmart((req.postDataJSON() as Record<string, unknown>) ?? {});
       if (opts.smartFails)
         return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
+      const items = expanded();
       return route.fulfill(
-        json({ items: assets, count: assets.length, total: assets.length, nextPage: null })
+        json({ items, count: items.length, total: items.length, nextPage: null })
       );
     }
     if (p === '/api/search/metadata') {
       if (opts.onMetadata) opts.onMetadata((req.postDataJSON() as Record<string, unknown>) ?? {});
+      const items = expanded();
       return route.fulfill(
-        json({ items: assets, count: assets.length, total: assets.length, nextPage: null })
+        json({ items, count: items.length, total: items.length, nextPage: null })
       );
     }
     if (p === '/api/search/statistics') return route.fulfill(json({ total: assets.length }));
@@ -128,6 +145,35 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           tags: []
         })
       );
+    }
+
+    const copiesMatch = p.match(/^\/api\/assets\/([^/]+)\/copies$/);
+    if (copiesMatch) {
+      const source = copiesMatch[1].split('_')[0];
+      if (method === 'POST') {
+        const body = (req.postDataJSON() as { name?: string } | null) ?? {};
+        const record = {
+          id: `${source}_${copies.filter((c) => c.source_asset_id === source).length + 1}`,
+          source_asset_id: source,
+          name: body.name ?? null,
+          created_at: '2024-01-01T00:00:00Z'
+        };
+        copies.push(record);
+        return route.fulfill({ ...json(record), status: 201 });
+      }
+      return route.fulfill(json(copies.filter((c) => c.source_asset_id === source)));
+    }
+
+    const copyMatch = p.match(/^\/api\/copies\/([^/]+)$/);
+    if (copyMatch) {
+      const idx = copies.findIndex((c) => c.id === copyMatch[1]);
+      if (method === 'DELETE') {
+        if (idx >= 0) copies.splice(idx, 1);
+        return route.fulfill({ status: 204, body: '' });
+      }
+      const body = (req.postDataJSON() as { name?: string | null } | null) ?? {};
+      if (idx >= 0) copies[idx] = { ...copies[idx], name: body.name ?? null };
+      return route.fulfill(json(copies[idx]));
     }
 
     const editsMatch = p.match(/^\/api\/assets\/([^/]+)\/edits$/);

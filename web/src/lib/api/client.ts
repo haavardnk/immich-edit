@@ -115,7 +115,7 @@ export async function getJson<T>(
 }
 
 export async function sendJson<T>(
-  method: 'POST' | 'PUT' | 'DELETE',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
   init?: RequestInit,

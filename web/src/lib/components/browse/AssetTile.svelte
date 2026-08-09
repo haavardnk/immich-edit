@@ -2,6 +2,7 @@
   import type { AssetSummary } from '$lib/types/album';
   import { hint } from '$lib/keybinds';
   import { assetThumbUrl } from '$lib/api/assets';
+  import { copyIndex, isCopy } from '$lib/assetKey';
   import Icon from '$lib/components/Icon.svelte';
   import { isRejected } from '$lib/reject';
   import {
@@ -10,7 +11,10 @@
     mdiCheckCircle,
     mdiCheckboxBlankCircleOutline,
     mdiEyeOutline,
-    mdiCloseCircle
+    mdiCloseCircle,
+    mdiContentDuplicate,
+    mdiDelete,
+    mdiDeleteAlert
   } from '@mdi/js';
 
   let {
@@ -21,7 +25,8 @@
     onToggle,
     onRange,
     onActivate,
-    onLoupe
+    onLoupe,
+    onDeleteCopy
   }: {
     asset: AssetSummary;
     active?: boolean;
@@ -31,11 +36,17 @@
     onRange?: () => void;
     onActivate?: () => void;
     onLoupe?: () => void;
+    onDeleteCopy?: () => void;
   } = $props();
+
+  let pendingDelete = $state(false);
 
   const rating = $derived(asset.exifInfo?.rating ?? 0);
   const rejected = $derived(isRejected(asset));
   const src = $derived(assetThumbUrl(asset.id));
+  const copyBadge = $derived(
+    isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
+  );
 
   function onClick(e: MouseEvent): void {
     if (e.shiftKey) {
@@ -71,6 +82,17 @@
       return;
     }
     onToggle?.();
+  }
+
+  function onDeleteClick(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!pendingDelete) {
+      pendingDelete = true;
+      return;
+    }
+    pendingDelete = false;
+    onDeleteCopy?.();
   }
 </script>
 
@@ -117,15 +139,41 @@
       <Icon path={mdiCloseCircle} size={16} />
     </div>
   {/if}
-  <button
-    type="button"
-    onclick={onLoupeClick}
-    aria-label="Quick review"
-    title={hint('Quick review', 'openLoupe')}
-    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-md rounded-full p-1.5 bg-black/40 hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100"
+  <div
+    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100"
   >
-    <Icon path={mdiEyeOutline} size={22} />
-  </button>
+    <button
+      type="button"
+      onclick={onLoupeClick}
+      aria-label="Quick review"
+      title={hint('Quick review', 'openLoupe')}
+      class="text-white drop-shadow-md rounded-full p-1.5 bg-black/40 hover:bg-black/70 transition-colors"
+    >
+      <Icon path={mdiEyeOutline} size={22} />
+    </button>
+    {#if copyBadge && onDeleteCopy}
+      <button
+        type="button"
+        onclick={onDeleteClick}
+        onmouseleave={() => (pendingDelete = false)}
+        aria-label={pendingDelete ? 'Confirm delete copy' : 'Delete copy'}
+        title={pendingDelete ? 'Click again to delete' : 'Delete this virtual copy'}
+        class="drop-shadow-md rounded-full p-1.5 transition-colors {pendingDelete
+          ? 'bg-red-500/80 text-white hover:bg-red-500'
+          : 'bg-black/40 text-white hover:bg-black/70 hover:text-red-400'}"
+      >
+        <Icon path={pendingDelete ? mdiDeleteAlert : mdiDelete} size={22} />
+      </button>
+    {/if}
+  </div>
+  {#if copyBadge}
+    <div
+      class="absolute bottom-1 right-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white pointer-events-none max-w-[70%]"
+    >
+      <Icon path={mdiContentDuplicate} size={12} />
+      <span class="truncate">{copyBadge}</span>
+    </div>
+  {/if}
   {#if rating > 0}
     <div
       class="absolute bottom-1 left-1 flex items-center gap-0.5 text-white drop-shadow-md pointer-events-none"

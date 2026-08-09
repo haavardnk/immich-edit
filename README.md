@@ -43,6 +43,7 @@ Edits:
 - Click or drag a box on the photo to select an object, then refine it point by point
 - Lens corrections via lensfun profiles (distortion, vignette, chromatic aberration)
 - Presets (save, apply, batch apply across selections)
+- Virtual copies: several independent edit versions of one photo, without duplicating anything in Immich
 - Undo/redo while editing, plus saved edit history with expandable change details and restore
 
 Batch:

@@ -213,7 +213,7 @@ Reverse-proxy probes should hit `/api/health/live`. Monitoring that needs detail
 
 immich-edit keeps durable data in `DATA_DIR` (default `./data`, `/data` in Docker):
 
-- `immich-edit.db` (sqlite) - edits, edit history, imported-library metadata, and export jobs
+- `immich-edit.db` (sqlite) - edits, edit history, virtual copies, imported-library metadata, and export jobs
 - `instance.key` - AES key that decrypts each user's stored Immich credentials; without it the database's saved logins are unrecoverable
 - `dcp/` - content-addressed user and bundled DCP files referenced by the database
 - `luts/` - imported `.cube` files referenced by edits

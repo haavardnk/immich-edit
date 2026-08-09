@@ -34,4 +34,6 @@ export interface AssetDetail {
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
   tags: TagRef[];
+  copyOf?: string;
+  copyLabel?: string;
 }

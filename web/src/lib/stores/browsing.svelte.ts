@@ -26,6 +26,27 @@ class BrowsingStore {
     this.assets[idx] = { ...this.assets[idx], ...fields };
   }
 
+  insertCopy(copyId: string, source: string, label: string | null): void {
+    if (this.assets.some((a) => a.id === copyId)) return;
+    const start = this.assets.findIndex((a) => a.id === source);
+    if (start < 0) return;
+    let at = start + 1;
+    while (at < this.assets.length && this.assets[at].copyOf === source) at += 1;
+    const copy: AssetSummary = {
+      ...this.assets[start],
+      id: copyId,
+      copyOf: source,
+      copyLabel: label ?? undefined
+    };
+    this.assets.splice(at, 0, copy);
+  }
+
+  remove(id: string): void {
+    const idx = this.assets.findIndex((a) => a.id === id);
+    if (idx < 0) return;
+    this.assets.splice(idx, 1);
+  }
+
   prevOf(id: string): AssetSummary | null {
     const idx = this.assets.findIndex((a) => a.id === id);
     if (idx <= 0) return null;

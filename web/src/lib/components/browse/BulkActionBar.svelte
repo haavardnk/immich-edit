@@ -6,6 +6,7 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { listTags, addTagToAsset, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
+  import { createVirtualCopy } from '$lib/copies';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
   import { ensureRejectTag, isManagedTag, setRejectedTags, toTagRef } from '$lib/reject';
@@ -18,6 +19,7 @@
     mdiCloseCircle,
     mdiCloseCircleOutline,
     mdiCompare,
+    mdiContentDuplicate,
     mdiHeart,
     mdiHeartOutline,
     mdiStar,
@@ -100,6 +102,26 @@
     void applyMeta((id) => updateAsset(id, { isFavorite: value }));
   }
 
+  async function createCopies(): Promise<void> {
+    if (busy || selection.allFiltered) return;
+    busy = true;
+    const ids = [...selection.selected];
+    let failed = 0;
+    await runPool(ids, 4, async (id) => {
+      try {
+        await createVirtualCopy(id, { navigate: false });
+      } catch {
+        failed += 1;
+      }
+    });
+    busy = false;
+    if (failed > 0) {
+      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
+    } else {
+      toasts.push('success', `Created ${ids.length} virtual copies`, 4000);
+    }
+  }
+
   function setRating(value: number): void {
     void applyMeta((id) => updateAsset(id, { rating: value }));
   }
@@ -167,7 +189,9 @@
   <div
     class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-2 bg-immich-dark-gray border border-white/10 rounded-xl shadow-2xl px-3 py-2 max-w-[95vw]"
   >
-    <div class="flex items-center gap-2 flex-wrap text-xs">
+    <div
+      class="flex items-center gap-2 *:shrink-0 overflow-x-auto scrollbar-hidden text-xs whitespace-nowrap"
+    >
       <span class="font-medium px-1">{selection.targetCount} selected</span>
       <button
         class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -276,6 +300,15 @@
 
       <div class="w-px h-5 bg-white/10"></div>
 
+      <button
+        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
+        disabled={metaBusy}
+        onclick={() => void createCopies()}
+        title={hint('Create a virtual copy', 'createVirtualCopy')}
+        aria-label="Create virtual copy"
+      >
+        <Icon path={mdiContentDuplicate} size={16} />
+      </button>
       <button
         class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 {showTags
           ? 'bg-white/10'

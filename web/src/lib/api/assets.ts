@@ -1,5 +1,6 @@
 import { getJson, sendJson } from './client';
 import type { AssetDetail } from '$lib/types/asset';
+import { sourceId } from '$lib/assetKey';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 
 export function getAsset(id: string): Promise<AssetDetail> {
@@ -24,5 +25,5 @@ export function assetThumbUrl(
   editedSize = 400
 ): string {
   const hash = editedThumbs.getHash(id);
-  return hash ? editedThumbUrl(id, hash, editedSize) : thumbUrl(id, immichSize);
+  return hash ? editedThumbUrl(id, hash, editedSize) : thumbUrl(sourceId(id), immichSize);
 }

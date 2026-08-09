@@ -7,10 +7,13 @@
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import { compare } from '$lib/stores/compare.svelte';
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { ui } from '$lib/stores/ui.svelte';
+  import { deleteCopy } from '$lib/api/copies';
+  import { isCopy } from '$lib/assetKey';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { isRejected } from '$lib/reject';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
@@ -183,6 +186,19 @@
     compare.enter(mode, members);
   }
 
+  async function removeCopy(id: string): Promise<void> {
+    try {
+      await deleteCopy(id);
+    } catch (e) {
+      toasts.push('error', `delete copy: ${(e as Error).message}`);
+      return;
+    }
+    if (selection.selected.has(id)) selection.toggle(id);
+    if (browseView.activeId === id) browseView.setActive(null);
+    browsing.remove(id);
+    toasts.push('success', 'Virtual copy deleted');
+  }
+
   function onKeydown(e: KeyboardEvent): void {
     if (browseView.loupeId || isTyping()) return;
 
@@ -307,6 +323,7 @@
           )}
         onActivate={() => browseView.setActive(asset.id)}
         onLoupe={() => browseView.openLoupe(asset.id)}
+        onDeleteCopy={isCopy(asset.id) ? () => void removeCopy(asset.id) : undefined}
       />
     {/each}
   </div>

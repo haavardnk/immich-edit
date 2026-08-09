@@ -26,4 +26,6 @@ export interface AssetSummary {
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
   tags: TagRef[];
+  copyOf?: string;
+  copyLabel?: string;
 }

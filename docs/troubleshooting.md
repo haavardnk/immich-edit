@@ -128,6 +128,14 @@ Two browser tabs edited the same asset. The losing tab gets the current server s
 
 The upload is recorded as complete; tag/album/stack steps are best-effort. The result panel surfaces warnings inline. Retrying the same export uses the same idempotency key and skips the upload, only retrying the side-effect steps.
 
+### A rating or tag set on a virtual copy shows up on every version
+
+Only edits, edit history, masks, and export jobs are per-copy. Rating, favorite, tags, and reject marks live in Immich, which knows nothing about copies, so all versions of a photo share them.
+
+### A deleted virtual copy's number is not reused
+
+Copy numbers come from the highest number ever used for that photo, including deleted ones. Delete `_2` and the next copy is `_3`. This keeps old links, cached thumbnails, and queued export jobs from resolving to a different copy's edits.
+
 ## Performance
 
 ### Where do I find render timings?

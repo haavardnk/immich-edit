@@ -296,6 +296,13 @@ export const KEYBINDS = [
     label: 'Open Masks'
   },
   {
+    id: 'createVirtualCopy',
+    keys: ["Mod+'"],
+    contexts: ['grid', 'loupe', 'editor'],
+    group: 'Editor',
+    label: 'Create a virtual copy'
+  },
+  {
     id: 'perspective',
     keys: ['Shift+p'],
     contexts: ['editor'],
