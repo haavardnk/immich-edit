@@ -47,6 +47,7 @@ class BrowseViewStore {
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
+  lastGridPath = $state<string | null>(null);
   private gridScroll = new Map<string, number>();
 
   constructor() {
@@ -86,6 +87,10 @@ class BrowseViewStore {
 
   setActive(id: string | null): void {
     this.activeId = id;
+  }
+
+  setLastGridPath(path: string): void {
+    this.lastGridPath = path;
   }
 
   setGridScroll(key: string, top: number): void {

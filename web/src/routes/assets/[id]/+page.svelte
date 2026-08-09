@@ -5,6 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { backToGrid } from '$lib/backToGrid';
   import { createVirtualCopy } from '$lib/copies';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import { isKeybind, isTypingTarget, matchKeybind } from '$lib/keybinds';
@@ -79,7 +80,7 @@
         return;
       }
       case 'backToGrid':
-        if (window.history.length > 1) window.history.back();
+        void backToGrid(id);
         return;
       case 'undo':
         editor.undo();

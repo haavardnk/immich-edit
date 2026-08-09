@@ -275,6 +275,7 @@
     selection.clear();
     if (!root) return;
     scrollKey = `${window.location.pathname}${window.location.search}`;
+    browseView.setLastGridPath(scrollKey);
     const savedTop = browseView.getGridScroll(scrollKey);
     pendingRestore = savedTop > 0 ? savedTop : null;
     scrollParent = findScrollParent(root);

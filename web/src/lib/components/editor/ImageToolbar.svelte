@@ -6,6 +6,7 @@
   import SoftProofControl from './SoftProofControl.svelte';
   import { hint } from '$lib/keybinds';
   import { copyIndex, isCopy } from '$lib/assetKey';
+  import { backToGrid } from '$lib/backToGrid';
   import { createVirtualCopy } from '$lib/copies';
   import {
     mdiArrowLeft,
@@ -23,9 +24,7 @@
   );
 
   function goBack(): void {
-    if (window.history.length > 1) {
-      window.history.back();
-    }
+    void backToGrid(assetId);
   }
 
   function holdOriginal(down: boolean): void {

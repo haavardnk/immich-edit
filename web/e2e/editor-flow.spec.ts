@@ -53,3 +53,37 @@ test('photos grid restores scroll after editor back', async ({ page }) => {
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBeCloseTo(before, 0);
   await expect(link).toBeVisible();
 });
+
+test('back returns to the grid and selects the photo left open', async ({ page }) => {
+  const second = '00000000-0000-0000-0000-000000000002';
+  await installMocks(page, {
+    assets: [
+      ASSET_SUMMARY,
+      { ...ASSET_SUMMARY, id: second, originalFileName: 'IMG_0002.ARW', checksum: 'bbbb' }
+    ]
+  });
+
+  await page.goto('/search?q=IMG');
+  const first = page.locator(`a[href="/assets/${ASSET_ID}"]`).first();
+  await expect(first).toBeVisible();
+  await first.evaluate((el) => (el as HTMLAnchorElement).click());
+  await page.waitForURL(`**/assets/${ASSET_ID}`);
+
+  await page.locator(`a[href="/assets/${second}"]`).first().click();
+  await page.waitForURL(`**/assets/${second}`);
+
+  await page.getByTitle('Back').click();
+  await page.waitForURL('**/search?q=IMG');
+  await expect(
+    page.getByRole('main').locator(`div:has(> a[href="/assets/${second}"])`)
+  ).toHaveClass(/ring-immich-dark-primary/);
+});
+
+test('back from a directly opened photo lands on a clean grid', async ({ page }) => {
+  await installMocks(page);
+
+  await page.goto(`/assets/${ASSET_ID}`);
+  await page.getByTitle('Back').click();
+  await page.waitForURL('**/photos');
+  await expect(page.getByRole('main').locator('.ring-immich-dark-primary')).toHaveCount(0);
+});
