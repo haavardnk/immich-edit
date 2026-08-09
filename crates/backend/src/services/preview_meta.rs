@@ -7,13 +7,15 @@ use serde::Serialize;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+
 const DEFAULT_CAP: usize = 512;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PreviewMeta {
     #[serde(skip)]
     pub owner: Uuid,
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
     pub width: u32,
     pub height: u32,
     pub source_w: u32,
@@ -75,7 +77,7 @@ mod tests {
     fn meta() -> PreviewMeta {
         PreviewMeta {
             owner: Uuid::nil(),
-            asset_id: Uuid::new_v4(),
+            asset_id: AssetKey::master(Uuid::new_v4()),
             width: 1,
             height: 1,
             source_w: 1,

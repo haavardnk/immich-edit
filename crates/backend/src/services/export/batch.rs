@@ -5,6 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::services::job_runner::{ItemOutcome, JobExecutor};
 use crate::services::job_store::{JobItemRecord, JobRecord};
 use crate::services::render::RenderIdentity;
@@ -51,8 +52,10 @@ impl JobExecutor for BatchExecutor {
     ) -> Pin<Box<dyn Future<Output = ItemOutcome> + Send>> {
         let state = self.state.clone();
         Box::pin(async move {
-            let asset_id =
-                Uuid::parse_str(&item.asset_id).map_err(|_| "invalid asset id".to_string())?;
+            let asset_id = item
+                .asset_id
+                .parse::<AssetKey>()
+                .map_err(|_| "invalid asset id".to_string())?;
             match job.kind.as_str() {
                 EXPORT_JOB_KIND => run_immich_item(&state, &job, asset_id).await,
                 DOWNLOAD_ZIP_KIND => run_zip_item(&state, &job, asset_id).await,
@@ -80,7 +83,7 @@ async fn job_edits(
     state: &AppState,
     owner: Uuid,
     params: &ExportJobParams,
-    asset_id: Uuid,
+    asset_id: AssetKey,
 ) -> Result<Edits, String> {
     match &params.manifest {
         Some(manifest) => Ok(manifest.to_edits()),
@@ -129,7 +132,7 @@ pub async fn job_immich(
     .map_err(|e| e.to_string())
 }
 
-async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
+async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
     let params = parse_job_params(job)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
@@ -162,12 +165,15 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> I
     serde_json::to_value(result).map_err(|e| e.to_string())
 }
 
-async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: Uuid) -> ItemOutcome {
+async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
     let params = parse_job_params(job)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let suffix = validate_suffix(&params.filename_suffix).map_err(|e| e.to_string())?;
-    let original = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
+    let original = immich
+        .asset(asset_id.source())
+        .await
+        .map_err(|e| e.to_string())?;
     let (bytes, output) = render_export(
         state,
         RenderIdentity {

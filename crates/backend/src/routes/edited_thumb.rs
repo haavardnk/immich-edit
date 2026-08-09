@@ -3,8 +3,8 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
-use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::edited_thumb::EditedThumbError;
@@ -21,7 +21,7 @@ pub struct EditedThumbQuery {
 pub async fn get(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Query(q): Query<EditedThumbQuery>,
 ) -> Result<Response, AppError> {
     let size = q.size.unwrap_or(400).clamp(128, 1024);

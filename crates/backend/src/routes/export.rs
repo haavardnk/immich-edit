@@ -3,8 +3,8 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
-use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
@@ -18,7 +18,7 @@ pub use crate::services::export::{
 pub async fn get_export(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Query(params): Query<ExportParams>,
 ) -> Result<Response, AppError> {
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
@@ -40,7 +40,7 @@ pub async fn get_export(
 pub async fn post_export(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Json(body): Json<ExportBody>,
 ) -> Result<Response, AppError> {
     let (bytes, output) = export::render_export(
@@ -59,7 +59,7 @@ pub async fn post_export(
 }
 
 fn download_response(
-    id: Uuid,
+    id: AssetKey,
     bytes: bytes::Bytes,
     output: raw_pipeline::frame::OutputFormat,
 ) -> Response {
@@ -78,7 +78,7 @@ fn download_response(
 pub async fn post_export_immich(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     headers: HeaderMap,
     Json(body): Json<ExportToImmichBody>,
 ) -> Result<Json<ExportToImmichResult>, AppError> {

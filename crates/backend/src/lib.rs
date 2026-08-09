@@ -1,4 +1,5 @@
 pub mod app;
+pub mod asset_key;
 pub mod config;
 pub mod error;
 pub mod immich;

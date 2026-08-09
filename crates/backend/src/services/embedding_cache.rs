@@ -10,6 +10,8 @@ use tokio::fs;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+
 const MEMORY_SLOTS: usize = 3;
 const DISK_SLOTS: usize = 8192;
 const MB: u64 = 1024 * 1024;
@@ -29,7 +31,7 @@ pub enum EmbeddingCacheError {
 pub struct EmbeddingKey {
     pub server_epoch: i64,
     pub owner: Uuid,
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
     pub width: u32,
     pub height: u32,
 }
@@ -340,7 +342,7 @@ mod tests {
         EmbeddingKey {
             server_epoch: 1,
             owner: Uuid::nil(),
-            asset_id: asset,
+            asset_id: AssetKey::master(asset),
             width: 4096,
             height: 2048,
         }

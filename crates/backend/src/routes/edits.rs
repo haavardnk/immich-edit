@@ -5,8 +5,8 @@ use axum::response::{IntoResponse, Response};
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use serde::Deserialize;
-use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{
@@ -52,7 +52,7 @@ pub async fn list(
 pub async fn get(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
 ) -> Result<Json<EditRecord>, AppError> {
     let record = state.edits.get(ctx.owner, id).await?;
     let record = match record {
@@ -74,7 +74,7 @@ pub async fn get(
 pub async fn put(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     headers: HeaderMap,
     Json(body): Json<PutEditsBody>,
 ) -> Result<Response, AppError> {
@@ -109,7 +109,7 @@ pub async fn put(
             return Ok((StatusCode::CONFLICT, Json(body)).into_response());
         }
     }
-    let asset = ctx.immich.asset(id).await?;
+    let asset = ctx.immich.asset(id.source()).await?;
     let saved = state
         .edits
         .put(
@@ -127,7 +127,7 @@ pub async fn put(
 pub async fn delete(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     body: Option<Json<ActionBody>>,
 ) -> Result<StatusCode, AppError> {
     let action = body
@@ -143,7 +143,7 @@ pub async fn delete(
 pub async fn auto(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     body: axum::body::Bytes,
 ) -> Result<Json<Edits>, AppError> {
     let context = if body.is_empty() {
@@ -159,7 +159,7 @@ pub async fn auto(
                 server_epoch: ctx.server_epoch,
             },
             &ctx.immich,
-            id,
+            id.source(),
         )
         .await
         .map_err(|e| match e {
@@ -181,7 +181,7 @@ pub async fn auto(
 pub async fn history(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
 ) -> Result<Json<Vec<EditHistoryEntry>>, AppError> {
     let entries = state.edits.list_history(ctx.owner, id).await?;
     Ok(Json(entries))
@@ -195,7 +195,7 @@ pub struct RestoreBody {
 pub async fn restore(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Json(body): Json<RestoreBody>,
 ) -> Result<Response, AppError> {
     let Some(entry) = state

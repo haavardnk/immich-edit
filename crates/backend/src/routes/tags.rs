@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::{BulkIdResponse, TagSummary};
 use crate::routes::auth::AuthCtx;
@@ -39,9 +40,9 @@ pub async fn upsert(
 pub async fn tag_asset(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path((tag_id, asset_id)): Path<(Uuid, Uuid)>,
+    Path((tag_id, asset_id)): Path<(Uuid, AssetKey)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
-    let resp = ctx.immich.tag_asset(tag_id, asset_id).await?;
+    let resp = ctx.immich.tag_asset(tag_id, asset_id.source()).await?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
@@ -52,9 +53,9 @@ pub async fn tag_asset(
 pub async fn untag_asset(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path((tag_id, asset_id)): Path<(Uuid, Uuid)>,
+    Path((tag_id, asset_id)): Path<(Uuid, AssetKey)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
-    let resp = ctx.immich.untag_asset(tag_id, asset_id).await?;
+    let resp = ctx.immich.untag_asset(tag_id, asset_id.source()).await?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)

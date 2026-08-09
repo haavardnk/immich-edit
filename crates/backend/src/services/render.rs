@@ -157,16 +157,16 @@ impl RenderService {
         &self,
         identity: RenderIdentity,
         immich: &ImmichClient,
-        asset_id: Uuid,
+        source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
         let key = FrameCacheKey {
             server_epoch: identity.server_epoch,
-            asset_id,
+            asset_id: source,
         };
         if let Some(f) = self.frames.lock().await.get(&key) {
             return Ok(f);
         }
-        let bytes = immich.original(asset_id).await?;
+        let bytes = immich.original(source).await?;
         let frame = decode_blocking(bytes).await?;
         let frame = Arc::new(frame);
         self.frames.lock().await.put(key, frame.clone());
@@ -177,16 +177,16 @@ impl RenderService {
         &self,
         identity: RenderIdentity,
         immich: &ImmichClient,
-        asset_id: Uuid,
+        source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
         let key = FrameCacheKey {
             server_epoch: identity.server_epoch,
-            asset_id,
+            asset_id: source,
         };
         if let Some(f) = self.quality_frames.lock().await.get(&key) {
             return Ok(f);
         }
-        let bytes = immich.original(asset_id).await?;
+        let bytes = immich.original(source).await?;
         let frame = decode_quality_blocking(bytes).await?;
         self.quality_frames.lock().await.put(key, frame.clone());
         Ok(frame)
@@ -196,15 +196,15 @@ impl RenderService {
         &self,
         identity: RenderIdentity,
         immich: ImmichClient,
-        asset_id: Uuid,
+        source: Uuid,
         edits: Edits,
         mut options: RenderOptions,
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
         let frame = if options.quality {
-            self.quality_frame(identity, &immich, asset_id).await?
+            self.quality_frame(identity, &immich, source).await?
         } else {
-            self.frame(identity, &immich, asset_id).await?
+            self.frame(identity, &immich, source).await?
         };
         options.rasters = self.load_rasters_for(identity, &edits).await;
         options.luts = self.load_luts_for(&edits).await?;

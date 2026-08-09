@@ -1,5 +1,4 @@
-use uuid::Uuid;
-
+use crate::asset_key::AssetKey;
 use crate::services::job_runner::ItemOutcome;
 use crate::services::job_store::JobRecord;
 use crate::state::AppState;
@@ -9,7 +8,7 @@ pub const RESET_EDITS_KIND: &str = "reset_edits";
 pub async fn run_reset_edits_item(
     state: &AppState,
     job: &JobRecord,
-    asset_id: Uuid,
+    asset_id: AssetKey,
 ) -> ItemOutcome {
     let deleted = state
         .edits

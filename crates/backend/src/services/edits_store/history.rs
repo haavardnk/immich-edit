@@ -10,7 +10,7 @@ impl EditsStore {
     pub(super) async fn write_history(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         manifest_hash: &str,
         edits_json: Option<&str>,
         deleted: bool,
@@ -47,7 +47,7 @@ impl EditsStore {
     pub async fn list_history(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
     ) -> Result<Vec<EditHistoryEntry>, EditsStoreError> {
         let rows = sqlx::query(
             "SELECT id, manifest_hash, edits_json, deleted, created_at, action \
@@ -79,7 +79,7 @@ impl EditsStore {
     pub async fn restore_to_entry(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         entry: &EditHistoryEntry,
     ) -> Result<Option<EditRecord>, EditsStoreError> {
         let current = self.get(owner, asset_id).await?;
@@ -139,7 +139,7 @@ impl EditsStore {
     pub async fn get_history_entry(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         entry_id: i64,
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
         let row = sqlx::query(
@@ -172,7 +172,7 @@ impl EditsStore {
     pub async fn get_history_entry_by_hash(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         manifest_hash: &str,
     ) -> Result<Option<EditHistoryEntry>, EditsStoreError> {
         let row = sqlx::query(

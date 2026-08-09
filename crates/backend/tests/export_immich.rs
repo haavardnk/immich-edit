@@ -1,12 +1,13 @@
 mod common;
 
+use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::routes::export::{
     ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
 };
 
 #[test]
 fn hash_request_differs_by_color_space() {
-    let asset = uuid::Uuid::nil();
+    let asset = AssetKey::master(uuid::Uuid::nil());
     let make = |cs: ColorSpaceOpt| ExportToImmichBody {
         edits: Default::default(),
         params: ExportParams {
@@ -90,7 +91,7 @@ async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
 async fn export_immich_idempotency_returns_cached_without_reupload() {
     let server = MockServer::start().await;
     let state = test_state(&server).await;
-    let asset = asset_id();
+    let asset = AssetKey::master(asset_id());
     let uploaded = Uuid::new_v4();
     let body = ExportToImmichBody {
         edits: Default::default(),

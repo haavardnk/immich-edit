@@ -8,6 +8,7 @@ use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
@@ -44,7 +45,7 @@ pub struct LivePreviewBody {
 pub async fn get_preview(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Query(q): Query<PreviewQuery>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
@@ -97,7 +98,7 @@ fn attach_validators(resp: &mut Response, etag: &str) {
 pub async fn post_preview(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(id): Path<Uuid>,
+    Path(id): Path<AssetKey>,
     Json(body): Json<LivePreviewBody>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
@@ -119,7 +120,7 @@ pub async fn post_preview(
 pub async fn get_meta(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path((asset_id, meta_id)): Path<(Uuid, Uuid)>,
+    Path((asset_id, meta_id)): Path<(AssetKey, Uuid)>,
 ) -> Result<Json<PreviewMeta>, AppError> {
     match state.preview_meta.get(meta_id).await {
         Some(meta) if meta.owner == ctx.owner && meta.asset_id == asset_id => Ok(Json(meta)),
@@ -132,7 +133,7 @@ pub async fn get_meta(
 async fn render_to_response(
     state: &AppState,
     ctx: &AuthCtx,
-    asset_id: Uuid,
+    asset_id: AssetKey,
     edits: Edits,
     max_edge: u32,
     preview_mode: PreviewMode,
@@ -173,7 +174,7 @@ async fn render_to_response(
     let work = render.render(
         identity,
         ctx.immich.clone(),
-        asset_id,
+        asset_id.source(),
         edits,
         opts,
         Some(token),

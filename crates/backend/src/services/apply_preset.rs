@@ -3,6 +3,7 @@ use raw_pipeline::edits::Edits;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::services::edit_merge::{MergeSections, merge_edits};
 use crate::services::job_runner::ItemOutcome;
 use crate::services::job_store::JobRecord;
@@ -31,7 +32,7 @@ pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -
 pub async fn run_apply_preset_item(
     state: &AppState,
     job: &JobRecord,
-    asset_id: Uuid,
+    asset_id: AssetKey,
 ) -> ItemOutcome {
     let params: ApplyPresetParams = serde_json::from_value(job.params.clone())
         .map_err(|e| format!("invalid apply preset params: {e}"))?;
@@ -49,7 +50,10 @@ pub async fn run_apply_preset_item(
     let merged = merge_preset(current, preset.manifest.to_edits(), &params);
     let manifest = EditManifest::from_edits(&merged);
     let immich = crate::services::export::job_immich(state, job).await?;
-    let asset = immich.asset(asset_id).await.map_err(|e| e.to_string())?;
+    let asset = immich
+        .asset(asset_id.source())
+        .await
+        .map_err(|e| e.to_string())?;
     let action = format!("Apply preset: {}", preset.name);
     let saved = state
         .edits

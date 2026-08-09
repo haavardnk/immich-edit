@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
@@ -216,7 +217,7 @@ pub struct ExportToImmichResult {
 }
 
 pub struct ExportImmichRequest<'a> {
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
     pub server_epoch: i64,
     pub body: &'a ExportToImmichBody,
     pub idempotency_key: Option<String>,
@@ -227,13 +228,13 @@ pub async fn render_export(
     state: &AppState,
     identity: RenderIdentity,
     immich: &crate::immich::ImmichClient,
-    id: Uuid,
+    id: AssetKey,
     edits: Edits,
     params: &ExportParams,
 ) -> Result<(Bytes, OutputFormat), AppError> {
     let frame = state
         .render
-        .frame(identity, immich, id)
+        .frame(identity, immich, id.source())
         .await
         .map_err(map_render_err)?;
     let output = params.output_format();
@@ -246,7 +247,7 @@ pub async fn render_export(
     };
     let rendered = state
         .render
-        .render(identity, immich.clone(), id, edits, opts, None)
+        .render(identity, immich.clone(), id.source(), edits, opts, None)
         .await
         .map_err(map_render_err)?;
 
@@ -304,7 +305,7 @@ pub async fn export_to_immich(
 
     let result: Result<ExportToImmichResult, AppError> = async {
         let suffix = validate_suffix(&body.filename_suffix)?;
-        let original = immich.asset(id).await?;
+        let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
         let (bytes, output) = render_export(
@@ -391,13 +392,13 @@ pub async fn export_to_immich(
     result
 }
 
-pub fn hash_request(asset_id: Uuid, body: &ExportToImmichBody) -> String {
+pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
     let mut album_ids = body.album_ids.clone();
     album_ids.sort();
     let mut tag_ids = body.tag_ids.clone();
     tag_ids.sort();
     let canonical = serde_json::json!({
-        "asset_id": asset_id,
+        "asset_id": asset_id.to_string(),
         "edits": body.edits.clamped(),
         "format": format!("{:?}", body.params.format),
         "quality": body.params.quality,
@@ -435,7 +436,7 @@ async fn resume_export_job(
     immich: &crate::immich::ImmichClient,
     owner: Uuid,
     server_epoch: i64,
-    asset_id: Uuid,
+    asset_id: AssetKey,
     key: &str,
     body: &ExportToImmichBody,
     existing: ExportJobRecord,
@@ -443,7 +444,7 @@ async fn resume_export_job(
     let Some(new_id) = existing.immich_asset_id else {
         return Err(AppError::Internal);
     };
-    let original = immich.asset(asset_id).await?;
+    let original = immich.asset(asset_id.source()).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
     let warnings = run_post_upload(
         state,

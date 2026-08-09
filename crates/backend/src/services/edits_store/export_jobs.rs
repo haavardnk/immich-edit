@@ -8,7 +8,7 @@ impl EditsStore {
     pub async fn get_export_job(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         key: &str,
     ) -> Result<Option<ExportJobRecord>, EditsStoreError> {
         let row = sqlx::query(
@@ -47,7 +47,7 @@ impl EditsStore {
     pub async fn reserve_export_job(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         key: &str,
         request_hash: &str,
     ) -> Result<bool, EditsStoreError> {
@@ -70,7 +70,7 @@ impl EditsStore {
     pub async fn delete_pending_export_job(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         key: &str,
     ) -> Result<(), EditsStoreError> {
         sqlx::query(
@@ -89,7 +89,7 @@ impl EditsStore {
     pub async fn put_export_job_uploaded(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         key: &str,
         request_hash: &str,
         immich_asset_id: Uuid,
@@ -124,7 +124,7 @@ impl EditsStore {
     pub async fn complete_export_job(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         key: &str,
         warnings: &[String],
     ) -> Result<(), EditsStoreError> {

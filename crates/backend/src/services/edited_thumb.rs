@@ -8,6 +8,7 @@ use tokio::fs;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::services::render::{RenderError, RenderIdentity, RenderService};
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
@@ -73,7 +74,7 @@ impl EditedThumbService {
     fn cache_path(
         &self,
         identity: RenderIdentity,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         hash: &str,
         size: u32,
     ) -> PathBuf {
@@ -89,7 +90,7 @@ impl EditedThumbService {
         render: &RenderService,
         identity: RenderIdentity,
         immich: crate::immich::ImmichClient,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         edits: Edits,
         expected_hash: &str,
         size: u32,
@@ -127,7 +128,7 @@ impl EditedThumbService {
             ..Default::default()
         };
         let rendered = render
-            .render(identity, immich, asset_id, edits, opts, None)
+            .render(identity, immich, asset_id.source(), edits, opts, None)
             .await?;
         let tmp = path.with_extension(format!("{}.tmp", Uuid::new_v4()));
         fs::write(&tmp, &rendered.bytes).await?;

@@ -3,8 +3,8 @@ use axum::extract::{Path, State};
 use ml::{BakeParams, BoxPrompt, ClickPoint, ModelKind, RangeWindow};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::preview::map_render_err;
@@ -121,7 +121,7 @@ pub struct GenerateResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct RebakeRequest {
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
     pub prob_raster_id: String,
     #[serde(default)]
     pub grow: f32,
@@ -209,7 +209,7 @@ fn map_segment_err(err: SegmentServiceError) -> AppError {
 async fn scene_render(
     state: &AppState,
     ctx: &AuthCtx,
-    asset_id: Uuid,
+    asset_id: AssetKey,
 ) -> Result<(Vec<u8>, u32, u32), AppError> {
     let mut edits = state
         .edits
@@ -231,7 +231,14 @@ async fn scene_render(
     };
     let rendered = state
         .render
-        .render(identity, ctx.immich.clone(), asset_id, edits, opts, None)
+        .render(
+            identity,
+            ctx.immich.clone(),
+            asset_id.source(),
+            edits,
+            opts,
+            None,
+        )
         .await
         .map_err(map_render_err)?;
     Ok((rendered.bytes, rendered.width, rendered.height))
@@ -240,7 +247,7 @@ async fn scene_render(
 pub async fn generate(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(asset_id): Path<Uuid>,
+    Path(asset_id): Path<AssetKey>,
     Json(req): Json<GenerateRequest>,
 ) -> Result<Json<GenerateResponse>, AppError> {
     if !state.segment.enabled() {
@@ -320,7 +327,7 @@ pub async fn rebake(
 pub async fn click(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Path(asset_id): Path<Uuid>,
+    Path(asset_id): Path<AssetKey>,
     Json(req): Json<ClickRequest>,
 ) -> Result<Json<GenerateResponse>, AppError> {
     if !state.segment.enabled() {

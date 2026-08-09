@@ -8,6 +8,8 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+
 pub const RENDERER_VERSION: &str = "0.1.0";
 const SCHEMA_VERSION: i64 = 2;
 
@@ -28,7 +30,7 @@ pub enum EditsStoreError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditRecord {
     pub schema_version: u32,
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
     pub immich_updated_at: Option<String>,
     pub immich_checksum: Option<String>,
     pub renderer_version: String,
@@ -39,7 +41,7 @@ pub struct EditRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditedAssetEntry {
-    pub id: Uuid,
+    pub id: AssetKey,
     pub hash: String,
     pub updated_at: String,
 }
@@ -109,7 +111,7 @@ impl EditsStore {
     pub async fn get(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
     ) -> Result<Option<EditRecord>, EditsStoreError> {
         let row = sqlx::query(
             "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
@@ -145,7 +147,7 @@ impl EditsStore {
     pub async fn get_edits_or_default(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
     ) -> Result<Edits, EditsStoreError> {
         let row = sqlx::query("SELECT edits_json FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
@@ -163,7 +165,7 @@ impl EditsStore {
     pub async fn put(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         manifest: EditManifest,
         immich_updated_at: Option<String>,
         immich_checksum: Option<String>,
@@ -225,7 +227,7 @@ impl EditsStore {
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
             let s: String = row.try_get("asset_id")?;
-            let Ok(id) = Uuid::parse_str(&s) else {
+            let Ok(id) = s.parse::<AssetKey>() else {
                 continue;
             };
             let edits_json: String = row.try_get("edits_json")?;
@@ -245,7 +247,7 @@ impl EditsStore {
     pub async fn delete(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
         action: Option<&str>,
     ) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
@@ -266,7 +268,7 @@ impl EditsStore {
     async fn refresh_raster_refs(
         &self,
         owner: Uuid,
-        asset_id: Uuid,
+        asset_id: AssetKey,
     ) -> Result<(), EditsStoreError> {
         let owner_str = owner.to_string();
         let asset_str = asset_id.to_string();
@@ -436,6 +438,10 @@ mod tests {
 
     const O: Uuid = Uuid::nil();
 
+    fn key() -> AssetKey {
+        AssetKey::master(Uuid::new_v4())
+    }
+
     fn uid() -> Uuid {
         Uuid::new_v4()
     }
@@ -451,7 +457,7 @@ mod tests {
     #[tokio::test]
     async fn get_missing_returns_none() {
         let s = store().await;
-        if s.get(O, uid()).await.unwrap().is_some() {
+        if s.get(O, key()).await.unwrap().is_some() {
             panic!("expected none");
         }
     }
@@ -459,7 +465,7 @@ mod tests {
     #[tokio::test]
     async fn put_then_get_roundtrips() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         let manifest = manifest_with(Edits {
             basic: raw_pipeline::edits::BasicEdits {
                 exposure_ev: 1.0,
@@ -498,7 +504,7 @@ mod tests {
     #[tokio::test]
     async fn put_clamps_invalid_values() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         let manifest = manifest_with(Edits {
             basic: raw_pipeline::edits::BasicEdits {
                 exposure_ev: 99.0,
@@ -523,7 +529,7 @@ mod tests {
     #[tokio::test]
     async fn delete_removes() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         s.put(O, id, EditManifest::default(), None, None, None)
             .await
             .unwrap();
@@ -541,7 +547,7 @@ mod tests {
     #[tokio::test]
     async fn put_overwrites() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         s.put(
             O,
             id,
@@ -583,7 +589,7 @@ mod tests {
     #[tokio::test]
     async fn put_history_roundtrips_action() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         s.put(
             O,
             id,
@@ -616,7 +622,7 @@ mod tests {
     #[tokio::test]
     async fn delete_history_roundtrips_action() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         s.put(O, id, EditManifest::default(), None, None, Some("Auto"))
             .await
             .unwrap();
@@ -630,7 +636,7 @@ mod tests {
     #[tokio::test]
     async fn history_reads_null_action() {
         let s = store().await;
-        let id = uid();
+        let id = key();
         sqlx::query(
             "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at) \
              VALUES (?1, ?2, ?3, 0, ?4)",
@@ -668,7 +674,7 @@ mod tests {
     #[tokio::test]
     async fn export_job_roundtrip_and_complete() {
         let s = store().await;
-        let asset = uid();
+        let asset = key();
         let new_id = uid();
         s.put_export_job_uploaded(O, asset, "k1", "h1", new_id, "f.jpg", "created")
             .await
@@ -692,7 +698,7 @@ mod tests {
     #[tokio::test]
     async fn export_job_missing_returns_none() {
         let s = store().await;
-        if s.get_export_job(O, uid(), "x").await.unwrap().is_some() {
+        if s.get_export_job(O, key(), "x").await.unwrap().is_some() {
             panic!("expected none");
         }
     }

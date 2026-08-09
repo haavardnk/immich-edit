@@ -7,6 +7,8 @@ use raw_pipeline::CancelTracker;
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+
 const TRACKER_CAP: usize = 1024;
 const LATEST_CAP: usize = 1024;
 
@@ -14,7 +16,7 @@ const LATEST_CAP: usize = 1024;
 pub struct RenderKey {
     pub owner: Uuid,
     pub server_epoch: i64,
-    pub asset_id: Uuid,
+    pub asset_id: AssetKey,
 }
 
 #[derive(Clone)]
@@ -122,7 +124,7 @@ mod tests {
         RenderKey {
             owner: Uuid::nil(),
             server_epoch: 1,
-            asset_id,
+            asset_id: AssetKey::master(asset_id),
         }
     }
 
