@@ -153,24 +153,37 @@ impl RenderService {
         self.quality_frames.lock().await.clear();
     }
 
+    async fn cached_frame<F, Fut>(
+        cache: &Mutex<RawFrameCache>,
+        identity: RenderIdentity,
+        immich: &ImmichClient,
+        source: Uuid,
+        decode: F,
+    ) -> Result<Arc<RawFrame>, RenderError>
+    where
+        F: FnOnce(Bytes) -> Fut,
+        Fut: Future<Output = Result<Arc<RawFrame>, PipelineError>>,
+    {
+        let key = FrameCacheKey {
+            server_epoch: identity.server_epoch,
+            asset_id: source,
+        };
+        if let Some(f) = cache.lock().await.get(&key) {
+            return Ok(f);
+        }
+        let bytes = immich.original(source).await?;
+        let frame = decode(bytes).await?;
+        cache.lock().await.put(key, frame.clone());
+        Ok(frame)
+    }
+
     pub async fn frame(
         &self,
         identity: RenderIdentity,
         immich: &ImmichClient,
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        let key = FrameCacheKey {
-            server_epoch: identity.server_epoch,
-            asset_id: source,
-        };
-        if let Some(f) = self.frames.lock().await.get(&key) {
-            return Ok(f);
-        }
-        let bytes = immich.original(source).await?;
-        let frame = decode_blocking(bytes).await?;
-        let frame = Arc::new(frame);
-        self.frames.lock().await.put(key, frame.clone());
-        Ok(frame)
+        Self::cached_frame(&self.frames, identity, immich, source, decode_blocking).await
     }
 
     pub async fn quality_frame(
@@ -179,17 +192,14 @@ impl RenderService {
         immich: &ImmichClient,
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        let key = FrameCacheKey {
-            server_epoch: identity.server_epoch,
-            asset_id: source,
-        };
-        if let Some(f) = self.quality_frames.lock().await.get(&key) {
-            return Ok(f);
-        }
-        let bytes = immich.original(source).await?;
-        let frame = decode_quality_blocking(bytes).await?;
-        self.quality_frames.lock().await.put(key, frame.clone());
-        Ok(frame)
+        Self::cached_frame(
+            &self.quality_frames,
+            identity,
+            immich,
+            source,
+            decode_quality_blocking,
+        )
+        .await
     }
 
     pub async fn render(
@@ -393,10 +403,11 @@ fn init_gpu(
     }
 }
 
-async fn decode_blocking(bytes: Bytes) -> Result<RawFrame, PipelineError> {
-    tokio::task::spawn_blocking(move || raw_pipeline::decode::decode(&bytes))
+async fn decode_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
+    let frame = tokio::task::spawn_blocking(move || raw_pipeline::decode::decode(&bytes))
         .await
-        .map_err(|e| PipelineError::Decode(format!("join: {e}")))?
+        .map_err(|e| PipelineError::Decode(format!("join: {e}")))?;
+    Ok(Arc::new(frame?))
 }
 
 async fn decode_quality_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
