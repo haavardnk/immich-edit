@@ -2,6 +2,7 @@ pub mod admin;
 pub mod albums;
 pub mod assets;
 pub mod auth;
+pub mod copies;
 pub mod dcp;
 pub mod debug;
 pub mod edited_thumb;

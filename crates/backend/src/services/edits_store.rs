@@ -13,9 +13,12 @@ use crate::asset_key::AssetKey;
 pub const RENDERER_VERSION: &str = "0.1.0";
 const SCHEMA_VERSION: i64 = 2;
 
+mod copies;
 mod export_jobs;
 mod history;
 mod presets;
+
+pub use copies::CopyRecord;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
@@ -751,6 +754,95 @@ mod tests {
             .update_preset(O, uid(), "x", None, &EditManifest::default())
             .await
             .unwrap();
+        if res.is_some() {
+            panic!("expected none");
+        }
+    }
+
+    #[tokio::test]
+    async fn copy_indices_are_monotonic_and_never_reused() {
+        let s = store().await;
+        let source = uid();
+        let first = s.create_copy(O, source, Some("Warm")).await.unwrap();
+        let second = s.create_copy(O, source, None).await.unwrap();
+        if first.id.to_string() != format!("{source}_1") {
+            panic!("first id: {}", first.id);
+        }
+        if second.id.to_string() != format!("{source}_2") {
+            panic!("second id: {}", second.id);
+        }
+        if first.name.as_deref() != Some("Warm") {
+            panic!("name: {:?}", first.name);
+        }
+        if !s.delete_copy(O, first.id).await.unwrap() {
+            panic!("delete returned false");
+        }
+        let third = s.create_copy(O, source, None).await.unwrap();
+        if third.id.to_string() != format!("{source}_3") {
+            panic!("third id: {}", third.id);
+        }
+        let listed: Vec<String> = s
+            .list_copies(O, source)
+            .await
+            .unwrap()
+            .iter()
+            .map(|c| c.id.to_string())
+            .collect();
+        if listed != vec![second.id.to_string(), third.id.to_string()] {
+            panic!("listed: {listed:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_copy_cascades_edits_and_history() {
+        let s = store().await;
+        let source = uid();
+        let copy = s.create_copy(O, source, None).await.unwrap();
+        s.put(O, copy.id, EditManifest::default(), None, None, None)
+            .await
+            .unwrap();
+        if !s.delete_copy(O, copy.id).await.unwrap() {
+            panic!("delete returned false");
+        }
+        if s.get(O, copy.id).await.unwrap().is_some() {
+            panic!("edits survived");
+        }
+        if !s.list_history(O, copy.id).await.unwrap().is_empty() {
+            panic!("history survived");
+        }
+        if s.get_copy(O, copy.id).await.unwrap().is_some() {
+            panic!("copy survived");
+        }
+        if s.delete_copy(O, copy.id).await.unwrap() {
+            panic!("second delete reported success");
+        }
+    }
+
+    #[tokio::test]
+    async fn expand_copies_groups_by_source() {
+        let s = store().await;
+        let a = uid();
+        let b = uid();
+        let c = uid();
+        s.create_copy(O, a, None).await.unwrap();
+        s.create_copy(O, a, None).await.unwrap();
+        s.create_copy(O, b, None).await.unwrap();
+        let map = s.expand_copies(O, &[a, b, c]).await.unwrap();
+        if map.get(&a).map(Vec::len) != Some(2) {
+            panic!("a: {:?}", map.get(&a));
+        }
+        if map.get(&b).map(Vec::len) != Some(1) {
+            panic!("b: {:?}", map.get(&b));
+        }
+        if map.contains_key(&c) {
+            panic!("c should be absent");
+        }
+    }
+
+    #[tokio::test]
+    async fn rename_copy_returns_none_for_unknown_id() {
+        let s = store().await;
+        let res = s.rename_copy(O, key(), Some("x")).await.unwrap();
         if res.is_some() {
             panic!("expected none");
         }

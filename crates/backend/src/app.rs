@@ -7,7 +7,7 @@ use axum::http::header::{COOKIE, HOST, HeaderName, HeaderValue, ORIGIN};
 use axum::http::{Method, StatusCode};
 use axum::middleware::{Next, from_fn, from_fn_with_state};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post, put};
+use axum::routing::{get, patch, post, put};
 use tower::ServiceBuilder;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
@@ -138,6 +138,14 @@ pub fn router(state: AppState) -> Router {
             get(routes::assets::detail).put(routes::assets::update),
         )
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))
+        .route(
+            "/assets/{id}/copies",
+            get(routes::copies::list).post(routes::copies::create),
+        )
+        .route(
+            "/copies/{id}",
+            patch(routes::copies::rename).delete(routes::copies::delete),
+        )
         .route("/assets/{id}/edited-thumb", get(routes::edited_thumb::get))
         .route(
             "/assets/{id}/edits",

@@ -139,6 +139,22 @@ impl EditedThumbService {
         Ok(rendered.bytes)
     }
 
+    pub async fn purge_asset(&self, server_epoch: i64, owner: Uuid, asset_id: AssetKey) {
+        let dir = self
+            .dir
+            .join(server_epoch.to_string())
+            .join(owner.to_string());
+        let prefix = format!("{asset_id}-");
+        let Ok(mut entries) = fs::read_dir(&dir).await else {
+            return;
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                let _ = fs::remove_file(entry.path()).await;
+            }
+        }
+    }
+
     pub async fn purge_owner(&self, owner: Uuid) -> std::io::Result<()> {
         let mut epochs = fs::read_dir(self.dir.as_path()).await?;
         while let Some(epoch) = epochs.next_entry().await? {
