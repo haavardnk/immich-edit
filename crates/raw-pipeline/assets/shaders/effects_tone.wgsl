@@ -3,6 +3,7 @@ struct EffectsToneParams {
     vignette: vec4<f32>,
     grain: vec4<f32>,
     output: vec4<u32>,
+    roi: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> p: EffectsToneParams;
@@ -60,6 +61,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     var lin = textureLoad(src_lin, vec2<i32>(x, y), 0).rgb;
 
+    let full_w = f32(width) / p.roi.z;
+    let full_h = f32(height) / p.roi.w;
+
     let vig_amount = p.vignette.x;
     if (vig_amount != 0.0) {
         let midpoint = p.vignette.y;
@@ -67,11 +71,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let roundness = (p.vignette.w + 1.0) * 0.5;
         let inner = mix(0.10, 0.90, midpoint);
         let band = mix(0.02, max(0.02, 1.25 - inner), feather);
-        let aspect = f32(width) / f32(height);
+        let aspect = full_w / full_h;
         let inv_w = 1.0 / f32(width);
         let inv_h = 1.0 / f32(height);
-        let u_p = ((f32(x) + 0.5) * inv_w - 0.5) * 2.0;
-        let v_p = ((f32(y) + 0.5) * inv_h - 0.5) * 2.0;
+        let u_p = ((p.roi.x + (f32(x) + 0.5) * inv_w * p.roi.z) - 0.5) * 2.0;
+        let v_p = ((p.roi.y + (f32(y) + 0.5) * inv_h * p.roi.w) - 0.5) * 2.0;
         var cx: f32;
         var cy: f32;
         if (aspect >= 1.0) {
@@ -95,10 +99,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let roughness = p.grain.z;
         let cell = mix(1.0, 8.0, size);
         let fine_cell = max(1.0, cell * 0.5);
-        let seed = width ^ ((height << 13u) | (height >> 19u));
+        let sw = u32(round(full_w));
+        let sh = u32(round(full_h));
+        let seed = sw ^ ((sh << 13u) | (sh >> 19u));
         let seed_fine = seed ^ 0x9E3779B9u;
-        let base = value_noise(f32(x) / cell, f32(y) / cell, seed);
-        let fine = value_noise(f32(x) / fine_cell, f32(y) / fine_cell, seed_fine);
+        let xf = p.roi.x * full_w + f32(x);
+        let yf = p.roi.y * full_h + f32(y);
+        let base = value_noise(xf / cell, yf / cell, seed);
+        let fine = value_noise(xf / fine_cell, yf / fine_cell, seed_fine);
         let n = mix(base, fine, roughness) * 2.0 - 1.0;
         let delta = n * grain_amount * 0.15;
         let yv = luma(lin);

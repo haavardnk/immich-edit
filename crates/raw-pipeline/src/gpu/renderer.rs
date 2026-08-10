@@ -443,6 +443,7 @@ impl GpuRenderer {
                 is_raw: frame.is_raw,
                 capture_sigma: frame.capture_sigma,
                 preview_mode: opts.preview_mode.clone(),
+                roi: opts.roi,
                 dcp: setup.resolved,
             },
             scratch: OpScratch::default(),
@@ -1123,6 +1124,7 @@ impl GpuRenderer {
                     dcp_active,
                     opts.output_color_space,
                     warn_flags,
+                    opts.roi,
                 );
             }
         }
@@ -1308,6 +1310,9 @@ impl GpuRenderer {
             return Err(PipelineError::DeviceLost);
         }
         crate::cancel::check(cancel)?;
+        let mut composed = edits.clamped();
+        composed.geometry.crop = crate::geom::compose_roi(composed.geometry.crop, options.roi);
+        let edits = &composed;
         let plan = RenderPlan::select(edits, frame);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;

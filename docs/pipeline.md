@@ -96,6 +96,12 @@ The reduction factor comes from the cropped region, not the full sensor, so a cr
 
 `Presence` additionally downscales once up front when a preview is more than 2x smaller than the source, so spatial passes run at preview scale. `process` then samples the working texture with a Catmull-Rom bicubic tap rather than a bilinear one: geometry sampling lands on fractional coordinates whenever a crop origin, rotation, or perspective warp is not pixel-aligned, and bilinear visibly softens those cases.
 
+## Region of interest
+
+`RenderOptions.roi` renders only part of the image, at the full `max_edge` budget. It is a normalised rectangle in display space — after orientation, perspective, angle and the user crop — which is what a zoomed viewer can measure directly off the screen. The point is detail: a fit-to-window preview of a 60 MP frame throws away most of the sensor, so per-pixel work such as capture sharpening and noise reduction cannot be judged from it.
+
+The rectangle is composed into the geometry crop at the top of the render, so everything downstream — the transform op, output sizing, masks, lens corrections — treats the tile as an ordinary crop and needs no special case. Vignette and grain are the exception, since they are defined against the output frame rather than the source: they receive the rectangle and remap back onto the full frame, so a tile shows the same falloff and the same grain as the region it came from. Both renderers do this; on the GPU the remap rides along in the `effects_tone` uniform.
+
 ## Color-space rules
 
 Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:

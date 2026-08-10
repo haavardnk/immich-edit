@@ -74,6 +74,19 @@ pub fn display_out_dims(
     scale_to_max(crop_w_px, crop_h_px, max_edge)
 }
 
+pub fn compose_roi(crop: Option<CropRect>, roi: Option<CropRect>) -> Option<CropRect> {
+    let Some(r) = roi else {
+        return crop;
+    };
+    let c = crop.unwrap_or(CropRect::full());
+    Some(CropRect {
+        x: c.x + r.x * c.w,
+        y: c.y + r.y * c.h,
+        w: c.w * r.w,
+        h: c.h * r.h,
+    })
+}
+
 pub fn source_quad_in_bbox(sw: f32, sh: f32, angle_deg: f32) -> [Point; 4] {
     let a = deg_to_rad(angle_deg);
     let c = a.cos();

@@ -1153,6 +1153,7 @@ impl GpuRenderer {
                 is_raw: frame.is_raw,
                 capture_sigma: frame.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
+                roi: None,
                 dcp: setup.resolved.clone(),
             },
             scratch: OpScratch::default(),

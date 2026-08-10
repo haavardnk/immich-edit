@@ -20,6 +20,7 @@ pub struct RawFrame {
 pub struct RenderOptions {
     pub max_edge: u32,
     pub quality: bool,
+    pub roi: Option<crate::edits::CropRect>,
     pub output: OutputFormat,
     pub output_color_space: OutputColorSpace,
     pub preview_mode: PreviewMode,
@@ -177,6 +178,7 @@ impl Default for RenderOptions {
         Self {
             max_edge: 4096,
             quality: false,
+            roi: None,
             output: OutputFormat::Jpeg {
                 quality: 85,
                 subsampling: JpegSubsampling::Chroma420,

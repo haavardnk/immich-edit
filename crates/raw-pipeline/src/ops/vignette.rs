@@ -1,7 +1,7 @@
 use super::LinearImage;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::edits::{Edits, EffectsEdits};
+use crate::edits::{CropRect, Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct VignetteOp;
@@ -49,15 +49,15 @@ impl Op for VignetteOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
-        _ctx: &OpContext,
+        ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_vignette(image, &edits.effects);
+        apply_vignette(image, &edits.effects, ctx.render.roi);
         Ok(())
     }
 }
 
-pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits) {
+pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRect>) {
     let w = image.width;
     let h = image.height;
     if w == 0 || h == 0 {
@@ -69,7 +69,8 @@ pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits) {
     let roundness = ((e.vignette_roundness + 100.0) / 200.0) as f32;
     let inner = lerp(0.10, 0.90, midpoint);
     let band = lerp(0.02, (1.25 - inner).max(0.02), feather);
-    let aspect = w as f32 / h as f32;
+    let r = roi.unwrap_or(CropRect::full());
+    let aspect = (w as f32 / r.w) / (h as f32 / r.h);
     let inv_w = 1.0 / w as f32;
     let inv_h = 1.0 / h as f32;
 
@@ -78,9 +79,9 @@ pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits) {
         .par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            let v = ((y as f32 + 0.5) * inv_h - 0.5) * 2.0;
+            let v = ((r.y + (y as f32 + 0.5) * inv_h * r.h) - 0.5) * 2.0;
             for x in 0..w {
-                let u = ((x as f32 + 0.5) * inv_w - 0.5) * 2.0;
+                let u = ((r.x + (x as f32 + 0.5) * inv_w * r.w) - 0.5) * 2.0;
                 let (cx, cy) = if aspect >= 1.0 {
                     (u * aspect, v)
                 } else {
@@ -133,7 +134,7 @@ mod tests {
     fn amount_zero_identity() {
         let mut img = make_image(16, 16, 0.5);
         let orig = img.rgb.clone();
-        apply_vignette(&mut img, &defaults());
+        apply_vignette(&mut img, &defaults(), None);
         assert_eq!(img.rgb, orig);
     }
 
@@ -142,7 +143,7 @@ mod tests {
         let mut img = make_image(32, 32, 0.5);
         let mut e = defaults();
         e.vignette_amount = -80.0;
-        apply_vignette(&mut img, &e);
+        apply_vignette(&mut img, &e, None);
         let center = pixel(&img, 16, 16);
         let corner = pixel(&img, 0, 0);
         if corner >= center {
@@ -155,7 +156,7 @@ mod tests {
         let mut img = make_image(32, 32, 0.5);
         let mut e = defaults();
         e.vignette_amount = 80.0;
-        apply_vignette(&mut img, &e);
+        apply_vignette(&mut img, &e, None);
         let center = pixel(&img, 16, 16);
         let corner = pixel(&img, 0, 0);
         if corner <= center {
@@ -173,8 +174,8 @@ mod tests {
         let mut eb = defaults();
         eb.vignette_amount = -80.0;
         eb.vignette_midpoint = 90.0;
-        apply_vignette(&mut a, &ea);
-        apply_vignette(&mut b, &eb);
+        apply_vignette(&mut a, &ea, None);
+        apply_vignette(&mut b, &eb, None);
         let high = pixel(&b, 16, 4);
         let low = pixel(&a, 16, 4);
         if high <= low {
@@ -192,8 +193,8 @@ mod tests {
         let mut ec = defaults();
         ec.vignette_amount = -80.0;
         ec.vignette_roundness = 100.0;
-        apply_vignette(&mut square, &es);
-        apply_vignette(&mut circle, &ec);
+        apply_vignette(&mut square, &es, None);
+        apply_vignette(&mut circle, &ec, None);
         let side_sq = pixel(&square, 40, 8);
         let side_ci = pixel(&circle, 40, 8);
         if side_ci >= side_sq {

@@ -203,6 +203,7 @@ impl GpuRenderer {
         dcp_active: bool,
         color_space: crate::frame::OutputColorSpace,
         warn_flags: u32,
+        roi: Option<crate::edits::CropRect>,
     ) {
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -240,6 +241,11 @@ impl GpuRenderer {
         let p3 = matches!(color_space, crate::frame::OutputColorSpace::DisplayP3) as u32;
         bytes[56..60].copy_from_slice(&p3.to_ne_bytes());
         bytes[60..64].copy_from_slice(&warn_flags.to_ne_bytes());
+        let r = roi.unwrap_or(crate::edits::CropRect::full());
+        bytes[64..68].copy_from_slice(&r.x.to_ne_bytes());
+        bytes[68..72].copy_from_slice(&r.y.to_ne_bytes());
+        bytes[72..76].copy_from_slice(&r.w.to_ne_bytes());
+        bytes[76..80].copy_from_slice(&r.h.to_ne_bytes());
         let ub = self
             .uniform_pool
             .acquire(device, queue, &bytes, "effects-tone-uniform");

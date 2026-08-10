@@ -38,7 +38,8 @@ pub fn render_with_cancel(
     options: &RenderOptions,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
-    let edits = edits.clamped();
+    let mut edits = edits.clamped();
+    edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
 
     let (rgb, src_w, src_h) = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
         let d = match demosaic::parse_xtrans(&frame.cfa_pattern) {
@@ -63,6 +64,7 @@ pub fn render_with_cancel(
             is_raw: frame.is_raw,
             capture_sigma: frame.capture_sigma,
             preview_mode: options.preview_mode.clone(),
+            roi: options.roi,
             dcp: setup.resolved,
         },
         scratch: OpScratch::default(),
@@ -217,6 +219,7 @@ fn run_pipeline_ops_inner(
                 is_raw: ctx.render.is_raw,
                 capture_sigma: ctx.render.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
+                roi: ctx.render.roi,
                 dcp: ctx.render.dcp.clone(),
             },
             scratch: OpScratch::default(),
@@ -270,6 +273,7 @@ fn run_pipeline_ops_inner(
                 is_raw: ctx.render.is_raw,
                 capture_sigma: ctx.render.capture_sigma,
                 preview_mode: ctx.render.preview_mode.clone(),
+                roi: ctx.render.roi,
                 dcp: ctx.render.dcp.clone(),
             },
             scratch: OpScratch {

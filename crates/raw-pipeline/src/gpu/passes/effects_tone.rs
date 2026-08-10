@@ -7,7 +7,7 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
-pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = 64;
+pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = 80;
 
 pub struct EffectsTonePass {
     pub layout: BindGroupLayout,

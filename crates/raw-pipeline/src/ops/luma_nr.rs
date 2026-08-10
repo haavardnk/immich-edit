@@ -159,6 +159,7 @@ mod tests {
                 is_raw: false,
                 capture_sigma: None,
                 preview_mode: PreviewMode::None,
+                roi: None,
                 dcp: None,
             },
             scratch: OpScratch::default(),

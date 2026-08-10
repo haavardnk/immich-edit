@@ -78,6 +78,7 @@ pub struct RenderContext {
     pub is_raw: bool,
     pub capture_sigma: Option<f32>,
     pub preview_mode: crate::frame::PreviewMode,
+    pub roi: Option<crate::edits::CropRect>,
     pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
 }
 

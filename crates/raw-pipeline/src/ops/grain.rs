@@ -1,7 +1,7 @@
 use super::LinearImage;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::edits::{Edits, EffectsEdits};
+use crate::edits::{CropRect, Edits, EffectsEdits};
 use rayon::prelude::*;
 
 pub struct GrainOp;
@@ -45,10 +45,10 @@ impl Op for GrainOp {
     fn apply_cpu(
         &self,
         image: &mut LinearImage,
-        _ctx: &OpContext,
+        ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_grain(image, &edits.effects);
+        apply_grain(image, &edits.effects, ctx.render.roi);
         Ok(())
     }
 }
@@ -94,7 +94,7 @@ fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
     lerp(lerp(a, b, u), lerp(c, d, u), v)
 }
 
-pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits) {
+pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRect>) {
     let w = image.width;
     let h = image.height;
     if w == 0 || h == 0 {
@@ -105,7 +105,12 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits) {
     let roughness = (e.grain_roughness / 100.0) as f32;
     let cell = lerp(1.0, 8.0, size);
     let fine_cell = (cell * 0.5).max(1.0);
-    let seed = (w as u32) ^ (h as u32).rotate_left(13);
+    let r = roi.unwrap_or(CropRect::full());
+    let full_w = w as f32 / r.w;
+    let full_h = h as f32 / r.h;
+    let off_x = r.x * full_w;
+    let off_y = r.y * full_h;
+    let seed = (full_w.round() as u32) ^ (full_h.round() as u32).rotate_left(13);
     let seed_fine = seed ^ 0x9E3779B9;
     let strength = amount * 0.15;
 
@@ -114,9 +119,9 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits) {
         .par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            let yf = y as f32;
+            let yf = off_y + y as f32;
             for x in 0..w {
-                let xf = x as f32;
+                let xf = off_x + x as f32;
                 let base = value_noise(xf / cell, yf / cell, seed);
                 let fine = value_noise(xf / fine_cell, yf / fine_cell, seed_fine);
                 let n = lerp(base, fine, roughness) * 2.0 - 1.0;
@@ -176,7 +181,7 @@ mod tests {
     fn amount_zero_identity() {
         let mut img = make_image(32, 32, 0.5);
         let orig = img.rgb.clone();
-        apply_grain(&mut img, &defaults());
+        apply_grain(&mut img, &defaults(), None);
         if img.rgb != orig {
             panic!("grain at 0 should be identity");
         }
@@ -188,7 +193,7 @@ mod tests {
         let mut grainy = make_image(64, 64, 0.5);
         let mut e = defaults();
         e.grain_amount = 80.0;
-        apply_grain(&mut grainy, &e);
+        apply_grain(&mut grainy, &e, None);
         let v0 = variance(&flat);
         let v1 = variance(&grainy);
         if v1 <= v0 + 1e-4 {
@@ -202,8 +207,8 @@ mod tests {
         let mut b = make_image(32, 32, 0.5);
         let mut e = defaults();
         e.grain_amount = 50.0;
-        apply_grain(&mut a, &e);
-        apply_grain(&mut b, &e);
+        apply_grain(&mut a, &e, None);
+        apply_grain(&mut b, &e, None);
         if a.rgb != b.rgb {
             panic!("grain should be deterministic");
         }
@@ -215,7 +220,7 @@ mod tests {
         let before = mean_luma(&img);
         let mut e = defaults();
         e.grain_amount = 60.0;
-        apply_grain(&mut img, &e);
+        apply_grain(&mut img, &e, None);
         let after = mean_luma(&img);
         let drift = (after - before).abs() / before;
         if drift > 0.01 {
@@ -247,8 +252,8 @@ mod tests {
         let mut eb = defaults();
         eb.grain_amount = 60.0;
         eb.grain_size = 100.0;
-        apply_grain(&mut small, &es);
-        apply_grain(&mut big, &eb);
+        apply_grain(&mut small, &es, None);
+        apply_grain(&mut big, &eb, None);
         let cs = neighbor_corr(&small);
         let cb = neighbor_corr(&big);
         if cb <= cs {

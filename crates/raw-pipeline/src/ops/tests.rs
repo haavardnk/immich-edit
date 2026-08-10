@@ -21,6 +21,7 @@ fn ctx() -> OpContext {
             is_raw: false,
             capture_sigma: None,
             preview_mode: crate::frame::PreviewMode::None,
+            roi: None,
             dcp: None,
         },
         scratch: OpScratch::default(),
