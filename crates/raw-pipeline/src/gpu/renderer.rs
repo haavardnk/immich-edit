@@ -17,7 +17,6 @@ use crate::ops::{GpuOpKind, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
-use super::helpers::scale_to_max;
 use super::passes::GpuPasses;
 use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use super::resources::{OutputTargets, SharpenTargets};
@@ -1562,28 +1561,9 @@ fn compute_out_dims(
     src_dims: (u32, u32),
     max_edge: u32,
 ) -> (u32, u32) {
-    let (crop_w_px, crop_h_px) = crop_px(frame, edits, src_dims);
-    scale_to_max(crop_w_px, crop_h_px, max_edge)
+    crate::geom::display_out_dims(frame.orientation, edits, src_dims, max_edge)
 }
 
 fn crop_px(frame: &RawFrame, edits: &Edits, src_dims: (u32, u32)) -> (u32, u32) {
-    let (sensor_w, sensor_h) = src_dims;
-    let (display_w, display_h) = if frame.orientation.0 {
-        (sensor_h, sensor_w)
-    } else {
-        (sensor_w, sensor_h)
-    };
-    let (oriented_w, oriented_h) = match edits.geometry.rotate {
-        90 | 270 => (display_h, display_w),
-        _ => (display_w, display_h),
-    };
-    let crop = edits
-        .geometry
-        .crop
-        .unwrap_or(crate::edits::CropRect::full());
-    let angle = edits.geometry.rotate_angle;
-    let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
-    let crop_w_px = (crop.w * bbox.w).round().max(1.0) as u32;
-    let crop_h_px = (crop.h * bbox.h).round().max(1.0) as u32;
-    (crop_w_px, crop_h_px)
+    crate::geom::display_crop_px(frame.orientation, edits, src_dims)
 }

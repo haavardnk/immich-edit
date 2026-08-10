@@ -86,14 +86,10 @@ pub fn resize_owned(
     h: usize,
     max_edge: u32,
 ) -> (Vec<f32>, usize, usize) {
-    let max = max_edge as usize;
-    if w <= max && h <= max {
+    let (new_w, new_h) = crate::geom::scale_to_max(w as u32, h as u32, max_edge);
+    if new_w as usize == w && new_h as usize == h {
         return (pixels, w, h);
     }
-
-    let scale = max as f64 / w.max(h) as f64;
-    let new_w = (w as f64 * scale).round().max(1.0) as u32;
-    let new_h = (h as f64 * scale).round().max(1.0) as u32;
 
     let mut pixels = pixels;
     match resize_f32x3(&mut pixels, w as u32, h as u32, new_w, new_h) {

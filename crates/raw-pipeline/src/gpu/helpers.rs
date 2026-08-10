@@ -46,13 +46,3 @@ pub(super) fn xtrans_to_indices(pattern: &[u8; 36]) -> [[u32; 4]; 9] {
     }
     out
 }
-
-pub(super) fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {
-    if w <= max_edge && h <= max_edge {
-        return (w, h);
-    }
-    let scale = max_edge as f64 / w.max(h) as f64;
-    let nw = ((w as f64) * scale).round() as u32;
-    let nh = ((h as f64) * scale).round() as u32;
-    (nw.max(1), nh.max(1))
-}

@@ -1,4 +1,5 @@
 use crate::edits::{AspectLock, CropRect};
+use crate::frame::OrientFlips;
 use crate::perspective::{IDENTITY, Mat3, mat3_apply};
 
 #[derive(Clone, Copy, Debug)]
@@ -25,6 +26,52 @@ pub fn rotated_bbox(sw: f32, sh: f32, angle_deg: f32) -> Size {
         w: sw * c + sh * s,
         h: sw * s + sh * c,
     }
+}
+
+pub fn scale_to_max(w: u32, h: u32, max_edge: u32) -> (u32, u32) {
+    if w <= max_edge && h <= max_edge {
+        return (w.max(1), h.max(1));
+    }
+    let scale = max_edge as f64 / w.max(h) as f64;
+    let nw = (w as f64 * scale).round() as u32;
+    let nh = (h as f64 * scale).round() as u32;
+    (nw.max(1), nh.max(1))
+}
+
+pub fn display_crop_px(
+    orientation: OrientFlips,
+    edits: &crate::edits::Edits,
+    src_dims: (u32, u32),
+) -> (u32, u32) {
+    let (sensor_w, sensor_h) = src_dims;
+    let (display_w, display_h) = if orientation.0 {
+        (sensor_h, sensor_w)
+    } else {
+        (sensor_w, sensor_h)
+    };
+    let (oriented_w, oriented_h) = match edits.geometry.rotate {
+        90 | 270 => (display_h, display_w),
+        _ => (display_w, display_h),
+    };
+    let crop = edits.geometry.crop.unwrap_or(CropRect::full());
+    let bbox = rotated_bbox(
+        oriented_w as f32,
+        oriented_h as f32,
+        edits.geometry.rotate_angle,
+    );
+    let crop_w_px = (crop.w * bbox.w).round().max(1.0) as u32;
+    let crop_h_px = (crop.h * bbox.h).round().max(1.0) as u32;
+    (crop_w_px, crop_h_px)
+}
+
+pub fn display_out_dims(
+    orientation: OrientFlips,
+    edits: &crate::edits::Edits,
+    src_dims: (u32, u32),
+    max_edge: u32,
+) -> (u32, u32) {
+    let (crop_w_px, crop_h_px) = display_crop_px(orientation, edits, src_dims);
+    scale_to_max(crop_w_px, crop_h_px, max_edge)
 }
 
 pub fn source_quad_in_bbox(sw: f32, sh: f32, angle_deg: f32) -> [Point; 4] {
@@ -301,6 +348,54 @@ pub fn mask_uv_to_display_uv(t: &GeometryTransform, uv: [f32; 2]) -> [f32; 2] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scale_to_max_cases() {
+        let cases = [
+            ((100, 50, 200), (100, 50)),
+            ((4000, 3000, 1000), (1000, 750)),
+            ((3000, 4000, 1000), (750, 1000)),
+            ((6000, 1000, 512), (512, 85)),
+        ];
+        for ((w, h, max), want) in cases {
+            assert_eq!(scale_to_max(w, h, max), want, "{w}x{h} @ {max}");
+        }
+    }
+
+    #[test]
+    fn display_out_dims_follows_orientation_and_crop() {
+        let mut edits = crate::edits::Edits::default();
+        assert_eq!(
+            display_out_dims((false, false, false), &edits, (4000, 3000), 512),
+            (512, 384)
+        );
+        assert_eq!(
+            display_out_dims((true, false, false), &edits, (4000, 3000), 512),
+            (384, 512)
+        );
+
+        edits.geometry.rotate = 90;
+        assert_eq!(
+            display_out_dims((false, false, false), &edits, (4000, 3000), 512),
+            (384, 512)
+        );
+
+        edits.geometry.rotate = 0;
+        edits.geometry.crop = Some(CropRect {
+            x: 0.0,
+            y: 0.0,
+            w: 0.5,
+            h: 0.5,
+        });
+        assert_eq!(
+            display_out_dims((false, false, false), &edits, (4000, 3000), 512),
+            (512, 384)
+        );
+        assert_eq!(
+            display_crop_px((false, false, false), &edits, (4000, 3000)),
+            (2000, 1500)
+        );
+    }
 
     #[test]
     fn bbox_zero_angle() {
