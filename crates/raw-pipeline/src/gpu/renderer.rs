@@ -1310,52 +1310,52 @@ impl GpuRenderer {
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
                 let src_max = dims.0.max(dims.1);
                 let out_max = out_w.max(out_h);
-                let preview_active =
-                    !options.quality && out_max >= 256 && src_max >= out_max.saturating_mul(2);
-                let (spatial_dims, wb_base) = if preview_active {
-                    let scale = (out_max as f32 / src_max as f32).min(1.0);
-                    let preview_sw = ((dims.0 as f32 * scale).round() as u32).max(1);
-                    let preview_sh = ((dims.1 as f32 * scale).round() as u32).max(1);
-                    let preview_dims = (preview_sw, preview_sh);
-                    let downsampled = self.downsample_to_preview(&wb_base, dims, preview_dims)?;
-                    crate::cancel::check(cancel)?;
-                    (preview_dims, downsampled)
-                } else {
-                    (dims, wb_base)
-                };
                 let wb_base = if edits_c.retouch.iter().any(|s| s.is_effective()) {
-                    let t = self.run_retouch(wb_base, spatial_dims, frame, &edits_c)?;
+                    let t = self.run_retouch(wb_base, dims, frame, &edits_c)?;
                     crate::cancel::check(cancel)?;
                     t
                 } else {
                     wb_base
                 };
-                let nr_out = if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active()
-                {
-                    let t =
-                        self.run_nr(&wb_base, spatial_dims, &edits_c, frame, setup.cam_to_srgb)?;
+                let full_src: Arc<Texture> =
+                    if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active() {
+                        let t = self.run_nr(&wb_base, dims, &edits_c, frame, setup.cam_to_srgb)?;
+                        crate::cancel::check(cancel)?;
+                        t
+                    } else {
+                        wb_base
+                    };
+                let preview_active =
+                    !options.quality && out_max >= 256 && src_max >= out_max.saturating_mul(2);
+                let (spatial_dims, spatial_src) = if preview_active {
+                    let scale = (out_max as f32 / src_max as f32).min(1.0);
+                    let preview_sw = ((dims.0 as f32 * scale).round() as u32).max(1);
+                    let preview_sh = ((dims.1 as f32 * scale).round() as u32).max(1);
+                    let preview_dims = (preview_sw, preview_sh);
+                    let downsampled = self.downsample_to_preview(&full_src, dims, preview_dims)?;
                     crate::cancel::check(cancel)?;
-                    Some(t)
+                    (preview_dims, downsampled)
                 } else {
-                    None
+                    (dims, full_src)
                 };
-                let presence_src: &Texture = nr_out.as_deref().unwrap_or(wb_base.as_ref());
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm =
-                        self.atmosphere_for(frame, &edits_c, presence_src, spatial_dims, cancel)?;
+                    let atm = self.atmosphere_for(
+                        frame,
+                        &edits_c,
+                        spatial_src.as_ref(),
+                        spatial_dims,
+                        cancel,
+                    )?;
                     let _span =
                         tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
                             .entered();
-                    let t = self.run_dehaze(presence_src, spatial_dims, &edits_c, atm)?;
+                    let t = self.run_dehaze(spatial_src.as_ref(), spatial_dims, &edits_c, atm)?;
                     crate::cancel::check(cancel)?;
                     Some(t)
                 } else {
                     None
                 };
-                let base_src: Arc<Texture> = match dehaze_out {
-                    Some(t) => t,
-                    None => nr_out.unwrap_or(wb_base),
-                };
+                let base_src: Arc<Texture> = dehaze_out.unwrap_or(spatial_src);
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
                     self.run_presence(&base_src, spatial_dims, &edits_c)?
@@ -1567,6 +1567,8 @@ fn nr_cache_key(
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     wb_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
+    let retouch_json = serde_json::to_vec(&edits.retouch).unwrap_or_default();
+    retouch_json.hash(&mut h);
     let d = &edits.detail;
     d.luma_nr_amount.to_bits().hash(&mut h);
     d.luma_nr_detail.to_bits().hash(&mut h);

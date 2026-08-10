@@ -212,6 +212,40 @@ fn detail_frame(w: usize, h: usize) -> RawFrame {
     }
 }
 
+fn fine_texture_frame(w: usize, h: usize) -> RawFrame {
+    let mut data = vec![0.0f32; w * h * 3];
+    let period = 32.0f32;
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let u = x as f32 / (w - 1) as f32;
+            let v = y as f32 / (h - 1) as f32;
+            let base = 0.2 + 0.5 * u * (1.0 - 0.4 * v);
+            let ripple = (std::f32::consts::TAU * x as f32 / period).sin()
+                * (std::f32::consts::TAU * y as f32 / period).sin();
+            for c in 0..3 {
+                let amp = 0.06 * (1.0 - 0.2 * c as f32);
+                data[i + c] = (base * (1.0 - 0.06 * c as f32) + amp * ripple).clamp(0.02, 0.95);
+            }
+        }
+    }
+    RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        model: String::new(),
+        exif: None,
+    }
+}
+
 fn haze_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     for y in 0..h {
@@ -832,6 +866,42 @@ fn gpu_nr_matches_cpu() {
     eprintln!("nr mean abs delta = {delta:.3}");
     if delta > 4.0 {
         panic!("nr GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_nr_matches_cpu_with_preview_downsample() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 320,
+        quality: false,
+        ..Default::default()
+    };
+    let frame = fine_texture_frame(1024, 768);
+    let edits = Edits {
+        detail: DetailEdits {
+            luma_nr_amount: 100.0,
+            luma_nr_detail: 30.0,
+            luma_nr_contrast: 0.0,
+            color_nr_amount: 60.0,
+            color_nr_detail: 40.0,
+            color_nr_smoothness: 50.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("nr preview-downsample mean abs delta = {delta:.3}");
+    if delta > 1.5 {
+        panic!("nr preview GPU/CPU mean abs delta too high: {delta:.3}");
     }
 }
 
