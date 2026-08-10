@@ -179,6 +179,39 @@ fn synthetic_frame(w: usize, h: usize) -> RawFrame {
     }
 }
 
+fn detail_frame(w: usize, h: usize) -> RawFrame {
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let checker = if (x / 2 + y / 2) % 2 == 0 {
+                0.16
+            } else {
+                -0.16
+            };
+            let base = 0.45 + 0.2 * (x as f32 / (w - 1) as f32);
+            data[i] = (base + checker).clamp(0.02, 0.98);
+            data[i + 1] = (base * 0.95 + checker).clamp(0.02, 0.98);
+            data[i + 2] = (base * 0.9 - checker).clamp(0.02, 0.98);
+        }
+    }
+    RawFrame {
+        width: w,
+        height: h,
+        cfa_pattern: String::new(),
+        bps: 16,
+        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data,
+        cpp: 3,
+        orientation: (false, false, false),
+        is_raw: false,
+        model: String::new(),
+        exif: None,
+    }
+}
+
 fn haze_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     for y in 0..h {
@@ -1352,7 +1385,7 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let frame = synthetic_frame(96, 64);
+    let frame = detail_frame(96, 64);
     let opts = RenderOptions {
         max_edge: 96,
         ..Default::default()

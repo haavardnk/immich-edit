@@ -117,8 +117,7 @@ fn apply_sharpen(
                 for c in 0..3 {
                     let v = row[i + c];
                     let high = v - brow[i + c];
-                    let out = v + k * high;
-                    row[i + c] = out.clamp(0.0, 1.0);
+                    row[i + c] = v + k * high;
                 }
             }
         });
