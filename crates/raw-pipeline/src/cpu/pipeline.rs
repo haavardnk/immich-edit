@@ -396,6 +396,14 @@ fn run_pipeline_ops_inner(
         }
     }
     flush(image, &mut segment, &mut layer_segments, &layer_evals);
+    if sharpen_delta.is_none() && sharpen_deltas.iter().any(|d| *d != 0.0) {
+        sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
+            image,
+            &layer_evals,
+            &sharpen_deltas,
+            &lens_warp,
+        ));
+    }
     Ok(sharpen_delta)
 }
 
