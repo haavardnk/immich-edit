@@ -61,11 +61,13 @@ Export:
 
 ## What does not work yet
 
-- No HDR output, DNG export, PSD compatibility, or Lightroom/XMP round-trip
-- No person- or face-aware masking from Immich people data
-- Histograms and clipping warnings are basic
-- No mobile layout
-- CPU rendering is slow; use the GPU path if you can
+- No mobile editor layout
+- No HDR preview or HDR export
+- No AI denoise
+- No AI object removal or generative fill
+- No automatic or guided perspective correction
+- No DNG or PSD export, and no Lightroom/XMP round-trip
+- CPU rendering is slow on large RAW files; GPU acceleration is recommended
 
 ## Data handling
 
