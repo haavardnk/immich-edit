@@ -88,6 +88,14 @@ Dispatch order:
 | 15 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
 | 16 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
 
+## Resolution reduction
+
+Requests smaller than the sensor are downscaled by a separable Lanczos3 compute pass (`passes/resample.rs`, `assets/shaders/resample.wgsl`, driven by `resample_lanczos` in `gpu/renderer/resample.rs`), matching the CPU path's `fast_image_resize` Lanczos3. Two dispatches run in scene-linear, horizontal then vertical, and negative lobes are clamped at zero so ringing cannot produce negative radiance.
+
+The reduction factor comes from the cropped region, not the full sensor, so a crop is rendered from source pixels at its own scale instead of being softened by the uncropped ratio. Output dimensions are computed once from the original frame dimensions and passed into `process`, so an already-downscaled working texture cannot shift the result size by a rounding step.
+
+`Presence` additionally downscales once up front when a preview is more than 2x smaller than the source, so spatial passes run at preview scale. `process` then samples the working texture with a Catmull-Rom bicubic tap rather than a bilinear one: geometry sampling lands on fractional coordinates whenever a crop origin, rotation, or perspective warp is not pixel-aligned, and bilinear visibly softens those cases.
+
 ## Color-space rules
 
 Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:

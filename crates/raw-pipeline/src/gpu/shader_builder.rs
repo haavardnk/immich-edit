@@ -148,6 +148,38 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
 
 var<private> shadows_blur_l: f32 = 0.0;
 
+fn sample_src_cubic(uv: vec2<f32>) -> vec3<f32> {{
+    let dims = vec2<f32>(f32(p.src_size.x), f32(p.src_size.y));
+    let pos = uv * dims - 0.5;
+    let base = floor(pos);
+    let f = pos - base;
+    let f2 = f * f;
+    let f3 = f2 * f;
+    var wx = array<f32, 4>(
+        -0.5 * f3.x + f2.x - 0.5 * f.x,
+        1.5 * f3.x - 2.5 * f2.x + 1.0,
+        -1.5 * f3.x + 2.0 * f2.x + 0.5 * f.x,
+        0.5 * f3.x - 0.5 * f2.x,
+    );
+    var wy = array<f32, 4>(
+        -0.5 * f3.y + f2.y - 0.5 * f.y,
+        1.5 * f3.y - 2.5 * f2.y + 1.0,
+        -1.5 * f3.y + 2.0 * f2.y + 0.5 * f.y,
+        0.5 * f3.y - 0.5 * f2.y,
+    );
+    let maxx = i32(p.src_size.x) - 1;
+    let maxy = i32(p.src_size.y) - 1;
+    var acc = vec3<f32>(0.0);
+    for (var j = 0; j < 4; j = j + 1) {{
+        let sy = clamp(i32(base.y) + j - 1, 0, maxy);
+        for (var i = 0; i < 4; i = i + 1) {{
+            let sx = clamp(i32(base.x) + i - 1, 0, maxx);
+            acc = acc + textureLoad(src_tex, vec2<i32>(sx, sy), 0).rgb * (wx[i] * wy[j]);
+        }}
+    }}
+    return max(acc, vec3<f32>(0.0));
+}}
+
 fn is_active(bit: u32) -> bool {{
     let word = bit / 32u;
     let shift = bit % 32u;
@@ -208,7 +240,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     if (oh_v) {{ sv = 1.0 - sv; }}
     if (oh_h) {{ su = 1.0 - su; }}
 
-    let rgb = textureSampleLevel(src_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.x).rgb;
+    let rgb = sample_src_cubic(vec2<f32>(su, sv));
     shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);

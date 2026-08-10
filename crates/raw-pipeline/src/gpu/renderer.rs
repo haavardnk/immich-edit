@@ -30,6 +30,7 @@ mod dcp;
 mod detail;
 mod effects;
 mod lut;
+mod resample;
 mod retouch;
 mod upload;
 
@@ -330,6 +331,7 @@ impl GpuRenderer {
         pass: &super::passes::process::ProcessFastPass,
         src_texture: &Texture,
         src_dims: (u32, u32),
+        out_dims: (u32, u32),
         frame: &RawFrame,
         edits: &Edits,
         opts: &RenderOptions,
@@ -375,7 +377,34 @@ impl GpuRenderer {
             }
         }
 
-        let (sensor_w, sensor_h) = src_dims;
+        let (out_w, out_h) = out_dims;
+        let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
+        let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
+
+        let downscaled = match resample::resample_target(src_dims, ratio) {
+            Some(dims) => Some((
+                self.resample_lanczos(src_texture, src_dims, dims, "process-downscale")?,
+                dims,
+            )),
+            None => None,
+        };
+        let downscaled_layers: std::collections::HashMap<String, Arc<Texture>> = match &downscaled {
+            Some((_, dims)) => layer_srcs
+                .iter()
+                .map(|(id, tex)| {
+                    self.resample_lanczos(tex, src_dims, *dims, "layer-downscale")
+                        .map(|t| (id.clone(), t))
+                })
+                .collect::<PipelineResult<_>>()?,
+            None => std::collections::HashMap::new(),
+        };
+        let (src_texture, work_dims, layer_srcs) = match &downscaled {
+            Some((tex, dims)) => (tex.as_ref(), *dims, &downscaled_layers),
+            None => (src_texture, src_dims, layer_srcs),
+        };
+        crate::cancel::check(cancel)?;
+
+        let (sensor_w, sensor_h) = work_dims;
         let (display_w, display_h) = if frame.orientation.0 {
             (sensor_h, sensor_w)
         } else {
@@ -395,17 +424,6 @@ impl GpuRenderer {
         let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
         let bw = bbox.w;
         let bh = bbox.h;
-        let crop_w_px = (crop.w * bw).round().max(1.0) as u32;
-        let crop_h_px = (crop.h * bh).round().max(1.0) as u32;
-        let (out_w, out_h) = scale_to_max(crop_w_px, crop_h_px, opts.max_edge);
-
-        let src_max = sensor_w.max(sensor_h) as f32;
-        let out_max = out_w.max(out_h) as f32;
-        let lod = if src_max > out_max {
-            (src_max / out_max).log2()
-        } else {
-            0.0
-        };
 
         let a_rad = crate::geom::deg_to_rad(angle);
         let cos_a = a_rad.cos();
@@ -449,7 +467,7 @@ impl GpuRenderer {
                 edits.geometry.flip_v as u32,
                 orient_packed,
             ],
-            [lod, shadows_mip_f, 0.0, 0.0],
+            [0.0, shadows_mip_f, 0.0, 0.0],
             [cos_a, sin_a, bw, bh],
             [
                 oriented_w as f32,
@@ -768,7 +786,7 @@ impl GpuRenderer {
                         edits.geometry.flip_v as u32,
                         orient_packed,
                     ],
-                    [lod, shadows_mip_f, 0.0, 0.0],
+                    [0.0, shadows_mip_f, 0.0, 0.0],
                     [cos_a, sin_a, bw, bh],
                     [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
                     [0, 0, 0, 0],
@@ -1309,6 +1327,7 @@ impl GpuRenderer {
                     &self.passes.process_fast,
                     cached.texture.as_ref(),
                     dims,
+                    compute_out_dims(frame, &edits_c, dims, options.max_edge),
                     frame,
                     edits,
                     options,
@@ -1324,8 +1343,9 @@ impl GpuRenderer {
                 let wb_base = self.run_wb_prepare(&cached, frame, &edits_c, &setup)?;
                 crate::cancel::check(cancel)?;
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
-                let src_max = dims.0.max(dims.1);
+                let (crop_w_px, crop_h_px) = crop_px(frame, &edits_c, dims);
                 let out_max = out_w.max(out_h);
+                let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
                 let wb_base = if edits_c.retouch.iter().any(|s| s.is_effective()) {
                     let t = self.run_retouch(wb_base, dims, frame, &edits_c)?;
                     crate::cancel::check(cancel)?;
@@ -1354,18 +1374,22 @@ impl GpuRenderer {
                         }
                         None => full_src,
                     };
-                let preview_active =
-                    !options.quality && out_max >= 256 && src_max >= out_max.saturating_mul(2);
-                let (spatial_dims, spatial_src) = if preview_active {
-                    let scale = (out_max as f32 / src_max as f32).min(1.0);
-                    let preview_sw = ((dims.0 as f32 * scale).round() as u32).max(1);
-                    let preview_sh = ((dims.1 as f32 * scale).round() as u32).max(1);
-                    let preview_dims = (preview_sw, preview_sh);
-                    let downsampled = self.downsample_to_preview(&full_src, dims, preview_dims)?;
-                    crate::cancel::check(cancel)?;
-                    (preview_dims, downsampled)
-                } else {
-                    (dims, full_src)
+                let preview_active = !options.quality && out_max >= 256 && ratio >= 2.0;
+                let preview_dims = preview_active
+                    .then(|| resample::resample_target(dims, ratio))
+                    .flatten();
+                let (spatial_dims, spatial_src) = match preview_dims {
+                    Some(preview_dims) => {
+                        let downsampled = self.resample_lanczos(
+                            &full_src,
+                            dims,
+                            preview_dims,
+                            "preview-spatial-src",
+                        )?;
+                        crate::cancel::check(cancel)?;
+                        (preview_dims, downsampled)
+                    }
+                    None => (dims, full_src),
                 };
                 let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
                     let atm = self.atmosphere_for(
@@ -1406,6 +1430,7 @@ impl GpuRenderer {
                     &self.passes.process_post_wb,
                     &processed_src,
                     spatial_dims,
+                    (out_w, out_h),
                     frame,
                     edits,
                     options,
@@ -1419,97 +1444,6 @@ impl GpuRenderer {
                 Ok(out)
             }
         }
-    }
-
-    fn downsample_to_preview(
-        &self,
-        src: &Arc<Texture>,
-        src_dims: (u32, u32),
-        target_dims: (u32, u32),
-    ) -> PipelineResult<Arc<Texture>> {
-        let _span = tracing::debug_span!(
-            "gpu.downsample_to_preview",
-            sw = src_dims.0,
-            sh = src_dims.1,
-            tw = target_dims.0,
-            th = target_dims.1
-        )
-        .entered();
-        let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
-        let (tw, th) = target_dims;
-        let src_max = src_dims.0.max(src_dims.1) as f32;
-        let tgt_max = tw.max(th) as f32;
-        let ratio = (src_max / tgt_max).max(1.0);
-        let mut src_lod = ratio.log2().floor() as u32;
-        let max_lod = src.mip_level_count().saturating_sub(1);
-        src_lod = src_lod.min(max_lod);
-
-        let dst = Arc::new(device.create_texture(&TextureDescriptor {
-            label: Some("preview-spatial-src"),
-            size: Extent3d {
-                width: tw,
-                height: th,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        }));
-
-        let mut u = vec![0u8; super::passes::dehaze::DOWNSAMPLE_UNIFORM_SIZE as usize];
-        u[0..4].copy_from_slice(&tw.to_le_bytes());
-        u[4..8].copy_from_slice(&th.to_le_bytes());
-        u[8..12].copy_from_slice(&1u32.to_le_bytes());
-        u[12..16].copy_from_slice(&src_lod.to_le_bytes());
-        let uniform_buf = self
-            .uniform_pool
-            .acquire(device, queue, &u, "preview-downsample-u");
-
-        let src_view = src.create_view(&TextureViewDescriptor::default());
-        let dst_view = dst.create_view(&TextureViewDescriptor::default());
-        let p = &self.passes.dehaze;
-        let bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("preview-downsample-bg"),
-            layout: &p.downsample_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::Sampler(&p.linear_sampler),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
-            ],
-        });
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("preview-downsample-enc"),
-        });
-        {
-            let mut c = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("preview-downsample-pass"),
-                timestamp_writes: None,
-            });
-            c.set_pipeline(&p.downsample_pipeline);
-            c.set_bind_group(0, &bind, &[]);
-            c.dispatch_workgroups(tw.div_ceil(16), th.div_ceil(16), 1);
-        }
-        queue.submit(Some(encoder.finish()));
-        Ok(dst)
     }
 }
 
@@ -1628,6 +1562,11 @@ fn compute_out_dims(
     src_dims: (u32, u32),
     max_edge: u32,
 ) -> (u32, u32) {
+    let (crop_w_px, crop_h_px) = crop_px(frame, edits, src_dims);
+    scale_to_max(crop_w_px, crop_h_px, max_edge)
+}
+
+fn crop_px(frame: &RawFrame, edits: &Edits, src_dims: (u32, u32)) -> (u32, u32) {
     let (sensor_w, sensor_h) = src_dims;
     let (display_w, display_h) = if frame.orientation.0 {
         (sensor_h, sensor_w)
@@ -1646,5 +1585,5 @@ fn compute_out_dims(
     let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
     let crop_w_px = (crop.w * bbox.w).round().max(1.0) as u32;
     let crop_h_px = (crop.h * bbox.h).round().max(1.0) as u32;
-    scale_to_max(crop_w_px, crop_h_px, max_edge)
+    (crop_w_px, crop_h_px)
 }

@@ -1717,3 +1717,127 @@ fn gpu_matches_cpu_for_clipping_warnings() {
         }
     }
 }
+
+fn mean_abs_laplacian(rgb: &[u8], w: usize, h: usize) -> f64 {
+    if w < 3 || h < 3 {
+        panic!("image too small for laplacian: {w}x{h}");
+    }
+    let luma = |x: usize, y: usize| {
+        let i = (y * w + x) * 3;
+        0.2126 * rgb[i] as f64 + 0.7152 * rgb[i + 1] as f64 + 0.0722 * rgb[i + 2] as f64
+    };
+    let sum: f64 = (1..h - 1)
+        .flat_map(|y| (1..w - 1).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            (4.0 * luma(x, y) - luma(x - 1, y) - luma(x + 1, y) - luma(x, y - 1) - luma(x, y + 1))
+                .abs()
+        })
+        .sum();
+    sum / ((w - 2) * (h - 2)) as f64
+}
+
+#[test]
+fn gpu_downscale_preserves_detail_like_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let Some(path) = any_fixture() else {
+        eprintln!("no fixture, skipping");
+        return;
+    };
+    let bytes = std::fs::read(&path).unwrap();
+    let frame = decode::decode(&bytes).unwrap();
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
+
+    let cases: &[(&str, Edits)] = &[
+        ("full", Edits::default()),
+        (
+            "crop50",
+            Edits {
+                geometry: GeometryEdits {
+                    crop: Some(CropRect {
+                        x: 0.25,
+                        y: 0.25,
+                        w: 0.5,
+                        h: 0.5,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "crop50-origin",
+            Edits {
+                geometry: GeometryEdits {
+                    crop: Some(CropRect {
+                        x: 0.0,
+                        y: 0.0,
+                        w: 0.5,
+                        h: 0.5,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "crop-full-width",
+            Edits {
+                geometry: GeometryEdits {
+                    crop: Some(CropRect {
+                        x: 0.0,
+                        y: 0.0,
+                        w: 1.0,
+                        h: 0.5,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "rotate90+crop",
+            Edits {
+                geometry: GeometryEdits {
+                    rotate: 90,
+                    crop: Some(CropRect {
+                        x: 0.3,
+                        y: 0.1,
+                        w: 0.45,
+                        h: 0.6,
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+    ];
+
+    let mut failed: Vec<String> = Vec::new();
+    for (label, edits) in cases {
+        let cpu = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, edits, &opts).unwrap();
+        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu.bytes);
+        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu.bytes);
+        if (cw, ch) != (gw, gh) {
+            panic!("{label}: dims {cw}x{ch} vs {gw}x{gh}");
+        }
+        let cpu_detail = mean_abs_laplacian(&cpu_rgb, cw, ch);
+        let gpu_detail = mean_abs_laplacian(&gpu_rgb, gw, gh);
+        let ratio = gpu_detail / cpu_detail;
+        eprintln!("{label}: {cw}x{ch} cpu={cpu_detail:.3} gpu={gpu_detail:.3} ratio={ratio:.3}");
+        if !(0.85..=1.20).contains(&ratio) {
+            failed.push(format!("{label}: {ratio:.3}"));
+        }
+    }
+    if !failed.is_empty() {
+        panic!(
+            "gpu/cpu detail ratio outside 0.85..1.20: {}",
+            failed.join("; ")
+        );
+    }
+}

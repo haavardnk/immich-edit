@@ -14,6 +14,7 @@ pub mod nr;
 pub mod nr_smooth;
 pub mod presence;
 pub mod process;
+pub mod resample;
 pub mod retouch;
 pub mod sensor;
 pub mod sharpen;
@@ -43,6 +44,7 @@ use nr::NrPass;
 use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
+use resample::ResamplePass;
 use retouch::RetouchPasses;
 use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
@@ -59,6 +61,7 @@ pub struct GpuPasses {
     pub nr_smooth: NrSmoothPass,
     pub capture_sharpen: CaptureSharpenPasses,
     pub presence: PresencePass,
+    pub resample: ResamplePass,
     pub retouch: RetouchPasses,
     pub wb_prepare: WbPreparePass,
     pub process_fast: ProcessFastPass,
@@ -90,6 +93,7 @@ impl GpuPasses {
             nr_smooth,
             capture_sharpen,
             presence,
+            resample,
             retouch,
             wb_prepare,
             process_fast,
@@ -113,6 +117,7 @@ impl GpuPasses {
             let nr_smooth_t = s.spawn(|| NrSmoothPass::new(ctx));
             let capture_sharpen_t = s.spawn(|| CaptureSharpenPasses::new(ctx));
             let presence_t = s.spawn(|| PresencePass::new(ctx));
+            let resample_t = s.spawn(|| ResamplePass::new(ctx));
             let retouch_t = s.spawn(|| RetouchPasses::new(ctx));
             let wb_prepare_t = s.spawn(|| WbPreparePass::new(ctx, &registry));
             let process_fast_t = s.spawn(|| ProcessFastPass::new(ctx, &registry));
@@ -145,6 +150,7 @@ impl GpuPasses {
                     .join()
                     .expect("capture sharpen pass build"),
                 presence_t.join().expect("presence pass build"),
+                resample_t.join().expect("resample pass build"),
                 retouch_t.join().expect("retouch pass build"),
                 wb_prepare_t.join().expect("wb prepare pass build"),
                 process_fast_t.join().expect("process fast pass build"),
@@ -170,6 +176,7 @@ impl GpuPasses {
             nr_smooth,
             capture_sharpen,
             presence,
+            resample,
             retouch,
             wb_prepare,
             process_fast,
