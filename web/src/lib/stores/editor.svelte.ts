@@ -74,6 +74,7 @@ import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
+import { hiresEdge } from '$lib/utils/preview-size';
 import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
@@ -100,11 +101,9 @@ const MAX_EDGE = 4096;
 const HIRES_DEBOUNCE_MS = 300;
 const MAX_HISTORY = 50;
 
-function computeHiresEdge(zoom: number): number {
-  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
-  const vp = typeof window !== 'undefined' ? Math.max(window.innerWidth, window.innerHeight) : 1600;
-  const needed = Math.ceil(vp * dpr * Math.max(1, zoom / 100));
-  return Math.min(needed, MAX_EDGE);
+function viewportFallback(): number {
+  if (typeof window === 'undefined') return 1600;
+  return Math.max(window.innerWidth, window.innerHeight);
 }
 
 class EditorStore {
@@ -193,6 +192,7 @@ class EditorStore {
   initialised = $state(false);
   private hiresTimer: ReturnType<typeof setTimeout> | null = null;
   private renderedEdge = 0;
+  private viewportEdge = 0;
   private originalEdge = 0;
   private originalGeomKey = '';
 
@@ -350,7 +350,7 @@ class EditorStore {
       this.savedHash = s.hash;
       this.initialised = true;
       this.pushHistory();
-      const hiresEdge = computeHiresEdge(100);
+      const hiresEdge = this.computeHiresEdge(100);
       if (hiresEdge > LIVE_EDGE) {
         this.flight.submit({
           edits: $state.snapshot(this.edits),
@@ -1667,12 +1667,18 @@ class EditorStore {
     }
   };
 
+  private computeHiresEdge(zoom: number): number {
+    const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio;
+    const vp = this.viewportEdge > 0 ? this.viewportEdge : viewportFallback();
+    return Math.min(hiresEdge(vp, dpr, zoom), MAX_EDGE);
+  }
+
   private scheduleHires(zoom = 100): void {
     if (this.hiresTimer) clearTimeout(this.hiresTimer);
     this.hiresTimer = setTimeout(() => {
       this.hiresTimer = null;
       if (!this.initialised) return;
-      const edge = computeHiresEdge(zoom);
+      const edge = this.computeHiresEdge(zoom);
       if (edge <= this.renderedEdge) return;
       this.flight.submit({
         edits: $state.snapshot(this.edits),
@@ -1682,9 +1688,17 @@ class EditorStore {
     }, HIRES_DEBOUNCE_MS);
   }
 
+  setViewportEdge = (edge: number): void => {
+    if (edge <= 0 || edge === this.viewportEdge) return;
+    this.viewportEdge = edge;
+    if (!this.initialised) return;
+    if (this.computeHiresEdge(ui.zoom) <= this.renderedEdge) return;
+    this.scheduleHires(ui.zoom);
+  };
+
   onZoomChange = (zoom: number): void => {
     if (!this.initialised) return;
-    const edge = computeHiresEdge(zoom);
+    const edge = this.computeHiresEdge(zoom);
     if (edge <= this.renderedEdge) return;
     this.scheduleHires(zoom);
   };

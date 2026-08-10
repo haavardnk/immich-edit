@@ -82,8 +82,24 @@
     }
   }
 
+  const viewTransform = $derived.by(() => {
+    if (ui.zoom === 100 && ui.panX === 0 && ui.panY === 0) return '';
+    const s = ui.zoom / 100;
+    return `transform: scale(${s}) translate(${ui.panX / s}px, ${ui.panY / s}px); transform-origin: center;`;
+  });
+
   $effect(() => {
     editor.onZoomChange(ui.zoom);
+  });
+
+  $effect(() => {
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (!container) return;
+      editor.setViewportEdge(Math.max(container.clientWidth, container.clientHeight));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
   });
 </script>
 
@@ -108,9 +124,7 @@
         bind:this={splitWrap}
         class="relative shadow-2xl rounded overflow-hidden"
         style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
-          1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; transform: scale({ui.zoom /
-          100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY /
-          (ui.zoom / 100)}px); transform-origin: center;"
+          1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; {viewTransform}"
       >
         <img
           bind:this={imgEl}
@@ -159,8 +173,7 @@
         src={editor.previewUrl}
         alt={editor.asset?.originalFileName ?? ''}
         class="max-w-full max-h-full object-contain shadow-2xl rounded select-none"
-        style="transform: scale({ui.zoom / 100}) translate({ui.panX / (ui.zoom / 100)}px, {ui.panY /
-          (ui.zoom / 100)}px); transform-origin: center; image-orientation: none;"
+        style="{viewTransform} image-orientation: none;"
         draggable="false"
       />
       <MaskOverlay img={imgEl} />
