@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use lru::LruCache;
 use raw_pipeline::CancelTracker;
+use serde::Deserialize;
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
@@ -12,11 +13,21 @@ use crate::asset_key::AssetKey;
 const TRACKER_CAP: usize = 1024;
 const LATEST_CAP: usize = 1024;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RenderLane {
+    #[default]
+    Base,
+    Original,
+    Roi,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RenderKey {
     pub owner: Uuid,
     pub server_epoch: i64,
     pub asset_id: AssetKey,
+    pub lane: RenderLane,
 }
 
 #[derive(Clone)]
@@ -125,6 +136,7 @@ mod tests {
             owner: Uuid::nil(),
             server_epoch: 1,
             asset_id: AssetKey::master(asset_id),
+            lane: RenderLane::Base,
         }
     }
 
@@ -182,6 +194,41 @@ mod tests {
         }
         if runs.load(Ordering::SeqCst) > 2 {
             panic!("collapsed too few: ran {}", runs.load(Ordering::SeqCst));
+        }
+    }
+
+    #[tokio::test]
+    async fn lanes_do_not_supersede_each_other() {
+        let q = RenderQueue::new(2);
+        let asset = Uuid::new_v4();
+        let base = key(asset);
+        let mut roi = base;
+        roi.lane = RenderLane::Roi;
+
+        let token_base = q.tracker(base).await.next();
+        let _token_roi = q.tracker(roi).await.next();
+        if token_base.is_cancelled() {
+            panic!("roi tracker cancelled the base render");
+        }
+
+        let q1 = q.clone();
+        let h1 = tokio::spawn(async move {
+            q1.enqueue::<_, &'static str, ()>(base, async move {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                Ok("base")
+            })
+            .await
+        });
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        let q2 = q.clone();
+        let h2 = tokio::spawn(async move {
+            q2.enqueue::<_, &'static str, ()>(roi, async move { Ok("roi") })
+                .await
+        });
+
+        let (a, b) = tokio::join!(h1, h2);
+        if a.unwrap().is_none() || b.unwrap().is_none() {
+            panic!("a lane was superseded by the other");
         }
     }
 

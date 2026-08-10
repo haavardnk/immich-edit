@@ -13,7 +13,7 @@ use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::render::{RenderError, RenderIdentity};
-use crate::services::render_queue::RenderKey;
+use crate::services::render_queue::{RenderKey, RenderLane};
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
@@ -41,6 +41,8 @@ pub struct LivePreviewBody {
     pub gamut_warn: bool,
     #[serde(default)]
     pub clip_warn: bool,
+    #[serde(default)]
+    pub lane: RenderLane,
 }
 
 pub async fn get_preview(
@@ -80,6 +82,7 @@ pub async fn get_preview(
         OutputColorSpace::SRgb,
         false,
         q.clip,
+        RenderLane::Base,
     )
     .await?;
     attach_validators(&mut resp, &etag);
@@ -114,6 +117,7 @@ pub async fn post_preview(
         body.output_color_space,
         body.gamut_warn,
         body.clip_warn,
+        body.lane,
     )
     .await
 }
@@ -141,6 +145,7 @@ async fn render_to_response(
     output_color_space: OutputColorSpace,
     gamut_warn: bool,
     clip_warn: bool,
+    lane: RenderLane,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
     let identity = RenderIdentity {
@@ -151,6 +156,7 @@ async fn render_to_response(
         owner: ctx.owner,
         server_epoch: ctx.server_epoch,
         asset_id,
+        lane,
     };
     let tracker = state.queue.tracker(key).await;
     let token = tracker.next();

@@ -253,7 +253,8 @@ class EditorStore {
         args.edge,
         'none',
         this.proofOptions(),
-        signal
+        signal,
+        'original'
       );
       return { url: makeObjectUrl(blob) };
     },

@@ -16,6 +16,8 @@ export interface ProofOptions {
   clipWarn: boolean;
 }
 
+export type RenderLane = 'base' | 'original' | 'roi';
+
 export function maskWeightPreview(layerId: string): PreviewMode {
   return { mask_weight: { layer_id: layerId } };
 }
@@ -34,7 +36,8 @@ export async function livePreview(
   maxEdge: number,
   previewMode: PreviewMode,
   proof?: ProofOptions,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  lane: RenderLane = 'base'
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     `/api/assets/${assetId}/preview`,
@@ -44,7 +47,8 @@ export async function livePreview(
       preview_mode: previewMode,
       output_color_space: proof?.colorSpace ?? 'srgb',
       gamut_warn: proof?.gamutWarn ?? false,
-      clip_warn: proof?.clipWarn ?? false
+      clip_warn: proof?.clipWarn ?? false,
+      lane
     },
     signal
   );
