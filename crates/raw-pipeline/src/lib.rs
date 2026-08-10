@@ -1,5 +1,6 @@
 pub mod auto;
 pub mod cancel;
+pub mod capture_sigma;
 pub mod codecs;
 pub mod color;
 pub mod cpu;

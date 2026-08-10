@@ -161,6 +161,7 @@ export interface ColorEdits {
 }
 
 export interface DetailEdits {
+  capture_sharpen: boolean;
   sharpen_amount: number;
   sharpen_radius: number;
   sharpen_detail: number;
@@ -174,6 +175,7 @@ export interface DetailEdits {
 }
 
 export const NEUTRAL_DETAIL: DetailEdits = {
+  capture_sharpen: true,
   sharpen_amount: 0,
   sharpen_radius: 1.0,
   sharpen_detail: 25,
@@ -703,6 +705,20 @@ const FLAT_OPS: FlatOp[] = [
     nums: [toneField('highlights'), toneField('shadows'), toneField('blacks'), toneField('whites')],
     active: (e) =>
       e.tone.highlights !== 0 || e.tone.shadows !== 0 || e.tone.blacks !== 0 || e.tone.whites !== 0
+  },
+  {
+    id: 'capture_sharpen',
+    nums: [],
+    bools: [
+      bf(
+        'enabled',
+        (e) => e.detail.capture_sharpen,
+        (e, v) => {
+          e.detail.capture_sharpen = v;
+        }
+      )
+    ],
+    active: (e) => !e.detail.capture_sharpen
   },
   {
     id: 'sharpen',

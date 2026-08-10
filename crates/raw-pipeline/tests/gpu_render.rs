@@ -174,6 +174,7 @@ fn synthetic_frame(w: usize, h: usize) -> RawFrame {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     }
@@ -207,6 +208,7 @@ fn detail_frame(w: usize, h: usize) -> RawFrame {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     }
@@ -241,6 +243,7 @@ fn fine_texture_frame(w: usize, h: usize) -> RawFrame {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     }
@@ -272,6 +275,7 @@ fn haze_frame(w: usize, h: usize) -> RawFrame {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     }
@@ -595,6 +599,7 @@ fn gpu_exif_orientation_matches_cpu() {
             cpp: 3,
             orientation: orient,
             is_raw: false,
+            capture_sigma: None,
             model: String::new(),
             exif: None,
         };
@@ -644,6 +649,7 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     };
@@ -749,6 +755,7 @@ fn gpu_shadows_match_cpu_via_pyramid() {
         cpp: 3,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     };
@@ -902,6 +909,47 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
     eprintln!("nr preview-downsample mean abs delta = {delta:.3}");
     if delta > 1.5 {
         panic!("nr preview GPU/CPU mean abs delta too high: {delta:.3}");
+    }
+}
+
+#[test]
+fn gpu_capture_sharpen_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 256,
+        quality: true,
+        ..Default::default()
+    };
+    let mut frame = detail_frame(256, 192);
+    frame.is_raw = true;
+    frame.capture_sigma = Some(0.7);
+    let edits = Edits::default();
+    let off = Edits {
+        detail: DetailEdits {
+            capture_sharpen: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let gpu_off = renderer.render(&frame, &off, &opts).unwrap();
+    assert_eq!(gpu.width, cpu.width);
+    assert_eq!(gpu.height, cpu.height);
+    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
+    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
+    let (off_rgb, _, _) = decode_jpeg_rgb(&gpu_off.bytes);
+    let effect = mean_abs_delta(&gpu_rgb, &off_rgb);
+    eprintln!("capture sharpen effect = {effect:.3}");
+    if effect < 0.5 {
+        panic!("capture sharpen had no visible effect: {effect:.3}");
+    }
+    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
+    eprintln!("capture sharpen mean abs delta = {delta:.3}");
+    if delta > 1.0 {
+        panic!("capture sharpen GPU/CPU mean abs delta too high: {delta:.3}");
     }
 }
 
@@ -1064,6 +1112,7 @@ fn synthetic_bayer_frame(w: usize, h: usize, cfa_pattern: &str) -> RawFrame {
         cpp: 1,
         orientation: (false, false, false),
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif: None,
     }

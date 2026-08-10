@@ -5,6 +5,7 @@ export interface PreviewMeta {
   source_w: number;
   source_h: number;
   renderer: string;
+  is_raw: boolean;
   histogram: Histogram;
   linear_histogram?: Histogram;
 }

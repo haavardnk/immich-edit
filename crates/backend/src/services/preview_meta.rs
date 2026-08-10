@@ -21,6 +21,7 @@ pub struct PreviewMeta {
     pub source_w: u32,
     pub source_h: u32,
     pub renderer: String,
+    pub is_raw: bool,
     pub histogram: Histogram,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub linear_histogram: Option<Histogram>,
@@ -83,6 +84,7 @@ mod tests {
             source_w: 1,
             source_h: 1,
             renderer: "cpu".into(),
+            is_raw: true,
             histogram: Histogram::from_rgb_u8(&[0, 0, 0], 1, 1),
             linear_histogram: None,
         }

@@ -54,7 +54,9 @@ Flow:
 
 Mask preview mode is a separate path. It omits the previewed layer's local adjustments, evaluates the complete layer weight, runs geometry and output effects, applies the DCP finish, then blends the translucent red overlay. The creative LUT and non-sRGB output conversion still live beyond the CPU overlay's early `display_ready` return and are not applied on this path.
 
-Current CPU detail behaviour is important: `GpuOpKind::Detail` ops are skipped in `run_pipeline_ops`. Today that means luma NR, color NR, and sharpen are GPU-owned in the normal render path. If CPU parity for those edits becomes required, change the code and this document together.
+Current CPU detail behaviour is important: `GpuOpKind::Detail` ops are skipped in `run_pipeline_ops`. Today that means luma NR, color NR, sharpen, and capture sharpen are GPU-owned in the normal render path. If CPU parity for those edits becomes required, change the code and this document together.
+
+Capture sharpening is the one detail op that is on by default. It runs only when the source is RAW and the decoder produced a blur estimate (`RawFrame::capture_sigma`), and it deconvolves the luma channel with eight Richardson-Lucy iterations before any creative tone work. The correction is gated by local contrast, shadow level, and highlight proximity so flat noise, deep shadows, and clipped highlights are left alone, then clamped to the local min/max of the original luma to suppress halos.
 
 ## GPU path
 
@@ -73,17 +75,18 @@ Dispatch order:
 | 2 | sensor | `run_sensor`, `passes/sensor.rs` | Active lens sensor ops before orientation/crop sampling. |
 | 3 | wb_prepare | `run_wb_prepare`, `passes/wb_prepare.rs` | White balance plus camera-to-sRGB pre-pass for presence/detail work. |
 | 4 | NR | `run_nr`, `passes/nr.rs`, `passes/nr_smooth.rs` | `luma_nr`, `color_nr` detail work. |
-| 5 | dehaze | `atmosphere_for`, `run_dehaze`, `passes/dehaze.rs` | Atmosphere estimate and DCP/guided-filter dehaze. |
-| 6 | presence | `run_presence`, `passes/presence.rs`, `passes/luma_pyramid.rs` | Texture and clarity. Shadows builds a luma pyramid later when needed. |
-| 7 | process | `process`, `passes/process.rs`, generated `process.wgsl` | Pointwise ops, crop/rotate/flip/angle sampling, fast-path tone. |
-| 8 | DCP base table | `encode_dcp_huesat`, `passes/dcp_huesat.rs` | Camera HueSatMap in linear ProPhoto; skipped when disabled or unmatched. |
-| 9 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
-| 10 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
-| 11 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, destination-gamut projection, and output conversion when a final pass is active. |
-| 12 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and Adobe hue-preserving profile tone curve. |
-| 13 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
-| 14 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
-| 15 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
+| 5 | capture sharpen | `run_capture_sharpen`, `passes/capture_sharpen.rs` | RAW-only Richardson-Lucy deconvolution of sensor blur, after NR so noise is not amplified. |
+| 6 | dehaze | `atmosphere_for`, `run_dehaze`, `passes/dehaze.rs` | Atmosphere estimate and DCP/guided-filter dehaze. |
+| 7 | presence | `run_presence`, `passes/presence.rs`, `passes/luma_pyramid.rs` | Texture and clarity. Shadows builds a luma pyramid later when needed. |
+| 8 | process | `process`, `passes/process.rs`, generated `process.wgsl` | Pointwise ops, crop/rotate/flip/angle sampling, fast-path tone. |
+| 9 | DCP base table | `encode_dcp_huesat`, `passes/dcp_huesat.rs` | Camera HueSatMap in linear ProPhoto; skipped when disabled or unmatched. |
+| 10 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
+| 11 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
+| 12 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, destination-gamut projection, and output conversion when a final pass is active. |
+| 13 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and Adobe hue-preserving profile tone curve. |
+| 14 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
+| 15 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
+| 16 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
 
 ## Color-space rules
 

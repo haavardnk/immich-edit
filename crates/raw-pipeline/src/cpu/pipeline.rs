@@ -61,6 +61,7 @@ pub fn render_with_cancel(
             wb_coeffs: frame.wb_coeffs,
             cam_to_srgb: setup.cam_to_srgb,
             is_raw: frame.is_raw,
+            capture_sigma: frame.capture_sigma,
             preview_mode: options.preview_mode.clone(),
             dcp: setup.resolved,
         },
@@ -175,6 +176,7 @@ pub fn render_with_cancel(
         source_w: oriented_w as u32,
         source_h: oriented_h as u32,
         renderer: "cpu".into(),
+        is_raw: frame.is_raw,
     })
 }
 
@@ -213,6 +215,7 @@ fn run_pipeline_ops_inner(
                 wb_coeffs: ctx.render.wb_coeffs,
                 cam_to_srgb: ctx.render.cam_to_srgb,
                 is_raw: ctx.render.is_raw,
+                capture_sigma: ctx.render.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 dcp: ctx.render.dcp.clone(),
             },
@@ -265,6 +268,7 @@ fn run_pipeline_ops_inner(
                 wb_coeffs: ctx.render.wb_coeffs,
                 cam_to_srgb: ctx.render.cam_to_srgb,
                 is_raw: ctx.render.is_raw,
+                capture_sigma: ctx.render.capture_sigma,
                 preview_mode: ctx.render.preview_mode.clone(),
                 dcp: ctx.render.dcp.clone(),
             },

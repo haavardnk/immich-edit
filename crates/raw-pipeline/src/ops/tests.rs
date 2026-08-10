@@ -19,6 +19,7 @@ fn ctx() -> OpContext {
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
             cam_to_srgb: crate::color::identity_3x3(),
             is_raw: false,
+            capture_sigma: None,
             preview_mode: crate::frame::PreviewMode::None,
             dcp: None,
         },
@@ -666,6 +667,8 @@ fn dehaze_runs_after_nr_and_before_presence() {
     let pos = |id: &str| ids.iter().position(|s| *s == id).unwrap();
     assert!(pos("luma_nr") < pos("dehaze"));
     assert!(pos("color_nr") < pos("dehaze"));
+    assert!(pos("color_nr") < pos("capture_sharpen"));
+    assert!(pos("capture_sharpen") < pos("dehaze"));
     assert!(pos("dehaze") < pos("texture"));
     assert!(pos("dehaze") < pos("clarity"));
 }
@@ -675,7 +678,15 @@ fn registry_skips_inactive_ops() {
     let reg = default_registry();
     let edits = Edits::default();
     let active: Vec<&str> = reg.active(&edits).map(|o| o.id()).collect();
-    assert_eq!(active, vec!["camera_wb", "color_matrix", "dcp_hue_sat"]);
+    assert_eq!(
+        active,
+        vec![
+            "camera_wb",
+            "color_matrix",
+            "capture_sharpen",
+            "dcp_hue_sat"
+        ]
+    );
 }
 
 #[test]

@@ -191,6 +191,8 @@ fn decode_raw_fast(
         (pixels.into_inner(), w, h, cfa_name)
     };
 
+    let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
+
     Ok(RawFrame {
         width,
         height,
@@ -203,6 +205,7 @@ fn decode_raw_fast(
         cpp: 1,
         orientation,
         is_raw: true,
+        capture_sigma,
         model: raw_image.clean_model.clone(),
         exif,
     })
@@ -285,6 +288,7 @@ fn decode_raw_quality(
         cpp: 3,
         orientation,
         is_raw: true,
+        capture_sigma: None,
         model: raw_image.clean_model.clone(),
         exif,
     })
@@ -329,10 +333,13 @@ fn decode_raw_xtrans(
         (pixels.into_inner(), w, h, pattern)
     };
 
+    let cfa_pattern: String = pattern.iter().map(|b| *b as char).collect();
+    let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
+
     Ok(RawFrame {
         width,
         height,
-        cfa_pattern: pattern.iter().map(|b| *b as char).collect(),
+        cfa_pattern,
         bps: 16,
         wb_coeffs,
         xyz_to_cam,
@@ -341,6 +348,7 @@ fn decode_raw_xtrans(
         cpp: 1,
         orientation,
         is_raw: true,
+        capture_sigma,
         model: raw_image.clean_model.clone(),
         exif,
     })
@@ -441,6 +449,7 @@ fn frame_from_rgb8(
         cpp: 3,
         orientation,
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif,
     }
@@ -472,6 +481,7 @@ fn frame_from_rgb16(
         cpp: 3,
         orientation,
         is_raw: false,
+        capture_sigma: None,
         model: String::new(),
         exif,
     }

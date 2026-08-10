@@ -38,6 +38,7 @@ describe('view transform round trip', () => {
       source_w: 1000,
       source_h: 800,
       renderer: 'cpu',
+      is_raw: true,
       histogram: { r: [], g: [], b: [], l: [] }
     });
     const scene = displayUvToSceneUv(view, 0.3, 0.7);

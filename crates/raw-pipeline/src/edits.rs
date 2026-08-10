@@ -109,6 +109,9 @@ fn color_nr_detail_default() -> f64 {
 fn color_nr_smoothness_default() -> f64 {
     50.0
 }
+fn capture_sharpen_default() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct DetailEdits {
@@ -132,6 +135,8 @@ pub struct DetailEdits {
     pub color_nr_detail: f64,
     #[serde(default = "color_nr_smoothness_default")]
     pub color_nr_smoothness: f64,
+    #[serde(default = "capture_sharpen_default")]
+    pub capture_sharpen: bool,
 }
 
 impl Default for DetailEdits {
@@ -147,6 +152,7 @@ impl Default for DetailEdits {
             color_nr_amount: 0.0,
             color_nr_detail: color_nr_detail_default(),
             color_nr_smoothness: color_nr_smoothness_default(),
+            capture_sharpen: capture_sharpen_default(),
         }
     }
 }
@@ -176,6 +182,7 @@ impl DetailEdits {
             color_nr_amount: self.color_nr_amount.clamp(0.0, 100.0),
             color_nr_detail: self.color_nr_detail.clamp(0.0, 100.0),
             color_nr_smoothness: self.color_nr_smoothness.clamp(0.0, 100.0),
+            capture_sharpen: self.capture_sharpen,
         };
         if !out.sharpen_active() {
             out.sharpen_radius = sharpen_radius_default();

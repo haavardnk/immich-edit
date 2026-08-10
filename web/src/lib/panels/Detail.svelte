@@ -8,8 +8,15 @@
   const sharpenInactive = $derived(editor.edits.detail.sharpen_amount === 0);
   const lumaNrInactive = $derived(editor.edits.detail.luma_nr_amount === 0);
   const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
+  const isRaw = $derived(editor.meta?.is_raw ?? false);
+
+  function onToggleCaptureSharpen(e: Event): void {
+    editor.edits.detail.capture_sharpen = (e.currentTarget as HTMLInputElement).checked;
+    editor.onCommit('Capture Sharpening');
+  }
 
   function resetSharpen(): void {
+    editor.edits.detail.capture_sharpen = NEUTRAL_DETAIL.capture_sharpen;
     editor.edits.detail.sharpen_amount = NEUTRAL_DETAIL.sharpen_amount;
     editor.edits.detail.sharpen_radius = NEUTRAL_DETAIL.sharpen_radius;
     editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
@@ -42,6 +49,23 @@
         <Icon path={mdiRestore} size={14} />
       </button>
     </div>
+    <label
+      class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80"
+      class:cursor-pointer={isRaw}
+      class:opacity-40={!isRaw}
+      title={isRaw
+        ? 'Compensates for sensor and anti-aliasing filter blur'
+        : 'Only available for raw files'}
+    >
+      <input
+        type="checkbox"
+        class="checkbox checkbox-xs checkbox-primary"
+        checked={editor.edits.detail.capture_sharpen}
+        disabled={!isRaw}
+        onchange={onToggleCaptureSharpen}
+      />
+      Capture Sharpening
+    </label>
     <SliderRow
       label="Amount"
       commitAction="Sharpen Amount"

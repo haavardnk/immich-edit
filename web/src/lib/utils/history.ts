@@ -176,6 +176,12 @@ const FIELDS: FieldDef[] = [
   },
   {
     kind: 'boolean',
+    section: 'detail',
+    label: 'Capture Sharpening',
+    get: (e) => e.detail.capture_sharpen
+  },
+  {
+    kind: 'boolean',
     section: 'lens',
     label: 'Profile Corrections',
     get: (e) => e.lens.profile_enabled

@@ -29,6 +29,7 @@ fn ctx() -> OpContext {
                 [0.02, -0.45, 1.43],
             ],
             is_raw: true,
+            capture_sigma: Some(0.7),
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             dcp: None,
         },
@@ -110,6 +111,7 @@ fn edits_detail_heavy() -> Edits {
             color_nr_amount: 50.0,
             color_nr_detail: 50.0,
             color_nr_smoothness: 25.0,
+            capture_sharpen: true,
         },
         ..Default::default()
     }

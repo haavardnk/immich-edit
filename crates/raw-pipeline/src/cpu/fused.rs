@@ -264,6 +264,7 @@ mod tests {
                 wb_coeffs: [1.0, 1.0, 1.0, 1.0],
                 cam_to_srgb: identity_3x3(),
                 is_raw: false,
+                capture_sigma: None,
                 preview_mode: crate::frame::PreviewMode::None,
                 dcp: None,
             },

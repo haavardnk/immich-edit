@@ -200,6 +200,7 @@ async fn render_to_response(
             source_w: rendered.source_w,
             source_h: rendered.source_h,
             renderer: rendered.renderer.clone(),
+            is_raw: rendered.is_raw,
             histogram: rendered.histogram.clone(),
             linear_histogram: rendered.linear_histogram.clone(),
         };

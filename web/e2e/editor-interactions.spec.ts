@@ -31,6 +31,30 @@ test('adjusting a slider requests a live preview with the new edit', async ({ pa
     .toBe(true);
 });
 
+test('capture sharpening toggle is enabled only for raw assets', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { previewMeta: { is_raw: true }, onSave: (body) => saves.push(body) });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Detail', exact: true }).click();
+  const toggle = page.getByRole('checkbox', { name: 'Capture Sharpening' });
+  await expect(toggle).toBeEnabled();
+  await expect(toggle).toBeChecked();
+
+  await toggle.uncheck();
+  await expect
+    .poll(() => saves.some((s) => JSON.stringify(s).includes('"capture_sharpen"')))
+    .toBe(true);
+});
+
+test('capture sharpening toggle is disabled for non-raw assets', async ({ page }) => {
+  await installMocks(page, { previewMeta: { is_raw: false } });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Detail', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Capture Sharpening' })).toBeDisabled();
+});
+
 test('color range eyedropper samples maskless preview', async ({ page }) => {
   const previews: PreviewRequest[] = [];
   const saves: Array<Record<string, unknown>> = [];

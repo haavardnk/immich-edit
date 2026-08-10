@@ -1,3 +1,4 @@
+pub mod capture_sharpen;
 pub mod common;
 pub mod dcp_huesat;
 pub mod dehaze;
@@ -27,6 +28,7 @@ use super::context::GpuContext;
 use crate::gpu::shader_builder::StageMask;
 use crate::ops::{OpRegistry, default_registry};
 
+use capture_sharpen::CaptureSharpenPasses;
 use dcp_huesat::DcpHueSatPass;
 use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
@@ -55,6 +57,7 @@ pub struct GpuPasses {
     pub luma_pyramid: LumaPyramidPass,
     pub nr: NrPass,
     pub nr_smooth: NrSmoothPass,
+    pub capture_sharpen: CaptureSharpenPasses,
     pub presence: PresencePass,
     pub retouch: RetouchPasses,
     pub wb_prepare: WbPreparePass,
@@ -85,6 +88,7 @@ impl GpuPasses {
             luma_pyramid,
             nr,
             nr_smooth,
+            capture_sharpen,
             presence,
             retouch,
             wb_prepare,
@@ -107,6 +111,7 @@ impl GpuPasses {
             let luma_pyramid_t = s.spawn(|| LumaPyramidPass::new(ctx));
             let nr_t = s.spawn(|| NrPass::new(ctx));
             let nr_smooth_t = s.spawn(|| NrSmoothPass::new(ctx));
+            let capture_sharpen_t = s.spawn(|| CaptureSharpenPasses::new(ctx));
             let presence_t = s.spawn(|| PresencePass::new(ctx));
             let retouch_t = s.spawn(|| RetouchPasses::new(ctx));
             let wb_prepare_t = s.spawn(|| WbPreparePass::new(ctx, &registry));
@@ -136,6 +141,9 @@ impl GpuPasses {
                 luma_pyramid_t.join().expect("luma pyramid pass build"),
                 nr_t.join().expect("nr pass build"),
                 nr_smooth_t.join().expect("nr smooth pass build"),
+                capture_sharpen_t
+                    .join()
+                    .expect("capture sharpen pass build"),
                 presence_t.join().expect("presence pass build"),
                 retouch_t.join().expect("retouch pass build"),
                 wb_prepare_t.join().expect("wb prepare pass build"),
@@ -160,6 +168,7 @@ impl GpuPasses {
             luma_pyramid,
             nr,
             nr_smooth,
+            capture_sharpen,
             presence,
             retouch,
             wb_prepare,

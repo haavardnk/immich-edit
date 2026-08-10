@@ -1,5 +1,6 @@
 pub mod blur;
 pub mod brightness;
+pub mod capture_sharpen;
 pub mod clarity;
 pub mod color_grade;
 pub mod color_matrix;
@@ -75,6 +76,7 @@ pub struct RenderContext {
     pub wb_coeffs: [f32; 4],
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
+    pub capture_sigma: Option<f32>,
     pub preview_mode: crate::frame::PreviewMode,
     pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
 }
@@ -256,6 +258,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(retouch::RetouchOp),
         Box::new(luma_nr::LumaNrOp),
         Box::new(color_nr::ColorNrOp),
+        Box::new(capture_sharpen::CaptureSharpenOp),
         Box::new(texture::TextureOp),
         Box::new(clarity::ClarityOp),
         Box::new(dehaze::DehazeOp),

@@ -28,15 +28,18 @@ fn make_image(w: usize, h: usize) -> LinearImage {
         for x in 0..w {
             let u = x as f32 / w as f32;
             let v = y as f32 / h as f32;
-            rgb.push(0.2 + 0.6 * u);
-            rgb.push(0.15 + 0.7 * v);
-            rgb.push(0.25 + 0.5 * (u * v));
+            let texture = 0.05
+                * ((x as f32 * 0.9).sin() * (y as f32 * 0.7).cos()
+                    + (x as f32 * 0.31 + y as f32 * 0.23).sin());
+            rgb.push(0.2 + 0.6 * u + texture);
+            rgb.push(0.15 + 0.7 * v + texture);
+            rgb.push(0.25 + 0.5 * (u * v) + texture);
         }
     }
     LinearImage::new(rgb, w, h)
 }
 
-fn ctx() -> OpContext {
+fn ctx_with_sigma(capture_sigma: Option<f32>) -> OpContext {
     OpContext {
         render: RenderContext {
             wb_coeffs: [2.1, 1.0, 1.45, 1.0],
@@ -46,6 +49,7 @@ fn ctx() -> OpContext {
                 [0.02, -0.45, 1.43],
             ],
             is_raw: true,
+            capture_sigma,
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             dcp: None,
         },
@@ -127,13 +131,14 @@ fn edits_detail_heavy() -> Edits {
             color_nr_amount: 50.0,
             color_nr_detail: 50.0,
             color_nr_smoothness: 25.0,
+            capture_sharpen: true,
         },
         ..Default::default()
     }
 }
 
-fn measure(label: &str, edits: &Edits, base: &LinearImage) -> u64 {
-    let ctx = ctx();
+fn measure(label: &str, edits: &Edits, base: &LinearImage, capture_sigma: Option<f32>) -> u64 {
+    let ctx = ctx_with_sigma(capture_sigma);
     let rasters = raw_pipeline::empty_rasters();
     for _ in 0..2 {
         let mut img = LinearImage::new(base.rgb.clone(), base.width, base.height);
@@ -162,15 +167,16 @@ fn perf_gate_pipeline_profiles() {
         return;
     }
     let base = make_image(W, H);
-    let profiles: [(&str, Edits); 4] = [
-        ("identity", edits_identity()),
-        ("typical", edits_typical()),
-        ("full", edits_full()),
-        ("detail_heavy", edits_detail_heavy()),
+    let profiles: [(&str, Edits, Option<f32>); 5] = [
+        ("identity", edits_identity(), None),
+        ("typical", edits_typical(), None),
+        ("full", edits_full(), None),
+        ("detail_heavy", edits_detail_heavy(), None),
+        ("capture_sharpen", edits_identity(), Some(0.7)),
     ];
     let measured: BTreeMap<String, u64> = profiles
         .iter()
-        .map(|(name, e)| ((*name).to_string(), measure(name, e, &base)))
+        .map(|(name, e, sigma)| ((*name).to_string(), measure(name, e, &base, *sigma)))
         .collect();
 
     if std::env::var_os("BAKE_PERF_GATE").is_some() {

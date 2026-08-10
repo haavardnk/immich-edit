@@ -48,7 +48,7 @@ pub enum RenderPlan {
 }
 
 impl RenderPlan {
-    pub fn select(edits: &Edits) -> Self {
+    pub fn select(edits: &Edits, frame: &RawFrame) -> Self {
         let b = &edits.basic;
         let d = &edits.detail;
         let masked_presence = edits
@@ -63,6 +63,7 @@ impl RenderPlan {
             || masked_presence
             || d.luma_nr_active()
             || d.color_nr_active()
+            || crate::ops::capture_sharpen::frame_sigma(frame, edits).is_some()
             || edits.retouch.iter().any(|s| s.is_effective())
         {
             Self::Presence
@@ -80,6 +81,7 @@ pub struct GpuPoolStats {
     pub sharpen_targets: u64,
     pub wb_cache: u64,
     pub nr_cache: u64,
+    pub capture_cache: u64,
     pub atlas_cache: u64,
 }
 
@@ -122,6 +124,7 @@ pub struct GpuRenderer {
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
     wb_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     nr_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
+    capture_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
@@ -134,6 +137,7 @@ pub struct GpuRenderer {
 const ATM_CACHE_ITEMS: usize = 16;
 const WB_CACHE_ITEMS: usize = 2;
 const NR_CACHE_ITEMS: usize = 2;
+const CAPTURE_CACHE_ITEMS: usize = 2;
 const LUT_TEX_CACHE_ITEMS: usize = 4;
 const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 
@@ -178,6 +182,9 @@ impl GpuRenderer {
             )),
             nr_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(NR_CACHE_ITEMS).expect("nonzero"),
+            )),
+            capture_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(CAPTURE_CACHE_ITEMS).expect("nonzero"),
             )),
             lut_tex_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(LUT_TEX_CACHE_ITEMS).expect("nonzero"),
@@ -227,6 +234,12 @@ impl GpuRenderer {
             .iter()
             .map(|(_, t)| texture_bytes(t))
             .sum();
+        let capture_cache_bytes = self
+            .capture_cache
+            .lock()
+            .iter()
+            .map(|(_, t)| texture_bytes(t))
+            .sum();
         let atlas_cache_bytes = self
             .atlas_cache
             .lock()
@@ -240,6 +253,7 @@ impl GpuRenderer {
             sharpen_targets: sharpen_bytes,
             wb_cache: wb_cache_bytes,
             nr_cache: nr_cache_bytes,
+            capture_cache: capture_cache_bytes,
             atlas_cache: atlas_cache_bytes,
         }
     }
@@ -410,6 +424,7 @@ impl GpuRenderer {
                 wb_coeffs: frame.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
                 is_raw: frame.is_raw,
+                capture_sigma: frame.capture_sigma,
                 preview_mode: opts.preview_mode.clone(),
                 dcp: setup.resolved,
             },
@@ -1217,6 +1232,7 @@ impl GpuRenderer {
             source_w: oriented_w,
             source_h: oriented_h,
             renderer: "gpu".into(),
+            is_raw: frame.is_raw,
         })
     }
 
@@ -1275,7 +1291,7 @@ impl GpuRenderer {
             return Err(PipelineError::DeviceLost);
         }
         crate::cancel::check(cancel)?;
-        let plan = RenderPlan::select(edits);
+        let plan = RenderPlan::select(edits, frame);
         let cached = self.get_or_demosaic(frame)?;
         crate::cancel::check(cancel)?;
         let cached = if edits.lens.any_active() {
@@ -1324,6 +1340,19 @@ impl GpuRenderer {
                         t
                     } else {
                         wb_base
+                    };
+                let full_src: Arc<Texture> =
+                    match crate::ops::capture_sharpen::frame_sigma(frame, &edits_c)
+                        .filter(|_| dims.0 >= 8 && dims.1 >= 8)
+                    {
+                        Some(sigma) => {
+                            let key =
+                                capture_cache_key(frame, &edits_c, dims, setup.cam_to_srgb, sigma);
+                            let t = self.run_capture_sharpen(&full_src, dims, sigma, key)?;
+                            crate::cancel::check(cancel)?;
+                            t
+                        }
+                        None => full_src,
                     };
                 let preview_active =
                     !options.quality && out_max >= 256 && src_max >= out_max.saturating_mul(2);
@@ -1576,6 +1605,20 @@ fn nr_cache_key(
     d.color_nr_amount.to_bits().hash(&mut h);
     d.color_nr_detail.to_bits().hash(&mut h);
     d.color_nr_smoothness.to_bits().hash(&mut h);
+    h.finish()
+}
+
+fn capture_cache_key(
+    frame: &RawFrame,
+    edits: &Edits,
+    dims: (u32, u32),
+    cam_to_srgb: [[f32; 3]; 3],
+    sigma: f32,
+) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    nr_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
+    sigma.to_bits().hash(&mut h);
     h.finish()
 }
 

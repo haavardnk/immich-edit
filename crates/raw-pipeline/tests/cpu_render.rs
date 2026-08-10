@@ -74,6 +74,25 @@ fn decode_metadata() {
 }
 
 #[test]
+fn capture_sigma_is_estimated_for_mosaic_fixtures() {
+    each_fixture(|name, frame| {
+        if frame.cpp != 1 {
+            if frame.capture_sigma.is_some() {
+                panic!("{name}: demosaiced frame reported a capture sigma");
+            }
+            return;
+        }
+        let Some(sigma) = frame.capture_sigma else {
+            panic!("{name}: mosaic frame has no capture sigma");
+        };
+        eprintln!("{name}: capture sigma {sigma}");
+        if !(0.2..=2.0).contains(&sigma) {
+            panic!("{name}: implausible capture sigma {sigma}");
+        }
+    });
+}
+
+#[test]
 fn auto_adjust_reads_every_fixture() {
     each_fixture(|name, frame| {
         let e = raw_pipeline::auto::auto_adjust(frame, &Edits::default());

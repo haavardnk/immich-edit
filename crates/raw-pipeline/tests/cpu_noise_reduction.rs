@@ -11,6 +11,7 @@ fn ctx() -> OpContext {
             wb_coeffs: [1.0, 1.0, 1.0, 1.0],
             cam_to_srgb: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
             is_raw: true,
+            capture_sigma: None,
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             dcp: None,
         },

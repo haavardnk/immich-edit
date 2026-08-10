@@ -199,6 +199,14 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(back.effects).toEqual(e.effects);
   });
 
+  it('only records capture sharpening when it is turned off', () => {
+    const e = neutralEdits();
+    expect(editsToManifest(e).ops.capture_sharpen).toBeUndefined();
+    e.detail.capture_sharpen = false;
+    expect(editsToManifest(e).ops.capture_sharpen).toEqual({ enabled: false });
+    expect(roundTrip(e).detail.capture_sharpen).toBe(false);
+  });
+
   it('preserves every flat op field', () => {
     const e = neutralEdits();
     e.basic.exposure_ev = 1.5;

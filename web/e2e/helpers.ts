@@ -1,5 +1,6 @@
 import { expect, type Page, type Route } from '@playwright/test';
 import type { EditRecord } from '../src/lib/types/edits';
+import type { PreviewMeta } from '../src/lib/types/preview';
 
 export const PNG_1X1: Buffer = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -86,7 +87,21 @@ export interface InstallOpts {
   onMetadata?: (body: Record<string, unknown>) => void;
   smartFails?: boolean;
   previewBody?: Buffer;
+  previewMeta?: Partial<PreviewMeta>;
 }
+
+const EMPTY_HISTOGRAM = { r: [], g: [], b: [], l: [] };
+
+const PREVIEW_META: PreviewMeta = {
+  asset_id: ASSET_ID,
+  width: 64,
+  height: 64,
+  source_w: 64,
+  source_h: 64,
+  renderer: 'cpu',
+  is_raw: false,
+  histogram: EMPTY_HISTOGRAM
+};
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
@@ -98,8 +113,13 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         .filter((c) => c.source_asset_id === a.id)
         .map((c) => ({ ...a, id: c.id, copyOf: a.id, copyLabel: c.name }))
     ]);
-  const previewPng = (): Parameters<Route['fulfill']>[0] =>
-    opts.previewBody ? { status: 200, contentType: 'image/png', body: opts.previewBody } : png();
+  const previewPng = (): Parameters<Route['fulfill']>[0] => {
+    const base = opts.previewBody
+      ? { status: 200, contentType: 'image/png', body: opts.previewBody }
+      : png();
+    if (!opts.previewMeta) return base;
+    return { ...base, headers: { 'x-preview-meta-id': 'meta-1' } };
+  };
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();
@@ -215,6 +235,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         body: JPEG_BLOB
       });
     }
+
+    if (opts.previewMeta && p.match(/^\/api\/assets\/[^/]+\/preview\/meta\//))
+      return route.fulfill(json({ ...PREVIEW_META, ...opts.previewMeta }));
 
     if (p.match(/^\/api\/assets\/[^/]+\/preview$/)) {
       if (method === 'POST' && opts.onPreview) {

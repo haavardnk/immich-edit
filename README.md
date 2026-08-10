@@ -36,6 +36,7 @@ Edits:
 - Camera profiles with automatic DCP matching, bundled profiles, and custom `.dcp` import
 - 3D `.cube` LUT import with a shared library and per-photo amount control
 - Clarity, texture, dehaze, sharpening, luma + color noise reduction
+- Automatic capture sharpening for raw files, on by default and switchable per photo
 - Vignette, grain
 - Crop, rotate, flip
 - Local masks (radial, linear, brush, polygon, luminance range, color range) with adjustable parameters

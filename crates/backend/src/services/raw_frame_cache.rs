@@ -88,6 +88,7 @@ mod tests {
             cpp: 1,
             orientation: (false, false, false),
             is_raw: true,
+            capture_sigma: None,
             model: String::new(),
             exif: None,
         })

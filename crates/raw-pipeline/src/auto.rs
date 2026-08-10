@@ -387,6 +387,7 @@ fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         cpp: 3,
         orientation: frame.orientation,
         is_raw: frame.is_raw,
+        capture_sigma: None,
         model: frame.model.clone(),
         exif: None,
     })
@@ -671,6 +672,7 @@ mod tests {
             cpp: 1,
             orientation: (false, false, false),
             is_raw: false,
+            capture_sigma: None,
             model: String::new(),
             exif: None,
         }
@@ -698,6 +700,7 @@ mod tests {
             cpp: 3,
             orientation: (false, false, false),
             is_raw: false,
+            capture_sigma: None,
             model: String::new(),
             exif: None,
         }

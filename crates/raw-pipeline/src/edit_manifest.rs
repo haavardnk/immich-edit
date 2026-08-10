@@ -151,6 +151,7 @@ mod tests {
                 color_nr_amount: 40.0,
                 color_nr_detail: 55.0,
                 color_nr_smoothness: 60.0,
+                capture_sharpen: false,
             },
             effects: EffectsEdits {
                 vignette_amount: -35.0,

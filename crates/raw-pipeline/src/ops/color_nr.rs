@@ -221,6 +221,7 @@ mod tests {
                 wb_coeffs: [1.0; 4],
                 cam_to_srgb: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
                 is_raw: false,
+                capture_sigma: None,
                 preview_mode: PreviewMode::None,
                 dcp: None,
             },

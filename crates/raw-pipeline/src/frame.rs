@@ -12,6 +12,7 @@ pub struct RawFrame {
     pub cpp: usize,
     pub orientation: OrientFlips,
     pub is_raw: bool,
+    pub capture_sigma: Option<f32>,
     pub model: String,
     pub exif: Option<little_exif::metadata::Metadata>,
 }
@@ -200,4 +201,5 @@ pub struct RenderedImage {
     pub source_w: u32,
     pub source_h: u32,
     pub renderer: String,
+    pub is_raw: bool,
 }

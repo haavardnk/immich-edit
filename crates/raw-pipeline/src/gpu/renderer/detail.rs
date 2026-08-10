@@ -15,6 +15,7 @@ use crate::gpu::texture_pool::TextureKey;
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
 use crate::gpu::helpers::mip_count;
+use crate::gpu::passes::capture_sharpen as capture;
 use crate::gpu::uniforms::{write_active_mask, write_header};
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
@@ -143,6 +144,226 @@ impl GpuRenderer {
         }
         let out = Arc::new(dst);
         self.nr_cache.lock().put(key, out.clone());
+        Ok(out)
+    }
+
+    pub(super) fn run_capture_sharpen(
+        &self,
+        src: &Texture,
+        dims: (u32, u32),
+        sigma: f32,
+        key: u64,
+    ) -> PipelineResult<Arc<Texture>> {
+        if let Some(t) = self.capture_cache.lock().get(&key).cloned() {
+            tracing::debug!(target: "gpu_cache", "capture_sharpen cache hit");
+            return Ok(t);
+        }
+        let _span =
+            tracing::debug_span!("gpu.run_capture_sharpen", w = dims.0, h = dims.1).entered();
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (w, h) = dims;
+        let p = &self.passes.capture_sharpen;
+        let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
+        let radius = (kernel.len() / 2) as u32;
+
+        let mut luma_u = vec![0u8; capture::CAPTURE_LUMA_UNIFORM_SIZE as usize];
+        luma_u[0..4].copy_from_slice(&w.to_le_bytes());
+        luma_u[4..8].copy_from_slice(&h.to_le_bytes());
+        let luma_buf = self
+            .uniform_pool
+            .acquire(device, queue, &luma_u, "capture-luma-u");
+
+        let make_blur_u = |axis: u32, mode: u32, label: &'static str| {
+            let mut u = vec![0u8; capture::CAPTURE_BLUR_UNIFORM_SIZE as usize];
+            u[0..4].copy_from_slice(&w.to_le_bytes());
+            u[4..8].copy_from_slice(&h.to_le_bytes());
+            u[8..12].copy_from_slice(&radius.to_le_bytes());
+            u[12..16].copy_from_slice(&axis.to_le_bytes());
+            u[16..20].copy_from_slice(&mode.to_le_bytes());
+            for (i, k) in kernel.iter().enumerate() {
+                let off = 32 + i * 4;
+                u[off..off + 4].copy_from_slice(&k.to_le_bytes());
+            }
+            self.uniform_pool.acquire(device, queue, &u, label)
+        };
+        let blur_h_buf = make_blur_u(0, 0, "capture-blur-h-u");
+        let blur_ratio_buf = make_blur_u(1, 1, "capture-blur-ratio-u");
+        let blur_mul_buf = make_blur_u(1, 2, "capture-blur-mul-u");
+
+        let mut apply_u = vec![0u8; capture::CAPTURE_APPLY_UNIFORM_SIZE as usize];
+        apply_u[0..4].copy_from_slice(&w.to_le_bytes());
+        apply_u[4..8].copy_from_slice(&h.to_le_bytes());
+        apply_u[8..12].copy_from_slice(&radius.to_le_bytes());
+        let apply_buf = self
+            .uniform_pool
+            .acquire(device, queue, &apply_u, "capture-apply-u");
+
+        let scratch_key = TextureKey::new(
+            capture::CAPTURE_SCRATCH_FORMAT,
+            w,
+            h,
+            1,
+            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        );
+        let luma = self
+            .texture_pool
+            .acquire(device, scratch_key, "capture-luma");
+        let est_a = self
+            .texture_pool
+            .acquire(device, scratch_key, "capture-est-a");
+        let est_b = self
+            .texture_pool
+            .acquire(device, scratch_key, "capture-est-b");
+        let tmp = self
+            .texture_pool
+            .acquire(device, scratch_key, "capture-tmp");
+
+        let out = device.create_texture(&TextureDescriptor {
+            label: Some("capture-sharpen-out"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let luma_view = luma.create_view(&TextureViewDescriptor::default());
+        let est_a_view = est_a.create_view(&TextureViewDescriptor::default());
+        let est_b_view = est_b.create_view(&TextureViewDescriptor::default());
+        let tmp_view = tmp.create_view(&TextureViewDescriptor::default());
+        let out_view = out.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+
+        let bg_luma = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("capture-luma-bg"),
+            layout: &p.luma_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: luma_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&luma_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&est_a_view),
+                },
+            ],
+        });
+        let make_blur_bg = |uniform: &crate::gpu::uniform_pool::PooledUniform,
+                            read: &wgpu::TextureView,
+                            aux: &wgpu::TextureView,
+                            write: &wgpu::TextureView| {
+            device.create_bind_group(&BindGroupDescriptor {
+                label: Some("capture-blur-bg"),
+                layout: &p.blur_layout,
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: uniform.as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::TextureView(read),
+                    },
+                    BindGroupEntry {
+                        binding: 2,
+                        resource: BindingResource::TextureView(aux),
+                    },
+                    BindGroupEntry {
+                        binding: 3,
+                        resource: BindingResource::TextureView(write),
+                    },
+                ],
+            })
+        };
+        let steps: Vec<[wgpu::BindGroup; 4]> =
+            [(&est_a_view, &est_b_view), (&est_b_view, &est_a_view)]
+                .iter()
+                .map(|(src_est, dst_est)| {
+                    [
+                        make_blur_bg(&blur_h_buf, src_est, &luma_view, &tmp_view),
+                        make_blur_bg(&blur_ratio_buf, &tmp_view, &luma_view, dst_est),
+                        make_blur_bg(&blur_h_buf, dst_est, &luma_view, &tmp_view),
+                        make_blur_bg(&blur_mul_buf, &tmp_view, src_est, dst_est),
+                    ]
+                })
+                .collect();
+        let bg_apply = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("capture-apply-bg"),
+            layout: &p.apply_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: apply_buf.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&src_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&luma_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&est_a_view),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: BindingResource::TextureView(&out_view),
+                },
+            ],
+        });
+
+        let gx = w.div_ceil(16);
+        let gy = h.div_ceil(16);
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("capture-sharpen-enc"),
+        });
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("capture-sharpen-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&p.luma_pipeline);
+            cpass.set_bind_group(0, &bg_luma, &[]);
+            cpass.dispatch_workgroups(gx, gy, 1);
+            cpass.set_pipeline(&p.blur_pipeline);
+            for i in 0..crate::ops::capture_sharpen::ITERATIONS {
+                for bg in steps[i % 2].iter() {
+                    cpass.set_bind_group(0, bg, &[]);
+                    cpass.dispatch_workgroups(gx, gy, 1);
+                }
+            }
+            cpass.set_pipeline(&p.apply_pipeline);
+            cpass.set_bind_group(0, &bg_apply, &[]);
+            cpass.dispatch_workgroups(gx, gy, 1);
+        }
+        self.encode_mipgen(&mut encoder, &out, w, h);
+        queue.submit(Some(encoder.finish()));
+
+        let out = Arc::new(out);
+        self.capture_cache.lock().put(key, out.clone());
         Ok(out)
     }
 
@@ -930,6 +1151,7 @@ impl GpuRenderer {
                 wb_coeffs: frame.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
                 is_raw: frame.is_raw,
+                capture_sigma: frame.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 dcp: setup.resolved.clone(),
             },
