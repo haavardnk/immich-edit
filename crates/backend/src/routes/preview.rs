@@ -18,6 +18,7 @@ use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
 const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
+const PREVIEW_JPEG_QUALITY: u8 = 92;
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewQuery {
@@ -162,7 +163,7 @@ async fn render_to_response(
         max_edge,
         quality: false,
         output: raw_pipeline::frame::OutputFormat::Jpeg {
-            quality: 85,
+            quality: PREVIEW_JPEG_QUALITY,
             subsampling: raw_pipeline::frame::JpegSubsampling::Chroma444,
         },
         output_color_space,
