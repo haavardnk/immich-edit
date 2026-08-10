@@ -3,7 +3,7 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{CropRect, Edits};
 use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -43,6 +43,8 @@ pub struct LivePreviewBody {
     pub clip_warn: bool,
     #[serde(default)]
     pub lane: RenderLane,
+    #[serde(default)]
+    pub roi: Option<[f32; 4]>,
 }
 
 pub async fn get_preview(
@@ -83,6 +85,7 @@ pub async fn get_preview(
         false,
         q.clip,
         RenderLane::Base,
+        None,
     )
     .await?;
     attach_validators(&mut resp, &etag);
@@ -107,6 +110,7 @@ pub async fn post_preview(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
     let edits = body.edits.clamped();
+    let roi = parse_roi(body.roi)?;
     render_to_response(
         &state,
         &ctx,
@@ -118,6 +122,7 @@ pub async fn post_preview(
         body.gamut_warn,
         body.clip_warn,
         body.lane,
+        roi,
     )
     .await
 }
@@ -146,6 +151,7 @@ async fn render_to_response(
     gamut_warn: bool,
     clip_warn: bool,
     lane: RenderLane,
+    roi: Option<CropRect>,
 ) -> Result<Response, AppError> {
     let render = state.render.clone();
     let identity = RenderIdentity {
@@ -176,6 +182,7 @@ async fn render_to_response(
         preview_mode: preview_mode.clone(),
         gamut_warn,
         clip_warn,
+        roi,
         ..Default::default()
     };
     let work = render.render(
@@ -198,7 +205,7 @@ async fn render_to_response(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    if matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn {
+    if matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn && roi.is_none() {
         let meta = PreviewMeta {
             owner: ctx.owner,
             asset_id,
@@ -230,6 +237,25 @@ fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
     Ok(value.min(default))
 }
 
+fn parse_roi(roi: Option<[f32; 4]>) -> Result<Option<CropRect>, AppError> {
+    let Some([x, y, w, h]) = roi else {
+        return Ok(None);
+    };
+    let valid = [x, y, w, h].iter().all(|v| v.is_finite())
+        && w > 0.0
+        && h > 0.0
+        && x >= 0.0
+        && y >= 0.0
+        && x + w <= 1.0
+        && y + h <= 1.0;
+    if !valid {
+        return Err(AppError::BadRequest(format!(
+            "roi out of range: [{x}, {y}, {w}, {h}]"
+        )));
+    }
+    Ok(Some(CropRect { x, y, w, h }))
+}
+
 pub(crate) fn map_render_err(err: RenderError) -> AppError {
     match err {
         RenderError::Upstream(e) => e.into(),
@@ -243,5 +269,39 @@ pub(crate) fn map_render_err(err: RenderError) -> AppError {
         }
         RenderError::Lut(m) => AppError::BadRequest(m),
         RenderError::Dcp(m) => AppError::BadRequest(m),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_roi_accepts_inside_unit_square() {
+        let rect = parse_roi(Some([0.25, 0.5, 0.5, 0.5])).unwrap().unwrap();
+        if rect.x != 0.25 || rect.y != 0.5 || rect.w != 0.5 || rect.h != 0.5 {
+            panic!("unexpected rect: {rect:?}");
+        }
+        if parse_roi(None).unwrap().is_some() {
+            panic!("absent roi should stay absent");
+        }
+    }
+
+    #[test]
+    fn parse_roi_rejects_bad_rects() {
+        let cases = [
+            [-0.1, 0.0, 0.5, 0.5],
+            [0.0, 0.0, 0.0, 0.5],
+            [0.0, 0.0, 0.5, -0.5],
+            [0.6, 0.0, 0.5, 0.5],
+            [0.0, 0.6, 0.5, 0.5],
+            [f32::NAN, 0.0, 0.5, 0.5],
+            [0.0, 0.0, f32::INFINITY, 0.5],
+        ];
+        for case in cases {
+            if parse_roi(Some(case)).is_ok() {
+                panic!("accepted invalid roi: {case:?}");
+            }
+        }
     }
 }

@@ -18,6 +18,8 @@ export interface ProofOptions {
 
 export type RenderLane = 'base' | 'original' | 'roi';
 
+export type Roi = [number, number, number, number];
+
 export function maskWeightPreview(layerId: string): PreviewMode {
   return { mask_weight: { layer_id: layerId } };
 }
@@ -37,7 +39,8 @@ export async function livePreview(
   previewMode: PreviewMode,
   proof?: ProofOptions,
   signal?: AbortSignal,
-  lane: RenderLane = 'base'
+  lane: RenderLane = 'base',
+  roi?: Roi
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     `/api/assets/${assetId}/preview`,
@@ -48,7 +51,8 @@ export async function livePreview(
       output_color_space: proof?.colorSpace ?? 'srgb',
       gamut_warn: proof?.gamutWarn ?? false,
       clip_warn: proof?.clipWarn ?? false,
-      lane
+      lane,
+      roi: roi ?? null
     },
     signal
   );
