@@ -75,6 +75,7 @@ import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import { hiresEdge } from '$lib/utils/preview-size';
+import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
 import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
@@ -282,7 +283,7 @@ class EditorStore {
 
   private proofOptions(): ProofOptions {
     return {
-      colorSpace: this.proofSpace,
+      colorSpace: previewColorSpace(this.proofSpace, this.gamutWarn, displayGamutIsWide()),
       gamutWarn: this.gamutWarn,
       clipWarn: ui.clipWarn
     };
