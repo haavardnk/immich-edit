@@ -7,6 +7,8 @@ struct DemosaicParams {
 @group(0) @binding(1) var<storage, read> raw_in: array<f32>;
 @group(0) @binding(2) var rgb_out: texture_storage_2d<rgba16float, write>;
 
+const RAW_LINEAR_CEILING: f32 = 4.0;
+
 fn cfa_at(x: u32, y: u32) -> u32 {
     return p.cfa[(y & 1u) * 2u + (x & 1u)];
 }
@@ -25,10 +27,9 @@ fn avg_color(ix: i32, iy: i32, want: u32) -> f32 {
         for (var dx = -1; dx <= 1; dx = dx + 1) {
             let x = ix + dx;
             let y = iy + dy;
-            let xc = clamp(x, 0, i32(p.size.x) - 1);
-            let yc = clamp(y, 0, i32(p.size.y) - 1);
-            if (cfa_at(u32(xc), u32(yc)) == want) {
-                sum = sum + fetch(xc, yc);
+            if (x < 0 || y < 0 || x >= i32(p.size.x) || y >= i32(p.size.y)) { continue; }
+            if (cfa_at(u32(x), u32(y)) == want) {
+                sum = sum + fetch(x, y);
                 n = n + 1.0;
             }
         }
@@ -93,17 +94,17 @@ fn mhc_rgb(ix: i32, iy: i32) -> vec3<f32> {
         let d2 = pm20 + pp20;
         let d2v = p0m2 + p0p2;
         let diag = pmm + ppm + pmp + ppp;
-        let h_val = clamp((n1 * 4.0 + c * 5.0 - d2 - diag + d2v * 0.5) / 8.0, 0.0, 1.0);
-        let v_val = clamp((n2 * 4.0 + c * 5.0 - d2v - diag + d2 * 0.5) / 8.0, 0.0, 1.0);
+        let h_val = clamp((n1 * 4.0 + c * 5.0 - d2 - diag + d2v * 0.5) / 8.0, 0.0, RAW_LINEAR_CEILING);
+        let v_val = clamp((n2 * 4.0 + c * 5.0 - d2v - diag + d2 * 0.5) / 8.0, 0.0, RAW_LINEAR_CEILING);
         if (row_ch == 0u) { r = h_val; } else if (row_ch == 2u) { b = h_val; }
         if (col_ch == 0u) { r = v_val; } else if (col_ch == 2u) { b = v_val; }
         g = c;
     } else {
         let n4 = pm10 + pp10 + p0m1 + p0p1;
         let dplus = pm20 + pp20 + p0m2 + p0p2;
-        let g_val = clamp((n4 * 2.0 + c * 4.0 - dplus) / 8.0, 0.0, 1.0);
+        let g_val = clamp((n4 * 2.0 + c * 4.0 - dplus) / 8.0, 0.0, RAW_LINEAR_CEILING);
         let diag = pmm + ppm + pmp + ppp;
-        let opp_val = clamp((diag * 2.0 + c * 6.0 - dplus * 1.5) / 8.0, 0.0, 1.0);
+        let opp_val = clamp((diag * 2.0 + c * 6.0 - dplus * 1.5) / 8.0, 0.0, RAW_LINEAR_CEILING);
         g = g_val;
         if (own_c == 0u) {
             r = c;

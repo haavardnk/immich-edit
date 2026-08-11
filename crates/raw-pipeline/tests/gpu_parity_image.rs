@@ -28,7 +28,7 @@ fn gpu_demosaic_matches_cpu_mhc() {
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
         require_same_dims(cfa, &cpu, &gpu);
-        ledger.check(cfa, &cpu.bytes, &gpu.bytes, 0.25);
+        ledger.check(cfa, &cpu.bytes, &gpu.bytes, 0.06);
     }
     ledger.finish();
 }
