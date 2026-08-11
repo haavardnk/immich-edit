@@ -28,7 +28,7 @@ fn gpu_demosaic_matches_cpu_mhc() {
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
         require_same_dims(cfa, &cpu, &gpu);
-        ledger.check(cfa, &cpu.bytes, &gpu.bytes, 0.06);
+        ledger.check(cfa, &cpu.bytes, &gpu.bytes, 0.04);
     }
     ledger.finish();
 }
@@ -50,7 +50,7 @@ fn gpu_xtrans_matches_cpu() {
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
         let label = format!("{w}x{h}");
         require_same_dims(&label, &cpu, &gpu);
-        ledger.check(&label, &cpu.bytes, &gpu.bytes, 0.1);
+        ledger.check(&label, &cpu.bytes, &gpu.bytes, 0.05);
     }
     ledger.finish();
 }

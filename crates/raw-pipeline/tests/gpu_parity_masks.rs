@@ -82,7 +82,7 @@ fn gpu_masks_match_cpu_within_tolerance() {
         let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
         let gpu = renderer.render(&frame, &edits, &opts).unwrap();
         require_same_dims(label, &cpu, &gpu);
-        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.12);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.07);
     }
     ledger.finish();
 }
@@ -145,7 +145,7 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("brush", &cpu, &gpu);
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("brush", &cpu.bytes, &gpu.bytes, 0.08);
+    ledger.check("brush", &cpu.bytes, &gpu.bytes, 0.05);
     ledger.finish();
 }
 
@@ -187,7 +187,7 @@ fn gpu_masked_presence_matches_cpu_and_changes_output() {
     }
 
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("masked-presence", &cpu.bytes, &gpu.bytes, 0.09);
+    ledger.check("masked-presence", &cpu.bytes, &gpu.bytes, 0.07);
     ledger.finish();
 }
 
@@ -251,7 +251,7 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
     }
 
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("masked-sharpen", &cpu.bytes, &gpu.bytes, 0.4);
+    ledger.check("masked-sharpen", &cpu.bytes, &gpu.bytes, 0.35);
     ledger.finish();
 }
 
@@ -305,6 +305,6 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("range", &cpu, &gpu);
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("color+luma-range", &cpu.bytes, &gpu.bytes, 0.12);
+    ledger.check("color+luma-range", &cpu.bytes, &gpu.bytes, 0.07);
     ledger.finish();
 }

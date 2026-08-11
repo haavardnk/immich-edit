@@ -10,10 +10,10 @@ const RAW_EXTS: &[&str] = &[
     "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 
-const PSNR_FLOOR_DB: f64 = 32.0;
+const PSNR_FLOOR_DB: f64 = 34.0;
 const SSIM_FLOOR: f64 = 0.998;
-const DE2000_MEAN_CEIL: f64 = 2.5;
-const DE2000_P95_CEIL: f64 = 4.0;
+const DE2000_MEAN_CEIL: f64 = 2.2;
+const DE2000_P95_CEIL: f64 = 3.4;
 
 const VARIANT_FIXTURES: &[&str] = &["Canon_EOS_R6", "Fujifilm_X-T2", "Panasonic_DMC-LX7"];
 
