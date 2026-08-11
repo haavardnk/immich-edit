@@ -40,7 +40,7 @@ fn gpu_dehaze_matches_cpu() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("dehaze", &cpu, &gpu);
     let mut ledger = ParityLedger::new("dehaze");
-    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 0.6);
+    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 0.15);
     ledger.finish();
 }
 
@@ -60,7 +60,7 @@ fn gpu_dehaze_with_presence_matches_cpu() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("dehaze+presence", &cpu, &gpu);
     let mut ledger = ParityLedger::new("dehaze");
-    ledger.check("dehaze+presence", &cpu.bytes, &gpu.bytes, 0.6);
+    ledger.check("dehaze+presence", &cpu.bytes, &gpu.bytes, 0.25);
     ledger.finish();
 }
 

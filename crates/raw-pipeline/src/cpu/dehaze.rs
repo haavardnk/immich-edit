@@ -160,7 +160,18 @@ fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
     out
 }
 
-pub fn estimate_atmosphere(rgb: &[f32], dp: &[f32], w: usize, h: usize) -> [f32; 3] {
+pub fn patch_radius(w: usize, h: usize) -> usize {
+    let min_dim = w.min(h);
+    (min_dim / 200).max(8).min((min_dim / 2).max(1))
+}
+
+pub fn atmosphere_from_rgb(rgb: &[f32], w: usize, h: usize) -> [f32; 3] {
+    let d0 = dark_channel_per_pixel(rgb, w, h);
+    let dp = min_filter(&d0, w, h, patch_radius(w, h));
+    estimate_atmosphere(rgb, &dp, w, h)
+}
+
+fn estimate_atmosphere(rgb: &[f32], dp: &[f32], w: usize, h: usize) -> [f32; 3] {
     let n = w * h;
     let take = (n / 1000).clamp(16, 256);
     let mut idx: Vec<u32> = (0..n as u32).collect();
@@ -213,7 +224,7 @@ fn guided_filter(guide: &[f32], p: &[f32], w: usize, h: usize, r: usize, eps: f3
                 .zip(mean_i.par_iter().zip(mean_p.par_iter())),
         )
         .for_each(|(d, ((cip, ci), (mi, mp)))| {
-            let var_i = ci - mi * mi;
+            let var_i = (ci - mi * mi).max(0.0);
             let cov_ip = cip - mi * mp;
             *d = cov_ip / (var_i + eps);
         });
@@ -254,13 +265,9 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
         return;
     }
     let min_dim = w.min(h);
-    let r_patch = (min_dim / 200).max(8).min(min_dim / 2);
+    let r_patch = patch_radius(w, h);
     let r_gf = (min_dim / 50).max(16).min(min_dim / 2);
-    let d0 = dark_channel_per_pixel(&image.rgb, w, h);
-    let dp = min_filter(&d0, w, h, r_patch);
-    drop(d0);
-    let atm = estimate_atmosphere(&image.rgb, &dp, w, h);
-    drop(dp);
+    let atm = atmosphere_from_rgb(&image.rgb, w, h);
     let n = w * h;
     let mut dn = Scratch::take_uninit(n);
     dn.par_iter_mut().enumerate().for_each(|(i, v)| {
@@ -294,7 +301,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
             .par_chunks_exact_mut(3)
             .enumerate()
             .for_each(|(i, px)| {
-                let ti = t[i].max(0.16);
+                let ti = t[i].clamp(0.0, 1.0).max(0.16);
                 let jr = (px[0] - atm[0]) / ti + atm[0];
                 let jg = (px[1] - atm[1]) / ti + atm[1];
                 let jb = (px[2] - atm[2]) / ti + atm[2];
@@ -309,7 +316,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
             .par_chunks_exact_mut(3)
             .enumerate()
             .for_each(|(i, px)| {
-                let ti = t[i];
+                let ti = t[i].clamp(0.0, 1.0);
                 let t_add = (1.0 - ti * neg * 0.5).clamp(0.0, 1.0);
                 px[0] = atm[0] * (1.0 - t_add) + px[0] * t_add;
                 px[1] = atm[1] * (1.0 - t_add) + px[1] * t_add;

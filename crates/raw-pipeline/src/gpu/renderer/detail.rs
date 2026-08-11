@@ -544,16 +544,8 @@ impl GpuRenderer {
         drop(data);
         buf.unmap();
 
-        let mut dp = vec![0.0f32; px_count];
-        for i in 0..px_count {
-            let r = rgb[i * 3].clamp(0.0, 1.0);
-            let g = rgb[i * 3 + 1].clamp(0.0, 1.0);
-            let b = rgb[i * 3 + 2].clamp(0.0, 1.0);
-            dp[i] = r.min(g).min(b);
-        }
-        Ok(crate::cpu::dehaze::estimate_atmosphere(
+        Ok(crate::cpu::dehaze::atmosphere_from_rgb(
             &rgb,
-            &dp,
             wl as usize,
             hl as usize,
         ))
@@ -587,18 +579,27 @@ impl GpuRenderer {
             1,
             TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
         );
+        let moment_key = TextureKey::new(
+            crate::gpu::passes::dehaze::MOMENT_FORMAT,
+            lw,
+            lh,
+            1,
+            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        );
         let make_scratch_lo =
             |label: &'static str| self.texture_pool.acquire(device, scratch_key, label);
+        let make_moment_lo =
+            |label: &'static str| self.texture_pool.acquire(device, moment_key, label);
         let lo_src = make_scratch_lo("dehaze-lo-src");
-        let dn = make_scratch_lo("dehaze-dn");
-        let dn_h = make_scratch_lo("dehaze-dn-h");
-        let dn_min = make_scratch_lo("dehaze-dn-min");
-        let packed = make_scratch_lo("dehaze-pack");
-        let packed_h = make_scratch_lo("dehaze-pack-h");
-        let packed_v = make_scratch_lo("dehaze-pack-v");
-        let ab = make_scratch_lo("dehaze-ab");
-        let ab_h = make_scratch_lo("dehaze-ab-h");
-        let ab_v = make_scratch_lo("dehaze-ab-v");
+        let dn = make_moment_lo("dehaze-dn");
+        let dn_h = make_moment_lo("dehaze-dn-h");
+        let dn_min = make_moment_lo("dehaze-dn-min");
+        let packed = make_moment_lo("dehaze-pack");
+        let packed_h = make_moment_lo("dehaze-pack-h");
+        let packed_v = make_moment_lo("dehaze-pack-v");
+        let ab = make_moment_lo("dehaze-ab");
+        let ab_h = make_moment_lo("dehaze-ab-h");
+        let ab_v = make_moment_lo("dehaze-ab-v");
         let out_key = TextureKey::new(
             self.ctx.linear_format,
             w,
@@ -894,10 +895,6 @@ impl GpuRenderer {
                 },
                 BindGroupEntry {
                     binding: 3,
-                    resource: BindingResource::Sampler(&p.linear_sampler),
-                },
-                BindGroupEntry {
-                    binding: 4,
                     resource: BindingResource::TextureView(&out_view),
                 },
             ],

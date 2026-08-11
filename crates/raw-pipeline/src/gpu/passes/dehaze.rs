@@ -1,13 +1,16 @@
 // color-space: linear scene-referred Rgba16Float in/out
 use std::sync::Arc;
 
-use wgpu::{BindGroupLayout, ComputePipeline, Sampler, SamplerDescriptor};
+use wgpu::{BindGroupLayout, ComputePipeline, Sampler, SamplerDescriptor, TextureFormat};
 
 use crate::gpu::context::GpuContext;
 
 use super::common::{
-    make_layout, make_pipeline, sampler_entry, storage_entry, tex_entry, uniform_entry,
+    make_layout, make_pipeline, sampler_entry, storage_entry, tex_entry, tex_entry_with,
+    uniform_entry,
 };
+
+pub const MOMENT_FORMAT: TextureFormat = TextureFormat::Rgba32Float;
 
 pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = 16;
 pub const NORM_UNIFORM_SIZE: u64 = 32;
@@ -17,14 +20,19 @@ pub const BOX_UNIFORM_SIZE: u64 = 16;
 pub const AB_UNIFORM_SIZE: u64 = 16;
 pub const APPLY_UNIFORM_SIZE: u64 = 48;
 
-fn make_layout_3(ctx: &Arc<GpuContext>, label: &str, uniform_size: u64) -> BindGroupLayout {
+fn make_layout_3(
+    ctx: &Arc<GpuContext>,
+    label: &str,
+    uniform_size: u64,
+    src_filterable: bool,
+) -> BindGroupLayout {
     make_layout(
         ctx,
         label,
         &[
             uniform_entry(0, uniform_size),
-            tex_entry(1),
-            storage_entry(2, ctx.linear_format),
+            tex_entry_with(1, src_filterable, wgpu::TextureViewDimension::D2),
+            storage_entry(2, MOMENT_FORMAT),
         ],
     )
 }
@@ -36,8 +44,8 @@ fn make_layout_4(ctx: &Arc<GpuContext>, label: &str, uniform_size: u64) -> BindG
         &[
             uniform_entry(0, uniform_size),
             tex_entry(1),
-            tex_entry(2),
-            storage_entry(3, ctx.linear_format),
+            tex_entry_with(2, false, wgpu::TextureViewDimension::D2),
+            storage_entry(3, MOMENT_FORMAT),
         ],
     )
 }
@@ -62,9 +70,8 @@ fn make_layout_apply(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout {
         &[
             uniform_entry(0, APPLY_UNIFORM_SIZE),
             tex_entry(1),
-            tex_entry(2),
-            sampler_entry(3),
-            storage_entry(4, ctx.linear_format),
+            tex_entry_with(2, false, wgpu::TextureViewDimension::D2),
+            storage_entry(3, ctx.linear_format),
         ],
     )
 }
@@ -97,7 +104,7 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_downsample.wgsl"),
         );
 
-        let norm_layout = make_layout_3(ctx, "dehaze-norm-bgl", NORM_UNIFORM_SIZE);
+        let norm_layout = make_layout_3(ctx, "dehaze-norm-bgl", NORM_UNIFORM_SIZE, true);
         let norm_pipeline = make_pipeline(
             ctx,
             &norm_layout,
@@ -105,7 +112,7 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_norm.wgsl"),
         );
 
-        let min_layout = make_layout_3(ctx, "dehaze-min-bgl", MIN_UNIFORM_SIZE);
+        let min_layout = make_layout_3(ctx, "dehaze-min-bgl", MIN_UNIFORM_SIZE, false);
         let min_pipeline = make_pipeline(
             ctx,
             &min_layout,
@@ -121,7 +128,7 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_pack.wgsl"),
         );
 
-        let box_layout = make_layout_3(ctx, "dehaze-box-bgl", BOX_UNIFORM_SIZE);
+        let box_layout = make_layout_3(ctx, "dehaze-box-bgl", BOX_UNIFORM_SIZE, false);
         let box_pipeline = make_pipeline(
             ctx,
             &box_layout,
@@ -129,7 +136,7 @@ impl DehazePasses {
             include_str!("../../../assets/shaders/dehaze_box.wgsl"),
         );
 
-        let ab_layout = make_layout_3(ctx, "dehaze-ab-bgl", AB_UNIFORM_SIZE);
+        let ab_layout = make_layout_3(ctx, "dehaze-ab-bgl", AB_UNIFORM_SIZE, false);
         let ab_pipeline = make_pipeline(
             ctx,
             &ab_layout,
