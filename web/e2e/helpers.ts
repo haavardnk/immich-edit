@@ -1,6 +1,42 @@
 import { expect, type Page, type Route } from '@playwright/test';
+import { deflateSync } from 'node:zlib';
 import type { EditRecord } from '../src/lib/types/edits';
-import type { PreviewMeta } from '../src/lib/types/preview';
+
+const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(buf: Buffer): number {
+  let c = 0xffffffff;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([len, body, crc]);
+}
+
+export function makePng(width: number, height: number): Buffer {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const raw = Buffer.alloc(height * (1 + width * 3));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0))
+  ]);
+}
 
 export const PNG_1X1: Buffer = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -73,6 +109,8 @@ export interface PreviewRequest {
   max_edge: number;
   edits: Record<string, unknown>;
   preview_mode: unknown;
+  lane?: string;
+  roi?: [number, number, number, number] | null;
 }
 
 export interface InstallOpts {
@@ -87,21 +125,10 @@ export interface InstallOpts {
   onMetadata?: (body: Record<string, unknown>) => void;
   smartFails?: boolean;
   previewBody?: Buffer;
-  previewMeta?: Partial<PreviewMeta>;
+  previewRender?: (req: PreviewRequest) => Buffer;
+  sourceSize?: { w: number; h: number };
+  previewMeta?: Record<string, unknown>;
 }
-
-const EMPTY_HISTOGRAM = { r: [], g: [], b: [], l: [] };
-
-const PREVIEW_META: PreviewMeta = {
-  asset_id: ASSET_ID,
-  width: 64,
-  height: 64,
-  source_w: 64,
-  source_h: 64,
-  renderer: 'cpu',
-  is_raw: false,
-  histogram: EMPTY_HISTOGRAM
-};
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
@@ -113,13 +140,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         .filter((c) => c.source_asset_id === a.id)
         .map((c) => ({ ...a, id: c.id, copyOf: a.id, copyLabel: c.name }))
     ]);
-  const previewPng = (): Parameters<Route['fulfill']>[0] => {
-    const base = opts.previewBody
-      ? { status: 200, contentType: 'image/png', body: opts.previewBody }
-      : png();
-    if (!opts.previewMeta) return base;
-    return { ...base, headers: { 'x-preview-meta-id': 'meta-1' } };
-  };
+  const previewPng = (): Parameters<Route['fulfill']>[0] =>
+    opts.previewBody
+      ? {
+          status: 200,
+          contentType: 'image/png',
+          headers: { 'x-preview-meta-id': 'meta-1' },
+          body: opts.previewBody
+        }
+      : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();
@@ -236,13 +265,35 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       });
     }
 
-    if (opts.previewMeta && p.match(/^\/api\/assets\/[^/]+\/preview\/meta\//))
-      return route.fulfill(json({ ...PREVIEW_META, ...opts.previewMeta }));
+    if (p.match(/^\/api\/assets\/[^/]+\/preview\/meta\//)) {
+      const size = opts.sourceSize ?? { w: 6000, h: 4000 };
+      return route.fulfill(
+        json({
+          width: size.w,
+          height: size.h,
+          source_w: size.w,
+          source_h: size.h,
+          renderer: 'cpu',
+          is_raw: true,
+          histogram: null,
+          linear_histogram: null,
+          ...(opts.previewMeta ?? {})
+        })
+      );
+    }
 
     if (p.match(/^\/api\/assets\/[^/]+\/preview$/)) {
-      if (method === 'POST' && opts.onPreview) {
+      if (method === 'POST') {
         const body = req.postDataJSON() as PreviewRequest | null;
-        if (body) opts.onPreview(body);
+        if (body && opts.onPreview) opts.onPreview(body);
+        if (body && opts.previewRender) {
+          return route.fulfill({
+            status: 200,
+            contentType: 'image/png',
+            headers: { 'x-preview-meta-id': 'meta-1' },
+            body: opts.previewRender(body)
+          });
+        }
       }
       return route.fulfill(previewPng());
     }

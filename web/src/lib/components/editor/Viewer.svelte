@@ -8,9 +8,13 @@
   import RetouchOverlay from './RetouchOverlay.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiLoading } from '@mdi/js';
+  import { frameBox, placement, zoomAnchor } from '$lib/utils/view-geometry';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
+  let viewBox = $state({ w: 0, h: 0 });
+  let dpr = $state(1);
+  let baseNat = $state<{ w: number; h: number } | null>(null);
   let splitWrap = $state<HTMLDivElement | null>(null);
   let splitNatW = $state(0);
   let splitNatH = $state(0);
@@ -18,6 +22,22 @@
   let splitDragging = $state(false);
   let lastX = 0;
   let lastY = 0;
+
+  const frame = $derived.by(() => {
+    if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) return null;
+    return frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, ui.zoom, ui.panX, ui.panY, dpr);
+  });
+
+  const viewPlace = $derived.by(() => {
+    if (!frame || !editor.viewRoi || !editor.viewNat) return null;
+    return placement(editor.viewRoi, frame, editor.viewNat.w, editor.viewNat.h, dpr);
+  });
+
+  const baseStyle = $derived(
+    frame
+      ? `position: absolute; left: ${frame.left}px; top: ${frame.top}px; width: ${frame.width}px; height: ${frame.height}px;`
+      : 'max-width: 100%; max-height: 100%;'
+  );
 
   function onPointerDown(e: PointerEvent): void {
     if (ui.zoom <= 100) return;
@@ -61,11 +81,28 @@
     editor.setSplitPos((e.clientX - rect.left) / rect.width);
   }
 
+  function zoomAt(next: number, clientX: number, clientY: number): void {
+    const before = frame;
+    const prev = ui.zoom;
+    ui.setZoom(next);
+    if (!before || !container || ui.zoom === prev || ui.zoom <= 100) return;
+    const rect = container.getBoundingClientRect();
+    const pan = zoomAnchor(
+      viewBox.w,
+      viewBox.h,
+      before,
+      clientX - rect.left,
+      clientY - rect.top,
+      ui.zoom / prev
+    );
+    ui.panX = pan.panX;
+    ui.panY = pan.panY;
+  }
+
   function onWheel(e: WheelEvent): void {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -10 : 10;
-      ui.setZoom(ui.zoom + delta);
+      zoomAt(ui.zoom + (e.deltaY > 0 ? -10 : 10), e.clientX, e.clientY);
       return;
     }
     if (ui.zoom <= 100) return;
@@ -74,12 +111,12 @@
     ui.panY -= e.deltaY;
   }
 
-  function onDblClick(): void {
+  function onDblClick(e: MouseEvent): void {
     if (ui.zoom > 100) {
       ui.zoomFit();
-    } else {
-      ui.setZoom(200);
+      return;
     }
+    zoomAt(200, e.clientX, e.clientY);
   }
 
   const viewTransform = $derived.by(() => {
@@ -89,17 +126,30 @@
   });
 
   $effect(() => {
-    editor.onZoomChange(ui.zoom);
+    const update = (): void => {
+      dpr = window.devicePixelRatio || 1;
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   });
 
   $effect(() => {
     if (!container) return;
-    const observer = new ResizeObserver(() => {
-      if (!container) return;
-      editor.setViewportEdge(Math.max(container.clientWidth, container.clientHeight));
-    });
-    observer.observe(container);
+    const el = container;
+    const measure = (): void => {
+      viewBox = { w: el.clientWidth, h: el.clientHeight };
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
     return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    const box = frame;
+    if (!box) return;
+    editor.onViewChange({ frame: box, viewW: viewBox.w, viewH: viewBox.h, dpr });
   });
 </script>
 
@@ -172,10 +222,24 @@
         bind:this={imgEl}
         src={editor.previewUrl}
         alt={editor.asset?.originalFileName ?? ''}
-        class="max-w-full max-h-full object-contain shadow-2xl rounded select-none"
-        style="{viewTransform} image-orientation: none;"
+        class="max-w-none max-h-none object-contain shadow-2xl rounded select-none"
+        style="{baseStyle} image-orientation: none;"
         draggable="false"
+        onload={(e) => {
+          const t = e.target as HTMLImageElement;
+          if (t.naturalWidth > 0) baseNat = { w: t.naturalWidth, h: t.naturalHeight };
+        }}
       />
+      {#if editor.viewUrl && viewPlace}
+        <img
+          src={editor.viewUrl}
+          alt=""
+          data-testid="view-render"
+          class="absolute max-w-none max-h-none pointer-events-none select-none rounded"
+          style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px; image-orientation: none;"
+          draggable="false"
+        />
+      {/if}
       <MaskOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />

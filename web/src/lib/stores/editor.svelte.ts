@@ -74,7 +74,14 @@ import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
-import { hiresEdge } from '$lib/utils/preview-size';
+import {
+  isFullFrame,
+  renderRequest,
+  visibleRegion,
+  type Rect,
+  type RenderRequest,
+  type Roi
+} from '$lib/utils/view-geometry';
 import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
 import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
@@ -99,13 +106,11 @@ import {
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
-const HIRES_DEBOUNCE_MS = 300;
+const VIEW_MAX_EDGE = 8192;
+const VIEW_DEBOUNCE_MS = 150;
 const MAX_HISTORY = 50;
 
-function viewportFallback(): number {
-  if (typeof window === 'undefined') return 1600;
-  return Math.max(window.innerWidth, window.innerHeight);
-}
+type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -134,6 +139,9 @@ class EditorStore {
   gamutWarn = $state(false);
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
   originalUrl = $state<string | null>(null);
+  viewUrl = $state<string | null>(null);
+  viewRoi = $state<Roi | null>(null);
+  viewNat = $state<{ w: number; h: number } | null>(null);
   geometrySession = $state<GeometrySession | null>(null);
   private geometrySessionId = 0;
 
@@ -191,9 +199,11 @@ class EditorStore {
   private skipHistory = false;
 
   initialised = $state(false);
-  private hiresTimer: ReturnType<typeof setTimeout> | null = null;
-  private renderedEdge = 0;
-  private viewportEdge = 0;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private viewSnap: ViewSnapshot | null = null;
+  private viewKey = '';
+  private viewFullEdge = 0;
+  private srcLong = Number.POSITIVE_INFINITY;
   private originalEdge = 0;
   private originalGeomKey = '';
 
@@ -228,7 +238,6 @@ class EditorStore {
         this.colorPicker = { ...this.colorPicker, ready: true };
       }
       if (previewModeIsNone(args.previewMode)) {
-        this.renderedEdge = args.maxEdge;
         if (result.metaId) void this.loadMeta(result.metaId);
         if (this.splitMode) this.refreshOriginal();
       }
@@ -268,10 +277,129 @@ class EditorStore {
     () => {}
   );
 
+  private viewFlight = new SingleFlight<RenderRequest, { url: string; w: number; h: number }>(
+    async (args, signal) => {
+      if (!this.assetId) throw new Error('no asset');
+      const { blob } = await livePreview(
+        this.assetId,
+        $state.snapshot(this.edits) as Edits,
+        args.maxEdge,
+        'none',
+        this.proofOptions(),
+        signal,
+        'roi',
+        isFullFrame(args.roi) ? undefined : args.roi
+      );
+      const url = makeObjectUrl(blob);
+      const decoded = new Image();
+      decoded.src = url;
+      await decoded.decode().catch(() => undefined);
+      return { url, w: decoded.naturalWidth, h: decoded.naturalHeight };
+    },
+    (args, result) => {
+      const prev = this.viewUrl;
+      this.viewUrl = result.url;
+      this.viewRoi = args.roi;
+      this.viewNat = { w: result.w, h: result.h };
+      const delivered = Math.max(result.w, result.h);
+      const fraction = args.fullEdge > 0 ? args.maxEdge / args.fullEdge : 1;
+      this.viewFullEdge = Math.round(delivered / fraction);
+      if (delivered < args.maxEdge - 1) this.srcLong = this.viewFullEdge;
+      if (prev?.startsWith('blob:')) revoke(prev);
+    },
+    () => {
+      this.viewKey = '';
+    }
+  );
+
+  private viewBlocked(): boolean {
+    return (
+      !this.initialised ||
+      !this.assetId ||
+      this.splitMode ||
+      this.showingOriginal ||
+      !!this.geometrySession ||
+      !!this.maskPreviewLayerId ||
+      !!this.colorPicker
+    );
+  }
+
+  private baseEdge(): number {
+    const snap = this.viewSnap;
+    if (!snap) return LIVE_EDGE;
+    const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
+    return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+  }
+
+  clearView(): void {
+    this.viewFlight.cancel();
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (this.viewUrl?.startsWith('blob:')) revoke(this.viewUrl);
+    this.viewUrl = null;
+    this.viewRoi = null;
+    this.viewNat = null;
+    this.viewFullEdge = 0;
+    this.viewKey = '';
+  }
+
+  private submitView(): void {
+    const snap = this.viewSnap;
+    if (!snap) return;
+    const visible = visibleRegion(snap.frame, snap.viewW, snap.viewH);
+    if (!visible) return;
+    const req = renderRequest({
+      frame: snap.frame,
+      visible,
+      dpr: snap.dpr,
+      srcLong: this.srcLong,
+      serverMaxEdge: VIEW_MAX_EDGE,
+      haveRoi: this.viewRoi,
+      haveFullEdge: this.viewFullEdge
+    });
+    if (!req) return;
+    const key = `${req.roi.join(',')}:${req.maxEdge}`;
+    if (key === this.viewKey) return;
+    this.viewKey = key;
+    this.viewFlight.submit(req);
+  }
+
+  private scheduleIdleRender(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.initialised) return;
+      if (this.splitMode) {
+        this.flight.submit({
+          edits: $state.snapshot(this.edits),
+          maxEdge: this.baseEdge(),
+          previewMode: 'none'
+        });
+        return;
+      }
+      if (this.viewBlocked()) return;
+      this.submitView();
+    }, VIEW_DEBOUNCE_MS);
+  }
+
+  onViewChange = (snap: ViewSnapshot): void => {
+    this.viewSnap = snap;
+    if (this.viewBlocked()) return;
+    this.scheduleIdleRender();
+  };
+
   toggleSplit = (): void => {
     if (this.geometrySession) return;
+    this.clearView();
     this.splitMode = !this.splitMode;
     if (this.splitMode) {
+      this.flight.submit({
+        edits: $state.snapshot(this.edits),
+        maxEdge: this.baseEdge(),
+        previewMode: 'none'
+      });
       this.refreshOriginal();
     } else {
       this.originalFlight.cancel();
@@ -279,6 +407,7 @@ class EditorStore {
       this.originalUrl = null;
       this.originalEdge = 0;
       this.originalGeomKey = '';
+      this.scheduleIdleRender();
     }
   };
 
@@ -292,11 +421,13 @@ class EditorStore {
 
   private reproof(): void {
     if (!this.initialised || !this.assetId) return;
+    this.clearView();
     this.flight.submit({
       edits: $state.snapshot(this.edits),
-      maxEdge: this.renderedEdge || LIVE_EDGE,
+      maxEdge: LIVE_EDGE,
       previewMode: 'none'
     });
+    this.scheduleIdleRender();
     if (this.splitMode) this.refreshOriginal(true);
   }
 
@@ -322,7 +453,7 @@ class EditorStore {
 
   private refreshOriginal(force = false): void {
     if (!this.splitMode || !this.assetId) return;
-    const edge = this.renderedEdge || LIVE_EDGE;
+    const edge = this.baseEdge();
     const snap = $state.snapshot(this.edits);
     const geomKey = JSON.stringify({
       g: snap.geometry,
@@ -352,21 +483,12 @@ class EditorStore {
       this.savedHash = s.hash;
       this.initialised = true;
       this.pushHistory();
-      const hiresEdge = this.computeHiresEdge(100);
-      if (hiresEdge > LIVE_EDGE) {
-        this.flight.submit({
-          edits: $state.snapshot(this.edits),
-          maxEdge: LIVE_EDGE,
-          previewMode: 'none'
-        });
-        this.scheduleHires();
-      } else {
-        this.flight.submit({
-          edits: $state.snapshot(this.edits),
-          maxEdge: hiresEdge,
-          previewMode: 'none'
-        });
-      }
+      this.flight.submit({
+        edits: $state.snapshot(this.edits),
+        maxEdge: LIVE_EDGE,
+        previewMode: 'none'
+      });
+      this.scheduleIdleRender();
     } catch (e) {
       this.error = (e as Error).message;
     }
@@ -375,10 +497,9 @@ class EditorStore {
   unload(): void {
     this.flight.cancel();
     this.originalFlight.cancel();
-    if (this.hiresTimer) {
-      clearTimeout(this.hiresTimer);
-      this.hiresTimer = null;
-    }
+    this.clearView();
+    this.viewSnap = null;
+    this.srcLong = Number.POSITIVE_INFINITY;
     if (this.geometrySession) {
       if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);
       this.geometrySession = null;
@@ -398,7 +519,6 @@ class EditorStore {
     this.history = [];
     this.historyCursor = -1;
     this.showingOriginal = false;
-    this.renderedEdge = 0;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskPreviewLayerId = null;
@@ -452,27 +572,26 @@ class EditorStore {
 
   showOriginal(): void {
     if (!this.initialised) return;
+    this.clearView();
     const snap = $state.snapshot(this.edits) as Edits;
     const edits = originalPreviewEdits(snap);
-    this.flight.submit({ edits, maxEdge: this.renderedEdge || LIVE_EDGE, previewMode: 'none' });
+    this.flight.submit({ edits, maxEdge: this.baseEdge(), previewMode: 'none' });
   }
 
   onLive = (): void => {
     if (!this.initialised) return;
+    this.clearView();
     this.flight.submit({
       edits: $state.snapshot(this.edits),
       maxEdge: LIVE_EDGE,
       previewMode: 'none'
     });
-    this.scheduleHires();
+    this.scheduleIdleRender();
   };
 
   onPreview = (mode: PreviewMode): void => {
     if (!this.initialised) return;
-    if (this.hiresTimer) {
-      clearTimeout(this.hiresTimer);
-      this.hiresTimer = null;
-    }
+    this.clearView();
     this.flight.submit({
       edits: $state.snapshot(this.edits),
       maxEdge: LIVE_EDGE,
@@ -771,17 +890,14 @@ class EditorStore {
     const layer = this.edits.masks.find((item) => item.id === layerId);
     const component = layer?.components.find((item) => item.id === componentId);
     if (!component || component.kind.kind !== 'color_range') return;
-    if (this.hiresTimer) {
-      clearTimeout(this.hiresTimer);
-      this.hiresTimer = null;
-    }
+    this.clearView();
     if (this.splitMode) this.toggleSplit();
     this.maskPreviewLayerId = null;
     this.colorPicker = { layerId, componentId, ready: false };
     const edits = $state.snapshot(this.edits) as Edits;
     this.flight.submit({
       edits: { ...edits, masks: [] },
-      maxEdge: this.renderedEdge || LIVE_EDGE,
+      maxEdge: this.baseEdge(),
       previewMode: 'none',
       purpose: 'color-picker'
     });
@@ -1669,46 +1785,12 @@ class EditorStore {
     }
   };
 
-  private computeHiresEdge(zoom: number): number {
-    const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio;
-    const vp = this.viewportEdge > 0 ? this.viewportEdge : viewportFallback();
-    return Math.min(hiresEdge(vp, dpr, zoom), MAX_EDGE);
-  }
-
-  private scheduleHires(zoom = 100): void {
-    if (this.hiresTimer) clearTimeout(this.hiresTimer);
-    this.hiresTimer = setTimeout(() => {
-      this.hiresTimer = null;
-      if (!this.initialised) return;
-      const edge = this.computeHiresEdge(zoom);
-      if (edge <= this.renderedEdge) return;
-      this.flight.submit({
-        edits: $state.snapshot(this.edits),
-        maxEdge: edge,
-        previewMode: 'none'
-      });
-    }, HIRES_DEBOUNCE_MS);
-  }
-
-  setViewportEdge = (edge: number): void => {
-    if (edge <= 0 || edge === this.viewportEdge) return;
-    this.viewportEdge = edge;
-    if (!this.initialised) return;
-    if (this.computeHiresEdge(ui.zoom) <= this.renderedEdge) return;
-    this.scheduleHires(ui.zoom);
-  };
-
-  onZoomChange = (zoom: number): void => {
-    if (!this.initialised) return;
-    const edge = this.computeHiresEdge(zoom);
-    if (edge <= this.renderedEdge) return;
-    this.scheduleHires(zoom);
-  };
-
   private async loadMeta(metaId: string): Promise<void> {
     if (!this.assetId) return;
     try {
       this.meta = await getPreviewMeta(this.assetId, metaId);
+      const long = Math.max(this.meta.source_w, this.meta.source_h);
+      if (Number.isFinite(long) && long > 0) this.srcLong = long;
     } catch {
       this.meta = null;
     }
@@ -1716,6 +1798,7 @@ class EditorStore {
 
   startGeometrySession = (): void => {
     if (!this.assetId || !this.initialised || this.geometrySession) return;
+    this.clearView();
     const baseEdits = $state.snapshot(this.edits) as Edits;
     const sessionId = ++this.geometrySessionId;
     this.geometrySession = {

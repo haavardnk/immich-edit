@@ -102,6 +102,12 @@ The reduction factor comes from the cropped region, not the full sensor, so a cr
 
 The rectangle is composed into the geometry crop at the top of the render, so everything downstream — the transform op, output sizing, masks, lens corrections — treats the tile as an ordinary crop and needs no special case. Vignette and grain are the exception, since they are defined against the output frame rather than the source: they receive the rectangle and remap back onto the full frame, so a tile shows the same falloff and the same grain as the region it came from. Both renderers do this; on the GPU the remap rides along in the `effects_tone` uniform.
 
+The editor uses this for everything it paints, not only when zoomed. `web/src/lib/utils/view-geometry.ts` works out where the image frame lands in the viewport, which part of it is visible, and how many device pixels that region will occupy. It then asks for exactly that rectangle at exactly that pixel count, so the browser never resamples: one source pixel lands on one device pixel, at an integer device-pixel offset. This holds at fit as well as at 400%, and it is why resizing a sidebar changes the render instead of stretching it.
+
+The request is padded by 10% and quantised to 1/512 so small pans reuse the render already on screen, and it is skipped entirely when the rectangle in hand already covers the visible region at sufficient resolution. Resolution is capped by the source: the store tracks the sensor's long edge, and when the server returns fewer pixels than asked for it learns the real limit from the response and stops over-requesting. Beyond that point the render is upscaled to fill its box rather than left the wrong size.
+
+The result is drawn over the full-frame preview rather than replacing it, so overlays, the histogram and the crop tool keep measuring one unchanging base image, and the base stays visible around the edges while a pan is in flight. Any edit drops it and it returns 150 ms after the view settles.
+
 ## Color-space rules
 
 Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:
