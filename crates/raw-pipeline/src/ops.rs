@@ -32,6 +32,8 @@ pub mod vignette;
 pub mod white_balance;
 
 #[cfg(test)]
+mod shader_parity;
+#[cfg(test)]
 mod tests;
 
 use crate::PipelineResult;
