@@ -136,7 +136,7 @@ export function neutralDcp(): DcpEdits {
     use_tone_curve: true,
     use_base_table: true,
     use_look_table: true,
-    use_baseline_exposure: false
+    use_baseline_exposure: true
   };
 }
 

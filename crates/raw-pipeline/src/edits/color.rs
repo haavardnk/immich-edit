@@ -175,7 +175,7 @@ pub struct DcpEdits {
     pub use_base_table: bool,
     #[serde(default = "bool_true")]
     pub use_look_table: bool,
-    #[serde(default)]
+    #[serde(default = "bool_true")]
     pub use_baseline_exposure: bool,
 }
 
@@ -192,7 +192,7 @@ impl Default for DcpEdits {
             use_tone_curve: true,
             use_base_table: true,
             use_look_table: true,
-            use_baseline_exposure: false,
+            use_baseline_exposure: true,
         }
     }
 }

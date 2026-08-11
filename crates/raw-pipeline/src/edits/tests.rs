@@ -45,11 +45,11 @@ fn stable_hash_differs_on_change() {
 fn stable_hash_is_pinned() {
     assert_eq!(
         Edits::default().stable_hash(),
-        "b24a43ab8506b491467947d1fd8cf4d4"
+        "ea6f18ddf1d41dc9d26a38b62fc26982"
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "6fb2f1c62aeab154a7d03316714cf472"
+        "a020a289e917429e73afc1a7383d9816"
     );
 }
 
@@ -300,7 +300,7 @@ fn populated_edits() -> Edits {
                 use_tone_curve: false,
                 use_base_table: true,
                 use_look_table: false,
-                use_baseline_exposure: true,
+                use_baseline_exposure: false,
             },
         },
         detail: DetailEdits {

@@ -41,7 +41,7 @@ Main entry: `cpu::render_with_cancel` in `crates/raw-pipeline/src/cpu/pipeline.r
 Flow:
 
 1. Demosaic RAW frames when needed.
-2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; DCP matrix selection and baseline gain become `OpContext.cam_to_srgb`.
+2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; the DCP matrix becomes `OpContext.cam_to_srgb`, scaled by the profile's baseline exposure when that toggle is on. The render adds no exposure of its own.
 3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active.
 4. Apply EXIF orientation.
 5. Run edit ops through `run_pipeline_ops`.

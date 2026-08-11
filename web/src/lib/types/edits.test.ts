@@ -187,7 +187,7 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
       use_tone_curve: true,
       use_base_table: false,
       use_look_table: false,
-      use_baseline_exposure: true
+      use_baseline_exposure: false
     };
     const back = roundTrip(e);
     expect(back.color.dcp).toEqual(e.color.dcp);

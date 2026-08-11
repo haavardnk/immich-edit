@@ -3,15 +3,10 @@ use crate::frame::{OrientFlips, RawFrame};
 use crate::geom::{GeometryTransform, mask_uv_to_display_uv};
 use crate::ops::lens_distortion::{distortion_coeffs, distortion_zoom, output_px_to_source_px};
 use crate::ops::lens_vignette::{vignette_coeffs, vignette_correction};
-use crate::tone::shared::{
-    AUTO_EXPOSURE_CLIP, AUTO_EXPOSURE_MAX_GAIN, AUTO_EXPOSURE_MIN_GAIN, AUTO_EXPOSURE_TARGET,
-    LUMA_B, LUMA_G, LUMA_R, RAW_LINEAR_CEILING,
-};
 
 const SAMPLE_TARGET: usize = 200_000;
 const HIST_BINS: usize = 256;
 const MIN_VALID_SAMPLES: u32 = 1000;
-const AUTO_EXPOSURE_HIST_BINS: usize = 4096;
 
 fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
     if raw[0] == 0.0 && raw[1] == 0.0 && raw[2] == 0.0 {
@@ -21,16 +16,6 @@ fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
         return [raw[0] / raw[1], 1.0, raw[2] / raw[1]];
     }
     [raw[0], raw[1], raw[2]]
-}
-
-fn scene_luma(raw: [f32; 3], wb: [f32; 3], cam_to_srgb: [[f32; 3]; 3]) -> f32 {
-    let r = (raw[0] * wb[0]).max(0.0);
-    let g = (raw[1] * wb[1]).max(0.0);
-    let b = (raw[2] * wb[2]).max(0.0);
-    let lr = cam_to_srgb[0][0] * r + cam_to_srgb[0][1] * g + cam_to_srgb[0][2] * b;
-    let lg = cam_to_srgb[1][0] * r + cam_to_srgb[1][1] * g + cam_to_srgb[1][2] * b;
-    let lb = cam_to_srgb[2][0] * r + cam_to_srgb[2][1] * g + cam_to_srgb[2][2] * b;
-    (LUMA_R * lr + LUMA_G * lg + LUMA_B * lb).max(0.0)
 }
 
 fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
@@ -82,94 +67,6 @@ fn mosaic_block_rgb(
     acc
 }
 
-fn collect_scene_luma_hist(
-    frame: &RawFrame,
-    cam_to_srgb: [[f32; 3]; 3],
-) -> Option<([u32; AUTO_EXPOSURE_HIST_BINS], u32, f32)> {
-    let wb = camera_wb_coeffs(frame.wb_coeffs);
-    let mut hist = [0u32; AUTO_EXPOSURE_HIST_BINS];
-    let mut total = 0u32;
-    let bin_scale = AUTO_EXPOSURE_HIST_BINS as f32 / RAW_LINEAR_CEILING;
-    let mut push = |y: f32| {
-        if y.is_finite() {
-            let bin = ((y * bin_scale) as usize).min(AUTO_EXPOSURE_HIST_BINS - 1);
-            hist[bin] += 1;
-            total += 1;
-        }
-    };
-
-    if frame.cpp >= 3 {
-        let pixel_count = frame.data.len() / frame.cpp;
-        if pixel_count == 0 {
-            return None;
-        }
-        let step = (pixel_count / SAMPLE_TARGET).max(1);
-        let mut i = 0;
-        while i < pixel_count {
-            let off = i * frame.cpp;
-            push(scene_luma(
-                [frame.data[off], frame.data[off + 1], frame.data[off + 2]],
-                wb,
-                cam_to_srgb,
-            ));
-            i += step;
-        }
-    } else if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
-        let w = frame.width;
-        let h = frame.height;
-        let (dim, table) = cfa_block(&frame.cfa_pattern);
-        let bw = w / dim;
-        let bh = h / dim;
-        let block_count = bw * bh;
-        if block_count == 0 {
-            return None;
-        }
-        let step = (block_count / SAMPLE_TARGET).max(1);
-        let mut i = 0;
-        while i < block_count {
-            let bx = (i % bw) * dim;
-            let by = (i / bw) * dim;
-            let rgb = mosaic_block_rgb(&frame.data, w, dim, &table, bx, by);
-            push(scene_luma(rgb, wb, cam_to_srgb));
-            i += step;
-        }
-    } else {
-        return None;
-    }
-
-    if total < MIN_VALID_SAMPLES {
-        return None;
-    }
-    Some((hist, total, bin_scale))
-}
-
-pub fn scene_luma_percentile(
-    frame: &RawFrame,
-    cam_to_srgb: [[f32; 3]; 3],
-    clip_frac: f32,
-) -> Option<f32> {
-    let (hist, total, bin_scale) = collect_scene_luma_hist(frame, cam_to_srgb)?;
-    let target = (total as f32 * (1.0 - clip_frac)).floor() as u32;
-    let mut cumulative = 0u32;
-    for (bin, &count) in hist.iter().enumerate() {
-        cumulative += count;
-        if cumulative >= target {
-            return Some((bin as f32 + 0.5) / bin_scale);
-        }
-    }
-    Some(RAW_LINEAR_CEILING)
-}
-
-pub fn raw_baseline_gain(frame: &RawFrame, cam_to_srgb: [[f32; 3]; 3]) -> f32 {
-    let Some(p_hi) = scene_luma_percentile(frame, cam_to_srgb, AUTO_EXPOSURE_CLIP) else {
-        return 1.0;
-    };
-    if p_hi <= 1e-6 {
-        return AUTO_EXPOSURE_MAX_GAIN;
-    }
-    (AUTO_EXPOSURE_TARGET / p_hi).clamp(AUTO_EXPOSURE_MIN_GAIN, AUTO_EXPOSURE_MAX_GAIN)
-}
-
 pub fn scale_matrix(m: [[f32; 3]; 3], gain: f32) -> [[f32; 3]; 3] {
     [
         [m[0][0] * gain, m[0][1] * gain, m[0][2] * gain],
@@ -185,9 +82,7 @@ fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
     if !frame.is_raw || crate::color::is_unusable_matrix(&xyz_to_cam) {
         return (wb, crate::color::identity_3x3());
     }
-    let m = crate::color::cam_to_srgb_matrix(xyz_to_cam);
-    let gain = raw_baseline_gain(frame, m);
-    (wb, scale_matrix(m, gain))
+    (wb, crate::color::cam_to_srgb_matrix(xyz_to_cam))
 }
 
 fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {
@@ -714,28 +609,6 @@ mod tests {
             panic!(
                 "expected small exposure for well-exposed image, got {}",
                 e.basic.exposure_ev
-            );
-        }
-    }
-
-    #[test]
-    fn raw_baseline_gain_accounted_for_in_stats() {
-        let luma = 0.32;
-        let mut raw = make_frame_luma(luma, 64, 64);
-        raw.is_raw = true;
-        raw.xyz_to_cam = [
-            [0.95, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.08],
-            [0.0, 0.0, 0.0],
-        ];
-        let non_raw = make_frame_luma(luma, 64, 64);
-        let e_raw = auto_adjust(&raw, &Edits::default());
-        let e_non = auto_adjust(&non_raw, &Edits::default());
-        if e_raw.basic.exposure_ev >= e_non.basic.exposure_ev {
-            panic!(
-                "baseline gain should lower suggested exposure: raw={} non_raw={}",
-                e_raw.basic.exposure_ev, e_non.basic.exposure_ev
             );
         }
     }

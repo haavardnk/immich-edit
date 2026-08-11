@@ -137,6 +137,18 @@ fn xtrans_renders_neutral_greys() {
 const GREY_PATCHES: [(usize, usize); 3] = [(190, 95), (170, 140), (215, 130)];
 const GREY_SPREAD_CEIL: f64 = 25.0;
 
+fn mean_luma(jpeg: &[u8]) -> f64 {
+    let img: turbojpeg::Image<Vec<u8>> =
+        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).expect("decompress");
+    let n = img.pixels.len() as f64 / 3.0;
+    let sum: f64 = img
+        .pixels
+        .chunks_exact(3)
+        .map(|p| 0.2126 * p[0] as f64 + 0.7152 * p[1] as f64 + 0.0722 * p[2] as f64)
+        .sum();
+    sum / n
+}
+
 fn patch_mean(img: &turbojpeg::Image<Vec<u8>>, cx: usize, cy: usize) -> [f64; 3] {
     let mut sum = [0u64; 3];
     let mut n = 0u64;
@@ -218,6 +230,43 @@ fn default_sharpening_is_raw_only() {
     if rendered_default.bytes != rendered_unsharp.bytes {
         panic!("non-raw render applied the default sharpening");
     }
+}
+
+#[test]
+fn sensor_scaling_darkens_the_render() {
+    each_fixture(|name, frame| {
+        if !frame.is_raw {
+            return;
+        }
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
+        let dim = RawFrame {
+            width: frame.width,
+            height: frame.height,
+            cfa_pattern: frame.cfa_pattern.clone(),
+            bps: frame.bps,
+            wb_coeffs: frame.wb_coeffs,
+            xyz_to_cam: frame.xyz_to_cam,
+            color_matrices: frame.color_matrices.clone(),
+            data: frame.data.iter().map(|v| v * 0.25).collect(),
+            cpp: frame.cpp,
+            orientation: frame.orientation,
+            is_raw: frame.is_raw,
+            capture_sigma: frame.capture_sigma,
+            model: frame.model.clone(),
+            exif: None,
+        };
+        let bright = mean_luma(&cpu::render(frame, &Edits::default(), &opts).unwrap().bytes);
+        let dark = mean_luma(&cpu::render(&dim, &Edits::default(), &opts).unwrap().bytes);
+        if dark > bright * 0.8 {
+            panic!(
+                "{name}: two stops under rendered at {dark:.2} vs {bright:.2}; \
+                 the pipeline is compensating for scene brightness"
+            );
+        }
+    });
 }
 
 #[test]

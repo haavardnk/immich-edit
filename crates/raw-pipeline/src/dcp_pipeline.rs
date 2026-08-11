@@ -15,14 +15,13 @@ pub fn resolve(frame: &RawFrame, edits: &Edits, profile: Option<&DcpProfile>) ->
     if let Some(profile) = profile.filter(|_| dcp_active) {
         let (matrix, resolved) =
             crate::ops::resolve_dcp(profile, frame.wb_coeffs, &edits.color.dcp);
-        let gain = crate::auto::raw_baseline_gain(frame, matrix);
         let exposure = if edits.color.dcp.use_baseline_exposure {
             2f32.powf(profile.baseline_exposure_offset)
         } else {
             1.0
         };
         return DcpSetup {
-            cam_to_srgb: crate::auto::scale_matrix(matrix, gain * exposure),
+            cam_to_srgb: crate::auto::scale_matrix(matrix, exposure),
             resolved: Some(Arc::new(resolved)),
         };
     }
@@ -30,9 +29,7 @@ pub fn resolve(frame: &RawFrame, edits: &Edits, profile: Option<&DcpProfile>) ->
     let xyz_to_cam =
         crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
     let cam_to_srgb = if frame.is_raw && !crate::color::is_unusable_matrix(&xyz_to_cam) {
-        let matrix = crate::color::cam_to_srgb_matrix(xyz_to_cam);
-        let gain = crate::auto::raw_baseline_gain(frame, matrix);
-        crate::auto::scale_matrix(matrix, gain)
+        crate::color::cam_to_srgb_matrix(xyz_to_cam)
     } else {
         crate::color::identity_3x3()
     };
