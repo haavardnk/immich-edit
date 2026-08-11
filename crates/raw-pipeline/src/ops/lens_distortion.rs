@@ -11,6 +11,9 @@ impl Op for LensDistortionOp {
     fn id(&self) -> &'static str {
         "lens_distortion"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("lens")
+    }
     fn stage(&self) -> Stage {
         Stage::Sensor
     }

@@ -29,6 +29,9 @@ impl Op for ColorGradeOp {
     fn id(&self) -> &'static str {
         "color_grade"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }
@@ -91,7 +94,6 @@ impl Op for ColorGradeOp {
             functions: include_str!("../../assets/shaders/ops/color_grade.wgsl"),
             apply: "lin = color_grade_apply(lin);",
             vec4_count: 5,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {

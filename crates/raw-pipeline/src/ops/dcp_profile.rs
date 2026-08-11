@@ -10,6 +10,9 @@ impl Op for DcpProfileOp {
     fn id(&self) -> &'static str {
         DCP_PROFILE_OP_ID
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("dcp")
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }

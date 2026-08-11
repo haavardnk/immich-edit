@@ -8,6 +8,9 @@ impl Op for SaturationOp {
     fn id(&self) -> &'static str {
         "saturation"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }

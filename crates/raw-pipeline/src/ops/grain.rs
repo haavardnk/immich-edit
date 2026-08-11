@@ -10,6 +10,9 @@ impl Op for GrainOp {
     fn id(&self) -> &'static str {
         "grain"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("effects")
+    }
     fn stage(&self) -> Stage {
         Stage::Output
     }

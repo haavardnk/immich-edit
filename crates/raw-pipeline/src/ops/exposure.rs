@@ -8,6 +8,9 @@ impl Op for ExposureOp {
     fn id(&self) -> &'static str {
         "exposure"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }

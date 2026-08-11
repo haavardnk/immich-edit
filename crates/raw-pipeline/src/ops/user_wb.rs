@@ -8,6 +8,9 @@ impl Op for UserWbOp {
     fn id(&self) -> &'static str {
         "white_balance"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance
     }
@@ -55,7 +58,6 @@ impl Op for UserWbOp {
             ),
             apply: "lin = user_wb_apply(lin);",
             vec4_count: 3,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

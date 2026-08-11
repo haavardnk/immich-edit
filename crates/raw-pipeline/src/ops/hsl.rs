@@ -8,6 +8,9 @@ impl Op for HslOp {
     fn id(&self) -> &'static str {
         "hsl"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }
@@ -53,7 +56,6 @@ impl Op for HslOp {
             functions: include_str!("../../assets/shaders/ops/hsl.wgsl"),
             apply: "lin = hsl_apply(lin);",
             vec4_count: HSL_BANDS,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {

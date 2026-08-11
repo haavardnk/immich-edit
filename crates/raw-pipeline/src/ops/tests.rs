@@ -1250,3 +1250,39 @@ fn retouch_source_patch_stays_inside_the_frame() {
         }
     }
 }
+
+#[test]
+fn every_op_declares_a_reachable_gpu_route() {
+    for op in default_registry().ops() {
+        match op.gpu_route() {
+            GpuRoute::Fused => {
+                if op.gpu().is_none() {
+                    panic!("{}: declares Fused but has no gpu()", op.id());
+                }
+            }
+            GpuRoute::Pass(name) => {
+                if !GPU_PASS_NAMES.contains(&name) {
+                    panic!("{}: declares unknown gpu pass {name}", op.id());
+                }
+            }
+            GpuRoute::Manifest => {
+                if op.is_active(&Edits::default()) {
+                    panic!("{}: Manifest ops must never be active", op.id());
+                }
+            }
+            GpuRoute::Presence | GpuRoute::Detail => {}
+        }
+    }
+}
+
+#[test]
+fn only_fused_ops_build_shader_snippets() {
+    for op in default_registry().ops() {
+        if op.gpu().is_some() && op.gpu_route() != GpuRoute::Fused {
+            panic!(
+                "{}: has gpu() but is not routed through the fused pass",
+                op.id()
+            );
+        }
+    }
+}

@@ -65,11 +65,17 @@ pub enum Stage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GpuOpKind {
-    Normal,
+pub enum GpuRoute {
+    Fused,
     Presence,
     Detail,
+    Pass(&'static str),
+    Manifest,
 }
+
+pub const GPU_PASS_NAMES: &[&str] = &[
+    "lens", "retouch", "dehaze", "dcp", "lut", "effects", "sharpen",
+];
 
 #[derive(Clone)]
 pub struct RenderContext {
@@ -189,7 +195,6 @@ pub struct GpuOp {
     pub functions: &'static str,
     pub apply: &'static str,
     pub vec4_count: usize,
-    pub kind: GpuOpKind,
 }
 
 impl GpuOp {
@@ -203,7 +208,6 @@ impl GpuOp {
             functions,
             apply,
             vec4_count: 1,
-            kind: GpuOpKind::Normal,
         }
     }
 }
@@ -239,9 +243,7 @@ pub trait Op: Send + Sync {
     fn gpu(&self) -> Option<GpuOp> {
         None
     }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Normal
-    }
+    fn gpu_route(&self) -> GpuRoute;
     fn write_gpu_uniform(&self, _edits: &Edits, _ctx: &OpContext, _dst: &mut [f32]) {}
 }
 

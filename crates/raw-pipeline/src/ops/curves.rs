@@ -128,6 +128,9 @@ impl Op for CurvesOp {
     fn id(&self) -> &'static str {
         "curves"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
@@ -223,7 +226,6 @@ impl Op for CurvesOp {
             ),
             apply: "lin = curves_apply(lin);",
             vec4_count: 20,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

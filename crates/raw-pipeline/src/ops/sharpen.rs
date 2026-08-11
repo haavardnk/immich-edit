@@ -1,6 +1,6 @@
 use super::LinearImage;
 use super::blur::{gaussian_blur_rgb, gaussian_kernel};
-use super::{GpuOpKind, Op, OpContext, Stage};
+use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -11,6 +11,9 @@ pub struct SharpenOp;
 impl Op for SharpenOp {
     fn id(&self) -> &'static str {
         "sharpen"
+    }
+    fn gpu_route(&self) -> GpuRoute {
+        GpuRoute::Detail
     }
     fn stage(&self) -> Stage {
         Stage::Output
@@ -45,9 +48,6 @@ impl Op for SharpenOp {
         if let Some(v) = value.get("masking").and_then(|v| v.as_f64()) {
             d.sharpen_masking = v;
         }
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
     }
     fn apply_cpu(
         &self,

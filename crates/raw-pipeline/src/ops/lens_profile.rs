@@ -11,6 +11,9 @@ impl Op for LensProfileOp {
     fn id(&self) -> &'static str {
         LENS_PROFILE_OP_ID
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("lens")
+    }
     fn stage(&self) -> Stage {
         Stage::Sensor
     }

@@ -10,6 +10,9 @@ impl Op for ClarityOp {
     fn id(&self) -> &'static str {
         "clarity"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Presence
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
@@ -29,9 +32,6 @@ impl Op for ClarityOp {
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             edits.basic.clarity = v;
         }
-    }
-    fn gpu_kind(&self) -> super::GpuOpKind {
-        super::GpuOpKind::Presence
     }
     fn apply_cpu(
         &self,

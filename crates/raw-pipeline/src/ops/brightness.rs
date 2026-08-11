@@ -27,6 +27,9 @@ impl Op for BrightnessOp {
     fn id(&self) -> &'static str {
         "brightness"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }

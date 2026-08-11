@@ -14,6 +14,9 @@ impl Op for TransformOp {
     fn id(&self) -> &'static str {
         "transform"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Geometry
     }
@@ -202,7 +205,6 @@ impl Op for TransformOp {
             functions: "",
             apply: "",
             vec4_count: 0,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
 }

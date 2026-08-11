@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, Op, OpContext, Stage};
+use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -16,6 +16,9 @@ pub struct ColorNrOp;
 impl Op for ColorNrOp {
     fn id(&self) -> &'static str {
         "color_nr"
+    }
+    fn gpu_route(&self) -> GpuRoute {
+        GpuRoute::Detail
     }
     fn stage(&self) -> Stage {
         Stage::Tone
@@ -48,9 +51,6 @@ impl Op for ColorNrOp {
         if let Some(v) = value.get("smoothness").and_then(|v| v.as_f64()) {
             d.color_nr_smoothness = v;
         }
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
     }
     fn apply_cpu(
         &self,

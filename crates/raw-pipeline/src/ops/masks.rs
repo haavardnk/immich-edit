@@ -8,6 +8,9 @@ impl Op for MasksOp {
     fn id(&self) -> &'static str {
         "masks"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Manifest
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }

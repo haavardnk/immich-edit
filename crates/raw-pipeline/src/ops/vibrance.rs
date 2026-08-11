@@ -44,6 +44,9 @@ impl Op for VibranceOp {
     fn id(&self) -> &'static str {
         "vibrance"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }

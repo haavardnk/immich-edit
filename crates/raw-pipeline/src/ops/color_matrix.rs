@@ -8,6 +8,9 @@ impl Op for ColorMatrixOp {
     fn id(&self) -> &'static str {
         "color_matrix"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance
     }
@@ -43,7 +46,6 @@ impl Op for ColorMatrixOp {
             ),
             apply: "lin = color_matrix_apply(lin);",
             vec4_count: 3,
-            kind: crate::ops::GpuOpKind::Normal,
         })
     }
     fn write_gpu_uniform(&self, _edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {

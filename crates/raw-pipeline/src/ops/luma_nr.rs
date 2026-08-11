@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, Op, OpContext, Stage};
+use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
@@ -14,6 +14,9 @@ pub struct LumaNrOp;
 impl Op for LumaNrOp {
     fn id(&self) -> &'static str {
         "luma_nr"
+    }
+    fn gpu_route(&self) -> GpuRoute {
+        GpuRoute::Detail
     }
     fn stage(&self) -> Stage {
         Stage::Tone
@@ -46,9 +49,6 @@ impl Op for LumaNrOp {
         if let Some(v) = value.get("contrast").and_then(|v| v.as_f64()) {
             d.luma_nr_contrast = v;
         }
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
     }
     fn apply_cpu(
         &self,

@@ -11,7 +11,7 @@ use crate::frame::{BitDepth, OutputColorSpace, RawFrame, RenderOptions, Rendered
 use crate::histogram::{self, Histogram};
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
-use crate::ops::{GpuOpKind, OpContext, OpScratch, RenderContext, default_registry};
+use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -498,7 +498,7 @@ fn run_pipeline_ops_inner(
             }
         }
         let ctx: &OpContext = ctx_local.as_ref().unwrap_or(ctx_outer);
-        if op.gpu_kind() == GpuOpKind::Presence {
+        if op.gpu_route() == GpuRoute::Presence {
             if !presence_done && presence_active {
                 flush(image, &mut layer_images, &mut segment, &mut layer_segments);
                 let amounts = presence_amounts(edits);

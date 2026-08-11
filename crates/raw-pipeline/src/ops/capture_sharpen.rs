@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::{GpuOpKind, Op, OpContext, Stage};
+use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::Edits;
@@ -27,6 +27,9 @@ impl Op for CaptureSharpenOp {
     fn id(&self) -> &'static str {
         "capture_sharpen"
     }
+    fn gpu_route(&self) -> GpuRoute {
+        GpuRoute::Detail
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
@@ -46,9 +49,6 @@ impl Op for CaptureSharpenOp {
         if let Some(v) = value.get("enabled").and_then(|v| v.as_bool()) {
             edits.detail.capture_sharpen = v;
         }
-    }
-    fn gpu_kind(&self) -> GpuOpKind {
-        GpuOpKind::Detail
     }
     fn apply_cpu(
         &self,

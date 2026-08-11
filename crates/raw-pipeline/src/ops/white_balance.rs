@@ -33,6 +33,9 @@ impl Op for WhiteBalanceOp {
     fn id(&self) -> &'static str {
         "camera_wb"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance
     }

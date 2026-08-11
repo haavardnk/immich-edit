@@ -7,6 +7,9 @@ impl Op for Lut3dOp {
     fn id(&self) -> &'static str {
         "lut_3d"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Manifest
+    }
     fn stage(&self) -> Stage {
         Stage::Color
     }

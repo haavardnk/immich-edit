@@ -10,6 +10,9 @@ impl Op for DehazeOp {
     fn id(&self) -> &'static str {
         "dehaze"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("dehaze")
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }

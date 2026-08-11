@@ -10,6 +10,9 @@ impl Op for VignetteOp {
     fn id(&self) -> &'static str {
         "vignette"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("effects")
+    }
     fn stage(&self) -> Stage {
         Stage::Output
     }

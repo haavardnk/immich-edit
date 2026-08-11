@@ -11,6 +11,9 @@ impl Op for LensCaOp {
     fn id(&self) -> &'static str {
         "lens_ca"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("lens")
+    }
     fn stage(&self) -> Stage {
         Stage::Sensor
     }

@@ -26,6 +26,9 @@ impl Op for ContrastOp {
     fn id(&self) -> &'static str {
         "contrast"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }

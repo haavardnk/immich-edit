@@ -10,6 +10,9 @@ impl Op for LensVignetteOp {
     fn id(&self) -> &'static str {
         "lens_vignette"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("lens")
+    }
     fn stage(&self) -> Stage {
         Stage::Sensor
     }

@@ -12,6 +12,9 @@ impl Op for RetouchOp {
     fn id(&self) -> &'static str {
         "retouch"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Pass("retouch")
+    }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance
     }

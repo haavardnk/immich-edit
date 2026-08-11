@@ -13,7 +13,7 @@ use crate::edits::Edits;
 use crate::encode::encode_from_rgba8;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::histogram::Histogram;
-use crate::ops::{GpuOpKind, OpContext, OpScratch, RenderContext};
+use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
@@ -350,25 +350,7 @@ impl GpuRenderer {
         let effects_active = edits.effects.any_active();
 
         for op in self.passes.registry.active(&edits) {
-            if op.gpu_kind() == GpuOpKind::Presence {
-                continue;
-            }
-            if op.gpu_kind() == GpuOpKind::Detail {
-                continue;
-            }
-            if op.id() == "dehaze" {
-                continue;
-            }
-            if op.id() == "retouch" {
-                continue;
-            }
-            if op.id() == crate::ops::dcp_profile::DCP_PROFILE_OP_ID {
-                continue;
-            }
-            if op.stage() == crate::ops::Stage::Output {
-                continue;
-            }
-            if op.stage() == crate::ops::Stage::Sensor {
+            if op.gpu_route() != GpuRoute::Fused {
                 continue;
             }
             if op.gpu().is_none() {

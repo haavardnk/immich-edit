@@ -10,6 +10,9 @@ impl Op for TextureOp {
     fn id(&self) -> &'static str {
         "texture"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Presence
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
@@ -29,9 +32,6 @@ impl Op for TextureOp {
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             edits.basic.texture = v;
         }
-    }
-    fn gpu_kind(&self) -> super::GpuOpKind {
-        super::GpuOpKind::Presence
     }
     fn apply_cpu(
         &self,

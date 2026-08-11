@@ -70,6 +70,9 @@ impl Op for ToneRegionsOp {
     fn id(&self) -> &'static str {
         "tone_regions"
     }
+    fn gpu_route(&self) -> super::GpuRoute {
+        super::GpuRoute::Fused
+    }
     fn stage(&self) -> Stage {
         Stage::Tone
     }
