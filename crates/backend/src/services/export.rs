@@ -17,7 +17,7 @@ use crate::services::render::RenderError;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
-pub const EXPORT_MAX_EDGE: u32 = 8192;
+pub const EXPORT_MAX_EDGE: u32 = 65535;
 pub const DEFAULT_QUALITY: u8 = 90;
 pub const EXPORT_JOB_KIND: &str = "export_immich";
 pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
