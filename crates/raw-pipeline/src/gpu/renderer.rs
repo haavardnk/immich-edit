@@ -382,7 +382,7 @@ impl GpuRenderer {
         let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
         let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
 
-        let downscaled = match resample::resample_target(src_dims, ratio) {
+        let downscaled = match crate::geom::resample_target(src_dims, ratio) {
             Some(dims) => Some((
                 self.resample_lanczos(src_texture, src_dims, dims, "process-downscale")?,
                 dims,
@@ -1359,9 +1359,6 @@ impl GpuRenderer {
                 let wb_base = self.run_wb_prepare(&cached, frame, &edits_c, &setup)?;
                 crate::cancel::check(cancel)?;
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
-                let (crop_w_px, crop_h_px) = crop_px(frame, &edits_c, dims);
-                let out_max = out_w.max(out_h);
-                let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
                 let wb_base = if edits_c.retouch.iter().any(|s| s.is_effective()) {
                     let t = self.run_retouch(wb_base, dims, frame, &edits_c)?;
                     crate::cancel::check(cancel)?;
@@ -1390,10 +1387,14 @@ impl GpuRenderer {
                         }
                         None => full_src,
                     };
-                let preview_active = !options.quality && out_max >= 256 && ratio >= 2.0;
-                let preview_dims = preview_active
-                    .then(|| resample::resample_target(dims, ratio))
-                    .flatten();
+                let preview_dims = crate::geom::preview_ratio(
+                    frame.orientation,
+                    &edits_c,
+                    dims,
+                    options.max_edge,
+                    options.quality,
+                )
+                .and_then(|ratio| crate::geom::resample_target(dims, ratio));
                 let (spatial_dims, spatial_src) = match preview_dims {
                     Some(preview_dims) => {
                         let downsampled = self.resample_lanczos(

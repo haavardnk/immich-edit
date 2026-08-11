@@ -10,20 +10,6 @@ use crate::gpu::passes::resample;
 
 use super::GpuRenderer;
 
-const RESAMPLE_EPSILON: f32 = 1.01;
-
-pub(super) fn resample_target(src_dims: (u32, u32), ratio: f32) -> Option<(u32, u32)> {
-    if !ratio.is_finite() || ratio < RESAMPLE_EPSILON {
-        return None;
-    }
-    let w = ((src_dims.0 as f32 / ratio).round() as u32).max(1);
-    let h = ((src_dims.1 as f32 / ratio).round() as u32).max(1);
-    if w >= src_dims.0 && h >= src_dims.1 {
-        return None;
-    }
-    Some((w, h))
-}
-
 impl GpuRenderer {
     pub(super) fn resample_lanczos(
         &self,

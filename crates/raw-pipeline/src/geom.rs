@@ -74,6 +74,41 @@ pub fn display_out_dims(
     scale_to_max(crop_w_px, crop_h_px, max_edge)
 }
 
+const RESAMPLE_EPSILON: f32 = 1.01;
+const PREVIEW_MIN_OUT_EDGE: u32 = 256;
+const PREVIEW_MIN_RATIO: f32 = 2.0;
+
+pub fn resample_target(src_dims: (u32, u32), ratio: f32) -> Option<(u32, u32)> {
+    if !ratio.is_finite() || ratio < RESAMPLE_EPSILON {
+        return None;
+    }
+    let w = ((src_dims.0 as f32 / ratio).round() as u32).max(1);
+    let h = ((src_dims.1 as f32 / ratio).round() as u32).max(1);
+    if w >= src_dims.0 && h >= src_dims.1 {
+        return None;
+    }
+    Some((w, h))
+}
+
+pub fn preview_ratio(
+    orientation: OrientFlips,
+    edits: &crate::edits::Edits,
+    src_dims: (u32, u32),
+    max_edge: u32,
+    quality: bool,
+) -> Option<f32> {
+    if quality {
+        return None;
+    }
+    let (crop_w_px, crop_h_px) = display_crop_px(orientation, edits, src_dims);
+    let (out_w, out_h) = scale_to_max(crop_w_px, crop_h_px, max_edge);
+    if out_w.max(out_h) < PREVIEW_MIN_OUT_EDGE {
+        return None;
+    }
+    let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
+    (ratio >= PREVIEW_MIN_RATIO).then_some(ratio)
+}
+
 pub fn compose_roi(crop: Option<CropRect>, roi: Option<CropRect>) -> Option<CropRect> {
     let Some(r) = roi else {
         return crop;

@@ -216,3 +216,112 @@ fn perf_gate_pipeline_profiles() {
         panic!("perf regressions:\n  {}", failures.join("\n  "));
     }
 }
+
+const RENDER_FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
+const RENDER_ITERS: usize = 3;
+
+fn render_baseline_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/perf_gate_render.json")
+}
+
+fn render_options(max_edge: u32, quality: bool) -> raw_pipeline::frame::RenderOptions {
+    raw_pipeline::frame::RenderOptions {
+        max_edge,
+        quality,
+        ..Default::default()
+    }
+}
+
+fn measure_render(
+    label: &str,
+    frame: &raw_pipeline::frame::RawFrame,
+    edits: &Edits,
+    options: &raw_pipeline::frame::RenderOptions,
+) -> u64 {
+    raw_pipeline::cpu::render(frame, edits, options).unwrap();
+    let mut samples: Vec<u64> = Vec::with_capacity(RENDER_ITERS);
+    for _ in 0..RENDER_ITERS {
+        let t = Instant::now();
+        raw_pipeline::cpu::render(frame, edits, options).unwrap();
+        samples.push(t.elapsed().as_nanos() as u64);
+    }
+    samples.sort();
+    let median = samples[samples.len() / 2];
+    eprintln!("perf {label}: median {} ms", median / 1_000_000);
+    median
+}
+
+#[test]
+fn perf_gate_full_render() {
+    if std::env::var_os("PERF_GATE").is_none() && std::env::var_os("BAKE_PERF_GATE").is_none() {
+        eprintln!("skip: set PERF_GATE=1 to enforce, BAKE_PERF_GATE=1 to regenerate baseline");
+        return;
+    }
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(RENDER_FIXTURE);
+    if !path.exists() {
+        eprintln!("skip: {RENDER_FIXTURE} missing");
+        return;
+    }
+    let bytes = std::fs::read(&path).unwrap();
+    let frame = raw_pipeline::decode::decode(&bytes).unwrap();
+    let profiles: [(&str, u32, bool); 3] = [
+        ("preview_identity", 1600, false),
+        ("preview_full_edits", 900, false),
+        ("export_quality", 65535, true),
+    ];
+    let measured: BTreeMap<String, u64> = profiles
+        .iter()
+        .map(|(name, max_edge, quality)| {
+            let edits = if *name == "preview_full_edits" {
+                edits_full()
+            } else {
+                edits_identity()
+            };
+            let opts = render_options(*max_edge, *quality);
+            (
+                (*name).to_string(),
+                measure_render(name, &frame, &edits, &opts),
+            )
+        })
+        .collect();
+
+    if std::env::var_os("BAKE_PERF_GATE").is_some() {
+        let bl = PerfBaseline {
+            median_ns: measured,
+        };
+        std::fs::write(
+            render_baseline_path(),
+            serde_json::to_string_pretty(&bl).unwrap(),
+        )
+        .unwrap();
+        eprintln!("baked render perf baseline");
+        return;
+    }
+
+    let raw = std::fs::read_to_string(render_baseline_path())
+        .expect("perf_gate_render.json missing — run BAKE_PERF_GATE=1");
+    let baseline: PerfBaseline = serde_json::from_str(&raw).unwrap();
+    let mut failures: Vec<String> = Vec::new();
+    for (name, observed) in &measured {
+        let baseline_ns = baseline
+            .median_ns
+            .get(name)
+            .copied()
+            .unwrap_or_else(|| panic!("baseline missing entry for {name}"));
+        let ratio = *observed as f64 / baseline_ns as f64;
+        eprintln!(
+            "perf {name}: ratio {ratio:.2}x (baseline {} ms)",
+            baseline_ns / 1_000_000
+        );
+        if ratio > REGRESSION_FACTOR {
+            failures.push(format!(
+                "{name}: {observed} ns > {REGRESSION_FACTOR:.1}x baseline {baseline_ns} ns"
+            ));
+        }
+    }
+    if !failures.is_empty() {
+        panic!("render perf regressions:\n  {}", failures.join("\n  "));
+    }
+}
