@@ -132,7 +132,7 @@ fn gpu_nr_matches_cpu() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr", &cpu, &gpu);
     let mut ledger = ParityLedger::new("nr");
-    ledger.check("native", &cpu.bytes, &gpu.bytes, 0.3);
+    ledger.check("native", &cpu.bytes, &gpu.bytes, 0.1);
     ledger.finish();
 }
 
@@ -164,7 +164,7 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr-preview", &cpu, &gpu);
     let mut ledger = ParityLedger::new("nr");
-    ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 0.25);
+    ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 0.15);
     ledger.finish();
 }
 

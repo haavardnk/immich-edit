@@ -1,7 +1,7 @@
 struct NrParams {
     size: vec2<u32>,
     radius: u32,
-    _pad: u32,
+    stage: u32,
     inv_2ss: f32,
     inv_2sr_luma: f32,
     inv_2sr_chroma: f32,
@@ -22,10 +22,11 @@ const PB_DEN: f32 = 1.8556;
 const PR_DEN: f32 = 1.5748;
 
 fn load_rgb(x: i32, y: i32) -> vec3<f32> {
-    let dim = textureDimensions(src);
-    let ix = clamp(x, 0, i32(dim.x) - 1);
-    let iy = clamp(y, 0, i32(dim.y) - 1);
-    return textureLoad(src, vec2<i32>(ix, iy), 0).rgb;
+    return textureLoad(src, vec2<i32>(x, y), 0).rgb;
+}
+
+fn luma_of(rgb: vec3<f32>) -> f32 {
+    return KR * rgb.r + KG * rgb.g + KB * rgb.b;
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -34,55 +35,64 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let cx = i32(gid.x);
     let cy = i32(gid.y);
     let center_rgb = load_rgb(cx, cy);
-    let cy_y = KR * center_rgb.r + KG * center_rgb.g + KB * center_rgb.b;
-    let cy_pb = (center_rgb.b - cy_y) / PB_DEN;
-    let cy_pr = (center_rgb.r - cy_y) / PR_DEN;
+    let c_y = luma_of(center_rgb);
+    let c_pb = (center_rgb.b - c_y) / PB_DEN;
+    let c_pr = (center_rgb.r - c_y) / PR_DEN;
 
     let r = i32(p.radius);
-    var wsum_l: f32 = 0.0;
+    let y0 = max(cy - r, 0);
+    let y1 = min(cy + r, i32(p.size.y) - 1);
+    let x0 = max(cx - r, 0);
+    let x1 = min(cx + r, i32(p.size.x) - 1);
+    let inv_2sr = select(p.inv_2sr_chroma, p.inv_2sr_luma, p.stage == 0u);
+
+    var wsum: f32 = 0.0;
     var acc_l: f32 = 0.0;
-    var wsum_c: f32 = 0.0;
     var acc_pb: f32 = 0.0;
     var acc_pr: f32 = 0.0;
 
-    for (var dy = -r; dy <= r; dy = dy + 1) {
-        for (var dx = -r; dx <= r; dx = dx + 1) {
-            let rgb = load_rgb(cx + dx, cy + dy);
-            let yv = KR * rgb.r + KG * rgb.g + KB * rgb.b;
+    for (var sy = y0; sy <= y1; sy = sy + 1) {
+        for (var sx = x0; sx <= x1; sx = sx + 1) {
+            let rgb = load_rgb(sx, sy);
+            let yv = luma_of(rgb);
             let pb = (rgb.b - yv) / PB_DEN;
             let pr = (rgb.r - yv) / PR_DEN;
-            let s2 = f32(dx * dx + dy * dy);
-            let spatial = -s2 * p.inv_2ss;
-            let dl = yv - cy_y;
-            let wl = exp(spatial - dl * dl * p.inv_2sr_luma);
-            wsum_l = wsum_l + wl;
-            acc_l = acc_l + wl * yv;
-            let dpb = pb - cy_pb;
-            let dpr = pr - cy_pr;
-            let dc2 = dpb * dpb + dpr * dpr;
-            let wc = exp(spatial - dc2 * p.inv_2sr_chroma);
-            wsum_c = wsum_c + wc;
-            acc_pb = acc_pb + wc * pb;
-            acc_pr = acc_pr + wc * pr;
+            let dx = f32(sx - cx);
+            let dy = f32(sy - cy);
+            let spatial = -(dx * dx + dy * dy) * p.inv_2ss;
+            var range = 0.0;
+            if (p.stage == 0u) {
+                let dl = yv - c_y;
+                range = dl * dl;
+            } else {
+                let dpb = pb - c_pb;
+                let dpr = pr - c_pr;
+                range = dpb * dpb + dpr * dpr;
+            }
+            let wgt = exp(spatial - range * inv_2sr);
+            wsum = wsum + wgt;
+            acc_l = acc_l + wgt * yv;
+            acc_pb = acc_pb + wgt * pb;
+            acc_pr = acc_pr + wgt * pr;
         }
     }
 
-    var y_den = cy_y;
-    if (wsum_l > 0.0) { y_den = acc_l / wsum_l; }
-    var pb_den2 = cy_pb;
-    var pr_den2 = cy_pr;
-    if (wsum_c > 0.0) {
-        pb_den2 = acc_pb / wsum_c;
-        pr_den2 = acc_pr / wsum_c;
+    if (p.stage == 0u) {
+        var y_den = c_y;
+        if (wsum > 0.0) { y_den = acc_l / wsum; }
+        let alpha = p.alpha_luma * (1.0 - p.contrast);
+        let y_new = c_y + (y_den - c_y) * alpha;
+        var scale = 1.0;
+        if (c_y > 1e-6) { scale = y_new / c_y; }
+        textureStore(dst, vec2<i32>(cx, cy), vec4<f32>(center_rgb * scale, 1.0));
+        return;
     }
 
-    let alpha_l = p.alpha_luma * (1.0 - p.contrast);
-    let y_new = cy_y + (y_den - cy_y) * alpha_l;
-    let pb_new = cy_pb + (pb_den2 - cy_pb) * p.alpha_chroma;
-    let pr_new = cy_pr + (pr_den2 - cy_pr) * p.alpha_chroma;
-
-    let r_out = y_new + PR_DEN * pr_new;
-    let b_out = y_new + PB_DEN * pb_new;
-    let g_out = (y_new - KR * r_out - KB * b_out) / KG;
-    textureStore(dst, vec2<i32>(cx, cy), vec4<f32>(r_out, g_out, b_out, 1.0));
+    var pb_den = c_pb;
+    var pr_den = c_pr;
+    if (wsum > 0.0) {
+        pb_den = acc_pb / wsum;
+        pr_den = acc_pr / wsum;
+    }
+    textureStore(dst, vec2<i32>(cx, cy), vec4<f32>(pb_den, pr_den, 0.0, 1.0));
 }

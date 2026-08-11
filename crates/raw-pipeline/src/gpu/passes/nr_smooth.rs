@@ -22,7 +22,8 @@ impl NrSmoothPass {
             &[
                 uniform_entry(0, NR_SMOOTH_UNIFORM_SIZE),
                 tex_entry(1),
-                storage_entry(2, ctx.linear_format),
+                tex_entry(2),
+                storage_entry(3, ctx.linear_format),
             ],
         );
         let pipeline = make_pipeline(
