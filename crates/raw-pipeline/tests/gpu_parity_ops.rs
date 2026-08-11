@@ -1,7 +1,8 @@
 mod common;
 
 use common::{
-    any_fixture, decode_jpeg_rgb, mean_abs_delta, rgb_frame, synthetic_frame, try_renderer,
+    ParityLedger, any_fixture, require_same_dims, rgb_frame, rgb8_opts, synthetic_frame,
+    try_renderer,
 };
 use raw_pipeline::edits::{
     BasicEdits, CropRect, CurvePoint, CurvePoints, CurvesEdits, GeometryEdits, LensEdits, ToneEdits,
@@ -49,10 +50,7 @@ fn gpu_exposure_brightens() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions {
-        max_edge: 256,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(256);
 
     let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let bright = Edits {
@@ -96,10 +94,7 @@ fn gpu_rotate_swaps_dims() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions {
-        max_edge: 512,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(512);
 
     let a = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let rotated = Edits {
@@ -131,10 +126,7 @@ fn gpu_reports_sensor_source_dims_at_small_max_edge() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions {
-        max_edge: 256,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(256);
 
     let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
@@ -159,10 +151,7 @@ fn gpu_matches_cpu_within_tolerance() {
         return;
     };
     let frame = synthetic_frame(96, 64);
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
 
     let cases: &[(&str, f64, Edits)] = &[
         ("identity", 1.0, Edits::default()),
@@ -388,32 +377,14 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
     ];
 
-    let mut failed: Vec<String> = Vec::new();
-
-    for (label, threshold, edits) in cases {
-        let cpu_out = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
-        let gpu_out = renderer.render(&frame, edits, &opts).unwrap();
-
-        if cpu_out.width != gpu_out.width || cpu_out.height != gpu_out.height {
-            panic!(
-                "{label}: dim mismatch CPU {}x{} vs GPU {}x{}",
-                cpu_out.width, cpu_out.height, gpu_out.width, gpu_out.height
-            );
-        }
-        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
-        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
-        if (cw, ch) != (gw, gh) {
-            panic!("{label}: decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
-        }
-        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-        eprintln!("{label}: mean abs delta = {delta:.3}");
-        if delta > *threshold {
-            failed.push(format!("{label}: {delta:.3} > {threshold}"));
-        }
+    let mut ledger = ParityLedger::new("ops");
+    for (label, limit, edits) in cases {
+        let cpu = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, *limit);
     }
-    if !failed.is_empty() {
-        panic!("CPU vs GPU drift exceeded threshold: {}", failed.join("; "));
-    }
+    ledger.finish();
 }
 
 #[test]
@@ -421,10 +392,7 @@ fn gpu_exif_orientation_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 256,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(256);
     let w: usize = 40;
     let h: usize = 30;
     let data = vec![0.5f32; w * h * 3];
@@ -440,18 +408,15 @@ fn gpu_exif_orientation_matches_cpu() {
         ((true, true, true), "Transverse"),
     ];
 
+    let mut ledger = ParityLedger::new("orientation");
     for &(orient, label) in orientations {
         let mut frame = rgb_frame(w, h, data.clone());
         frame.orientation = orient;
 
-        let gpu_out = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-        let cpu_out = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
-
-        if gpu_out.width != cpu_out.width || gpu_out.height != cpu_out.height {
-            panic!(
-                "{label}: GPU {}x{} != CPU {}x{}",
-                gpu_out.width, gpu_out.height, cpu_out.width, cpu_out.height
-            );
-        }
+        let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 1.0);
     }
+    ledger.finish();
 }

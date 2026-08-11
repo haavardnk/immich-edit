@@ -1,26 +1,19 @@
 mod common;
 
 use common::{
-    any_fixture, decode_jpeg_rgb, decode_png_rgb, mean_abs_delta, mean_abs_laplacian,
+    ParityLedger, any_fixture, mean_abs_laplacian, require_same_dims, rgb8_opts,
     synthetic_bayer_frame, synthetic_frame, try_renderer, warn_pixels,
 };
 use raw_pipeline::decode;
 use raw_pipeline::edits::{BasicEdits, CropRect, Edits, GeometryEdits};
-use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RenderOptions};
+use raw_pipeline::frame::{OutputFormat, RenderOptions};
 
 #[test]
 fn gpu_demosaic_matches_cpu_mhc() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        output: OutputFormat::Png {
-            bit_depth: BitDepth::Eight,
-            compression: PngCompression::Fast,
-        },
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
 
     let patterns: &[(&str, usize, usize)] = &[
         ("RGGB", 96, 64),
@@ -29,31 +22,15 @@ fn gpu_demosaic_matches_cpu_mhc() {
         ("GBRG", 72, 52),
     ];
 
-    let mut failed: Vec<String> = Vec::new();
+    let mut ledger = ParityLedger::new("demosaic");
     for (cfa, w, h) in patterns {
         let frame = synthetic_bayer_frame(*w, *h, cfa);
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-        if cpu.width != gpu.width || cpu.height != gpu.height {
-            panic!(
-                "{cfa}: dim mismatch CPU {}x{} vs GPU {}x{}",
-                cpu.width, cpu.height, gpu.width, gpu.height
-            );
-        }
-        let (cpu_rgb, cw, ch) = decode_png_rgb(&cpu.bytes);
-        let (gpu_rgb, gw, gh) = decode_png_rgb(&gpu.bytes);
-        if (cw, ch) != (gw, gh) {
-            panic!("{cfa}: decoded dim mismatch {cw}x{ch} vs {gw}x{gh}");
-        }
-        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-        eprintln!("demosaic {cfa}: mean abs delta = {delta:.3}");
-        if delta > 1.0 {
-            failed.push(format!("{cfa}: {delta:.3} > 1.0"));
-        }
+        require_same_dims(cfa, &cpu, &gpu);
+        ledger.check(cfa, &cpu.bytes, &gpu.bytes, 1.0);
     }
-    if !failed.is_empty() {
-        panic!("GPU demosaic drift: {}", failed.join("; "));
-    }
+    ledger.finish();
 }
 
 #[test]
@@ -61,40 +38,21 @@ fn gpu_xtrans_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        output: OutputFormat::Png {
-            bit_depth: BitDepth::Eight,
-            compression: PngCompression::Fast,
-        },
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
 
     const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
     let sizes: &[(usize, usize)] = &[(96, 66), (86, 58)];
 
-    let mut failed: Vec<String> = Vec::new();
+    let mut ledger = ParityLedger::new("xtrans");
     for (w, h) in sizes {
         let frame = synthetic_bayer_frame(*w, *h, XTRANS);
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-        if cpu.width != gpu.width || cpu.height != gpu.height {
-            panic!(
-                "{w}x{h}: dim mismatch CPU {}x{} vs GPU {}x{}",
-                cpu.width, cpu.height, gpu.width, gpu.height
-            );
-        }
-        let (cpu_rgb, _, _) = decode_png_rgb(&cpu.bytes);
-        let (gpu_rgb, _, _) = decode_png_rgb(&gpu.bytes);
-        let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-        eprintln!("xtrans {w}x{h}: mean abs delta = {delta:.3}");
-        if delta > 1.0 {
-            failed.push(format!("{w}x{h}: {delta:.3} > 1.0"));
-        }
+        let label = format!("{w}x{h}");
+        require_same_dims(&label, &cpu, &gpu);
+        ledger.check(&label, &cpu.bytes, &gpu.bytes, 1.0);
     }
-    if !failed.is_empty() {
-        panic!("GPU X-Trans demosaic drift: {}", failed.join("; "));
-    }
+    ledger.finish();
 }
 
 #[test]
@@ -109,29 +67,13 @@ fn gpu_xtrans_fixture_matches_cpu() {
         return;
     };
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions {
-        max_edge: 4096,
-        output: OutputFormat::Png {
-            bit_depth: BitDepth::Eight,
-            compression: PngCompression::Fast,
-        },
-        ..Default::default()
-    };
+    let opts = rgb8_opts(4096);
     let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
     let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
-    if cpu.width != gpu.width || cpu.height != gpu.height {
-        panic!(
-            "dim mismatch CPU {}x{} vs GPU {}x{}",
-            cpu.width, cpu.height, gpu.width, gpu.height
-        );
-    }
-    let (cpu_rgb, _, _) = decode_png_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_png_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("xtrans fixture mean abs delta = {delta:.3}");
-    if delta > 2.0 {
-        panic!("GPU X-Trans fixture drift too high: {delta:.3}");
-    }
+    require_same_dims("fixture", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("xtrans");
+    ledger.check("X-T2", &cpu.bytes, &gpu.bytes, 2.0);
+    ledger.finish();
 }
 
 #[test]
@@ -193,10 +135,7 @@ fn gpu_downscale_preserves_detail_like_cpu() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = RenderOptions {
-        max_edge: 512,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(512);
 
     let cases: &[(&str, Edits)] = &[
         ("full", Edits::default()),
@@ -267,15 +206,15 @@ fn gpu_downscale_preserves_detail_like_cpu() {
     for (label, edits) in cases {
         let cpu = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
         let gpu = renderer.render(&frame, edits, &opts).unwrap();
-        let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu.bytes);
-        let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu.bytes);
-        if (cw, ch) != (gw, gh) {
-            panic!("{label}: dims {cw}x{ch} vs {gw}x{gh}");
-        }
-        let cpu_detail = mean_abs_laplacian(&cpu_rgb, cw, ch);
-        let gpu_detail = mean_abs_laplacian(&gpu_rgb, gw, gh);
+        require_same_dims(label, &cpu, &gpu);
+        let w = cpu.width as usize;
+        let h = cpu.height as usize;
+        let cpu_detail = mean_abs_laplacian(&cpu.bytes, w, h);
+        let gpu_detail = mean_abs_laplacian(&gpu.bytes, w, h);
         let ratio = gpu_detail / cpu_detail;
-        eprintln!("{label}: {cw}x{ch} cpu={cpu_detail:.3} gpu={gpu_detail:.3} ratio={ratio:.3}");
+        eprintln!(
+            "PARITY detail/{label} {w}x{h} cpu={cpu_detail:.3} gpu={gpu_detail:.3} ratio={ratio:.3}"
+        );
         if !(0.85..=1.20).contains(&ratio) {
             failed.push(format!("{label}: {ratio:.3}"));
         }

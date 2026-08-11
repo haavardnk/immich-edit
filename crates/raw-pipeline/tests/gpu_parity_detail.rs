@@ -1,21 +1,18 @@
 mod common;
 
 use common::{
-    decode_jpeg_rgb, detail_frame, fine_texture_frame, haze_frame, mean_abs_delta,
-    split_tone_frame, stripe_frame, synthetic_frame, try_renderer,
+    ParityLedger, detail_frame, fine_texture_frame, haze_frame, mean_abs_delta, require_same_dims,
+    rgb8_opts, split_tone_frame, stripe_frame, synthetic_frame, try_renderer,
 };
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
-use raw_pipeline::frame::RenderOptions;
+use raw_pipeline::frame::{OutputFormat, RenderOptions};
 
 #[test]
 fn gpu_presence_sliders_match_cpu_via_fallback() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 128,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(128);
     let frame = stripe_frame(48, 32);
     let mut edits = Edits::default();
     edits.basic.texture = 30.0;
@@ -23,15 +20,10 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("presence mean abs delta = {delta:.3}");
-    if delta > 8.0 {
-        panic!("presence GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("presence", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("presence");
+    ledger.check("texture+clarity", &cpu.bytes, &gpu.bytes, 8.0);
+    ledger.finish();
 }
 
 #[test]
@@ -39,25 +31,17 @@ fn gpu_dehaze_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 128,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(128);
     let frame = haze_frame(96, 64);
     let mut edits = Edits::default();
     edits.basic.dehaze = 60.0;
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("dehaze mean abs delta = {delta:.3}");
-    if delta > 10.0 {
-        panic!("dehaze GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("dehaze", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("dehaze");
+    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 10.0);
+    ledger.finish();
 }
 
 #[test]
@@ -65,10 +49,7 @@ fn gpu_dehaze_with_presence_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 128,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(128);
     let frame = haze_frame(96, 64);
     let mut edits = Edits::default();
     edits.basic.dehaze = 60.0;
@@ -77,13 +58,10 @@ fn gpu_dehaze_with_presence_matches_cpu() {
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("dehaze+presence mean abs delta = {delta:.3}");
-    if delta > 1.2 {
-        panic!("dehaze+presence GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("dehaze+presence", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("dehaze");
+    ledger.check("dehaze+presence", &cpu.bytes, &gpu.bytes, 1.2);
+    ledger.finish();
 }
 
 #[test]
@@ -91,25 +69,17 @@ fn gpu_shadows_match_cpu_via_pyramid() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 128,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(128);
     let frame = split_tone_frame(48, 32);
     let mut edits = Edits::default();
     edits.tone.shadows = 50.0;
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("shadows mean abs delta = {delta:.3}");
-    if delta > 8.0 {
-        panic!("shadows GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("shadows", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("shadows");
+    ledger.check("shadows+50", &cpu.bytes, &gpu.bytes, 8.0);
+    ledger.finish();
 }
 
 #[test]
@@ -117,65 +87,26 @@ fn gpu_sharpen_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
     let frame = synthetic_frame(96, 64);
-    let edits = Edits {
-        detail: DetailEdits {
-            sharpen_amount: Some(80.0),
-            sharpen_radius: 1.0,
-            sharpen_detail: 25.0,
-            sharpen_masking: 0.0,
+    let mut ledger = ParityLedger::new("sharpen");
+    for (label, masking, limit) in [("plain", 0.0, 3.0), ("masking+60", 60.0, 3.0)] {
+        let edits = Edits {
+            detail: DetailEdits {
+                sharpen_amount: Some(80.0),
+                sharpen_radius: 1.0,
+                sharpen_detail: 25.0,
+                sharpen_masking: masking,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("sharpen mean abs delta = {delta:.3}");
-    if delta > 3.0 {
-        panic!("sharpen GPU/CPU mean abs delta too high: {delta:.3}");
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, limit);
     }
-}
-
-#[test]
-fn gpu_sharpen_masking_matches_cpu() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
-    let frame = synthetic_frame(96, 64);
-    let edits = Edits {
-        detail: DetailEdits {
-            sharpen_amount: Some(80.0),
-            sharpen_radius: 1.0,
-            sharpen_detail: 25.0,
-            sharpen_masking: 60.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("sharpen+masking mean abs delta = {delta:.3}");
-    if delta > 3.0 {
-        panic!("sharpen+masking GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    ledger.finish();
 }
 
 #[test]
@@ -183,10 +114,7 @@ fn gpu_nr_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
     let frame = synthetic_frame(96, 64);
     let edits = Edits {
         detail: DetailEdits {
@@ -202,15 +130,10 @@ fn gpu_nr_matches_cpu() {
     };
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("nr mean abs delta = {delta:.3}");
-    if delta > 4.0 {
-        panic!("nr GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("nr", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("nr");
+    ledger.check("native", &cpu.bytes, &gpu.bytes, 4.0);
+    ledger.finish();
 }
 
 #[test]
@@ -221,6 +144,7 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
     let opts = RenderOptions {
         max_edge: 320,
         quality: false,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     let frame = fine_texture_frame(1024, 768);
@@ -238,15 +162,10 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
     };
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("nr preview-downsample mean abs delta = {delta:.3}");
-    if delta > 1.5 {
-        panic!("nr preview GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    require_same_dims("nr-preview", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("nr");
+    ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 1.5);
+    ledger.finish();
 }
 
 #[test]
@@ -257,6 +176,7 @@ fn gpu_capture_sharpen_matches_cpu() {
     let opts = RenderOptions {
         max_edge: 256,
         quality: true,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     let mut frame = detail_frame(256, 192);
@@ -284,124 +204,82 @@ fn gpu_capture_sharpen_matches_cpu() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     let gpu_off = renderer.render(&frame, &off, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let (off_rgb, _, _) = decode_jpeg_rgb(&gpu_off.bytes);
-    let effect = mean_abs_delta(&gpu_rgb, &off_rgb);
+    require_same_dims("capture-sharpen", &cpu, &gpu);
+    let effect = mean_abs_delta(&gpu.bytes, &gpu_off.bytes);
     eprintln!("capture sharpen effect = {effect:.3}");
     if effect < 0.5 {
         panic!("capture sharpen had no visible effect: {effect:.3}");
     }
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("capture sharpen mean abs delta = {delta:.3}");
-    if delta > 1.0 {
-        panic!("capture sharpen GPU/CPU mean abs delta too high: {delta:.3}");
-    }
+    let mut ledger = ParityLedger::new("capture-sharpen");
+    ledger.check("sigma0.7", &cpu.bytes, &gpu.bytes, 1.0);
+    ledger.finish();
 }
 
 #[test]
-fn gpu_vignette_matches_cpu() {
+fn gpu_effects_match_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
     let frame = synthetic_frame(96, 64);
-    let edits = Edits {
-        effects: EffectsEdits {
-            vignette_amount: -50.0,
-            vignette_midpoint: 40.0,
-            vignette_feather: 60.0,
-            vignette_roundness: 0.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("vignette mean abs delta = {delta:.3}");
-    if delta > 2.0 {
-        panic!("vignette GPU/CPU mean abs delta too high: {delta:.3}");
-    }
-}
 
-#[test]
-fn gpu_grain_matches_cpu() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
-    let frame = synthetic_frame(96, 64);
-    let edits = Edits {
-        effects: EffectsEdits {
-            grain_amount: 50.0,
-            grain_size: 25.0,
-            grain_roughness: 50.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("grain mean abs delta = {delta:.3}");
-    if delta > 6.0 {
-        panic!("grain GPU/CPU mean abs delta too high: {delta:.3}");
-    }
-}
+    let cases: &[(&str, f64, Edits)] = &[
+        (
+            "vignette",
+            2.0,
+            Edits {
+                effects: EffectsEdits {
+                    vignette_amount: -50.0,
+                    vignette_midpoint: 40.0,
+                    vignette_feather: 60.0,
+                    vignette_roundness: 0.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "grain",
+            6.0,
+            Edits {
+                effects: EffectsEdits {
+                    grain_amount: 50.0,
+                    grain_size: 25.0,
+                    grain_roughness: 50.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "sharpen+vignette+grain",
+            6.0,
+            Edits {
+                detail: DetailEdits {
+                    sharpen_amount: Some(60.0),
+                    sharpen_radius: 1.0,
+                    sharpen_detail: 25.0,
+                    sharpen_masking: 0.0,
+                    ..Default::default()
+                },
+                effects: EffectsEdits {
+                    vignette_amount: -40.0,
+                    grain_amount: 30.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+    ];
 
-#[test]
-fn gpu_effects_with_sharpen_matches_cpu() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
-    let frame = synthetic_frame(96, 64);
-    let edits = Edits {
-        detail: DetailEdits {
-            sharpen_amount: Some(60.0),
-            sharpen_radius: 1.0,
-            sharpen_detail: 25.0,
-            sharpen_masking: 0.0,
-            ..Default::default()
-        },
-        effects: EffectsEdits {
-            vignette_amount: -40.0,
-            grain_amount: 30.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    assert_eq!(gpu.width, cpu.width);
-    assert_eq!(gpu.height, cpu.height);
-    let (cpu_rgb, _, _) = decode_jpeg_rgb(&cpu.bytes);
-    let (gpu_rgb, _, _) = decode_jpeg_rgb(&gpu.bytes);
-    let delta = mean_abs_delta(&cpu_rgb, &gpu_rgb);
-    eprintln!("sharpen+effects mean abs delta = {delta:.3}");
-    if delta > 6.0 {
-        panic!("sharpen+effects GPU/CPU mean abs delta too high: {delta:.3}");
+    let mut ledger = ParityLedger::new("effects");
+    for (label, limit, edits) in cases {
+        let cpu = raw_pipeline::cpu::render(&frame, edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, *limit);
     }
+    ledger.finish();
 }
 
 #[test]
@@ -409,10 +287,7 @@ fn gpu_linear_histogram_changes_with_vignette() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 96,
-        ..Default::default()
-    };
+    let opts = rgb8_opts(96);
     let frame = synthetic_frame(96, 64);
     let neutral = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let edited = renderer

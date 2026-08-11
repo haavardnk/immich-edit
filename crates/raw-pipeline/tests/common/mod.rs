@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use raw_pipeline::GpuRenderer;
-use raw_pipeline::frame::RawFrame;
+use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions, RenderedImage};
 use std::path::{Path, PathBuf};
 
 const RAW_EXTS: &[&str] = &[
@@ -179,19 +179,66 @@ pub fn synthetic_bayer_frame(w: usize, h: usize, cfa_pattern: &str) -> RawFrame 
     }
 }
 
-pub fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
-    let img: turbojpeg::Image<Vec<u8>> =
-        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
-    (img.pixels, img.width, img.height)
+pub fn rgb8_opts(max_edge: u32) -> RenderOptions {
+    RenderOptions {
+        max_edge,
+        output: OutputFormat::Rgb8,
+        ..Default::default()
+    }
 }
 
-pub fn decode_png_rgb(bytes: &[u8]) -> (Vec<u8>, usize, usize) {
-    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-    let mut reader = decoder.read_info().unwrap();
-    let mut buf = vec![0u8; reader.output_buffer_size().unwrap()];
-    let info = reader.next_frame(&mut buf).unwrap();
-    buf.truncate(info.buffer_size());
-    (buf, info.width as usize, info.height as usize)
+pub fn report_mode() -> bool {
+    std::env::var("PARITY_REPORT").is_ok_and(|v| v == "1")
+}
+
+pub fn require_same_dims(label: &str, cpu: &RenderedImage, gpu: &RenderedImage) {
+    if cpu.width != gpu.width || cpu.height != gpu.height {
+        panic!(
+            "{label}: dim mismatch CPU {}x{} vs GPU {}x{}",
+            cpu.width, cpu.height, gpu.width, gpu.height
+        );
+    }
+}
+
+pub struct ParityLedger {
+    what: &'static str,
+    rows: Vec<(String, f64, f64)>,
+}
+
+impl ParityLedger {
+    pub fn new(what: &'static str) -> Self {
+        Self {
+            what,
+            rows: Vec::new(),
+        }
+    }
+
+    pub fn check(&mut self, label: &str, cpu: &[u8], gpu: &[u8], limit: f64) -> f64 {
+        let delta = mean_abs_delta(cpu, gpu);
+        eprintln!(
+            "PARITY {}/{label} delta={delta:.4} limit={limit}",
+            self.what
+        );
+        self.rows.push((label.to_string(), delta, limit));
+        delta
+    }
+
+    pub fn finish(self) {
+        let failed: Vec<String> = self
+            .rows
+            .iter()
+            .filter(|(_, delta, limit)| delta > limit)
+            .map(|(label, delta, limit)| format!("{label}: {delta:.4} > {limit}"))
+            .collect();
+        if failed.is_empty() {
+            return;
+        }
+        if report_mode() {
+            eprintln!("PARITY {} over limit: {}", self.what, failed.join("; "));
+            return;
+        }
+        panic!("{} CPU/GPU drift: {}", self.what, failed.join("; "));
+    }
 }
 
 pub fn mean_abs_delta(a: &[u8], b: &[u8]) -> f64 {
