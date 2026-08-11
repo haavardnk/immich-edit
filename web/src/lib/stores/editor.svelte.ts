@@ -106,7 +106,7 @@ import {
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
-const VIEW_MAX_EDGE = 8192;
+const VIEW_MAX_EDGE = 65535;
 const VIEW_DEBOUNCE_MS = 150;
 const MAX_HISTORY = 50;
 

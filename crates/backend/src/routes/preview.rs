@@ -18,7 +18,7 @@ use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
 const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
-const PREVIEW_JPEG_QUALITY: u8 = 92;
+const PREVIEW_JPEG_QUALITY: u8 = 95;
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewQuery {
@@ -229,7 +229,7 @@ async fn render_to_response(
 
 fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
     let value = requested.unwrap_or(default);
-    if !(64..=8192).contains(&value) {
+    if !(64..=65535).contains(&value) {
         return Err(AppError::BadRequest(format!(
             "max_edge out of range: {value}"
         )));

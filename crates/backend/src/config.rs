@@ -179,8 +179,8 @@ impl Config {
         };
         let cache_dir = data_dir.join("cache");
 
-        let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 4096u32)?;
-        if !(256..=8192).contains(&preview_max_edge) {
+        let preview_max_edge = parse_or("PREVIEW_MAX_EDGE", file.preview_max_edge, 65535u32)?;
+        if !(256..=65535).contains(&preview_max_edge) {
             return Err(ConfigError::InvalidValue {
                 key: "PREVIEW_MAX_EDGE".into(),
                 value: preview_max_edge.to_string(),
@@ -526,7 +526,7 @@ mod tests {
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
         }
         let cfg = Config::load().unwrap();
-        if cfg.preview_max_edge != 4096 {
+        if cfg.preview_max_edge != 65535 {
             panic!("max_edge");
         }
         if cfg.raw_frame_cache_mb != (cfg.render_max_concurrency as u64 * 256).max(512) {
