@@ -17,9 +17,7 @@ use super::{CachedFrame, GpuRenderer};
 
 impl GpuRenderer {
     pub(super) fn frame_key(frame: &RawFrame) -> u64 {
-        let ptr = frame.data.as_ptr() as usize as u64;
-        let dims = ((frame.width as u64) << 32) | (frame.height as u64);
-        ptr ^ dims
+        crate::cpu::renderer::frame_cache_key(frame)
     }
 
     pub(super) fn get_or_demosaic(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {

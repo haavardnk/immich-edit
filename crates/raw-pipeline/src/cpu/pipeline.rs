@@ -5,6 +5,7 @@ use crate::cpu::masked::{
 };
 use crate::cpu::presence::has_presence;
 use crate::cpu::presence_pyramid::LumaPyramid;
+use crate::cpu::renderer::{self, CpuRenderer};
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
@@ -25,6 +26,24 @@ type DcpFinish<'a> = (
 );
 
 const SPATIAL_BOUNDARY: (crate::ops::Stage, i32) = (crate::ops::Stage::Tone, -35);
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpRange {
+    All,
+    BelowBoundary,
+    FromBoundary,
+}
+
+impl OpRange {
+    fn contains(self, op: &dyn crate::ops::Op) -> bool {
+        let below = (op.stage(), op.order()) < SPATIAL_BOUNDARY;
+        match self {
+            Self::All => true,
+            Self::BelowBoundary => below,
+            Self::FromBoundary => !below,
+        }
+    }
+}
 
 fn downsample(image: &mut LinearImage, new_w: u32, new_h: u32) {
     let (rgb, w, h) = transform::resize_owned_to(
@@ -51,35 +70,27 @@ pub fn render_with_cancel(
     options: &RenderOptions,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
+    render_cached(frame, edits, options, cancel, None)
+}
+
+pub(crate) fn render_cached(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+    cancel: Option<&CancelToken>,
+    renderer: Option<&CpuRenderer>,
+) -> crate::PipelineResult<RenderedImage> {
     let mut edits = edits.clamped();
     edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.is_raw));
     edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
 
-    let (rgb, src_w, src_h) = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
-        let d = match demosaic::parse_xtrans(&frame.cfa_pattern) {
-            Some(pattern) => demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern),
-            None => demosaic::malvar_he_cutler(
-                &frame.data,
-                frame.width,
-                frame.height,
-                &frame.cfa_pattern,
-            ),
-        };
-        (d, frame.width, frame.height)
-    } else {
-        (frame.data.clone(), frame.width, frame.height)
-    };
-
-    let out_dims = crate::geom::display_out_dims(
-        frame.orientation,
-        &edits,
-        (src_w as u32, src_h as u32),
-        options.max_edge,
-    );
+    let src_dims = (frame.width as u32, frame.height as u32);
+    let out_dims =
+        crate::geom::display_out_dims(frame.orientation, &edits, src_dims, options.max_edge);
     let preview_ratio = crate::geom::preview_ratio(
         frame.orientation,
         &edits,
-        (src_w as u32, src_h as u32),
+        src_dims,
         options.max_edge,
         options.quality,
     );
@@ -93,38 +104,141 @@ pub fn render_with_cancel(
             capture_sigma: frame.capture_sigma,
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
-            dcp: setup.resolved,
+            dcp: setup.resolved.clone(),
         },
         scratch: OpScratch::default(),
     };
 
-    let mut sensor_image = LinearImage::new(rgb, src_w, src_h);
-    run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
-    cancel::check(cancel)?;
-    let (rgb, w, h) = transform::apply_orientation(
-        sensor_image.rgb,
-        sensor_image.width,
-        sensor_image.height,
-        frame.orientation,
-    );
+    let cache_key = renderer
+        .filter(|_| renderer::sensor_cacheable(&edits, options))
+        .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio));
 
-    let (oriented_w, oriented_h) = match edits.geometry.rotate {
-        90 | 270 => (h, w),
-        _ => (w, h),
+    let cached = cache_key.and_then(|k| renderer.and_then(|r| r.get(k)));
+
+    let (mut image, oriented_w, oriented_h) = match cached {
+        Some(stage) => (
+            LinearImage::new(stage.rgb.clone(), stage.width, stage.height),
+            stage.oriented_w,
+            stage.oriented_h,
+        ),
+        None => {
+            let rgb = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
+                match demosaic::parse_xtrans(&frame.cfa_pattern) {
+                    Some(pattern) => {
+                        demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern)
+                    }
+                    None => demosaic::malvar_he_cutler(
+                        &frame.data,
+                        frame.width,
+                        frame.height,
+                        &frame.cfa_pattern,
+                    ),
+                }
+            } else {
+                frame.data.clone()
+            };
+
+            let mut sensor_image = LinearImage::new(rgb, frame.width, frame.height);
+            run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
+            cancel::check(cancel)?;
+            let (rgb, w, h) = transform::apply_orientation(
+                sensor_image.rgb,
+                sensor_image.width,
+                sensor_image.height,
+                frame.orientation,
+            );
+
+            let (oriented_w, oriented_h) = match edits.geometry.rotate {
+                90 | 270 => (h, w),
+                _ => (w, h),
+            };
+
+            let mut image = LinearImage::new(rgb, w, h);
+            let preview_dims = preview_ratio
+                .and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio));
+
+            if let (Some(key), Some(r)) = (cache_key, renderer) {
+                run_pipeline_ops_inner(
+                    &mut image,
+                    &ctx,
+                    &edits,
+                    &options.rasters,
+                    OpRange::BelowBoundary,
+                    preview_dims,
+                    cancel,
+                )?;
+                r.put(
+                    key,
+                    Arc::new(renderer::SensorStage {
+                        rgb: image.rgb.clone(),
+                        width: image.width,
+                        height: image.height,
+                        oriented_w,
+                        oriented_h,
+                    }),
+                );
+            } else {
+                let sharpen_delta = run_pipeline_ops_inner(
+                    &mut image,
+                    &ctx,
+                    &edits,
+                    &options.rasters,
+                    OpRange::All,
+                    preview_dims,
+                    cancel,
+                )?;
+                return finish_render(
+                    frame,
+                    &edits,
+                    options,
+                    &ctx,
+                    image,
+                    sharpen_delta,
+                    out_dims,
+                    (oriented_w, oriented_h),
+                    cancel,
+                );
+            }
+            (image, oriented_w, oriented_h)
+        }
     };
 
-    let mut image = LinearImage::new(rgb, w, h);
-
-    let preview_dims =
-        preview_ratio.and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio));
     let sharpen_delta = run_pipeline_ops_inner(
         &mut image,
         &ctx,
         &edits,
         &options.rasters,
-        preview_dims,
+        OpRange::FromBoundary,
+        None,
         cancel,
     )?;
+
+    finish_render(
+        frame,
+        &edits,
+        options,
+        &ctx,
+        image,
+        sharpen_delta,
+        out_dims,
+        (oriented_w, oriented_h),
+        cancel,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_render(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+    ctx: &OpContext,
+    image: LinearImage,
+    sharpen_delta: Option<LinearImage>,
+    out_dims: (u32, u32),
+    oriented: (usize, usize),
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<RenderedImage> {
+    let (oriented_w, oriented_h) = oriented;
 
     cancel::check(cancel)?;
     let (rgb, w, h) =
@@ -152,9 +266,9 @@ pub fn render_with_cancel(
                 };
                 &out_ctx
             }
-            None => &ctx,
+            None => ctx,
         };
-        run_output_ops(&mut out_image, ctx, &edits, cancel)?;
+        run_output_ops(&mut out_image, ctx, edits, cancel)?;
     }
     let rgb = out_image.rgb;
     let w = out_image.width;
@@ -162,7 +276,7 @@ pub fn render_with_cancel(
 
     let want_16bit = options.output.bit_depth() == BitDepth::Sixteen;
     cancel::check(cancel)?;
-    let lut_resolved = resolve_lut(&edits, options)?;
+    let lut_resolved = resolve_lut(edits, options)?;
     let lut_ref = lut_resolved.as_ref().map(|(l, a)| (l.as_ref(), *a));
     let dcp_active = ctx.render.dcp.is_some();
     let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
@@ -226,7 +340,7 @@ pub fn run_pipeline_ops(
     rasters: &crate::mask_raster::RasterMap,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
-    run_pipeline_ops_inner(image, ctx, edits, rasters, None, cancel).map(|_| ())
+    run_pipeline_ops_inner(image, ctx, edits, rasters, OpRange::All, None, cancel).map(|_| ())
 }
 
 fn run_pipeline_ops_inner(
@@ -234,6 +348,7 @@ fn run_pipeline_ops_inner(
     ctx: &OpContext,
     edits: &Edits,
     rasters: &crate::mask_raster::RasterMap,
+    range: OpRange,
     preview_dims: Option<(u32, u32)>,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<Option<LinearImage>> {
@@ -332,6 +447,9 @@ fn run_pipeline_ops_inner(
     };
     for op in registry.ops().iter() {
         cancel::check(cancel)?;
+        if !range.contains(op.as_ref()) {
+            continue;
+        }
         if !op_active(op.as_ref()) {
             continue;
         }
@@ -474,7 +592,10 @@ fn run_pipeline_ops_inner(
     if !spatial_ready && let Some((pw, ph)) = preview_dims {
         downsample(image, pw, ph);
     }
-    if sharpen_delta.is_none() && sharpen_deltas.iter().any(|d| *d != 0.0) {
+    if range != OpRange::BelowBoundary
+        && sharpen_delta.is_none()
+        && sharpen_deltas.iter().any(|d| *d != 0.0)
+    {
         sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
             image,
             &layer_evals,

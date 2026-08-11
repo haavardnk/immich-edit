@@ -49,6 +49,7 @@ pub fn version() -> &'static str {
 }
 
 pub use cancel::{CancelToken, CancelTracker};
+pub use cpu::CpuRenderer;
 pub use dcp::{DcpProfile, parse_dcp};
 pub use frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage, TiffCompression,

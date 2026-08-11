@@ -7,7 +7,7 @@ use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError, RenderedImage};
+use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, PipelineError, RenderedImage};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -58,6 +58,7 @@ pub struct RenderService {
     frames: Arc<Mutex<RawFrameCache>>,
     quality_frames: Arc<Mutex<RawFrameCache>>,
     gpu: Arc<RwLock<Option<Arc<GpuRenderer>>>>,
+    cpu: Arc<CpuRenderer>,
     gpu_mode: RendererMode,
     gpu_texture_cache_bytes: u64,
     active: Arc<RwLock<ActiveRenderer>>,
@@ -109,6 +110,7 @@ impl RenderService {
                 cache.quality_frame_cache_mb.saturating_mul(MB),
             ))),
             gpu: Arc::new(RwLock::new(gpu)),
+            cpu: Arc::new(CpuRenderer::new()),
             gpu_mode: mode,
             gpu_texture_cache_bytes,
             active: Arc::new(RwLock::new(active)),
@@ -248,7 +250,7 @@ impl RenderService {
             "render orientation"
         );
         if matches!(self.gpu_mode, RendererMode::Cpu) {
-            return raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel);
+            return self.cpu.render_with_cancel(frame, edits, opts, cancel);
         }
         let gpu = self.gpu_or_rebuild();
         if let Some(g) = gpu {
@@ -267,7 +269,7 @@ impl RenderService {
                 }
             }
         }
-        raw_pipeline::cpu::render_with_cancel(frame, edits, opts, cancel)
+        self.cpu.render_with_cancel(frame, edits, opts, cancel)
     }
 
     fn gpu_or_rebuild(&self) -> Option<Arc<GpuRenderer>> {
