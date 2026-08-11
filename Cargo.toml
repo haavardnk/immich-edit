@@ -30,3 +30,19 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
+
+[profile.dev.package.immich-edit-backend]
+opt-level = 0
+
+[profile.dev.package.raw-pipeline]
+opt-level = 3
+
+[profile.dev.package.ml]
+opt-level = 3
+
+[profile.test.package.raw-pipeline]
+opt-level = 3
+
+[profile.test.package.ml]
+opt-level = 3

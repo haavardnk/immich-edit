@@ -32,10 +32,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=planner /build/recipe.json recipe.json
 COPY rust-toolchain.toml ./
-RUN cargo chef cook --release --tests --recipe-path recipe.json -j "$(nproc)"
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    cargo chef cook --release --tests --recipe-path recipe.json -j "$(nproc)"
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
-RUN cargo set-version --workspace "$APP_VERSION" && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    cargo set-version --workspace "$APP_VERSION" && \
     cargo build --locked --release --bin immich-edit -j "$(nproc)" && \
     strip target/release/immich-edit && \
     mkdir -p /build/dylibs && \

@@ -12,7 +12,7 @@ uuid = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
 rawler = "0.7"
-turbojpeg = "1"
+turbojpeg = { version = "1", default-features = false, features = ["pkg-config"] }
 sha2 = "0.11"
 hex = "0.4"
 wgpu = "30"
@@ -34,9 +34,13 @@ jpegxl-sys = "0.12"
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
 libheif-rs = { version = "2.7", default-features = false, features = ["v1_19"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+turbojpeg = { version = "1", default-features = false, features = ["cmake"] }
+
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "cpu_pipeline"
 harness = false
+test = false

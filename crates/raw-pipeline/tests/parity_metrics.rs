@@ -14,6 +14,8 @@ const SSIM_FLOOR: f64 = 0.97;
 const DE2000_MEAN_CEIL: f64 = 5.0;
 const DE2000_P95_CEIL: f64 = 12.0;
 
+const VARIANT_FIXTURES: &[&str] = &["Canon_EOS_R6", "Fujifilm_X-T2", "Panasonic_DMC-LX7"];
+
 fn fixtures() -> Vec<PathBuf> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -30,6 +32,16 @@ fn fixtures() -> Vec<PathBuf> {
         .collect();
     paths.sort();
     paths
+}
+
+fn variant_fixtures() -> Vec<PathBuf> {
+    fixtures()
+        .into_iter()
+        .filter(|p| {
+            let name = p.file_name().unwrap_or_default().to_string_lossy();
+            VARIANT_FIXTURES.iter().any(|n| name.starts_with(n))
+        })
+        .collect()
 }
 
 fn try_renderer() -> Option<gpu::GpuRenderer> {
@@ -231,42 +243,36 @@ fn render_pair(
     Some((cpu_rgb, gpu_rgb))
 }
 
-#[test]
-fn gpu_vs_cpu_parity_per_fixture() {
+fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOptions) {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let paths = fixtures();
     if paths.is_empty() {
         eprintln!("no fixtures; skipping");
         return;
     }
-    let opts = RenderOptions {
-        max_edge: 512,
-        ..Default::default()
-    };
     let mut failed: Vec<String> = Vec::new();
     let mut decoded = 0;
-    for p in &paths {
+    for p in paths {
         let name = p.file_name().unwrap().to_string_lossy().to_string();
         let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(_) => {
-                eprintln!("skip {name}: decode unsupported");
-                continue;
-            }
+        let Ok(frame) = decode::decode(&bytes) else {
+            eprintln!("skip {name}: decode unsupported");
+            continue;
         };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &Edits::default(), &opts)
-        else {
+        drop(bytes);
+        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, edits, opts) else {
             eprintln!("skip {name}: render or jpeg decode failed");
             continue;
         };
+        drop(frame);
         decoded += 1;
         let p_db = psnr(&cpu_rgb, &gpu_rgb);
         let s = ssim_luma(&cpu_rgb, &gpu_rgb);
         let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!("{name}: PSNR={p_db:.2}dB SSIM={s:.4} ΔE2000 mean={de_mean:.2} p95={de_p95:.2}");
+        eprintln!(
+            "{name} ({label}): PSNR={p_db:.2}dB SSIM={s:.4} ΔE2000 mean={de_mean:.2} p95={de_p95:.2}"
+        );
         if p_db < PSNR_FLOOR_DB {
             failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
         }
@@ -285,63 +291,27 @@ fn gpu_vs_cpu_parity_per_fixture() {
         return;
     }
     if !failed.is_empty() {
-        panic!("parity below floor: {}", failed.join("; "));
+        panic!("{label} parity below floor: {}", failed.join("; "));
     }
 }
 
 #[test]
-fn gpu_vs_cpu_parity_display_p3() {
-    let Some(renderer) = try_renderer() else {
-        return;
+fn gpu_vs_cpu_parity_per_fixture() {
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
     };
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures; skipping");
-        return;
-    }
+    check_parity("base", &fixtures(), &Edits::default(), &opts);
+}
+
+#[test]
+fn gpu_vs_cpu_parity_display_p3() {
     let opts = RenderOptions {
         max_edge: 512,
         output_color_space: OutputColorSpace::DisplayP3,
         ..Default::default()
     };
-    let mut failed: Vec<String> = Vec::new();
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(_) => continue,
-        };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &Edits::default(), &opts)
-        else {
-            continue;
-        };
-        decoded += 1;
-        let p_db = psnr(&cpu_rgb, &gpu_rgb);
-        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
-        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!("{name} (p3): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}");
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
-        }
-        if s < SSIM_FLOOR {
-            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
-        }
-        if de_mean > DE2000_MEAN_CEIL {
-            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
-        }
-        if de_p95 > DE2000_P95_CEIL {
-            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
-        }
-    }
-    if decoded == 0 {
-        eprintln!("no fixtures decoded; skipping");
-        return;
-    }
-    if !failed.is_empty() {
-        panic!("p3 parity below floor: {}", failed.join("; "));
-    }
+    check_parity("p3", &variant_fixtures(), &Edits::default(), &opts);
 }
 
 fn tint_lut_cube(size: usize) -> String {
@@ -365,14 +335,6 @@ fn gpu_vs_cpu_parity_with_lut() {
     use raw_pipeline::{Lut3d, LutMap};
     use std::sync::Arc;
 
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures; skipping");
-        return;
-    }
     let lut = Lut3d::parse_cube(tint_lut_cube(16).as_bytes()).unwrap();
     let mut luts: LutMap = std::collections::HashMap::new();
     luts.insert("test".to_string(), Arc::new(lut));
@@ -384,60 +346,13 @@ fn gpu_vs_cpu_parity_with_lut() {
     let mut edits = Edits::default();
     edits.color.lut_3d.lut_id = Some("test".to_string());
     edits.color.lut_3d.amount = 100.0;
-
-    let mut failed: Vec<String> = Vec::new();
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(_) => continue,
-        };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
-            continue;
-        };
-        decoded += 1;
-        let p_db = psnr(&cpu_rgb, &gpu_rgb);
-        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
-        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!(
-            "{name} (lut): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}"
-        );
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
-        }
-        if s < SSIM_FLOOR {
-            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
-        }
-        if de_mean > DE2000_MEAN_CEIL {
-            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
-        }
-        if de_p95 > DE2000_P95_CEIL {
-            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
-        }
-    }
-    if decoded == 0 {
-        eprintln!("no fixtures decoded; skipping");
-        return;
-    }
-    if !failed.is_empty() {
-        panic!("lut parity below floor: {}", failed.join("; "));
-    }
+    check_parity("lut", &variant_fixtures(), &edits, &opts);
 }
 
 #[test]
 fn gpu_vs_cpu_parity_with_noise_reduction() {
     use raw_pipeline::edits::DetailEdits;
 
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures; skipping");
-        return;
-    }
     let opts = RenderOptions {
         max_edge: 512,
         ..Default::default()
@@ -452,44 +367,7 @@ fn gpu_vs_cpu_parity_with_noise_reduction() {
         },
         ..Default::default()
     };
-
-    let mut failed: Vec<String> = Vec::new();
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(_) => continue,
-        };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
-            continue;
-        };
-        decoded += 1;
-        let p_db = psnr(&cpu_rgb, &gpu_rgb);
-        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
-        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!("{name} (nr): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}");
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
-        }
-        if s < SSIM_FLOOR {
-            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
-        }
-        if de_mean > DE2000_MEAN_CEIL {
-            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
-        }
-        if de_p95 > DE2000_P95_CEIL {
-            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
-        }
-    }
-    if decoded == 0 {
-        eprintln!("no fixtures decoded; skipping");
-        return;
-    }
-    if !failed.is_empty() {
-        panic!("nr parity below floor: {}", failed.join("; "));
-    }
+    check_parity("nr", &variant_fixtures(), &edits, &opts);
 }
 
 fn make_huesat_profile() -> raw_pipeline::DcpProfile {
@@ -573,14 +451,6 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
     use raw_pipeline::edits::DcpMode;
     use std::sync::Arc;
 
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures; skipping");
-        return;
-    }
     let opts = RenderOptions {
         max_edge: 512,
         dcp: Some(Arc::new(profile)),
@@ -595,46 +465,7 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
         edits.detail.color_nr_amount = 60.0;
         edits.detail.color_nr_smoothness = 60.0;
     }
-
-    let mut failed: Vec<String> = Vec::new();
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(_) => continue,
-        };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
-            continue;
-        };
-        decoded += 1;
-        let p_db = psnr(&cpu_rgb, &gpu_rgb);
-        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
-        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!(
-            "{name} (dcp): PSNR={p_db:.2}dB SSIM={s:.4} ΔE mean={de_mean:.2} p95={de_p95:.2}"
-        );
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
-        }
-        if s < SSIM_FLOOR {
-            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
-        }
-        if de_mean > DE2000_MEAN_CEIL {
-            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
-        }
-        if de_p95 > DE2000_P95_CEIL {
-            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
-        }
-    }
-    if decoded == 0 {
-        eprintln!("no fixtures decoded; skipping");
-        return;
-    }
-    if !failed.is_empty() {
-        panic!("dcp parity below floor: {}", failed.join("; "));
-    }
+    check_parity("dcp", &variant_fixtures(), &edits, &opts);
 }
 
 fn retouch_edits() -> Edits {
@@ -664,55 +495,9 @@ fn retouch_edits() -> Edits {
 
 #[test]
 fn gpu_vs_cpu_parity_retouch() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures; skipping");
-        return;
-    }
     let opts = RenderOptions {
         max_edge: 512,
         ..Default::default()
     };
-    let edits = retouch_edits();
-    let mut failed: Vec<String> = Vec::new();
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let Ok(frame) = decode::decode(&bytes) else {
-            continue;
-        };
-        let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, &edits, &opts) else {
-            continue;
-        };
-        decoded += 1;
-        let p_db = psnr(&cpu_rgb, &gpu_rgb);
-        let s = ssim_luma(&cpu_rgb, &gpu_rgb);
-        let (de_mean, de_p95) = delta_e_stats(&cpu_rgb, &gpu_rgb);
-        eprintln!(
-            "retouch {name}: PSNR={p_db:.2}dB SSIM={s:.4} ΔE2000 mean={de_mean:.2} p95={de_p95:.2}"
-        );
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
-        }
-        if s < SSIM_FLOOR {
-            failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
-        }
-        if de_mean > DE2000_MEAN_CEIL {
-            failed.push(format!("{name}: ΔE mean {de_mean:.2} > {DE2000_MEAN_CEIL}"));
-        }
-        if de_p95 > DE2000_P95_CEIL {
-            failed.push(format!("{name}: ΔE p95 {de_p95:.2} > {DE2000_P95_CEIL}"));
-        }
-    }
-    if decoded == 0 {
-        eprintln!("no fixtures decoded; skipping");
-        return;
-    }
-    if !failed.is_empty() {
-        panic!("retouch parity below floor: {}", failed.join("; "));
-    }
+    check_parity("retouch", &variant_fixtures(), &retouch_edits(), &opts);
 }

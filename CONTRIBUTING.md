@@ -75,6 +75,8 @@ cargo test --workspace
 cd web && npm run check && npm run build && npm run test:unit && npm run test:e2e
 ```
 
+Most of the Rust test time sits in three `raw-pipeline` binaries — `parity_metrics`, `cpu_render` and `cpu_cache`. While iterating, scope to the package you are changing (`cargo test -p immich-edit-backend`, `cargo test -p ml`, `cargo test -p raw-pipeline --lib`) and run the full workspace before you push.
+
 Frontend changes need coverage: unit tests (Vitest, `web/src/**/*.test.ts`) for pure logic and Playwright e2e (`web/e2e/`) for user flows.
 
 GPU parity tests require local GPU hardware and do not run on GitHub-hosted Ubuntu. If a PR changes GPU shaders, render pass ordering, GPU/CPU parity behavior, or device setup, include local GPU test evidence in the PR description.
