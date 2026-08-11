@@ -1,7 +1,7 @@
 <script lang="ts">
   import ToolbarButton from '$lib/components/ToolbarButton.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { ui, MAX_ZOOM } from '$lib/stores/ui.svelte';
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
   import RatingControl from './RatingControl.svelte';
@@ -58,13 +58,21 @@
         <input
           type="range"
           min="25"
-          max="400"
+          max={MAX_ZOOM}
           step="5"
           value={ui.zoom}
           oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
           class="w-28 h-1 accent-immich-dark-primary"
         />
         <ToolbarButton path={mdiMagnifyPlusOutline} size={16} title="Zoom In" onclick={ui.zoomIn} />
+        <ToolbarButton
+          variant="text"
+          label="1:1"
+          title="One source pixel per screen pixel"
+          disabled={ui.nativeZoom === null}
+          active={ui.nativeZoom !== null && ui.zoom === ui.nativeZoom}
+          onclick={ui.zoomNative}
+        />
         <ToolbarButton
           path={mdiFitToScreenOutline}
           size={16}

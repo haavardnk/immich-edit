@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   frameBox,
   isFullFrame,
+  nativeZoom,
   placement,
   renderRequest,
   roiCovers,
@@ -175,6 +176,20 @@ describe('zoomAnchor', () => {
     if (!next) throw new Error('expected a frame');
     const u = (250 - frame.left) / frame.width;
     expect(next.left + u * next.width).toBeCloseTo(250, 6);
+  });
+});
+
+describe('nativeZoom', () => {
+  it('lands one source pixel on one device pixel', () => {
+    const zoom = nativeZoom(fitFrame(100), 4000, 2);
+    expect(zoom).toBe(200);
+    const frame = frameBox(1000, 800, 4000, 3200, zoom ?? 0, 0, 0, 2);
+    expect(frame && frame.width * 2).toBe(4000);
+  });
+
+  it('returns null without a known source size', () => {
+    expect(nativeZoom(fitFrame(100), Number.POSITIVE_INFINITY, 2)).toBeNull();
+    expect(nativeZoom(fitFrame(100), 0, 2)).toBeNull();
   });
 });
 

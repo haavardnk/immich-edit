@@ -133,6 +133,12 @@ export function placement(
   };
 }
 
+export function nativeZoom(fitFrame: Rect, srcLong: number, dpr: number): number | null {
+  const fitLong = Math.max(fitFrame.width, fitFrame.height);
+  if (!Number.isFinite(srcLong) || srcLong <= 0 || fitLong <= 0) return null;
+  return Math.round((100 * (srcLong / safeDpr(dpr))) / fitLong);
+}
+
 export function zoomAnchor(
   containerW: number,
   containerH: number,

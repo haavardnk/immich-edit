@@ -200,7 +200,7 @@ class EditorStore {
 
   initialised = $state(false);
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
-  private viewSnap: ViewSnapshot | null = null;
+  private viewSnap = $state<ViewSnapshot | null>(null);
   private viewKey = '';
   private viewFullEdge = 0;
   private srcLong = Number.POSITIVE_INFINITY;
@@ -329,6 +329,19 @@ class EditorStore {
     if (!snap) return LIVE_EDGE;
     const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
     return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+  }
+
+  get sourceLong(): number {
+    return this.srcLong;
+  }
+
+  get viewScale(): number | null {
+    const snap = this.viewSnap;
+    if (!snap || !this.viewRoi || !this.viewNat) return null;
+    const boxLong =
+      Math.max(this.viewRoi[2] * snap.frame.width, this.viewRoi[3] * snap.frame.height) * snap.dpr;
+    if (boxLong <= 0) return null;
+    return Math.max(this.viewNat.w, this.viewNat.h) / boxLong;
   }
 
   clearView(): void {

@@ -12,6 +12,8 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
   { id: '7:5', label: '7:5', value: 7 / 5 }
 ];
 
+export const MAX_ZOOM = 800;
+
 class UiStore {
   leftCollapsed = $state(false);
   rightCollapsed = $state(false);
@@ -19,6 +21,7 @@ class UiStore {
   searchQuery = $state('');
   fullscreen = $state(false);
   zoom = $state(100);
+  nativeZoom = $state<number | null>(null);
   panX = $state(0);
   panY = $state(0);
   keybindsHelpOpen = $state(false);
@@ -91,7 +94,7 @@ class UiStore {
   };
 
   zoomIn = (): void => {
-    this.zoom = Math.min(this.zoom + 25, 400);
+    this.zoom = Math.min(this.zoom + 25, MAX_ZOOM);
   };
 
   zoomOut = (): void => {
@@ -187,11 +190,16 @@ class UiStore {
   };
 
   setZoom = (value: number): void => {
-    this.zoom = Math.round(Math.max(25, Math.min(400, value)));
+    this.zoom = Math.round(Math.max(25, Math.min(MAX_ZOOM, value)));
     if (this.zoom <= 100) {
       this.panX = 0;
       this.panY = 0;
     }
+  };
+
+  zoomNative = (): void => {
+    if (this.nativeZoom === null) return;
+    this.setZoom(this.nativeZoom);
   };
 }
 

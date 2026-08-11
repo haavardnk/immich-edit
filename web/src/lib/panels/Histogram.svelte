@@ -4,7 +4,12 @@
 
   const hist = $derived(editor.meta?.histogram ?? null);
   const linearHist = $derived(editor.meta?.linear_histogram ?? null);
-  const dims = $derived(editor.meta ? `${editor.meta.width}×${editor.meta.height}` : '');
+  const painted = $derived(
+    editor.viewNat ?? (editor.meta ? { w: editor.meta.width, h: editor.meta.height } : null)
+  );
+  const dims = $derived(painted ? `${painted.w}×${painted.h}` : '');
+  const scale = $derived(editor.viewScale);
+  const scaleLabel = $derived(scale === null || scale >= 0.995 ? '' : `${scale.toFixed(2)}×`);
   const renderer = $derived(editor.meta?.renderer ?? '');
 
   function path(values: number[]): string {
@@ -69,7 +74,12 @@
     {/if}
   </div>
   <div class="flex items-center justify-between text-[10px] text-immich-dark-fg/30 font-mono">
-    <span>{dims}</span>
+    <span title="Resolution painted on screen">{dims}</span>
+    {#if scaleLabel}
+      <span class="text-amber-400/50" title="Upscaled: the source has no more detail here"
+        >{scaleLabel}</span
+      >
+    {/if}
     <span>{renderer}</span>
   </div>
 </div>

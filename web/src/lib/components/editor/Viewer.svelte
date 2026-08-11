@@ -8,7 +8,7 @@
   import RetouchOverlay from './RetouchOverlay.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { mdiLoading } from '@mdi/js';
-  import { frameBox, placement, zoomAnchor } from '$lib/utils/view-geometry';
+  import { frameBox, nativeZoom, placement, zoomAnchor } from '$lib/utils/view-geometry';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
@@ -150,6 +150,15 @@
     const box = frame;
     if (!box) return;
     editor.onViewChange({ frame: box, viewW: viewBox.w, viewH: viewBox.h, dpr });
+  });
+
+  $effect(() => {
+    if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) {
+      ui.nativeZoom = null;
+      return;
+    }
+    const fit = frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, 100, 0, 0, dpr);
+    ui.nativeZoom = fit ? nativeZoom(fit, editor.sourceLong, dpr) : null;
   });
 </script>
 
