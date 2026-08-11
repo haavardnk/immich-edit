@@ -61,7 +61,6 @@ impl GpuRenderer {
         let sharpened_lin_view = sh
             .sharpened_lin
             .create_view(&TextureViewDescriptor::default());
-        let out_view = out.texture.create_view(&TextureViewDescriptor::default());
         let mask_sharpen_view = out
             .mask_sharpen
             .create_view(&TextureViewDescriptor::default());
@@ -166,10 +165,6 @@ impl GpuRenderer {
                 BindGroupEntry {
                     binding: 2,
                     resource: BindingResource::TextureView(&blur_full_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&out_view),
                 },
                 BindGroupEntry {
                     binding: 4,

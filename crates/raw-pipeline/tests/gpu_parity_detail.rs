@@ -5,7 +5,7 @@ use common::{
     rgb8_opts, split_tone_frame, stripe_frame, synthetic_frame, try_renderer,
 };
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
+use raw_pipeline::frame::{OutputFormat, PreviewMode, RenderOptions};
 
 #[test]
 fn gpu_presence_sliders_match_cpu_via_fallback() {
@@ -100,6 +100,40 @@ fn gpu_sharpen_matches_cpu() {
                 ..Default::default()
             },
             ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, limit);
+    }
+    ledger.finish();
+}
+
+#[test]
+fn gpu_sharpen_previews_match_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = detail_frame(128, 96);
+    let edits = Edits {
+        detail: DetailEdits {
+            sharpen_amount: Some(80.0),
+            sharpen_radius: 1.0,
+            sharpen_detail: 25.0,
+            sharpen_masking: 40.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut ledger = ParityLedger::new("sharpen-preview");
+    for (label, mode, limit) in [
+        ("mask", PreviewMode::SharpenMask, 0.8),
+        ("radius", PreviewMode::SharpenRadius, 0.15),
+        ("detail", PreviewMode::SharpenDetail, 0.4),
+    ] {
+        let opts = RenderOptions {
+            preview_mode: mode,
+            ..rgb8_opts(128)
         };
         let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
         let gpu = renderer.render(&frame, &edits, &opts).unwrap();

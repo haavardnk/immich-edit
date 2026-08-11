@@ -1130,7 +1130,6 @@ impl GpuRenderer {
             &p.linear_texture,
             out_w,
             out_h,
-            sharpen_preview,
         );
         if let Some(spool) = sharpen_pool_guard.as_ref() {
             let s = &spool[0];
@@ -1147,20 +1146,18 @@ impl GpuRenderer {
                     masked_sharpen,
                 );
             }
-            if !sharpen_preview {
-                self.encode_effects_tone(
-                    &mut encoder,
-                    &edits,
-                    p,
-                    s,
-                    out_w,
-                    out_h,
-                    run_sharpen,
-                    opts.output_color_space,
-                    warn_flags,
-                    opts.roi,
-                );
-            }
+            self.encode_effects_tone(
+                &mut encoder,
+                &edits,
+                p,
+                s,
+                out_w,
+                out_h,
+                run_sharpen,
+                opts.output_color_space,
+                warn_flags,
+                opts.roi,
+            );
         }
 
         let _dcp_finish_scratch = sharpen_pool_guard.as_ref().and_then(|spool| {
@@ -1171,16 +1168,12 @@ impl GpuRenderer {
                 &p.texture,
                 out_w,
                 out_h,
-                sharpen_preview,
                 warn_flags | ((p3_active as u32) << 2),
             )
         });
 
-        let lut_target = if sharpen_preview {
-            None
-        } else {
-            self.maybe_encode_lut(&mut encoder, &edits, opts, &p.texture, out_w, out_h)
-        };
+        let lut_target =
+            self.maybe_encode_lut(&mut encoder, &edits, opts, &p.texture, out_w, out_h);
         let display_src = lut_target.as_deref().unwrap_or(&p.texture);
         let overlay_bind = preview_layer.map(|_| {
             let params = crate::gpu::passes::mask_overlay::pack_params(
@@ -1240,7 +1233,7 @@ impl GpuRenderer {
         };
         copy_texture_to_buffer(&mut encoder, display_src, &p.readback, out_w, out_h);
         let linear_src = match sharpen_pool_guard.as_ref() {
-            Some(spool) if !sharpen_preview => &spool[0].post_lin,
+            Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
         };
         copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);

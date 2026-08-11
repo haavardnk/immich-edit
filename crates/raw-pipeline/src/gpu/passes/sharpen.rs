@@ -44,7 +44,6 @@ impl OutputSharpenPass {
                 uniform_entry(0, SHARPEN_UNIFORM_SIZE),
                 tex_entry(1),
                 tex_entry(2),
-                storage_entry(3, wgpu::TextureFormat::Rgba8Unorm),
                 storage_entry(4, ctx.linear_format),
                 tex_entry_with(5, false, TextureViewDimension::D2),
             ],

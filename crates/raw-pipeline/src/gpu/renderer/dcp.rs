@@ -85,11 +85,7 @@ impl GpuRenderer {
         linear_texture: &Texture,
         out_w: u32,
         out_h: u32,
-        sharpen_preview: bool,
     ) -> Option<PooledTexture> {
-        if sharpen_preview {
-            return None;
-        }
         let resolved = resolved?;
         let map = resolved.base_table.as_ref()?;
         let table_tex = self.get_or_upload_huesat_texture(map);
@@ -149,12 +145,8 @@ impl GpuRenderer {
         dst: &Texture,
         out_w: u32,
         out_h: u32,
-        sharpen_preview: bool,
         warn_flags: u32,
     ) -> Option<PooledTexture> {
-        if sharpen_preview {
-            return None;
-        }
         let resolved = resolved?;
         let tone = resolved.tone_curve.as_deref().map(Vec::as_slice);
         if resolved.look_table.is_none() && tone.is_none() {
