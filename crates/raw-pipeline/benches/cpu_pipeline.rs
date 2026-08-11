@@ -31,6 +31,7 @@ fn ctx() -> OpContext {
             is_raw: true,
             capture_sigma: Some(0.7),
             preview_mode: raw_pipeline::frame::PreviewMode::None,
+            roi: None,
             dcp: None,
         },
         scratch: OpScratch::default(),

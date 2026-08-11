@@ -100,26 +100,39 @@ pub fn gaussian_kernel(sigma: f32) -> Vec<f32> {
 }
 
 fn convolve(src: &[f32], dst: &mut [f32], tmp: &mut [f32], w: usize, h: usize, kernel: &[f32]) {
-    let radius = (kernel.len() / 2) as i32;
+    let radius = kernel.len() / 2;
+    let left_end = radius.min(w);
+    let right_start = w.saturating_sub(radius).max(left_end);
     tmp.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        let base = y * w;
-        for (x, out) in row.iter_mut().enumerate() {
+        let src_row = &src[y * w..y * w + w];
+        for x in (0..left_end).chain(right_start..w) {
             let mut acc = 0.0f32;
             for (i, k) in kernel.iter().enumerate() {
-                let sx = (x as i32 + i as i32 - radius).clamp(0, w as i32 - 1) as usize;
-                acc += k * src[base + sx];
+                let sx = (x + i).saturating_sub(radius).min(w - 1);
+                acc += k * src_row[sx];
             }
-            *out = acc;
+            row[x] = acc;
+        }
+        if right_start <= left_end {
+            return;
+        }
+        let inner = &mut row[left_end..right_start];
+        inner.fill(0.0);
+        for (i, k) in kernel.iter().enumerate() {
+            let taps = &src_row[i..i + inner.len()];
+            for (out, v) in inner.iter_mut().zip(taps) {
+                *out += k * v;
+            }
         }
     });
     dst.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        for x in 0..w {
-            let mut acc = 0.0f32;
-            for (i, k) in kernel.iter().enumerate() {
-                let sy = (y as i32 + i as i32 - radius).clamp(0, h as i32 - 1) as usize;
-                acc += k * tmp[sy * w + x];
+        row.fill(0.0);
+        for (i, k) in kernel.iter().enumerate() {
+            let sy = (y + i).saturating_sub(radius).min(h - 1);
+            let src_row = &tmp[sy * w..sy * w + w];
+            for (out, v) in row.iter_mut().zip(src_row) {
+                *out += k * v;
             }
-            row[x] = acc;
         }
     });
 }
@@ -134,18 +147,25 @@ fn separable_extreme(
     pick: fn(f32, f32) -> f32,
 ) {
     tmp.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        let base = y * w;
-        for (x, out) in row.iter_mut().enumerate() {
-            let x0 = x.saturating_sub(radius);
-            let x1 = (x + radius).min(w - 1);
-            *out = (x0..=x1).fold(src[base + x0], |a, sx| pick(a, src[base + sx]));
+        let src_row = &src[y * w..y * w + w];
+        row.copy_from_slice(src_row);
+        for d in 1..=radius {
+            for (x, out) in row.iter_mut().enumerate() {
+                let lo = x.saturating_sub(d);
+                let hi = (x + d).min(w - 1);
+                *out = pick(pick(*out, src_row[lo]), src_row[hi]);
+            }
         }
     });
     dst.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let y0 = y.saturating_sub(radius);
         let y1 = (y + radius).min(h - 1);
-        for x in 0..w {
-            row[x] = (y0..=y1).fold(tmp[y0 * w + x], |a, sy| pick(a, tmp[sy * w + x]));
+        row.copy_from_slice(&tmp[y0 * w..y0 * w + w]);
+        for sy in y0 + 1..=y1 {
+            let src_row = &tmp[sy * w..sy * w + w];
+            for (out, v) in row.iter_mut().zip(src_row) {
+                *out = pick(*out, *v);
+            }
         }
     });
 }
