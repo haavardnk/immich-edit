@@ -17,7 +17,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
     let c = vec2<i32>(i32(gid.x), i32(gid.y));
     let rgb = textureLoad(src, c, 0).rgb;
-    let y = KR * rgb.r + KG * rgb.g + KB * rgb.b;
+    let y = max(KR * rgb.r + KG * rgb.g + KB * rgb.b, 0.0);
     textureStore(dst, c, vec4<f32>(y, 0.0, 0.0, 0.0));
     textureStore(est, c, vec4<f32>(y, 0.0, 0.0, 0.0));
 }

@@ -72,7 +72,7 @@ fn gpu_xtrans_fixture_matches_cpu() {
     let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     require_same_dims("fixture", &cpu, &gpu);
     let mut ledger = ParityLedger::new("xtrans");
-    ledger.check("X-T2", &cpu.bytes, &gpu.bytes, 0.6);
+    ledger.check("X-T2", &cpu.bytes, &gpu.bytes, 0.45);
     ledger.finish();
 }
 

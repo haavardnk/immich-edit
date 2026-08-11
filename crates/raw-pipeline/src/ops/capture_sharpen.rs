@@ -211,7 +211,7 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
             for x in 0..w {
-                lrow[x] = KR * prow[x * 3] + KG * prow[x * 3 + 1] + KB * prow[x * 3 + 2];
+                lrow[x] = (KR * prow[x * 3] + KG * prow[x * 3 + 1] + KB * prow[x * 3 + 2]).max(0.0);
             }
         });
     let blend = build_blend(image, &luma, w, h);
