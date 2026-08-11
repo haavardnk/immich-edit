@@ -415,6 +415,16 @@ impl GpuRenderer {
             _ => (display_w, display_h),
         };
 
+        let (full_display_w, full_display_h) = if frame.orientation.0 {
+            (frame.height as u32, frame.width as u32)
+        } else {
+            (frame.width as u32, frame.height as u32)
+        };
+        let (source_w, source_h) = match edits.geometry.rotate {
+            90 | 270 => (full_display_h, full_display_w),
+            _ => (full_display_w, full_display_h),
+        };
+
         let crop = edits
             .geometry
             .crop
@@ -1248,8 +1258,8 @@ impl GpuRenderer {
             linear_histogram: Some(linear_histogram),
             width: out_w,
             height: out_h,
-            source_w: oriented_w,
-            source_h: oriented_h,
+            source_w,
+            source_h,
             renderer: "gpu".into(),
             is_raw: frame.is_raw,
         })

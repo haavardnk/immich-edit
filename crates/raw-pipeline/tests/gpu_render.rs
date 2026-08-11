@@ -150,6 +150,38 @@ fn gpu_rotate_swaps_dims() {
     }
 }
 
+#[test]
+fn gpu_reports_sensor_source_dims_at_small_max_edge() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let Some(path) = any_fixture() else {
+        return;
+    };
+    let bytes = std::fs::read(&path).unwrap();
+    let frame = decode::decode(&bytes).unwrap();
+    let opts = RenderOptions {
+        max_edge: 256,
+        ..Default::default()
+    };
+
+    let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+
+    if (gpu.source_w, gpu.source_h) != (cpu.source_w, cpu.source_h) {
+        panic!(
+            "source dims disagree: gpu {}x{} cpu {}x{}",
+            gpu.source_w, gpu.source_h, cpu.source_w, cpu.source_h
+        );
+    }
+    if gpu.source_w.max(gpu.source_h) <= gpu.width.max(gpu.height) {
+        panic!(
+            "source dims collapsed to the working texture: {}x{} for a {}x{} render",
+            gpu.source_w, gpu.source_h, gpu.width, gpu.height
+        );
+    }
+}
+
 fn synthetic_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     for y in 0..h {

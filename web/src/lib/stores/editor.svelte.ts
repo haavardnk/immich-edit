@@ -304,7 +304,7 @@ class EditorStore {
       const delivered = Math.max(result.w, result.h);
       const fraction = args.fullEdge > 0 ? args.maxEdge / args.fullEdge : 1;
       this.viewFullEdge = Math.round(delivered / fraction);
-      if (delivered < args.maxEdge - 1) this.srcLong = this.viewFullEdge;
+      if (delivered < args.maxEdge * 0.98) this.srcLong = this.viewFullEdge;
       if (prev?.startsWith('blob:')) revoke(prev);
     },
     () => {
