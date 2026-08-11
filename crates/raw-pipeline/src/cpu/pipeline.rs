@@ -1,8 +1,6 @@
 use crate::cancel::{self, CancelToken};
 use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
-use crate::cpu::masked::{
-    LayerEval, apply_segment_masked, build_layer_evals, effective_edits_for_layer,
-};
+use crate::cpu::masked::{blend_layer_images, build_layer_evals, effective_edits_for_layer};
 use crate::cpu::presence::has_presence;
 use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::cpu::renderer::{self, CpuRenderer};
@@ -420,24 +418,33 @@ fn run_pipeline_ops_inner(
     let mut segment = FusedSegment::default();
     let mut layer_segments: Vec<FusedSegment> =
         (0..n_layers).map(|_| FusedSegment::default()).collect();
+    let mut layer_images: Vec<LinearImage> = Vec::new();
     let mut lens_warp =
         LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);
     let flush = |image: &mut LinearImage,
+                 layer_images: &mut Vec<LinearImage>,
                  segment: &mut FusedSegment,
-                 layer_segments: &mut [FusedSegment],
-                 layer_evals: &[LayerEval],
-                 lens_warp: &LensWarpParams| {
-        if n_layers == 0 {
-            if !segment.is_empty() {
-                apply_segment(image, segment);
-                segment.clear();
-            }
-        } else if !segment.is_empty() || layer_segments.iter().any(|s| !s.is_empty()) {
-            apply_segment_masked(image, segment, layer_segments, layer_evals, lens_warp);
+                 layer_segments: &mut [FusedSegment]| {
+        let layers_pending = layer_segments.iter().any(|s| !s.is_empty());
+        if segment.is_empty() && !layers_pending {
+            return;
+        }
+        if layers_pending && layer_images.is_empty() {
+            layer_images.extend(
+                (0..n_layers)
+                    .map(|_| LinearImage::new(image.rgb.clone(), image.width, image.height)),
+            );
+        }
+        if !segment.is_empty() {
+            apply_segment(image, segment);
             segment.clear();
-            for s in layer_segments.iter_mut() {
-                s.clear();
+        }
+        for (i, s) in layer_segments.iter_mut().enumerate() {
+            if s.is_empty() {
+                continue;
             }
+            apply_segment(&mut layer_images[i], s);
+            s.clear();
         }
     };
     let op_active = |op: &dyn crate::ops::Op| -> bool {
@@ -459,15 +466,12 @@ fn run_pipeline_ops_inner(
         }
         if !spatial_ready && (op.stage(), op.order()) >= SPATIAL_BOUNDARY {
             spatial_ready = true;
-            flush(
-                image,
-                &mut segment,
-                &mut layer_segments,
-                &layer_evals,
-                &lens_warp,
-            );
+            flush(image, &mut layer_images, &mut segment, &mut layer_segments);
             if let Some((pw, ph)) = preview_dims {
                 downsample(image, pw, ph);
+                for li in layer_images.iter_mut() {
+                    downsample(li, pw, ph);
+                }
                 lens_warp = LensWarpParams::from_edits(
                     &edits.lens,
                     image.width as u32,
@@ -496,13 +500,7 @@ fn run_pipeline_ops_inner(
         let ctx: &OpContext = ctx_local.as_ref().unwrap_or(ctx_outer);
         if op.gpu_kind() == GpuOpKind::Presence {
             if !presence_done && presence_active {
-                flush(
-                    image,
-                    &mut segment,
-                    &mut layer_segments,
-                    &layer_evals,
-                    &lens_warp,
-                );
+                flush(image, &mut layer_images, &mut segment, &mut layer_segments);
                 let amounts = presence_amounts(edits);
                 let layer_amounts: Vec<crate::presence::PresenceAmounts> =
                     layer_edits.iter().map(presence_amounts).collect();
@@ -555,38 +553,35 @@ fn run_pipeline_ops_inner(
             }
             continue;
         }
-        flush(
-            image,
-            &mut segment,
-            &mut layer_segments,
-            &layer_evals,
-            &lens_warp,
-        );
-        if op.stage() == crate::ops::Stage::Geometry
-            && sharpen_delta.is_none()
-            && sharpen_deltas.iter().any(|d| *d != 0.0)
-        {
-            sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
-                image,
-                &layer_evals,
-                &sharpen_deltas,
-                &lens_warp,
-            ));
+        flush(image, &mut layer_images, &mut segment, &mut layer_segments);
+        if op.stage() == crate::ops::Stage::Geometry {
+            if sharpen_delta.is_none() && sharpen_deltas.iter().any(|d| *d != 0.0) {
+                sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
+                    image,
+                    &layer_evals,
+                    &sharpen_deltas,
+                    &lens_warp,
+                ));
+            }
+            if !layer_images.is_empty() {
+                blend_layer_images(image, &layer_images, &layer_evals, &lens_warp);
+                layer_images.clear();
+            }
         }
         op.apply_cpu(image, ctx, edits)?;
+        for (i, li) in layer_images.iter_mut().enumerate() {
+            op.apply_cpu(li, ctx, &layer_edits[i])?;
+        }
         if let Some(d) = sharpen_delta.as_mut()
             && op.stage() == crate::ops::Stage::Geometry
         {
             op.apply_cpu(d, ctx, edits)?;
         }
     }
-    flush(
-        image,
-        &mut segment,
-        &mut layer_segments,
-        &layer_evals,
-        &lens_warp,
-    );
+    flush(image, &mut layer_images, &mut segment, &mut layer_segments);
+    if !layer_images.is_empty() {
+        blend_layer_images(image, &layer_images, &layer_evals, &lens_warp);
+    }
     if !spatial_ready && let Some((pw, ph)) = preview_dims {
         downsample(image, pw, ph);
     }

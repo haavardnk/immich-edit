@@ -1,4 +1,3 @@
-use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_one};
 use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer};
 use crate::mask_raster::{MaskRaster, RasterMap};
 use crate::ops::LinearImage;
@@ -308,23 +307,19 @@ pub fn fold_layer_weight_with_display(
     (w * layer.amount).clamp(0.0, 1.0)
 }
 
-pub fn apply_segment_masked(
+pub fn blend_layer_images(
     image: &mut LinearImage,
-    base_segment: &FusedSegment,
-    layer_segments: &[FusedSegment],
+    layer_images: &[LinearImage],
     layers: &[LayerEval],
     lens_warp: &LensWarpParams,
 ) {
-    if base_segment.is_empty() && layer_segments.iter().all(|s| s.is_empty()) {
+    if layers.is_empty() || layer_images.len() != layers.len() {
         return;
     }
     let w = image.width;
-    let h = image.height;
     let inv_w = 1.0 / w.max(1) as f32;
-    let inv_h = 1.0 / h.max(1) as f32;
+    let inv_h = 1.0 / image.height.max(1) as f32;
     let row_floats = w * 3;
-    let base_ops = base_segment.ops.as_slice();
-    let layer_ops: Vec<&[CpuFusedOp]> = layer_segments.iter().map(|s| s.ops.as_slice()).collect();
     let warp_active = !lens_warp.is_identity();
 
     image
@@ -332,10 +327,9 @@ pub fn apply_segment_masked(
         .par_chunks_exact_mut(row_floats)
         .enumerate()
         .for_each(|(y, row)| {
-            let row_base = y * w;
+            let row_base = y * row_floats;
             let v = (y as f32 + 0.5) * inv_h;
             for (x, px) in row.chunks_exact_mut(3).enumerate() {
-                let i = row_base + x;
                 let u = (x as f32 + 0.5) * inv_w;
                 let (su, sv) = if warp_active {
                     let s = mask_uv_to_scene_uv(lens_warp, [u, v]);
@@ -343,37 +337,18 @@ pub fn apply_segment_masked(
                 } else {
                     (u, v)
                 };
-                let r0 = px[0];
-                let g0 = px[1];
-                let b0 = px[2];
-                let mut br = r0;
-                let mut bg = g0;
-                let mut bb = b0;
-                for op in base_ops {
-                    apply_one(op, i, &mut br, &mut bg, &mut bb);
-                }
-                let display_rgb = crate::tone::apply_rgb([br, bg, bb]);
-                let mut out_r = br;
-                let mut out_g = bg;
-                let mut out_b = bb;
+                let display_rgb = crate::tone::apply_rgb([px[0], px[1], px[2]]);
+                let o = row_base + x * 3;
                 for (li, layer) in layers.iter().enumerate() {
                     let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
                     if lw <= 1e-4 {
                         continue;
                     }
-                    let mut lr = r0;
-                    let mut lg = g0;
-                    let mut lb = b0;
-                    for op in layer_ops[li] {
-                        apply_one(op, i, &mut lr, &mut lg, &mut lb);
-                    }
-                    out_r = out_r + (lr - out_r) * lw;
-                    out_g = out_g + (lg - out_g) * lw;
-                    out_b = out_b + (lb - out_b) * lw;
+                    let src = &layer_images[li].rgb;
+                    px[0] += (src[o] - px[0]) * lw;
+                    px[1] += (src[o + 1] - px[1]) * lw;
+                    px[2] += (src[o + 2] - px[2]) * lw;
                 }
-                px[0] = out_r;
-                px[1] = out_g;
-                px[2] = out_b;
             }
         });
 }
@@ -522,6 +497,7 @@ pub fn effective_edits_for_layer(global: &Edits, layer: &MaskLayer) -> Edits {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
     use crate::edits::{LensEdits, MaskComponent, MaskSource, Vec2f};
 
     fn linear(id: &str, p0: Vec2f, p1: Vec2f, feather: f32) -> MaskComponent {
@@ -688,11 +664,12 @@ mod tests {
             },
         };
         let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
-        let base = FusedSegment::default();
         let mut layer_seg = FusedSegment::default();
         layer_seg.push(CpuFusedOp::Exposure { factor: 4.0 });
+        let mut layer_image = LinearImage::new(image.rgb.clone(), w, h);
+        apply_segment(&mut layer_image, &layer_seg);
         let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
-        apply_segment_masked(&mut image, &base, &[layer_seg], &[eval], &warp);
+        blend_layer_images(&mut image, &[layer_image], &[eval], &warp);
         let left = image.rgb[0];
         let right = image.rgb[3 * (w - 1)];
         if (left - 0.5).abs() > 1e-3 {
