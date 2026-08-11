@@ -39,6 +39,7 @@ pub fn render_with_cancel(
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
     let mut edits = edits.clamped();
+    edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.is_raw));
     edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
 
     let (rgb, src_w, src_h) = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {

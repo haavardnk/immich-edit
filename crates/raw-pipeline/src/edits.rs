@@ -94,6 +94,8 @@ impl ToneEdits {
     }
 }
 
+pub const RAW_SHARPEN_AMOUNT: f64 = 40.0;
+
 fn sharpen_radius_default() -> f64 {
     1.0
 }
@@ -116,7 +118,7 @@ fn capture_sharpen_default() -> bool {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct DetailEdits {
     #[serde(default)]
-    pub sharpen_amount: f64,
+    pub sharpen_amount: Option<f64>,
     #[serde(default = "sharpen_radius_default")]
     pub sharpen_radius: f64,
     #[serde(default = "sharpen_detail_default")]
@@ -142,7 +144,7 @@ pub struct DetailEdits {
 impl Default for DetailEdits {
     fn default() -> Self {
         Self {
-            sharpen_amount: 0.0,
+            sharpen_amount: None,
             sharpen_radius: sharpen_radius_default(),
             sharpen_detail: sharpen_detail_default(),
             sharpen_masking: 0.0,
@@ -158,8 +160,19 @@ impl Default for DetailEdits {
 }
 
 impl DetailEdits {
+    pub fn sharpen_amount_for(&self, is_raw: bool) -> f64 {
+        self.sharpen_amount
+            .unwrap_or(if is_raw { RAW_SHARPEN_AMOUNT } else { 0.0 })
+    }
     pub fn sharpen_active(&self) -> bool {
-        self.sharpen_amount != 0.0
+        self.sharpen_amount.unwrap_or(0.0) != 0.0
+    }
+    pub fn sharpen_is_unset(&self) -> bool {
+        let def = Self::default();
+        self.sharpen_amount.is_none()
+            && self.sharpen_radius == def.sharpen_radius
+            && self.sharpen_detail == def.sharpen_detail
+            && self.sharpen_masking == def.sharpen_masking
     }
     pub fn luma_nr_active(&self) -> bool {
         self.luma_nr_amount != 0.0
@@ -172,7 +185,7 @@ impl DetailEdits {
     }
     pub fn clamped(&self) -> Self {
         let mut out = Self {
-            sharpen_amount: self.sharpen_amount.clamp(0.0, 150.0),
+            sharpen_amount: self.sharpen_amount.map(|v| v.clamp(0.0, 150.0)),
             sharpen_radius: self.sharpen_radius.clamp(0.5, 3.0),
             sharpen_detail: self.sharpen_detail.clamp(0.0, 100.0),
             sharpen_masking: self.sharpen_masking.clamp(0.0, 100.0),
@@ -184,7 +197,7 @@ impl DetailEdits {
             color_nr_smoothness: self.color_nr_smoothness.clamp(0.0, 100.0),
             capture_sharpen: self.capture_sharpen,
         };
-        if !out.sharpen_active() {
+        if out.sharpen_amount == Some(0.0) {
             out.sharpen_radius = sharpen_radius_default();
             out.sharpen_detail = sharpen_detail_default();
             out.sharpen_masking = 0.0;

@@ -162,7 +162,7 @@ export interface ColorEdits {
 
 export interface DetailEdits {
   capture_sharpen: boolean;
-  sharpen_amount: number;
+  sharpen_amount: number | null;
   sharpen_radius: number;
   sharpen_detail: number;
   sharpen_masking: number;
@@ -176,7 +176,7 @@ export interface DetailEdits {
 
 export const NEUTRAL_DETAIL: DetailEdits = {
   capture_sharpen: true,
-  sharpen_amount: 0,
+  sharpen_amount: null,
   sharpen_radius: 1.0,
   sharpen_detail: 25,
   sharpen_masking: 0,
@@ -187,6 +187,12 @@ export const NEUTRAL_DETAIL: DetailEdits = {
   color_nr_detail: 50,
   color_nr_smoothness: 50
 };
+
+export const RAW_SHARPEN_AMOUNT = 40;
+
+export function neutralSharpenAmount(isRaw: boolean): number {
+  return isRaw ? RAW_SHARPEN_AMOUNT : 0;
+}
 
 export interface EffectsEdits {
   vignette_amount: number;
@@ -593,11 +599,18 @@ interface BoolField {
   set: (e: Edits, v: boolean) => void;
 }
 
+interface NullField {
+  key: string;
+  get: (e: Edits) => number | null;
+  set: (e: Edits, v: number | null) => void;
+}
+
 interface FlatOp {
   id: string;
   legacyId?: string;
   nums: NumField[];
   bools?: BoolField[];
+  nulls?: NullField[];
   active: (e: Edits) => boolean;
   identity?: (e: Edits) => boolean;
 }
@@ -723,12 +736,24 @@ const FLAT_OPS: FlatOp[] = [
   {
     id: 'sharpen',
     nums: [
-      detailField('amount', 'sharpen_amount'),
       detailField('radius', 'sharpen_radius'),
       detailField('detail', 'sharpen_detail'),
       detailField('masking', 'sharpen_masking')
     ],
-    active: (e) => e.detail.sharpen_amount !== 0
+    nulls: [
+      {
+        key: 'amount',
+        get: (e) => e.detail.sharpen_amount,
+        set: (e, v) => {
+          e.detail.sharpen_amount = v;
+        }
+      }
+    ],
+    active: (e) =>
+      e.detail.sharpen_amount !== null ||
+      e.detail.sharpen_radius !== NEUTRAL_DETAIL.sharpen_radius ||
+      e.detail.sharpen_detail !== NEUTRAL_DETAIL.sharpen_detail ||
+      e.detail.sharpen_masking !== NEUTRAL_DETAIL.sharpen_masking
   },
   {
     id: 'luma_nr',
@@ -827,9 +852,10 @@ function flatOpsAreIdentity(e: Edits): boolean {
 function encodeFlatOps(e: Edits, ops: Record<string, unknown>): void {
   for (const op of FLAT_OPS) {
     if (!op.active(e)) continue;
-    const obj: Record<string, number | boolean> = {};
+    const obj: Record<string, number | boolean | null> = {};
     for (const f of op.nums) obj[f.key] = f.get(e);
     for (const f of op.bools ?? []) obj[f.key] = f.get(e);
+    for (const f of op.nulls ?? []) obj[f.key] = f.get(e);
     ops[op.id] = obj;
   }
 }
@@ -846,6 +872,10 @@ function decodeFlatOps(ops: Record<string, unknown>, e: Edits): void {
     for (const f of op.bools ?? []) {
       const v = raw[f.key];
       if (typeof v === 'boolean') f.set(e, v);
+    }
+    for (const f of op.nulls ?? []) {
+      const v = raw[f.key];
+      f.set(e, typeof v === 'number' ? v : null);
     }
   }
 }

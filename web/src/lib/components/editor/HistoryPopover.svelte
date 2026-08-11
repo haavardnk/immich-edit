@@ -140,8 +140,12 @@
     {:else}
       <ul class="py-1">
         {#each entries as entry, i (entry.id)}
-          {@const info = historyLabel(entry, entries[i + 1] ?? null)}
-          {@const details = historyDetails(entry, entries[i + 1] ?? null)}
+          {@const info = historyLabel(entry, entries[i + 1] ?? null, editor.meta?.is_raw ?? false)}
+          {@const details = historyDetails(
+            entry,
+            entries[i + 1] ?? null,
+            editor.meta?.is_raw ?? false
+          )}
           {@const isCurrent = entry.manifest_hash === editor.savedHash}
           {@const expanded = expandedId === entry.id}
           <li class="border-b border-white/5 last:border-b-0">

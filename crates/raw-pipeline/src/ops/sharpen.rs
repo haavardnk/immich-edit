@@ -23,7 +23,7 @@ impl Op for SharpenOp {
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         let d = &edits.detail;
-        if !d.sharpen_active() {
+        if d.sharpen_is_unset() {
             return None;
         }
         Some(serde_json::json!({
@@ -35,9 +35,7 @@ impl Op for SharpenOp {
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let d: &mut DetailEdits = &mut edits.detail;
-        if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
-            d.sharpen_amount = v;
-        }
+        d.sharpen_amount = value.get("amount").and_then(|v| v.as_f64());
         if let Some(v) = value.get("radius").and_then(|v| v.as_f64()) {
             d.sharpen_radius = v;
         }
@@ -73,7 +71,8 @@ fn apply_sharpen(
     preview: &crate::frame::PreviewMode,
     delta: Option<&super::SharpenDeltaMap>,
 ) {
-    let amount = (d.sharpen_amount / 25.0) as f32;
+    let base_amount = d.sharpen_amount.unwrap_or(0.0) as f32;
+    let amount = base_amount / 25.0;
     let sigma = d.sharpen_radius as f32;
     let detail_weight = 0.5 + 0.5 * (d.sharpen_detail / 100.0) as f32;
     let masking = (d.sharpen_masking / 100.0) as f32;
@@ -94,7 +93,6 @@ fn apply_sharpen(
         return;
     }
     let strength = amount * detail_weight;
-    let base_amount = d.sharpen_amount as f32;
     image
         .rgb
         .par_chunks_mut(w * 3)

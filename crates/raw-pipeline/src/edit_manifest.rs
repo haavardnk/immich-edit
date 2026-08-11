@@ -141,7 +141,7 @@ mod tests {
                 dcp: Default::default(),
             },
             detail: DetailEdits {
-                sharpen_amount: 60.0,
+                sharpen_amount: Some(60.0),
                 sharpen_radius: 1.2,
                 sharpen_detail: 30.0,
                 sharpen_masking: 15.0,

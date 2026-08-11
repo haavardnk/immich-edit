@@ -45,7 +45,7 @@ fn stable_hash_differs_on_change() {
 fn stable_hash_is_pinned() {
     assert_eq!(
         Edits::default().stable_hash(),
-        "5e90e71ab15750194c40fda15adf8467"
+        "b24a43ab8506b491467947d1fd8cf4d4"
     );
     assert_eq!(
         populated_edits().stable_hash(),
@@ -304,7 +304,7 @@ fn populated_edits() -> Edits {
             },
         },
         detail: DetailEdits {
-            sharpen_amount: 80.0,
+            sharpen_amount: Some(80.0),
             sharpen_radius: 1.5,
             sharpen_detail: 40.0,
             sharpen_masking: 20.0,

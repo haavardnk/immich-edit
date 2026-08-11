@@ -180,6 +180,47 @@ fn identity_render_jpeg() {
 }
 
 #[test]
+fn default_sharpening_is_raw_only() {
+    let Some(frame) = fixtures()
+        .iter()
+        .find_map(|p| std::fs::read(p).ok().and_then(|b| decode::decode(&b).ok()))
+    else {
+        eprintln!("no fixtures found; skipping");
+        return;
+    };
+    let opts = RenderOptions {
+        max_edge: 256,
+        ..Default::default()
+    };
+    let unsharp = Edits {
+        detail: raw_pipeline::edits::DetailEdits {
+            sharpen_amount: Some(0.0),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let raw_default = cpu::render(&frame, &Edits::default(), &opts).unwrap();
+    let raw_unsharp = cpu::render(&frame, &unsharp, &opts).unwrap();
+    if raw_default.bytes == raw_unsharp.bytes {
+        panic!("raw render ignored the default sharpening");
+    }
+    let rendered = RawFrame {
+        cfa_pattern: frame.cfa_pattern.clone(),
+        color_matrices: frame.color_matrices.clone(),
+        data: frame.data.clone(),
+        model: frame.model.clone(),
+        exif: None,
+        is_raw: false,
+        ..frame
+    };
+    let rendered_default = cpu::render(&rendered, &Edits::default(), &opts).unwrap();
+    let rendered_unsharp = cpu::render(&rendered, &unsharp, &opts).unwrap();
+    if rendered_default.bytes != rendered_unsharp.bytes {
+        panic!("non-raw render applied the default sharpening");
+    }
+}
+
+#[test]
 fn rotate_swaps_dims() {
     each_fixture(|name, frame| {
         let opts = RenderOptions {

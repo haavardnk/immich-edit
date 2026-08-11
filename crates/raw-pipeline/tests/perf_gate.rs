@@ -122,7 +122,7 @@ fn edits_full() -> Edits {
 fn edits_detail_heavy() -> Edits {
     Edits {
         detail: DetailEdits {
-            sharpen_amount: 80.0,
+            sharpen_amount: Some(80.0),
             sharpen_radius: 1.2,
             sharpen_detail: 40.0,
             sharpen_masking: 30.0,

@@ -1038,7 +1038,7 @@ fn sharpen_amplifies_edge_contrast() {
     };
     let edits = Edits {
         detail: DetailEdits {
-            sharpen_amount: 100.0,
+            sharpen_amount: Some(100.0),
             sharpen_radius: 1.0,
             sharpen_detail: 100.0,
             sharpen_masking: 0.0,
@@ -1080,7 +1080,7 @@ fn sharpen_masking_suppresses_flat_areas() {
     let img_mask = LinearImage::new(buf.clone(), w, h);
     let mk_edits = |masking: f64| Edits {
         detail: DetailEdits {
-            sharpen_amount: 150.0,
+            sharpen_amount: Some(150.0),
             sharpen_radius: 1.0,
             sharpen_detail: 100.0,
             sharpen_masking: masking,

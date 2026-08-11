@@ -54,7 +54,7 @@ fn stack_tone_lift() -> Edits {
             whites: -10.0,
         },
         detail: DetailEdits {
-            sharpen_amount: 35.0,
+            sharpen_amount: Some(35.0),
             sharpen_masking: 45.0,
             color_nr_amount: 25.0,
             ..Default::default()
@@ -83,7 +83,7 @@ fn stack_clarity_dehaze() -> Edits {
             whites: 8.0,
         },
         detail: DetailEdits {
-            sharpen_amount: 60.0,
+            sharpen_amount: Some(60.0),
             sharpen_radius: 1.0,
             sharpen_detail: 35.0,
             sharpen_masking: 20.0,
@@ -112,7 +112,7 @@ fn stack_noise_reduction() -> Edits {
             whites: -5.0,
         },
         detail: DetailEdits {
-            sharpen_amount: 25.0,
+            sharpen_amount: Some(25.0),
             luma_nr_amount: 55.0,
             luma_nr_detail: 40.0,
             color_nr_amount: 60.0,

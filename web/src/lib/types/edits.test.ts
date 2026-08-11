@@ -8,6 +8,7 @@ import {
   isIdentity,
   isNonGeometryIdentity,
   curvesEditsIsIdentity,
+  neutralSharpenAmount,
   type Edits
 } from './edits';
 
@@ -155,6 +156,26 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     expect(editsToManifest(e).ops.lut_3d).toBeUndefined();
     e.color.lut_3d = { lut_id: 'x', amount: 0 };
     expect(editsToManifest(e).ops.lut_3d).toBeUndefined();
+  });
+
+  it.each([null, 0, 40, 90])('preserves sharpen amount %s', (amount) => {
+    const e = neutralEdits();
+    e.detail.sharpen_amount = amount;
+    expect(roundTrip(e).detail.sharpen_amount).toBe(amount);
+  });
+
+  it('leaves an unset sharpen amount out of the manifest', () => {
+    const e = neutralEdits();
+    expect(e.detail.sharpen_amount).toBeNull();
+    expect(editsToManifest(e).ops.sharpen).toBeUndefined();
+    e.detail.sharpen_amount = 0;
+    expect(editsToManifest(e).ops.sharpen).toBeDefined();
+    expect(isIdentity(e)).toBe(false);
+  });
+
+  it('resolves the unset amount per frame type', () => {
+    expect(neutralSharpenAmount(true)).toBe(40);
+    expect(neutralSharpenAmount(false)).toBe(0);
   });
 
   it('preserves dcp profile selection and toggles', () => {

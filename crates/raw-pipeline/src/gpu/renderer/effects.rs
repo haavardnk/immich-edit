@@ -31,7 +31,7 @@ impl GpuRenderer {
         let radius = (sigma * 3.0).ceil();
         let sharpen_active = d.sharpen_active();
         let amount = if sharpen_active {
-            d.sharpen_amount as f32
+            d.sharpen_amount.unwrap_or(0.0) as f32
         } else {
             0.0
         };

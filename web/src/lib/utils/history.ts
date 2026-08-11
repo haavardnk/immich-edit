@@ -1,13 +1,19 @@
 import type { EditHistoryEntry } from '$lib/api/edits';
 import type { CurveChannel, Edits, GeometryEdits, LensEdits, MaskLayer } from '$lib/types/edits';
-import { CURVE_CHANNELS, HSL_BAND_NAMES, isFullCrop, neutralEdits } from '$lib/types/edits';
+import {
+  CURVE_CHANNELS,
+  HSL_BAND_NAMES,
+  isFullCrop,
+  neutralEdits,
+  neutralSharpenAmount
+} from '$lib/types/edits';
 import { neutralPerspective } from '$lib/utils/perspective';
 
 type NumberFieldDef = {
   kind: 'number';
   section: string;
   label: string;
-  get: (edits: Edits) => number;
+  get: (edits: Edits, isRaw: boolean) => number;
   precision?: number;
   signed?: boolean;
 };
@@ -93,7 +99,7 @@ const FIELDS: FieldDef[] = [
     kind: 'number',
     section: 'detail',
     label: 'Sharpen Amount',
-    get: (e) => e.detail.sharpen_amount
+    get: (e, isRaw) => e.detail.sharpen_amount ?? neutralSharpenAmount(isRaw)
   },
   {
     kind: 'number',
@@ -326,9 +332,9 @@ function fmtDelta(delta: number, precision: number): string {
   return `${sign}${delta.toFixed(precision)}`;
 }
 
-function fieldChanged(field: FieldDef, prev: Edits, curr: Edits): boolean {
+function fieldChanged(field: FieldDef, prev: Edits, curr: Edits, isRaw: boolean): boolean {
   if (field.kind === 'boolean') return field.get(prev) !== field.get(curr);
-  return Math.abs(field.get(prev) - field.get(curr)) > 1e-4;
+  return Math.abs(field.get(prev, isRaw) - field.get(curr, isRaw)) > 1e-4;
 }
 
 function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): [Edits, Edits] {
@@ -459,12 +465,13 @@ function dcpLabel(edits: Edits): string {
 
 export function historyDetails(
   entry: EditHistoryEntry,
-  previous: EditHistoryEntry | null
+  previous: EditHistoryEntry | null,
+  isRaw = true
 ): HistoryDetailGroup[] {
   const [prev, curr] = snapshots(entry, previous);
   const groups = new Map<string, HistoryDetailGroup>();
   for (const field of FIELDS) {
-    if (!fieldChanged(field, prev, curr)) continue;
+    if (!fieldChanged(field, prev, curr, isRaw)) continue;
     let group = groups.get(field.section);
     if (!group) {
       group = { key: field.section, label: SECTION_LABELS[field.section], items: [] };
@@ -475,13 +482,13 @@ export function historyDetails(
         ? field.get(prev)
           ? 'On'
           : 'Off'
-        : fmtNumber(field.get(prev), field);
+        : fmtNumber(field.get(prev, isRaw), field);
     const after =
       field.kind === 'boolean'
         ? field.get(curr)
           ? 'On'
           : 'Off'
-        : fmtNumber(field.get(curr), field);
+        : fmtNumber(field.get(curr, isRaw), field);
     group.items.push({ kind: 'value', label: field.label, before, after });
   }
 
@@ -526,22 +533,23 @@ export function historyDetails(
 
 export function historyLabel(
   entry: EditHistoryEntry,
-  previous: EditHistoryEntry | null
+  previous: EditHistoryEntry | null,
+  isRaw = true
 ): HistoryLabel {
   if (entry.deleted) return { label: entry.action ?? 'Reset to original' };
   const curr = entry.edits;
   if (!curr) return { label: entry.action ?? entry.manifest_hash.slice(0, 8) };
 
   const [prev] = snapshots(entry, previous);
-  const scalarDiffs = FIELDS.filter((field) => fieldChanged(field, prev, curr));
-  const details = historyDetails(entry, previous);
+  const scalarDiffs = FIELDS.filter((field) => fieldChanged(field, prev, curr, isRaw));
+  const details = historyDetails(entry, previous, isRaw);
   const detailCount = details.reduce((count, group) => count + group.items.length, 0);
   if (scalarDiffs.length === 1 && detailCount === 1) {
     const field = scalarDiffs[0];
     if (field.kind === 'number') {
       return {
         label: field.label,
-        delta: fmtDelta(field.get(curr) - field.get(prev), field.precision ?? 0)
+        delta: fmtDelta(field.get(curr, isRaw) - field.get(prev, isRaw), field.precision ?? 0)
       };
     }
     return { label: field.label };

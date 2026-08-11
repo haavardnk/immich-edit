@@ -341,7 +341,9 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
 
-        let edits = edits.clamped();
+        let mut edits = edits.clamped();
+        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.is_raw));
+        let edits = edits;
         let sharpen_active = edits.detail.sharpen_active();
         let masked_sharpen = edits.masked_sharpen_active();
         let effects_active = edits.effects.any_active();

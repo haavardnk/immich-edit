@@ -3,12 +3,19 @@
   import Icon from '$lib/components/Icon.svelte';
   import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
-  import { NEUTRAL_DETAIL } from '$lib/types/edits';
+  import { NEUTRAL_DETAIL, neutralSharpenAmount } from '$lib/types/edits';
 
-  const sharpenInactive = $derived(editor.edits.detail.sharpen_amount === 0);
+  const isRaw = $derived(editor.meta?.is_raw ?? false);
+  const defaultSharpen = $derived(neutralSharpenAmount(isRaw));
+  const sharpenAmount = $derived(editor.edits.detail.sharpen_amount ?? defaultSharpen);
+  const sharpenInactive = $derived(sharpenAmount === 0);
   const lumaNrInactive = $derived(editor.edits.detail.luma_nr_amount === 0);
   const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
-  const isRaw = $derived(editor.meta?.is_raw ?? false);
+
+  function setSharpenAmount(v: number): void {
+    editor.edits.detail.sharpen_amount = v === defaultSharpen ? null : v;
+    editor.onLive();
+  }
 
   function onToggleCaptureSharpen(e: Event): void {
     editor.edits.detail.capture_sharpen = (e.currentTarget as HTMLInputElement).checked;
@@ -69,11 +76,12 @@
     <SliderRow
       label="Amount"
       commitAction="Sharpen Amount"
-      bind:value={editor.edits.detail.sharpen_amount}
+      value={sharpenAmount}
       min={0}
       max={150}
       step={1}
-      onLive={editor.onLive}
+      defaultValue={defaultSharpen}
+      onLive={setSharpenAmount}
       onCommit={editor.onCommit}
       format={(v: number) => v.toFixed(0)}
     />

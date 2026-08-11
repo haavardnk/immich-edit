@@ -819,7 +819,7 @@ fn gpu_sharpen_matches_cpu() {
     let frame = synthetic_frame(96, 64);
     let edits = Edits {
         detail: DetailEdits {
-            sharpen_amount: 80.0,
+            sharpen_amount: Some(80.0),
             sharpen_radius: 1.0,
             sharpen_detail: 25.0,
             sharpen_masking: 0.0,
@@ -852,7 +852,7 @@ fn gpu_sharpen_masking_matches_cpu() {
     let frame = synthetic_frame(96, 64);
     let edits = Edits {
         detail: DetailEdits {
-            sharpen_amount: 80.0,
+            sharpen_amount: Some(80.0),
             sharpen_radius: 1.0,
             sharpen_detail: 25.0,
             sharpen_masking: 60.0,
@@ -1062,7 +1062,7 @@ fn gpu_effects_with_sharpen_matches_cpu() {
     let frame = synthetic_frame(96, 64);
     let edits = Edits {
         detail: DetailEdits {
-            sharpen_amount: 60.0,
+            sharpen_amount: Some(60.0),
             sharpen_radius: 1.0,
             sharpen_detail: 25.0,
             sharpen_masking: 0.0,
