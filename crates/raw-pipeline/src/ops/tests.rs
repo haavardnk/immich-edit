@@ -13,6 +13,26 @@ fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {
     LinearImage::new(buf, w, h)
 }
 
+#[test]
+fn default_color_curve_shapes_midtones() {
+    let profile = ResolvedDcp::default_color();
+    if profile.base_table.is_some() || profile.look_table.is_some() {
+        panic!("default color must not carry hue/sat tables");
+    }
+    let curve = profile.tone_curve.as_deref().map(Vec::as_slice);
+    let at = |v: f32| {
+        crate::color::apply_dcp_finish(None, curve, &profile.to_pp, &profile.from_pp, [v, v, v])[1]
+    };
+    let shadow = at(0.1);
+    if shadow >= 0.1 {
+        panic!("default color must deepen shadows, got {shadow} at 0.1");
+    }
+    let midtone = at(0.5);
+    if midtone <= 0.5 {
+        panic!("default color must lift midtones, got {midtone} at 0.5");
+    }
+}
+
 fn ctx() -> OpContext {
     OpContext {
         render: RenderContext {

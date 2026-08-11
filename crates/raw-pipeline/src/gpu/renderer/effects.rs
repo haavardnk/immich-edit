@@ -200,7 +200,6 @@ impl GpuRenderer {
         w: u32,
         h: u32,
         sharpen_ran: bool,
-        dcp_active: bool,
         color_space: crate::frame::OutputColorSpace,
         warn_flags: u32,
         roi: Option<crate::edits::CropRect>,
@@ -237,7 +236,6 @@ impl GpuRenderer {
         bytes[32..36].copy_from_slice(&gr_amount.to_ne_bytes());
         bytes[36..40].copy_from_slice(&gr_size.to_ne_bytes());
         bytes[40..44].copy_from_slice(&gr_rough.to_ne_bytes());
-        bytes[52..56].copy_from_slice(&(dcp_active as u32).to_ne_bytes());
         let p3 = matches!(color_space, crate::frame::OutputColorSpace::DisplayP3) as u32;
         bytes[56..60].copy_from_slice(&p3.to_ne_bytes());
         bytes[60..64].copy_from_slice(&warn_flags.to_ne_bytes());

@@ -91,6 +91,23 @@ pub struct ResolvedDcp {
     pub from_pp: [[f32; 3]; 3],
 }
 
+impl ResolvedDcp {
+    pub fn default_color() -> Self {
+        static CURVE: std::sync::OnceLock<std::sync::Arc<Vec<[f32; 2]>>> =
+            std::sync::OnceLock::new();
+        let tone_curve = CURVE
+            .get_or_init(|| std::sync::Arc::new(crate::color::DEFAULT_COLOR_TONE_CURVE.to_vec()))
+            .clone();
+        Self {
+            base_table: None,
+            look_table: None,
+            tone_curve: Some(tone_curve),
+            to_pp: crate::color::srgb_lin_to_prophoto_matrix(),
+            from_pp: crate::color::prophoto_to_srgb_lin_matrix(),
+        }
+    }
+}
+
 pub fn resolve_dcp(
     profile: &crate::dcp::DcpProfile,
     wb_coeffs: [f32; 4],
@@ -122,7 +139,7 @@ pub fn resolve_dcp(
             profile.tone_curve.clone()
         } else if profile.is_adobe() {
             Some(std::sync::Arc::new(
-                crate::color::ACR_DEFAULT_TONE_CURVE.to_vec(),
+                crate::color::DCP_FALLBACK_TONE_CURVE.to_vec(),
             ))
         } else {
             None

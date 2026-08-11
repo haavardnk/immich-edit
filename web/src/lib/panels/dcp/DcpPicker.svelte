@@ -56,6 +56,7 @@
   });
   const label = $derived.by(() => {
     if (mode === 'off') return 'Default Color';
+    if (mode === 'flat') return 'Flat';
     if (mode === 'auto') {
       return autoMatch ? `Auto · ${profileLabel(autoMatch)}` : 'Auto · Default Color';
     }
@@ -148,7 +149,26 @@
       <span class="w-3.5 shrink-0"
         >{#if mode === 'off'}<Icon path={mdiCheck} size={14} />{/if}</span
       >
-      <span>Default Color</span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate">Default Color</span>
+        <span class="block truncate text-[10px] opacity-60">Our general-purpose rendering</span>
+      </span>
+    </button>
+    <button
+      type="button"
+      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
+      'flat'
+        ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
+        : 'hover:bg-white/10'}"
+      onclick={() => pick('flat', null)}
+    >
+      <span class="w-3.5 shrink-0"
+        >{#if mode === 'flat'}<Icon path={mdiCheck} size={14} />{/if}</span
+      >
+      <span class="min-w-0 flex-1">
+        <span class="block truncate">Flat</span>
+        <span class="block truncate text-[10px] opacity-60">No tone curve, bare sensor colour</span>
+      </span>
     </button>
   </div>
 

@@ -173,7 +173,7 @@ fn tone_ordered(hi: f32, mid: f32, lo: f32) -> vec3<f32> {
     return vec3<f32>(hi_out, mid_out, lo_out);
 }
 
-fn adobe_tone(c: vec3<f32>) -> vec3<f32> {
+fn profile_tone(c: vec3<f32>) -> vec3<f32> {
     let r = clamp(c.r, 0.0, 1.0);
     let g = clamp(c.g, 0.0, 1.0);
     let b = clamp(c.b, 0.0, 1.0);
@@ -270,7 +270,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         }
     }
     if (apply_tone && any_channel_in_range(pp)) {
-        pp = adobe_tone(pp);
+        pp = profile_tone(pp);
     }
     let lin = from_pp(pp);
     if (output) {

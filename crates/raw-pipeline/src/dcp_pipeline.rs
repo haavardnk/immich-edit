@@ -33,8 +33,13 @@ pub fn resolve(frame: &RawFrame, edits: &Edits, profile: Option<&DcpProfile>) ->
     } else {
         crate::color::identity_3x3()
     };
+    let resolved = if frame.is_raw && !edits.color.dcp.is_flat() {
+        Some(Arc::new(ResolvedDcp::default_color()))
+    } else {
+        None
+    };
     DcpSetup {
         cam_to_srgb,
-        resolved: None,
+        resolved,
     }
 }

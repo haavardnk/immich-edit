@@ -41,13 +41,13 @@ Main entry: `cpu::render_with_cancel` in `crates/raw-pipeline/src/cpu/pipeline.r
 Flow:
 
 1. Demosaic RAW frames when needed.
-2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; the DCP matrix becomes `OpContext.cam_to_srgb`, scaled by the profile's baseline exposure when that toggle is on. The render adds no exposure of its own.
+2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; the DCP matrix becomes `OpContext.cam_to_srgb`, scaled by the profile's baseline exposure when that toggle is on. The render adds no exposure of its own. When Auto finds nothing, RAW frames fall back to the built-in **Default Color** profile — no hue/sat tables, just the ProPhoto matrices and a general-purpose tone curve. Choosing **Flat** skips the profile stage entirely, and non-RAW files always render Flat.
 3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active. For RAW files the backend resolves the lens baseline first: if the sidecar never states a preference, a matching lensfun profile is applied with constrained crop, the same way an unset camera profile falls back to the auto match.
 4. Apply EXIF orientation.
 5. Run edit ops through `run_pipeline_ops`.
 6. Resize to `RenderOptions::max_edge`.
 7. Run `Stage::Output` ops through `run_output_ops`.
-8. Run `finish_output`: DCP LookTable and Adobe-style tone curve in linear ProPhoto, output conversion, then the display-referred 3D LUT.
+8. Run `finish_output`: DCP LookTable and profile tone curve in linear ProPhoto, output conversion, then the display-referred 3D LUT.
 9. Encode.
 
 `run_pipeline_ops` batches consecutive fused operators into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
@@ -83,7 +83,7 @@ Dispatch order:
 | 10 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
 | 11 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
 | 12 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, destination-gamut projection, and output conversion when a final pass is active. |
-| 13 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and Adobe hue-preserving profile tone curve. |
+| 13 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and the hue-preserving profile tone curve. |
 | 14 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
 | 15 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
 | 16 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
@@ -115,7 +115,7 @@ Intermediate GPU textures from upload through profile/edit processing are linear
 - In `process.wgsl` for the fast path with no sharpen/effects/masks.
 - In `effects_tone.wgsl` whenever sharpen, vignette, grain, masks, DCP, or Display P3 output require the final pass.
 
-DCP tables operate in linear ProPhoto. `ProfileHueSatMapEncoding` and `ProfileLookTableEncoding` affect only the HSV value lookup/scaling axis. The LookTable runs before the profile tone curve. The tone curve follows Adobe's hue-preserving min/max transform rather than applying the curve independently to all RGB channels.
+DCP tables operate in linear ProPhoto. `ProfileHueSatMapEncoding` and `ProfileLookTableEncoding` affect only the HSV value lookup/scaling axis. The LookTable runs before the profile tone curve. The tone curve follows a hue-preserving min/max transform rather than applying the curve independently to all RGB channels.
 
 The user LUT is separate from camera profiling: it runs last on display-referred sRGB. CPU and GPU both use tetrahedral interpolation.
 

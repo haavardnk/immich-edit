@@ -115,7 +115,7 @@ export function lut3dIsActive(l: Lut3dEdits): boolean {
   return !!l.lut_id && l.amount > 0;
 }
 
-export type DcpMode = 'off' | 'auto' | 'profile';
+export type DcpMode = 'off' | 'auto' | 'profile' | 'flat';
 export type DcpIlluminant = 'interpolated' | 'first' | 'second';
 
 export interface DcpEdits {

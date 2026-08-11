@@ -367,7 +367,7 @@ impl RenderService {
             return Ok(None);
         }
         match dcp.mode {
-            DcpMode::Off => Ok(None),
+            DcpMode::Off | DcpMode::Flat => Ok(None),
             DcpMode::Profile => match dcp.referenced_profile_id() {
                 Some(id) => {
                     let p = self

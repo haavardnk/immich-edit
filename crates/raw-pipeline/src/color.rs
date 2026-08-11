@@ -557,7 +557,7 @@ fn apply_huesat_in_space(map: &HueSatMap, rgb: [f32; 3], bounded: bool) -> [f32;
     }
 }
 
-fn apply_adobe_tone_curve(curve: &[[f32; 2]], rgb: [f32; 3]) -> [f32; 3] {
+fn apply_profile_tone_curve(curve: &[[f32; 2]], rgb: [f32; 3]) -> [f32; 3] {
     if !rgb.iter().any(|v| (0.0..=1.0).contains(v)) {
         return rgb;
     }
@@ -597,12 +597,28 @@ pub fn apply_dcp_finish(
         pp = apply_huesat_in_space(map, pp, true);
     }
     if let Some(curve) = tone_curve {
-        pp = apply_adobe_tone_curve(curve, pp);
+        pp = apply_profile_tone_curve(curve, pp);
     }
     mat3_vec(from_pp, pp)
 }
 
-pub const ACR_DEFAULT_TONE_CURVE: [[f32; 2]; 13] = [
+pub const DCP_FALLBACK_TONE_CURVE: [[f32; 2]; 13] = [
+    [0.0, 0.0],
+    [0.05, 0.028_838],
+    [0.1, 0.061_36],
+    [0.15, 0.101_695],
+    [0.2, 0.152_542],
+    [0.3, 0.288_136],
+    [0.4, 0.436_441],
+    [0.5, 0.578_814],
+    [0.6, 0.703_39],
+    [0.7, 0.805_085],
+    [0.8, 0.889_831],
+    [0.9, 0.954_802],
+    [1.0, 1.0],
+];
+
+pub const DEFAULT_COLOR_TONE_CURVE: [[f32; 2]; 13] = [
     [0.0, 0.0],
     [0.05, 0.028_838],
     [0.1, 0.061_36],
@@ -848,7 +864,7 @@ mod tests {
         let from_pp = prophoto_to_srgb_lin_matrix();
         let out = apply_dcp_finish(
             Some(&map),
-            Some(&ACR_DEFAULT_TONE_CURVE),
+            Some(&DCP_FALLBACK_TONE_CURVE),
             &to_pp,
             &from_pp,
             [0.4, 0.4, 0.4],
@@ -877,11 +893,11 @@ mod tests {
         let pp = mat3_vec(&to_pp, rgb);
         let correct = mat3_vec(
             &from_pp,
-            apply_adobe_tone_curve(&curve, apply_huesat_in_space(&look, pp, true)),
+            apply_profile_tone_curve(&curve, apply_huesat_in_space(&look, pp, true)),
         );
         let wrong = mat3_vec(
             &from_pp,
-            apply_huesat_in_space(&look, apply_adobe_tone_curve(&curve, pp), true),
+            apply_huesat_in_space(&look, apply_profile_tone_curve(&curve, pp), true),
         );
 
         if (0..3).any(|i| (got[i] - correct[i]).abs() > 1e-6) {
@@ -915,13 +931,13 @@ mod tests {
     }
 
     #[test]
-    fn adobe_tone_curve_preserves_hsv_hue() {
+    fn profile_tone_curve_preserves_hsv_hue() {
         let rgb = [0.72, 0.31, 0.18];
         let before = rgb_to_hsv(rgb);
-        let out = apply_adobe_tone_curve(&ACR_DEFAULT_TONE_CURVE, rgb);
+        let out = apply_profile_tone_curve(&DCP_FALLBACK_TONE_CURVE, rgb);
         let after = rgb_to_hsv(out);
         if (before[0] - after[0]).abs() > 1e-5 {
-            panic!("Adobe tone shifted hue: {before:?} -> {after:?}");
+            panic!("profile tone shifted hue: {before:?} -> {after:?}");
         }
     }
 
@@ -930,12 +946,12 @@ mod tests {
         let mut prev = -1.0;
         for i in 0..=20 {
             let x = i as f32 / 20.0;
-            let y = eval_tone_curve(&ACR_DEFAULT_TONE_CURVE, x);
+            let y = eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, x);
             assert!((0.0..=1.0).contains(&y));
             assert!(y >= prev - 1e-6, "not monotonic at {x}");
             prev = y;
         }
-        assert!((eval_tone_curve(&ACR_DEFAULT_TONE_CURVE, 0.0)).abs() < 1e-6);
-        assert!((eval_tone_curve(&ACR_DEFAULT_TONE_CURVE, 1.0) - 1.0).abs() < 1e-6);
+        assert!((eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, 0.0)).abs() < 1e-6);
+        assert!((eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, 1.0) - 1.0).abs() < 1e-6);
     }
 }

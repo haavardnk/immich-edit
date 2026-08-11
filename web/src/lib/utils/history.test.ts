@@ -220,18 +220,30 @@ describe('historyDetails', () => {
     });
   });
 
-  it('summarizes camera-profile and LUT selection changes', () => {
+  it.each([
+    ['off', 'Default Color'],
+    ['flat', 'Flat'],
+    ['profile', 'Unavailable profile']
+  ] as const)('summarizes camera-profile change to %s', (mode, label) => {
     const prev = neutralEdits();
     const curr = neutralEdits();
-    curr.color.dcp.mode = 'off';
-    curr.color.lut_3d.lut_id = 'film';
+    curr.color.dcp.mode = mode;
     const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
       (detail) => detail.key === 'color'
     );
     expect(group?.items).toContainEqual({
       kind: 'summary',
-      text: 'Camera profile: Auto → Default Color'
+      text: `Camera profile: Auto → ${label}`
     });
+  });
+
+  it('summarizes LUT selection changes', () => {
+    const prev = neutralEdits();
+    const curr = neutralEdits();
+    curr.color.lut_3d.lut_id = 'film';
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'color'
+    );
     expect(group?.items).toContainEqual({ kind: 'summary', text: 'LUT selection changed' });
   });
 

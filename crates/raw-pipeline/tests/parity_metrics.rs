@@ -314,6 +314,17 @@ fn gpu_vs_cpu_parity_display_p3() {
     check_parity("p3", &variant_fixtures(), &Edits::default(), &opts);
 }
 
+#[test]
+fn gpu_vs_cpu_parity_flat_profile() {
+    let opts = RenderOptions {
+        max_edge: 512,
+        ..Default::default()
+    };
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = raw_pipeline::edits::DcpMode::Flat;
+    check_parity("flat", &variant_fixtures(), &edits, &opts);
+}
+
 fn tint_lut_cube(size: usize) -> String {
     let last = (size - 1) as f32;
     let mut s = format!("LUT_3D_SIZE {size}\n");

@@ -476,6 +476,7 @@ function profileChanged(prev: LensEdits, curr: LensEdits): boolean {
 
 function dcpLabel(edits: Edits): string {
   if (edits.color.dcp.mode === 'off') return 'Default Color';
+  if (edits.color.dcp.mode === 'flat') return 'Flat';
   if (edits.color.dcp.mode === 'auto') return 'Auto';
   return edits.color.dcp.profile_id ? 'Imported profile' : 'Unavailable profile';
 }

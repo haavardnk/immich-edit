@@ -159,6 +159,7 @@ pub enum DcpMode {
     #[default]
     Auto,
     Profile,
+    Flat,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -200,10 +201,14 @@ impl Default for DcpEdits {
 impl DcpEdits {
     pub fn is_active(&self) -> bool {
         match self.mode {
-            DcpMode::Off => false,
+            DcpMode::Off | DcpMode::Flat => false,
             DcpMode::Auto => true,
             DcpMode::Profile => self.profile_id.as_ref().is_some_and(|s| !s.is_empty()),
         }
+    }
+
+    pub fn is_flat(&self) -> bool {
+        self.mode == DcpMode::Flat
     }
 
     pub fn clamped(&self) -> Self {

@@ -432,7 +432,6 @@ pub fn render_mask_overlay(
     let inv_h = 1.0 / h.max(1) as f32;
     let row_floats = w * 3;
     let warp_active = !lens_warp.is_identity();
-    let dcp_active = dcp.is_some();
     let finish = dcp.map(|d| {
         (
             d.look_table.as_deref(),
@@ -465,7 +464,7 @@ pub fn render_mask_overlay(
                     ),
                     None => [px[0], px[1], px[2]],
                 };
-                let display_rgb = crate::tone::apply_rgb_dcp(finished, dcp_active);
+                let display_rgb = crate::tone::apply_rgb(finished);
                 let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
                 let alpha = lw * 0.55;
                 px[0] = display_rgb[0] + (1.0 - display_rgb[0]) * alpha;

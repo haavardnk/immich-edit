@@ -278,7 +278,6 @@ fn finish_render(
     cancel::check(cancel)?;
     let lut_resolved = resolve_lut(edits, options)?;
     let lut_ref = lut_resolved.as_ref().map(|(l, a)| (l.as_ref(), *a));
-    let dcp_active = ctx.render.dcp.is_some();
     let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
         (
             d.look_table.as_deref(),
@@ -294,7 +293,6 @@ fn finish_render(
         want_16bit,
         display_ready,
         lut_ref,
-        dcp_active,
         dcp_finish,
         options.output_color_space,
         options.gamut_warn,
@@ -644,11 +642,6 @@ pub fn run_sensor_ops(
 }
 
 #[cfg(test)]
-pub(crate) fn default_tone(v: f32) -> f32 {
-    crate::tone::default_scalar(v)
-}
-
-#[cfg(test)]
 fn srgb_oetf(v: f32) -> f32 {
     crate::tone::srgb_oetf(v)
 }
@@ -764,7 +757,6 @@ fn finish_output(
     want_16bit: bool,
     display_ready: bool,
     lut: Option<(&crate::lut::Lut3d, f32)>,
-    dcp_active: bool,
     dcp_finish: Option<DcpFinish>,
     color_space: OutputColorSpace,
     gamut_warn: bool,
@@ -809,8 +801,8 @@ fn finish_output(
             }
             None => [lr, lg, lb],
         };
-        let clip = gamut_warn && crate::tone::is_out_of_gamut(finished, dcp_active, color_space);
-        let display = crate::tone::apply_rgb_dcp_cs(finished, dcp_active, color_space);
+        let clip = gamut_warn && crate::tone::is_out_of_gamut(finished, color_space);
+        let display = crate::tone::apply_rgb_cs(finished, color_space);
         (apply_display_lut(display, lut), clip)
     };
 
@@ -918,7 +910,6 @@ mod tests {
             false,
             true,
             None,
-            false,
             None,
             OutputColorSpace::SRgb,
             false,
@@ -938,7 +929,6 @@ mod tests {
             false,
             false,
             None,
-            false,
             None,
             OutputColorSpace::SRgb,
             true,
@@ -958,7 +948,6 @@ mod tests {
             false,
             false,
             None,
-            false,
             None,
             OutputColorSpace::SRgb,
             true,
@@ -978,7 +967,6 @@ mod tests {
             false,
             false,
             None,
-            false,
             None,
             OutputColorSpace::SRgb,
             true,
@@ -1006,7 +994,6 @@ mod tests {
                 false,
                 false,
                 None,
-                false,
                 None,
                 OutputColorSpace::SRgb,
                 false,
@@ -1038,7 +1025,6 @@ mod tests {
             false,
             false,
             None,
-            false,
             None,
             OutputColorSpace::SRgb,
             false,
@@ -1046,63 +1032,6 @@ mod tests {
         );
         if rgb != vec![255, 255, 255] {
             panic!("expected untouched white, got {rgb:?}");
-        }
-    }
-
-    #[test]
-    fn default_tone_preserves_endpoints() {
-        if default_tone(0.0).abs() > 1e-4 {
-            panic!("expected 0 at 0");
-        }
-        let ceil = default_tone(crate::tone::shared::RAW_LINEAR_CEILING);
-        if !(0.98..=1.0).contains(&ceil) {
-            panic!("expected ~1 at ceiling, got {ceil}");
-        }
-        let one = default_tone(1.0);
-        if !(0.85..1.0).contains(&one) {
-            panic!("expected high-but-below-white at 1.0, got {one}");
-        }
-    }
-
-    #[test]
-    fn highlight_headroom_softly_compresses() {
-        let at_one = default_tone(1.0);
-        let above = default_tone(1.5);
-        let far = default_tone(4.0);
-        if above <= at_one {
-            panic!("expected monotonic above 1.0: {at_one} -> {above}");
-        }
-        if above >= 1.0 || far >= 1.0 {
-            panic!("expected soft-clip below 1.0: above={above} far={far}");
-        }
-        if far <= above {
-            panic!("expected monotonic far above 1.0: {above} -> {far}");
-        }
-    }
-
-    #[test]
-    fn default_tone_bounded() {
-        let mut x = -0.5f32;
-        while x < 3.0 {
-            let y = default_tone(x);
-            if !(0.0..=1.0).contains(&y) {
-                panic!("out of bounds at x={x}: {y}");
-            }
-            x += 0.05;
-        }
-    }
-
-    #[test]
-    fn default_tone_monotonic() {
-        let mut prev = default_tone(0.0);
-        let mut x = 0.01f32;
-        while x <= 1.0 {
-            let y = default_tone(x);
-            if y < prev - 1e-5 {
-                panic!("non-monotonic at x={x}: {prev} -> {y}");
-            }
-            prev = y;
-            x += 0.01;
         }
     }
 

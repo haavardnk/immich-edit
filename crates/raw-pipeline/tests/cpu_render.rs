@@ -149,6 +149,12 @@ fn mean_luma(jpeg: &[u8]) -> f64 {
     sum / n
 }
 
+fn with_dcp_mode(mode: raw_pipeline::edits::DcpMode) -> Edits {
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = mode;
+    edits
+}
+
 fn patch_mean(img: &turbojpeg::Image<Vec<u8>>, cx: usize, cy: usize) -> [f64; 3] {
     let mut sum = [0u64; 3];
     let mut n = 0u64;
@@ -265,6 +271,52 @@ fn sensor_scaling_darkens_the_render() {
                 "{name}: two stops under rendered at {dark:.2} vs {bright:.2}; \
                  the pipeline is compensating for scene brightness"
             );
+        }
+    });
+}
+
+#[test]
+fn default_color_differs_from_flat_on_raw() {
+    use raw_pipeline::edits::DcpMode;
+    each_fixture(|name, frame| {
+        if !frame.is_raw {
+            return;
+        }
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
+        let color = cpu::render(frame, &Edits::default(), &opts).unwrap();
+        let flat = cpu::render(frame, &with_dcp_mode(DcpMode::Flat), &opts).unwrap();
+        if color.bytes == flat.bytes {
+            panic!("{name}: default color must not render identically to flat");
+        }
+    });
+}
+
+#[test]
+fn non_raw_ignores_the_profile_mode() {
+    use raw_pipeline::edits::DcpMode;
+    each_fixture(|name, frame| {
+        let opts = RenderOptions {
+            max_edge: 256,
+            ..Default::default()
+        };
+        let rendered = RawFrame {
+            cfa_pattern: frame.cfa_pattern.clone(),
+            color_matrices: frame.color_matrices.clone(),
+            data: frame.data.clone(),
+            model: frame.model.clone(),
+            exif: None,
+            is_raw: false,
+            ..*frame
+        };
+        let flat = cpu::render(&rendered, &with_dcp_mode(DcpMode::Flat), &opts).unwrap();
+        for mode in [DcpMode::Auto, DcpMode::Off] {
+            let other = cpu::render(&rendered, &with_dcp_mode(mode), &opts).unwrap();
+            if other.bytes != flat.bytes {
+                panic!("{name}: non-raw render changed with profile mode {mode:?}");
+            }
         }
     });
 }

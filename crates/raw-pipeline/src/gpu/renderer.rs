@@ -1133,7 +1133,6 @@ impl GpuRenderer {
                     out_w,
                     out_h,
                     run_sharpen,
-                    dcp_active,
                     opts.output_color_space,
                     warn_flags,
                     opts.roi,

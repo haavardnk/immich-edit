@@ -73,7 +73,13 @@
     dcp.profile_id = id;
     pendingDelete = false;
     const action =
-      mode === 'auto' ? 'DCP Auto Match' : mode === 'off' ? 'Disable DCP' : 'Select DCP Profile';
+      mode === 'auto'
+        ? 'DCP Auto Match'
+        : mode === 'off'
+          ? 'Default Color'
+          : mode === 'flat'
+            ? 'Flat Profile'
+            : 'Select DCP Profile';
     editor.onCommit(action);
   }
 
@@ -225,7 +231,7 @@
     </div>
   {/if}
 
-  {#if dcp.mode !== 'off'}
+  {#if dcp.mode !== 'off' && dcp.mode !== 'flat'}
     <button
       type="button"
       class="flex items-center gap-1.5 px-1 text-[10px] uppercase tracking-wide text-immich-dark-fg/50 transition-colors hover:text-immich-dark-fg/80"

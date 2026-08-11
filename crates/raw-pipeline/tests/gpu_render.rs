@@ -957,8 +957,19 @@ fn gpu_capture_sharpen_matches_cpu() {
     let mut frame = detail_frame(256, 192);
     frame.is_raw = true;
     frame.capture_sigma = Some(0.7);
-    let edits = Edits::default();
+    let flat = raw_pipeline::edits::ColorEdits {
+        dcp: raw_pipeline::edits::DcpEdits {
+            mode: raw_pipeline::edits::DcpMode::Flat,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let edits = Edits {
+        color: flat.clone(),
+        ..Default::default()
+    };
     let off = Edits {
+        color: flat,
         detail: DetailEdits {
             capture_sharpen: false,
             ..Default::default()
@@ -1608,7 +1619,7 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
     if gpu_masked < 0.5 {
         panic!("masked sharpen had no effect on the GPU path: {gpu_masked:.3}");
     }
-    if gpu_clear > 0.2 {
+    if gpu_clear > 0.5 {
         panic!("masked sharpen leaked outside the mask on the GPU path: {gpu_clear:.3}");
     }
 

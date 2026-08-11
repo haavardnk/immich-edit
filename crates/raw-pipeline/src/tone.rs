@@ -3,8 +3,8 @@ pub mod wgsl;
 
 use crate::frame::OutputColorSpace;
 use shared::{
-    LUMA_B, LUMA_G, LUMA_R, OETF_LUT_SIZE, S_CURVE_BLEND, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET,
-    SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE, TONE_SHOULDER_KNEE,
+    LUMA_B, LUMA_G, LUMA_R, OETF_LUT_SIZE, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET,
+    SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
 };
 
 fn oetf_lut() -> &'static [f32; OETF_LUT_SIZE + 1] {
@@ -35,26 +35,6 @@ pub fn srgb_oetf_scalar(v: f32) -> f32 {
     } else {
         SRGB_OETF_GAMMA_SCALE * v.powf(SRGB_OETF_GAMMA) - SRGB_OETF_GAMMA_OFFSET
     }
-}
-
-fn highlight_shoulder(x: f32) -> f32 {
-    let k = TONE_SHOULDER_KNEE;
-    if x <= k {
-        return x;
-    }
-    let headroom = 1.0 - k;
-    1.0 - headroom * (-(x - k) / headroom).exp()
-}
-
-fn display_encode(v: f32) -> f32 {
-    let c = v.clamp(0.0, 1.0);
-    let srgb = srgb_oetf(c);
-    let s = srgb * srgb * (3.0 - 2.0 * srgb);
-    srgb + (s - srgb) * S_CURVE_BLEND
-}
-
-pub fn default_scalar(v: f32) -> f32 {
-    display_encode(highlight_shoulder(v.max(0.0)))
 }
 
 fn luma(rgb: [f32; 3]) -> f32 {
@@ -92,43 +72,16 @@ fn to_output_space(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
 }
 
 fn tone_map_luma_and_project_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
-    let y = luma(rgb);
-    if y <= 1e-6 {
-        return [0.0, 0.0, 0.0];
-    }
-    let yd = highlight_shoulder(y);
-    let scale = yd / y;
-    let mapped = to_output_space([rgb[0] * scale, rgb[1] * scale, rgb[2] * scale], cs);
-    project_to_gamut(mapped, yd)
-}
-
-pub fn apply_default_rgb(rgb: [f32; 3]) -> [f32; 3] {
-    apply_default_rgb_cs(rgb, OutputColorSpace::SRgb)
-}
-
-pub fn apply_default_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
-    let mapped = tone_map_luma_and_project_cs(rgb, cs);
-    [
-        display_encode(mapped[0]),
-        display_encode(mapped[1]),
-        display_encode(mapped[2]),
-    ]
+    let neutral = luma(rgb).clamp(0.0, 1.0);
+    project_to_gamut(to_output_space(rgb, cs), neutral)
 }
 
 pub fn apply_rgb(rgb: [f32; 3]) -> [f32; 3] {
-    apply_default_rgb(rgb)
+    apply_rgb_cs(rgb, OutputColorSpace::SRgb)
 }
 
-pub fn apply_rgb_dcp(rgb: [f32; 3], dcp_active: bool) -> [f32; 3] {
-    apply_rgb_dcp_cs(rgb, dcp_active, OutputColorSpace::SRgb)
-}
-
-pub fn apply_rgb_dcp_cs(rgb: [f32; 3], dcp_active: bool, cs: OutputColorSpace) -> [f32; 3] {
-    if !dcp_active {
-        return apply_default_rgb_cs(rgb, cs);
-    }
-    let neutral = luma(rgb).clamp(0.0, 1.0);
-    let mapped = project_to_gamut(to_output_space(rgb, cs), neutral);
+pub fn apply_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
+    let mapped = tone_map_luma_and_project_cs(rgb, cs);
     [
         srgb_oetf(mapped[0].clamp(0.0, 1.0)),
         srgb_oetf(mapped[1].clamp(0.0, 1.0)),
@@ -137,7 +90,7 @@ pub fn apply_rgb_dcp_cs(rgb: [f32; 3], dcp_active: bool, cs: OutputColorSpace) -
 }
 
 pub fn apply_display_luma(rgb: [f32; 3]) -> f32 {
-    let display = apply_default_rgb(rgb);
+    let display = apply_rgb(rgb);
     0.2126 * display[0] + 0.7152 * display[1] + 0.0722 * display[2]
 }
 
@@ -145,19 +98,8 @@ fn below_gamut(c: [f32; 3]) -> bool {
     c.iter().any(|&v| v < -1e-4)
 }
 
-pub fn is_out_of_gamut(rgb: [f32; 3], dcp_active: bool, cs: OutputColorSpace) -> bool {
-    if dcp_active {
-        return below_gamut(to_output_space(rgb, cs));
-    }
-    let y = luma(rgb);
-    if y <= 1e-6 {
-        return false;
-    }
-    let scale = highlight_shoulder(y) / y;
-    below_gamut(to_output_space(
-        [rgb[0] * scale, rgb[1] * scale, rgb[2] * scale],
-        cs,
-    ))
+pub fn is_out_of_gamut(rgb: [f32; 3], cs: OutputColorSpace) -> bool {
+    below_gamut(to_output_space(rgb, cs))
 }
 
 #[cfg(test)]
@@ -165,27 +107,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_endpoints() {
-        if default_scalar(0.0).abs() > 1e-6 {
-            panic!("default(0) should be 0");
+    fn flat_endpoints() {
+        let black = apply_rgb([0.0, 0.0, 0.0]);
+        if black.iter().any(|c| c.abs() > 1e-6) {
+            panic!("black must stay black, got {black:?}");
         }
-        let ceil = default_scalar(shared::RAW_LINEAR_CEILING);
-        if !(0.98..=1.0).contains(&ceil) {
-            panic!("default(ceiling) should be ~1, got {ceil}");
+        let white = apply_rgb([1.0, 1.0, 1.0]);
+        if white.iter().any(|c| (c - 1.0).abs() > 1e-5) {
+            panic!("linear white must map to display white, got {white:?}");
         }
-        let mid = default_scalar(0.5);
-        let expected = display_encode(0.5);
-        if (mid - expected).abs() > 1e-6 {
-            panic!("midtones below knee should skip the shoulder, got {mid} vs {expected}");
+        let mid = apply_rgb([0.5, 0.5, 0.5]);
+        let expected = srgb_oetf(0.5);
+        if (mid[0] - expected).abs() > 1e-6 {
+            panic!(
+                "flat path must be a bare OETF, got {} vs {expected}",
+                mid[0]
+            );
         }
     }
 
     #[test]
-    fn default_monotonic_sample() {
+    fn flat_monotonic_sample() {
         let mut prev = -1.0f32;
         for i in 0..=128 {
             let x = i as f32 / 128.0 * shared::RAW_LINEAR_CEILING;
-            let y = default_scalar(x);
+            let y = apply_rgb([x, x, x])[0];
             if y < prev - 1e-6 {
                 panic!("non-monotone at {x}: {y} < {prev}");
             }
@@ -194,21 +140,21 @@ mod tests {
     }
 
     #[test]
-    fn default_rgb_neutral_matches_scalar() {
+    fn flat_neutral_matches_oetf() {
         for v in [0.0f32, 0.25, 0.5, 1.0, 2.0, shared::RAW_LINEAR_CEILING] {
-            let rgb = apply_default_rgb([v, v, v]);
-            let s = default_scalar(v);
+            let rgb = apply_rgb([v, v, v]);
+            let s = srgb_oetf(v.clamp(0.0, 1.0));
             for c in rgb {
                 if (c - s).abs() > 1e-5 {
-                    panic!("neutral rgb must match scalar at {v}: {c} vs {s}");
+                    panic!("neutral rgb must match scalar oetf at {v}: {c} vs {s}");
                 }
             }
         }
     }
 
     #[test]
-    fn default_rgb_saturated_blue_stays_blue() {
-        let out = apply_default_rgb([0.1, 0.2, 1.5]);
+    fn flat_saturated_blue_stays_blue() {
+        let out = apply_rgb([0.1, 0.2, 1.5]);
         if !(out[2] > out[1] && out[1] >= out[0]) {
             panic!("hue ordering R<=G<B must be preserved, got {out:?}");
         }
@@ -221,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn default_rgb_projects_negative_channel() {
+    fn flat_projects_negative_channel() {
         let mapped = tone_map_luma_and_project_cs([-0.2, 0.5, 0.9], OutputColorSpace::SRgb);
         let mn = mapped[0].min(mapped[1]).min(mapped[2]);
         if mn < -1e-6 {
@@ -230,35 +176,28 @@ mod tests {
     }
 
     #[test]
-    fn default_rgb_preserves_luminance_before_encode() {
-        for rgb in [
-            [0.1, 0.2, 1.5],
-            [-0.2, 0.5, 0.9],
-            [2.0, 1.0, 0.3],
-            [0.8, 0.8, 0.8],
-        ] {
-            let y_in = luma(rgb);
-            if y_in <= 1e-6 {
-                continue;
-            }
-            let yd = highlight_shoulder(y_in);
-            let mapped = tone_map_luma_and_project_cs(rgb, OutputColorSpace::SRgb);
-            let y_out = luma(mapped);
-            if (y_out - yd).abs() > 1e-4 {
-                panic!(
-                    "gamut projection must preserve mapped luminance {yd}, got {y_out} for {rgb:?}"
-                );
-            }
+    fn flat_rolls_highlights_toward_neutral() {
+        let mapped = tone_map_luma_and_project_cs([1.5, 0.4, 0.2], OutputColorSpace::SRgb);
+        let mx = mapped[0].max(mapped[1]).max(mapped[2]);
+        if mx > 1.0 + 1e-4 {
+            panic!("above-white must be projected to <= 1, got {mapped:?}");
+        }
+        if !(mapped[0] > mapped[1] && mapped[1] > mapped[2]) {
+            panic!("channel ordering must survive the projection, got {mapped:?}");
+        }
+        let white = tone_map_luma_and_project_cs([2.0, 1.0, 0.3], OutputColorSpace::SRgb);
+        if white.iter().any(|c| (c - 1.0).abs() > 1e-4) {
+            panic!("above-white luma must land on display white, got {white:?}");
         }
     }
 
     #[test]
-    fn default_rgb_bounded_and_finite() {
+    fn flat_bounded_and_finite() {
         let samples = [-0.5f32, -0.1, 0.0, 0.3, 0.9, 1.5, 4.0];
         for &r in &samples {
             for &g in &samples {
                 for &b in &samples {
-                    let out = apply_default_rgb([r, g, b]);
+                    let out = apply_rgb([r, g, b]);
                     for c in out {
                         if !c.is_finite() || !(0.0..=1.0).contains(&c) {
                             panic!(
@@ -275,8 +214,8 @@ mod tests {
     #[test]
     fn p3_neutral_matches_srgb() {
         for v in [0.0f32, 0.25, 0.5, 1.0, 2.0, shared::RAW_LINEAR_CEILING] {
-            let srgb = apply_default_rgb_cs([v, v, v], OutputColorSpace::SRgb);
-            let p3 = apply_default_rgb_cs([v, v, v], OutputColorSpace::DisplayP3);
+            let srgb = apply_rgb_cs([v, v, v], OutputColorSpace::SRgb);
+            let p3 = apply_rgb_cs([v, v, v], OutputColorSpace::DisplayP3);
             for (a, b) in srgb.iter().zip(p3.iter()) {
                 if (a - b).abs() > 1e-5 {
                     panic!("neutral gray must be color-space invariant at {v}: {srgb:?} vs {p3:?}");
@@ -288,8 +227,8 @@ mod tests {
     #[test]
     fn p3_srgb_path_is_identity() {
         let rgb = [0.6, 0.2, 0.9];
-        let base = apply_default_rgb(rgb);
-        let cs = apply_default_rgb_cs(rgb, OutputColorSpace::SRgb);
+        let base = apply_rgb(rgb);
+        let cs = apply_rgb_cs(rgb, OutputColorSpace::SRgb);
         if base != cs {
             panic!("sRGB color space must be byte-identical to default path: {base:?} vs {cs:?}");
         }
@@ -298,8 +237,8 @@ mod tests {
     #[test]
     fn p3_saturated_red_less_saturated_than_srgb() {
         let rgb = [1.0, 0.0, 0.0];
-        let srgb = apply_default_rgb_cs(rgb, OutputColorSpace::SRgb);
-        let p3 = apply_default_rgb_cs(rgb, OutputColorSpace::DisplayP3);
+        let srgb = apply_rgb_cs(rgb, OutputColorSpace::SRgb);
+        let p3 = apply_rgb_cs(rgb, OutputColorSpace::DisplayP3);
         if p3 == srgb {
             panic!("P3 primary matrix must change saturated red output");
         }
