@@ -154,10 +154,10 @@ fn gpu_matches_cpu_within_tolerance() {
     let opts = rgb8_opts(96);
 
     let cases: &[(&str, f64, Edits)] = &[
-        ("identity", 1.0, Edits::default()),
+        ("identity", 0.1, Edits::default()),
         (
             "exposure+1.5",
-            1.1,
+            0.05,
             Edits {
                 basic: BasicEdits {
                     exposure_ev: 1.5,
@@ -168,7 +168,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "saturation+50",
-            1.0,
+            0.1,
             Edits {
                 basic: BasicEdits {
                     saturation: 50.0,
@@ -179,7 +179,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "contrast+30",
-            2.0,
+            0.1,
             Edits {
                 basic: BasicEdits {
                     contrast: 30.0,
@@ -190,7 +190,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "brightness+35",
-            2.0,
+            0.1,
             Edits {
                 basic: BasicEdits {
                     brightness: 35.0,
@@ -201,7 +201,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "whites+50",
-            1.5,
+            0.1,
             Edits {
                 tone: ToneEdits {
                     whites: 50.0,
@@ -212,7 +212,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "blacks+50",
-            1.5,
+            0.1,
             Edits {
                 tone: ToneEdits {
                     blacks: 50.0,
@@ -223,7 +223,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "highlights-100",
-            2.5,
+            0.1,
             Edits {
                 tone: ToneEdits {
                     highlights: -100.0,
@@ -234,7 +234,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "rotate10+crop",
-            2.5,
+            0.1,
             Edits {
                 geometry: GeometryEdits {
                     rotate_angle: 10.0,
@@ -251,7 +251,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "perspective+rotate+crop",
-            2.5,
+            0.1,
             Edits {
                 geometry: GeometryEdits {
                     rotate_angle: 6.0,
@@ -274,7 +274,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "per_channel_curves",
-            2.0,
+            0.1,
             Edits {
                 basic: BasicEdits {
                     curves: CurvesEdits {
@@ -321,7 +321,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "lens_distortion_barrel",
-            4.0,
+            0.15,
             Edits {
                 lens: LensEdits {
                     profile_enabled: Some(true),
@@ -334,7 +334,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "lens_vignette_brighten",
-            3.0,
+            0.15,
             Edits {
                 lens: LensEdits {
                     profile_enabled: Some(true),
@@ -347,7 +347,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "lens_ca_red",
-            4.0,
+            0.1,
             Edits {
                 lens: LensEdits {
                     ca_enabled: true,
@@ -359,7 +359,7 @@ fn gpu_matches_cpu_within_tolerance() {
         ),
         (
             "lens_combo",
-            5.0,
+            0.2,
             Edits {
                 lens: LensEdits {
                     profile_enabled: Some(true),
@@ -416,7 +416,7 @@ fn gpu_exif_orientation_matches_cpu() {
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
         require_same_dims(label, &cpu, &gpu);
-        ledger.check(label, &cpu.bytes, &gpu.bytes, 1.0);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.05);
     }
     ledger.finish();
 }

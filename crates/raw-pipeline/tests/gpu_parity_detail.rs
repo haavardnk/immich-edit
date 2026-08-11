@@ -22,7 +22,7 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("presence", &cpu, &gpu);
     let mut ledger = ParityLedger::new("presence");
-    ledger.check("texture+clarity", &cpu.bytes, &gpu.bytes, 8.0);
+    ledger.check("texture+clarity", &cpu.bytes, &gpu.bytes, 0.1);
     ledger.finish();
 }
 
@@ -40,7 +40,7 @@ fn gpu_dehaze_matches_cpu() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("dehaze", &cpu, &gpu);
     let mut ledger = ParityLedger::new("dehaze");
-    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 10.0);
+    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 0.6);
     ledger.finish();
 }
 
@@ -60,7 +60,7 @@ fn gpu_dehaze_with_presence_matches_cpu() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("dehaze+presence", &cpu, &gpu);
     let mut ledger = ParityLedger::new("dehaze");
-    ledger.check("dehaze+presence", &cpu.bytes, &gpu.bytes, 1.2);
+    ledger.check("dehaze+presence", &cpu.bytes, &gpu.bytes, 0.6);
     ledger.finish();
 }
 
@@ -78,7 +78,7 @@ fn gpu_shadows_match_cpu_via_pyramid() {
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     require_same_dims("shadows", &cpu, &gpu);
     let mut ledger = ParityLedger::new("shadows");
-    ledger.check("shadows+50", &cpu.bytes, &gpu.bytes, 8.0);
+    ledger.check("shadows+50", &cpu.bytes, &gpu.bytes, 0.1);
     ledger.finish();
 }
 
@@ -90,7 +90,7 @@ fn gpu_sharpen_matches_cpu() {
     let opts = rgb8_opts(96);
     let frame = synthetic_frame(96, 64);
     let mut ledger = ParityLedger::new("sharpen");
-    for (label, masking, limit) in [("plain", 0.0, 3.0), ("masking+60", 60.0, 3.0)] {
+    for (label, masking, limit) in [("plain", 0.0, 0.2), ("masking+60", 60.0, 0.1)] {
         let edits = Edits {
             detail: DetailEdits {
                 sharpen_amount: Some(80.0),
@@ -132,7 +132,7 @@ fn gpu_nr_matches_cpu() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr", &cpu, &gpu);
     let mut ledger = ParityLedger::new("nr");
-    ledger.check("native", &cpu.bytes, &gpu.bytes, 4.0);
+    ledger.check("native", &cpu.bytes, &gpu.bytes, 0.3);
     ledger.finish();
 }
 
@@ -164,7 +164,7 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr-preview", &cpu, &gpu);
     let mut ledger = ParityLedger::new("nr");
-    ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 1.5);
+    ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 0.25);
     ledger.finish();
 }
 
@@ -211,7 +211,7 @@ fn gpu_capture_sharpen_matches_cpu() {
         panic!("capture sharpen had no visible effect: {effect:.3}");
     }
     let mut ledger = ParityLedger::new("capture-sharpen");
-    ledger.check("sigma0.7", &cpu.bytes, &gpu.bytes, 1.0);
+    ledger.check("sigma0.7", &cpu.bytes, &gpu.bytes, 0.2);
     ledger.finish();
 }
 
@@ -226,7 +226,7 @@ fn gpu_effects_match_cpu() {
     let cases: &[(&str, f64, Edits)] = &[
         (
             "vignette",
-            2.0,
+            0.1,
             Edits {
                 effects: EffectsEdits {
                     vignette_amount: -50.0,
@@ -240,7 +240,7 @@ fn gpu_effects_match_cpu() {
         ),
         (
             "grain",
-            6.0,
+            0.1,
             Edits {
                 effects: EffectsEdits {
                     grain_amount: 50.0,
@@ -253,7 +253,7 @@ fn gpu_effects_match_cpu() {
         ),
         (
             "sharpen+vignette+grain",
-            6.0,
+            0.15,
             Edits {
                 detail: DetailEdits {
                     sharpen_amount: Some(60.0),

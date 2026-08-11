@@ -1,6 +1,7 @@
 use raw_pipeline::edits::{RetouchMode, RetouchStroke, Vec2f};
 use raw_pipeline::{
-    cpu, decode, edits::Edits, frame::OutputColorSpace, frame::RawFrame, frame::RenderOptions, gpu,
+    cpu, decode, edits::Edits, frame::OutputColorSpace, frame::OutputFormat, frame::RawFrame,
+    frame::RenderOptions, gpu,
 };
 use std::path::{Path, PathBuf};
 
@@ -9,10 +10,10 @@ const RAW_EXTS: &[&str] = &[
     "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 
-const PSNR_FLOOR_DB: f64 = 26.0;
-const SSIM_FLOOR: f64 = 0.97;
-const DE2000_MEAN_CEIL: f64 = 5.0;
-const DE2000_P95_CEIL: f64 = 12.0;
+const PSNR_FLOOR_DB: f64 = 32.0;
+const SSIM_FLOOR: f64 = 0.998;
+const DE2000_MEAN_CEIL: f64 = 2.5;
+const DE2000_P95_CEIL: f64 = 4.0;
 
 const VARIANT_FIXTURES: &[&str] = &["Canon_EOS_R6", "Fujifilm_X-T2", "Panasonic_DMC-LX7"];
 
@@ -52,12 +53,6 @@ fn try_renderer() -> Option<gpu::GpuRenderer> {
             None
         }
     }
-}
-
-fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
-    let img: turbojpeg::Image<Vec<u8>> =
-        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
-    (img.pixels, img.width, img.height)
 }
 
 fn mse(a: &[u8], b: &[u8]) -> f64 {
@@ -235,12 +230,10 @@ fn render_pair(
 ) -> Option<(Vec<u8>, Vec<u8>)> {
     let cpu_out = cpu::render(frame, edits, opts).ok()?;
     let gpu_out = renderer.render(frame, edits, opts).ok()?;
-    let (cpu_rgb, cw, ch) = decode_jpeg_rgb(&cpu_out.bytes);
-    let (gpu_rgb, gw, gh) = decode_jpeg_rgb(&gpu_out.bytes);
-    if (cw, ch) != (gw, gh) {
+    if (cpu_out.width, cpu_out.height) != (gpu_out.width, gpu_out.height) {
         return None;
     }
-    Some((cpu_rgb, gpu_rgb))
+    Some((cpu_out.bytes, gpu_out.bytes))
 }
 
 fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOptions) {
@@ -262,7 +255,7 @@ fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOpti
         };
         drop(bytes);
         let Some((cpu_rgb, gpu_rgb)) = render_pair(&renderer, &frame, edits, opts) else {
-            eprintln!("skip {name}: render or jpeg decode failed");
+            eprintln!("skip {name}: render failed or dims disagree");
             continue;
         };
         drop(frame);
@@ -299,6 +292,7 @@ fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOpti
 fn gpu_vs_cpu_parity_per_fixture() {
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     check_parity("base", &fixtures(), &Edits::default(), &opts);
@@ -308,6 +302,7 @@ fn gpu_vs_cpu_parity_per_fixture() {
 fn gpu_vs_cpu_parity_display_p3() {
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         output_color_space: OutputColorSpace::DisplayP3,
         ..Default::default()
     };
@@ -318,6 +313,7 @@ fn gpu_vs_cpu_parity_display_p3() {
 fn gpu_vs_cpu_parity_flat_profile() {
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     let mut edits = Edits::default();
@@ -351,6 +347,7 @@ fn gpu_vs_cpu_parity_with_lut() {
     luts.insert("test".to_string(), Arc::new(lut));
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         luts,
         ..Default::default()
     };
@@ -366,6 +363,7 @@ fn gpu_vs_cpu_parity_with_noise_reduction() {
 
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     let edits = Edits {
@@ -464,6 +462,7 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
 
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         dcp: Some(Arc::new(profile)),
         ..Default::default()
     };
@@ -508,6 +507,7 @@ fn retouch_edits() -> Edits {
 fn gpu_vs_cpu_parity_retouch() {
     let opts = RenderOptions {
         max_edge: 512,
+        output: OutputFormat::Rgb8,
         ..Default::default()
     };
     check_parity("retouch", &variant_fixtures(), &retouch_edits(), &opts);
