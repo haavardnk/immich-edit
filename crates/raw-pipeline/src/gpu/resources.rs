@@ -12,6 +12,7 @@ pub(super) struct OutputTargets {
     pub linear_texture: Texture,
     pub linear_readback: Buffer,
     pub mask_accum_alt: Texture,
+    pub mask_base_linear: Texture,
     pub mask_scratch_linear: Texture,
     pub mask_scratch_tone: Texture,
     pub mask_weight: Texture,
@@ -86,6 +87,10 @@ impl OutputTargets {
             mask_accum_alt: make_linear(
                 "mask-accum-alt",
                 linear_extra_usage | TextureUsages::COPY_SRC,
+            ),
+            mask_base_linear: make_linear(
+                "mask-base-linear",
+                linear_extra_usage | TextureUsages::COPY_DST,
             ),
             mask_scratch_linear: make_linear("mask-scratch-linear", linear_extra_usage),
             mask_scratch_tone: device.create_texture(&TextureDescriptor {

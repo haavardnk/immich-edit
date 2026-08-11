@@ -52,6 +52,8 @@ struct Component {
 @group(0) @binding(5) var display_tex: texture_2d<f32>;
 @group(0) @binding(6) var<storage, read> poly: array<vec2<f32>>;
 
+// TONE_WGSL_INJECT
+
 fn smoothstep_calc(e0: f32, e1: f32, x: f32) -> f32 {
     let t = clamp((x - e0) / max(e1 - e0, 1e-6), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
@@ -222,7 +224,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let scene = display_to_scene(du, dv);
     let u = scene.x;
     let v = scene.y;
-    let display_rgb = textureLoad(display_tex, vec2<i32>(i32(gid.x), i32(gid.y)), 0).rgb;
+    let display_rgb = tone_apply_rgb(textureLoad(display_tex, vec2<i32>(i32(gid.x), i32(gid.y)), 0).rgb);
     var w: f32 = 0.0;
     let n = p.n_components;
     for (var i: u32 = 0u; i < n; i = i + 1u) {
@@ -263,7 +265,8 @@ impl MaskWeightPass {
                 storage_buffer_entry(6),
             ],
         );
-        let source = format!("{}\n{}", crate::gpu::shader_builder::GEOMETRY_WGSL, SHADER);
+        let source = format!("{}\n{}", crate::gpu::shader_builder::GEOMETRY_WGSL, SHADER)
+            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
         let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", &source);
         Self { layout, pipeline }
     }

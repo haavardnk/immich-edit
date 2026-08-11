@@ -105,6 +105,7 @@ fn output_targets_bytes(o: &OutputTargets) -> u64 {
         + texture_bytes(&o.linear_texture)
         + o.linear_readback.size()
         + texture_bytes(&o.mask_accum_alt)
+        + texture_bytes(&o.mask_base_linear)
         + texture_bytes(&o.mask_scratch_linear)
         + texture_bytes(&o.mask_scratch_tone)
         + texture_bytes(&o.mask_weight)
@@ -710,7 +711,7 @@ impl GpuRenderer {
                     },
                     BindGroupEntry {
                         binding: 5,
-                        resource: BindingResource::TextureView(&out_view),
+                        resource: BindingResource::TextureView(&linear_view),
                     },
                     BindGroupEntry {
                         binding: 6,
@@ -751,6 +752,28 @@ impl GpuRenderer {
                 .create_view(&TextureViewDescriptor::default());
             let linear_view2 = p
                 .linear_texture
+                .create_view(&TextureViewDescriptor::default());
+            encoder.copy_texture_to_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &p.linear_texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::TexelCopyTextureInfo {
+                    texture: &p.mask_base_linear,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::Extent3d {
+                    width: out_w,
+                    height: out_h,
+                    depth_or_array_layers: 1,
+                },
+            );
+            let base_linear_view = p
+                .mask_base_linear
                 .create_view(&TextureViewDescriptor::default());
 
             let mut slot_map: std::collections::HashMap<String, u32> =
@@ -947,7 +970,7 @@ impl GpuRenderer {
                         },
                         BindGroupEntry {
                             binding: 5,
-                            resource: BindingResource::TextureView(&out_view),
+                            resource: BindingResource::TextureView(&base_linear_view),
                         },
                         BindGroupEntry {
                             binding: 6,
