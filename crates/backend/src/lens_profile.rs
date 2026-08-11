@@ -217,6 +217,26 @@ pub fn reproject_lens(lens: LensEdits, exif: Option<&ExifInfo>) -> LensEdits {
     }
 }
 
+pub fn apply_auto(lens: LensEdits, profile: Option<&ProfileLensEdits>) -> LensEdits {
+    if lens.profile_enabled.is_some() {
+        return lens;
+    }
+    let Some(profile) = profile else {
+        return lens;
+    };
+    LensEdits {
+        profile_enabled: Some(true),
+        constrain_crop: true,
+        k1: profile.k1,
+        k2: profile.k2,
+        k3: profile.k3,
+        vk1: profile.vk1,
+        vk2: profile.vk2,
+        vk3: profile.vk3,
+        ..lens
+    }
+}
+
 const FIT_RADII: [f32; 10] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
 fn distortion_s_target(model: &DistortionModel, r: f32) -> f32 {
@@ -299,7 +319,7 @@ mod tests {
     #[test]
     fn reproject_without_exif_zeroes_coeffs_keeps_flags() {
         let lens = LensEdits {
-            profile_enabled: true,
+            profile_enabled: Some(true),
             ca_enabled: true,
             constrain_crop: true,
             distortion_amount: 80.0,
@@ -314,7 +334,7 @@ mod tests {
             ca_blue_scale_x10000: 8.0,
         };
         let out = reproject_lens(lens, None);
-        assert!(out.profile_enabled);
+        assert_eq!(out.profile_enabled, Some(true));
         assert!(out.ca_enabled);
         assert!(out.constrain_crop);
         assert_eq!(out.distortion_amount, 80.0);
@@ -327,6 +347,40 @@ mod tests {
         assert_eq!(out.vk3, 0.0);
         assert_eq!(out.ca_red_scale_x10000, 0.0);
         assert_eq!(out.ca_blue_scale_x10000, 0.0);
+    }
+
+    #[test]
+    fn apply_auto_only_fills_unset_profiles() {
+        let profile = ProfileLensEdits {
+            k1: -0.1,
+            k2: 0.02,
+            k3: 0.0,
+            vk1: -0.3,
+            vk2: 0.0,
+            vk3: 0.0,
+            ca_red_scale_x10000: 40.0,
+            ca_blue_scale_x10000: -40.0,
+        };
+        let auto = apply_auto(LensEdits::default(), Some(&profile));
+        assert_eq!(auto.profile_enabled, Some(true));
+        assert!(auto.constrain_crop);
+        assert_eq!(auto.k1, -0.1);
+        assert_eq!(auto.vk1, -0.3);
+        assert!(!auto.ca_enabled);
+        assert_eq!(auto.ca_red_scale_x10000, 0.0);
+
+        for explicit in [Some(true), Some(false)] {
+            let lens = LensEdits {
+                profile_enabled: explicit,
+                ..Default::default()
+            };
+            let out = apply_auto(lens, Some(&profile));
+            assert_eq!(out.profile_enabled, explicit);
+            assert_eq!(out.k1, 0.0);
+        }
+
+        let unmatched = apply_auto(LensEdits::default(), None);
+        assert_eq!(unmatched.profile_enabled, None);
     }
 
     #[test]

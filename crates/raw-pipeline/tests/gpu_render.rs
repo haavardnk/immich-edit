@@ -513,7 +513,7 @@ fn gpu_matches_cpu_within_tolerance() {
             4.0,
             Edits {
                 lens: LensEdits {
-                    profile_enabled: true,
+                    profile_enabled: Some(true),
                     distortion_amount: 100.0,
                     k1: -0.1,
                     ..Default::default()
@@ -526,7 +526,7 @@ fn gpu_matches_cpu_within_tolerance() {
             3.0,
             Edits {
                 lens: LensEdits {
-                    profile_enabled: true,
+                    profile_enabled: Some(true),
                     vignette_amount: 100.0,
                     vk1: -0.4,
                     ..Default::default()
@@ -551,7 +551,7 @@ fn gpu_matches_cpu_within_tolerance() {
             5.0,
             Edits {
                 lens: LensEdits {
-                    profile_enabled: true,
+                    profile_enabled: Some(true),
                     ca_enabled: true,
                     distortion_amount: 100.0,
                     k1: -0.08,

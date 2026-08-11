@@ -5,9 +5,11 @@ use crate::edits::Edits;
 
 pub struct LensProfileOp;
 
+pub const LENS_PROFILE_OP_ID: &str = "lens_profile";
+
 impl Op for LensProfileOp {
     fn id(&self) -> &'static str {
-        "lens_profile"
+        LENS_PROFILE_OP_ID
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
@@ -17,7 +19,7 @@ impl Op for LensProfileOp {
     }
     fn is_active(&self, edits: &Edits) -> bool {
         let l = &edits.lens;
-        l.profile_enabled
+        l.profile_enabled.is_some()
             || l.ca_enabled
             || l.constrain_crop
             || l.k1 != 0.0
@@ -34,8 +36,7 @@ impl Op for LensProfileOp {
             return None;
         }
         let l = &edits.lens;
-        Some(serde_json::json!({
-            "profile_enabled": l.profile_enabled,
+        let mut doc = serde_json::json!({
             "ca_enabled": l.ca_enabled,
             "constrain_crop": l.constrain_crop,
             "distortion_amount": l.distortion_amount,
@@ -48,13 +49,15 @@ impl Op for LensProfileOp {
             "vk3": l.vk3,
             "ca_red": l.ca_red_scale_x10000,
             "ca_blue": l.ca_blue_scale_x10000,
-        }))
+        });
+        if let Some(enabled) = l.profile_enabled {
+            doc["profile_enabled"] = serde_json::Value::Bool(enabled);
+        }
+        Some(doc)
     }
     fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let l = &mut edits.lens;
-        if let Some(v) = value.get("profile_enabled").and_then(|v| v.as_bool()) {
-            l.profile_enabled = v;
-        }
+        l.profile_enabled = value.get("profile_enabled").and_then(|v| v.as_bool());
         if let Some(v) = value.get("ca_enabled").and_then(|v| v.as_bool()) {
             l.ca_enabled = v;
         }

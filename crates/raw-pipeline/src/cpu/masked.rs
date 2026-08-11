@@ -1070,7 +1070,7 @@ mod tests {
         let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
         let identity = LensWarpParams::from_edits(&LensEdits::default(), w as u32, h as u32);
         let lens = LensEdits {
-            profile_enabled: true,
+            profile_enabled: Some(true),
             k1: -0.15,
             constrain_crop: true,
             ..Default::default()

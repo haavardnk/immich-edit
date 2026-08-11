@@ -4,37 +4,20 @@
   import { mdiRestore } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_LENS } from '$lib/types/edits';
-  import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 
-  let profile = $state<LensProfileMatch | null>(null);
-  let profileLoading = $state(false);
-  let profileError = $state<string | null>(null);
-  let lastFetchedAssetId = $state<string | null>(null);
-
-  $effect(() => {
-    const id = editor.assetId;
-    if (!id || id === lastFetchedAssetId) return;
-    lastFetchedAssetId = id;
-    profile = null;
-    profileError = null;
-    profileLoading = true;
-    getLensProfile(id)
-      .then((p) => {
-        profile = p;
-      })
-      .catch((e: unknown) => {
-        profileError = e instanceof Error ? e.message : String(e);
-      })
-      .finally(() => {
-        profileLoading = false;
-      });
-  });
+  const profile = $derived(editor.lensProfile);
+  const profileError = $derived(editor.lensProfileError);
+  const profileLoading = $derived(profile === null && profileError === null);
 
   const hasProfile = $derived(!!profile?.edits);
   const hasCa = $derived(
     !!profile?.edits &&
       (profile.edits.ca_red_scale_x10000 !== 0 || profile.edits.ca_blue_scale_x10000 !== 0)
   );
+  const isRaw = $derived(editor.meta?.is_raw ?? false);
+  const autoOn = $derived(isRaw && hasProfile);
+  const profileEnabled = $derived(editor.edits.lens.profile_enabled ?? autoOn);
+  const isAuto = $derived(editor.edits.lens.profile_enabled === null && autoOn);
 
   function loadProfileCoefficients(): void {
     const e = profile?.edits;
@@ -79,7 +62,12 @@
   }
 
   function onToggleConstrain(e: Event): void {
-    editor.edits.lens.constrain_crop = (e.currentTarget as HTMLInputElement).checked;
+    const checked = (e.currentTarget as HTMLInputElement).checked;
+    if (editor.edits.lens.profile_enabled === null) {
+      editor.edits.lens.profile_enabled = autoOn;
+      loadProfileCoefficients();
+    }
+    editor.edits.lens.constrain_crop = checked;
     editor.onCommit('Constrain Crop');
   }
 
@@ -126,11 +114,14 @@
     <input
       type="checkbox"
       class="checkbox checkbox-xs checkbox-primary"
-      checked={editor.edits.lens.profile_enabled}
+      checked={profileEnabled}
       disabled={!hasProfile}
       onchange={onToggleProfile}
     />
     Enable Profile Corrections
+    {#if isAuto}
+      <span class="text-immich-dark-fg/40">· Auto</span>
+    {/if}
   </label>
 
   <label class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80 cursor-pointer">
@@ -152,7 +143,7 @@
     max={200}
     step={1}
     defaultValue={100}
-    disabled={!editor.edits.lens.profile_enabled}
+    disabled={!profileEnabled}
     onLive={editor.onLive}
     onCommit={editor.onCommit}
     format={(v: number) => v.toFixed(0)}
@@ -166,7 +157,7 @@
     max={200}
     step={1}
     defaultValue={100}
-    disabled={!editor.edits.lens.profile_enabled}
+    disabled={!profileEnabled}
     onLive={editor.onLive}
     onCommit={editor.onCommit}
     format={(v: number) => v.toFixed(0)}
@@ -174,13 +165,13 @@
 
   <label
     class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80 cursor-pointer"
-    class:opacity-50={!editor.edits.lens.profile_enabled}
+    class:opacity-50={!profileEnabled}
   >
     <input
       type="checkbox"
       class="checkbox checkbox-xs checkbox-primary"
-      checked={editor.edits.lens.constrain_crop}
-      disabled={!editor.edits.lens.profile_enabled}
+      checked={editor.lensView.constrain_crop}
+      disabled={!profileEnabled}
       onchange={onToggleConstrain}
     />
     Constrain Crop

@@ -35,7 +35,7 @@ impl Op for LensDistortionOp {
 }
 
 pub fn distortion_coeffs(lens: &LensEdits) -> (f32, f32, f32) {
-    if !lens.profile_enabled {
+    if !lens.profile_active() {
         return (0.0, 0.0, 0.0);
     }
     let (k1, k2, k3) = lens.effective_k();
@@ -66,7 +66,7 @@ pub fn constrain_zoom(k1: f32, k2: f32, k3: f32) -> f32 {
 }
 
 pub fn distortion_zoom(lens: &LensEdits) -> f32 {
-    if !lens.profile_enabled || !lens.constrain_crop {
+    if !lens.profile_active() || !lens.constrain_crop {
         return 1.0;
     }
     let (k1, k2, k3) = distortion_coeffs(lens);
@@ -291,7 +291,7 @@ mod tests {
         let before = img.rgb.clone();
         let edits = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 distortion_amount: 50.0,
                 ..Default::default()
             },
@@ -313,7 +313,7 @@ mod tests {
         let target = img.rgb.clone();
         let barrel = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 distortion_amount: 100.0,
                 k1: -0.1,
                 ..Default::default()
@@ -322,7 +322,7 @@ mod tests {
         };
         let pincushion = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 distortion_amount: 100.0,
                 k1: 0.1,
                 ..Default::default()
@@ -394,7 +394,7 @@ mod tests {
     #[test]
     fn warp_matches_cpu_pixel_formula() {
         let lens = LensEdits {
-            profile_enabled: true,
+            profile_enabled: Some(true),
             distortion_amount: 100.0,
             k1: 0.18,
             ..Default::default()

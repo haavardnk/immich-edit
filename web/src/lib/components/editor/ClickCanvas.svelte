@@ -79,7 +79,7 @@
   );
 
   const lensP = $derived.by<LensWarpParams>(() =>
-    lensWarpFromEdits(editor.edits.lens, editor.meta?.source_w ?? 1, editor.meta?.source_h ?? 1)
+    lensWarpFromEdits(editor.lensView, editor.meta?.source_w ?? 1, editor.meta?.source_h ?? 1)
   );
 
   const active = $derived<MaskLayer | null>(

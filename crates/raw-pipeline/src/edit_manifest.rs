@@ -6,11 +6,21 @@ use serde_json::Value;
 use crate::edits::Edits;
 use crate::ops::{OpRegistry, default_registry};
 
-pub const EDIT_MANIFEST_VERSION: u32 = 3;
+pub const EDIT_MANIFEST_VERSION: u32 = 4;
 
 type Migration = fn(&mut BTreeMap<String, Value>);
 
-const MIGRATIONS: &[(u32, Migration)] = &[];
+const MIGRATIONS: &[(u32, Migration)] = &[(4, migrate_v4_explicit_lens_profile)];
+
+fn migrate_v4_explicit_lens_profile(ops: &mut BTreeMap<String, Value>) {
+    let entry = ops
+        .entry(crate::ops::lens_profile::LENS_PROFILE_OP_ID.to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(map) = entry.as_object_mut() else {
+        return;
+    };
+    map.entry("profile_enabled").or_insert(Value::Bool(false));
+}
 
 fn migrate_in_place(from: u32, ops: &mut BTreeMap<String, Value>) {
     for (target, mig) in MIGRATIONS {
@@ -163,7 +173,7 @@ mod tests {
                 grain_roughness: 55.0,
             },
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 ca_enabled: true,
                 constrain_crop: true,
                 distortion_amount: 50.0,
@@ -415,7 +425,7 @@ mod tests {
     fn lens_sparse_roundtrip() {
         let edits = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 distortion_amount: 40.0,
                 k1: -0.12,
                 ..Default::default()
@@ -434,6 +444,49 @@ mod tests {
             || (back.lens.k1 - (-0.12)).abs() > 1e-9
         {
             panic!("lens_distortion roundtrip mismatch: {:?}", back.lens);
+        }
+    }
+
+    #[test]
+    fn lens_auto_omits_profile_enabled() {
+        let edits = Edits {
+            lens: LensEdits {
+                ca_enabled: true,
+                ca_red_scale_x10000: 30.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let manifest = EditManifest::from_edits(&edits);
+        let doc = manifest.ops.get("lens_profile").expect("lens_profile op");
+        if doc.get("profile_enabled").is_some() {
+            panic!("auto lens must not persist profile_enabled: {doc:?}");
+        }
+        if manifest.to_edits().lens.profile_enabled.is_some() {
+            panic!("missing profile_enabled must decode to auto");
+        }
+    }
+
+    #[test]
+    fn v3_manifests_migrate_to_explicit_off() {
+        let cases: [(BTreeMap<String, Value>, bool); 2] = [
+            (BTreeMap::new(), false),
+            (
+                BTreeMap::from([(
+                    "lens_profile".to_string(),
+                    serde_json::json!({ "profile_enabled": true, "k1": -0.1 }),
+                )]),
+                true,
+            ),
+        ];
+        for (ops, expected) in cases {
+            let manifest = EditManifest {
+                schema_version: 3,
+                ops,
+            };
+            if manifest.to_edits().lens.profile_enabled != Some(expected) {
+                panic!("v3 migration expected Some({expected})");
+            }
         }
     }
 

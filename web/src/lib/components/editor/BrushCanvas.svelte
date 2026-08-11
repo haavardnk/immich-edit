@@ -67,7 +67,7 @@
     return () => cancelAnimationFrame(id);
   });
 
-  const view = $derived(viewTransform(editor.edits, editor.meta ?? null));
+  const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
 
   const allIdentity = $derived(viewIsIdentity(view));
 

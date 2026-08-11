@@ -9,6 +9,7 @@ import {
   isNonGeometryIdentity,
   curvesEditsIsIdentity,
   neutralSharpenAmount,
+  effectiveLens,
   type Edits
 } from './edits';
 
@@ -26,7 +27,7 @@ describe('neutralEdits identity', () => {
 
   it('serializes to an empty op set', () => {
     const manifest = editsToManifest(neutralEdits());
-    expect(manifest.schema_version).toBe(3);
+    expect(manifest.schema_version).toBe(4);
     expect(Object.keys(manifest.ops)).toHaveLength(0);
   });
 
@@ -377,6 +378,34 @@ describe('editsToManifest / manifestToEdits round-trip', () => {
     });
     expect(edits.tone.highlights).toBe(-10);
     expect(edits.tone.shadows).toBe(20);
+  });
+
+  it('keeps lens corrections on auto unless stated', () => {
+    const e = neutralEdits();
+    e.lens.ca_enabled = true;
+    e.lens.ca_red_scale_x10000 = 30;
+    const manifest = editsToManifest(e);
+    expect((manifest.ops.lens_profile as Record<string, unknown>).profile_enabled).toBeNull();
+    expect(manifestToEdits(manifest).lens.profile_enabled).toBeNull();
+  });
+
+  it('migrates pre-v4 manifests to explicitly disabled lens corrections', () => {
+    const edits = manifestToEdits({ schema_version: 3, ops: { exposure: { ev: 1 } } });
+    expect(edits.lens.profile_enabled).toBe(false);
+  });
+
+  it('resolves the auto lens baseline only when unset', () => {
+    const profile = { k1: -0.1, k2: 0, k3: 0, vk1: -0.3, vk2: 0, vk3: 0 };
+    const auto = effectiveLens(neutralEdits().lens, profile);
+    expect(auto.profile_enabled).toBe(true);
+    expect(auto.constrain_crop).toBe(true);
+    expect(auto.k1).toBe(-0.1);
+
+    for (const explicit of [true, false]) {
+      const lens = { ...neutralEdits().lens, profile_enabled: explicit };
+      expect(effectiveLens(lens, profile)).toEqual(lens);
+    }
+    expect(effectiveLens(neutralEdits().lens, null).profile_enabled).toBeNull();
   });
 
   it('preserves luma and color range masks', () => {

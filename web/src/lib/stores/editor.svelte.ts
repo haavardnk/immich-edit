@@ -4,12 +4,14 @@ import {
   resetDevelopEdits,
   isIdentity,
   manifestToEdits,
+  effectiveLens,
   FULL_CROP,
   MAX_RETOUCH_STROKES,
   type AspectLock,
   type CropRect,
   type Edits,
   type EditManifest,
+  type LensEdits,
   type MaskComponent,
   type MaskComponentKind,
   type MaskComponentMode,
@@ -66,6 +68,7 @@ import {
   type ImmichExportOptions
 } from '$lib/api/export';
 import { getAsset, updateAsset } from '$lib/api/assets';
+import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
 import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
@@ -118,6 +121,8 @@ class EditorStore {
   edits = $state<Edits>(neutralEdits());
   previewUrl = $state<string | null>(null);
   meta = $state<PreviewMeta | null>(null);
+  lensProfile = $state<LensProfileMatch | null>(null);
+  lensProfileError = $state<string | null>(null);
   pending = $state(false);
   saving = $state(false);
   savedHash = $state<string>('');
@@ -127,6 +132,9 @@ class EditorStore {
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
   hasEdits = $derived(!isIdentity(this.edits));
+  lensView: LensEdits = $derived(
+    effectiveLens(this.edits.lens, this.meta?.is_raw ? (this.lensProfile?.edits ?? null) : null)
+  );
   lastWarnings = $state<string[]>([]);
   private lastImmichOpts: ImmichExportOptions | null = null;
   private lastExportOpts: ExportOptions | null = null;
@@ -496,6 +504,7 @@ class EditorStore {
       this.savedHash = s.hash;
       this.initialised = true;
       this.pushHistory();
+      this.fetchLensProfile(id);
       this.flight.submit({
         edits: $state.snapshot(this.edits),
         maxEdge: LIVE_EDGE,
@@ -505,6 +514,20 @@ class EditorStore {
     } catch (e) {
       this.error = (e as Error).message;
     }
+  }
+
+  private fetchLensProfile(id: string): void {
+    this.lensProfile = null;
+    this.lensProfileError = null;
+    getLensProfile(id)
+      .then((p) => {
+        if (this.assetId === id) this.lensProfile = p;
+      })
+      .catch((e: unknown) => {
+        if (this.assetId === id) {
+          this.lensProfileError = e instanceof Error ? e.message : String(e);
+        }
+      });
   }
 
   unload(): void {
@@ -526,6 +549,8 @@ class EditorStore {
     this.splitMode = false;
     this.asset = null;
     this.meta = null;
+    this.lensProfile = null;
+    this.lensProfileError = null;
     this.assetId = null;
     this.initialised = false;
     this.edits = neutralEdits();

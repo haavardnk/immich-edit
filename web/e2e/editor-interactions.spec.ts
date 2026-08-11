@@ -346,3 +346,45 @@ test('lens reset clears all profile edits', async ({ page }) => {
       .getByRole('slider')
   ).toHaveValue('100');
 });
+
+test('a matched profile corrects a raw file until the user says otherwise', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    previewMeta: { is_raw: true },
+    editRecord: { ...NEUTRAL_RECORD, manifest: { schema_version: 4, ops: {} } },
+    onSave: (body) => saves.push(body)
+  });
+  await page.route('**/api/assets/*/lens-profile', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        matched: true,
+        lens: 'Sony FE 35mm f/1.8',
+        focal_length: 35,
+        aperture: 1.8,
+        edits: {
+          k1: -0.1,
+          k2: 0,
+          k3: 0,
+          vk1: -0.3,
+          vk2: 0,
+          vk3: 0,
+          ca_red_scale_x10000: 0,
+          ca_blue_scale_x10000: 0
+        }
+      })
+    })
+  );
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  const toggle = page.getByLabel('Enable Profile Corrections');
+  await expect(toggle).toBeChecked();
+  await expect(page.getByText('· Auto')).toBeVisible();
+
+  await toggle.uncheck();
+  await expect
+    .poll(() => saves.some((s) => JSON.stringify(s).includes('"profile_enabled":false')))
+    .toBe(true);
+});

@@ -215,7 +215,7 @@ export const NEUTRAL_EFFECTS: EffectsEdits = {
 };
 
 export interface LensEdits {
-  profile_enabled: boolean;
+  profile_enabled: boolean | null;
   ca_enabled: boolean;
   constrain_crop: boolean;
   distortion_amount: number;
@@ -231,7 +231,7 @@ export interface LensEdits {
 }
 
 export const NEUTRAL_LENS: LensEdits = {
-  profile_enabled: false,
+  profile_enabled: null,
   ca_enabled: false,
   constrain_crop: false,
   distortion_amount: 100,
@@ -247,18 +247,53 @@ export const NEUTRAL_LENS: LensEdits = {
 };
 
 export function lensDistortionActive(l: LensEdits): boolean {
-  return l.profile_enabled && l.distortion_amount !== 0 && (l.k1 !== 0 || l.k2 !== 0 || l.k3 !== 0);
+  return (
+    l.profile_enabled === true &&
+    l.distortion_amount !== 0 &&
+    (l.k1 !== 0 || l.k2 !== 0 || l.k3 !== 0)
+  );
 }
 export function lensVignetteActive(l: LensEdits): boolean {
   return (
-    l.profile_enabled && l.vignette_amount !== 0 && (l.vk1 !== 0 || l.vk2 !== 0 || l.vk3 !== 0)
+    l.profile_enabled === true &&
+    l.vignette_amount !== 0 &&
+    (l.vk1 !== 0 || l.vk2 !== 0 || l.vk3 !== 0)
   );
 }
 export function lensCaActive(l: LensEdits): boolean {
   return l.ca_enabled && (l.ca_red_scale_x10000 !== 0 || l.ca_blue_scale_x10000 !== 0);
 }
 export function lensIsZero(l: LensEdits): boolean {
-  return !lensDistortionActive(l) && !lensVignetteActive(l) && !lensCaActive(l);
+  return (
+    l.profile_enabled === null &&
+    !lensDistortionActive(l) &&
+    !lensVignetteActive(l) &&
+    !lensCaActive(l)
+  );
+}
+
+export interface LensProfileCoefficients {
+  k1: number;
+  k2: number;
+  k3: number;
+  vk1: number;
+  vk2: number;
+  vk3: number;
+}
+
+export function effectiveLens(l: LensEdits, profile: LensProfileCoefficients | null): LensEdits {
+  if (l.profile_enabled !== null || !profile) return l;
+  return {
+    ...l,
+    profile_enabled: true,
+    constrain_crop: true,
+    k1: profile.k1,
+    k2: profile.k2,
+    k3: profile.k3,
+    vk1: profile.vk1,
+    vk2: profile.vk2,
+    vk3: profile.vk3
+  };
 }
 
 export interface CropRect {
@@ -605,12 +640,19 @@ interface NullField {
   set: (e: Edits, v: number | null) => void;
 }
 
+interface TriField {
+  key: string;
+  get: (e: Edits) => boolean | null;
+  set: (e: Edits, v: boolean | null) => void;
+}
+
 interface FlatOp {
   id: string;
   legacyId?: string;
   nums: NumField[];
   bools?: BoolField[];
   nulls?: NullField[];
+  tris?: TriField[];
   active: (e: Edits) => boolean;
   identity?: (e: Edits) => boolean;
 }
@@ -806,14 +848,16 @@ const FLAT_OPS: FlatOp[] = [
       lensField('ca_red', 'ca_red_scale_x10000'),
       lensField('ca_blue', 'ca_blue_scale_x10000')
     ],
-    bools: [
-      bf(
-        'profile_enabled',
-        (e) => e.lens.profile_enabled,
-        (e, v) => {
+    tris: [
+      {
+        key: 'profile_enabled',
+        get: (e) => e.lens.profile_enabled,
+        set: (e, v) => {
           e.lens.profile_enabled = v;
         }
-      ),
+      }
+    ],
+    bools: [
       bf(
         'ca_enabled',
         (e) => e.lens.ca_enabled,
@@ -830,7 +874,7 @@ const FLAT_OPS: FlatOp[] = [
       )
     ],
     active: (e) =>
-      e.lens.profile_enabled ||
+      e.lens.profile_enabled !== null ||
       e.lens.ca_enabled ||
       e.lens.constrain_crop ||
       e.lens.k1 !== 0 ||
@@ -856,6 +900,7 @@ function encodeFlatOps(e: Edits, ops: Record<string, unknown>): void {
     for (const f of op.nums) obj[f.key] = f.get(e);
     for (const f of op.bools ?? []) obj[f.key] = f.get(e);
     for (const f of op.nulls ?? []) obj[f.key] = f.get(e);
+    for (const f of op.tris ?? []) obj[f.key] = f.get(e);
     ops[op.id] = obj;
   }
 }
@@ -876,6 +921,10 @@ function decodeFlatOps(ops: Record<string, unknown>, e: Edits): void {
     for (const f of op.nulls ?? []) {
       const v = raw[f.key];
       f.set(e, typeof v === 'number' ? v : null);
+    }
+    for (const f of op.tris ?? []) {
+      const v = raw[f.key];
+      f.set(e, typeof v === 'boolean' ? v : null);
     }
   }
 }
@@ -969,13 +1018,16 @@ export function editsToManifest(e: Edits): EditManifest {
   if (e.retouch.length > 0) {
     ops.retouch = { strokes: e.retouch };
   }
-  return { schema_version: 3, ops };
+  return { schema_version: 4, ops };
 }
 
 export function manifestToEdits(doc: EditManifest): Edits {
   const edits = neutralEdits();
   const ops = doc.ops ?? {};
   decodeFlatOps(ops, edits);
+  if ((doc.schema_version ?? 0) < 4 && edits.lens.profile_enabled === null) {
+    edits.lens.profile_enabled = false;
+  }
   const curves = ops.curves as
     | {
         points?: number[][];

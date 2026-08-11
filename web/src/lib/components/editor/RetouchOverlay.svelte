@@ -30,7 +30,7 @@
   let hoverAlt = $state(false);
   let strokeOffset: [number, number] | null = null;
 
-  const view = $derived(viewTransform(editor.edits, editor.meta ?? null));
+  const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
   const show = $derived(ui.editorTab === 'retouch' && rectW > 0 && rectH > 0);

@@ -119,7 +119,7 @@ describe('historyDetails', () => {
     expect(details).toContainEqual({
       key: 'lens',
       label: 'Lens',
-      items: [{ kind: 'value', label: 'Profile Corrections', before: 'Off', after: 'On' }]
+      items: [{ kind: 'value', label: 'Profile Corrections', before: 'Auto', after: 'On' }]
     });
   });
 

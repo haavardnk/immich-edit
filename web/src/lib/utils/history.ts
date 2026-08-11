@@ -25,7 +25,14 @@ type BooleanFieldDef = {
   get: (edits: Edits) => boolean;
 };
 
-type FieldDef = NumberFieldDef | BooleanFieldDef;
+type TriFieldDef = {
+  kind: 'tri';
+  section: string;
+  label: string;
+  get: (edits: Edits) => boolean | null;
+};
+
+type FieldDef = NumberFieldDef | BooleanFieldDef | TriFieldDef;
 
 export type HistoryDetailItem =
   | { kind: 'value'; label: string; before: string; after: string }
@@ -187,7 +194,7 @@ const FIELDS: FieldDef[] = [
     get: (e) => e.detail.capture_sharpen
   },
   {
-    kind: 'boolean',
+    kind: 'tri',
     section: 'lens',
     label: 'Profile Corrections',
     get: (e) => e.lens.profile_enabled
@@ -333,8 +340,18 @@ function fmtDelta(delta: number, precision: number): string {
 }
 
 function fieldChanged(field: FieldDef, prev: Edits, curr: Edits, isRaw: boolean): boolean {
-  if (field.kind === 'boolean') return field.get(prev) !== field.get(curr);
+  if (field.kind === 'boolean' || field.kind === 'tri') return field.get(prev) !== field.get(curr);
   return Math.abs(field.get(prev, isRaw) - field.get(curr, isRaw)) > 1e-4;
+}
+
+function fmtField(field: FieldDef, edits: Edits, isRaw: boolean): string {
+  if (field.kind === 'boolean') return field.get(edits) ? 'On' : 'Off';
+  if (field.kind === 'tri') {
+    const v = field.get(edits);
+    if (v === null) return 'Auto';
+    return v ? 'On' : 'Off';
+  }
+  return fmtNumber(field.get(edits, isRaw), field);
 }
 
 function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): [Edits, Edits] {
@@ -477,18 +494,8 @@ export function historyDetails(
       group = { key: field.section, label: SECTION_LABELS[field.section], items: [] };
       groups.set(field.section, group);
     }
-    const before =
-      field.kind === 'boolean'
-        ? field.get(prev)
-          ? 'On'
-          : 'Off'
-        : fmtNumber(field.get(prev, isRaw), field);
-    const after =
-      field.kind === 'boolean'
-        ? field.get(curr)
-          ? 'On'
-          : 'Off'
-        : fmtNumber(field.get(curr, isRaw), field);
+    const before = fmtField(field, prev, isRaw);
+    const after = fmtField(field, curr, isRaw);
     group.items.push({ kind: 'value', label: field.label, before, after });
   }
 

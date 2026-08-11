@@ -45,7 +45,7 @@ fn stable_hash_differs_on_change() {
 fn stable_hash_is_pinned() {
     assert_eq!(
         Edits::default().stable_hash(),
-        "ea6f18ddf1d41dc9d26a38b62fc26982"
+        "a408b0741f72a07fa40dc3abc6a5c9c9"
     );
     assert_eq!(
         populated_edits().stable_hash(),
@@ -326,7 +326,7 @@ fn populated_edits() -> Edits {
             grain_roughness: 55.0,
         },
         lens: LensEdits {
-            profile_enabled: true,
+            profile_enabled: Some(true),
             ca_enabled: true,
             constrain_crop: true,
             distortion_amount: 80.0,

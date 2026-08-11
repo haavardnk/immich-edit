@@ -7,7 +7,7 @@ fn lens_amount_default() -> f64 {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct LensEdits {
     #[serde(default)]
-    pub profile_enabled: bool,
+    pub profile_enabled: Option<bool>,
     #[serde(default)]
     pub ca_enabled: bool,
     #[serde(default)]
@@ -37,7 +37,7 @@ pub struct LensEdits {
 impl Default for LensEdits {
     fn default() -> Self {
         Self {
-            profile_enabled: false,
+            profile_enabled: None,
             ca_enabled: false,
             constrain_crop: false,
             distortion_amount: 100.0,
@@ -55,13 +55,16 @@ impl Default for LensEdits {
 }
 
 impl LensEdits {
+    pub fn profile_active(&self) -> bool {
+        self.profile_enabled.unwrap_or(false)
+    }
     pub fn distortion_active(&self) -> bool {
-        self.profile_enabled
+        self.profile_active()
             && self.distortion_amount != 0.0
             && (self.k1 != 0.0 || self.k2 != 0.0 || self.k3 != 0.0)
     }
     pub fn vignette_active(&self) -> bool {
-        self.profile_enabled
+        self.profile_active()
             && self.vignette_amount != 0.0
             && (self.vk1 != 0.0 || self.vk2 != 0.0 || self.vk3 != 0.0)
     }

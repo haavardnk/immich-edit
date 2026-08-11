@@ -42,7 +42,7 @@ Flow:
 
 1. Demosaic RAW frames when needed.
 2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; the DCP matrix becomes `OpContext.cam_to_srgb`, scaled by the profile's baseline exposure when that toggle is on. The render adds no exposure of its own.
-3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active.
+3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active. For RAW files the backend resolves the lens baseline first: if the sidecar never states a preference, a matching lensfun profile is applied with constrained crop, the same way an unset camera profile falls back to the auto match.
 4. Apply EXIF orientation.
 5. Run edit ops through `run_pipeline_ops`.
 6. Resize to `RenderOptions::max_edge`.

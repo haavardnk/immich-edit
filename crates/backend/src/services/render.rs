@@ -19,6 +19,7 @@ use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 
 const GPU_REBUILD_MIN_INTERVAL: Duration = Duration::from_secs(30);
 const MB: u64 = 1024 * 1024;
+const LENS_PROFILE_CACHE_CAP: usize = 4096;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RenderCacheOptions {
@@ -67,6 +68,7 @@ pub struct RenderService {
     rasters: RasterStore,
     luts: crate::services::lut_store::LutStore,
     dcp: crate::services::dcp_store::DcpStore,
+    lens_profiles: Arc<Mutex<lru::LruCache<Uuid, Option<crate::lens_profile::ProfileLensEdits>>>>,
     telemetry: RenderTelemetry,
 }
 
@@ -119,6 +121,9 @@ impl RenderService {
             rasters,
             luts,
             dcp,
+            lens_profiles: Arc::new(Mutex::new(lru::LruCache::new(
+                std::num::NonZeroUsize::new(LENS_PROFILE_CACHE_CAP).unwrap(),
+            ))),
             telemetry: RenderTelemetry::new(),
         }
     }
@@ -218,6 +223,10 @@ impl RenderService {
         } else {
             self.frame(identity, &immich, source).await?
         };
+        let mut edits = edits;
+        if frame.is_raw {
+            edits.lens = self.resolve_lens(&immich, source, edits.lens).await;
+        }
         options.rasters = self.load_rasters_for(identity, &edits).await;
         options.luts = self.load_luts_for(&edits).await?;
         options.dcp = self.load_dcp_for(&edits, &frame).await?;
@@ -376,6 +385,32 @@ impl RenderService {
                 .await
                 .map_err(|e| RenderError::Dcp(e.to_string())),
         }
+    }
+
+    async fn resolve_lens(
+        &self,
+        immich: &ImmichClient,
+        source: Uuid,
+        lens: raw_pipeline::edits::LensEdits,
+    ) -> raw_pipeline::edits::LensEdits {
+        if lens.profile_enabled.is_some() {
+            return lens;
+        }
+        if let Some(profile) = self.lens_profiles.lock().await.get(&source) {
+            return crate::lens_profile::apply_auto(lens, profile.as_ref());
+        }
+        let profile = match immich.asset(source).await {
+            Ok(asset) => asset
+                .exif_info
+                .as_ref()
+                .and_then(|exif| crate::lens_profile::lookup(exif).edits),
+            Err(e) => {
+                tracing::warn!(error = %e, "lens auto-resolve: asset lookup failed");
+                return lens;
+            }
+        };
+        self.lens_profiles.lock().await.put(source, profile.clone());
+        crate::lens_profile::apply_auto(lens, profile.as_ref())
     }
 }
 

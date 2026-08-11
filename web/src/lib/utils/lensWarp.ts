@@ -12,7 +12,7 @@ export function lensWarpActive(p: LensWarpParams): boolean {
 }
 
 interface LensLike {
-  profile_enabled: boolean;
+  profile_enabled: boolean | null;
   constrain_crop: boolean;
   distortion_amount: number;
   k1: number;

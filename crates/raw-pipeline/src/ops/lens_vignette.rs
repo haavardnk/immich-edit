@@ -34,7 +34,7 @@ impl Op for LensVignetteOp {
 }
 
 pub fn vignette_coeffs(lens: &LensEdits) -> (f32, f32, f32, f32) {
-    if !lens.profile_enabled {
+    if !lens.profile_active() {
         return (0.0, 0.0, 0.0, 0.0);
     }
     let amount = (lens.vignette_amount / 100.0) as f32 * VIGNETTE_AMOUNT_DAMPENING;
@@ -128,7 +128,7 @@ mod tests {
         let mut img = solid_image(64, 48, 0.4);
         let edits = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 vignette_amount: 100.0,
                 vk1: -0.4,
                 ..Default::default()

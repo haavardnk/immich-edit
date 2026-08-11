@@ -216,7 +216,10 @@ async fn scene_render(
         .get_edits_or_default(ctx.owner, asset_id)
         .await?;
     edits.geometry = Default::default();
-    edits.lens = Default::default();
+    edits.lens = raw_pipeline::edits::LensEdits {
+        profile_enabled: Some(false),
+        ..Default::default()
+    };
     edits.effects = Default::default();
     edits.masks.clear();
 

@@ -694,7 +694,7 @@ mod tests {
         });
         let edits = Edits {
             lens: LensEdits {
-                profile_enabled: true,
+                profile_enabled: Some(true),
                 vignette_amount: 100.0,
                 vk1: -0.5,
                 ..Default::default()
