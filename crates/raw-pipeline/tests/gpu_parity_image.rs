@@ -215,13 +215,13 @@ fn gpu_downscale_preserves_detail_like_cpu() {
         eprintln!(
             "PARITY detail/{label} {w}x{h} cpu={cpu_detail:.3} gpu={gpu_detail:.3} ratio={ratio:.3}"
         );
-        if !(0.85..=1.20).contains(&ratio) {
+        if !(0.95..=1.05).contains(&ratio) {
             failed.push(format!("{label}: {ratio:.3}"));
         }
     }
     if !failed.is_empty() {
         panic!(
-            "gpu/cpu detail ratio outside 0.85..1.20: {}",
+            "gpu/cpu detail ratio outside 0.95..1.05: {}",
             failed.join("; ")
         );
     }

@@ -94,7 +94,7 @@ Requests smaller than the sensor are downscaled by a separable Lanczos3 compute 
 
 The reduction factor comes from the cropped region, not the full sensor, so a crop is rendered from source pixels at its own scale instead of being softened by the uncropped ratio. Output dimensions are computed once from the original frame dimensions and passed into `process`, so an already-downscaled working texture cannot shift the result size by a rounding step.
 
-`Presence` additionally downscales once up front when a preview is more than 2x smaller than the source, so spatial passes run at preview scale. `process` then samples the working texture with a Catmull-Rom bicubic tap rather than a bilinear one: geometry sampling lands on fractional coordinates whenever a crop origin, rotation, or perspective warp is not pixel-aligned, and bilinear visibly softens those cases.
+`Presence` additionally downscales once up front when a preview is more than 2x smaller than the source, so spatial passes run at preview scale. The geometry warp then samples with a Catmull-Rom bicubic tap rather than a bilinear one, on both paths: geometry sampling lands on fractional coordinates whenever a crop origin, rotation, or perspective warp is not pixel-aligned, and bilinear visibly softens those cases.
 
 ## Region of interest
 

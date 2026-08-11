@@ -10,6 +10,17 @@ use crate::perspective::PerspectiveEdits;
 
 pub struct TransformOp;
 
+fn catmull_rom_weights(f: f32) -> [f32; 4] {
+    let f2 = f * f;
+    let f3 = f2 * f;
+    [
+        -0.5 * f3 + f2 - 0.5 * f,
+        1.5 * f3 - 2.5 * f2 + 1.0,
+        -1.5 * f3 + 2.0 * f2 + 0.5 * f,
+        0.5 * f3 - 0.5 * f2,
+    ]
+}
+
 impl Op for TransformOp {
     fn id(&self) -> &'static str {
         "transform"
@@ -173,25 +184,31 @@ impl Op for TransformOp {
                         row[d + 2] = 0.0;
                         continue;
                     }
-                    let x0 = fx.floor() as usize;
-                    let y0 = fy.floor() as usize;
-                    let x1 = (x0 + 1).min(src_w - 1);
-                    let y1 = (y0 + 1).min(src_h - 1);
-                    let tx = fx - x0 as f32;
-                    let ty = fy - y0 as f32;
-                    let i00 = (y0 * src_w + x0) * 3;
-                    let i10 = (y0 * src_w + x1) * 3;
-                    let i01 = (y1 * src_w + x0) * 3;
-                    let i11 = (y1 * src_w + x1) * 3;
-                    for c in 0..3 {
-                        let v00 = src[i00 + c];
-                        let v10 = src[i10 + c];
-                        let v01 = src[i01 + c];
-                        let v11 = src[i11 + c];
-                        let a0 = v00 + (v10 - v00) * tx;
-                        let a1 = v01 + (v11 - v01) * tx;
-                        row[d + c] = a0 + (a1 - a0) * ty;
+                    let x0 = fx.floor();
+                    let y0 = fy.floor();
+                    let tx = fx - x0;
+                    let ty = fy - y0;
+                    let wx = catmull_rom_weights(tx);
+                    let wy = catmull_rom_weights(ty);
+                    let bx = x0 as isize;
+                    let by = y0 as isize;
+                    let maxx = src_w as isize - 1;
+                    let maxy = src_h as isize - 1;
+                    let mut acc = [0.0f32; 3];
+                    for (j, wj) in wy.iter().enumerate() {
+                        let sy = (by + j as isize - 1).clamp(0, maxy) as usize;
+                        for (i, wi) in wx.iter().enumerate() {
+                            let sx = (bx + i as isize - 1).clamp(0, maxx) as usize;
+                            let w = wi * wj;
+                            let s = (sy * src_w + sx) * 3;
+                            acc[0] += src[s] * w;
+                            acc[1] += src[s + 1] * w;
+                            acc[2] += src[s + 2] * w;
+                        }
                     }
+                    row[d] = acc[0].max(0.0);
+                    row[d + 1] = acc[1].max(0.0);
+                    row[d + 2] = acc[2].max(0.0);
                 }
             });
         image.rgb = out;
