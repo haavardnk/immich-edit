@@ -83,8 +83,8 @@ async fn bundled_camera_models(dir: &Path) -> HashMap<String, String> {
 }
 
 impl DcpStore {
-    pub fn new(pool: SqlitePool, cache_dir: &Path) -> Result<Self, DcpStoreError> {
-        let dir = cache_dir.join("dcp");
+    pub fn new(pool: SqlitePool, data_dir: &Path) -> Result<Self, DcpStoreError> {
+        let dir = data_dir.join("dcp");
         std::fs::create_dir_all(&dir)?;
         Ok(Self {
             pool,

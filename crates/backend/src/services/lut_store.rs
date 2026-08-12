@@ -45,8 +45,8 @@ pub struct LutStore {
 }
 
 impl LutStore {
-    pub fn new(pool: SqlitePool, cache_dir: &Path) -> Result<Self, LutStoreError> {
-        let dir = cache_dir.join("luts");
+    pub fn new(pool: SqlitePool, data_dir: &Path) -> Result<Self, LutStoreError> {
+        let dir = data_dir.join("luts");
         std::fs::create_dir_all(&dir)?;
         Ok(Self {
             pool,

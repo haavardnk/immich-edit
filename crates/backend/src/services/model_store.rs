@@ -51,8 +51,8 @@ pub struct ModelStore {
 }
 
 impl ModelStore {
-    pub fn new(pool: SqlitePool, cache_dir: &Path) -> Result<Self, ModelStoreError> {
-        let dir = cache_dir.join("models");
+    pub fn new(pool: SqlitePool, data_dir: &Path) -> Result<Self, ModelStoreError> {
+        let dir = data_dir.join("models");
         std::fs::create_dir_all(&dir)?;
         Ok(Self { pool, dir })
     }
