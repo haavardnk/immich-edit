@@ -936,6 +936,32 @@ fn clarity_protects_clipped_highlights_and_crushed_shadows() {
 }
 
 #[test]
+fn dehaze_atmosphere_is_resolution_invariant() {
+    let pattern = |w: usize, h: usize| -> Vec<f32> {
+        (0..w * h * 3)
+            .map(|i| {
+                let px = i / 3;
+                let x = (px % w) as f32 / w as f32;
+                let y = (px / w) as f32 / h as f32;
+                let haze = 0.55 + 0.35 * y;
+                let detail = ((x * 47.0).sin() * (y * 31.0).cos()).abs() * 0.25;
+                (haze + detail).min(1.0)
+            })
+            .collect()
+    };
+    let big = crate::cpu::dehaze::atmosphere_for_render(&pattern(1200, 900), 1200, 900);
+    let small = crate::cpu::dehaze::atmosphere_for_render(&pattern(600, 450), 600, 450);
+    let max_d = big
+        .iter()
+        .zip(small.iter())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    if max_d > 0.02 {
+        panic!("atmosphere depends on render size: {big:?} vs {small:?}");
+    }
+}
+
+#[test]
 fn dehaze_zero_is_identity() {
     let mut img = LinearImage::new(
         (0..64 * 64 * 3).map(|i| (i % 100) as f32 / 100.0).collect(),

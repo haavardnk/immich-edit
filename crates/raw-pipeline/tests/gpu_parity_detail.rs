@@ -45,6 +45,30 @@ fn gpu_dehaze_matches_cpu() {
 }
 
 #[test]
+fn gpu_dehaze_matches_cpu_at_guided_filter_downscale() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = rgb8_opts(768);
+    let frame = haze_frame(768, 640);
+    let mut edits = Edits::default();
+    edits.basic.dehaze = 60.0;
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    require_same_dims("dehaze-downscale", &cpu, &gpu);
+    if cpu.width.min(cpu.height) < 512 {
+        panic!(
+            "dehaze downscale case rendered at {}x{}, below the 512 guided-filter threshold",
+            cpu.width, cpu.height
+        );
+    }
+    let mut ledger = ParityLedger::new("dehaze");
+    ledger.check("dehaze+60-large", &cpu.bytes, &gpu.bytes, 0.1);
+    ledger.finish();
+}
+
+#[test]
 fn gpu_dehaze_with_presence_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;

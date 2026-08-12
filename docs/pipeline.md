@@ -32,7 +32,7 @@ The persisted 3D LUT is an `Op` with `Stage::Output` that acts as an orchestrati
 - `Presence` - handled by the presence/luma-pyramid path
 - `Detail` - handled by dedicated detail passes
 
-`dehaze` is a special case: it overrides `apply_cpu` with no generated WGSL contribution. The GPU renderer detects `op.id() == "dehaze"` and runs `passes/dehaze.rs` when `basic.dehaze` is active.
+`dehaze` is a special case: it overrides `apply_cpu` with no generated WGSL contribution. The GPU renderer detects `op.id() == "dehaze"` and runs `passes/dehaze.rs` when `basic.dehaze` is active. Both paths bound the work resolution the same way: the atmosphere is estimated after reducing the image to at most 256 px on the long edge, and once the short edge reaches 512 the transmission is solved as a fast guided filter at quarter resolution, with the `a`/`b` coefficients upsampled before being evaluated against the full-resolution guide.
 
 ## CPU path
 
