@@ -56,6 +56,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         database_url: "sqlite::memory:".into(),
         allowed_origins: Vec::new(),
         max_body_mb: 128,
+        request_timeout_secs: 60,
         original_timeout_secs: 120,
         export_timeout_secs: 300,
         ml_runtime: MlRuntimeMode::Off,

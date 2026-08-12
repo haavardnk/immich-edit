@@ -91,6 +91,13 @@ libheif uses separate plugins for each operation:
 The official image installs `libheif-plugins-all`. Native and custom-image deployments must install
 the required plugins themselves.
 
+### An export returns `408 Request Timeout`
+
+A full-resolution export decodes, renders, encodes, and uploads inside a single request. On CPU-only
+hardware a large file can take several minutes. Exports are allowed `ORIGINAL_TIMEOUT_SECS` plus
+`EXPORT_TIMEOUT_SECS`; raise both if exports are cut short. A reverse proxy in front of immich-edit
+needs a read timeout at least as long — see [deploy](deploy.md).
+
 ## Rendering uses the CPU
 
 Open **Settings** > **Diagnostics** and inspect the active renderer and GPU adapter.

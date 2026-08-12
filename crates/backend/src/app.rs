@@ -71,6 +71,29 @@ pub fn router(state: AppState) -> Router {
     );
     let heavy = GovernorLayer::new(heavy_cfg);
 
+    let request_timeout = Duration::from_secs(state.config.request_timeout_secs);
+    let export_timeout = Duration::from_secs(
+        state
+            .config
+            .original_timeout_secs
+            .saturating_add(state.config.export_timeout_secs),
+    );
+
+    let exports = Router::new()
+        .route(
+            "/assets/{id}/export",
+            get(routes::export::get_export).post(routes::export::post_export),
+        )
+        .route(
+            "/assets/{id}/export/immich",
+            post(routes::export::post_export_immich),
+        )
+        .layer(heavy)
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            export_timeout,
+        ));
+
     let api = Router::new()
         .route("/health", get(routes::health::health))
         .route("/health/live", get(routes::health::live))
@@ -168,16 +191,6 @@ pub fn router(state: AppState) -> Router {
             "/assets/{id}/preview/meta/{meta_id}",
             get(routes::preview::get_meta),
         )
-        .route(
-            "/assets/{id}/export",
-            get(routes::export::get_export)
-                .post(routes::export::post_export)
-                .layer(heavy.clone()),
-        )
-        .route(
-            "/assets/{id}/export/immich",
-            post(routes::export::post_export_immich).layer(heavy),
-        )
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
@@ -191,6 +204,11 @@ pub fn router(state: AppState) -> Router {
                 .route("/dcp/{id}", axum::routing::delete(routes::dcp::delete))
                 .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            request_timeout,
+        ))
+        .merge(exports)
         .fallback(api_not_found)
         .layer(from_fn(auth_middleware))
         .layer(from_fn_with_state(state.clone(), inject_auth_context))
@@ -237,7 +255,7 @@ pub fn router(state: AppState) -> Router {
             .layer(RequestBodyLimitLayer::new(body_bytes))
             .layer(TimeoutLayer::with_status_code(
                 StatusCode::REQUEST_TIMEOUT,
-                Duration::from_secs(60),
+                request_timeout.max(export_timeout),
             ))
             .layer(cors),
     )

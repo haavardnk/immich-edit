@@ -36,6 +36,7 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `ML_IDLE_SECS` | `60` | Seconds before an inactive model session unloads |
 | `ALLOWED_ORIGINS` | Empty | Comma-separated HTTP or HTTPS origins without a path or trailing slash |
 | `MAX_BODY_MB` | `128` | Maximum request body size; must be nonzero |
+| `REQUEST_TIMEOUT_SECS` | `60` | Timeout for ordinary API requests; must be nonzero. Export requests use `ORIGINAL_TIMEOUT_SECS` plus `EXPORT_TIMEOUT_SECS` instead |
 | `ORIGINAL_TIMEOUT_SECS` | `120` | Immich original-download timeout |
 | `EXPORT_TIMEOUT_SECS` | `300` | Immich export/upload timeout |
 

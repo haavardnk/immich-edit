@@ -57,6 +57,7 @@ pub struct Config {
     pub database_url: String,
     pub allowed_origins: Vec<String>,
     pub max_body_mb: u64,
+    pub request_timeout_secs: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
     pub ml_runtime: MlRuntimeMode,
@@ -118,6 +119,7 @@ struct FileConfig {
     database_url: Option<String>,
     allowed_origins: Option<Vec<String>>,
     max_body_mb: Option<u64>,
+    request_timeout_secs: Option<u64>,
     original_timeout_secs: Option<u64>,
     export_timeout_secs: Option<u64>,
     ml_runtime: Option<String>,
@@ -284,6 +286,14 @@ impl Config {
                 value: "0".into(),
             });
         }
+        let request_timeout_secs =
+            parse_or("REQUEST_TIMEOUT_SECS", file.request_timeout_secs, 60u64)?;
+        if request_timeout_secs == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "REQUEST_TIMEOUT_SECS".into(),
+                value: "0".into(),
+            });
+        }
         let original_timeout_secs =
             parse_or("ORIGINAL_TIMEOUT_SECS", file.original_timeout_secs, 120u64)?;
         let export_timeout_secs =
@@ -328,6 +338,7 @@ impl Config {
             database_url,
             allowed_origins,
             max_body_mb,
+            request_timeout_secs,
             original_timeout_secs,
             export_timeout_secs,
             ml_runtime,
@@ -353,6 +364,7 @@ impl Config {
             renderer: self.renderer.as_str(),
             allowed_origins: self.allowed_origins.clone(),
             max_body_mb: self.max_body_mb,
+            request_timeout_secs: self.request_timeout_secs,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
             ml_runtime: self.ml_runtime.as_str(),
@@ -379,6 +391,7 @@ pub struct RedactedConfig {
     pub renderer: &'static str,
     pub allowed_origins: Vec<String>,
     pub max_body_mb: u64,
+    pub request_timeout_secs: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
     pub ml_runtime: &'static str,
@@ -506,6 +519,7 @@ mod tests {
             "IMMICH_EDIT_CONFIG",
             "ALLOWED_ORIGINS",
             "MAX_BODY_MB",
+            "REQUEST_TIMEOUT_SECS",
             "ORIGINAL_TIMEOUT_SECS",
             "EXPORT_TIMEOUT_SECS",
         ] {
