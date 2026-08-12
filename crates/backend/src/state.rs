@@ -75,6 +75,14 @@ impl AppState {
         let auth = AuthStore::new(edits.pool(), crypto.clone());
         let login_limiter = Arc::new(LoginLimiter::new());
         let jobs = JobStore::new(edits.pool(), crypto.clone());
+        let migrated = crate::services::raster_store::migrate_legacy_layout(&config.data_dir)
+            .map_err(|e| anyhow::anyhow!("raster migration: {e}"))?;
+        if migrated > 0 {
+            tracing::info!(
+                count = migrated,
+                "migrated mask rasters out of the cache directory"
+            );
+        }
         let rasters = RasterStore::new(&config.data_dir, config.mask_cache_mb, edits.pool())
             .await
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;

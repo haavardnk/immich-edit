@@ -84,14 +84,9 @@ v0.4.0 changes configuration and the neutral RAW rendering baseline.
 The process refuses removed keys instead of ignoring them. Docker users upgrading an old volume
 mount the existing volume at `/data` instead of `/cache`.
 
-Before the first v0.4.0 start, move existing mask rasters into the new durable directory:
-
-```shell
-mv /data/cache/rasters /data/rasters
-```
-
-Skip this command when the source directory does not exist. Do not overwrite an existing
-`/data/rasters`; merge and verify both trees first.
+On the first v0.4.0 start, mask rasters move automatically from `/data/cache/rasters` to
+`/data/rasters`. Existing destination files are never overwritten; conflicting old files stay in
+`/data/cache/rasters` for review.
 
 ### RAW rendering
 

@@ -49,13 +49,76 @@ pub struct RasterStore {
     pool: SqlitePool,
     state: Arc<Mutex<CacheState>>,
 }
+fn relative_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(current) = pending.pop() {
+        for entry in std::fs::read_dir(&current)? {
+            let entry = entry?;
+            let path = entry.path();
+            if entry.file_type()?.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            let Ok(relative) = path.strip_prefix(root) else {
+                continue;
+            };
+            files.push(relative.to_path_buf());
+        }
+    }
+    Ok(files)
+}
+
+fn remove_empty_dirs(root: &Path) {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
+            remove_empty_dirs(&entry.path());
+        }
+    }
+    let _ = std::fs::remove_dir(root);
+}
+
+pub fn migrate_legacy_layout(data_dir: &Path) -> std::io::Result<usize> {
+    let legacy = data_dir.join("cache").join("rasters");
+    if !legacy.is_dir() {
+        return Ok(0);
+    }
+    let dir = data_dir.join("rasters");
+    if !dir.exists() {
+        let moved = relative_files(&legacy)?.len();
+        if let Some(parent) = dir.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::rename(&legacy, &dir)?;
+        return Ok(moved);
+    }
+    let mut moved = 0;
+    for relative in relative_files(&legacy)? {
+        let source = legacy.join(&relative);
+        let target = dir.join(&relative);
+        if target.exists() {
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::rename(&source, &target)?;
+        moved += 1;
+    }
+    remove_empty_dirs(&legacy);
+    Ok(moved)
+}
+
 impl RasterStore {
     pub async fn new(
-        cache_dir: &Path,
+        data_dir: &Path,
         cap_mb: u64,
         pool: SqlitePool,
     ) -> Result<Self, RasterStoreError> {
-        let dir = cache_dir.join("rasters");
+        let dir = data_dir.join("rasters");
         std::fs::create_dir_all(&dir)?;
         let cap_bytes = cap_mb.saturating_mul(1024 * 1024);
         let mut entries: Vec<((i64, Uuid, String), u64, std::time::SystemTime)> = Vec::new();
@@ -395,6 +458,95 @@ mod tests {
         let r = store.store(epoch(), owner(), &[0u8; 5], 4, 3).await;
         if !matches!(r, Err(RasterStoreError::Invalid(_))) {
             panic!("expected invalid");
+        }
+    }
+
+    fn write_legacy_raster(root: &Path, name: &str, bytes: &[u8]) {
+        let owner_dir = root
+            .join("cache")
+            .join("rasters")
+            .join(epoch().to_string())
+            .join(owner().to_string());
+        std::fs::create_dir_all(&owner_dir).unwrap();
+        std::fs::write(owner_dir.join(format!("{name}.r8")), bytes).unwrap();
+        std::fs::write(owner_dir.join(format!("{name}.json")), b"{}").unwrap();
+    }
+
+    fn current_raster(root: &Path, name: &str) -> PathBuf {
+        root.join("rasters")
+            .join(epoch().to_string())
+            .join(owner().to_string())
+            .join(format!("{name}.r8"))
+    }
+
+    #[tokio::test]
+    async fn migrates_legacy_rasters_and_keeps_them_loadable() {
+        let dir = tempdir().unwrap();
+        let bytes = vec![0x11u8; 4 * 3];
+        let seed = RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap();
+        let meta = seed.store(epoch(), owner(), &bytes, 4, 3).await.unwrap();
+        let legacy = dir.path().join("cache").join("rasters");
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        std::fs::rename(dir.path().join("rasters"), &legacy).unwrap();
+
+        let moved = migrate_legacy_layout(dir.path()).unwrap();
+        if moved != 2 {
+            panic!("expected both raster files to move, got {moved}");
+        }
+        if legacy.exists() {
+            panic!("legacy directory must be gone");
+        }
+
+        let store = RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap();
+        let (_, loaded) = store.load(epoch(), owner(), &meta.raster_id).await.unwrap();
+        if loaded != bytes {
+            panic!("migrated raster must load unchanged");
+        }
+        if migrate_legacy_layout(dir.path()).unwrap() != 0 {
+            panic!("second run must be a no-op");
+        }
+    }
+
+    #[tokio::test]
+    async fn merges_legacy_rasters_into_an_existing_directory() {
+        let dir = tempdir().unwrap();
+        RasterStore::new(dir.path(), unlimited(), pool().await)
+            .await
+            .unwrap()
+            .store(epoch(), owner(), &[0x22u8; 12], 4, 3)
+            .await
+            .unwrap();
+        write_legacy_raster(dir.path(), "legacy", &[0x33u8; 12]);
+        let kept = current_raster(dir.path(), "kept");
+        std::fs::create_dir_all(kept.parent().unwrap()).unwrap();
+        std::fs::write(&kept, [0x44u8; 12]).unwrap();
+        std::fs::write(kept.with_extension("json"), b"{}").unwrap();
+        write_legacy_raster(dir.path(), "kept", &[0x55u8; 12]);
+
+        let moved = migrate_legacy_layout(dir.path()).unwrap();
+        if moved != 2 {
+            panic!("expected only the legacy-only files to move, got {moved}");
+        }
+        if std::fs::read(current_raster(dir.path(), "legacy")).unwrap() != [0x33u8; 12] {
+            panic!("legacy raster content changed");
+        }
+        if std::fs::read(&kept).unwrap() != [0x44u8; 12] {
+            panic!("existing raster must win over the legacy copy");
+        }
+        if !dir
+            .path()
+            .join("cache")
+            .join("rasters")
+            .join(epoch().to_string())
+            .join(owner().to_string())
+            .join("kept.r8")
+            .exists()
+        {
+            panic!("conflicting legacy file must be preserved, not deleted");
         }
     }
 
