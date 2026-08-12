@@ -1,12 +1,12 @@
 name: Deployment problem
-description: Get help with Docker, networking, GPU passthrough, auth, or storage.
+description: Report a reproducible Docker, networking, GPU, auth, or storage defect.
 title: "Deploy: "
 labels: [deployment]
 body:
   - type: markdown
     attributes:
       value: |
-        Check the [deployment docs](https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md) before opening this. Most setup problems come down to env vars, permissions, proxy headers, or GPU group access.
+        Check the [deployment docs](https://haavardnk.github.io/immich-edit/deploy/) and [troubleshooting](https://haavardnk.github.io/immich-edit/troubleshooting/) first. Ask setup questions in [GitHub Discussions](https://github.com/haavardnk/immich-edit/discussions). Use this form for a reproducible deployment defect.
   - type: dropdown
     id: area
     attributes:
@@ -16,8 +16,8 @@ body:
         - Can't reach Immich (immich_reachable=false)
         - GPU passthrough / renderer falls back to CPU
         - Reverse proxy / CORS / TLS
-        - Built-in token auth
-        - Cache / database / permissions
+        - Setup / sign-in / user access
+        - Storage / database / permissions
         - Other
     validations:
       required: true

@@ -1,162 +1,163 @@
-# Raw Pipeline
+---
+layout: default
+title: Render pipeline
+nav_order: 16
+permalink: /pipeline/
+---
 
-This is the contributor map for render-pass ownership. Keep it in sync when an operator changes stage, gains GPU support, or moves between passes.
+# Render pipeline
 
-## Operator model
+This page defines render-stage and CPU/GPU ownership. Update it when an operator changes stage,
+route, resolution, or color-space behavior.
 
-`crates/raw-pipeline/src/ops.rs` defines a single `Op` trait. The registry stores operators as `Box<dyn Op>` and sorts by `(stage, order)`.
+## Operator registry
 
-Stages run in this order:
+`crates/raw-pipeline/src/ops.rs` registers operators and sorts them by `(stage, order)`:
 
-`Sensor -> WhiteBalance -> Tone -> Color -> Geometry -> Output`
+```text
+Sensor -> WhiteBalance -> Tone -> Color -> Geometry -> Output
+```
 
-Every operator implements the metadata half of `Op`:
+Every operator implements `Op` and declares one mandatory `GpuRoute`:
 
-- `id() -> &'static str`
-- `stage() -> Stage`
-- `order() -> i32`
-- `is_active(&Edits) -> bool`
-- `to_doc` / `from_doc` for persisted edit data
+| Route | Meaning |
+| --- | --- |
+| `Fused` | Pointwise Rust and WGSL implementation in the generated process pass |
+| `Presence` | Texture, clarity, and luma-pyramid infrastructure |
+| `Detail` | Dedicated noise-reduction or capture-sharpen path |
+| `Pass(name)` | Dedicated named GPU pass such as retouch or dehaze |
+| `Manifest` | Persistence-only entry that never runs as a normal operator |
 
-The behaviour half has defaults, so each operator only implements what it needs.
+There is no default route. A new operator that omits it fails to compile. Registry tests check that
+named passes exist, manifest operators never become active, and only fused operators expose WGSL
+snippets.
 
-Pointwise operators implement `cpu_fused`, returning a `CpuFusedOp` that is batched into generated CPU/GPU process passes, and can contribute WGSL through `gpu()`. Exposure, contrast, curves, HSL, white balance, and color matrix work this way. The default `apply_cpu` runs `cpu_fused` as a one-op segment, so a fused operator never needs its own `apply_cpu`.
+Fused math remains written in Rust and WGSL. `src/ops/shader_parity.rs` builds a standalone shader
+from each fused operator, runs a scene-linear color grid, and compares it with `apply_cpu` at a
+relative tolerance of `1e-4`. This also checks uniform packing.
 
-Neighbourhood and geometry operators override `apply_cpu` directly and may opt into `GpuOpKind::Presence` or `GpuOpKind::Detail`. `GpuOpKind::Normal` is the default; active normal ops in the GPU process pass must return `gpu()` unless the renderer handles them specially.
+## CPU flow
 
-The persisted 3D LUT is an `Op` with `Stage::Output` that acts as an orchestration hook. Other CPU output effects are ordinary `Stage::Output` operators; final tone/output conversion and the resolved LUT run after `run_output_ops` in `finish_output` and encode.
+`cpu::render_with_cancel`:
 
-`GpuOpKind` currently has three values:
+1. Demosaics Bayer or X-Trans mosaics.
+1. Resolves the camera matrix and DCP baseline.
+1. Runs sensor operations, including effective lens corrections.
+1. Applies EXIF orientation.
+1. Runs WhiteBalance, Tone, Color, and Geometry operators.
+1. Runs Output operators.
+1. Applies the DCP LookTable and tone curve, destination gamut, and creative 3D LUT.
+1. Computes preview metadata and encodes the result.
 
-- `Normal` - generated into the process pass
-- `Presence` - handled by the presence/luma-pyramid path
-- `Detail` - handled by dedicated detail passes
+CPU operators do not skip `Detail` routes. Noise reduction, capture sharpening, creative sharpening,
+retouch, dehaze, masks, and geometry all have CPU implementations.
 
-`dehaze` is a special case: it overrides `apply_cpu` with no generated WGSL contribution. The GPU renderer detects `op.id() == "dehaze"` and runs `passes/dehaze.rs` when `basic.dehaze` is active. Both paths bound the work resolution the same way: the atmosphere is estimated after reducing the image to at most 256 px on the long edge, and once the short edge reaches 512 the transmission is solved as a fast guided filter at quarter resolution, with the `a`/`b` coefficients upsampled before being evaluated against the full-resolution guide.
+### Sensor-stage cache
 
-## CPU path
+`SPATIAL_BOUNDARY = (Tone, -35)` separates expensive source-dependent work from display work.
+`CpuRenderer` can cache the lower half for previews: demosaic, lens correction, orientation, white
+balance, retouch, noise reduction, capture sharpening, and preview reduction. Exposure, tone,
+color, geometry, masks, and output continue from the cached image.
 
-Main entry: `cpu::render_with_cancel` in `crates/raw-pipeline/src/cpu/pipeline.rs`.
+Quality renders, nonstandard preview modes, and masks that change local white balance bypass the
+cache. `tests/cpu_cache.rs` compares cache misses and hits with uncached `cpu::render`.
 
-Flow:
+## GPU flow
 
-1. Demosaic RAW frames when needed.
-2. Resolve the camera profile. Auto mode asks the backend for a camera-model match; the DCP matrix becomes `OpContext.cam_to_srgb`, scaled by the profile's baseline exposure when that toggle is on. The render adds no exposure of its own. When Auto finds nothing, RAW frames fall back to the built-in **Default Color** profile — no hue/sat tables, just the ProPhoto matrices and a general-purpose tone curve. Choosing **Flat** skips the profile stage entirely, and non-RAW files always render Flat.
-3. Run `Sensor` ops through `run_sensor_ops` when lens edits are active. For RAW files the backend resolves the lens baseline first: if the sidecar never states a preference, a matching lensfun profile is applied with constrained crop, the same way an unset camera profile falls back to the auto match.
-4. Apply EXIF orientation.
-5. Run edit ops through `run_pipeline_ops`.
-6. Resize to `RenderOptions::max_edge`.
-7. Run `Stage::Output` ops through `run_output_ops`.
-8. Run `finish_output`: DCP LookTable and profile tone curve in linear ProPhoto, output conversion, then the display-referred 3D LUT.
-9. Encode.
+`GpuRenderer::render_with_cancel` selects a fast path or the presence/detail path. Current order:
 
-`run_pipeline_ops` batches consecutive fused operators into `FusedSegment`s, then flushes before CPU spatial work. Mask layers build their own effective edits and run through masked fused segments so each layer can apply a different local adjustment set.
+| Order | Pass | Responsibility |
+| --- | --- | --- |
+| 1 | Upload and demosaic | Mosaic or RGB input to scene-linear texture |
+| 2 | Sensor | Lens vignette and sensor-space corrections |
+| 3 | White-balance preparation | White balance and camera-to-sRGB base |
+| 4 | Retouch | Heal and clone strokes when active |
+| 5 | Noise reduction | Luma, then color bilateral stages |
+| 6 | Capture sharpening | RAW-only deconvolution before preview reduction |
+| 7 | Preview reduction | Shared Lanczos3 target when the source is over twice the preview size |
+| 8 | Dehaze | Bounded atmosphere estimate and guided filter |
+| 9 | Presence | Texture, clarity, and shadows pyramid |
+| 10 | Process | Fused operators and geometry sampling |
+| 11 | DCP base table | Camera HueSatMap in linear ProPhoto |
+| 12 | Masks | Component weight and local adjustment blend |
+| 13 | Sharpen | Global and per-pixel masked amount |
+| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve |
+| 15 | DCP finish | LookTable and profile tone curve |
+| 16 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
+| 17 | Mask overlay | Optional red coverage overlay |
+| 18 | Readback and encode | Warning paint, histogram, and output encoding |
 
-Mask preview mode is a separate path. It omits the previewed layer's local adjustments, evaluates the complete layer weight, runs geometry and output effects, applies the DCP finish, then blends the translucent red overlay. The creative LUT and non-sRGB output conversion still live beyond the CPU overlay's early `display_ready` return and are not applied on this path.
+The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
+the contract.
 
-Current CPU detail behaviour is important: `GpuOpKind::Detail` ops are skipped in `run_pipeline_ops`. Today that means luma NR, color NR, sharpen, and capture sharpen are GPU-owned in the normal render path. If CPU parity for those edits becomes required, change the code and this document together.
+## Resolution and geometry
 
-Capture sharpening is the one detail op that is on by default. It runs only when the source is RAW and the decoder produced a blur estimate (`RawFrame::capture_sigma`), and it deconvolves the luma channel with eight Richardson-Lucy iterations before any creative tone work. The correction is gated by local contrast, shadow level, and highlight proximity so flat noise, deep shadows, and clipped highlights are left alone, then clamped to the local min/max of the original luma to suppress halos.
+Both renderers use `geom::preview_ratio` and `geom::resample_target`. A non-quality preview whose
+cropped source is at least twice its output size reduces at the spatial boundary. Noise reduction,
+retouch, and capture sharpening remain at source resolution; dehaze and later work run near preview
+size.
 
-## GPU path
+The reduction uses separable Lanczos3 in scene-linear space. Geometry samples fractional source
+coordinates with the same Catmull-Rom bicubic kernel on CPU and GPU. The reduction ratio comes from
+the active crop, not the full sensor.
 
-Main entry: `GpuRenderer::render_with_cancel` in `crates/raw-pipeline/src/gpu/renderer.rs`.
+### Region of interest
 
-`RenderPlan::select` chooses:
+`RenderOptions.roi` is a normalized rectangle in display space after orientation, perspective,
+angle, and user crop. The backend composes it into the geometry crop, so lens, masks, and transforms
+use the normal path. Vignette and grain remap tile coordinates to the full frame to keep their
+appearance stable.
 
-- `Fast` - no presence inputs. Upload/demosaic plus process pass is enough.
-- `Presence` - runs white-balance prep and dedicated detail/presence/dehaze paths before process.
+The editor requests the visible region at the required device-pixel size. It draws the tile over the
+full preview so overlays and surrounding pixels remain stable while the tile loads. Base, original,
+and ROI requests use separate render-queue lanes so concurrent views do not cancel one another.
 
-Dispatch order:
+## Dehaze resolution
 
-| Order | Pass | Source | Owns |
-| --- | --- | --- | --- |
-| 1 | upload / demosaic | `get_or_demosaic`, `passes/demosaic.rs`, `passes/xtrans.rs` | RAW or RGB input to linear `Rgba16Float`; Bayer takes one dispatch, X-Trans takes two; mipgen for source textures. |
-| 2 | sensor | `run_sensor`, `passes/sensor.rs` | Active lens sensor ops before orientation/crop sampling. |
-| 3 | wb_prepare | `run_wb_prepare`, `passes/wb_prepare.rs` | White balance plus camera-to-sRGB pre-pass for presence/detail work. |
-| 4 | NR | `run_nr`, `passes/nr.rs`, `passes/nr_smooth.rs` | `luma_nr`, `color_nr` detail work. |
-| 5 | capture sharpen | `run_capture_sharpen`, `passes/capture_sharpen.rs` | RAW-only Richardson-Lucy deconvolution of sensor blur, after NR so noise is not amplified. |
-| 6 | dehaze | `atmosphere_for`, `run_dehaze`, `passes/dehaze.rs` | Atmosphere estimate and DCP/guided-filter dehaze. |
-| 7 | presence | `run_presence`, `passes/presence.rs`, `passes/luma_pyramid.rs` | Texture and clarity. Shadows builds a luma pyramid later when needed. |
-| 8 | process | `process`, `passes/process.rs`, generated `process.wgsl` | Pointwise ops, crop/rotate/flip/angle sampling, fast-path tone. |
-| 9 | DCP base table | `encode_dcp_huesat`, `passes/dcp_huesat.rs` | Camera HueSatMap in linear ProPhoto; skipped when disabled or unmatched. |
-| 10 | masks | `passes/mask_weight.rs`, `passes/mask_blend.rs` | Per-layer mask weight and local adjustment blend. |
-| 11 | sharpen | `encode_sharpen`, `passes/sharpen.rs` | Sharpen and sharpen preview modes. |
-| 12 | effects + output | `encode_effects_tone`, `passes/effects_tone.rs` | Vignette, grain, destination-gamut projection, and output conversion when a final pass is active. |
-| 13 | DCP finish | `encode_dcp_huesat`, `dcp_huesat.wgsl` | LookTable value-axis encoding and the hue-preserving profile tone curve. |
-| 14 | 3D LUT | `maybe_encode_lut`, `passes/lut.rs` | Display-referred `.cube` LUT with tetrahedral interpolation. |
-| 15 | mask preview overlay | `passes/mask_overlay.rs` | Optional translucent red layer-weight overlay after DCP and LUT. |
-| 16 | readback / encode | `gpu/readback.rs`, `encode::encode_from_rgba8` | RGBA readback, histogram, JPEG/other output encode. |
+Both paths estimate atmosphere after reducing the long edge to at most 256 pixels. When the short
+edge is at least 512 pixels, both solve the guided-filter coefficients at quarter resolution,
+upsample those coefficients, and evaluate transmission against the full guide. CPU and GPU sampling
+rules must change together.
 
-## Resolution reduction
+## Camera profiles and tone
 
-Requests smaller than the sensor are downscaled by a separable Lanczos3 compute pass (`passes/resample.rs`, `assets/shaders/resample.wgsl`, driven by `resample_lanczos` in `gpu/renderer/resample.rs`), matching the CPU path's `fast_image_resize` Lanczos3. Two dispatches run in scene-linear, horizontal then vertical, and negative lobes are clamped at zero so ringing cannot produce negative radiance.
+RAW rendering has three profile outcomes:
 
-The reduction factor comes from the cropped region, not the full sensor, so a crop is rendered from source pixels at its own scale instead of being softened by the uncropped ratio. Output dimensions are computed once from the original frame dimensions and passed into `process`, so an already-downscaled working texture cannot shift the result size by a rounding step.
+- A matched or explicitly selected DCP supplies camera matrices, optional HueSatMap and LookTable,
+  and an optional profile tone curve.
+- **Default Color** supplies no tables and uses the built-in tone curve.
+- **Flat** skips the profile stage and uses only the camera matrix.
 
-`Presence` additionally downscales once up front when a preview is more than 2x smaller than the source, so spatial passes run at preview scale. The geometry warp then samples with a Catmull-Rom bicubic tap rather than a bilinear one, on both paths: geometry sampling lands on fractional coordinates whenever a crop origin, rotation, or perspective warp is not pixel-aligned, and bilinear visibly softens those cases.
+Non-RAW input is always Flat. Neutral RAW rendering carries no hidden content-dependent exposure.
+Matched DCP baseline exposure applies only through its explicit profile control.
 
-## Region of interest
+Working textures use linear scene-referred sRGB primaries except while DCP tables operate in linear
+ProPhoto. The profile tone curve precedes output gamut conversion. The creative 3D LUT runs last in
+display-referred sRGB.
 
-`RenderOptions.roi` renders only part of the image, at the full `max_edge` budget. It is a normalised rectangle in display space — after orientation, perspective, angle and the user crop — which is what a zoomed viewer can measure directly off the screen. The point is detail: a fit-to-window preview of a 60 MP frame throws away most of the sensor, so per-pixel work such as capture sharpening and noise reduction cannot be judged from it.
+## Output color and warnings
 
-The rectangle is composed into the geometry crop at the top of the render, so everything downstream — the transform op, output sizing, masks, lens corrections — treats the tile as an ordinary crop and needs no special case. Vignette and grain are the exception, since they are defined against the output frame rather than the source: they receive the rectangle and remap back onto the full frame, so a tile shows the same falloff and the same grain as the region it came from. Both renderers do this; on the GPU the remap rides along in the `effects_tone` uniform.
+`RenderOptions.output_color_space` selects sRGB or Display P3. The working space stays unchanged;
+the primary matrix, gamut projection, transfer curve, and matching ICC profile apply at output.
 
-The editor uses this for everything it paints, not only when zoomed. `web/src/lib/utils/view-geometry.ts` works out where the image frame lands in the viewport, which part of it is visible, and how many device pixels that region will occupy. It then asks for exactly that rectangle at exactly that pixel count, so the browser never resamples: one source pixel lands on one device pixel, at an integer device-pixel offset. This holds at fit as well as at 400%, and it is why resizing a sidebar changes the render instead of stretching it.
+Clipping and gamut classes travel through the GPU display texture's alpha channel until readback.
+Any pass added after tone must preserve or recompute alpha. CPU and GPU classify the undithered,
+post-LUT display result. Warnings are preview-only and never enter edits or exports.
 
-The request is padded by 10% and quantised to 1/512 so small pans reuse the render already on screen, and it is skipped entirely when the rectangle in hand already covers the visible region at sufficient resolution. Resolution is capped by the source: the store tracks the sensor's long edge, and when the server returns fewer pixels than asked for it learns the real limit from the response and stops over-requesting. Beyond that point the render is upscaled to fill its box rather than left the wrong size.
+## Masks
 
-The result is drawn over the full-frame preview rather than replacing it, so overlays, the histogram and the crop tool keep measuring one unchanging base image, and the base stays visible around the edges while a pan is in flight. Any edit drops it and it returns 150 ms after the view settles.
+Masks are manifest operators with dedicated render paths. Components evaluate in scene space and
+stay anchored through lens and geometry changes. Generated masks are stored as ordinary `r8`
+rasters, so model inference does not run during preview or export.
 
-## Color-space rules
+CPU builds local layer images and blends them once. GPU computes component weights and blends each
+layer through dedicated mask passes. Masked sharpening uses a per-pixel amount map on both paths.
 
-Intermediate GPU textures from upload through profile/edit processing are linear scene-referred sRGB in `Rgba16Float`. Output conversion happens once:
+## Add an operator
 
-- In `process.wgsl` for the fast path with no sharpen/effects/masks.
-- In `effects_tone.wgsl` whenever sharpen, vignette, grain, masks, DCP, or Display P3 output require the final pass.
-
-DCP tables operate in linear ProPhoto. `ProfileHueSatMapEncoding` and `ProfileLookTableEncoding` affect only the HSV value lookup/scaling axis. The LookTable runs before the profile tone curve. The tone curve follows a hue-preserving min/max transform rather than applying the curve independently to all RGB channels.
-
-The user LUT is separate from camera profiling: it runs last on display-referred sRGB. CPU and GPU both use tetrahedral interpolation.
-
-There is no type-level distinction between linear and gamma-encoded textures. The one-line `color-space:` headers in pass files are the current guardrail; review new passes carefully.
-
-## Effect ownership
-
-`vignette` and `grain` are `SpatialOp`s with `Stage::Output`. On CPU they run in `run_output_ops` before `finish_output`. On GPU they are baked into `effects_tone.wgsl` and run before tone mapping.
-
-`transform` is a generated process-pass contribution on GPU. On CPU it is a normal `SpatialOp` in `Stage::Geometry`.
-
-`masks` is registered in `default_registry()` so its parameters persist through `to_doc`/`from_doc`, but `is_active()` always returns false, so it never runs as a normal op. CPU masks are handled inside `run_pipeline_ops`; GPU masks use `mask_weight` and `mask_blend`, both submitted from within `process()` on the same command encoder rather than as separate calls. A GPU mask preview evaluates the selected layer into `mask_weight`, skips normal local-mask blending, and runs `mask_overlay` after DCP and LUT.
-
-`DcpProfileOp` retains manifest ID `dcp_hue_sat` for compatibility. It owns profile persistence and CPU base-table dispatch; the GPU renderer uses dedicated 3D-texture passes. Matrix selection and profile setup live in `dcp_pipeline.rs`.
-
-Lens ownership is split. `lens_vignette` is handled by `passes/sensor.rs` on GPU. Lens distortion and chromatic aberration have CPU implementations; the GPU path still uses lens warp parameters for mask sampling.
-
-## Mask generation renders
-
-AI mask generation first renders an `OutputFormat::Rgb8` frame for the segmentation service. The backend loads the saved edits, then clears geometry, lens, effects, and masks. Exposure, white balance, camera profiling, and other global color edits remain, so the model sees a useful image while its raster stays in the same scene-space coordinates as manual masks.
-
-`Rgb8` is raw interleaved RGB bytes with no image container. It is an internal pipeline output and is not accepted by public preview or export requests.
-
-Inference runs outside raw-pipeline in the backend `SegmentService`. The result and its probability map are stored as `r8` rasters. Rendering sees the result as a normal brush component, so generated masks use the same CPU and GPU paths as painted masks.
-
-## Adding an operator
-
-1. Pick a role:
-   - Pointwise: implement `FusedOp`, return `cpu_fused`, add `gpu()` if GPU should support it in the generated process pass.
-   - Spatial CPU-only: implement `SpatialOp::apply_cpu`. Make sure the GPU path either rejects it clearly or has an equivalent dedicated path.
-   - Spatial GPU detail/presence: implement `SpatialOp`, return `GpuOpKind::Detail` or `GpuOpKind::Presence`, then wire the renderer pass.
-   - Output setting: implement `OutputStageOp` only for persisted output options.
-2. Register it in `default_registry()`.
-3. Add edit round-trip coverage in `ops/tests.rs` when it persists edits.
-4. Add render-path coverage in CPU/GPU tests when it changes pixels.
-5. Update the dispatch table above.
-
-## Tracing and cancellation
-
-Top-level CPU and GPU boundaries have tracing spans such as `cpu.pipeline_ops`, `gpu.upload_rgb`, `gpu.demosaic`, `gpu.mipgen`, `gpu.run_nr`, `gpu.run_presence`, `gpu.run_wb_prepare`, `gpu.run_sensor`, `gpu.encode_effects_tone`, `gpu_dehaze`, and `gpu_dehaze_atm`.
-
-`CancelToken` is checked between CPU-side boundaries in both renderers. Long GPU readbacks use `map_buffer_cancellable`, which polls the device and returns `PipelineError::Cancelled` when the token flips.
-
-Once submitted to the GPU queue, a sub-pass runs to completion. Cancellation is honoured at the next CPU checkpoint after submit.
+1. Choose its stage and CPU implementation.
+1. Declare its `GpuRoute`.
+1. Register it in `default_registry()`.
+1. Add manifest round-trip coverage when it persists data.
+1. Add fused shader parity or dedicated CPU/GPU parity coverage when it changes pixels.
+1. Update this page when ownership, order, resolution, or color space changes.

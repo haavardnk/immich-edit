@@ -1,7 +1,10 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and community support
+    url: https://github.com/haavardnk/immich-edit/discussions
+    about: Ask usage, setup, workflow, and contributor questions. Community support is best effort.
   - name: Deployment and configuration docs
-    url: https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md
+    url: https://haavardnk.github.io/immich-edit/deploy/
     about: Docker Compose, env vars, GPU passthrough, reverse proxies, and common setup problems.
   - name: Releases
     url: https://github.com/haavardnk/immich-edit/releases

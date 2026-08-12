@@ -1,176 +1,175 @@
+---
+layout: default
+title: Troubleshooting
+nav_order: 12
+permalink: /troubleshooting/
+---
+
 # Troubleshooting
 
-## Backend will not start
+Start with **Settings** > **Diagnostics** and the server log. Error responses include a request ID
+that identifies the matching log span.
 
-### "Data directory not writable"
+## The server does not start
 
-The configured `DATA_DIR` is unwritable. With Docker, ensure the bind-mount or named volume is writable by UID/GID 10001 (the image's non-root user).
+### `data dir not writable`
 
-### "DATABASE_URL invalid" / sqlite open errors
+The process cannot create or write `DATA_DIR`. The official container runs as UID and GID `10001`.
+Fix the bind-mount ownership or use a named volume.
 
-The default `sqlite://./data/immich-edit.db?mode=rwc` expects `data/` to exist and be writable. If you override `DATABASE_URL`, keep `?mode=rwc` so sqlite creates the file on first start.
+### A removed setting is reported
 
-### "invalid value for ALLOWED_ORIGINS"
+v0.4.0 refuses `CACHE_DIR` and `SEGMENT_*`. Replace them with `DATA_DIR` and `ML_*`. Remove old
+Immich URL or shared credential variables and configure the connection in the browser.
 
-Each CORS origin must be an HTTP or HTTPS origin, not a full URL. Use `https://edit.example.com`, not `https://edit.example.com/api` or `https://edit.example.com/`. Separate env values with commas.
+### SQLite cannot open the database
 
-## Sign-in problems
+Confirm `DATA_DIR` exists and is writable. A custom `DATABASE_URL` should include `?mode=rwc` when
+SQLite must create the file.
 
-### Stuck on the setup screen
+### `invalid value for ALLOWED_ORIGINS`
 
-Setup needs an Immich **admin** account for the server you entered. Non-admin credentials are rejected. Confirm the URL is reachable from the immich-edit container and that the account has admin rights in Immich.
+Use exact HTTP or HTTPS origins without paths or trailing slashes:
 
-### "immich url host is not allowed"
+```text
+https://edit.example.com
+```
 
-The Immich URL points at a blocked address (link-local, cloud metadata `169.254.169.254`, unspecified, or multicast). Use the server's normal hostname or LAN/private IP. Loopback and private addresses are allowed.
+Separate several environment values with commas.
 
-### Cannot log in with a valid Immich account
+## Setup or sign-in fails
 
-Password login proxies to Immich; if your Immich uses OAuth-only sign-in, use the **API key** option on the login screen instead. If an admin disabled your access, ask them to re-enable it in Settings. Repeated failures are rate-limited for a few minutes.
+### Setup stays on the first screen
 
-## Immich upstream errors
+Setup requires an Immich administrator. Confirm the Immich URL is reachable from the immich-edit
+container and the selected account is an administrator.
 
-The Settings page shows a specific Immich status. `/api/health` exposes the same data as `immich_status.kind` and `immich_status.message`.
+### `immich url host is not allowed`
 
-### `unreachable`
+The URL points at a link-local, cloud metadata, unspecified, multicast, or credential-bearing
+address. Use the normal hostname, loopback address, or private network address.
 
-The backend cannot reach the configured Immich server. Check that the URL entered during setup is correct, the Immich server is running, and Docker networks let the two containers see each other (typically same Compose network or both on `bridge`). An admin can update the server URL from Settings.
+### A valid user cannot sign in
 
-### `api_key_rejected`
+Password login is unavailable for an OAuth-only Immich account. Create an Immich API key and use
+the API-key option. An administrator can also disable local access under **Settings**.
 
-Your Immich session is no longer valid. Sign out and sign back in; if you signed in with an API key, generate a new key in Immich (Account Settings > API Keys) and use it.
+Repeated failures trigger temporary rate limiting.
 
-### `timeout`
+## Immich is unavailable
 
-A request to Immich took longer than the configured timeout. For large RAW downloads, raise `ORIGINAL_TIMEOUT_SECS` (default 120). For export/upload, raise `EXPORT_TIMEOUT_SECS` (default 300).
+Diagnostics distinguishes these states:
 
-### `upstream_5xx`
+- `unreachable`: check the URL, Immich process, DNS, and Docker networks.
+- `api_key_rejected`: sign out and authenticate again. Replace an expired or revoked API key.
+- `timeout`: raise `ORIGINAL_TIMEOUT_SECS` for original downloads or `EXPORT_TIMEOUT_SECS` for
+  uploads after checking Immich performance.
+- `upstream_5xx`: inspect Immich and its reverse-proxy logs.
 
-The backend retries idempotent GETs with jittered exponential backoff. Persistent failures usually indicate Immich is restarting, overloaded, or behind a reverse proxy with a strict idle timeout. Check Immich logs first.
+Smart search can fail while the rest of Immich works because it also depends on Immich machine
+learning. immich-edit falls back to filename search in that case.
 
-## RAW decoding
+## A file does not open or export
 
-### "Unsupported format"
+### `unsupported_format`
 
-The decoder relies on [rawler](https://github.com/dnglab/dnglab/tree/main/rawler). If a specific camera body is missing, file an issue with the file extension, camera model, and a sample file if possible. As a workaround, convert the file to DNG with Adobe DNG Converter.
+Check [compatibility](compatibility.md). Include the camera make, model, extension, and a sample
+file when reporting a decoder gap. Converting to DNG can provide a temporary workaround for some
+RAW formats.
 
-### HEIC will not open, or HEIC/AVIF export fails
+### HEIC or AVIF capabilities are missing
 
-Look for `DecoderPluginError` when opening or `UnsupportedFileType` when exporting. Both mean libheif is present but the codec plugin behind it is not.
+libheif uses separate plugins for each operation:
 
-Settings -> Diagnostics lists decode and export separately for HEIC and AVIF. They come from different packages, so one can work while the other fails:
-
-| Need | Package |
-|---|---|
+| Capability | Debian package |
+| --- | --- |
 | HEIC decode | `libheif-plugin-libde265` |
-| HEIC export | `libheif-plugin-x265` |
+| HEIC encode | `libheif-plugin-x265` |
 | AVIF decode | `libheif-plugin-dav1d` |
-| AVIF export | `libheif-plugin-aomenc` or `libheif-plugin-rav1e` |
+| AVIF encode | `libheif-plugin-aomenc` or `libheif-plugin-rav1e` |
 
-The official Docker image installs `libheif-plugins-all` and needs nothing extra. If you build your own image or run from source, install the plugins for the formats you use.
+The official image installs `libheif-plugins-all`. Native and custom-image deployments must install
+the required plugins themselves.
 
-### Demosaiced colors look wrong
+## Rendering uses the CPU
 
-Check that camera white balance is selected, not auto. If colors are still off, the camera's color matrix may be missing in rawler. Try setting custom temp/tint manually.
+Open **Settings** > **Diagnostics** and inspect the active renderer and GPU adapter.
 
-### Highlights blow out hard
+- AMD or Intel Docker: pass `/dev/dri` and the group that owns the render node.
+- NVIDIA Docker: install NVIDIA Container Toolkit and add the GPU reservation.
+- macOS Docker: Metal passthrough is unavailable. Use native execution for GPU rendering.
+- Native macOS: inspect the startup log for the Metal adapter and device errors.
 
-RAW rendering includes hue-preserving recovery for channels clipped near sensor white. It runs with camera white balance on both CPU and GPU paths. It can reduce color casts when one channel clips before the others, but it cannot recover detail when every channel is fully clipped. Bring Highlights down to reveal the recovered transition, then adjust Whites as needed.
+`IMMICH_EDIT_RENDERER=gpu` logs GPU initialization failures, then falls back to CPU.
 
-## GPU rendering
+## The GPU device is lost
 
-### Renderer shows CPU even though I have a GPU
+The backend falls back to CPU for active renders and later attempts to rebuild the GPU renderer.
+Restart the service after a driver crash. If device loss repeats under memory pressure, lower
+`RENDER_MAX_CONCURRENCY` and `GPU_TEXTURE_CACHE_MB`.
 
-Hit `GET /api/health` (authenticated) and check `renderer_active` and `gpu_adapter`. If `gpu_adapter` is empty:
+## AI masks are unavailable
 
-- **Docker, AMD/Intel**: confirm `/dev/dri` is passed in and `video` + `render` groups are added. Run `vulkaninfo --summary` inside the container to verify the loader sees the GPU.
-- **Docker, NVIDIA**: confirm `nvidia-container-toolkit` is installed on the host and the compose `deploy.resources.reservations.devices` block is present. `nvidia-smi` inside the container should list the GPU.
-- **macOS native**: should always pick Metal. If not, check the wgpu adapter line in the startup logs.
-- **macOS in Docker**: Metal cannot pass through to a container. Use native execution or accept the CPU fallback.
+### A mask type is missing
 
-### "Device lost" mid-render
-
-GPU drivers occasionally drop the wgpu device under memory pressure or after a driver crash. The backend logs the event and falls back to CPU for in-flight renders. Restart the service to recreate the GPU device. If it keeps happening, lower `MASK_CACHE_MB` and `RENDER_MAX_CONCURRENCY`.
-
-### Renders are slow on small RAWs
-
-The first render warms up GPU pipelines and uploads textures; expect a delay of 1 to 3 seconds. Subsequent edits to the same asset should be sub-second.
-
-## AI masks
-
-### A mask type is missing from the New mask menu
-
-An admin must install a model for that mask type under **Settings > Mask models**. Subject, people, sky, depth, scene classes, and click-guided masks each use a separate model. If the whole section is disabled, check `config.ml_runtime` on `GET /api/health`; `off` disables model inference.
+An administrator must install that model kind under **Settings** > **Mask models**. Check
+`ML_RUNTIME`; `off` disables every generated mask.
 
 ### Model installation fails
 
-The server downloads catalog models over HTTPS from GitHub or Hugging Face. Check outbound network access from the container, free space under `DATA_DIR/models/`, and backend logs. The installer rejects an interrupted or changed download when its SHA-256 hash does not match the catalog.
+The server needs outbound HTTPS to the model source and space under `DATA_DIR/models`. The installer
+rejects incomplete or changed files when the SHA-256 digest differs.
 
-### Mask generation is slow or fails on the GPU
+### Inference is slow
 
-`ML_RUNTIME=auto` tries WebGPU first and falls back to CPU if the provider cannot start. The backend logs the selected backend and elapsed time after each generation. CPU inference can take several seconds, depending on the model.
+The first request loads a model. `ML_RUNTIME=auto` tries WebGPU and falls back to CPU. On arm64
+Linux, CPU inference is expected. Lower-memory model alternatives are available in Settings.
 
-`ML_RUNTIME=gpu` is stricter: it fails the request when WebGPU cannot start. Use `auto` for fallback or `cpu` to skip WebGPU. AI inference uses the same Vulkan or Metal access described in [GPU rendering](#gpu-rendering), but it has its own runtime setting.
+## A save returns `409 Conflict`
 
-The first request after a model is loaded is slower. On a memory-constrained server, keep `ML_MAX_CONCURRENCY=1` and lower `ML_IDLE_SECS` so inactive sessions are released sooner.
+Two tabs changed the same edit record. The losing tab receives the current server version. There is
+no automatic merge. Keep one tab's changes or reapply them after loading the current state.
 
-### A luminance or color range changes after a global edit
+## A virtual copy shares metadata
 
-Range masks select from the maskless, display-referred image. Global exposure and color edits can therefore change the selection. The local adjustment inside the mask does not feed back into its own selection.
+Ratings, favorites, tags, and reject marks belong to the underlying Immich asset and appear on every
+copy. Edits, masks, history, and export jobs belong to one local version.
 
-## Edits and history
+## Mask pixels disappeared
 
-### "409 Conflict" when saving
+Brush and generated masks live under `DATA_DIR/rasters`. The app protects referenced files from its
+own eviction, but manual deletion still destroys them. Restore the database and rasters from the
+same backup.
 
-Two browser tabs edited the same asset. The losing tab gets the current server state in the 409 response. Discard or merge changes manually; there is no automatic merge.
+## Rendering is slow or memory grows
 
-### Export uploads to Immich but tags/albums fail
+The first render decodes the original and fills caches. Later edits reuse the decoded frame.
 
-The upload is recorded as complete; tag/album/stack steps are best-effort. The result panel surfaces warnings inline. Retrying the same export uses the same idempotency key and skips the upload, only retrying the side-effect steps.
+Use **Settings** > **Diagnostics** before changing budgets. For a constrained CPU-only host, start
+with:
 
-### A rating or tag set on a virtual copy shows up on every version
+```text
+RENDER_MAX_CONCURRENCY=1
+THUMB_MAX_CONCURRENCY=1
+RAW_FRAME_CACHE_MB=256
+QUALITY_FRAME_CACHE_MB=256
+GPU_TEXTURE_CACHE_MB=256
+MASK_CACHE_MB=256
+```
 
-Only edits, edit history, masks, and export jobs are per-copy. Rating, favorite, tags, and reject marks live in Immich, which knows nothing about copies, so all versions of a photo share them.
+Reducing `PREVIEW_MAX_EDGE` limits image detail and should be a last resort. GPU rendering remains
+the recommended path for large RAW files.
 
-### A deleted virtual copy's number is not reused
+## Increase log detail
 
-Copy numbers come from the highest number ever used for that photo, including deleted ones. Delete `_2` and the next copy is `_3`. This keeps old links, cached thumbnails, and queued export jobs from resolving to a different copy's edits.
+Set:
 
-## Performance
+```shell
+RUST_LOG=immich_edit_backend=debug,tower_http=debug
+```
 
-### Where do I find render timings?
-
-Settings -> Diagnostics, as an admin. It shows render latency for CPU and GPU (`count`, `p50`, `p95`, `p99`, `max`), cache usage against each budget, GPU pool memory when the GPU renderer is active, and which HEIF codecs the build can actually use.
-
-Use it to compare CPU and GPU runs, spot slow tail latency, and see whether caches are sitting at their cap. "Copy support bundle" puts the same data on the clipboard for a bug report.
-
-The same data is served by `GET /api/debug/timings`, which requires an admin session. There is no longer an environment variable to enable it.
-
-### CPU rendering is slow
-
-Use the GPU if at all possible. CPU demosaic + tone on a 24MP RAW takes several seconds. The CPU path is correctness-first, not throughput-first.
-
-### Memory keeps growing
-
-Retained render memory is bounded by byte budgets you can lower without touching render quality or speed:
-
-- `RAW_FRAME_CACHE_MB` (default `RENDER_MAX_CONCURRENCY * 256`, minimum 512) — decoded preview frames kept in RAM.
-- `QUALITY_FRAME_CACHE_MB` (default 512) — decoded full-quality frames kept in RAM.
-- `GPU_TEXTURE_CACHE_MB` (default 512) — retained free GPU textures reused between renders.
-
-Two more budgets cover disk rather than memory:
-
-- `MASK_CACHE_MB` (default 512) — rendered mask rasters under `DATA_DIR/cache/rasters`.
-- `EMBEDDING_CACHE_MB` (default 2048) — click-to-select model embeddings under `DATA_DIR/cache/embeddings`.
-
-Both evict least-recently-used entries once they pass the cap. `cache/embeddings` is safe to delete while the service is stopped, since it rebuilds on the next click-to-select. `cache/rasters` is not: a raster referenced by a saved edit is never evicted, but deleting the directory by hand still destroys every brush and AI mask. Back it up with the rest of `DATA_DIR`.
-
-Check current usage in Settings -> Diagnostics before guessing. A cache sitting well under its cap is not your problem.
-
-On a memory-constrained host with a shared GPU (for example Unraid), start with `RENDER_MAX_CONCURRENCY=1`, `THUMB_MAX_CONCURRENCY=1`, `RAW_FRAME_CACHE_MB=256`, `QUALITY_FRAME_CACHE_MB=256`, `GPU_TEXTURE_CACHE_MB=256`, and `MASK_CACHE_MB=256`. Only drop `PREVIEW_MAX_EDGE` to 2048 if OOM continues, since that reduces preview resolution.
-
-## Logs and request IDs
-
-Every error response includes a `request_id` that matches the `X-Request-Id` header and the corresponding tracing span. Grep logs for that ID when filing a bug.
-
-Set `RUST_LOG=immich_edit_backend=debug,tower_http=debug` for verbose request logging during diagnosis.
+For unresolved usage or setup questions, open a
+[GitHub Discussion](https://github.com/haavardnk/immich-edit/discussions). For a reproducible bug,
+open an [issue](https://github.com/haavardnk/immich-edit/issues) with the version, deployment method,
+renderer and adapter from Diagnostics, request ID, relevant logs, camera and file format, and exact
+reproduction steps.

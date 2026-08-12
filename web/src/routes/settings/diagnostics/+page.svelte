@@ -307,9 +307,17 @@
       <li>
         <a
           class="text-immich-primary hover:underline"
-          href="https://github.com/haavardnk/immich-edit/blob/main/docs/deploy.md"
+          href="https://haavardnk.github.io/immich-edit/deploy/"
           target="_blank"
-          rel="noopener">Deployment &amp; troubleshooting</a
+          rel="noopener">Deployment</a
+        >
+      </li>
+      <li>
+        <a
+          class="text-immich-primary hover:underline"
+          href="https://haavardnk.github.io/immich-edit/troubleshooting/"
+          target="_blank"
+          rel="noopener">Troubleshooting</a
         >
       </li>
       <li>
