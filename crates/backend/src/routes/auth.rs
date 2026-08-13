@@ -423,6 +423,11 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Res
 }
 
 pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if let Some(ctx) = build_auth_ctx(&state, &headers).await
+        && matches!(ctx.auth_kind, AuthKind::Password)
+    {
+        let _ = ctx.immich.logout().await;
+    }
     if let Some(token) = extract_token(&headers)
         && let Ok(Some(ctx)) = state.auth.authenticate(&token).await
     {

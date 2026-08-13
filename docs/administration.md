@@ -14,7 +14,8 @@ Administration is available under **Settings**.
 Users sign in with their own Immich password or API key. immich-edit provisions the local account
 from the authenticated Immich user and stores no local password.
 
-Users can revoke individual sessions or every other session. Local edits, history, presets, jobs,
+Users can revoke individual sessions or every other session. Signing out of a password session also
+revokes the Immich token behind it. Local edits, history, presets, jobs,
 and exports are private to each user. Ratings, favorites, tags, and reject marks are shared through
 Immich.
 
