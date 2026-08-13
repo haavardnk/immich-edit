@@ -1,12 +1,9 @@
 use raw_pipeline::{cpu, decode, edits::Edits, frame::RenderOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
-    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
-];
+mod common;
 
 const MAX_EDGE: u32 = 512;
 const GRID: usize = 8;
@@ -24,37 +21,6 @@ struct Baseline {
 }
 
 type BaselineMap = BTreeMap<String, Baseline>;
-
-fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
-}
-
-fn baseline_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/cpu_baseline.json")
-}
-
-fn fixtures() -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(fixtures_dir()) else {
-        return Vec::new();
-    };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .collect();
-    paths.sort();
-    paths
-}
-
-fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
-    let img: turbojpeg::Image<Vec<u8>> =
-        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
-    (img.pixels, img.width, img.height)
-}
 
 fn compute_metrics(rgb: &[u8], width: usize, height: usize) -> Baseline {
     let n = (width * height) as f64;
@@ -101,7 +67,7 @@ fn render_metrics(path: &Path) -> Option<Baseline> {
         ..Default::default()
     };
     let out = cpu::render(&frame, &Edits::default(), &opts).ok()?;
-    let (rgb, w, h) = decode_jpeg_rgb(&out.bytes);
+    let (rgb, w, h) = common::decode_jpeg_rgb(&out.bytes);
     Some(compute_metrics(&rgb, w, h))
 }
 
@@ -149,13 +115,13 @@ fn diff(current: &Baseline, base: &Baseline) -> Vec<String> {
 
 #[test]
 fn cpu_baseline_per_fixture() {
-    let paths = fixtures();
+    let paths = common::fixtures();
     if paths.is_empty() {
         eprintln!("no fixtures; skipping");
         return;
     }
     let bake = std::env::var("BAKE_BASELINE").ok().as_deref() == Some("1");
-    let baseline_file = baseline_path();
+    let baseline_file = common::baseline_path("cpu_baseline.json");
     let existing: BaselineMap = if baseline_file.exists() {
         let bytes = std::fs::read(&baseline_file).expect("read baseline");
         serde_json::from_slice(&bytes).expect("parse baseline")

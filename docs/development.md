@@ -120,6 +120,10 @@ npm run test:e2e
 GPU parity tests can skip when no adapter exists. Include local GPU evidence when changing shaders,
 GPU pass order, device setup, or CPU/GPU parity behavior.
 
+Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
+synthetic frames, JPEG decoding, and parity metrics. Declare `mod common;` and add a helper there
+instead of copying one into a test binary.
+
 Local scratch files under `crates/ml/examples` and `crates/raw-pipeline/examples` are ignored and can
 break `--all-targets`. Do not add dependencies only to compile a scratch file.
 

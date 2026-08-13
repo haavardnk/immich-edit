@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use raw_pipeline::GpuRenderer;
+use raw_pipeline::decode;
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions, RenderedImage};
 use std::path::{Path, PathBuf};
 
@@ -9,9 +10,24 @@ const RAW_EXTS: &[&str] = &[
     "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 
-pub fn any_fixture() -> Option<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let entries = std::fs::read_dir(&dir).ok()?;
+pub fn fixtures_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
+}
+
+pub fn fixture_path(name: &str) -> PathBuf {
+    fixtures_dir().join(name)
+}
+
+pub fn baseline_path(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/baselines")
+        .join(name)
+}
+
+pub fn fixtures() -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(fixtures_dir()) else {
+        return Vec::new();
+    };
     let mut paths: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
@@ -22,7 +38,57 @@ pub fn any_fixture() -> Option<PathBuf> {
         })
         .collect();
     paths.sort();
-    paths.into_iter().next()
+    paths
+}
+
+pub fn any_fixture() -> Option<PathBuf> {
+    fixtures().into_iter().next()
+}
+
+pub fn first_decodable_fixture() -> Option<PathBuf> {
+    fixtures().into_iter().find(|p| {
+        std::fs::read(p)
+            .ok()
+            .map(|b| decode::decode(&b).is_ok())
+            .unwrap_or(false)
+    })
+}
+
+pub fn first_fixture_frame() -> Option<RawFrame> {
+    fixtures()
+        .into_iter()
+        .find_map(|p| std::fs::read(&p).ok().and_then(|b| decode::decode(&b).ok()))
+}
+
+pub fn each_fixture_frame(test: impl Fn(&str, &RawFrame)) {
+    let paths = fixtures();
+    if paths.is_empty() {
+        eprintln!("no fixtures found; skipping");
+        return;
+    }
+    let mut decoded = 0;
+    for p in &paths {
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        let bytes = std::fs::read(p).unwrap();
+        let frame = match decode::decode(&bytes) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("skip {name}: decode unsupported ({e})");
+                continue;
+            }
+        };
+        test(&name, &frame);
+        decoded += 1;
+    }
+    if decoded == 0 {
+        panic!("no fixtures decoded successfully out of {}", paths.len());
+    }
+}
+
+pub fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
+    let img: turbojpeg::Image<Vec<u8>> =
+        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
+    (img.pixels, img.width, img.height)
 }
 
 pub fn try_renderer() -> Option<GpuRenderer> {

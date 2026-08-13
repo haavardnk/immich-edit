@@ -3,35 +3,10 @@ use raw_pipeline::{
     edits::{CropRect, Edits},
     frame::{OutputFormat, RawFrame, RenderOptions},
 };
-use std::path::{Path, PathBuf};
 
-const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
-    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
-];
+mod common;
 
-fn any_fixture() -> Option<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
-        .ok()?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .collect();
-    paths.sort();
-    paths.into_iter().find(|p| {
-        std::fs::read(p)
-            .ok()
-            .map(|b| decode::decode(&b).is_ok())
-            .unwrap_or(false)
-    })
-}
-
-fn synthetic_frame(w: usize, h: usize) -> RawFrame {
+fn checker_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     for y in 0..h {
         for x in 0..w {
@@ -47,22 +22,7 @@ fn synthetic_frame(w: usize, h: usize) -> RawFrame {
             data[i + 2] = (0.9 - base + checker).clamp(0.02, 0.98);
         }
     }
-    RawFrame {
-        width: w,
-        height: h,
-        cfa_pattern: String::new(),
-        bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
-        data,
-        cpp: 3,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
-        exif: None,
-    }
+    common::rgb_frame(w, h, data)
 }
 
 fn render_rgb(
@@ -156,7 +116,7 @@ const ROI: CropRect = CropRect {
 
 #[test]
 fn roi_tile_matches_full_render_crop() {
-    let frame = synthetic_frame(240, 180);
+    let frame = checker_frame(240, 180);
     tile_matches_full_crop(
         |edits, max_edge, roi| render_rgb(&frame, edits, max_edge, roi),
         ROI,
@@ -174,7 +134,7 @@ fn gpu_roi_tile_matches_full_render_crop() {
             return;
         }
     };
-    let frame = synthetic_frame(240, 180);
+    let frame = checker_frame(240, 180);
     let render = |edits: &Edits, max_edge: u32, roi: Option<CropRect>| {
         let opts = RenderOptions {
             max_edge,
@@ -190,7 +150,7 @@ fn gpu_roi_tile_matches_full_render_crop() {
 
 #[test]
 fn capture_sharpen_is_visible_at_one_to_one() {
-    let Some(path) = any_fixture() else {
+    let Some(path) = common::first_decodable_fixture() else {
         eprintln!("no raw fixture; skipping");
         return;
     };

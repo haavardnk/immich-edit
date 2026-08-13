@@ -3,12 +3,9 @@ use raw_pipeline::{
     cpu, decode, edits::Edits, frame::OutputColorSpace, frame::OutputFormat, frame::RawFrame,
     frame::RenderOptions, gpu,
 };
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
-    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
-];
+mod common;
 
 const PSNR_FLOOR_DB: f64 = 34.0;
 const SSIM_FLOOR: f64 = 0.998;
@@ -17,26 +14,8 @@ const DE2000_P95_CEIL: f64 = 3.4;
 
 const VARIANT_FIXTURES: &[&str] = &["Canon_EOS_R6", "Fujifilm_X-T2", "Panasonic_DMC-LX7"];
 
-fn fixtures() -> Vec<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        return Vec::new();
-    };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .collect();
-    paths.sort();
-    paths
-}
-
 fn variant_fixtures() -> Vec<PathBuf> {
-    fixtures()
+    common::fixtures()
         .into_iter()
         .filter(|p| {
             let name = p.file_name().unwrap_or_default().to_string_lossy();
@@ -46,13 +25,7 @@ fn variant_fixtures() -> Vec<PathBuf> {
 }
 
 fn try_renderer() -> Option<gpu::GpuRenderer> {
-    match gpu::GpuRenderer::new() {
-        Ok(r) => Some(r),
-        Err(e) => {
-            eprintln!("skip: gpu init failed ({e})");
-            None
-        }
-    }
+    common::try_renderer()
 }
 
 fn mse(a: &[u8], b: &[u8]) -> f64 {
@@ -295,7 +268,7 @@ fn gpu_vs_cpu_parity_per_fixture() {
         output: OutputFormat::Rgb8,
         ..Default::default()
     };
-    check_parity("base", &fixtures(), &Edits::default(), &opts);
+    check_parity("base", &common::fixtures(), &Edits::default(), &opts);
 }
 
 #[test]
