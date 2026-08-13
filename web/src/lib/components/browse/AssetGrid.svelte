@@ -23,12 +23,10 @@
 
   let {
     assets,
-    activeId = null,
     loadingMore = false,
     onLoadMore
   }: {
     assets: AssetSummary[];
-    activeId?: string | null;
     loadingMore?: boolean;
     onLoadMore?: () => void;
   } = $props();
@@ -44,8 +42,6 @@
   let viewTop = $state(0);
   let scrollKey = '';
   let pendingRestore: number | null = null;
-
-  const effectiveActive = $derived(activeId ?? browseView.activeId);
 
   const items = $derived(
     browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
@@ -313,7 +309,7 @@
     {#each visibleAssets as asset (asset.id)}
       <AssetTile
         {asset}
-        active={asset.id === effectiveActive}
+        active={asset.id === browseView.activeId}
         selected={selection.has(asset.id)}
         selectionActive={selection.active}
         onToggle={() => selection.toggle(asset.id)}

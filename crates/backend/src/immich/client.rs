@@ -51,18 +51,6 @@ pub struct ImmichClient {
 }
 
 impl ImmichClient {
-    pub fn new(base: Url, api_key: &str) -> ImmichResult<Self> {
-        Self::with_timeout(base, api_key, Duration::from_secs(120))
-    }
-
-    pub fn with_timeout(base: Url, api_key: &str, request_timeout: Duration) -> ImmichResult<Self> {
-        Self::with_auth(
-            base,
-            ImmichAuth::ApiKey(api_key.to_string()),
-            request_timeout,
-        )
-    }
-
     pub fn with_auth(base: Url, auth: ImmichAuth, request_timeout: Duration) -> ImmichResult<Self> {
         let mut headers = HeaderMap::new();
         headers.insert("accept", HeaderValue::from_static("application/json"));
@@ -77,16 +65,6 @@ impl ImmichClient {
         Ok(Self {
             http,
             base,
-            auth_name,
-            auth_value,
-        })
-    }
-
-    pub fn for_auth(&self, auth: ImmichAuth) -> ImmichResult<Self> {
-        let (auth_name, auth_value) = auth.header()?;
-        Ok(Self {
-            http: self.http.clone(),
-            base: self.base.clone(),
             auth_name,
             auth_value,
         })

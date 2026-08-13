@@ -812,7 +812,12 @@ mod tests {
         if !s.list_history(O, copy.id).await.unwrap().is_empty() {
             panic!("history survived");
         }
-        if s.get_copy(O, copy.id).await.unwrap().is_some() {
+        if s.list_copies(O, source)
+            .await
+            .unwrap()
+            .iter()
+            .any(|c| c.id == copy.id)
+        {
             panic!("copy survived");
         }
         if s.delete_copy(O, copy.id).await.unwrap() {

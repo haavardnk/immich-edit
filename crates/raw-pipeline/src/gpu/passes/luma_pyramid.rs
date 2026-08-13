@@ -51,10 +51,3 @@ impl LumaPyramidPass {
         })
     }
 }
-
-pub fn pyramid_levels_for(w: u32, h: u32, max_radius_px: u32) -> u32 {
-    let max_edge = w.max(h);
-    let by_size = (max_edge as f32).log2().floor() as u32 + 1;
-    let needed = ((max_radius_px.max(1) as f32).log2().ceil() as u32) + 1;
-    needed.min(by_size).max(1)
-}

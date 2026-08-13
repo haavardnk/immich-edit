@@ -36,10 +36,6 @@ impl AssetKey {
         self.source
     }
 
-    pub fn copy_index(&self) -> Option<NonZeroU32> {
-        self.copy
-    }
-
     pub fn is_copy(&self) -> bool {
         self.copy.is_some()
     }

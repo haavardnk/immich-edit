@@ -331,7 +331,6 @@ export function isFullCrop(c: CropRect | null): boolean {
 export const N_MAX_MASK_LAYERS = 8;
 export const N_MAX_COMPONENTS_PER_LAYER = 8;
 export const N_MAX_TOTAL_COMPONENTS = 32;
-export const N_MAX_RASTER_SLOTS = 16;
 
 export type MaskComponentMode = 'add' | 'subtract' | 'intersect';
 export type MaskSource = 'manual' | 'generated';
@@ -438,12 +437,6 @@ export function maskedEditsIsZero(m: MaskedEdits): boolean {
   return MASKED_EDIT_KEYS.every((k) => m[k] === undefined || m[k] === 0);
 }
 
-export function maskLayerIsEffective(l: MaskLayer): boolean {
-  if (!l.enabled || Math.abs(l.amount) < 1e-6) return false;
-  const hasComp = l.components.some((c) => c.enabled);
-  return hasComp && !maskedEditsIsZero(l.edits);
-}
-
 export type RetouchMode = 'heal' | 'clone';
 
 export const MAX_RETOUCH_STROKES = 64;
@@ -458,10 +451,6 @@ export interface RetouchStroke {
   opacity: number;
   source: Vec2f;
   enabled: boolean;
-}
-
-export function retouchStrokeIsEffective(s: RetouchStroke): boolean {
-  return s.enabled && s.points.length > 0 && s.radius > 0 && s.opacity > 0;
 }
 
 export interface Edits {
@@ -580,8 +569,6 @@ export function originalPreviewEdits(edits: Edits): Edits {
     retouch: []
   };
 }
-
-export const NEUTRAL_EDITS: Edits = neutralEdits();
 
 function bandsAllZero(bands: HslBand[]): boolean {
   return bands.every((b) => b.hue === 0 && b.sat === 0 && b.lum === 0);

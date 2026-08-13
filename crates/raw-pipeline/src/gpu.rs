@@ -1,6 +1,5 @@
 pub mod context;
 mod helpers;
-pub mod pass;
 pub mod passes;
 pub mod readback;
 mod renderer;

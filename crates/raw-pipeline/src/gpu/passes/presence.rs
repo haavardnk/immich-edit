@@ -38,12 +38,3 @@ impl PresencePass {
         }
     }
 }
-
-pub fn select_mip(max_edge: u32, radius_px: u32) -> u32 {
-    if radius_px <= 1 {
-        return 0;
-    }
-    let target = (radius_px as f32).log2().round() as i32;
-    let max_levels = (max_edge as f32).log2().floor() as i32 + 1;
-    target.clamp(0, max_levels - 1) as u32
-}

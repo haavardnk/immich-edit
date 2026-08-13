@@ -100,10 +100,6 @@ class CompareStore {
     }
     this.views[id] = view;
   }
-
-  resetViews(): void {
-    this.views = {};
-  }
 }
 
 export const compare = new CompareStore();

@@ -50,10 +50,6 @@ impl LinearImage {
     pub fn new(rgb: Vec<f32>, width: usize, height: usize) -> Self {
         Self { rgb, width, height }
     }
-
-    pub fn pixel_count(&self) -> usize {
-        self.width * self.height
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

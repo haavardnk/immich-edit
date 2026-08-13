@@ -1,6 +1,4 @@
 use crate::edits::Edits;
-use crate::gpu::passes::luma_pyramid::pyramid_levels_for;
-use crate::gpu::passes::presence::select_mip;
 
 const REFERENCE_DIM: f32 = 1080.0;
 
@@ -65,6 +63,22 @@ pub fn presence_mips(width: u32, height: u32, radii: PresenceRadii) -> PresenceM
         clarity: select_mip(max_edge, radii.clarity),
         shadows: select_mip(max_edge, radii.shadows),
     }
+}
+
+pub fn select_mip(max_edge: u32, radius_px: u32) -> u32 {
+    if radius_px <= 1 {
+        return 0;
+    }
+    let target = (radius_px as f32).log2().round() as i32;
+    let max_levels = (max_edge as f32).log2().floor() as i32 + 1;
+    target.clamp(0, max_levels - 1) as u32
+}
+
+pub fn pyramid_levels_for(w: u32, h: u32, max_radius_px: u32) -> u32 {
+    let max_edge = w.max(h);
+    let by_size = (max_edge as f32).log2().floor() as u32 + 1;
+    let needed = ((max_radius_px.max(1) as f32).log2().ceil() as u32) + 1;
+    needed.min(by_size).max(1)
 }
 
 pub fn has_shadows(edits: &Edits) -> bool {

@@ -39,25 +39,6 @@ impl EditsStore {
         copy_from_row(&row)
     }
 
-    pub async fn get_copy(
-        &self,
-        owner: Uuid,
-        id: AssetKey,
-    ) -> Result<Option<CopyRecord>, EditsStoreError> {
-        let row = sqlx::query(
-            "SELECT id, source_asset_id, name, created_at FROM asset_copies \
-             WHERE user_id = ?1 AND id = ?2 AND deleted = 0",
-        )
-        .bind(owner.to_string())
-        .bind(id.to_string())
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        Ok(Some(copy_from_row(&row)?))
-    }
-
     pub async fn list_copies(
         &self,
         owner: Uuid,
