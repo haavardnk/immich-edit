@@ -9,29 +9,35 @@ use wgpu::{
 };
 
 use crate::edits::Edits;
-use crate::encode::encode_from_rgba8;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
-use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, samp, tex};
-use crate::histogram::Histogram;
+use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
 use super::passes::GpuPasses;
-use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use super::resources::{OutputTargets, SharpenTargets};
 use super::texture_pool::TexturePool;
 use super::uniform_pool::UniformPool;
-use super::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::presence::{presence_mips, presence_radii};
 
+mod cache_keys;
 mod dcp;
 mod detail;
 mod effects;
+mod geometry;
 mod lut;
+mod masks;
+mod output;
+mod pools;
 mod resample;
 mod retouch;
+mod uniform;
 mod upload;
+
+use cache_keys::capture_cache_key;
+use geometry::{compute_out_dims, crop_px, process_geom};
+pub use pools::GpuPoolStats;
 
 const CACHE_ITEMS: usize = 2;
 
@@ -73,51 +79,6 @@ impl RenderPlan {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct GpuPoolStats {
-    pub texture_pool: u64,
-    pub uniform_pool: u64,
-    pub output_targets: u64,
-    pub sharpen_targets: u64,
-    pub wb_cache: u64,
-    pub nr_cache: u64,
-    pub capture_cache: u64,
-    pub atlas_cache: u64,
-}
-
-fn texture_bytes(tex: &Texture) -> u64 {
-    let bpp = tex.format().block_copy_size(None).unwrap_or(0) as u64;
-    let w = tex.width() as u64;
-    let h = tex.height() as u64;
-    let mips = tex.mip_level_count();
-    let mut total: u64 = 0;
-    for level in 0..mips {
-        let lw = (w >> level).max(1);
-        let lh = (h >> level).max(1);
-        total += lw * lh * bpp;
-    }
-    total
-}
-
-fn output_targets_bytes(o: &OutputTargets) -> u64 {
-    texture_bytes(&o.texture)
-        + o.readback.size()
-        + texture_bytes(&o.linear_texture)
-        + o.linear_readback.size()
-        + texture_bytes(&o.mask_accum_alt)
-        + texture_bytes(&o.mask_base_linear)
-        + texture_bytes(&o.mask_scratch_linear)
-        + texture_bytes(&o.mask_scratch_tone)
-        + texture_bytes(&o.mask_weight)
-}
-
-fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {
-    texture_bytes(&s.blur_h)
-        + texture_bytes(&s.blur_full)
-        + texture_bytes(&s.sharpened_lin)
-        + texture_bytes(&s.post_lin)
-}
-
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
@@ -145,7 +106,6 @@ const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 const ATLAS_CACHE_ITEMS: usize = 32;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
-const TARGET_POOL_CAP: usize = 2;
 const DEFAULT_TEXTURE_POOL_MAX_BYTES: u64 = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy)]
@@ -210,119 +170,8 @@ impl GpuRenderer {
         self.ctx.adapter_label()
     }
 
-    pub fn pool_stats(&self) -> GpuPoolStats {
-        let output_bytes = self
-            .output_pool
-            .lock()
-            .iter()
-            .map(output_targets_bytes)
-            .sum();
-        let sharpen_bytes = self
-            .sharpen_pool
-            .lock()
-            .iter()
-            .map(sharpen_targets_bytes)
-            .sum();
-        let wb_cache_bytes = self
-            .wb_cache
-            .lock()
-            .iter()
-            .map(|(_, t)| texture_bytes(t))
-            .sum();
-        let nr_cache_bytes = self
-            .nr_cache
-            .lock()
-            .iter()
-            .map(|(_, t)| texture_bytes(t))
-            .sum();
-        let capture_cache_bytes = self
-            .capture_cache
-            .lock()
-            .iter()
-            .map(|(_, t)| texture_bytes(t))
-            .sum();
-        let atlas_cache_bytes = self
-            .atlas_cache
-            .lock()
-            .iter()
-            .map(|(_, v)| v.len() as u64)
-            .sum();
-        GpuPoolStats {
-            texture_pool: self.texture_pool.bytes(),
-            uniform_pool: self.uniform_pool.bytes(),
-            output_targets: output_bytes,
-            sharpen_targets: sharpen_bytes,
-            wb_cache: wb_cache_bytes,
-            nr_cache: nr_cache_bytes,
-            capture_cache: capture_cache_bytes,
-            atlas_cache: atlas_cache_bytes,
-        }
-    }
-
     pub fn is_lost(&self) -> bool {
         self.ctx.is_lost()
-    }
-
-    fn upload_mask_atlas(
-        &self,
-        slot_map: &std::collections::HashMap<String, u32>,
-        rasters: &crate::mask_raster::RasterMap,
-    ) -> wgpu::Texture {
-        let atlas = self.ctx.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("mask-raster-atlas"),
-            size: Extent3d {
-                width: crate::gpu::passes::mask_weight::ATLAS_DIM,
-                height: crate::gpu::passes::mask_weight::ATLAS_DIM,
-                depth_or_array_layers: crate::gpu::passes::mask_weight::ATLAS_LAYERS,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-        for (raster_id, slot) in slot_map {
-            let Some(raster) = rasters.get(raster_id) else {
-                continue;
-            };
-            let bytes = {
-                let mut cache = self.atlas_cache.lock();
-                if let Some(b) = cache.get(raster_id).cloned() {
-                    b
-                } else {
-                    let b = Arc::new(crate::gpu::passes::mask_weight::resample_raster_to_atlas(
-                        raster,
-                    ));
-                    cache.put(raster_id.clone(), b.clone());
-                    b
-                }
-            };
-            self.ctx.queue.write_texture(
-                wgpu::TexelCopyTextureInfo {
-                    texture: &atlas,
-                    mip_level: 0,
-                    origin: wgpu::Origin3d {
-                        x: 0,
-                        y: 0,
-                        z: *slot,
-                    },
-                    aspect: wgpu::TextureAspect::All,
-                },
-                bytes.as_slice(),
-                wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
-                    rows_per_image: Some(crate::gpu::passes::mask_weight::ATLAS_DIM),
-                },
-                Extent3d {
-                    width: crate::gpu::passes::mask_weight::ATLAS_DIM,
-                    height: crate::gpu::passes::mask_weight::ATLAS_DIM,
-                    depth_or_array_layers: 1,
-                },
-            );
-        }
-        atlas
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -389,46 +238,7 @@ impl GpuRenderer {
         crate::cancel::check(cancel)?;
 
         let (sensor_w, sensor_h) = work_dims;
-        let (display_w, display_h) = if frame.orientation.0 {
-            (sensor_h, sensor_w)
-        } else {
-            (sensor_w, sensor_h)
-        };
-
-        let (oriented_w, oriented_h) = match edits.geometry.rotate {
-            90 | 270 => (display_h, display_w),
-            _ => (display_w, display_h),
-        };
-
-        let (full_display_w, full_display_h) = if frame.orientation.0 {
-            (frame.height as u32, frame.width as u32)
-        } else {
-            (frame.width as u32, frame.height as u32)
-        };
-        let (source_w, source_h) = match edits.geometry.rotate {
-            90 | 270 => (full_display_h, full_display_w),
-            _ => (full_display_w, full_display_h),
-        };
-
-        let crop = edits
-            .geometry
-            .crop
-            .unwrap_or(crate::edits::CropRect::full());
-        let angle = edits.geometry.rotate_angle;
-        let bbox = crate::geom::rotated_bbox(oriented_w as f32, oriented_h as f32, angle);
-        let bw = bbox.w;
-        let bh = bbox.h;
-
-        let a_rad = crate::geom::deg_to_rad(angle);
-        let cos_a = a_rad.cos();
-        let sin_a = a_rad.sin();
-        let persp_rows = crate::perspective::mat3_rows(&edits.geometry.perspective_inverse());
-
-        let (ot, oh_h, oh_v) = frame.orientation;
-        let orient_packed = (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2);
-        let geom_warps = !crop.is_full()
-            || angle.abs() > 1e-4
-            || edits.geometry.perspective_inverse() != crate::perspective::IDENTITY;
+        let geom = process_geom(frame, &edits, work_dims);
 
         let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
@@ -450,47 +260,20 @@ impl GpuRenderer {
             let mips = presence_mips(src_dims.0, src_dims.1, radii);
             mips.shadows as f32
         };
-        let mut uniform_bytes = vec![0u8; built.uniform_size];
-        write_header(
-            &mut uniform_bytes,
-            &ProcessHeader {
-                src_size: [sensor_w, sensor_h],
-                out_size: [out_w, out_h],
-                crop: [crop.x, crop.y, crop.w, crop.h],
-                flags: [
-                    edits.geometry.rotate as u32,
-                    edits.geometry.flip_h as u32,
-                    edits.geometry.flip_v as u32,
-                    orient_packed,
-                ],
-                geom_extra: [0.0, shadows_mip_f, 0.0, 0.0],
-                active_mask: [0; 4],
-                geom_extra2: [cos_a, sin_a, bw, bh],
-                geom_extra3: [
-                    oriented_w as f32,
-                    oriented_h as f32,
-                    if geom_warps { 1.0 } else { 0.0 },
-                    0.0,
-                ],
-                output: [0, 0, 0, 0],
-                perspective: persp_rows,
-            },
+        let uniform_bytes = uniform::build_process_uniform(
+            built,
+            registry,
+            &edits,
+            &ctx_op,
+            &uniform::process_header(
+                &edits,
+                &geom,
+                (sensor_w, sensor_h),
+                out_dims,
+                shadows_mip_f,
+                true,
+            ),
         );
-        let mut active_mask: [u32; 4] = [0; 4];
-        for slot in &built.color_ops {
-            let op = &registry.ops()[slot.op_index];
-            if op.is_active(&edits) {
-                let word = (slot.active_bit / 32) as usize;
-                let shift = slot.active_bit % 32;
-                active_mask[word] |= 1u32 << shift;
-            }
-            let mut buf = vec![0.0f32; slot.vec4_count * 4];
-            op.write_gpu_uniform(&edits, &ctx_op, &mut buf);
-            let off = slot.uniform_offset;
-            let bytes = slot.vec4_count * 16;
-            uniform_bytes[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
-        }
-        write_active_mask(&mut uniform_bytes, active_mask);
 
         let uniform_buf =
             self.uniform_pool
@@ -498,18 +281,7 @@ impl GpuRenderer {
 
         let src_view = src_texture.create_view(&TextureViewDescriptor::default());
 
-        let mut pool = self.output_pool.lock();
-        if let Some(i) = pool.iter().position(|p| p.fits(out_w, out_h)) {
-            if i != 0 {
-                let t = pool.remove(i);
-                pool.insert(0, t);
-            }
-        } else {
-            if pool.len() >= TARGET_POOL_CAP {
-                pool.pop();
-            }
-            pool.insert(0, OutputTargets::allocate(&self.ctx, out_w, out_h));
-        }
+        let pool = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h);
         let p = &pool[0];
         let out_view = p.texture.create_view(&TextureViewDescriptor::default());
         let linear_view = p
@@ -566,116 +338,29 @@ impl GpuRenderer {
         };
         let has_masks = !effective_layers.is_empty();
         let mut accum_in_alt = false;
-        let mut _retained_bufs: Vec<wgpu::Buffer> = Vec::new();
-        let mut _retained_uniforms: Vec<super::uniform_pool::PooledUniform> = Vec::new();
-        let mut _retained_binds: Vec<wgpu::BindGroup> = Vec::new();
+        let mut retained = masks::Retained::default();
         let mut _preview_atlas: Option<wgpu::Texture> = None;
         if let Some(layer) = preview_layer {
-            let mut slot_map: std::collections::HashMap<String, u32> =
-                std::collections::HashMap::new();
-            for comp in &layer.components {
-                if !comp.enabled {
-                    continue;
-                }
-                let crate::edits::MaskComponentKind::Brush { raster_id } = &comp.kind else {
-                    continue;
-                };
-                if slot_map.len() as u32 >= crate::gpu::passes::mask_weight::ATLAS_LAYERS {
-                    break;
-                }
-                if !slot_map.contains_key(raster_id) && opts.rasters.contains_key(raster_id) {
-                    let slot = slot_map.len() as u32;
-                    slot_map.insert(raster_id.clone(), slot);
-                }
-            }
+            let slot_map = masks::atlas_slot_map(std::iter::once(layer), &opts.rasters);
             let atlas = self.upload_mask_atlas(&slot_map, &opts.rasters);
-            let atlas_view = atlas.create_view(&TextureViewDescriptor {
-                dimension: Some(wgpu::TextureViewDimension::D2Array),
-                ..Default::default()
-            });
-            let atlas_sampler = &self.passes.atlas_sampler;
+            let atlas_view = masks::atlas_view(&atlas);
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
             let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
-            let (comp_bytes, n_components, poly_bytes) =
-                crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
-            let lens_warp = crate::ops::lens_distortion::LensWarpParams::from_edits(
-                &edits.lens,
-                display_w,
-                display_h,
-            );
-            let mw_params = crate::gpu::passes::mask_weight::pack_params(
-                out_w,
-                out_h,
-                n_components,
-                eval.amount,
-                [crop.x, crop.y, crop.w, crop.h],
-                [
-                    edits.geometry.rotate as u32,
-                    edits.geometry.flip_h as u32,
-                    edits.geometry.flip_v as u32,
-                    eval.invert as u32,
-                ],
-                [cos_a, sin_a, bw, bh],
-                [
-                    oriented_w as f32,
-                    oriented_h as f32,
-                    display_w as f32,
-                    display_h as f32,
-                ],
-                [lens_warp.k1, lens_warp.k2, lens_warp.k3, lens_warp.zoom],
-                persp_rows,
-            );
-            let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("mask-preview-uniform"),
-                contents: bytemuck::bytes_of(&mw_params),
-                usage: BufferUsages::UNIFORM,
-            });
-            let comp_buf_bytes = if comp_bytes.is_empty() {
-                vec![0u8; crate::gpu::passes::mask_weight::COMPONENT_BYTES]
-            } else {
-                comp_bytes
-            };
-            let mw_comp_buf = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("mask-preview-comps"),
-                contents: &comp_buf_bytes,
-                usage: BufferUsages::STORAGE,
-            });
-            let poly_buf_bytes = if poly_bytes.is_empty() {
-                vec![0u8; 8]
-            } else {
-                poly_bytes
-            };
-            let mw_poly_buf = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("mask-preview-poly"),
-                contents: &poly_buf_bytes,
-                usage: BufferUsages::STORAGE,
-            });
-            let mw_bind = bind_group(
-                device,
-                "mask-preview-bg",
-                &self.passes.mask_weight.layout,
-                &[
-                    mw_params_buf.as_entire_binding(),
-                    buf(&mw_comp_buf),
-                    tex(&weight_view),
-                    tex(&atlas_view),
-                    samp(atlas_sampler),
-                    tex(&linear_view),
-                    buf(&mw_poly_buf),
-                ],
-            );
-            dispatch_2d(
+            self.encode_mask_weight(
                 &mut encoder,
-                "mask-preview-weight",
-                &self.passes.mask_weight.pipeline,
-                &mw_bind,
-                out_w.div_ceil(16),
-                out_h.div_ceil(16),
+                masks::MaskWeightJob {
+                    labels: &masks::PREVIEW_LABELS,
+                    eval: &eval,
+                    slot_map: &slot_map,
+                    weight_view: &weight_view,
+                    atlas_view: &atlas_view,
+                    base_view: &linear_view,
+                },
+                &edits,
+                &geom,
+                out_dims,
+                &mut retained,
             );
-            _retained_bufs.push(mw_params_buf);
-            _retained_bufs.push(mw_comp_buf);
-            _retained_bufs.push(mw_poly_buf);
-            _retained_binds.push(mw_bind);
             _preview_atlas = Some(atlas);
         }
         if has_masks {
@@ -718,32 +403,9 @@ impl GpuRenderer {
                 .mask_base_linear
                 .create_view(&TextureViewDescriptor::default());
 
-            let mut slot_map: std::collections::HashMap<String, u32> =
-                std::collections::HashMap::new();
-            for layer in &effective_layers {
-                for comp in &layer.components {
-                    if !comp.enabled {
-                        continue;
-                    }
-                    let crate::edits::MaskComponentKind::Brush { raster_id } = &comp.kind else {
-                        continue;
-                    };
-                    if slot_map.len() as u32 >= crate::gpu::passes::mask_weight::ATLAS_LAYERS {
-                        break;
-                    }
-                    if !slot_map.contains_key(raster_id) && opts.rasters.contains_key(raster_id) {
-                        let slot = slot_map.len() as u32;
-                        slot_map.insert(raster_id.clone(), slot);
-                    }
-                }
-            }
+            let slot_map = masks::atlas_slot_map(effective_layers.iter().copied(), &opts.rasters);
             let atlas = self.upload_mask_atlas(&slot_map, &opts.rasters);
-            let atlas_view = atlas.create_view(&wgpu::TextureViewDescriptor {
-                label: Some("mask-raster-atlas-view"),
-                dimension: Some(wgpu::TextureViewDimension::D2Array),
-                ..Default::default()
-            });
-            let atlas_sampler = &self.passes.atlas_sampler;
+            let atlas_view = masks::atlas_view(&atlas);
 
             for (layer_index, layer) in effective_layers.iter().enumerate() {
                 let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
@@ -751,42 +413,20 @@ impl GpuRenderer {
                     .get(&layer.id)
                     .map(|t| t.create_view(&TextureViewDescriptor::default()));
                 let layer_src_view_ref = layer_src_view.as_ref().unwrap_or(&src_view);
-                let mut eff_uniform = vec![0u8; built.uniform_size];
-                write_header(
-                    &mut eff_uniform,
-                    &ProcessHeader {
-                        src_size: [sensor_w, sensor_h],
-                        out_size: [out_w, out_h],
-                        crop: [crop.x, crop.y, crop.w, crop.h],
-                        flags: [
-                            edits.geometry.rotate as u32,
-                            edits.geometry.flip_h as u32,
-                            edits.geometry.flip_v as u32,
-                            orient_packed,
-                        ],
-                        geom_extra: [0.0, shadows_mip_f, 0.0, 0.0],
-                        active_mask: [0; 4],
-                        geom_extra2: [cos_a, sin_a, bw, bh],
-                        geom_extra3: [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
-                        output: [0, 0, 0, 0],
-                        perspective: persp_rows,
-                    },
+                let eff_uniform = uniform::build_process_uniform(
+                    built,
+                    registry,
+                    &eff,
+                    &ctx_op,
+                    &uniform::process_header(
+                        &edits,
+                        &geom,
+                        (sensor_w, sensor_h),
+                        out_dims,
+                        shadows_mip_f,
+                        false,
+                    ),
                 );
-                let mut active_mask_eff: [u32; 4] = [0; 4];
-                for slot in &built.color_ops {
-                    let op = &registry.ops()[slot.op_index];
-                    if op.is_active(&eff) {
-                        let word = (slot.active_bit / 32) as usize;
-                        let shift = slot.active_bit % 32;
-                        active_mask_eff[word] |= 1u32 << shift;
-                    }
-                    let mut buf = vec![0.0f32; slot.vec4_count * 4];
-                    op.write_gpu_uniform(&eff, &ctx_op, &mut buf);
-                    let off = slot.uniform_offset;
-                    let bytes = slot.vec4_count * 16;
-                    eff_uniform[off..off + bytes].copy_from_slice(bytemuck::cast_slice(&buf));
-                }
-                write_active_mask(&mut eff_uniform, active_mask_eff);
                 let eff_uniform_buf =
                     self.uniform_pool
                         .acquire(device, queue, &eff_uniform, "process-uniform-layer");
@@ -811,90 +451,25 @@ impl GpuRenderer {
                     out_w.div_ceil(16),
                     out_h.div_ceil(16),
                 );
-                _retained_uniforms.push(eff_uniform_buf);
-                _retained_binds.push(layer_bind);
+                retained.uniforms.push(eff_uniform_buf);
+                retained.binds.push(layer_bind);
 
                 let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
-                let (comp_bytes, n_components, poly_bytes) =
-                    crate::gpu::passes::mask_weight::pack_layer_eval(&eval, &slot_map);
-                let lens_warp = crate::ops::lens_distortion::LensWarpParams::from_edits(
-                    &edits.lens,
-                    display_w,
-                    display_h,
-                );
-                let mw_params = crate::gpu::passes::mask_weight::pack_params(
-                    out_w,
-                    out_h,
-                    n_components,
-                    eval.amount,
-                    [crop.x, crop.y, crop.w, crop.h],
-                    [
-                        edits.geometry.rotate as u32,
-                        edits.geometry.flip_h as u32,
-                        edits.geometry.flip_v as u32,
-                        eval.invert as u32,
-                    ],
-                    [cos_a, sin_a, bw, bh],
-                    [
-                        oriented_w as f32,
-                        oriented_h as f32,
-                        display_w as f32,
-                        display_h as f32,
-                    ],
-                    [lens_warp.k1, lens_warp.k2, lens_warp.k3, lens_warp.zoom],
-                    persp_rows,
-                );
-                let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("mask-weight-uniform"),
-                    contents: bytemuck::bytes_of(&mw_params),
-                    usage: BufferUsages::UNIFORM,
-                });
-                let comp_buf_bytes = if comp_bytes.is_empty() {
-                    vec![0u8; crate::gpu::passes::mask_weight::COMPONENT_BYTES]
-                } else {
-                    comp_bytes
-                };
-                let mw_comp_buf = device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("mask-weight-comps"),
-                    contents: &comp_buf_bytes,
-                    usage: BufferUsages::STORAGE,
-                });
-                let poly_buf_bytes = if poly_bytes.is_empty() {
-                    vec![0u8; 8]
-                } else {
-                    poly_bytes
-                };
-                let mw_poly_buf = device.create_buffer_init(&BufferInitDescriptor {
-                    label: Some("mask-weight-poly"),
-                    contents: &poly_buf_bytes,
-                    usage: BufferUsages::STORAGE,
-                });
-                let mw_bind = bind_group(
-                    device,
-                    "mask-weight-bg",
-                    &self.passes.mask_weight.layout,
-                    &[
-                        mw_params_buf.as_entire_binding(),
-                        mw_comp_buf.as_entire_binding(),
-                        tex(&weight_view),
-                        tex(&atlas_view),
-                        samp(atlas_sampler),
-                        tex(&base_linear_view),
-                        mw_poly_buf.as_entire_binding(),
-                    ],
-                );
-                dispatch_2d(
+                self.encode_mask_weight(
                     &mut encoder,
-                    "mask-weight",
-                    &self.passes.mask_weight.pipeline,
-                    &mw_bind,
-                    out_w.div_ceil(16),
-                    out_h.div_ceil(16),
+                    masks::MaskWeightJob {
+                        labels: &masks::LAYER_LABELS,
+                        eval: &eval,
+                        slot_map: &slot_map,
+                        weight_view: &weight_view,
+                        atlas_view: &atlas_view,
+                        base_view: &base_linear_view,
+                    },
+                    &edits,
+                    &geom,
+                    out_dims,
+                    &mut retained,
                 );
-                _retained_bufs.push(mw_params_buf);
-                _retained_bufs.push(mw_comp_buf);
-                _retained_bufs.push(mw_poly_buf);
-                _retained_binds.push(mw_bind);
 
                 let (curr_view, dst_view) = if accum_in_alt {
                     (&accum_alt_view, &linear_view2)
@@ -940,8 +515,8 @@ impl GpuRenderer {
                     out_w.div_ceil(16),
                     out_h.div_ceil(16),
                 );
-                _retained_bufs.push(bl_params_buf);
-                _retained_binds.push(bl_bind);
+                retained.bufs.push(bl_params_buf);
+                retained.binds.push(bl_bind);
 
                 accum_in_alt = !accum_in_alt;
             }
@@ -989,23 +564,8 @@ impl GpuRenderer {
             || opts.gamut_warn
             || opts.clip_warn;
         let warn_flags = opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1);
-        let sharpen_pool_guard = if final_pass_active {
-            let mut spool = self.sharpen_pool.lock();
-            if let Some(i) = spool.iter().position(|s| s.fits(out_w, out_h)) {
-                if i != 0 {
-                    let t = spool.remove(i);
-                    spool.insert(0, t);
-                }
-            } else {
-                if spool.len() >= TARGET_POOL_CAP {
-                    spool.pop();
-                }
-                spool.insert(0, SharpenTargets::allocate(&self.ctx, out_w, out_h));
-            }
-            Some(spool)
-        } else {
-            None
-        };
+        let sharpen_pool_guard = final_pass_active
+            .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h));
         let _huesat_scratch = self.run_dcp_base_table(
             &mut encoder,
             ctx_op.render.dcp.as_deref(),
@@ -1057,99 +617,25 @@ impl GpuRenderer {
         let lut_target =
             self.maybe_encode_lut(&mut encoder, &edits, opts, &p.texture, out_w, out_h);
         let display_src = lut_target.as_deref().unwrap_or(&p.texture);
-        let overlay_bind = preview_layer.map(|_| {
-            let params = crate::gpu::passes::mask_overlay::pack_params(
-                out_w,
-                out_h,
-                crate::gpu::passes::mask_overlay::OVERLAY_ALPHA,
-            );
-            let params_buf = device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("mask-overlay-uniform"),
-                contents: bytemuck::bytes_of(&params),
-                usage: BufferUsages::UNIFORM,
-            });
-            let src_view = display_src.create_view(&TextureViewDescriptor::default());
-            let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
-            let dst_view = p
-                .mask_scratch_tone
-                .create_view(&TextureViewDescriptor::default());
-            let bind = bind_group(
-                device,
-                "mask-overlay-bg",
-                &self.passes.mask_overlay.layout,
-                &[
-                    params_buf.as_entire_binding(),
-                    tex(&src_view),
-                    tex(&weight_view),
-                    tex(&dst_view),
-                ],
-            );
-            (params_buf, bind)
-        });
-        if let Some((_, bind)) = overlay_bind.as_ref() {
-            dispatch_2d(
-                &mut encoder,
-                "mask-overlay",
-                &self.passes.mask_overlay.pipeline,
-                bind,
-                out_w.div_ceil(16),
-                out_h.div_ceil(16),
-            );
+        let overlay = preview_layer.is_some();
+        if overlay {
+            self.encode_mask_overlay(&mut encoder, p, display_src, out_dims, &mut retained);
         }
-        let display_src = if overlay_bind.is_some() {
+        let display_src = if overlay {
             &p.mask_scratch_tone
         } else {
             display_src
         };
-        copy_texture_to_buffer(&mut encoder, display_src, &p.readback, out_w, out_h);
         let linear_src = match sharpen_pool_guard.as_ref() {
             Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
         };
-        copy_texture_to_buffer(&mut encoder, linear_src, &p.linear_readback, out_w, out_h);
-        queue.submit(Some(encoder.finish()));
-
-        let mut rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h, cancel)?;
-        let linear_rgb = read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel)?;
+        let (rgba, linear_rgb) =
+            self.readback_image(encoder, p, display_src, linear_src, out_dims, cancel)?;
         drop(lut_target);
         drop(pool);
 
-        if opts.gamut_warn || opts.clip_warn {
-            crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
-        }
-
-        let ((histogram, linear_histogram), bytes) = rayon::join(
-            || {
-                let _span = tracing::debug_span!("gpu.histogram", w = out_w, h = out_h).entered();
-                rayon::join(
-                    || {
-                        let _s =
-                            tracing::debug_span!("gpu.histogram.display", w = out_w, h = out_h)
-                                .entered();
-                        Histogram::from_rgba8(&rgba)
-                    },
-                    || {
-                        let _s = tracing::debug_span!("gpu.histogram.linear", w = out_w, h = out_h)
-                            .entered();
-                        Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize)
-                    },
-                )
-            },
-            || encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
-        );
-        let bytes = bytes?;
-
-        Ok(RenderedImage {
-            bytes,
-            histogram,
-            linear_histogram: Some(linear_histogram),
-            width: out_w,
-            height: out_h,
-            source_w,
-            source_h,
-            renderer: "gpu".into(),
-            is_raw: frame.is_raw,
-        })
+        output::finish_image(rgba, linear_rgb, out_dims, geom.source, opts, frame.is_raw)
     }
 
     fn layer_presence_sources(
@@ -1385,82 +871,4 @@ fn make_dummy_luma(ctx: &GpuContext) -> Texture {
         },
     );
     tex
-}
-
-fn atmosphere_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut e = edits.clone();
-    e.basic.dehaze = 0.0;
-    let json = serde_json::to_vec(&e).unwrap_or_default();
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    GpuRenderer::frame_key(frame).hash(&mut h);
-    dims.0.hash(&mut h);
-    dims.1.hash(&mut h);
-    json.hash(&mut h);
-    h.finish()
-}
-
-fn wb_cache_key(
-    frame: &RawFrame,
-    edits: &Edits,
-    dims: (u32, u32),
-    cam_to_srgb: [[f32; 3]; 3],
-) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    GpuRenderer::frame_key(frame).hash(&mut h);
-    dims.0.hash(&mut h);
-    dims.1.hash(&mut h);
-    edits.basic.wb_temp.to_bits().hash(&mut h);
-    edits.basic.wb_tint.to_bits().hash(&mut h);
-    for row in cam_to_srgb {
-        for v in row {
-            v.to_bits().hash(&mut h);
-        }
-    }
-    let lens_json = serde_json::to_vec(&edits.lens).unwrap_or_default();
-    lens_json.hash(&mut h);
-    h.finish()
-}
-
-fn nr_cache_key(
-    frame: &RawFrame,
-    edits: &Edits,
-    dims: (u32, u32),
-    cam_to_srgb: [[f32; 3]; 3],
-) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    wb_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
-    let retouch_json = serde_json::to_vec(&edits.retouch).unwrap_or_default();
-    retouch_json.hash(&mut h);
-    edits.detail.hash_nr(&mut h);
-    h.finish()
-}
-
-fn capture_cache_key(
-    frame: &RawFrame,
-    edits: &Edits,
-    dims: (u32, u32),
-    cam_to_srgb: [[f32; 3]; 3],
-    sigma: f32,
-) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    nr_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
-    sigma.to_bits().hash(&mut h);
-    h.finish()
-}
-
-fn compute_out_dims(
-    frame: &RawFrame,
-    edits: &Edits,
-    src_dims: (u32, u32),
-    max_edge: u32,
-) -> (u32, u32) {
-    crate::geom::display_out_dims(frame.orientation, edits, src_dims, max_edge)
-}
-
-fn crop_px(frame: &RawFrame, edits: &Edits, src_dims: (u32, u32)) -> (u32, u32) {
-    crate::geom::display_crop_px(frame.orientation, edits, src_dims)
 }

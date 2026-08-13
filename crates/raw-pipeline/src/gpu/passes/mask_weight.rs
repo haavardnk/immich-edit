@@ -422,29 +422,3 @@ pub fn pack_layer_eval(
     }
     (out, n, verts)
 }
-
-#[allow(clippy::too_many_arguments)]
-pub fn pack_params(
-    out_w: u32,
-    out_h: u32,
-    n_components: u32,
-    layer_amount: f32,
-    crop: [f32; 4],
-    flags: [u32; 4],
-    geom_extra2: [f32; 4],
-    geom_extra3: [f32; 4],
-    lens: [f32; 4],
-    perspective: [f32; 12],
-) -> MaskWeightParams {
-    MaskWeightParams {
-        out_size: [out_w, out_h],
-        n_components,
-        layer_amount,
-        crop,
-        flags,
-        geom_extra2,
-        geom_extra3,
-        lens,
-        perspective,
-    }
-}
