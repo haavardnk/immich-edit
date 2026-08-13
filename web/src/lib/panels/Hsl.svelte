@@ -1,7 +1,6 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiRestore } from '@mdi/js';
+  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
+  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { keyLabel } from '$lib/keybinds';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS, HSL_BAND_HUES } from '$lib/types/edits';
@@ -57,50 +56,34 @@
   </div>
   <div class="flex items-center justify-between px-1">
     <div class="text-[11px] text-immich-dark-fg/70">{HSL_BAND_NAMES[activeBand]}</div>
-    <button
-      type="button"
-      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+    <ResetButton
       title="Reset {HSL_BAND_NAMES[activeBand]}  —  {keyLabel('Shift')}-click to reset all bands"
-      aria-label="Reset {HSL_BAND_NAMES[activeBand]}"
+      label="Reset {HSL_BAND_NAMES[activeBand]}"
       onclick={(e) => (e.shiftKey ? resetAllHsl() : resetBand(activeBand))}
-    >
-      <Icon path={mdiRestore} size={14} />
-    </button>
+    />
   </div>
-  <SliderRow
+  <EditSlider
     label="Hue"
     commitAction={`${HSL_BAND_NAMES[activeBand]} Hue`}
     bind:value={editor.edits.color.hsl.bands[activeBand].hue}
     min={-100}
     max={100}
-    step={1}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
     gradient={hueGradient}
   />
-  <SliderRow
+  <EditSlider
     label="Saturation"
     commitAction={`${HSL_BAND_NAMES[activeBand]} Saturation`}
     bind:value={editor.edits.color.hsl.bands[activeBand].sat}
     min={-100}
     max={100}
-    step={1}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
     gradient={satGradient}
   />
-  <SliderRow
+  <EditSlider
     label="Luminance"
     commitAction={`${HSL_BAND_NAMES[activeBand]} Luminance`}
     bind:value={editor.edits.color.hsl.bands[activeBand].lum}
     min={-100}
     max={100}
-    step={1}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
     gradient={lumGradient}
   />
 </div>

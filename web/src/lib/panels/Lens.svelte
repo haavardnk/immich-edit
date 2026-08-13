@@ -1,7 +1,6 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiRestore } from '@mdi/js';
+  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_LENS } from '$lib/types/edits';
 
@@ -79,18 +78,7 @@
 
 <div class="flex flex-col gap-3">
   <div class="flex flex-col gap-1">
-    <div class="flex items-center justify-between">
-      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Lens Profile</div>
-      <button
-        type="button"
-        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-        title="Reset Lens Corrections"
-        aria-label="Reset Lens Corrections"
-        onclick={resetLens}
-      >
-        <Icon path={mdiRestore} size={14} />
-      </button>
-    </div>
+    <SectionHeader title="Lens Profile" onReset={resetLens} resetTitle="Reset Lens Corrections" />
     {#if profileLoading}
       <div class="text-[11px] text-immich-dark-fg/50">Loading…</div>
     {:else if profileError}
@@ -135,32 +123,24 @@
     Remove Chromatic Aberration
   </label>
 
-  <SliderRow
+  <EditSlider
     label="Distortion"
     commitAction="Lens Distortion"
     bind:value={editor.edits.lens.distortion_amount}
     min={0}
     max={200}
-    step={1}
     defaultValue={100}
     disabled={!profileEnabled}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
   />
 
-  <SliderRow
+  <EditSlider
     label="Vignetting"
     commitAction="Lens Vignetting"
     bind:value={editor.edits.lens.vignette_amount}
     min={0}
     max={200}
-    step={1}
     defaultValue={100}
     disabled={!profileEnabled}
-    onLive={editor.onLive}
-    onCommit={editor.onCommit}
-    format={(v: number) => v.toFixed(0)}
   />
 
   <label

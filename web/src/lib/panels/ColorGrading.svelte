@@ -1,8 +1,9 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
+  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { mdiRestore, mdiChevronDown, mdiChevronRight } from '@mdi/js';
+  import { mdiChevronDown, mdiChevronRight } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
 
   type RegionKey = 'shadows' | 'midtones' | 'highlights' | 'global';
@@ -83,15 +84,7 @@
         Global
       </button>
     </div>
-    <button
-      type="button"
-      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-      title="Reset all color grading"
-      aria-label="Reset all color grading"
-      onclick={resetAllGrading}
-    >
-      <Icon path={mdiRestore} size={14} />
-    </button>
+    <ResetButton title="Reset all color grading" onclick={resetAllGrading} />
   </div>
 
   {#if mode === 'three_way'}
@@ -198,78 +191,53 @@
       >
         <span>H: {Math.round(activeRegionData.hue)}</span>
         <span>S: {Math.round(activeRegionData.sat)}</span>
-        <button
-          type="button"
-          class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+        <ResetButton
           title="Reset {REGION_LABELS[activeRegion]}"
-          aria-label="Reset {REGION_LABELS[activeRegion]}"
           onclick={() => resetRegion(activeRegion)}
-        >
-          <Icon path={mdiRestore} size={14} />
-        </button>
+        />
       </div>
-      <SliderRow
+      <EditSlider
         label="Hue"
         commitAction={`${REGION_LABELS[activeRegion]} Hue`}
         bind:value={activeRegionData.hue}
         min={0}
         max={360}
-        step={1}
-        onLive={editor.onLive}
-        onCommit={editor.onCommit}
-        format={(v: number) => v.toFixed(0)}
         gradient={hueGradient}
       />
-      <SliderRow
+      <EditSlider
         label="Saturation"
         commitAction={`${REGION_LABELS[activeRegion]} Saturation`}
         bind:value={activeRegionData.sat}
         min={0}
         max={100}
-        step={1}
-        onLive={editor.onLive}
-        onCommit={editor.onCommit}
-        format={(v: number) => v.toFixed(0)}
         gradient={satGradient}
       />
-      <SliderRow
+      <EditSlider
         label="Luminance"
         commitAction={`${REGION_LABELS[activeRegion]} Luminance`}
         bind:value={activeRegionData.lum}
         min={-50}
         max={50}
-        step={1}
-        onLive={editor.onLive}
-        onCommit={editor.onCommit}
-        format={(v: number) => v.toFixed(0)}
         gradient={lumGradient}
       />
     {/if}
   </div>
 
   <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2">
-    <SliderRow
+    <EditSlider
       label="Balance"
       commitAction="Color Balance"
       bind:value={editor.edits.color.color_grade.balance}
       min={-100}
       max={100}
-      step={1}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
       gradient={balanceGradient}
     />
-    <SliderRow
+    <EditSlider
       label="Blending"
       commitAction="Color Blending"
       bind:value={editor.edits.color.color_grade.blend}
       min={0}
       max={100}
-      step={1}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
       gradient={blendingGradient}
     />
   </div>

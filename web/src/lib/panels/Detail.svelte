@@ -1,7 +1,6 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiRestore } from '@mdi/js';
+  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_DETAIL, neutralSharpenAmount } from '$lib/types/edits';
 
@@ -44,18 +43,7 @@
 
 <div class="flex flex-col divide-y divide-white/5">
   <div class="flex flex-col gap-2.5 pb-3">
-    <div class="flex items-center justify-between">
-      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Sharpening</div>
-      <button
-        type="button"
-        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-        title="Reset Sharpening"
-        aria-label="Reset Sharpening"
-        onclick={resetSharpen}
-      >
-        <Icon path={mdiRestore} size={14} />
-      </button>
-    </div>
+    <SectionHeader title="Sharpening" onReset={resetSharpen} />
     <label
       class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80"
       class:cursor-pointer={isRaw}
@@ -73,19 +61,16 @@
       />
       Capture Sharpening
     </label>
-    <SliderRow
+    <EditSlider
       label="Amount"
       commitAction="Sharpen Amount"
       value={sharpenAmount}
       min={0}
       max={150}
-      step={1}
       defaultValue={defaultSharpen}
       onLive={setSharpenAmount}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
-    <SliderRow
+    <EditSlider
       label="Radius"
       commitAction="Sharpen Radius"
       bind:value={editor.edits.detail.sharpen_radius}
@@ -94,129 +79,81 @@
       step={0.1}
       defaultValue={1.0}
       disabled={sharpenInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      onPreviewStart={() => editor.onPreview('sharpen_radius')}
-      onPreviewEnd={editor.endPreview}
+      previewMode="sharpen_radius"
       format={(v: number) => v.toFixed(1)}
     />
-    <SliderRow
+    <EditSlider
       label="Detail"
       commitAction="Sharpen Detail"
       bind:value={editor.edits.detail.sharpen_detail}
       min={0}
       max={100}
-      step={1}
       defaultValue={25}
       disabled={sharpenInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      onPreviewStart={() => editor.onPreview('sharpen_detail')}
-      onPreviewEnd={editor.endPreview}
-      format={(v: number) => v.toFixed(0)}
+      previewMode="sharpen_detail"
     />
-    <SliderRow
+    <EditSlider
       label="Masking"
       commitAction="Sharpen Masking"
       bind:value={editor.edits.detail.sharpen_masking}
       min={0}
       max={100}
-      step={1}
       disabled={sharpenInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      onPreviewStart={() => editor.onPreview('sharpen_mask')}
-      onPreviewEnd={editor.endPreview}
-      format={(v: number) => v.toFixed(0)}
+      previewMode="sharpen_mask"
     />
   </div>
   <div class="flex flex-col gap-2.5 py-3">
-    <div class="flex items-center justify-between">
-      <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Noise Reduction</div>
-      <button
-        type="button"
-        class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-        title="Reset Noise Reduction"
-        aria-label="Reset Noise Reduction"
-        onclick={resetNr}
-      >
-        <Icon path={mdiRestore} size={14} />
-      </button>
-    </div>
-    <SliderRow
+    <SectionHeader title="Noise Reduction" onReset={resetNr} />
+    <EditSlider
       label="Luminance"
       commitAction="Luminance NR"
       bind:value={editor.edits.detail.luma_nr_amount}
       min={0}
       max={100}
-      step={1}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
-    <SliderRow
+    <EditSlider
       label="Detail"
       commitAction="Luminance NR Detail"
       bind:value={editor.edits.detail.luma_nr_detail}
       min={0}
       max={100}
-      step={1}
       defaultValue={50}
       disabled={lumaNrInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
-    <SliderRow
+    <EditSlider
       label="Contrast"
       commitAction="Luminance NR Contrast"
       bind:value={editor.edits.detail.luma_nr_contrast}
       min={0}
       max={100}
-      step={1}
       disabled={lumaNrInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
   </div>
   <div class="flex flex-col gap-2.5 pt-3">
-    <SliderRow
+    <EditSlider
       label="Color"
       commitAction="Color NR"
       bind:value={editor.edits.detail.color_nr_amount}
       min={0}
       max={100}
-      step={1}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
-    <SliderRow
+    <EditSlider
       label="Detail"
       commitAction="Color NR Detail"
       bind:value={editor.edits.detail.color_nr_detail}
       min={0}
       max={100}
-      step={1}
       defaultValue={50}
       disabled={colorNrInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
-    <SliderRow
+    <EditSlider
       label="Smoothness"
       commitAction="Color NR Smoothness"
       bind:value={editor.edits.detail.color_nr_smoothness}
       min={0}
       max={100}
-      step={1}
       defaultValue={50}
       disabled={colorNrInactive}
-      onLive={editor.onLive}
-      onCommit={editor.onCommit}
-      format={(v: number) => v.toFixed(0)}
     />
   </div>
 </div>

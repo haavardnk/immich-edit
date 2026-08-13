@@ -1,15 +1,9 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import LutPicker from './lut/LutPicker.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import {
-    mdiAlertCircleOutline,
-    mdiCheck,
-    mdiClose,
-    mdiDelete,
-    mdiRestore,
-    mdiUpload
-  } from '@mdi/js';
+  import { mdiAlertCircleOutline, mdiCheck, mdiClose, mdiDelete, mdiUpload } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listLuts, importLut, deleteLut, type LutMeta } from '$lib/api/luts';
@@ -100,18 +94,7 @@
 </script>
 
 <div class="flex flex-col gap-2.5 pb-1">
-  <div class="flex items-center justify-between">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">LUT</div>
-    <button
-      type="button"
-      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-      title="Reset LUT"
-      aria-label="Reset LUT"
-      onclick={reset}
-    >
-      <Icon path={mdiRestore} size={14} />
-    </button>
-  </div>
+  <SectionHeader title="LUT" onReset={reset} />
   <input
     bind:this={fileInput}
     type="file"
@@ -190,17 +173,13 @@
 
   {#if selected}
     <div class="border-t border-white/10 pt-2">
-      <SliderRow
+      <EditSlider
         label="Amount"
         commitAction="LUT Amount"
         bind:value={editor.edits.color.lut_3d.amount}
         min={0}
         max={100}
-        step={1}
         defaultValue={100}
-        onLive={editor.onLive}
-        onCommit={editor.onCommit}
-        format={(v: number) => v.toFixed(0)}
       />
     </div>
   {/if}

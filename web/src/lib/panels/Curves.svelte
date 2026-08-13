@@ -1,6 +1,5 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiRestore } from '@mdi/js';
+  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { keyLabel } from '$lib/keybinds';
   import {
@@ -372,17 +371,13 @@
 
   <div class="flex items-center justify-between px-1">
     <div class="text-[11px] text-immich-dark-fg/70">{channelLabels[activeChannel]}</div>
-    <button
-      type="button"
-      class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
+    <ResetButton
       title="Reset {channelLabels[activeChannel]} curve  —  {keyLabel(
         'Shift'
       )}-click to reset all channels"
-      aria-label="Reset {channelLabels[activeChannel]} curve"
+      label="Reset {channelLabels[activeChannel]} curve"
       onclick={(e) => (e.shiftKey ? resetAll() : resetActive())}
-    >
-      <Icon path={mdiRestore} size={14} />
-    </button>
+    />
   </div>
 
   <div class="flex flex-col items-center">

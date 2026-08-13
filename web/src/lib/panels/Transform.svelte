@@ -5,6 +5,8 @@
   import { ui } from '$lib/stores/ui.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
+  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { type AspectLock } from '$lib/types/edits';
   import { neutralPerspective, type PerspectiveEdits } from '$lib/utils/perspective';
   import {
@@ -12,7 +14,6 @@
     mdiRotateRight,
     mdiFlipHorizontal,
     mdiFlipVertical,
-    mdiRestore,
     mdiCropLandscape,
     mdiCropPortrait,
     mdiVectorSquare
@@ -123,18 +124,7 @@
 <div class="flex flex-col divide-y divide-white/5">
   {#if editor.geometrySession}
     <div class="flex flex-col gap-2.5 pb-3">
-      <div class="flex items-center justify-between">
-        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Crop</div>
-        <button
-          type="button"
-          class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-          title="Reset Crop"
-          aria-label="Reset Crop"
-          onclick={resetCrop}
-        >
-          <Icon path={mdiRestore} size={14} />
-        </button>
-      </div>
+      <SectionHeader title="Crop" onReset={resetCrop} />
       <div class="flex gap-1.5 items-center">
         <select
           aria-label="Aspect Ratio"
@@ -177,15 +167,7 @@
           >
             <Icon path={mdiVectorSquare} size={14} />
           </button>
-          <button
-            type="button"
-            class="text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors"
-            title="Reset Transform"
-            aria-label="Reset Transform"
-            onclick={resetTransform}
-          >
-            <Icon path={mdiRestore} size={14} />
-          </button>
+          <ResetButton title="Reset Transform" onclick={resetTransform} />
         </div>
       </div>
       <SliderRow
