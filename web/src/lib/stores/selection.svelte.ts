@@ -1,10 +1,11 @@
 import type { JobTarget } from '$lib/api/jobs';
+import type { SearchQuery } from '$lib/types/search';
 
 class SelectionStore {
   selected = $state(new Set<string>());
   anchorId: string | null = null;
   rangeBase = new Set<string>();
-  filterQuery = $state<Record<string, unknown> | null>(null);
+  filterQuery = $state<SearchQuery | null>(null);
   filterCount = $state(0);
 
   get count(): number {
@@ -72,7 +73,7 @@ class SelectionStore {
     this.rangeBase = new Set(ids);
   };
 
-  selectFiltered = (query: Record<string, unknown>, count: number): void => {
+  selectFiltered = (query: SearchQuery, count: number): void => {
     this.filterQuery = query;
     this.filterCount = count;
     this.selected = new Set();

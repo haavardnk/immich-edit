@@ -1,15 +1,16 @@
 import type { AssetSummary } from '$lib/types/album';
+import type { SearchQuery } from '$lib/types/search';
 
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
-  query = $state<Record<string, unknown> | null>(null);
+  query = $state<SearchQuery | null>(null);
   total = $state<number | undefined>(undefined);
 
   set(assets: AssetSummary[]): void {
     this.assets = assets;
   }
 
-  setContext(query: Record<string, unknown> | null, total: number | undefined): void {
+  setContext(query: SearchQuery | null, total: number | undefined): void {
     this.query = query;
     this.total = total;
   }

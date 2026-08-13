@@ -6,7 +6,8 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { searchSmart, searchMetadata, type SearchResult } from '$lib/api/search';
+  import { searchSmart, searchMetadata } from '$lib/api/search';
+  import type { SearchQuery, SearchResult } from '$lib/types/search';
   import { resolveSearchMode, type SearchMode } from '$lib/searchMode';
   import { toasts } from '$lib/stores/toasts.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
@@ -17,19 +18,15 @@
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
   const mode = $derived(resolveSearchMode(query, page.url.searchParams.get('mode')));
 
-  async function runSearch(body: Record<string, unknown>): Promise<SearchResult> {
-    if (mode === 'filename') {
-      const filenameBody: Record<string, unknown> = { ...body, originalFileName: query };
-      delete filenameBody.query;
-      return searchMetadata(filenameBody);
-    }
+  async function runSearch(body: SearchQuery): Promise<SearchResult> {
+    const byFilename: SearchQuery = { ...body, originalFileName: query };
+    delete byFilename.query;
+    if (mode === 'filename') return searchMetadata(byFilename);
     try {
       return await searchSmart(body);
     } catch {
-      const fallback: Record<string, unknown> = { ...body, originalFileName: query };
-      delete fallback.query;
       toasts.push('warn', 'Smart search unavailable, showing filename matches');
-      return await searchMetadata(fallback);
+      return await searchMetadata(byFilename);
     }
   }
 

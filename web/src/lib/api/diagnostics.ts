@@ -7,6 +7,30 @@ export interface HeifCodecs {
   av1_encode: boolean;
 }
 
+export interface RedactedConfig {
+  bind_addr: string;
+  data_dir: string;
+  cache_dir: string;
+  preview_max_edge: number;
+  render_max_concurrency: number;
+  thumb_max_concurrency: number;
+  mask_cache_mb: number;
+  embedding_cache_mb: number;
+  raw_frame_cache_mb: number;
+  quality_frame_cache_mb: number;
+  gpu_texture_cache_mb: number;
+  renderer: string;
+  allowed_origins: string[];
+  max_body_mb: number;
+  request_timeout_secs: number;
+  original_timeout_secs: number;
+  export_timeout_secs: number;
+  ml_runtime: string;
+  ml_max_edge: number;
+  ml_max_concurrency: number;
+  ml_idle_secs: number;
+}
+
 export interface HealthInfo {
   status: string;
   version: string;
@@ -18,7 +42,7 @@ export interface HealthInfo {
   immich_status: ImmichConnectionStatus;
   db_ready: boolean;
   db_migration_version: number | null;
-  config: Record<string, unknown>;
+  config: RedactedConfig;
 }
 
 export interface ImmichConnectionStatus {

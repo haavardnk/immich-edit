@@ -1,21 +1,14 @@
 import { sendJson } from './client';
-import type { AssetSummary } from '$lib/types/album';
+import type { SearchQuery, SearchResult } from '$lib/types/search';
 
-export interface SearchResult {
-  items: AssetSummary[];
-  count: number;
-  total: number;
-  nextPage: string | null;
-}
-
-export function searchMetadata(body: Record<string, unknown>): Promise<SearchResult> {
+export function searchMetadata(body: SearchQuery): Promise<SearchResult> {
   return sendJson('POST', '/api/search/metadata', body);
 }
 
-export function searchSmart(body: Record<string, unknown>): Promise<SearchResult> {
+export function searchSmart(body: SearchQuery): Promise<SearchResult> {
   return sendJson('POST', '/api/search/smart', body, undefined, { silent: true });
 }
 
-export function searchStatistics(body: Record<string, unknown>): Promise<{ total: number }> {
+export function searchStatistics(body: SearchQuery): Promise<{ total: number }> {
   return sendJson('POST', '/api/search/statistics', body);
 }
