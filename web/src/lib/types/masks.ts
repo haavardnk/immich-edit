@@ -17,6 +17,32 @@ import { v4 as uuidv4 } from 'uuid';
 
 export type ManualTool = 'linear' | 'radial' | 'brush' | 'polygon' | 'luma_range' | 'color_range';
 
+const KIND_LABELS: Record<MaskComponentKind['kind'], string> = {
+  linear: 'Linear gradient',
+  radial: 'Radial gradient',
+  brush: 'Brush',
+  polygon: 'Polygon',
+  luma_range: 'Luminance range',
+  color_range: 'Color range'
+};
+
+const GENERATED_LABELS: Record<string, string> = {
+  subject: 'Subject',
+  people: 'People',
+  sky: 'Sky',
+  depth: 'Depth',
+  semantic: 'Scene',
+  click: 'Click to select'
+};
+
+export function kindLabel(kind: MaskComponentKind): string {
+  return KIND_LABELS[kind.kind];
+}
+
+export function generatedLabel(kind: string): string {
+  return GENERATED_LABELS[kind] ?? kind;
+}
+
 const PALETTE = [
   '#ff3b30',
   '#ff9500',
@@ -71,6 +97,14 @@ export function defaultColorRange(): MaskComponentKind {
     tolerance: 0.1,
     softness: 0.05
   };
+}
+
+export function manualKind(tool: ManualTool): MaskComponentKind | null {
+  if (tool === 'linear') return defaultLinear();
+  if (tool === 'radial') return defaultRadial();
+  if (tool === 'luma_range') return defaultLumaRange();
+  if (tool === 'color_range') return defaultColorRange();
+  return null;
 }
 
 export function makeComponent(

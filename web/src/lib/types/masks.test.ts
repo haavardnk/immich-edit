@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { numberRepeats, visibleSceneClasses } from './masks';
+import { generatedLabel, kindLabel, manualKind, numberRepeats, visibleSceneClasses } from './masks';
 import type { MaskKind } from '$lib/api/masks';
+import type { ManualTool } from './masks';
 
 const CLASSES = [
   { id: 'sky', name: 'Sky' },
@@ -27,5 +28,38 @@ describe('numberRepeats', () => {
     { labels: [], expected: [] }
   ])('numbers only repeated labels', ({ labels, expected }) => {
     expect(numberRepeats(labels)).toEqual(expected);
+  });
+});
+
+describe('manualKind', () => {
+  it.each([
+    { tool: 'linear', expected: 'linear' },
+    { tool: 'radial', expected: 'radial' },
+    { tool: 'luma_range', expected: 'luma_range' },
+    { tool: 'color_range', expected: 'color_range' },
+    { tool: 'brush', expected: null },
+    { tool: 'polygon', expected: null }
+  ])('maps $tool to a default shape', ({ tool, expected }) => {
+    expect(manualKind(tool as ManualTool)?.kind ?? null).toBe(expected);
+  });
+});
+
+describe('labels', () => {
+  it.each([
+    { kind: 'linear', expected: 'Linear gradient' },
+    { kind: 'brush', expected: 'Brush' },
+    { kind: 'color_range', expected: 'Color range' }
+  ])('names the $kind shape', ({ kind, expected }) => {
+    expect(kindLabel(manualKind(kind as ManualTool) ?? { kind: 'brush', raster_id: '' })).toBe(
+      expected
+    );
+  });
+
+  it.each([
+    { kind: 'semantic', expected: 'Scene' },
+    { kind: 'sky', expected: 'Sky' },
+    { kind: 'unknown', expected: 'unknown' }
+  ])('names the $kind model', ({ kind, expected }) => {
+    expect(generatedLabel(kind)).toBe(expected);
   });
 });
