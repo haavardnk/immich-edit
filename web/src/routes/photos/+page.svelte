@@ -3,10 +3,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
-  import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
-  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const feed = new BrowseFeed({ baseBody: () => ({}) });
 
@@ -19,22 +16,14 @@
   $effect(() => feed.watchFilterChange());
 </script>
 
-{#if feed.loading && !feed.loadedOnce}
-  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading photos…" /></div>
-{:else}
-  <BrowseHeader title="Photos" loaded={feed.assets.length} totalCount={feed.totalCount} />
-  {#if feed.assets.length === 0}
-    <EmptyState
-      title="No photos"
-      message="Connect an Immich library or upload assets to get started."
-    />
-  {:else}
-    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-      <AssetGrid
-        assets={feed.assets}
-        loadingMore={feed.loadingMore}
-        onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
-      />
-    </div>
-  {/if}
-{/if}
+<BrowseShell
+  title="Photos"
+  assets={feed.assets}
+  loading={feed.loading && !feed.loadedOnce}
+  loadingLabel="Loading photos…"
+  loadingMore={feed.loadingMore}
+  onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  totalCount={feed.totalCount}
+  emptyTitle="No photos"
+  emptyMessage="Connect an Immich library or upload assets to get started."
+/>

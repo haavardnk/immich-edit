@@ -5,9 +5,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
-  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
+  import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -48,18 +46,17 @@
   });
 </script>
 
-{#if loading}
-  <div class="flex-1 flex items-center justify-center"><Spinner label="Loading folder…" /></div>
-{:else if !folderPath}
+{#if !loading && !folderPath}
   <EmptyState
     title="Select a folder"
     message="Pick a folder from the sidebar to browse its photos."
   />
-{:else if assets.length === 0}
-  <EmptyState title="No photos in this folder" />
 {:else}
-  <BrowseHeader title={folderPath} loaded={assets.length} />
-  <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-    <AssetGrid {assets} />
-  </div>
+  <BrowseShell
+    title={folderPath}
+    {assets}
+    {loading}
+    loadingLabel="Loading folder…"
+    emptyTitle="No photos in this folder"
+  />
 {/if}
