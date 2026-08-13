@@ -5,7 +5,6 @@ import {
   isIdentity,
   manifestToEdits,
   effectiveLens,
-  FULL_CROP,
   MAX_RETOUCH_STROKES,
   type AspectLock,
   type CropRect,
@@ -23,30 +22,23 @@ import {
 } from '$lib/types/edits';
 import {
   cloneLayerWithNewIds,
-  defaultBrush,
   defaultLinear,
   defaultMaskColor,
   makeComponent,
   MAX_POLYGON_POINTS,
-  makeGeneratedLayer,
   makeLayer,
   maskCapacity,
   nextLayerName,
   setMaskedEdit
 } from '$lib/types/masks';
-import { blankBuffer, type BrushBuffer } from '$lib/utils/brush';
-import { fetchRaster, uploadRaster } from '$lib/api/rasters';
-import {
-  clickMask,
-  generateMask,
-  rebakeMask,
-  type ClickPoint,
-  type MaskBox,
-  type MaskKind,
-  type MaskRange
-} from '$lib/api/masks';
+import type { BrushBuffer } from '$lib/utils/brush';
+import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '$lib/api/masks';
+import * as maskGen from '$lib/stores/editor/maskGen';
+import * as metadata from '$lib/stores/editor/metadata';
+import * as geometry from '$lib/stores/editor/geometry.svelte';
+import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import type { PreviewMeta } from '$lib/types/preview';
-import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
+import type { AssetDetail, TagRef } from '$lib/types/asset';
 import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
 import { ConflictError, ApiError } from '$lib/api/client';
 import type { EditRecord } from '$lib/types/edits';
@@ -67,13 +59,9 @@ import {
   type ExportOptions,
   type ImmichExportOptions
 } from '$lib/api/export';
-import { getAsset, updateAsset } from '$lib/api/assets';
+import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
-import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-import { rejected } from '$lib/stores/rejected.svelte';
-import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
+import { isRejected } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
@@ -91,21 +79,8 @@ import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { downloadBlob } from '$lib/utils/download';
-import {
-  constrainCropRect,
-  largestInscribedRect,
-  refitCropAtAspect,
-  aspectRatioFor
-} from '$lib/utils/geom';
-import {
-  clampPerspective,
-  limitPerspective,
-  neutralPerspective,
-  perspectiveInverse,
-  perspectiveIsIdentity,
-  type Mat3,
-  type PerspectiveEdits
-} from '$lib/utils/perspective';
+import { errorMessage } from '$lib/utils/errors';
+import type { PerspectiveEdits } from '$lib/utils/perspective';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
@@ -151,13 +126,12 @@ class EditorStore {
   viewRoi = $state<Roi | null>(null);
   viewNat = $state<{ w: number; h: number } | null>(null);
   geometrySession = $state<GeometrySession | null>(null);
-  private geometrySessionId = 0;
 
   activeLayerId = $state<string | null>(null);
   activeMaskComponentId = $state<string | null>(null);
   maskGenerating = $state(false);
   maskError = $state<string | null>(null);
-  private maskRetry: (() => Promise<unknown>) | null = null;
+  maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
   maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
@@ -168,7 +142,7 @@ class EditorStore {
     mode: 'paint'
   });
   brushBuffers = $state<Record<string, BrushBuffer>>({});
-  private brushBufferSource: Record<string, string> = {};
+  brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
     active: boolean;
     negative: boolean;
@@ -512,7 +486,7 @@ class EditorStore {
       });
       this.scheduleIdleRender();
     } catch (e) {
-      this.error = (e as Error).message;
+      this.error = errorMessage(e);
     }
   }
 
@@ -678,8 +652,8 @@ class EditorStore {
         this.saveError = null;
         toasts.push('warn', 'Edits were changed elsewhere. Loaded latest version.');
       } else {
-        this.saveError = (e as Error).message;
-        this.error = (e as Error).message;
+        this.saveError = errorMessage(e);
+        this.error = this.saveError;
       }
     } finally {
       this.saving = false;
@@ -750,7 +724,7 @@ class EditorStore {
       this.onLive();
       await this.onCommit('Auto');
     } catch (e) {
-      this.error = (e as Error).message;
+      this.error = errorMessage(e);
     } finally {
       this.autoBusy = false;
     }
@@ -766,7 +740,7 @@ class EditorStore {
       const name = `${base}_edit.${EXTENSION_BY_FORMAT[opts.format]}`;
       downloadBlob(blob, name);
     } catch (e) {
-      this.error = (e as Error).message;
+      this.error = errorMessage(e);
     } finally {
       this.exporting = false;
     }
@@ -799,7 +773,7 @@ class EditorStore {
         }
       }
     } catch (e) {
-      const m = (e as Error).message;
+      const m = errorMessage(e);
       this.error = m;
       this.lastUpload = { kind: 'error', message: `Upload failed: ${m}` };
       toasts.push('error', `Upload failed: ${m}`, 10000);
@@ -1194,73 +1168,71 @@ class EditorStore {
     if (this.activeRetouchId) void this.setRetouchStroke(this.activeRetouchId, { mode }, true);
   };
 
-  private brushDims = (): { width: number; height: number } => {
-    const sw = this.meta?.source_w ?? 1024;
-    const sh = this.meta?.source_h ?? 1024;
-    const longest = Math.max(sw, sh, 1);
-    const scale = Math.max(1, Math.ceil(longest / 2048));
-    return {
-      width: Math.max(1, Math.floor(sw / scale)),
-      height: Math.max(1, Math.floor(sh / scale))
-    };
-  };
+  ensureBrushBuffer = (componentId: string, rasterId: string | null): Promise<BrushBuffer> =>
+    maskGen.ensureBrushBuffer(this, componentId, rasterId);
 
-  ensureBrushBuffer = async (
+  addBrushLayer = (): Promise<string | null> => maskGen.addBrushLayer(this);
+
+  addBrushComponent = (layerId: string, mode: MaskComponentMode = 'add'): Promise<string | null> =>
+    maskGen.addBrushComponent(this, layerId, mode);
+
+  commitBrushStroke = (layerId: string, componentId: string): Promise<void> =>
+    maskGen.commitBrushStroke(this, layerId, componentId);
+
+  addGeneratedComponent = (
+    layerId: string,
+    kind: MaskKind,
+    mode: MaskComponentMode = 'add',
+    maskClass?: string,
+    invert = false
+  ): Promise<string | null> =>
+    maskGen.addGeneratedComponent(this, layerId, kind, mode, maskClass, invert);
+
+  addGeneratedLayer = (
+    kind: MaskKind,
+    maskClass?: string,
+    invert = false
+  ): Promise<string | null> => maskGen.addGeneratedLayer(this, kind, maskClass, invert);
+
+  rebakeGeneratedComponent = (
+    layerId: string,
     componentId: string,
-    rasterId: string | null
-  ): Promise<BrushBuffer> => {
-    const key = rasterId ?? '';
-    const existing = this.brushBuffers[componentId];
-    if (existing && this.brushBufferSource[componentId] === key) return existing;
-    if (rasterId) {
-      try {
-        const r = await fetchRaster(rasterId);
-        const buf: BrushBuffer = { width: r.width, height: r.height, bytes: r.bytes };
-        this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
-        this.brushBufferSource[componentId] = key;
-        return buf;
-      } catch {
-        // fall through to blank
-      }
-    }
-    const { width, height } = this.brushDims();
-    const buf = blankBuffer(width, height);
-    this.brushBuffers = { ...this.brushBuffers, [componentId]: buf };
-    this.brushBufferSource[componentId] = key;
-    return buf;
-  };
+    grow: number,
+    feather: number,
+    range?: MaskRange
+  ): Promise<void> =>
+    maskGen.rebakeGeneratedComponent(this, layerId, componentId, grow, feather, range);
 
-  addBrushLayer = async (): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, null);
-    if (cap.layersFull || cap.totalFull) return null;
-    const { width, height } = this.brushDims();
-    const buf = blankBuffer(width, height);
-    let rasterId: string;
-    try {
-      const meta = await uploadRaster(width, height, buf.bytes);
-      rasterId = meta.raster_id;
-    } catch (e) {
-      this.error = (e as Error).message;
-      return null;
-    }
-    const layer = makeLayer(
-      nextLayerName(this.edits.masks),
-      this.edits.masks.length,
-      defaultBrush(rasterId)
-    );
-    this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
-    this.activeLayerId = layer.id;
-    const compId = layer.components[0]?.id ?? null;
-    this.activeMaskComponentId = compId;
-    if (compId) this.brushBuffers = { ...this.brushBuffers, [compId]: buf };
-    await this.onCommit('Masks');
-    return layer.id;
-  };
+  clickRefineComponent = (
+    layerId: string,
+    componentId: string,
+    points: ClickPoint[]
+  ): Promise<void> => maskGen.clickRefineComponent(this, layerId, componentId, points);
 
-  private failMask = (e: unknown, retry: () => Promise<unknown>): void => {
-    this.maskError = (e as Error).message;
-    this.maskRetry = retry;
-  };
+  clickRefineRaster = (
+    layerId: string,
+    componentId: string,
+    points: ClickPoint[],
+    subtract: boolean,
+    bbox?: MaskBox
+  ): Promise<void> => maskGen.clickRefineRaster(this, layerId, componentId, points, subtract, bbox);
+
+  addClickLayer = (points: ClickPoint[], bbox?: MaskBox): Promise<string | null> =>
+    maskGen.addClickLayer(this, points, bbox);
+
+  addClickComponent = (
+    layerId: string,
+    points: ClickPoint[],
+    mode: MaskComponentMode = 'add',
+    bbox?: MaskBox
+  ): Promise<string | null> => maskGen.addClickComponent(this, layerId, points, mode, bbox);
+
+  addClickPoint = (x: number, y: number, positive: boolean): Promise<void> =>
+    maskGen.addClickPoint(this, x, y, positive);
+
+  addClickBox = (bbox: MaskBox): Promise<void> => maskGen.addClickBox(this, bbox);
+
+  removeClickPoint = (index: number): Promise<void> => maskGen.removeClickPoint(this, index);
 
   retryMask = async (): Promise<void> => {
     const retry = this.maskRetry;
@@ -1275,552 +1247,23 @@ class EditorStore {
     this.maskRetry = null;
   };
 
-  addGeneratedComponent = async (
-    layerId: string,
-    kind: MaskKind,
-    mode: MaskComponentMode = 'add',
-    maskClass?: string,
-    invert = false
-  ): Promise<string | null> => {
-    const assetId = this.assetId;
-    if (!assetId || this.maskGenerating) return null;
-    const cap = maskCapacity(this.edits, layerId);
-    if (cap.componentsFull || cap.totalFull) return null;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return null;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await generateMask(assetId, kind, 0, 0, maskClass);
-      const comp: MaskComponent = {
-        ...makeComponent({ kind: 'brush', raster_id: res.raster_id }, mode),
-        invert,
-        source: 'generated',
-        generated: {
-          model_id: res.model_id,
-          kind,
-          prob_raster_id: res.prob_raster_id,
-          grow: 0,
-          feather: 0,
-          ...(maskClass ? { class: maskClass } : {})
-        }
-      };
-      this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
-      this.activeMaskComponentId = comp.id;
-      await this.ensureBrushBuffer(comp.id, res.raster_id);
-      await this.onCommit('Masks');
-      return comp.id;
-    } catch (e) {
-      this.failMask(e, () => this.addGeneratedComponent(layerId, kind, mode, maskClass, invert));
-      return null;
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
+  toggleFavorite = (): Promise<void> => metadata.toggleFavorite(this);
 
-  addGeneratedLayer = async (
-    kind: MaskKind,
-    maskClass?: string,
-    invert = false
-  ): Promise<string | null> => {
-    const assetId = this.assetId;
-    if (!assetId || this.maskGenerating) return null;
-    const cap = maskCapacity(this.edits, null);
-    if (cap.layersFull || cap.totalFull) return null;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await generateMask(assetId, kind, 0, 0, maskClass);
-      const layer = makeGeneratedLayer(
-        nextLayerName(this.edits.masks),
-        this.edits.masks.length,
-        res.raster_id,
-        {
-          model_id: res.model_id,
-          kind,
-          prob_raster_id: res.prob_raster_id,
-          grow: 0,
-          feather: 0,
-          ...(maskClass ? { class: maskClass } : {})
-        },
-        invert
-      );
-      this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
-      this.activeLayerId = layer.id;
-      const compId = layer.components[0]?.id ?? null;
-      this.activeMaskComponentId = compId;
-      if (compId) await this.ensureBrushBuffer(compId, res.raster_id);
-      await this.onCommit('Masks');
-      return layer.id;
-    } catch (e) {
-      this.failMask(e, () => this.addGeneratedLayer(kind, maskClass, invert));
-      return null;
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
+  setRating = (rating: number | null): Promise<void> => metadata.setRating(this, rating);
 
-  rebakeGeneratedComponent = async (
-    layerId: string,
-    componentId: string,
-    grow: number,
-    feather: number,
-    range?: MaskRange
-  ): Promise<void> => {
-    const assetId = this.assetId;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    const comp = layer?.components.find((c) => c.id === componentId);
-    if (!assetId || !comp?.generated || this.maskGenerating) return;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await rebakeMask(assetId, comp.generated.prob_raster_id, grow, feather, range);
-      await this.ensureBrushBuffer(componentId, res.raster_id);
-      this.patchMaskComponent(
-        layerId,
-        componentId,
-        {
-          kind: { kind: 'brush', raster_id: res.raster_id },
-          generated: {
-            ...comp.generated,
-            grow,
-            feather,
-            painted: false,
-            ...(range ? { range } : {})
-          }
-        },
-        false
-      );
-      await this.onCommit('Masks');
-    } catch (e) {
-      this.failMask(e, () =>
-        this.rebakeGeneratedComponent(layerId, componentId, grow, feather, range)
-      );
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
+  addTag = (tag: TagRef): Promise<void> => metadata.addTag(this, tag);
 
-  clickRefineComponent = async (
-    layerId: string,
-    componentId: string,
-    points: ClickPoint[]
-  ): Promise<void> => {
-    const assetId = this.assetId;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    const comp = layer?.components.find((c) => c.id === componentId);
-    if (!assetId || !comp?.generated || this.maskGenerating) return;
-    if (points.length === 0) return;
-    const grow = comp.generated.grow;
-    const feather = comp.generated.feather;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await clickMask(assetId, points, grow, feather);
-      await this.ensureBrushBuffer(componentId, res.raster_id);
-      this.patchMaskComponent(
-        layerId,
-        componentId,
-        {
-          kind: { kind: 'brush', raster_id: res.raster_id },
-          generated: {
-            ...comp.generated,
-            model_id: res.model_id,
-            prob_raster_id: res.prob_raster_id,
-            painted: false,
-            points
-          }
-        },
-        false
-      );
-      await this.onCommit('Masks');
-    } catch (e) {
-      this.failMask(e, () => this.clickRefineComponent(layerId, componentId, points));
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
+  removeTag = (tagId: string): Promise<void> => metadata.removeTag(this, tagId);
 
-  addClickLayer = async (points: ClickPoint[], bbox?: MaskBox): Promise<string | null> => {
-    const assetId = this.assetId;
-    if (!assetId || this.maskGenerating || (points.length === 0 && !bbox)) return null;
-    const cap = maskCapacity(this.edits, null);
-    if (cap.layersFull || cap.totalFull) return null;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
-      const layer = makeGeneratedLayer(
-        nextLayerName(this.edits.masks),
-        this.edits.masks.length,
-        res.raster_id,
-        {
-          model_id: res.model_id,
-          kind: 'click',
-          prob_raster_id: res.prob_raster_id,
-          grow: 0,
-          feather: 0,
-          points
-        }
-      );
-      this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
-      this.activeLayerId = layer.id;
-      const compId = layer.components[0]?.id ?? null;
-      this.activeMaskComponentId = compId;
-      if (compId) await this.ensureBrushBuffer(compId, res.raster_id);
-      await this.onCommit('Masks');
-      return layer.id;
-    } catch (e) {
-      this.failMask(e, () => this.addClickLayer(points, bbox));
-      return null;
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
+  toggleReject = (): Promise<void> => metadata.toggleReject(this);
 
-  removeClickPoint = async (index: number): Promise<void> => {
-    if (this.maskGenerating) return;
-    const layer = this.activeLayerId
-      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
-      : null;
-    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
-    if (!layer || !comp || comp.generated?.kind !== 'click') return;
-    const points = comp.generated.points ?? [];
-    if (index < 0 || index >= points.length) return;
-    const next = points.filter((_, i) => i !== index);
-    if (next.length === 0) {
-      await this.removeMaskComponent(layer.id, comp.id);
-      return;
-    }
-    await this.clickRefineComponent(layer.id, comp.id, next);
-  };
-
-  addClickComponent = async (
-    layerId: string,
-    points: ClickPoint[],
-    mode: MaskComponentMode = 'add',
-    bbox?: MaskBox
-  ): Promise<string | null> => {
-    const assetId = this.assetId;
-    if (!assetId || this.maskGenerating || (points.length === 0 && !bbox)) return null;
-    const cap = maskCapacity(this.edits, layerId);
-    if (cap.componentsFull || cap.totalFull) return null;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return null;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
-      const comp: MaskComponent = {
-        ...makeComponent({ kind: 'brush', raster_id: res.raster_id }, mode),
-        source: 'generated',
-        generated: {
-          model_id: res.model_id,
-          kind: 'click',
-          prob_raster_id: res.prob_raster_id,
-          grow: 0,
-          feather: 0,
-          points
-        }
-      };
-      this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
-      this.activeMaskComponentId = comp.id;
-      await this.ensureBrushBuffer(comp.id, res.raster_id);
-      await this.onCommit('Masks');
-      return comp.id;
-    } catch (e) {
-      this.failMask(e, () => this.addClickComponent(layerId, points, mode, bbox));
-      return null;
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
-
-  clickRefineRaster = async (
-    layerId: string,
-    componentId: string,
-    points: ClickPoint[],
-    subtract: boolean,
-    bbox?: MaskBox
-  ): Promise<void> => {
-    const assetId = this.assetId;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    const comp = layer?.components.find((c) => c.id === componentId);
-    if (!assetId || !comp || comp.kind.kind !== 'brush' || this.maskGenerating) return;
-    const base = comp.generated?.prob_raster_id ?? comp.kind.raster_id;
-    const grow = comp.generated?.grow ?? 0;
-    const feather = comp.generated?.feather ?? 0;
-    this.maskGenerating = true;
-    this.maskError = null;
-    try {
-      const res = await clickMask(
-        assetId,
-        points.map((p) => ({ ...p, positive: true })),
-        grow,
-        feather,
-        base,
-        subtract,
-        bbox
-      );
-      await this.ensureBrushBuffer(componentId, res.raster_id);
-      this.patchMaskComponent(
-        layerId,
-        componentId,
-        {
-          kind: { kind: 'brush', raster_id: res.raster_id },
-          ...(comp.generated
-            ? {
-                generated: {
-                  ...comp.generated,
-                  prob_raster_id: res.prob_raster_id,
-                  points: []
-                }
-              }
-            : {})
-        },
-        false
-      );
-      await this.onCommit('Masks');
-    } catch (e) {
-      this.failMask(e, () => this.clickRefineRaster(layerId, componentId, points, subtract, bbox));
-    } finally {
-      this.maskGenerating = false;
-    }
-  };
-
-  addClickPoint = async (x: number, y: number, positive: boolean): Promise<void> => {
-    if (this.maskGenerating) return;
-    const layer = this.activeLayerId
-      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
-      : null;
-    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
-    const point = { x, y, positive };
-    if (layer && comp?.generated?.kind === 'click' && (comp.generated.points ?? []).length > 0) {
-      const points = [...(comp.generated.points ?? []), point];
-      await this.clickRefineComponent(layer.id, comp.id, points);
-      return;
-    }
-    if (layer && comp && comp.kind.kind === 'brush') {
-      await this.clickRefineRaster(layer.id, comp.id, [point], !positive);
-      return;
-    }
-    if (!positive) return;
-    const target = this.clickTool.layerId;
-    if (target && this.edits.masks.some((l) => l.id === target)) {
-      await this.addClickComponent(target, [point], this.clickTool.mode);
-      return;
-    }
-    await this.addClickLayer([point]);
-  };
-
-  addClickBox = async (bbox: MaskBox): Promise<void> => {
-    if (this.maskGenerating) return;
-    const layer = this.activeLayerId
-      ? (this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null)
-      : null;
-    const comp = layer?.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
-    if (layer && comp && comp.kind.kind === 'brush') {
-      await this.clickRefineRaster(layer.id, comp.id, [], this.clickTool.negative, bbox);
-      return;
-    }
-    const target = this.clickTool.layerId;
-    if (target && this.edits.masks.some((l) => l.id === target)) {
-      await this.addClickComponent(target, [], this.clickTool.mode, bbox);
-      return;
-    }
-    await this.addClickLayer([], bbox);
-  };
-
-  addBrushComponent = async (
-    layerId: string,
-    mode: MaskComponentMode = 'add'
-  ): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, layerId);
-    if (cap.componentsFull || cap.totalFull) return null;
-    const { width, height } = this.brushDims();
-    const buf = blankBuffer(width, height);
-    let rasterId: string;
-    try {
-      const meta = await uploadRaster(width, height, buf.bytes);
-      rasterId = meta.raster_id;
-    } catch (e) {
-      this.error = (e as Error).message;
-      return null;
-    }
-    const id = await this.addMaskComponent(layerId, defaultBrush(rasterId), mode);
-    if (id) this.brushBuffers = { ...this.brushBuffers, [id]: buf };
-    return id;
-  };
-
-  commitBrushStroke = async (layerId: string, componentId: string): Promise<void> => {
-    const buf = this.brushBuffers[componentId];
-    if (!buf) return;
-    try {
-      const meta = await uploadRaster(buf.width, buf.height, buf.bytes);
-      const layer = this.edits.masks.find((l) => l.id === layerId);
-      const comp = layer?.components.find((c) => c.id === componentId);
-      if (!comp || comp.kind.kind !== 'brush') return;
-      this.brushBufferSource[componentId] = meta.raster_id;
-      this.updateMaskComponentKind(
-        layerId,
-        componentId,
-        { kind: 'brush', raster_id: meta.raster_id },
-        false
-      );
-      if (comp.generated && !comp.generated.painted) {
-        this.patchMaskComponent(
-          layerId,
-          componentId,
-          { generated: { ...comp.generated, painted: true } },
-          false
-        );
-      }
-      await this.onCommit('Masks');
-    } catch (e) {
-      this.error = (e as Error).message;
-    }
-  };
-
-  private syncBrowsing(): void {
-    if (!this.assetId || !this.asset) return;
-    browsing.patch(this.assetId, {
-      isFavorite: this.asset.isFavorite,
-      exifInfo: this.asset.exifInfo ?? null,
-      tags: this.asset.tags
-    });
-  }
-
-  toggleFavorite = async (): Promise<void> => {
-    if (!this.assetId || !this.asset) return;
-    if (!(await metadataConsent.gate())) return;
-    const prev = this.asset.isFavorite;
-    this.asset = { ...this.asset, isFavorite: !prev };
-    try {
-      const updated = await updateAsset(this.assetId, { isFavorite: !prev });
-      this.asset = { ...updated, tags: this.asset.tags };
-      this.syncBrowsing();
-    } catch (e) {
-      if (this.asset) this.asset = { ...this.asset, isFavorite: prev };
-      this.error = (e as Error).message;
-    }
-  };
-
-  setRating = async (rating: number | null): Promise<void> => {
-    if (!this.assetId || !this.asset) return;
-    if (!(await metadataConsent.gate())) return;
-    const prevExif: ExifInfo | null = this.asset.exifInfo;
-    const nextExif: ExifInfo = prevExif
-      ? { ...prevExif, rating }
-      : {
-          make: null,
-          model: null,
-          lensModel: null,
-          fNumber: null,
-          focalLength: null,
-          iso: null,
-          exposureTime: null,
-          exifImageWidth: null,
-          exifImageHeight: null,
-          dateTimeOriginal: null,
-          rating,
-          fileSizeInByte: null
-        };
-    this.asset = { ...this.asset, exifInfo: nextExif };
-    try {
-      const updated = await updateAsset(this.assetId, { rating });
-      this.asset = { ...updated, tags: this.asset.tags };
-      this.syncBrowsing();
-    } catch (e) {
-      if (this.asset) this.asset = { ...this.asset, exifInfo: prevExif };
-      this.error = (e as Error).message;
-    }
-  };
-
-  addTag = async (tag: TagRef): Promise<void> => {
-    if (!this.assetId || !this.asset) return;
-    if (this.asset.tags.some((t) => t.id === tag.id)) return;
-    if (!(await metadataConsent.gate())) return;
-    const prev = this.asset.tags;
-    this.asset = { ...this.asset, tags: [...prev, tag] };
-    try {
-      await addTagToAsset(tag.id, this.assetId);
-      this.syncBrowsing();
-    } catch (e) {
-      if (this.asset) this.asset = { ...this.asset, tags: prev };
-      this.error = (e as Error).message;
-    }
-  };
-
-  removeTag = async (tagId: string): Promise<void> => {
-    if (!this.assetId || !this.asset) return;
-    if (!(await metadataConsent.gate())) return;
-    const prev = this.asset.tags;
-    this.asset = { ...this.asset, tags: prev.filter((t) => t.id !== tagId) };
-    try {
-      await removeTagFromAsset(tagId, this.assetId);
-      this.syncBrowsing();
-    } catch (e) {
-      if (this.asset) this.asset = { ...this.asset, tags: prev };
-      this.error = (e as Error).message;
-    }
-  };
-
-  toggleReject = async (): Promise<void> => {
-    if (!this.assetId || !this.asset) return;
-    if (!(await metadataConsent.gate())) return;
-    const rejectTag = await ensureRejectTag();
-    if (!rejectTag) {
-      this.error = 'reject: could not create tag';
-      return;
-    }
-    const next = !isRejected(this.asset);
-    const prev = this.asset.tags;
-    this.asset = { ...this.asset, tags: setRejectedTags(prev, rejectTag, next) };
-    if (next) rejected.add(this.assetId, rejectTag);
-    else rejected.remove(this.assetId);
-    try {
-      if (next) await addTagToAsset(rejectTag.id, this.assetId);
-      else await removeTagFromAsset(rejectTag.id, this.assetId);
-      this.syncBrowsing();
-    } catch (e) {
-      if (this.asset) this.asset = { ...this.asset, tags: prev };
-      if (next) rejected.remove(this.assetId);
-      else rejected.add(this.assetId, rejectTag);
-      this.error = (e as Error).message;
-    }
-  };
+  createAndAddTag = (value: string): Promise<TagRef | null> =>
+    metadata.createAndAddTag(this, value);
 
   clearFlags = async (): Promise<void> => {
     if (!this.asset) return;
     if (this.asset.isFavorite) await this.toggleFavorite();
     if (this.asset && isRejected(this.asset)) await this.toggleReject();
-  };
-
-  createAndAddTag = async (value: string): Promise<TagRef | null> => {
-    if (!this.assetId || !this.asset) return null;
-    if (!(await metadataConsent.gate())) return null;
-    try {
-      const created = await upsertTags([value]);
-      const tag = created[0];
-      if (!tag) return null;
-      const ref: TagRef = { id: tag.id, name: tag.name, value: tag.value };
-      if (!this.asset.tags.some((t) => t.id === ref.id)) {
-        const prev = this.asset.tags;
-        this.asset = { ...this.asset, tags: [...prev, ref] };
-        try {
-          await addTagToAsset(ref.id, this.assetId);
-          this.syncBrowsing();
-        } catch (e) {
-          if (this.asset) this.asset = { ...this.asset, tags: prev };
-          this.error = (e as Error).message;
-          return null;
-        }
-      }
-      return ref;
-    } catch (e) {
-      this.error = (e as Error).message;
-      return null;
-    }
   };
 
   private async loadMeta(metaId: string): Promise<void> {
@@ -1834,222 +1277,25 @@ class EditorStore {
     }
   }
 
-  startGeometrySession = (): void => {
-    if (!this.assetId || !this.initialised || this.geometrySession) return;
-    this.clearView();
-    const baseEdits = $state.snapshot(this.edits) as Edits;
-    const sessionId = ++this.geometrySessionId;
-    this.geometrySession = {
-      id: sessionId,
-      pinnedUrl: null,
-      pinnedReady: false,
-      srcW: 0,
-      srcH: 0,
-      draftRotate: baseEdits.geometry.rotate,
-      draftFlipH: baseEdits.geometry.flip_h,
-      draftFlipV: baseEdits.geometry.flip_v,
-      draftAngle: baseEdits.geometry.rotate_angle,
-      draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
-      draftAspect: baseEdits.geometry.aspect,
-      draftPerspective: baseEdits.geometry.perspective ?? neutralPerspective(),
-      userEditedCrop: baseEdits.geometry.crop !== null
-    };
-    void this.loadGeometryPreview(baseEdits, sessionId);
-  };
+  startGeometrySession = (): void => geometry.startSession(this);
 
-  private async loadGeometryPreview(baseEdits: Edits, sessionId: number): Promise<void> {
-    if (!this.assetId) return;
-    const canonical: Edits = {
-      ...baseEdits,
-      geometry: {
-        ...baseEdits.geometry,
-        rotate: 0,
-        flip_h: false,
-        flip_v: false,
-        rotate_angle: 0,
-        crop: null,
-        perspective: null
-      }
-    };
-    let url: string | null = null;
-    try {
-      const { blob } = await livePreview(this.assetId, canonical, LIVE_EDGE, 'none');
-      url = makeObjectUrl(blob);
-      const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = () => reject(new Error('pinned preview decode failed'));
-        img.src = url as string;
-      });
-      const sess = this.geometrySession;
-      if (sess?.id !== sessionId || dims.w <= 0 || dims.h <= 0) {
-        revoke(url);
-        return;
-      }
-      if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-      sess.pinnedUrl = url;
-      sess.srcW = dims.w;
-      sess.srcH = dims.h;
-      sess.pinnedReady = true;
-    } catch (e) {
-      if (url) revoke(url);
-      if (this.geometrySession?.id !== sessionId) return;
-      this.error = (e as Error).message;
-    }
-  }
+  finishGeometrySession = (): Promise<void> => geometry.finishSession(this);
 
-  finishGeometrySession = async (): Promise<void> => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-    this.geometrySession = null;
-    const dc = sess.draftCrop;
-    const full = dc.x === 0 && dc.y === 0 && dc.w === 1 && dc.h === 1;
-    const geometry = {
-      ...this.edits.geometry,
-      rotate: sess.draftRotate,
-      flip_h: sess.draftFlipH,
-      flip_v: sess.draftFlipV,
-      rotate_angle: sess.draftAngle,
-      crop: full ? null : sess.draftCrop,
-      aspect: sess.draftAspect,
-      perspective: perspectiveIsIdentity(sess.draftPerspective)
-        ? null
-        : clampPerspective(sess.draftPerspective)
-    };
-    if (JSON.stringify(this.edits.geometry) === JSON.stringify(geometry)) return;
-    this.edits = {
-      ...this.edits,
-      geometry
-    };
-    await this.onCommit('Geometry');
-  };
+  rotateStep = (delta: 90 | 270): void => geometry.rotateStep(this, delta);
 
-  rotateStep = (delta: 90 | 270): void => {
-    const sess = this.geometrySession;
-    if (sess) {
-      sess.draftRotate = ((sess.draftRotate + delta) % 360) as 0 | 90 | 180 | 270;
-      const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
-      const sw = swapped ? sess.srcH : sess.srcW;
-      const sh = swapped ? sess.srcW : sess.srcH;
-      const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
-      sess.draftCrop =
-        ratio !== null
-          ? largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess))
-          : FULL_CROP;
-      sess.userEditedCrop = false;
-      return;
-    }
-    this.edits.geometry.rotate = ((this.edits.geometry.rotate + delta) % 360) as 0 | 90 | 180 | 270;
-    void this.onCommit('Rotate');
-  };
+  flipStep = (axis: 'h' | 'v'): void => geometry.flipStep(this, axis);
 
-  flipStep = (axis: 'h' | 'v'): void => {
-    const sess = this.geometrySession;
-    if (sess) {
-      if (axis === 'h') sess.draftFlipH = !sess.draftFlipH;
-      else sess.draftFlipV = !sess.draftFlipV;
-      return;
-    }
-    if (axis === 'h') this.edits.geometry.flip_h = !this.edits.geometry.flip_h;
-    else this.edits.geometry.flip_v = !this.edits.geometry.flip_v;
-    void this.onCommit('Flip');
-  };
+  updateGeometryDraftAngle = (angle: number): void => geometry.updateDraftAngle(this, angle);
 
-  updateGeometryDraftAngle = (angle: number): void => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    sess.draftAngle = angle;
-    this.refitGeometryDraftCrop(sess);
-  };
+  updateGeometryDraftPerspective = (patch: Partial<PerspectiveEdits>): void =>
+    geometry.updateDraftPerspective(this, patch);
 
-  updateGeometryDraftPerspective = (patch: Partial<PerspectiveEdits>): void => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    sess.draftPerspective = limitPerspective(
-      sess.draftPerspective,
-      clampPerspective({ ...sess.draftPerspective, ...patch })
-    );
-    this.refitGeometryDraftCrop(sess);
-  };
+  updateGeometryDraftCrop = (crop: CropRect): void => geometry.updateDraftCrop(this, crop);
 
-  private refitGeometryDraftCrop(sess: GeometrySession): void {
-    const { sw, sh } = sourceDims(sess);
-    const angle = sess.draftAngle;
-    const persp = draftPerspInv(sess);
-    const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
-    if (ratio !== null) {
-      sess.draftCrop = refitCropAtAspect(sess.draftCrop, sw, sh, angle, ratio, persp);
-      return;
-    }
-    if (!sess.userEditedCrop) {
-      sess.draftCrop = largestInscribedRect(sw, sh, angle, sw / sh, persp);
-      return;
-    }
-    sess.draftCrop = constrainCropRect(sess.draftCrop, sess.draftCrop, sw, sh, angle, persp);
-  }
+  updateGeometryDraftAspect = (aspect: AspectLock): void =>
+    geometry.updateDraftAspect(this, aspect);
 
-  updateGeometryDraftCrop = (crop: CropRect): void => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    const { sw, sh } = sourceDims(sess);
-    sess.draftCrop = constrainCropRect(
-      crop,
-      sess.draftCrop,
-      sw,
-      sh,
-      sess.draftAngle,
-      draftPerspInv(sess)
-    );
-    sess.userEditedCrop = true;
-  };
-
-  updateGeometryDraftAspect = (aspect: AspectLock): void => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    const { sw, sh } = sourceDims(sess);
-    sess.draftAspect = aspect;
-    const ratio = aspectRatioFor(aspect, sw, sh);
-    if (ratio !== null) {
-      sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio, draftPerspInv(sess));
-      sess.userEditedCrop = false;
-    }
-  };
-
-  resetGeometryDraft = (): void => {
-    const sess = this.geometrySession;
-    if (!sess) return;
-    sess.draftAngle = 0;
-    sess.draftAspect = { kind: 'original' };
-    sess.draftCrop = FULL_CROP;
-    sess.draftPerspective = neutralPerspective();
-    sess.userEditedCrop = false;
-  };
-}
-
-function draftPerspInv(sess: GeometrySession): Mat3 {
-  return perspectiveInverse(sess.draftPerspective);
-}
-
-function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
-  const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
-  return { sw: swapped ? sess.srcH : sess.srcW, sh: swapped ? sess.srcW : sess.srcH };
-}
-
-interface GeometrySession {
-  id: number;
-  pinnedUrl: string | null;
-  pinnedReady: boolean;
-  srcW: number;
-  srcH: number;
-  draftRotate: 0 | 90 | 180 | 270;
-  draftFlipH: boolean;
-  draftFlipV: boolean;
-  draftAngle: number;
-  draftCrop: CropRect;
-  draftAspect: AspectLock;
-  draftPerspective: PerspectiveEdits;
-  userEditedCrop: boolean;
+  resetGeometryDraft = (): void => geometry.resetDraft(this);
 }
 
 export const editor = new EditorStore();
