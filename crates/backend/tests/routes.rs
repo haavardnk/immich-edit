@@ -908,6 +908,53 @@ async fn admin_instance_reports_epoch() {
 }
 
 #[tokio::test]
+async fn shared_profile_writes_require_admin() {
+    let cases = [
+        ("POST", "/api/luts?name=x"),
+        ("DELETE", "/api/luts/some-id"),
+        ("POST", "/api/dcp?name=x"),
+        ("DELETE", "/api/dcp/some-id"),
+    ];
+    for (method, uri) in cases {
+        let server = MockServer::start().await;
+        let app = member_app(&server).await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .body(Body::from("payload"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN, "{method} {uri}");
+        let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+        assert_eq!(json["code"], "admin_required", "{method} {uri}");
+    }
+}
+
+#[tokio::test]
+async fn shared_profile_reads_allow_members() {
+    let cases = ["/api/luts", "/api/dcp"];
+    for uri in cases {
+        let server = MockServer::start().await;
+        let app = member_app(&server).await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "{uri}");
+    }
+}
+
+#[tokio::test]
 async fn csrf_rejects_foreign_origin_on_mutation() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;

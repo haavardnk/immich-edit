@@ -158,6 +158,36 @@ pub async fn test_app(server: &MockServer) -> axum::Router {
     seed_and_wrap(server, test_state(server).await).await
 }
 
+pub async fn seed_member_session(server: &MockServer, state: &AppState) -> String {
+    state.instance.claim(&server.uri()).await.unwrap();
+    let cfg = state.instance.get().await.unwrap();
+    let user = ImmichUser {
+        id: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+        email: "member@test.local".into(),
+        name: "Member".into(),
+        is_admin: false,
+    };
+    let rec = state.auth.upsert_user(&user).await.unwrap();
+    state
+        .auth
+        .create_session(
+            rec.id,
+            AuthKind::ApiKey,
+            TEST_API_KEY.as_bytes(),
+            cfg.server_epoch,
+            None,
+            None,
+        )
+        .await
+        .unwrap()
+}
+
+pub async fn member_app(server: &MockServer) -> axum::Router {
+    let state = test_state(server).await;
+    let token = seed_member_session(server, &state).await;
+    wrap_auth(app::router(state), token)
+}
+
 fn wrap_auth(app: axum::Router, token: String) -> axum::Router {
     use axum::extract::Request;
     use axum::http::HeaderValue;

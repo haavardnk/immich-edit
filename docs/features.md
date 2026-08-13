@@ -65,9 +65,9 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | HSL and color grading | ✓ Yes | HSL mixer and color wheels |
 | Black-and-white channel mixer | ✗ No | Saturation can be reduced, but there is no dedicated mixer |
 | Channel mixer or calibration-primary controls | ✗ No | — |
-| DCP camera profiles | ✓ Yes | Auto, Default Color, Flat, bundled profiles, and imports |
+| DCP camera profiles | ✓ Yes | Auto, Default Color, Flat, bundled profiles, and admin imports |
 | Custom camera ICC input profiles | ✗ No | Camera profiles use DCP only |
-| Creative 3D LUTs | ✓ Yes | `.cube` import with amount control |
+| Creative 3D LUTs | ✓ Yes | `.cube` import with amount control; importing is admin-only |
 | 3D LUT export | ✗ No | No `.cube` download or baking from current color edits |
 | Automatic RAW lens profiles | ✓ Yes | Distortion and vignette; chromatic aberration remains opt-in |
 | Crop, rotate, and flip | ✓ Yes | Geometry controls |

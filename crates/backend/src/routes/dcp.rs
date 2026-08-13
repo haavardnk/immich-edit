@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 
 use crate::error::AppError;
+use crate::routes::auth::AdminCtx;
 use crate::services::dcp_store::DcpMeta;
 use crate::state::AppState;
 
@@ -42,6 +43,7 @@ pub async fn match_camera(
 
 pub async fn import(
     State(state): State<AppState>,
+    _admin: AdminCtx,
     Query(params): Query<ImportParams>,
     body: Bytes,
 ) -> Result<(StatusCode, Json<DcpMeta>), AppError> {
@@ -59,6 +61,7 @@ pub async fn import(
 
 pub async fn delete(
     State(state): State<AppState>,
+    _admin: AdminCtx,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
     state.dcp.soft_delete(&id).await?;

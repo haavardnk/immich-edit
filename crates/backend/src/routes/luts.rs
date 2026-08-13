@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 
 use crate::error::AppError;
+use crate::routes::auth::AdminCtx;
 use crate::services::lut_store::LutMeta;
 use crate::state::AppState;
 
@@ -20,6 +21,7 @@ pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<LutMeta>>, A
 
 pub async fn import(
     State(state): State<AppState>,
+    _admin: AdminCtx,
     Query(params): Query<ImportParams>,
     body: Bytes,
 ) -> Result<(StatusCode, Json<LutMeta>), AppError> {
@@ -29,6 +31,7 @@ pub async fn import(
 
 pub async fn delete(
     State(state): State<AppState>,
+    _admin: AdminCtx,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
     state.luts.soft_delete(&id).await?;

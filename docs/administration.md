@@ -24,6 +24,7 @@ An administrator can:
 - Purge another user's local data
 - Inspect the configured Immich instance
 - Rebind immich-edit to another Immich server
+- Import and remove shared 3D LUTs and camera profiles
 
 Disabling access revokes that user's sessions and cancels active jobs, but retains local data.
 Purging removes the user's local edits, history, presets, exports, and jobs.
@@ -42,6 +43,11 @@ Installs run one at a time and verify a pinned SHA-256 digest. A failed item sho
 
 The catalog covers subject, people, sky, depth, scene, and click selection. Check each model's
 license before commercial use. Select an installed default when a kind has more than one model.
+
+## Shared LUTs and camera profiles
+
+Imported 3D LUTs and DCP camera profiles are shared by every user, so only an administrator can
+import or remove them. All users can browse and apply them.
 
 `ML_RUNTIME=auto` tries WebGPU and falls back to CPU. `gpu` fails rather than falling back, `cpu`
 skips WebGPU, and `off` disables AI masks. On arm64 Linux, inference is CPU-only because the ONNX

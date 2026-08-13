@@ -11,6 +11,7 @@
     mdiUpload
   } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
+  import { session } from '$lib/stores/session.svelte';
   import { listDcps, matchDcp, importDcp, deleteDcp, type DcpMeta } from '$lib/api/dcp';
   import { ApiError } from '$lib/api/client';
   import { toasts } from '$lib/stores/toasts.svelte';
@@ -169,7 +170,7 @@
         onSelect={select}
       />
     </div>
-    {#if selected && !selected.bundled}
+    {#if selected && !selected.bundled && session.isAdmin}
       {#if pendingDelete}
         <button
           type="button"
@@ -203,15 +204,17 @@
     {/if}
   </div>
 
-  <button
-    type="button"
-    class="flex items-center justify-center gap-1.5 rounded-lg bg-white/5 py-1.5 text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-    disabled={importing}
-    onclick={triggerImport}
-  >
-    <Icon path={mdiUpload} size={14} />
-    {importing ? 'Importing…' : 'Import .dcp profile'}
-  </button>
+  {#if session.isAdmin}
+    <button
+      type="button"
+      class="flex items-center justify-center gap-1.5 rounded-lg bg-white/5 py-1.5 text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+      disabled={importing}
+      onclick={triggerImport}
+    >
+      <Icon path={mdiUpload} size={14} />
+      {importing ? 'Importing…' : 'Import .dcp profile'}
+    </button>
+  {/if}
 
   {#if missingSelected}
     <div
