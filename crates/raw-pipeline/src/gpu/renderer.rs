@@ -1546,13 +1546,7 @@ fn nr_cache_key(
     wb_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
     let retouch_json = serde_json::to_vec(&edits.retouch).unwrap_or_default();
     retouch_json.hash(&mut h);
-    let d = &edits.detail;
-    d.luma_nr_amount.to_bits().hash(&mut h);
-    d.luma_nr_detail.to_bits().hash(&mut h);
-    d.luma_nr_contrast.to_bits().hash(&mut h);
-    d.color_nr_amount.to_bits().hash(&mut h);
-    d.color_nr_detail.to_bits().hash(&mut h);
-    d.color_nr_smoothness.to_bits().hash(&mut h);
+    edits.detail.hash_nr(&mut h);
     h.finish()
 }
 

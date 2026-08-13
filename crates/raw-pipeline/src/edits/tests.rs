@@ -224,6 +224,30 @@ fn clamped_preserves_brush_raster_id() {
     }
 }
 
+#[test]
+fn nr_hash_tracks_every_field() {
+    fn hash(d: &DetailEdits) -> u64 {
+        use std::hash::Hasher;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        d.hash_nr(&mut h);
+        h.finish()
+    }
+    let mutators: [fn(&mut DetailEdits); 6] = [
+        |d| d.luma_nr_amount = 1.0,
+        |d| d.luma_nr_detail = 1.0,
+        |d| d.luma_nr_contrast = 1.0,
+        |d| d.color_nr_amount = 1.0,
+        |d| d.color_nr_detail = 1.0,
+        |d| d.color_nr_smoothness = 1.0,
+    ];
+    let base = hash(&DetailEdits::default());
+    for (i, mutate) in mutators.iter().enumerate() {
+        let mut d = DetailEdits::default();
+        mutate(&mut d);
+        assert_ne!(hash(&d), base, "field {i}");
+    }
+}
+
 fn populated_edits() -> Edits {
     Edits {
         basic: BasicEdits {

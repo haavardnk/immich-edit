@@ -120,12 +120,7 @@ pub(crate) fn sensor_cache_key(
         .unwrap_or_default()
         .hash(&mut h);
     let d = &edits.detail;
-    d.luma_nr_amount.to_bits().hash(&mut h);
-    d.luma_nr_detail.to_bits().hash(&mut h);
-    d.luma_nr_contrast.to_bits().hash(&mut h);
-    d.color_nr_amount.to_bits().hash(&mut h);
-    d.color_nr_detail.to_bits().hash(&mut h);
-    d.color_nr_smoothness.to_bits().hash(&mut h);
+    d.hash_nr(&mut h);
     d.capture_sharpen.hash(&mut h);
     preview_ratio.map(f32::to_bits).hash(&mut h);
     serde_json::to_vec(&options.roi)

@@ -160,6 +160,16 @@ impl Default for DetailEdits {
 }
 
 impl DetailEdits {
+    pub fn hash_nr(&self, h: &mut impl std::hash::Hasher) {
+        use std::hash::Hash;
+        self.luma_nr_amount.to_bits().hash(h);
+        self.luma_nr_detail.to_bits().hash(h);
+        self.luma_nr_contrast.to_bits().hash(h);
+        self.color_nr_amount.to_bits().hash(h);
+        self.color_nr_detail.to_bits().hash(h);
+        self.color_nr_smoothness.to_bits().hash(h);
+    }
+
     pub fn sharpen_amount_for(&self, is_raw: bool) -> f64 {
         self.sharpen_amount
             .unwrap_or(if is_raw { RAW_SHARPEN_AMOUNT } else { 0.0 })
