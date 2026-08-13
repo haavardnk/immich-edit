@@ -6,81 +6,38 @@
   import MaskGeneratedControls from './MaskGeneratedControls.svelte';
   import MaskRangeControls from './MaskRangeControls.svelte';
   import MaskPolygonControls from './MaskPolygonControls.svelte';
+  import MaskClickRefine from './MaskClickRefine.svelte';
+  import MaskComponentRow from './MaskComponentRow.svelte';
+  import MaskLayerRow from './MaskLayerRow.svelte';
+  import MaskToolMenu from './MaskToolMenu.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { maskModels } from '$lib/stores/maskModels.svelte';
   import {
     N_MAX_MASK_LAYERS,
     N_MAX_COMPONENTS_PER_LAYER,
     N_MAX_TOTAL_COMPONENTS,
-    maskedEditsIsZero,
     type MaskComponent,
-    type MaskComponentKind,
     type MaskComponentMode,
     type MaskLayer
   } from '$lib/types/edits';
-  import {
-    defaultColorRange,
-    defaultLinear,
-    defaultLumaRange,
-    defaultRadial,
-    numberRepeats,
-    type ManualTool
-  } from '$lib/types/masks';
+  import { generatedLabel, kindLabel, numberRepeats } from '$lib/types/masks';
   import {
     mdiPlus,
     mdiMinus,
     mdiSetCenter,
-    mdiClose,
     mdiEye,
     mdiEyeOff,
-    mdiContentCopy,
-    mdiGradientHorizontal,
-    mdiCircleOutline,
-    mdiBrush,
-    mdiBrightness6,
-    mdiVectorPolygon,
-    mdiInvertColors,
-    mdiPalette,
-    mdiCircleOpacity,
-    mdiAutoFix,
     mdiChevronDown,
-    mdiChevronRight,
-    mdiChevronUp
+    mdiChevronRight
   } from '@mdi/js';
-  import MaskToolPicker from '$lib/components/editor/MaskToolPicker.svelte';
-  import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
-  import { session } from '$lib/stores/session.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { keyLabel } from '$lib/keybinds';
-  import { goto } from '$app/navigation';
-
-  let maskKinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
-  let semanticClasses = $state<SemanticClass[]>([]);
-  let segmentEnabled = $state(false);
-  let modelsFailed = $state(false);
-  const aiUnavailable = $derived(
-    modelsFailed
-      ? 'Could not reach the server to check for AI models.'
-      : !segmentEnabled
-        ? 'AI masks are turned off on this server. An administrator can enable the segmentation runtime.'
-        : maskKinds.length === 0
-          ? 'No AI mask models are available on this server.'
-          : null
-  );
-  const clickInstalled = $derived(
-    maskKinds.some((entry) => entry.kind === 'click' && entry.installed)
-  );
 
   let addLayerOpen = $state(false);
   let addComponentOpen = $state(false);
   let pendingMode = $state<MaskComponentMode>('add');
   let addLayerBtn = $state<HTMLButtonElement | undefined>(undefined);
-  let addLayerMenu = $state<HTMLDivElement | undefined>(undefined);
   let addComponentBtn = $state<HTMLButtonElement | undefined>(undefined);
-  let addComponentMenu = $state<HTMLDivElement | undefined>(undefined);
-  let addLayerPos = $state<{ top: number; right: number } | null>(null);
-  let addComponentPos = $state<{ top: number; left: number } | null>(null);
-  let editingNameId = $state<string | null>(null);
-  let nameDraft = $state('');
+  let refineOverride = $state<Record<string, boolean>>({});
+
   const layers = $derived(editor.edits.masks);
   const active = $derived<MaskLayer | null>(
     editor.activeLayerId ? (layers.find((l) => l.id === editor.activeLayerId) ?? null) : null
@@ -100,17 +57,11 @@
         )
       : []
   );
-  const refineActive = $derived(
-    editor.clickTool.active && active !== null && editor.clickTool.layerId === active.id
-  );
-
-  let refineOverride = $state<Record<string, boolean>>({});
   const refineOpen = $derived(
     active
       ? (refineOverride[active.id] ?? (active.components.length === 0 || activeComp !== null))
       : false
   );
-
   const featherValue = $derived(
     activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')
       ? activeComp.kind.feather
@@ -118,24 +69,7 @@
   );
 
   $effect(() => {
-    listMaskModels()
-      .then((m) => {
-        modelsFailed = false;
-        segmentEnabled = m.enabled;
-        semanticClasses = m.semantic_classes ?? [];
-        maskKinds = m.enabled
-          ? [...new Set(m.models.map((x) => x.kind))].map((kind) => ({
-              kind,
-              installed: m.models.some((x) => x.kind === kind && x.installed)
-            }))
-          : [];
-      })
-      .catch(() => {
-        modelsFailed = true;
-        segmentEnabled = false;
-        maskKinds = [];
-        semanticClasses = [];
-      });
+    void maskModels.load();
   });
 
   function toggleRefine(): void {
@@ -147,320 +81,15 @@
     if (active && activeComp) editor.setMaskComponentFeather(active.id, activeComp.id, v);
   }
 
-  function onFeatherCommit(): void {
-    void editor.commitMasks();
-  }
-
-  function kindLabel(k: MaskComponentKind): string {
-    if (k.kind === 'linear') return 'Linear gradient';
-    if (k.kind === 'radial') return 'Radial gradient';
-    if (k.kind === 'brush') return 'Brush';
-    if (k.kind === 'luma_range') return 'Luminance range';
-    if (k.kind === 'polygon') return 'Polygon';
-    return 'Color range';
-  }
-
-  function kindIcon(k: MaskComponentKind): string {
-    if (k.kind === 'linear') return mdiGradientHorizontal;
-    if (k.kind === 'radial') return mdiCircleOutline;
-    if (k.kind === 'brush') return mdiBrush;
-    if (k.kind === 'luma_range') return mdiBrightness6;
-    if (k.kind === 'polygon') return mdiVectorPolygon;
-    return mdiPalette;
-  }
-
-  async function addLayer(kind: MaskComponentKind): Promise<void> {
-    addLayerOpen = false;
-    await editor.addMaskLayer(kind);
-  }
-
-  async function addBrushLayer(): Promise<void> {
-    addLayerOpen = false;
-    await editor.addBrushLayer();
-  }
-
-  function manualKind(tool: ManualTool): MaskComponentKind | null {
-    if (tool === 'linear') return defaultLinear();
-    if (tool === 'radial') return defaultRadial();
-    if (tool === 'luma_range') return defaultLumaRange();
-    if (tool === 'color_range') return defaultColorRange();
-    return null;
-  }
-
-  function startPolygon(layerId: string | null, mode: MaskComponentMode): void {
-    addLayerOpen = false;
-    addComponentOpen = false;
-    editor.beginPolygon(layerId, mode);
-    toasts.push(
-      'info',
-      `Click to place corners. Click the first one, or press ${keyLabel('Enter')}, to close.`
-    );
-  }
-
-  async function pickLayerManual(tool: ManualTool): Promise<void> {
-    if (tool === 'polygon') {
-      startPolygon(null, 'add');
-      return;
-    }
-    const kind = manualKind(tool);
-    if (kind) await addLayer(kind);
-    else await addBrushLayer();
-  }
-
-  async function pickLayerAi(
-    kind: MaskKind,
-    installed: boolean,
-    maskClass?: string
-  ): Promise<void> {
-    if (!installed) {
-      promptInstall(kind);
-      return;
-    }
-    await addGenerated(kind, maskClass);
-  }
-
-  async function pickShapeManual(tool: ManualTool): Promise<void> {
-    if (tool === 'polygon') {
-      if (!active) return;
-      startPolygon(active.id, pendingMode);
-      return;
-    }
-    const kind = manualKind(tool);
-    if (kind) await addComponent(kind);
-    else await addBrushComp();
-  }
-
-  async function pickShapeAi(
-    kind: MaskKind,
-    installed: boolean,
-    maskClass?: string
-  ): Promise<void> {
-    if (!installed) {
-      addComponentOpen = false;
-      promptInstall(kind);
-      return;
-    }
-    if (kind === 'click') {
-      armClickComponent();
-      return;
-    }
-    await addGeneratedComp(kind, maskClass);
-  }
-
-  async function addGenerated(kind: MaskKind, maskClass?: string): Promise<void> {
-    addLayerOpen = false;
-    if (kind === 'click') {
-      editor.setActiveMaskComponent(null);
-      editor.clickTool = { active: true, negative: false, box: false, layerId: null, mode: 'add' };
-      toasts.push(
-        'info',
-        `Click the photo to build a mask. ${keyLabel('Shift')}-click excludes an area, and clicking a dot deletes it.`
-      );
-      return;
-    }
-    await editor.addGeneratedLayer(kind, maskClass);
-  }
-
-  function promptInstall(kind: MaskKind): void {
-    addLayerOpen = false;
-    if (session.isAdmin) {
-      void goto('/settings');
-      return;
-    }
-    toasts.push(
-      'info',
-      `${generatedLabel(kind)} masks need a model. Ask an administrator to download one in Settings.`
-    );
-  }
-
-  function generatedLabel(kind: string): string {
-    if (kind === 'subject') return 'Subject';
-    if (kind === 'people') return 'People';
-    if (kind === 'sky') return 'Sky';
-    if (kind === 'depth') return 'Depth';
-    if (kind === 'semantic') return 'Scene';
-    if (kind === 'click') return 'Click to select';
-    return kind;
-  }
-
-  async function addComponent(kind: MaskComponentKind): Promise<void> {
-    if (!active) return;
-    addComponentOpen = false;
-    await editor.addMaskComponent(active.id, kind, pendingMode);
-  }
-
-  async function addBrushComp(): Promise<void> {
-    if (!active) return;
-    addComponentOpen = false;
-    await editor.addBrushComponent(active.id, pendingMode);
-  }
-
-  function armClickComponent(): void {
-    if (!active) return;
-    addComponentOpen = false;
-    if (!clickInstalled) {
-      promptInstall('click');
-      return;
-    }
-    editor.setActiveMaskComponent(null);
-    editor.clickTool = {
-      active: true,
-      negative: false,
-      box: false,
-      layerId: active.id,
-      mode: pendingMode
-    };
-  }
-
-  function armLayerBox(): void {
-    addLayerOpen = false;
-    editor.setActiveMaskComponent(null);
-    editor.clickTool = { active: true, negative: false, box: true, layerId: null, mode: 'add' };
-    toasts.push('info', 'Drag a box around the subject.');
-  }
-
-  function armShapeBox(): void {
-    if (!active) return;
-    addComponentOpen = false;
-    editor.setActiveMaskComponent(null);
-    editor.clickTool = {
-      active: true,
-      negative: false,
-      box: true,
-      layerId: active.id,
-      mode: pendingMode
-    };
-    toasts.push('info', 'Drag a box around the subject.');
-  }
-
-  async function addGeneratedComp(kind: MaskKind, maskClass?: string): Promise<void> {
-    if (!active) return;
-    addComponentOpen = false;
-    await editor.addGeneratedComponent(active.id, kind, pendingMode, maskClass);
-  }
-
-  async function addBackgroundLayer(): Promise<void> {
-    addLayerOpen = false;
-    await editor.addGeneratedLayer('subject', undefined, true);
-  }
-
-  async function addBackgroundComp(): Promise<void> {
-    if (!active) return;
-    addComponentOpen = false;
-    await editor.addGeneratedComponent(active.id, 'subject', pendingMode, undefined, true);
-  }
-
-  function beginRename(layer: MaskLayer): void {
-    editingNameId = layer.id;
-    nameDraft = layer.name;
-  }
-
-  async function commitRename(layer: MaskLayer): Promise<void> {
-    const next = nameDraft.trim();
-    editingNameId = null;
-    if (next && next !== layer.name) {
-      await editor.renameMaskLayer(layer.id, next);
-    }
-  }
-
-  function setMode(layer: MaskLayer, comp: MaskComponent, mode: MaskComponentMode): void {
-    editor.patchMaskComponent(layer.id, comp.id, { mode }, false);
-    void editor.commitMasks();
-  }
-
-  function toggleComp(layer: MaskLayer, comp: MaskComponent): void {
-    editor.patchMaskComponent(layer.id, comp.id, { enabled: !comp.enabled }, false);
-    void editor.commitMasks();
-  }
-
-  function toggleInvert(layer: MaskLayer, comp: MaskComponent): void {
-    editor.patchMaskComponent(layer.id, comp.id, { invert: !comp.invert }, false);
-    void editor.commitMasks();
-  }
-
-  function togglePreview(layer: MaskLayer): void {
-    if (editor.maskPreviewLayerId === layer.id) editor.endMaskPreview();
-    else editor.previewMaskWeight(layer.id);
-  }
-
-  const MODES: { value: MaskComponentMode; icon: string; hint: string }[] = [
-    { value: 'add', icon: mdiPlus, hint: 'Add: add this shape to the mask' },
-    { value: 'subtract', icon: mdiMinus, hint: 'Subtract: cut this shape out of the mask' },
-    {
-      value: 'intersect',
-      icon: mdiSetCenter,
-      hint: 'Intersect: keep only where this shape overlaps'
-    }
-  ];
-
-  function focusOnMount(node: HTMLInputElement): void {
-    node.focus();
-    node.select();
-  }
-
   function toggleAddLayer(): void {
-    if (!addLayerOpen && addLayerBtn) {
-      const r = addLayerBtn.getBoundingClientRect();
-      addLayerPos = { top: r.bottom + 4, right: window.innerWidth - r.right };
-    }
     addLayerOpen = !addLayerOpen;
   }
 
   function openAddComponent(mode: MaskComponentMode): void {
     pendingMode = mode;
     if (active) refineOverride = { ...refineOverride, [active.id]: true };
-    if (!addComponentOpen && addComponentBtn) {
-      const r = addComponentBtn.getBoundingClientRect();
-      addComponentPos = { top: r.bottom + 4, left: r.left };
-    }
     addComponentOpen = !addComponentOpen;
   }
-
-  function modeVerb(mode: MaskComponentMode): string {
-    if (mode === 'subtract') return 'Subtract';
-    if (mode === 'intersect') return 'Intersect';
-    return 'Add';
-  }
-
-  function setRefine(negative: boolean): void {
-    if (!active) return;
-    editor.clickTool = { active: true, negative, box: false, layerId: active.id, mode: 'add' };
-  }
-
-  function stopRefine(): void {
-    editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
-  }
-
-  $effect(() => {
-    if (!addLayerOpen && !addComponentOpen) return;
-    function onDown(e: PointerEvent): void {
-      const t = e.target as Node;
-      if (
-        addLayerOpen &&
-        !(addLayerBtn?.contains(t) ?? false) &&
-        !(addLayerMenu?.contains(t) ?? false)
-      )
-        addLayerOpen = false;
-      if (
-        addComponentOpen &&
-        !(addComponentBtn?.contains(t) ?? false) &&
-        !(addComponentMenu?.contains(t) ?? false)
-      )
-        addComponentOpen = false;
-    }
-    function onScrollOrResize(): void {
-      addLayerOpen = false;
-      addComponentOpen = false;
-    }
-    window.addEventListener('pointerdown', onDown, true);
-    window.addEventListener('resize', onScrollOrResize);
-    window.addEventListener('scroll', onScrollOrResize, true);
-    return () => {
-      window.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('resize', onScrollOrResize);
-      window.removeEventListener('scroll', onScrollOrResize, true);
-    };
-  });
 </script>
 
 <div class="flex flex-col gap-2">
@@ -494,24 +123,13 @@
         >
           <Icon path={mdiPlus} size={13} /> New
         </button>
-        {#if addLayerOpen && addLayerPos}
-          <div
-            bind:this={addLayerMenu}
-            class="fixed z-50 bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl"
-            style="top: {addLayerPos.top}px; right: {addLayerPos.right}px"
-          >
-            <MaskToolPicker
-              aiKinds={maskKinds}
-              {semanticClasses}
-              {aiUnavailable}
-              busy={editor.maskGenerating}
-              onManual={(tool) => void pickLayerManual(tool)}
-              onAi={(kind, installed, cls) => void pickLayerAi(kind, installed, cls)}
-              onBox={armLayerBox}
-              onBackground={() => void addBackgroundLayer()}
-            />
-          </div>
-        {/if}
+        <MaskToolMenu
+          open={addLayerOpen}
+          anchor={addLayerBtn}
+          align="right"
+          target={{ layerId: null, mode: 'add' }}
+          onClose={() => (addLayerOpen = false)}
+        />
       </div>
     </div>
   </div>
@@ -560,151 +178,7 @@
   {:else}
     <div class="flex flex-col gap-0.5">
       {#each layers as layer, li (layer.id)}
-        {@const isActive = editor.activeLayerId === layer.id}
-        {@const isPreview = editor.maskPreviewLayerId === layer.id}
-        <div
-          class="flex items-center gap-1.5 px-1.5 py-1 rounded transition-colors cursor-pointer {isActive
-            ? 'bg-white/10'
-            : 'hover:bg-white/5'}"
-          role="button"
-          tabindex="0"
-          onclick={() => editor.setActiveLayer(layer.id)}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') editor.setActiveLayer(layer.id);
-          }}
-        >
-          <div
-            class="w-3 h-3 rounded-sm ring-1 ring-white/20 shrink-0"
-            style="background-color: {layer.color}"
-            title="Overlay colour for this mask"
-          ></div>
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
-            title={layer.enabled ? 'Disable layer' : 'Enable layer'}
-            aria-label="Toggle layer"
-            onclick={(e) => {
-              e.stopPropagation();
-              void editor.toggleMaskLayerEnabled(layer.id);
-            }}
-          >
-            <Icon path={layer.enabled ? mdiEye : mdiEyeOff} size={13} />
-          </button>
-          {#if editingNameId === layer.id}
-            <input
-              class="flex-1 bg-white/5 border border-white/10 rounded px-1 text-xs text-immich-dark-fg outline-none"
-              bind:value={nameDraft}
-              onblur={() => void commitRename(layer)}
-              onkeydown={(e) => {
-                if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-                else if (e.key === 'Escape') {
-                  editingNameId = null;
-                }
-              }}
-              use:focusOnMount
-              onclick={(e) => e.stopPropagation()}
-            />
-          {:else}
-            <button
-              type="button"
-              class="flex-1 text-left text-xs text-immich-dark-fg/90 truncate {layer.enabled
-                ? ''
-                : 'opacity-50'}"
-              ondblclick={(e) => {
-                e.stopPropagation();
-                beginRename(layer);
-              }}
-              onclick={(e) => {
-                e.stopPropagation();
-                editor.setActiveLayer(layer.id);
-              }}
-              title="Double-click to rename"
-            >
-              {layer.name}
-            </button>
-          {/if}
-          <span
-            class="shrink-0 text-[10px] tabular-nums text-immich-dark-fg/30"
-            title="{layer.components.length} shape{layer.components.length === 1
-              ? ''
-              : 's'} in this mask"
-          >
-            {layer.components.length}
-          </span>
-          {#if !maskedEditsIsZero(layer.edits)}
-            <span
-              class="shrink-0 w-1.5 h-1.5 rounded-full bg-immich-dark-primary/70"
-              title="This mask has adjustments"
-            ></span>
-          {/if}
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {isPreview
-              ? 'text-immich-dark-primary'
-              : ''}"
-            title={isPreview ? 'Hide the mask overlay' : 'Show this mask over the photo'}
-            aria-label="Toggle mask preview"
-            onclick={(e) => {
-              e.stopPropagation();
-              togglePreview(layer);
-            }}
-          >
-            <Icon path={mdiCircleOpacity} size={13} />
-          </button>
-          {#if isActive && layers.length > 1}
-            <button
-              type="button"
-              class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              title="Move up. Masks further down the list are applied on top."
-              aria-label="Move mask up"
-              disabled={li === 0}
-              onclick={(e) => {
-                e.stopPropagation();
-                void editor.reorderMaskLayer(layer.id, li - 1);
-              }}
-            >
-              <Icon path={mdiChevronUp} size={13} />
-            </button>
-            <button
-              type="button"
-              class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              title="Move down. Masks further down the list are applied on top."
-              aria-label="Move mask down"
-              disabled={li === layers.length - 1}
-              onclick={(e) => {
-                e.stopPropagation();
-                void editor.reorderMaskLayer(layer.id, li + 1);
-              }}
-            >
-              <Icon path={mdiChevronDown} size={13} />
-            </button>
-          {/if}
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Duplicate layer"
-            aria-label="Duplicate layer"
-            disabled={cap.layersFull || cap.totalFull}
-            onclick={(e) => {
-              e.stopPropagation();
-              void editor.duplicateMaskLayer(layer.id);
-            }}
-          >
-            <Icon path={mdiContentCopy} size={12} />
-          </button>
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
-            title="Delete layer"
-            aria-label="Delete layer"
-            onclick={(e) => {
-              e.stopPropagation();
-              void editor.removeMaskLayer(layer.id);
-            }}
-          >
-            <Icon path={mdiClose} size={13} />
-          </button>
-        </div>
+        <MaskLayerRow {layer} index={li} total={layers.length} {cap} />
       {/each}
     </div>
   {/if}
@@ -780,29 +254,14 @@
           >
             <Icon path={mdiSetCenter} size={12} /> Intersect
           </button>
-          {#if addComponentOpen && addComponentPos}
-            <div
-              bind:this={addComponentMenu}
-              class="fixed z-50 bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl"
-              style="top: {addComponentPos.top}px; left: {addComponentPos.left}px"
-            >
-              <div
-                class="px-3 pt-2 text-[10px] uppercase tracking-wider text-immich-dark-fg/40 border-b border-white/10 pb-2"
-              >
-                {modeVerb(pendingMode)} with
-              </div>
-              <MaskToolPicker
-                aiKinds={maskKinds}
-                {semanticClasses}
-                {aiUnavailable}
-                busy={editor.maskGenerating}
-                onManual={(tool) => void pickShapeManual(tool)}
-                onAi={(kind, installed, cls) => void pickShapeAi(kind, installed, cls)}
-                onBox={armShapeBox}
-                onBackground={() => void addBackgroundComp()}
-              />
-            </div>
-          {/if}
+          <MaskToolMenu
+            open={addComponentOpen}
+            anchor={addComponentBtn}
+            align="left"
+            heading
+            target={{ layerId: active.id, mode: pendingMode }}
+            onClose={() => (addComponentOpen = false)}
+          />
         </div>
 
         {#if cap.componentsFull || cap.totalFull}
@@ -819,128 +278,13 @@
           </div>
         {:else}
           {#each active.components as comp, i (comp.id)}
-            {@const isCompActive = editor.activeMaskComponentId === comp.id}
-            <div
-              class="flex items-center gap-1.5 px-1 py-0.5 rounded transition-colors cursor-pointer {isCompActive
-                ? 'bg-white/10'
-                : 'hover:bg-white/5'}"
-              role="button"
-              tabindex="0"
-              onclick={() => editor.setActiveMaskComponent(isCompActive ? null : comp.id)}
-              onkeydown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ')
-                  editor.setActiveMaskComponent(isCompActive ? null : comp.id);
-              }}
-            >
-              <button
-                type="button"
-                class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
-                title={comp.enabled ? 'Disable shape' : 'Enable shape'}
-                aria-label="Toggle shape"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  toggleComp(active, comp);
-                }}
-              >
-                <Icon path={comp.enabled ? mdiEye : mdiEyeOff} size={12} />
-              </button>
-              <Icon
-                path={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
-                size={12}
-                class="opacity-50 shrink-0"
-              />
-              <span class="text-[11px] text-immich-dark-fg/70 truncate flex-1">
-                {compLabels[i]}
-              </span>
-              {#if i === 0}
-                <span
-                  class="shrink-0 text-[9px] uppercase tracking-wider text-immich-dark-fg/30"
-                  title="The first shape starts the mask">Base</span
-                >
-              {/if}
-              <button
-                type="button"
-                class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
-                title="Delete shape"
-                aria-label="Delete shape"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  void editor.removeMaskComponent(active.id, comp.id);
-                }}
-              >
-                <Icon path={mdiClose} size={12} />
-              </button>
-            </div>
-            {#if isCompActive}
-              <div class="flex items-center gap-2 px-2 pb-1.5 pt-1">
-                {#if i > 0}
-                  <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-                    {#each MODES as m (m.value)}
-                      <button
-                        type="button"
-                        class="px-1.5 h-5 inline-flex items-center transition-colors {comp.mode ===
-                        m.value
-                          ? 'bg-white/15 text-immich-dark-fg'
-                          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-                        title={m.hint}
-                        aria-label={m.hint}
-                        onclick={() => setMode(active, comp, m.value)}
-                      >
-                        <Icon path={m.icon} size={12} />
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-                <button
-                  type="button"
-                  class="shrink-0 inline-flex items-center gap-1 px-1.5 h-5 rounded ring-1 ring-white/10 text-[10px] transition-colors {comp.invert
-                    ? 'bg-white/15 text-immich-dark-fg'
-                    : 'text-immich-dark-fg/50 hover:bg-white/10 hover:text-immich-dark-fg'}"
-                  aria-pressed={comp.invert}
-                  title={comp.invert
-                    ? 'Using everything outside this shape. Click to go back.'
-                    : 'Use everything outside this shape instead'}
-                  onclick={() => toggleInvert(active, comp)}
-                >
-                  <Icon path={mdiInvertColors} size={11} />
-                  Invert
-                </button>
-                {#if active.components.length > 1}
-                  <div class="ml-auto flex items-center gap-1">
-                    {#if i > 0}
-                      <button
-                        type="button"
-                        class="px-1.5 py-0.5 rounded text-[10px] text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors"
-                        title="Start the mask from this shape"
-                        onclick={() => void editor.reorderMaskComponent(active.id, comp.id, 0)}
-                      >
-                        Make base
-                      </button>
-                    {/if}
-                    <button
-                      type="button"
-                      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                      title="Apply this shape earlier"
-                      aria-label="Move shape up"
-                      disabled={i === 0}
-                      onclick={() => void editor.reorderMaskComponent(active.id, comp.id, i - 1)}
-                    >
-                      <Icon path={mdiChevronUp} size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                      title="Apply this shape later"
-                      aria-label="Move shape down"
-                      disabled={i === active.components.length - 1}
-                      onclick={() => void editor.reorderMaskComponent(active.id, comp.id, i + 1)}
-                    >
-                      <Icon path={mdiChevronDown} size={12} />
-                    </button>
-                  </div>
-                {/if}
-              </div>
-            {/if}
+            <MaskComponentRow
+              layerId={active.id}
+              {comp}
+              index={i}
+              total={active.components.length}
+              label={compLabels[i]}
+            />
           {/each}
         {/if}
 
@@ -954,49 +298,14 @@
               step={0.01}
               defaultValue={0.5}
               onLive={onFeatherLive}
-              onCommit={onFeatherCommit}
+              onCommit={() => void editor.commitMasks()}
               format={(v: number) => v.toFixed(2)}
             />
           </div>
         {/if}
 
-        {#if activeComp && activeComp.kind.kind === 'brush' && clickInstalled}
-          <div class="mt-1 flex items-center justify-between gap-2 px-1">
-            <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-              Click to refine
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-                <button
-                  type="button"
-                  class="px-2 leading-5 transition-colors {refineActive &&
-                  !editor.clickTool.negative
-                    ? 'bg-white/15 text-immich-dark-fg'
-                    : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-                  title="Click the photo to add that area to this shape"
-                  onclick={() => setRefine(false)}>Add</button
-                >
-                <button
-                  type="button"
-                  class="px-2 leading-5 transition-colors {refineActive && editor.clickTool.negative
-                    ? 'bg-white/15 text-immich-dark-fg'
-                    : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-                  title="Click the photo to cut that area out of this shape"
-                  onclick={() => setRefine(true)}>Remove</button
-                >
-              </div>
-              {#if refineActive}
-                <button
-                  type="button"
-                  class="text-[10px] text-immich-dark-fg/50 hover:text-immich-dark-fg"
-                  onclick={stopRefine}>Done</button
-                >
-              {/if}
-            </div>
-          </div>
-          {#if editor.maskGenerating}
-            <div class="px-1 text-[10px] text-immich-dark-fg/40">Working…</div>
-          {/if}
+        {#if activeComp && activeComp.kind.kind === 'brush' && maskModels.clickInstalled}
+          <MaskClickRefine layerId={active.id} />
         {/if}
 
         {#if activeComp?.generated}

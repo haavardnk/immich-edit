@@ -118,8 +118,43 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
 });
 
-test('keyboard help modal toggles with the ? key', async ({ page }) => {
-  await installMocks(page);
+test('dragging the radial centre handle moves the saved shape', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body) });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
+
+  const centre = page.getByRole('button', { name: 'Radial center' });
+  await expect(centre).toBeVisible();
+  const box = await centre.boundingBox();
+  if (!box) throw new Error('radial centre handle has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+
+  await expect
+    .poll(() => {
+      const body = saves.at(-1) as {
+        manifest?: {
+          ops?: {
+            masks?: {
+              layers?: Array<{
+                components?: Array<{ kind?: { kind?: string; center?: { x: number } } }>;
+              }>;
+            };
+          };
+        };
+      };
+      return body?.manifest?.ops?.masks?.layers?.[0]?.components?.[0]?.kind?.center?.x ?? 0.5;
+    })
+    .toBeGreaterThan(0.5);
+});
+
+test('keyboard help modal toggles with the ? key', async ({ page }) => {  await installMocks(page);
   await gotoAsset(page);
 
   await page.keyboard.press('Shift+/');

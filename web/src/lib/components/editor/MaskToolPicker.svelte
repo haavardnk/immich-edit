@@ -16,7 +16,7 @@
     mdiDownloadOutline
   } from '@mdi/js';
   import type { MaskKind, SemanticClass } from '$lib/api/masks';
-  import { visibleSceneClasses, type ManualTool } from '$lib/types/masks';
+  import { generatedLabel, visibleSceneClasses, type ManualTool } from '$lib/types/masks';
 
   let {
     aiKinds,
@@ -84,16 +84,6 @@
     semantic: 'Water, foliage, buildings and more',
     click: 'Click the photo to select'
   };
-
-  function aiLabel(kind: string): string {
-    if (kind === 'subject') return 'Subject';
-    if (kind === 'people') return 'People';
-    if (kind === 'sky') return 'Sky';
-    if (kind === 'depth') return 'Depth';
-    if (kind === 'semantic') return 'Scene';
-    if (kind === 'click') return 'Click to select';
-    return kind;
-  }
 </script>
 
 <div class="w-56 py-1">
@@ -106,7 +96,7 @@
           ? ''
           : 'text-immich-dark-fg/40'}"
         disabled={busy && entry.installed && entry.kind !== 'click'}
-        aria-label={aiLabel(entry.kind)}
+        aria-label={generatedLabel(entry.kind)}
         onclick={() => {
           if (entry.kind === 'semantic' && entry.installed) {
             semanticOpen = !semanticOpen;
@@ -121,7 +111,7 @@
           class="mt-0.5 shrink-0 opacity-70"
         />
         <span class="flex-1 min-w-0">
-          <span class="block text-xs truncate">{aiLabel(entry.kind)}</span>
+          <span class="block text-xs truncate">{generatedLabel(entry.kind)}</span>
           <span class="block text-[10px] text-immich-dark-fg/40 truncate">
             {entry.installed ? AI_HINTS[entry.kind] : 'Needs a model download'}
           </span>
