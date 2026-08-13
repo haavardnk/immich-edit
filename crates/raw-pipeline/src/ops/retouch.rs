@@ -13,7 +13,7 @@ impl Op for RetouchOp {
         "retouch"
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("retouch")
+        super::GpuRoute::Pass(super::GpuPass::Retouch)
     }
     fn stage(&self) -> Stage {
         Stage::WhiteBalance

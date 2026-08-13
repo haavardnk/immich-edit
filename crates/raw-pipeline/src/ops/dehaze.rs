@@ -11,7 +11,7 @@ impl Op for DehazeOp {
         "dehaze"
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("dehaze")
+        super::GpuRoute::Pass(super::GpuPass::Dehaze)
     }
     fn stage(&self) -> Stage {
         Stage::Tone

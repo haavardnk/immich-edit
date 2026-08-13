@@ -12,7 +12,7 @@ impl Op for VignetteOp {
         "vignette"
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("effects")
+        super::GpuRoute::Pass(super::GpuPass::Effects)
     }
     fn stage(&self) -> Stage {
         Stage::Output

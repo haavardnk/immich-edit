@@ -93,17 +93,12 @@ fn every_op_declares_a_reachable_gpu_route() {
                     panic!("{}: declares Fused but has no gpu()", op.id());
                 }
             }
-            GpuRoute::Pass(name) => {
-                if !GPU_PASS_NAMES.contains(&name) {
-                    panic!("{}: declares unknown gpu pass {name}", op.id());
-                }
-            }
             GpuRoute::Manifest => {
                 if op.is_active(&Edits::default()) {
                     panic!("{}: Manifest ops must never be active", op.id());
                 }
             }
-            GpuRoute::Presence | GpuRoute::Detail => {}
+            GpuRoute::Pass(_) | GpuRoute::Presence | GpuRoute::Detail => {}
         }
     }
 }

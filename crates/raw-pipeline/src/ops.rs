@@ -64,17 +64,22 @@ pub enum Stage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GpuPass {
+    Lens,
+    Retouch,
+    Dehaze,
+    Dcp,
+    Effects,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GpuRoute {
     Fused,
     Presence,
     Detail,
-    Pass(&'static str),
+    Pass(GpuPass),
     Manifest,
 }
-
-pub const GPU_PASS_NAMES: &[&str] = &[
-    "lens", "retouch", "dehaze", "dcp", "lut", "effects", "sharpen",
-];
 
 #[derive(Clone)]
 pub struct RenderContext {

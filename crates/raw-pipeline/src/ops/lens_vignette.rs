@@ -11,7 +11,7 @@ impl Op for LensVignetteOp {
         "lens_vignette"
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("lens")
+        super::GpuRoute::Pass(super::GpuPass::Lens)
     }
     fn stage(&self) -> Stage {
         Stage::Sensor

@@ -11,7 +11,7 @@ impl Op for DcpProfileOp {
         DCP_PROFILE_OP_ID
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("dcp")
+        super::GpuRoute::Pass(super::GpuPass::Dcp)
     }
     fn stage(&self) -> Stage {
         Stage::Color

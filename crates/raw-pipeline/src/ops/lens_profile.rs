@@ -12,7 +12,7 @@ impl Op for LensProfileOp {
         LENS_PROFILE_OP_ID
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Pass("lens")
+        super::GpuRoute::Pass(super::GpuPass::Lens)
     }
     fn stage(&self) -> Stage {
         Stage::Sensor
