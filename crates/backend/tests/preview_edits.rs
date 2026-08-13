@@ -579,6 +579,73 @@ async fn restore_returns_previous_edits() {
 }
 
 #[tokio::test]
+async fn restore_after_reset_refreshes_upstream_meta() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_metadata(&server, id, "abc").await;
+    let app = test_app(&server).await;
+
+    let saved = put_edits(
+        &app,
+        id,
+        serde_json::json!({"schema_version": 2, "ops": {"exposure": {"ev": 0.5}}}),
+    )
+    .await;
+    let hash = saved["hash"].as_str().unwrap().to_string();
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/assets/{id}/edits"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NO_CONTENT {
+        panic!("delete status {}", resp.status());
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .await
+        .unwrap();
+    let history: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let entry_id = history
+        .as_array()
+        .and_then(|arr| {
+            arr.iter()
+                .find(|e| e["manifest_hash"] == serde_json::Value::String(hash.clone()))
+        })
+        .and_then(|e| e["id"].as_i64())
+        .expect("history entry id");
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/edits/restore"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"entry_id": entry_id}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("restore status {}", resp.status());
+    }
+    let restored: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if restored["immich_checksum"] != "abc" || restored["immich_updated_at"].is_null() {
+        panic!("restore meta: {restored}");
+    }
+}
+
+#[tokio::test]
 async fn persisted_preview_revalidates_with_etag() {
     let server = MockServer::start().await;
     let id = asset_id();

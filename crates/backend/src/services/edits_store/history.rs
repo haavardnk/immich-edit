@@ -81,10 +81,9 @@ impl EditsStore {
         owner: Uuid,
         asset_id: AssetKey,
         entry: &EditHistoryEntry,
+        immich_updated_at: Option<String>,
+        immich_checksum: Option<String>,
     ) -> Result<Option<EditRecord>, EditsStoreError> {
-        let current = self.get(owner, asset_id).await?;
-        let immich_updated_at = current.as_ref().and_then(|r| r.immich_updated_at.clone());
-        let immich_checksum = current.as_ref().and_then(|r| r.immich_checksum.clone());
         sqlx::query("DELETE FROM edits_history WHERE user_id = ?3 AND asset_id = ?1 AND id > ?2")
             .bind(asset_id.to_string())
             .bind(entry.id)
@@ -111,6 +110,8 @@ impl EditsStore {
                edits_json = excluded.edits_json, \
                schema_version = excluded.schema_version, \
                renderer_version = excluded.renderer_version, \
+               immich_updated_at = excluded.immich_updated_at, \
+               immich_checksum = excluded.immich_checksum, \
                updated_at = excluded.updated_at",
         )
         .bind(asset_id.to_string())

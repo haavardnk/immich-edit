@@ -205,7 +205,11 @@ pub async fn restore(
     else {
         return Err(AppError::NotFound);
     };
-    let saved = state.edits.restore_to_entry(ctx.owner, id, &entry).await?;
+    let asset = ctx.immich.asset(id.source()).await?;
+    let saved = state
+        .edits
+        .restore_to_entry(ctx.owner, id, &entry, asset.updated_at, asset.checksum)
+        .await?;
     match saved {
         Some(record) => Ok(Json(record).into_response()),
         None => Ok(StatusCode::NO_CONTENT.into_response()),
