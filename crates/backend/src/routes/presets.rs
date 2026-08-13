@@ -9,7 +9,7 @@ use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::PresetRecord;
 use crate::state::AppState;
 
-const MAX_NAME_LEN: usize = 80;
+const MAX_PRESET_NAME_LEN: usize = 80;
 const MAX_GROUP_LEN: usize = 60;
 
 #[derive(Debug, Deserialize)]
@@ -31,7 +31,7 @@ fn parse_body(body: PresetBody) -> Result<ParsedPreset, AppError> {
     if name.is_empty() {
         return Err(AppError::BadRequest("preset name required".into()));
     }
-    if name.len() > MAX_NAME_LEN {
+    if name.len() > MAX_PRESET_NAME_LEN {
         return Err(AppError::BadRequest("preset name too long".into()));
     }
     let group_name = match body.group_name {

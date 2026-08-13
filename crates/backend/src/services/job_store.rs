@@ -5,6 +5,11 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
+mod cancel;
+mod rows;
+
+use rows::{item_from_row, job_from_row, parse_uuid};
+
 use crate::services::auth_store::AuthKind;
 use crate::services::crypto::{InstanceCrypto, SecretBytes};
 
@@ -416,118 +421,6 @@ impl JobStore {
         Ok(())
     }
 
-    pub async fn cancel_job(&self, id: Uuid) -> Result<bool, JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let mut tx = self.pool.begin().await?;
-        let res = sqlx::query(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?, updated_at = ? \
-             WHERE id = ? AND status IN ('pending', 'running')",
-        )
-        .bind(&now)
-        .bind(&now)
-        .bind(id.to_string())
-        .execute(&mut *tx)
-        .await?;
-        let cancelled = res.rows_affected() > 0;
-        if cancelled {
-            sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
-                .bind(id.to_string())
-                .execute(&mut *tx)
-                .await?;
-        }
-        tx.commit().await?;
-        if cancelled && let Some(job) = self.get_job(id).await? {
-            self.publish(&job);
-        }
-        Ok(cancelled)
-    }
-
-    async fn cancel_where(
-        &self,
-        update: &'static str,
-        delete: &'static str,
-        binds: &[String],
-    ) -> Result<u64, JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let mut tx = self.pool.begin().await?;
-        let mut update_query = sqlx::query(update);
-        for bind in binds {
-            update_query = update_query.bind(bind.as_str());
-        }
-        let result = update_query.bind(&now).execute(&mut *tx).await?;
-        let mut delete_query = sqlx::query(delete);
-        for bind in binds {
-            delete_query = delete_query.bind(bind.as_str());
-        }
-        delete_query.execute(&mut *tx).await?;
-        tx.commit().await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn cancel_active_for_owner(&self, owner: Uuid) -> Result<u64, JobStoreError> {
-        self.cancel_where(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?2, updated_at = ?2 \
-             WHERE user_id = ?1 AND status IN ('pending', 'running')",
-            "DELETE FROM job_credentials WHERE job_id IN \
-             (SELECT id FROM jobs WHERE user_id = ?1 AND status = 'cancelled')",
-            &[owner.to_string()],
-        )
-        .await
-    }
-
-    pub async fn cancel_active_for_session(&self, session_id: Uuid) -> Result<u64, JobStoreError> {
-        self.cancel_where(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?2, updated_at = ?2 \
-             WHERE auth_session_id = ?1 AND status IN ('pending', 'running')",
-            "DELETE FROM job_credentials WHERE job_id IN \
-             (SELECT id FROM jobs WHERE auth_session_id = ?1 AND status = 'cancelled')",
-            &[session_id.to_string()],
-        )
-        .await
-    }
-
-    pub async fn cancel_active_for_other_sessions(
-        &self,
-        owner: Uuid,
-        current_session_id: Uuid,
-    ) -> Result<u64, JobStoreError> {
-        self.cancel_where(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?3, updated_at = ?3 \
-             WHERE user_id = ?1 AND auth_session_id != ?2 AND status IN ('pending', 'running')",
-            "DELETE FROM job_credentials WHERE job_id IN \
-             (SELECT id FROM jobs WHERE user_id = ?1 AND auth_session_id != ?2 AND status = 'cancelled')",
-            &[owner.to_string(), current_session_id.to_string()],
-        )
-        .await
-    }
-
-    pub async fn purge_owner(&self, owner: Uuid) -> Result<(), JobStoreError> {
-        let owner_str = owner.to_string();
-        let mut tx = self.pool.begin().await?;
-        sqlx::query(
-            "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1)",
-        )
-        .bind(&owner_str)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query("DELETE FROM jobs WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
-    pub async fn purge_all(&self) -> Result<(), JobStoreError> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM job_items")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM jobs").execute(&mut *tx).await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
     pub async fn clear_finished(&self, owner: Uuid) -> Result<Vec<(Uuid, String)>, JobStoreError> {
         let owner_str = owner.to_string();
         let rows = sqlx::query(
@@ -569,51 +462,6 @@ impl JobStore {
             .await?;
         Ok(items.rows_affected())
     }
-}
-
-fn parse_uuid(s: String) -> Result<Uuid, JobStoreError> {
-    Uuid::parse_str(&s).map_err(|_| JobStoreError::Corrupt(format!("uuid {s}")))
-}
-
-fn job_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord, JobStoreError> {
-    Ok(JobRecord {
-        id: parse_uuid(row.get("id"))?,
-        user_id: parse_uuid(row.get("user_id"))?,
-        server_epoch: row.get("server_epoch"),
-        auth_session_id: row
-            .get::<Option<String>, _>("auth_session_id")
-            .map(parse_uuid)
-            .transpose()?,
-        kind: row.get("kind"),
-        status: JobStatus::from_str(&row.get::<String, _>("status"))?,
-        target: serde_json::from_str(&row.get::<String, _>("target_json"))?,
-        params: serde_json::from_str(&row.get::<String, _>("params_json"))?,
-        total: row.get("total"),
-        completed: row.get("completed"),
-        failed: row.get("failed"),
-        cancelled_at: row.get("cancelled_at"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
-}
-
-fn item_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobItemRecord, JobStoreError> {
-    let result = match row.get::<Option<String>, _>("result_json") {
-        Some(s) => Some(serde_json::from_str(&s)?),
-        None => None,
-    };
-    Ok(JobItemRecord {
-        id: parse_uuid(row.get("id"))?,
-        job_id: parse_uuid(row.get("job_id"))?,
-        asset_id: row.get("asset_id"),
-        status: JobItemStatus::from_str(&row.get::<String, _>("status"))?,
-        error: row.get("error"),
-        result,
-        idempotency_key: row.get("idempotency_key"),
-        attempts: row.get("attempts"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
 }
 
 #[cfg(test)]

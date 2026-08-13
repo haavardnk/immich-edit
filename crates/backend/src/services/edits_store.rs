@@ -1,10 +1,7 @@
-use std::str::FromStr;
-
 use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
@@ -16,7 +13,9 @@ const SCHEMA_VERSION: i64 = 2;
 mod copies;
 mod export_jobs;
 mod history;
+mod pool;
 mod presets;
+mod purge;
 
 pub use copies::CopyRecord;
 
@@ -84,50 +83,6 @@ pub struct EditsStore {
 }
 
 impl EditsStore {
-    pub async fn connect(database_url: &str) -> Result<Self, EditsStoreError> {
-        let opts = SqliteConnectOptions::from_str(database_url)?
-            .create_if_missing(true)
-            .journal_mode(SqliteJournalMode::Wal)
-            .foreign_keys(true);
-        let pool = SqlitePoolOptions::new()
-            .max_connections(8)
-            .connect_with(opts)
-            .await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(Self { pool })
-    }
-
-    pub async fn migrated_memory() -> Result<Self, EditsStoreError> {
-        let opts = SqliteConnectOptions::from_str("sqlite::memory:")?
-            .create_if_missing(true)
-            .foreign_keys(true);
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect_with(opts)
-            .await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(Self { pool })
-    }
-
-    pub fn pool(&self) -> SqlitePool {
-        self.pool.clone()
-    }
-
-    pub async fn ready(&self) -> Result<(), EditsStoreError> {
-        sqlx::query("SELECT 1").execute(&self.pool).await?;
-        Ok(())
-    }
-
-    pub async fn migration_version(&self) -> Result<Option<i64>, EditsStoreError> {
-        let row = sqlx::query("SELECT MAX(version) AS v FROM _sqlx_migrations")
-            .fetch_optional(&self.pool)
-            .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        Ok(row.try_get::<Option<i64>, _>("v")?)
-    }
-
     pub async fn get(
         &self,
         owner: Uuid,
@@ -352,92 +307,6 @@ impl EditsStore {
             .execute(&mut *tx)
             .await?;
         }
-        tx.commit().await?;
-        Ok(())
-    }
-
-    pub async fn rebuild_raster_refs(&self) -> Result<usize, EditsStoreError> {
-        let rows = sqlx::query(
-            "SELECT user_id, asset_id, edits_json FROM edits \
-             UNION ALL \
-             SELECT user_id, asset_id, edits_json FROM edits_history WHERE edits_json IS NOT NULL",
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        let mut triples: Vec<(String, String, String)> = Vec::new();
-        for row in rows {
-            let user_id: String = row.try_get("user_id")?;
-            let asset_id: String = row.try_get("asset_id")?;
-            let edits_json: String = row.try_get("edits_json")?;
-            let Ok(edits) = serde_json::from_str::<Edits>(&edits_json) else {
-                continue;
-            };
-            for id in edits.retained_raster_ids() {
-                let triple = (user_id.clone(), asset_id.clone(), id);
-                if !triples.contains(&triple) {
-                    triples.push(triple);
-                }
-            }
-        }
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM raster_refs")
-            .execute(&mut *tx)
-            .await?;
-        for (user_id, asset_id, raster_id) in &triples {
-            sqlx::query(
-                "INSERT OR IGNORE INTO raster_refs (user_id, asset_id, raster_id) \
-                 VALUES (?1, ?2, ?3)",
-            )
-            .bind(user_id)
-            .bind(asset_id)
-            .bind(raster_id)
-            .execute(&mut *tx)
-            .await?;
-        }
-        tx.commit().await?;
-        Ok(triples.len())
-    }
-
-    pub async fn purge_owner(&self, owner: Uuid) -> Result<(), EditsStoreError> {
-        let owner_str = owner.to_string();
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM edits_history WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM export_jobs WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
-    pub async fn purge_all(&self) -> Result<(), EditsStoreError> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM edits_history")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM export_jobs")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs")
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         Ok(())
     }

@@ -9,7 +9,7 @@ use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::CopyRecord;
 use crate::state::AppState;
 
-const MAX_NAME_LEN: usize = 64;
+const MAX_COPY_NAME_LEN: usize = 64;
 
 #[derive(Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -110,9 +110,9 @@ fn normalize_name(name: Option<String>) -> Result<Option<String>, AppError> {
     if trimmed.is_empty() {
         return Ok(None);
     }
-    if trimmed.chars().count() > MAX_NAME_LEN {
+    if trimmed.chars().count() > MAX_COPY_NAME_LEN {
         return Err(AppError::BadRequest(format!(
-            "name must be at most {MAX_NAME_LEN} characters"
+            "name must be at most {MAX_COPY_NAME_LEN} characters"
         )));
     }
     Ok(Some(trimmed.to_string()))
