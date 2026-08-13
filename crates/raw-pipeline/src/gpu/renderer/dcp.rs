@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoder,
-    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
+    BufferUsages, CommandEncoder, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::dcp::{HsvEncoding, HueSatMap};
+use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::ops::ResolvedDcp;
 
 use super::GpuRenderer;
@@ -301,36 +301,19 @@ impl GpuRenderer {
             contents: bytemuck::bytes_of(&uniform),
             usage: BufferUsages::UNIFORM,
         });
-        let bg = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dcp-huesat-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: ub.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&table_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
-            ],
-        });
-        let gx = w.div_ceil(16);
-        let gy = h.div_ceil(16);
-        let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-            label: Some("dcp-huesat"),
-            timestamp_writes: None,
-        });
-        cp.set_pipeline(&pass.pipeline);
-        cp.set_bind_group(0, &bg, &[]);
-        cp.dispatch_workgroups(gx, gy, 1);
+        let bg = bind_group(
+            device,
+            "dcp-huesat-bg",
+            &pass.layout,
+            &[buf(&ub), tex(&src_view), tex(&table_view), tex(&dst_view)],
+        );
+        dispatch_2d(
+            encoder,
+            "dcp-huesat",
+            &pass.pipeline,
+            &bg,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
     }
 }

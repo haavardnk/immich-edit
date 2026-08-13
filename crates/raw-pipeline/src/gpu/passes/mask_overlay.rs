@@ -9,8 +9,16 @@ use super::common::{
     make_layout, make_pipeline_raw, storage_entry, tex_entry_with, uniform_entry_unsized,
 };
 
-pub const PARAMS_BYTES: usize = 16;
+pub const PARAMS_BYTES: usize = size_of::<MaskOverlayParams>();
 pub const OVERLAY_ALPHA: f32 = 0.55;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaskOverlayParams {
+    pub out_size: [u32; 2],
+    pub strength: f32,
+    pub _pad: u32,
+}
 
 const SHADER: &str = r#"
 struct OverlayParams {
@@ -62,10 +70,10 @@ impl MaskOverlayPass {
     }
 }
 
-pub fn pack_params(out_w: u32, out_h: u32, strength: f32) -> [u8; PARAMS_BYTES] {
-    let mut buf = [0u8; PARAMS_BYTES];
-    buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
-    buf[4..8].copy_from_slice(&out_h.to_ne_bytes());
-    buf[8..12].copy_from_slice(&strength.to_ne_bytes());
-    buf
+pub fn pack_params(out_w: u32, out_h: u32, strength: f32) -> MaskOverlayParams {
+    MaskOverlayParams {
+        out_size: [out_w, out_h],
+        strength,
+        _pad: 0,
+    }
 }

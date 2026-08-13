@@ -12,13 +12,47 @@ use super::common::{
 
 pub const MOMENT_FORMAT: TextureFormat = TextureFormat::Rgba32Float;
 
-pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = 16;
-pub const NORM_UNIFORM_SIZE: u64 = 32;
-pub const MIN_UNIFORM_SIZE: u64 = 16;
-pub const PACK_UNIFORM_SIZE: u64 = 16;
-pub const BOX_UNIFORM_SIZE: u64 = 16;
-pub const AB_UNIFORM_SIZE: u64 = 16;
-pub const APPLY_UNIFORM_SIZE: u64 = 48;
+pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = size_of::<DehazeDownsampleParams>() as u64;
+pub const NORM_UNIFORM_SIZE: u64 = size_of::<DehazeNormParams>() as u64;
+pub const MIN_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const PACK_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const BOX_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const AB_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const APPLY_UNIFORM_SIZE: u64 = size_of::<DehazeApplyParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DehazeDownsampleParams {
+    pub size: [u32; 2],
+    pub scale: u32,
+    pub _pad: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DehazeNormParams {
+    pub size: [u32; 2],
+    pub _pad: [u32; 2],
+    pub atmosphere: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DehazeFilterParams {
+    pub size: [u32; 2],
+    pub radius: u32,
+    pub axis: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DehazeApplyParams {
+    pub size: [u32; 2],
+    pub lo_size: [u32; 2],
+    pub atmosphere: [f32; 4],
+    pub amount: f32,
+    pub _pad: [f32; 3],
+}
 
 fn make_layout_3(
     ctx: &Arc<GpuContext>,

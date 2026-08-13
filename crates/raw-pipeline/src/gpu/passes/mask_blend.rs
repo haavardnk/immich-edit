@@ -12,7 +12,15 @@ use super::common::{
     uniform_entry_unsized,
 };
 
-pub const PARAMS_BYTES: usize = 16;
+pub const PARAMS_BYTES: usize = size_of::<MaskBlendParams>();
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaskBlendParams {
+    pub out_size: [u32; 2],
+    pub sharpen_delta: f32,
+    pub sharpen_flags: u32,
+}
 
 const SHADER: &str = r#"
 struct BlendParams {
@@ -75,11 +83,10 @@ pub fn pack_params(
     out_h: u32,
     sharpen_delta: f32,
     sharpen_flags: u32,
-) -> [u8; PARAMS_BYTES] {
-    let mut buf = [0u8; PARAMS_BYTES];
-    buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
-    buf[4..8].copy_from_slice(&out_h.to_ne_bytes());
-    buf[8..12].copy_from_slice(&sharpen_delta.to_ne_bytes());
-    buf[12..16].copy_from_slice(&sharpen_flags.to_ne_bytes());
-    buf
+) -> MaskBlendParams {
+    MaskBlendParams {
+        out_size: [out_w, out_h],
+        sharpen_delta,
+        sharpen_flags,
+    }
 }

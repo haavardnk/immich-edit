@@ -1,4 +1,5 @@
 pub mod context;
+mod dispatch;
 mod helpers;
 pub mod passes;
 pub mod readback;

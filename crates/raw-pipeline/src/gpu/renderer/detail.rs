@@ -1,22 +1,30 @@
 use std::sync::Arc;
 
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoderDescriptor,
-    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
+    BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, Texture,
+    TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
+use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
+use crate::gpu::passes::capture_sharpen as capture;
+use crate::gpu::passes::capture_sharpen::{
+    CAPTURE_KERNEL_MAX, CaptureApplyParams, CaptureBlurParams, CaptureLumaParams,
+};
+use crate::gpu::passes::dehaze::{
+    DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams,
+};
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
-use crate::gpu::passes::presence::PRESENCE_UNIFORM_SIZE;
+use crate::gpu::passes::nr::NrParams;
+use crate::gpu::passes::nr_smooth::NrSmoothParams;
+use crate::gpu::passes::presence::PresenceParams;
 use crate::gpu::texture_pool::TextureKey;
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
 use crate::gpu::helpers::mip_count;
-use crate::gpu::passes::capture_sharpen as capture;
-use crate::gpu::uniforms::{write_active_mask, write_header};
+use crate::gpu::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
 use super::{CachedFrame, GpuRenderer, atmosphere_cache_key, nr_cache_key, wb_cache_key};
@@ -66,20 +74,20 @@ impl GpuRenderer {
 
         let nr_uniform = |stage: u32, radius: u32| {
             let sigma_s = radius as f32;
-            let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
-            let mut bytes = vec![0u8; crate::gpu::passes::nr::NR_UNIFORM_SIZE as usize];
-            bytes[0..4].copy_from_slice(&w.to_le_bytes());
-            bytes[4..8].copy_from_slice(&h.to_le_bytes());
-            bytes[8..12].copy_from_slice(&radius.to_le_bytes());
-            bytes[12..16].copy_from_slice(&stage.to_le_bytes());
-            bytes[16..20].copy_from_slice(&inv_2ss.to_le_bytes());
-            bytes[20..24].copy_from_slice(&inv_2sr_luma.to_le_bytes());
-            bytes[24..28].copy_from_slice(&inv_2sr_chroma.to_le_bytes());
-            bytes[28..32].copy_from_slice(&alpha_luma.to_le_bytes());
-            bytes[32..36].copy_from_slice(&alpha_chroma.to_le_bytes());
-            bytes[36..40].copy_from_slice(&contrast.to_le_bytes());
+            let params = NrParams {
+                size: [w, h],
+                radius,
+                stage,
+                inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
+                inv_2sr_luma,
+                inv_2sr_chroma,
+                alpha_luma,
+                alpha_chroma,
+                contrast,
+                _pad: [0.0; 2],
+            };
             self.uniform_pool
-                .acquire(device, queue, &bytes, "nr-uniform")
+                .acquire(device, queue, bytemuck::bytes_of(&params), "nr-uniform")
         };
 
         let make_tex = |label: &'static str, mips: bool| -> Texture {
@@ -110,31 +118,20 @@ impl GpuRenderer {
                         uniform: &crate::gpu::uniform_pool::PooledUniform,
                         src: &wgpu::TextureView,
                         dst: &wgpu::TextureView| {
-            let bind = device.create_bind_group(&BindGroupDescriptor {
-                label: Some(label),
-                layout: &self.passes.nr.layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: uniform.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(src),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(dst),
-                    },
-                ],
-            });
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some(label),
-                timestamp_writes: None,
-            });
-            cpass.set_pipeline(&self.passes.nr.pipeline);
-            cpass.set_bind_group(0, &bind, &[]);
-            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
+            let bind = bind_group(
+                device,
+                label,
+                &self.passes.nr.layout,
+                &[uniform.as_entire_binding(), tex(src), tex(dst)],
+            );
+            dispatch_2d(
+                encoder,
+                label,
+                &self.passes.nr.pipeline,
+                &bind,
+                w.div_ceil(16),
+                h.div_ceil(16),
+            );
         };
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
@@ -180,45 +177,38 @@ impl GpuRenderer {
             ..Default::default()
         });
         let smoothness = (d.color_nr_smoothness as f32) / 100.0;
-        let mut sbytes = vec![0u8; crate::gpu::passes::nr_smooth::NR_SMOOTH_UNIFORM_SIZE as usize];
-        sbytes[0..4].copy_from_slice(&w.to_le_bytes());
-        sbytes[4..8].copy_from_slice(&h.to_le_bytes());
-        sbytes[16..20].copy_from_slice(&smoothness.to_le_bytes());
-        sbytes[20..24].copy_from_slice(&alpha_chroma.to_le_bytes());
-        let sbuf = self
-            .uniform_pool
-            .acquire(device, queue, &sbytes, "nr-smooth-uniform");
-        let sbind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("nr-smooth-bg"),
-            layout: &self.passes.nr_smooth.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: sbuf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&base_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&chroma_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&dst_mip0),
-                },
+        let smooth_params = NrSmoothParams {
+            size: [w, h],
+            _pad0: [0; 2],
+            smoothness,
+            alpha_chroma,
+            _pad1: [0.0; 6],
+        };
+        let sbuf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&smooth_params),
+            "nr-smooth-uniform",
+        );
+        let sbind = bind_group(
+            device,
+            "nr-smooth-bg",
+            &self.passes.nr_smooth.layout,
+            &[
+                sbuf.as_entire_binding(),
+                tex(&base_view),
+                tex(&chroma_view),
+                tex(&dst_mip0),
             ],
-        });
-        {
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("nr-chroma-finish"),
-                timestamp_writes: None,
-            });
-            cpass.set_pipeline(&self.passes.nr_smooth.pipeline);
-            cpass.set_bind_group(0, &sbind, &[]);
-            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        );
+        dispatch_2d(
+            &mut encoder,
+            "nr-chroma-finish",
+            &self.passes.nr_smooth.pipeline,
+            &sbind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
         let out = Arc::new(dst);
@@ -246,37 +236,45 @@ impl GpuRenderer {
         let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
         let radius = (kernel.len() / 2) as u32;
 
-        let mut luma_u = vec![0u8; capture::CAPTURE_LUMA_UNIFORM_SIZE as usize];
-        luma_u[0..4].copy_from_slice(&w.to_le_bytes());
-        luma_u[4..8].copy_from_slice(&h.to_le_bytes());
-        let luma_buf = self
-            .uniform_pool
-            .acquire(device, queue, &luma_u, "capture-luma-u");
+        let luma_params = CaptureLumaParams {
+            size: [w, h],
+            _pad: [0; 2],
+        };
+        let luma_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&luma_params),
+            "capture-luma-u",
+        );
 
         let make_blur_u = |axis: u32, mode: u32, label: &'static str| {
-            let mut u = vec![0u8; capture::CAPTURE_BLUR_UNIFORM_SIZE as usize];
-            u[0..4].copy_from_slice(&w.to_le_bytes());
-            u[4..8].copy_from_slice(&h.to_le_bytes());
-            u[8..12].copy_from_slice(&radius.to_le_bytes());
-            u[12..16].copy_from_slice(&axis.to_le_bytes());
-            u[16..20].copy_from_slice(&mode.to_le_bytes());
-            for (i, k) in kernel.iter().enumerate() {
-                let off = 32 + i * 4;
-                u[off..off + 4].copy_from_slice(&k.to_le_bytes());
-            }
-            self.uniform_pool.acquire(device, queue, &u, label)
+            let mut params = CaptureBlurParams {
+                size: [w, h],
+                radius,
+                axis,
+                mode,
+                _pad: [0; 3],
+                kernel: [0.0; CAPTURE_KERNEL_MAX],
+            };
+            params.kernel[..kernel.len()].copy_from_slice(&kernel);
+            self.uniform_pool
+                .acquire(device, queue, bytemuck::bytes_of(&params), label)
         };
         let blur_h_buf = make_blur_u(0, 0, "capture-blur-h-u");
         let blur_ratio_buf = make_blur_u(1, 1, "capture-blur-ratio-u");
         let blur_mul_buf = make_blur_u(1, 2, "capture-blur-mul-u");
 
-        let mut apply_u = vec![0u8; capture::CAPTURE_APPLY_UNIFORM_SIZE as usize];
-        apply_u[0..4].copy_from_slice(&w.to_le_bytes());
-        apply_u[4..8].copy_from_slice(&h.to_le_bytes());
-        apply_u[8..12].copy_from_slice(&radius.to_le_bytes());
-        let apply_buf = self
-            .uniform_pool
-            .acquire(device, queue, &apply_u, "capture-apply-u");
+        let apply_params = CaptureApplyParams {
+            size: [w, h],
+            radius,
+            _pad: 0,
+        };
+        let apply_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&apply_params),
+            "capture-apply-u",
+        );
 
         let scratch_key = TextureKey::new(
             capture::CAPTURE_SCRATCH_FORMAT,
@@ -326,54 +324,27 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        let bg_luma = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("capture-luma-bg"),
-            layout: &p.luma_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: luma_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&luma_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&est_a_view),
-                },
+        let bg_luma = bind_group(
+            device,
+            "capture-luma-bg",
+            &p.luma_layout,
+            &[
+                luma_buf.as_entire_binding(),
+                tex(&src_view),
+                tex(&luma_view),
+                tex(&est_a_view),
             ],
-        });
+        );
         let make_blur_bg = |uniform: &crate::gpu::uniform_pool::PooledUniform,
                             read: &wgpu::TextureView,
                             aux: &wgpu::TextureView,
                             write: &wgpu::TextureView| {
-            device.create_bind_group(&BindGroupDescriptor {
-                label: Some("capture-blur-bg"),
-                layout: &p.blur_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: uniform.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(read),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(aux),
-                    },
-                    BindGroupEntry {
-                        binding: 3,
-                        resource: BindingResource::TextureView(write),
-                    },
-                ],
-            })
+            bind_group(
+                device,
+                "capture-blur-bg",
+                &p.blur_layout,
+                &[uniform.as_entire_binding(), tex(read), tex(aux), tex(write)],
+            )
         };
         let steps: Vec<[wgpu::BindGroup; 4]> =
             [(&est_a_view, &est_b_view), (&est_b_view, &est_a_view)]
@@ -387,32 +358,18 @@ impl GpuRenderer {
                     ]
                 })
                 .collect();
-        let bg_apply = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("capture-apply-bg"),
-            layout: &p.apply_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: apply_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&luma_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&est_a_view),
-                },
-                BindGroupEntry {
-                    binding: 4,
-                    resource: BindingResource::TextureView(&out_view),
-                },
+        let bg_apply = bind_group(
+            device,
+            "capture-apply-bg",
+            &p.apply_layout,
+            &[
+                apply_buf.as_entire_binding(),
+                tex(&src_view),
+                tex(&luma_view),
+                tex(&est_a_view),
+                tex(&out_view),
             ],
-        });
+        );
 
         let gx = w.div_ceil(16);
         let gy = h.div_ceil(16);
@@ -610,62 +567,60 @@ impl GpuRenderer {
         );
         let out = self.texture_pool.acquire(device, out_key, "dehaze-out");
 
-        let mut downsample_u =
-            vec![0u8; crate::gpu::passes::dehaze::DOWNSAMPLE_UNIFORM_SIZE as usize];
-        downsample_u[0..4].copy_from_slice(&lw.to_le_bytes());
-        downsample_u[4..8].copy_from_slice(&lh.to_le_bytes());
-        downsample_u[8..12].copy_from_slice(&scale.to_le_bytes());
-        let downsample_buf =
-            self.uniform_pool
-                .acquire(device, queue, &downsample_u, "dehaze-downsample-u");
+        let downsample_params = DehazeDownsampleParams {
+            size: [lw, lh],
+            scale,
+            _pad: 0,
+        };
+        let downsample_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&downsample_params),
+            "dehaze-downsample-u",
+        );
 
-        let mut norm_u = vec![0u8; 32];
-        norm_u[0..4].copy_from_slice(&lw.to_le_bytes());
-        norm_u[4..8].copy_from_slice(&lh.to_le_bytes());
-        norm_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
-        norm_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
-        norm_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
-        norm_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
-        let norm_buf = self
-            .uniform_pool
-            .acquire(device, queue, &norm_u, "dehaze-norm-u");
+        let norm_params = DehazeNormParams {
+            size: [lw, lh],
+            _pad: [0; 2],
+            atmosphere: [atm[0], atm[1], atm[2], 1.0],
+        };
+        let norm_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&norm_params),
+            "dehaze-norm-u",
+        );
 
         let make_filter_u = |radius: u32, axis: u32, label: &'static str| {
-            let mut u = vec![0u8; 16];
-            u[0..4].copy_from_slice(&lw.to_le_bytes());
-            u[4..8].copy_from_slice(&lh.to_le_bytes());
-            u[8..12].copy_from_slice(&radius.to_le_bytes());
-            u[12..16].copy_from_slice(&axis.to_le_bytes());
-            self.uniform_pool.acquire(device, queue, &u, label)
+            let params = DehazeFilterParams {
+                size: [lw, lh],
+                radius,
+                axis,
+            };
+            self.uniform_pool
+                .acquire(device, queue, bytemuck::bytes_of(&params), label)
         };
         let min_h_buf = make_filter_u(r_patch, 0, "dehaze-min-h-u");
         let min_v_buf = make_filter_u(r_patch, 1, "dehaze-min-v-u");
         let box_h_buf = make_filter_u(r_gf, 0, "dehaze-box-h-u");
         let box_v_buf = make_filter_u(r_gf, 1, "dehaze-box-v-u");
 
-        let mut size_u = vec![0u8; 16];
-        size_u[0..4].copy_from_slice(&lw.to_le_bytes());
-        size_u[4..8].copy_from_slice(&lh.to_le_bytes());
-        let pack_buf = self
-            .uniform_pool
-            .acquire(device, queue, &size_u, "dehaze-pack-u");
-        let ab_uni = self
-            .uniform_pool
-            .acquire(device, queue, &size_u, "dehaze-ab-u");
+        let pack_buf = make_filter_u(0, 0, "dehaze-pack-u");
+        let ab_uni = make_filter_u(0, 0, "dehaze-ab-u");
 
-        let mut apply_u = vec![0u8; 48];
-        apply_u[0..4].copy_from_slice(&w.to_le_bytes());
-        apply_u[4..8].copy_from_slice(&h.to_le_bytes());
-        apply_u[8..12].copy_from_slice(&lw.to_le_bytes());
-        apply_u[12..16].copy_from_slice(&lh.to_le_bytes());
-        apply_u[16..20].copy_from_slice(&atm[0].to_le_bytes());
-        apply_u[20..24].copy_from_slice(&atm[1].to_le_bytes());
-        apply_u[24..28].copy_from_slice(&atm[2].to_le_bytes());
-        apply_u[28..32].copy_from_slice(&1.0f32.to_le_bytes());
-        apply_u[32..36].copy_from_slice(&amount.to_le_bytes());
-        let apply_buf = self
-            .uniform_pool
-            .acquire(device, queue, &apply_u, "dehaze-apply-u");
+        let apply_params = DehazeApplyParams {
+            size: [w, h],
+            lo_size: [lw, lh],
+            atmosphere: [atm[0], atm[1], atm[2], 1.0],
+            amount,
+            _pad: [0.0; 3],
+        };
+        let apply_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&apply_params),
+            "dehaze-apply-u",
+        );
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let lo_src_view = lo_src.create_view(&TextureViewDescriptor::default());
@@ -690,216 +645,119 @@ impl GpuRenderer {
         });
 
         let p = &self.passes.dehaze;
-        let bg_downsample = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-downsample-bg"),
-            layout: &p.downsample_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: downsample_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::Sampler(&p.linear_sampler),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&lo_src_store_view),
-                },
+        let bg_downsample = bind_group(
+            device,
+            "dehaze-downsample-bg",
+            &p.downsample_layout,
+            &[
+                downsample_buf.as_entire_binding(),
+                tex(&src_view),
+                samp(&p.linear_sampler),
+                tex(&lo_src_store_view),
             ],
-        });
-        let bg_norm = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-norm-bg"),
-            layout: &p.norm_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: norm_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&lo_src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dn_view),
-                },
+        );
+        let bg_norm = bind_group(
+            device,
+            "dehaze-norm-bg",
+            &p.norm_layout,
+            &[
+                norm_buf.as_entire_binding(),
+                tex(&lo_src_view),
+                tex(&dn_view),
             ],
-        });
-        let bg_min_h = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-min-h-bg"),
-            layout: &p.min_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: min_h_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&dn_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dn_h_view),
-                },
+        );
+        let bg_min_h = bind_group(
+            device,
+            "dehaze-min-h-bg",
+            &p.min_layout,
+            &[
+                min_h_buf.as_entire_binding(),
+                tex(&dn_view),
+                tex(&dn_h_view),
             ],
-        });
-        let bg_min_v = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-min-v-bg"),
-            layout: &p.min_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: min_v_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&dn_h_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dn_min_view),
-                },
+        );
+        let bg_min_v = bind_group(
+            device,
+            "dehaze-min-v-bg",
+            &p.min_layout,
+            &[
+                min_v_buf.as_entire_binding(),
+                tex(&dn_h_view),
+                tex(&dn_min_view),
             ],
-        });
-        let bg_pack = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-pack-bg"),
-            layout: &p.pack_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: pack_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&lo_src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dn_min_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&packed_view),
-                },
+        );
+        let bg_pack = bind_group(
+            device,
+            "dehaze-pack-bg",
+            &p.pack_layout,
+            &[
+                pack_buf.as_entire_binding(),
+                tex(&lo_src_view),
+                tex(&dn_min_view),
+                tex(&packed_view),
             ],
-        });
-        let bg_box_h_pack = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-box-h-pack-bg"),
-            layout: &p.box_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: box_h_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&packed_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&packed_h_view),
-                },
+        );
+        let bg_box_h_pack = bind_group(
+            device,
+            "dehaze-box-h-pack-bg",
+            &p.box_layout,
+            &[
+                box_h_buf.as_entire_binding(),
+                tex(&packed_view),
+                tex(&packed_h_view),
             ],
-        });
-        let bg_box_v_pack = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-box-v-pack-bg"),
-            layout: &p.box_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: box_v_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&packed_h_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&packed_v_view),
-                },
+        );
+        let bg_box_v_pack = bind_group(
+            device,
+            "dehaze-box-v-pack-bg",
+            &p.box_layout,
+            &[
+                box_v_buf.as_entire_binding(),
+                tex(&packed_h_view),
+                tex(&packed_v_view),
             ],
-        });
-        let bg_ab = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-ab-bg"),
-            layout: &p.ab_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: ab_uni.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&packed_v_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&ab_view),
-                },
+        );
+        let bg_ab = bind_group(
+            device,
+            "dehaze-ab-bg",
+            &p.ab_layout,
+            &[
+                ab_uni.as_entire_binding(),
+                tex(&packed_v_view),
+                tex(&ab_view),
             ],
-        });
-        let bg_box_h_ab = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-box-h-ab-bg"),
-            layout: &p.box_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: box_h_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&ab_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&ab_h_view),
-                },
+        );
+        let bg_box_h_ab = bind_group(
+            device,
+            "dehaze-box-h-ab-bg",
+            &p.box_layout,
+            &[
+                box_h_buf.as_entire_binding(),
+                tex(&ab_view),
+                tex(&ab_h_view),
             ],
-        });
-        let bg_box_v_ab = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-box-v-ab-bg"),
-            layout: &p.box_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: box_v_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&ab_h_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&ab_v_view),
-                },
+        );
+        let bg_box_v_ab = bind_group(
+            device,
+            "dehaze-box-v-ab-bg",
+            &p.box_layout,
+            &[
+                box_v_buf.as_entire_binding(),
+                tex(&ab_h_view),
+                tex(&ab_v_view),
             ],
-        });
-        let bg_apply = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("dehaze-apply-bg"),
-            layout: &p.apply_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: apply_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&ab_v_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&out_view),
-                },
+        );
+        let bg_apply = bind_group(
+            device,
+            "dehaze-apply-bg",
+            &p.apply_layout,
+            &[
+                apply_buf.as_entire_binding(),
+                tex(&src_view),
+                tex(&ab_v_view),
+                tex(&out_view),
             ],
-        });
+        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("dehaze-enc"),
@@ -985,20 +843,18 @@ impl GpuRenderer {
         let mip_sel = presence_mips(w, h, radii);
         let mips: [u32; 4] = [mip_sel.texture, mip_sel.clarity, 0, 0];
 
-        let mut uniform_bytes = vec![0u8; PRESENCE_UNIFORM_SIZE as usize];
-        uniform_bytes[0..4].copy_from_slice(&w.to_le_bytes());
-        uniform_bytes[4..8].copy_from_slice(&h.to_le_bytes());
-        for (i, a) in amounts.iter().enumerate() {
-            let off = 16 + i * 4;
-            uniform_bytes[off..off + 4].copy_from_slice(&a.to_le_bytes());
-        }
-        for (i, m) in mips.iter().enumerate() {
-            let off = 32 + i * 4;
-            uniform_bytes[off..off + 4].copy_from_slice(&m.to_le_bytes());
-        }
-        let uniform_buf =
-            self.uniform_pool
-                .acquire(device, queue, &uniform_bytes, "presence-uniform");
+        let params = PresenceParams {
+            size: [w, h],
+            _pad0: [0; 2],
+            amounts,
+            mips,
+        };
+        let uniform_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&params),
+            "presence-uniform",
+        );
 
         let src_view_full = src.create_view(&TextureViewDescriptor::default());
         let pyramid_full_view = pyramid.create_view(&TextureViewDescriptor::default());
@@ -1017,77 +873,48 @@ impl GpuRenderer {
             })
             .collect();
 
-        let extract_bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("luma-extract-bg"),
-            layout: &self.passes.luma_pyramid.extract_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&src_view_full),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&pyramid_level_views[0]),
-                },
-            ],
-        });
+        let extract_bind = bind_group(
+            device,
+            "luma-extract-bg",
+            &self.passes.luma_pyramid.extract_layout,
+            &[tex(&src_view_full), tex(&pyramid_level_views[0])],
+        );
         let mipgen_binds: Vec<wgpu::BindGroup> = (1..pyramid_levels)
             .map(|level| {
-                device.create_bind_group(&BindGroupDescriptor {
-                    label: Some("pyramid-mipgen-bg"),
-                    layout: &self.passes.mipgen.layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: BindingResource::TextureView(
-                                &pyramid_level_views[(level - 1) as usize],
-                            ),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(
-                                &pyramid_level_views[level as usize],
-                            ),
-                        },
+                bind_group(
+                    device,
+                    "pyramid-mipgen-bg",
+                    &self.passes.mipgen.layout,
+                    &[
+                        tex(&pyramid_level_views[(level - 1) as usize]),
+                        tex(&pyramid_level_views[level as usize]),
                     ],
-                })
+                )
             })
             .collect();
-        let presence_bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("presence-bg"),
-            layout: &self.passes.presence.adjust_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view_full),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&pyramid_full_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&adjusted_mip0_view),
-                },
+        let presence_bind = bind_group(
+            device,
+            "presence-bg",
+            &self.passes.presence.adjust_layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view_full),
+                tex(&pyramid_full_view),
+                tex(&adjusted_mip0_view),
             ],
-        });
+        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("presence-enc"),
         });
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("luma-extract-pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.luma_pyramid.extract_pipeline);
-            pass.set_bind_group(0, &extract_bind, &[]);
-            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "luma-extract-pass",
+            &self.passes.luma_pyramid.extract_pipeline,
+            &extract_bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         if !mipgen_binds.is_empty() {
             let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("pyramid-mipgen-pass"),
@@ -1105,15 +932,14 @@ impl GpuRenderer {
                 mh = dst_h;
             }
         }
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("presence-adjust-pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.presence.adjust_pipeline);
-            pass.set_bind_group(0, &presence_bind, &[]);
-            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "presence-adjust-pass",
+            &self.passes.presence.adjust_pipeline,
+            &presence_bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         self.encode_mipgen(&mut encoder, &adjusted, w, h);
         queue.submit(Some(encoder.finish()));
 
@@ -1163,15 +989,18 @@ impl GpuRenderer {
         let mut uniform_bytes = vec![0u8; built.uniform_size];
         write_header(
             &mut uniform_bytes,
-            [w, h],
-            [w, h],
-            [0.0, 0.0, 1.0, 1.0],
-            [0, 0, 0, 0],
-            [0.0; 4],
-            [0.0; 4],
-            [0.0; 4],
-            [0, 0, 0, 0],
-            crate::perspective::IDENTITY_ROWS,
+            &ProcessHeader {
+                src_size: [w, h],
+                out_size: [w, h],
+                crop: [0.0, 0.0, 1.0, 1.0],
+                flags: [0, 0, 0, 0],
+                geom_extra: [0.0; 4],
+                active_mask: [0; 4],
+                geom_extra2: [0.0; 4],
+                geom_extra3: [0.0; 4],
+                output: [0, 0, 0, 0],
+                perspective: crate::perspective::IDENTITY_ROWS,
+            },
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
@@ -1218,37 +1047,28 @@ impl GpuRenderer {
             mip_level_count: Some(1),
             ..Default::default()
         });
-        let bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("wb-prepare-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
+        let bind = bind_group(
+            device,
+            "wb-prepare-bg",
+            &pass.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view),
+                tex(&dst_view),
             ],
-        });
+        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("wb-prepare-enc"),
         });
-        {
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("wb-prepare-pass"),
-                timestamp_writes: None,
-            });
-            cpass.set_pipeline(&pass.pipeline);
-            cpass.set_bind_group(0, &bind, &[]);
-            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "wb-prepare-pass",
+            &pass.pipeline,
+            &bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         self.encode_mipgen(&mut encoder, &wb_base, w, h);
         queue.submit(Some(encoder.finish()));
 
@@ -1298,36 +1118,27 @@ impl GpuRenderer {
             ..Default::default()
         });
         let pass = &self.passes.sensor;
-        let bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("sensor-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
+        let bind = bind_group(
+            device,
+            "sensor-bg",
+            &pass.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view),
+                tex(&dst_view),
             ],
-        });
+        );
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("sensor-enc"),
         });
-        {
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("sensor-pass"),
-                timestamp_writes: None,
-            });
-            cpass.set_pipeline(&pass.pipeline);
-            cpass.set_bind_group(0, &bind, &[]);
-            cpass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "sensor-pass",
+            &pass.pipeline,
+            &bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
         Ok(Arc::new(CachedFrame {
@@ -1358,52 +1169,36 @@ impl GpuRenderer {
                 })
             })
             .collect();
-        let extract_bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("luma-extract-bg-shadows"),
-            layout: &self.passes.luma_pyramid.extract_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&level_views[0]),
-                },
-            ],
-        });
+        let extract_bind = bind_group(
+            device,
+            "luma-extract-bg-shadows",
+            &self.passes.luma_pyramid.extract_layout,
+            &[tex(&src_view), tex(&level_views[0])],
+        );
         let mipgen_binds: Vec<wgpu::BindGroup> = (1..pyramid_levels)
             .map(|level| {
-                device.create_bind_group(&BindGroupDescriptor {
-                    label: Some("pyramid-mipgen-bg-shadows"),
-                    layout: &self.passes.mipgen.layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: BindingResource::TextureView(
-                                &level_views[(level - 1) as usize],
-                            ),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(&level_views[level as usize]),
-                        },
+                bind_group(
+                    device,
+                    "pyramid-mipgen-bg-shadows",
+                    &self.passes.mipgen.layout,
+                    &[
+                        tex(&level_views[(level - 1) as usize]),
+                        tex(&level_views[level as usize]),
                     ],
-                })
+                )
             })
             .collect();
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("shadows-pyramid-enc"),
         });
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("luma-extract-shadows"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.luma_pyramid.extract_pipeline);
-            pass.set_bind_group(0, &extract_bind, &[]);
-            pass.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "luma-extract-shadows",
+            &self.passes.luma_pyramid.extract_pipeline,
+            &extract_bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         if !mipgen_binds.is_empty() {
             let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("pyramid-mipgen-shadows"),

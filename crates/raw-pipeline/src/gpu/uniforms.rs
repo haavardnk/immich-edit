@@ -1,35 +1,27 @@
-use crate::gpu::shader_builder::{
-    ACTIVE_MASK_OFFSET, OUTPUT_UNIFORM_OFFSET, PERSPECTIVE_UNIFORM_OFFSET,
-};
+use std::mem::offset_of;
 
 pub(super) const ACTIVE_MASK_WORDS: usize = 4;
 
-#[allow(clippy::too_many_arguments)]
-pub(super) fn write_header(
-    dst: &mut [u8],
-    src_size: [u32; 2],
-    out_size: [u32; 2],
-    crop: [f32; 4],
-    flags: [u32; 4],
-    geom_extra: [f32; 4],
-    geom_extra2: [f32; 4],
-    geom_extra3: [f32; 4],
-    output: [u32; 4],
-    perspective: [f32; 12],
-) {
-    dst[0..8].copy_from_slice(bytemuck::cast_slice(&src_size));
-    dst[8..16].copy_from_slice(bytemuck::cast_slice(&out_size));
-    dst[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
-    dst[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
-    dst[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra));
-    dst[80..96].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
-    dst[96..112].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
-    dst[OUTPUT_UNIFORM_OFFSET..OUTPUT_UNIFORM_OFFSET + 16]
-        .copy_from_slice(bytemuck::cast_slice(&output));
-    dst[PERSPECTIVE_UNIFORM_OFFSET..PERSPECTIVE_UNIFORM_OFFSET + 48]
-        .copy_from_slice(bytemuck::cast_slice(&perspective));
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(super) struct ProcessHeader {
+    pub src_size: [u32; 2],
+    pub out_size: [u32; 2],
+    pub crop: [f32; 4],
+    pub flags: [u32; 4],
+    pub geom_extra: [f32; 4],
+    pub active_mask: [u32; ACTIVE_MASK_WORDS],
+    pub geom_extra2: [f32; 4],
+    pub geom_extra3: [f32; 4],
+    pub output: [u32; 4],
+    pub perspective: [f32; 12],
+}
+
+pub(super) fn write_header(dst: &mut [u8], header: &ProcessHeader) {
+    dst[..size_of::<ProcessHeader>()].copy_from_slice(bytemuck::bytes_of(header));
 }
 
 pub(super) fn write_active_mask(dst: &mut [u8], mask: [u32; ACTIVE_MASK_WORDS]) {
-    dst[ACTIVE_MASK_OFFSET..ACTIVE_MASK_OFFSET + 16].copy_from_slice(bytemuck::cast_slice(&mask));
+    let off = offset_of!(ProcessHeader, active_mask);
+    dst[off..off + size_of_val(&mask)].copy_from_slice(bytemuck::cast_slice(&mask));
 }

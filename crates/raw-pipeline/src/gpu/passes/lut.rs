@@ -6,7 +6,20 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry_with, uniform_entry};
 
-pub const LUT_UNIFORM_SIZE: u64 = 64;
+pub const LUT_UNIFORM_SIZE: u64 = size_of::<LutParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct LutParams {
+    pub size: [u32; 3],
+    pub _pad0: u32,
+    pub domain_min: [f32; 3],
+    pub _pad1: f32,
+    pub domain_max: [f32; 3],
+    pub _pad2: f32,
+    pub amount: f32,
+    pub _pad3: [f32; 3],
+}
 
 pub struct LutPass {
     pub layout: BindGroupLayout,

@@ -9,8 +9,32 @@ use super::common::{
     make_layout, make_pipeline, storage_entry, tex_entry, tex_entry_with, uniform_entry,
 };
 
-pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = 32;
-pub const SHARPEN_UNIFORM_SIZE: u64 = 48;
+pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = size_of::<SharpenBlurParams>() as u64;
+pub const SHARPEN_UNIFORM_SIZE: u64 = size_of::<SharpenParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct SharpenBlurParams {
+    pub sigma: f32,
+    pub radius: f32,
+    pub size: [u32; 2],
+    pub axis: u32,
+    pub _pad: [u32; 3],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct SharpenParams {
+    pub amount: f32,
+    pub detail_weight: f32,
+    pub masking_thresh: f32,
+    pub masking_softness: f32,
+    pub size: [u32; 2],
+    pub use_mask: u32,
+    pub preview_mode: u32,
+    pub masked_sharpen: u32,
+    pub _pad: [u32; 3],
+}
 
 pub struct OutputSharpenPass {
     pub blur_layout: BindGroupLayout,

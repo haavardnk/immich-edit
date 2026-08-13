@@ -7,7 +7,16 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
-pub const PRESENCE_UNIFORM_SIZE: u64 = 48;
+pub const PRESENCE_UNIFORM_SIZE: u64 = size_of::<PresenceParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PresenceParams {
+    pub size: [u32; 2],
+    pub _pad0: [u32; 2],
+    pub amounts: [f32; 4],
+    pub mips: [u32; 4],
+}
 
 pub struct PresencePass {
     pub adjust_layout: BindGroupLayout,

@@ -2,10 +2,7 @@ use std::fmt::Write;
 
 use crate::ops::{OpRegistry, Stage};
 
-pub const HEADER_BYTES: usize = 176;
-pub const ACTIVE_MASK_OFFSET: usize = 64;
-pub const OUTPUT_UNIFORM_OFFSET: usize = 112;
-pub const PERSPECTIVE_UNIFORM_OFFSET: usize = 128;
+pub const HEADER_BYTES: usize = size_of::<crate::gpu::uniforms::ProcessHeader>();
 pub const MAX_OPS: u32 = 128;
 
 pub const GEOMETRY_WGSL: &str = include_str!("../../assets/shaders/geometry.wgsl");

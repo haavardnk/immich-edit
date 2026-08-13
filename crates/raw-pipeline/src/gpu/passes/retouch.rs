@@ -9,7 +9,24 @@ use super::common::{
     make_layout, make_pipeline, storage_buffer_entry, storage_entry, tex_entry, uniform_entry,
 };
 
-pub const RETOUCH_UNIFORM_SIZE: u64 = 64;
+pub const RETOUCH_UNIFORM_SIZE: u64 = size_of::<RetouchParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct RetouchParams {
+    pub dims: [u32; 2],
+    pub bbox_origin: [u32; 2],
+    pub bbox_size: [u32; 2],
+    pub point_count: u32,
+    pub clone_mode: u32,
+    pub offset: [f32; 2],
+    pub radius_px: f32,
+    pub hardness: f32,
+    pub opacity: f32,
+    pub sigma: f32,
+    pub dir: u32,
+    pub _pad: f32,
+}
 
 pub struct RetouchPasses {
     pub prep_layout: BindGroupLayout,

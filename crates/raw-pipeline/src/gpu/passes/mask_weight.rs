@@ -15,13 +15,38 @@ use super::common::{
     tex_entry_with, uniform_entry_unsized,
 };
 
-pub const COMPONENT_BYTES: usize = 48;
+pub const COMPONENT_BYTES: usize = size_of::<MaskComponent>();
 pub const MAX_COMPONENTS: usize = 32;
 pub const MAX_COMPONENTS_BYTES: usize = COMPONENT_BYTES * MAX_COMPONENTS;
-pub const PARAMS_BYTES: usize = 144;
+pub const PARAMS_BYTES: usize = size_of::<MaskWeightParams>();
 pub const ATLAS_DIM: u32 = 1024;
 pub const ATLAS_LAYERS: u32 = 16;
 pub const MAX_POLY_VERTS: usize = MAX_COMPONENTS * crate::edits::N_MAX_POLYGON_POINTS;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaskComponent {
+    pub kind: u32,
+    pub mode: u32,
+    pub invert: u32,
+    pub slot: u32,
+    pub geom_a: [f32; 4],
+    pub geom_b: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaskWeightParams {
+    pub out_size: [u32; 2],
+    pub n_components: u32,
+    pub layer_amount: f32,
+    pub crop: [f32; 4],
+    pub flags: [u32; 4],
+    pub geom_extra2: [f32; 4],
+    pub geom_extra3: [f32; 4],
+    pub lens: [f32; 4],
+    pub perspective: [f32; 12],
+}
 
 const SHADER: &str = r#"
 struct MaskParams {
@@ -384,18 +409,15 @@ pub fn pack_layer_eval(
             crate::edits::MaskComponentMode::Intersect => 2u32,
         };
         let invert = if c.invert { 1u32 } else { 0u32 };
-        let mut buf = [0u8; COMPONENT_BYTES];
-        buf[0..4].copy_from_slice(&kind.to_ne_bytes());
-        buf[4..8].copy_from_slice(&mode.to_ne_bytes());
-        buf[8..12].copy_from_slice(&invert.to_ne_bytes());
-        buf[12..16].copy_from_slice(&slot.to_ne_bytes());
-        for (i, f) in geom_a.iter().enumerate() {
-            buf[16 + i * 4..20 + i * 4].copy_from_slice(&f.to_ne_bytes());
-        }
-        for (i, f) in geom_b.iter().enumerate() {
-            buf[32 + i * 4..36 + i * 4].copy_from_slice(&f.to_ne_bytes());
-        }
-        out.extend_from_slice(&buf);
+        let component = MaskComponent {
+            kind,
+            mode,
+            invert,
+            slot,
+            geom_a,
+            geom_b,
+        };
+        out.extend_from_slice(bytemuck::bytes_of(&component));
         n += 1;
     }
     (out, n, verts)
@@ -413,17 +435,16 @@ pub fn pack_params(
     geom_extra3: [f32; 4],
     lens: [f32; 4],
     perspective: [f32; 12],
-) -> [u8; PARAMS_BYTES] {
-    let mut buf = [0u8; PARAMS_BYTES];
-    buf[0..4].copy_from_slice(&out_w.to_ne_bytes());
-    buf[4..8].copy_from_slice(&out_h.to_ne_bytes());
-    buf[8..12].copy_from_slice(&n_components.to_ne_bytes());
-    buf[12..16].copy_from_slice(&layer_amount.to_ne_bytes());
-    buf[16..32].copy_from_slice(bytemuck::cast_slice(&crop));
-    buf[32..48].copy_from_slice(bytemuck::cast_slice(&flags));
-    buf[48..64].copy_from_slice(bytemuck::cast_slice(&geom_extra2));
-    buf[64..80].copy_from_slice(bytemuck::cast_slice(&geom_extra3));
-    buf[80..96].copy_from_slice(bytemuck::cast_slice(&lens));
-    buf[96..144].copy_from_slice(bytemuck::cast_slice(&perspective));
-    buf
+) -> MaskWeightParams {
+    MaskWeightParams {
+        out_size: [out_w, out_h],
+        n_components,
+        layer_amount,
+        crop,
+        flags,
+        geom_extra2,
+        geom_extra3,
+        lens,
+        perspective,
+    }
 }

@@ -7,7 +7,17 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
-pub const NR_SMOOTH_UNIFORM_SIZE: u64 = 48;
+pub const NR_SMOOTH_UNIFORM_SIZE: u64 = size_of::<NrSmoothParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct NrSmoothParams {
+    pub size: [u32; 2],
+    pub _pad0: [u32; 2],
+    pub smoothness: f32,
+    pub alpha_chroma: f32,
+    pub _pad1: [f32; 6],
+}
 
 pub struct NrSmoothPass {
     pub layout: BindGroupLayout,

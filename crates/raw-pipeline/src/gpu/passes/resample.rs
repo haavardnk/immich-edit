@@ -6,7 +6,18 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
-pub const PARAMS_BYTES: usize = 32;
+pub const PARAMS_BYTES: usize = size_of::<ResampleParams>();
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ResampleParams {
+    pub dst_size: [u32; 2],
+    pub src_size: [u32; 2],
+    pub scale: f32,
+    pub inv_filter_scale: f32,
+    pub axis: u32,
+    pub _pad: u32,
+}
 
 pub struct ResamplePass {
     pub layout: BindGroupLayout,
@@ -39,15 +50,13 @@ pub fn pack_params(
     src_size: (u32, u32),
     scale: f32,
     axis: u32,
-) -> [u8; PARAMS_BYTES] {
-    let filter_scale = scale.max(1.0);
-    let mut out = [0u8; PARAMS_BYTES];
-    out[0..4].copy_from_slice(&dst_size.0.to_le_bytes());
-    out[4..8].copy_from_slice(&dst_size.1.to_le_bytes());
-    out[8..12].copy_from_slice(&src_size.0.to_le_bytes());
-    out[12..16].copy_from_slice(&src_size.1.to_le_bytes());
-    out[16..20].copy_from_slice(&scale.to_le_bytes());
-    out[20..24].copy_from_slice(&(1.0 / filter_scale).to_le_bytes());
-    out[24..28].copy_from_slice(&axis.to_le_bytes());
-    out
+) -> ResampleParams {
+    ResampleParams {
+        dst_size: [dst_size.0, dst_size.1],
+        src_size: [src_size.0, src_size.1],
+        scale,
+        inv_filter_scale: 1.0 / scale.max(1.0),
+        axis,
+        _pad: 0,
+    }
 }

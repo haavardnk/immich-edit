@@ -9,9 +9,37 @@ use super::common::{
     make_layout, make_pipeline, storage_entry, tex_entry, tex_entry_with, uniform_entry,
 };
 
-pub const CAPTURE_LUMA_UNIFORM_SIZE: u64 = 16;
-pub const CAPTURE_BLUR_UNIFORM_SIZE: u64 = 96;
-pub const CAPTURE_APPLY_UNIFORM_SIZE: u64 = 16;
+pub const CAPTURE_LUMA_UNIFORM_SIZE: u64 = size_of::<CaptureLumaParams>() as u64;
+pub const CAPTURE_BLUR_UNIFORM_SIZE: u64 = size_of::<CaptureBlurParams>() as u64;
+pub const CAPTURE_APPLY_UNIFORM_SIZE: u64 = size_of::<CaptureApplyParams>() as u64;
+
+pub const CAPTURE_KERNEL_MAX: usize = 16;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CaptureLumaParams {
+    pub size: [u32; 2],
+    pub _pad: [u32; 2],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CaptureBlurParams {
+    pub size: [u32; 2],
+    pub radius: u32,
+    pub axis: u32,
+    pub mode: u32,
+    pub _pad: [u32; 3],
+    pub kernel: [f32; CAPTURE_KERNEL_MAX],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CaptureApplyParams {
+    pub size: [u32; 2],
+    pub radius: u32,
+    pub _pad: u32,
+}
 pub const CAPTURE_MAX_TAPS: usize = 16;
 pub const CAPTURE_SCRATCH_FORMAT: TextureFormat = TextureFormat::R32Float;
 

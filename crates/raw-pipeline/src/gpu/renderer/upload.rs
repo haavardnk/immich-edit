@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoderDescriptor,
-    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
+    BufferUsages, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::frame::RawFrame;
+use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::helpers::{
     DemosaicParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
 };
@@ -170,39 +170,24 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        let bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("demosaic-bg"),
-            layout: &self.passes.demosaic.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: raw_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&view),
-                },
-            ],
-        });
+        let bind = bind_group(
+            device,
+            "demosaic-bg",
+            &self.passes.demosaic.layout,
+            &[uniform_buf.as_entire_binding(), buf(&raw_buf), tex(&view)],
+        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("demosaic-enc"),
         });
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("demosaic-pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.demosaic.pipeline);
-            pass.set_bind_group(0, &bind, &[]);
-            let gx = w.div_ceil(16);
-            let gy = h.div_ceil(16);
-            pass.dispatch_workgroups(gx, gy, 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "demosaic-pass",
+            &self.passes.demosaic.pipeline,
+            &bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
 
@@ -270,70 +255,49 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        let green_bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("xtrans-green-bg"),
-            layout: &self.passes.xtrans.green.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: raw_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: green_buf.as_entire_binding(),
-                },
+        let green_bind = bind_group(
+            device,
+            "xtrans-green-bg",
+            &self.passes.xtrans.green.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                buf(&raw_buf),
+                buf(&green_buf),
             ],
-        });
-        let rgb_bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("xtrans-rgb-bg"),
-            layout: &self.passes.xtrans.rgb.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: raw_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: green_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&view),
-                },
+        );
+        let rgb_bind = bind_group(
+            device,
+            "xtrans-rgb-bg",
+            &self.passes.xtrans.rgb.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                buf(&raw_buf),
+                buf(&green_buf),
+                tex(&view),
             ],
-        });
+        );
 
         let gx = w.div_ceil(16);
         let gy = h.div_ceil(16);
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("xtrans-enc"),
         });
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("xtrans-green-pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.xtrans.green.pipeline);
-            pass.set_bind_group(0, &green_bind, &[]);
-            pass.dispatch_workgroups(gx, gy, 1);
-        }
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("xtrans-rgb-pass"),
-                timestamp_writes: None,
-            });
-            pass.set_pipeline(&self.passes.xtrans.rgb.pipeline);
-            pass.set_bind_group(0, &rgb_bind, &[]);
-            pass.dispatch_workgroups(gx, gy, 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "xtrans-green-pass",
+            &self.passes.xtrans.green.pipeline,
+            &green_bind,
+            gx,
+            gy,
+        );
+        dispatch_2d(
+            &mut encoder,
+            "xtrans-rgb-pass",
+            &self.passes.xtrans.rgb.pipeline,
+            &rgb_bind,
+            gx,
+            gy,
+        );
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
 
@@ -372,29 +336,20 @@ impl GpuRenderer {
                 mip_level_count: Some(1),
                 ..Default::default()
             });
-            let bind = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("mipgen-bg"),
-                layout: &self.passes.mipgen.layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: BindingResource::TextureView(&src_view),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&dst_view),
-                    },
-                ],
-            });
-            {
-                let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("mipgen-pass"),
-                    timestamp_writes: None,
-                });
-                pass.set_pipeline(&self.passes.mipgen.pipeline);
-                pass.set_bind_group(0, &bind, &[]);
-                pass.dispatch_workgroups(dst_w.div_ceil(16), dst_h.div_ceil(16), 1);
-            }
+            let bind = bind_group(
+                device,
+                "mipgen-bg",
+                &self.passes.mipgen.layout,
+                &[tex(&src_view), tex(&dst_view)],
+            );
+            dispatch_2d(
+                encoder,
+                "mipgen-pass",
+                &self.passes.mipgen.pipeline,
+                &bind,
+                dst_w.div_ceil(16),
+                dst_h.div_ceil(16),
+            );
             mip_w = dst_w;
             mip_h = dst_h;
         }

@@ -4,14 +4,14 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoderDescriptor,
-    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
+    BufferUsages, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::edits::Edits;
 use crate::encode::encode_from_rgba8;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
+use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, samp, tex};
 use crate::histogram::Histogram;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
@@ -22,7 +22,7 @@ use super::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use super::resources::{OutputTargets, SharpenTargets};
 use super::texture_pool::TexturePool;
 use super::uniform_pool::UniformPool;
-use super::uniforms::{write_active_mask, write_header};
+use super::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::presence::{presence_mips, presence_radii};
 
 mod dcp;
@@ -453,25 +453,28 @@ impl GpuRenderer {
         let mut uniform_bytes = vec![0u8; built.uniform_size];
         write_header(
             &mut uniform_bytes,
-            [sensor_w, sensor_h],
-            [out_w, out_h],
-            [crop.x, crop.y, crop.w, crop.h],
-            [
-                edits.geometry.rotate as u32,
-                edits.geometry.flip_h as u32,
-                edits.geometry.flip_v as u32,
-                orient_packed,
-            ],
-            [0.0, shadows_mip_f, 0.0, 0.0],
-            [cos_a, sin_a, bw, bh],
-            [
-                oriented_w as f32,
-                oriented_h as f32,
-                if geom_warps { 1.0 } else { 0.0 },
-                0.0,
-            ],
-            [0, 0, 0, 0],
-            persp_rows,
+            &ProcessHeader {
+                src_size: [sensor_w, sensor_h],
+                out_size: [out_w, out_h],
+                crop: [crop.x, crop.y, crop.w, crop.h],
+                flags: [
+                    edits.geometry.rotate as u32,
+                    edits.geometry.flip_h as u32,
+                    edits.geometry.flip_v as u32,
+                    orient_packed,
+                ],
+                geom_extra: [0.0, shadows_mip_f, 0.0, 0.0],
+                active_mask: [0; 4],
+                geom_extra2: [cos_a, sin_a, bw, bh],
+                geom_extra3: [
+                    oriented_w as f32,
+                    oriented_h as f32,
+                    if geom_warps { 1.0 } else { 0.0 },
+                    0.0,
+                ],
+                output: [0, 0, 0, 0],
+                perspective: persp_rows,
+            },
         );
         let mut active_mask: [u32; 4] = [0; 4];
         for slot in &built.color_ops {
@@ -524,51 +527,31 @@ impl GpuRenderer {
         let shadows_view_ref: &wgpu::TextureView =
             shadows_blur.unwrap_or_else(|| dummy_view.as_ref().unwrap());
 
-        let bind = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("process-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::Sampler(&self.passes.linear_sampler),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&out_view),
-                },
-                BindGroupEntry {
-                    binding: 4,
-                    resource: BindingResource::TextureView(&linear_view),
-                },
-                BindGroupEntry {
-                    binding: 5,
-                    resource: BindingResource::TextureView(shadows_view_ref),
-                },
+        let bind = bind_group(
+            device,
+            "process-bg",
+            &pass.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view),
+                samp(&self.passes.linear_sampler),
+                tex(&out_view),
+                tex(&linear_view),
+                tex(shadows_view_ref),
             ],
-        });
+        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("process-enc"),
         });
-        {
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("process-pass"),
-                timestamp_writes: None,
-            });
-            cpass.set_pipeline(&pass.pipeline);
-            cpass.set_bind_group(0, &bind, &[]);
-            let gx = out_w.div_ceil(16);
-            let gy = out_h.div_ceil(16);
-            cpass.dispatch_workgroups(gx, gy, 1);
-        }
+        dispatch_2d(
+            &mut encoder,
+            "process-pass",
+            &pass.pipeline,
+            &bind,
+            out_w.div_ceil(16),
+            out_h.div_ceil(16),
+        );
 
         let preview_layer = match &opts.preview_mode {
             crate::frame::PreviewMode::MaskWeight { layer_id } => {
@@ -644,7 +627,7 @@ impl GpuRenderer {
             );
             let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("mask-preview-uniform"),
-                contents: &mw_params,
+                contents: bytemuck::bytes_of(&mw_params),
                 usage: BufferUsages::UNIFORM,
             });
             let comp_buf_bytes = if comp_bytes.is_empty() {
@@ -667,51 +650,28 @@ impl GpuRenderer {
                 contents: &poly_buf_bytes,
                 usage: BufferUsages::STORAGE,
             });
-            let mw_bind = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("mask-preview-bg"),
-                layout: &self.passes.mask_weight.layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: mw_params_buf.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: mw_comp_buf.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(&weight_view),
-                    },
-                    BindGroupEntry {
-                        binding: 3,
-                        resource: BindingResource::TextureView(&atlas_view),
-                    },
-                    BindGroupEntry {
-                        binding: 4,
-                        resource: BindingResource::Sampler(atlas_sampler),
-                    },
-                    BindGroupEntry {
-                        binding: 5,
-                        resource: BindingResource::TextureView(&linear_view),
-                    },
-                    BindGroupEntry {
-                        binding: 6,
-                        resource: mw_poly_buf.as_entire_binding(),
-                    },
+            let mw_bind = bind_group(
+                device,
+                "mask-preview-bg",
+                &self.passes.mask_weight.layout,
+                &[
+                    mw_params_buf.as_entire_binding(),
+                    buf(&mw_comp_buf),
+                    tex(&weight_view),
+                    tex(&atlas_view),
+                    samp(atlas_sampler),
+                    tex(&linear_view),
+                    buf(&mw_poly_buf),
                 ],
-            });
-            {
-                let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("mask-preview-weight"),
-                    timestamp_writes: None,
-                });
-                cp.set_pipeline(&self.passes.mask_weight.pipeline);
-                cp.set_bind_group(0, &mw_bind, &[]);
-                let gx = out_w.div_ceil(16);
-                let gy = out_h.div_ceil(16);
-                cp.dispatch_workgroups(gx, gy, 1);
-            }
+            );
+            dispatch_2d(
+                &mut encoder,
+                "mask-preview-weight",
+                &self.passes.mask_weight.pipeline,
+                &mw_bind,
+                out_w.div_ceil(16),
+                out_h.div_ceil(16),
+            );
             _retained_bufs.push(mw_params_buf);
             _retained_bufs.push(mw_comp_buf);
             _retained_bufs.push(mw_poly_buf);
@@ -794,20 +754,23 @@ impl GpuRenderer {
                 let mut eff_uniform = vec![0u8; built.uniform_size];
                 write_header(
                     &mut eff_uniform,
-                    [sensor_w, sensor_h],
-                    [out_w, out_h],
-                    [crop.x, crop.y, crop.w, crop.h],
-                    [
-                        edits.geometry.rotate as u32,
-                        edits.geometry.flip_h as u32,
-                        edits.geometry.flip_v as u32,
-                        orient_packed,
-                    ],
-                    [0.0, shadows_mip_f, 0.0, 0.0],
-                    [cos_a, sin_a, bw, bh],
-                    [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
-                    [0, 0, 0, 0],
-                    persp_rows,
+                    &ProcessHeader {
+                        src_size: [sensor_w, sensor_h],
+                        out_size: [out_w, out_h],
+                        crop: [crop.x, crop.y, crop.w, crop.h],
+                        flags: [
+                            edits.geometry.rotate as u32,
+                            edits.geometry.flip_h as u32,
+                            edits.geometry.flip_v as u32,
+                            orient_packed,
+                        ],
+                        geom_extra: [0.0, shadows_mip_f, 0.0, 0.0],
+                        active_mask: [0; 4],
+                        geom_extra2: [cos_a, sin_a, bw, bh],
+                        geom_extra3: [oriented_w as f32, oriented_h as f32, 0.0, 0.0],
+                        output: [0, 0, 0, 0],
+                        perspective: persp_rows,
+                    },
                 );
                 let mut active_mask_eff: [u32; 4] = [0; 4];
                 for slot in &built.color_ops {
@@ -827,47 +790,27 @@ impl GpuRenderer {
                 let eff_uniform_buf =
                     self.uniform_pool
                         .acquire(device, queue, &eff_uniform, "process-uniform-layer");
-                let layer_bind = device.create_bind_group(&BindGroupDescriptor {
-                    label: Some("process-bg-layer"),
-                    layout: &pass.layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: eff_uniform_buf.as_entire_binding(),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(layer_src_view_ref),
-                        },
-                        BindGroupEntry {
-                            binding: 2,
-                            resource: BindingResource::Sampler(&self.passes.linear_sampler),
-                        },
-                        BindGroupEntry {
-                            binding: 3,
-                            resource: BindingResource::TextureView(&scratch_tone_view),
-                        },
-                        BindGroupEntry {
-                            binding: 4,
-                            resource: BindingResource::TextureView(&scratch_linear_view),
-                        },
-                        BindGroupEntry {
-                            binding: 5,
-                            resource: BindingResource::TextureView(shadows_view_ref),
-                        },
+                let layer_bind = bind_group(
+                    device,
+                    "process-bg-layer",
+                    &pass.layout,
+                    &[
+                        eff_uniform_buf.as_entire_binding(),
+                        tex(layer_src_view_ref),
+                        samp(&self.passes.linear_sampler),
+                        tex(&scratch_tone_view),
+                        tex(&scratch_linear_view),
+                        tex(shadows_view_ref),
                     ],
-                });
-                {
-                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                        label: Some("process-layer"),
-                        timestamp_writes: None,
-                    });
-                    cp.set_pipeline(&pass.pipeline);
-                    cp.set_bind_group(0, &layer_bind, &[]);
-                    let gx = out_w.div_ceil(16);
-                    let gy = out_h.div_ceil(16);
-                    cp.dispatch_workgroups(gx, gy, 1);
-                }
+                );
+                dispatch_2d(
+                    &mut encoder,
+                    "process-layer",
+                    &pass.pipeline,
+                    &layer_bind,
+                    out_w.div_ceil(16),
+                    out_h.div_ceil(16),
+                );
                 _retained_uniforms.push(eff_uniform_buf);
                 _retained_binds.push(layer_bind);
 
@@ -903,7 +846,7 @@ impl GpuRenderer {
                 );
                 let mw_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("mask-weight-uniform"),
-                    contents: &mw_params,
+                    contents: bytemuck::bytes_of(&mw_params),
                     usage: BufferUsages::UNIFORM,
                 });
                 let comp_buf_bytes = if comp_bytes.is_empty() {
@@ -926,51 +869,28 @@ impl GpuRenderer {
                     contents: &poly_buf_bytes,
                     usage: BufferUsages::STORAGE,
                 });
-                let mw_bind = device.create_bind_group(&BindGroupDescriptor {
-                    label: Some("mask-weight-bg"),
-                    layout: &self.passes.mask_weight.layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: mw_params_buf.as_entire_binding(),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: mw_comp_buf.as_entire_binding(),
-                        },
-                        BindGroupEntry {
-                            binding: 2,
-                            resource: BindingResource::TextureView(&weight_view),
-                        },
-                        BindGroupEntry {
-                            binding: 3,
-                            resource: BindingResource::TextureView(&atlas_view),
-                        },
-                        BindGroupEntry {
-                            binding: 4,
-                            resource: BindingResource::Sampler(atlas_sampler),
-                        },
-                        BindGroupEntry {
-                            binding: 5,
-                            resource: BindingResource::TextureView(&base_linear_view),
-                        },
-                        BindGroupEntry {
-                            binding: 6,
-                            resource: mw_poly_buf.as_entire_binding(),
-                        },
+                let mw_bind = bind_group(
+                    device,
+                    "mask-weight-bg",
+                    &self.passes.mask_weight.layout,
+                    &[
+                        mw_params_buf.as_entire_binding(),
+                        mw_comp_buf.as_entire_binding(),
+                        tex(&weight_view),
+                        tex(&atlas_view),
+                        samp(atlas_sampler),
+                        tex(&base_linear_view),
+                        mw_poly_buf.as_entire_binding(),
                     ],
-                });
-                {
-                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                        label: Some("mask-weight"),
-                        timestamp_writes: None,
-                    });
-                    cp.set_pipeline(&self.passes.mask_weight.pipeline);
-                    cp.set_bind_group(0, &mw_bind, &[]);
-                    let gx = out_w.div_ceil(16);
-                    let gy = out_h.div_ceil(16);
-                    cp.dispatch_workgroups(gx, gy, 1);
-                }
+                );
+                dispatch_2d(
+                    &mut encoder,
+                    "mask-weight",
+                    &self.passes.mask_weight.pipeline,
+                    &mw_bind,
+                    out_w.div_ceil(16),
+                    out_h.div_ceil(16),
+                );
                 _retained_bufs.push(mw_params_buf);
                 _retained_bufs.push(mw_comp_buf);
                 _retained_bufs.push(mw_poly_buf);
@@ -996,50 +916,30 @@ impl GpuRenderer {
                 );
                 let bl_params_buf = device.create_buffer_init(&BufferInitDescriptor {
                     label: Some("mask-blend-uniform"),
-                    contents: &bl_params,
+                    contents: bytemuck::bytes_of(&bl_params),
                     usage: BufferUsages::UNIFORM,
                 });
-                let bl_bind = device.create_bind_group(&BindGroupDescriptor {
-                    label: Some("mask-blend-bg"),
-                    layout: &self.passes.mask_blend.layout,
-                    entries: &[
-                        BindGroupEntry {
-                            binding: 0,
-                            resource: bl_params_buf.as_entire_binding(),
-                        },
-                        BindGroupEntry {
-                            binding: 1,
-                            resource: BindingResource::TextureView(curr_view),
-                        },
-                        BindGroupEntry {
-                            binding: 2,
-                            resource: BindingResource::TextureView(&scratch_linear_view),
-                        },
-                        BindGroupEntry {
-                            binding: 3,
-                            resource: BindingResource::TextureView(&weight_view),
-                        },
-                        BindGroupEntry {
-                            binding: 4,
-                            resource: BindingResource::TextureView(dst_view),
-                        },
-                        BindGroupEntry {
-                            binding: 5,
-                            resource: BindingResource::TextureView(&sharpen_accum_view),
-                        },
+                let bl_bind = bind_group(
+                    device,
+                    "mask-blend-bg",
+                    &self.passes.mask_blend.layout,
+                    &[
+                        bl_params_buf.as_entire_binding(),
+                        tex(curr_view),
+                        tex(&scratch_linear_view),
+                        tex(&weight_view),
+                        tex(dst_view),
+                        tex(&sharpen_accum_view),
                     ],
-                });
-                {
-                    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                        label: Some("mask-blend"),
-                        timestamp_writes: None,
-                    });
-                    cp.set_pipeline(&self.passes.mask_blend.pipeline);
-                    cp.set_bind_group(0, &bl_bind, &[]);
-                    let gx = out_w.div_ceil(16);
-                    let gy = out_h.div_ceil(16);
-                    cp.dispatch_workgroups(gx, gy, 1);
-                }
+                );
+                dispatch_2d(
+                    &mut encoder,
+                    "mask-blend",
+                    &self.passes.mask_blend.pipeline,
+                    &bl_bind,
+                    out_w.div_ceil(16),
+                    out_h.div_ceil(16),
+                );
                 _retained_bufs.push(bl_params_buf);
                 _retained_binds.push(bl_bind);
 
@@ -1165,7 +1065,7 @@ impl GpuRenderer {
             );
             let params_buf = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("mask-overlay-uniform"),
-                contents: &params,
+                contents: bytemuck::bytes_of(&params),
                 usage: BufferUsages::UNIFORM,
             });
             let src_view = display_src.create_view(&TextureViewDescriptor::default());
@@ -1173,40 +1073,28 @@ impl GpuRenderer {
             let dst_view = p
                 .mask_scratch_tone
                 .create_view(&TextureViewDescriptor::default());
-            let bind = device.create_bind_group(&BindGroupDescriptor {
-                label: Some("mask-overlay-bg"),
-                layout: &self.passes.mask_overlay.layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: params_buf.as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::TextureView(&src_view),
-                    },
-                    BindGroupEntry {
-                        binding: 2,
-                        resource: BindingResource::TextureView(&weight_view),
-                    },
-                    BindGroupEntry {
-                        binding: 3,
-                        resource: BindingResource::TextureView(&dst_view),
-                    },
+            let bind = bind_group(
+                device,
+                "mask-overlay-bg",
+                &self.passes.mask_overlay.layout,
+                &[
+                    params_buf.as_entire_binding(),
+                    tex(&src_view),
+                    tex(&weight_view),
+                    tex(&dst_view),
                 ],
-            });
+            );
             (params_buf, bind)
         });
         if let Some((_, bind)) = overlay_bind.as_ref() {
-            let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("mask-overlay"),
-                timestamp_writes: None,
-            });
-            cp.set_pipeline(&self.passes.mask_overlay.pipeline);
-            cp.set_bind_group(0, bind, &[]);
-            let gx = out_w.div_ceil(16);
-            let gy = out_h.div_ceil(16);
-            cp.dispatch_workgroups(gx, gy, 1);
+            dispatch_2d(
+                &mut encoder,
+                "mask-overlay",
+                &self.passes.mask_overlay.pipeline,
+                bind,
+                out_w.div_ceil(16),
+                out_h.div_ceil(16),
+            );
         }
         let display_src = if overlay_bind.is_some() {
             &p.mask_scratch_tone

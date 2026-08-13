@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindingResource, BufferUsages, CommandEncoder,
-    ComputePassDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
+    BufferUsages, CommandEncoder, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::edits::Edits;
 use crate::frame::RenderOptions;
-use crate::gpu::passes::lut::LUT_UNIFORM_SIZE;
+use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
+use crate::gpu::passes::lut::LutParams;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 use super::GpuRenderer;
@@ -121,54 +121,33 @@ impl GpuRenderer {
         });
         let dst_view = dst.create_view(&TextureViewDescriptor::default());
 
-        let mut bytes = [0u8; LUT_UNIFORM_SIZE as usize];
-        bytes[0..4].copy_from_slice(&w.to_ne_bytes());
-        bytes[4..8].copy_from_slice(&h.to_ne_bytes());
-        bytes[8..12].copy_from_slice(&(lut.size() as u32).to_ne_bytes());
         let dmin = lut.domain_min();
         let dmax = lut.domain_max();
-        bytes[16..20].copy_from_slice(&dmin[0].to_ne_bytes());
-        bytes[20..24].copy_from_slice(&dmin[1].to_ne_bytes());
-        bytes[24..28].copy_from_slice(&dmin[2].to_ne_bytes());
-        bytes[32..36].copy_from_slice(&dmax[0].to_ne_bytes());
-        bytes[36..40].copy_from_slice(&dmax[1].to_ne_bytes());
-        bytes[40..44].copy_from_slice(&dmax[2].to_ne_bytes());
-        bytes[48..52].copy_from_slice(&amount.to_ne_bytes());
+        let params = LutParams {
+            size: [w, h, lut.size() as u32],
+            domain_min: dmin,
+            domain_max: dmax,
+            amount,
+            ..bytemuck::Zeroable::zeroed()
+        };
         let ub = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("lut-uniform"),
-            contents: &bytes,
+            contents: bytemuck::bytes_of(&params),
             usage: BufferUsages::UNIFORM,
         });
-        let bg = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("lut-bg"),
-            layout: &pass.layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: ub.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(&src_view),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::TextureView(&lut_view),
-                },
-                BindGroupEntry {
-                    binding: 3,
-                    resource: BindingResource::TextureView(&dst_view),
-                },
-            ],
-        });
-        let gx = w.div_ceil(16);
-        let gy = h.div_ceil(16);
-        let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-            label: Some("lut"),
-            timestamp_writes: None,
-        });
-        cp.set_pipeline(&pass.pipeline);
-        cp.set_bind_group(0, &bg, &[]);
-        cp.dispatch_workgroups(gx, gy, 1);
+        let bg = bind_group(
+            device,
+            "lut-bg",
+            &pass.layout,
+            &[buf(&ub), tex(&src_view), tex(&lut_view), tex(&dst_view)],
+        );
+        dispatch_2d(
+            encoder,
+            "lut",
+            &pass.pipeline,
+            &bg,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
     }
 }
