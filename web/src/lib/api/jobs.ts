@@ -1,6 +1,14 @@
 import { getJson, sendJson } from './client';
-import type { ExportOptions, ImmichExportOptions } from './export';
+import type {
+  BitDepthOpt,
+  ExportFormat,
+  ExportOptions,
+  ImmichExportOptions,
+  PngCompressionOpt,
+  TiffCompressionOpt
+} from './export';
 import type { EditManifest } from '$lib/types/edits';
+import type { SearchQuery } from '$lib/types/search';
 import type { CopySections } from '$lib/copyPaste';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -20,13 +28,17 @@ export interface Job {
   updated_at: string;
 }
 
+export interface JobItemResult {
+  filename?: string;
+}
+
 export interface JobItem {
   id: string;
   job_id: string;
   asset_id: string;
   status: JobItemStatus;
   error: string | null;
-  result: unknown;
+  result: JobItemResult | null;
   idempotency_key: string | null;
   attempts: number;
   created_at: string;
@@ -58,7 +70,17 @@ export function jobDownloadUrl(id: string): string {
   return `/api/jobs/${id}/download`;
 }
 
-function baseParams(opts: ExportOptions): Record<string, unknown> {
+interface ExportJobParams {
+  format: ExportFormat;
+  quality: number;
+  include_exif: boolean;
+  bit_depth: BitDepthOpt;
+  png_compression: PngCompressionOpt;
+  tiff_compression: TiffCompressionOpt;
+  lossless: boolean;
+}
+
+function baseParams(opts: ExportOptions): ExportJobParams {
   return {
     format: opts.format,
     quality: opts.quality,
@@ -70,9 +92,11 @@ function baseParams(opts: ExportOptions): Record<string, unknown> {
   };
 }
 
-export type JobTarget = { assetIds: string[] } | { search: Record<string, unknown> };
+export type JobTarget = { assetIds: string[] } | { search: SearchQuery };
 
-function targetFields(target: JobTarget): Record<string, unknown> {
+type JobTargetFields = { asset_ids: string[] } | { target: { search: SearchQuery } };
+
+function targetFields(target: JobTarget): JobTargetFields {
   if ('assetIds' in target) return { asset_ids: target.assetIds };
   return { target: { search: target.search } };
 }

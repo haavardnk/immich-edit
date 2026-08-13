@@ -4,6 +4,7 @@ import { library } from './library.svelte';
 import { isRejectTag, toTagRef } from '$lib/reject';
 import type { AssetSummary } from '$lib/types/album';
 import type { TagRef } from '$lib/types/asset';
+import type { SearchQuery } from '$lib/types/search';
 
 class RejectedStore {
   ids = $state(new Set<string>());
@@ -37,7 +38,7 @@ class RejectedStore {
     const ids = new Set<string>();
     let page: string | null = null;
     do {
-      const body: Record<string, unknown> = { tagIds: [tag.id], size: 1000 };
+      const body: SearchQuery = { tagIds: [tag.id], size: 1000 };
       if (page) body.page = page;
       const res = await searchMetadata(body);
       for (const a of res.items) ids.add(a.id);

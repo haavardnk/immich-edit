@@ -71,8 +71,7 @@
   }
 
   function itemName(item: JobItem): string {
-    const result = item.result as { filename?: string } | null;
-    return result?.filename ?? item.asset_id.slice(0, 8);
+    return item.result?.filename ?? item.asset_id.slice(0, 8);
   }
 </script>
 

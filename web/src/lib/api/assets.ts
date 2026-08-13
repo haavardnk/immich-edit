@@ -7,7 +7,12 @@ export function getAsset(id: string): Promise<AssetDetail> {
   return getJson(`/api/assets/${id}`);
 }
 
-export function updateAsset(id: string, body: Record<string, unknown>): Promise<AssetDetail> {
+export interface AssetUpdate {
+  isFavorite?: boolean;
+  rating?: number | null;
+}
+
+export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail> {
   return sendJson('PUT', `/api/assets/${id}`, body);
 }
 

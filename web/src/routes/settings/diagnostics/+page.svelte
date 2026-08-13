@@ -50,7 +50,6 @@
   }
 
   function buildSupportBundle(h: HealthInfo, t: DebugTimings | null): string {
-    const cfg = h.config as Record<string, unknown>;
     const statusCode = h.immich_status.status_code ? ` HTTP ${h.immich_status.status_code}` : '';
     const lines: string[] = [];
     lines.push('## immich-edit support bundle');
@@ -66,7 +65,7 @@
       `- Immich status: ${h.immich_status.kind}${statusCode} (${h.immich_status.message})`
     );
     lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
-    lines.push(`- Cache dir: ${cfg.cache_dir ?? '—'}`);
+    lines.push(`- Cache dir: ${h.config.cache_dir}`);
     lines.push(`- User agent: ${navigator.userAgent}`);
     lines.push('');
     if (t) {

@@ -19,10 +19,16 @@ export function upsertTags(tags: string[]): Promise<TagSummary[]> {
   return sendJson('PUT', '/api/tags', { tags });
 }
 
-export function addTagToAsset(tagId: string, assetId: string): Promise<unknown> {
+export interface BulkIdResponse {
+  id: string;
+  success: boolean;
+  error?: string | null;
+}
+
+export function addTagToAsset(tagId: string, assetId: string): Promise<BulkIdResponse[]> {
   return sendJson('PUT', `/api/tags/${tagId}/assets/${assetId}`, {});
 }
 
-export function removeTagFromAsset(tagId: string, assetId: string): Promise<unknown> {
+export function removeTagFromAsset(tagId: string, assetId: string): Promise<BulkIdResponse[]> {
   return sendJson('DELETE', `/api/tags/${tagId}/assets/${assetId}`, {});
 }

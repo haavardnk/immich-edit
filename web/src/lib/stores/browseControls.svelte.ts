@@ -1,6 +1,7 @@
-export type SortDir = 'asc' | 'desc';
+import type { SearchQuery, SortDir, Visibility } from '$lib/types/search';
+
+export type { SortDir, Visibility };
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
-export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 class BrowseControlsStore {
   sortDir = $state<SortDir>('desc');
@@ -56,8 +57,8 @@ class BrowseControlsStore {
     this.reset();
   }
 
-  searchBody(base: Record<string, unknown>): Record<string, unknown> {
-    const body: Record<string, unknown> = {
+  searchBody(base: SearchQuery): SearchQuery {
+    const body: SearchQuery = {
       ...base,
       withExif: true,
       size: 500,
@@ -65,7 +66,7 @@ class BrowseControlsStore {
       visibility: this.visibility,
       type: 'IMAGE'
     };
-    if (this.favoriteOnly && !('isFavorite' in base)) {
+    if (this.favoriteOnly && base.isFavorite === undefined) {
       body.isFavorite = true;
     }
     if (typeof this.rating === 'number') {
@@ -85,7 +86,7 @@ class BrowseControlsStore {
     return body;
   }
 
-  statsBody(base: Record<string, unknown>): Record<string, unknown> {
+  statsBody(base: SearchQuery): SearchQuery {
     const body = this.searchBody(base);
     delete body.size;
     delete body.order;
@@ -94,15 +95,15 @@ class BrowseControlsStore {
     return body;
   }
 
-  smartSearchBody(base: Record<string, unknown>): Record<string, unknown> {
-    const body: Record<string, unknown> = {
+  smartSearchBody(base: SearchQuery): SearchQuery {
+    const body: SearchQuery = {
       ...base,
       withExif: true,
       size: 500,
       visibility: this.visibility,
       type: 'IMAGE'
     };
-    if (this.favoriteOnly && !('isFavorite' in base)) {
+    if (this.favoriteOnly && base.isFavorite === undefined) {
       body.isFavorite = true;
     }
     if (typeof this.rating === 'number') {

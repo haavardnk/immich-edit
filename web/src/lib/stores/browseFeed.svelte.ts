@@ -1,5 +1,5 @@
 import { searchMetadata, searchStatistics } from '$lib/api/search';
-import type { SearchResult } from '$lib/api/search';
+import type { SearchQuery, SearchResult } from '$lib/types/search';
 import { browsing } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import { rejected } from './rejected.svelte';
@@ -7,10 +7,10 @@ import { toasts } from './toasts.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
 export interface BrowseFeedOptions {
-  baseBody: () => Record<string, unknown>;
+  baseBody: () => SearchQuery;
   includeStats?: boolean;
-  fetcher?: (body: Record<string, unknown>) => Promise<SearchResult>;
-  buildBody?: (base: Record<string, unknown>) => Record<string, unknown>;
+  fetcher?: (body: SearchQuery) => Promise<SearchResult>;
+  buildBody?: (base: SearchQuery) => SearchQuery;
   onFetchError?: (initial: boolean, error: unknown) => void;
 }
 
