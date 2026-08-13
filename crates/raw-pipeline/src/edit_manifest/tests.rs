@@ -1,0 +1,418 @@
+use super::*;
+use crate::edits::{
+    BasicEdits, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
+    HslEdits, LensEdits, ToneEdits,
+};
+
+#[test]
+fn empty_edits_yields_empty_doc() {
+    let manifest = EditManifest::from_edits(&Edits::default());
+    if !manifest.ops.is_empty() {
+        panic!("expected no ops, got {:?}", manifest.ops);
+    }
+    if manifest.schema_version != EDIT_MANIFEST_VERSION {
+        panic!("wrong version");
+    }
+}
+
+#[test]
+fn roundtrip_preserves_fields() {
+    let mut bands = [HslBand::default(); 8];
+    bands[0] = HslBand {
+        hue: 10.0,
+        sat: -20.0,
+        lum: 5.0,
+    };
+    bands[4] = HslBand {
+        hue: -8.0,
+        sat: 15.0,
+        lum: -3.0,
+    };
+    let original = Edits {
+        basic: BasicEdits {
+            exposure_ev: 1.5,
+            brightness: 22.0,
+            contrast: 25.0,
+            saturation: 12.5,
+            vibrance: 18.0,
+            wb_temp: 8.0,
+            wb_tint: -4.0,
+            texture: 33.0,
+            clarity: 22.0,
+            dehaze: -15.0,
+            curves: CurvesEdits::default(),
+        },
+        tone: ToneEdits {
+            highlights: -10.0,
+            shadows: 30.0,
+            blacks: 12.0,
+            whites: -8.0,
+        },
+        color: ColorEdits {
+            hsl: HslEdits { bands },
+            color_grade: Default::default(),
+            lut_3d: Default::default(),
+            dcp: Default::default(),
+        },
+        detail: DetailEdits {
+            sharpen_amount: Some(60.0),
+            sharpen_radius: 1.2,
+            sharpen_detail: 30.0,
+            sharpen_masking: 15.0,
+            luma_nr_amount: 25.0,
+            luma_nr_detail: 45.0,
+            luma_nr_contrast: 10.0,
+            color_nr_amount: 40.0,
+            color_nr_detail: 55.0,
+            color_nr_smoothness: 60.0,
+            capture_sharpen: false,
+        },
+        effects: EffectsEdits {
+            vignette_amount: -35.0,
+            vignette_midpoint: 40.0,
+            vignette_feather: 65.0,
+            vignette_roundness: -10.0,
+            grain_amount: 30.0,
+            grain_size: 20.0,
+            grain_roughness: 55.0,
+        },
+        lens: LensEdits {
+            profile_enabled: Some(true),
+            ca_enabled: true,
+            constrain_crop: true,
+            distortion_amount: 50.0,
+            vignette_amount: 25.0,
+            k1: -0.2,
+            k2: 0.1,
+            k3: 0.0,
+            vk1: -0.4,
+            vk2: 0.0,
+            vk3: 0.0,
+            ca_red_scale_x10000: -15.0,
+            ca_blue_scale_x10000: 8.0,
+        },
+        geometry: GeometryEdits {
+            rotate: 90,
+            rotate_angle: 0.0,
+            flip_h: true,
+            flip_v: false,
+            crop: None,
+            aspect: Default::default(),
+            perspective: Some(crate::perspective::PerspectiveEdits {
+                vertical: 25.0,
+                horizontal: -10.0,
+                ..Default::default()
+            }),
+        },
+        masks: Vec::new(),
+        retouch: Vec::new(),
+        unknown_ops: Default::default(),
+    };
+    let manifest = EditManifest::from_edits(&original);
+    let back = manifest.to_edits();
+    if back != original {
+        panic!("roundtrip mismatch: {back:?} != {original:?}");
+    }
+}
+
+#[test]
+fn brightness_sparse_roundtrip() {
+    let edits = Edits {
+        basic: BasicEdits {
+            brightness: 33.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let manifest = EditManifest::from_edits(&edits);
+    if !manifest.ops.contains_key("brightness") || manifest.ops.len() != 1 {
+        panic!(
+            "expected only brightness key, got {:?}",
+            manifest.ops.keys().collect::<Vec<_>>()
+        );
+    }
+    let back = manifest.to_edits();
+    if (back.basic.brightness - 33.0).abs() > 1e-9 {
+        panic!("brightness roundtrip mismatch: {}", back.basic.brightness);
+    }
+}
+
+#[test]
+fn sparse_doc_only_includes_active_ops() {
+    let edits = Edits {
+        basic: BasicEdits {
+            exposure_ev: 0.5,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let manifest = EditManifest::from_edits(&edits);
+    if manifest.ops.len() != 1 || !manifest.ops.contains_key("exposure") {
+        panic!(
+            "expected only exposure key, got {:?}",
+            manifest.ops.keys().collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn dcp_roundtrip() {
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = crate::edits::DcpMode::Profile;
+    edits.color.dcp.profile_id = Some("abc123".into());
+    edits.color.dcp.illuminant = crate::dcp::DcpIlluminant::Second;
+    edits.color.dcp.use_look_table = false;
+    edits.color.dcp.use_baseline_exposure = true;
+    let manifest = EditManifest::from_edits(&edits);
+    if !manifest.ops.contains_key("dcp_hue_sat") {
+        panic!(
+            "expected dcp_hue_sat key, got {:?}",
+            manifest.ops.keys().collect::<Vec<_>>()
+        );
+    }
+    let back = manifest.to_edits();
+    if back.color.dcp != edits.color.dcp {
+        panic!("dcp roundtrip mismatch: {:?}", back.color.dcp);
+    }
+}
+
+#[test]
+fn dcp_default_auto_not_serialized() {
+    let manifest = EditManifest::from_edits(&Edits::default());
+    if manifest.ops.contains_key("dcp_hue_sat") {
+        panic!("default DCP auto mode should stay sparse");
+    }
+}
+
+#[test]
+fn dcp_explicit_off_roundtrip() {
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = crate::edits::DcpMode::Off;
+    let manifest = EditManifest::from_edits(&edits);
+    if !manifest.ops.contains_key("dcp_hue_sat") {
+        panic!("explicit DCP off mode must be persisted");
+    }
+    let back = manifest.to_edits();
+    if back.color.dcp.mode != crate::edits::DcpMode::Off {
+        panic!("explicit DCP off mode was not restored");
+    }
+}
+
+#[test]
+fn unknown_ops_preserved_through_roundtrip() {
+    let mut ops = BTreeMap::new();
+    ops.insert("exposure".into(), serde_json::json!({ "ev": 2.0 }));
+    ops.insert(
+        "future_op".into(),
+        serde_json::json!({ "foo": 1, "bar": [true, "x"] }),
+    );
+    let manifest = EditManifest {
+        schema_version: EDIT_MANIFEST_VERSION,
+        ops: ops.clone(),
+    };
+    let edits = manifest.to_edits();
+    if edits.basic.exposure_ev != 2.0 {
+        panic!("exposure not parsed");
+    }
+    let back = EditManifest::from_edits(&edits);
+    if back.ops.get("future_op") != ops.get("future_op") {
+        panic!("unknown op lost: {:?}", back.ops.get("future_op"));
+    }
+}
+
+#[test]
+fn known_op_overrides_unknown_with_same_id() {
+    let mut e = Edits {
+        basic: BasicEdits {
+            exposure_ev: 1.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    e.unknown_ops
+        .insert("exposure".into(), serde_json::json!({ "ev": 99.0 }));
+    let manifest = EditManifest::from_edits(&e);
+    if manifest.ops.get("exposure") != Some(&serde_json::json!({ "ev": 1.0 })) {
+        panic!("known op should win: {:?}", manifest.ops.get("exposure"));
+    }
+}
+
+#[test]
+fn masks_roundtrip_sparse() {
+    use crate::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+        Vec2f,
+    };
+    let layer = MaskLayer {
+        id: "l1".into(),
+        name: "Sky".into(),
+        enabled: true,
+        color: "#3399ff".into(),
+        amount: 0.8,
+        invert: false,
+        components: vec![
+            MaskComponent {
+                id: "c1".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                invert: false,
+                kind: MaskComponentKind::Linear {
+                    p0: Vec2f { x: 0.5, y: 0.0 },
+                    p1: Vec2f { x: 0.5, y: 0.5 },
+                    feather: 0.1,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            },
+            MaskComponent {
+                id: "c2".into(),
+                enabled: true,
+                mode: MaskComponentMode::Subtract,
+                invert: false,
+                kind: MaskComponentKind::Radial {
+                    center: Vec2f { x: 0.3, y: 0.2 },
+                    radius_xy: Vec2f { x: 0.2, y: 0.15 },
+                    feather: 0.2,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            },
+            MaskComponent {
+                id: "c3".into(),
+                enabled: true,
+                mode: MaskComponentMode::Intersect,
+                invert: false,
+                kind: MaskComponentKind::LumaRange {
+                    min: 0.2,
+                    max: 0.8,
+                    softness: 0.1,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            },
+            MaskComponent {
+                id: "c4".into(),
+                enabled: true,
+                mode: MaskComponentMode::Intersect,
+                invert: false,
+                kind: MaskComponentKind::ColorRange {
+                    sample_rgb: [0.2, 0.5, 0.9],
+                    tolerance: 0.12,
+                    softness: 0.04,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            },
+        ],
+        edits: MaskedEdits {
+            exposure_ev: Some(-0.5),
+            brightness: Some(15.0),
+            shadows: Some(20.0),
+            ..Default::default()
+        },
+    };
+    let edits = Edits {
+        masks: vec![layer.clone()],
+        ..Default::default()
+    };
+    let manifest = EditManifest::from_edits(&edits);
+    if !manifest.ops.contains_key("masks") {
+        panic!("masks key missing");
+    }
+    let back = manifest.to_edits();
+    if back.masks != vec![layer] {
+        panic!("masks roundtrip mismatch");
+    }
+}
+
+#[test]
+fn lens_sparse_roundtrip() {
+    let edits = Edits {
+        lens: LensEdits {
+            profile_enabled: Some(true),
+            distortion_amount: 40.0,
+            k1: -0.12,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let manifest = EditManifest::from_edits(&edits);
+    if manifest.ops.len() != 1 || !manifest.ops.contains_key("lens_profile") {
+        panic!(
+            "expected only lens_profile key, got {:?}",
+            manifest.ops.keys().collect::<Vec<_>>()
+        );
+    }
+    let back = manifest.to_edits();
+    if (back.lens.distortion_amount - 40.0).abs() > 1e-9 || (back.lens.k1 - (-0.12)).abs() > 1e-9 {
+        panic!("lens_distortion roundtrip mismatch: {:?}", back.lens);
+    }
+}
+
+#[test]
+fn lens_auto_omits_profile_enabled() {
+    let edits = Edits {
+        lens: LensEdits {
+            ca_enabled: true,
+            ca_red_scale_x10000: 30.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let manifest = EditManifest::from_edits(&edits);
+    let doc = manifest.ops.get("lens_profile").expect("lens_profile op");
+    if doc.get("profile_enabled").is_some() {
+        panic!("auto lens must not persist profile_enabled: {doc:?}");
+    }
+    if manifest.to_edits().lens.profile_enabled.is_some() {
+        panic!("missing profile_enabled must decode to auto");
+    }
+}
+
+#[test]
+fn v3_manifests_migrate_to_explicit_off() {
+    let cases: [(BTreeMap<String, Value>, bool); 2] = [
+        (BTreeMap::new(), false),
+        (
+            BTreeMap::from([(
+                "lens_profile".to_string(),
+                serde_json::json!({ "profile_enabled": true, "k1": -0.1 }),
+            )]),
+            true,
+        ),
+    ];
+    for (ops, expected) in cases {
+        let manifest = EditManifest {
+            schema_version: 3,
+            ops,
+        };
+        if manifest.to_edits().lens.profile_enabled != Some(expected) {
+            panic!("v3 migration expected Some({expected})");
+        }
+    }
+}
+
+#[test]
+fn masks_unknown_kind_skipped() {
+    let mut ops = BTreeMap::new();
+    ops.insert(
+        "masks".into(),
+        serde_json::json!({
+            "layers": [
+                { "id": "l1" },
+                { "id": "l2", "components": [{ "id": "c", "kind": { "kind": "wormhole" } }] }
+            ]
+        }),
+    );
+    let manifest = EditManifest {
+        schema_version: EDIT_MANIFEST_VERSION,
+        ops,
+    };
+    let edits = manifest.to_edits();
+    if edits.masks.len() != 1 || edits.masks[0].id != "l1" {
+        panic!(
+            "expected only valid layer to survive, got {:?}",
+            edits.masks
+        );
+    }
+}
