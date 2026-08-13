@@ -1,13 +1,13 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use ml::{BakeParams, BoxPrompt, ClickPoint, ModelKind, RangeWindow};
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use serde::{Deserialize, Serialize};
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::embedding_cache::EmbeddingKey;
+use crate::services::mask_scene::{SceneImage, combine_coverage, render_scene};
 use crate::services::render::RenderIdentity;
 use crate::services::segment::SegmentServiceError;
 use crate::state::AppState;
@@ -71,19 +71,6 @@ fn scene_box(b: &BoxBody) -> Result<BoxBody, AppError> {
         return Err(AppError::BadRequest("box is too small".into()));
     }
     Ok(out)
-}
-
-fn combine_coverage(base: &[u8], patch: &[u8], subtract: bool) -> Vec<u8> {
-    base.iter()
-        .zip(patch)
-        .map(|(b, p)| {
-            if subtract {
-                ((*b as u16 * (255 - *p) as u16 + 127) / 255) as u8
-            } else {
-                (*b).max(*p)
-            }
-        })
-        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -209,38 +196,15 @@ async fn scene_render(
     state: &AppState,
     ctx: &AuthCtx,
     asset_id: AssetKey,
-) -> Result<(Vec<u8>, u32, u32), AppError> {
-    let mut edits = state
-        .edits
-        .get_edits_or_default(ctx.owner, asset_id)
-        .await?;
-    edits.geometry = Default::default();
-    edits.lens = raw_pipeline::edits::LensEdits {
-        profile_enabled: Some(false),
-        ..Default::default()
-    };
-    edits.effects = Default::default();
-    edits.masks.clear();
-
-    let identity = RenderIdentity::from(ctx);
-    let opts = RenderOptions {
-        max_edge: state.segment.max_edge(),
-        output: OutputFormat::Rgb8,
-        ..Default::default()
-    };
-    let rendered = state
-        .render
-        .render(
-            identity,
-            ctx.immich.clone(),
-            asset_id.source(),
-            edits,
-            opts,
-            None,
-        )
-        .await
-        .map_err(AppError::from)?;
-    Ok((rendered.bytes, rendered.width, rendered.height))
+) -> Result<SceneImage, AppError> {
+    render_scene(
+        state,
+        RenderIdentity::from(ctx),
+        ctx.immich.clone(),
+        ctx.owner,
+        asset_id,
+    )
+    .await
 }
 
 pub async fn generate(
@@ -260,7 +224,11 @@ pub async fn generate(
     }
     let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
 
-    let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
+    let SceneImage {
+        rgb8,
+        width,
+        height,
+    } = scene_render(&state, &ctx, asset_id).await?;
     let result = state
         .segment
         .generate(kind, rgb8, width, height, params, req.class)
@@ -299,7 +267,11 @@ pub async fn rebake(
         .await
         .map_err(|_| AppError::NotFound)?;
 
-    let (rgb8, width, height) = scene_render(&state, &ctx, req.asset_id).await?;
+    let SceneImage {
+        rgb8,
+        width,
+        height,
+    } = scene_render(&state, &ctx, req.asset_id).await?;
     if meta.width != width || meta.height != height {
         return Err(AppError::Conflict(
             "probability raster does not match the current scene size".into(),
@@ -358,7 +330,11 @@ pub async fn click(
         None => None,
     };
 
-    let (rgb8, width, height) = scene_render(&state, &ctx, asset_id).await?;
+    let SceneImage {
+        rgb8,
+        width,
+        height,
+    } = scene_render(&state, &ctx, asset_id).await?;
     let base = match &req.base_raster_id {
         Some(id) => {
             let (meta, bytes) = state
@@ -436,21 +412,4 @@ pub async fn click(
         backend: result.backend,
         elapsed_ms: result.elapsed_ms,
     }))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::combine_coverage;
-
-    #[test]
-    fn adding_keeps_the_strongest_coverage() {
-        let out = combine_coverage(&[0, 128, 255], &[64, 32, 0], false);
-        assert_eq!(out, vec![64, 128, 255]);
-    }
-
-    #[test]
-    fn subtracting_carves_the_patch_out() {
-        let out = combine_coverage(&[255, 255, 128], &[255, 0, 128], true);
-        assert_eq!(out, vec![0, 255, 64]);
-    }
 }

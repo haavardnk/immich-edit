@@ -69,22 +69,13 @@ pub async fn put(
         .get("if-match")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim_matches('"').to_string());
-    if let Some(expected) = if_match.as_deref() {
-        let current = state.edits.get(ctx.owner, id).await?;
-        let current_hash = match &current {
-            Some(r) => r.hash.as_str(),
-            None => "",
-        };
-        let default_hash = Edits::default().stable_hash();
-        let actual = if current_hash.is_empty() {
-            default_hash.as_str()
-        } else {
-            current_hash
-        };
-        if expected != actual {
-            let body = current.unwrap_or_else(|| EditRecord::empty(id));
-            return Ok((StatusCode::CONFLICT, Json(body)).into_response());
-        }
+    if let Some(expected) = if_match.as_deref()
+        && let Some(current) = state
+            .edits
+            .if_match_conflict(ctx.owner, id, expected)
+            .await?
+    {
+        return Ok((StatusCode::CONFLICT, Json(current)).into_response());
     }
     let asset = ctx.immich.asset(id.source()).await?;
     let saved = state
@@ -126,7 +117,8 @@ pub async fn auto(
     let context = if body.is_empty() {
         Edits::default()
     } else {
-        serde_json::from_slice::<Edits>(&body).unwrap_or_default()
+        serde_json::from_slice::<Edits>(&body)
+            .map_err(|e| AppError::BadRequest(format!("invalid edits body: {e}")))?
     };
     let frame = state
         .render

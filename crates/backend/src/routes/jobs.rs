@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
-use crate::services::copy_expand::expand_assets;
+use crate::services::copy_expand::expand_search;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
 };
@@ -70,7 +70,9 @@ pub async fn create(
     }
     let asset_ids = if body.asset_ids.is_empty() {
         match body.target.get("search") {
-            Some(query) => expand_search_target(&state, &ctx, query).await?,
+            Some(query) => {
+                expand_search(&state.edits, &ctx.immich, ctx.owner, query, MAX_ITEMS).await?
+            }
             None => {
                 return Err(AppError::BadRequest(
                     "asset_ids or target.search required".into(),
@@ -108,36 +110,6 @@ pub async fn create(
         })
         .await?;
     Ok(Json(job))
-}
-
-async fn expand_search_target(
-    state: &AppState,
-    ctx: &AuthCtx,
-    query: &serde_json::Value,
-) -> Result<Vec<String>, AppError> {
-    let base = query
-        .as_object()
-        .ok_or_else(|| AppError::BadRequest("invalid target.search".into()))?;
-    let mut ids: Vec<String> = Vec::new();
-    let mut page: Option<String> = None;
-    loop {
-        let mut body = base.clone();
-        body.insert("size".into(), serde_json::json!(1000));
-        if let Some(p) = &page {
-            body.insert("page".into(), serde_json::json!(p));
-        }
-        let result = ctx
-            .immich
-            .search_metadata(&serde_json::Value::Object(body))
-            .await?;
-        let items = expand_assets(&state.edits, ctx.owner, result.items).await?;
-        ids.extend(items.into_iter().map(|a| a.id.to_string()));
-        match result.next_page {
-            Some(next) if ids.len() <= MAX_ITEMS => page = Some(next),
-            _ => break,
-        }
-    }
-    Ok(ids)
 }
 
 async fn owned_job(state: &AppState, ctx: &AuthCtx, id: Uuid) -> Result<JobRecord, AppError> {

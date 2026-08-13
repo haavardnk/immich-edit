@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::routes::auth::{self, AdminCtx};
+use crate::services::purge;
 use crate::state::AppState;
 
 pub async fn list_users(
@@ -63,14 +64,8 @@ pub async fn purge_user_data(
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
     require_fresh_admin(&admin).await?;
-    state.queue.cancel_owner(id).await;
     state.auth.get_user(id).await?.ok_or(AppError::NotFound)?;
-    state.jobs.purge_owner(id).await?;
-    state.edits.purge_owner(id).await?;
-    state.auth.revoke_all_for_user(id).await?;
-    state.rasters.purge_owner(id).await?;
-    state.edited_thumb.purge_owner(id).await?;
-    crate::services::export::purge_owner_exports(&state, id).await;
+    purge::purge_owner(&state, id).await?;
     Ok((StatusCode::OK, Json(json!({ "ok": true }))).into_response())
 }
 
@@ -129,18 +124,7 @@ pub async fn rebind(
 
     let response =
         auth::finish_rebind(&state, base.as_str(), &user, kind, &cred, &headers, &client).await?;
-    state.queue.cancel_all().await;
-    state.render.clear_frame_caches().await;
-    state.preview_meta.clear().await;
-    state.tag_counts.clear().await;
-    state.people_counts.clear().await;
-    if let Err(error) = state.rasters.purge_all().await {
-        tracing::warn!(error = %error, "purge rasters after rebind");
-    }
-    if let Err(error) = state.edited_thumb.purge_all().await {
-        tracing::warn!(error = %error, "purge edited thumbnails after rebind");
-    }
-    crate::services::export::purge_all_exports(&state).await;
+    purge::purge_instance(&state).await;
     Ok(response)
 }
 

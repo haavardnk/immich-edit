@@ -164,6 +164,24 @@ impl EditsStore {
         }))
     }
 
+    pub async fn if_match_conflict(
+        &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        expected: &str,
+    ) -> Result<Option<EditRecord>, EditsStoreError> {
+        let current = self.get(owner, asset_id).await?;
+        let empty_hash = Edits::default().stable_hash();
+        let actual = match &current {
+            Some(record) if !record.hash.is_empty() => record.hash.as_str(),
+            _ => empty_hash.as_str(),
+        };
+        if expected == actual {
+            return Ok(None);
+        }
+        Ok(Some(current.unwrap_or_else(|| EditRecord::empty(asset_id))))
+    }
+
     pub async fn get_edits_or_default(
         &self,
         owner: Uuid,

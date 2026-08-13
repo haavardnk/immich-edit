@@ -772,6 +772,26 @@ async fn create_job_without_ids_or_target_is_bad_request() {
 }
 
 #[tokio::test]
+async fn auto_edits_rejects_malformed_body() {
+    use uuid::Uuid;
+
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{}/edits/auto", Uuid::new_v4()))
+                .header("content-type", "application/json")
+                .body(Body::from("{ not json"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn create_job_with_unknown_kind_is_bad_request() {
     use uuid::Uuid;
 
