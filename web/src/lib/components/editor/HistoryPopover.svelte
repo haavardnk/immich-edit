@@ -6,6 +6,7 @@
   import { listEditHistory, restoreEdits, type EditHistoryEntry } from '$lib/api/edits';
   import { manifestToEdits } from '$lib/types/edits';
   import { historyDetails, historyLabel } from '$lib/utils/history';
+  import { formatWhen } from '$lib/utils/datetime';
 
   let open = $state(false);
   let entries = $state<EditHistoryEntry[]>([]);
@@ -66,11 +67,6 @@
 
   function toggleDetails(entryId: number): void {
     expandedId = expandedId === entryId ? null : entryId;
-  }
-
-  function formatTime(s: string): string {
-    const d = new Date(s);
-    return d.toLocaleString();
   }
 
   let popoverEl: HTMLDivElement | null = $state(null);
@@ -167,7 +163,7 @@
                   {/if}
                 </span>
                 <span class="text-[10px] text-immich-dark-fg/40"
-                  >{formatTime(entry.created_at)}</span
+                  >{formatWhen(entry.created_at)}</span
                 >
               </button>
               <button
