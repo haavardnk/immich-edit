@@ -1,5 +1,6 @@
 import { browsing } from './browsing.svelte';
 import { compare } from './compare.svelte';
+import { readStored, writeStored } from '$lib/utils/storage';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -19,27 +20,6 @@ type Persisted = {
   loupeAutoAdvance: boolean;
 };
 
-function loadPersisted(): Persisted {
-  const fallback: Persisted = { gridSize: 'md', loupeAutoAdvance: false };
-  if (typeof localStorage === 'undefined') return fallback;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<Persisted>;
-    return {
-      gridSize: SIZE_ORDER.includes(parsed.gridSize as GridSize)
-        ? (parsed.gridSize as GridSize)
-        : fallback.gridSize,
-      loupeAutoAdvance:
-        typeof parsed.loupeAutoAdvance === 'boolean'
-          ? parsed.loupeAutoAdvance
-          : fallback.loupeAutoAdvance
-    };
-  } catch {
-    return fallback;
-  }
-}
-
 class BrowseViewStore {
   gridSize = $state<GridSize>('md');
   activeId = $state<string | null>(null);
@@ -51,18 +31,17 @@ class BrowseViewStore {
   private gridScroll = new Map<string, number>();
 
   constructor() {
-    const p = loadPersisted();
-    this.gridSize = p.gridSize;
-    this.loupeAutoAdvance = p.loupeAutoAdvance;
+    const stored = readStored<Persisted>(STORAGE_KEY);
+    if (stored?.gridSize && SIZE_ORDER.includes(stored.gridSize)) this.gridSize = stored.gridSize;
+    if (typeof stored?.loupeAutoAdvance === 'boolean')
+      this.loupeAutoAdvance = stored.loupeAutoAdvance;
   }
 
   private persist(): void {
-    if (typeof localStorage === 'undefined') return;
-    const data: Persisted = {
+    writeStored(STORAGE_KEY, {
       gridSize: this.gridSize,
       loupeAutoAdvance: this.loupeAutoAdvance
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } satisfies Persisted);
   }
 
   get minTile(): number {

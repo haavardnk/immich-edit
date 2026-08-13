@@ -25,7 +25,7 @@ class JobsStore {
       this.jobs = await listJobs();
       this.syncStreams();
     } catch (e) {
-      toasts.push('error', `Failed to load jobs: ${(e as Error).message}`, 6000);
+      toasts.fail('Failed to load jobs', e, 6000);
     } finally {
       this.loading = false;
     }
@@ -50,7 +50,7 @@ class JobsStore {
     try {
       await cancelJob(id);
     } catch (e) {
-      toasts.push('error', `Failed to cancel job: ${(e as Error).message}`, 6000);
+      toasts.fail('Failed to cancel job', e, 6000);
     }
   };
 
@@ -64,7 +64,7 @@ class JobsStore {
       for (const id of removed) delete items[id];
       this.items = items;
     } catch (e) {
-      toasts.push('error', `Failed to clear jobs: ${(e as Error).message}`, 6000);
+      toasts.fail('Failed to clear jobs', e, 6000);
     }
   };
 
@@ -74,7 +74,7 @@ class JobsStore {
       this.patch(detail.job);
       this.items = { ...this.items, [id]: detail.items };
     } catch (e) {
-      toasts.push('error', `Failed to load job items: ${(e as Error).message}`, 6000);
+      toasts.fail('Failed to load job items', e, 6000);
     }
   };
 

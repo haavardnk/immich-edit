@@ -5,6 +5,7 @@ import { folderPaths } from '$lib/api/folders';
 import { searchStatistics } from '$lib/api/search';
 import type { AlbumSummary } from '$lib/types/album';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
+import { errorMessage } from '$lib/utils/errors';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
 
@@ -85,7 +86,7 @@ class LibraryStore {
       }
       this.loaded.add(v);
     } catch (e) {
-      this.error = (e as Error).message;
+      this.error = errorMessage(e);
     } finally {
       this.loading = false;
     }

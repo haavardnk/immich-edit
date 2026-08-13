@@ -33,10 +33,10 @@
 
   <div class="flex items-center gap-0.5">
     <Popover
-      open={ui.zoomPopoverOpen}
+      open={ui.metaPopover === 'zoom'}
       anchor="top"
       align="end"
-      onClose={ui.closeZoomPopover}
+      onClose={ui.closePopover}
       contentClass="p-2"
     >
       {#snippet trigger()}
@@ -44,8 +44,8 @@
           variant="text"
           label={`${ui.zoom}%`}
           title="Zoom"
-          active={ui.zoomPopoverOpen}
-          onclick={ui.toggleZoomPopover}
+          active={ui.metaPopover === 'zoom'}
+          onclick={() => ui.togglePopover('zoom')}
         />
       {/snippet}
       <div class="flex items-center gap-2">

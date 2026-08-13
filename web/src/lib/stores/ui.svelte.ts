@@ -14,6 +14,8 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
 
 export const MAX_ZOOM = 800;
 
+export type MetaPopover = 'exif' | 'tags' | 'zoom';
+
 class UiStore {
   leftCollapsed = $state(false);
   rightCollapsed = $state(false);
@@ -25,9 +27,7 @@ class UiStore {
   panX = $state(0);
   panY = $state(0);
   keybindsHelpOpen = $state(false);
-  exifPopoverOpen = $state(false);
-  tagsPopoverOpen = $state(false);
-  zoomPopoverOpen = $state(false);
+  metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
   clipWarn = $state(false);
@@ -48,28 +48,10 @@ class UiStore {
     this.rightCollapsed = !this.rightCollapsed;
   };
 
-  openGeometry = (): void => {
+  openTab = (tab: EditorTab): void => {
     this.fullscreen = false;
     this.rightCollapsed = false;
-    this.editorTab = 'geometry';
-  };
-
-  openRetouch = (): void => {
-    this.fullscreen = false;
-    this.rightCollapsed = false;
-    this.editorTab = 'retouch';
-  };
-
-  openMasks = (): void => {
-    this.fullscreen = false;
-    this.rightCollapsed = false;
-    this.editorTab = 'masks';
-  };
-
-  openExport = (): void => {
-    this.fullscreen = false;
-    this.rightCollapsed = false;
-    this.editorTab = 'export';
+    this.editorTab = tab;
   };
 
   toggleChrome = (): void => {
@@ -94,29 +76,19 @@ class UiStore {
   };
 
   zoomIn = (): void => {
-    this.zoom = Math.min(this.zoom + 25, MAX_ZOOM);
+    this.setZoom(this.zoom + 25);
   };
 
   zoomOut = (): void => {
-    this.zoom = Math.max(this.zoom - 25, 25);
-    if (this.zoom <= 100) {
-      this.panX = 0;
-      this.panY = 0;
-    }
+    this.setZoom(this.zoom - 25);
   };
 
   zoomFit = (): void => {
-    this.zoom = 100;
-    this.panX = 0;
-    this.panY = 0;
+    this.setZoom(100);
   };
 
   zoomToggle = (): void => {
-    if (this.zoom <= 100) {
-      this.zoom = 200;
-    } else {
-      this.zoomFit();
-    }
+    this.setZoom(this.zoom <= 100 ? 200 : 100);
   };
 
   toggleKeybindsHelp = (): void => {
@@ -127,66 +99,22 @@ class UiStore {
     this.keybindsHelpOpen = false;
   };
 
-  openExifPopover = (): void => {
-    this.tagsPopoverOpen = false;
-    this.zoomPopoverOpen = false;
-    this.exifPopoverOpen = true;
+  openPopover = (which: MetaPopover): void => {
+    this.metaPopover = which;
   };
 
-  toggleExifPopover = (): void => {
-    if (this.exifPopoverOpen) {
-      this.exifPopoverOpen = false;
-    } else {
-      this.openExifPopover();
-    }
+  togglePopover = (which: MetaPopover): void => {
+    this.metaPopover = this.metaPopover === which ? null : which;
   };
 
-  closeExifPopover = (): void => {
-    this.exifPopoverOpen = false;
-  };
-
-  openTagsPopover = (): void => {
-    this.exifPopoverOpen = false;
-    this.zoomPopoverOpen = false;
-    this.tagsPopoverOpen = true;
-  };
-
-  toggleTagsPopover = (): void => {
-    if (this.tagsPopoverOpen) {
-      this.tagsPopoverOpen = false;
-    } else {
-      this.openTagsPopover();
-    }
-  };
-
-  closeTagsPopover = (): void => {
-    this.tagsPopoverOpen = false;
+  closePopover = (): void => {
+    this.metaPopover = null;
   };
 
   closeMetadataPopovers = (): boolean => {
-    if (!this.exifPopoverOpen && !this.tagsPopoverOpen && !this.zoomPopoverOpen) return false;
-    this.exifPopoverOpen = false;
-    this.tagsPopoverOpen = false;
-    this.zoomPopoverOpen = false;
+    if (!this.metaPopover) return false;
+    this.metaPopover = null;
     return true;
-  };
-
-  openZoomPopover = (): void => {
-    this.exifPopoverOpen = false;
-    this.tagsPopoverOpen = false;
-    this.zoomPopoverOpen = true;
-  };
-
-  toggleZoomPopover = (): void => {
-    if (this.zoomPopoverOpen) {
-      this.zoomPopoverOpen = false;
-    } else {
-      this.openZoomPopover();
-    }
-  };
-
-  closeZoomPopover = (): void => {
-    this.zoomPopoverOpen = false;
   };
 
   setZoom = (value: number): void => {

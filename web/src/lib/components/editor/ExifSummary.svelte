@@ -12,10 +12,10 @@
 
 {#if hasExif}
   <Popover
-    open={ui.exifPopoverOpen}
+    open={ui.metaPopover === 'exif'}
     anchor="bottom"
     align="end"
-    onClose={ui.closeExifPopover}
+    onClose={ui.closePopover}
     contentClass="p-3"
   >
     {#snippet trigger()}
@@ -23,8 +23,8 @@
         path={mdiInformationOutline}
         size={18}
         title={hint('Info', 'toggleInfo')}
-        active={ui.exifPopoverOpen}
-        onclick={ui.toggleExifPopover}
+        active={ui.metaPopover === 'exif'}
+        onclick={() => ui.togglePopover('exif')}
       />
     {/snippet}
     <ExifDetails />

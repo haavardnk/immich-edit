@@ -34,7 +34,7 @@ class PresetsStore {
       this.presets = await listPresets();
       this.loaded = true;
     } catch (e) {
-      toasts.push('error', `Failed to load presets: ${(e as Error).message}`, 8000);
+      toasts.fail('Failed to load presets', e, 8000);
     } finally {
       this.loading = false;
     }
@@ -47,7 +47,7 @@ class PresetsStore {
       toasts.push('success', `Saved preset "${created.name}"`, 5000);
       return created;
     } catch (e) {
-      toasts.push('error', `Failed to save preset: ${(e as Error).message}`, 8000);
+      toasts.fail('Failed to save preset', e, 8000);
       return null;
     }
   };
@@ -57,7 +57,7 @@ class PresetsStore {
       const updated = await updatePreset(id, input);
       this.presets = this.presets.map((p) => (p.id === id ? updated : p));
     } catch (e) {
-      toasts.push('error', `Failed to update preset: ${(e as Error).message}`, 8000);
+      toasts.fail('Failed to update preset', e, 8000);
     }
   };
 
@@ -66,7 +66,7 @@ class PresetsStore {
       await deletePreset(id);
       this.presets = this.presets.filter((p) => p.id !== id);
     } catch (e) {
-      toasts.push('error', `Failed to delete preset: ${(e as Error).message}`, 8000);
+      toasts.fail('Failed to delete preset', e, 8000);
     }
   };
 }

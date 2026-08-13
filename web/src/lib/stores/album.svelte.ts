@@ -1,5 +1,6 @@
 import { getAlbum } from '$lib/api/albums';
 import type { AlbumDetail } from '$lib/types/album';
+import { errorMessage } from '$lib/utils/errors';
 
 class AlbumStore {
   current = $state<AlbumDetail | null>(null);
@@ -14,7 +15,7 @@ class AlbumStore {
     try {
       this.current = await getAlbum(id);
     } catch (e) {
-      this.error = (e as Error).message;
+      this.error = errorMessage(e);
     } finally {
       this.loading = false;
     }
