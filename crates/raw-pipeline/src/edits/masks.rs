@@ -5,6 +5,8 @@ pub const N_MAX_COMPONENTS_PER_LAYER: usize = 8;
 pub const N_MAX_TOTAL_COMPONENTS: usize = 32;
 pub const N_MAX_RASTER_SLOTS: usize = 16;
 pub const N_MAX_POLYGON_POINTS: usize = 64;
+pub const N_MAX_CLICK_POINTS: usize = 32;
+pub const MAX_REFINE_PX: f32 = 128.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -232,11 +234,45 @@ fn clamp_masked_edits(m: &MaskedEdits) -> MaskedEdits {
     }
 }
 
+fn clamp_generated(meta: &GeneratedMeta) -> GeneratedMeta {
+    GeneratedMeta {
+        model_id: meta.model_id.clone(),
+        kind: meta.kind.clone(),
+        prob_raster_id: meta.prob_raster_id.clone(),
+        class: meta.class.clone(),
+        grow: meta.grow.clamp(-MAX_REFINE_PX, MAX_REFINE_PX),
+        feather: meta.feather.clamp(0.0, MAX_REFINE_PX),
+        painted: meta.painted,
+        points: meta
+            .points
+            .iter()
+            .take(N_MAX_CLICK_POINTS)
+            .map(|p| ClickPointMeta {
+                x: p.x.clamp(0.0, 1.0),
+                y: p.y.clamp(0.0, 1.0),
+                positive: p.positive,
+            })
+            .collect(),
+        range: meta.range.map(|r| RangeMeta {
+            min: r.min.min(r.max).clamp(0.0, 1.0),
+            max: r.min.max(r.max).clamp(0.0, 1.0),
+            softness: r.softness.clamp(0.0, 1.0),
+        }),
+    }
+}
+
+pub(super) fn clamp_point(p: Vec2f) -> Vec2f {
+    Vec2f {
+        x: p.x.clamp(-1.0, 2.0),
+        y: p.y.clamp(-1.0, 2.0),
+    }
+}
+
 fn clamp_component(c: &MaskComponent) -> MaskComponent {
     let kind = match &c.kind {
         MaskComponentKind::Linear { p0, p1, feather } => MaskComponentKind::Linear {
-            p0: *p0,
-            p1: *p1,
+            p0: clamp_point(*p0),
+            p1: clamp_point(*p1),
             feather: feather.clamp(0.0, 1.0),
         },
         MaskComponentKind::Radial {
@@ -244,7 +280,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
             radius_xy,
             feather,
         } => MaskComponentKind::Radial {
-            center: *center,
+            center: clamp_point(*center),
             radius_xy: Vec2f {
                 x: radius_xy.x.clamp(0.0, 2.0),
                 y: radius_xy.y.clamp(0.0, 2.0),
@@ -276,10 +312,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
             points: points
                 .iter()
                 .take(N_MAX_POLYGON_POINTS)
-                .map(|p| Vec2f {
-                    x: p.x.clamp(-1.0, 2.0),
-                    y: p.y.clamp(-1.0, 2.0),
-                })
+                .map(|p| clamp_point(*p))
                 .collect(),
             feather: feather.clamp(0.0, 1.0),
         },
@@ -291,7 +324,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
         invert: c.invert,
         kind,
         source: c.source,
-        generated: c.generated.clone(),
+        generated: c.generated.as_ref().map(clamp_generated),
     }
 }
 

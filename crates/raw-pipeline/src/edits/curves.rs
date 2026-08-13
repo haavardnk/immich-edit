@@ -54,6 +54,19 @@ impl CurvePoints {
     pub fn as_tuples(&self) -> Vec<(f64, f64)> {
         self.points.iter().map(|p| (p.x, p.y)).collect()
     }
+
+    pub fn clamped(&self) -> Self {
+        Self {
+            points: self
+                .points
+                .iter()
+                .map(|p| CurvePoint {
+                    x: p.x.clamp(0.0, 1.0),
+                    y: p.y.clamp(0.0, 1.0),
+                })
+                .collect(),
+        }
+    }
 }
 
 impl Default for CurvePoints {
@@ -85,5 +98,15 @@ impl CurvesEdits {
             && self.g.is_identity()
             && self.b.is_identity()
             && self.luma.is_identity()
+    }
+
+    pub fn clamped(&self) -> Self {
+        Self {
+            composite: self.composite.clamped(),
+            r: self.r.clamped(),
+            g: self.g.clamped(),
+            b: self.b.clamped(),
+            luma: self.luma.clamped(),
+        }
     }
 }

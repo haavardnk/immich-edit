@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use ml::{BakeParams, BoxPrompt, ClickPoint, ModelKind, RangeWindow};
+use raw_pipeline::edits::{MAX_REFINE_PX, N_MAX_CLICK_POINTS};
 use serde::{Deserialize, Serialize};
 
 use crate::asset_key::AssetKey;
@@ -12,8 +13,6 @@ use crate::services::render::RenderIdentity;
 use crate::services::segment::SegmentServiceError;
 use crate::state::AppState;
 
-const MAX_REFINE_PX: f32 = 128.0;
-const MAX_POINTS: usize = 32;
 const MIN_BOX: f32 = 0.005;
 
 #[derive(Debug, Deserialize)]
@@ -309,9 +308,9 @@ pub async fn click(
     if req.points.is_empty() && req.bbox.is_none() {
         return Err(AppError::BadRequest("no points given".into()));
     }
-    if req.points.len() > MAX_POINTS {
+    if req.points.len() > N_MAX_CLICK_POINTS {
         return Err(AppError::BadRequest(format!(
-            "too many points: {} (max {MAX_POINTS})",
+            "too many points: {} (max {N_MAX_CLICK_POINTS})",
             req.points.len()
         )));
     }

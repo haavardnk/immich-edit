@@ -18,9 +18,10 @@ pub use curves::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits};
 pub use geometry::{AspectLock, CropRect, GeometryEdits};
 pub use lens::LensEdits;
 pub use masks::{
-    ClickPointMeta, GeneratedMeta, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer,
-    MaskSource, MaskedEdits, N_MAX_COMPONENTS_PER_LAYER, N_MAX_MASK_LAYERS, N_MAX_POLYGON_POINTS,
-    N_MAX_RASTER_SLOTS, N_MAX_TOTAL_COMPONENTS, RangeMeta, Vec2f,
+    ClickPointMeta, GeneratedMeta, MAX_REFINE_PX, MaskComponent, MaskComponentKind,
+    MaskComponentMode, MaskLayer, MaskSource, MaskedEdits, N_MAX_CLICK_POINTS,
+    N_MAX_COMPONENTS_PER_LAYER, N_MAX_MASK_LAYERS, N_MAX_POLYGON_POINTS, N_MAX_RASTER_SLOTS,
+    N_MAX_TOTAL_COMPONENTS, RangeMeta, Vec2f,
 };
 pub use retouch::{N_MAX_RETOUCH_POINTS, N_MAX_RETOUCH_STROKES, RetouchMode, RetouchStroke};
 
@@ -66,7 +67,7 @@ impl BasicEdits {
             texture: self.texture.clamp(-100.0, 100.0),
             clarity: self.clarity.clamp(-100.0, 100.0),
             dehaze: self.dehaze.clamp(-100.0, 100.0),
-            curves: self.curves.clone(),
+            curves: self.curves.clamped(),
         }
     }
 }

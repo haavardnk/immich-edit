@@ -1,4 +1,4 @@
-use super::masks::Vec2f;
+use super::masks::{Vec2f, clamp_point};
 use serde::{Deserialize, Serialize};
 
 pub const N_MAX_RETOUCH_STROKES: usize = 64;
@@ -55,18 +55,12 @@ pub(super) fn clamp_retouch(strokes: &[RetouchStroke]) -> Vec<RetouchStroke> {
                 .points
                 .iter()
                 .take(N_MAX_RETOUCH_POINTS)
-                .map(|p| Vec2f {
-                    x: p.x.clamp(-1.0, 2.0),
-                    y: p.y.clamp(-1.0, 2.0),
-                })
+                .map(|p| clamp_point(*p))
                 .collect(),
             radius: s.radius.clamp(0.0, 1.0),
             hardness: s.hardness.clamp(0.0, 1.0),
             opacity: s.opacity.clamp(0.0, 1.0),
-            source: Vec2f {
-                x: s.source.x.clamp(-1.0, 2.0),
-                y: s.source.y.clamp(-1.0, 2.0),
-            },
+            source: clamp_point(s.source),
             enabled: s.enabled,
         })
         .collect()

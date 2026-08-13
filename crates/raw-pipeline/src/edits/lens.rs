@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub const MAX_LENS_COEFF: f64 = 2.0;
+
 fn lens_amount_default() -> f64 {
     100.0
 }
@@ -91,12 +93,12 @@ impl LensEdits {
             constrain_crop: self.constrain_crop,
             distortion_amount: self.distortion_amount.clamp(0.0, 200.0),
             vignette_amount: self.vignette_amount.clamp(0.0, 200.0),
-            k1: self.k1,
-            k2: self.k2,
-            k3: self.k3,
-            vk1: self.vk1,
-            vk2: self.vk2,
-            vk3: self.vk3,
+            k1: self.k1.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
+            k2: self.k2.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
+            k3: self.k3.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
+            vk1: self.vk1.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
+            vk2: self.vk2.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
+            vk3: self.vk3.clamp(-MAX_LENS_COEFF, MAX_LENS_COEFF),
             ca_red_scale_x10000: self.ca_red_scale_x10000.clamp(-500.0, 500.0),
             ca_blue_scale_x10000: self.ca_blue_scale_x10000.clamp(-500.0, 500.0),
         }

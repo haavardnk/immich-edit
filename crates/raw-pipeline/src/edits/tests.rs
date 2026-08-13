@@ -472,3 +472,81 @@ fn populated_edits() -> Edits {
         )]),
     }
 }
+
+const MAX_CLAMPED_MAGNITUDE: f64 = 500.0;
+
+fn every_component_kind() -> Vec<MaskComponent> {
+    let kinds = [
+        MaskComponentKind::Radial {
+            center: Vec2f { x: 0.5, y: 0.5 },
+            radius_xy: Vec2f { x: 0.3, y: 0.4 },
+            feather: 0.2,
+        },
+        MaskComponentKind::Brush {
+            raster_id: "raster-1".into(),
+        },
+        MaskComponentKind::LumaRange {
+            min: 0.2,
+            max: 0.7,
+            softness: 0.1,
+        },
+        MaskComponentKind::ColorRange {
+            sample_rgb: [0.2, 0.4, 0.6],
+            tolerance: 0.3,
+            softness: 0.1,
+        },
+    ];
+    kinds
+        .into_iter()
+        .enumerate()
+        .map(|(i, kind)| MaskComponent {
+            id: format!("saturated-{i}"),
+            enabled: true,
+            mode: MaskComponentMode::Add,
+            invert: false,
+            kind,
+            source: MaskSource::Manual,
+            generated: None,
+        })
+        .collect()
+}
+
+fn saturate(value: &mut serde_json::Value, big: f64) {
+    match value {
+        serde_json::Value::Number(n) if n.is_f64() => *value = serde_json::json!(big),
+        serde_json::Value::Array(items) => items.iter_mut().for_each(|i| saturate(i, big)),
+        serde_json::Value::Object(map) => map.values_mut().for_each(|v| saturate(v, big)),
+        _ => {}
+    }
+}
+
+fn max_magnitude(value: &serde_json::Value) -> f64 {
+    match value {
+        serde_json::Value::Number(n) => n.as_f64().unwrap_or(0.0).abs(),
+        serde_json::Value::Array(items) => items.iter().map(max_magnitude).fold(0.0, f64::max),
+        serde_json::Value::Object(map) => map.values().map(max_magnitude).fold(0.0, f64::max),
+        _ => 0.0,
+    }
+}
+
+#[test]
+fn clamping_bounds_every_numeric_field() {
+    let mut base = populated_edits();
+    base.unknown_ops.clear();
+    base.masks[0].components.extend(every_component_kind());
+    if let Some(p) = base.geometry.perspective.as_mut() {
+        p.corners = Some([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]);
+    }
+
+    for big in [1e9, -1e9] {
+        let mut json = serde_json::to_value(&base).expect("serialize");
+        saturate(&mut json, big);
+        let saturated: Edits = serde_json::from_value(json).expect("deserialize");
+        let clamped = serde_json::to_value(saturated.clamped()).expect("serialize clamped");
+        let worst = max_magnitude(&clamped);
+        assert!(
+            worst <= MAX_CLAMPED_MAGNITUDE,
+            "unclamped field after saturating with {big}: {worst} in {clamped}"
+        );
+    }
+}
