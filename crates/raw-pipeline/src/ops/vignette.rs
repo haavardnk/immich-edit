@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{CropRect, Edits, EffectsEdits};
+use crate::math::smoothstep;
 use rayon::prelude::*;
 
 pub struct VignetteOp;
@@ -106,15 +107,6 @@ pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits, roi: Option<Cro
 #[inline]
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
-}
-
-#[inline]
-fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
-    if edge1 <= edge0 {
-        return if x >= edge1 { 1.0 } else { 0.0 };
-    }
-    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
 }
 
 #[cfg(test)]

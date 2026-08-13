@@ -23,7 +23,7 @@ fn probe_colors() -> Vec<[f32; 3]> {
 }
 
 fn shadow_luma(c: [f32; 3]) -> f32 {
-    0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    crate::math::luma(c[0], c[1], c[2])
 }
 
 fn probe_ctx() -> OpContext {

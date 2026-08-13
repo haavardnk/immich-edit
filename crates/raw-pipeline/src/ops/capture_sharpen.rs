@@ -4,11 +4,8 @@ use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
+use crate::math::{luma, smoothstep};
 use rayon::prelude::*;
-
-const KR: f32 = 0.2126;
-const KG: f32 = 0.7152;
-const KB: f32 = 0.0722;
 
 const MIN_SIGMA: f32 = 0.35;
 const MAX_SIGMA: f32 = 2.0;
@@ -170,11 +167,6 @@ fn separable_extreme(
     });
 }
 
-fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
-    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
 fn build_blend(image: &LinearImage, luma: &[f32], w: usize, h: usize) -> Scratch {
     let mut blend = Scratch::take_uninit(w * h);
     blend.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
@@ -206,27 +198,27 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
         return;
     }
     let n = w * h;
-    let mut luma = Scratch::take_uninit(n);
-    luma.par_chunks_mut(w)
+    let mut lum = Scratch::take_uninit(n);
+    lum.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
             for x in 0..w {
-                lrow[x] = (KR * prow[x * 3] + KG * prow[x * 3 + 1] + KB * prow[x * 3 + 2]).max(0.0);
+                lrow[x] = luma(prow[x * 3], prow[x * 3 + 1], prow[x * 3 + 2]).max(0.0);
             }
         });
-    let blend = build_blend(image, &luma, w, h);
+    let blend = build_blend(image, &lum, w, h);
     if blend.par_iter().all(|b| *b <= 0.001) {
         return;
     }
     let kernel = gaussian_kernel(sigma);
     let mut est = Scratch::take_uninit(n);
-    est.copy_from_slice(&luma);
+    est.copy_from_slice(&lum);
     let mut conv = Scratch::take_uninit(n);
     let mut corr = Scratch::take_uninit(n);
     let mut tmp = Scratch::take_uninit(n);
     for _ in 0..ITERATIONS {
         convolve(&est, &mut conv, &mut tmp, w, h, &kernel);
-        conv.par_iter_mut().zip(luma.par_iter()).for_each(|(c, l)| {
+        conv.par_iter_mut().zip(lum.par_iter()).for_each(|(c, l)| {
             *c = l / c.max(EPS);
         });
         convolve(&conv, &mut corr, &mut tmp, w, h, &kernel);
@@ -235,8 +227,8 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
             .for_each(|(e, c)| *e *= c);
     }
     let radius = kernel.len() / 2;
-    separable_extreme(&luma, &mut conv, &mut tmp, w, h, radius, f32::min);
-    separable_extreme(&luma, &mut corr, &mut tmp, w, h, radius, f32::max);
+    separable_extreme(&lum, &mut conv, &mut tmp, w, h, radius, f32::min);
+    separable_extreme(&lum, &mut corr, &mut tmp, w, h, radius, f32::max);
     image
         .rgb
         .par_chunks_mut(w * 3)
@@ -244,7 +236,7 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
         .for_each(|(y, prow)| {
             for x in 0..w {
                 let i = y * w + x;
-                let old = luma[i];
+                let old = lum[i];
                 if old <= EPS {
                     continue;
                 }

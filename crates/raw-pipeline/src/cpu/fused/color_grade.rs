@@ -1,4 +1,4 @@
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 use crate::ops::color_grade::{
     COLOR_GRADE_FEATHER_BASE, COLOR_GRADE_FEATHER_RANGE, COLOR_GRADE_PIVOT_BASE,
     COLOR_GRADE_PIVOT_RANGE, COLOR_GRADE_STRENGTH,
@@ -34,7 +34,7 @@ pub struct ColorGradeParams<'a> {
 
 #[inline(always)]
 pub fn apply_color_grade(p: ColorGradeParams<'_>, r: &mut f32, g: &mut f32, b: &mut f32) {
-    let y = (0.2126 * *r + 0.7152 * *g + 0.0722 * *b).clamp(0.0, 1.0);
+    let y = luma(*r, *g, *b).clamp(0.0, 1.0);
     let (ws, wm, wh) = cg_weights(y, p.balance, p.blend);
     let or =
         (ws * p.s_off[0] + wm * p.m_off[0] + wh * p.h_off[0] + p.g_off[0]) * COLOR_GRADE_STRENGTH;

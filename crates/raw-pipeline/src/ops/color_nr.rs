@@ -3,11 +3,10 @@ use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
+use crate::math::luma;
+use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
 use rayon::prelude::*;
 
-const KR: f32 = 0.2126;
-const KG: f32 = 0.7152;
-const KB: f32 = 0.0722;
 const PB_DEN: f32 = 1.8556;
 const PR_DEN: f32 = 1.5748;
 
@@ -94,7 +93,7 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
                 let r = prow[x * 3];
                 let g = prow[x * 3 + 1];
                 let b = prow[x * 3 + 2];
-                let yv = KR * r + KG * g + KB * b;
+                let yv = luma(r, g, b);
                 yrow[x] = yv;
                 pbrow[x] = (b - yv) / PB_DEN;
                 prrow[x] = (r - yv) / PR_DEN;
@@ -180,7 +179,7 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
                 let pr_new = pr_orig + (pr_out[y * w + x] - pr_orig) * alpha;
                 let r = yv + PR_DEN * pr_new;
                 let b = yv + PB_DEN * pb_new;
-                let g = (yv - KR * r - KB * b) / KG;
+                let g = (yv - LUMA_R * r - LUMA_B * b) / LUMA_G;
                 prow[x * 3] = r;
                 prow[x * 3 + 1] = g;
                 prow[x * 3 + 2] = b;
@@ -258,7 +257,7 @@ mod tests {
             for x in 0..w {
                 let r = image.rgb[(y * w + x) * 3];
                 let b = image.rgb[(y * w + x) * 3 + 2];
-                let yv = KR * r + KG * 0.5 + KB * b;
+                let yv = LUMA_R * r + LUMA_G * 0.5 + LUMA_B * b;
                 let cb = (b - yv) / PB_DEN;
                 let cr = (r - yv) / PR_DEN;
                 sum += cb * cb + cr * cr;
@@ -271,7 +270,7 @@ mod tests {
     fn luma_mean(image: &LinearImage) -> f32 {
         let mut s = 0.0f32;
         for px in image.rgb.chunks(3) {
-            s += KR * px[0] + KG * px[1] + KB * px[2];
+            s += luma(px[0], px[1], px[2]);
         }
         s / (image.rgb.len() / 3) as f32
     }

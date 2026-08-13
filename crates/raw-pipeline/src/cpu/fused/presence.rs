@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 use crate::tone::shared::{HL_RECONSTRUCT_BIAS, HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE};
 
 #[inline(always)]
@@ -54,7 +54,7 @@ pub struct PresenceParams<'a> {
 
 #[inline(always)]
 pub fn apply_presence(p: PresenceParams<'_>, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
-    let y0 = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
+    let y0 = luma(*r, *g, *b);
     let y0c = y0.max(1e-5);
     let mut log_gain = 0.0f32;
     if let Some(buf) = p.texture_blur {

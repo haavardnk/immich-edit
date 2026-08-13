@@ -1,4 +1,5 @@
 use crate::histogram::{self, Histogram};
+use crate::math::luma;
 
 pub(super) type HistBins = (
     [u32; histogram::BINS],
@@ -20,7 +21,7 @@ pub(super) fn zero_bins() -> (HistBins, HistBins) {
 }
 
 pub(super) fn fold_linear(acc: &mut HistBins, lr: f32, lg: f32, lb: f32) {
-    let li = (0.2126 * lr + 0.7152 * lg + 0.0722 * lb).clamp(0.0, 1.0);
+    let li = luma(lr, lg, lb).clamp(0.0, 1.0);
     acc.0[((lr.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
     acc.1[((lg.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
     acc.2[((lb.clamp(0.0, 1.0) * 255.0) as usize).min(histogram::BINS - 1)] += 1;
@@ -28,7 +29,7 @@ pub(super) fn fold_linear(acc: &mut HistBins, lr: f32, lg: f32, lb: f32) {
 }
 
 pub(super) fn fold_display(acc: &mut HistBins, ur: u8, ug: u8, ub: u8) {
-    let li = (0.2126 * ur as f32 + 0.7152 * ug as f32 + 0.0722 * ub as f32) as usize;
+    let li = luma(ur as f32, ug as f32, ub as f32) as usize;
     acc.0[ur as usize] += 1;
     acc.1[ug as usize] += 1;
     acc.2[ub as usize] += 1;

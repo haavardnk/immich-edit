@@ -1,4 +1,5 @@
 use crate::cpu::scratch::Scratch;
+use crate::math::luma;
 use crate::ops::LinearImage;
 use rayon::prelude::*;
 
@@ -18,7 +19,7 @@ impl LumaPyramid {
         l0.par_iter_mut()
             .zip(image.rgb.par_chunks_exact(3))
             .for_each(|(slot, p)| {
-                *slot = 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+                *slot = luma(p[0], p[1], p[2]);
             });
         levels.push(l0);
         dims.push((image.width, image.height));

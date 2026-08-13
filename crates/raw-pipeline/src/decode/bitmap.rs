@@ -1,6 +1,7 @@
 use super::format_hint;
 use crate::PipelineError;
 use crate::frame::RawFrame;
+use crate::math::srgb_to_linear;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum InputFormat {
@@ -383,12 +384,4 @@ fn be_bytes_to_u16(bytes: &[u8]) -> Vec<u16> {
         .chunks_exact(2)
         .map(|c| u16::from_be_bytes([c[0], c[1]]))
         .collect()
-}
-
-fn srgb_to_linear(v: f32) -> f32 {
-    if v <= 0.04045 {
-        v / 12.92
-    } else {
-        ((v + 0.055) / 1.055).powf(2.4)
-    }
 }

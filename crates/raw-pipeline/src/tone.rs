@@ -2,9 +2,10 @@ pub mod shared;
 pub mod wgsl;
 
 use crate::frame::OutputColorSpace;
+use crate::math::luma;
 use shared::{
-    LUMA_B, LUMA_G, LUMA_R, OETF_LUT_SIZE, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET,
-    SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
+    OETF_LUT_SIZE, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE,
+    SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
 };
 
 fn oetf_lut() -> &'static [f32; OETF_LUT_SIZE + 1] {
@@ -35,10 +36,6 @@ pub fn srgb_oetf_scalar(v: f32) -> f32 {
     } else {
         SRGB_OETF_GAMMA_SCALE * v.powf(SRGB_OETF_GAMMA) - SRGB_OETF_GAMMA_OFFSET
     }
-}
-
-fn luma(rgb: [f32; 3]) -> f32 {
-    LUMA_R * rgb[0] + LUMA_G * rgb[1] + LUMA_B * rgb[2]
 }
 
 fn project_to_gamut(rgb: [f32; 3], neutral: f32) -> [f32; 3] {
@@ -72,7 +69,7 @@ fn to_output_space(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
 }
 
 fn tone_map_luma_and_project_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
-    let neutral = luma(rgb).clamp(0.0, 1.0);
+    let neutral = luma(rgb[0], rgb[1], rgb[2]).clamp(0.0, 1.0);
     project_to_gamut(to_output_space(rgb, cs), neutral)
 }
 
@@ -91,7 +88,7 @@ pub fn apply_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
 
 pub fn apply_display_luma(rgb: [f32; 3]) -> f32 {
     let display = apply_rgb(rgb);
-    0.2126 * display[0] + 0.7152 * display[1] + 0.0722 * display[2]
+    luma(display[0], display[1], display[2])
 }
 
 fn below_gamut(c: [f32; 3]) -> bool {

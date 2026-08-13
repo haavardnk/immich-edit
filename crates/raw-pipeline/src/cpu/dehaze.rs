@@ -1,11 +1,7 @@
 use crate::cpu::scratch::Scratch;
+use crate::math::luma;
 use crate::ops::LinearImage;
 use rayon::prelude::*;
-
-#[inline(always)]
-fn luma(r: f32, g: f32, b: f32) -> f32 {
-    0.2126 * r + 0.7152 * g + 0.0722 * b
-}
 
 fn box_mean_h(src: &[f32], dst: &mut [f32], w: usize, _h: usize, r: usize) {
     dst.par_chunks_exact_mut(w)

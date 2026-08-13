@@ -1,7 +1,7 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 
 pub struct BrightnessOp;
 
@@ -11,7 +11,7 @@ pub const BRIGHTNESS_ROLLOFF_HI: f32 = 1.0;
 pub const BRIGHTNESS_MAX_GAIN: f32 = 8.0;
 
 pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
-    let y0 = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    let y0 = luma(r, g, b);
     if y0 <= 1e-5 {
         return (r, g, b);
     }

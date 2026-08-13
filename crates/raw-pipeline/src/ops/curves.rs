@@ -1,6 +1,7 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
+use crate::math::luma;
 
 pub struct CurvesOp;
 
@@ -109,7 +110,7 @@ pub fn apply_curves_pixel(luts: &CurveLuts, r: &mut f32, g: &mut f32, b: &mut f3
     *r = sample_lut(&luts.r, *r);
     *g = sample_lut(&luts.g, *g);
     *b = sample_lut(&luts.b, *b);
-    let y0 = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
+    let y0 = luma(*r, *g, *b);
     let y0c = y0.clamp(0.0, 1.0);
     let y1 = sample_lut(&luts.luma, y0c);
     if y0 < 1e-5 {

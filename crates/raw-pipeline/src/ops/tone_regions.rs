@@ -1,7 +1,7 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 
 pub struct ToneRegionsOp;
 
@@ -84,7 +84,7 @@ pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -
     let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip)
         * (-hl).clamp(0.0, 1.0);
     if desat > 0.0 {
-        let luma = 0.2126 * rr + 0.7152 * gg + 0.0722 * bb;
+        let luma = luma(rr, gg, bb);
         rr = rr + (luma - rr) * desat;
         gg = gg + (luma - gg) * desat;
         bb = bb + (luma - bb) * desat;

@@ -1,6 +1,6 @@
 use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 use crate::ops::LinearImage;
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use rayon::prelude::*;
@@ -29,7 +29,7 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             let y = i / img_w;
             let fx = x as f32 + 0.5;
             let fy = y as f32 + 0.5;
-            let y0 = 0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2];
+            let y0 = luma(px[0], px[1], px[2]);
             let y0c = y0.max(1e-5);
             let mut log_gain = 0.0f32;
             if amounts.texture != 0.0 {

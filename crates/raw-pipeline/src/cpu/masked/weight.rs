@@ -1,21 +1,6 @@
 use super::{ComponentEval, ComponentKindEval, LayerEval};
 use crate::edits::MaskComponentMode;
-
-#[inline(always)]
-fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
-    let t = ((x - e0) / (e1 - e0).max(1e-6)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-#[inline(always)]
-fn srgb_to_linear(v: f32) -> f32 {
-    let c = v.clamp(0.0, 1.0);
-    if c <= 0.04045 {
-        c / 12.92
-    } else {
-        ((c + 0.055) / 1.055).powf(2.4)
-    }
-}
+use crate::math::{luma, smoothstep, srgb_to_linear};
 
 #[inline(always)]
 pub(super) fn display_srgb_to_oklab(rgb: [f32; 3]) -> [f32; 3] {
@@ -126,7 +111,7 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) ->
             None => 0.0,
         },
         ComponentKindEval::LumaRange { min, max, softness } => {
-            let luma = 0.2126 * display_rgb[0] + 0.7152 * display_rgb[1] + 0.0722 * display_rgb[2];
+            let luma = luma(display_rgb[0], display_rgb[1], display_rgb[2]);
             luma_range_weight(luma, *min, *max, *softness)
         }
         ComponentKindEval::ColorRange {

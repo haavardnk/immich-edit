@@ -4,6 +4,7 @@ use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
+use crate::math::luma;
 use rayon::prelude::*;
 
 pub struct SharpenOp;
@@ -122,13 +123,13 @@ fn apply_sharpen(
 }
 
 fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
-    let mut luma = Scratch::take_uninit(w * h);
-    luma.par_chunks_mut(w)
+    let mut lum = Scratch::take_uninit(w * h);
+    lum.par_chunks_mut(w)
         .zip(blur.par_chunks(w * 3))
         .for_each(|(lrow, brow)| {
             for (x, slot) in lrow.iter_mut().enumerate() {
                 let i = x * 3;
-                *slot = 0.2126 * brow[i] + 0.7152 * brow[i + 1] + 0.0722 * brow[i + 2];
+                *slot = luma(brow[i], brow[i + 1], brow[i + 2]);
             }
         });
     let mut mag = Scratch::take_uninit(w * h);
@@ -138,14 +139,14 @@ fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
         for x in 0..w {
             let xm1 = x.saturating_sub(1);
             let xp1 = (x + 1).min(w - 1);
-            let gx = -luma[ym1 * w + xm1] - 2.0 * luma[y * w + xm1] - luma[yp1 * w + xm1]
-                + luma[ym1 * w + xp1]
-                + 2.0 * luma[y * w + xp1]
-                + luma[yp1 * w + xp1];
-            let gy = -luma[ym1 * w + xm1] - 2.0 * luma[ym1 * w + x] - luma[ym1 * w + xp1]
-                + luma[yp1 * w + xm1]
-                + 2.0 * luma[yp1 * w + x]
-                + luma[yp1 * w + xp1];
+            let gx = -lum[ym1 * w + xm1] - 2.0 * lum[y * w + xm1] - lum[yp1 * w + xm1]
+                + lum[ym1 * w + xp1]
+                + 2.0 * lum[y * w + xp1]
+                + lum[yp1 * w + xp1];
+            let gy = -lum[ym1 * w + xm1] - 2.0 * lum[ym1 * w + x] - lum[ym1 * w + xp1]
+                + lum[yp1 * w + xm1]
+                + 2.0 * lum[yp1 * w + x]
+                + lum[yp1 * w + xp1];
             mrow[x] = (gx * gx + gy * gy).sqrt();
         }
     });
@@ -180,11 +181,11 @@ fn write_preview(
                         None => 0.0,
                     },
                     crate::frame::PreviewMode::SharpenRadius => {
-                        0.2126 * brow[i] + 0.7152 * brow[i + 1] + 0.0722 * brow[i + 2]
+                        luma(brow[i], brow[i + 1], brow[i + 2])
                     }
                     crate::frame::PreviewMode::SharpenDetail => {
-                        let lr = 0.2126 * row[i] + 0.7152 * row[i + 1] + 0.0722 * row[i + 2];
-                        let lb = 0.2126 * brow[i] + 0.7152 * brow[i + 1] + 0.0722 * brow[i + 2];
+                        let lr = luma(row[i], row[i + 1], row[i + 2]);
+                        let lb = luma(brow[i], brow[i + 1], brow[i + 2]);
                         (8.0 * detail_weight * (lr - lb).abs()).clamp(0.0, 1.0)
                     }
                     _ => row[i],

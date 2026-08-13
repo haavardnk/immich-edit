@@ -1,7 +1,7 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use crate::math::{hue_dist, smoothstep};
+use crate::math::{hue_dist, luma, smoothstep};
 
 pub struct VibranceOp;
 
@@ -51,7 +51,7 @@ pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f
         return (r, g, b);
     }
     let factor = 1.0 + effective;
-    let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    let luma = luma(r, g, b);
     (
         luma + (r - luma) * factor,
         luma + (g - luma) * factor,

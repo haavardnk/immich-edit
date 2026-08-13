@@ -3,11 +3,8 @@ use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
+use crate::math::luma;
 use rayon::prelude::*;
-
-const KR: f32 = 0.2126;
-const KG: f32 = 0.7152;
-const KB: f32 = 0.0722;
 
 pub struct LumaNrOp;
 
@@ -77,15 +74,15 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
         return;
     }
     let n = w * h;
-    let mut luma = Scratch::take_uninit(n);
-    luma.par_chunks_mut(w)
+    let mut lum = Scratch::take_uninit(n);
+    lum.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
             for x in 0..w {
                 let r = prow[x * 3];
                 let g = prow[x * 3 + 1];
                 let b = prow[x * 3 + 2];
-                lrow[x] = KR * r + KG * g + KB * b;
+                lrow[x] = luma(r, g, b);
             }
         });
     let radius: i32 = if amount >= 66.0 {
@@ -106,7 +103,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
         .enumerate()
         .for_each(|(y, drow)| {
             for x in 0..w {
-                let center = luma[y * w + x];
+                let center = lum[y * w + x];
                 let mut wsum = 0.0f32;
                 let mut acc = 0.0f32;
                 let y0 = (y as i32 - radius).max(0) as usize;
@@ -115,7 +112,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
                 let x1 = (x as i32 + radius).min(w as i32 - 1) as usize;
                 for yy in y0..=y1 {
                     for xx in x0..=x1 {
-                        let v = luma[yy * w + xx];
+                        let v = lum[yy * w + xx];
                         let dx = xx as f32 - x as f32;
                         let dy = yy as f32 - y as f32;
                         let dr = v - center;
@@ -133,7 +130,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
         .enumerate()
         .for_each(|(y, prow)| {
             for x in 0..w {
-                let y_orig = luma[y * w + x];
+                let y_orig = lum[y * w + x];
                 let y_den = denoised[y * w + x];
                 let y_new = y_orig + (y_den - y_orig) * alpha;
                 let scale = if y_orig > 1e-6 { y_new / y_orig } else { 1.0 };

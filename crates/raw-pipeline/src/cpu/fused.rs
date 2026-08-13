@@ -1,4 +1,5 @@
 use crate::edits::HSL_BANDS;
+use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::curves::{CurveLuts, apply_curves_pixel};
 use rayon::prelude::*;
@@ -123,7 +124,7 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *b = crate::ops::contrast::apply_perceptual_contrast(*b, *s);
         }
         CpuFusedOp::Saturation { factor } => {
-            let luma = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
+            let luma = luma(*r, *g, *b);
             *r = luma + (*r - luma) * *factor;
             *g = luma + (*g - luma) * *factor;
             *b = luma + (*b - luma) * *factor;
@@ -145,7 +146,7 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *g *= *wh_gain;
             *b *= *wh_gain;
             if *sh != 0.0 {
-                let luma = 0.2126 * *r + 0.7152 * *g + 0.0722 * *b;
+                let luma = luma(*r, *g, *b);
                 let blur_l = shadows_blur.as_ref().map(|buf| buf[i]).unwrap_or(luma);
                 let mult = crate::ops::tone_regions::shadows_mult(luma, blur_l, *sh);
                 *r *= mult;

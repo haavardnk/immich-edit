@@ -1,3 +1,4 @@
+use crate::math::luma;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -33,8 +34,7 @@ impl Histogram {
                     let rv = (chunk[i].clamp(0.0, 1.0) * 255.0) as usize;
                     let gv = (chunk[i + 1].clamp(0.0, 1.0) * 255.0) as usize;
                     let bv = (chunk[i + 2].clamp(0.0, 1.0) * 255.0) as usize;
-                    let lv = (0.2126 * chunk[i] + 0.7152 * chunk[i + 1] + 0.0722 * chunk[i + 2])
-                        .clamp(0.0, 1.0);
+                    let lv = luma(chunk[i], chunk[i + 1], chunk[i + 2]).clamp(0.0, 1.0);
                     let li = (lv * 255.0) as usize;
                     acc.0[rv.min(BINS - 1)] += 1;
                     acc.1[gv.min(BINS - 1)] += 1;
@@ -76,9 +76,8 @@ impl Histogram {
                     let rv = chunk[i] as usize;
                     let gv = chunk[i + 1] as usize;
                     let bv = chunk[i + 2] as usize;
-                    let li = ((0.2126 * chunk[i] as f32
-                        + 0.7152 * chunk[i + 1] as f32
-                        + 0.0722 * chunk[i + 2] as f32) as usize)
+                    let li = (luma(chunk[i] as f32, chunk[i + 1] as f32, chunk[i + 2] as f32)
+                        as usize)
                         .min(BINS - 1);
                     acc.0[rv.min(BINS - 1)] += 1;
                     acc.1[gv.min(BINS - 1)] += 1;
@@ -119,9 +118,8 @@ impl Histogram {
                     let rv = chunk[i] as usize;
                     let gv = chunk[i + 1] as usize;
                     let bv = chunk[i + 2] as usize;
-                    let li = ((0.2126 * chunk[i] as f32
-                        + 0.7152 * chunk[i + 1] as f32
-                        + 0.0722 * chunk[i + 2] as f32) as usize)
+                    let li = (luma(chunk[i] as f32, chunk[i + 1] as f32, chunk[i + 2] as f32)
+                        as usize)
                         .min(BINS - 1);
                     acc.0[rv] += 1;
                     acc.1[gv] += 1;

@@ -2,6 +2,7 @@ use super::LinearImage;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{CropRect, Edits, EffectsEdits};
+use crate::math::luma;
 use rayon::prelude::*;
 
 pub struct GrainOp;
@@ -55,10 +56,6 @@ impl Op for GrainOp {
         Ok(())
     }
 }
-
-const Y_R: f32 = 0.2126;
-const Y_G: f32 = 0.7152;
-const Y_B: f32 = 0.0722;
 
 #[inline]
 fn pcg_hash(mut x: u32) -> u32 {
@@ -133,7 +130,7 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRe
                 let r = row[i];
                 let g = row[i + 1];
                 let b = row[i + 2];
-                let yv = Y_R * r + Y_G * g + Y_B * b;
+                let yv = luma(r, g, b);
                 let scale = if yv > 1e-6 { (yv + delta) / yv } else { 1.0 };
                 row[i] = (r * scale).clamp(0.0, 4.0);
                 row[i + 1] = (g * scale).clamp(0.0, 4.0);
@@ -145,6 +142,11 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRe
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
+
+    const Y_R: f64 = LUMA_R as f64;
+    const Y_G: f64 = LUMA_G as f64;
+    const Y_B: f64 = LUMA_B as f64;
 
     fn make_image(w: usize, h: usize, val: f32) -> LinearImage {
         LinearImage::new(vec![val; w * h * 3], w, h)
@@ -161,7 +163,7 @@ mod tests {
             let r = img.rgb[i * 3] as f64;
             let g = img.rgb[i * 3 + 1] as f64;
             let b = img.rgb[i * 3 + 2] as f64;
-            acc += Y_R as f64 * r + Y_G as f64 * g + Y_B as f64 * b;
+            acc += Y_R * r + Y_G * g + Y_B * b;
         }
         (acc / n as f64) as f32
     }
@@ -174,7 +176,7 @@ mod tests {
             let r = img.rgb[i * 3] as f64;
             let g = img.rgb[i * 3 + 1] as f64;
             let b = img.rgb[i * 3 + 2] as f64;
-            let y = Y_R as f64 * r + Y_G as f64 * g + Y_B as f64 * b;
+            let y = Y_R * r + Y_G * g + Y_B * b;
             acc += (y - m).powi(2);
         }
         (acc / n as f64) as f32
