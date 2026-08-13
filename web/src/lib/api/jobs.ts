@@ -1,6 +1,7 @@
 import { getJson, sendJson } from './client';
 import type {
   BitDepthOpt,
+  ColorSpaceOpt,
   ExportFormat,
   ExportOptions,
   ImmichExportOptions,
@@ -78,6 +79,7 @@ interface ExportJobParams {
   png_compression: PngCompressionOpt;
   tiff_compression: TiffCompressionOpt;
   lossless: boolean;
+  color_space: ColorSpaceOpt;
 }
 
 function baseParams(opts: ExportOptions): ExportJobParams {
@@ -88,7 +90,8 @@ function baseParams(opts: ExportOptions): ExportJobParams {
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
-    lossless: opts.lossless
+    lossless: opts.lossless,
+    color_space: opts.colorSpace
   };
 }
 
