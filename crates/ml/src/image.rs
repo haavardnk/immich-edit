@@ -10,28 +10,30 @@ pub struct Placement {
 }
 
 impl Placement {
+    pub fn contain_scale(edge: usize, src_w: u32, src_h: u32) -> f32 {
+        edge as f32 / src_w.max(src_h).max(1) as f32
+    }
+
     pub fn compute(fit: Fit, edge: usize, src_w: u32, src_h: u32) -> Self {
-        match fit {
-            Fit::Stretch => Self {
+        if fit == Fit::Stretch {
+            return Self {
                 edge,
                 x: 0,
                 y: 0,
                 w: edge,
                 h: edge,
-            },
-            Fit::Contain => {
-                let long = src_w.max(src_h).max(1) as f32;
-                let scale = edge as f32 / long;
-                let w = ((src_w as f32 * scale).round() as usize).clamp(1, edge);
-                let h = ((src_h as f32 * scale).round() as usize).clamp(1, edge);
-                Self {
-                    edge,
-                    x: (edge - w) / 2,
-                    y: (edge - h) / 2,
-                    w,
-                    h,
-                }
-            }
+            };
+        }
+        let scale = Self::contain_scale(edge, src_w, src_h);
+        let w = ((src_w as f32 * scale).round() as usize).clamp(1, edge);
+        let h = ((src_h as f32 * scale).round() as usize).clamp(1, edge);
+        let centered = fit == Fit::Contain;
+        Self {
+            edge,
+            x: if centered { (edge - w) / 2 } else { 0 },
+            y: if centered { (edge - h) / 2 } else { 0 },
+            w,
+            h,
         }
     }
 }

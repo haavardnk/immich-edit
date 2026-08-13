@@ -66,6 +66,7 @@ impl Normalization {
 pub enum Fit {
     Stretch,
     Contain,
+    ContainTopLeft,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,8 +132,8 @@ impl ModelSpec {
         kind: ModelKind::Click,
         input_edge: 1024,
         layout: Layout::Nchw,
-        fit: Fit::Contain,
-        normalization: Normalization::IMAGENET,
+        fit: Fit::ContainTopLeft,
+        normalization: Normalization::MMSEG,
         activation: Activation::Sigmoid,
     };
     pub const SEGFORMER_ADE: Self = Self {

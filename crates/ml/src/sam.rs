@@ -3,12 +3,12 @@ use std::path::Path;
 use ort::session::SessionInputValue;
 use ort::value::TensorRef;
 
+use crate::image::{Placement, activate, mask_to_source, to_tensor};
+use crate::model::{Activation, ModelSpec};
 use crate::runtime::{Backend, RuntimeMode, SegmentError, SegmentRuntime, SessionConfig, ort_err};
 use crate::segmenter::Mask;
 
 pub const SAM_EDGE: usize = 1024;
-const SAM_MEAN: [f32; 3] = [123.675, 116.28, 103.53];
-const SAM_STD: [f32; 3] = [58.395, 57.12, 57.375];
 const LOW_RES: usize = 256;
 const BOX_TOP_LEFT: f32 = 2.0;
 const BOX_BOTTOM_RIGHT: f32 = 3.0;
@@ -85,14 +85,8 @@ impl SamEncoder {
                 "rgb8 length does not match dimensions".into(),
             ));
         }
-        let (pixels, scale) = letterbox(rgb8, width, height);
-        let plane = SAM_EDGE * SAM_EDGE;
-        let mut chw = vec![0f32; plane * 3];
-        for i in 0..plane {
-            for c in 0..3 {
-                chw[c * plane + i] = (pixels[i * 3 + c] as f32 - SAM_MEAN[c]) / SAM_STD[c];
-            }
-        }
+        let (chw, _) = to_tensor(rgb8, width, height, &ModelSpec::SAM);
+        let scale = Placement::contain_scale(SAM_EDGE, width, height);
 
         let input = self.runtime.session.inputs()[0].name().to_string();
         let names: Vec<String> = self
@@ -242,15 +236,28 @@ impl SamDecoder {
             .map(|(_, iou)| best_candidate(iou, candidates))
             .unwrap_or(0);
         let logits = &values[best * plane..best * plane + plane];
+        let probs = activate(logits, w, h, Activation::Sigmoid);
+        let out_w = embedding.width as usize;
+        let out_h = embedding.height as usize;
 
-        if w == embedding.width as usize && h == embedding.height as usize {
+        if w == out_w && h == out_h {
             return Ok(Mask {
-                values: logits.iter().map(|v| sigmoid(*v)).collect(),
+                values: probs,
                 width: w,
                 height: h,
             });
         }
-        Ok(unletterbox(logits, w, h, embedding))
+        let place = Placement::compute(
+            ModelSpec::SAM.fit,
+            SAM_EDGE,
+            embedding.width,
+            embedding.height,
+        );
+        Ok(Mask {
+            values: mask_to_source(&probs, w, h, &place, out_w, out_h),
+            width: out_w,
+            height: out_h,
+        })
     }
 }
 
@@ -297,77 +304,17 @@ fn best_candidate(iou: &[f32], candidates: usize) -> usize {
         .unwrap_or(0)
 }
 
-fn unletterbox(logits: &[f32], w: usize, h: usize, embedding: &Embedding) -> Mask {
-    let out_w = embedding.width as usize;
-    let out_h = embedding.height as usize;
-    let used_w = (embedding.width as f32 * embedding.scale / SAM_EDGE as f32) * w as f32;
-    let used_h = (embedding.height as f32 * embedding.scale / SAM_EDGE as f32) * h as f32;
-    let mut values = vec![0f32; out_w * out_h];
-    for y in 0..out_h {
-        let sy = (((y as f32 + 0.5) / out_h as f32 * used_h - 0.5)
-            .round()
-            .max(0.0) as usize)
-            .min(h - 1);
-        for x in 0..out_w {
-            let sx = (((x as f32 + 0.5) / out_w as f32 * used_w - 0.5)
-                .round()
-                .max(0.0) as usize)
-                .min(w - 1);
-            values[y * out_w + x] = sigmoid(logits[sy * w + sx]);
-        }
-    }
-    Mask {
-        values,
-        width: out_w,
-        height: out_h,
-    }
-}
-
-fn sigmoid(v: f32) -> f32 {
-    1.0 / (1.0 + (-v).exp())
-}
-
-fn letterbox(rgb8: &[u8], width: u32, height: u32) -> (Vec<u8>, f32) {
-    let scale = SAM_EDGE as f32 / width.max(height) as f32;
-    let nw = ((width as f32 * scale).round() as usize).min(SAM_EDGE);
-    let nh = ((height as f32 * scale).round() as usize).min(SAM_EDGE);
-    let mut out = vec![0u8; SAM_EDGE * SAM_EDGE * 3];
-    for y in 0..nh {
-        let sy = (((y as f32 + 0.5) / scale - 0.5).round() as usize).min(height as usize - 1);
-        for x in 0..nw {
-            let sx = (((x as f32 + 0.5) / scale - 0.5).round() as usize).min(width as usize - 1);
-            let src = (sy * width as usize + sx) * 3;
-            let dst = (y * SAM_EDGE + x) * 3;
-            out[dst] = rgb8[src];
-            out[dst + 1] = rgb8[src + 1];
-            out[dst + 2] = rgb8[src + 2];
-        }
-    }
-    (out, scale)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn letterbox_scales_long_edge_and_pads() {
-        let width = 40u32;
-        let height = 20u32;
-        let rgb = vec![200u8; (width * height * 3) as usize];
-        let (out, scale) = letterbox(&rgb, width, height);
-        assert_eq!(out.len(), SAM_EDGE * SAM_EDGE * 3);
+    fn sam_pads_bottom_right_so_prompts_need_no_offset() {
+        let place = Placement::compute(ModelSpec::SAM.fit, SAM_EDGE, 40, 20);
+        assert_eq!((place.x, place.y), (0, 0));
+        assert_eq!((place.w, place.h), (SAM_EDGE, SAM_EDGE / 2));
+        let scale = Placement::contain_scale(SAM_EDGE, 40, 20);
         assert!((scale - SAM_EDGE as f32 / 40.0).abs() < 1e-6);
-        assert_eq!(out[0], 200);
-        let bottom = (SAM_EDGE - 1) * SAM_EDGE * 3;
-        assert_eq!(out[bottom], 0);
-    }
-
-    #[test]
-    fn sigmoid_maps_logits_into_unit_range() {
-        assert!(sigmoid(0.0) - 0.5 < 1e-6);
-        assert!(sigmoid(10.0) > 0.99);
-        assert!(sigmoid(-10.0) < 0.01);
     }
 
     fn tensor(name: &str) -> EmbeddingTensor {
@@ -423,21 +370,17 @@ mod tests {
     }
 
     #[test]
-    fn unletterboxing_crops_the_padding_and_rescales() {
-        let embedding = Embedding {
-            tensors: Vec::new(),
-            scale: SAM_EDGE as f32 / 8.0,
-            width: 8,
-            height: 4,
-        };
+    fn decoder_masks_crop_the_padding_and_rescale() {
+        let place = Placement::compute(ModelSpec::SAM.fit, SAM_EDGE, 8, 4);
         let mut logits = vec![-10f32; 64];
         for y in 0..4 {
             for x in 0..8 {
                 logits[y * 8 + x] = 10.0;
             }
         }
-        let mask = unletterbox(&logits, 8, 8, &embedding);
-        assert_eq!((mask.width, mask.height), (8, 4));
-        assert!(mask.values.iter().all(|v| *v > 0.99));
+        let probs = activate(&logits, 8, 8, Activation::Sigmoid);
+        let values = mask_to_source(&probs, 8, 8, &place, 8, 4);
+        assert_eq!(values.len(), 32);
+        assert!(values.iter().all(|v| *v > 0.99));
     }
 }
