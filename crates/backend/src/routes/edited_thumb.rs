@@ -7,7 +7,6 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::edited_thumb::EditedThumbError;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -34,10 +33,7 @@ pub async fn get(
         .edited_thumb
         .get_or_render(
             &state.render,
-            RenderIdentity {
-                owner: ctx.owner,
-                server_epoch: ctx.server_epoch,
-            },
+            RenderIdentity::from(&ctx),
             ctx.immich.clone(),
             id,
             edits,
@@ -45,7 +41,7 @@ pub async fn get(
             size,
         )
         .await
-        .map_err(map_err)?;
+        .map_err(AppError::from)?;
     let mut resp = Response::new(Body::from(bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
@@ -57,25 +53,4 @@ pub async fn get(
         resp.headers_mut().insert(header::ETAG, etag);
     }
     Ok(resp.into_response())
-}
-
-fn map_err(err: EditedThumbError) -> AppError {
-    match err {
-        EditedThumbError::NotFound | EditedThumbError::HashMismatch => AppError::NotFound,
-        EditedThumbError::Render(crate::services::render::RenderError::Upstream(u)) => u.into(),
-        EditedThumbError::Render(crate::services::render::RenderError::Pipeline(p)) => {
-            tracing::error!(error = %p, "edited thumb render");
-            AppError::Internal
-        }
-        EditedThumbError::Render(crate::services::render::RenderError::Lut(m)) => {
-            AppError::BadRequest(m)
-        }
-        EditedThumbError::Render(crate::services::render::RenderError::Dcp(m)) => {
-            AppError::BadRequest(m)
-        }
-        EditedThumbError::Io(e) => {
-            tracing::error!(error = %e, "edited thumb io");
-            AppError::Internal
-        }
-    }
 }

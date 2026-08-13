@@ -7,7 +7,38 @@ use tokio::sync::{Semaphore, watch};
 
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStore};
 
-pub type ItemOutcome = Result<serde_json::Value, String>;
+pub type ItemOutcome = Result<serde_json::Value, JobItemError>;
+
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct JobItemError(String);
+
+impl JobItemError {
+    pub fn msg(message: impl Into<String>) -> Self {
+        Self(message.into())
+    }
+}
+
+macro_rules! item_error_from {
+    ($($ty:path),+ $(,)?) => {
+        $(impl From<$ty> for JobItemError {
+            fn from(err: $ty) -> Self {
+                Self(err.to_string())
+            }
+        })+
+    };
+}
+
+item_error_from!(
+    crate::error::AppError,
+    crate::immich::ImmichError,
+    crate::services::edits_store::EditsStoreError,
+    crate::services::instance_store::InstanceStoreError,
+    crate::services::job_store::JobStoreError,
+    serde_json::Error,
+    std::io::Error,
+    url::ParseError,
+);
 
 pub trait JobExecutor: Send + Sync + 'static {
     fn execute(
@@ -25,7 +56,12 @@ impl JobExecutor for UnsupportedExecutor {
         job: JobRecord,
         _item: JobItemRecord,
     ) -> Pin<Box<dyn Future<Output = ItemOutcome> + Send>> {
-        Box::pin(async move { Err(format!("unsupported job kind: {}", job.kind)) })
+        Box::pin(async move {
+            Err(JobItemError::msg(format!(
+                "unsupported job kind: {}",
+                job.kind
+            )))
+        })
     }
 }
 
@@ -77,7 +113,7 @@ impl JobRunner {
                         let outcome = executor.execute(job, item).await;
                         let res = match outcome {
                             Ok(value) => store.complete_item(item_id, &value).await,
-                            Err(error) => store.fail_item(item_id, &error).await,
+                            Err(error) => store.fail_item(item_id, &error.to_string()).await,
                         };
                         if let Err(err) = res {
                             tracing::error!(error = %err, %item_id, "job runner failed to record item result");
@@ -107,7 +143,7 @@ impl JobRunner {
 mod tests {
     use super::*;
     use crate::services::edits_store::EditsStore;
-    use crate::services::job_store::NewJobItem;
+    use crate::services::job_store::{NewJob, NewJobItem};
     use serde_json::json;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -125,7 +161,7 @@ mod tests {
             Box::pin(async move {
                 runs.fetch_add(1, Ordering::SeqCst);
                 if item.asset_id == "bad" {
-                    Err("boom".to_string())
+                    Err(JobItemError::msg("boom"))
                 } else {
                     Ok(json!({"asset": item.asset_id}))
                 }
@@ -149,14 +185,14 @@ mod tests {
         let executor = Arc::new(CountingExecutor { runs: runs.clone() });
 
         let job = store
-            .create_job(
-                uuid::Uuid::nil(),
-                1,
-                uuid::Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &[
+            .create_job(NewJob {
+                owner: uuid::Uuid::nil(),
+                server_epoch: 1,
+                auth_session_id: uuid::Uuid::nil(),
+                kind: "test",
+                target: &json!(null),
+                params: &json!(null),
+                items: &[
                     NewJobItem {
                         asset_id: "ok".into(),
                         idempotency_key: None,
@@ -166,9 +202,9 @@ mod tests {
                         idempotency_key: None,
                     },
                 ],
-                b"test-key",
-                crate::services::auth_store::AuthKind::ApiKey,
-            )
+                cred: b"test-key",
+                auth_kind: crate::services::auth_store::AuthKind::ApiKey,
+            })
             .await
             .unwrap();
 

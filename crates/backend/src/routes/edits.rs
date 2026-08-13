@@ -9,9 +9,7 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::edits_store::{
-    EditHistoryEntry, EditRecord, EditedAssetEntry, RENDERER_VERSION,
-};
+use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -55,19 +53,7 @@ pub async fn get(
     Path(id): Path<AssetKey>,
 ) -> Result<Json<EditRecord>, AppError> {
     let record = state.edits.get(ctx.owner, id).await?;
-    let record = match record {
-        Some(r) => r,
-        None => EditRecord {
-            schema_version: 2,
-            asset_id: id,
-            immich_updated_at: None,
-            immich_checksum: None,
-            renderer_version: RENDERER_VERSION.into(),
-            manifest: EditManifest::default(),
-            updated_at: String::new(),
-            hash: Edits::default().stable_hash(),
-        },
-    };
+    let record = record.unwrap_or_else(|| EditRecord::empty(id));
     Ok(Json(record))
 }
 
@@ -96,16 +82,7 @@ pub async fn put(
             current_hash
         };
         if expected != actual {
-            let body = current.unwrap_or_else(|| EditRecord {
-                schema_version: 2,
-                asset_id: id,
-                immich_updated_at: None,
-                immich_checksum: None,
-                renderer_version: RENDERER_VERSION.into(),
-                manifest: EditManifest::default(),
-                updated_at: String::new(),
-                hash: default_hash,
-            });
+            let body = current.unwrap_or_else(|| EditRecord::empty(id));
             return Ok((StatusCode::CONFLICT, Json(body)).into_response());
         }
     }
@@ -153,24 +130,9 @@ pub async fn auto(
     };
     let frame = state
         .render
-        .quality_frame(
-            RenderIdentity {
-                owner: ctx.owner,
-                server_epoch: ctx.server_epoch,
-            },
-            &ctx.immich,
-            id.source(),
-        )
+        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await
-        .map_err(|e| match e {
-            crate::services::render::RenderError::Upstream(u) => u.into(),
-            crate::services::render::RenderError::Pipeline(p) => {
-                tracing::error!(error = %p, "auto-adjust decode");
-                AppError::Internal
-            }
-            crate::services::render::RenderError::Lut(m) => AppError::BadRequest(m),
-            crate::services::render::RenderError::Dcp(m) => AppError::BadRequest(m),
-        })?;
+        .map_err(AppError::from)?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
             .await

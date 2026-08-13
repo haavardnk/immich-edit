@@ -42,7 +42,10 @@ pub async fn tag_asset(
     ctx: AuthCtx,
     Path((tag_id, asset_id)): Path<(Uuid, AssetKey)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
-    let resp = ctx.immich.tag_asset(tag_id, asset_id.source()).await?;
+    let resp = ctx
+        .immich
+        .set_asset_tag(tag_id, asset_id.source(), true)
+        .await?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
@@ -55,7 +58,10 @@ pub async fn untag_asset(
     ctx: AuthCtx,
     Path((tag_id, asset_id)): Path<(Uuid, AssetKey)>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
-    let resp = ctx.immich.untag_asset(tag_id, asset_id.source()).await?;
+    let resp = ctx
+        .immich
+        .set_asset_tag(tag_id, asset_id.source(), false)
+        .await?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)

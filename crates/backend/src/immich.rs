@@ -21,6 +21,19 @@ pub enum ImmichError {
 
 pub type ImmichResult<T> = Result<T, ImmichError>;
 
+impl ImmichError {
+    pub fn short(&self) -> String {
+        match self {
+            Self::Unauthorized => "unauthorized".into(),
+            Self::NotFound => "not found".into(),
+            Self::Timeout => "timeout".into(),
+            Self::Status(code) => format!("status {code}"),
+            Self::Transport(_) => "transport error".into(),
+            Self::Decode(_) => "decode error".into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ImmichConnectionStatus {
     pub ok: bool,

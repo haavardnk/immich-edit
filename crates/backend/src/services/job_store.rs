@@ -115,6 +115,18 @@ pub struct NewJobItem {
     pub idempotency_key: Option<String>,
 }
 
+pub struct NewJob<'a> {
+    pub owner: Uuid,
+    pub server_epoch: i64,
+    pub auth_session_id: Uuid,
+    pub kind: &'a str,
+    pub target: &'a serde_json::Value,
+    pub params: &'a serde_json::Value,
+    pub items: &'a [NewJobItem],
+    pub cred: &'a [u8],
+    pub auth_kind: AuthKind,
+}
+
 #[derive(Clone)]
 pub struct JobStore {
     pool: SqlitePool,
@@ -140,19 +152,18 @@ impl JobStore {
         let _ = self.events.send(job.clone());
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub async fn create_job(
-        &self,
-        owner: Uuid,
-        server_epoch: i64,
-        auth_session_id: Uuid,
-        kind: &str,
-        target: &serde_json::Value,
-        params: &serde_json::Value,
-        items: &[NewJobItem],
-        cred: &[u8],
-        auth_kind: AuthKind,
-    ) -> Result<JobRecord, JobStoreError> {
+    pub async fn create_job(&self, job: NewJob<'_>) -> Result<JobRecord, JobStoreError> {
+        let NewJob {
+            owner,
+            server_epoch,
+            auth_session_id,
+            kind,
+            target,
+            params,
+            items,
+            cred,
+            auth_kind,
+        } = job;
         let id = Uuid::new_v4();
         let now = Utc::now().to_rfc3339();
         let target_json = serde_json::to_string(target)?;
@@ -431,49 +442,48 @@ impl JobStore {
         Ok(cancelled)
     }
 
-    pub async fn cancel_active_for_owner(&self, owner: Uuid) -> Result<u64, JobStoreError> {
+    async fn cancel_where(
+        &self,
+        update: &'static str,
+        delete: &'static str,
+        binds: &[String],
+    ) -> Result<u64, JobStoreError> {
         let now = Utc::now().to_rfc3339();
         let mut tx = self.pool.begin().await?;
-        let res = sqlx::query(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
-             WHERE user_id = ?2 AND status IN ('pending', 'running')",
-        )
-        .bind(&now)
-        .bind(owner.to_string())
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
+        let mut update_query = sqlx::query(update);
+        for bind in binds {
+            update_query = update_query.bind(bind.as_str());
+        }
+        let result = update_query.bind(&now).execute(&mut *tx).await?;
+        let mut delete_query = sqlx::query(delete);
+        for bind in binds {
+            delete_query = delete_query.bind(bind.as_str());
+        }
+        delete_query.execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn cancel_active_for_owner(&self, owner: Uuid) -> Result<u64, JobStoreError> {
+        self.cancel_where(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?2, updated_at = ?2 \
+             WHERE user_id = ?1 AND status IN ('pending', 'running')",
             "DELETE FROM job_credentials WHERE job_id IN \
              (SELECT id FROM jobs WHERE user_id = ?1 AND status = 'cancelled')",
+            &[owner.to_string()],
         )
-        .bind(owner.to_string())
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(res.rows_affected())
+        .await
     }
 
     pub async fn cancel_active_for_session(&self, session_id: Uuid) -> Result<u64, JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let session = session_id.to_string();
-        let mut tx = self.pool.begin().await?;
-        let result = sqlx::query(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
-             WHERE auth_session_id = ?2 AND status IN ('pending', 'running')",
-        )
-        .bind(&now)
-        .bind(&session)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
+        self.cancel_where(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?2, updated_at = ?2 \
+             WHERE auth_session_id = ?1 AND status IN ('pending', 'running')",
             "DELETE FROM job_credentials WHERE job_id IN \
              (SELECT id FROM jobs WHERE auth_session_id = ?1 AND status = 'cancelled')",
+            &[session_id.to_string()],
         )
-        .bind(&session)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(result.rows_affected())
+        .await
     }
 
     pub async fn cancel_active_for_other_sessions(
@@ -481,29 +491,14 @@ impl JobStore {
         owner: Uuid,
         current_session_id: Uuid,
     ) -> Result<u64, JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let owner = owner.to_string();
-        let current = current_session_id.to_string();
-        let mut tx = self.pool.begin().await?;
-        let result = sqlx::query(
-            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?1, updated_at = ?1 \
-             WHERE user_id = ?2 AND auth_session_id != ?3 AND status IN ('pending', 'running')",
-        )
-        .bind(&now)
-        .bind(&owner)
-        .bind(&current)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
+        self.cancel_where(
+            "UPDATE jobs SET status = 'cancelled', cancelled_at = ?3, updated_at = ?3 \
+             WHERE user_id = ?1 AND auth_session_id != ?2 AND status IN ('pending', 'running')",
             "DELETE FROM job_credentials WHERE job_id IN \
              (SELECT id FROM jobs WHERE user_id = ?1 AND auth_session_id != ?2 AND status = 'cancelled')",
+            &[owner.to_string(), current_session_id.to_string()],
         )
-        .bind(&owner)
-        .bind(&current)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(result.rows_affected())
+        .await
     }
 
     pub async fn purge_owner(&self, owner: Uuid) -> Result<(), JobStoreError> {
@@ -656,17 +651,17 @@ mod tests {
         items: &[NewJobItem],
     ) -> JobRecord {
         store
-            .create_job(
+            .create_job(NewJob {
                 owner,
-                1,
-                Uuid::nil(),
+                server_epoch: 1,
+                auth_session_id: Uuid::nil(),
                 kind,
                 target,
                 params,
                 items,
-                b"test-key",
-                AuthKind::ApiKey,
-            )
+                cred: b"test-key",
+                auth_kind: AuthKind::ApiKey,
+            })
             .await
             .unwrap()
     }

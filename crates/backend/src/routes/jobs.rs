@@ -19,7 +19,7 @@ use crate::services::copy_expand::expand_assets;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
 };
-use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJobItem};
+use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJob, NewJobItem};
 use crate::services::paste_edits::PASTE_EDITS_KIND;
 use crate::services::reset_edits::RESET_EDITS_KIND;
 use crate::state::AppState;
@@ -95,17 +95,17 @@ pub async fn create(
         .collect();
     let job = state
         .jobs
-        .create_job(
-            ctx.owner,
-            ctx.server_epoch,
-            ctx.session_id,
+        .create_job(NewJob {
+            owner: ctx.owner,
+            server_epoch: ctx.server_epoch,
+            auth_session_id: ctx.session_id,
             kind,
-            &body.target,
-            &body.params,
-            &items,
-            ctx.cred.as_slice(),
-            ctx.auth_kind,
-        )
+            target: &body.target,
+            params: &body.params,
+            items: &items,
+            cred: ctx.cred.as_slice(),
+            auth_kind: ctx.auth_kind,
+        })
         .await?;
     Ok(Json(job))
 }
@@ -140,15 +140,20 @@ async fn expand_search_target(
     Ok(ids)
 }
 
+async fn owned_job(state: &AppState, ctx: &AuthCtx, id: Uuid) -> Result<JobRecord, AppError> {
+    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
+    if job.user_id != ctx.owner {
+        return Err(AppError::NotFound);
+    }
+    Ok(job)
+}
+
 pub async fn get(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Json<JobDetail>, AppError> {
-    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
-    if job.user_id != ctx.owner {
-        return Err(AppError::NotFound);
-    }
+    let job = owned_job(&state, &ctx, id).await?;
     let items = state.jobs.list_items(id).await?;
     Ok(Json(JobDetail { job, items }))
 }
@@ -158,10 +163,7 @@ pub async fn cancel(
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
-    if job.user_id != ctx.owner {
-        return Err(AppError::NotFound);
-    }
+    owned_job(&state, &ctx, id).await?;
     if state.jobs.cancel_job(id).await? {
         Ok(StatusCode::NO_CONTENT)
     } else {
@@ -184,10 +186,7 @@ pub async fn download(
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
-    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
-    if job.user_id != ctx.owner {
-        return Err(AppError::NotFound);
-    }
+    let job = owned_job(&state, &ctx, id).await?;
     if job.kind != DOWNLOAD_ZIP_KIND {
         return Err(AppError::NotFound);
     }
@@ -219,10 +218,7 @@ pub async fn events(
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
-    let job = state.jobs.get_job(id).await?.ok_or(AppError::NotFound)?;
-    if job.user_id != ctx.owner {
-        return Err(AppError::NotFound);
-    }
+    let job = owned_job(&state, &ctx, id).await?;
     let rx = state.jobs.subscribe();
     let snapshot = tokio_stream::once(Ok(job_event(&job)));
     let owner = ctx.owner;

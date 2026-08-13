@@ -13,7 +13,6 @@ pub async fn run_reset_edits_item(
     let deleted = state
         .edits
         .delete(job.user_id, asset_id, Some("Bulk reset"))
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(serde_json::json!({ "deleted": deleted }))
 }

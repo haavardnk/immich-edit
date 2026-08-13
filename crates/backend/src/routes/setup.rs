@@ -7,11 +7,10 @@ use serde_json::json;
 
 use crate::error::AppError;
 use crate::routes::auth;
-use crate::services::auth_store::AuthKind;
 use crate::state::AppState;
 
 pub async fn status(State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
-    let cfg = state.instance.get().await.map_err(|_| AppError::Internal)?;
+    let cfg = state.instance.get().await?;
     Ok(Json(json!({ "configured": cfg.is_configured() })))
 }
 
@@ -29,7 +28,7 @@ pub async fn complete(
     headers: HeaderMap,
     Json(body): Json<SetupBody>,
 ) -> Result<Response, AppError> {
-    let cfg = state.instance.get().await.map_err(|_| AppError::Internal)?;
+    let cfg = state.instance.get().await?;
     if cfg.is_configured() {
         return Err(AppError::Conflict("instance already configured".into()));
     }
@@ -40,19 +39,12 @@ pub async fn complete(
     }
     let base = auth::validate_candidate_url(&body.immich_url)?;
 
-    let validated: Result<(_, _, Vec<u8>), AppError> = async {
-        if let Some(api_key) = body.api_key.as_deref() {
-            let user = auth::validate_api_key(&base, api_key).await?;
-            return Ok((user, AuthKind::ApiKey, api_key.as_bytes().to_vec()));
-        }
-        if let (Some(email), Some(password)) = (body.email.as_deref(), body.password.as_deref()) {
-            let (user, cred) = auth::validate_password(&base, email, password).await?;
-            return Ok((user, AuthKind::Password, cred));
-        }
-        Err(AppError::BadRequest(
-            "email+password or api_key required".into(),
-        ))
-    }
+    let validated = auth::validate_credentials(
+        &base,
+        body.email.as_deref(),
+        body.password.as_deref(),
+        body.api_key.as_deref(),
+    )
     .await;
     let (user, kind, cred) = match validated {
         Ok(value) => value,

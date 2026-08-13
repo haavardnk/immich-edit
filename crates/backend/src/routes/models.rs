@@ -64,12 +64,7 @@ async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
     let installs = state.installs.snapshot();
     let mut out = Vec::with_capacity(catalog::CATALOG.len());
     for entry in catalog::CATALOG {
-        let installed = state
-            .models
-            .find_by_catalog(entry.id)
-            .await
-            .map_err(|_| AppError::Internal)?
-            .is_some();
+        let installed = state.models.find_by_catalog(entry.id).await?.is_some();
         let install = installs.get(entry.id);
         out.push(CatalogView {
             id: entry.id,
@@ -149,13 +144,7 @@ pub async fn install(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
     let entry = catalog::find(&id).ok_or(AppError::NotFound)?;
-    if state
-        .models
-        .find_by_catalog(entry.id)
-        .await
-        .map_err(|_| AppError::Internal)?
-        .is_some()
-    {
+    if state.models.find_by_catalog(entry.id).await?.is_some() {
         return Ok((
             StatusCode::OK,
             Json(serde_json::json!({ "id": entry.id, "installed": true })),
@@ -175,9 +164,6 @@ pub async fn remove(
     _admin: AdminCtx,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    state.models.remove(&id).await.map_err(|e| match e {
-        ModelStoreError::NotFound => AppError::NotFound,
-        _ => AppError::Internal,
-    })?;
+    state.models.remove(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

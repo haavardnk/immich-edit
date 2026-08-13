@@ -13,7 +13,6 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
-use crate::services::render::RenderError;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -236,7 +235,7 @@ pub async fn render_export(
         .render
         .frame(identity, immich, id.source())
         .await
-        .map_err(map_render_err)?;
+        .map_err(AppError::from)?;
     let output = params.output_format();
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge: EXPORT_MAX_EDGE,
@@ -249,7 +248,7 @@ pub async fn render_export(
         .render
         .render(identity, immich.clone(), id.source(), edits, opts, None)
         .await
-        .map_err(map_render_err)?;
+        .map_err(AppError::from)?;
 
     let mut bytes = rendered.bytes;
     if params.include_exif
@@ -334,15 +333,15 @@ pub async fn export_to_immich(
         });
         let now = Utc::now().to_rfc3339();
         let upload = immich
-            .upload_asset(
-                &filename,
-                output.content_type(),
+            .upload_asset(crate::immich::client::UploadRequest {
+                filename: &filename,
+                content_type: output.content_type(),
                 bytes,
-                body.favorite,
-                &now,
-                &now,
-                &device_asset_id,
-            )
+                is_favorite: body.favorite,
+                created_at: &now,
+                modified_at: &now,
+                device_asset_id: &device_asset_id,
+            })
             .await?;
 
         let new_id = upload.id;
@@ -489,7 +488,7 @@ async fn run_post_upload(
             .update_asset(new_id, &serde_json::json!({ "isFavorite": true }))
             .await
     {
-        warnings.push(format!("Favorite failed: {}", short_err(&e)));
+        warnings.push(format!("Favorite failed: {}", e.short()));
     }
 
     for album_id in &body.album_ids {
@@ -504,12 +503,12 @@ async fn run_post_upload(
                     }
                 }
             }
-            Err(e) => warnings.push(format!("Album {album_id} failed: {}", short_err(&e))),
+            Err(e) => warnings.push(format!("Album {album_id} failed: {}", e.short())),
         }
     }
 
     for tag_id in &body.tag_ids {
-        match immich.tag_asset(*tag_id, new_id).await {
+        match immich.set_asset_tag(*tag_id, new_id, true).await {
             Ok(items) => {
                 state
                     .tag_counts
@@ -524,14 +523,14 @@ async fn run_post_upload(
                     }
                 }
             }
-            Err(e) => warnings.push(format!("Tag {tag_id} failed: {}", short_err(&e))),
+            Err(e) => warnings.push(format!("Tag {tag_id} failed: {}", e.short())),
         }
     }
 
     if body.stack_with_original
         && let Err(e) = stack_with_original(immich, original, new_id, body.stack_primary).await
     {
-        warnings.push(format!("Stacking failed: {}", short_err(&e)));
+        warnings.push(format!("Stacking failed: {}", e.short()));
     }
 
     warnings
@@ -629,30 +628,4 @@ async fn stack_with_original(
         immich.update_stack_primary(created.id, primary_id).await?;
     }
     Ok(())
-}
-
-fn short_err(err: &crate::immich::ImmichError) -> String {
-    match err {
-        crate::immich::ImmichError::Unauthorized => "unauthorized".into(),
-        crate::immich::ImmichError::NotFound => "not found".into(),
-        crate::immich::ImmichError::Timeout => "timeout".into(),
-        crate::immich::ImmichError::Status(c) => format!("status {c}"),
-        crate::immich::ImmichError::Transport(_) => "transport error".into(),
-        crate::immich::ImmichError::Decode(_) => "decode error".into(),
-    }
-}
-
-pub fn map_render_err(err: RenderError) -> AppError {
-    match err {
-        RenderError::Upstream(e) => e.into(),
-        RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
-            AppError::UnsupportedFormat(msg)
-        }
-        RenderError::Pipeline(e) => {
-            tracing::error!(error = %e, "export render");
-            AppError::Internal
-        }
-        RenderError::Lut(m) => AppError::BadRequest(m),
-        RenderError::Dcp(m) => AppError::BadRequest(m),
-    }
 }

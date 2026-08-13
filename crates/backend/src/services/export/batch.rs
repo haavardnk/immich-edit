@@ -6,7 +6,7 @@ use std::pin::Pin;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
-use crate::services::job_runner::{ItemOutcome, JobExecutor};
+use crate::services::job_runner::{ItemOutcome, JobExecutor, JobItemError};
 use crate::services::job_store::{JobItemRecord, JobRecord};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
@@ -55,7 +55,7 @@ impl JobExecutor for BatchExecutor {
             let asset_id = item
                 .asset_id
                 .parse::<AssetKey>()
-                .map_err(|_| "invalid asset id".to_string())?;
+                .map_err(|_| JobItemError::msg("invalid asset id"))?;
             match job.kind.as_str() {
                 EXPORT_JOB_KIND => run_immich_item(&state, &job, asset_id).await,
                 DOWNLOAD_ZIP_KIND => run_zip_item(&state, &job, asset_id).await,
@@ -69,14 +69,15 @@ impl JobExecutor for BatchExecutor {
                 crate::services::reset_edits::RESET_EDITS_KIND => {
                     crate::services::reset_edits::run_reset_edits_item(&state, &job, asset_id).await
                 }
-                other => Err(format!("unsupported job kind: {other}")),
+                other => Err(JobItemError::msg(format!("unsupported job kind: {other}"))),
             }
         })
     }
 }
 
-fn parse_job_params(job: &JobRecord) -> Result<ExportJobParams, String> {
-    serde_json::from_value(job.params.clone()).map_err(|e| format!("invalid export params: {e}"))
+fn parse_job_params(job: &JobRecord) -> Result<ExportJobParams, JobItemError> {
+    serde_json::from_value(job.params.clone())
+        .map_err(|e| JobItemError::msg(format!("invalid export params: {e}")))
 }
 
 async fn job_edits(
@@ -84,38 +85,33 @@ async fn job_edits(
     owner: Uuid,
     params: &ExportJobParams,
     asset_id: AssetKey,
-) -> Result<Edits, String> {
+) -> Result<Edits, JobItemError> {
     match &params.manifest {
         Some(manifest) => Ok(manifest.to_edits()),
-        None => state
-            .edits
-            .get_edits_or_default(owner, asset_id)
-            .await
-            .map_err(|e| e.to_string()),
+        None => Ok(state.edits.get_edits_or_default(owner, asset_id).await?),
     }
 }
 
 pub async fn job_immich(
     state: &AppState,
     job: &JobRecord,
-) -> Result<crate::immich::ImmichClient, String> {
+) -> Result<crate::immich::ImmichClient, JobItemError> {
     let (cred, kind) = state
         .jobs
         .job_credential(job.id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "job credential unavailable".to_string())?;
+        .await?
+        .ok_or_else(|| JobItemError::msg("job credential unavailable"))?;
     let cred = cred
         .to_utf8()
-        .ok_or_else(|| "job credential invalid".to_string())?;
-    let cfg = state.instance.get().await.map_err(|e| e.to_string())?;
+        .ok_or_else(|| JobItemError::msg("job credential invalid"))?;
+    let cfg = state.instance.get().await?;
     if cfg.server_epoch != job.server_epoch {
-        return Err("job belongs to a previous Immich server".into());
+        return Err(JobItemError::msg("job belongs to a previous Immich server"));
     }
     let url = cfg
         .immich_url
-        .ok_or_else(|| "instance not configured".to_string())?;
-    let base = url::Url::parse(&url).map_err(|e| e.to_string())?;
+        .ok_or_else(|| JobItemError::msg("instance not configured"))?;
+    let base = url::Url::parse(&url)?;
     let auth = match kind {
         crate::services::auth_store::AuthKind::Password => {
             crate::immich::client::ImmichAuth::Bearer(cred)
@@ -129,7 +125,7 @@ pub async fn job_immich(
         auth,
         std::time::Duration::from_secs(state.config.original_timeout_secs),
     )
-    .map_err(|e| e.to_string())
+    .map_err(JobItemError::from)
 }
 
 async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
@@ -160,20 +156,16 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
             device_asset_id: Some(device_asset_id),
         },
     )
-    .await
-    .map_err(|e| e.to_string())?;
-    serde_json::to_value(result).map_err(|e| e.to_string())
+    .await?;
+    Ok(serde_json::to_value(result)?)
 }
 
 async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
     let params = parse_job_params(job)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
-    let suffix = validate_suffix(&params.filename_suffix).map_err(|e| e.to_string())?;
-    let original = immich
-        .asset(asset_id.source())
-        .await
-        .map_err(|e| e.to_string())?;
+    let suffix = validate_suffix(&params.filename_suffix)?;
+    let original = immich.asset(asset_id.source()).await?;
     let (bytes, output) = render_export(
         state,
         RenderIdentity {
@@ -185,15 +177,14 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> 
         edits.clamped(),
         &params.params,
     )
-    .await
-    .map_err(|e| e.to_string())?;
+    .await?;
     let dir = zip_job_dir(state, job.server_epoch, job.user_id, job.id);
     tokio::fs::create_dir_all(&dir)
         .await
-        .map_err(|e| format!("create export dir: {e}"))?;
+        .map_err(|e| JobItemError::msg(format!("create export dir: {e}")))?;
     let base = sanitize_filename(&original.original_file_name);
     let filename = write_unique(&dir, &base, &suffix, output.extension(), &bytes)
         .await
-        .map_err(|e| format!("write export file: {e}"))?;
+        .map_err(|e| JobItemError::msg(format!("write export file: {e}")))?;
     Ok(serde_json::json!({ "filename": filename, "bytes": bytes.len() }))
 }

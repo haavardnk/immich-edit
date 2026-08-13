@@ -120,18 +120,7 @@ impl ImmichClient {
     pub async fn thumbnail(&self, id: Uuid, size: ThumbSize) -> ImmichResult<(Bytes, String)> {
         let url = self.url(&format!("api/assets/{id}/thumbnail"))?;
         let req = self.authed(self.http.get(url).query(&[("size", size.as_str())]));
-        let resp = run(req).await?;
-        let ct = resp
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("image/jpeg")
-            .to_string();
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| ImmichError::Transport(e.to_string()))?;
-        Ok((bytes, ct))
+        self.bytes_with_content_type(req).await
     }
 
     pub async fn original(&self, id: Uuid) -> ImmichResult<Bytes> {
@@ -161,18 +150,8 @@ impl ImmichClient {
 
     pub async fn person_thumb(&self, id: Uuid) -> ImmichResult<(Bytes, String)> {
         let url = self.url(&format!("api/people/{id}/thumbnail"))?;
-        let resp = run(self.authed(self.http.get(url))).await?;
-        let ct = resp
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("image/jpeg")
-            .to_string();
-        let bytes = resp
-            .bytes()
+        self.bytes_with_content_type(self.authed(self.http.get(url)))
             .await
-            .map_err(|e| ImmichError::Transport(e.to_string()))?;
-        Ok((bytes, ct))
     }
 
     pub async fn list_tags(&self) -> ImmichResult<Vec<TagSummary>> {
@@ -184,62 +163,41 @@ impl ImmichClient {
         id: Uuid,
         body: &serde_json::Value,
     ) -> ImmichResult<AssetDetail> {
-        let url = self.url(&format!("api/assets/{id}"))?;
-        let bytes = send(self.authed(self.http.put(url).json(body))).await?;
-        parse_json(&bytes)
+        self.put_json(&format!("api/assets/{id}"), body).await
     }
 
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
-        let url = self.url("api/tags")?;
-        let bytes = send(self.authed(self.http.put(url).json(body))).await?;
-        parse_json(&bytes)
+        self.put_json("api/tags", body).await
     }
 
-    pub async fn tag_asset(
+    pub async fn set_asset_tag(
         &self,
         tag_id: Uuid,
         asset_id: Uuid,
+        attach: bool,
     ) -> ImmichResult<Vec<BulkIdResponse>> {
-        let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
+        let path = format!("api/tags/{tag_id}/assets");
         let body = serde_json::json!({ "ids": [asset_id] });
-        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
-        parse_json(&bytes)
+        if attach {
+            self.put_json(&path, &body).await
+        } else {
+            self.delete_json(&path, &body).await
+        }
     }
 
-    pub async fn untag_asset(
-        &self,
-        tag_id: Uuid,
-        asset_id: Uuid,
-    ) -> ImmichResult<Vec<BulkIdResponse>> {
-        let url = self.url(&format!("api/tags/{tag_id}/assets"))?;
-        let body = serde_json::json!({ "ids": [asset_id] });
-        let bytes = send(self.authed(self.http.delete(url).json(&body))).await?;
-        parse_json(&bytes)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upload_asset(
-        &self,
-        filename: &str,
-        content_type: &str,
-        bytes: Bytes,
-        is_favorite: bool,
-        file_created_at: &str,
-        file_modified_at: &str,
-        device_asset_id: &str,
-    ) -> ImmichResult<UploadResponse> {
+    pub async fn upload_asset(&self, req: UploadRequest<'_>) -> ImmichResult<UploadResponse> {
         let url = self.url("api/assets")?;
-        let part = reqwest::multipart::Part::bytes(bytes.to_vec())
-            .file_name(filename.to_string())
-            .mime_str(content_type)
+        let part = reqwest::multipart::Part::bytes(req.bytes.to_vec())
+            .file_name(req.filename.to_string())
+            .mime_str(req.content_type)
             .map_err(|e| ImmichError::Decode(format!("mime: {e}")))?;
         let form = reqwest::multipart::Form::new()
-            .text("deviceAssetId", device_asset_id.to_string())
+            .text("deviceAssetId", req.device_asset_id.to_string())
             .text("deviceId", "immich-edit".to_string())
-            .text("filename", filename.to_string())
-            .text("fileCreatedAt", file_created_at.to_string())
-            .text("fileModifiedAt", file_modified_at.to_string())
-            .text("isFavorite", is_favorite.to_string())
+            .text("filename", req.filename.to_string())
+            .text("fileCreatedAt", req.created_at.to_string())
+            .text("fileModifiedAt", req.modified_at.to_string())
+            .text("isFavorite", req.is_favorite.to_string())
             .part("assetData", part);
         let bytes = send(self.authed(self.http.post(url).multipart(form))).await?;
         parse_json(&bytes)
@@ -250,10 +208,9 @@ impl ImmichClient {
         album_id: Uuid,
         asset_ids: &[Uuid],
     ) -> ImmichResult<Vec<BulkIdResponse>> {
-        let url = self.url(&format!("api/albums/{album_id}/assets"))?;
         let body = serde_json::json!({ "ids": asset_ids });
-        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
-        parse_json(&bytes)
+        self.put_json(&format!("api/albums/{album_id}/assets"), &body)
+            .await
     }
 
     pub async fn get_stack(&self, id: Uuid) -> ImmichResult<StackDetail> {
@@ -272,10 +229,9 @@ impl ImmichClient {
         stack_id: Uuid,
         primary_asset_id: Uuid,
     ) -> ImmichResult<StackDetail> {
-        let url = self.url(&format!("api/stacks/{stack_id}"))?;
         let body = serde_json::json!({ "primaryAssetId": primary_asset_id });
-        let bytes = send(self.authed(self.http.put(url).json(&body))).await?;
-        parse_json(&bytes)
+        self.put_json(&format!("api/stacks/{stack_id}"), &body)
+            .await
     }
 
     pub async fn folder_paths(&self) -> ImmichResult<Vec<String>> {
@@ -290,16 +246,12 @@ impl ImmichClient {
     }
 
     pub async fn search_metadata(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
-        let url = self.url("api/search/metadata")?;
-        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
-        let resp: SearchResponse = parse_json(&bytes)?;
+        let resp: SearchResponse = self.post_json("api/search/metadata", body).await?;
         Ok(resp.assets)
     }
 
     pub async fn search_smart(&self, body: &serde_json::Value) -> ImmichResult<SearchAssets> {
-        let url = self.url("api/search/smart")?;
-        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
-        let resp: SearchResponse = parse_json(&bytes)?;
+        let resp: SearchResponse = self.post_json("api/search/smart", body).await?;
         Ok(resp.assets)
     }
 
@@ -307,9 +259,7 @@ impl ImmichClient {
         &self,
         body: &serde_json::Value,
     ) -> ImmichResult<SearchStatistics> {
-        let url = self.url("api/search/statistics")?;
-        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
-        parse_json(&bytes)
+        self.post_json("api/search/statistics", body).await
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
@@ -317,6 +267,64 @@ impl ImmichClient {
         let bytes = send(self.authed(self.http.get(url))).await?;
         parse_json(&bytes)
     }
+
+    async fn put_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> ImmichResult<T> {
+        let url = self.url(path)?;
+        let bytes = send(self.authed(self.http.put(url).json(body))).await?;
+        parse_json(&bytes)
+    }
+
+    async fn delete_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> ImmichResult<T> {
+        let url = self.url(path)?;
+        let bytes = send(self.authed(self.http.delete(url).json(body))).await?;
+        parse_json(&bytes)
+    }
+
+    async fn post_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> ImmichResult<T> {
+        let url = self.url(path)?;
+        let bytes = send_post_json(self.authed(self.http.post(url).json(body))).await?;
+        parse_json(&bytes)
+    }
+
+    async fn bytes_with_content_type(
+        &self,
+        req: reqwest::RequestBuilder,
+    ) -> ImmichResult<(Bytes, String)> {
+        let resp = run(req).await?;
+        let content_type = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("image/jpeg")
+            .to_string();
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| ImmichError::Transport(e.to_string()))?;
+        Ok((bytes, content_type))
+    }
+}
+
+pub struct UploadRequest<'a> {
+    pub filename: &'a str,
+    pub content_type: &'a str,
+    pub bytes: Bytes,
+    pub is_favorite: bool,
+    pub created_at: &'a str,
+    pub modified_at: &'a str,
+    pub device_asset_id: &'a str,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

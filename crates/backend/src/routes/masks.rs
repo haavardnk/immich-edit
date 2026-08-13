@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::routes::preview::map_render_err;
 use crate::services::embedding_cache::EmbeddingKey;
 use crate::services::render::RenderIdentity;
 use crate::services::segment::SegmentServiceError;
@@ -223,10 +222,7 @@ async fn scene_render(
     edits.effects = Default::default();
     edits.masks.clear();
 
-    let identity = RenderIdentity {
-        owner: ctx.owner,
-        server_epoch: ctx.server_epoch,
-    };
+    let identity = RenderIdentity::from(ctx);
     let opts = RenderOptions {
         max_edge: state.segment.max_edge(),
         output: OutputFormat::Rgb8,
@@ -243,7 +239,7 @@ async fn scene_render(
             None,
         )
         .await
-        .map_err(map_render_err)?;
+        .map_err(AppError::from)?;
     Ok((rendered.bytes, rendered.width, rendered.height))
 }
 

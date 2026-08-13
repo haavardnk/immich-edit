@@ -2,9 +2,26 @@ use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use sqlx::Row;
+use sqlx::sqlite::SqliteRow;
 use uuid::Uuid;
 
 use super::*;
+
+fn history_from_row(row: &SqliteRow) -> Result<EditHistoryEntry, EditsStoreError> {
+    let edits_json: Option<String> = row.try_get("edits_json")?;
+    let edits = edits_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str::<Edits>(s).ok());
+    let deleted: i64 = row.try_get("deleted")?;
+    Ok(EditHistoryEntry {
+        id: row.try_get("id")?,
+        manifest_hash: row.try_get("manifest_hash")?,
+        deleted: deleted != 0,
+        edits,
+        created_at: row.try_get("created_at")?,
+        action: row.try_get("action")?,
+    })
+}
 
 impl EditsStore {
     pub(super) async fn write_history(
@@ -57,23 +74,7 @@ impl EditsStore {
         .bind(owner.to_string())
         .fetch_all(&self.pool)
         .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            let edits_json: Option<String> = row.try_get("edits_json")?;
-            let edits = edits_json
-                .as_deref()
-                .and_then(|s| serde_json::from_str::<Edits>(s).ok());
-            let deleted_i: i64 = row.try_get("deleted")?;
-            out.push(EditHistoryEntry {
-                id: row.try_get("id")?,
-                manifest_hash: row.try_get("manifest_hash")?,
-                deleted: deleted_i != 0,
-                edits,
-                created_at: row.try_get("created_at")?,
-                action: row.try_get("action")?,
-            });
-        }
-        Ok(out)
+        rows.iter().map(history_from_row).collect()
     }
 
     pub async fn restore_to_entry(
@@ -152,22 +153,7 @@ impl EditsStore {
         .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let edits_json: Option<String> = row.try_get("edits_json")?;
-        let edits = edits_json
-            .as_deref()
-            .and_then(|s| serde_json::from_str::<Edits>(s).ok());
-        let deleted_i: i64 = row.try_get("deleted")?;
-        Ok(Some(EditHistoryEntry {
-            id: row.try_get("id")?,
-            manifest_hash: row.try_get("manifest_hash")?,
-            deleted: deleted_i != 0,
-            edits,
-            created_at: row.try_get("created_at")?,
-            action: row.try_get("action")?,
-        }))
+        row.as_ref().map(history_from_row).transpose()
     }
 
     pub async fn get_history_entry_by_hash(
@@ -186,21 +172,6 @@ impl EditsStore {
         .bind(owner.to_string())
         .fetch_optional(&self.pool)
         .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let edits_json: Option<String> = row.try_get("edits_json")?;
-        let edits = edits_json
-            .as_deref()
-            .and_then(|s| serde_json::from_str::<Edits>(s).ok());
-        let deleted_i: i64 = row.try_get("deleted")?;
-        Ok(Some(EditHistoryEntry {
-            id: row.try_get("id")?,
-            manifest_hash: row.try_get("manifest_hash")?,
-            deleted: deleted_i != 0,
-            edits,
-            created_at: row.try_get("created_at")?,
-            action: row.try_get("action")?,
-        }))
+        row.as_ref().map(history_from_row).transpose()
     }
 }

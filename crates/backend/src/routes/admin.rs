@@ -8,18 +8,13 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::routes::auth::{self, AdminCtx};
-use crate::services::auth_store::AuthKind;
 use crate::state::AppState;
 
 pub async fn list_users(
     State(state): State<AppState>,
     _admin: AdminCtx,
 ) -> Result<Response, AppError> {
-    let users = state
-        .auth
-        .list_users()
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let users = state.auth.list_users().await?;
     let body: Vec<serde_json::Value> = users
         .iter()
         .map(|u| {
@@ -52,29 +47,12 @@ pub async fn set_access(
             "cannot disable your own account".into(),
         ));
     }
-    state
-        .auth
-        .get_user(id)
-        .await
-        .map_err(|_| AppError::Internal)?
-        .ok_or(AppError::NotFound)?;
-    state
-        .auth
-        .set_access(id, body.enabled)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    state.auth.get_user(id).await?.ok_or(AppError::NotFound)?;
+    state.auth.set_access(id, body.enabled).await?;
     if !body.enabled {
         state.queue.cancel_owner(id).await;
-        state
-            .auth
-            .revoke_all_for_user(id)
-            .await
-            .map_err(|_| AppError::Internal)?;
-        state
-            .jobs
-            .cancel_active_for_owner(id)
-            .await
-            .map_err(|_| AppError::Internal)?;
+        state.auth.revoke_all_for_user(id).await?;
+        state.jobs.cancel_active_for_owner(id).await?;
     }
     Ok((StatusCode::OK, Json(json!({ "ok": true }))).into_response())
 }
@@ -86,37 +64,12 @@ pub async fn purge_user_data(
 ) -> Result<Response, AppError> {
     require_fresh_admin(&admin).await?;
     state.queue.cancel_owner(id).await;
-    state
-        .auth
-        .get_user(id)
-        .await
-        .map_err(|_| AppError::Internal)?
-        .ok_or(AppError::NotFound)?;
-    state
-        .jobs
-        .purge_owner(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .edits
-        .purge_owner(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .auth
-        .revoke_all_for_user(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .rasters
-        .purge_owner(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .edited_thumb
-        .purge_owner(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    state.auth.get_user(id).await?.ok_or(AppError::NotFound)?;
+    state.jobs.purge_owner(id).await?;
+    state.edits.purge_owner(id).await?;
+    state.auth.revoke_all_for_user(id).await?;
+    state.rasters.purge_owner(id).await?;
+    state.edited_thumb.purge_owner(id).await?;
     crate::services::export::purge_owner_exports(&state, id).await;
     Ok((StatusCode::OK, Json(json!({ "ok": true }))).into_response())
 }
@@ -125,7 +78,7 @@ pub async fn instance_info(
     State(state): State<AppState>,
     _admin: AdminCtx,
 ) -> Result<Response, AppError> {
-    let cfg = state.instance.get().await.map_err(|_| AppError::Internal)?;
+    let cfg = state.instance.get().await?;
     Ok((
         StatusCode::OK,
         Json(json!({
@@ -162,18 +115,13 @@ pub async fn rebind(
         ));
     }
 
-    let (user, kind, cred): (_, _, Vec<u8>) = if let Some(api_key) = body.api_key.as_deref() {
-        let user = auth::validate_api_key(&base, api_key).await?;
-        (user, AuthKind::ApiKey, api_key.as_bytes().to_vec())
-    } else if let (Some(email), Some(password)) = (body.email.as_deref(), body.password.as_deref())
-    {
-        let (user, cred) = auth::validate_password(&base, email, password).await?;
-        (user, AuthKind::Password, cred)
-    } else {
-        return Err(AppError::BadRequest(
-            "email+password or api_key required".into(),
-        ));
-    };
+    let (user, kind, cred) = auth::validate_credentials(
+        &base,
+        body.email.as_deref(),
+        body.password.as_deref(),
+        body.api_key.as_deref(),
+    )
+    .await?;
 
     if !user.is_admin {
         return Err(AppError::AdminRequired);

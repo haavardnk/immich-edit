@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::asset_key::AssetKey;
 use crate::services::edit_merge::{MergeSections, merge_edits};
-use crate::services::job_runner::ItemOutcome;
+use crate::services::job_runner::{ItemOutcome, JobItemError};
 use crate::services::job_store::JobRecord;
 use crate::state::AppState;
 
@@ -22,18 +22,14 @@ pub async fn run_paste_edits_item(
     asset_id: AssetKey,
 ) -> ItemOutcome {
     let params: PasteEditsParams = serde_json::from_value(job.params.clone())
-        .map_err(|e| format!("invalid paste edits params: {e}"))?;
+        .map_err(|e| JobItemError::msg(format!("invalid paste edits params: {e}")))?;
     let current = state
         .edits
         .get_edits_or_default(job.user_id, asset_id)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     let mut merged = merge_edits(current, params.manifest.to_edits(), params.sections);
     let immich = crate::services::export::job_immich(state, job).await?;
-    let asset = immich
-        .asset(asset_id.source())
-        .await
-        .map_err(|e| e.to_string())?;
+    let asset = immich.asset(asset_id.source()).await?;
     if params.sections.lens {
         merged.lens = crate::lens_profile::reproject_lens(merged.lens, asset.exif_info.as_ref());
     }
@@ -48,8 +44,7 @@ pub async fn run_paste_edits_item(
             asset.checksum,
             Some("Paste edits"),
         )
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     Ok(serde_json::json!({
         "hash": saved.hash,
         "updated_at": saved.updated_at,

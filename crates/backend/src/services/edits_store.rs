@@ -44,6 +44,21 @@ pub struct EditRecord {
     pub hash: String,
 }
 
+impl EditRecord {
+    pub fn empty(asset_id: AssetKey) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION as u32,
+            asset_id,
+            immich_updated_at: None,
+            immich_checksum: None,
+            renderer_version: RENDERER_VERSION.into(),
+            manifest: EditManifest::default(),
+            updated_at: String::new(),
+            hash: Edits::default().stable_hash(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditedAssetEntry {
     pub id: AssetKey,

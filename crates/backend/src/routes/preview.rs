@@ -56,7 +56,7 @@ pub async fn get_preview(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
-    let dcp_revision = state.render.dcp_revision().await.map_err(map_render_err)?;
+    let dcp_revision = state.render.dcp_revision().await?;
     let etag = format!(
         "\"{}-{}-{}-{}-{}\"",
         edits.stable_hash(),
@@ -77,15 +77,17 @@ pub async fn get_preview(
     let mut resp = render_to_response(
         &state,
         &ctx,
-        id,
-        edits,
-        max_edge,
-        PreviewMode::None,
-        OutputColorSpace::SRgb,
-        false,
-        q.clip,
-        RenderLane::Base,
-        None,
+        PreviewRequest {
+            asset_id: id,
+            edits,
+            max_edge,
+            preview_mode: PreviewMode::None,
+            output_color_space: OutputColorSpace::SRgb,
+            gamut_warn: false,
+            clip_warn: q.clip,
+            lane: RenderLane::Base,
+            roi: None,
+        },
     )
     .await?;
     attach_validators(&mut resp, &etag);
@@ -114,15 +116,17 @@ pub async fn post_preview(
     render_to_response(
         &state,
         &ctx,
-        id,
-        edits,
-        max_edge,
-        body.preview_mode,
-        body.output_color_space,
-        body.gamut_warn,
-        body.clip_warn,
-        body.lane,
-        roi,
+        PreviewRequest {
+            asset_id: id,
+            edits,
+            max_edge,
+            preview_mode: body.preview_mode,
+            output_color_space: body.output_color_space,
+            gamut_warn: body.gamut_warn,
+            clip_warn: body.clip_warn,
+            lane: body.lane,
+            roi,
+        },
     )
     .await
 }
@@ -139,10 +143,7 @@ pub async fn get_meta(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn render_to_response(
-    state: &AppState,
-    ctx: &AuthCtx,
+struct PreviewRequest {
     asset_id: AssetKey,
     edits: Edits,
     max_edge: u32,
@@ -152,12 +153,26 @@ async fn render_to_response(
     clip_warn: bool,
     lane: RenderLane,
     roi: Option<CropRect>,
+}
+
+async fn render_to_response(
+    state: &AppState,
+    ctx: &AuthCtx,
+    req: PreviewRequest,
 ) -> Result<Response, AppError> {
+    let PreviewRequest {
+        asset_id,
+        edits,
+        max_edge,
+        preview_mode,
+        output_color_space,
+        gamut_warn,
+        clip_warn,
+        lane,
+        roi,
+    } = req;
     let render = state.render.clone();
-    let identity = RenderIdentity {
-        owner: ctx.owner,
-        server_epoch: ctx.server_epoch,
-    };
+    let identity = RenderIdentity::from(ctx);
     let key = RenderKey {
         owner: ctx.owner,
         server_epoch: ctx.server_epoch,
@@ -196,7 +211,7 @@ async fn render_to_response(
     let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
     let rendered = match result {
         Some(Ok(r)) => r,
-        Some(Err(e)) => return Err(map_render_err(e)),
+        Some(Err(e)) => return Err(e.into()),
         None => {
             return Err(AppError::Superseded);
         }
@@ -254,22 +269,6 @@ fn parse_roi(roi: Option<[f32; 4]>) -> Result<Option<CropRect>, AppError> {
         )));
     }
     Ok(Some(CropRect { x, y, w, h }))
-}
-
-pub(crate) fn map_render_err(err: RenderError) -> AppError {
-    match err {
-        RenderError::Upstream(e) => e.into(),
-        RenderError::Pipeline(raw_pipeline::PipelineError::Unsupported(msg)) => {
-            AppError::UnsupportedFormat(msg)
-        }
-        RenderError::Pipeline(raw_pipeline::PipelineError::Cancelled) => AppError::Superseded,
-        RenderError::Pipeline(_) => {
-            tracing::error!(error = %err, "render pipeline");
-            AppError::Internal
-        }
-        RenderError::Lut(m) => AppError::BadRequest(m),
-        RenderError::Dcp(m) => AppError::BadRequest(m),
-    }
 }
 
 #[cfg(test)]

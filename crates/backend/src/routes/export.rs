@@ -24,10 +24,7 @@ pub async fn get_export(
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
     let (bytes, output) = export::render_export(
         &state,
-        RenderIdentity {
-            owner: ctx.owner,
-            server_epoch: ctx.server_epoch,
-        },
+        RenderIdentity::from(&ctx),
         &ctx.immich,
         id,
         edits,
@@ -45,10 +42,7 @@ pub async fn post_export(
 ) -> Result<Response, AppError> {
     let (bytes, output) = export::render_export(
         &state,
-        RenderIdentity {
-            owner: ctx.owner,
-            server_epoch: ctx.server_epoch,
-        },
+        RenderIdentity::from(&ctx),
         &ctx.immich,
         id,
         body.edits.clamped(),

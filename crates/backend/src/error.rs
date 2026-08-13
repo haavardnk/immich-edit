@@ -1,10 +1,13 @@
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use raw_pipeline::PipelineError;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::immich::ImmichError;
+use crate::services::edited_thumb::EditedThumbError;
+use crate::services::render::RenderError;
 
 tokio::task_local! {
     pub static REQUEST_ID: String;
@@ -131,6 +134,34 @@ impl From<ImmichError> for AppError {
     }
 }
 
+impl From<RenderError> for AppError {
+    fn from(err: RenderError) -> Self {
+        match err {
+            RenderError::Upstream(e) => e.into(),
+            RenderError::Pipeline(PipelineError::Unsupported(msg)) => Self::UnsupportedFormat(msg),
+            RenderError::Pipeline(PipelineError::Cancelled) => Self::Superseded,
+            RenderError::Pipeline(e) => {
+                tracing::error!(error = %e, "render pipeline");
+                Self::Internal
+            }
+            RenderError::Lut(m) | RenderError::Dcp(m) => Self::BadRequest(m),
+        }
+    }
+}
+
+impl From<EditedThumbError> for AppError {
+    fn from(err: EditedThumbError) -> Self {
+        match err {
+            EditedThumbError::NotFound | EditedThumbError::HashMismatch => Self::NotFound,
+            EditedThumbError::Render(e) => e.into(),
+            EditedThumbError::Io(e) => {
+                tracing::error!(error = %e, "edited thumb io");
+                Self::Internal
+            }
+        }
+    }
+}
+
 macro_rules! internal_from {
     ($ty:path, $ctx:literal) => {
         impl From<$ty> for AppError {
@@ -180,11 +211,36 @@ macro_rules! store_from {
 
 internal_from!(crate::services::edits_store::EditsStoreError, "edits store");
 internal_from!(crate::services::job_store::JobStoreError, "job store");
+internal_from!(std::io::Error, "io");
 store_from!(crate::services::dcp_store::DcpStoreError, "dcp", dup);
 store_from!(crate::services::lut_store::LutStoreError, "lut", dup);
+store_from!(crate::services::model_store::ModelStoreError, "model store");
 store_from!(
     crate::services::raster_store::RasterStoreError,
     "raster store"
+);
+
+macro_rules! configurable_from {
+    ($ty:path, $ctx:literal) => {
+        impl From<$ty> for AppError {
+            fn from(err: $ty) -> Self {
+                use $ty as E;
+                match err {
+                    E::AlreadyConfigured => Self::Conflict("instance already configured".into()),
+                    e => {
+                        tracing::error!(error = %e, $ctx);
+                        Self::Internal
+                    }
+                }
+            }
+        }
+    };
+}
+
+configurable_from!(crate::services::auth_store::AuthStoreError, "auth store");
+configurable_from!(
+    crate::services::instance_store::InstanceStoreError,
+    "instance store"
 );
 
 impl IntoResponse for AppError {
@@ -213,4 +269,63 @@ impl IntoResponse for AppError {
 
 pub async fn api_not_found() -> AppError {
     AppError::NotFound
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::auth_store::AuthStoreError;
+    use crate::services::edited_thumb::EditedThumbError;
+    use crate::services::instance_store::InstanceStoreError;
+    use crate::services::model_store::ModelStoreError;
+
+    fn status_of(err: AppError) -> StatusCode {
+        err.parts().0
+    }
+
+    #[test]
+    fn render_error_maps_to_status() {
+        let cases = [
+            (
+                RenderError::Pipeline(PipelineError::Cancelled),
+                StatusCode::CONFLICT,
+            ),
+            (
+                RenderError::Pipeline(PipelineError::Unsupported("nef".into())),
+                StatusCode::UNPROCESSABLE_ENTITY,
+            ),
+            (RenderError::Lut("bad".into()), StatusCode::BAD_REQUEST),
+            (
+                RenderError::Upstream(ImmichError::NotFound),
+                StatusCode::NOT_FOUND,
+            ),
+        ];
+        for (err, expected) in cases {
+            assert_eq!(status_of(err.into()), expected);
+        }
+    }
+
+    #[test]
+    fn store_errors_map_to_status() {
+        assert_eq!(
+            status_of(EditedThumbError::HashMismatch.into()),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            status_of(ModelStoreError::NotFound.into()),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            status_of(ModelStoreError::Invalid("nope".into()).into()),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            status_of(AuthStoreError::AlreadyConfigured.into()),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            status_of(InstanceStoreError::AlreadyConfigured.into()),
+            StatusCode::CONFLICT
+        );
+    }
 }

@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichUser};
-use crate::services::auth_store::{AuthContext, AuthKind, AuthStoreError, UserRecord};
+use crate::services::auth_store::{AuthContext, AuthKind, UserRecord};
 use crate::services::crypto::SecretBytes;
 use crate::state::AppState;
 
@@ -28,6 +28,15 @@ pub struct AuthCtx {
     pub immich: ImmichClient,
     pub cred: Arc<SecretBytes>,
     pub auth_kind: AuthKind,
+}
+
+impl From<&AuthCtx> for crate::services::render::RenderIdentity {
+    fn from(ctx: &AuthCtx) -> Self {
+        Self {
+            owner: ctx.owner,
+            server_epoch: ctx.server_epoch,
+        }
+    }
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for AuthCtx {
@@ -114,7 +123,7 @@ pub struct ApiKeyLoginBody {
 }
 
 pub async fn resolve_immich_base(state: &AppState) -> Result<Url, AppError> {
-    let cfg = state.instance.get().await.map_err(|_| AppError::Internal)?;
+    let cfg = state.instance.get().await?;
     let url = cfg.immich_url.ok_or(AppError::SetupRequired)?;
     Url::parse(&url).map_err(|_| AppError::Internal)
 }
@@ -245,11 +254,7 @@ pub async fn finish_login(
         .await
         .map(|c| c.server_epoch)
         .unwrap_or(0);
-    let stored = state
-        .auth
-        .upsert_user(user)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let stored = state.auth.upsert_user(user).await?;
     if !stored.access_enabled {
         return Err(AppError::AccessDisabled);
     }
@@ -264,8 +269,7 @@ pub async fn finish_login(
             ua.as_deref(),
             Some(&client.ip),
         )
-        .await
-        .map_err(|_| AppError::Internal)?;
+        .await?;
     Ok(login_response(&stored, kind, &token, client.secure))
 }
 
@@ -289,13 +293,7 @@ pub async fn finish_setup(
             ua.as_deref(),
             Some(&client.ip),
         )
-        .await
-        .map_err(|error| match error {
-            AuthStoreError::AlreadyConfigured => {
-                AppError::Conflict("instance already configured".into())
-            }
-            _ => AppError::Internal,
-        })?;
+        .await?;
     Ok(login_response(&stored, kind, &token, client.secure))
 }
 
@@ -319,8 +317,7 @@ pub async fn finish_rebind(
             ua.as_deref(),
             Some(&client.ip),
         )
-        .await
-        .map_err(|_| AppError::Internal)?;
+        .await?;
     Ok(login_response(&stored, kind, &token, client.secure))
 }
 
@@ -333,8 +330,7 @@ pub async fn validate_password(
         base.clone(),
         ImmichAuth::ApiKey(String::new()),
         Duration::from_secs(30),
-    )
-    .map_err(|_| AppError::Internal)?;
+    )?;
     let login = candidate
         .login_password(email, password)
         .await
@@ -353,9 +349,27 @@ pub async fn validate_api_key(base: &Url, api_key: &str) -> Result<ImmichUser, A
         base.clone(),
         ImmichAuth::ApiKey(api_key.to_string()),
         Duration::from_secs(30),
-    )
-    .map_err(|_| AppError::Internal)?;
+    )?;
     client.me().await.map_err(map_login_error)
+}
+
+pub async fn validate_credentials(
+    base: &Url,
+    email: Option<&str>,
+    password: Option<&str>,
+    api_key: Option<&str>,
+) -> Result<(ImmichUser, AuthKind, Vec<u8>), AppError> {
+    if let Some(api_key) = api_key {
+        let user = validate_api_key(base, api_key).await?;
+        return Ok((user, AuthKind::ApiKey, api_key.as_bytes().to_vec()));
+    }
+    if let (Some(email), Some(password)) = (email, password) {
+        let (user, cred) = validate_password(base, email, password).await?;
+        return Ok((user, AuthKind::Password, cred));
+    }
+    Err(AppError::BadRequest(
+        "email+password or api_key required".into(),
+    ))
 }
 
 fn map_login_error(err: crate::immich::ImmichError) -> AppError {
@@ -447,11 +461,7 @@ pub async fn list_sessions(
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let ctx = require_session(&state, &headers).await?;
-    let sessions = state
-        .auth
-        .list_sessions(ctx.user.id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let sessions = state.auth.list_sessions(ctx.user.id).await?;
     let body: Vec<serde_json::Value> = sessions
         .iter()
         .map(|s| {
@@ -474,24 +484,12 @@ pub async fn revoke_session(
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
     let ctx = require_session(&state, &headers).await?;
-    let sessions = state
-        .auth
-        .list_sessions(ctx.user.id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    let sessions = state.auth.list_sessions(ctx.user.id).await?;
     if !sessions.iter().any(|s| s.id == id) {
         return Err(AppError::NotFound);
     }
-    state
-        .jobs
-        .cancel_active_for_session(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
-    state
-        .auth
-        .revoke_session(id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+    state.jobs.cancel_active_for_session(id).await?;
+    state.auth.revoke_session(id).await?;
     Ok((StatusCode::OK, Json(json!({"ok": true}))).into_response())
 }
 
@@ -503,13 +501,11 @@ pub async fn revoke_all_sessions(
     state
         .jobs
         .cancel_active_for_other_sessions(ctx.user.id, ctx.session_id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+        .await?;
     state
         .auth
         .revoke_others_for_user(ctx.user.id, ctx.session_id)
-        .await
-        .map_err(|_| AppError::Internal)?;
+        .await?;
     Ok((StatusCode::OK, Json(json!({"ok": true}))).into_response())
 }
 
