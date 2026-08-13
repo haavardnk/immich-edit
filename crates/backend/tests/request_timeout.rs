@@ -13,10 +13,10 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const SLOW: Duration = Duration::from_secs(2);
 
-fn arw_fixture() -> Option<Vec<u8>> {
+fn arw_fixture() -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
-    std::fs::read(&path).ok()
+    std::fs::read(&path).expect("committed Sony ARW fixture")
 }
 
 async fn slow_state(server: &MockServer) -> AppState {
@@ -46,13 +46,9 @@ async fn mock_slow_original(server: &MockServer, id: uuid::Uuid, bytes: Vec<u8>)
 
 #[tokio::test]
 async fn export_outlives_the_light_request_timeout() {
-    let Some(bytes) = arw_fixture() else {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    };
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_slow_original(&server, id, bytes).await;
+    mock_slow_original(&server, id, arw_fixture()).await;
     let app = seed_and_wrap(&server, slow_state(&server).await).await;
 
     let resp = app

@@ -216,21 +216,20 @@ async fn put_with_if_match_conflict_returns_current() {
     }
 }
 
-fn arw_fixture() -> Option<Vec<u8>> {
+fn arw_fixture() -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../raw-pipeline/tests/fixtures/sample.arw");
-    std::fs::read(&path).ok()
+        .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
+    std::fs::read(&path).expect("committed Sony ARW fixture")
 }
 
 async fn mock_arw_original(server: &MockServer, id: uuid::Uuid) {
-    let bytes = arw_fixture().expect("sample.arw fixture required");
     Mock::given(method("GET"))
         .and(path(format!("/api/assets/{id}/original")))
         .and(header("x-api-key", "test-key"))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "image/x-sony-arw")
-                .set_body_bytes(bytes),
+                .set_body_bytes(arw_fixture()),
         )
         .mount(server)
         .await;
@@ -238,10 +237,6 @@ async fn mock_arw_original(server: &MockServer, id: uuid::Uuid) {
 
 #[tokio::test]
 async fn live_preview_renders_jpeg_and_returns_meta_id() {
-    if arw_fixture().is_none() {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    }
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
@@ -327,10 +322,6 @@ async fn live_preview_rejects_bad_max_edge() {
 
 #[tokio::test]
 async fn live_preview_with_clip_warn_skips_meta() {
-    if arw_fixture().is_none() {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    }
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
@@ -358,10 +349,6 @@ async fn live_preview_with_clip_warn_skips_meta() {
 
 #[tokio::test]
 async fn persisted_preview_etag_varies_with_clip_flag() {
-    if arw_fixture().is_none() {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    }
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
@@ -407,10 +394,6 @@ async fn persisted_preview_etag_varies_with_clip_flag() {
 
 #[tokio::test]
 async fn export_returns_full_res_jpeg() {
-    if arw_fixture().is_none() {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    }
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
@@ -597,10 +580,6 @@ async fn restore_returns_previous_edits() {
 
 #[tokio::test]
 async fn persisted_preview_revalidates_with_etag() {
-    if arw_fixture().is_none() {
-        eprintln!("sample.arw missing, skipping");
-        return;
-    }
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
