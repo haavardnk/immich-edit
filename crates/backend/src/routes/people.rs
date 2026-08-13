@@ -28,10 +28,14 @@ pub async fn list(
 
 pub async fn thumbnail(ctx: AuthCtx, Path(id): Path<Uuid>) -> Result<Response, AppError> {
     let (bytes, ct) = ctx.immich.person_thumb(id).await?;
-    let resp = Response::builder()
-        .header(header::CONTENT_TYPE, HeaderValue::from_str(&ct).unwrap())
-        .header(header::CACHE_CONTROL, "private, max-age=86400")
-        .body(Body::from(bytes))
-        .unwrap();
+    let mut resp = Response::new(Body::from(bytes));
+    resp.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(&ct).unwrap_or(HeaderValue::from_static("image/jpeg")),
+    );
+    resp.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, max-age=86400"),
+    );
     Ok(resp)
 }

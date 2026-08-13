@@ -70,7 +70,8 @@ fn download_response(
         .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     resp.headers_mut().insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!("attachment; filename=\"{id}.{extension}\"")).unwrap(),
+        HeaderValue::from_str(&format!("attachment; filename=\"{id}.{extension}\""))
+            .unwrap_or(HeaderValue::from_static("attachment")),
     );
     resp.into_response()
 }

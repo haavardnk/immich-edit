@@ -90,7 +90,7 @@ impl AppError {
                 "superseded by newer render".into(),
             ),
             Self::SetupRequired => (
-                StatusCode::from_u16(428).unwrap(),
+                StatusCode::PRECONDITION_REQUIRED,
                 "setup_required",
                 "instance setup required".into(),
             ),
