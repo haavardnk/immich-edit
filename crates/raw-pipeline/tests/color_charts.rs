@@ -1,5 +1,7 @@
 use raw_pipeline::{cpu, decode, edits::Edits, frame::RenderOptions};
 
+mod common;
+
 const XRITE_SRGB: [[u8; 3]; 24] = [
     [115, 82, 68],
     [194, 150, 130],
@@ -196,7 +198,7 @@ fn delta_e_2000(lab1: [f64; 3], lab2: [f64; 3]) -> f64 {
 
 #[test]
 fn color_chart_delta_e_against_xrite() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let dir = common::fixtures_dir();
     let mut failures: Vec<String> = Vec::new();
     for chart in CHARTS {
         let path = dir.join(chart.name);
@@ -211,10 +213,7 @@ fn color_chart_delta_e_against_xrite() {
             ..Default::default()
         };
         let out = cpu::render(&frame, &Edits::default(), &opts).unwrap();
-        let img: turbojpeg::Image<Vec<u8>> =
-            turbojpeg::decompress(&out.bytes, turbojpeg::PixelFormat::RGB).unwrap();
-        let rgb = img.pixels;
-        let (w, h) = (img.width, img.height);
+        let (rgb, w, h) = common::decode_jpeg_rgb(&out.bytes);
         let mut sampled_lin: Vec<[f64; 3]> = Vec::with_capacity(24);
         let mut ref_lin: Vec<[f64; 3]> = Vec::with_capacity(24);
         for row in 0..4 {

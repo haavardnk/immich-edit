@@ -5,7 +5,9 @@ use raw_pipeline::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+mod common;
 
 const FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
 const MAX_EDGE: u32 = 512;
@@ -25,13 +27,11 @@ struct StackBaseline {
 type BaselineMap = BTreeMap<String, StackBaseline>;
 
 fn baseline_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/multi_feature.json")
+    common::baseline_path("multi_feature.json")
 }
 
 fn fixture_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(FIXTURE)
+    common::fixture_path(FIXTURE)
 }
 
 fn stack_tone_lift() -> Edits {
@@ -123,12 +123,6 @@ fn stack_noise_reduction() -> Edits {
     }
 }
 
-fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
-    let img: turbojpeg::Image<Vec<u8>> =
-        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).unwrap();
-    (img.pixels, img.width, img.height)
-}
-
 fn compute_metrics(rgb: &[u8], width: usize, height: usize) -> StackBaseline {
     let n = (width * height) as f64;
     let mut sum: [f64; 3] = [0.0, 0.0, 0.0];
@@ -172,7 +166,7 @@ fn render_stack(edits: &Edits) -> StackBaseline {
         ..Default::default()
     };
     let out = cpu::render(&frame, edits, &opts).unwrap();
-    let (rgb, w, h) = decode_jpeg_rgb(&out.bytes);
+    let (rgb, w, h) = common::decode_jpeg_rgb(&out.bytes);
     compute_metrics(&rgb, w, h)
 }
 

@@ -1,32 +1,10 @@
 use raw_pipeline::{
-    CpuRenderer, cpu, decode,
+    CpuRenderer, cpu,
     edits::{CropRect, Edits},
-    frame::{OutputFormat, RawFrame, RenderOptions},
+    frame::{OutputFormat, RenderOptions},
 };
-use std::path::{Path, PathBuf};
 
-const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
-    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
-];
-
-fn first_fixture_frame() -> Option<RawFrame> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
-        .ok()?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .collect();
-    paths.sort();
-    paths
-        .into_iter()
-        .find_map(|p| std::fs::read(&p).ok().and_then(|b| decode::decode(&b).ok()))
-}
+mod common;
 
 fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     let preview = || RenderOptions {
@@ -91,7 +69,7 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
 
 #[test]
 fn cpu_cache_matches_uncached() {
-    let Some(frame) = first_fixture_frame() else {
+    let Some(frame) = common::first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
     };
@@ -120,7 +98,7 @@ fn cpu_cache_matches_uncached() {
 
 #[test]
 fn cpu_cache_reuse_across_tone_edits() {
-    let Some(frame) = first_fixture_frame() else {
+    let Some(frame) = common::first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
     };

@@ -1,53 +1,8 @@
 use raw_pipeline::{cpu, decode, edits::Edits, frame::RawFrame, frame::RenderOptions};
-use std::path::{Path, PathBuf};
 
-const RAW_EXTS: &[&str] = &[
-    "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
-    "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
-];
+mod common;
 
-fn fixtures() -> Vec<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        return Vec::new();
-    };
-    let mut paths: Vec<PathBuf> = entries
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .collect();
-    paths.sort();
-    paths
-}
-
-fn each_fixture(test: impl Fn(&str, &RawFrame)) {
-    let paths = fixtures();
-    if paths.is_empty() {
-        eprintln!("no fixtures found; skipping");
-        return;
-    }
-    let mut decoded = 0;
-    for p in &paths {
-        let name = p.file_name().unwrap().to_string_lossy().to_string();
-        let bytes = std::fs::read(p).unwrap();
-        let frame = match decode::decode(&bytes) {
-            Ok(f) => f,
-            Err(e) => {
-                eprintln!("skip {name}: decode unsupported ({e})");
-                continue;
-            }
-        };
-        test(&name, &frame);
-        decoded += 1;
-    }
-    if decoded == 0 {
-        panic!("no fixtures decoded successfully out of {}", paths.len());
-    }
-}
+use common::each_fixture_frame as each_fixture;
 
 #[test]
 fn decode_metadata() {
@@ -104,8 +59,7 @@ fn auto_adjust_reads_every_fixture() {
 
 #[test]
 fn xtrans_renders_neutral_greys() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
+    let path = common::fixture_path("Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
     let Ok(bytes) = std::fs::read(&path) else {
         eprintln!("no X-Trans fixture; skipping");
         return;
@@ -199,7 +153,7 @@ fn identity_render_jpeg() {
 
 #[test]
 fn default_sharpening_is_raw_only() {
-    let Some(frame) = fixtures()
+    let Some(frame) = common::fixtures()
         .iter()
         .find_map(|p| std::fs::read(p).ok().and_then(|b| decode::decode(&b).ok()))
     else {

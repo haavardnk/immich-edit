@@ -5,8 +5,10 @@ use raw_pipeline::edits::{
 use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
+
+mod common;
 
 const W: usize = 512;
 const H: usize = 512;
@@ -19,7 +21,7 @@ struct PerfBaseline {
 }
 
 fn baseline_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/perf_gate.json")
+    common::baseline_path("perf_gate.json")
 }
 
 fn make_image(w: usize, h: usize) -> LinearImage {
@@ -221,7 +223,7 @@ const RENDER_FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
 const RENDER_ITERS: usize = 3;
 
 fn render_baseline_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/perf_gate_render.json")
+    common::baseline_path("perf_gate_render.json")
 }
 
 fn render_options(max_edge: u32, quality: bool) -> raw_pipeline::frame::RenderOptions {
@@ -257,9 +259,7 @@ fn perf_gate_full_render() {
         eprintln!("skip: set PERF_GATE=1 to enforce, BAKE_PERF_GATE=1 to regenerate baseline");
         return;
     }
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(RENDER_FIXTURE);
+    let path = common::fixture_path(RENDER_FIXTURE);
     if !path.exists() {
         eprintln!("skip: {RENDER_FIXTURE} missing");
         return;
