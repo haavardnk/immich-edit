@@ -5,7 +5,10 @@ use crate::math::smoothstep;
 
 pub struct BrightnessOp;
 
-const K: f32 = 1.5;
+pub const BRIGHTNESS_K: f32 = 1.5;
+pub const BRIGHTNESS_ROLLOFF_LO: f32 = 0.9;
+pub const BRIGHTNESS_ROLLOFF_HI: f32 = 1.0;
+pub const BRIGHTNESS_MAX_GAIN: f32 = 8.0;
 
 pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
     let y0 = 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -14,12 +17,12 @@ pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32,
     }
     let a = amount.clamp(-1.0, 1.0);
     let yc = y0.clamp(0.0, 1.0);
-    let d = yc + (1.0 - yc) * (-a * K).exp2();
+    let d = yc + (1.0 - yc) * (-a * BRIGHTNESS_K).exp2();
     let yl = if d > 1e-5 { yc / d } else { yc };
     let guard = y0.max(r).max(g).max(b);
-    let rolloff = smoothstep(0.9, 1.0, guard);
+    let rolloff = smoothstep(BRIGHTNESS_ROLLOFF_LO, BRIGHTNESS_ROLLOFF_HI, guard);
     let y1 = yl * (1.0 - rolloff) + y0 * rolloff;
-    let s = (y1 / y0).clamp(0.0, 8.0);
+    let s = (y1 / y0).clamp(0.0, BRIGHTNESS_MAX_GAIN);
     (r * s, g * s, b * s)
 }
 

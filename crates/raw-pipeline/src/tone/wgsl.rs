@@ -4,6 +4,7 @@ use super::shared::{
     LUMA_B, LUMA_G, LUMA_R, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE,
     SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
 };
+use crate::wgsl::f32_lit;
 
 static TONE_WGSL_STR: LazyLock<String> = LazyLock::new(|| {
     format!(
@@ -101,26 +102,17 @@ fn warn_clip_alpha(c: vec3<f32>) -> f32 {{
         luma_r = LUMA_R,
         luma_g = LUMA_G,
         luma_b = LUMA_B,
-        m00 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][0]),
-        m01 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][1]),
-        m02 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][2]),
-        m10 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][0]),
-        m11 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][1]),
-        m12 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][2]),
-        m20 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][0]),
-        m21 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][1]),
-        m22 = wgsl_f32(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][2]),
+        m00 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][0]),
+        m01 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][1]),
+        m02 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][2]),
+        m10 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][0]),
+        m11 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][1]),
+        m12 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][2]),
+        m20 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][0]),
+        m21 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][1]),
+        m22 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][2]),
     )
 });
-
-fn wgsl_f32(v: f32) -> String {
-    let s = format!("{v:?}");
-    if s.contains('.') || s.contains('e') || s.contains('E') {
-        s
-    } else {
-        format!("{s}.0")
-    }
-}
 
 pub fn tone_wgsl() -> &'static str {
     &TONE_WGSL_STR

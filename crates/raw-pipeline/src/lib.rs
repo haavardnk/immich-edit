@@ -23,6 +23,7 @@ pub mod perspective;
 pub mod presence;
 pub mod tone;
 pub mod warn;
+pub mod wgsl;
 
 use thiserror::Error;
 

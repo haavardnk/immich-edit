@@ -5,20 +5,24 @@ use crate::math::smoothstep;
 
 pub struct ContrastOp;
 
+pub const CONTRAST_GAMMA: f32 = 2.2;
+pub const CONTRAST_ROLLOFF_LO: f32 = 1.0;
+pub const CONTRAST_ROLLOFF_HI: f32 = 1.01;
+
 pub(crate) fn contrast_strength(amount: f32) -> f32 {
     (amount.clamp(-1.0, 1.0) * 1.25).exp2()
 }
 
 pub(crate) fn apply_perceptual_contrast(v: f32, s: f32) -> f32 {
-    let p = v.max(0.0).powf(1.0 / 2.2);
+    let p = v.max(0.0).powf(1.0 / CONTRAST_GAMMA);
     let pc = p.clamp(0.0, 1.0);
     let op = if pc < 0.5 {
         0.5 * (2.0 * pc).powf(s)
     } else {
         1.0 - 0.5 * (2.0 * (1.0 - pc)).powf(s)
     };
-    let lin = op.powf(2.2);
-    let m = smoothstep(1.0, 1.01, v);
+    let lin = op.powf(CONTRAST_GAMMA);
+    let m = smoothstep(CONTRAST_ROLLOFF_LO, CONTRAST_ROLLOFF_HI, v);
     lin * (1.0 - m) + v * m
 }
 

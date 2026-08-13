@@ -9,7 +9,6 @@ use crate::edits::{
 };
 use crate::gpu::context::GpuContext;
 
-const PRELUDE: &str = include_str!("../../assets/shaders/ops/prelude.wgsl");
 const LEVELS: [f32; 9] = [0.0, 0.015, 0.09, 0.25, 0.5, 0.82, 1.0, 1.7, 3.0];
 
 fn probe_colors() -> Vec<[f32; 3]> {
@@ -158,7 +157,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
         field = gpu_op.field_name,
         field_ty = field_ty,
         tone = crate::tone::wgsl::tone_wgsl(),
-        prelude = PRELUDE,
+        prelude = super::wgsl::op_prelude_wgsl(),
         functions = gpu_op.functions,
         apply = gpu_op.apply,
     );

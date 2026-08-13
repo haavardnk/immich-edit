@@ -29,6 +29,7 @@ pub mod transform;
 pub mod user_wb;
 pub mod vibrance;
 pub mod vignette;
+pub mod wgsl;
 pub mod white_balance;
 
 #[cfg(test)]

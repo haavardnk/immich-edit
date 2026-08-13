@@ -117,7 +117,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
 
     let process_chain = build_process_chain(mask);
     let tone_wgsl = crate::tone::wgsl::tone_wgsl();
-    let prelude = include_str!("../../assets/shaders/ops/prelude.wgsl");
+    let prelude = crate::ops::wgsl::op_prelude_wgsl();
     let geometry_wgsl = GEOMETRY_WGSL;
 
     let wgsl = format!(

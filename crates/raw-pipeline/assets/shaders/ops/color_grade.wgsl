@@ -25,8 +25,8 @@ fn color_grade_apply(c: vec3<f32>) -> vec3<f32> {
     let balance = p.color_grade[4].x;
     let blend = p.color_grade[4].y;
     let y = clamp(0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b, 0.0, 1.0);
-    let pivot = 0.5 + 0.3 * balance;
-    let feather = 0.15 + 0.25 * blend;
+    let pivot = COLOR_GRADE_PIVOT_BASE + COLOR_GRADE_PIVOT_RANGE * balance;
+    let feather = COLOR_GRADE_FEATHER_BASE + COLOR_GRADE_FEATHER_RANGE * blend;
     let s_hi = clamp(pivot + feather * 0.5, 0.001, 0.999);
     let s_lo = clamp(pivot - feather - feather * 0.5, 0.0, s_hi - 0.001);
     let h_lo = clamp(pivot - feather * 0.5, 0.001, 0.999);
@@ -34,8 +34,7 @@ fn color_grade_apply(c: vec3<f32>) -> vec3<f32> {
     let ws = 1.0 - smoothstep(s_lo, s_hi, y);
     let wh = smoothstep(h_lo, h_hi, y);
     let wm = max(1.0 - ws - wh, 0.0);
-    let strength = 0.5;
-    let off = (vec3<f32>(s.x, s.y, s.z) * ws + vec3<f32>(m.x, m.y, m.z) * wm + vec3<f32>(h.x, h.y, h.z) * wh + vec3<f32>(g.x, g.y, g.z)) * strength;
-    let lum = (s.w * ws + m.w * wm + h.w * wh + g.w) * strength;
+    let off = (vec3<f32>(s.x, s.y, s.z) * ws + vec3<f32>(m.x, m.y, m.z) * wm + vec3<f32>(h.x, h.y, h.z) * wh + vec3<f32>(g.x, g.y, g.z)) * COLOR_GRADE_STRENGTH;
+    let lum = (s.w * ws + m.w * wm + h.w * wh + g.w) * COLOR_GRADE_STRENGTH;
     return max(c + off + vec3<f32>(lum), vec3<f32>(0.0));
 }

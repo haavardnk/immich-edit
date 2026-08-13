@@ -5,6 +5,18 @@ use crate::math::{hue_dist, smoothstep};
 
 pub struct VibranceOp;
 
+pub const VIBRANCE_GAIN: f32 = 3.0;
+pub const VIBRANCE_CHROMA_LO: f32 = 0.4;
+pub const VIBRANCE_CHROMA_HI: f32 = 0.9;
+pub const VIBRANCE_SKIN_HUE_DEG: f32 = 25.0;
+pub const VIBRANCE_SKIN_SPREAD_LO_DEG: f32 = 10.0;
+pub const VIBRANCE_SKIN_SPREAD_HI_DEG: f32 = 35.0;
+pub const VIBRANCE_SKIN_CHROMA_LO: f32 = 0.05;
+pub const VIBRANCE_SKIN_CHROMA_HI: f32 = 0.20;
+pub const VIBRANCE_SKIN_FACTOR: f32 = 0.6;
+pub const VIBRANCE_DESAT_LO: f32 = 0.2;
+pub const VIBRANCE_DESAT_HI: f32 = 0.8;
+
 #[inline(always)]
 pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
     let mx = r.max(g).max(b);
@@ -21,12 +33,19 @@ pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f
         ((r - g) / d + 4.0) * 60.0
     };
     let effective = if amount > 0.0 {
-        let base = amount * 3.0 * (1.0 - smoothstep(0.4, 0.9, chroma));
-        let mut skin = 1.0 - smoothstep(10.0, 35.0, hue_dist(hue, 25.0));
-        skin *= smoothstep(0.05, 0.20, chroma);
-        base * (1.0 + (0.6 - 1.0) * skin)
+        let base = amount
+            * VIBRANCE_GAIN
+            * (1.0 - smoothstep(VIBRANCE_CHROMA_LO, VIBRANCE_CHROMA_HI, chroma));
+        let mut skin = 1.0
+            - smoothstep(
+                VIBRANCE_SKIN_SPREAD_LO_DEG,
+                VIBRANCE_SKIN_SPREAD_HI_DEG,
+                hue_dist(hue, VIBRANCE_SKIN_HUE_DEG),
+            );
+        skin *= smoothstep(VIBRANCE_SKIN_CHROMA_LO, VIBRANCE_SKIN_CHROMA_HI, chroma);
+        base * (1.0 + (VIBRANCE_SKIN_FACTOR - 1.0) * skin)
     } else {
-        amount * (1.0 - smoothstep(0.2, 0.8, chroma))
+        amount * (1.0 - smoothstep(VIBRANCE_DESAT_LO, VIBRANCE_DESAT_HI, chroma))
     };
     if effective.abs() < 1e-5 {
         return (r, g, b);

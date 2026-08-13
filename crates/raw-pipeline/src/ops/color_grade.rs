@@ -4,6 +4,12 @@ use crate::edits::{ColorGradeRegion, Edits};
 
 pub struct ColorGradeOp;
 
+pub const COLOR_GRADE_STRENGTH: f32 = 0.5;
+pub const COLOR_GRADE_PIVOT_BASE: f32 = 0.5;
+pub const COLOR_GRADE_PIVOT_RANGE: f32 = 0.3;
+pub const COLOR_GRADE_FEATHER_BASE: f32 = 0.15;
+pub const COLOR_GRADE_FEATHER_RANGE: f32 = 0.25;
+
 fn hue_dir(hue_deg: f32) -> [f32; 3] {
     let h = (hue_deg.rem_euclid(360.0)) / 60.0;
     let x = 1.0 - (h.rem_euclid(2.0) - 1.0).abs();

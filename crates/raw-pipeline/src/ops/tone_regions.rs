@@ -5,23 +5,48 @@ use crate::math::smoothstep;
 
 pub struct ToneRegionsOp;
 
+pub const TONE_REGIONS_WHITES_CLAMP: f32 = 0.99;
+pub const TONE_REGIONS_WHITES_SCALE: f32 = 0.5;
+pub const TONE_REGIONS_HL_MASK_LO: f32 = 0.3;
+pub const TONE_REGIONS_HL_MASK_HI: f32 = 0.95;
+pub const TONE_REGIONS_HL_MASK_TANH: f32 = 1.5;
+pub const TONE_REGIONS_HL_STRENGTH: f32 = 1.75;
+pub const TONE_REGIONS_HL_DESAT_LO: f32 = 0.0;
+pub const TONE_REGIONS_HL_DESAT_HI: f32 = 0.35;
+pub const TONE_REGIONS_SH_MASK_RANGE: f32 = 0.25;
+pub const TONE_REGIONS_SH_HALO_LO: f32 = 0.05;
+pub const TONE_REGIONS_SH_HALO_HI: f32 = 0.25;
+pub const TONE_REGIONS_SH_STRENGTH: f32 = 1.5;
+pub const TONE_REGIONS_SH_MULT_MIN: f32 = 0.1;
+pub const TONE_REGIONS_SH_MULT_MAX: f32 = 3.9;
+pub const TONE_REGIONS_BK_CEILING: f32 = 2.0;
+pub const TONE_REGIONS_BK_MASK_RANGE: f32 = 0.1;
+pub const TONE_REGIONS_BK_STRENGTH: f32 = 1.5;
+pub const TONE_REGIONS_BK_MULT_MAX: f32 = 3.9;
+
 pub(crate) fn whites_gain(wh: f32) -> f32 {
-    1.0 / (1.0 - wh.clamp(-0.99, 0.99) * 0.5)
+    1.0 / (1.0
+        - wh.clamp(-TONE_REGIONS_WHITES_CLAMP, TONE_REGIONS_WHITES_CLAMP)
+            * TONE_REGIONS_WHITES_SCALE)
 }
 
 pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
     if hl == 0.0 {
         return x;
     }
-    let mask = smoothstep(0.3, 0.95, (x * 1.5).tanh());
+    let mask = smoothstep(
+        TONE_REGIONS_HL_MASK_LO,
+        TONE_REGIONS_HL_MASK_HI,
+        (x * TONE_REGIONS_HL_MASK_TANH).tanh(),
+    );
     let new = if hl < 0.0 {
-        let gamma = 1.0 - hl * 1.75;
+        let gamma = 1.0 - hl * TONE_REGIONS_HL_STRENGTH;
         let base = x.clamp(0.0, 1.0).powf(gamma);
         let excess = (x - 1.0).max(0.0);
         let blend = (1.0 + hl).max(0.0);
         base + excess * blend
     } else {
-        x * (hl * 1.75).exp2()
+        x * (hl * TONE_REGIONS_HL_STRENGTH).exp2()
     };
     x * (1.0 - mask) + new * mask
 }
@@ -30,20 +55,24 @@ pub(crate) fn shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
     if sh == 0.0 {
         return 1.0;
     }
-    let mut mask = (1.0 - luma / 0.25).clamp(0.0, 1.0);
+    let mut mask = (1.0 - luma / TONE_REGIONS_SH_MASK_RANGE).clamp(0.0, 1.0);
     mask *= mask;
     let edge = (luma.max(0.0).sqrt() - blur_l.max(0.0).sqrt()).abs();
-    let halo = 1.0 - smoothstep(0.05, 0.25, edge);
-    let mult = (sh * 1.5 * halo).exp2().clamp(0.1, 3.9);
+    let halo = 1.0 - smoothstep(TONE_REGIONS_SH_HALO_LO, TONE_REGIONS_SH_HALO_HI, edge);
+    let mult = (sh * TONE_REGIONS_SH_STRENGTH * halo)
+        .exp2()
+        .clamp(TONE_REGIONS_SH_MULT_MIN, TONE_REGIONS_SH_MULT_MAX);
     1.0 + (mult - 1.0) * mask
 }
 
 #[inline(always)]
 fn blacks_scalar(x: f32, bk: f32) -> f32 {
-    let xc = x.clamp(0.0, 2.0);
-    let mut mask_bk = (1.0 - xc / 0.1).clamp(0.0, 1.0);
+    let xc = x.clamp(0.0, TONE_REGIONS_BK_CEILING);
+    let mut mask_bk = (1.0 - xc / TONE_REGIONS_BK_MASK_RANGE).clamp(0.0, 1.0);
     mask_bk *= mask_bk;
-    let mult_bk = (bk * 1.5).exp2().clamp(0.0, 3.9);
+    let mult_bk = (bk * TONE_REGIONS_BK_STRENGTH)
+        .exp2()
+        .clamp(0.0, TONE_REGIONS_BK_MULT_MAX);
     xc + xc * (mult_bk - 1.0) * mask_bk
 }
 
@@ -52,7 +81,8 @@ pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -
     let mut rr = highlights_apply(r, hl);
     let mut gg = highlights_apply(g, hl);
     let mut bb = highlights_apply(b, hl);
-    let desat = smoothstep(0.0, 0.35, clip) * (-hl).clamp(0.0, 1.0);
+    let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip)
+        * (-hl).clamp(0.0, 1.0);
     if desat > 0.0 {
         let luma = 0.2126 * rr + 0.7152 * gg + 0.0722 * bb;
         rr = rr + (luma - rr) * desat;

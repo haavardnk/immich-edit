@@ -18,12 +18,12 @@ fn vibrance_apply(c: vec3<f32>, amount: f32) -> vec3<f32> {
     }
     var effective: f32;
     if (amount > 0.0) {
-        let base = amount * 3.0 * (1.0 - smoothstep(0.4, 0.9, chroma));
-        var skin = 1.0 - smoothstep(10.0, 35.0, op_hue_dist(hue, 25.0));
-        skin = skin * smoothstep(0.05, 0.20, chroma);
-        effective = base * (1.0 + (0.6 - 1.0) * skin);
+        let base = amount * VIBRANCE_GAIN * (1.0 - smoothstep(VIBRANCE_CHROMA_LO, VIBRANCE_CHROMA_HI, chroma));
+        var skin = 1.0 - smoothstep(VIBRANCE_SKIN_SPREAD_LO_DEG, VIBRANCE_SKIN_SPREAD_HI_DEG, op_hue_dist(hue, VIBRANCE_SKIN_HUE_DEG));
+        skin = skin * smoothstep(VIBRANCE_SKIN_CHROMA_LO, VIBRANCE_SKIN_CHROMA_HI, chroma);
+        effective = base * (1.0 + (VIBRANCE_SKIN_FACTOR - 1.0) * skin);
     } else {
-        effective = amount * (1.0 - smoothstep(0.2, 0.8, chroma));
+        effective = amount * (1.0 - smoothstep(VIBRANCE_DESAT_LO, VIBRANCE_DESAT_HI, chroma));
     }
     if (abs(effective) < 1e-5) { return c; }
     let factor = 1.0 + effective;

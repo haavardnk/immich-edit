@@ -45,37 +45,37 @@ fn hsl_hsl_to_rgb(c: vec3<f32>) -> vec3<f32> {
 }
 
 fn hsl_apply(c_in: vec3<f32>) -> vec3<f32> {
-    let cc = clamp(c_in, vec3<f32>(0.0), vec3<f32>(2.0));
+    let cc = clamp(c_in, vec3<f32>(0.0), vec3<f32>(HSL_INPUT_CEILING));
     let hsl = hsl_rgb_to_hsl(cc);
-    if (hsl.y < 1e-4) { return c_in; }
-    var centers: array<f32, 8> = array<f32, 8>(0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0);
-    let sigma2 = 625.0;
-    var w: array<f32, 8>;
+    if (hsl.y < HSL_MIN_SAT) { return c_in; }
+    var centers: array<f32, HSL_BANDS> = HSL_BAND_CENTERS_DEG;
+    let sigma2 = HSL_BAND_SIGMA_DEG * HSL_BAND_SIGMA_DEG;
+    var w: array<f32, HSL_BANDS>;
     var w_sum: f32 = 0.0;
-    for (var i: i32 = 0; i < 8; i = i + 1) {
+    for (var i: i32 = 0; i < HSL_BANDS; i = i + 1) {
         let d = op_hue_dist(hsl.x, centers[i]);
         w[i] = exp(-(d * d) / (2.0 * sigma2));
         w_sum = w_sum + w[i];
     }
     if (w_sum > 1.0) {
-        for (var i: i32 = 0; i < 8; i = i + 1) {
+        for (var i: i32 = 0; i < HSL_BANDS; i = i + 1) {
             w[i] = w[i] / w_sum;
         }
     }
-    let gate = smoothstep(0.05, 0.20, hsl.y);
+    let gate = smoothstep(HSL_SAT_GATE_LO, HSL_SAT_GATE_HI, hsl.y);
     var hue_d: f32 = 0.0;
     var sat_d: f32 = 0.0;
     var lum_d: f32 = 0.0;
-    for (var i: i32 = 0; i < 8; i = i + 1) {
-        hue_d = hue_d + (p.hsl[i].x / 100.0 * 30.0) * w[i];
-        sat_d = sat_d + (p.hsl[i].y / 100.0) * w[i];
-        lum_d = lum_d + (p.hsl[i].z / 100.0) * w[i];
+    for (var i: i32 = 0; i < HSL_BANDS; i = i + 1) {
+        hue_d = hue_d + (p.hsl[i].x / HSL_PARAM_FULL_SCALE * HSL_HUE_SHIFT_DEG) * w[i];
+        sat_d = sat_d + (p.hsl[i].y / HSL_PARAM_FULL_SCALE) * w[i];
+        lum_d = lum_d + (p.hsl[i].z / HSL_PARAM_FULL_SCALE) * w[i];
     }
     hue_d = hue_d * gate;
     sat_d = sat_d * gate;
     lum_d = lum_d * gate;
     let new_h = hsl.x + hue_d;
     let new_s = clamp(hsl.y * (1.0 + sat_d), 0.0, 1.0);
-    let new_l = clamp(hsl.z + lum_d * 0.3, 0.0, 1.0);
+    let new_l = clamp(hsl.z + lum_d * HSL_LUM_SHIFT_SCALE, 0.0, 1.0);
     return hsl_hsl_to_rgb(vec3<f32>(new_h, new_s, new_l));
 }

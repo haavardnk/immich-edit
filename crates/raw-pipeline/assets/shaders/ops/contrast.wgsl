@@ -1,5 +1,5 @@
 fn contrast_one(v: f32, s: f32) -> f32 {
-    let g = pow(max(v, 0.0), 1.0 / 2.2);
+    let g = pow(max(v, 0.0), 1.0 / CONTRAST_GAMMA);
     let gc = clamp(g, 0.0, 1.0);
     var out_v: f32;
     if (gc < 0.5) {
@@ -7,8 +7,8 @@ fn contrast_one(v: f32, s: f32) -> f32 {
     } else {
         out_v = 1.0 - 0.5 * pow(2.0 * (1.0 - gc), s);
     }
-    let lin = pow(out_v, 2.2);
-    let m = smoothstep(1.0, 1.01, v);
+    let lin = pow(out_v, CONTRAST_GAMMA);
+    let m = smoothstep(CONTRAST_ROLLOFF_LO, CONTRAST_ROLLOFF_HI, v);
     return lin * (1.0 - m) + v * m;
 }
 
