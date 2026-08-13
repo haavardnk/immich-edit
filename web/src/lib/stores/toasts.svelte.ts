@@ -1,3 +1,5 @@
+import { errorMessage } from '$lib/utils/errors';
+
 export type ToastKind = 'error' | 'warn' | 'info' | 'success';
 
 export type Toast = {
@@ -36,6 +38,10 @@ class ToastStore {
 
   dismiss = (id: number): void => {
     this.items = this.items.filter((t) => t.id !== id);
+  };
+
+  fail = (context: string, e: unknown, ttlMs?: number): void => {
+    this.push('error', `${context}: ${errorMessage(e)}`, ttlMs);
   };
 }
 

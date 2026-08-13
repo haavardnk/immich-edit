@@ -8,9 +8,9 @@
 
 <TagPicker
   {tags}
-  open={ui.tagsPopoverOpen}
-  onToggle={ui.toggleTagsPopover}
-  onClose={ui.closeTagsPopover}
+  open={ui.metaPopover === 'tags'}
+  onToggle={() => ui.togglePopover('tags')}
+  onClose={ui.closePopover}
   onAdd={editor.addTag}
   onRemove={editor.removeTag}
   onCreate={editor.createAndAddTag}

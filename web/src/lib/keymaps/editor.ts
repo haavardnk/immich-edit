@@ -84,10 +84,10 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       ui.zoomToggle();
       return;
     case 'toggleInfo':
-      ui.toggleExifPopover();
+      ui.togglePopover('exif');
       return;
     case 'toggleTags':
-      ui.toggleTagsPopover();
+      ui.togglePopover('tags');
       return;
     case 'clipWarn':
       editor.toggleClipWarn();
@@ -111,22 +111,22 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       ui.toggleFullscreen();
       return;
     case 'openGeometry':
-      ui.openGeometry();
+      ui.openTab('geometry');
       return;
     case 'openRetouch':
-      ui.openRetouch();
+      ui.openTab('retouch');
       return;
     case 'openMasks':
-      ui.openMasks();
+      ui.openTab('masks');
       return;
     case 'openExport':
-      ui.openExport();
+      ui.openTab('export');
       return;
     case 'createVirtualCopy':
       void createVirtualCopy(id);
       return;
     case 'perspective':
-      if (ui.editorTab !== 'geometry') ui.openGeometry();
+      if (ui.editorTab !== 'geometry') ui.openTab('geometry');
       ui.togglePerspectiveCorners();
       return;
     case 'resetEdits':

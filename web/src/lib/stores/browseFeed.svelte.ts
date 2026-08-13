@@ -51,7 +51,7 @@ export class BrowseFeed {
             this.totalCount = s.total;
             browsing.total = s.total;
           })
-          .catch((e) => toasts.push('error', `stats: ${(e as Error).message}`));
+          .catch((e) => toasts.fail('stats', e));
       }
     }
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
@@ -66,7 +66,7 @@ export class BrowseFeed {
       })
       .catch((e) => {
         if (this.opts.onFetchError) this.opts.onFetchError(initial, e);
-        else toasts.push('error', `load: ${(e as Error).message}`);
+        else toasts.fail('load', e);
       })
       .finally(() => {
         this.loading = false;
