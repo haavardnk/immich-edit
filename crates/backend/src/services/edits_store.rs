@@ -28,6 +28,8 @@ pub enum EditsStoreError {
     Migrate(#[from] sqlx::migrate::MigrateError),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
+    #[error("corrupt row: {0}")]
+    Corrupt(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -16,6 +16,8 @@ pub enum JobStoreError {
     Parse(#[from] serde_json::Error),
     #[error("crypto: {0}")]
     Crypto(#[from] crate::services::crypto::CryptoError),
+    #[error("corrupt row: {0}")]
+    Corrupt(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,13 +41,14 @@ impl JobStatus {
         }
     }
 
-    fn from_str(s: &str) -> Self {
+    fn from_str(s: &str) -> Result<Self, JobStoreError> {
         match s {
-            "running" => Self::Running,
-            "completed" => Self::Completed,
-            "failed" => Self::Failed,
-            "cancelled" => Self::Cancelled,
-            _ => Self::Pending,
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
+            other => Err(JobStoreError::Corrupt(format!("job status {other}"))),
         }
     }
 }
@@ -60,12 +63,13 @@ pub enum JobItemStatus {
 }
 
 impl JobItemStatus {
-    fn from_str(s: &str) -> Self {
+    fn from_str(s: &str) -> Result<Self, JobStoreError> {
         match s {
-            "running" => Self::Running,
-            "completed" => Self::Completed,
-            "failed" => Self::Failed,
-            _ => Self::Pending,
+            "pending" => Ok(Self::Pending),
+            "running" => Ok(Self::Running),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            other => Err(JobStoreError::Corrupt(format!("job item status {other}"))),
         }
     }
 }
@@ -344,7 +348,7 @@ impl JobStore {
         let Some(row) = row else {
             return Ok(());
         };
-        let job_id = parse_uuid(row.get::<String, _>("job_id"));
+        let job_id = parse_uuid(row.get::<String, _>("job_id"))?;
         self.recompute_and_finalize(job_id).await
     }
 
@@ -374,7 +378,7 @@ impl JobStore {
         .await?;
         let pending: i64 = row.get("pending");
         let completed: i64 = row.get("completed");
-        let status = JobStatus::from_str(&row.get::<String, _>("status"));
+        let status = JobStatus::from_str(&row.get::<String, _>("status"))?;
 
         if pending == 0 && matches!(status, JobStatus::Pending | JobStatus::Running) {
             let final_status = if completed > 0 {
@@ -539,8 +543,8 @@ impl JobStore {
         .await?;
         let cleared: Vec<(Uuid, String)> = rows
             .iter()
-            .map(|r| (parse_uuid(r.get("id")), r.get::<String, _>("kind")))
-            .collect();
+            .map(|r| Ok((parse_uuid(r.get("id"))?, r.get::<String, _>("kind"))))
+            .collect::<Result<_, JobStoreError>>()?;
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running'))",
@@ -572,20 +576,21 @@ impl JobStore {
     }
 }
 
-fn parse_uuid(s: String) -> Uuid {
-    Uuid::parse_str(&s).unwrap_or_default()
+fn parse_uuid(s: String) -> Result<Uuid, JobStoreError> {
+    Uuid::parse_str(&s).map_err(|_| JobStoreError::Corrupt(format!("uuid {s}")))
 }
 
 fn job_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord, JobStoreError> {
     Ok(JobRecord {
-        id: parse_uuid(row.get("id")),
-        user_id: parse_uuid(row.get("user_id")),
+        id: parse_uuid(row.get("id"))?,
+        user_id: parse_uuid(row.get("user_id"))?,
         server_epoch: row.get("server_epoch"),
         auth_session_id: row
             .get::<Option<String>, _>("auth_session_id")
-            .map(parse_uuid),
+            .map(parse_uuid)
+            .transpose()?,
         kind: row.get("kind"),
-        status: JobStatus::from_str(&row.get::<String, _>("status")),
+        status: JobStatus::from_str(&row.get::<String, _>("status"))?,
         target: serde_json::from_str(&row.get::<String, _>("target_json"))?,
         params: serde_json::from_str(&row.get::<String, _>("params_json"))?,
         total: row.get("total"),
@@ -603,10 +608,10 @@ fn item_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobItemRecord, JobStor
         None => None,
     };
     Ok(JobItemRecord {
-        id: parse_uuid(row.get("id")),
-        job_id: parse_uuid(row.get("job_id")),
+        id: parse_uuid(row.get("id"))?,
+        job_id: parse_uuid(row.get("job_id"))?,
         asset_id: row.get("asset_id"),
-        status: JobItemStatus::from_str(&row.get::<String, _>("status")),
+        status: JobItemStatus::from_str(&row.get::<String, _>("status"))?,
         error: row.get("error"),
         result,
         idempotency_key: row.get("idempotency_key"),
@@ -743,5 +748,41 @@ mod tests {
         assert_eq!(job.status, JobStatus::Pending);
         let again = store.claim_next_item().await.unwrap().unwrap();
         assert_eq!(again.attempts, 2);
+    }
+
+    #[tokio::test]
+    async fn corrupt_rows_are_rejected() {
+        let cases = [
+            (
+                "UPDATE jobs SET user_id = 'not-a-uuid' WHERE id = ?",
+                "uuid",
+            ),
+            (
+                "UPDATE jobs SET status = 'weird' WHERE id = ?",
+                "job status",
+            ),
+        ];
+        for (sql, expected) in cases {
+            let store = store().await;
+            let job = create(
+                &store,
+                Uuid::nil(),
+                "test",
+                &json!(null),
+                &json!(null),
+                &items(&["a"]),
+            )
+            .await;
+            sqlx::query(sql)
+                .bind(job.id.to_string())
+                .execute(&store.pool)
+                .await
+                .unwrap();
+            let err = store.get_job(job.id).await.unwrap_err();
+            match err {
+                JobStoreError::Corrupt(msg) => assert!(msg.contains(expected), "{msg}"),
+                other => panic!("expected corrupt error, got {other}"),
+            }
+        }
     }
 }
