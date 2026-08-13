@@ -17,6 +17,7 @@
     maskUvToDisplayUv,
     type GeometryTransform
   } from '$lib/utils/geomTransform';
+  import { imageRect } from '$lib/utils/imageRect.svelte';
 
   let {
     img
@@ -24,46 +25,7 @@
     img: HTMLImageElement | null;
   } = $props();
 
-  let rectX = $state(0);
-  let rectY = $state(0);
-  let rectW = $state(0);
-  let rectH = $state(0);
-
-  function recompute(): void {
-    if (!img) return;
-    const parent = img.parentElement;
-    if (!parent) return;
-    const p = parent.getBoundingClientRect();
-    const r = img.getBoundingClientRect();
-    rectX = r.left - p.left;
-    rectY = r.top - p.top;
-    rectW = r.width;
-    rectH = r.height;
-  }
-
-  $effect(() => {
-    if (!img) return;
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(img);
-    if (img.parentElement) ro.observe(img.parentElement);
-    img.addEventListener('load', recompute);
-    window.addEventListener('resize', recompute);
-    return () => {
-      ro.disconnect();
-      img.removeEventListener('load', recompute);
-      window.removeEventListener('resize', recompute);
-    };
-  });
-
-  $effect(() => {
-    void ui.zoom;
-    void ui.panX;
-    void ui.panY;
-    if (!img) return;
-    const id = requestAnimationFrame(recompute);
-    return () => cancelAnimationFrame(id);
-  });
+  const rect = imageRect(() => img);
 
   const lensP = $derived.by<LensWarpParams>(() =>
     lensWarpFromEdits(editor.lensView, editor.meta?.source_w ?? 1, editor.meta?.source_h ?? 1)
@@ -83,10 +45,12 @@
     editor.maskOverlayVisible &&
       !!active &&
       editor.maskPreviewLayerId === null &&
-      rectW > 0 &&
-      rectH > 0
+      rect.w > 0 &&
+      rect.h > 0
   );
-  const showColorPicker = $derived(!!editor.colorPicker?.ready && rectW > 0 && rectH > 0 && !!img);
+  const showColorPicker = $derived(
+    !!editor.colorPicker?.ready && rect.w > 0 && rect.h > 0 && !!img
+  );
 
   function sceneToDisplay(scene: Vec2f): Vec2f {
     const m = sceneUvToMaskUv(lensP, [scene.x, scene.y]);
@@ -109,13 +73,13 @@
   }
 
   function toPx(v: Vec2f): { x: number; y: number } {
-    return { x: rectX + v.x * rectW, y: rectY + v.y * rectH };
+    return { x: rect.x + v.x * rect.w, y: rect.y + v.y * rect.h };
   }
 
   function fromPx(px: number, py: number): Vec2f {
     return {
-      x: Math.max(0, Math.min(1, (px - rectX) / Math.max(rectW, 1))),
-      y: Math.max(0, Math.min(1, (py - rectY) / Math.max(rectH, 1)))
+      x: Math.max(0, Math.min(1, (px - rect.x) / Math.max(rect.w, 1))),
+      y: Math.max(0, Math.min(1, (py - rect.y) / Math.max(rect.h, 1)))
     };
   }
 
@@ -255,9 +219,9 @@
     e.preventDefault();
     e.stopPropagation();
     if (!img || !editor.colorPicker?.ready || img.naturalWidth < 1 || img.naturalHeight < 1) return;
-    const rect = img.getBoundingClientRect();
-    const u = clamp01((e.clientX - rect.left) / Math.max(rect.width, 1));
-    const v = clamp01((e.clientY - rect.top) / Math.max(rect.height, 1));
+    const bounds = img.getBoundingClientRect();
+    const u = clamp01((e.clientX - bounds.left) / Math.max(bounds.width, 1));
+    const v = clamp01((e.clientY - bounds.top) / Math.max(bounds.height, 1));
     const sx = Math.min(img.naturalWidth - 1, Math.floor(u * img.naturalWidth));
     const sy = Math.min(img.naturalHeight - 1, Math.floor(v * img.naturalHeight));
     const canvas = document.createElement('canvas');
@@ -271,7 +235,7 @@
   }
 
   const draft = $derived(editor.polygonDraft);
-  const drafting = $derived(!!draft && rectW > 0 && rectH > 0);
+  const drafting = $derived(!!draft && rect.w > 0 && rect.h > 0);
   let draftCursor = $state<{ x: number; y: number } | null>(null);
 
   function draftPointerMove(e: PointerEvent): void {
@@ -382,7 +346,7 @@
   <button
     type="button"
     class="absolute z-30 cursor-crosshair bg-transparent"
-    style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px;"
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
     aria-label="Sample mask color"
     onpointerdown={sampleColor}
   ></button>
@@ -439,10 +403,10 @@
               </linearGradient>
             </defs>
             <rect
-              x={rectX}
-              y={rectY}
-              width={rectW}
-              height={rectH}
+              x={rect.x}
+              y={rect.y}
+              width={rect.w}
+              height={rect.h}
               fill={`url(#${gradId})`}
               style="pointer-events: none;"
             />
@@ -596,10 +560,10 @@
               </radialGradient>
             </defs>
             <rect
-              x={rectX}
-              y={rectY}
-              width={rectW}
-              height={rectH}
+              x={rect.x}
+              y={rect.y}
+              width={rect.w}
+              height={rect.h}
               fill={`url(#${gradId})`}
               style="pointer-events: none;"
             />
@@ -864,8 +828,8 @@
       {/each}
     {/if}
     <text
-      x={rectX + 12}
-      y={rectY + 22}
+      x={rect.x + 12}
+      y={rect.y + 22}
       fill="#ffffff"
       font-size="12"
       style="pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 3px;"

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
   import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
   import {
     bufferToImageData,
@@ -15,6 +14,7 @@
     viewIsIdentity,
     viewTransform
   } from '$lib/utils/canvasCoords';
+  import { imageRect } from '$lib/utils/imageRect.svelte';
 
   let {
     img
@@ -22,50 +22,11 @@
     img: HTMLImageElement | null;
   } = $props();
 
-  let rectX = $state(0);
-  let rectY = $state(0);
-  let rectW = $state(0);
-  let rectH = $state(0);
+  const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let strokeActive = $state(false);
   let lastPx: number | null = null;
   let lastPy: number | null = null;
-
-  function recompute(): void {
-    if (!img) return;
-    const parent = img.parentElement;
-    if (!parent) return;
-    const p = parent.getBoundingClientRect();
-    const r = img.getBoundingClientRect();
-    rectX = r.left - p.left;
-    rectY = r.top - p.top;
-    rectW = r.width;
-    rectH = r.height;
-  }
-
-  $effect(() => {
-    if (!img) return;
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(img);
-    if (img.parentElement) ro.observe(img.parentElement);
-    img.addEventListener('load', recompute);
-    window.addEventListener('resize', recompute);
-    return () => {
-      ro.disconnect();
-      img.removeEventListener('load', recompute);
-      window.removeEventListener('resize', recompute);
-    };
-  });
-
-  $effect(() => {
-    void ui.zoom;
-    void ui.panX;
-    void ui.panY;
-    if (!img) return;
-    const id = requestAnimationFrame(recompute);
-    return () => cancelAnimationFrame(id);
-  });
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
 
@@ -86,8 +47,8 @@
     editor.maskOverlayVisible &&
       isBrush &&
       editor.maskPreviewLayerId === null &&
-      rectW > 0 &&
-      rectH > 0
+      rect.w > 0 &&
+      rect.h > 0
   );
 
   $effect(() => {
@@ -108,8 +69,8 @@
     if (!canvasEl) return;
     const buf = await editor.ensureBrushBuffer(componentId, rasterId);
     if (!canvasEl) return;
-    const w = Math.max(1, Math.floor(rectW));
-    const h = Math.max(1, Math.floor(rectH));
+    const w = Math.max(1, Math.floor(rect.w));
+    const h = Math.max(1, Math.floor(rect.h));
     if (canvasEl.width !== w) canvasEl.width = w;
     if (canvasEl.height !== h) canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
@@ -270,7 +231,7 @@
   <canvas
     bind:this={canvasEl}
     class="absolute"
-    style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px; touch-action: none; cursor: crosshair;"
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}

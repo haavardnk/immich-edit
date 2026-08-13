@@ -1,6 +1,5 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
   import { isKeybind, keyLabel } from '$lib/keybinds';
   import type { MaskComponent, MaskLayer } from '$lib/types/edits';
   import { lensWarpFromEdits, maskUvToSceneUv, type LensWarpParams } from '$lib/utils/lensWarp';
@@ -9,6 +8,7 @@
     geometryTransformFrom,
     type GeometryTransform
   } from '$lib/utils/geomTransform';
+  import { imageRect } from '$lib/utils/imageRect.svelte';
 
   let {
     img
@@ -16,10 +16,7 @@
     img: HTMLImageElement | null;
   } = $props();
 
-  let rectX = $state(0);
-  let rectY = $state(0);
-  let rectW = $state(0);
-  let rectH = $state(0);
+  const rect = imageRect(() => img);
   let boxStart = $state<[number, number] | null>(null);
   let boxNow = $state<[number, number] | null>(null);
 
@@ -36,42 +33,6 @@
   $effect(() => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
-  function recompute(): void {
-    if (!img) return;
-    const parent = img.parentElement;
-    if (!parent) return;
-    const p = parent.getBoundingClientRect();
-    const r = img.getBoundingClientRect();
-    rectX = r.left - p.left;
-    rectY = r.top - p.top;
-    rectW = r.width;
-    rectH = r.height;
-  }
-
-  $effect(() => {
-    if (!img) return;
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(img);
-    if (img.parentElement) ro.observe(img.parentElement);
-    img.addEventListener('load', recompute);
-    window.addEventListener('resize', recompute);
-    return () => {
-      ro.disconnect();
-      img.removeEventListener('load', recompute);
-      window.removeEventListener('resize', recompute);
-    };
-  });
-
-  $effect(() => {
-    void ui.zoom;
-    void ui.panX;
-    void ui.panY;
-    if (!img) return;
-    const id = requestAnimationFrame(recompute);
-    return () => cancelAnimationFrame(id);
   });
 
   const geomT = $derived.by<GeometryTransform>(() =>
@@ -96,7 +57,7 @@
     activeComp?.generated?.kind === 'click' ? (activeComp.generated.points ?? []) : []
   );
   const show = $derived(
-    editor.clickTool.active && editor.maskPreviewLayerId === null && rectW > 0 && rectH > 0
+    editor.clickTool.active && editor.maskPreviewLayerId === null && rect.w > 0 && rect.h > 0
   );
   const dragRect = $derived(
     boxStart && boxNow
@@ -114,15 +75,15 @@
   }
 
   function sceneUvAt(e: PointerEvent): [number, number] {
-    const rect = (e.currentTarget as Element).getBoundingClientRect();
-    const du = (e.clientX - rect.left) / Math.max(1, rect.width);
-    const dv = (e.clientY - rect.top) / Math.max(1, rect.height);
+    const bounds = (e.currentTarget as Element).getBoundingClientRect();
+    const du = (e.clientX - bounds.left) / Math.max(1, bounds.width);
+    const dv = (e.clientY - bounds.top) / Math.max(1, bounds.height);
     return sceneUvFromDisplay(du, dv);
   }
 
   function localPx(e: PointerEvent): [number, number] {
-    const rect = (e.currentTarget as Element).getBoundingClientRect();
-    return [e.clientX - rect.left, e.clientY - rect.top];
+    const bounds = (e.currentTarget as Element).getBoundingClientRect();
+    return [e.clientX - bounds.left, e.clientY - bounds.top];
   }
 
   function markerPos(x: number, y: number): { left: number; top: number } | null {
@@ -144,7 +105,7 @@
       }
     }
     if (bestDist > 0.08) return null;
-    return { left: bestLeft * rectW, top: bestTop * rectH };
+    return { left: bestLeft * rect.w, top: bestTop * rect.h };
   }
 
   async function onPointerDown(e: PointerEvent): Promise<void> {
@@ -185,7 +146,7 @@
       [bx, by]
     ];
     const scene = corners.map(([px, py]) =>
-      sceneUvFromDisplay(px / Math.max(1, rectW), py / Math.max(1, rectH))
+      sceneUvFromDisplay(px / Math.max(1, rect.w), py / Math.max(1, rect.h))
     );
     const xs = scene.map((s) => s[0]);
     const ys = scene.map((s) => s[1]);
@@ -206,7 +167,7 @@
     role="button"
     tabindex="-1"
     aria-label={editor.clickTool.box ? 'Drag a box around the subject' : 'Click to refine the mask'}
-    style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px; touch-action: none; cursor: {editor.maskGenerating
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: {editor.maskGenerating
       ? 'wait'
       : 'crosshair'};"
     onpointerdown={onPointerDown}

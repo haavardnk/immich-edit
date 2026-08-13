@@ -9,6 +9,7 @@
     steppedSegment,
     viewTransform
   } from '$lib/utils/canvasCoords';
+  import { imageRect } from '$lib/utils/imageRect.svelte';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -17,10 +18,7 @@
     img: HTMLImageElement | null;
   } = $props();
 
-  let rectX = $state(0);
-  let rectY = $state(0);
-  let rectW = $state(0);
-  let rectH = $state(0);
+  const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let layerEl: HTMLCanvasElement | null = null;
   let drawPts = $state<[number, number][]>([]);
@@ -33,46 +31,10 @@
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
-  const show = $derived(ui.editorTab === 'retouch' && rectW > 0 && rectH > 0);
-
-  function recompute(): void {
-    if (!img) return;
-    const parent = img.parentElement;
-    if (!parent) return;
-    const p = parent.getBoundingClientRect();
-    const r = img.getBoundingClientRect();
-    rectX = r.left - p.left;
-    rectY = r.top - p.top;
-    rectW = r.width;
-    rectH = r.height;
-  }
-
-  $effect(() => {
-    if (!img) return;
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(img);
-    if (img.parentElement) ro.observe(img.parentElement);
-    img.addEventListener('load', recompute);
-    window.addEventListener('resize', recompute);
-    return () => {
-      ro.disconnect();
-      img.removeEventListener('load', recompute);
-      window.removeEventListener('resize', recompute);
-    };
-  });
-
-  $effect(() => {
-    void ui.zoom;
-    void ui.panX;
-    void ui.panY;
-    if (!img) return;
-    const id = requestAnimationFrame(recompute);
-    return () => cancelAnimationFrame(id);
-  });
+  const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
 
   function minSide(): number {
-    return Math.max(1, Math.min(rectW, rectH));
+    return Math.max(1, Math.min(rect.w, rect.h));
   }
 
   function displayRadius(sceneRadius: number, nx: number, ny: number): number {
@@ -103,8 +65,8 @@
     if (!s) return null;
     const [sx, sy] = sceneUvToDisplayUv(view, s.source.x, s.source.y);
     const r = displayRadius(s.radius, sx, sy) / minSide();
-    const dx = (nx - sx) * rectW;
-    const dy = (ny - sy) * rectH;
+    const dx = (nx - sx) * rect.w;
+    const dy = (ny - sy) * rect.h;
     return Math.hypot(dx, dy) <= Math.max(8, r * minSide()) ? s.id : null;
   }
 
@@ -112,20 +74,20 @@
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
       const pts = strokeDisplayPoints(s).map(
-        ([x, y]) => [x * rectW, y * rectH] as [number, number]
+        ([x, y]) => [x * rect.w, y * rect.h] as [number, number]
       );
       const rPx = displayRadius(s.radius, nx, ny);
-      if (distToPolyline(pts, nx * rectW, ny * rectH) <= rPx) return s;
+      if (distToPolyline(pts, nx * rect.w, ny * rect.h) <= rPx) return s;
     }
     return null;
   }
 
   function normalise(e: PointerEvent): [number, number] {
     if (!canvasEl) return [0, 0];
-    const rect = canvasEl.getBoundingClientRect();
+    const bounds = canvasEl.getBoundingClientRect();
     return [
-      (e.clientX - rect.left) / Math.max(1, rect.width),
-      (e.clientY - rect.top) / Math.max(1, rect.height)
+      (e.clientX - bounds.left) / Math.max(1, bounds.width),
+      (e.clientY - bounds.top) / Math.max(1, bounds.height)
     ];
   }
 
@@ -293,8 +255,8 @@
 
   function draw(): void {
     if (!canvasEl) return;
-    const w = Math.max(1, Math.floor(rectW));
-    const h = Math.max(1, Math.floor(rectH));
+    const w = Math.max(1, Math.floor(rect.w));
+    const h = Math.max(1, Math.floor(rect.h));
     if (canvasEl.width !== w) canvasEl.width = w;
     if (canvasEl.height !== h) canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
@@ -389,8 +351,8 @@
     void hoverAlt;
     void anchor;
     void view;
-    void rectW;
-    void rectH;
+    void rect.w;
+    void rect.h;
     void editor.activeRetouchId;
     void editor.retouchTool.size;
     draw();
@@ -402,7 +364,7 @@
     bind:this={canvasEl}
     aria-label="retouch canvas"
     class="absolute"
-    style="left: {rectX}px; top: {rectY}px; width: {rectW}px; height: {rectH}px; touch-action: none; cursor: crosshair;"
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
