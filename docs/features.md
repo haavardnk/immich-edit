@@ -108,7 +108,8 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Local tone and color edits | ✓ Yes | Exposure, tone, white balance, saturation, and vibrance |
 | Local texture, clarity, and sharpening | ✓ Yes | Per-mask deltas |
 | Local noise reduction, dehaze, HSL, or curves | ✗ No | These controls remain global |
-| Copy masks between photos | ✓ Yes | Opt in with **Masks** when copying edits; heal and clone strokes are not included |
+| Copy masks between photos | ✓ Yes | Opt in with **Masks** when copying edits |
+| Copy heal and clone strokes | ✓ Yes | Opt in with **Retouch** when copying edits |
 | Heal and clone | ✓ Yes | Parametric, non-destructive strokes |
 | Content-aware or AI object removal | ✗ No | Heal and clone require a source patch |
 | Generative fill or expand | ✗ No | No cloud or local generative model |

@@ -8,7 +8,20 @@ import {
   DEVELOP_KEYS,
   type CopySections
 } from './copyPaste';
-import { neutralEdits } from '$lib/types/edits';
+import { neutralEdits, type RetouchStroke } from '$lib/types/edits';
+
+function stroke(id: string): RetouchStroke {
+  return {
+    id,
+    mode: 'heal',
+    points: [{ x: 0.5, y: 0.5 }],
+    radius: 0.02,
+    hardness: 0.5,
+    opacity: 1,
+    source: { x: 0.6, y: 0.6 },
+    enabled: true
+  };
+}
 
 describe('allSections', () => {
   it('sets every section to the given value', () => {
@@ -35,9 +48,10 @@ describe('allSelected', () => {
 });
 
 describe('DEFAULT_COPY_SECTIONS', () => {
-  it('excludes geometry and masks by default', () => {
+  it('excludes geometry, masks and retouch by default', () => {
     expect(DEFAULT_COPY_SECTIONS.geometry).toBe(false);
     expect(DEFAULT_COPY_SECTIONS.masks).toBe(false);
+    expect(DEFAULT_COPY_SECTIONS.retouch).toBe(false);
     expect(DEFAULT_COPY_SECTIONS.basic).toBe(true);
   });
 });
@@ -64,5 +78,21 @@ describe('applyCopySections', () => {
     incoming.basic.contrast = 99;
     const out = applyCopySections(current, incoming, allSections(false));
     expect(out.basic.contrast).toBe(7);
+  });
+
+  it('carries heal and clone strokes only when retouch is selected', () => {
+    const current = neutralEdits();
+    current.retouch = [stroke('current')];
+    const incoming = neutralEdits();
+    incoming.retouch = [stroke('incoming')];
+
+    const kept = applyCopySections(current, incoming, allSections(false));
+    expect(kept.retouch).toEqual([stroke('current')]);
+
+    const pasted = applyCopySections(current, incoming, {
+      ...allSections(false),
+      retouch: true
+    });
+    expect(pasted.retouch).toEqual([stroke('incoming')]);
   });
 });
