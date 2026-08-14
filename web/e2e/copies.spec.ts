@@ -38,6 +38,26 @@ test('a virtual copy shows up beside its master in the grid', async ({ page }) =
   await expect(copy).toBeVisible();
 });
 
+test('the loupe header marks a virtual copy', async ({ page }) => {
+  await installMocks(page);
+
+  await page.goto(`/assets/${ASSET_ID}`);
+  await expect(page.getByTitle('Back')).toBeVisible();
+  await page.getByTitle(/^Create a virtual copy/).click();
+  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+
+  await page.goto('/photos');
+  const copy = page.locator(`a[href="/assets/${ASSET_ID}_1"]`).first();
+  await expect(copy).toBeVisible();
+
+  await page.getByLabel('Quick review').first().click();
+  await expect(page.getByRole('button', { name: /^Close/ })).toBeVisible();
+  await expect(page.getByTitle('Virtual copy', { exact: true })).toHaveCount(0);
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTitle('Virtual copy', { exact: true })).toHaveText('Copy 1');
+});
+
 test('the grid delete button drops a virtual copy after a confirm click', async ({ page }) => {
   await installMocks(page);
 

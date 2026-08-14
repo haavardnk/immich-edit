@@ -12,6 +12,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { isRejected } from '$lib/reject';
+  import { copyIndex, isCopy } from '$lib/assetKey';
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { putBounded } from '$lib/utils/boundedRecord';
   import type { TagRef } from '$lib/types/asset';
@@ -28,6 +29,7 @@
   import {
     mdiClose,
     mdiCompare,
+    mdiContentDuplicate,
     mdiTriangleOutline,
     mdiInformationOutline,
     mdiSkipNextOutline,
@@ -54,6 +56,9 @@
   );
   const rating = $derived(asset?.exifInfo?.rating ?? 0);
   const rejected = $derived(asset ? isRejected(asset) : false);
+  const copyBadge = $derived(
+    asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
+  );
   const exif = $derived(asset?.exifInfo ?? null);
   const zoomed = $derived(focusedId ? compare.viewOf(focusedId).zoomed : false);
   const cols = $derived(panes.length <= 4 ? 2 : 3);
@@ -391,6 +396,15 @@
   <div class="fixed inset-0 z-40 flex flex-col bg-black/95">
     <div class="flex items-center gap-2 px-4 h-11 flex-none text-immich-dark-fg">
       <span class="text-sm font-medium truncate">{asset.originalFileName}</span>
+      {#if copyBadge}
+        <span
+          title="Virtual copy"
+          class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 text-[11px] text-immich-dark-fg/70 truncate max-w-40"
+        >
+          <Icon path={mdiContentDuplicate} size={12} />
+          {copyBadge}
+        </span>
+      {/if}
       <div class="ml-1">
         <StarRating {rating} size={16} onchange={rate} />
       </div>
