@@ -19,6 +19,8 @@ pub struct MergeSections {
     pub geometry: bool,
     #[serde(default)]
     pub masks: bool,
+    #[serde(default)]
+    pub retouch: bool,
 }
 
 impl MergeSections {
@@ -32,6 +34,7 @@ impl MergeSections {
             lens: true,
             geometry: false,
             masks: false,
+            retouch: false,
         }
     }
 
@@ -54,7 +57,7 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
         lens: pick(sections.lens, incoming.lens, current.lens),
         geometry: pick(sections.geometry, incoming.geometry, current.geometry),
         masks: pick(sections.masks, incoming.masks, current.masks),
-        retouch: current.retouch,
+        retouch: pick(sections.retouch, incoming.retouch, current.retouch),
         unknown_ops: current.unknown_ops,
     }
 }
@@ -62,12 +65,41 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use raw_pipeline::edits::{RetouchMode, RetouchStroke, Vec2f};
+
+    fn stroke(id: &str) -> RetouchStroke {
+        RetouchStroke {
+            id: id.to_string(),
+            mode: RetouchMode::Heal,
+            points: vec![Vec2f { x: 0.5, y: 0.5 }],
+            radius: 0.02,
+            hardness: 0.5,
+            opacity: 1.0,
+            source: Vec2f { x: 0.6, y: 0.6 },
+            enabled: true,
+        }
+    }
 
     fn incoming() -> Edits {
         let mut e = Edits::default();
         e.effects.vignette_amount = 40.0;
         e.geometry.rotate = 2;
+        e.retouch = vec![stroke("incoming")];
         e
+    }
+
+    fn no_sections() -> MergeSections {
+        MergeSections {
+            basic: false,
+            tone: false,
+            color: false,
+            detail: false,
+            effects: false,
+            lens: false,
+            geometry: false,
+            masks: false,
+            retouch: false,
+        }
     }
 
     #[test]
@@ -88,16 +120,7 @@ mod tests {
         let current = Edits::default();
         let sections = MergeSections {
             geometry: true,
-            ..MergeSections {
-                basic: false,
-                tone: false,
-                color: false,
-                detail: false,
-                effects: false,
-                lens: false,
-                geometry: false,
-                masks: false,
-            }
+            ..no_sections()
         };
         let merged = merge_edits(current, incoming(), sections);
         assert_eq!(merged.geometry.rotate, 2);
@@ -105,9 +128,28 @@ mod tests {
     }
 
     #[test]
-    fn look_only_excludes_geometry_masks() {
-        let merged = merge_edits(Edits::default(), incoming(), MergeSections::look_only());
+    fn look_only_excludes_geometry_masks_and_retouch() {
+        let current = Edits {
+            retouch: vec![stroke("current")],
+            ..Default::default()
+        };
+        let merged = merge_edits(current, incoming(), MergeSections::look_only());
         assert_eq!(merged.effects.vignette_amount, 40.0);
         assert_eq!(merged.geometry.rotate, 0);
+        assert_eq!(merged.retouch, vec![stroke("current")]);
+    }
+
+    #[test]
+    fn retouch_section_copies_strokes() {
+        let current = Edits {
+            retouch: vec![stroke("current")],
+            ..Default::default()
+        };
+        let sections = MergeSections {
+            retouch: true,
+            ..no_sections()
+        };
+        let merged = merge_edits(current, incoming(), sections);
+        assert_eq!(merged.retouch, vec![stroke("incoming")]);
     }
 }

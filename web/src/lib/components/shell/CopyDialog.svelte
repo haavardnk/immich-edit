@@ -104,6 +104,15 @@
             />
             {SECTION_LABELS.masks}
           </label>
+          <label class="flex items-center gap-2 py-0.5">
+            <input
+              type="checkbox"
+              class="checkbox checkbox-xs"
+              checked={copyDialog.sections.retouch}
+              onchange={(e) => set('retouch', e.currentTarget.checked)}
+            />
+            {SECTION_LABELS.retouch}
+          </label>
         </div>
       </div>
 

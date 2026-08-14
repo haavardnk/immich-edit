@@ -9,6 +9,7 @@ export interface CopySections {
   lens: boolean;
   geometry: boolean;
   masks: boolean;
+  retouch: boolean;
 }
 
 export type SectionKey = keyof CopySections;
@@ -23,7 +24,8 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   lens: 'Lens Corrections',
   effects: 'Effects',
   geometry: 'Geometry & crop',
-  masks: 'Masks'
+  masks: 'Masks',
+  retouch: 'Retouch'
 };
 
 export function allSections(value: boolean): CopySections {
@@ -35,7 +37,8 @@ export function allSections(value: boolean): CopySections {
     effects: value,
     lens: value,
     geometry: value,
-    masks: value
+    masks: value,
+    retouch: value
   };
 }
 
@@ -44,7 +47,8 @@ export const ALL_COPY_SECTIONS: CopySections = allSections(true);
 export const DEFAULT_COPY_SECTIONS: CopySections = {
   ...allSections(true),
   geometry: false,
-  masks: false
+  masks: false,
+  retouch: false
 };
 
 export function hasSelectedSections(sections: CopySections): boolean {
@@ -65,6 +69,6 @@ export function applyCopySections(current: Edits, incoming: Edits, sections: Cop
     lens: sections.lens ? incoming.lens : current.lens,
     geometry: sections.geometry ? incoming.geometry : current.geometry,
     masks: sections.masks ? incoming.masks : current.masks,
-    retouch: current.retouch
+    retouch: sections.retouch ? incoming.retouch : current.retouch
   };
 }
