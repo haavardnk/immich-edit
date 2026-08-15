@@ -45,7 +45,8 @@ pub fn vignette_coeffs(lens: &LensEdits) -> (f32, f32, f32, f32) {
 }
 
 pub const VIGNETTE_GAIN_MIN: f32 = 0.25;
-pub const VIGNETTE_GAIN_MAX: f32 = 2.5;
+pub const VIGNETTE_GAIN_MAX: f32 = 8.0;
+pub const VIGNETTE_POLY_MIN: f32 = 1.0 / VIGNETTE_GAIN_MAX;
 pub const VIGNETTE_AMOUNT_DAMPENING: f32 = 0.8;
 
 #[inline]
@@ -53,8 +54,8 @@ pub fn vignette_correction(vk1: f32, vk2: f32, vk3: f32, amount: f32, r_norm: f3
     let r2 = r_norm * r_norm;
     let r4 = r2 * r2;
     let r6 = r4 * r2;
-    let poly = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
-    let full_gain = if poly.abs() > 1e-6 { 1.0 / poly } else { 1.0 };
+    let poly = (1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6).max(VIGNETTE_POLY_MIN);
+    let full_gain = 1.0 / poly;
     let gain = 1.0 + (full_gain - 1.0) * amount;
     gain.clamp(VIGNETTE_GAIN_MIN, VIGNETTE_GAIN_MAX)
 }
@@ -143,6 +144,38 @@ mod tests {
         let corner = img.rgb[0];
         if corner <= center + 0.01 {
             panic!("expected corner > center after correction; corner={corner} center={center}");
+        }
+    }
+
+    #[test]
+    fn gain_stays_monotonic_when_polynomial_goes_negative() {
+        let (vk1, vk2, vk3) = (-2.3577, 2.7051, -1.2007);
+        let mut prev = vignette_correction(vk1, vk2, vk3, 1.0, 0.0);
+        for step in 1..=100 {
+            let r = step as f32 / 100.0;
+            let gain = vignette_correction(vk1, vk2, vk3, 1.0, r);
+            if gain < prev - 1e-4 {
+                panic!("gain dropped at r={r}: {prev} -> {gain}");
+            }
+            if gain > VIGNETTE_GAIN_MAX {
+                panic!("gain exceeded ceiling at r={r}: {gain}");
+            }
+            prev = gain;
+        }
+    }
+
+    #[test]
+    fn clamp_keeps_lensfun_vignetting_coefficients() {
+        let lens = LensEdits {
+            profile_enabled: Some(true),
+            vk1: -2.3577,
+            vk2: 2.7051,
+            vk3: -1.2007,
+            ..Default::default()
+        }
+        .clamped();
+        if lens.vk1 != -2.3577 || lens.vk2 != 2.7051 || lens.vk3 != -1.2007 {
+            panic!("vignetting coefficients were clamped: {lens:?}");
         }
     }
 }

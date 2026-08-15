@@ -180,7 +180,7 @@ pub(super) fn collect_stats_output(
             let dx = px + 0.5 - cx;
             let dy = py + 0.5 - cy;
             let r_norm = (dx * dx + dy * dy).sqrt() * inv_diag;
-            let gain = vignette_correction(vk1, vk2, vk3, vig_amount, r_norm).clamp(0.0, 2.5);
+            let gain = vignette_correction(vk1, vk2, vk3, vig_amount, r_norm);
             cam[0] *= gain;
             cam[1] *= gain;
             cam[2] *= gain;

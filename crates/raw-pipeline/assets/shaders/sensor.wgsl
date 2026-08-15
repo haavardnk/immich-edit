@@ -56,11 +56,10 @@ fn vignette_correction(r_norm: f32) -> f32 {
     let r2 = r_norm * r_norm;
     let r4 = r2 * r2;
     let r6 = r4 * r2;
-    let poly = 1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6;
-    var full_gain = 1.0;
-    if (abs(poly) >= 1e-6) { full_gain = 1.0 / poly; }
+    let poly = max(1.0 + vk1 * r2 + vk2 * r4 + vk3 * r6, 0.125);
+    let full_gain = 1.0 / poly;
     let gain = 1.0 + (full_gain - 1.0) * amount;
-    return clamp(gain, 0.25, 2.5);
+    return clamp(gain, 0.25, 8.0);
 }
 
 @compute @workgroup_size(16, 16, 1)
