@@ -39,7 +39,7 @@ class RejectedStore {
     let page: string | null = null;
     do {
       const body: SearchQuery = { tagIds: [tag.id], size: 1000 };
-      if (page) body.page = page;
+      if (page) body.page = Number(page);
       const res = await searchMetadata(body);
       for (const a of res.items) ids.add(a.id);
       page = res.nextPage;

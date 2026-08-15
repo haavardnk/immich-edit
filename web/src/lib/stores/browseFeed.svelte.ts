@@ -55,7 +55,7 @@ export class BrowseFeed {
       }
     }
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
-    if (!initial && this.nextPage) body.page = this.nextPage;
+    if (!initial && this.nextPage) body.page = Number(this.nextPage);
     const fetcher = this.opts.fetcher ?? searchMetadata;
     Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
       .then(([result]) => {

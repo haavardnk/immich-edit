@@ -16,7 +16,7 @@ export interface SearchQuery {
   type?: 'IMAGE';
   withExif?: boolean;
   size?: number;
-  page?: string;
+  page?: number;
   takenAfter?: string;
   takenBefore?: string;
 }

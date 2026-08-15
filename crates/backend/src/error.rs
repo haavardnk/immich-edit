@@ -127,7 +127,16 @@ impl From<ImmichError> for AppError {
             ImmichError::Unauthorized => Self::UpstreamAuth,
             ImmichError::NotFound => Self::NotFound,
             ImmichError::Timeout => Self::UpstreamTimeout,
-            ImmichError::Transport(_) | ImmichError::Status(_) | ImmichError::Decode(_) => {
+            ImmichError::Status(code) => {
+                tracing::warn!(target: "app::error", upstream_status = code, "immich rejected the request");
+                Self::UpstreamUnavailable
+            }
+            ImmichError::Transport(detail) => {
+                tracing::warn!(target: "app::error", %detail, "immich transport failed");
+                Self::UpstreamUnavailable
+            }
+            ImmichError::Decode(detail) => {
+                tracing::warn!(target: "app::error", %detail, "immich response could not be decoded");
                 Self::UpstreamUnavailable
             }
         }
