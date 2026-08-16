@@ -1,5 +1,7 @@
+use chrono::{Datelike, Timelike};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -147,18 +149,36 @@ pub async fn purge_all_exports(state: &AppState) {
     let _ = tokio::fs::create_dir_all(root).await;
 }
 
+fn entry_datetime(modified: SystemTime) -> Option<zip::DateTime> {
+    let local = chrono::DateTime::<chrono::Local>::from(modified);
+    zip::DateTime::from_date_and_time(
+        u16::try_from(local.year()).ok()?,
+        local.month() as u8,
+        local.day() as u8,
+        local.hour() as u8,
+        local.minute() as u8,
+        local.second() as u8,
+    )
+    .ok()
+}
+
 fn zip_dir_blocking(dir: &Path, archive: &Path) -> std::io::Result<()> {
     let tmp = archive.with_extension("zip.part");
     let file = std::fs::File::create(&tmp)?;
     let mut writer = zip::ZipWriter::new(file);
-    let options: zip::write::SimpleFileOptions =
+    let base: zip::write::SimpleFileOptions =
         zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
-        if !entry.file_type()?.is_file() {
+        let meta = entry.metadata()?;
+        if !meta.is_file() {
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
+        let options = match meta.modified().ok().and_then(entry_datetime) {
+            Some(time) => base.last_modified_time(time),
+            None => base,
+        };
         writer.start_file(name, options)?;
         let mut src = std::fs::File::open(entry.path())?;
         std::io::copy(&mut src, &mut writer)?;
@@ -167,4 +187,33 @@ fn zip_dir_blocking(dir: &Path, archive: &Path) -> std::io::Result<()> {
     out.flush()?;
     std::fs::rename(&tmp, archive)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn zip_entries_carry_the_export_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let filename = write_unique(dir.path(), "photo", "_edit", "jpg", b"data")
+            .await
+            .unwrap();
+        let written = std::fs::metadata(dir.path().join(&filename))
+            .unwrap()
+            .modified()
+            .unwrap();
+        let archive = out.path().join("export.zip");
+        zip_dir_blocking(dir.path(), &archive).unwrap();
+
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&archive).unwrap()).unwrap();
+        let entry = zip.by_index(0).unwrap();
+        let expected = chrono::DateTime::<chrono::Local>::from(written);
+        assert_eq!(entry.name(), filename);
+        assert_eq!(
+            entry.last_modified().unwrap().to_string()[..16],
+            expected.format("%Y-%m-%d %H:%M").to_string()
+        );
+    }
 }
