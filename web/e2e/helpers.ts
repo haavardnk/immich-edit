@@ -115,6 +115,7 @@ export interface PreviewRequest {
 
 export interface InstallOpts {
   assets?: Array<typeof ASSET_SUMMARY>;
+  edits?: Array<{ id: string; hash: string; updated_at: string }>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -133,8 +134,15 @@ export interface InstallOpts {
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const copies: CopyRecord[] = [];
-  const expanded = () =>
-    assets.flatMap((a) => [
+  const ordered = (order: unknown): Array<typeof ASSET_SUMMARY> => {
+    if (order !== 'asc' && order !== 'desc') return assets;
+    const sign = order === 'asc' ? 1 : -1;
+    return assets
+      .slice()
+      .sort((a, b) => (Date.parse(a.fileCreatedAt) - Date.parse(b.fileCreatedAt)) * sign);
+  };
+  const expanded = (list: Array<typeof ASSET_SUMMARY> = assets) =>
+    list.flatMap((a) => [
       a,
       ...copies
         .filter((c) => c.source_asset_id === a.id)
@@ -169,14 +177,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       );
     }
     if (p === '/api/search/metadata') {
-      if (opts.onMetadata) opts.onMetadata((req.postDataJSON() as Record<string, unknown>) ?? {});
-      const items = expanded();
+      const body = (req.postDataJSON() as Record<string, unknown>) ?? {};
+      if (opts.onMetadata) opts.onMetadata(body);
+      const items = expanded(ordered(body.order));
       return route.fulfill(
         json({ items, count: items.length, total: items.length, nextPage: null })
       );
     }
     if (p === '/api/search/statistics') return route.fulfill(json({ total: assets.length }));
-    if (p === '/api/edits') return route.fulfill(json([]));
+    if (p === '/api/edits') return route.fulfill(json(opts.edits ?? []));
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));
     if (p === '/api/tags') return route.fulfill(json([]));

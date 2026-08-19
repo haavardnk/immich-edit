@@ -5,22 +5,24 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { sortAssets } from '$lib/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
-  let assets = $state<AssetSummary[]>([]);
+  let loaded = $state<AssetSummary[]>([]);
   let loading = $state(false);
   let folderPath = $state('');
 
   const queryPath = $derived(page.url.searchParams.get('path') ?? '');
+  const assets = $derived(sortAssets(loaded, (a) => a.fileCreatedAt, browseControls.sortDir));
 
   async function loadFolder(path: string): Promise<void> {
     if (!path) return;
     folderPath = path;
     loading = true;
     const raw = await folderAssets(path);
-    assets = raw.map((a) => ({
+    loaded = raw.map((a) => ({
       id: a.id,
       originalFileName: a.originalFileName,
       type: a.type,
@@ -31,7 +33,6 @@
       exifInfo: a.exifInfo ?? null,
       tags: []
     }));
-    browsing.set(assets);
     loading = false;
   }
 
@@ -40,9 +41,13 @@
     untrack(() => loadFolder(p));
   });
 
+  $effect(() => {
+    browsing.set(assets);
+  });
+
   onMount(() => {
     editor.unload();
-    browseControls.reset();
+    browseControls.enter('folders', 'collection');
   });
 </script>
 

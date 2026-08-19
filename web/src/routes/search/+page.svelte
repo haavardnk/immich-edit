@@ -49,7 +49,7 @@
     const _mode = mode;
     untrack(() => {
       selection.clear();
-      browseControls.enter('search:' + query);
+      browseControls.enter('search:' + query, null);
       feed.reset();
       if (query) feed.fetchPage(true);
     });

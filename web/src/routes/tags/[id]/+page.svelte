@@ -16,7 +16,7 @@
     const _ = id;
     untrack(() => {
       selection.clear();
-      browseControls.enter('tag:' + id);
+      browseControls.enter('tag:' + id, 'collection');
       feed.reset();
       feed.fetchPage(true);
     });

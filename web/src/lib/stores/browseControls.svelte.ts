@@ -1,10 +1,19 @@
 import type { SearchQuery, SortDir, Visibility } from '$lib/types/search';
+import { readStored, writeStored } from '$lib/utils/storage';
 
 export type { SortDir, Visibility };
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
+export type SortFamily = 'timeline' | 'collection' | 'edited';
 
-class BrowseControlsStore {
-  sortDir = $state<SortDir>('desc');
+const SORT_KEY = 'immich-edit:browseSort';
+
+const SORT_DEFAULTS: Record<SortFamily, SortDir> = {
+  timeline: 'desc',
+  collection: 'asc',
+  edited: 'asc'
+};
+
+export class BrowseControlsStore {
   favoriteOnly = $state(false);
   rating = $state<RatingFilter>('any');
   filename = $state('');
@@ -12,10 +21,38 @@ class BrowseControlsStore {
   takenAfter = $state('');
   takenBefore = $state('');
   excludeRejected = $state(false);
+  private sortByFamily = $state<Record<SortFamily, SortDir>>({ ...SORT_DEFAULTS });
+  private family = $state<SortFamily>('timeline');
+
+  constructor() {
+    const stored = readStored<Record<SortFamily, SortDir>>(SORT_KEY);
+    if (!stored) return;
+    const merged = { ...SORT_DEFAULTS };
+    for (const family of Object.keys(SORT_DEFAULTS) as SortFamily[]) {
+      const dir = stored[family];
+      if (dir === 'asc' || dir === 'desc') merged[family] = dir;
+    }
+    this.sortByFamily = merged;
+  }
+
+  get sortDir(): SortDir {
+    return this.sortByFamily[this.family];
+  }
+
+  get sortFamily(): SortFamily {
+    return this.family;
+  }
+
+  setSortDir(dir: SortDir): void {
+    const next = { ...this.sortByFamily };
+    next[this.family] = dir;
+    this.sortByFamily = next;
+    writeStored(SORT_KEY, next);
+  }
 
   get isDefault(): boolean {
     return (
-      this.sortDir === 'desc' &&
+      this.sortDir === SORT_DEFAULTS[this.family] &&
       !this.favoriteOnly &&
       this.rating === 'any' &&
       this.filename === '' &&
@@ -41,7 +78,18 @@ class BrowseControlsStore {
   private context: string | null = null;
 
   reset(): void {
-    this.sortDir = 'desc';
+    this.resetFilters();
+    this.setSortDir(SORT_DEFAULTS[this.family]);
+  }
+
+  enter(context: string, family: SortFamily | null): void {
+    if (family) this.family = family;
+    if (this.context === context) return;
+    this.context = context;
+    this.resetFilters();
+  }
+
+  private resetFilters(): void {
     this.favoriteOnly = false;
     this.rating = 'any';
     this.filename = '';
@@ -49,12 +97,6 @@ class BrowseControlsStore {
     this.takenAfter = '';
     this.takenBefore = '';
     this.excludeRejected = false;
-  }
-
-  enter(context: string): void {
-    if (this.context === context) return;
-    this.context = context;
-    this.reset();
   }
 
   searchBody(base: SearchQuery): SearchQuery {

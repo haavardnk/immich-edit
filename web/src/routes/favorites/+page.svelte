@@ -9,7 +9,7 @@
 
   onMount(() => {
     editor.unload();
-    browseControls.enter('favorites');
+    browseControls.enter('favorites', 'timeline');
     feed.fetchPage(true);
   });
 

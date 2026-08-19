@@ -14,7 +14,8 @@
     totalCount,
     favoriteLocked = false,
     hideSort = false,
-    hideFilenameFilter = false
+    hideFilenameFilter = false,
+    sortBasis = 'capture'
   }: {
     title: string;
     loaded: number;
@@ -22,7 +23,18 @@
     favoriteLocked?: boolean;
     hideSort?: boolean;
     hideFilenameFilter?: boolean;
+    sortBasis?: 'capture' | 'edit';
   } = $props();
+
+  const sortLabel = $derived(
+    browseControls.sortDir === 'asc'
+      ? sortBasis === 'edit'
+        ? 'Oldest edit first'
+        : 'Oldest first'
+      : sortBasis === 'edit'
+        ? 'Newest edit first'
+        : 'Newest first'
+  );
 
   let filterOpen = $state(false);
   let filenameLocal = $state(browseControls.filename);
@@ -62,7 +74,7 @@
   ];
 
   function toggleDir(): void {
-    browseControls.sortDir = browseControls.sortDir === 'asc' ? 'desc' : 'asc';
+    browseControls.setSortDir(browseControls.sortDir === 'asc' ? 'desc' : 'asc');
   }
 
   const sizeOptions: { value: GridSize; label: string }[] = [
@@ -114,11 +126,7 @@
   {/if}
 
   {#if !hideSort}
-    <button
-      class="p-0.5 rounded hover:bg-white/10"
-      title={browseControls.sortDir === 'asc' ? 'Oldest first' : 'Newest first'}
-      onclick={toggleDir}
-    >
+    <button class="p-0.5 rounded hover:bg-white/10" title={sortLabel} onclick={toggleDir}>
       <Icon
         path={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
         size={14}

@@ -9,7 +9,7 @@
 
   onMount(() => {
     editor.unload();
-    browseControls.enter('photos');
+    browseControls.enter('photos', 'timeline');
     feed.fetchPage(true);
   });
 

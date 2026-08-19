@@ -16,6 +16,7 @@
     favoriteLocked = false,
     loadingMore = false,
     onLoadMore,
+    sortBasis = 'capture',
     error = null
   }: {
     title: string;
@@ -28,6 +29,7 @@
     favoriteLocked?: boolean;
     loadingMore?: boolean;
     onLoadMore?: () => void;
+    sortBasis?: 'capture' | 'edit';
     error?: string | null;
   } = $props();
 </script>
@@ -37,7 +39,7 @@
 {:else if error}
   <div class="flex-1 flex items-center justify-center text-sm text-red-400">{error}</div>
 {:else}
-  <BrowseHeader {title} loaded={assets.length} {totalCount} {favoriteLocked} />
+  <BrowseHeader {title} loaded={assets.length} {totalCount} {favoriteLocked} {sortBasis} />
   {#if assets.length === 0}
     <EmptyState title={emptyTitle} message={emptyMessage} />
   {:else}
