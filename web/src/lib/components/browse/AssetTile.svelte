@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import type { AssetSummary } from '$lib/types/album';
   import { hint } from '$lib/keybinds';
   import { assetThumbUrl } from '$lib/api/assets';
   import { copyIndex, isCopy } from '$lib/assetKey';
-  import Icon from '$lib/components/Icon.svelte';
   import { isRejected } from '$lib/reject';
+  import { editorHref } from '$lib/editorNavigation';
+  import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,
     mdiStar,
@@ -12,9 +15,7 @@
     mdiCheckboxBlankCircleOutline,
     mdiEyeOutline,
     mdiCloseCircle,
-    mdiContentDuplicate,
-    mdiDelete,
-    mdiDeleteAlert
+    mdiContentDuplicate
   } from '@mdi/js';
 
   let {
@@ -83,33 +84,26 @@
     }
     onToggle?.();
   }
-
-  function onDeleteClick(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!pendingDelete) {
-      pendingDelete = true;
-      return;
-    }
-    pendingDelete = false;
-    onDeleteCopy?.();
-  }
 </script>
 
 <div
-  class="block aspect-square overflow-hidden bg-white/5 rounded-lg group relative transition-all"
+  class="group relative isolate block h-full w-full overflow-hidden bg-neutral-900"
   class:ring-2={active || selected}
-  class:ring-immich-dark-primary={active && !selected}
-  class:ring-immich-primary={selected}
+  class:ring-inset={active || selected}
+  class:ring-primary={active || selected}
   title={asset.originalFileName}
 >
-  <a href={`/assets/${asset.id}`} onclick={onClick} class="block w-full h-full">
+  <a
+    href={editorHref(asset.id, `${page.url.pathname}${page.url.search}`)}
+    onclick={onClick}
+    aria-label={asset.originalFileName}
+    class="block h-full w-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+  >
     <img
       {src}
       alt=""
       loading="lazy"
-      class="object-cover w-full h-full transition-transform group-hover:scale-105"
-      class:opacity-70={selected}
+      class="h-full w-full object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
       class:opacity-40={rejected}
       class:grayscale={rejected}
     />
@@ -118,74 +112,91 @@
     type="button"
     onclick={onCheckbox}
     aria-label={selected ? 'Deselect' : 'Select'}
-    class="absolute top-1 left-1 text-white drop-shadow-md transition-opacity {selected ||
+    aria-pressed={selected}
+    class="absolute top-1 left-1 rounded-full text-white drop-shadow-md transition-opacity focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {selected ||
     selectionActive
       ? 'opacity-100'
       : 'opacity-0 group-hover:opacity-100'}"
   >
-    <Icon path={selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline} size={20} />
+    <Icon
+      icon={selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline}
+      size="20px"
+      aria-hidden="true"
+    />
   </button>
   {#if asset.isFavorite}
-    <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">
-      <Icon path={mdiHeart} size={16} />
+    <div
+      role="img"
+      aria-label="Favorite"
+      class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
+    >
+      <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
     </div>
   {/if}
   {#if rejected}
     <div
+      role="img"
+      aria-label="Rejected"
       class="absolute right-1 text-white drop-shadow-md pointer-events-none"
       class:top-1={!asset.isFavorite}
       class:top-7={asset.isFavorite}
     >
-      <Icon path={mdiCloseCircle} size={16} />
+      <Icon icon={mdiCloseCircle} size="16px" aria-hidden="true" />
     </div>
   {/if}
   <div
     class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100"
   >
-    <button
+    <IconButton
       type="button"
-      onclick={onLoupeClick}
-      aria-label="Quick review"
+      size="small"
+      shape="round"
+      variant="ghost"
+      color="secondary"
+      class="text-white drop-shadow-md bg-black/40 hover:bg-black/70"
+      icon={mdiEyeOutline}
       title={hint('Quick review', 'openLoupe')}
-      class="text-white drop-shadow-md rounded-full p-1.5 bg-black/40 hover:bg-black/70 transition-colors"
-    >
-      <Icon path={mdiEyeOutline} size={22} />
-    </button>
+      aria-label="Quick review"
+      onclick={onLoupeClick}
+    />
     {#if copyBadge && onDeleteCopy}
-      <button
-        type="button"
-        onclick={onDeleteClick}
-        onmouseleave={() => (pendingDelete = false)}
-        aria-label={pendingDelete ? 'Confirm delete copy' : 'Delete copy'}
-        title={pendingDelete ? 'Click again to delete' : 'Delete this virtual copy'}
-        class="drop-shadow-md rounded-full p-1.5 transition-colors {pendingDelete
-          ? 'bg-red-500/80 text-white hover:bg-red-500'
-          : 'bg-black/40 text-white hover:bg-black/70 hover:text-red-400'}"
-      >
-        <Icon path={pendingDelete ? mdiDeleteAlert : mdiDelete} size={22} />
-      </button>
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete copy"
+        title="Delete this virtual copy"
+        confirmLabel="Confirm delete copy"
+        size="small"
+        round
+        deleteClass="drop-shadow-md bg-black/40 text-white hover:bg-black/70 hover:text-red-400"
+        confirmClass="drop-shadow-md bg-red-500/80 text-white hover:bg-red-500"
+        onconfirm={onDeleteCopy}
+      />
     {/if}
   </div>
-  {#if copyBadge}
-    <div
-      class="absolute bottom-1 right-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white pointer-events-none max-w-[70%]"
-    >
-      <Icon path={mdiContentDuplicate} size={12} />
-      <span class="truncate">{copyBadge}</span>
-    </div>
-  {/if}
-  {#if rating > 0}
-    <div
-      class="absolute bottom-1 left-1 flex items-center gap-0.5 text-white drop-shadow-md pointer-events-none"
-    >
-      {#each [1, 2, 3, 4, 5] as n (n)}
-        <Icon path={mdiStar} size={12} class={n <= rating ? 'opacity-100' : 'opacity-30'} />
-      {/each}
-    </div>
-  {/if}
   <div
-    class="absolute inset-x-0 bottom-0 px-2 py-1 text-[10px] text-white truncate bg-linear-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 items-end gap-2 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {copyBadge ||
+    rating > 0
+      ? 'opacity-100'
+      : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}"
   >
-    {asset.originalFileName}
+    <span class="min-w-0 flex-1 truncate text-[10px] font-medium drop-shadow-md">
+      {asset.originalFileName}
+    </span>
+    {#if copyBadge}
+      <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
+        <Icon icon={mdiContentDuplicate} size="11px" aria-hidden="true" />
+        <span class="truncate">{copyBadge}</span>
+      </span>
+    {/if}
+    {#if rating > 0}
+      <span
+        role="img"
+        aria-label="{rating} star{rating === 1 ? '' : 's'}"
+        class="flex shrink-0 items-center gap-0.5 text-[10px]"
+      >
+        <Icon icon={mdiStar} size="11px" aria-hidden="true" />
+        {rating}
+      </span>
+    {/if}
   </div>
 </div>

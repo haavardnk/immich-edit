@@ -3,6 +3,7 @@ import type { SearchQuery, SearchResult } from '$lib/types/search';
 import { browsing } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import { rejected } from './rejected.svelte';
+import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
@@ -84,6 +85,7 @@ export class BrowseFeed {
   watchFilterChange(): void {
     const key = browseControls.serverFilterKey;
     if (this.prevKey && key !== this.prevKey) {
+      selection.clear();
       this.fetchPage(true);
     }
     this.prevKey = key;

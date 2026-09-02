@@ -3,11 +3,13 @@
   import { library } from '$lib/stores/library.svelte';
   import AlbumItem from './AlbumItem.svelte';
 
-  const activeId = $derived(page.params.id ?? null);
+  const activeId = $derived(
+    page.url.pathname.startsWith('/albums/') ? (page.params.id ?? null) : null
+  );
 </script>
 
 {#if library.albums.length === 0}
-  <div class="p-3 text-xs text-immich-dark-fg/30">no albums</div>
+  <div class="px-5 py-3 text-xs text-muted" role="status">No albums</div>
 {:else}
   <div class="flex flex-col gap-0.5 p-1">
     {#each library.albums as a (a.id)}

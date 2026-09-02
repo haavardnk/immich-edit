@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
+  import { observeSize } from '$lib/actions/observeSize';
   import type { AssetSummary } from '$lib/types/album';
   import AssetTile from './AssetTile.svelte';
   import BulkActionBar from './BulkActionBar.svelte';
@@ -17,7 +18,13 @@
   import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { isRejected } from '$lib/reject';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { editorHref } from '$lib/editorNavigation';
   import { matchKeybind, type KeybindContext } from '$lib/keybinds';
+  import {
+    createAssetGridLayout,
+    verticalAssetIndex,
+    visibleAssetRange
+  } from '$lib/assetGridLayout';
 
   const GRID_CONTEXTS: KeybindContext[] = ['grid', 'global'];
 
@@ -49,27 +56,20 @@
 
   const layout = $derived.by(() => {
     const inner = Math.max(0, gridWidth - PAD * 2);
-    const cols = Math.max(1, Math.floor((inner + GAP) / (browseView.minTile + GAP)));
-    const colWidth = (inner - (cols - 1) * GAP) / cols;
-    const rowStride = colWidth + GAP;
-    const rowCount = Math.ceil(items.length / cols);
-    const totalHeight = PAD * 2 + rowCount * colWidth + Math.max(0, rowCount - 1) * GAP;
-    return { cols, colWidth, rowStride, rowCount, totalHeight };
+    const geometry = createAssetGridLayout(items, inner, browseView.minTile, GAP);
+    return { ...geometry, totalHeight: PAD * 2 + geometry.height };
   });
 
   const view = $derived.by(() => {
-    const { cols, rowStride, rowCount } = layout;
-    const startRow = Math.max(0, Math.floor((viewTop - PAD) / rowStride) - OVERSCAN);
-    const rowsInView = Math.ceil(parentHeight / rowStride) + OVERSCAN * 2;
-    const endRow = Math.min(rowCount, startRow + rowsInView);
-    return {
-      startIdx: startRow * cols,
-      endIdx: Math.min(items.length, endRow * cols),
-      offsetY: PAD + startRow * rowStride
-    };
+    return visibleAssetRange(layout, viewTop - PAD, viewTop + parentHeight - PAD, OVERSCAN);
   });
 
-  const visibleAssets = $derived(items.slice(view.startIdx, view.endIdx));
+  const visibleAssets = $derived(
+    items.slice(view.startIndex, view.endIndex).map((asset, offset) => ({
+      asset,
+      box: layout.boxes[view.startIndex + offset]
+    }))
+  );
 
   function findScrollParent(el: HTMLElement): HTMLElement | null {
     let p = el.parentElement;
@@ -88,6 +88,11 @@
     viewTop = scrollParent.getBoundingClientRect().top - root.getBoundingClientRect().top;
   }
 
+  function onResize(): void {
+    measure();
+    restoreScroll();
+  }
+
   function saveScroll(): void {
     if (!scrollParent || !scrollKey || pendingRestore !== null) return;
     browseView.setGridScroll(scrollKey, scrollParent.scrollTop);
@@ -104,8 +109,8 @@
   function restoreScroll(): void {
     if (!scrollParent || pendingRestore === null) return;
     const maxTop = Math.max(0, scrollParent.scrollHeight - scrollParent.clientHeight);
-    if (pendingRestore > maxTop + 1 && onLoadMore && !loadingMore) {
-      onLoadMore();
+    if (pendingRestore > maxTop + 1) {
+      if (onLoadMore && !loadingMore) onLoadMore();
       return;
     }
     scrollParent.scrollTop = Math.min(pendingRestore, maxTop);
@@ -116,9 +121,9 @@
   function ensureVisible(id: string): void {
     const idx = items.findIndex((a) => a.id === id);
     if (idx < 0 || !scrollParent) return;
-    const { cols, rowStride, colWidth } = layout;
-    const rowTop = PAD + Math.floor(idx / cols) * rowStride;
-    const rowBottom = rowTop + colWidth;
+    const box = layout.boxes[idx];
+    const rowTop = PAD + box.top;
+    const rowBottom = rowTop + box.height;
     if (rowTop < viewTop) {
       scrollParent.scrollTop -= viewTop - rowTop + GAP;
     } else if (rowBottom > viewTop + parentHeight) {
@@ -161,10 +166,17 @@
     targets().forEach((id) => void clearFlags(id));
   }
 
-  function moveAndShow(e: KeyboardEvent, delta: number): void {
+  function moveAndShow(e: KeyboardEvent, index: number): void {
     e.preventDefault();
-    const id = browseView.moveActive(delta);
+    const target = items[Math.min(items.length - 1, Math.max(0, index))];
+    if (!target) return;
+    const id = target.id;
+    browseView.setActive(id);
     if (id) ensureVisible(id);
+  }
+
+  function activeIndex(): number {
+    return browseView.activeId ? items.findIndex((asset) => asset.id === browseView.activeId) : -1;
   }
 
   function openMulti(mode: MultiMode): void {
@@ -213,17 +225,22 @@
         e.preventDefault();
         return selection.selectLoaded(items.map((a) => a.id));
       case 'gridMove': {
-        const { cols } = layout;
-        if (e.key === 'ArrowRight') return moveAndShow(e, 1);
-        if (e.key === 'ArrowLeft') return moveAndShow(e, -1);
-        if (e.key === 'ArrowDown') return moveAndShow(e, cols);
-        return moveAndShow(e, -cols);
+        const current = activeIndex();
+        if (current < 0) return moveAndShow(e, 0);
+        if (e.key === 'ArrowRight') return moveAndShow(e, current + 1);
+        if (e.key === 'ArrowLeft') return moveAndShow(e, current - 1);
+        return moveAndShow(e, verticalAssetIndex(layout, current, e.key === 'ArrowDown' ? 1 : -1));
       }
       case 'gridEdge':
-        return moveAndShow(e, e.key === 'Home' ? -assets.length : assets.length);
+        return moveAndShow(e, e.key === 'Home' ? 0 : items.length - 1);
       case 'gridPage': {
-        const page = layout.cols * Math.max(1, Math.floor(parentHeight / layout.rowStride));
-        return moveAndShow(e, e.key === 'PageUp' ? -page : page);
+        const current = activeIndex();
+        if (current < 0) return moveAndShow(e, 0);
+        const rows = Math.max(1, Math.floor(parentHeight / browseView.minTile));
+        return moveAndShow(
+          e,
+          verticalAssetIndex(layout, current, e.key === 'PageUp' ? -rows : rows)
+        );
       }
       case 'gridSize':
         e.preventDefault();
@@ -246,7 +263,9 @@
       case 'openEditor':
         if (!browseView.activeId) return;
         e.preventDefault();
-        void goto(`/assets/${browseView.activeId}`);
+        void goto(
+          editorHref(browseView.activeId, `${window.location.pathname}${window.location.search}`)
+        );
         return;
       case 'openLoupe':
         if (!browseView.activeId) return;
@@ -267,25 +286,26 @@
     }
   }
 
+  afterNavigate(() => {
+    restoreScroll();
+  });
+
   onMount(() => {
-    selection.clear();
+    const path = `${window.location.pathname}${window.location.search}`;
+    if (browseView.lastGridPath !== path) selection.clear();
     if (!root) return;
-    scrollKey = `${window.location.pathname}${window.location.search}`;
+    scrollKey = path;
     browseView.setLastGridPath(scrollKey);
     const savedTop = browseView.getGridScroll(scrollKey);
     pendingRestore = savedTop > 0 ? savedTop : null;
     scrollParent = findScrollParent(root);
-    measure();
-    restoreScroll();
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(root);
+    const parentResize = scrollParent ? observeSize(scrollParent, onResize) : undefined;
     window.addEventListener('keydown', onKeydown);
     if (scrollParent) {
-      ro.observe(scrollParent);
       scrollParent.addEventListener('scroll', onScroll, { passive: true });
     }
     return () => {
-      ro.disconnect();
+      parentResize?.destroy?.();
       window.removeEventListener('keydown', onKeydown);
       scrollParent?.removeEventListener('scroll', onScroll);
     };
@@ -298,35 +318,40 @@
   });
 </script>
 
-<div bind:this={root} class="relative" style:height="{layout.totalHeight}px">
-  <div
-    class="grid gap-1 absolute"
-    style:top="{view.offsetY}px"
-    style:left="{PAD}px"
-    style:right="{PAD}px"
-    style="grid-template-columns: repeat({layout.cols}, minmax(0, 1fr));"
-  >
-    {#each visibleAssets as asset (asset.id)}
+<div
+  bind:this={root}
+  use:observeSize={onResize}
+  class="relative"
+  style:height="{layout.totalHeight}px"
+>
+  {#each visibleAssets as item (item.asset.id)}
+    <div
+      class="absolute"
+      style:top="{PAD + item.box.top}px"
+      style:left="{PAD + item.box.left}px"
+      style:width="{item.box.width}px"
+      style:height="{item.box.height}px"
+    >
       <AssetTile
-        {asset}
-        active={asset.id === browseView.activeId}
-        selected={selection.has(asset.id)}
+        asset={item.asset}
+        active={item.asset.id === browseView.activeId}
+        selected={selection.has(item.asset.id)}
         selectionActive={selection.active}
-        onToggle={() => selection.toggle(asset.id)}
+        onToggle={() => selection.toggle(item.asset.id)}
         onRange={() =>
           selection.range(
             items.map((a) => a.id),
-            asset.id
+            item.asset.id
           )}
-        onActivate={() => browseView.setActive(asset.id)}
-        onLoupe={() => browseView.openLoupe(asset.id)}
-        onDeleteCopy={isCopy(asset.id) ? () => void removeCopy(asset.id) : undefined}
+        onActivate={() => browseView.setActive(item.asset.id)}
+        onLoupe={() => browseView.openLoupe(item.asset.id)}
+        onDeleteCopy={isCopy(item.asset.id) ? () => void removeCopy(item.asset.id) : undefined}
       />
-    {/each}
-  </div>
+    </div>
+  {/each}
 </div>
 {#if loadingMore}
-  <div class="py-4 text-center text-xs text-immich-dark-fg/30">loading…</div>
+  <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
 {/if}
 
 <BulkActionBar {assets} onMulti={openMulti} />

@@ -17,7 +17,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Read-only album browsing | ✓ Yes | Albums and their assets come from Immich |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search |
 | Filename search | ✓ Yes | Searches Immich metadata |
-| Rating, favorite, date, filename, visibility, and reject filters | ✓ Yes | Available in browse and search views |
+| Rating, favorite, date, filename, visibility, and reject filters | ✓ Yes | Available in browse and search views; changing a filter clears the current selection |
 | Thumbnail size controls | ✓ Yes | Four remembered sizes remain available on narrow screens |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the direction you pick |
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |

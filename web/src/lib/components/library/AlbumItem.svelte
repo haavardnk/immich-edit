@@ -7,11 +7,12 @@
 
 <a
   href={`/albums/${album.id}`}
-  class="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg transition-colors {active
-    ? 'bg-immich-dark-primary/15 text-immich-dark-primary'
-    : 'hover:bg-white/5'}"
+  aria-current={active ? 'page' : undefined}
+  class="flex items-center gap-2.5 rounded-e-full py-1.5 ps-2.5 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {active
+    ? 'bg-primary/15 text-primary'
+    : 'hover:bg-subtle hover:text-primary'}"
 >
-  <div class="w-8 h-8 rounded-lg bg-white/5 overflow-hidden flex-none">
+  <div class="h-8 w-8 flex-none overflow-hidden rounded-md bg-gray-800">
     {#if album.albumThumbnailAssetId}
       <img
         src={assetThumbUrl(album.albumThumbnailAssetId)}
@@ -21,8 +22,8 @@
       />
     {/if}
   </div>
-  <div class="flex-1 min-w-0 pr-2">
+  <div class="min-w-0 flex-1 pe-2">
     <div class="truncate text-[13px] leading-tight">{album.albumName}</div>
-    <div class="text-[10px] text-immich-dark-fg/30">{album.assetCount}</div>
+    <div class="text-[10px] text-muted">{album.assetCount}</div>
   </div>
 </a>
