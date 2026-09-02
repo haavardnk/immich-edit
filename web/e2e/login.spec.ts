@@ -21,9 +21,9 @@ test.beforeEach(async ({ page }) => {
 
 test('login page renders the password sign-in form', async ({ page }) => {
   await page.goto('/login');
-  await expect(page.getByRole('heading', { name: 'immich-edit' })).toBeVisible();
-  await expect(page.getByLabel('Email')).toBeVisible();
-  await expect(page.getByLabel('Password')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByLabel('Immich email', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Immich password', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 });
 

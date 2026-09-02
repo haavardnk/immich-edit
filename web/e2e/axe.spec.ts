@@ -1,7 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-
 import { expect, test } from '@playwright/test';
-
 import { ASSET_ID, installMocks, gotoAsset } from './helpers';
 
 const IMPACTS = new Set(['serious', 'critical']);
@@ -99,5 +97,29 @@ test('visible feedback has accessible live-region semantics', async ({ page }) =
   const toast = page.getByRole('status').filter({ hasText: message });
   await expect(toast).toBeVisible();
   await expect(toast).toHaveAttribute('aria-live', 'polite');
+  expect(await audit(page)).toEqual([]);
+});
+
+test('the login page has no serious accessibility violations', async ({ page }) => {
+  await page.route('**/api/**', (route) => {
+    const p = new URL(route.request().url()).pathname;
+    if (p === '/api/setup/status')
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ configured: true })
+      });
+    if (p === '/api/auth/me')
+      return route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'unauthorized', message: 'unauthorized' })
+      });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+
+  await page.goto('/login');
+  await expect(page.getByLabel('Immich email', { exact: true })).toBeVisible();
+
   expect(await audit(page)).toEqual([]);
 });
