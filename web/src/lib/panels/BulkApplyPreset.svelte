@@ -3,10 +3,10 @@
   import { presets } from '$lib/stores/presets.svelte';
   import { createApplyPresetJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import Icon from '$lib/components/Icon.svelte';
   import PresetIncludeToggles from './preset/IncludeToggles.svelte';
   import PresetPicker from './preset/PresetPicker.svelte';
-  import { mdiAutoFix, mdiLoading } from '@mdi/js';
+  import { Button } from '@immich/ui';
+  import { mdiAutoFix } from '@mdi/js';
 
   let presetId = $state<string | null>(null);
   let includeGeometry = $state(false);
@@ -38,35 +38,32 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 px-4 pt-1 pb-1">
-  <div class="text-[11px] text-immich-dark-fg/60 select-none">
+<div class="flex flex-col gap-2 px-3 py-2">
+  <div class="text-[11px] text-dark/65 select-none">
     {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'} selected
   </div>
 
   {#if presets.presets.length === 0}
-    <div class="text-xs text-immich-dark-fg/30 py-1">No presets yet.</div>
+    <div class="text-xs text-dark/65 py-1">No presets yet.</div>
   {:else}
     <PresetPicker bind:selectedId={presetId} />
 
     <PresetIncludeToggles bind:includeGeometry bind:includeMasks bordered />
 
-    <button
-      class="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    <Button
+      size="tiny"
+      color="primary"
+      fullWidth
+      loading={busy}
+      leadingIcon={mdiAutoFix}
       disabled={busy || !presetId || selection.targetCount === 0}
       onclick={() => void submit()}
     >
-      {#if busy}
-        <Icon path={mdiLoading} size={16} class="animate-spin" />
-      {:else}
-        <Icon path={mdiAutoFix} size={16} />
-      {/if}
       {selected ? `Apply ${selected.name} to ${selection.targetCount}` : `Select a preset`}
-    </button>
+    </Button>
 
-    <p class="text-[11px] leading-relaxed text-immich-dark-fg/40">
+    <p class="text-[10px] leading-snug text-dark/65">
       Runs as a background job. Track progress in the Jobs panel.
     </p>
   {/if}
-
-  <div class="h-4"></div>
 </div>

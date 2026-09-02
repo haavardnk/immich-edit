@@ -514,6 +514,11 @@ class EditorStore {
       });
   }
 
+  retryLensProfile = (): void => {
+    if (!this.assetId) return;
+    this.fetchLensProfile(this.assetId);
+  };
+
   unload(): void {
     this.flight.cancel();
     this.originalFlight.cancel();

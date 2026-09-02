@@ -1,14 +1,17 @@
 <script lang="ts">
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import LutPicker from './lut/LutPicker.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiAlertCircleOutline, mdiCheck, mdiClose, mdiDelete, mdiUpload } from '@mdi/js';
+  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import { editsToManifest } from '$lib/types/edits';
+  import { mdiClose, mdiUpload } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listLuts, importLut, deleteLut, type LutMeta } from '$lib/api/luts';
   import { ApiError } from '$lib/api/client';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { Button, IconButton } from '@immich/ui';
 
   let luts = $state<LutMeta[]>([]);
   let loaded = $state(false);
@@ -19,6 +22,7 @@
   const selectedId = $derived(editor.edits.color.lut_3d.lut_id);
   const selected = $derived(luts.find((lut) => lut.id === selectedId) ?? null);
   const missingSelected = $derived(loaded && !!selectedId && !selected);
+  const modified = $derived('lut_3d' in editsToManifest(editor.edits).ops);
 
   $effect(() => {
     if (!loaded) void load();
@@ -82,7 +86,6 @@
     } catch {
       toasts.push('error', 'LUT delete failed.');
     }
-    pendingDelete = false;
   }
 
   function reset(): void {
@@ -93,8 +96,8 @@
   }
 </script>
 
-<div class="flex flex-col gap-2.5 pb-1">
-  <SectionHeader title="LUT" onReset={reset} />
+<div class="flex flex-col gap-1.5 pb-1">
+  <SectionHeader title="LUT" {modified} onReset={reset} />
   <input
     bind:this={fileInput}
     type="file"
@@ -105,74 +108,61 @@
 
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
-      <LutPicker {luts} {selectedId} onSelect={select} />
+      <SearchableSelect
+        compact
+        multiple={false}
+        color="neutral"
+        options={luts}
+        selected={selectedId ? [selectedId] : []}
+        getId={(lut) => lut.id}
+        getLabel={(lut) => lut.name}
+        getDescription={(lut) => `${lut.lut_size}³`}
+        placeholder="Select LUT…"
+        hideSelected={false}
+        onSelectedChange={(ids) => select(ids.at(-1) ?? null)}
+      />
     </div>
     {#if selected && session.isAdmin}
-      {#if pendingDelete}
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-red-400 transition-colors hover:bg-white/10 hover:text-red-300"
-          title="Confirm delete"
-          aria-label="Confirm delete"
-          onclick={() => void confirmDelete()}
-        >
-          <Icon path={mdiCheck} size={14} />
-        </button>
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-immich-dark-fg"
-          title="Cancel"
-          aria-label="Cancel delete"
-          onclick={() => (pendingDelete = false)}
-        >
-          <Icon path={mdiClose} size={14} />
-        </button>
-      {:else}
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-red-400"
-          title="Delete LUT"
-          aria-label="Delete LUT"
-          onclick={() => (pendingDelete = true)}
-        >
-          <Icon path={mdiDelete} size={14} />
-        </button>
-      {/if}
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete LUT"
+        confirmLabel="Confirm delete LUT"
+        onconfirm={confirmDelete}
+      />
     {/if}
   </div>
 
   {#if session.isAdmin}
-    <button
+    <Button
       type="button"
-      class="flex items-center justify-center gap-1.5 rounded-lg bg-white/5 py-1.5 text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="h-7 panel-action"
+      leadingIcon={mdiUpload}
       disabled={importing}
       onclick={triggerImport}
     >
-      <Icon path={mdiUpload} size={14} />
       {importing ? 'Importing…' : 'Import .cube LUT'}
-    </button>
+    </Button>
   {/if}
 
   {#if missingSelected}
-    <div
-      class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300"
-    >
-      <Icon path={mdiAlertCircleOutline} size={14} />
-      <span class="min-w-0 flex-1 truncate">Referenced LUT is unavailable</span>
-      <button
-        type="button"
-        class="text-amber-300/70 transition-colors hover:text-amber-200"
+    <Notice color="warning" message="Referenced LUT is unavailable" class="mx-1">
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiClose}
         title="Remove LUT"
         aria-label="Remove LUT"
         onclick={() => select(null)}
-      >
-        <Icon path={mdiClose} size={14} />
-      </button>
-    </div>
+      />
+    </Notice>
   {/if}
 
   {#if selected}
-    <div class="border-t border-white/10 pt-2">
+    <div class="border-t border-hairline pt-1">
       <EditSlider
         label="Amount"
         commitAction="LUT Amount"

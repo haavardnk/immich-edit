@@ -20,17 +20,27 @@ test('create, rename and delete a virtual copy from the editor', async ({ page }
   await expect(page.getByRole('link', { name: 'Copy 1' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Original' }).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}`);
+  await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}\\?from=%2Fphotos$`));
   await page.getByRole('link', { name: 'Copy 1' }).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+  await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}_1\\?from=%2Fphotos$`));
 
   await page.getByRole('button', { name: 'Rename copy' }).click();
-  await page.getByPlaceholder('Name').fill('Mono');
-  await page.getByPlaceholder('Name').press('Enter');
+  const name = page.getByRole('textbox', { name: 'Version name' });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveJSProperty('selectionStart', 0);
+  await expect(name).toHaveJSProperty('selectionEnd', 0);
+  await name.fill('Mono');
+  await name.press('Enter');
+  await expect(page.getByRole('link', { name: 'Mono' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Rename copy' }).click();
+  await name.fill('Discarded');
+  await name.press('Escape');
   await expect(page.getByRole('link', { name: 'Mono' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete copy' }).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}`);
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
+  await expect(page).toHaveURL(/\?from=%2Fphotos$/);
   await expect(page.getByRole('link', { name: 'Mono' })).toHaveCount(0);
 });
 

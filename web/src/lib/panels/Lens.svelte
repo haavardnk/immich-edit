@@ -1,8 +1,11 @@
 <script lang="ts">
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
+  import Notice from '$lib/components/Notice.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { NEUTRAL_LENS } from '$lib/types/edits';
+  import { editsToManifest, NEUTRAL_LENS } from '$lib/types/edits';
+  import { Button } from '@immich/ui';
 
   const profile = $derived(editor.lensProfile);
   const profileError = $derived(editor.lensProfileError);
@@ -17,6 +20,7 @@
   const autoOn = $derived(isRaw && hasProfile);
   const profileEnabled = $derived(editor.edits.lens.profile_enabled ?? autoOn);
   const isAuto = $derived(editor.edits.lens.profile_enabled === null && autoOn);
+  const modified = $derived('lens_profile' in editsToManifest(editor.edits).ops);
 
   function loadProfileCoefficients(): void {
     const e = profile?.edits;
@@ -32,8 +36,7 @@
     l.ca_blue_scale_x10000 = e.ca_blue_scale_x10000;
   }
 
-  function onToggleProfile(e: Event): void {
-    const enabled = (e.currentTarget as HTMLInputElement).checked;
+  function onToggleProfile(enabled: boolean): void {
     editor.edits.lens.profile_enabled = enabled;
     if (enabled) {
       if (editor.edits.lens.k1 === 0 && editor.edits.lens.k2 === 0 && editor.edits.lens.k3 === 0) {
@@ -47,8 +50,7 @@
     editor.onCommit('Lens Profile');
   }
 
-  function onToggleCa(e: Event): void {
-    const enabled = (e.currentTarget as HTMLInputElement).checked;
+  function onToggleCa(enabled: boolean): void {
     editor.edits.lens.ca_enabled = enabled;
     if (
       enabled &&
@@ -60,8 +62,7 @@
     editor.onCommit('Chromatic Aberration');
   }
 
-  function onToggleConstrain(e: Event): void {
-    const checked = (e.currentTarget as HTMLInputElement).checked;
+  function onToggleConstrain(checked: boolean): void {
     if (editor.edits.lens.profile_enabled === null) {
       editor.edits.lens.profile_enabled = autoOn;
       loadProfileCoefficients();
@@ -76,52 +77,54 @@
   }
 </script>
 
-<div class="flex flex-col gap-3">
+<div class="flex flex-col gap-1">
   <div class="flex flex-col gap-1">
-    <SectionHeader title="Lens Profile" onReset={resetLens} resetTitle="Reset Lens Corrections" />
+    <SectionHeader
+      title="Lens Profile"
+      {modified}
+      onReset={resetLens}
+      resetTitle="Reset Lens Corrections"
+    />
     {#if profileLoading}
-      <div class="text-[11px] text-immich-dark-fg/50">Loading…</div>
+      <div class="text-[11px] text-dark/65">Loading…</div>
     {:else if profileError}
-      <div class="text-[11px] text-red-400/80">{profileError}</div>
+      <Notice message={profileError}>
+        <Button size="tiny" variant="ghost" color="secondary" onclick={editor.retryLensProfile}>
+          Try again
+        </Button>
+      </Notice>
     {:else if profile?.matched && profile.lens}
-      <div class="text-[11px] text-immich-dark-fg/70 leading-tight">
+      <div class="text-[11px] leading-tight text-dark/65">
         {profile.lens}
         {#if profile.focal_length}
-          <span class="text-immich-dark-fg/40">
+          <span class="text-dark/65">
             · {profile.focal_length.toFixed(0)}mm{#if profile.aperture}
               · f/{profile.aperture.toFixed(1)}{/if}
           </span>
         {/if}
       </div>
     {:else}
-      <div class="text-[11px] text-immich-dark-fg/50">No matching lens profile</div>
+      <div class="text-[11px] text-dark/65">No matching lens profile</div>
     {/if}
   </div>
 
-  <label class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80 cursor-pointer">
-    <input
-      type="checkbox"
-      class="checkbox checkbox-xs checkbox-primary"
-      checked={profileEnabled}
-      disabled={!hasProfile}
-      onchange={onToggleProfile}
-    />
-    Enable Profile Corrections
+  <CheckboxRow
+    label="Enable Profile Corrections"
+    checked={profileEnabled}
+    disabled={!hasProfile}
+    onChange={onToggleProfile}
+  >
     {#if isAuto}
-      <span class="text-immich-dark-fg/40">· Auto</span>
+      <span class="text-dark/65"> · Auto</span>
     {/if}
-  </label>
+  </CheckboxRow>
 
-  <label class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80 cursor-pointer">
-    <input
-      type="checkbox"
-      class="checkbox checkbox-xs checkbox-primary"
-      checked={editor.edits.lens.ca_enabled}
-      disabled={!hasCa}
-      onchange={onToggleCa}
-    />
-    Remove Chromatic Aberration
-  </label>
+  <CheckboxRow
+    label="Remove Chromatic Aberration"
+    checked={editor.edits.lens.ca_enabled}
+    disabled={!hasCa}
+    onChange={onToggleCa}
+  />
 
   <EditSlider
     label="Distortion"
@@ -143,17 +146,10 @@
     disabled={!profileEnabled}
   />
 
-  <label
-    class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80 cursor-pointer"
-    class:opacity-50={!profileEnabled}
-  >
-    <input
-      type="checkbox"
-      class="checkbox checkbox-xs checkbox-primary"
-      checked={editor.lensView.constrain_crop}
-      disabled={!profileEnabled}
-      onchange={onToggleConstrain}
-    />
-    Constrain Crop
-  </label>
+  <CheckboxRow
+    label="Constrain Crop"
+    checked={editor.lensView.constrain_crop}
+    disabled={!profileEnabled}
+    onChange={onToggleConstrain}
+  />
 </div>
