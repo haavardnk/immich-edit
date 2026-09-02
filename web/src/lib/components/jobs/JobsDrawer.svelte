@@ -1,7 +1,7 @@
 <script lang="ts">
   import { jobs } from '$lib/stores/jobs.svelte';
   import { jobDownloadUrl, type Job, type JobItem, type JobItemStatus } from '$lib/api/jobs';
-  import Icon from '$lib/components/Icon.svelte';
+  import Notice from '$lib/components/Notice.svelte';
   import {
     mdiClose,
     mdiChevronDown,
@@ -10,6 +10,8 @@
     mdiDownload,
     mdiTrashCanOutline
   } from '@mdi/js';
+  import { Dialog } from 'bits-ui';
+  import { Badge, Button, IconButton, ProgressBar, Text, type Color } from '@immich/ui';
 
   let expanded = $state<string | null>(null);
 
@@ -38,18 +40,18 @@
     return Math.round(((job.completed + job.failed) / job.total) * 100);
   }
 
-  function statusColor(status: Job['status']): string {
+  function statusColor(status: Job['status']): Color {
     switch (status) {
       case 'running':
-        return 'text-immich-primary';
+        return 'primary';
       case 'completed':
-        return 'text-green-400';
+        return 'success';
       case 'failed':
-        return 'text-red-400';
+        return 'danger';
       case 'cancelled':
-        return 'text-immich-dark-fg/40';
+        return 'secondary';
       default:
-        return 'text-immich-dark-fg/60';
+        return 'info';
     }
   }
 
@@ -64,9 +66,9 @@
       case 'failed':
         return 'text-red-400';
       case 'running':
-        return 'text-immich-primary';
+        return 'text-primary';
       default:
-        return 'text-immich-dark-fg/40';
+        return 'text-dark/65';
     }
   }
 
@@ -76,123 +78,141 @@
 </script>
 
 {#if jobs.open}
-  <button
-    type="button"
-    class="fixed inset-0 z-40 bg-black/40"
-    aria-label="Close jobs"
-    onclick={jobs.close}
-  ></button>
-  <aside
-    class="fixed right-0 top-0 bottom-0 z-50 w-95 max-w-[90vw] bg-immich-dark-gray border-l border-white/10 shadow-2xl flex flex-col"
-  >
-    <header class="flex items-center justify-between h-11 px-3 border-b border-white/10 flex-none">
-      <span class="text-sm font-semibold">Jobs</span>
-      <button
-        class="p-1.5 rounded hover:bg-white/10 transition-colors"
-        onclick={jobs.close}
-        aria-label="Close"
+  <Dialog.Root open onOpenChange={(open) => !open && jobs.close()}>
+    <Dialog.Portal>
+      <Dialog.Overlay class="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" />
+      <Dialog.Content
+        class="fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh w-105 max-w-[92vw] flex-col border-l border-white/10 bg-neutral-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
       >
-        <Icon path={mdiClose} size={16} />
-      </button>
-    </header>
+        <header
+          class="flex h-16 flex-none items-center justify-between border-b border-hairline px-4"
+        >
+          <div>
+            <Dialog.Title class="text-base font-semibold text-white">Jobs</Dialog.Title>
+            <p class="mt-0.5 text-[10px] text-white/40">
+              {jobs.activeCount > 0 ? `${jobs.activeCount} active` : 'No active jobs'}
+            </p>
+          </div>
+          <Dialog.Close>
+            {#snippet child({ props })}
+              <IconButton
+                {...props}
+                size="small"
+                variant="ghost"
+                color="secondary"
+                icon={mdiClose}
+                aria-label="Close jobs"
+              />
+            {/snippet}
+          </Dialog.Close>
+        </header>
 
-    <div class="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">
-      {#if jobs.jobs.length === 0}
-        <p class="text-xs text-immich-dark-fg/50 px-1 py-4 text-center">No jobs yet.</p>
-      {/if}
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
+          {#if jobs.jobs.length === 0}
+            <Text size="tiny" color="muted" class="px-1 py-4 text-center">No jobs yet.</Text>
+          {/if}
 
-      {#each jobs.jobs as job (job.id)}
-        <div class="rounded-lg border border-white/10 bg-black/20">
-          <div class="flex items-center gap-2 px-2.5 py-2.5">
-            <button
-              class="p-0.5 rounded hover:bg-white/10 transition-colors flex-none"
-              onclick={() => toggleExpand(job.id)}
-              aria-label="Toggle details"
-            >
-              <Icon path={expanded === job.id ? mdiChevronDown : mdiChevronRight} size={16} />
-            </button>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-medium truncate">{kindLabel(job.kind)}</span>
-                <span class="text-[10px] uppercase tracking-wide {statusColor(job.status)}">
-                  {job.status}
-                </span>
-              </div>
-              <div class="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  class="h-full bg-immich-primary transition-all"
-                  style:width={`${progress(job)}%`}
-                ></div>
-              </div>
-              <div class="mt-1 text-[10px] text-immich-dark-fg/50">
-                {job.completed + job.failed} / {job.total}
-                {#if job.failed > 0}
-                  · <span class="text-red-400">{job.failed} failed</span>
+          {#each jobs.jobs as job (job.id)}
+            <div class="rounded-md border border-hairline bg-white/4">
+              <div class="flex items-center gap-2 px-3 py-3">
+                <IconButton
+                  size="small"
+                  variant="ghost"
+                  color="secondary"
+                  class="flex-none"
+                  icon={expanded === job.id ? mdiChevronDown : mdiChevronRight}
+                  onclick={() => toggleExpand(job.id)}
+                  aria-label="Toggle details"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium truncate">{kindLabel(job.kind)}</span>
+                    <Badge size="tiny" color={statusColor(job.status)}>{job.status}</Badge>
+                  </div>
+                  <ProgressBar
+                    progress={progress(job)}
+                    max={100}
+                    size="tiny"
+                    shape="round"
+                    color="primary"
+                    class="mt-1"
+                    stop={false}
+                    aria-label={`${kindLabel(job.kind)} progress`}
+                  />
+                  <div class="mt-1 text-[10px] text-dark/65">
+                    {job.completed + job.failed} / {job.total}
+                    {#if job.failed > 0}
+                      · <span class="text-red-400">{job.failed} failed</span>
+                    {/if}
+                  </div>
+                </div>
+                {#if isActive(job.status)}
+                  <IconButton
+                    size="small"
+                    variant="ghost"
+                    color="secondary"
+                    class="flex-none"
+                    icon={mdiCancel}
+                    onclick={() => jobs.cancel(job.id)}
+                    title="Cancel"
+                    aria-label="Cancel job"
+                  />
+                {/if}
+                {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
+                  <IconButton
+                    size="small"
+                    variant="ghost"
+                    color="secondary"
+                    class="flex-none"
+                    icon={mdiDownload}
+                    href={jobDownloadUrl(job.id)}
+                    download
+                    title="Download ZIP"
+                    aria-label="Download ZIP"
+                  />
                 {/if}
               </div>
-            </div>
-            {#if isActive(job.status)}
-              <button
-                class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/60 hover:text-red-400 transition-colors flex-none"
-                onclick={() => jobs.cancel(job.id)}
-                title="Cancel"
-                aria-label="Cancel job"
-              >
-                <Icon path={mdiCancel} size={16} />
-              </button>
-            {/if}
-            {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
-              <a
-                class="p-1 rounded hover:bg-white/10 text-immich-dark-fg/60 hover:text-immich-primary transition-colors flex-none"
-                href={jobDownloadUrl(job.id)}
-                download
-                title="Download ZIP"
-                aria-label="Download ZIP"
-              >
-                <Icon path={mdiDownload} size={16} />
-              </a>
-            {/if}
-          </div>
 
-          {#if expanded === job.id}
-            <div class="border-t border-white/10 px-2.5 py-2">
-              {#if jobs.items[job.id] === undefined}
-                <p class="text-[11px] text-immich-dark-fg/40">Loading…</p>
-              {:else}
-                <div class="flex flex-col gap-1">
-                  {#each jobs.items[job.id] as item (item.id)}
-                    <div class="min-w-0">
-                      <div class="flex items-baseline gap-2 text-[11px]">
-                        <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
-                        <span class="flex-none {itemColor(item.status)}">{item.status}</span>
-                      </div>
-                      {#if item.status === 'failed' && item.error}
-                        <div
-                          class="mt-1 rounded bg-red-500/10 border border-red-500/20 px-2 py-1 text-[10px] leading-snug text-red-300/90 whitespace-pre-wrap wrap-anywhere"
-                        >
-                          {item.error}
+              {#if expanded === job.id}
+                <div class="border-t border-hairline bg-black/15 px-3 py-2.5">
+                  {#if jobs.items[job.id] === undefined}
+                    <p class="text-[11px] text-dark/65">Loading…</p>
+                  {:else}
+                    <div class="flex flex-col gap-1">
+                      {#each jobs.items[job.id] as item (item.id)}
+                        <div class="min-w-0">
+                          <div class="flex items-baseline gap-2 text-[11px]">
+                            <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
+                            <span class="flex-none {itemColor(item.status)}">{item.status}</span>
+                          </div>
+                          {#if item.status === 'failed' && item.error}
+                            <Notice message={item.error} class="mt-1 whitespace-pre-wrap" />
+                          {/if}
                         </div>
-                      {/if}
+                      {/each}
                     </div>
-                  {/each}
+                  {/if}
                 </div>
               {/if}
             </div>
-          {/if}
+          {/each}
         </div>
-      {/each}
-    </div>
 
-    {#if jobs.clearableCount > 0}
-      <footer class="flex-none border-t border-white/10 p-2">
-        <button
-          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-xs text-immich-dark-fg/70 hover:bg-white/10 hover:text-red-400 transition-colors"
-          onclick={jobs.clear}
-        >
-          <Icon path={mdiTrashCanOutline} size={16} />
-          Clear finished
-        </button>
-      </footer>
-    {/if}
-  </aside>
+        {#if jobs.clearableCount > 0}
+          <footer class="flex-none border-t border-hairline p-3">
+            <Button
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              fullWidth
+              leadingIcon={mdiTrashCanOutline}
+              onclick={jobs.clear}
+            >
+              Clear finished
+            </Button>
+          </footer>
+        {/if}
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>
 {/if}

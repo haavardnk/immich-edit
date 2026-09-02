@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
   import {
     getHealth,
     getDebugTimings,
     type HealthInfo,
-    type DebugTimings
+    type DebugTimings,
+    type LatencyStats
   } from '$lib/api/diagnostics';
-  import Spinner from '$lib/components/Spinner.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
 
   let health = $state<HealthInfo | null>(null);
   let timings = $state<DebugTimings | null>(null);
@@ -116,46 +117,79 @@
   }
 
   onMount(() => {
-    editor.unload();
     void refresh();
   });
 </script>
 
+{#snippet latencyRow(name: string, stats: LatencyStats)}
+  <div class="grid items-center gap-3 py-3 sm:grid-cols-[5rem_7rem_minmax(0,1fr)]">
+    <div>
+      <div class="text-xs font-medium">{name}</div>
+      <div class="text-[10px] text-dark/45">{stats.count} renders</div>
+    </div>
+    <div>
+      <div class="text-[10px] uppercase text-dark/45">Typical</div>
+      <div class="font-mono text-lg tabular-nums text-white/90">{formatUs(stats.p50_us)}</div>
+    </div>
+    <dl class="grid grid-cols-3 gap-3 text-right text-[10px]">
+      <div>
+        <dt class="text-dark/45">p95</dt>
+        <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p95_us)}</dd>
+      </div>
+      <div>
+        <dt class="text-dark/45">p99</dt>
+        <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p99_us)}</dd>
+      </div>
+      <div>
+        <dt class="text-dark/45">Peak</dt>
+        <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.max_us)}</dd>
+      </div>
+    </dl>
+  </div>
+{/snippet}
+
 <div class="flex items-center justify-end gap-2">
-  <button
-    class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
-    onclick={() => void copySupportBundle()}
-    disabled={loading || !health}
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
     title="Copy a diagnostics block to paste into a bug report"
+    disabled={loading || !health}
+    onclick={() => void copySupportBundle()}
   >
     {copyState === 'ok' ? 'Copied' : copyState === 'fail' ? 'Copy failed' : 'Copy support bundle'}
-  </button>
-  <button
-    class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs"
+  </Button>
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
     onclick={() => void refresh()}
     disabled={loading}
   >
     Refresh
-  </button>
+  </Button>
 </div>
 
 {#if loading}
-  <Spinner label="Loading…" />
+  <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
+    <LoadingSpinner size="small" />
+    <span class="text-xs">Loading…</span>
+  </div>
 {:else if error}
-  <p class="text-sm text-red-400">{error}</p>
+  <Notice message={error} class="text-sm" />
 {:else if health}
   <section class="space-y-2">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Server</h2>
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Server</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
-      <dt class="text-immich-dark-fg/50">Version</dt>
+      <dt class="text-dark/65">Version</dt>
       <dd class="font-mono">{health.version}</dd>
-      <dt class="text-immich-dark-fg/50">Renderer mode</dt>
+      <dt class="text-dark/65">Renderer mode</dt>
       <dd class="font-mono">{health.renderer_mode}</dd>
-      <dt class="text-immich-dark-fg/50">Renderer active</dt>
+      <dt class="text-dark/65">Renderer active</dt>
       <dd class="font-mono">{health.renderer_active}</dd>
-      <dt class="text-immich-dark-fg/50">GPU adapter</dt>
+      <dt class="text-dark/65">GPU adapter</dt>
       <dd class="font-mono">{health.gpu_adapter ?? '—'}</dd>
-      <dt class="text-immich-dark-fg/50">Immich</dt>
+      <dt class="text-dark/65">Immich</dt>
       <dd>
         <span
           class={health.immich_status.ok
@@ -164,97 +198,74 @@
               ? 'text-amber-300'
               : 'text-red-400'}>{health.immich_status.message}</span
         >
-        <span class="font-mono text-immich-dark-fg/40"
+        <span class="font-mono text-dark/65"
           >{health.immich_status.kind}{health.immich_status.status_code
             ? `/${health.immich_status.status_code}`
             : ''}</span
         >
       </dd>
-      <dt class="text-immich-dark-fg/50">DB ready</dt>
+      <dt class="text-dark/65">DB ready</dt>
       <dd class={health.db_ready ? 'text-emerald-400' : 'text-red-400'}>
         {health.db_ready ? 'yes' : 'no'}
       </dd>
-      <dt class="text-immich-dark-fg/50">DB migration</dt>
+      <dt class="text-dark/65">DB migration</dt>
       <dd class="font-mono">{health.db_migration_version ?? '—'}</dd>
     </dl>
   </section>
 
-  <section class="space-y-2">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">HEIF codecs</h2>
+  <section class="space-y-2 pt-5">
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">HEIF codecs</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
-      <dt class="text-immich-dark-fg/50">HEIC decode</dt>
+      <dt class="text-dark/65">HEIC decode</dt>
       <dd class={health.heif_codecs.hevc_decode ? 'text-emerald-400' : 'text-red-400'}>
         {codecLabel(health.heif_codecs.hevc_decode)}
       </dd>
-      <dt class="text-immich-dark-fg/50">HEIC export</dt>
+      <dt class="text-dark/65">HEIC export</dt>
       <dd class={health.heif_codecs.hevc_encode ? 'text-emerald-400' : 'text-red-400'}>
         {codecLabel(health.heif_codecs.hevc_encode)}
       </dd>
-      <dt class="text-immich-dark-fg/50">AVIF decode</dt>
+      <dt class="text-dark/65">AVIF decode</dt>
       <dd class={health.heif_codecs.av1_decode ? 'text-emerald-400' : 'text-red-400'}>
         {codecLabel(health.heif_codecs.av1_decode)}
       </dd>
-      <dt class="text-immich-dark-fg/50">AVIF export</dt>
+      <dt class="text-dark/65">AVIF export</dt>
       <dd class={health.heif_codecs.av1_encode ? 'text-emerald-400' : 'text-red-400'}>
         {codecLabel(health.heif_codecs.av1_encode)}
       </dd>
     </dl>
     {#if !health.heif_codecs.hevc_decode || !health.heif_codecs.hevc_encode || !health.heif_codecs.av1_decode || !health.heif_codecs.av1_encode}
-      <p class="text-xs text-immich-dark-fg/50">
+      <Text size="tiny" color="muted">
         Missing codecs come from libheif plugin packages: libheif-plugin-libde265 and
         libheif-plugin-x265 for HEIC, libheif-plugin-dav1d and libheif-plugin-aomenc for AVIF.
-      </p>
+      </Text>
     {/if}
   </section>
 
   {#if timings}
-    <section class="space-y-2">
-      <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Render latency</h2>
-      <table class="w-full text-xs">
-        <thead class="text-immich-dark-fg/50 text-left">
-          <tr
-            ><th class="font-normal pb-1">Renderer</th><th class="font-normal pb-1">Count</th><th
-              class="font-normal pb-1">p50</th
-            ><th class="font-normal pb-1">p95</th><th class="font-normal pb-1">p99</th><th
-              class="font-normal pb-1">max</th
-            ></tr
-          >
-        </thead>
-        <tbody class="font-mono">
-          <tr
-            ><td>CPU</td><td>{timings.render_latency.cpu.count}</td><td
-              >{formatUs(timings.render_latency.cpu.p50_us)}</td
-            ><td>{formatUs(timings.render_latency.cpu.p95_us)}</td><td
-              >{formatUs(timings.render_latency.cpu.p99_us)}</td
-            ><td>{formatUs(timings.render_latency.cpu.max_us)}</td></tr
-          >
-          <tr
-            ><td>GPU</td><td>{timings.render_latency.gpu.count}</td><td
-              >{formatUs(timings.render_latency.gpu.p50_us)}</td
-            ><td>{formatUs(timings.render_latency.gpu.p95_us)}</td><td
-              >{formatUs(timings.render_latency.gpu.p99_us)}</td
-            ><td>{formatUs(timings.render_latency.gpu.max_us)}</td></tr
-          >
-        </tbody>
-      </table>
+    <section class="space-y-2 pt-5">
+      <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Render latency</Heading>
+      <div class="divide-y divide-hairline">
+        {@render latencyRow('CPU', timings.render_latency.cpu)}
+        {@render latencyRow('GPU', timings.render_latency.gpu)}
+      </div>
     </section>
 
-    <section class="space-y-2">
-      <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Cache usage</h2>
+    <section class="space-y-2 pt-5">
+      <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Cache usage</Heading>
       <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs font-mono">
-        <dt class="text-immich-dark-fg/50 font-sans">Preview frames</dt>
+        <dt class="text-dark/65 font-sans">Preview frames</dt>
         <dd>
           {formatBytes(timings.cache_bytes.preview_frames_used)} / {formatBytes(
             timings.cache_bytes.preview_frames_cap
           )}
         </dd>
-        <dt class="text-immich-dark-fg/50 font-sans">Quality frames</dt>
+        <dt class="text-dark/65 font-sans">Quality frames</dt>
         <dd>
           {formatBytes(timings.cache_bytes.quality_frames_used)} / {formatBytes(
             timings.cache_bytes.quality_frames_cap
           )}
         </dd>
-        <dt class="text-immich-dark-fg/50 font-sans">Mask rasters on disk</dt>
+        <dt class="text-dark/65 font-sans">Mask rasters on disk</dt>
         <dd>
           {formatBytes(timings.cache_bytes.rasters_disk_used)} / {formatBytes(
             timings.cache_bytes.rasters_disk_cap
@@ -264,48 +275,48 @@
     </section>
 
     {#if timings.gpu_pool_bytes}
-      <section class="space-y-2">
-        <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">GPU memory pools</h2>
+      <section class="space-y-2 pt-5">
+        <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">GPU memory pools</Heading>
         <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs font-mono">
-          <dt class="text-immich-dark-fg/50 font-sans">Texture pool</dt>
+          <dt class="text-dark/65 font-sans">Texture pool</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.texture_pool)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">Uniform pool</dt>
+          <dt class="text-dark/65 font-sans">Uniform pool</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.uniform_pool)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">Output targets</dt>
+          <dt class="text-dark/65 font-sans">Output targets</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.output_targets)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">Sharpen targets</dt>
+          <dt class="text-dark/65 font-sans">Sharpen targets</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.sharpen_targets)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">WB cache</dt>
+          <dt class="text-dark/65 font-sans">WB cache</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.wb_cache)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">NR cache</dt>
+          <dt class="text-dark/65 font-sans">NR cache</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.nr_cache)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">Atlas cache</dt>
+          <dt class="text-dark/65 font-sans">Atlas cache</dt>
           <dd>{formatBytes(timings.gpu_pool_bytes.atlas_cache)}</dd>
-          <dt class="text-immich-dark-fg/50 font-sans">Total</dt>
-          <dd class="text-immich-dark-fg">{formatBytes(timings.gpu_pool_bytes.total)}</dd>
+          <dt class="text-dark/65 font-sans">Total</dt>
+          <dd class="text-dark">{formatBytes(timings.gpu_pool_bytes.total)}</dd>
         </dl>
       </section>
     {/if}
   {:else}
-    <p class="text-xs text-immich-dark-fg/40">Render timings are unavailable.</p>
+    <Text size="tiny" color="muted">Render timings are unavailable.</Text>
   {/if}
 
-  <section class="space-y-2">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Configuration</h2>
+  <section class="space-y-2 pt-5">
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Configuration</Heading>
     <pre
-      class="text-[11px] font-mono bg-black/30 border border-white/5 rounded p-3 overflow-x-auto">{JSON.stringify(
+      class="overflow-x-auto rounded border border-dark/10 bg-light-100 p-3 font-mono text-[11px]">{JSON.stringify(
         health.config,
         null,
         2
       )}</pre>
   </section>
 
-  <section class="space-y-2">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Resources</h2>
+  <section class="space-y-2 pt-5">
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Resources</Heading>
     <ul class="text-xs space-y-1">
       <li>
         <a
-          class="text-immich-primary hover:underline"
+          class="text-primary hover:underline"
           href="https://haavardnk.github.io/immich-edit/deploy/"
           target="_blank"
           rel="noopener">Deployment</a
@@ -313,7 +324,7 @@
       </li>
       <li>
         <a
-          class="text-immich-primary hover:underline"
+          class="text-primary hover:underline"
           href="https://haavardnk.github.io/immich-edit/troubleshooting/"
           target="_blank"
           rel="noopener">Troubleshooting</a
@@ -321,7 +332,7 @@
       </li>
       <li>
         <a
-          class="text-immich-primary hover:underline"
+          class="text-primary hover:underline"
           href="https://github.com/haavardnk/immich-edit/releases"
           target="_blank"
           rel="noopener">Releases</a
@@ -329,7 +340,7 @@
       </li>
       <li>
         <a
-          class="text-immich-primary hover:underline"
+          class="text-primary hover:underline"
           href="https://github.com/haavardnk/immich-edit/issues/new/choose"
           target="_blank"
           rel="noopener">Report an issue</a
