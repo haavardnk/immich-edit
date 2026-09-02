@@ -85,7 +85,7 @@
     <polyline
       points={points.map((p) => `${p.x},${p.y}`).join(' ')}
       fill="none"
-      stroke="#ffffff"
+      stroke="var(--color-image-light)"
       stroke-width="1.5"
       stroke-dasharray="4 3"
       style="pointer-events: none;"
@@ -96,7 +96,7 @@
         y1={points[points.length - 1].y}
         x2={cursor.x}
         y2={cursor.y}
-        stroke="#ffffff"
+        stroke="var(--color-image-light)"
         stroke-width="1.5"
         stroke-dasharray="4 3"
         opacity="0.7"
@@ -109,8 +109,8 @@
         cx={p.x}
         cy={p.y}
         r={i === 0 ? 8 : 5}
-        fill={i === 0 ? '#ffffff' : '#111111'}
-        stroke="#ffffff"
+        fill={i === 0 ? 'var(--color-image-light)' : 'var(--color-image-dark)'}
+        stroke="var(--color-image-light)"
         stroke-width="2"
         style={closable ? 'cursor: pointer;' : 'pointer-events: none;'}
         role={closable ? 'button' : undefined}
@@ -122,9 +122,9 @@
   <text
     x={rect.x + 12}
     y={rect.y + 22}
-    fill="#ffffff"
+    fill="var(--color-image-light)"
     font-size="12"
-    style="pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,0.6); stroke-width: 3px;"
+    style="pointer-events: none; paint-order: stroke; stroke: var(--color-control-shadow); stroke-width: 3px;"
   >
     {draft.points.length < 3
       ? `Click to place corners (${draft.points.length}/${MAX_POLYGON_POINTS})`

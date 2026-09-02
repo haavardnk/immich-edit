@@ -83,6 +83,17 @@ export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 300, 
 
 export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map((h) => `hsl(${h}, 70%, 65%)`);
 
+export const MASK_COLOR_TOKENS: readonly string[] = [
+  '#ff3b30',
+  '#ff9500',
+  '#ffcc00',
+  '#34c759',
+  '#5ac8fa',
+  '#007aff',
+  '#af52de',
+  '#ff2d55'
+];
+
 export interface HslEdits {
   bands: HslBand[];
 }
@@ -1175,7 +1186,7 @@ function parseMaskLayer(raw: unknown): MaskLayer | null {
     id: r.id,
     name: typeof r.name === 'string' ? r.name : '',
     enabled: r.enabled !== false,
-    color: typeof r.color === 'string' ? r.color : '#ff3b30',
+    color: typeof r.color === 'string' ? r.color : MASK_COLOR_TOKENS[0],
     amount: typeof r.amount === 'number' ? r.amount : 1,
     invert: r.invert === true,
     components,

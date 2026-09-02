@@ -449,6 +449,52 @@ test('modified editor tools use a dot without duplicate counts', async ({ page }
   expect(await indicator.evaluate((element) => element.getBoundingClientRect().width)).toBe(6);
 });
 
+test('panel header actions match develop action buttons', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const auto = page.getByRole('button', { name: 'Auto', exact: true });
+  const reset = page.getByRole('button', { name: /Reset edits/ });
+  const copy = page.getByRole('button', { name: 'Copy edits', exact: true });
+  const paste = page.getByRole('button', { name: 'Paste edits', exact: true });
+  const history = page.getByRole('button', { name: 'Edit history', exact: true });
+  const filter = page.getByRole('button', { name: 'Show modified only', exact: true });
+  const metrics = await Promise.all([auto, reset, copy, paste, history, filter].map(metricsOf));
+
+  expect(metrics.map(({ height }) => height)).toEqual([32, 32, 32, 32, 32, 32]);
+  expect(metrics[0].radius).toBeGreaterThan(0);
+  expect(metrics[1].radius).toBeGreaterThan(0);
+  expect(metrics.slice(2).map(({ radius }) => radius)).toEqual(Array(4).fill(metrics[2].radius));
+  expect(metrics[2].radius).toBeGreaterThan(0);
+
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  const maskOverlay = page.getByRole('button', { name: 'Toggle mask overlays' });
+  const maskMetrics = await Promise.all(
+    [maskOverlay, page.getByRole('button', { name: 'New mask' })].map(metricsOf)
+  );
+
+  expect(maskMetrics[0]).toEqual(metrics[5]);
+  expect(maskMetrics[1]).toEqual(metrics[0]);
+
+  const createMask = page.getByRole('button', { name: 'Create a mask' });
+  await expect
+    .soft(page.getByText('Masks limit an adjustment to part of the photo.'))
+    .toHaveCount(0);
+  expect
+    .soft((await metricsOf(createMask)).background)
+    .toBe(await resolvedColor(page, '--color-primary'));
+
+  await createMask.click();
+  await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
+  await expect.soft(page.getByText('These sliders only affect the mask.')).toHaveCount(0);
+
+  const labels = await page
+    .getByRole('slider')
+    .evaluateAll((sliders) => sliders.map((slider) => slider.getAttribute('aria-label')));
+  expect.soft(labels.indexOf('Temperature')).toBeLessThan(labels.indexOf('Tint'));
+  expect.soft(labels.indexOf('Tint')).toBeLessThan(labels.indexOf('Exposure'));
+});
+
 test('browse filter popover uses a neutral dark surface', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
@@ -466,6 +512,29 @@ test('browse filter popover uses a neutral dark surface', async ({ page }) => {
       .first()
       .evaluate((element) => getComputedStyle(element).backgroundColor)
   ).toBe(await resolvedColor(page, '--color-gray-800'));
+});
+
+test('tall mask picker stays inside the viewport', async ({ page }) => {
+  await installMocks(page);
+  await page.setViewportSize({ width: 1024, height: 420 });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+
+  const popover = page.locator('[data-popover-content]');
+  await expect(popover).toBeVisible();
+  const geometry = await popover.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      top: bounds.top,
+      bottom: bounds.bottom,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    };
+  });
+  expect(geometry.top).toBeGreaterThanOrEqual(8);
+  expect(geometry.bottom).toBeLessThanOrEqual(413);
+  expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
 });
 
 test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {

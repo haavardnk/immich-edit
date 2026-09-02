@@ -206,6 +206,13 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await maskPreview.click();
 
   const picker = page.getByRole('button', { name: 'Pick color from image' });
+  const resetMask = page.getByRole('button', { name: 'Reset mask adjustments' });
+  for (const control of [picker, resetMask]) {
+    const bounds = await control.boundingBox();
+    if (!bounds) throw new Error('Mask control has no bounds');
+    expect(bounds.width).toBeGreaterThanOrEqual(24);
+    expect(bounds.height).toBeGreaterThanOrEqual(24);
+  }
   await picker.click();
   await expect
     .poll(() =>
@@ -239,6 +246,31 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
+});
+
+test('mask rename commits when its field loses focus', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body) });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Linear gradient', exact: true }).click();
+  await page.getByRole('button', { name: 'Mask 1' }).dblclick();
+  const name = page.getByRole('textbox', { name: 'Mask name' });
+  await expect(name).toBeFocused();
+  await name.fill('Sky');
+  await name.evaluate((input) => input.blur());
+
+  await expect(page.getByRole('button', { name: 'Sky' })).toBeVisible();
+  await expect
+    .poll(() => {
+      const body = saves.at(-1) as {
+        manifest?: { ops?: { masks?: { layers?: Array<{ name?: string }> } } };
+      };
+      return body.manifest?.ops?.masks?.layers?.[0]?.name;
+    })
+    .toBe('Sky');
 });
 
 test('dragging the radial centre handle moves the saved shape', async ({ page }) => {

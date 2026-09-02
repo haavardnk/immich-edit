@@ -14,7 +14,7 @@
 </script>
 
 {#if polygon}
-  <div class="mt-2 flex flex-col gap-2.5">
+  <div class="mt-1.5 flex flex-col gap-1.5">
     <SliderRow
       label="Feather"
       value={polygon.feather}
@@ -26,7 +26,7 @@
       onCommit={() => void editor.commitMasks()}
       format={(value: number) => value.toFixed(3)}
     />
-    <p class="px-1 text-[10px] text-immich-dark-fg/40">
+    <p class="px-1 text-[10px] text-dark/65">
       Drag a corner to move it, the small dot between corners to add one, and double-click a corner
       to remove it.
     </p>
