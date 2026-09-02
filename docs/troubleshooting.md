@@ -81,11 +81,11 @@ RAW formats.
 
 libheif uses separate plugins for each operation:
 
-| Capability | Debian package |
-| --- | --- |
-| HEIC decode | `libheif-plugin-libde265` |
-| HEIC encode | `libheif-plugin-x265` |
-| AVIF decode | `libheif-plugin-dav1d` |
+| Capability  | Debian package                                    |
+| ----------- | ------------------------------------------------- |
+| HEIC decode | `libheif-plugin-libde265`                         |
+| HEIC encode | `libheif-plugin-x265`                             |
+| AVIF decode | `libheif-plugin-dav1d`                            |
 | AVIF encode | `libheif-plugin-aomenc` or `libheif-plugin-rav1e` |
 
 The official image installs `libheif-plugins-all`. Native and custom-image deployments must install
@@ -119,8 +119,8 @@ Restart the service after a driver crash. If device loss repeats under memory pr
 
 ### A mask type is missing
 
-An administrator must install that model kind under **Settings** > **Mask models**. Check
-`ML_RUNTIME`; `off` disables every generated mask.
+An administrator must install that model kind under **Settings** > **App settings** > **Mask models**.
+Check `ML_RUNTIME`; `off` disables every generated mask.
 
 ### Model installation fails
 

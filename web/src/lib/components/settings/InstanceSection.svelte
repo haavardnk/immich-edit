@@ -1,8 +1,12 @@
 <script lang="ts">
+  import TextInput from '$lib/components/TextInput.svelte';
   import { onMount } from 'svelte';
   import { session } from '$lib/stores/session.svelte';
   import { getInstance, rebindInstance, type InstanceInfo } from '$lib/api/admin';
   import { formatWhen } from '$lib/utils/datetime';
+  import { mdiServerNetworkOutline, mdiSwapHorizontal } from '@mdi/js';
+  import { Button, Icon, IconButton, Select } from '@immich/ui';
+  import Notice from '$lib/components/Notice.svelte';
 
   let instance = $state<InstanceInfo | null>(null);
   let showRebind = $state(false);
@@ -14,6 +18,11 @@
   let confirm = $state('');
   let busy = $state(false);
   let error = $state<string | null>(null);
+
+  const methodOptions = [
+    { value: 'password', label: 'Password' },
+    { value: 'apikey', label: 'API key' }
+  ];
 
   const host = $derived(hostnameOf(url));
 
@@ -67,106 +76,112 @@
   });
 </script>
 
-<section class="space-y-2">
-  <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Immich instance</h2>
+<section class="space-y-5 py-2">
   {#if error}
-    <p class="text-xs text-red-400">{error}</p>
+    <Notice message={error} />
   {/if}
   {#if instance}
-    <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
-      <dt class="text-immich-dark-fg/50">Server URL</dt>
-      <dd class="font-mono break-all">{instance.immich_url}</dd>
-      <dt class="text-immich-dark-fg/50">Config epoch</dt>
-      <dd class="font-mono">{instance.server_epoch}</dd>
-      <dt class="text-immich-dark-fg/50">Configured</dt>
-      <dd class="font-mono">{formatWhen(instance.configured_at)}</dd>
-    </dl>
+    <div class="flex min-h-16 items-center gap-3">
+      <Icon
+        icon={mdiServerNetworkOutline}
+        size="28px"
+        class="shrink-0 text-dark/45"
+        aria-hidden="true"
+      />
+      <div class="min-w-0 flex-1">
+        <div class="truncate font-mono text-sm">{instance.immich_url}</div>
+        <div class="mt-0.5 text-xs text-dark/65">
+          Configured {formatWhen(instance.configured_at)} · epoch {instance.server_epoch}
+        </div>
+      </div>
+      {#if !showRebind}
+        <IconButton
+          size="small"
+          variant="ghost"
+          color="secondary"
+          icon={mdiSwapHorizontal}
+          title="Connect to a different Immich server"
+          aria-label="Connect to a different Immich server"
+          onclick={() => (showRebind = true)}
+        />
+      {/if}
+    </div>
   {/if}
-  {#if !showRebind}
-    <button
-      class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs"
-      onclick={() => (showRebind = true)}
-    >
-      Rebind to a different Immich server…
-    </button>
-  {:else}
-    <div class="rounded border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 text-xs">
-      <p class="text-amber-200">
-        Rebinding points immich-edit at a new Immich server and wipes all local users, edits and
-        export jobs. Shared LUTs and camera profiles are kept. This cannot be undone.
-      </p>
-      <input
-        class="w-full rounded bg-black/30 border border-white/10 px-2 py-1 font-mono"
+  {#if showRebind}
+    <div class="max-w-xl space-y-3 border-t border-hairline pt-5 text-xs">
+      <Notice
+        color="warning"
+        message="Rebinding points immich-edit at a new Immich server and wipes all local users, edits and export jobs. Shared LUTs and camera profiles are kept. This cannot be undone."
+      />
+      <TextInput
+        size="tiny"
+        class="font-mono"
         bind:value={url}
         placeholder="https://immich.example.com"
+        aria-label="Immich server URL"
       />
-      <div class="flex items-center gap-2">
-        <button
-          class="px-2 py-1 rounded {method === 'password'
-            ? 'bg-white/15'
-            : 'bg-white/5 hover:bg-white/10'}"
-          onclick={() => (method = 'password')}
-        >
-          Password
-        </button>
-        <button
-          class="px-2 py-1 rounded {method === 'apikey'
-            ? 'bg-white/15'
-            : 'bg-white/5 hover:bg-white/10'}"
-          onclick={() => (method = 'apikey')}
-        >
-          API key
-        </button>
-      </div>
+      <Select
+        size="tiny"
+        class="w-40"
+        options={methodOptions}
+        value={method}
+        placeholder="Authentication method"
+        onChange={(value) => (method = value as 'password' | 'apikey')}
+      />
       {#if method === 'password'}
-        <input
-          class="w-full rounded bg-black/30 border border-white/10 px-2 py-1"
+        <TextInput
+          size="tiny"
+          type="email"
           bind:value={email}
           placeholder="admin@example.com"
+          aria-label="Email"
           autocomplete="off"
         />
-        <input
-          class="w-full rounded bg-black/30 border border-white/10 px-2 py-1"
+        <TextInput
           type="password"
+          size="tiny"
           bind:value={password}
           placeholder="Password"
+          aria-label="Password"
           autocomplete="off"
         />
       {:else}
-        <input
-          class="w-full rounded bg-black/30 border border-white/10 px-2 py-1 font-mono"
+        <TextInput
+          size="tiny"
+          class="font-mono"
           bind:value={apiKey}
           placeholder="Immich API key"
+          aria-label="Immich API key"
           autocomplete="off"
         />
       {/if}
-      <p class="text-immich-dark-fg/50">
+      <p class="text-dark/65">
         Type the new hostname
         {#if host}<span class="font-mono">{host}</span>{/if}
         to confirm.
       </p>
-      <input
-        class="w-full rounded bg-black/30 border border-white/10 px-2 py-1 font-mono"
+      <TextInput
+        size="tiny"
+        class="font-mono"
         bind:value={confirm}
         placeholder={host || 'hostname'}
+        aria-label="Confirm hostname"
       />
       <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1.5 rounded bg-amber-500/20 text-amber-100 hover:bg-amber-500/30 disabled:opacity-50"
-          onclick={() => void submit()}
-          disabled={busy}
-        >
+        <Button size="tiny" color="warning" onclick={() => void submit()} disabled={busy}>
           {busy ? 'Rebinding…' : 'Rebind and reset'}
-        </button>
-        <button
-          class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10"
+        </Button>
+        <Button
+          size="tiny"
+          variant="ghost"
+          color="secondary"
           onclick={() => {
             showRebind = false;
             error = null;
           }}
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   {/if}

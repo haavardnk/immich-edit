@@ -1,8 +1,11 @@
 <script lang="ts">
+  import TextInput from '$lib/components/TextInput.svelte';
   import { onMount } from 'svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listUsers, setUserAccess, purgeUserData, type AdminUser } from '$lib/api/admin';
-  import Spinner from '$lib/components/Spinner.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import { mdiAccountCircleOutline, mdiDeleteOutline } from '@mdi/js';
+  import { Badge, Button, Icon, IconButton, LoadingSpinner, Switch, Text } from '@immich/ui';
 
   let users = $state<AdminUser[]>([]);
   let loading = $state(false);
@@ -58,47 +61,57 @@
   });
 </script>
 
-<section class="space-y-2">
-  <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Users</h2>
+<section class="space-y-3 py-2">
   {#if error}
-    <p class="text-xs text-red-400">{error}</p>
+    <Notice message={error} />
   {/if}
   {#if loading}
-    <Spinner label="Loading…" />
+    <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
+      <LoadingSpinner size="small" />
+      <span class="text-xs">Loading…</span>
+    </div>
   {:else if users.length === 0}
-    <p class="text-xs text-immich-dark-fg/50">No users yet.</p>
+    <Text size="tiny" color="muted">No users yet.</Text>
   {:else}
-    <ul class="space-y-1">
+    <ul class="divide-y divide-hairline">
       {#each users as u (u.id)}
-        <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
-          <div class="min-w-0">
-            <div class="truncate">
-              {u.name || u.email}
-              {#if u.is_admin}<span class="text-immich-primary"> · admin</span>{/if}
-              {#if !u.access_enabled}<span class="text-amber-300"> · disabled</span>{/if}
+        <li class="flex min-h-16 items-center gap-3 py-2.5 text-xs">
+          <Icon
+            icon={mdiAccountCircleOutline}
+            size="24px"
+            class="shrink-0 text-dark/45"
+            aria-hidden="true"
+          />
+          <div class="min-w-0 flex-1">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <span class="truncate">{u.name || u.email}</span>
+              {#if u.is_admin}<Badge size="tiny" color="primary">admin</Badge>{/if}
+              {#if !u.access_enabled}<Badge size="tiny" color="warning">disabled</Badge>{/if}
             </div>
-            <div class="text-immich-dark-fg/40 font-mono truncate">{u.email}</div>
+            <div class="text-dark/65 font-mono truncate">{u.email}</div>
           </div>
-          <div class="flex items-center gap-2 shrink-0 ml-2">
+          <div class="flex shrink-0 items-center gap-1">
             {#if u.id !== session.user?.id}
-              <button
-                class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-50"
-                onclick={() => void toggleAccess(u)}
+              <Switch
+                checked={u.access_enabled}
+                aria-label={`${u.access_enabled ? 'Disable' : 'Enable'} access for ${u.email}`}
+                onCheckedChange={() => void toggleAccess(u)}
                 disabled={busyUser === u.id}
-              >
-                {u.access_enabled ? 'Disable' : 'Enable'}
-              </button>
+              />
             {/if}
-            <button
-              class="px-2 py-1 rounded bg-red-500/10 text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+            <IconButton
+              size="small"
+              variant="ghost"
+              color="danger"
+              icon={mdiDeleteOutline}
+              title="Purge local data"
+              aria-label={`Purge local data for ${u.email}`}
               onclick={() => {
                 purgeTarget = u;
                 purgeConfirm = '';
               }}
               disabled={busyUser === u.id}
-            >
-              Purge data
-            </button>
+            />
           </div>
         </li>
       {/each}
@@ -106,36 +119,41 @@
   {/if}
 
   {#if purgeTarget}
-    <div class="rounded border border-red-500/30 bg-red-500/5 p-3 space-y-2 text-xs">
+    <div class="space-y-2 border-l-2 border-danger-500 bg-danger-500/5 p-3 text-xs">
       <p>
         Delete all edits, presets and export jobs for
         <span class="font-mono">{purgeTarget.email}</span>? This cannot be undone.
       </p>
-      <p class="text-immich-dark-fg/50">
+      <p class="text-dark/65">
         Type <span class="font-mono">{purgeTarget.email}</span> to confirm.
       </p>
-      <input
-        class="w-full rounded bg-black/30 border border-white/10 px-2 py-1 font-mono"
+      <TextInput
+        size="tiny"
+        class="font-mono"
         bind:value={purgeConfirm}
         placeholder={purgeTarget.email}
+        aria-label="Confirm email"
       />
       <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1.5 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 disabled:opacity-50"
+        <Button
+          size="tiny"
+          color="danger"
           onclick={() => void confirmPurge()}
           disabled={purgeConfirm !== purgeTarget.email || busyUser === purgeTarget.id}
         >
           {busyUser === purgeTarget.id ? 'Purging…' : 'Purge data'}
-        </button>
-        <button
-          class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10"
+        </Button>
+        <Button
+          size="tiny"
+          variant="ghost"
+          color="secondary"
           onclick={() => {
             purgeTarget = null;
             purgeConfirm = '';
           }}
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   {/if}

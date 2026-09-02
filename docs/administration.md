@@ -7,7 +7,9 @@ permalink: /administration/
 
 # Administration
 
-Administration is available under **Settings**.
+Administration is available under **Settings** > **App settings**. Open **Users**, **Mask models**,
+or **Immich instance** to manage that section. Personal identity and signed-in devices are grouped
+under **Account**. Sections stay collapsed until you open them.
 
 ## Users and sessions
 
@@ -37,7 +39,7 @@ the new hostname.
 
 ## Mask models
 
-AI masks are optional. Install models under **Settings** > **Mask models**.
+AI masks are optional. Install models under **Settings** > **App settings** > **Mask models**.
 
 Installs run one at a time and verify a pinned SHA-256 digest. A failed item shows the reason and a
 **Retry** action. Models are shared by all users and stored under `DATA_DIR/models`.
