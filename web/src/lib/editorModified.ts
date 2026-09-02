@@ -1,5 +1,6 @@
-import { editsToManifest, type Edits } from '$lib/types/edits';
+import { editsToManifest } from '$lib/edits/manifest';
 import type { EditorTab } from '$lib/stores/ui.svelte';
+import type { Edits } from '$lib/types/edits';
 
 const DEVELOP_PANEL_OPS: Record<string, readonly string[]> = {
   dcp: ['dcp_hue_sat'],

@@ -5,9 +5,10 @@
   import EditableLabel from '$lib/components/EditableLabel.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
   import { mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline, mdiAutoFix } from '@mdi/js';
+  import { editsToManifest } from '$lib/edits/manifest';
   import { editor } from '$lib/stores/editor.svelte';
   import { presets } from '$lib/stores/presets.svelte';
-  import { editsToManifest, isIdentity } from '$lib/types/edits';
+  import { isIdentity } from '$lib/types/edits';
   import { Button, IconButton } from '@immich/ui';
 
   let includeGeometry = $state(false);
