@@ -7,7 +7,7 @@
   import { getEdits } from '$lib/api/edits';
   import { createPasteEditsJob, createResetEditsJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import { manifestToEdits, editsToManifest } from '$lib/types/edits';
+  import { manifestToEdits, editsToManifest } from '$lib/edits/manifest';
   import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 
