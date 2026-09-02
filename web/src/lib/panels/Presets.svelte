@@ -1,18 +1,14 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import PresetIncludeToggles from './preset/IncludeToggles.svelte';
   import PresetPicker from './preset/PresetPicker.svelte';
-  import {
-    mdiDelete,
-    mdiPencil,
-    mdiCheck,
-    mdiClose,
-    mdiContentSaveOutline,
-    mdiAutoFix
-  } from '@mdi/js';
+  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import EditableLabel from '$lib/components/EditableLabel.svelte';
+  import TextInput from '$lib/components/TextInput.svelte';
+  import { mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline, mdiAutoFix } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { presets } from '$lib/stores/presets.svelte';
   import { editsToManifest, isIdentity } from '$lib/types/edits';
+  import { Button, IconButton } from '@immich/ui';
 
   let includeGeometry = $state(false);
   let includeMasks = $state(false);
@@ -25,6 +21,7 @@
   let editing = $state(false);
   let editName = $state('');
   let editGroup = $state('');
+  let pendingDelete = $state(false);
 
   const selected = $derived(presets.presets.find((p) => p.id === selectedId) ?? null);
 
@@ -37,6 +34,11 @@
       selectedId = null;
       editing = false;
     }
+  });
+
+  $effect(() => {
+    const _tracked = selectedId;
+    pendingDelete = false;
   });
 
   async function save(): Promise<void> {
@@ -88,119 +90,133 @@
   }
 </script>
 
-<div class="flex flex-col gap-2.5 pb-1">
+<div class="flex flex-col gap-1 pb-1">
   {#if saving}
-    <div class="flex flex-col gap-1.5 rounded-lg bg-white/5 p-2.5">
-      <input
-        class="input bg-white/5 rounded-lg text-xs h-auto py-1.5 min-h-0"
-        placeholder="Preset name"
-        bind:value={newName}
-      />
-      <input
-        class="input bg-white/5 rounded-lg text-xs h-auto py-1.5 min-h-0"
+    <div class="flex flex-col gap-1">
+      <TextInput compact placeholder="Preset name" aria-label="Preset name" bind:value={newName} />
+      <TextInput
+        compact
         placeholder="Group (optional)"
+        aria-label="Preset group"
         bind:value={newGroup}
       />
-      <div class="flex gap-1.5">
-        <button
-          class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-immich-dark-primary/80 hover:bg-immich-dark-primary text-xs transition-colors disabled:opacity-40"
+      <div class="flex gap-1">
+        <Button
+          size="tiny"
+          color="primary"
+          class="h-7 flex-1"
+          leadingIcon={mdiCheck}
           disabled={!newName.trim()}
           onclick={() => void save()}
         >
-          <Icon path={mdiCheck} size={14} />
           Save
-        </button>
-        <button
-          class="flex items-center justify-center py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+        </Button>
+        <IconButton
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="size-7 panel-action"
+          icon={mdiClose}
           onclick={() => (saving = false)}
           aria-label="Cancel"
-        >
-          <Icon path={mdiClose} size={14} />
-        </button>
+        />
       </div>
     </div>
   {:else}
-    <button
-      class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="h-7 panel-action"
+      leadingIcon={mdiContentSaveOutline}
+      title={isIdentity(editor.edits) ? 'No edits to save' : 'Save current edits as preset'}
       disabled={!editor.assetId || isIdentity(editor.edits)}
       onclick={() => {
         saving = true;
       }}
-      title={isIdentity(editor.edits) ? 'No edits to save' : 'Save current edits as preset'}
     >
-      <Icon path={mdiContentSaveOutline} size={14} />
       Save current as preset
-    </button>
+    </Button>
   {/if}
 
   {#if presets.presets.length === 0}
-    <div class="text-xs text-immich-dark-fg/30 py-1">No presets yet.</div>
+    <div class="px-1 py-1 text-xs text-dark/65">No presets yet.</div>
   {:else}
     <div class="flex items-center gap-1">
       <div class="flex-1 min-w-0">
         <PresetPicker bind:selectedId />
       </div>
-      <button
-        class="flex items-center justify-center p-1.5 rounded-lg text-immich-dark-fg/40 hover:text-immich-dark-fg hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiPencil}
+        title="Rename"
+        aria-label="Rename preset"
         disabled={!selected}
         onclick={startRename}
-        aria-label="Rename preset"
-        title="Rename"
-      >
-        <Icon path={mdiPencil} size={13} />
-      </button>
-      <button
-        class="flex items-center justify-center p-1.5 rounded-lg text-immich-dark-fg/40 hover:text-immich-dark-error hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        disabled={!selected}
-        onclick={() => void remove()}
-        aria-label="Delete preset"
+      />
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete preset"
         title="Delete"
-      >
-        <Icon path={mdiDelete} size={13} />
-      </button>
+        confirmLabel="Confirm delete preset"
+        disabled={!selected}
+        onconfirm={remove}
+      />
     </div>
 
     {#if editing && selected}
-      <div class="flex flex-col gap-1.5 rounded-lg bg-white/5 p-2">
-        <input
-          class="input bg-white/5 rounded-lg text-xs h-auto py-1 min-h-0"
+      <div class="flex flex-col gap-1">
+        <EditableLabel
+          compact
           placeholder="Name"
+          ariaLabel="Preset name"
           bind:value={editName}
+          oncommit={commitRename}
+          oncancel={() => (editing = false)}
         />
-        <input
-          class="input bg-white/5 rounded-lg text-xs h-auto py-1 min-h-0"
+        <TextInput
+          compact
           placeholder="Group (optional)"
+          aria-label="Preset group"
           bind:value={editGroup}
         />
-        <div class="flex gap-1.5">
-          <button
-            class="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-immich-dark-primary/80 hover:bg-immich-dark-primary text-xs transition-colors disabled:opacity-40"
+        <div class="flex gap-1">
+          <Button
+            size="tiny"
+            color="primary"
+            class="h-7 flex-1"
+            leadingIcon={mdiCheck}
             disabled={!editName.trim()}
             onclick={() => void commitRename()}
           >
-            <Icon path={mdiCheck} size={13} />
-          </button>
-          <button
-            class="flex items-center justify-center py-1 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+            Rename
+          </Button>
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            class="size-7 panel-action"
+            icon={mdiClose}
             onclick={() => (editing = false)}
             aria-label="Cancel"
-          >
-            <Icon path={mdiClose} size={13} />
-          </button>
+          />
         </div>
       </div>
     {/if}
 
     <PresetIncludeToggles bind:includeGeometry bind:includeMasks />
 
-    <button
-      class="flex items-center justify-center gap-2 py-2 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    <Button
+      size="tiny"
+      color="primary"
+      leadingIcon={mdiAutoFix}
+      title={selected ? `Apply ${selected.name}` : 'Select a preset'}
       disabled={!selected || !editor.assetId || editor.saving}
       onclick={apply}
-      title={selected ? `Apply ${selected.name}` : 'Select a preset'}
     >
-      <Icon path={mdiAutoFix} size={14} />
       {selected ? `Apply ${selected.name}` : 'Apply preset'}
-    </button>
+    </Button>
   {/if}
 </div>

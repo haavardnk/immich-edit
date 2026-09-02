@@ -185,7 +185,7 @@ test('narrow viewports show the desktop-required guard', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(0);
 });
 
-test('deleting a preset needs a second confirming click', async ({ page }) => {
+test('deleting a preset requires explicit confirmation', async ({ page }) => {
   const deleted: string[] = [];
   await installMocks(page, {
     presets: [
@@ -213,11 +213,16 @@ test('deleting a preset needs a second confirming click', async ({ page }) => {
   await expect(confirm).toBeVisible();
   expect(deleted).toEqual([]);
 
+  await page.getByRole('button', { name: 'Cancel delete' }).click();
+  await expect(confirm).toHaveCount(0);
+  expect(deleted).toEqual([]);
+
+  await page.getByRole('button', { name: 'Delete preset' }).click();
   await confirm.click();
   await expect.poll(() => deleted).toEqual(['preset-1']);
 });
 
-test('renaming a preset uses a labelled text field', async ({ page }) => {
+test('preset rename commits with Enter and cancels with Escape', async ({ page }) => {
   const updates: Array<[string, Record<string, unknown>]> = [];
   await installMocks(page, {
     presets: [
@@ -240,10 +245,17 @@ test('renaming a preset uses a labelled text field', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Rename preset' }).click();
   const name = page.getByRole('textbox', { name: 'Preset name' });
+  await expect(name).toBeFocused();
   await expect(name).toHaveValue('Warm film');
   await name.fill('Cool film');
-  await page.getByRole('button', { name: 'Rename', exact: true }).click();
+  await name.press('Enter');
   await expect.poll(() => updates.map(([, body]) => body.name)).toEqual(['Cool film']);
+
+  await page.getByRole('button', { name: 'Rename preset' }).click();
+  await name.fill('Discarded');
+  await name.press('Escape');
+  await expect(name).toHaveCount(0);
+  expect(updates).toHaveLength(1);
 });
 
 test('stack primary is a keyboard radio group', async ({ page }) => {

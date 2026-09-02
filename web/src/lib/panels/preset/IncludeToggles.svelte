@@ -1,4 +1,6 @@
 <script lang="ts">
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+
   let {
     includeGeometry = $bindable(),
     includeMasks = $bindable(),
@@ -11,17 +13,15 @@
 </script>
 
 <div
-  class="flex flex-col gap-1 text-[11px] text-immich-dark-fg/60 {bordered
-    ? 'border-t border-white/10 pt-3'
+  class="flex flex-col gap-1 text-[11px] text-dark/65 {bordered
+    ? 'border-t border-dark/10 pt-3'
     : ''}"
 >
-  <span class="uppercase tracking-wider text-[10px] text-immich-dark-fg/40">Apply includes</span>
-  <label class="flex items-center gap-2">
-    <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeGeometry} />
-    Geometry &amp; crop
-  </label>
-  <label class="flex items-center gap-2">
-    <input type="checkbox" class="checkbox checkbox-xs" bind:checked={includeMasks} />
-    Masks
-  </label>
+  <span class="uppercase tracking-wider text-[10px] text-dark/65">Apply includes</span>
+  <CheckboxRow
+    label="Geometry & crop"
+    checked={includeGeometry}
+    onChange={(v) => (includeGeometry = v)}
+  />
+  <CheckboxRow label="Masks" checked={includeMasks} onChange={(v) => (includeMasks = v)} />
 </div>

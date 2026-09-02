@@ -103,6 +103,33 @@ test('histogram distinguishes loading from absent data', async ({ page }) => {
   await expect(page.getByText('No histogram data')).toBeVisible();
 });
 
+test('lens profile failure can be retried', async ({ page }) => {
+  let attempts = 0;
+  await installMocks(page);
+  await page.route('**/api/assets/*/lens-profile', (route) => {
+    attempts += 1;
+    if (attempts === 1) {
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Lens profile unavailable' })
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ matched: false, lens: null, edits: null })
+    });
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  await page.getByRole('button', { name: 'Try again' }).click();
+
+  await expect(page.getByText('No matching lens profile')).toBeVisible();
+  expect(attempts).toBe(2);
+});
+
 test('pending saves guard browser unload', async ({ page }) => {
   let releaseSave = (): void => {};
   const savePending = new Promise<void>((resolve) => {
