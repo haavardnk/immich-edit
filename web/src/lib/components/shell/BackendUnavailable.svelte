@@ -1,6 +1,7 @@
 <script lang="ts">
   import { live } from '$lib/api/health';
-  import Logo from '$lib/components/Logo.svelte';
+  import Wordmark from '$lib/components/Wordmark.svelte';
+  import { Button, Card, CardBody, Container, Heading, Text } from '@immich/ui';
 
   let { retry }: { retry: () => void } = $props();
 
@@ -38,28 +39,35 @@
   });
 </script>
 
-<div class="h-full w-full flex items-center justify-center p-6">
-  <div
-    class="w-full max-w-md flex flex-col gap-4 p-6 rounded-lg bg-immich-dark-gray border border-immich-dark-gray"
-  >
-    <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
-      <Logo size={26} />
-      <span
-        ><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span
-        ></span
-      >
-    </h1>
-    <p class="text-sm font-medium">Can't reach the immich-edit server.</p>
-    <p class="text-sm opacity-70">
-      It may still be starting up, or it may not be running. This page reconnects automatically.
-    </p>
-    <button
-      type="button"
-      class="rounded bg-immich-primary px-3 py-2 text-sm font-medium text-black disabled:opacity-60"
-      disabled={probing}
-      onclick={() => void attemptNow()}
+<div class="flex h-full w-full items-center p-6">
+  <Container size="small" center>
+    <Card
+      color="secondary"
+      shape="rectangle"
+      class="mx-auto max-w-md rounded-lg border border-dark/10"
     >
-      {probing ? 'Reconnecting…' : 'Retry now'}
-    </button>
-  </div>
+      <CardBody class="p-6">
+        <div class="flex flex-col gap-4">
+          <Heading tag="h1" size="small">
+            <Wordmark size="small" />
+          </Heading>
+          <Heading tag="h2" size="tiny">Can't reach the immich-edit server.</Heading>
+          <Text size="small" color="muted">
+            It may still be starting up, or it may not be running. This page reconnects
+            automatically.
+          </Text>
+          <Button
+            type="button"
+            size="small"
+            color="primary"
+            loading={probing}
+            disabled={probing}
+            onclick={() => void attemptNow()}
+          >
+            Retry now
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
+  </Container>
 </div>

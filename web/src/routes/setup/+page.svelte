@@ -1,7 +1,10 @@
 <script lang="ts">
   import { completeSetup } from '$lib/api/auth';
   import { ApiError, isBackendDown } from '$lib/api/client';
-  import Logo from '$lib/components/Logo.svelte';
+  import Wordmark from '$lib/components/Wordmark.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import TextInput from '$lib/components/TextInput.svelte';
+  import { Alert, Button, Field } from '@immich/ui';
 
   let immichUrl = $state('');
   let method = $state<'password' | 'apikey'>('password');
@@ -59,105 +62,83 @@
   }
 </script>
 
-<div class="h-full w-full flex items-center justify-center p-6">
-  <form
-    onsubmit={submit}
-    class="w-full max-w-md flex flex-col gap-4 p-6 rounded-lg bg-immich-dark-gray border border-immich-dark-gray"
-  >
-    <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
-      <Logo size={26} />
-      <span
-        ><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span
-        ></span
-      >
-    </h1>
-    <p class="text-sm opacity-70">
-      Connect this instance to your Immich server. Sign in as an Immich administrator to claim it.
-    </p>
-    <div
-      class="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-    >
-      Complete setup before exposing this instance publicly. The first Immich admin to finish claims
-      the instance.
+<div class="auth-stage h-full w-full overflow-y-auto px-6 py-10">
+  <main class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
+    <Wordmark size="large" bright class="mb-8" />
+    <div class="mb-6">
+      <h1 class="text-2xl font-semibold text-white">Connect Immich</h1>
+      <p class="mt-1 text-sm text-white/45">
+        Sign in as an Immich administrator to claim this editor.
+      </p>
     </div>
+    <div class="flex flex-col gap-4">
+      <Alert color="warning" size="small" shape="rectangle" icon={false}>
+        Complete setup before exposing this instance publicly. The first Immich admin to finish
+        claims the instance.
+      </Alert>
+      <form onsubmit={submit} class="flex flex-col gap-4">
+        <Field label="Immich URL" size="tiny" disabled={submitting}>
+          <TextInput
+            type="url"
+            placeholder="https://immich.example.com"
+            autocomplete="url"
+            bind:value={immichUrl}
+          />
+        </Field>
 
-    <label class="flex flex-col gap-1">
-      <span class="text-sm opacity-70">Immich URL</span>
-      <input
-        type="url"
-        placeholder="https://immich.example.com"
-        autocomplete="url"
-        bind:value={immichUrl}
-        disabled={submitting}
-        class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
-      />
-    </label>
+        <div class="flex gap-1 rounded bg-light-100 p-1 text-sm">
+          <Button
+            type="button"
+            size="tiny"
+            variant={method === 'password' ? 'filled' : 'ghost'}
+            color={method === 'password' ? 'primary' : 'secondary'}
+            class="flex-1"
+            aria-pressed={method === 'password'}
+            onclick={() => (method = 'password')}
+          >
+            Email &amp; password
+          </Button>
+          <Button
+            type="button"
+            size="tiny"
+            variant={method === 'apikey' ? 'filled' : 'ghost'}
+            color={method === 'apikey' ? 'primary' : 'secondary'}
+            class="flex-1"
+            aria-pressed={method === 'apikey'}
+            onclick={() => (method = 'apikey')}
+          >
+            API key
+          </Button>
+        </div>
 
-    <div class="flex gap-1 rounded bg-black/30 border border-white/10 p-1 text-sm">
-      <button
-        type="button"
-        onclick={() => (method = 'password')}
-        class="flex-1 rounded px-2 py-1 {method === 'password'
-          ? 'bg-immich-primary text-white'
-          : 'opacity-70'}"
-      >
-        Email &amp; password
-      </button>
-      <button
-        type="button"
-        onclick={() => (method = 'apikey')}
-        class="flex-1 rounded px-2 py-1 {method === 'apikey'
-          ? 'bg-immich-primary text-white'
-          : 'opacity-70'}"
-      >
-        API key
-      </button>
+        {#if method === 'password'}
+          <Field label="Email" size="tiny" disabled={submitting}>
+            <TextInput type="email" autocomplete="username" bind:value={email} />
+          </Field>
+          <Field label="Password" size="tiny" disabled={submitting}>
+            <TextInput type="password" autocomplete="current-password" bind:value={password} />
+          </Field>
+        {:else}
+          <Field label="API key" size="tiny" disabled={submitting}>
+            <TextInput type="password" autocomplete="off" bind:value={apiKey} />
+          </Field>
+        {/if}
+
+        {#if error}
+          <Notice message={error} />
+        {/if}
+
+        <Button
+          type="submit"
+          size="small"
+          color="primary"
+          disabled={!canSubmit}
+          loading={submitting}
+          fullWidth
+        >
+          {submitting ? 'Connecting…' : 'Connect and claim instance'}
+        </Button>
+      </form>
     </div>
-
-    {#if method === 'password'}
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">Email</span>
-        <input
-          type="email"
-          autocomplete="username"
-          bind:value={email}
-          disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
-        />
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">Password</span>
-        <input
-          type="password"
-          autocomplete="current-password"
-          bind:value={password}
-          disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
-        />
-      </label>
-    {:else}
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">API key</span>
-        <input
-          type="password"
-          autocomplete="off"
-          bind:value={apiKey}
-          disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
-        />
-      </label>
-    {/if}
-
-    {#if error}
-      <p class="text-sm text-red-400">{error}</p>
-    {/if}
-
-    <button
-      type="submit"
-      disabled={!canSubmit}
-      class="px-3 py-2 rounded bg-immich-primary text-white disabled:opacity-50"
-    >
-      {submitting ? 'Connecting…' : 'Connect and claim instance'}
-    </button>
-  </form>
+  </main>
 </div>

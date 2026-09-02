@@ -2,7 +2,10 @@
   import { page } from '$app/state';
   import { loginApiKey, loginPassword } from '$lib/api/auth';
   import { ApiError, isBackendDown } from '$lib/api/client';
-  import Logo from '$lib/components/Logo.svelte';
+  import Wordmark from '$lib/components/Wordmark.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import TextInput from '$lib/components/TextInput.svelte';
+  import { Button } from '@immich/ui';
 
   let method = $state<'password' | 'apikey'>('password');
   let email = $state('');
@@ -62,74 +65,60 @@
   }
 </script>
 
-<div class="h-full w-full flex items-center justify-center p-6">
-  <form
-    onsubmit={submit}
-    class="w-full max-w-sm flex flex-col gap-4 p-6 rounded-lg bg-immich-dark-gray border border-immich-dark-gray"
-  >
-    <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
-      <Logo size={26} />
-      <span
-        ><span class="text-immich-dark-fg/90">immich</span><span style="color:#6366F1">-edit</span
-        ></span
-      >
-    </h1>
-
-    {#if method === 'password'}
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">Email</span>
-        <input
+<div class="auth-stage flex h-full w-full items-center justify-center px-5 py-8">
+  <main class="w-full max-w-xs">
+    <Wordmark bright class="mb-6" />
+    <div class="mb-5">
+      <h1 class="text-xl font-semibold text-white">Sign in</h1>
+    </div>
+    <form onsubmit={submit} class="flex flex-col gap-3.5">
+      {#if method === 'password'}
+        <TextInput
+          label="Immich email"
           type="email"
           autocomplete="username"
-          bind:value={email}
           disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
+          bind:value={email}
         />
-      </label>
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">Password</span>
-        <input
+        <TextInput
+          label="Immich password"
           type="password"
           autocomplete="current-password"
-          bind:value={password}
           disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
+          bind:value={password}
         />
-      </label>
-    {:else}
-      <label class="flex flex-col gap-1">
-        <span class="text-sm opacity-70">Immich API key</span>
-        <input
+      {:else}
+        <TextInput
+          label="Immich API key"
           type="password"
           autocomplete="off"
-          bind:value={apiKey}
           disabled={submitting}
-          class="px-3 py-2 rounded bg-black/30 border border-white/10 focus:outline-none focus:ring-1 focus:ring-immich-primary"
+          bind:value={apiKey}
         />
-      </label>
-    {/if}
+      {/if}
 
-    {#if error}
-      <p class="text-sm text-red-400">{error}</p>
-    {/if}
+      {#if error}
+        <Notice message={error} />
+      {/if}
 
-    <button
-      type="submit"
-      disabled={!canSubmit}
-      class="px-3 py-2 rounded bg-immich-primary text-white disabled:opacity-50"
-    >
-      {submitting ? 'Signing in…' : 'Sign in'}
-    </button>
+      <Button type="submit" size="small" disabled={!canSubmit} loading={submitting} fullWidth>
+        {submitting ? 'Signing in…' : 'Sign in'}
+      </Button>
 
-    <button
-      type="button"
-      onclick={() => {
-        method = method === 'password' ? 'apikey' : 'password';
-        error = null;
-      }}
-      class="text-xs opacity-70 hover:opacity-100 self-center"
-    >
-      {method === 'password' ? 'Use an Immich API key instead' : 'Use email and password instead'}
-    </button>
-  </form>
+      <Button
+        type="button"
+        variant="ghost"
+        color="secondary"
+        size="tiny"
+        onclick={() => {
+          method = method === 'password' ? 'apikey' : 'password';
+          error = null;
+        }}
+      >
+        {method === 'password'
+          ? 'Use an Immich API key instead'
+          : 'Use Immich email and password instead'}
+      </Button>
+    </form>
+  </main>
 </div>
