@@ -222,6 +222,25 @@ test('the top bar search keeps its native pill shape', async ({ page }) => {
   expect(Math.abs(centers[0] - centers[2])).toBeLessThanOrEqual(1);
 });
 
+test('browse filter popover uses a neutral dark surface', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const popover = page.locator('[data-popover-content]');
+  await expect(popover).toBeVisible();
+  expect((await metricsOf(popover)).background).toBe(
+    await resolvedColor(page, '--color-neutral-900')
+  );
+  expect(
+    await page
+      .getByLabel('Visibility')
+      .locator('div')
+      .first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor)
+  ).toBe(await resolvedColor(page, '--color-gray-800'));
+});
+
 test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');

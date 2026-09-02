@@ -4,15 +4,23 @@
   import { selection } from '$lib/stores/selection.svelte';
   import { hint } from '$lib/keybinds';
   import { browsing } from '$lib/stores/browsing.svelte';
-  import { listTags, addTagToAsset, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
+  import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
   import { createVirtualCopy } from '$lib/copies';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
-  import { ensureRejectTag, isManagedTag, setRejectedTags, toTagRef } from '$lib/reject';
+  import { ensureRejectTag, setRejectedTags } from '$lib/reject';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import MultiSelect from '$lib/components/MultiSelect.svelte';
+  import BulkActionsDialog from './BulkActionsDialog.svelte';
+  import BulkTagBand from './BulkTagBand.svelte';
+  import {
+    Button,
+    ControlBar,
+    ControlBarContent,
+    ControlBarHeader,
+    ControlBarOverflow,
+    IconButton
+  } from '@immich/ui';
   import type { MultiMode } from '$lib/compareEntry';
   import {
     mdiClose,
@@ -26,6 +34,7 @@
     mdiStarOutline,
     mdiSelectAll,
     mdiTagOutline,
+    mdiTuneVariant,
     mdiViewGridOutline
   } from '@mdi/js';
 
@@ -33,10 +42,8 @@
     $props();
 
   let busy = $state(false);
-  let tags = $state<TagSummary[]>([]);
-  let tagsLoaded = $state(false);
   let showTags = $state(false);
-  let chosenTags = $state<string[]>([]);
+  let bulkActionsOpen = $state(false);
 
   let metaBusy = $derived(busy || selection.allFiltered);
   let canCompare = $derived(!selection.allFiltered && selection.count >= 2);
@@ -44,16 +51,11 @@
     browsing.query !== null && browsing.total !== undefined && browsing.total > 0
   );
 
-  $effect(() => {
-    if (selection.active && !tagsLoaded) {
-      tagsLoaded = true;
-      listTags()
-        .then((t) => {
-          tags = t.filter((tag) => !isManagedTag(toTagRef(tag)));
-        })
-        .catch(() => (tagsLoaded = false));
-    }
-  });
+  function itemActionLabel(action: string): string {
+    return selection.allFiltered
+      ? `${action} unavailable when all filtered assets are selected`
+      : action;
+  }
 
   async function runPool<T>(
     items: T[],
@@ -94,7 +96,7 @@
     if (failed > 0) {
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
-      toasts.push('success', `Updated ${ids.length} assets`, 4000);
+      toasts.push('success', `Updated ${ids.length} asset${ids.length === 1 ? '' : 's'}`, 4000);
     }
   }
 
@@ -118,7 +120,11 @@
     if (failed > 0) {
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
-      toasts.push('success', `Created ${ids.length} virtual copies`, 4000);
+      toasts.push(
+        'success',
+        `Created ${ids.length} virtual cop${ids.length === 1 ? 'y' : 'ies'}`,
+        4000
+      );
     }
   }
 
@@ -157,216 +163,195 @@
     if (failed > 0) {
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
-      toasts.push('success', `${value ? 'Rejected' : 'Unrejected'} ${ids.length} assets`, 4000);
+      toasts.push(
+        'success',
+        `${value ? 'Rejected' : 'Unrejected'} ${ids.length} asset${ids.length === 1 ? '' : 's'}`,
+        4000
+      );
     }
-  }
-
-  async function applyTags(add: boolean): Promise<void> {
-    if (busy || selection.allFiltered || chosenTags.length === 0) return;
-    if (!(await metadataConsent.gate())) return;
-    busy = true;
-    const ids = [...selection.selected];
-    let failed = 0;
-    const pairs = ids.flatMap((id) => chosenTags.map((tagId) => ({ id, tagId })));
-    await runPool(pairs, 6, async ({ id, tagId }) => {
-      try {
-        await (add ? addTagToAsset(tagId, id) : removeTagFromAsset(tagId, id));
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} tag updates failed`, 6000);
-    } else {
-      toasts.push('success', `${add ? 'Added' : 'Removed'} tags on ${ids.length} assets`, 4000);
-    }
-    chosenTags = [];
   }
 </script>
 
 {#if selection.active}
   <div
-    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-2 bg-immich-dark-gray border border-white/10 rounded-xl shadow-2xl px-3 py-2 max-w-[95vw]"
+    class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
-    <div
-      class="flex items-center gap-2 *:shrink-0 overflow-x-auto scrollbar-hidden text-xs whitespace-nowrap"
-    >
-      <span class="font-medium px-1">{selection.targetCount} selected</span>
-      <button
-        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
-        onclick={() => selection.selectLoaded(assets.map((a) => a.id))}
-        title="Select loaded"
-      >
-        <Icon path={mdiSelectAll} size={16} />
-        Select loaded
-      </button>
-      {#if showSelectAll}
-        <button
-          class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
-          onclick={() => selection.selectFiltered(browsing.query!, browsing.total!)}
-          title="Select all (job-based actions only)"
+    <ControlBar static shape="rectangle" class="min-w-0 px-3">
+      <ControlBarHeader class="pe-2">
+        <span class="whitespace-nowrap text-sm font-medium" aria-live="polite"
+          >{selection.targetCount} selected</span
         >
-          <Icon path={mdiSelectAll} size={16} />
-          Select all
-        </button>
-      {/if}
+      </ControlBarHeader>
 
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={!canCompare}
-        onclick={() => onMulti('compare')}
-        title={hint('Compare selected', 'enterCompare')}
-        aria-label="Compare selected"
-      >
-        <Icon path={mdiCompare} size={16} />
-      </button>
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={!canCompare}
-        onclick={() => onMulti('survey')}
-        title={hint('Survey selected', 'enterSurvey')}
-        aria-label="Survey selected"
-      >
-        <Icon path={mdiViewGridOutline} size={16} />
-      </button>
-
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={metaBusy}
-        onclick={() => setFavorite(true)}
-        title="Favorite"
-        aria-label="Favorite"
-      >
-        <Icon path={mdiHeart} size={16} />
-      </button>
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={metaBusy}
-        onclick={() => setFavorite(false)}
-        title="Unfavorite"
-        aria-label="Unfavorite"
-      >
-        <Icon path={mdiHeartOutline} size={16} />
-      </button>
-
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <div class="flex items-center gap-0.5" title="Set rating">
-        {#each [1, 2, 3, 4, 5] as n (n)}
-          <button
-            class="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
-            disabled={metaBusy}
-            onclick={() => setRating(n)}
-            aria-label={`Rate ${n}`}
-          >
-            <Icon path={mdiStar} size={16} />
-          </button>
-        {/each}
-        <button
-          class="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40"
-          disabled={metaBusy}
-          onclick={() => setRating(0)}
-          aria-label="Clear rating"
-        >
-          <Icon path={mdiStarOutline} size={16} />
-        </button>
-      </div>
-
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={metaBusy}
-        onclick={() => void applyReject(true)}
-        title="Reject"
-        aria-label="Reject"
-      >
-        <Icon path={mdiCloseCircle} size={16} />
-      </button>
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={metaBusy}
-        onclick={() => void applyReject(false)}
-        title="Unreject"
-        aria-label="Unreject"
-      >
-        <Icon path={mdiCloseCircleOutline} size={16} />
-      </button>
-
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40"
-        disabled={metaBusy}
-        onclick={() => void createCopies()}
-        title={hint('Create a virtual copy', 'createVirtualCopy')}
-        aria-label="Create virtual copy"
-      >
-        <Icon path={mdiContentDuplicate} size={16} />
-      </button>
-      <button
-        class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 {showTags
-          ? 'bg-white/10'
-          : ''}"
-        disabled={metaBusy}
-        onclick={() => (showTags = !showTags)}
-        title="Tags"
-      >
-        <Icon path={mdiTagOutline} size={16} />
-        Tags
-      </button>
-
-      <div class="w-px h-5 bg-white/10"></div>
-
-      <button
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-        onclick={selection.clear}
-        title={hint('Clear selection', 'gridClearSelection')}
-        aria-label="Clear selection"
-      >
-        <Icon path={mdiClose} size={16} />
-      </button>
-    </div>
-
-    {#if showTags}
-      <div class="flex flex-col gap-1.5 border-t border-white/10 pt-2">
-        <span class="text-[11px] text-white/50 px-1">
-          Pick tags, then apply them to the {selection.count} selected asset{selection.count === 1
-            ? ''
-            : 's'}
-        </span>
-        <div class="flex items-end gap-2">
-          <div class="flex-1 min-w-55">
-            <MultiSelect
-              options={tags}
-              bind:selected={chosenTags}
-              getId={(t) => t.id}
-              getLabel={(t) => t.value}
-              placeholder="Choose tags…"
-              dropUp
-            />
+      <ControlBarContent class="min-w-0 gap-1 overflow-x-auto overscroll-contain scrollbar-hidden">
+        {#if showSelectAll}
+          <div class="flex shrink-0 items-center gap-1">
+            <Button
+              size="small"
+              variant="ghost"
+              color="secondary"
+              leadingIcon={mdiSelectAll}
+              title="Select all (job-based actions only)"
+              onclick={() => selection.selectFiltered(browsing.query!, browsing.total!)}
+            >
+              Select all
+            </Button>
           </div>
-          <button
-            class="px-2.5 py-1 rounded-lg bg-immich-primary/90 hover:bg-immich-primary text-white text-xs whitespace-nowrap transition-colors disabled:opacity-40 disabled:hover:bg-immich-primary/90"
-            disabled={metaBusy || chosenTags.length === 0}
-            onclick={() => void applyTags(true)}
-          >
-            Add to selected
-          </button>
-          <button
-            class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs whitespace-nowrap transition-colors disabled:opacity-40"
-            disabled={metaBusy || chosenTags.length === 0}
-            onclick={() => void applyTags(false)}
-          >
-            Remove from selected
-          </button>
+        {/if}
+
+        <div class="ms-2 flex shrink-0 items-center gap-1">
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiCompare}
+            title={itemActionLabel(hint('Compare selected', 'enterCompare'))}
+            aria-label={itemActionLabel('Compare selected')}
+            disabled={!canCompare}
+            onclick={() => onMulti('compare')}
+          />
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiViewGridOutline}
+            title={itemActionLabel(hint('Survey selected', 'enterSurvey'))}
+            aria-label={itemActionLabel('Survey selected')}
+            disabled={!canCompare}
+            onclick={() => onMulti('survey')}
+          />
         </div>
+
+        <div class="ms-2 flex shrink-0 items-center gap-1">
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiHeart}
+            title={itemActionLabel('Favorite')}
+            aria-label={itemActionLabel('Favorite')}
+            disabled={metaBusy}
+            onclick={() => setFavorite(true)}
+          />
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiHeartOutline}
+            title={itemActionLabel('Unfavorite')}
+            aria-label={itemActionLabel('Unfavorite')}
+            disabled={metaBusy}
+            onclick={() => setFavorite(false)}
+          />
+        </div>
+
+        <div class="ms-2 flex shrink-0 items-center gap-0.5" role="group" aria-label="Set rating">
+          {#each [1, 2, 3, 4, 5] as n (n)}
+            <IconButton
+              size="medium"
+              variant="ghost"
+              color="secondary"
+              icon={mdiStar}
+              title={itemActionLabel(`Rate ${n}`)}
+              aria-label={itemActionLabel(`Rate ${n}`)}
+              disabled={metaBusy}
+              onclick={() => setRating(n)}
+            />
+          {/each}
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiStarOutline}
+            title={itemActionLabel('Clear rating')}
+            aria-label={itemActionLabel('Clear rating')}
+            disabled={metaBusy}
+            onclick={() => setRating(0)}
+          />
+        </div>
+
+        <div class="ms-2 flex shrink-0 items-center gap-1">
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiCloseCircle}
+            title={itemActionLabel('Reject')}
+            aria-label={itemActionLabel('Reject')}
+            disabled={metaBusy}
+            onclick={() => void applyReject(true)}
+          />
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiCloseCircleOutline}
+            title={itemActionLabel('Unreject')}
+            aria-label={itemActionLabel('Unreject')}
+            disabled={metaBusy}
+            onclick={() => void applyReject(false)}
+          />
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiContentDuplicate}
+            title={itemActionLabel(hint('Create a virtual copy', 'createVirtualCopy'))}
+            aria-label={itemActionLabel('Create virtual copy')}
+            disabled={metaBusy}
+            onclick={() => void createCopies()}
+          />
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiTuneVariant}
+            title="Edit and export selected"
+            aria-label="Edit and export selected"
+            onclick={() => (bulkActionsOpen = true)}
+          />
+          <IconButton
+            size="medium"
+            variant={showTags ? 'filled' : 'ghost'}
+            color={showTags ? 'primary' : 'secondary'}
+            icon={mdiTagOutline}
+            title={itemActionLabel('Tags')}
+            aria-label={itemActionLabel('Tags')}
+            aria-pressed={showTags}
+            disabled={metaBusy}
+            onclick={() => (showTags = !showTags)}
+          />
+        </div>
+      </ControlBarContent>
+
+      <ControlBarOverflow class="ps-2">
+        <IconButton
+          size="medium"
+          variant="ghost"
+          color="secondary"
+          icon={mdiClose}
+          title={hint('Clear selection', 'gridClearSelection')}
+          aria-label="Clear selection"
+          onclick={selection.clear}
+        />
+      </ControlBarOverflow>
+    </ControlBar>
+
+    {#if selection.allFiltered}
+      <div
+        role="status"
+        class="border-t border-hairline px-3 py-1 text-center text-[10px] text-dark/65"
+      >
+        Only job actions are available when all filtered assets are selected.
       </div>
     {/if}
+
+    {#if showTags}
+      <BulkTagBand {runPool} bind:busy />
+    {/if}
   </div>
+{/if}
+
+{#if bulkActionsOpen}
+  <BulkActionsDialog onClose={() => (bulkActionsOpen = false)} />
 {/if}

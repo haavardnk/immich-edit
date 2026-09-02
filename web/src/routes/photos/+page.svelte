@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
@@ -8,7 +7,6 @@
   const feed = new BrowseFeed({ baseBody: () => ({}) });
 
   onMount(() => {
-    editor.unload();
     browseControls.enter('photos', 'timeline');
     feed.fetchPage(true);
   });

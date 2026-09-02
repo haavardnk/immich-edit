@@ -35,7 +35,7 @@ async function expectOrder(page: Page, ids: string[]): Promise<void> {
   await expect
     .poll(() =>
       tiles.evaluateAll((els) =>
-        els.map((el) => (el as HTMLAnchorElement).getAttribute('href')?.slice('/assets/'.length))
+        els.map((el) => new URL((el as HTMLAnchorElement).href).pathname.slice('/assets/'.length))
       )
     )
     .toEqual(ids);
@@ -55,12 +55,12 @@ test('each browse family remembers its own sort direction', async ({ page }) => 
   await installMocks(page, { assets: ASSETS });
 
   await page.goto('/tags/tag-1');
-  await page.getByTitle('Oldest first').click();
+  await page.getByRole('button', { name: 'Oldest first' }).click();
   await expectOrder(page, NEWEST_FIRST);
 
   await page.goto('/photos');
   await expectOrder(page, NEWEST_FIRST);
-  await page.getByTitle('Newest first').click();
+  await page.getByRole('button', { name: 'Newest first' }).click();
   await expectOrder(page, OLDEST_FIRST);
 
   await page.goto('/tags/tag-1');
@@ -105,6 +105,6 @@ test('edited view sorts by edit time', async ({ page }) => {
   await page.goto('/edited');
   await expectOrder(page, [NEW_ID, OLD_ID, MID_ID]);
 
-  await page.getByTitle('Oldest edit first').click();
+  await page.getByRole('button', { name: 'Oldest edit first' }).click();
   await expectOrder(page, [MID_ID, OLD_ID, NEW_ID]);
 });

@@ -2,12 +2,10 @@
   import { page } from '$app/state';
   import { onMount, untrack } from 'svelte';
   import { folderAssets } from '$lib/api/folders';
-  import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { sortAssets } from '$lib/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let loaded = $state<AssetSummary[]>([]);
@@ -46,16 +44,15 @@
   });
 
   onMount(() => {
-    editor.unload();
     browseControls.enter('folders', 'collection');
   });
 </script>
 
 {#if !loading && !folderPath}
-  <EmptyState
-    title="Select a folder"
-    message="Pick a folder from the sidebar to browse its photos."
-  />
+  <div class="flex flex-col items-center justify-center px-6 py-16 text-center text-dark/65">
+    <h3 class="text-sm font-medium text-dark/70">Select a folder</h3>
+    <p class="mt-1 max-w-xs text-xs">Pick a folder from the sidebar to browse its photos.</p>
+  </div>
 {:else}
   <BrowseShell
     title={folderPath}
