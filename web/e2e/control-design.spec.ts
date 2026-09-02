@@ -1,9 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-
 import { ASSET_ID, gotoAsset, installMocks, json } from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
-
+const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
 const EDITOR_COMPACT_CONTROL_HEIGHT = 28;
 
 type Metrics = {
@@ -55,6 +54,15 @@ async function resolvedBackground(page: Page, className: string): Promise<string
     probe.remove();
     return background;
   }, className);
+}
+
+async function expectFieldSurface(
+  page: Page,
+  metrics: Metrics,
+  height = PACKAGE_TINY_CONTROL_HEIGHT
+): Promise<void> {
+  expect(metrics.height).toBe(height);
+  expect(metrics.background).toBe(await resolvedColor(page, '--color-gray-800'));
 }
 
 async function expectPrimaryFocusRing(page: Page, input: Locator): Promise<void> {
@@ -146,6 +154,34 @@ async function installAuthMocks(page: Page): Promise<void> {
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
 }
+
+test('auth fields use the shared borderless input', async ({ page }) => {
+  await installAuthMocks(page);
+  await page.goto('/login');
+
+  await expect(page.getByText('Continue to your editing workspace.')).toHaveCount(0);
+  const email = page.getByLabel('Immich email', { exact: true });
+  const emailSurface = containerOf(email);
+  await expect(email).toBeVisible();
+  await expectFieldSurface(page, await metricsOf(emailSurface), PACKAGE_SMALL_CONTROL_HEIGHT);
+  expect((await metricsOf(email)).fontSize).toBe('14px');
+
+  await expectPrimaryFocusRing(page, email);
+  const focusedBackground = await resolvedBackground(page, 'bg-primary/10');
+  await expect.poll(async () => (await metricsOf(emailSurface)).background).toBe(focusedBackground);
+
+  const password = page.getByRole('textbox', { name: 'Immich password', exact: true });
+  await expectFieldSurface(
+    page,
+    await metricsOf(containerOf(password)),
+    PACKAGE_SMALL_CONTROL_HEIGHT
+  );
+
+  await password.fill('hunter2');
+  await expect(password).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Show password' }).click();
+  await expect(password).toHaveAttribute('type', 'text');
+});
 
 test('dark theme uses the immich-edit violet identity', async ({ page }) => {
   await installAuthMocks(page);
