@@ -1,8 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { onMount, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { album } from '$lib/stores/album.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
@@ -32,10 +31,6 @@
   });
 
   $effect(() => feed.watchFilterChange());
-
-  onMount(() => {
-    editor.unload();
-  });
 </script>
 
 <BrowseShell
@@ -47,5 +42,10 @@
   onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}
+  onRetry={() => {
+    album.load(id);
+    feed.reset();
+    feed.fetchPage(true);
+  }}
   emptyTitle="This album is empty"
 />

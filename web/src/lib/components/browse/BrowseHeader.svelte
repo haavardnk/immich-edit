@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
-  import {
-    browseControls,
-    type RatingFilter,
-    type Visibility
-  } from '$lib/stores/browseControls.svelte';
+  import TextInput from '$lib/components/TextInput.svelte';
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import Popover from '$lib/components/Popover.svelte';
+  import { browseControls, type Visibility } from '$lib/stores/browseControls.svelte';
   import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
+  import { mergeProps } from '$lib/utils/mergeProps';
+  import { Button, Field, IconButton, Select } from '@immich/ui';
   import { mdiSortAscending, mdiSortDescending, mdiFilterOutline, mdiClose } from '@mdi/js';
 
   let {
@@ -57,14 +57,14 @@
 
   const hasFilter = $derived(browseControls.isFiltered);
 
-  const ratingOptions: { value: RatingFilter; label: string }[] = [
+  const ratingOptions: { value: string; label: string }[] = [
     { value: 'any', label: 'Any' },
     { value: 'unrated', label: 'Unrated' },
-    { value: 1, label: '1 ★' },
-    { value: 2, label: '2 ★' },
-    { value: 3, label: '3 ★' },
-    { value: 4, label: '4 ★' },
-    { value: 5, label: '5 ★' }
+    { value: '1', label: '1 ★' },
+    { value: '2', label: '2 ★' },
+    { value: '3', label: '3 ★' },
+    { value: '4', label: '4 ★' },
+    { value: '5', label: '5 ★' }
   ];
 
   const visibilityOptions: { value: Visibility; label: string }[] = [
@@ -72,6 +72,11 @@
     { value: 'archive', label: 'Archived' },
     { value: 'hidden', label: 'Hidden' }
   ];
+
+  function setRating(value: string): void {
+    browseControls.rating =
+      value === 'any' || value === 'unrated' ? value : (Number(value) as 1 | 2 | 3 | 4 | 5);
+  }
 
   function toggleDir(): void {
     browseControls.setSortDir(browseControls.sortDir === 'asc' ? 'desc' : 'asc');
@@ -85,174 +90,170 @@
   ];
 </script>
 
-<div
-  class="px-4 py-2 text-xs text-immich-dark-fg/40 border-b border-white/5 flex items-center gap-2 flex-none"
+<header
+  class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5"
 >
-  <span class="font-semibold text-immich-dark-fg/70 text-sm truncate">{title}</span>
-  <span class="text-immich-dark-fg/20">·</span>
-  {#if totalCount === undefined}
-    <span>{loaded} loaded</span>
-  {:else if loaded < totalCount}
-    <span>{loaded} of {totalCount}</span>
-  {:else}
-    <span>{totalCount} assets</span>
-  {/if}
-
-  <div class="flex-1"></div>
-
-  <div class="flex items-center rounded bg-white/5 p-0.5 gap-0.5">
-    {#each sizeOptions as opt (opt.value)}
-      <button
-        class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors {browseView.gridSize ===
-        opt.value
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70'}"
-        title="Thumbnail size {opt.label}"
-        onclick={() => browseView.setGridSize(opt.value)}
-      >
-        {opt.label}
-      </button>
-    {/each}
+  <div class="flex min-w-0 flex-1 items-baseline gap-2">
+    <h1 class="truncate text-sm font-semibold text-white">{title}</h1>
+    <span class="shrink-0 text-white/20">·</span>
+    <p class="shrink-0 text-[10px] text-dark/65">
+      {#if totalCount === undefined}
+        {loaded} loaded
+      {:else if loaded < totalCount}
+        {loaded} of {totalCount}
+      {:else}
+        {totalCount} asset{totalCount === 1 ? '' : 's'}
+      {/if}
+    </p>
   </div>
 
-  {#if !browseControls.isDefault}
-    <button
-      class="p-0.5 rounded hover:bg-white/10 text-immich-dark-fg/40 hover:text-immich-dark-fg/70"
-      title="Reset filters & sort"
-      onclick={() => browseControls.reset()}
-    >
-      <Icon path={mdiClose} size={14} />
-    </button>
-  {/if}
+  <div class="flex shrink-0 items-center gap-1.5">
+    <div class="flex items-center gap-0.5">
+      {#each sizeOptions as opt (opt.value)}
+        <Button
+          size="tiny"
+          variant={browseView.gridSize === opt.value ? 'filled' : 'ghost'}
+          color={browseView.gridSize === opt.value ? 'primary' : 'secondary'}
+          class="min-w-7 px-1.5 sm:min-w-8 sm:px-2"
+          title="Thumbnail size {opt.label}"
+          aria-label="Thumbnail size {opt.label}"
+          aria-pressed={browseView.gridSize === opt.value}
+          onclick={() => browseView.setGridSize(opt.value)}
+        >
+          {opt.label}
+        </Button>
+      {/each}
+    </div>
 
-  {#if !hideSort}
-    <button class="p-0.5 rounded hover:bg-white/10" title={sortLabel} onclick={toggleDir}>
-      <Icon
-        path={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
-        size={14}
+    <div class="mx-1 h-4 w-px bg-hairline"></div>
+
+    {#if !browseControls.isDefault}
+      <IconButton
+        size="small"
+        variant="ghost"
+        color="secondary"
+        icon={mdiClose}
+        title="Reset filters & sort"
+        aria-label="Reset filters and sort"
+        onclick={() => browseControls.reset()}
       />
-    </button>
-  {/if}
-
-  <div class="relative">
-    <button
-      class="p-0.5 rounded hover:bg-white/10"
-      class:text-immich-dark-primary={hasFilter}
-      title="Filters"
-      onclick={() => (filterOpen = !filterOpen)}
-    >
-      <Icon path={mdiFilterOutline} size={14} />
-    </button>
-
-    {#if filterOpen}
-      <div
-        class="absolute right-0 top-full mt-1 z-30 bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-2.5 min-w-55"
-      >
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] text-immich-dark-fg/60 font-medium">Filters</span>
-          <button class="p-0.5 rounded hover:bg-white/10" onclick={() => (filterOpen = false)}>
-            <Icon path={mdiClose} size={12} />
-          </button>
-        </div>
-
-        <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-immich-dark-fg/40">Visibility</span>
-          <select
-            class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none cursor-pointer hover:bg-white/10 w-full"
-            value={browseControls.visibility}
-            onchange={(e) =>
-              (browseControls.visibility = (e.target as HTMLSelectElement).value as Visibility)}
-          >
-            {#each visibilityOptions as opt (opt.value)}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </label>
-
-        <label class="flex flex-col gap-1">
-          <span class="text-[10px] text-immich-dark-fg/40">Rating</span>
-          <select
-            class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none cursor-pointer hover:bg-white/10 w-full"
-            value={browseControls.rating}
-            onchange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              browseControls.rating =
-                v === 'any' || v === 'unrated' ? v : (Number(v) as 1 | 2 | 3 | 4 | 5);
-            }}
-          >
-            {#each ratingOptions as opt (opt.value)}
-              <option value={opt.value}>{opt.label}</option>
-            {/each}
-          </select>
-        </label>
-
-        {#if !favoriteLocked}
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs"
-              checked={browseControls.favoriteOnly}
-              onchange={(e) =>
-                (browseControls.favoriteOnly = (e.target as HTMLInputElement).checked)}
-            />
-            <span class="text-[11px]">Favorites only</span>
-          </label>
-        {/if}
-
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            class="checkbox checkbox-xs"
-            checked={browseControls.excludeRejected}
-            onchange={(e) =>
-              (browseControls.excludeRejected = (e.target as HTMLInputElement).checked)}
-          />
-          <span class="text-[11px]">Exclude rejected</span>
-        </label>
-
-        {#if !hideFilenameFilter}
-          <label class="flex flex-col gap-1">
-            <span class="text-[10px] text-immich-dark-fg/40">Filename</span>
-            <input
-              type="text"
-              class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none w-full"
-              placeholder="Search…"
-              value={filenameLocal}
-              oninput={onFilenameInput}
-            />
-          </label>
-        {/if}
-
-        <div class="grid grid-cols-2 gap-2">
-          <label class="flex flex-col gap-1">
-            <span class="text-[10px] text-immich-dark-fg/40">Taken after</span>
-            <input
-              type="date"
-              class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none w-full"
-              value={browseControls.takenAfter}
-              oninput={(e) => (browseControls.takenAfter = (e.target as HTMLInputElement).value)}
-            />
-          </label>
-          <label class="flex flex-col gap-1">
-            <span class="text-[10px] text-immich-dark-fg/40">Taken before</span>
-            <input
-              type="date"
-              class="bg-white/5 text-[11px] rounded px-1.5 py-1 outline-none w-full"
-              value={browseControls.takenBefore}
-              oninput={(e) => (browseControls.takenBefore = (e.target as HTMLInputElement).value)}
-            />
-          </label>
-        </div>
-
-        {#if !browseControls.isDefault}
-          <button
-            class="text-[11px] text-immich-dark-primary hover:underline self-start"
-            onclick={() => browseControls.reset()}
-          >
-            Reset all
-          </button>
-        {/if}
-      </div>
     {/if}
+
+    {#if !hideSort}
+      <IconButton
+        size="small"
+        variant="ghost"
+        color="secondary"
+        icon={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
+        title={sortLabel}
+        aria-label={sortLabel}
+        onclick={toggleDir}
+      />
+    {/if}
+
+    <Popover
+      open={filterOpen}
+      align="end"
+      onOpenChange={(v) => (filterOpen = v)}
+      contentClass="flex min-w-55 flex-col gap-2.5 p-3"
+    >
+      {#snippet trigger(popoverProps)}
+        <IconButton
+          size="small"
+          variant="ghost"
+          color={hasFilter ? 'primary' : 'secondary'}
+          icon={mdiFilterOutline}
+          title="Filters"
+          aria-label={hasFilter ? 'Filters (active)' : 'Filters'}
+          {...mergeProps(popoverProps)}
+        />
+      {/snippet}
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] text-dark/65 font-medium">Filters</span>
+        <IconButton
+          size="small"
+          variant="ghost"
+          color="secondary"
+          icon={mdiClose}
+          aria-label="Close filters"
+          onclick={() => (filterOpen = false)}
+        />
+      </div>
+
+      <Field label="Visibility" size="small">
+        <Select
+          size="small"
+          options={visibilityOptions}
+          value={browseControls.visibility}
+          onChange={(v) => (browseControls.visibility = v)}
+        />
+      </Field>
+
+      <Field label="Rating" size="small">
+        <Select
+          size="small"
+          options={ratingOptions}
+          value={String(browseControls.rating)}
+          onChange={setRating}
+        />
+      </Field>
+
+      {#if !favoriteLocked}
+        <CheckboxRow
+          label="Favorites only"
+          checked={browseControls.favoriteOnly}
+          onChange={(checked) => (browseControls.favoriteOnly = checked)}
+        />
+      {/if}
+
+      <CheckboxRow
+        label="Exclude rejected"
+        checked={browseControls.excludeRejected}
+        onChange={(checked) => (browseControls.excludeRejected = checked)}
+      />
+
+      {#if !hideFilenameFilter}
+        <Field label="Filename" size="small">
+          <TextInput
+            size="small"
+            type="text"
+            placeholder="Search…"
+            value={filenameLocal}
+            oninput={onFilenameInput}
+          />
+        </Field>
+      {/if}
+
+      <div class="grid grid-cols-2 gap-2">
+        <Field label="Taken after" size="small">
+          <TextInput
+            size="small"
+            type="date"
+            value={browseControls.takenAfter}
+            oninput={(e) => (browseControls.takenAfter = e.currentTarget.value)}
+          />
+        </Field>
+        <Field label="Taken before" size="small">
+          <TextInput
+            size="small"
+            type="date"
+            value={browseControls.takenBefore}
+            oninput={(e) => (browseControls.takenBefore = e.currentTarget.value)}
+          />
+        </Field>
+      </div>
+
+      {#if !browseControls.isDefault}
+        <Button
+          size="small"
+          variant="ghost"
+          color="primary"
+          class="self-start"
+          onclick={() => browseControls.reset()}
+        >
+          Reset all
+        </Button>
+      {/if}
+    </Popover>
   </div>
-</div>
+</header>

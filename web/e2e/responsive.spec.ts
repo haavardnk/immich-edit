@@ -61,3 +61,33 @@ test('the mobile browse shell uses a toggleable 256px sidebar', async ({ page })
   await expect(page).toHaveURL('/favorites');
   await expect(sidebar).toBeHidden();
 });
+
+test('the mobile bulk action bar keeps every action reachable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMocks(page);
+
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+
+  const bulkBar = page.getByRole('navigation').filter({ hasText: '1 selected' });
+  const bulkSurfaceFits = (): Promise<boolean> =>
+    bulkBar.evaluate((element) => {
+      const surface = element.parentElement;
+      if (!surface) return false;
+      const bounds = surface.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= window.innerWidth;
+    });
+  const clearSelection = page.getByRole('button', { name: 'Clear selection' });
+  const tags = page.getByRole('button', { name: 'Tags', exact: true });
+  await expect.poll(bulkSurfaceFits).toBe(true);
+  await expect(clearSelection).toBeInViewport();
+  await tags.scrollIntoViewIfNeeded();
+  await expect(tags).toBeInViewport();
+  await expect(clearSelection).toBeInViewport();
+
+  await tags.click();
+  await expect(page.getByRole('button', { name: 'Add to selected' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Remove from selected' })).toBeInViewport();
+  await expect(clearSelection).toBeInViewport();
+  await expect.poll(bulkSurfaceFits).toBe(true);
+});
