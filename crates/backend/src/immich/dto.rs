@@ -132,6 +132,8 @@ pub struct ExifInfo {
     pub exif_image_width: Option<u32>,
     #[serde(rename = "exifImageHeight", default)]
     pub exif_image_height: Option<u32>,
+    #[serde(default)]
+    pub orientation: Option<String>,
     #[serde(rename = "dateTimeOriginal", default)]
     pub date_time_original: Option<String>,
     #[serde(default)]

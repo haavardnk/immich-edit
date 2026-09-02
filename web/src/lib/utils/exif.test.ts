@@ -102,6 +102,7 @@ describe('exifDetailRows', () => {
       exposureTime: null,
       exifImageWidth: 4000,
       exifImageHeight: 3000,
+      orientation: null,
       dateTimeOriginal: null,
       rating: null,
       fileSizeInByte: null

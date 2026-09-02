@@ -1,7 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, installMocks } from './helpers';
 
-const TILE = `a[href="/assets/${ASSET_ID}"]`;
+const TILE = `a[href^="/assets/${ASSET_ID}?"]`;
+
+test('global search submits through its compound control', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+
+  const search = page.getByRole('textbox', { name: 'Search your photos' });
+  await search.fill('DSC00195');
+  await search.press('Enter');
+
+  await page.waitForURL(/\/search\?q=DSC00195/);
+  await expect(page.locator(TILE).first()).toBeVisible();
+});
 
 test('filename-like query uses metadata search', async ({ page }) => {
   let smartHit = false;
@@ -71,4 +83,9 @@ test('smart failure falls back to filename search', async ({ page }) => {
   await expect(page.locator(TILE).first()).toBeVisible();
 
   expect(metadataBody?.['originalFileName']).toBe('red car');
+
+  const toast = page.getByText('Smart search unavailable, showing filename matches');
+  await expect(toast).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(toast).toBeHidden();
 });

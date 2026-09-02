@@ -31,6 +31,20 @@ test('select all keeps only whole-filter actions available', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Edit and export selected' })).toBeEnabled();
 });
 
+test('changing a browse filter clears hidden selection', async ({ page }) => {
+  await installMocks(page);
+
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await expect(page.getByText('1 selected')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByLabel('Filename').fill('portrait');
+
+  await expect(page.getByText('1 selected')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Clear selection' })).toBeHidden();
+});
+
 test('thumbnail size controls remain available on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installMocks(page);

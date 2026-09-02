@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Page } from '@playwright/test';
 
-import { installMocks } from './helpers';
+import { ASSET_SUMMARY, installMocks, makePng } from './helpers';
 
 async function sidewaysScrollers(page: Page): Promise<string[]> {
   return page.evaluate(() => {
@@ -20,6 +20,75 @@ async function sidewaysScrollers(page: Page): Promise<string[]> {
     return out;
   });
 }
+
+for (const size of SIZES) {
+  test(`the photo grid fits ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await installMocks(page);
+
+    await page.goto('/photos');
+    await expect(page.getByRole('link').first()).toBeVisible();
+
+    await expect(page.getByRole('link', { name: /^Photos/ })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Search your photos' })).toBeVisible();
+    expect(await sidewaysScrollers(page)).toEqual([]);
+  });
+}
+
+test('the photo grid preserves mixed source orientations', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const fixtures = [
+    { id: '00000000-0000-0000-0000-000000000011', name: 'LANDSCAPE.ARW', width: 600, height: 400 },
+    { id: '00000000-0000-0000-0000-000000000012', name: 'PORTRAIT.ARW', width: 400, height: 600 },
+    {
+      id: '00000000-0000-0000-0000-000000000013',
+      name: 'ROTATED.ARW',
+      width: 600,
+      height: 400,
+      orientation: '6'
+    },
+    { id: '00000000-0000-0000-0000-000000000014', name: 'SQUARE.ARW', width: 400, height: 400 },
+    { id: '00000000-0000-0000-0000-000000000015', name: 'PANORAMA.ARW', width: 800, height: 300 }
+  ];
+  const assets = fixtures.map((fixture) => ({
+    ...ASSET_SUMMARY,
+    id: fixture.id,
+    originalFileName: fixture.name,
+    exifInfo: {
+      exifImageWidth: fixture.width,
+      exifImageHeight: fixture.height,
+      orientation: fixture.orientation ?? null
+    }
+  }));
+  const thumbnails = new Map(
+    fixtures.map((fixture) => [
+      fixture.id,
+      makePng(
+        fixture.orientation ? fixture.height : fixture.width,
+        fixture.orientation ? fixture.width : fixture.height
+      )
+    ])
+  );
+  await installMocks(page, {
+    assets,
+    thumbnailRender: (id) => thumbnails.get(id) ?? makePng(1, 1)
+  });
+
+  await page.goto('/photos');
+
+  for (const fixture of fixtures) {
+    const link = page.getByRole('link', { name: fixture.name });
+    const image = link.locator('img');
+    await expect(link).toBeVisible();
+    await expect(link.locator('..')).toHaveCSS('border-radius', '0px');
+    const ratios = await image.evaluate((element) => ({
+      rendered: element.clientWidth / element.clientHeight,
+      source: element.naturalWidth / element.naturalHeight
+    }));
+    expect(ratios.rendered).toBeCloseTo(ratios.source, 2);
+  }
+  expect(await sidewaysScrollers(page)).toEqual([]);
+});
 
 test('the mobile browse shell uses a toggleable 256px sidebar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
