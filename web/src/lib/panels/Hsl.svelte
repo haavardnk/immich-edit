@@ -1,9 +1,12 @@
 <script lang="ts">
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
+  import { compactSegmentedSwatchItemClass } from '$lib/components/editor/controls/segmentedControl';
   import { editor } from '$lib/stores/editor.svelte';
   import { keyLabel } from '$lib/keybinds';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS, HSL_BAND_HUES } from '$lib/types/edits';
+  import { Tooltip } from '@immich/ui';
+  import { RadioGroup } from 'bits-ui';
 
   let activeBand = $state(0);
 
@@ -39,23 +42,29 @@
   );
 </script>
 
-<div class="flex flex-col gap-2.5">
-  <div class="grid grid-cols-8 gap-1">
+<div class="flex flex-col gap-1">
+  <RadioGroup.Root
+    bind:value={() => String(activeBand), (v) => (activeBand = Number(v))}
+    orientation="horizontal"
+    aria-label="Colour band"
+    class="grid grid-cols-8 gap-0.5"
+  >
     {#each HSL_BAND_NAMES as name, i (name)}
-      <button
-        type="button"
-        class="h-6 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow {activeBand ===
-        i
-          ? 'ring-2 ring-white/80'
-          : ''}"
-        style="background-color: {HSL_BAND_COLORS[i]}"
-        title={name}
-        onclick={() => (activeBand = i)}
-      ></button>
+      <Tooltip text={name}>
+        {#snippet child({ props })}
+          <RadioGroup.Item
+            value={String(i)}
+            class={compactSegmentedSwatchItemClass}
+            style="background-color: {HSL_BAND_COLORS[i]}"
+            aria-label={name}
+            {...props}
+          />
+        {/snippet}
+      </Tooltip>
     {/each}
-  </div>
-  <div class="flex items-center justify-between px-1">
-    <div class="text-[11px] text-immich-dark-fg/70">{HSL_BAND_NAMES[activeBand]}</div>
+  </RadioGroup.Root>
+  <div class="flex h-6 items-center justify-between">
+    <div class="text-[11px] text-dark/65">{HSL_BAND_NAMES[activeBand]}</div>
     <ResetButton
       title="Reset {HSL_BAND_NAMES[activeBand]}  —  {keyLabel('Shift')}-click to reset all bands"
       label="Reset {HSL_BAND_NAMES[activeBand]}"

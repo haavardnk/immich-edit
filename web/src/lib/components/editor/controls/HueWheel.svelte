@@ -17,6 +17,7 @@
 
   let wheel = $state<HTMLDivElement | undefined>();
   let dragging = $state(false);
+  let keyboardDirty = $state(false);
 
   const cx = $derived(size / 2);
   const cy = $derived(size / 2);
@@ -88,8 +89,19 @@
     if (changed) {
       ev.preventDefault();
       onLive();
-      onCommit(commitAction);
+      keyboardDirty = true;
     }
+  }
+
+  function commitKeyboard(): void {
+    if (!keyboardDirty) return;
+    keyboardDirty = false;
+    onCommit(commitAction);
+  }
+
+  function keyUp(ev: KeyboardEvent): void {
+    if (!ev.key.startsWith('Arrow')) return;
+    commitKeyboard();
   }
 </script>
 
@@ -110,6 +122,8 @@
   onpointercancel={pointerUp}
   ondblclick={reset}
   onkeydown={key}
+  onkeyup={keyUp}
+  onblur={commitKeyboard}
 >
   <div class="wheel-conic"></div>
   <div class="wheel-radial"></div>
@@ -122,7 +136,7 @@
         y1={cy}
         x2={thumb.x}
         y2={thumb.y}
-        stroke="rgba(255,255,255,0.55)"
+        stroke="var(--color-control-line)"
         stroke-width="1"
       />
     </svg>
@@ -138,31 +152,22 @@
     user-select: none;
     touch-action: none;
     outline: none;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+    filter: drop-shadow(0 1px 3px var(--color-control-outline));
   }
   .hue-wheel:focus-visible {
-    box-shadow: 0 0 0 2px rgb(var(--immich-dark-primary));
+    box-shadow: 0 0 0 2px var(--color-primary);
   }
   .wheel-conic {
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: conic-gradient(
-      from 90deg,
-      #ff0000,
-      #ff00ff,
-      #0000ff,
-      #00ffff,
-      #00ff00,
-      #ffff00,
-      #ff0000
-    );
+    background: var(--gradient-hue-spectrum);
   }
   .wheel-radial {
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(128, 128, 128, 1) 0%, rgba(128, 128, 128, 0) 70%);
+    background: radial-gradient(circle, var(--color-control-mid) 0%, transparent 70%);
   }
   .wheel-ring {
     position: absolute;
@@ -170,8 +175,8 @@
     border-radius: 50%;
     pointer-events: none;
     box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.45),
-      inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+      inset 0 0 0 1px var(--color-control-outline),
+      inset 0 0 0 2px color-mix(in srgb, var(--immich-ui-dark) 8%, transparent);
   }
   .wheel-center-dot {
     position: absolute;
@@ -180,7 +185,7 @@
     width: 3px;
     height: 3px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.55);
+    background: var(--color-control-line);
     transform: translate(-50%, -50%);
     pointer-events: none;
   }
@@ -194,10 +199,10 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: white;
-    border: 2px solid rgba(0, 0, 0, 0.7);
+    background: var(--color-image-light);
+    border: 2px solid var(--color-slider-thumb-shadow);
     transform: translate(-50%, -50%);
     pointer-events: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 3px var(--color-control-shadow);
   }
 </style>

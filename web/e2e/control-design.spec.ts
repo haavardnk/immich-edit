@@ -185,6 +185,29 @@ test('dark theme uses the immich-edit violet identity', async ({ page }) => {
   ).toBe(primary);
 });
 
+test('sliders use the primary violet fill without replacing color gradients', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const fill = await resolvedColor(page, '--color-slider-fill');
+  const primary = await resolvedColor(page, '--color-primary');
+  expect(fill).toBe(primary);
+
+  const exposure = page.getByRole('slider', { name: 'Exposure', exact: true });
+  const exposureBackground = await exposure.evaluate(
+    (element) => getComputedStyle(element).backgroundImage
+  );
+  expect(exposureBackground).toContain(fill);
+
+  const temperature = page.getByRole('slider', { name: 'Temperature', exact: true });
+  const temperatureBackground = await temperature.evaluate(
+    (element) => getComputedStyle(element).backgroundImage
+  );
+  expect(temperatureBackground).not.toContain(fill);
+  expect(temperatureBackground).toContain(await resolvedColor(page, '--color-temperature-cool'));
+  expect(temperatureBackground).toContain(await resolvedColor(page, '--color-temperature-warm'));
+});
+
 test('the top bar search keeps its native pill shape', async ({ page }) => {
   await installMocks(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -373,6 +396,33 @@ test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
   expect(radii[1].topRight).toBeGreaterThan(0);
   expect(radii[1].bottomLeft).toBe(0);
   expect(radii[1].bottomRight).toBe(0);
+});
+
+test('histogram fills its disclosure without an inset frame', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const section = page.getByRole('button', { name: 'Histogram' }).locator('..');
+  const histogram = page.getByText('No histogram data').locator('..');
+  const geometry = await Promise.all(
+    [section, histogram].map((element) =>
+      element.evaluate((node) => {
+        const bounds = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          left: Math.round(bounds.left),
+          right: Math.round(bounds.right),
+          radius: Number.parseFloat(style.borderTopLeftRadius),
+          shadow: style.boxShadow
+        };
+      })
+    )
+  );
+
+  expect(geometry[1].left).toBe(geometry[0].left);
+  expect(geometry[1].right).toBe(geometry[0].right);
+  expect(geometry[1].radius).toBe(0);
+  expect(geometry[1].shadow).toBe('none');
 });
 
 test('modified editor tools use a dot without duplicate counts', async ({ page }) => {

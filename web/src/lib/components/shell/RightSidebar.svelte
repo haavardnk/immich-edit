@@ -183,7 +183,7 @@
                   modified={modifiedPanels.has(panel.id)}
                   onOpenChange={(v) => setPanel(panel.id, v)}
                 >
-                  <div class="bg-black/10 px-3 pb-2 pt-1">
+                  <div class="bg-black/10 {panel.id === 'histogram' ? '' : 'px-3 pb-2 pt-1'}">
                     <Comp />
                   </div>
                 </Disclosure>
