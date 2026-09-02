@@ -4,6 +4,8 @@ import { ASSET_ID, gotoAsset, installMocks, json } from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 
+const EDITOR_COMPACT_CONTROL_HEIGHT = 28;
+
 type Metrics = {
   height: number;
   background: string;
@@ -81,6 +83,17 @@ async function expectNoRestingRing(input: Locator): Promise<void> {
   expect(ringColor).toBe('rgba(0, 0, 0, 0)');
 }
 
+async function expectSegmentedControl(
+  page: Page,
+  control: Locator,
+  activeItem: Locator
+): Promise<void> {
+  expect((await metricsOf(control)).height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+  const activeMetrics = await metricsOf(activeItem);
+  expect(activeMetrics.height).toBe(24);
+  expect(activeMetrics.background).toBe(await resolvedColor(page, '--color-primary'));
+}
+
 test('editor and loupe use the same black image canvas', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
@@ -97,6 +110,17 @@ test('editor and loupe use the same black image canvas', async ({ page }) => {
   for (const loupeCanvas of await loupeCanvases.all()) {
     expect((await metricsOf(loupeCanvas)).background).toBe(canvas);
   }
+});
+
+test('text inputs retain the package focus ring', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  await expectPrimaryFocusRing(page, page.getByLabel('Search your photos'));
+
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await page.getByRole('radio', { name: 'To Immich' }).click();
+  await expectPrimaryFocusRing(page, page.getByLabel('Filename suffix'));
 });
 
 function milliseconds(duration: string): number {
@@ -493,6 +517,178 @@ test('panel header actions match develop action buttons', async ({ page }) => {
     .evaluateAll((sliders) => sliders.map((slider) => slider.getAttribute('aria-label')));
   expect.soft(labels.indexOf('Temperature')).toBeLessThan(labels.indexOf('Tint'));
   expect.soft(labels.indexOf('Tint')).toBeLessThan(labels.indexOf('Exposure'));
+});
+
+test('editor segmented controls share geometry and selection states', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Color Grading', exact: true }).click();
+  const gradingTabs = page
+    .getByRole('tablist')
+    .filter({ has: page.getByRole('tab', { name: '3-Way', exact: true }) });
+  const threeWay = gradingTabs.getByRole('tab', { name: '3-Way', exact: true });
+  await expectSegmentedControl(page, gradingTabs, threeWay);
+  await threeWay.focus();
+  await threeWay.press('ArrowRight');
+  await expect(gradingTabs.getByRole('tab', { name: 'Global', exact: true })).toBeFocused();
+  await expect(threeWay).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('button', { name: 'Camera Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Profile options', exact: true }).click();
+  const illuminant = page.getByRole('radiogroup', { name: 'Illuminant' });
+  const automatic = illuminant.getByRole('radio', { name: 'Auto', exact: true });
+  await expectSegmentedControl(page, illuminant, automatic);
+  await automatic.focus();
+  await automatic.press('ArrowRight');
+  await expect(illuminant.getByRole('radio', { name: 'Illum 1' })).toBeChecked();
+
+  await page.getByRole('tab', { name: 'Retouch', exact: true }).click();
+  const retouch = page.getByRole('radiogroup', { name: 'Retouch tool' });
+  const heal = retouch.getByRole('radio', { name: 'Heal', exact: true });
+  await expectSegmentedControl(page, retouch, heal);
+  await heal.focus();
+  await heal.press('ArrowRight');
+  await expect(retouch.getByRole('radio', { name: 'Clone', exact: true })).toBeChecked();
+
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  const destination = page.getByRole('radiogroup', { name: 'Export destination' });
+  const download = destination.getByRole('radio', { name: 'Download', exact: true });
+  await expectSegmentedControl(page, destination, download);
+  await download.focus();
+  await download.press('ArrowRight');
+  await expect(destination.getByRole('radio', { name: 'To Immich', exact: true })).toBeChecked();
+
+  await page.getByRole('tab', { name: 'Masks', exact: true }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Brush', exact: true }).click();
+  const paint = page.getByRole('button', { name: 'Paint', exact: true });
+  await expect(paint.locator('..')).toHaveCSS('height', '20px');
+});
+
+test('dense panel fields and selects share package sizing and states', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await page.getByRole('radio', { name: 'To Immich' }).click();
+
+  const suffix = page.getByLabel('Filename suffix');
+  await expect(suffix).toBeVisible();
+  const neutral = await resolvedColor(page, '--color-neutral-800');
+  const neutralHover = await resolvedColor(page, '--color-neutral-700');
+  const suffixMetrics = await metricsOf(containerOf(suffix));
+  expect(suffixMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+  expect(suffixMetrics.background).toBe(neutral);
+  expect(
+    (suffixMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
+      (length) => Number.parseFloat(length) === 0
+    )
+  ).toBe(true);
+  await containerOf(suffix).hover();
+  await expect
+    .poll(async () => (await metricsOf(containerOf(suffix))).background)
+    .toBe(neutralHover);
+  await expectPrimaryFocusRing(page, suffix);
+
+  const panel = page.getByRole('tabpanel');
+  const labelMetrics = await Promise.all(
+    ['Format', 'Color space', 'Quality', 'Filename suffix', 'Albums', 'Tags'].map((label) =>
+      metricsOf(panel.getByText(label, { exact: true }))
+    )
+  );
+  const labelText = labelMetrics.map(({ color, fontSize, fontWeight }) => ({
+    color,
+    fontSize,
+    fontWeight
+  }));
+  expect(labelText).toEqual(Array(6).fill(labelText[0]));
+  expect(labelText[0].fontSize).toBe('11px');
+  expect(labelText[0].fontWeight).toBe('500');
+
+  for (const label of ['Add album…', 'Add tag…']) {
+    const field = containerOf(page.getByLabel(label));
+    const metrics = await metricsOf(field);
+    expect(metrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+    expect(metrics.background).toBe(neutral);
+    await field.hover();
+    await expect.poll(async () => (await metricsOf(field)).background).toBe(neutralHover);
+  }
+
+  const trigger = page.getByRole('button', { name: 'Format' });
+  await expect(trigger).toBeVisible();
+  const triggerMetrics = await metricsOf(trigger.locator('div').first());
+  expect(triggerMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+  expect(triggerMetrics.background).toBe(neutral);
+  await trigger.hover();
+  await expect
+    .poll(async () => (await metricsOf(trigger.locator('div').first())).background)
+    .toBe(neutralHover);
+
+  const before = (await trigger.textContent())?.trim();
+  await trigger.click();
+
+  const menu = page.getByRole('listbox');
+  await expect(menu).toBeVisible();
+  expect((await metricsOf(menu)).background).toBe(await resolvedColor(page, '--color-neutral-800'));
+
+  const option = page.locator('[data-select-item]').first();
+  const optionMetrics = await metricsOf(option);
+  expect(optionMetrics.height).toBe(PACKAGE_TINY_CONTROL_HEIGHT);
+  expect(optionMetrics.fontSize).toBe('12px');
+
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
+  expect((await trigger.textContent())?.trim()).not.toBe(before);
+});
+
+test('bulk export shows the neutral suffix field only for Immich', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit and export selected' }).click();
+  await page.getByRole('tab', { name: 'Export' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  const suffix = dialog.getByLabel('Filename suffix');
+  await expect(suffix).toBeHidden();
+
+  await dialog.getByRole('radio', { name: 'To Immich' }).click();
+  await expect(suffix).toBeVisible();
+  const suffixMetrics = await metricsOf(containerOf(suffix));
+  expect(suffixMetrics.background).toBe(await resolvedColor(page, '--color-neutral-800'));
+  expect(
+    (suffixMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
+      (length) => Number.parseFloat(length) === 0
+    )
+  ).toBe(true);
+  await expectPrimaryFocusRing(page, suffix);
+
+  await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
+  await expect(suffix).toBeHidden();
+});
+
+test('crop ratio controls share the neutral grey surface', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+
+  const aspect = page.getByRole('button', { name: 'Aspect Ratio' });
+  const orientation = page.getByRole('button', { name: /^Switch to/ });
+  const neutral = await resolvedColor(page, '--color-neutral-800');
+
+  expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
+  expect((await metricsOf(orientation)).background).toBe(neutral);
+
+  const rotateLeft = page.getByRole('button', { name: 'Rotate left 90°' });
+  const rotateMetrics = await metricsOf(rotateLeft);
+  expect(rotateMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+  expect(rotateMetrics.background).toBe(await resolvedColor(page, '--color-ghost'));
+  await rotateLeft.hover();
+  await expect
+    .poll(async () => (await metricsOf(rotateLeft)).background)
+    .toBe(await resolvedBackground(page, 'bg-white/10'));
 });
 
 test('browse filter popover uses a neutral dark surface', async ({ page }) => {

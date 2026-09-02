@@ -8,7 +8,7 @@
   import { createPasteEditsJob, createResetEditsJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
   import { manifestToEdits, editsToManifest } from '$lib/types/edits';
-  import Icon from '$lib/components/Icon.svelte';
+  import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 
   let busy = $state(false);
@@ -62,36 +62,45 @@
   }
 </script>
 
-<div class="px-4 py-2.5 flex items-center gap-2">
-  <button
-    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+<div class="flex items-center gap-1 px-3 py-1.5">
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    class="h-6 flex-1 panel-action"
+    leadingIcon={mdiRestore}
+    title="Reset edits on selected assets to original"
     disabled={busy || selection.targetCount === 0}
     onclick={() => void reset()}
-    title="Reset edits on selected assets to original"
   >
-    <Icon path={mdiRestore} size={14} />
     Reset
-  </button>
-  <button
-    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-    disabled={busy || !canCopy}
-    onclick={() => void copy()}
+  </Button>
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    class="h-6 flex-1 panel-action"
+    leadingIcon={mdiContentCopy}
     title={canCopy
       ? 'Copy edits from selected asset'
       : copyId !== null
         ? 'Selected asset has no edits'
         : 'Select exactly one asset to copy'}
+    disabled={busy || !canCopy}
+    onclick={() => void copy()}
   >
-    <Icon path={mdiContentCopy} size={14} />
     Copy
-  </button>
-  <button
-    class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+  </Button>
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    class="h-6 flex-1 panel-action"
+    leadingIcon={mdiContentPaste}
+    title={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
     disabled={busy || !clipboard.has || selection.targetCount === 0}
     onclick={() => void paste()}
-    title={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
   >
-    <Icon path={mdiContentPaste} size={14} />
     Paste
-  </button>
+  </Button>
 </div>

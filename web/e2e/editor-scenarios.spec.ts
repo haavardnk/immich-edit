@@ -267,6 +267,7 @@ test('stack primary is a keyboard radio group', async ({ page }) => {
   await page.getByRole('checkbox', { name: 'Stack with original' }).click();
 
   const original = page.getByRole('radio', { name: 'Original primary' });
+  await expect(page.getByRole('radiogroup', { name: 'Stack primary' })).toHaveCSS('height', '28px');
   await expect(page.getByRole('radio', { name: 'Edit primary' })).toBeChecked();
   await original.click();
   await expect(original).toBeChecked();
