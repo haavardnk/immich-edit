@@ -60,7 +60,7 @@
           {@render children()}
         </main>
         {#if editor.assetId && !ui.fullscreen}
-          <Filmstrip />
+          <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
         {/if}
       </div>
       {#if !ui.fullscreen}

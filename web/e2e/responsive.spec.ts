@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
-
 import type { Page } from '@playwright/test';
+import { ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
 
-import { ASSET_ID, ASSET_SUMMARY, installMocks, makePng } from './helpers';
+const SIZES = [
+  { width: 1600, height: 832 },
+  { width: 1440, height: 900 },
+  { width: 1280, height: 720 },
+  { width: 1024, height: 768 }
+];
 
 async function sidewaysScrollers(page: Page): Promise<string[]> {
   return page.evaluate(() => {
@@ -33,7 +38,99 @@ for (const size of SIZES) {
     await expect(page.getByRole('textbox', { name: 'Search your photos' })).toBeVisible();
     expect(await sidewaysScrollers(page)).toEqual([]);
   });
+
+  test(`the editor fits ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await installMocks(page);
+
+    await gotoAsset(page);
+
+    await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeVisible();
+    await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toHaveCSS(
+      'height',
+      '48px'
+    );
+    await expect(
+      page.getByRole('navigation', { name: 'Editor status and view controls' })
+    ).toHaveCSS('height', '36px');
+    expect(await sidewaysScrollers(page)).toEqual([]);
+  });
 }
+
+test('the editor resize handles persist once per committed gesture', async ({ page }) => {
+  await page.addInitScript(() => {
+    const state = window as Window & { editorUiWriteCount: number };
+    const setItem = Storage.prototype.setItem;
+    state.editorUiWriteCount = 0;
+    Storage.prototype.setItem = function (key: string, value: string): void {
+      if (key === 'immich-edit:editorUi') state.editorUiWriteCount += 1;
+      setItem.call(this, key, value);
+    };
+  });
+  await installMocks(page);
+  await page.goto('/photos');
+  await page
+    .getByRole('link', { name: ASSET_SUMMARY.originalFileName })
+    .evaluate((element) => element.click());
+  await expect(page.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
+
+  const cases = [
+    { name: 'Resize editor controls', axis: 'x', key: 'ArrowLeft', keyDelta: 16 },
+    { name: 'Resize filmstrip', axis: 'y', key: 'ArrowUp', keyDelta: 8 }
+  ] as const;
+  for (const resizeCase of cases) {
+    const handle = page.getByRole('slider', { name: resizeCase.name });
+    const bounds = await handle.boundingBox();
+    if (!bounds) throw new Error(`${resizeCase.name} has no bounds`);
+    if (resizeCase.name === 'Resize editor controls') {
+      expect(bounds.width).toBeGreaterThanOrEqual(8);
+      expect(await handle.evaluate((element) => getComputedStyle(element, '::after').width)).toBe(
+        '1px'
+      );
+    }
+    const startValue = Number(await handle.getAttribute('aria-valuenow'));
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    await page.evaluate(() => {
+      (window as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
+    });
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(
+      resizeCase.axis === 'x' ? centerX - 20 : centerX,
+      resizeCase.axis === 'y' ? centerY - 20 : centerY,
+      { steps: 5 }
+    );
+    expect(
+      await page.evaluate(
+        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+      )
+    ).toBe(0);
+    await page.mouse.up();
+    await expect(handle).toHaveAttribute('aria-valuenow', String(startValue + 20));
+    expect(
+      await page.evaluate(
+        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+      )
+    ).toBe(1);
+
+    await page.evaluate(() => {
+      (window as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
+    });
+    await handle.press(resizeCase.key);
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(startValue + 20 + resizeCase.keyDelta)
+    );
+    expect(
+      await page.evaluate(
+        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+      )
+    ).toBe(1);
+  }
+});
 
 test('the photo grid preserves mixed source orientations', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -246,3 +343,40 @@ for (const size of [
     expect(await sidewaysScrollers(page)).toEqual([]);
   });
 }
+
+for (const size of [
+  { width: 767, height: 800 },
+  { width: 390, height: 844 }
+]) {
+  test(`the editor guard fits ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await installMocks(page);
+
+    await page.goto(`/assets/${ASSET_ID}`);
+
+    await expect(page.getByRole('heading', { name: 'Desktop required' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeHidden();
+    expect(await sidewaysScrollers(page)).toEqual([]);
+  });
+}
+
+test('the editor fits at the desktop breakpoint', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 768 });
+  await installMocks(page);
+
+  await gotoAsset(page);
+
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeVisible();
+  await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  for (const name of [
+    'Create virtual copy',
+    'View original',
+    'Before/After split',
+    'Clipping overlay'
+  ]) {
+    await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
+  }
+  expect(await sidewaysScrollers(page)).toEqual([]);
+});

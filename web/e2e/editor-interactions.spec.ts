@@ -21,14 +21,42 @@ test('adjusting a slider requests a live preview with the new edit', async ({ pa
   await gotoAsset(page);
 
   const slider = exposureSlider(page);
+  const row = page.locator('div.group', {
+    has: page.getByRole('button', { name: 'Exposure', exact: true })
+  });
   await expect(slider).toHaveValue('0');
   await slider.fill('1');
+
+  await expect(
+    row.getByRole('button', { name: 'Exposure', exact: true }).locator('[aria-hidden]')
+  ).toHaveCount(0);
 
   await expect
     .poll(() =>
       requests.some((r) => (r.edits as { basic: { exposure_ev: number } }).basic.exposure_ev === 1)
     )
     .toBe(true);
+});
+
+test('exact slider value entry commits through the shared control', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (req) => requests.push(req) });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Edit Exposure value' }).click();
+  const value = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await value.fill('1.25');
+  await value.press('Enter');
+
+  await expect
+    .poll(() =>
+      requests.some(
+        (request) =>
+          (request.edits as { basic: { exposure_ev: number } }).basic.exposure_ev === 1.25
+      )
+    )
+    .toBe(true);
+  await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('1.25');
 });
 
 test('capture sharpening toggle is enabled only for raw assets', async ({ page }) => {
@@ -45,6 +73,9 @@ test('capture sharpening toggle is enabled only for raw assets', async ({ page }
   await expect
     .poll(() => saves.some((s) => JSON.stringify(s).includes('"capture_sharpen"')))
     .toBe(true);
+
+  await page.getByText('Capture Sharpening').click();
+  await expect(toggle).toBeChecked();
 });
 
 test('capture sharpening toggle is disabled for non-raw assets', async ({ page }) => {
@@ -53,6 +84,54 @@ test('capture sharpening toggle is disabled for non-raw assets', async ({ page }
 
   await page.getByRole('button', { name: 'Detail', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Capture Sharpening' })).toBeDisabled();
+});
+
+test('pending saves guard browser unload', async ({ page }) => {
+  let releaseSave = (): void => {};
+  const savePending = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  await installMocks(page);
+  await page.route('**/api/assets/*/edits', async (route) => {
+    if (route.request().method() === 'PUT') await savePending;
+    await route.fallback();
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Edit Exposure value' }).click();
+  const value = page.getByRole('spinbutton', { name: 'Exposure value' });
+  await value.fill('1');
+  await value.press('Enter');
+  await expect(page.getByText('Saving…')).toBeVisible();
+
+  const unloadPrevented = (): Promise<boolean> =>
+    page.evaluate(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  expect(await unloadPrevented()).toBe(true);
+
+  releaseSave();
+  await expect(page.getByText('Saved')).toBeVisible();
+  expect(await unloadPrevented()).toBe(false);
+});
+
+test('the soft proof popover survives opening its nested select', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  const warn = page.getByRole('checkbox', { name: 'Show gamut warning' });
+  await expect(warn).toBeVisible();
+
+  await page.getByRole('button', { name: 'Proof space' }).click();
+  await expect(page.getByRole('option', { name: 'sRGB' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await expect(warn).toBeVisible();
+  await warn.check();
+  await expect(warn).toBeChecked();
 });
 
 test('color range eyedropper samples maskless preview', async ({ page }) => {
@@ -64,7 +143,7 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Masks' }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
 
@@ -123,7 +202,7 @@ test('dragging the radial centre handle moves the saved shape', async ({ page })
   await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Masks' }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
 
@@ -166,6 +245,16 @@ test('keyboard help modal toggles with the ? key', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toHaveCount(0);
 });
 
+test('keyboard help opens from the editor toolbar', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
+  await expect(page.getByText('Open Geometry', { exact: true })).toBeVisible();
+});
+
 test('keyboard help filters shortcuts and labels keys for the platform', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
@@ -193,43 +282,103 @@ test('keyboard help splits binds by the current context', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Available in the Masks panel' })).toBeVisible();
 });
 
-test('Q opens Retouch and M opens Masks', async ({ page }) => {
+test('D opens Develop, Q opens Retouch and M opens Masks', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
   await page.keyboard.press('q');
-  await expect(page.getByRole('button', { name: 'Retouch' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Retouch' })).toHaveAttribute('aria-selected', 'true');
 
   await page.keyboard.press('m');
-  await expect(page.getByRole('button', { name: 'Masks' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('tab', { name: 'Masks' })).toHaveAttribute('aria-selected', 'true');
+
+  await page.keyboard.press('d');
+  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('editor tool tabs switch panels with pointer clicks', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  for (const name of ['Masks', 'Retouch', 'Geometry', 'Export', 'Develop']) {
+    const tab = page.getByRole('tab', { name });
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel', { name })).toBeVisible();
+  }
 });
 
 test('tab hides the side panels and shift+tab hides all chrome', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await expect(page.getByRole('button', { name: 'collapse edit panel' })).toBeVisible();
+  const controls = page.getByRole('complementary', { name: 'Editor controls' });
+  await expect(controls).toBeVisible();
 
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'expand edit panel' })).toBeVisible();
+  await expect(controls).toBeHidden();
 
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'collapse edit panel' })).toBeVisible();
+  await expect(controls).toBeVisible();
 
   await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('button', { name: 'expand edit panel' })).toBeVisible();
+  await expect(controls).toBeHidden();
+});
+
+test('fullscreen leaves only the image and exit control', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: /^Fullscreen/ }).click();
+
+  await expect(page.getByRole('application')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toHaveCount(0);
+  await expect(
+    page.getByRole('navigation', { name: 'Editor status and view controls' })
+  ).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Exit fullscreen/ })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Fullscreen/ })).toBeVisible();
+});
+
+test('collapsed editor controls leave the canvas and retain their state', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await expect(page.getByRole('navigation', { name: 'Global navigation' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Library' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  const controls = page.locator('aside[aria-label="Editor controls"]');
+  const viewer = page.getByRole('application');
+  const openWidth = await controls.evaluate((element) => element.getBoundingClientRect().width);
+  const viewerWidth = await viewer.evaluate((element) => element.getBoundingClientRect().width);
+  expect(openWidth).toBe(384);
+
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(controls).toBeHidden();
+  expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(0);
+  expect(await viewer.evaluate((element) => element.getBoundingClientRect().width)).toBe(
+    viewerWidth + openWidth
+  );
+
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(384);
 });
 
 test('Geometry pane always exposes crop controls', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Geometry' }).click();
-  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute(
-    'aria-pressed',
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
     'true'
   );
   await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
@@ -239,7 +388,7 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
-  await page.getByRole('button', { name: 'Develop' }).click();
+  await page.getByRole('tab', { name: 'Develop' }).click();
   const request = await saved;
   const body = request.postDataJSON() as {
     manifest: { ops: { transform?: { angle?: number } } };
@@ -247,10 +396,7 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   };
   expect(body.manifest.ops.transform?.angle).toBe(5);
   expect(body.action).toBe('Geometry');
-  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
@@ -258,14 +404,14 @@ test('perspective sliders save into the transform op', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Geometry' }).click();
   await geometrySlider(page, 'Vertical').fill('40');
   await geometrySlider(page, 'Aspect').fill('-25');
 
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
-  await page.getByRole('button', { name: 'Develop' }).click();
+  await page.getByRole('tab', { name: 'Develop' }).click();
   const request = await saved;
   const body = request.postDataJSON() as {
     manifest: { ops: { transform?: { perspective?: { vertical?: number; aspect?: number } } } };
@@ -278,7 +424,7 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Geometry' }).click();
   await expect(page.getByRole('button', { name: 'perspective corner 1' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Corner handles' }).click();
@@ -295,7 +441,7 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
-  await page.getByRole('button', { name: 'Develop' }).click();
+  await page.getByRole('tab', { name: 'Develop' }).click();
   const request = await saved;
   const body = request.postDataJSON() as {
     manifest: { ops: { transform?: { perspective?: { corners?: number[][] } } } };
@@ -310,22 +456,19 @@ test('R opens Geometry and Escape returns to Develop', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'collapse edit panel' }).click();
-  await expect(page.getByRole('button', { name: 'expand edit panel' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Develop' }).click();
+  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
 
   await page.keyboard.press('r');
-  await expect(page.getByRole('button', { name: 'Geometry' })).toHaveAttribute(
-    'aria-pressed',
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
     'true'
   );
   await expect(page.getByText('Angle', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Develop' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 

@@ -1,12 +1,14 @@
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import { editor } from '$lib/stores/editor.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import { browsing } from '$lib/stores/browsing.svelte';
 import { backToGrid } from '$lib/backToGrid';
 import { createVirtualCopy } from '$lib/copies';
 import { nextRatingFromKey } from '$lib/ratingShortcuts';
-import { isKeybind, isTypingTarget, matchKeybind } from '$lib/keybinds';
+import { isKeybind, isRadioGroupTarget, isTypingTarget, matchKeybind } from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
+import { editorHref } from '$lib/editorNavigation';
 
 const RETOUCH_SIZE = { step: 0.005, min: 0.005, max: 0.3 };
 const BRUSH_SIZE = { step: 0.01, min: 0.005, max: 0.5 };
@@ -60,6 +62,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     return;
   }
   if (ui.keybindsHelpOpen) return;
+  if (isRadioGroupTarget(e)) return;
 
   const bind = matchKeybind(e, activeContexts());
   if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon') return;
@@ -68,11 +71,12 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
   switch (bind) {
     case 'editorNav': {
       const target = e.key === 'ArrowLeft' ? browsing.prevOf(id) : browsing.nextOf(id);
-      if (target) void goto(`/assets/${target.id}`, { replaceState: true });
+      if (target)
+        void goto(editorHref(target.id, page.url.searchParams.get('from')), { replaceState: true });
       return;
     }
     case 'backToGrid':
-      void backToGrid(id);
+      void backToGrid(id, page.url.searchParams.get('from'));
       return;
     case 'undo':
       editor.undo();
@@ -110,6 +114,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'fullscreen':
       ui.toggleFullscreen();
       return;
+    case 'openDevelop':
+      ui.openTab('develop');
+      return;
     case 'openGeometry':
       ui.openTab('geometry');
       return;
@@ -123,7 +130,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       ui.openTab('export');
       return;
     case 'createVirtualCopy':
-      void createVirtualCopy(id);
+      void createVirtualCopy(id, { returnPath: page.url.searchParams.get('from') });
       return;
     case 'perspective':
       if (ui.editorTab !== 'geometry') ui.openTab('geometry');

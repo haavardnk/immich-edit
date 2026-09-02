@@ -1,23 +1,31 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { mdiAlertCircleOutline, mdiLoading } from '@mdi/js';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiAlertCircleOutline, mdiCheck, mdiLoading } from '@mdi/js';
 </script>
 
 {#if editor.asset}
   {#if editor.saveError}
-    <button
-      class="flex items-center gap-1 text-[11px] text-error hover:text-error/80 transition-colors"
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="danger"
+      class="gap-1 p-0 text-[11px]"
       title={editor.saveError}
       onclick={() => void editor.retrySave()}
     >
-      <Icon path={mdiAlertCircleOutline} size={12} />
+      <Icon icon={mdiAlertCircleOutline} size="12px" aria-hidden="true" />
       Save failed — retry
-    </button>
+    </Button>
   {:else if editor.saving}
-    <span class="flex items-center gap-1 text-[11px] text-immich-dark-fg/60">
-      <Icon path={mdiLoading} size={12} class="animate-spin" />
+    <span class="flex items-center gap-1 text-[11px] text-dark/65" role="status">
+      <Icon icon={mdiLoading} size="12px" class="animate-spin" aria-hidden="true" />
       Saving…
+    </span>
+  {:else}
+    <span class="flex items-center gap-1 text-[11px] text-dark/65" role="status">
+      <Icon icon={mdiCheck} size="12px" aria-hidden="true" />
+      Saved
     </span>
   {/if}
 {/if}

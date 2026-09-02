@@ -25,6 +25,9 @@ const UI_STORAGE_KEY = 'immich-edit:editorUi';
 type PersistedEditorUi = {
   inspectorWidth?: number;
   filmstripHeight?: number;
+  rightCollapsed?: boolean;
+  editorFilmstripCollapsed?: boolean;
+  loupeFilmstripCollapsed?: boolean;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -61,12 +64,24 @@ class UiStore {
         Math.max(MIN_FILMSTRIP_HEIGHT, stored.filmstripHeight)
       );
     }
+    if (typeof stored?.rightCollapsed === 'boolean') {
+      this.rightCollapsed = stored.rightCollapsed;
+    }
+    if (typeof stored?.editorFilmstripCollapsed === 'boolean') {
+      this.editorFilmstripCollapsed = stored.editorFilmstripCollapsed;
+    }
+    if (typeof stored?.loupeFilmstripCollapsed === 'boolean') {
+      this.loupeFilmstripCollapsed = stored.loupeFilmstripCollapsed;
+    }
   }
 
   persistEditorUi = (): void => {
     writeStored(UI_STORAGE_KEY, {
       inspectorWidth: this.inspectorWidth,
-      filmstripHeight: this.filmstripHeight
+      filmstripHeight: this.filmstripHeight,
+      rightCollapsed: this.rightCollapsed,
+      editorFilmstripCollapsed: this.editorFilmstripCollapsed,
+      loupeFilmstripCollapsed: this.loupeFilmstripCollapsed
     } satisfies PersistedEditorUi);
   };
 
@@ -94,36 +109,29 @@ class UiStore {
     this.fullscreen = false;
     this.rightCollapsed = false;
     this.editorTab = tab;
+    this.persistEditorUi();
   };
 
   toggleChrome = (): void => {
     const hidden = this.rightCollapsed && this.editorFilmstripCollapsed;
     this.rightCollapsed = !hidden;
     this.editorFilmstripCollapsed = !hidden;
+    this.persistEditorUi();
   };
 
   togglePanels = (): void => {
     this.rightCollapsed = !this.rightCollapsed;
-  };
-
-  get filmstripCollapsed(): boolean {
-    return this.editorFilmstripCollapsed;
-  }
-
-  toggleRight = (): void => {
-    this.togglePanels();
-  };
-
-  toggleFilmstrip = (): void => {
-    this.toggleEditorFilmstrip();
+    this.persistEditorUi();
   };
 
   toggleEditorFilmstrip = (): void => {
     this.editorFilmstripCollapsed = !this.editorFilmstripCollapsed;
+    this.persistEditorUi();
   };
 
   toggleLoupeFilmstrip = (): void => {
     this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
+    this.persistEditorUi();
   };
 
   toggleFullscreen = (): void => {
