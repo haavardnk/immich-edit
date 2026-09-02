@@ -348,7 +348,7 @@ export const KEYBINDS = [
   {
     id: 'fullscreen',
     keys: ['Shift+f'],
-    contexts: ['editor'],
+    contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'Editor',
     label: 'Toggle fullscreen'
   },

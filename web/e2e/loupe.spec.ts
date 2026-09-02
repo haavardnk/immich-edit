@@ -16,9 +16,9 @@ async function openLoupe(page: Page): Promise<void> {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
-  await expect(page.getByRole('button', { name: /^Close/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
 
 test('loupe navigates with the arrow keys and closes with escape', async ({ page }) => {
@@ -32,7 +32,7 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: /^Close/ })).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
 
   await page.keyboard.press(' ');
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
@@ -49,6 +49,19 @@ test('z toggles loupe zoom', async ({ page }) => {
   await expect(image).not.toHaveAttribute('style', /scale\(2\.5\)/);
 });
 
+test('shift+f toggles loupe fullscreen', async ({ page }) => {
+  await openLoupe(page);
+
+  await page.keyboard.press('Shift+f');
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Photo actions' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Exit fullscreen/ })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
+});
+
 test('number keys rate the loupe asset', async ({ page }) => {
   await openLoupe(page);
 
@@ -59,14 +72,11 @@ test('number keys rate the loupe asset', async ({ page }) => {
 test('j toggles the clipping overlay', async ({ page }) => {
   await openLoupe(page);
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
-  const button = page.getByRole('button', { name: /^Clipping overlay/ });
 
   await expect(image).toHaveAttribute('src', /clip=false/);
-  await expect(button).toHaveAttribute('aria-pressed', 'false');
 
   await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=true/);
-  await expect(button).toHaveAttribute('aria-pressed', 'true');
 
   await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=false/);

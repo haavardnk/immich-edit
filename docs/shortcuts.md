@@ -47,7 +47,8 @@ Shortcuts do not run while focus is in a text field or other typing control.
 | `I` | Toggle photo information | Loupe and editor |
 | `T` | Toggle tags | Loupe and editor |
 | `J` | Toggle clipping indicators | Loupe, compare, survey, editor |
-| `Escape` | Close the loupe | Loupe |
+| `Shift+F` | Toggle fullscreen | Loupe, compare, survey, editor |
+| `Escape` | Leave fullscreen or close the loupe | Loupe |
 
 ## Compare and survey
 

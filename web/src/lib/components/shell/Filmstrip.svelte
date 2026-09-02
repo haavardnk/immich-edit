@@ -1,50 +1,60 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { browsing } from '$lib/stores/browsing.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
-  import Icon from '$lib/components/Icon.svelte';
-  import { editorHref } from '$lib/editorNavigation';
+  import { createFilmstripLayout, visibleFilmstripRange } from '$lib/filmstripLayout';
   import { isRejected } from '$lib/reject';
-  import { mdiChevronDown, mdiChevronUp, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { editorHref } from '$lib/editorNavigation';
+  import { Icon } from '@immich/ui';
+  import { mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
     onSelect,
     size = 64,
+    resizable = false,
     showBadges = false,
-    highlightIds
+    highlightIds,
+    collapsed = false
   }: {
     currentId?: string | null;
     onSelect?: (id: string, additive: boolean) => void;
     size?: number;
+    resizable?: boolean;
     showBadges?: boolean;
     highlightIds?: string[];
+    collapsed?: boolean;
   } = $props();
 
   const GAP = 4;
   const PAD = 8;
   const OVERSCAN = 3;
-  const STRIDE = $derived(size + GAP);
-
   const currentId = $derived(onSelect ? currentIdProp : (page.params.id ?? null));
+  const thumbnailHeight = $derived(resizable ? ui.filmstripHeight : size);
 
   const assets = $derived(browsing.assets);
   const currentIndex = $derived(assets.findIndex((a) => a.id === currentId));
+  const layout = $derived(createFilmstripLayout(assets, thumbnailHeight, GAP, PAD));
 
   let scrollContainer: HTMLDivElement | undefined = $state();
   let containerWidth = $state(0);
   let scrollLeft = $state(0);
-
-  const totalWidth = $derived(PAD * 2 + Math.max(0, assets.length) * STRIDE - GAP);
+  let resizing = $state(false);
+  let resizeStartY = 0;
+  let resizeStartHeight = 0;
 
   const view = $derived.by(() => {
-    const startIdx = Math.max(0, Math.floor((scrollLeft - PAD) / STRIDE) - OVERSCAN);
-    const count = Math.ceil(containerWidth / STRIDE) + OVERSCAN * 2;
+    const range = visibleFilmstripRange(
+      layout.boxes,
+      scrollLeft,
+      scrollLeft + containerWidth,
+      OVERSCAN
+    );
     return {
-      startIdx,
-      endIdx: Math.min(assets.length, startIdx + count),
-      offsetX: PAD + startIdx * STRIDE
+      startIdx: range.startIndex,
+      endIdx: range.endIndex,
+      offsetX: layout.boxes[range.startIndex]?.left ?? PAD
     };
   });
 
@@ -54,6 +64,38 @@
     if (!scrollContainer) return;
     containerWidth = scrollContainer.clientWidth;
     scrollLeft = scrollContainer.scrollLeft;
+  }
+
+  function startResize(event: PointerEvent): void {
+    if (!resizable) return;
+    resizing = true;
+    resizeStartY = event.clientY;
+    resizeStartHeight = ui.filmstripHeight;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  function resize(event: PointerEvent): void {
+    if (!resizing) return;
+    ui.setFilmstripHeight(resizeStartHeight + resizeStartY - event.clientY);
+  }
+
+  function stopResize(event: PointerEvent): void {
+    if (!resizing) return;
+    resizing = false;
+    ui.persistEditorUi();
+    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+  }
+
+  function resizeWithKeyboard(event: KeyboardEvent): void {
+    if (!resizable) return;
+    const amount = event.shiftKey ? 16 : 8;
+    if (event.key === 'ArrowUp') ui.setFilmstripHeight(ui.filmstripHeight + amount);
+    else if (event.key === 'ArrowDown') ui.setFilmstripHeight(ui.filmstripHeight - amount);
+    else if (event.key === 'Home') ui.setFilmstripHeight(MIN_FILMSTRIP_HEIGHT);
+    else if (event.key === 'End') ui.setFilmstripHeight(MAX_FILMSTRIP_HEIGHT);
+    else return;
+    ui.persistEditorUi();
+    event.preventDefault();
   }
 
   $effect(() => {
@@ -66,43 +108,44 @@
 
   $effect(() => {
     if (!scrollContainer || currentIndex < 0) return;
-    const left = PAD + currentIndex * STRIDE;
-    if (left >= scrollLeft && left + size <= scrollLeft + containerWidth) return;
-    const target = left + size / 2 - containerWidth / 2;
-    const max = Math.max(0, totalWidth - containerWidth);
+    const box = layout.boxes[currentIndex];
+    if (box.left >= scrollLeft && box.left + box.width <= scrollLeft + containerWidth) return;
+    const target = box.left + box.width / 2 - containerWidth / 2;
+    const max = Math.max(0, layout.width - containerWidth);
     scrollContainer.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
   });
 </script>
 
 {#if assets.length > 0}
-  <div class="border-t border-white/5 bg-immich-dark-gray flex-none">
-    {#if ui.filmstripCollapsed}
-      <button
-        class="w-full flex items-center justify-center h-5 hover:bg-white/5 transition-colors"
-        onclick={ui.toggleFilmstrip}
-        aria-label="expand filmstrip"
-        title="Filmstrip"
-      >
-        <Icon path={mdiChevronUp} size={14} class="opacity-40" />
-      </button>
-    {:else}
+  <div class="relative flex-none border-t border-white/12 bg-editor-chrome shadow-filmstrip">
+    {#if resizable && !collapsed}
+      <div
+        role="slider"
+        tabindex="0"
+        aria-label="Resize filmstrip"
+        aria-orientation="vertical"
+        aria-valuemin={MIN_FILMSTRIP_HEIGHT}
+        aria-valuemax={MAX_FILMSTRIP_HEIGHT}
+        aria-valuenow={ui.filmstripHeight}
+        class="absolute inset-x-0 top-0 z-20 h-2 -translate-y-1/2 cursor-row-resize outline-none focus-visible:bg-primary/30"
+        onpointerdown={startResize}
+        onpointermove={resize}
+        onpointerup={stopResize}
+        onpointercancel={stopResize}
+        onkeydown={resizeWithKeyboard}
+      ></div>
+    {/if}
+    {#if !collapsed}
       <div class="relative">
-        <button
-          class="absolute right-1 top-1 z-10 p-0.5 rounded bg-black/40 hover:bg-white/15 transition-colors"
-          onclick={ui.toggleFilmstrip}
-          aria-label="collapse filmstrip"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronDown} size={14} class="opacity-70" />
-        </button>
         <div
-          class="py-2 overflow-x-auto scrollbar-hidden"
+          class="overflow-x-auto py-1.5 scrollbar-hidden"
           bind:this={scrollContainer}
           onscroll={measure}
         >
-          <div class="relative" style:width="{totalWidth}px" style:height="{size}px">
+          <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
-              {#each visibleAssets as asset (asset.id)}
+              {#each visibleAssets as asset, visibleIndex (asset.id)}
+                {@const box = layout.boxes[view.startIdx + visibleIndex]}
                 {@const isCurrent = asset.id === currentId}
                 {@const paneNumber = (highlightIds?.indexOf(asset.id) ?? -1) + 1}
                 {@const isMember = !isCurrent && paneNumber > 0}
@@ -112,13 +155,14 @@
                   <button
                     type="button"
                     onclick={(e) => onSelect(asset.id, e.metaKey || e.ctrlKey || e.shiftKey)}
-                    class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
-                      ? 'ring-2 ring-immich-dark-primary'
+                    aria-pressed={isCurrent || isMember}
+                    class="group relative flex-none overflow-hidden rounded-sm border-2 bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                      ? 'border-primary ring-2 ring-primary/60'
                       : isMember
-                        ? 'ring-2 ring-immich-dark-primary/50'
-                        : ''}"
-                    style:width="{size}px"
-                    style:height="{size}px"
+                        ? 'border-primary/75 ring-1 ring-primary/40'
+                        : 'border-transparent hover:border-white/25'}"
+                    style:width="{box.width}px"
+                    style:height="{thumbnailHeight}px"
                     title={asset.originalFileName}
                     aria-label={asset.originalFileName}
                   >
@@ -126,16 +170,17 @@
                       src={assetThumbUrl(asset.id)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover transition-opacity {isCurrent || isMember
+                      class="w-full h-full object-cover transition-[opacity,filter] {isCurrent ||
+                      isMember
                         ? 'opacity-100'
-                        : 'opacity-50 group-hover:opacity-80'}"
+                        : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
                       class:grayscale={rejected}
                     />
                     {#if paneNumber > 0}
                       <span
-                        class="absolute left-1 top-1 min-w-4 px-1 rounded text-[10px] leading-4 font-medium text-center pointer-events-none {isCurrent
-                          ? 'bg-immich-dark-primary text-black'
-                          : 'bg-black/60 text-white/70'}"
+                        class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
+                          ? 'border-primary bg-primary text-neutral-950'
+                          : 'border-primary/70 bg-neutral-950/90 text-primary'}"
                       >
                         {paneNumber}
                       </span>
@@ -144,7 +189,7 @@
                       <div
                         class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
                       >
-                        <Icon path={mdiHeart} size={13} />
+                        <Icon icon={mdiHeart} size="13px" aria-hidden="true" />
                       </div>
                     {/if}
                     {#if showBadges && rejected}
@@ -153,7 +198,7 @@
                         class:top-1={!asset.isFavorite}
                         class:top-6={asset.isFavorite}
                       >
-                        <Icon path={mdiCloseCircle} size={13} />
+                        <Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />
                       </div>
                     {/if}
                     {#if showBadges && rating > 0}
@@ -163,9 +208,10 @@
                         <div class="flex items-center gap-0.5">
                           {#each [1, 2, 3, 4, 5] as n (n)}
                             <Icon
-                              path={mdiStar}
-                              size={9}
+                              icon={mdiStar}
+                              size="9px"
                               class={n <= rating ? 'opacity-100' : 'opacity-30'}
+                              aria-hidden="true"
                             />
                           {/each}
                         </div>
@@ -175,27 +221,29 @@
                 {:else}
                   <a
                     href={editorHref(asset.id, page.url.searchParams.get('from'))}
-                    class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
-                      ? 'ring-2 ring-immich-dark-primary'
-                      : ''}"
-                    style:width="{size}px"
-                    style:height="{size}px"
+                    aria-label={asset.originalFileName}
+                    aria-current={isCurrent ? 'page' : undefined}
+                    class="group relative flex-none overflow-hidden rounded-sm border bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                      ? 'border-primary ring-1 ring-primary/40'
+                      : 'border-hairline hover:border-white/25'}"
+                    style:width="{box.width}px"
+                    style:height="{thumbnailHeight}px"
                     title={asset.originalFileName}
                   >
                     <img
                       src={assetThumbUrl(asset.id)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover transition-opacity {isCurrent
+                      class="w-full h-full object-cover transition-[opacity,filter] {isCurrent
                         ? 'opacity-100'
-                        : 'opacity-50 group-hover:opacity-80'}"
+                        : 'opacity-65 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
                       class:grayscale={rejected}
                     />
                     {#if showBadges && asset.isFavorite}
                       <div
                         class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
                       >
-                        <Icon path={mdiHeart} size={13} />
+                        <Icon icon={mdiHeart} size="13px" aria-hidden="true" />
                       </div>
                     {/if}
                     {#if showBadges && rejected}
@@ -204,7 +252,7 @@
                         class:top-1={!asset.isFavorite}
                         class:top-6={asset.isFavorite}
                       >
-                        <Icon path={mdiCloseCircle} size={13} />
+                        <Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />
                       </div>
                     {/if}
                     {#if showBadges && rating > 0}
@@ -214,9 +262,10 @@
                         <div class="flex items-center gap-0.5">
                           {#each [1, 2, 3, 4, 5] as n (n)}
                             <Icon
-                              path={mdiStar}
-                              size={9}
+                              icon={mdiStar}
+                              size="9px"
                               class={n <= rating ? 'opacity-100' : 'opacity-30'}
+                              aria-hidden="true"
                             />
                           {/each}
                         </div>

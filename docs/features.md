@@ -25,6 +25,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
 | Multi-select and batch actions | ✓ Yes | Selecting every filtered result enables job actions; individual photo selections enable metadata, culling, tags, and virtual copies |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
+| Fullscreen viewing | ✓ Yes | `Shift+F` hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✗ No | — |
@@ -127,6 +128,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
+| Editor and loupe filmstrips | ✓ Yes | Each view keeps its own visible or hidden state |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
 | Waveform, RGB parade, or vectorscope | ✗ No | Histogram only |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |

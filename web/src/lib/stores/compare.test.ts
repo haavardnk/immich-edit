@@ -17,7 +17,7 @@ describe('compare store', () => {
 
   it('drops a pane and clamps focus', () => {
     compare.enter('survey', ['a', 'b', 'c'], 2);
-    compare.applyView('c', { zoomed: true, cx: 0.2, cy: 0.4 });
+    compare.applyView('c', { zoom: 200, cx: 0.2, cy: 0.4 });
     compare.drop(2);
     expect(compare.members).toEqual(['a', 'b']);
     expect(compare.focusIndex).toBe(1);
@@ -59,12 +59,12 @@ describe('compare store', () => {
 
   it('adds a pane, focuses it and inherits the current view', () => {
     compare.enter('compare', ['a', 'b'], 1);
-    compare.applyView('b', { zoomed: true, cx: 0.3, cy: 0.6 });
+    compare.applyView('b', { zoom: 200, cx: 0.3, cy: 0.6 });
     compare.addMember('c');
     expect(compare.members).toEqual(['a', 'b', 'c']);
     expect(compare.focusIndex).toBe(2);
     expect(compare.mode).toBe('survey');
-    expect(compare.viewOf('c')).toEqual({ zoomed: true, cx: 0.3, cy: 0.6 });
+    expect(compare.viewOf('c')).toEqual({ zoom: 200, cx: 0.3, cy: 0.6 });
   });
 
   it.each([
@@ -78,20 +78,20 @@ describe('compare store', () => {
 
   it('a replacement member inherits the view of the photo it replaced', () => {
     compare.enter('compare', ['a', 'b']);
-    compare.applyView('a', { zoomed: true, cx: 0.1, cy: 0.9 });
+    compare.applyView('a', { zoom: 200, cx: 0.1, cy: 0.9 });
     compare.setMember(0, 'c');
     expect(compare.members).toEqual(['c', 'b']);
-    expect(compare.viewOf('c')).toEqual({ zoomed: true, cx: 0.1, cy: 0.9 });
+    expect(compare.viewOf('c')).toEqual({ zoom: 200, cx: 0.1, cy: 0.9 });
     expect(compare.viewOf('a')).toEqual(CENTERED);
   });
 
   it.each([
-    [true, { zoomed: true, cx: 0.25, cy: 0.75 }],
+    [true, { zoom: 200, cx: 0.25, cy: 0.75 }],
     [false, CENTERED]
   ])('sync %s fans the view out to every pane', (sync, expected) => {
     compare.enter('compare', ['a', 'b']);
     compare.syncView = sync;
-    compare.applyView('a', { zoomed: true, cx: 0.25, cy: 0.75 });
+    compare.applyView('a', { zoom: 200, cx: 0.25, cy: 0.75 });
     expect(compare.viewOf('b')).toEqual(expected);
     compare.syncView = true;
   });

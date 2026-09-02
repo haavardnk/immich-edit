@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Page } from '@playwright/test';
 
-import { ASSET_SUMMARY, installMocks, makePng } from './helpers';
+import { ASSET_ID, ASSET_SUMMARY, installMocks, makePng } from './helpers';
 
 async function sidewaysScrollers(page: Page): Promise<string[]> {
   return page.evaluate(() => {
@@ -90,6 +90,66 @@ test('the photo grid preserves mixed source orientations', async ({ page }) => {
   expect(await sidewaysScrollers(page)).toEqual([]);
 });
 
+test('the editor filmstrip preserves mixed source orientations', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const fixtures = [
+    { id: ASSET_ID, name: 'LANDSCAPE.ARW', width: 600, height: 400 },
+    { id: '00000000-0000-0000-0000-000000000012', name: 'PORTRAIT.ARW', width: 400, height: 600 },
+    {
+      id: '00000000-0000-0000-0000-000000000013',
+      name: 'ROTATED.ARW',
+      width: 600,
+      height: 400,
+      orientation: '6'
+    }
+  ];
+  const assets = fixtures.map((fixture) => ({
+    ...ASSET_SUMMARY,
+    id: fixture.id,
+    originalFileName: fixture.name,
+    exifInfo: {
+      exifImageWidth: fixture.width,
+      exifImageHeight: fixture.height,
+      orientation: fixture.orientation ?? null
+    }
+  }));
+  const thumbnails = new Map(
+    fixtures.map((fixture) => [
+      fixture.id,
+      makePng(
+        fixture.orientation ? fixture.height : fixture.width,
+        fixture.orientation ? fixture.width : fixture.height
+      )
+    ])
+  );
+  await installMocks(page, {
+    assets,
+    thumbnailRender: (id) => thumbnails.get(id) ?? makePng(1, 1)
+  });
+
+  await page.goto('/photos');
+  await page.getByRole('link', { name: 'LANDSCAPE.ARW' }).evaluate((element) => element.click());
+
+  for (const fixture of fixtures) {
+    const thumbnail = page.getByRole('link', { name: fixture.name });
+    const image = thumbnail.locator('img');
+    await expect(thumbnail).toBeVisible();
+    await expect(image).toHaveJSProperty('complete', true);
+    await expect
+      .poll(() =>
+        image.evaluate((element) => element.naturalWidth > 0 && element.naturalHeight > 0)
+      )
+      .toBe(true);
+    const rendered = await thumbnail.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.width / bounds.height;
+    });
+    const source = await image.evaluate((element) => element.naturalWidth / element.naturalHeight);
+    const ratios = { rendered, source };
+    expect(ratios.rendered).toBeCloseTo(ratios.source, 2);
+  }
+});
+
 test('the mobile browse shell uses a toggleable 256px sidebar', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installMocks(page);
@@ -160,3 +220,29 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
   await expect(clearSelection).toBeInViewport();
   await expect.poll(bulkSurfaceFits).toBe(true);
 });
+
+for (const size of [
+  { width: 390, height: 844 },
+  { width: 1024, height: 768 }
+]) {
+  test(`the loupe chrome fits ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await installMocks(page);
+    await page.goto('/photos');
+
+    await page.getByLabel('Quick review').click();
+    await expect(page.getByRole('button', { name: /^Back/ })).toBeInViewport();
+    await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toBeInViewport();
+
+    if (size.width === 390) {
+      await page.getByRole('button', { name: 'More loupe actions' }).click();
+      const clipping = page.getByRole('button', { name: 'Clipping overlay', exact: true });
+      await expect(clipping).toBeInViewport();
+      await clipping.click();
+      await expect(page.getByRole('button', { name: 'More loupe actions' })).toBeFocused();
+    }
+
+    expect(await sidewaysScrollers(page)).toEqual([]);
+  });
+}
