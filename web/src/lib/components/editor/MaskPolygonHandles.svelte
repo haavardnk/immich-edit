@@ -81,7 +81,7 @@
       cx={mid.x}
       cy={mid.y}
       r="5"
-      fill="white"
+      fill="var(--color-image-light)"
       fill-opacity="0.6"
       stroke={color}
       stroke-width="1.5"
@@ -98,7 +98,7 @@
       cy={p.y}
       r="7"
       fill={color}
-      stroke="white"
+      stroke="var(--color-image-light)"
       stroke-width="2"
       style="cursor: move;"
       role="button"

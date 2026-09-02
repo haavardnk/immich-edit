@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import type { MaskComponent } from '$lib/types/edits';
+  import { Button, Icon } from '@immich/ui';
   import { mdiEyedropperVariant } from '@mdi/js';
 
   let { layerId, component }: { layerId: string; component: MaskComponent } = $props();
@@ -35,7 +35,7 @@
 </script>
 
 {#if luma}
-  <div class="mt-2 flex flex-col gap-2.5">
+  <div class="mt-1 flex flex-col gap-1">
     <SliderRow
       label="Min"
       value={luma.min}
@@ -73,28 +73,30 @@
 {/if}
 
 {#if color}
-  <div class="mt-2 flex flex-col gap-2.5">
-    <div class="flex items-center justify-between px-1">
-      <span class="text-[11px] text-immich-dark-fg/70">Sample</span>
-      <div class="flex items-center gap-2">
+  <div class="mt-1 flex flex-col gap-1">
+    <div class="flex h-7 items-center justify-between">
+      <span class="text-[11px] text-dark/65">Sample</span>
+      <div class="flex items-center gap-1">
         <span
-          class="w-5 h-5 rounded-sm ring-1 ring-white/20"
+          class="h-4 w-4 rounded-sm ring-1 ring-white/10"
           style="background-color: {colorCss(color.sample_rgb)}"
         ></span>
-        <button
+        <Button
           type="button"
-          class="inline-flex items-center justify-center w-6 h-6 rounded text-immich-dark-fg/60 hover:bg-white/10 hover:text-immich-dark-fg transition-colors {editor.colorPicker
-            ? 'bg-white/10 text-immich-dark-primary'
-            : ''}"
+          size="tiny"
+          variant="ghost"
+          color={editor.colorPicker ? 'primary' : 'secondary'}
+          class="size-6 p-0 {editor.colorPicker ? 'bg-white/10' : ''}"
           title={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
+          aria-pressed={editor.colorPicker !== null}
           aria-label={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
           onclick={() => {
             if (editor.colorPicker) editor.cancelColorPicker();
             else editor.beginColorPicker(layerId, component.id);
           }}
         >
-          <Icon path={mdiEyedropperVariant} size={14} />
-        </button>
+          <Icon icon={mdiEyedropperVariant} size="14px" aria-hidden="true" />
+        </Button>
       </div>
     </div>
     <SliderRow

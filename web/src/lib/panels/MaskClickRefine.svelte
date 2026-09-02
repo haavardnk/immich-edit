@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
   import { editor } from '$lib/stores/editor.svelte';
+  import { Button } from '@immich/ui';
   import { refineWith, stopClickTool } from './maskTools';
 
   let { layerId }: { layerId: string } = $props();
@@ -7,36 +9,38 @@
   const active = $derived(editor.clickTool.active && editor.clickTool.layerId === layerId);
 </script>
 
-<div class="mt-1 flex items-center justify-between gap-2 px-1">
-  <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Click to refine</div>
-  <div class="flex items-center gap-2">
-    <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-      <button
+<div class="mt-1 flex h-7 items-center justify-between gap-1.5">
+  <div class="text-[10px] font-medium text-dark/65">Click refine</div>
+  <div class="flex items-center gap-1">
+    <div class="{compactSegmentedControlClass} flex text-[10px]">
+      <Button
         type="button"
-        class="px-2 leading-5 transition-colors {active && !editor.clickTool.negative
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={active && !editor.clickTool.negative ? 'filled' : 'ghost'}
+        color={active && !editor.clickTool.negative ? 'primary' : 'secondary'}
         title="Click the photo to add that area to this shape"
-        onclick={() => refineWith(layerId, false)}>Add</button
+        onclick={() => refineWith(layerId, false)}
       >
-      <button
+        Add
+      </Button>
+      <Button
         type="button"
-        class="px-2 leading-5 transition-colors {active && editor.clickTool.negative
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={active && editor.clickTool.negative ? 'filled' : 'ghost'}
+        color={active && editor.clickTool.negative ? 'primary' : 'secondary'}
         title="Click the photo to cut that area out of this shape"
-        onclick={() => refineWith(layerId, true)}>Remove</button
+        onclick={() => refineWith(layerId, true)}
       >
+        Remove
+      </Button>
     </div>
     {#if active}
-      <button
-        type="button"
-        class="text-[10px] text-immich-dark-fg/50 hover:text-immich-dark-fg"
-        onclick={stopClickTool}>Done</button
-      >
+      <Button type="button" size="tiny" variant="ghost" color="secondary" onclick={stopClickTool}>
+        Done
+      </Button>
     {/if}
   </div>
 </div>
 {#if editor.maskGenerating}
-  <div class="px-1 text-[10px] text-immich-dark-fg/40">Working…</div>
+  <div class="text-[10px] text-dark/65">Working…</div>
 {/if}

@@ -29,7 +29,7 @@ test('painting a retouch stroke saves it and lists it in the panel', async ({ pa
   await installMocks(page, { previewBody: PNG_64, onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Retouch' }).click();
+  await page.getByRole('tab', { name: 'Retouch' }).click();
   const canvas = page.getByLabel('retouch canvas');
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
@@ -53,14 +53,14 @@ test('painting a retouch stroke saves it and lists it in the panel', async ({ pa
       return ops?.ops?.retouch?.strokes?.length ?? 0;
     })
     .toBeGreaterThan(0);
-  await expect(page.getByText(/^Heal 1$/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
 });
 
 test('painting without a sampled source does nothing', async ({ page }) => {
   await installMocks(page, { previewBody: PNG_64 });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Retouch' }).click();
+  await page.getByRole('tab', { name: 'Retouch' }).click();
   const canvas = page.getByLabel('retouch canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('retouch canvas has no bounding box');
@@ -70,14 +70,14 @@ test('painting without a sampled source does nothing', async ({ page }) => {
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
   await page.mouse.up();
 
-  await expect(page.getByText(/^Heal 1$/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toHaveCount(0);
 });
 
 test('painting while zoomed in paints instead of panning', async ({ page }) => {
   await installMocks(page, { previewBody: PNG_64 });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Retouch' }).click();
+  await page.getByRole('tab', { name: 'Retouch' }).click();
   const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
   await zoom.click();
   await page.getByRole('button', { name: 'Zoom In', exact: true }).click();
@@ -101,7 +101,7 @@ test('painting while zoomed in paints instead of panning', async ({ page }) => {
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
   await page.mouse.up();
 
-  await expect(page.getByText(/^Heal 1$/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
   const after = await image.boundingBox();
   if (!after) throw new Error('preview image has no bounding box');
   expect(Math.abs(after.x - before.x)).toBeLessThan(1);
@@ -112,9 +112,9 @@ test('saved retouch strokes reappear after a reload', async ({ page }) => {
   await installMocks(page, { previewBody: PNG_64, editRecord: RETOUCH_RECORD });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Retouch' }).click();
-  await expect(page.getByText(/^Clone 1$/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete retouch stroke', exact: true }).click();
-  await expect(page.getByText(/^Clone 1$/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toHaveCount(0);
 });

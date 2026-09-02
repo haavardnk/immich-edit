@@ -83,7 +83,7 @@
     {ry}
     transform={`rotate(${tilt} ${c.x} ${c.y})`}
     fill="none"
-    stroke="black"
+    stroke="var(--color-image-dark)"
     stroke-width="0.5"
     opacity="0.5"
   />
@@ -91,7 +91,7 @@
     cx={c.x}
     cy={c.y}
     r="6"
-    fill="white"
+    fill="var(--color-image-light)"
     stroke={color}
     stroke-width="2"
     style="cursor: move;"
@@ -105,7 +105,7 @@
     cy={c.y + rxDy}
     r="6"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ew-resize;"
     role="button"
@@ -118,7 +118,7 @@
     cy={c.y - rxDy}
     r="6"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ew-resize;"
     role="button"
@@ -131,7 +131,7 @@
     cy={c.y + ryDy}
     r="6"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ns-resize;"
     role="button"
@@ -144,7 +144,7 @@
     cy={c.y - ryDy}
     r="6"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ns-resize;"
     role="button"

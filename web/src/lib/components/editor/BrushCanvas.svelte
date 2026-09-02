@@ -179,16 +179,10 @@
       Math.max(inner + 0.5, rPx)
     );
     const clears = erase !== (activeComp?.invert === true);
-    if (clears) {
-      ctx.globalCompositeOperation = 'destination-out';
-      grad.addColorStop(0, `rgba(0,0,0,${editor.brushTool.flow * 0.6})`);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      const [r, g, b] = parseHexColor(active.color);
-      grad.addColorStop(0, `rgba(${r},${g},${b},${editor.brushTool.flow * 0.6})`);
-      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-    }
+    ctx.globalCompositeOperation = clears ? 'destination-out' : 'source-over';
+    const [r, g, b] = parseHexColor(active.color);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${editor.brushTool.flow * 0.6})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(cxPx, cyPx, Math.max(0.5, rPx), 0, Math.PI * 2);
