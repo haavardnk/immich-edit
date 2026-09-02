@@ -16,7 +16,7 @@ const PANES = ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW'];
 async function openGrid(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 }
 
 async function selectTile(page: Page, name: string): Promise<void> {
@@ -26,7 +26,7 @@ async function selectTile(page: Page, name: string): Promise<void> {
 async function openSurvey(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await page.keyboard.press('n');
   for (const name of PANES) {

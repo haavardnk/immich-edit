@@ -1,12 +1,12 @@
 export type CompareMode = 'single' | 'compare' | 'survey';
 
 export interface PaneView {
-  zoomed: boolean;
+  zoom: number;
   cx: number;
   cy: number;
 }
 
-export const CENTERED: PaneView = { zoomed: false, cx: 0.5, cy: 0.5 };
+export const CENTERED: PaneView = { zoom: 100, cx: 0.5, cy: 0.5 };
 
 export const MAX_PANES = 9;
 

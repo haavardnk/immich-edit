@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
-  import { compare, CENTERED } from '$lib/stores/compare.svelte';
+  import { compare, CENTERED, type CompareMode } from '$lib/stores/compare.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { MAX_ZOOM, ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { getAsset } from '$lib/api/assets';
@@ -15,30 +16,16 @@
   import { copyIndex, isCopy } from '$lib/assetKey';
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { putBounded } from '$lib/utils/boundedRecord';
+  import { editorHref } from '$lib/editorNavigation';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
+  import LoupeActionRail from '$lib/components/browse/LoupeActionRail.svelte';
   import LoupePane from '$lib/components/browse/LoupePane.svelte';
-  import TagPicker from '$lib/components/TagPicker.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
-  import StarRating from '$lib/components/StarRating.svelte';
-  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
-  import RejectButton from '$lib/components/RejectButton.svelte';
+  import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
-  import { matchKeybind, hint, type KeybindContext } from '$lib/keybinds';
-  import {
-    mdiClose,
-    mdiCompare,
-    mdiContentDuplicate,
-    mdiTriangleOutline,
-    mdiInformationOutline,
-    mdiSkipNextOutline,
-    mdiKeyboardOutline,
-    mdiPencilOutline,
-    mdiChevronLeft,
-    mdiChevronRight,
-    mdiViewGridOutline
-  } from '@mdi/js';
+  import { matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
+  import { IconButton } from '@immich/ui';
+  import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -60,15 +47,18 @@
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
   const exif = $derived(asset?.exifInfo ?? null);
-  const zoomed = $derived(focusedId ? compare.viewOf(focusedId).zoomed : false);
+  const zoom = $derived(focusedId ? compare.viewOf(focusedId).zoom : 100);
   const cols = $derived(panes.length <= 4 ? 2 : 3);
   const gridStyle = $derived(
     multi ? `grid-template-columns: repeat(${Math.min(cols, panes.length)}, minmax(0, 1fr));` : ''
   );
+  const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
 
   let tagCache = $state<Record<string, TagRef[]>>({});
   let tagOrder = $state<string[]>([]);
+  let nativeZooms = $state<Record<string, number | null>>({});
   const currentTags = $derived(focusedId ? (tagCache[focusedId] ?? []) : []);
+  const focusedNativeZoom = $derived(focusedId ? (nativeZooms[focusedId] ?? null) : null);
 
   $effect(() => {
     const id = focusedId;
@@ -198,6 +188,28 @@
     compare.enter(mode, members);
   }
 
+  function selectViewMode(mode: CompareMode): void {
+    if (mode === compare.mode) return;
+    if (mode === 'single') {
+      leaveMulti();
+      return;
+    }
+    if (!multi) {
+      enterMulti(mode);
+      return;
+    }
+    const focusedId = compare.focusedId;
+    const orderedIds = browsing.assets.map((asset) => asset.id);
+    const members =
+      mode === 'survey'
+        ? multiMembers(mode, orderedIds, selection.selected, focusedId)
+        : [focusedId, ...compare.members.filter((id) => id !== focusedId)].filter(
+            (id): id is string => id !== null
+          );
+    if (members.length < 2) return;
+    compare.enter(mode, members.slice(0, mode === 'compare' ? 2 : undefined));
+  }
+
   function leaveMulti(): void {
     const id = compare.focusedId;
     const survivors = compare.mode === 'survey' && compare.pruned ? [...compare.members] : [];
@@ -229,10 +241,23 @@
   }
 
   function toggleZoom(): void {
+    setZoom(zoom > 100 ? 100 : 250);
+  }
+
+  function setZoom(value: number): void {
     const id = focusedId;
     if (!id) return;
-    if (zoomed) compare.applyView(id, CENTERED);
-    else compare.applyView(id, { zoomed: true, cx: 0.5, cy: 0.5 });
+    const nextZoom = Math.round(Math.min(MAX_ZOOM, Math.max(25, value)));
+    const view = compare.viewOf(id);
+    compare.applyView(
+      id,
+      nextZoom <= 100 ? { ...CENTERED, zoom: nextZoom } : { ...view, zoom: nextZoom }
+    );
+  }
+
+  function setNativeZoom(id: string, value: number | null): void {
+    if (nativeZooms[id] === value) return;
+    nativeZooms = { ...nativeZooms, [id]: value };
   }
 
   function autoAdvance(id: string): void {
@@ -274,8 +299,8 @@
   function openEditor(): void {
     const id = focusedId;
     if (!id) return;
-    browseView.closeLoupe();
-    void goto(`/assets/${id}`);
+    browseView.leaveLoupeForEditor(id);
+    void goto(editorHref(id, `${page.url.pathname}${page.url.search}`));
   }
 
   function unflag(): void {
@@ -294,6 +319,7 @@
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
       return;
     }
+    if (isRadioGroupTarget(e)) return;
 
     const bind = matchKeybind(e, contexts);
     if (!bind) return;
@@ -393,103 +419,25 @@
 <svelte:window onkeydown={onKeydown} />
 
 {#if asset}
-  <div class="fixed inset-0 z-40 flex flex-col bg-black/95">
-    <div class="flex items-center gap-2 px-4 h-11 flex-none text-immich-dark-fg">
-      <span class="text-sm font-medium truncate">{asset.originalFileName}</span>
-      {#if copyBadge}
-        <span
-          title="Virtual copy"
-          class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 text-[11px] text-immich-dark-fg/70 truncate max-w-40"
-        >
-          <Icon path={mdiContentDuplicate} size={12} />
-          {copyBadge}
-        </span>
-      {/if}
-      <div class="ml-1">
-        <StarRating {rating} size={16} onchange={rate} />
-      </div>
-      <FavoriteButton isFavorite={asset.isFavorite} size={16} ontoggle={() => favorite()} />
-      <RejectButton isRejected={rejected} size={16} ontoggle={() => reject()} />
+  <div class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
+    <LoupeToolbar
+      filename={asset.originalFileName}
+      {copyBadge}
+      {multi}
+      {moreActive}
+      onSelectViewMode={selectViewMode}
+      onOpenEditor={openEditor}
+    />
 
-      <div class="ml-2 min-w-0 max-w-[45%]">
-        <TagPicker
-          tags={currentTags}
-          open={browseView.loupeTagsOpen}
-          onToggle={() => (browseView.loupeTagsOpen = !browseView.loupeTagsOpen)}
-          onClose={() => (browseView.loupeTagsOpen = false)}
-          onAdd={addTag}
-          onRemove={removeTag}
-          onCreate={createAndAddTag}
-          anchor="bottom"
-        />
-      </div>
-
-      <div class="flex-1"></div>
-
-      <ToolbarButton
-        path={mdiInformationOutline}
-        size={18}
-        title={hint('Info', 'toggleInfo')}
-        active={browseView.loupeInfoOpen}
-        onclick={() => (browseView.loupeInfoOpen = !browseView.loupeInfoOpen)}
-      />
-      <ToolbarButton
-        path={mdiSkipNextOutline}
-        size={18}
-        title="Auto-advance after rating"
-        active={browseView.loupeAutoAdvance}
-        pressed={browseView.loupeAutoAdvance}
-        onclick={() => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)}
-      />
-      <ToolbarButton
-        path={mdiCompare}
-        size={18}
-        title={hint('Compare', 'enterCompare')}
-        active={compare.mode === 'compare'}
-        pressed={compare.mode === 'compare'}
-        onclick={() => enterMulti('compare')}
-      />
-      <ToolbarButton
-        path={mdiViewGridOutline}
-        size={18}
-        title={hint('Survey', 'enterSurvey')}
-        active={compare.mode === 'survey'}
-        pressed={compare.mode === 'survey'}
-        onclick={() => enterMulti('survey')}
-      />
-      <ToolbarButton
-        path={mdiTriangleOutline}
-        size={18}
-        title={hint('Clipping overlay', 'clipWarn')}
-        active={ui.clipWarn}
-        pressed={ui.clipWarn}
-        onclick={() => ui.toggleClipWarn()}
-      />
-      <ToolbarButton
-        path={mdiKeyboardOutline}
-        size={18}
-        title={hint('Keyboard shortcuts', 'help')}
-        onclick={() => ui.toggleKeybindsHelp()}
-      />
-      <ToolbarButton
-        path={mdiPencilOutline}
-        size={18}
-        title={hint('Edit', 'openEditor')}
-        onclick={openEditor}
-      />
-      <ToolbarButton
-        path={mdiClose}
-        size={18}
-        title={hint('Close', 'loupeClose')}
-        onclick={() => browseView.closeLoupe()}
-      />
-    </div>
-
-    <div class="flex-1 min-h-0 relative {multi ? 'grid gap-1 p-1' : 'flex'}" style={gridStyle}>
+    <div
+      class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
+      style={gridStyle}
+    >
       {#each panes as id, index (id)}
+        {@const paneAsset = browsing.assets.find((item) => item.id === id)}
         <LoupePane
           assetId={id}
-          alt={browsing.assets.find((a) => a.id === id)?.originalFileName ?? ''}
+          alt={paneAsset?.originalFileName ?? ''}
           view={compare.viewOf(id)}
           focused={id === focusedId}
           showFocus={multi}
@@ -497,62 +445,93 @@
           onFocus={() => (compare.focusIndex = index)}
           onView={(next, solo) => compare.applyView(id, next, solo)}
           onSize={(size) => (paneMaxEdge = size)}
+          sourceLong={Math.max(
+            paneAsset?.exifInfo?.exifImageWidth ?? 0,
+            paneAsset?.exifInfo?.exifImageHeight ?? 0
+          )}
+          onNativeZoom={(value) => setNativeZoom(id, value)}
         />
       {/each}
 
       {#if hasPrev}
-        <button
+        <IconButton
           type="button"
-          class="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white"
+          size="medium"
+          variant="ghost"
+          color="secondary"
+          shape="round"
+          class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
+          icon={mdiChevronLeft}
           title="Previous"
+          aria-label="Previous"
           onclick={() => go(-1)}
-        >
-          <Icon path={mdiChevronLeft} size={24} />
-        </button>
+        />
       {/if}
       {#if hasNext}
-        <button
+        <IconButton
           type="button"
-          class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white"
+          size="medium"
+          variant="ghost"
+          color="secondary"
+          shape="round"
+          class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
+          icon={mdiChevronRight}
           title="Next"
+          aria-label="Next"
           onclick={() => go(1)}
-        >
-          <Icon path={mdiChevronRight} size={24} />
-        </button>
+        />
       {/if}
 
       {#if browseView.loupeInfoOpen && exif}
         <div
-          class="absolute top-2 right-2 w-56 bg-immich-dark-gray/95 border border-white/10 rounded-lg p-3 text-[11px] text-immich-dark-fg/80 flex flex-col gap-1"
+          class="absolute top-2 right-2 flex w-56 flex-col gap-1 rounded-lg border border-gray-700 bg-gray-900/95 p-3 text-[11px] text-white/80 shadow-xl"
         >
           {#if exif.make || exif.model}
             <span>{[exif.make, exif.model].filter(Boolean).join(' ')}</span>
           {/if}
-          {#if exif.lensModel}<span class="text-immich-dark-fg/50">{exif.lensModel}</span>{/if}
-          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-immich-dark-fg/60">
+          {#if exif.lensModel}<span class="text-muted">{exif.lensModel}</span>{/if}
+          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-muted">
             {#if exif.fNumber}<span>ƒ/{exif.fNumber}</span>{/if}
             {#if exif.exposureTime}<span>{exif.exposureTime}s</span>{/if}
             {#if exif.iso}<span>ISO {exif.iso}</span>{/if}
             {#if exif.focalLength}<span>{exif.focalLength}mm</span>{/if}
           </div>
           {#if exif.exifImageWidth && exif.exifImageHeight}
-            <span class="text-immich-dark-fg/50"
-              >{exif.exifImageWidth} × {exif.exifImageHeight}</span
-            >
+            <span class="text-muted">{exif.exifImageWidth} × {exif.exifImageHeight}</span>
           {/if}
           {#if exif.dateTimeOriginal}
-            <span class="text-immich-dark-fg/50">{exif.dateTimeOriginal}</span>
+            <span class="text-muted">{exif.dateTimeOriginal}</span>
           {/if}
         </div>
       {/if}
     </div>
 
+    <LoupeActionRail
+      {rating}
+      isFavorite={asset.isFavorite}
+      {rejected}
+      tags={currentTags}
+      {multi}
+      paneCount={panes.length}
+      {zoom}
+      nativeZoom={focusedNativeZoom}
+      onRate={rate}
+      onFavorite={favorite}
+      onReject={reject}
+      onAddTag={addTag}
+      onRemoveTag={removeTag}
+      onCreateTag={createAndAddTag}
+      onZoom={setZoom}
+    />
+
     <Filmstrip
       currentId={focusedId}
       highlightIds={compare.members}
       onSelect={pickFromStrip}
+      resizable
       size={72}
       showBadges
+      collapsed={ui.loupeFilmstripCollapsed}
     />
   </div>
 {/if}

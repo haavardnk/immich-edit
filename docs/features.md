@@ -127,6 +127,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
+| Editor and loupe filmstrips | ✓ Yes | Each view keeps its own visible or hidden state |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
 | Waveform, RGB parade, or vectorscope | ✗ No | Histogram only |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |

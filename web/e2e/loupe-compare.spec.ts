@@ -17,7 +17,7 @@ async function openCompare(page: Page): Promise<void> {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href="/assets/${ASSET_ID}"]`)).toBeVisible();
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await page.keyboard.press('c');
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
@@ -41,7 +41,7 @@ test('escape returns to a single pane before closing', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: /^Close/ })).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
 });
 
 test('the filmstrip ring follows the focused pane', async ({ page }) => {
@@ -49,17 +49,20 @@ test('the filmstrip ring follows the focused pane', async ({ page }) => {
   const first = page.getByRole('button', { name: 'IMG_0001.ARW' });
   const second = page.getByRole('button', { name: 'IMG_0002.ARW' });
 
-  await expect(first).toHaveClass(/ring-immich-dark-primary$/);
-  await expect(second).toHaveClass(/ring-immich-dark-primary\/50/);
+  await expect(first).toHaveAttribute('aria-pressed', 'true');
+  await expect(second).toHaveAttribute('aria-pressed', 'true');
+  await expect(first).toHaveClass(/ring-primary\/60/);
+  await expect(second).toHaveClass(/ring-primary\/40/);
 
   await page.keyboard.press('ArrowRight');
-  await expect(second).toHaveClass(/ring-immich-dark-primary$/);
-  await expect(first).toHaveClass(/ring-immich-dark-primary\/50/);
+  await expect(second).toHaveClass(/ring-primary\/60/);
+  await expect(first).toHaveClass(/ring-primary\/40/);
 });
 
 test('auto-advance swaps the rated pane for the next photo', async ({ page }) => {
   await openCompare(page);
-  await page.getByTitle('Auto-advance after rating').click();
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  await page.getByRole('button', { name: 'Auto-advance', exact: true }).click();
 
   await page.keyboard.press('3');
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
@@ -102,9 +105,7 @@ test('clicking an unfocused pane selects it without zooming', async ({ page }) =
   const second = page.getByRole('img', { name: 'IMG_0002.ARW' });
 
   await second.click({ position: { x: 10, y: 10 } });
-  await expect(page.getByRole('button', { name: 'IMG_0002.ARW' })).toHaveClass(
-    /ring-immich-dark-primary$/
-  );
+  await expect(page.getByRole('button', { name: 'IMG_0002.ARW' })).toHaveClass(/ring-primary\/60/);
   await expect(second).not.toHaveAttribute('style', /scale\(2\.5\)/);
 
   await second.click({ position: { x: 10, y: 10 } });
