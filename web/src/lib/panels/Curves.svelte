@@ -1,7 +1,10 @@
 <script lang="ts">
   import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
+  import { compactSegmentedSwatchItemClass } from '$lib/components/editor/controls/segmentedControl';
   import { editor } from '$lib/stores/editor.svelte';
   import { keyLabel } from '$lib/keybinds';
+  import { Tooltip } from '@immich/ui';
+  import { RadioGroup } from 'bits-ui';
   import {
     CURVE_CHANNELS,
     identityCurve,
@@ -14,6 +17,7 @@
   let dragging: number | null = $state(null);
   let selected: number | null = $state(null);
   let pointerId: number | null = null;
+  let keyboardDirty = $state(false);
 
   const size = 232;
   const pad = 16;
@@ -30,20 +34,19 @@
   };
 
   const channelStroke: Record<CurveChannel, string> = {
-    composite: 'rgb(240,240,240)',
-    r: 'hsl(0, 70%, 65%)',
-    g: 'hsl(120, 70%, 65%)',
-    b: 'hsl(240, 70%, 65%)',
-    luma: 'rgb(240,210,90)'
+    composite: 'var(--color-image-light)',
+    r: 'var(--color-curve-red)',
+    g: 'var(--color-curve-green)',
+    b: 'var(--color-curve-blue)',
+    luma: 'var(--color-curve-luma)'
   };
 
   const channelSwatchStyle: Record<CurveChannel, string> = {
-    composite:
-      'background: linear-gradient(90deg, hsl(0,70%,65%), hsl(120,70%,65%), hsl(240,70%,65%))',
-    r: 'background: hsl(0, 70%, 65%)',
-    g: 'background: hsl(120, 70%, 65%)',
-    b: 'background: hsl(240, 70%, 65%)',
-    luma: 'background: linear-gradient(90deg, #111, #f0f0f0)'
+    composite: 'background: var(--gradient-curve-rgb)',
+    r: 'background: var(--color-curve-red)',
+    g: 'background: var(--color-curve-green)',
+    b: 'background: var(--color-curve-blue)',
+    luma: 'background: var(--gradient-curve-luma)'
   };
 
   function getCurve(ch: CurveChannel): CurvePoint[] {
@@ -158,15 +161,47 @@
 
   const histLayers = $derived.by(() => {
     if (!hist) return [] as { d: string; fill: string }[];
-    if (activeChannel === 'r') return [{ d: histAreaPath(hist.r), fill: 'hsla(0,70%,65%,0.35)' }];
-    if (activeChannel === 'g') return [{ d: histAreaPath(hist.g), fill: 'hsla(120,70%,65%,0.35)' }];
-    if (activeChannel === 'b') return [{ d: histAreaPath(hist.b), fill: 'hsla(240,70%,65%,0.35)' }];
+    if (activeChannel === 'r')
+      return [
+        {
+          d: histAreaPath(hist.r),
+          fill: 'color-mix(in srgb, var(--color-curve-red) 35%, transparent)'
+        }
+      ];
+    if (activeChannel === 'g')
+      return [
+        {
+          d: histAreaPath(hist.g),
+          fill: 'color-mix(in srgb, var(--color-curve-green) 35%, transparent)'
+        }
+      ];
+    if (activeChannel === 'b')
+      return [
+        {
+          d: histAreaPath(hist.b),
+          fill: 'color-mix(in srgb, var(--color-curve-blue) 35%, transparent)'
+        }
+      ];
     if (activeChannel === 'luma')
-      return [{ d: histAreaPath(hist.l), fill: 'rgba(229,229,229,0.18)' }];
+      return [
+        {
+          d: histAreaPath(hist.l),
+          fill: 'color-mix(in srgb, var(--color-channel-luma) 18%, transparent)'
+        }
+      ];
     return [
-      { d: histAreaPath(hist.r), fill: 'hsla(0,70%,65%,0.22)' },
-      { d: histAreaPath(hist.g), fill: 'hsla(120,70%,65%,0.22)' },
-      { d: histAreaPath(hist.b), fill: 'hsla(240,70%,65%,0.22)' }
+      {
+        d: histAreaPath(hist.r),
+        fill: 'color-mix(in srgb, var(--color-curve-red) 22%, transparent)'
+      },
+      {
+        d: histAreaPath(hist.g),
+        fill: 'color-mix(in srgb, var(--color-curve-green) 22%, transparent)'
+      },
+      {
+        d: histAreaPath(hist.b),
+        fill: 'color-mix(in srgb, var(--color-curve-blue) 22%, transparent)'
+      }
     ];
   });
 
@@ -299,22 +334,22 @@
     if (e.key === 'ArrowUp') {
       nudge(selected, step, 0);
       editor.onLive();
-      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+      keyboardDirty = true;
       e.preventDefault();
     } else if (e.key === 'ArrowDown') {
       nudge(selected, -step, 0);
       editor.onLive();
-      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+      keyboardDirty = true;
       e.preventDefault();
     } else if (e.key === 'ArrowLeft') {
       nudge(selected, 0, -step);
       editor.onLive();
-      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+      keyboardDirty = true;
       e.preventDefault();
     } else if (e.key === 'ArrowRight') {
       nudge(selected, 0, step);
       editor.onLive();
-      editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+      keyboardDirty = true;
       e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       if (selected > 0 && selected < pts.length - 1) {
@@ -349,28 +384,43 @@
     selected = null;
     editor.onCommit('Reset Curves');
   }
+
+  function commitKeyboard(): void {
+    if (!keyboardDirty) return;
+    keyboardDirty = false;
+    editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+  }
+
+  function onKeyUp(e: KeyboardEvent): void {
+    if (!e.key.startsWith('Arrow')) return;
+    commitKeyboard();
+  }
 </script>
 
-<div class="flex flex-col gap-2.5">
-  <div class="grid grid-cols-5 gap-1">
+<div class="flex flex-col gap-1">
+  <RadioGroup.Root
+    bind:value={() => activeChannel, (v) => selectChannel(v as CurveChannel)}
+    orientation="horizontal"
+    aria-label="Curve channel"
+    class="grid grid-cols-5 gap-0.5"
+  >
     {#each CURVE_CHANNELS as ch (ch)}
-      <button
-        type="button"
-        class="h-7 rounded ring-1 ring-white/10 hover:ring-white/40 transition-shadow flex items-center justify-center overflow-hidden {activeChannel ===
-        ch
-          ? 'ring-2 ring-white/80'
-          : ''}"
-        style={channelSwatchStyle[ch]}
-        title={channelLabels[ch]}
-        aria-label="Edit {channelLabels[ch]} curve"
-        aria-pressed={activeChannel === ch}
-        onclick={() => selectChannel(ch)}
-      ></button>
+      <Tooltip text={channelLabels[ch]}>
+        {#snippet child({ props })}
+          <RadioGroup.Item
+            value={ch}
+            class="{compactSegmentedSwatchItemClass} flex items-center justify-center overflow-hidden"
+            style={channelSwatchStyle[ch]}
+            aria-label="Edit {channelLabels[ch]} curve"
+            {...props}
+          />
+        {/snippet}
+      </Tooltip>
     {/each}
-  </div>
+  </RadioGroup.Root>
 
-  <div class="flex items-center justify-between px-1">
-    <div class="text-[11px] text-immich-dark-fg/70">{channelLabels[activeChannel]}</div>
+  <div class="flex h-6 items-center justify-between">
+    <div class="text-[11px] text-dark/65">{channelLabels[activeChannel]}</div>
     <ResetButton
       title="Reset {channelLabels[activeChannel]} curve  —  {keyLabel(
         'Shift'
@@ -385,18 +435,20 @@
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <svg
       viewBox="0 0 {size} {size}"
-      class="w-full aspect-square rounded-lg cursor-crosshair select-none bg-neutral-900/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      class="aspect-square w-full cursor-crosshair select-none rounded-sm bg-neutral-950 ring-1 ring-hairline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       onpointerdown={onPointerDown}
       onpointermove={onPointerMove}
       onpointerup={endDrag}
       onpointercancel={endDrag}
       ondblclick={onDblClick}
       onkeydown={onKeyDown}
+      onkeyup={onKeyUp}
+      onblur={commitKeyboard}
       tabindex="0"
       role="application"
       aria-label="Curves – {channelLabels[activeChannel]}"
     >
-      <rect x={pad} y={pad} width={inner} height={inner} fill="rgba(0,0,0,0.3)" rx="2" />
+      <rect x={pad} y={pad} width={inner} height={inner} fill="var(--color-curve-surface)" rx="2" />
 
       {#each histLayers as layer (layer.fill)}
         {#if layer.d}
@@ -410,7 +462,7 @@
           y1={l.y1}
           x2={l.x2}
           y2={l.y2}
-          stroke="rgba(255,255,255,0.06)"
+          stroke="var(--color-curve-grid)"
           stroke-width="0.5"
         />
       {/each}
@@ -420,7 +472,7 @@
         y1={pad + inner}
         x2={pad + inner}
         y2={pad}
-        stroke="rgba(255,255,255,0.15)"
+        stroke="var(--color-curve-diagonal)"
         stroke-width="1"
         stroke-dasharray="3,3"
       />
@@ -453,8 +505,8 @@
           fill={dragging === i
             ? channelStroke[activeChannel]
             : selected === i
-              ? 'rgba(255,255,255,0.9)'
-              : 'rgba(30,30,30,0.9)'}
+              ? 'color-mix(in srgb, var(--color-image-light) 90%, transparent)'
+              : 'color-mix(in srgb, var(--color-image-dark) 90%, transparent)'}
           stroke={channelStroke[activeChannel]}
           stroke-width="2"
         />

@@ -4,13 +4,6 @@
 
   const hist = $derived(editor.meta?.histogram ?? null);
   const linearHist = $derived(editor.meta?.linear_histogram ?? null);
-  const painted = $derived(
-    editor.viewNat ?? (editor.meta ? { w: editor.meta.width, h: editor.meta.height } : null)
-  );
-  const dims = $derived(painted ? `${painted.w}×${painted.h}` : '');
-  const scale = $derived(editor.viewScale);
-  const scaleLabel = $derived(scale === null || scale >= 0.995 ? '' : `${scale.toFixed(2)}×`);
-  const renderer = $derived(editor.meta?.renderer ?? '');
 
   function path(values: number[]): string {
     if (values.length === 0) return '';
@@ -36,50 +29,50 @@
 
   const shadowClip = $derived(linearHist ? clippingPct(linearHist, 0) : 0);
   const highlightClip = $derived(linearHist ? clippingPct(linearHist, 255) : 0);
-
-  function show(h: Histogram | null): boolean {
-    return h !== null;
-  }
 </script>
 
-<div class="flex flex-col gap-1">
-  <div class="bg-white/5 rounded-lg overflow-hidden relative">
-    {#if !show(hist)}
-      <div class="text-[11px] text-immich-dark-fg/30 h-16 flex items-center justify-center">
-        no data
-      </div>
-    {:else if hist}
-      <svg viewBox="0 0 256 64" class="w-full h-16 block" preserveAspectRatio="none">
-        <path d={path(hist.r)} fill="rgba(239,68,68,0.45)" />
-        <path d={path(hist.g)} fill="rgba(34,197,94,0.45)" />
-        <path d={path(hist.b)} fill="rgba(59,130,246,0.45)" />
-        <path d={path(hist.l)} fill="none" stroke="rgba(229,229,229,0.6)" stroke-width="1" />
-      </svg>
-      {#if shadowClip > 0.1}
-        <div
-          class="absolute bottom-0.5 left-1 text-[9px] font-mono text-blue-400"
-          title="Shadow clipping"
-        >
-          ▼
-        </div>
-      {/if}
-      {#if highlightClip > 0.1}
-        <div
-          class="absolute bottom-0.5 right-1 text-[9px] font-mono text-red-400"
-          title="Highlight clipping"
-        >
-          ▲
-        </div>
-      {/if}
-    {/if}
-  </div>
-  <div class="flex items-center justify-between text-[10px] text-immich-dark-fg/30 font-mono">
-    <span title="Resolution painted on screen">{dims}</span>
-    {#if scaleLabel}
-      <span class="text-amber-400/50" title="Upscaled: the source has no more detail here"
-        >{scaleLabel}</span
+<div class="relative overflow-hidden bg-neutral-950">
+  {#if editor.meta === null}
+    <div role="status" class="flex h-14 items-center justify-center text-[10px] text-dark/65">
+      Loading histogram…
+    </div>
+  {:else if hist === null}
+    <div class="flex h-14 items-center justify-center text-[10px] text-dark/65">
+      No histogram data
+    </div>
+  {:else}
+    <svg viewBox="0 0 256 64" class="block h-14 w-full" preserveAspectRatio="none">
+      <path d={path(hist.r)} fill="color-mix(in srgb, var(--color-channel-red) 45%, transparent)" />
+      <path
+        d={path(hist.g)}
+        fill="color-mix(in srgb, var(--color-channel-green) 45%, transparent)"
+      />
+      <path
+        d={path(hist.b)}
+        fill="color-mix(in srgb, var(--color-channel-blue) 45%, transparent)"
+      />
+      <path
+        d={path(hist.l)}
+        fill="none"
+        stroke="color-mix(in srgb, var(--color-channel-luma) 60%, transparent)"
+        stroke-width="1"
+      />
+    </svg>
+    {#if shadowClip > 0.1}
+      <div
+        class="absolute bottom-0.5 left-1 text-[9px] font-mono text-blue-400"
+        title="Shadow clipping"
       >
+        ▼
+      </div>
     {/if}
-    <span>{renderer}</span>
-  </div>
+    {#if highlightClip > 0.1}
+      <div
+        class="absolute bottom-0.5 right-1 text-[9px] font-mono text-red-400"
+        title="Highlight clipping"
+      >
+        ▲
+      </div>
+    {/if}
+  {/if}
 </div>

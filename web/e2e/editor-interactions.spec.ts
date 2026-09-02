@@ -86,6 +86,23 @@ test('capture sharpening toggle is disabled for non-raw assets', async ({ page }
   await expect(page.getByRole('checkbox', { name: 'Capture Sharpening' })).toBeDisabled();
 });
 
+test('histogram distinguishes loading from absent data', async ({ page }) => {
+  let releaseMeta = (): void => {};
+  const metaPending = new Promise<void>((resolve) => {
+    releaseMeta = resolve;
+  });
+  await installMocks(page);
+  await page.route('**/api/assets/*/preview/meta/*', async (route) => {
+    await metaPending;
+    await route.fallback();
+  });
+  await gotoAsset(page);
+
+  await expect(page.getByText('Loading histogram…')).toBeVisible();
+  releaseMeta();
+  await expect(page.getByText('No histogram data')).toBeVisible();
+});
+
 test('pending saves guard browser unload', async ({ page }) => {
   let releaseSave = (): void => {};
   const savePending = new Promise<void>((resolve) => {
@@ -502,13 +519,18 @@ test('lens reset clears all profile edits', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  const reset = page.getByRole('button', { name: 'Reset Lens Corrections' });
+  const resetBounds = await reset.boundingBox();
+  if (!resetBounds) throw new Error('Lens reset has no bounds');
+  expect(resetBounds.width).toBeGreaterThanOrEqual(24);
+  expect(resetBounds.height).toBeGreaterThanOrEqual(24);
   await expect(page.getByLabel('Enable Profile Corrections')).toBeChecked();
   await expect(page.getByLabel('Remove Chromatic Aberration')).toBeChecked();
 
   const deleted = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'DELETE'
   );
-  await page.getByRole('button', { name: 'Reset Lens Corrections' }).click();
+  await reset.click();
   await deleted;
 
   await expect(page.getByLabel('Enable Profile Corrections')).not.toBeChecked();

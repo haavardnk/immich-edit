@@ -2,8 +2,12 @@
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiChevronDown, mdiChevronRight } from '@mdi/js';
+  import {
+    segmentedControlClass,
+    segmentedTabItemClass
+  } from '$lib/components/editor/controls/segmentedControl';
+  import Disclosure from '$lib/components/Disclosure.svelte';
+  import { RadioGroup, Tabs } from 'bits-ui';
   import { editor } from '$lib/stores/editor.svelte';
 
   type RegionKey = 'shadows' | 'midtones' | 'highlights' | 'global';
@@ -18,6 +22,12 @@
 
   const ALL_REGIONS: RegionKey[] = ['shadows', 'midtones', 'highlights', 'global'];
 
+  const WHEELS: { key: Exclude<RegionKey, 'global'>; size: number; cell: string }[] = [
+    { key: 'midtones', size: 94, cell: 'col-span-2' },
+    { key: 'shadows', size: 78, cell: '' },
+    { key: 'highlights', size: 78, cell: '' }
+  ];
+
   let mode = $state<Mode>('three_way');
   let activeRegion = $state<RegionKey>('midtones');
   let adjustOpen = $state(false);
@@ -28,16 +38,15 @@
   });
 
   const activeRegionData = $derived(editor.edits.color.color_grade[activeRegion]);
-  const hueGradient =
-    'linear-gradient(to right, hsl(0,100%,50%), hsl(30,100%,50%), hsl(60,100%,50%), hsl(90,100%,50%), hsl(120,100%,50%), hsl(150,100%,50%), hsl(180,100%,50%), hsl(210,100%,50%), hsl(240,100%,50%), hsl(270,100%,50%), hsl(300,100%,50%), hsl(330,100%,50%), hsl(360,100%,50%))';
+  const hueGradient = 'var(--gradient-hue-linear)';
   const satGradient = $derived(
     `linear-gradient(to right, hsl(${Math.round(activeRegionData.hue)}, 0%, 50%), hsl(${Math.round(activeRegionData.hue)}, 100%, 50%))`
   );
   const lumGradient = $derived(
     `linear-gradient(to right, hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 0%), hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 50%), hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 100%))`
   );
-  const balanceGradient = 'linear-gradient(to right, #2a6cff, #555, #ffae42)';
-  const blendingGradient = 'linear-gradient(to right, #222, #888)';
+  const balanceGradient = 'var(--gradient-grading-balance)';
+  const blendingGradient = 'var(--gradient-grading-blend)';
 
   function resetRegion(key: RegionKey): void {
     const reg = editor.edits.color.color_grade[key];
@@ -60,170 +69,122 @@
   }
 </script>
 
-<div class="flex flex-col gap-2.5">
-  <div class="flex items-center justify-between px-1">
-    <div
-      class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px] uppercase tracking-wide"
-    >
-      <button
-        type="button"
-        class="px-2 py-1 transition-colors {mode === 'three_way'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
-        onclick={() => (mode = 'three_way')}
-      >
-        3-Way
-      </button>
-      <button
-        type="button"
-        class="px-2 py-1 transition-colors {mode === 'global'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
-        onclick={() => (mode = 'global')}
-      >
-        Global
-      </button>
+<div class="flex flex-col gap-1">
+  <Tabs.Root
+    bind:value={() => mode, (v) => (mode = v as Mode)}
+    class="flex flex-col gap-1"
+    activationMode="manual"
+  >
+    <div class="flex h-7 items-center justify-between">
+      <Tabs.List class={segmentedControlClass}>
+        <Tabs.Trigger value="three_way" class="{segmentedTabItemClass} px-2">3-Way</Tabs.Trigger>
+        <Tabs.Trigger value="global" class="{segmentedTabItemClass} px-2">Global</Tabs.Trigger>
+      </Tabs.List>
+      <ResetButton title="Reset all color grading" onclick={resetAllGrading} />
     </div>
-    <ResetButton title="Reset all color grading" onclick={resetAllGrading} />
-  </div>
 
-  {#if mode === 'three_way'}
-    <div class="cg-triangle">
-      <div class="cg-cell cg-cell-top">
-        <button
-          type="button"
-          class="cg-wheel-btn {activeRegion === 'midtones' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'midtones')}
-          title="Midtones"
+    <Tabs.Content value="three_way">
+      {#if mode === 'three_way'}
+        <RadioGroup.Root
+          bind:value={() => activeRegion, (v) => (activeRegion = v as RegionKey)}
+          orientation="horizontal"
+          aria-label="Colour grading region"
+          class="grid grid-cols-2 justify-items-center gap-x-2 gap-y-1"
         >
+          {#each WHEELS as wheel (wheel.key)}
+            <div class="flex flex-col items-center gap-0.5 {wheel.cell}">
+              <div
+                role="presentation"
+                class="rounded-full border p-0.5 transition-[border-color,box-shadow] duration-150 {activeRegion ===
+                wheel.key
+                  ? 'border-primary shadow-[0_0_0_1px_var(--color-primary)]'
+                  : 'border-transparent hover:border-dark/10'}"
+                onpointerdowncapture={() => (activeRegion = wheel.key)}
+              >
+                <HueWheel
+                  bind:hue={editor.edits.color.color_grade[wheel.key].hue}
+                  bind:sat={editor.edits.color.color_grade[wheel.key].sat}
+                  size={wheel.size}
+                  onLive={editor.onLive}
+                  onCommit={editor.onCommit}
+                  commitAction="{REGION_LABELS[wheel.key]} Color"
+                />
+              </div>
+              <RadioGroup.Item
+                value={wheel.key}
+                class="h-5 px-1.5 text-[10px] font-medium text-dark/65 transition-colors duration-150 hover:text-dark aria-checked:text-primary"
+              >
+                {REGION_LABELS[wheel.key]}
+              </RadioGroup.Item>
+            </div>
+          {/each}
+        </RadioGroup.Root>
+      {/if}
+    </Tabs.Content>
+    <Tabs.Content value="global">
+      {#if mode === 'global'}
+        <div class="flex flex-col items-center gap-1 py-1">
           <HueWheel
-            bind:hue={editor.edits.color.color_grade.midtones.hue}
-            bind:sat={editor.edits.color.color_grade.midtones.sat}
-            size={108}
+            bind:hue={editor.edits.color.color_grade.global.hue}
+            bind:sat={editor.edits.color.color_grade.global.sat}
+            size={130}
             onLive={editor.onLive}
             onCommit={editor.onCommit}
-            commitAction="Midtones Color"
+            commitAction="Global Color"
           />
-        </button>
-        <button
-          type="button"
-          class="cg-label cg-label-btn {activeRegion === 'midtones' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'midtones')}
-        >
-          Midtones
-        </button>
-      </div>
-      <div class="cg-cell">
-        <button
-          type="button"
-          class="cg-wheel-btn {activeRegion === 'shadows' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'shadows')}
-          title="Shadows"
-        >
-          <HueWheel
-            bind:hue={editor.edits.color.color_grade.shadows.hue}
-            bind:sat={editor.edits.color.color_grade.shadows.sat}
-            size={92}
-            onLive={editor.onLive}
-            onCommit={editor.onCommit}
-            commitAction="Shadows Color"
-          />
-        </button>
-        <button
-          type="button"
-          class="cg-label cg-label-btn {activeRegion === 'shadows' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'shadows')}
-        >
-          Shadows
-        </button>
-      </div>
-      <div class="cg-cell">
-        <button
-          type="button"
-          class="cg-wheel-btn {activeRegion === 'highlights' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'highlights')}
-          title="Highlights"
-        >
-          <HueWheel
-            bind:hue={editor.edits.color.color_grade.highlights.hue}
-            bind:sat={editor.edits.color.color_grade.highlights.sat}
-            size={92}
-            onLive={editor.onLive}
-            onCommit={editor.onCommit}
-            commitAction="Highlights Color"
-          />
-        </button>
-        <button
-          type="button"
-          class="cg-label cg-label-btn {activeRegion === 'highlights' ? 'is-active' : ''}"
-          onclick={() => (activeRegion = 'highlights')}
-        >
-          Highlights
-        </button>
-      </div>
-    </div>
-  {:else}
-    <div class="flex flex-col items-center gap-1.5 py-2">
-      <HueWheel
-        bind:hue={editor.edits.color.color_grade.global.hue}
-        bind:sat={editor.edits.color.color_grade.global.sat}
-        size={160}
-        onLive={editor.onLive}
-        onCommit={editor.onCommit}
-        commitAction="Global Color"
-      />
-      <div class="cg-label">Global</div>
-    </div>
-  {/if}
+          <div class="text-[10px] font-medium text-dark/65">Global</div>
+        </div>
+      {/if}
+    </Tabs.Content>
+  </Tabs.Root>
 
-  <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2">
-    <button
-      type="button"
-      class="flex items-center gap-1 px-1 text-[10px] uppercase tracking-wide text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors"
-      onclick={() => (adjustOpen = !adjustOpen)}
+  <div class="flex flex-col gap-1 border-t border-hairline pt-1">
+    <Disclosure
+      open={adjustOpen}
+      title="Adjust — {REGION_LABELS[activeRegion]}"
+      variant="inline"
+      onOpenChange={(v) => (adjustOpen = v)}
     >
-      <Icon path={adjustOpen ? mdiChevronDown : mdiChevronRight} size={12} />
-      Adjust — {REGION_LABELS[activeRegion]}
-    </button>
-    {#if adjustOpen}
-      <div
-        class="flex items-center justify-between text-[10px] font-mono tabular-nums text-immich-dark-fg/50 px-1"
-      >
-        <span>H: {Math.round(activeRegionData.hue)}</span>
-        <span>S: {Math.round(activeRegionData.sat)}</span>
-        <ResetButton
-          title="Reset {REGION_LABELS[activeRegion]}"
-          onclick={() => resetRegion(activeRegion)}
+      <div class="flex flex-col gap-1 pt-1">
+        <div
+          class="flex items-center justify-between text-[10px] font-mono tabular-nums text-dark/65 px-1"
+        >
+          <span>H: {Math.round(activeRegionData.hue)}</span>
+          <span>S: {Math.round(activeRegionData.sat)}</span>
+          <ResetButton
+            title="Reset {REGION_LABELS[activeRegion]}"
+            onclick={() => resetRegion(activeRegion)}
+          />
+        </div>
+        <EditSlider
+          label="Hue"
+          commitAction={`${REGION_LABELS[activeRegion]} Hue`}
+          bind:value={activeRegionData.hue}
+          min={0}
+          max={360}
+          gradient={hueGradient}
+        />
+        <EditSlider
+          label="Saturation"
+          commitAction={`${REGION_LABELS[activeRegion]} Saturation`}
+          bind:value={activeRegionData.sat}
+          min={0}
+          max={100}
+          gradient={satGradient}
+        />
+        <EditSlider
+          label="Luminance"
+          commitAction={`${REGION_LABELS[activeRegion]} Luminance`}
+          bind:value={activeRegionData.lum}
+          min={-50}
+          max={50}
+          gradient={lumGradient}
         />
       </div>
-      <EditSlider
-        label="Hue"
-        commitAction={`${REGION_LABELS[activeRegion]} Hue`}
-        bind:value={activeRegionData.hue}
-        min={0}
-        max={360}
-        gradient={hueGradient}
-      />
-      <EditSlider
-        label="Saturation"
-        commitAction={`${REGION_LABELS[activeRegion]} Saturation`}
-        bind:value={activeRegionData.sat}
-        min={0}
-        max={100}
-        gradient={satGradient}
-      />
-      <EditSlider
-        label="Luminance"
-        commitAction={`${REGION_LABELS[activeRegion]} Luminance`}
-        bind:value={activeRegionData.lum}
-        min={-50}
-        max={50}
-        gradient={lumGradient}
-      />
-    {/if}
+    </Disclosure>
   </div>
 
-  <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2">
+  <div class="flex flex-col gap-1 border-t border-hairline pt-1">
     <EditSlider
       label="Balance"
       commitAction="Color Balance"
@@ -242,66 +203,3 @@
     />
   </div>
 </div>
-
-<style>
-  .cg-triangle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      'top top'
-      'sh hi';
-    column-gap: 12px;
-    row-gap: 8px;
-    justify-items: center;
-    padding: 4px 0;
-  }
-  .cg-cell {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-  .cg-cell-top {
-    grid-area: top;
-  }
-  .cg-wheel-btn {
-    padding: 3px;
-    border-radius: 9999px;
-    background: transparent;
-    border: 1px solid transparent;
-    transition:
-      border-color 0.15s,
-      box-shadow 0.15s;
-    cursor: pointer;
-  }
-  .cg-wheel-btn:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-  .cg-wheel-btn.is-active {
-    border-color: rgba(255, 255, 255, 0.55);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
-  }
-  .cg-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  .cg-label-btn {
-    background: transparent;
-    border: 0;
-    padding: 2px 6px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition:
-      color 0.15s,
-      background-color 0.15s;
-  }
-  .cg-label-btn:hover {
-    color: rgba(255, 255, 255, 0.85);
-  }
-  .cg-label-btn.is-active {
-    color: rgba(255, 255, 255, 0.95);
-    background-color: rgba(255, 255, 255, 0.08);
-  }
-</style>

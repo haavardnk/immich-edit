@@ -1,8 +1,10 @@
 <script lang="ts">
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_DETAIL, neutralSharpenAmount } from '$lib/types/edits';
+  import { Tooltip } from '@immich/ui';
 
   const isRaw = $derived(editor.meta?.is_raw ?? false);
   const defaultSharpen = $derived(neutralSharpenAmount(isRaw));
@@ -10,14 +12,22 @@
   const sharpenInactive = $derived(sharpenAmount === 0);
   const lumaNrInactive = $derived(editor.edits.detail.luma_nr_amount === 0);
   const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
+  const sharpenModified = $derived(
+    editor.edits.detail.capture_sharpen !== NEUTRAL_DETAIL.capture_sharpen ||
+      editor.edits.detail.sharpen_amount !== NEUTRAL_DETAIL.sharpen_amount ||
+      editor.edits.detail.sharpen_radius !== NEUTRAL_DETAIL.sharpen_radius ||
+      editor.edits.detail.sharpen_detail !== NEUTRAL_DETAIL.sharpen_detail ||
+      editor.edits.detail.sharpen_masking !== NEUTRAL_DETAIL.sharpen_masking
+  );
+  const nrModified = $derived(!lumaNrInactive || !colorNrInactive);
 
   function setSharpenAmount(v: number): void {
     editor.edits.detail.sharpen_amount = v === defaultSharpen ? null : v;
     editor.onLive();
   }
 
-  function onToggleCaptureSharpen(e: Event): void {
-    editor.edits.detail.capture_sharpen = (e.currentTarget as HTMLInputElement).checked;
+  function onToggleCaptureSharpen(checked: boolean): void {
+    editor.edits.detail.capture_sharpen = checked;
     editor.onCommit('Capture Sharpening');
   }
 
@@ -41,26 +51,24 @@
   }
 </script>
 
-<div class="flex flex-col divide-y divide-white/5">
-  <div class="flex flex-col gap-2.5 pb-3">
-    <SectionHeader title="Sharpening" onReset={resetSharpen} />
-    <label
-      class="flex items-center gap-2 text-[11px] text-immich-dark-fg/80"
-      class:cursor-pointer={isRaw}
-      class:opacity-40={!isRaw}
-      title={isRaw
+<div class="flex flex-col divide-y divide-dark/10">
+  <div class="flex flex-col gap-1 pb-1.5">
+    <SectionHeader title="Sharpening" modified={sharpenModified} onReset={resetSharpen} />
+    <Tooltip
+      text={isRaw
         ? 'Compensates for sensor and anti-aliasing filter blur'
         : 'Only available for raw files'}
     >
-      <input
-        type="checkbox"
-        class="checkbox checkbox-xs checkbox-primary"
-        checked={editor.edits.detail.capture_sharpen}
-        disabled={!isRaw}
-        onchange={onToggleCaptureSharpen}
-      />
-      Capture Sharpening
-    </label>
+      {#snippet child({ props })}
+        <CheckboxRow
+          label="Capture Sharpening"
+          checked={editor.edits.detail.capture_sharpen}
+          disabled={!isRaw}
+          onChange={onToggleCaptureSharpen}
+          {...props}
+        />
+      {/snippet}
+    </Tooltip>
     <EditSlider
       label="Amount"
       commitAction="Sharpen Amount"
@@ -102,8 +110,8 @@
       previewMode="sharpen_mask"
     />
   </div>
-  <div class="flex flex-col gap-2.5 py-3">
-    <SectionHeader title="Noise Reduction" onReset={resetNr} />
+  <div class="flex flex-col gap-1 py-1.5">
+    <SectionHeader title="Noise Reduction" modified={nrModified} onReset={resetNr} />
     <EditSlider
       label="Luminance"
       commitAction="Luminance NR"
@@ -129,7 +137,7 @@
       disabled={lumaNrInactive}
     />
   </div>
-  <div class="flex flex-col gap-2.5 pt-3">
+  <div class="flex flex-col gap-1 pt-1.5">
     <EditSlider
       label="Color"
       commitAction="Color NR"

@@ -129,6 +129,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
 | Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads |
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
+| Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
 | Waveform, RGB parade, or vectorscope | ✗ No | Histogram only |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |
