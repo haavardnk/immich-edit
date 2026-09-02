@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { observeSize } from '$lib/actions/observeSize';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rotatedBbox, aspectRatioFor, degToRad } from '$lib/utils/geom';
@@ -14,20 +15,12 @@
   let containerW = $state(0);
   let containerH = $state(0);
 
-  $effect(() => {
+  function measure(): void {
     if (!container) return;
-    const el = container;
-    const ro = new ResizeObserver(() => {
-      const rect = el.getBoundingClientRect();
-      containerW = rect.width;
-      containerH = rect.height;
-    });
-    ro.observe(el);
-    const rect = el.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     containerW = rect.width;
     containerH = rect.height;
-    return () => ro.disconnect();
-  });
+  }
 
   const sess = $derived(editor.geometrySession);
   const swapped = $derived(sess ? sess.draftRotate === 90 || sess.draftRotate === 270 : false);
@@ -199,7 +192,11 @@
   }
 </script>
 
-<div bind:this={container} class="absolute inset-0 flex items-center justify-center select-none">
+<div
+  bind:this={container}
+  use:observeSize={measure}
+  class="absolute inset-0 flex items-center justify-center select-none"
+>
   {#if sess && sess.pinnedReady && sess.pinnedUrl}
     <div class="relative" style="width: {bboxW}px; height: {bboxH}px;">
       <img
@@ -223,7 +220,7 @@
           {((cropPx.x + cropPx.w) / bboxW) * 100}% {((cropPx.y + cropPx.h) / bboxH) * 100}%,
           {((cropPx.x + cropPx.w) / bboxW) * 100}% {(cropPx.y / bboxH) * 100}%,
           {(cropPx.x / bboxW) * 100}% {(cropPx.y / bboxH) * 100}%
-        ); background: rgba(0,0,0,0.55);"
+        ); background: var(--color-crop-shade);"
       ></div>
 
       <div
@@ -279,14 +276,14 @@
           <polygon
             points={quadPoints}
             fill="none"
-            stroke="rgb(var(--immich-dark-primary))"
+            stroke="var(--color-primary)"
             stroke-width="1"
             stroke-dasharray="4 3"
           />
         </svg>
         {#each cornerHandles as c, i (i)}
           <button
-            class="absolute rounded-full bg-immich-dark-primary border border-black/60 cursor-grab active:cursor-grabbing"
+            class="absolute cursor-grab rounded-full border border-black/60 bg-primary active:cursor-grabbing"
             style="width: 14px; height: 14px; left: {c.x - 7}px; top: {c.y - 7}px;"
             onpointerdown={(e) => startCornerDrag(e, i)}
             onpointermove={onCornerMove}

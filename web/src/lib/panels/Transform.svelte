@@ -3,12 +3,16 @@
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import Icon from '$lib/components/Icon.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { type AspectLock } from '$lib/types/edits';
-  import { neutralPerspective, type PerspectiveEdits } from '$lib/utils/perspective';
+  import {
+    neutralPerspective,
+    perspectiveIsIdentity,
+    type PerspectiveEdits
+  } from '$lib/utils/perspective';
+  import { Button, Field, IconButton, Select } from '@immich/ui';
   import {
     mdiRotateLeft,
     mdiRotateRight,
@@ -63,10 +67,15 @@
     }
     return a.kind;
   }
-  function onAspectChange(e: Event): void {
+
+  const aspectSelectOptions = aspectOptions.map((o) => ({
+    value: aspectKey(o.value),
+    label: o.label
+  }));
+
+  function onAspectChange(key: string): void {
     const sess = editor.geometrySession;
     if (!sess) return;
-    const key = (e.currentTarget as HTMLSelectElement).value;
     const opt = aspectOptions.find((o) => aspectKey(o.value) === key);
     if (!opt) return;
     if (opt.value.kind === 'ratio') {
@@ -88,6 +97,16 @@
   const orientationAvailable = $derived(
     editor.geometrySession?.draftAspect.kind === 'ratio' &&
       editor.geometrySession.draftAspect.num !== editor.geometrySession.draftAspect.den
+  );
+  const cropModified = $derived(
+    !!editor.geometrySession &&
+      (editor.geometrySession.userEditedCrop ||
+        editor.geometrySession.draftAspect.kind !== 'original')
+  );
+  const transformModified = $derived(
+    !!editor.geometrySession &&
+      (Math.abs(editor.geometrySession.draftAngle) > 1e-4 ||
+        !perspectiveIsIdentity(editor.geometrySession.draftPerspective))
   );
 
   function toggleOrientation(): void {
@@ -121,53 +140,53 @@
   function noCommit(): void {}
 </script>
 
-<div class="flex flex-col divide-y divide-white/5">
+<div class="flex flex-col divide-y divide-dark/10">
   {#if editor.geometrySession}
-    <div class="flex flex-col gap-2.5 pb-3">
-      <SectionHeader title="Crop" onReset={resetCrop} />
-      <div class="flex gap-1.5 items-center">
-        <select
-          aria-label="Aspect Ratio"
-          class="select bg-white/5 flex-1 rounded-lg text-xs h-auto py-1.5 min-h-0"
-          value={aspectKey(editor.geometrySession.draftAspect)}
-          onchange={onAspectChange}
-        >
-          {#each aspectOptions as o (aspectKey(o.value))}
-            <option value={aspectKey(o.value)}>{o.label}</option>
-          {/each}
-        </select>
-        <button
-          type="button"
-          class="p-1.5 rounded-lg text-xs transition-colors {orientationAvailable
-            ? 'bg-white/5 hover:bg-white/10'
-            : 'bg-white/5 opacity-40 cursor-not-allowed'}"
-          onclick={toggleOrientation}
-          disabled={!orientationAvailable}
-          aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
+    <div class="flex flex-col gap-1 pb-1.5">
+      <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop} />
+      <div class="flex items-center gap-1.5">
+        <Field label="Aspect Ratio" size="tiny" class="min-w-0 flex-1">
+          <Select
+            size="tiny"
+            class="editor-compact-select editor-compact-field"
+            options={aspectSelectOptions}
+            value={aspectKey(editor.geometrySession.draftAspect)}
+            onChange={onAspectChange}
+          />
+        </Field>
+        <IconButton
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="size-7 bg-neutral-800 not-disabled:hover:bg-neutral-700"
+          icon={isPortrait ? mdiCropPortrait : mdiCropLandscape}
           title={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
-        >
-          <Icon path={isPortrait ? mdiCropPortrait : mdiCropLandscape} size={16} />
-        </button>
+          aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
+          disabled={!orientationAvailable}
+          onclick={toggleOrientation}
+        />
       </div>
     </div>
 
-    <div class="flex flex-col gap-2.5 py-3">
-      <div class="flex items-center justify-between">
-        <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Transform</div>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="transition-colors {ui.perspectiveCorners
-              ? 'text-immich-dark-primary'
-              : 'text-immich-dark-fg/40 hover:text-immich-dark-fg'}"
+    <div class="flex flex-col gap-1 py-1.5">
+      <div class="flex h-6 items-center justify-between border-b border-white/6">
+        <div class="text-[9px] font-semibold uppercase text-dark/65">Transform</div>
+        <div class="flex items-center gap-1">
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color={ui.perspectiveCorners ? 'primary' : 'secondary'}
+            icon={mdiVectorSquare}
+            title={hint('Corner handles', 'perspective')}
+            aria-label="Corner handles"
             aria-pressed={ui.perspectiveCorners}
             onclick={ui.togglePerspectiveCorners}
-            aria-label="Corner handles"
-            title={hint('Corner handles', 'perspective')}
-          >
-            <Icon path={mdiVectorSquare} size={14} />
-          </button>
-          <ResetButton title="Reset Transform" onclick={resetTransform} />
+          />
+          <ResetButton
+            title="Reset Transform"
+            disabled={!transformModified}
+            onclick={resetTransform}
+          />
         </div>
       </div>
       <SliderRow
@@ -194,45 +213,59 @@
       {/each}
     </div>
 
-    <div class="grid grid-cols-2 gap-1.5 pt-3">
-      <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+    <div class="grid grid-cols-2 gap-1 border-t border-hairline pt-1.5">
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        class="h-7 panel-action"
+        leadingIcon={mdiRotateLeft}
         aria-label="Rotate left 90°"
         onclick={rotateLeft}
       >
-        <Icon path={mdiRotateLeft} size={16} />
         90°
-      </button>
-      <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+      </Button>
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        class="h-7 panel-action"
+        leadingIcon={mdiRotateRight}
         aria-label="Rotate right 90°"
         onclick={rotateRight}
       >
-        <Icon path={mdiRotateRight} size={16} />
         90°
-      </button>
-      <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor
-          .geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h)
-          ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-          : 'bg-white/5 hover:bg-white/10'}"
+      </Button>
+      <Button
+        size="tiny"
+        variant={(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h)
+          ? 'filled'
+          : 'ghost'}
+        color={(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h)
+          ? 'primary'
+          : 'secondary'}
+        class="h-7 panel-action"
+        leadingIcon={mdiFlipHorizontal}
         aria-pressed={editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h}
         onclick={toggleFlipH}
       >
-        <Icon path={mdiFlipHorizontal} size={16} />
         Flip Horizontal
-      </button>
-      <button
-        class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-colors text-xs {(editor
-          .geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v)
-          ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-          : 'bg-white/5 hover:bg-white/10'}"
+      </Button>
+      <Button
+        size="tiny"
+        variant={(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v)
+          ? 'filled'
+          : 'ghost'}
+        color={(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v)
+          ? 'primary'
+          : 'secondary'}
+        class="h-7 panel-action"
+        leadingIcon={mdiFlipVertical}
         aria-pressed={editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v}
         onclick={toggleFlipV}
       >
-        <Icon path={mdiFlipVertical} size={16} />
         Flip Vertical
-      </button>
+      </Button>
     </div>
   {/if}
 </div>

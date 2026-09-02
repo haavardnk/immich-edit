@@ -15,6 +15,8 @@ import type {
 
 export type Destination = 'download' | 'immich';
 
+export const DEFAULT_FILENAME_SUFFIX = '_edit';
+
 export interface ExportForm {
   format: ExportFormat;
   quality: number;
@@ -57,7 +59,7 @@ export function defaultExportForm(): ExportForm {
     favorite: false,
     stackWithOriginal: false,
     stackPrimary: 'edited',
-    filenameSuffix: '_edit'
+    filenameSuffix: DEFAULT_FILENAME_SUFFIX
   };
 }
 
@@ -90,19 +92,30 @@ export function immichOptions(f: ExportForm): ImmichExportOptions {
   };
 }
 
+let albumsRequested = false;
+let tagsRequested = false;
+
 export function ensureLibraryLoaded(): void {
-  if (library.albums.length === 0) {
+  if (!albumsRequested) {
+    albumsRequested = true;
     void listAlbums()
       .then((a) => {
         library.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
       })
-      .catch((e: unknown) => toasts.push('error', `albums: ${(e as Error).message}`));
+      .catch((e: unknown) => {
+        albumsRequested = false;
+        toasts.push('error', `albums: ${(e as Error).message}`);
+      });
   }
-  if (library.tags.length === 0) {
+  if (!tagsRequested) {
+    tagsRequested = true;
     void listTags()
       .then((t) => {
         library.tags = t;
       })
-      .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
+      .catch((e: unknown) => {
+        tagsRequested = false;
+        toasts.push('error', `tags: ${(e as Error).message}`);
+      });
   }
 }

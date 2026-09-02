@@ -1,10 +1,11 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { mdiExport, mdiCloudUpload, mdiLoading, mdiRefresh, mdiAlertOutline } from '@mdi/js';
+  import TextInput from '$lib/components/TextInput.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
-  import SuffixField from './export/SuffixField.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import {
     baseOptions,
@@ -32,71 +33,77 @@
   let busyLabel = $derived(destination === 'download' ? 'Exporting…' : 'Uploading…');
 </script>
 
-<div class="flex flex-col gap-4 px-4 pt-2">
+<div class="flex flex-col gap-1">
   <DestinationToggle bind:value={destination} />
 
   <FormatOptions bind:form />
 
   {#if destination === 'immich'}
-    <div class="flex flex-col gap-3 pt-3 mt-1 border-t border-white/10">
-      <SuffixField bind:form />
+    <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
+      <TextInput
+        label="Filename suffix"
+        compact
+        color="neutral"
+        class="ring-0 focus-within:ring-1 focus-within:ring-primary"
+        bind:value={form.filenameSuffix}
+        placeholder="_edit"
+      />
       <ImmichOptions bind:form />
     </div>
   {/if}
 
-  <button
-    class="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-immich-dark-primary/20 text-immich-dark-primary hover:bg-immich-dark-primary/30 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-    disabled={isLoading || !editor.assetId}
-    onclick={() => {
-      if (destination === 'download') void editor.onExport(baseOptions(form));
-      else void editor.onUploadToImmich(immichOptions(form));
-    }}
-  >
-    {#if isLoading}
-      <Icon path={mdiLoading} size={16} class="animate-spin" />
-    {:else}
-      <Icon path={destination === 'download' ? mdiExport : mdiCloudUpload} size={16} />
-    {/if}
-    {isLoading ? busyLabel : buttonLabel}
-  </button>
-
   {#if destination === 'immich' && editor.lastUpload}
-    <div
-      class="text-[11px] leading-relaxed px-3 py-2 rounded-md border flex items-start justify-between gap-2"
-      class:bg-emerald-950={editor.lastUpload.kind === 'success'}
-      class:border-emerald-500={editor.lastUpload.kind === 'success'}
-      class:text-emerald-100={editor.lastUpload.kind === 'success'}
-      class:bg-amber-950={editor.lastUpload.kind === 'duplicate'}
-      class:border-amber-500={editor.lastUpload.kind === 'duplicate'}
-      class:text-amber-100={editor.lastUpload.kind === 'duplicate'}
-      class:bg-red-950={editor.lastUpload.kind === 'error'}
-      class:border-red-500={editor.lastUpload.kind === 'error'}
-      class:text-red-100={editor.lastUpload.kind === 'error'}
+    <Notice
+      color={editor.lastUpload.kind === 'success'
+        ? 'success'
+        : editor.lastUpload.kind === 'duplicate'
+          ? 'warning'
+          : 'danger'}
+      message={editor.lastUpload.message}
     >
-      <span class="flex-1">{editor.lastUpload.message}</span>
       {#if editor.lastUpload.kind === 'error'}
-        <button
-          class="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors"
+        <Button
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="h-6 panel-action"
+          leadingIcon={mdiRefresh}
           onclick={() => void editor.retryUpload()}
           disabled={isLoading}
         >
-          <Icon path={mdiRefresh} size={12} />
           Retry
-        </button>
+        </Button>
       {/if}
-    </div>
+    </Notice>
   {/if}
 
   {#if destination === 'immich' && editor.lastWarnings.length > 0}
     <ul
-      class="text-[11px] leading-relaxed px-3 py-2 rounded-md border border-amber-500/40 bg-amber-950/40 text-amber-100 space-y-1"
+      class="space-y-0.5 rounded-sm border border-warning-500/40 bg-warning-950/40 px-2 py-1.5 text-[10px] leading-snug text-warning-100"
     >
       {#each editor.lastWarnings as w (w)}
         <li class="flex items-start gap-1.5">
-          <Icon path={mdiAlertOutline} size={12} class="mt-0.5 shrink-0" />
+          <Icon icon={mdiAlertOutline} size="12px" class="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{w}</span>
         </li>
       {/each}
     </ul>
   {/if}
+
+  <div class="sticky bottom-0 -mx-3 border-t border-hairline bg-light px-3 py-1.5">
+    <Button
+      size="small"
+      color="primary"
+      fullWidth
+      loading={isLoading}
+      leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
+      disabled={isLoading || !editor.assetId}
+      onclick={() => {
+        if (destination === 'download') void editor.onExport(baseOptions(form));
+        else void editor.onUploadToImmich(immichOptions(form));
+      }}
+    >
+      {isLoading ? busyLabel : buttonLabel}
+    </Button>
+  </div>
 </div>

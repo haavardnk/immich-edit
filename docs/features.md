@@ -23,7 +23,7 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
 | Ratings, favorites, tags, and reject marks | ✓ Yes | Writes metadata to Immich after consent |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
-| Multi-select and batch actions | ✓ Yes | Selecting every filtered result enables job actions; **Select loaded** enables metadata, culling, tags, and virtual copies |
+| Multi-select and batch actions | ✓ Yes | Whole-filter selection enables jobs; **Select loaded** enables metadata, culling, tags, and virtual copies; **Edit and export selected** opens copy, preset, and export controls |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
