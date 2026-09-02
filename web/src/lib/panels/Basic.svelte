@@ -3,6 +3,24 @@
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '$lib/stores/editor.svelte';
 
+  const wbModified = $derived(editor.edits.basic.wb_temp !== 0 || editor.edits.basic.wb_tint !== 0);
+  const toneModified = $derived(
+    editor.edits.basic.exposure_ev !== 0 ||
+      editor.edits.basic.brightness !== 0 ||
+      editor.edits.basic.contrast !== 0 ||
+      editor.edits.tone.highlights !== 0 ||
+      editor.edits.tone.shadows !== 0 ||
+      editor.edits.tone.whites !== 0 ||
+      editor.edits.tone.blacks !== 0
+  );
+  const presenceModified = $derived(
+    editor.edits.basic.texture !== 0 ||
+      editor.edits.basic.clarity !== 0 ||
+      editor.edits.basic.dehaze !== 0 ||
+      editor.edits.basic.vibrance !== 0 ||
+      editor.edits.basic.saturation !== 0
+  );
+
   function resetWb(): void {
     editor.edits.basic.wb_temp = 0;
     editor.edits.basic.wb_tint = 0;
@@ -30,16 +48,16 @@
   }
 </script>
 
-<div class="flex flex-col divide-y divide-white/5">
-  <div class="flex flex-col gap-2.5 pb-3">
-    <SectionHeader title="White Balance" onReset={resetWb} />
+<div class="flex flex-col divide-y divide-dark/10">
+  <div class="flex flex-col gap-1 pb-1.5">
+    <SectionHeader title="White Balance" modified={wbModified} onReset={resetWb} />
     <EditSlider
       label="Temperature"
       commitAction="Temperature"
       bind:value={editor.edits.basic.wb_temp}
       min={-100}
       max={100}
-      gradient="linear-gradient(to right, #4a90d9, #b8a44c)"
+      gradient="var(--gradient-temperature)"
     />
     <EditSlider
       label="Tint"
@@ -47,11 +65,11 @@
       bind:value={editor.edits.basic.wb_tint}
       min={-100}
       max={100}
-      gradient="linear-gradient(to right, #b8508a, #6ab04c)"
+      gradient="var(--gradient-tint)"
     />
   </div>
-  <div class="flex flex-col gap-2.5 py-3">
-    <SectionHeader title="Tone" onReset={resetTone} />
+  <div class="flex flex-col gap-1 py-1.5">
+    <SectionHeader title="Tone" modified={toneModified} onReset={resetTone} />
     <EditSlider
       label="Exposure"
       commitAction="Exposure"
@@ -75,7 +93,7 @@
       min={-100}
       max={100}
     />
-    <div class="border-t border-white/5"></div>
+    <div class="border-t border-dark/10"></div>
     <EditSlider
       label="Highlights"
       commitAction="Highlights"
@@ -105,8 +123,8 @@
       max={100}
     />
   </div>
-  <div class="flex flex-col gap-2.5 pt-3">
-    <SectionHeader title="Presence" onReset={resetPresence} />
+  <div class="flex flex-col gap-1 pt-1.5">
+    <SectionHeader title="Presence" modified={presenceModified} onReset={resetPresence} />
     <EditSlider
       label="Texture"
       commitAction="Texture"
@@ -128,7 +146,7 @@
       min={-100}
       max={100}
     />
-    <div class="border-t border-white/5"></div>
+    <div class="border-t border-dark/10"></div>
     <EditSlider
       label="Vibrance"
       commitAction="Vibrance"

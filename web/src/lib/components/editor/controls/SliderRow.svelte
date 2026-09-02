@@ -1,4 +1,8 @@
 <script lang="ts">
+  import TextInput from '$lib/components/TextInput.svelte';
+  import { Button } from '@immich/ui';
+  import RangeSlider from './RangeSlider.svelte';
+
   let {
     label,
     value = $bindable(),
@@ -33,15 +37,62 @@
 
   const isDefault = $derived(value === defaultValue);
   const supportsPreview = $derived(!!onPreviewStart && !!onPreviewEnd);
-
+  const displayValue = $derived(format(Object.is(value, -0) ? 0 : value));
   let dragging = $state(false);
   let altDown = $state(false);
   let previewing = $state(false);
+  let editing = $state(false);
+  let draft = $state(0);
+  let editStart = 0;
+  let valueInput = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (!editing || !valueInput) return;
+    valueInput.focus();
+    valueInput.select();
+  });
+
+  function normalize(next: number): number {
+    const clamped = Math.min(max, Math.max(min, next));
+    return Object.is(clamped, -0) ? 0 : clamped;
+  }
 
   function reset(): void {
+    if (isDefault) return;
     value = defaultValue;
     onLive(defaultValue);
     onCommit(commitAction);
+  }
+
+  function beginEdit(): void {
+    if (disabled) return;
+    editStart = value;
+    draft = value;
+    editing = true;
+  }
+
+  function onDraftInput(e: Event): void {
+    const next = (e.currentTarget as HTMLInputElement).valueAsNumber;
+    draft = next;
+    if (!Number.isFinite(next)) return;
+    value = normalize(next);
+    onLive(value);
+  }
+
+  function commitEdit(): void {
+    if (!editing) return;
+    const next = Number.isFinite(draft) ? normalize(draft) : editStart;
+    value = next;
+    onLive(next);
+    editing = false;
+    if (next !== editStart) onCommit(commitAction);
+  }
+
+  function cancelEdit(): void {
+    value = editStart;
+    draft = editStart;
+    onLive(editStart);
+    editing = false;
   }
 
   function updatePreview(): void {
@@ -82,7 +133,7 @@
   }
 
   function onInput(e: Event): void {
-    const v = (e.currentTarget as HTMLInputElement).valueAsNumber;
+    const v = normalize((e.currentTarget as HTMLInputElement).valueAsNumber);
     value = v;
     if (previewing) {
       onPreviewStart!();
@@ -92,65 +143,69 @@
   }
 </script>
 
-<div class="flex flex-col gap-1 group {disabled ? 'opacity-40 pointer-events-none' : ''}">
-  <div class="flex items-center justify-between text-[11px] leading-none">
-    <button
-      class="text-immich-dark-fg/60 hover:text-immich-dark-fg transition-colors select-none text-left"
-      ondblclick={reset}
-      title="double click to reset"
-    >
-      {label}
-    </button>
-    <span
-      class="font-mono tabular-nums text-[10px] transition-opacity {isDefault
-        ? 'text-immich-dark-fg/20'
-        : 'text-immich-dark-fg/50'}"
-    >
-      {format(value)}
-    </span>
-  </div>
-  <input
-    type="range"
-    class="slider-range"
-    style:background={gradient}
+<div
+  class="panel-row group h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-white/3 {disabled
+    ? 'pointer-events-none opacity-50'
+    : ''}"
+>
+  <Button
+    variant="ghost"
+    color="secondary"
+    size="tiny"
+    class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark"
+    title="double click to reset"
+    ondblclick={reset}
+  >
+    <span class="truncate">{label}</span>
+  </Button>
+  <RangeSlider
+    {label}
     {min}
     {max}
     {step}
     {disabled}
-    bind:value
+    {value}
+    {gradient}
     onpointerdown={onPointerDown}
     oninput={onInput}
     onchange={() => onCommit(commitAction)}
     ondblclick={reset}
   />
+  {#if editing}
+    <TextInput
+      bind:ref={valueInput}
+      type="number"
+      size="tiny"
+      class="h-5 bg-hairline [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-[10px] [&_input]:tabular-nums"
+      aria-label="{label} value"
+      value={String(draft)}
+      {min}
+      {max}
+      {step}
+      oninput={onDraftInput}
+      onblur={commitEdit}
+      onkeydown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitEdit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEdit();
+        }
+      }}
+    />
+  {:else}
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums {isDefault
+        ? 'text-dark/65'
+        : 'bg-primary/10 text-primary'}"
+      aria-label="Edit {label} value"
+      onclick={beginEdit}
+    >
+      {displayValue}
+    </Button>
+  {/if}
 </div>
-
-<style>
-  .slider-range {
-    width: 100%;
-    height: 4px;
-    border-radius: 9999px;
-    appearance: none;
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.1);
-  }
-  .slider-range::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: rgb(var(--immich-dark-primary));
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    transition: transform 0.15s;
-  }
-  .slider-range::-webkit-slider-thumb:hover {
-    transform: scale(1.25);
-  }
-  .slider-range::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: rgb(var(--immich-dark-primary));
-    border: 0;
-  }
-</style>
