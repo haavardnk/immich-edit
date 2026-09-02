@@ -122,12 +122,13 @@ This matrix covers v0.4.0. `✗ No` does not imply planned support.
 
 | Capability | Available | Notes |
 | --- | :---: | --- |
-| Undo, redo, and saved history | ✓ Yes | History entries can be restored |
+| Undo, redo, and saved history | ✓ Yes | History entries can be restored; closing or reloading during a pending save asks for confirmation |
 | Presets | ✓ Yes | Save, apply, and batch apply |
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
-| Editor and loupe filmstrips | ✓ Yes | Each view keeps its own visible or hidden state |
+| Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads |
+| Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
 | Waveform, RGB parade, or vectorscope | ✗ No | Histogram only |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |

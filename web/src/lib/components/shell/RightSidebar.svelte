@@ -1,56 +1,46 @@
 <script lang="ts">
-  import { ui, type EditorTab } from '$lib/stores/ui.svelte';
+  import {
+    ui,
+    MAX_INSPECTOR_WIDTH,
+    MIN_INSPECTOR_WIDTH,
+    type EditorTab
+  } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
   import { developPanels } from '$lib/panels/registry';
   import { isNonGeometryIdentity } from '$lib/types/edits';
+  import { modifiedDevelopPanels } from '$lib/editorModified';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
-  import BulkExportPanel from '$lib/panels/BulkExport.svelte';
-  import BulkApplyPresetPanel from '$lib/panels/BulkApplyPreset.svelte';
-  import BulkCopyPastePanel from '$lib/panels/BulkCopyPaste.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import RetouchPanel from '$lib/panels/Retouch.svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import CopyPasteButtons from '$lib/components/CopyPasteButtons.svelte';
+  import Disclosure from '$lib/components/Disclosure.svelte';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
   import { hint } from '$lib/keybinds';
+  import { Button, IconButton } from '@immich/ui';
   import {
-    mdiChevronDown,
-    mdiChevronRight,
-    mdiChevronLeft,
     mdiAutoFix,
     mdiRestore,
-    mdiTuneVariant,
-    mdiLayersOutline,
-    mdiBandage,
-    mdiCropRotate,
-    mdiExport
+    mdiFilterVariant,
+    mdiContentCopy,
+    mdiContentPaste
   } from '@mdi/js';
 
-  const editorTabs: { id: EditorTab; label: string; icon: string; hint: string }[] = [
-    { id: 'develop', label: 'Develop', icon: mdiTuneVariant, hint: 'Develop' },
-    { id: 'masks', label: 'Masks', icon: mdiLayersOutline, hint: hint('Masks', 'openMasks') },
-    {
-      id: 'retouch',
-      label: 'Retouch',
-      icon: mdiBandage,
-      hint: hint('Retouch', 'openRetouch')
-    },
-    {
-      id: 'geometry',
-      label: 'Geometry',
-      icon: mdiCropRotate,
-      hint: hint('Geometry', 'openGeometry')
-    },
-    { id: 'export', label: 'Export', icon: mdiExport, hint: hint('Export', 'openExport') }
+  const editorTabs: { id: EditorTab; label: string }[] = [
+    { id: 'develop', label: 'Develop' },
+    { id: 'masks', label: 'Masks' },
+    { id: 'retouch', label: 'Retouch' },
+    { id: 'geometry', label: 'Geometry' },
+    { id: 'export', label: 'Export' }
   ];
 
-  type BulkTab = 'export' | 'preset';
-  let bulkTab = $state<BulkTab>('preset');
-  let bulkPresetOpen = $state(true);
   let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
+  let modifiedOnly = $state(false);
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
+  const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
+  const activeEditorTab = $derived(
+    editorTabs.find((tab) => tab.id === ui.editorTab) ?? editorTabs[0]
+  );
 
   $effect(() => {
     if (ui.editorTab !== 'masks') {
@@ -60,194 +50,165 @@
     if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
   });
 
-  function toggle(id: string): void {
-    if (openPanels.has(id)) {
-      openPanels.delete(id);
-    } else {
+  function setPanel(id: string, open: boolean): void {
+    if (open) {
       openPanels.add(id);
+    } else {
+      openPanels.delete(id);
     }
     openPanels = new Set(openPanels);
+  }
+
+  function toggleModifiedOnly(): void {
+    modifiedOnly = !modifiedOnly;
+    if (!modifiedOnly) return;
+    openPanels = new Set([...openPanels, ...modifiedPanels]);
   }
 </script>
 
 <aside
-  class="bg-immich-dark-gray border-l border-white/5 flex flex-col min-h-0 transition-[width] duration-200 ease-out"
-  class:w-72={!ui.rightCollapsed}
-  class:w-7={ui.rightCollapsed}
+  aria-label="Editor controls"
+  class="relative hidden min-h-0 shrink-0 flex-col border-l border-hairline bg-editor-panel md:flex"
+  style:width={`${ui.inspectorWidth}px`}
+  style:display={ui.rightCollapsed ? 'none' : undefined}
 >
-  {#if ui.rightCollapsed}
-    <button
-      class="flex-1 flex items-center justify-center hover:bg-white/5 transition-colors"
-      onclick={ui.toggleRight}
-      aria-label="expand edit panel"
-      title="Develop"
+  <ResizeHandle
+    label="Resize editor controls"
+    orientation="horizontal"
+    value={ui.inspectorWidth}
+    min={MIN_INSPECTOR_WIDTH}
+    max={MAX_INSPECTOR_WIDTH}
+    step={16}
+    shiftStep={32}
+    class="after:bg-hairline absolute inset-y-0 left-0 z-40 w-3 -translate-x-1/2 cursor-col-resize bg-transparent outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:transition-colors hover:after:bg-primary focus-visible:after:bg-primary"
+    activeClass="after:bg-primary"
+    onLive={ui.setInspectorWidth}
+    onCommit={ui.persistEditorUi}
+  />
+  {#if editor.assetId}
+    <div
+      id="editor-panel-{ui.editorTab}"
+      role="tabpanel"
+      aria-labelledby="editor-tool-{ui.editorTab}"
+      class="flex min-h-0 flex-1 flex-col"
     >
-      <Icon path={mdiChevronLeft} size={16} class="opacity-40" />
-    </button>
-  {:else}
-    {#if editor.assetId}
-      <div class="flex items-center border-b border-white/10">
-        <nav class="flex flex-1">
-          {#each editorTabs as tab (tab.id)}
-            <button
-              class="flex-1 flex items-center justify-center py-2.5 transition-colors {ui.editorTab ===
-              tab.id
-                ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary'
-                : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70 border-b-2 border-transparent'}"
-              aria-pressed={ui.editorTab === tab.id}
-              aria-label={tab.label}
-              title={tab.hint}
-              onclick={() => (ui.editorTab = tab.id)}
-            >
-              <Icon path={tab.icon} size={17} />
-            </button>
-          {/each}
-        </nav>
-        <button
-          class="p-1.5 hover:bg-white/10 transition-colors"
-          onclick={ui.toggleRight}
-          aria-label="collapse edit panel"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
-        </button>
+      <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline px-3">
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-[13px] font-semibold text-white/90">
+            {activeEditorTab.label}
+          </h2>
+        </div>
       </div>
 
-      <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-        {#if ui.editorTab === 'develop'}
-          <div class="px-4 py-2.5 flex items-center gap-2">
-            <button
-              class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      {#if ui.editorTab === 'develop'}
+        <div class="flex shrink-0 items-center gap-1.5 border-b border-hairline px-3 py-1.5">
+          <div class="flex min-w-0 flex-1 items-center gap-0.5">
+            <Button
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
+              leadingIcon={mdiAutoFix}
+              aria-label="Auto"
               disabled={editor.autoBusy || !editor.assetId}
               onclick={() => void editor.onAutoAdjust()}
             >
-              <Icon path={mdiAutoFix} size={14} />
               {editor.autoBusy ? 'Analyzing…' : 'Auto'}
-            </button>
-            <button
-              class="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-              disabled={neutral || editor.saving}
+            </Button>
+            <Button
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
+              leadingIcon={mdiRestore}
               title={hint('Reset edits', 'resetEdits')}
+              aria-label="Reset edits"
+              disabled={neutral || editor.saving}
               onclick={() => void editor.onReset()}
             >
-              <Icon path={mdiRestore} size={14} />
               Reset
-            </button>
-            <CopyPasteButtons
-              canCopy={!!editor.assetId && editor.hasEdits}
-              canPaste={!!editor.assetId && editor.hasClipboard && !editor.saving}
-              copyTitle={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
-              pasteTitle={editor.hasClipboard
-                ? hint('Paste edits', 'pasteEdits')
-                : 'Nothing copied'}
-              onCopy={editor.copyEdits}
-              onPaste={() => void editor.pasteEdits()}
+            </Button>
+          </div>
+          <div class="h-5 w-px shrink-0 bg-hairline"></div>
+          <div class="flex shrink-0 items-center gap-0.5">
+            <IconButton
+              size="small"
+              variant="ghost"
+              color="secondary"
+              class="bg-transparent hover:bg-white/6"
+              icon={mdiContentCopy}
+              title={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
+              disabled={!editor.assetId || !editor.hasEdits}
+              aria-label="Copy edits"
+              onclick={editor.copyEdits}
+            />
+            <IconButton
+              size="small"
+              variant="ghost"
+              color="secondary"
+              class="bg-transparent hover:bg-white/6"
+              icon={mdiContentPaste}
+              title={editor.hasClipboard ? hint('Paste edits', 'pasteEdits') : 'Nothing copied'}
+              disabled={!editor.assetId || !editor.hasClipboard || editor.saving}
+              aria-label="Paste edits"
+              onclick={() => void editor.pasteEdits()}
             />
             <HistoryPopover />
+            <IconButton
+              size="small"
+              variant="ghost"
+              color={modifiedOnly ? 'primary' : 'secondary'}
+              class="bg-transparent hover:bg-white/6"
+              icon={mdiFilterVariant}
+              title={modifiedOnly ? 'Show all adjustments' : 'Show modified only'}
+              aria-label={modifiedOnly ? 'Show all adjustments' : 'Show modified only'}
+              aria-pressed={modifiedOnly}
+              onclick={toggleModifiedOnly}
+            />
           </div>
+        </div>
+      {/if}
 
-          {#each developPanels as panel (panel.id)}
-            {@const Comp = panel.component}
-            {@const isOpen = openPanels.has(panel.id)}
-            <div class="border-t border-white/5">
-              <button
-                class="w-full flex items-center gap-1.5 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/60 hover:bg-white/5 transition-colors select-none"
-                onclick={() => toggle(panel.id)}
-              >
-                <Icon
-                  path={isOpen ? mdiChevronDown : mdiChevronRight}
-                  size={14}
-                  class="opacity-50"
-                />
-                {panel.title}
-              </button>
-              {#if isOpen}
-                <div class="px-4 pb-3 pt-1">
-                  <Comp />
-                </div>
+      <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+        {#if ui.editorTab === 'develop'}
+          {#if modifiedOnly && modifiedPanels.size === 0}
+            <div class="px-4 py-8 text-center text-xs text-dark/65">No modified adjustments</div>
+          {:else}
+            {#each developPanels as panel (panel.id)}
+              {#if !modifiedOnly || modifiedPanels.has(panel.id)}
+                {@const Comp = panel.component}
+                <Disclosure
+                  open={openPanels.has(panel.id)}
+                  title={panel.title}
+                  modified={modifiedPanels.has(panel.id)}
+                  onOpenChange={(v) => setPanel(panel.id, v)}
+                >
+                  <div class="bg-black/10 px-3 pb-2 pt-1">
+                    <Comp />
+                  </div>
+                </Disclosure>
               {/if}
-            </div>
-          {/each}
+            {/each}
+          {/if}
           <div class="h-8"></div>
         {:else if ui.editorTab === 'masks'}
-          <div class="px-4 py-3">
+          <div class="px-3 py-2">
             <MasksPanel />
           </div>
         {:else if ui.editorTab === 'retouch'}
-          <div class="px-4 py-3">
+          <div class="px-3 py-2">
             <RetouchPanel />
           </div>
         {:else if ui.editorTab === 'geometry'}
-          <div class="px-4 py-3">
+          <div class="px-3 py-2">
             <TransformPanel />
           </div>
         {:else if ui.editorTab === 'export'}
-          <ExportPanel />
-        {/if}
-      </div>
-    {:else if selection.active}
-      <div class="flex items-center border-b border-white/10 pr-1.5">
-        <nav class="flex flex-1">
-          {#each [{ id: 'preset', label: 'Bulk Edit' }, { id: 'export', label: 'Bulk Export' }] as tab (tab.id)}
-            <button
-              class="flex-1 py-2 text-[11px] uppercase tracking-wider transition-colors {bulkTab ===
-              tab.id
-                ? 'text-immich-dark-primary border-b-2 border-immich-dark-primary'
-                : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/60'}"
-              onclick={() => (bulkTab = tab.id as BulkTab)}
-            >
-              {tab.label}
-            </button>
-          {/each}
-        </nav>
-        <button
-          class="p-1.5 hover:bg-white/10 transition-colors rounded"
-          onclick={ui.toggleRight}
-          aria-label="collapse panel"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
-        </button>
-      </div>
-      <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-        {#if bulkTab === 'export'}
-          <BulkExportPanel />
-        {:else}
-          <BulkCopyPastePanel />
-          <div class="border-t border-white/5">
-            <button
-              class="w-full flex items-center gap-1.5 px-4 py-2 text-[11px] uppercase tracking-wider text-immich-dark-fg/60 hover:bg-white/5 transition-colors select-none"
-              onclick={() => (bulkPresetOpen = !bulkPresetOpen)}
-            >
-              <Icon
-                path={bulkPresetOpen ? mdiChevronDown : mdiChevronRight}
-                size={14}
-                class="opacity-50"
-              />
-              Presets
-            </button>
-            {#if bulkPresetOpen}
-              <BulkApplyPresetPanel />
-            {/if}
+          <div class="px-3 py-2">
+            <ExportPanel />
           </div>
         {/if}
       </div>
-    {:else}
-      <div class="flex h-9.25 items-center justify-end border-b border-white/10 pr-1.5">
-        <button
-          class="p-1.5 hover:bg-white/10 transition-colors rounded"
-          onclick={ui.toggleRight}
-          aria-label="collapse panel"
-          title="Collapse"
-        >
-          <Icon path={mdiChevronRight} size={14} class="opacity-40" />
-        </button>
-      </div>
-      <div
-        class="flex-1 flex items-center justify-center text-xs text-immich-dark-fg/30 px-4 text-center"
-      >
-        Select an asset to edit
-      </div>
-    {/if}
+    </div>
   {/if}
 </aside>

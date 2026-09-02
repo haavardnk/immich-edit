@@ -10,9 +10,10 @@
   const rejected = $derived(editor.asset ? isRejected(editor.asset) : false);
 </script>
 
-<div class="flex items-center">
-  <StarRating {rating} onchange={(n) => void editor.setRating(n)} />
-  <div class="w-px h-4 bg-white/10 mx-1.5"></div>
+<div
+  class="flex h-7 shrink-0 items-center gap-1 [&_button]:text-white/55 [&_button:hover]:text-white/90"
+>
+  <StarRating {rating} size={14} onchange={(n) => void editor.setRating(n)} />
   <FavoriteButton isFavorite={isFav} ontoggle={() => void editor.toggleFavorite()} />
   <RejectButton isRejected={rejected} ontoggle={() => void editor.toggleReject()} />
 </div>
