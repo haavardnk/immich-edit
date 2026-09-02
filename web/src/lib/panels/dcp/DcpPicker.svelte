@@ -1,9 +1,11 @@
 <script lang="ts">
   import Popover from '$lib/components/Popover.svelte';
-  import Icon from '$lib/components/Icon.svelte';
+  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import type { DcpMeta } from '$lib/api/dcp';
   import type { DcpMode } from '$lib/types/edits';
-  import { mdiCheck, mdiChevronDown, mdiMagnify } from '@mdi/js';
+  import { mergeProps } from '$lib/utils/mergeProps';
+  import { Button, Icon, Tooltip } from '@immich/ui';
+  import { mdiCheck, mdiChevronDown } from '@mdi/js';
 
   let {
     profiles,
@@ -22,37 +24,22 @@
   } = $props();
 
   let open = $state(false);
-  let query = $state('');
 
   function profileLabel(profile: DcpMeta): string {
     return profile.camera_model ?? profile.name;
   }
 
-  function matching(list: DcpMeta[], q: string): DcpMeta[] {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return list;
-    return list.filter(
-      (profile) =>
-        profile.name.toLowerCase().includes(needle) ||
-        profile.camera_model?.toLowerCase().includes(needle) ||
-        profile.copyright?.toLowerCase().includes(needle)
-    );
-  }
-
   const selected = $derived(profiles.find((profile) => profile.id === selectedId) ?? null);
-  const importedProfiles = $derived(profiles.filter((profile) => !profile.bundled));
-  const bundledProfiles = $derived(
-    [...profiles.filter((profile) => profile.bundled)].sort((a, b) =>
-      profileLabel(a).localeCompare(profileLabel(b))
-    )
+  const sortedProfiles = $derived(
+    [...profiles].sort((left, right) => {
+      if (left.bundled !== right.bundled) return left.bundled ? 1 : -1;
+      return profileLabel(left).localeCompare(profileLabel(right));
+    })
   );
-  const filteredImported = $derived(matching(importedProfiles, query));
-  const filteredBundled = $derived(matching(bundledProfiles, query));
-  const showSearch = $derived(importedProfiles.length + bundledProfiles.length > 8);
   const autoDetail = $derived.by(() => {
     if (autoMatch) return profileLabel(autoMatch);
-    if (!cameraModel) return 'Camera model unknown — using Default Color';
-    return `No profile for ${cameraModel} — using Default Color`;
+    if (!cameraModel) return 'Camera model unknown, using Default Color';
+    return `No profile for ${cameraModel}, using Default Color`;
   });
   const label = $derived.by(() => {
     if (mode === 'off') return 'Default Color';
@@ -65,136 +52,129 @@
 
   function pick(nextMode: DcpMode, id: string | null): void {
     onSelect(nextMode, id);
-    close();
-  }
-
-  function toggle(): void {
-    open = !open;
-    if (open && mode === 'auto' && !autoMatch && cameraModel) {
-      query = cameraModel;
-    }
-  }
-
-  function close(): void {
     open = false;
-    query = '';
+  }
+
+  function toggle(next: boolean): void {
+    open = next;
+  }
+
+  function selectProfile(next: string[]): void {
+    const id = next.at(-1);
+    if (!id) {
+      pick('auto', null);
+      return;
+    }
+    pick('profile', id);
   }
 </script>
 
-{#snippet group(title: string, list: DcpMeta[])}
-  <div class="px-3 pb-0.5 pt-1.5 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-    {title}
-  </div>
-  {#each list as profile (profile.id)}
-    <button
-      type="button"
-      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
-        'profile' && selectedId === profile.id
-        ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-        : 'hover:bg-white/10'}"
-      title={profileLabel(profile)}
-      onclick={() => pick('profile', profile.id)}
-    >
-      <span class="w-3.5 shrink-0">
-        {#if mode === 'profile' && selectedId === profile.id}<Icon path={mdiCheck} size={14} />{/if}
-      </span>
-      <span class="truncate">{profileLabel(profile)}</span>
-    </button>
-  {/each}
+{#snippet check(active: boolean)}
+  <span class="flex w-4 shrink-0 justify-center text-primary">
+    {#if active}<Icon icon={mdiCheck} size="14px" aria-hidden="true" />{/if}
+  </span>
 {/snippet}
 
 <Popover
   {open}
-  onClose={close}
-  rootClass="w-full"
-  contentClass="w-full max-h-80 overflow-hidden flex flex-col"
+  onOpenChange={toggle}
+  contentClass="w-(--bits-floating-anchor-width) max-h-80 overflow-hidden flex flex-col rounded-lg bg-neutral-900 p-1"
 >
-  {#snippet trigger()}
-    <button
-      type="button"
-      class="flex w-full items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs transition-colors hover:bg-white/10"
-      title={label}
-      onclick={toggle}
-    >
-      <span class="flex-1 truncate text-left">{label}</span>
-      <Icon path={mdiChevronDown} size={14} class="flex-none opacity-50" />
-    </button>
+  {#snippet trigger(popoverProps)}
+    <Tooltip text={label}>
+      {#snippet child({ props })}
+        <Button
+          type="button"
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          fullWidth
+          class="h-7 justify-start rounded-lg bg-neutral-800 px-2 text-[11px] hover:bg-neutral-700"
+          {...mergeProps(props, popoverProps)}
+        >
+          <span class="flex-1 truncate text-left">{label}</span>
+          <Icon
+            icon={mdiChevronDown}
+            size="14px"
+            class="shrink-0 opacity-45 transition-transform {open ? 'rotate-180' : ''}"
+            aria-hidden="true"
+          />
+        </Button>
+      {/snippet}
+    </Tooltip>
   {/snippet}
 
-  <div class="border-b border-white/10 py-1">
-    <button
+  <div class="border-b border-hairline pb-1">
+    <Button
       type="button"
-      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
-      'auto'
-        ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-        : 'hover:bg-white/10'}"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'auto'
+        ? 'bg-primary/12 text-white'
+        : 'text-white/80 hover:bg-white/6'}"
       onclick={() => pick('auto', null)}
     >
-      <span class="w-3.5 shrink-0"
-        >{#if mode === 'auto'}<Icon path={mdiCheck} size={14} />{/if}</span
-      >
-      <span class="min-w-0 flex-1">
+      {@render check(mode === 'auto')}
+      <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Auto match</span>
-        <span class="block truncate text-[10px] opacity-60">{autoDetail}</span>
+        <span class="block truncate text-[10px] text-white/65">{autoDetail}</span>
       </span>
-    </button>
-    <button
+    </Button>
+    <Button
       type="button"
-      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
-      'off'
-        ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-        : 'hover:bg-white/10'}"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'off'
+        ? 'bg-primary/12 text-white'
+        : 'text-white/80 hover:bg-white/6'}"
       onclick={() => pick('off', null)}
     >
-      <span class="w-3.5 shrink-0"
-        >{#if mode === 'off'}<Icon path={mdiCheck} size={14} />{/if}</span
-      >
-      <span class="min-w-0 flex-1">
+      {@render check(mode === 'off')}
+      <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Default Color</span>
-        <span class="block truncate text-[10px] opacity-60">Our general-purpose rendering</span>
+        <span class="block truncate text-[10px] text-white/65">General-purpose rendering</span>
       </span>
-    </button>
-    <button
+    </Button>
+    <Button
       type="button"
-      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors {mode ===
-      'flat'
-        ? 'bg-immich-dark-primary/20 text-immich-dark-primary'
-        : 'hover:bg-white/10'}"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'flat'
+        ? 'bg-primary/12 text-white'
+        : 'text-white/80 hover:bg-white/6'}"
       onclick={() => pick('flat', null)}
     >
-      <span class="w-3.5 shrink-0"
-        >{#if mode === 'flat'}<Icon path={mdiCheck} size={14} />{/if}</span
-      >
-      <span class="min-w-0 flex-1">
+      {@render check(mode === 'flat')}
+      <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Flat</span>
-        <span class="block truncate text-[10px] opacity-60">No tone curve, bare sensor colour</span>
+        <span class="block truncate text-[10px] text-white/65">
+          No tone curve, bare sensor colour
+        </span>
       </span>
-    </button>
+    </Button>
   </div>
 
-  {#if showSearch}
-    <div class="border-b border-white/10 p-1.5">
-      <div class="flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1">
-        <Icon path={mdiMagnify} size={14} class="flex-none opacity-40" />
-        <input
-          class="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-immich-dark-fg/30"
-          placeholder="Search camera profiles"
-          bind:value={query}
-        />
-      </div>
-    </div>
-  {/if}
-
-  <div class="overflow-y-auto py-1">
-    {#if filteredImported.length === 0 && filteredBundled.length === 0}
-      <div class="px-3 py-2 text-xs text-immich-dark-fg/30">No matching profiles.</div>
-    {:else}
-      {#if filteredImported.length > 0}
-        {@render group('Imported profiles', filteredImported)}
-      {/if}
-      {#if filteredBundled.length > 0}
-        {@render group('Camera profiles', filteredBundled)}
-      {/if}
-    {/if}
+  <div class="pt-1">
+    <SearchableSelect
+      compact
+      multiple={false}
+      color="neutral"
+      options={sortedProfiles}
+      selected={mode === 'profile' && selectedId ? [selectedId] : []}
+      getId={(profile) => profile.id}
+      getLabel={profileLabel}
+      getGroup={(profile) => (profile.bundled ? null : 'Imported profiles')}
+      getSearchText={(profile) =>
+        `${profile.name} ${profile.camera_model ?? ''} ${profile.copyright ?? ''}`}
+      placeholder="Search camera profiles"
+      hideSelected={false}
+      onSelectedChange={selectProfile}
+    />
   </div>
 </Popover>

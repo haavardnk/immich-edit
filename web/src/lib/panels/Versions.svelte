@@ -1,12 +1,15 @@
 <script lang="ts">
+  import EditableLabel from '$lib/components/EditableLabel.svelte';
   import { goto } from '$app/navigation';
-  import Icon from '$lib/components/Icon.svelte';
+  import { page } from '$app/state';
   import { mdiCheck, mdiClose, mdiContentDuplicate, mdiDelete, mdiPencil } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { deleteCopy, listCopies, renameCopy, type CopyRecord } from '$lib/api/copies';
   import { isCopy, sourceId } from '$lib/assetKey';
   import { createVirtualCopy } from '$lib/copies';
+  import { editorHref } from '$lib/editorNavigation';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { Button, IconButton } from '@immich/ui';
 
   let copies = $state<CopyRecord[]>([]);
   let busy = $state(false);
@@ -31,7 +34,7 @@
     if (!assetId || busy) return;
     busy = true;
     try {
-      await createVirtualCopy(assetId);
+      await createVirtualCopy(assetId, { returnPath: page.url.searchParams.get('from') });
     } finally {
       busy = false;
     }
@@ -50,104 +53,118 @@
     editingId = null;
   }
 
-  function onRenameKey(e: KeyboardEvent): void {
-    if (e.key !== 'Enter' && e.key !== 'Escape') return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === 'Escape') {
-      editingId = null;
-      return;
-    }
-    void commitRename();
-  }
-
   async function remove(copy: CopyRecord): Promise<void> {
     await deleteCopy(copy.id);
     copies = copies.filter((c) => c.id !== copy.id);
     browsing.remove(copy.id);
-    if (assetId === copy.id && master) await goto(`/assets/${master}`);
+    if (assetId === copy.id && master)
+      await goto(editorHref(master, page.url.searchParams.get('from')));
   }
 
   function label(copy: CopyRecord): string {
     return copy.name ?? `Copy ${copy.id.split('_').at(-1)}`;
   }
-
-  function focusOnMount(node: HTMLInputElement): void {
-    node.focus();
-    node.select();
-  }
 </script>
 
-<div class="flex flex-col gap-2 pb-1">
-  <button
-    class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+<div class="flex flex-col gap-1 pb-1">
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    class="h-7 panel-action"
+    leadingIcon={mdiContentDuplicate}
     disabled={!assetId || busy}
     onclick={() => void create()}
   >
-    <Icon path={mdiContentDuplicate} size={14} />
     Create virtual copy
-  </button>
+  </Button>
 
-  <div class="flex flex-col gap-0.5">
+  <nav aria-label="Versions" class="flex flex-col gap-0.5">
     <a
-      href={master ? `/assets/${master}` : '#'}
-      class="px-2 py-1.5 rounded-lg text-xs hover:bg-white/10 transition-colors"
-      class:text-immich-dark-primary={assetId != null && !isCopy(assetId)}
+      href={master ? editorHref(master, page.url.searchParams.get('from')) : '#'}
+      aria-current={assetId != null && !isCopy(assetId) ? 'page' : undefined}
+      class="flex h-7 items-center gap-2 rounded-sm px-1.5 text-[11px] transition-colors hover:bg-ghost"
+      class:text-primary={assetId != null && !isCopy(assetId)}
     >
-      Original
+      <span
+        class="size-1.5 shrink-0 rounded-full {assetId != null && !isCopy(assetId)
+          ? 'bg-primary'
+          : 'border border-dark/35'}"
+      ></span>
+      <span class="font-medium">Original</span>
+      <span class="ml-auto text-[9px] text-dark/35">Source</span>
     </a>
     {#each copies as copy (copy.id)}
       {#if editingId === copy.id}
-        <div class="flex items-center gap-1 px-1 py-1">
-          <input
-            class="input bg-white/5 rounded-lg text-xs h-auto py-1 min-h-0 flex-1 min-w-0"
-            placeholder="Name"
-            bind:value={editName}
-            onkeydown={onRenameKey}
-            use:focusOnMount
-          />
-          <button
-            class="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+        <div class="flex h-7 items-center gap-1 px-1">
+          <div class="flex-1 min-w-0">
+            <EditableLabel
+              round
+              placeholder="Name"
+              ariaLabel="Version name"
+              bind:value={editName}
+              oncommit={commitRename}
+              oncancel={() => (editingId = null)}
+            />
+          </div>
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            icon={mdiCheck}
             onclick={() => void commitRename()}
             aria-label="Save name"
-          >
-            <Icon path={mdiCheck} size={13} />
-          </button>
-          <button
-            class="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+          />
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            icon={mdiClose}
             onclick={() => (editingId = null)}
             aria-label="Cancel"
-          >
-            <Icon path={mdiClose} size={13} />
-          </button>
+          />
         </div>
       {:else}
-        <div class="flex items-center gap-1 group">
+        <div class="group flex h-7 items-center gap-0.5">
           <a
-            href={`/assets/${copy.id}`}
-            class="flex-1 min-w-0 truncate px-2 py-1.5 rounded-lg text-xs hover:bg-white/10 transition-colors"
-            class:text-immich-dark-primary={assetId === copy.id}
+            href={editorHref(copy.id, page.url.searchParams.get('from'))}
+            aria-current={assetId === copy.id ? 'page' : undefined}
+            class="flex h-7 min-w-0 flex-1 items-center gap-2 truncate rounded-sm px-1.5 text-[11px] transition-colors hover:bg-ghost"
+            class:text-primary={assetId === copy.id}
           >
-            {label(copy)}
+            <span
+              class="size-1.5 shrink-0 rounded-full {assetId === copy.id
+                ? 'bg-primary'
+                : 'border border-dark/35'}"
+            ></span>
+            <span class="truncate font-medium">{label(copy)}</span>
           </a>
-          <button
-            class="p-1.5 rounded-lg text-immich-dark-fg/40 hover:text-immich-dark-fg hover:bg-white/10 transition-colors"
-            onclick={() => startRename(copy)}
-            aria-label="Rename copy"
-            title="Rename"
+          <div
+            class="flex items-center gap-0.5 transition-opacity {assetId === copy.id
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}"
           >
-            <Icon path={mdiPencil} size={13} />
-          </button>
-          <button
-            class="p-1.5 rounded-lg text-immich-dark-fg/40 hover:text-red-400 hover:bg-white/10 transition-colors"
-            onclick={() => void remove(copy)}
-            aria-label="Delete copy"
-            title="Delete"
-          >
-            <Icon path={mdiDelete} size={13} />
-          </button>
+            <IconButton
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              icon={mdiPencil}
+              title="Rename"
+              aria-label="Rename copy"
+              onclick={() => startRename(copy)}
+            />
+            <IconButton
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              icon={mdiDelete}
+              title="Delete"
+              aria-label="Delete copy"
+              onclick={() => void remove(copy)}
+            />
+          </div>
         </div>
       {/if}
     {/each}
-  </div>
+  </nav>
 </div>

@@ -1,21 +1,21 @@
 <script lang="ts">
   import DcpPicker from './dcp/DcpPicker.svelte';
-  import Icon from '$lib/components/Icon.svelte';
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import Notice from '$lib/components/Notice.svelte';
   import {
-    mdiAlertCircleOutline,
-    mdiCheck,
-    mdiChevronDown,
-    mdiClose,
-    mdiDelete,
-    mdiTuneVariant,
-    mdiUpload
-  } from '@mdi/js';
+    segmentedControlClass,
+    segmentedRadioItemClass
+  } from '$lib/components/editor/controls/segmentedControl';
+  import { mdiChevronDown, mdiClose, mdiTuneVariant, mdiUpload } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listDcps, matchDcp, importDcp, deleteDcp, type DcpMeta } from '$lib/api/dcp';
   import { ApiError } from '$lib/api/client';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { DcpIlluminant, DcpMode } from '$lib/types/edits';
+  import { Button, Icon, IconButton } from '@immich/ui';
+  import { Collapsible, RadioGroup } from 'bits-ui';
 
   let dcps = $state<DcpMeta[]>([]);
   let loaded = $state(false);
@@ -91,9 +91,10 @@
 
   function toggle(
     field: 'use_tone_curve' | 'use_base_table' | 'use_look_table' | 'use_baseline_exposure',
-    label: string
+    label: string,
+    checked: boolean
   ): void {
-    dcp[field] = !dcp[field];
+    dcp[field] = checked;
     editor.onCommit(label);
   }
 
@@ -146,11 +147,10 @@
     } catch {
       toasts.push('error', 'Profile delete failed.');
     }
-    pendingDelete = false;
   }
 </script>
 
-<div class="flex flex-col gap-2.5 pb-1">
+<div class="flex flex-col gap-1 pb-1">
   <input
     bind:this={fileInput}
     type="file"
@@ -171,143 +171,107 @@
       />
     </div>
     {#if selected && !selected.bundled && session.isAdmin}
-      {#if pendingDelete}
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-red-400 transition-colors hover:bg-white/10 hover:text-red-300"
-          title="Confirm delete"
-          aria-label="Confirm delete"
-          onclick={() => void confirmDelete()}
-        >
-          <Icon path={mdiCheck} size={14} />
-        </button>
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-immich-dark-fg"
-          title="Cancel"
-          aria-label="Cancel delete"
-          onclick={() => (pendingDelete = false)}
-        >
-          <Icon path={mdiClose} size={14} />
-        </button>
-      {:else}
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-lg p-1.5 text-immich-dark-fg/40 transition-colors hover:bg-white/10 hover:text-red-400"
-          title="Delete imported profile"
-          aria-label="Delete imported profile"
-          onclick={() => (pendingDelete = true)}
-        >
-          <Icon path={mdiDelete} size={14} />
-        </button>
-      {/if}
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete imported profile"
+        confirmLabel="Confirm delete profile"
+        onconfirm={confirmDelete}
+      />
     {/if}
   </div>
 
   {#if session.isAdmin}
-    <button
+    <Button
       type="button"
-      class="flex items-center justify-center gap-1.5 rounded-lg bg-white/5 py-1.5 text-xs transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="panel-action h-7"
+      leadingIcon={mdiUpload}
       disabled={importing}
       onclick={triggerImport}
     >
-      <Icon path={mdiUpload} size={14} />
       {importing ? 'Importing…' : 'Import .dcp profile'}
-    </button>
+    </Button>
   {/if}
 
   {#if missingSelected}
-    <div
-      class="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300"
-    >
-      <Icon path={mdiAlertCircleOutline} size={14} />
-      <span class="min-w-0 flex-1 truncate">Referenced profile is unavailable</span>
-      <button
-        type="button"
-        class="text-amber-300/70 transition-colors hover:text-amber-200"
+    <Notice color="warning" message="Referenced profile is unavailable" class="mx-1">
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiClose}
         title="Return to auto match"
         aria-label="Return to auto match"
         onclick={() => select('auto', null)}
-      >
-        <Icon path={mdiClose} size={14} />
-      </button>
-    </div>
+      />
+    </Notice>
   {/if}
 
   {#if dcp.mode !== 'off' && dcp.mode !== 'flat'}
-    <button
-      type="button"
-      class="flex items-center gap-1.5 px-1 text-[10px] uppercase tracking-wide text-immich-dark-fg/50 transition-colors hover:text-immich-dark-fg/80"
-      onclick={() => (optionsOpen = !optionsOpen)}
-    >
-      <Icon path={mdiTuneVariant} size={13} />
-      <span class="flex-1 text-left">Profile options</span>
-      <Icon
-        path={mdiChevronDown}
-        size={13}
-        class="transition-transform {optionsOpen ? 'rotate-180' : ''}"
-      />
-    </button>
+    <Collapsible.Root bind:open={optionsOpen} class="flex flex-col gap-1">
+      <Collapsible.Trigger
+        class="flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark"
+      >
+        <Icon icon={mdiTuneVariant} size="13px" aria-hidden="true" />
+        <span class="flex-1 text-left">Profile options</span>
+        <Icon
+          icon={mdiChevronDown}
+          size="13px"
+          class="transition-transform {optionsOpen ? 'rotate-180' : ''}"
+          aria-hidden="true"
+        />
+      </Collapsible.Trigger>
 
-    {#if optionsOpen}
-      <div class="flex flex-col gap-2.5 border-t border-white/10 pt-2.5">
-        <div class="flex flex-col gap-1">
-          <span class="text-[10px] uppercase tracking-wide text-immich-dark-fg/60">Illuminant</span>
-          <div class="flex gap-0.5 rounded-lg bg-white/5 p-0.5">
-            {#each illuminants as illuminant (illuminant.value)}
-              <button
-                type="button"
-                class="flex-1 rounded-md px-2 py-1 text-[11px] transition-colors {dcp.illuminant ===
-                illuminant.value
-                  ? 'bg-white/15 text-immich-dark-fg'
-                  : 'text-immich-dark-fg/60 hover:text-immich-dark-fg'}"
-                onclick={() => setIlluminant(illuminant.value)}
+      <Collapsible.Content>
+        {#if optionsOpen}
+          <div class="flex flex-col gap-1 border-t border-hairline pt-1">
+            <div class="flex flex-col gap-1">
+              <span class="text-[10px] font-medium text-dark/65">Illuminant</span>
+              <RadioGroup.Root
+                bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
+                orientation="horizontal"
+                aria-label="Illuminant"
+                class={segmentedControlClass}
               >
-                {illuminant.label}
-              </button>
-            {/each}
-          </div>
-        </div>
+                {#each illuminants as illuminant (illuminant.value)}
+                  <RadioGroup.Item
+                    value={illuminant.value}
+                    class="{segmentedRadioItemClass} flex-1"
+                  >
+                    {illuminant.label}
+                  </RadioGroup.Item>
+                {/each}
+              </RadioGroup.Root>
+            </div>
 
-        <div class="flex flex-col gap-1.5">
-          <label class="flex cursor-pointer items-center gap-2 text-[11px] text-immich-dark-fg/80">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
-              checked={dcp.use_base_table}
-              onchange={() => toggle('use_base_table', 'DCP Base Table')}
-            />
-            Base table (HueSatMap)
-          </label>
-          <label class="flex cursor-pointer items-center gap-2 text-[11px] text-immich-dark-fg/80">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
-              checked={dcp.use_tone_curve}
-              onchange={() => toggle('use_tone_curve', 'DCP Tone Curve')}
-            />
-            Tone curve
-          </label>
-          <label class="flex cursor-pointer items-center gap-2 text-[11px] text-immich-dark-fg/80">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
-              checked={dcp.use_look_table}
-              onchange={() => toggle('use_look_table', 'DCP Look Table')}
-            />
-            Look table
-          </label>
-          <label class="flex cursor-pointer items-center gap-2 text-[11px] text-immich-dark-fg/80">
-            <input
-              type="checkbox"
-              class="checkbox checkbox-xs checkbox-primary"
-              checked={dcp.use_baseline_exposure}
-              onchange={() => toggle('use_baseline_exposure', 'DCP Baseline Exposure')}
-            />
-            Baseline exposure
-          </label>
-        </div>
-      </div>
-    {/if}
+            <div class="flex flex-col gap-0.5">
+              <CheckboxRow
+                label="Base table (HueSatMap)"
+                checked={dcp.use_base_table}
+                onChange={(v) => toggle('use_base_table', 'DCP Base Table', v)}
+              />
+              <CheckboxRow
+                label="Tone curve"
+                checked={dcp.use_tone_curve}
+                onChange={(v) => toggle('use_tone_curve', 'DCP Tone Curve', v)}
+              />
+              <CheckboxRow
+                label="Look table"
+                checked={dcp.use_look_table}
+                onChange={(v) => toggle('use_look_table', 'DCP Look Table', v)}
+              />
+              <CheckboxRow
+                label="Baseline exposure"
+                checked={dcp.use_baseline_exposure}
+                onChange={(v) => toggle('use_baseline_exposure', 'DCP Baseline Exposure', v)}
+              />
+            </div>
+          </div>
+        {/if}
+      </Collapsible.Content>
+    </Collapsible.Root>
   {/if}
 </div>
