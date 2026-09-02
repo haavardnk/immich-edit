@@ -1,7 +1,35 @@
 <script lang="ts">
+  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import type {
+    BitDepthOpt,
+    ColorSpaceOpt,
+    PngCompressionOpt,
+    TiffCompressionOpt
+  } from '$lib/api/export';
+  import { Field, Select } from '@immich/ui';
+  import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
   import { FORMATS, type ExportForm } from './settings';
 
   let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
+
+  const colorSpaces: { value: ColorSpaceOpt; label: string }[] = [
+    { value: 'srgb', label: 'sRGB' },
+    { value: 'displayp3', label: 'Display P3' }
+  ];
+  const bitDepths: { value: BitDepthOpt; label: string }[] = [
+    { value: '8', label: '8-bit' },
+    { value: '16', label: '16-bit' }
+  ];
+  const pngCompressions: { value: PngCompressionOpt; label: string }[] = [
+    { value: 'fast', label: 'Fast' },
+    { value: 'default', label: 'Default' },
+    { value: 'best', label: 'Best' }
+  ];
+  const tiffCompressions: { value: TiffCompressionOpt; label: string }[] = [
+    { value: 'none', label: 'None' },
+    { value: 'lzw', label: 'LZW' },
+    { value: 'deflate', label: 'Deflate' }
+  ];
 
   let showQuality = $derived(
     form.format === 'jpeg' ||
@@ -18,94 +46,92 @@
   let losslessForced = $derived(form.format === 'webp' && form.includeExif);
 </script>
 
-<div class="flex flex-col gap-1">
-  <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Format</span>
-  <select
-    class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
-    bind:value={form.format}
-  >
-    {#each FORMATS as f (f.value)}
-      <option value={f.value}>{f.label}</option>
-    {/each}
-  </select>
-</div>
+<Field label="Format" size="tiny">
+  <Select
+    size="tiny"
+    class="editor-compact-select editor-compact-field"
+    options={FORMATS}
+    value={form.format}
+    onChange={(v) => (form.format = v)}
+  />
+</Field>
 
-<div class="flex flex-col gap-1">
-  <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Color space</span>
-  <select
-    class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
-    bind:value={form.colorSpace}
-  >
-    <option value="srgb">sRGB</option>
-    <option value="displayp3">Display P3</option>
-  </select>
-</div>
+<Field label="Color space" size="tiny">
+  <Select
+    size="tiny"
+    class="editor-compact-select editor-compact-field"
+    options={colorSpaces}
+    value={form.colorSpace}
+    onChange={(v) => (form.colorSpace = v)}
+  />
+</Field>
 
 {#if showQuality}
-  <div class="flex flex-col gap-1">
-    <div class="flex items-center justify-between text-[11px] leading-none">
-      <span class="text-immich-dark-fg/60 select-none">Quality</span>
-      <span class="font-mono tabular-nums text-[10px] text-immich-dark-fg/50">{form.quality}</span>
-    </div>
-    <input type="range" class="slider-range" min={1} max={100} step={1} bind:value={form.quality} />
+  <div class="panel-row h-7 items-center">
+    <span class="editor-compact-label select-none">Quality</span>
+    <RangeSlider
+      label="Quality"
+      min={1}
+      max={100}
+      step={1}
+      value={form.quality}
+      oninput={(event) => {
+        form.quality = (event.currentTarget as HTMLInputElement).valueAsNumber;
+      }}
+    />
+    <span class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65"
+      >{form.quality}</span
+    >
   </div>
 {/if}
 
 {#if showBitDepth}
-  <div class="flex flex-col gap-1">
-    <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Bit depth</span>
-    <select
-      class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
-      bind:value={form.bitDepth}
-    >
-      <option value="8">8-bit</option>
-      <option value="16">16-bit</option>
-    </select>
-  </div>
+  <Field label="Bit depth" size="tiny">
+    <Select
+      size="tiny"
+      class="editor-compact-select editor-compact-field"
+      options={bitDepths}
+      value={form.bitDepth}
+      onChange={(v) => (form.bitDepth = v)}
+    />
+  </Field>
 {/if}
 
 {#if showPngCompression}
-  <div class="flex flex-col gap-1">
-    <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Compression</span>
-    <select
-      class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
-      bind:value={form.pngCompression}
-    >
-      <option value="fast">Fast</option>
-      <option value="default">Default</option>
-      <option value="best">Best</option>
-    </select>
-  </div>
+  <Field label="Compression" size="tiny">
+    <Select
+      size="tiny"
+      class="editor-compact-select editor-compact-field"
+      options={pngCompressions}
+      value={form.pngCompression}
+      onChange={(v) => (form.pngCompression = v)}
+    />
+  </Field>
 {/if}
 
 {#if showTiffCompression}
-  <div class="flex flex-col gap-1">
-    <span class="text-[11px] leading-none text-immich-dark-fg/60 select-none">Compression</span>
-    <select
-      class="select bg-immich-dark-bg/40 border-immich-dark-fg/10 text-xs h-auto py-2.5 min-h-0"
-      bind:value={form.tiffCompression}
-    >
-      <option value="none">None</option>
-      <option value="lzw">LZW</option>
-      <option value="deflate">Deflate</option>
-    </select>
-  </div>
+  <Field label="Compression" size="tiny">
+    <Select
+      size="tiny"
+      class="editor-compact-select editor-compact-field"
+      options={tiffCompressions}
+      value={form.tiffCompression}
+      onChange={(v) => (form.tiffCompression = v)}
+    />
+  </Field>
 {/if}
 
 {#if showLossless}
-  <label class="flex items-center gap-2 text-xs text-immich-dark-fg/80 select-none cursor-pointer">
-    <input
-      type="checkbox"
-      class="checkbox checkbox-xs"
-      checked={losslessForced ? true : form.lossless}
-      disabled={losslessForced}
-      onchange={(e) => (form.lossless = (e.currentTarget as HTMLInputElement).checked)}
-    />
-    Lossless{losslessForced ? ' (required for EXIF)' : ''}
-  </label>
+  <CheckboxRow
+    label={`Lossless${losslessForced ? ' (required for EXIF)' : ''}`}
+    checked={losslessForced ? true : form.lossless}
+    disabled={losslessForced}
+    onChange={(v) => (form.lossless = v)}
+  />
 {/if}
 
-<label class="flex items-center gap-2 text-xs text-immich-dark-fg/80 select-none cursor-pointer">
-  <input type="checkbox" class="checkbox checkbox-xs" bind:checked={form.includeExif} />
-  Include EXIF metadata
-</label>
+<CheckboxRow
+  label="Include EXIF metadata"
+  checked={form.includeExif}
+  onChange={(v) => (form.includeExif = v)}
+/>
