@@ -31,6 +31,12 @@ describe('range', () => {
     expect([...selection.selected].sort()).toEqual(['b', 'c']);
   });
 
+  it('previews the range without committing it', () => {
+    selection.toggle('b');
+    expect([...selection.rangeTarget(ids, 'd')]).toEqual(['b', 'c', 'd']);
+    expect([...selection.selected]).toEqual(['b']);
+  });
+
   it.each([
     ['no anchor', null],
     ['anchor outside the list', 'zz']

@@ -42,6 +42,8 @@
   let viewTop = $state(0);
   let scrollKey = '';
   let pendingRestore: number | null = null;
+  let shiftPressed = $state(false);
+  let hoveredId = $state<string | null>(null);
 
   const items = $derived(
     browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
@@ -70,6 +72,14 @@
   });
 
   const visibleAssets = $derived(items.slice(view.startIdx, view.endIdx));
+
+  const rangePreview = $derived.by(() => {
+    if (!shiftPressed || !hoveredId || selection.allFiltered) return null;
+    return selection.rangeTarget(
+      items.map((asset) => asset.id),
+      hoveredId
+    );
+  });
 
   function findScrollParent(el: HTMLElement): HTMLElement | null {
     let p = el.parentElement;
@@ -196,6 +206,7 @@
   }
 
   function onKeydown(e: KeyboardEvent): void {
+    shiftPressed = e.shiftKey;
     if (browseView.loupeId || isTyping()) return;
 
     const bind = matchKeybind(e, GRID_CONTEXTS);
@@ -267,6 +278,14 @@
     }
   }
 
+  function onKeyup(e: KeyboardEvent): void {
+    shiftPressed = e.shiftKey;
+  }
+
+  function clearShiftPreview(): void {
+    shiftPressed = false;
+    hoveredId = null;
+  }
   onMount(() => {
     selection.clear();
     if (!root) return;
@@ -280,6 +299,8 @@
     const ro = new ResizeObserver(() => measure());
     ro.observe(root);
     window.addEventListener('keydown', onKeydown);
+    window.addEventListener('keyup', onKeyup);
+    window.addEventListener('blur', clearShiftPreview);
     if (scrollParent) {
       ro.observe(scrollParent);
       scrollParent.addEventListener('scroll', onScroll, { passive: true });
@@ -287,6 +308,8 @@
     return () => {
       ro.disconnect();
       window.removeEventListener('keydown', onKeydown);
+      window.removeEventListener('keyup', onKeyup);
+      window.removeEventListener('blur', clearShiftPreview);
       scrollParent?.removeEventListener('scroll', onScroll);
     };
   });
@@ -311,8 +334,13 @@
         {asset}
         active={asset.id === browseView.activeId}
         selected={selection.has(asset.id)}
+      rangePreview={rangePreview?.has(asset.id) && !selection.has(asset.id)}
         selectionActive={selection.active}
         onToggle={() => selection.toggle(asset.id)}
+      onPreview={() => (hoveredId = asset.id)}
+        onPreviewEnd={() => {
+        if (hoveredId === asset.id) hoveredId = null;
+        }}
         onRange={() =>
           selection.range(
             items.map((a) => a.id),

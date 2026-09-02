@@ -8,8 +8,7 @@
   import {
     mdiHeart,
     mdiStar,
-    mdiCheckCircle,
-    mdiCheckboxBlankCircleOutline,
+    mdiCheck,
     mdiEyeOutline,
     mdiCloseCircle,
     mdiContentDuplicate,
@@ -21,9 +20,12 @@
     asset,
     active = false,
     selected = false,
+    rangePreview = false,
     selectionActive = false,
     onToggle,
     onRange,
+    onPreview,
+    onPreviewEnd,
     onActivate,
     onLoupe,
     onDeleteCopy
@@ -31,9 +33,12 @@
     asset: AssetSummary;
     active?: boolean;
     selected?: boolean;
+    rangePreview?: boolean;
     selectionActive?: boolean;
     onToggle?: () => void;
     onRange?: () => void;
+    onPreview?: () => void;
+    onPreviewEnd?: () => void;
     onActivate?: () => void;
     onLoupe?: () => void;
     onDeleteCopy?: () => void;
@@ -44,6 +49,7 @@
   const rating = $derived(asset.exifInfo?.rating ?? 0);
   const rejected = $derived(isRejected(asset));
   const src = $derived(assetThumbUrl(asset.id));
+  const marked = $derived(selected || rangePreview);
   const copyBadge = $derived(
     isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
@@ -97,33 +103,54 @@
 </script>
 
 <div
-  class="block aspect-square overflow-hidden bg-white/5 rounded-lg group relative transition-all"
-  class:ring-2={active || selected}
-  class:ring-immich-dark-primary={active && !selected}
-  class:ring-immich-primary={selected}
+  role="group"
+  onpointerenter={onPreview}
+  onpointerleave={onPreviewEnd}
+  class="group relative block aspect-square overflow-hidden transition-[background-color,border-radius] duration-200"
+  class:bg-white/5={!selected}
+  class:bg-white/20={selected}
+  class:rounded-md={selected}
+  class:ring-2={active}
+  class:ring-immich-dark-primary={active}
+  data-selected={selected || undefined}
+  data-range-preview={rangePreview || undefined}
   title={asset.originalFileName}
 >
-  <a href={`/assets/${asset.id}`} onclick={onClick} class="block w-full h-full">
-    <img
-      {src}
-      alt=""
-      loading="lazy"
-      class="object-cover w-full h-full transition-transform group-hover:scale-105"
-      class:opacity-70={selected}
-      class:opacity-40={rejected}
-      class:grayscale={rejected}
-    />
+  <a
+    href={`/assets/${asset.id}`}
+    onclick={onClick}
+    class="block h-full w-full transition-[padding] duration-200"
+    class:p-2={selected}
+  >
+    <div class="h-full w-full overflow-hidden" class:rounded-sm={selected}>
+      <img
+        {src}
+        alt=""
+        loading="lazy"
+        class="h-full w-full object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
+        style:transform={selected ? 'none' : undefined}
+        class:opacity-40={rejected}
+        class:grayscale={rejected}
+      />
+    </div>
   </a>
+  {#if rangePreview && !selected}
+    <div class="pointer-events-none absolute inset-0 bg-immich-primary/25" aria-hidden="true"></div>
+  {/if}
   <button
     type="button"
     onclick={onCheckbox}
     aria-label={selected ? 'Deselect' : 'Select'}
-    class="absolute top-1 left-1 text-white drop-shadow-md transition-opacity {selected ||
-    selectionActive
+    aria-pressed={selected}
+    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-150 hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-immich-primary {marked
       ? 'opacity-100'
       : 'opacity-0 group-hover:opacity-100'}"
+    class:border-immich-primary={marked}
+    class:bg-immich-primary={marked}
   >
-    <Icon path={selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline} size={20} />
+    {#if marked}
+      <Icon path={mdiCheck} size={16} />
+    {/if}
   </button>
   {#if asset.isFavorite}
     <div class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none">

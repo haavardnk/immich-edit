@@ -45,6 +45,28 @@ class SelectionStore {
     this.rangeBase = new Set(next);
   };
 
+  rangeTarget = (orderedIds: string[], toId: string): Set<string> => {
+    if (!this.anchorId) {
+      const next = new Set(this.selected);
+      if (next.has(toId)) next.delete(toId);
+      else next.add(toId);
+      return next;
+    }
+    const anchorIndex = orderedIds.indexOf(this.anchorId);
+    const targetIndex = orderedIds.indexOf(toId);
+    if (anchorIndex < 0 || targetIndex < 0) {
+      const next = new Set(this.selected);
+      if (next.has(toId)) next.delete(toId);
+      else next.add(toId);
+      return next;
+    }
+    const start = Math.min(anchorIndex, targetIndex);
+    const end = Math.max(anchorIndex, targetIndex);
+    const next = new Set(this.rangeBase);
+    for (const id of orderedIds.slice(start, end + 1)) next.add(id);
+    return next;
+  };
+
   range = (orderedIds: string[], toId: string): void => {
     this.filterQuery = null;
     if (!this.anchorId) {
@@ -57,13 +79,7 @@ class SelectionStore {
       this.toggle(toId);
       return;
     }
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
-    const next = new Set(this.rangeBase);
-    for (const id of orderedIds.slice(lo, hi + 1)) {
-      next.add(id);
-    }
-    this.selected = next;
+    this.selected = this.rangeTarget(orderedIds, toId);
   };
 
   selectLoaded = (ids: string[]): void => {

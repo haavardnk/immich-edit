@@ -27,6 +27,7 @@ class BrowseViewStore {
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
+  editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
   private gridScroll = new Map<string, number>();
 
@@ -104,6 +105,17 @@ class BrowseViewStore {
     this.loupeId = id;
     this.resetLoupeView();
     this.loupeTagsOpen = false;
+  }
+
+  leaveLoupeForEditor(id: string): void {
+    this.editorReturnLoupeId = id;
+    this.closeLoupe();
+  }
+
+  consumeEditorReturnLoupe(id: string | null): boolean {
+    const returnToLoupe = id !== null && this.editorReturnLoupeId === id;
+    this.editorReturnLoupeId = null;
+    return returnToLoupe;
   }
 
   closeLoupe(): void {

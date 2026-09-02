@@ -1,8 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { onMount, untrack } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { untrack } from 'svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
@@ -12,8 +11,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import { Button, LoadingSpinner } from '@immich/ui';
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
   const mode = $derived(resolveSearchMode(query, page.url.searchParams.get('mode')));
@@ -56,61 +54,65 @@
   });
 
   $effect(() => feed.watchFilterChange());
-
-  onMount(() => {
-    editor.unload();
-  });
 </script>
 
 {#if !query}
-  <BrowseHeader title="Search" loaded={0} hideSort hideFilenameFilter />
-  <EmptyState
-    title="Search your library"
-    message="Type a description in the search bar to find photos."
-  />
+  <BrowseHeader title="Search" hideSort hideFilenameFilter />
+  <div class="flex flex-col items-center justify-center px-6 py-16 text-center text-dark/65">
+    <h3 class="text-sm font-medium text-dark/70">Search your library</h3>
+    <p class="mt-1 max-w-xs text-xs">Type a description in the search bar to find photos.</p>
+  </div>
 {:else if feed.loading && !feed.loadedOnce}
-  <div class="flex-1 flex items-center justify-center"><Spinner label="Searching…" /></div>
+  <div class="flex flex-1 items-center justify-center">
+    <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
+      <LoadingSpinner size="small" />
+      <span class="text-xs">Searching…</span>
+    </div>
+  </div>
 {:else}
-  <BrowseHeader
-    title={`Search: ${query}`}
-    loaded={feed.assets.length}
-    hideSort
-    hideFilenameFilter
-  />
-  <div class="flex flex-none items-center gap-2 border-b border-white/10 px-3 py-1.5">
-    <span class="text-[11px] text-immich-dark-fg/40">Search by</span>
-    <div class="inline-flex rounded-full bg-white/5 p-0.5 text-[11px]">
-      <button
+  <BrowseHeader title={`Search: ${query}`} hideSort hideFilenameFilter />
+  <div class="flex flex-none items-center gap-2 border-b border-dark/10 px-3 py-1.5">
+    <span class="text-[11px] text-dark/65">Search by</span>
+    <div class="inline-flex rounded-full bg-light-100 p-0.5 text-[11px]">
+      <Button
         type="button"
-        class="rounded-full px-2.5 py-0.5 transition-colors {mode === 'description'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={mode === 'description' ? 'filled' : 'ghost'}
+        color={mode === 'description' ? 'primary' : 'secondary'}
+        aria-pressed={mode === 'description'}
         onclick={() => setMode('description')}
       >
         Description
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        class="rounded-full px-2.5 py-0.5 transition-colors {mode === 'filename'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={mode === 'filename' ? 'filled' : 'ghost'}
+        color={mode === 'filename' ? 'primary' : 'secondary'}
+        aria-pressed={mode === 'filename'}
         onclick={() => setMode('filename')}
       >
         Filename
-      </button>
+      </Button>
     </div>
   </div>
   {#if feed.assets.length === 0}
     <div class="flex flex-1 flex-col items-center justify-center">
-      <EmptyState title="No results" message={`Nothing matched “${query}”.`} />
+      <div class="flex flex-col items-center justify-center px-6 py-16 text-center text-dark/65">
+        <h3 class="text-sm font-medium text-dark/70">No results</h3>
+        <p class="mt-1 max-w-xs text-xs">Nothing matched “{query}”.</p>
+      </div>
       {#if mode === 'description'}
-        <button
+        <Button
           type="button"
-          class="mt-3 text-xs text-immich-dark-primary hover:underline"
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="mt-3"
           onclick={() => setMode('filename')}
         >
           Search filenames instead
-        </button>
+        </Button>
       {/if}
     </div>
   {:else}

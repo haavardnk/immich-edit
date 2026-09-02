@@ -115,6 +115,7 @@ export interface PreviewRequest {
 
 export interface InstallOpts {
   assets?: Array<typeof ASSET_SUMMARY>;
+  total?: number;
   edits?: Array<{ id: string; hash: string; updated_at: string }>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
@@ -173,7 +174,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
       const items = expanded();
       return route.fulfill(
-        json({ items, count: items.length, total: items.length, nextPage: null })
+        json({ items, count: items.length, total: opts.total ?? items.length, nextPage: null })
       );
     }
     if (p === '/api/search/metadata') {
@@ -181,10 +182,11 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       if (opts.onMetadata) opts.onMetadata(body);
       const items = expanded(ordered(body.order));
       return route.fulfill(
-        json({ items, count: items.length, total: items.length, nextPage: null })
+        json({ items, count: items.length, total: opts.total ?? items.length, nextPage: null })
       );
     }
-    if (p === '/api/search/statistics') return route.fulfill(json({ total: assets.length }));
+    if (p === '/api/search/statistics')
+      return route.fulfill(json({ total: opts.total ?? assets.length }));
     if (p === '/api/edits') return route.fulfill(json(opts.edits ?? []));
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));

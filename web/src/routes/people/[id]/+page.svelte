@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { onMount, untrack } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { untrack } from 'svelte';
   import { library } from '$lib/stores/library.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
@@ -21,10 +20,6 @@
   });
 
   $effect(() => feed.watchFilterChange());
-
-  onMount(() => {
-    editor.unload();
-  });
 </script>
 
 <BrowseShell
