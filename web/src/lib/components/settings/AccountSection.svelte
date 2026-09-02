@@ -1,6 +1,8 @@
 <script lang="ts">
   import { session } from '$lib/stores/session.svelte';
   import { logout } from '$lib/api/auth';
+  import { mdiAccountCircleOutline, mdiLogoutVariant } from '@mdi/js';
+  import { Badge, Icon, IconButton } from '@immich/ui';
 
   let signingOut = $state(false);
 
@@ -18,26 +20,35 @@
 </script>
 
 {#if session.user}
-  <section class="space-y-2">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Account</h2>
-    <div class="flex items-center justify-between rounded bg-white/5 px-3 py-2">
-      <div class="text-xs">
-        <div class="font-medium">{session.user.name || session.user.email}</div>
-        <div class="text-immich-dark-fg/50 font-mono">
-          {session.user.email}
-          {#if session.user.is_admin}<span class="text-immich-primary"> · admin</span>{/if}
-          <span class="text-immich-dark-fg/40">
-            · {session.user.auth_kind === 'password' ? 'password' : 'API key'}</span
-          >
+  <section class="py-2">
+    <div class="flex min-h-16 items-center gap-3">
+      <Icon
+        icon={mdiAccountCircleOutline}
+        size="40px"
+        class="shrink-0 text-dark/45"
+        aria-hidden="true"
+      />
+      <div class="min-w-0 flex-1 text-xs">
+        <div class="truncate text-sm font-medium">{session.user.name || session.user.email}</div>
+        <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-dark/65">
+          <span class="truncate font-mono">{session.user.email}</span>
+          {#if session.user.is_admin}<Badge size="tiny" color="primary">admin</Badge>{/if}
+          <Badge size="tiny" color="secondary">
+            {session.user.auth_kind === 'password' ? 'password' : 'API key'}
+          </Badge>
         </div>
       </div>
-      <button
-        class="px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs disabled:opacity-50"
-        onclick={() => void signOut()}
+      <IconButton
+        size="small"
+        variant="ghost"
+        color="secondary"
+        icon={mdiLogoutVariant}
+        title="Sign out"
+        aria-label="Sign out"
+        loading={signingOut}
         disabled={signingOut}
-      >
-        {signingOut ? 'Signing out…' : 'Sign out'}
-      </button>
+        onclick={() => void signOut()}
+      />
     </div>
   </section>
 {/if}

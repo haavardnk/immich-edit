@@ -7,7 +7,8 @@
     type SessionInfo
   } from '$lib/api/account';
   import { formatWhen } from '$lib/utils/datetime';
-  import Spinner from '$lib/components/Spinner.svelte';
+  import { mdiLaptop, mdiLogoutVariant } from '@mdi/js';
+  import { Badge, Icon, IconButton, LoadingSpinner, Text } from '@immich/ui';
 
   let sessions = $state<SessionInfo[]>([]);
   let loading = $state(false);
@@ -38,42 +39,55 @@
   });
 </script>
 
-<section class="space-y-2">
-  <div class="flex items-center justify-between">
-    <h2 class="text-xs uppercase tracking-wider text-immich-dark-fg/50">Active sessions</h2>
+<section class="space-y-3 py-2">
+  <div class="flex min-h-8 items-center justify-between gap-3">
+    <Text size="tiny" color="muted">
+      {sessions.length} active {sessions.length === 1 ? 'session' : 'sessions'}
+    </Text>
     {#if sessions.length > 1}
-      <button
-        class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-xs"
+      <IconButton
+        size="small"
+        variant="ghost"
+        color="secondary"
+        icon={mdiLogoutVariant}
+        title="Revoke all other sessions"
+        aria-label="Revoke all other sessions"
         onclick={() => void revokeOthers()}
-      >
-        Revoke all other sessions
-      </button>
+      />
     {/if}
   </div>
   {#if loading}
-    <Spinner label="Loading…" />
+    <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
+      <LoadingSpinner size="small" />
+      <span class="text-xs">Loading…</span>
+    </div>
   {:else if sessions.length === 0}
-    <p class="text-xs text-immich-dark-fg/50">No active sessions.</p>
+    <Text size="tiny" color="muted">No active sessions.</Text>
   {:else}
-    <ul class="space-y-1">
+    <ul class="divide-y divide-hairline">
       {#each sessions as s (s.id)}
-        <li class="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs">
+        <li class="flex min-h-16 items-center gap-3 py-2.5 text-xs">
+          <Icon icon={mdiLaptop} size="20px" class="shrink-0 text-dark/45" aria-hidden="true" />
           <div class="min-w-0 flex-1">
-            <div class="truncate">
-              {s.user_agent || 'Unknown device'}
-              {#if s.current}<span class="text-immich-primary"> · this session</span>{/if}
+            <div class="flex min-w-0 items-center gap-1.5">
+              <span class="truncate">{s.user_agent || 'Unknown device'}</span>
+              {#if s.current}<Badge size="tiny" color="primary">this session</Badge>{/if}
             </div>
-            <div class="text-immich-dark-fg/40 font-mono truncate">
+            <div class="text-dark/65 font-mono truncate">
               {s.ip ?? '—'} · last seen {formatWhen(s.last_seen_at)}
             </div>
           </div>
           {#if !s.current}
-            <button
-              class="ml-2 px-2 py-1 rounded bg-white/5 hover:bg-white/10 shrink-0"
+            <IconButton
+              size="small"
+              variant="ghost"
+              color="secondary"
+              class="shrink-0"
+              icon={mdiLogoutVariant}
+              title="Revoke session"
+              aria-label={`Revoke session for ${s.user_agent || 'unknown device'}`}
               onclick={() => void revokeOne(s.id)}
-            >
-              Revoke
-            </button>
+            />
           {/if}
         </li>
       {/each}

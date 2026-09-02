@@ -46,14 +46,23 @@ test('mask models section starts collapsed and expands on click', async ({ page 
   await installSettingsMocks(page, () => [MODEL]);
   await page.goto('/settings');
 
-  const header = page.getByRole('button', { name: /mask models/i });
-  await expect(header).toBeVisible();
-  await expect(page.getByText('0 of 1 installed')).toBeVisible();
+  const appSettings = page.getByRole('button', { name: /app settings/i });
+  await expect(appSettings).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByText('SAM 2 Tiny')).toBeHidden();
 
-  await header.click();
+  await appSettings.click();
+  await expect(page.getByRole('button', { name: /^Users/ })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+  await page.getByRole('button', { name: /^Mask models/ }).click();
+  await expect(page.getByRole('button', { name: /^Mask models/ })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+  await expect(page.getByText('0 of 1 installed')).toBeVisible();
   await expect(page.getByText('SAM 2 Tiny')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download SAM 2 Tiny' })).toBeVisible();
 });
 
 test('download button shows install progress and surfaces failures', async ({ page }) => {
@@ -66,11 +75,13 @@ test('download button shows install progress and surfaces failures', async ({ pa
     }
   );
   await page.goto('/settings');
-  await page.getByRole('button', { name: /mask models/i }).click();
-  await page.getByRole('button', { name: 'Download', exact: true }).click();
+  await page.getByRole('button', { name: /app settings/i }).click();
+  await page.getByRole('button', { name: /^Mask models/ }).click();
+  await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
 
-  await expect(page.getByRole('button', { name: '50%', exact: true })).toBeVisible();
-  await expect(page.getByText('Downloading 50%')).toBeVisible();
+  await expect(
+    page.getByRole('progressbar', { name: 'SAM 2 Tiny download progress' })
+  ).toHaveAttribute('aria-valuenow', '50');
 
   current = { ...MODEL, install_error: 'download server returned 404' };
   await expect(page.getByText('Download failed: download server returned 404')).toBeVisible();
