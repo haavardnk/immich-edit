@@ -1,24 +1,28 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import { hint } from '$lib/keybinds';
+  import { IconButton } from '@immich/ui';
   import { mdiHeart, mdiHeartOutline } from '@mdi/js';
 
   interface Props {
     isFavorite: boolean;
     ontoggle: () => void;
-    size?: number;
   }
 
-  let { isFavorite, ontoggle, size = 15 }: Props = $props();
+  let { isFavorite, ontoggle }: Props = $props();
+
+  const label = $derived(
+    isFavorite ? hint('Unfavorite', 'favorite') : hint('Favorite', 'favorite')
+  );
 </script>
 
-<button
-  type="button"
-  class="p-1 rounded hover:bg-white/5 leading-none transition-colors {isFavorite
-    ? 'text-red-400'
-    : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70'}"
-  title={isFavorite ? hint('Unfavorite', 'favorite') : hint('Favorite', 'favorite')}
+<IconButton
+  size="tiny"
+  variant="ghost"
+  color="secondary"
+  class={isFavorite ? 'text-red-400' : ''}
+  icon={isFavorite ? mdiHeart : mdiHeartOutline}
+  title={label}
+  aria-label={label}
+  aria-pressed={isFavorite}
   onclick={ontoggle}
->
-  <Icon path={isFavorite ? mdiHeart : mdiHeartOutline} {size} />
-</button>
+/>

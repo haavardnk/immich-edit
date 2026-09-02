@@ -17,7 +17,7 @@ const DEFAULT_TTL: Record<ToastKind, number> = {
   success: 10000
 };
 
-class ToastStore {
+export class ToastStore {
   items = $state<Toast[]>([]);
   private nextId = 1;
   private recent = new Map<string, number>();

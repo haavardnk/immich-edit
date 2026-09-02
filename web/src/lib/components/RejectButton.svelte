@@ -1,24 +1,26 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import { hint } from '$lib/keybinds';
+  import { IconButton } from '@immich/ui';
   import { mdiCloseCircle, mdiCloseCircleOutline } from '@mdi/js';
 
   interface Props {
     isRejected: boolean;
     ontoggle: () => void;
-    size?: number;
   }
 
-  let { isRejected, ontoggle, size = 15 }: Props = $props();
+  let { isRejected, ontoggle }: Props = $props();
+
+  const label = $derived(isRejected ? hint('Unreject', 'reject') : hint('Reject', 'reject'));
 </script>
 
-<button
-  type="button"
-  class="p-1 rounded hover:bg-white/5 leading-none transition-colors {isRejected
-    ? 'text-amber-400'
-    : 'text-immich-dark-fg/40 hover:text-immich-dark-fg/70'}"
-  title={isRejected ? hint('Unreject', 'reject') : hint('Reject', 'reject')}
+<IconButton
+  size="tiny"
+  variant="ghost"
+  color="secondary"
+  class={isRejected ? 'text-amber-400' : ''}
+  icon={isRejected ? mdiCloseCircle : mdiCloseCircleOutline}
+  title={label}
+  aria-label={label}
+  aria-pressed={isRejected}
   onclick={ontoggle}
->
-  <Icon path={isRejected ? mdiCloseCircle : mdiCloseCircleOutline} {size} />
-</button>
+/>

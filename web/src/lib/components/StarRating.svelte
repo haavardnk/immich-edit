@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { Icon } from '@immich/ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';
 
   interface Props {
@@ -60,13 +60,14 @@
       aria-checked={n === rating}
       tabindex="-1"
       class="p-0.5 leading-none transition-colors {active
-        ? 'text-immich-dark-fg'
-        : 'text-immich-dark-fg/25 hover:text-immich-dark-fg/50'} {preview ? 'opacity-70' : ''}"
+        ? 'text-dark'
+        : 'text-dark/45 hover:text-dark/65'} {preview ? 'opacity-70' : ''}"
+      aria-label={`${n} star${n > 1 ? 's' : ''}`}
       title={`${n} star${n > 1 ? 's' : ''}`}
       onmouseenter={() => (hover = n)}
       onclick={(e) => onStarClick(n, e)}
     >
-      <Icon path={active ? mdiStar : mdiStarOutline} {size} />
+      <Icon icon={active ? mdiStar : mdiStarOutline} size={`${size}px`} aria-hidden="true" />
     </button>
   {/each}
 </div>

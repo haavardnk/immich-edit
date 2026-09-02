@@ -1,69 +1,54 @@
 <script lang="ts">
+  import { Popover as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
+  type Appearance = 'menu' | 'control';
 
   let {
     open,
     anchor = 'bottom',
     align = 'start',
-    onClose,
+    onOpenChange,
     trigger,
     children,
-    contentClass = '',
-    rootClass = 'inline-flex'
+    appearance = 'menu',
+    contentClass = ''
   }: {
     open: boolean;
     anchor?: Anchor;
     align?: Align;
-    onClose: () => void;
-    trigger: Snippet;
+    onOpenChange: (open: boolean) => void;
+    trigger: Snippet<[Record<string, unknown>]>;
     children: Snippet;
+    appearance?: Appearance;
     contentClass?: string;
-    rootClass?: string;
   } = $props();
 
-  let root = $state<HTMLDivElement | null>(null);
-
-  $effect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent): void => {
-      if (!root) return;
-      if (e.target instanceof Node && root.contains(e.target)) return;
-      onClose();
-    };
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('pointerdown', onPointer, true);
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('pointerdown', onPointer, true);
-      window.removeEventListener('keydown', onKey, true);
-    };
-  });
-
-  const posClass = $derived.by(() => {
-    const v = anchor === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1';
-    const h =
-      align === 'end' ? 'right-0' : align === 'center' ? 'left-1/2 -translate-x-1/2' : 'left-0';
-    return `${v} ${h}`;
-  });
+  const appearanceClass = $derived(
+    appearance === 'control'
+      ? 'flex h-10 items-center gap-1 overflow-visible rounded-lg border border-hairline bg-neutral-900 px-1 text-dark shadow-popover'
+      : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-white/10 bg-neutral-900 text-dark shadow-popover ring-1 ring-black/20'
+  );
 </script>
 
-<div class="relative {rootClass}" bind:this={root}>
-  {@render trigger()}
-  {#if open}
-    <div
-      class="absolute z-40 {posClass} bg-immich-dark-gray border border-white/10 rounded-lg shadow-xl {contentClass}"
-      role="dialog"
+<Bits.Root bind:open={() => open, onOpenChange}>
+  <Bits.Trigger>
+    {#snippet child({ props })}
+      {@render trigger(props)}
+    {/snippet}
+  </Bits.Trigger>
+  <Bits.Portal>
+    <Bits.Content
+      data-popover-content
+      side={anchor}
+      {align}
+      sideOffset={4}
+      collisionPadding={8}
+      class="z-40 {appearanceClass} {contentClass}"
     >
       {@render children()}
-    </div>
-  {/if}
-</div>
+    </Bits.Content>
+  </Bits.Portal>
+</Bits.Root>
