@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 import { expect, test } from '@playwright/test';
 
-import { installMocks, gotoAsset } from './helpers';
+import { ASSET_ID, installMocks, gotoAsset } from './helpers';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -33,6 +33,21 @@ test('open browse filters have no serious accessibility violations', async ({ pa
 
   await page.getByRole('button', { name: 'Filters' }).click();
   await expect(page.getByRole('button', { name: 'Close filters' })).toBeVisible();
+  expect(await audit(page)).toEqual([]);
+});
+
+test('the loupe and mobile action menu have no serious accessibility violations', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMocks(page);
+  await page.goto('/photos');
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+
+  await page.getByLabel('Quick review').click();
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  await expect(page.getByRole('button', { name: 'Clipping overlay', exact: true })).toBeVisible();
+
   expect(await audit(page)).toEqual([]);
 });
 
