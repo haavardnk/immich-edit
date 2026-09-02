@@ -20,6 +20,7 @@ function withRating(asset: AssetSummary, rating: number | null): ExifInfo {
     exposureTime: null,
     exifImageWidth: null,
     exifImageHeight: null,
+    orientation: null,
     dateTimeOriginal: null,
     rating,
     fileSizeInByte: null

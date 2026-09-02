@@ -4,6 +4,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
   import Icon from '$lib/components/Icon.svelte';
+  import { editorHref } from '$lib/editorNavigation';
   import { isRejected } from '$lib/reject';
   import { mdiChevronDown, mdiChevronUp, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
@@ -173,7 +174,7 @@
                   </button>
                 {:else}
                   <a
-                    href={`/assets/${asset.id}`}
+                    href={editorHref(asset.id, page.url.searchParams.get('from'))}
                     class="group relative flex-none rounded-lg overflow-hidden transition-all {isCurrent
                       ? 'ring-2 ring-immich-dark-primary'
                       : ''}"

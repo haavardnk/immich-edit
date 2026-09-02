@@ -10,6 +10,7 @@ export interface ExifInfo {
   exposureTime: string | null;
   exifImageWidth: number | null;
   exifImageHeight: number | null;
+  orientation: string | null;
   dateTimeOriginal: string | null;
   rating: number | null;
   fileSizeInByte: number | null;

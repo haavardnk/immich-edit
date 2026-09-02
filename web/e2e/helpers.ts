@@ -1,6 +1,7 @@
 import { expect, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import type { EditRecord } from '../src/lib/types/edits';
+import type { ExifInfo } from '../src/lib/types/asset';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -68,6 +69,10 @@ export const ASSET_SUMMARY = {
   exifInfo: null
 };
 
+export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
+  exifInfo: Partial<ExifInfo> | null;
+};
+
 export const ASSET_DETAIL = {
   ...ASSET_SUMMARY,
   originalMimeType: 'image/x-sony-arw',
@@ -114,8 +119,11 @@ export interface PreviewRequest {
 }
 
 export interface InstallOpts {
-  assets?: Array<typeof ASSET_SUMMARY>;
+  assets?: MockAssetSummary[];
   edits?: Array<{ id: string; hash: string; updated_at: string }>;
+  presets?: Array<Record<string, unknown>>;
+  onPresetDelete?: (id: string) => void;
+  onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -127,6 +135,7 @@ export interface InstallOpts {
   smartFails?: boolean;
   previewBody?: Buffer;
   previewRender?: (req: PreviewRequest) => Buffer;
+  thumbnailRender?: (id: string) => Buffer;
   sourceSize?: { w: number; h: number };
   previewMeta?: Record<string, unknown>;
 }
@@ -134,14 +143,14 @@ export interface InstallOpts {
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const copies: CopyRecord[] = [];
-  const ordered = (order: unknown): Array<typeof ASSET_SUMMARY> => {
+  const ordered = (order: unknown): MockAssetSummary[] => {
     if (order !== 'asc' && order !== 'desc') return assets;
     const sign = order === 'asc' ? 1 : -1;
     return assets
       .slice()
       .sort((a, b) => (Date.parse(a.fileCreatedAt) - Date.parse(b.fileCreatedAt)) * sign);
   };
-  const expanded = (list: Array<typeof ASSET_SUMMARY> = assets) =>
+  const expanded = (list: MockAssetSummary[] = assets) =>
     list.flatMap((a) => [
       a,
       ...copies
@@ -190,6 +199,21 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p === '/api/albums') return route.fulfill(json([]));
     if (p === '/api/tags') return route.fulfill(json([]));
     if (p === '/api/people') return route.fulfill(json([]));
+    if (p === '/api/presets') return route.fulfill(json(opts.presets ?? []));
+    if (p === '/api/luts') return route.fulfill(json([]));
+    if (p === '/api/dcp') return route.fulfill(json([]));
+    if (p === '/api/jobs') return route.fulfill(json([]));
+
+    const presetMatch = p.match(/^\/api\/presets\/([^/]+)$/);
+    if (presetMatch && method === 'DELETE') {
+      opts.onPresetDelete?.(presetMatch[1]);
+      return route.fulfill({ status: 204, body: '' });
+    }
+    if (presetMatch && method === 'PUT') {
+      const body = JSON.parse(route.request().postData() ?? '{}');
+      opts.onPresetUpdate?.(presetMatch[1], body);
+      return route.fulfill(json({ ...(opts.presets?.[0] ?? {}), ...body }));
+    }
 
     const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);
     if (assetMatch) {
@@ -307,8 +331,11 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(previewPng());
     }
     if (p.match(/^\/api\/assets\/[^/]+\/preview/)) return route.fulfill(previewPng());
-    if (p.endsWith('/thumbnail') || p.endsWith('/thumb') || p.endsWith('/edited-thumb'))
-      return route.fulfill(png());
+    const thumbnailMatch = p.match(/^\/api\/assets\/([^/]+)\/(?:thumbnail|thumb|edited-thumb)$/);
+    if (thumbnailMatch) {
+      const body = opts.thumbnailRender?.(thumbnailMatch[1]) ?? PNG_1X1;
+      return route.fulfill({ status: 200, contentType: 'image/png', body });
+    }
 
     return route.fulfill(json({}));
   });
@@ -316,6 +343,6 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 
 export async function gotoAsset(page: Page): Promise<void> {
   await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.getByTitle('Back')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   await expect(page.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
 }

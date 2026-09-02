@@ -18,6 +18,14 @@ async function audit(page: Parameters<typeof gotoAsset>[0]): Promise<string[]> {
     );
 }
 
+test('the photo grid has no serious accessibility violations', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  await expect(page.getByRole('link').first()).toBeVisible();
+
+  expect(await audit(page)).toEqual([]);
+});
+
 test('open browse filters have no serious accessibility violations', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installMocks(page);

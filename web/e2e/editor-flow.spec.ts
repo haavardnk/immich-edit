@@ -5,17 +5,17 @@ test('photos → asset → export tab', async ({ page }) => {
   await installMocks(page);
 
   await page.goto('/photos');
-  const tile = page.locator(`a[href="/assets/${ASSET_ID}"]`).first();
+  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(tile).toBeVisible();
   const box = await tile.boundingBox();
   if (!box) throw new Error('tile has no bounding box');
   await tile.click({ position: { x: box.width - 6, y: box.height - 6 } });
-  await page.waitForURL(`**/assets/${ASSET_ID}`);
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
 
-  await expect(page.getByTitle('Back')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Export', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Download' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Download' })).toBeVisible();
 });
 
 test('photos grid restores scroll after editor back', async ({ page }) => {
@@ -47,7 +47,7 @@ test('photos grid restores scroll after editor back', async ({ page }) => {
 
   await link.evaluate((el) => (el as HTMLAnchorElement).click());
   await page.waitForURL(`**${href}`);
-  await page.getByTitle('Back').click();
+  await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
 
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBeCloseTo(before, 0);
@@ -64,26 +64,49 @@ test('back returns to the grid and selects the photo left open', async ({ page }
   });
 
   await page.goto('/search?q=IMG');
-  const first = page.locator(`a[href="/assets/${ASSET_ID}"]`).first();
+  const first = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(first).toBeVisible();
   await first.evaluate((el) => (el as HTMLAnchorElement).click());
-  await page.waitForURL(`**/assets/${ASSET_ID}`);
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
 
-  await page.locator(`a[href="/assets/${second}"]`).first().click();
-  await page.waitForURL(`**/assets/${second}`);
+  await page.locator(`a[href^="/assets/${second}?"]`).first().click();
+  await page.waitForURL(new RegExp(`/assets/${second}(?:\\?.*)?$`));
 
-  await page.getByTitle('Back').click();
+  await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/search?q=IMG');
   await expect(
-    page.getByRole('main').locator(`div:has(> a[href="/assets/${second}"])`)
-  ).toHaveClass(/ring-immich-dark-primary/);
+    page.getByRole('main').locator(`div:has(> a[href^="/assets/${second}?"])`)
+  ).toHaveClass(/ring-primary/);
 });
 
 test('back from a directly opened photo lands on a clean grid', async ({ page }) => {
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
-  await page.getByTitle('Back').click();
+  await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
-  await expect(page.getByRole('main').locator('.ring-immich-dark-primary')).toHaveCount(0);
+  await expect(page.getByRole('main').locator('.ring-primary')).toHaveCount(0);
+});
+
+test('the grid keeps its selection across an editor round trip', async ({ page }) => {
+  const second = '00000000-0000-0000-0000-000000000002';
+  await installMocks(page, {
+    assets: [
+      ASSET_SUMMARY,
+      { ...ASSET_SUMMARY, id: second, originalFileName: 'IMG_0002.ARW', checksum: 'bbbb' }
+    ]
+  });
+
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Select', exact: true }).nth(0).click();
+  await page.getByRole('button', { name: 'Select', exact: true }).nth(0).click();
+  await expect(page.getByText('2 selected')).toBeVisible();
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('d');
+  await page.waitForURL('**/assets/**');
+  await page.getByRole('button', { name: /^Back/ }).click();
+  await page.waitForURL('**/photos');
+
+  await expect(page.getByText('2 selected')).toBeVisible();
 });
