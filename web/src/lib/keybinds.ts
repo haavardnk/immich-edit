@@ -275,6 +275,13 @@ export const KEYBINDS = [
     label: 'Redo'
   },
   {
+    id: 'openDevelop',
+    keys: ['d'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Open Develop'
+  },
+  {
     id: 'openGeometry',
     keys: ['r'],
     contexts: ['editor'],
@@ -501,6 +508,11 @@ export function isTypingTarget(e: KeyboardEvent): boolean {
   const tag = el.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
   return el.isContentEditable;
+}
+
+export function isRadioGroupTarget(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null;
+  return !!el?.closest('[role="radiogroup"]');
 }
 
 export function matchKeybind(

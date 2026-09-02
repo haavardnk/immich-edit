@@ -9,6 +9,7 @@
   import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
   import Shell from '$lib/components/shell/Shell.svelte';
   import Toasts from '$lib/components/shell/Toasts.svelte';
+  import { TooltipProvider } from '@immich/ui';
 
   let { children } = $props();
 
@@ -49,33 +50,31 @@
   });
 </script>
 
-{#if bootState === 'loading'}
-  <div
-    class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center"
-  >
-    <div
-      class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"
-    ></div>
-  </div>
-{:else if bootState === 'unreachable'}
-  <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg">
-    <BackendUnavailable retry={boot} />
-  </div>
-{:else if bare}
-  <div class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg">
-    {@render children()}
-  </div>
+<TooltipProvider>
+  {#if bootState === 'loading'}
+    <div class="h-screen w-screen bg-light text-dark flex items-center justify-center">
+      <div
+        class="h-8 w-8 rounded-full border-2 border-white/20 border-t-primary animate-spin"
+      ></div>
+    </div>
+  {:else if bootState === 'unreachable'}
+    <div class="h-screen w-screen bg-light text-dark">
+      <BackendUnavailable retry={boot} />
+    </div>
+  {:else if bare}
+    <div class="h-screen w-screen bg-light text-dark">
+      {@render children()}
+    </div>
+  {:else if session.user}
+    <Shell>
+      {@render children()}
+    </Shell>
+  {:else}
+    <div class="h-screen w-screen bg-light text-dark flex items-center justify-center">
+      <div
+        class="h-8 w-8 rounded-full border-2 border-white/20 border-t-primary animate-spin"
+      ></div>
+    </div>
+  {/if}
   <Toasts />
-{:else if session.user}
-  <Shell>
-    {@render children()}
-  </Shell>
-{:else}
-  <div
-    class="h-screen w-screen bg-immich-dark-bg text-immich-dark-fg flex items-center justify-center"
-  >
-    <div
-      class="h-8 w-8 rounded-full border-2 border-white/20 border-t-immich-primary animate-spin"
-    ></div>
-  </div>
-{/if}
+</TooltipProvider>

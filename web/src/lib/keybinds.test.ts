@@ -72,6 +72,7 @@ describe('context resolution', () => {
     [{ key: 'Escape' }, ['masks', 'editor', 'global'], 'editorEscape'],
     [{ key: 'Escape' }, ['grid', 'global'], 'gridClearSelection'],
     [{ key: 'd' }, ['compare', 'global'], 'paneOpenEditor'],
+    [{ key: 'd' }, ['editor', 'global'], 'openDevelop'],
     [{ key: 'c' }, ['retouch', 'editor', 'global'], 'retouchClone'],
     [{ key: 'c' }, ['grid', 'global'], 'enterCompare'],
     [{ key: 'q' }, ['grid', 'global'], null]

@@ -11,5 +11,9 @@ export function readStored<T>(key: string): Partial<T> | null {
 
 export function writeStored(key: string, value: unknown): void {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    return;
+  }
 }

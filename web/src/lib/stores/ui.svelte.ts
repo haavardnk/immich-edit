@@ -1,3 +1,5 @@
+import { readStored, writeStored } from '$lib/utils/storage';
+
 export type AspectRatio = 'free' | 'original' | '1:1' | '4:3' | '3:2' | '16:9' | '5:4' | '7:5';
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
@@ -13,13 +15,26 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
 ];
 
 export const MAX_ZOOM = 800;
+export const MIN_INSPECTOR_WIDTH = 320;
+export const MAX_INSPECTOR_WIDTH = 520;
+export const MIN_FILMSTRIP_HEIGHT = 48;
+export const MAX_FILMSTRIP_HEIGHT = 144;
+
+const UI_STORAGE_KEY = 'immich-edit:editorUi';
+
+type PersistedEditorUi = {
+  inspectorWidth?: number;
+  filmstripHeight?: number;
+};
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
 
 class UiStore {
-  leftCollapsed = $state(false);
   rightCollapsed = $state(false);
-  filmstripCollapsed = $state(false);
+  inspectorWidth = $state(384);
+  filmstripHeight = $state(64);
+  editorFilmstripCollapsed = $state(false);
+  loupeFilmstripCollapsed = $state(false);
   searchQuery = $state('');
   fullscreen = $state(false);
   zoom = $state(100);
@@ -32,20 +47,47 @@ class UiStore {
   perspectiveCorners = $state(false);
   clipWarn = $state(false);
 
+  constructor() {
+    const stored = readStored<PersistedEditorUi>(UI_STORAGE_KEY);
+    if (typeof stored?.inspectorWidth === 'number') {
+      this.inspectorWidth = Math.min(
+        MAX_INSPECTOR_WIDTH,
+        Math.max(MIN_INSPECTOR_WIDTH, stored.inspectorWidth)
+      );
+    }
+    if (typeof stored?.filmstripHeight === 'number') {
+      this.filmstripHeight = Math.min(
+        MAX_FILMSTRIP_HEIGHT,
+        Math.max(MIN_FILMSTRIP_HEIGHT, stored.filmstripHeight)
+      );
+    }
+  }
+
+  persistEditorUi = (): void => {
+    writeStored(UI_STORAGE_KEY, {
+      inspectorWidth: this.inspectorWidth,
+      filmstripHeight: this.filmstripHeight
+    } satisfies PersistedEditorUi);
+  };
+
+  setInspectorWidth = (width: number): void => {
+    this.inspectorWidth = Math.round(
+      Math.min(MAX_INSPECTOR_WIDTH, Math.max(MIN_INSPECTOR_WIDTH, width))
+    );
+  };
+
+  setFilmstripHeight = (height: number): void => {
+    this.filmstripHeight = Math.round(
+      Math.min(MAX_FILMSTRIP_HEIGHT, Math.max(MIN_FILMSTRIP_HEIGHT, height))
+    );
+  };
+
   toggleClipWarn = (): void => {
     this.clipWarn = !this.clipWarn;
   };
 
   togglePerspectiveCorners = (): void => {
     this.perspectiveCorners = !this.perspectiveCorners;
-  };
-
-  toggleLeft = (): void => {
-    this.leftCollapsed = !this.leftCollapsed;
-  };
-
-  toggleRight = (): void => {
-    this.rightCollapsed = !this.rightCollapsed;
   };
 
   openTab = (tab: EditorTab): void => {
@@ -55,20 +97,33 @@ class UiStore {
   };
 
   toggleChrome = (): void => {
-    const hidden = this.leftCollapsed && this.rightCollapsed && this.filmstripCollapsed;
-    this.leftCollapsed = !hidden;
+    const hidden = this.rightCollapsed && this.editorFilmstripCollapsed;
     this.rightCollapsed = !hidden;
-    this.filmstripCollapsed = !hidden;
+    this.editorFilmstripCollapsed = !hidden;
   };
 
   togglePanels = (): void => {
-    const hidden = this.leftCollapsed && this.rightCollapsed;
-    this.leftCollapsed = !hidden;
-    this.rightCollapsed = !hidden;
+    this.rightCollapsed = !this.rightCollapsed;
+  };
+
+  get filmstripCollapsed(): boolean {
+    return this.editorFilmstripCollapsed;
+  }
+
+  toggleRight = (): void => {
+    this.togglePanels();
   };
 
   toggleFilmstrip = (): void => {
-    this.filmstripCollapsed = !this.filmstripCollapsed;
+    this.toggleEditorFilmstrip();
+  };
+
+  toggleEditorFilmstrip = (): void => {
+    this.editorFilmstripCollapsed = !this.editorFilmstripCollapsed;
+  };
+
+  toggleLoupeFilmstrip = (): void => {
+    this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
   };
 
   toggleFullscreen = (): void => {
