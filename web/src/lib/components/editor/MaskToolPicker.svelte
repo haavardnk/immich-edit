@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import { Button, Icon } from '@immich/ui';
   import {
     mdiGradientHorizontal,
     mdiCircleOutline,
@@ -88,13 +88,16 @@
 
 <div class="w-56 py-1">
   {#if aiKinds.length > 0}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">AI</div>
+    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">AI</div>
     {#each aiKinds as entry (entry.kind)}
-      <button
+      <Button
         type="button"
-        class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed {entry.installed
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        class="w-full items-start justify-start gap-2.5 rounded-none px-3 py-1.5 text-left {entry.installed
           ? ''
-          : 'text-immich-dark-fg/40'}"
+          : 'text-dark/65'}"
         disabled={busy && entry.installed && entry.kind !== 'click'}
         aria-label={generatedLabel(entry.kind)}
         onclick={() => {
@@ -106,95 +109,117 @@
         }}
       >
         <Icon
-          path={entry.kind === 'click' ? mdiCursorDefaultClick : mdiAutoFix}
-          size={14}
+          icon={entry.kind === 'click' ? mdiCursorDefaultClick : mdiAutoFix}
+          size="14px"
           class="mt-0.5 shrink-0 opacity-70"
+          aria-hidden="true"
         />
         <span class="flex-1 min-w-0">
           <span class="block text-xs truncate">{generatedLabel(entry.kind)}</span>
-          <span class="block text-[10px] text-immich-dark-fg/40 truncate">
+          <span class="block text-[10px] text-dark/65 truncate">
             {entry.installed ? AI_HINTS[entry.kind] : 'Needs a model download'}
           </span>
         </span>
         {#if !entry.installed}
-          <Icon path={mdiDownloadOutline} size={13} class="mt-0.5 shrink-0" />
+          <Icon icon={mdiDownloadOutline} size="13px" class="mt-0.5 shrink-0" aria-hidden="true" />
         {:else if entry.kind === 'semantic'}
           <Icon
-            path={semanticOpen ? mdiChevronUp : mdiChevronDown}
-            size={13}
+            icon={semanticOpen ? mdiChevronUp : mdiChevronDown}
+            size="13px"
             class="mt-0.5 shrink-0"
+            aria-hidden="true"
           />
         {/if}
-      </button>
+      </Button>
       {#if entry.kind === 'subject' && entry.installed}
-        <button
+        <Button
           type="button"
-          class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10 disabled:opacity-40"
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="w-full items-start justify-start gap-2.5 rounded-none px-3 py-1.5 text-left"
           aria-label="Background"
           disabled={busy}
           onclick={onBackground}
         >
-          <Icon path={mdiVectorDifference} size={14} class="mt-0.5 shrink-0 opacity-70" />
+          <Icon
+            icon={mdiVectorDifference}
+            size="14px"
+            class="mt-0.5 shrink-0 opacity-70"
+            aria-hidden="true"
+          />
           <span class="flex-1 min-w-0">
             <span class="block text-xs truncate">Background</span>
-            <span class="block text-[10px] text-immich-dark-fg/40 truncate">
+            <span class="block text-[10px] text-dark/65 truncate">
               Everything but the subject
             </span>
           </span>
-        </button>
+        </Button>
       {/if}
       {#if entry.kind === 'click' && entry.installed}
-        <button
+        <Button
           type="button"
-          class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10"
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="w-full items-start justify-start gap-2.5 rounded-none px-3 py-1.5 text-left"
           aria-label="Box select"
           onclick={onBox}
         >
-          <Icon path={mdiSelectDrag} size={14} class="mt-0.5 shrink-0 opacity-70" />
+          <Icon
+            icon={mdiSelectDrag}
+            size="14px"
+            class="mt-0.5 shrink-0 opacity-70"
+            aria-hidden="true"
+          />
           <span class="flex-1 min-w-0">
             <span class="block text-xs truncate">Box select</span>
-            <span class="block text-[10px] text-immich-dark-fg/40 truncate">
+            <span class="block text-[10px] text-dark/65 truncate">
               Drag a box around a subject
             </span>
           </span>
-        </button>
+        </Button>
       {/if}
       {#if entry.kind === 'semantic' && entry.installed && semanticOpen}
         {#each sceneClasses as cls (cls.id)}
-          <button
+          <Button
             type="button"
-            class="flex w-full items-center gap-2.5 py-1 pl-10 pr-3 text-left text-xs transition-colors hover:bg-white/10 disabled:opacity-40"
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            class="w-full justify-start gap-2.5 rounded-none py-1 pl-10 pr-3 text-left text-xs"
             disabled={busy}
             onclick={() => onAi('semantic', true, cls.id)}
           >
             {cls.name}
-          </button>
+          </Button>
         {/each}
       {/if}
     {/each}
-    <div class="my-1 border-t border-white/10"></div>
+    <div class="my-1 border-t border-dark/10"></div>
   {:else if aiUnavailable}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">AI</div>
-    <div class="px-3 pb-2 text-[10px] text-immich-dark-fg/40 leading-snug">
+    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">AI</div>
+    <div class="px-3 pb-2 text-[10px] text-dark/65 leading-snug">
       {aiUnavailable}
     </div>
-    <div class="my-1 border-t border-white/10"></div>
+    <div class="my-1 border-t border-dark/10"></div>
   {/if}
-  <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-immich-dark-fg/40">
-    Manual
-  </div>
+  <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">Manual</div>
   {#each MANUAL as item (item.tool)}
-    <button
+    <Button
       type="button"
-      class="flex items-start gap-2.5 w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="w-full items-start justify-start gap-2.5 rounded-none px-3 py-1.5 text-left"
       aria-label={item.label}
       onclick={() => onManual(item.tool)}
     >
-      <Icon path={item.icon} size={14} class="mt-0.5 shrink-0 opacity-70" />
+      <Icon icon={item.icon} size="14px" class="mt-0.5 shrink-0 opacity-70" aria-hidden="true" />
       <span class="flex-1 min-w-0">
         <span class="block text-xs truncate">{item.label}</span>
-        <span class="block text-[10px] text-immich-dark-fg/40 truncate">{item.hint}</span>
+        <span class="block text-[10px] text-dark/65 truncate">{item.hint}</span>
       </span>
-    </button>
+    </Button>
   {/each}
 </div>

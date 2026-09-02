@@ -86,13 +86,21 @@
     tabindex="-1"
     onpointerdown={onSelect}
   />
-  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="black" stroke-width="0.5" opacity="0.5" />
+  <line
+    x1={a.x}
+    y1={a.y}
+    x2={b.x}
+    y2={b.y}
+    stroke="var(--color-image-dark)"
+    stroke-width="0.5"
+    opacity="0.5"
+  />
   <circle
     cx={a.x}
     cy={a.y}
     r="8"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: move;"
     role="button"
@@ -105,7 +113,7 @@
     cy={b.y}
     r="8"
     fill={color}
-    stroke="white"
+    stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: move;"
     role="button"
@@ -117,7 +125,7 @@
     cx={mx}
     cy={my}
     r="6"
-    fill="white"
+    fill="var(--color-image-light)"
     stroke={color}
     stroke-width="2"
     style="cursor: move;"

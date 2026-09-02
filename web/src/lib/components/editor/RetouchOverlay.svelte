@@ -185,9 +185,11 @@
     y: number,
     r: number,
     colour: string,
-    dashed: boolean
+    dashed: boolean,
+    alpha: number
   ): void {
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.setLineDash(dashed ? [4, 3] : []);
     ctx.strokeStyle = colour;
     ctx.lineWidth = 1.5;
@@ -217,6 +219,7 @@
     pts: [number, number][],
     rPx: number,
     fill: string,
+    fillAlpha: number,
     line: string,
     lineAlpha: number
   ): void {
@@ -225,6 +228,7 @@
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.globalAlpha = fillAlpha;
     ctx.fillStyle = fill;
     ctx.strokeStyle = fill;
     tracePath(ctx, pts, rPx);
@@ -242,8 +246,8 @@
     lc.strokeStyle = line;
     tracePath(lc, pts, rPx + 0.75);
     lc.globalCompositeOperation = 'destination-out';
-    lc.fillStyle = '#000';
-    lc.strokeStyle = '#000';
+    lc.fillStyle = line;
+    lc.strokeStyle = line;
     tracePath(lc, pts, rPx - 0.75);
     lc.globalCompositeOperation = 'source-over';
 
@@ -262,6 +266,10 @@
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, w, h);
+    const styles = getComputedStyle(canvasEl);
+    const activeColour = styles.getPropertyValue('--color-retouch-active').trim();
+    const sourceColour = styles.getPropertyValue('--color-retouch-source').trim();
+    const lightColour = styles.getPropertyValue('--color-image-light').trim();
 
     for (const s of strokes) {
       if (!s.enabled) continue;
@@ -273,8 +281,9 @@
         ctx,
         pts,
         rPx,
-        active ? 'rgba(66,165,245,0.2)' : 'rgba(255,255,255,0.05)',
-        active ? '#42a5f5' : '#ffffff',
+        active ? activeColour : lightColour,
+        active ? 0.2 : 0.05,
+        active ? activeColour : lightColour,
         active ? 0.9 : 0.45
       );
       if (!active) continue;
@@ -282,27 +291,28 @@
       const sx = sxN * w;
       const sy = syN * h;
       ctx.save();
-      ctx.strokeStyle = 'rgba(66,165,245,0.5)';
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = activeColour;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);
       ctx.lineTo(sx, sy);
       ctx.stroke();
       ctx.restore();
-      ring(ctx, sx, sy, rPx, 'rgba(120,220,140,0.95)', true);
+      ring(ctx, sx, sy, rPx, sourceColour, true, 0.95);
     }
 
     if (anchor && !drawing) {
       const [axN, ayN] = sceneUvToDisplayUv(view, anchor.x, anchor.y);
       const rPx = displayRadius(editor.retouchTool.size, axN, ayN);
-      ring(ctx, axN * w, ayN * h, rPx, 'rgba(120,220,140,0.95)', true);
-      crosshair(ctx, axN * w, ayN * h, 'rgba(120,220,140,0.95)');
+      ring(ctx, axN * w, ayN * h, rPx, sourceColour, true, 0.95);
+      crosshair(ctx, axN * w, ayN * h, sourceColour, 0.95);
     }
 
     if (drawing && drawPts.length > 0) {
       const pts = drawPts.map(([x, y]) => [x * w, y * h] as [number, number]);
       const rPx = displayRadius(editor.retouchTool.size, drawPts[0][0], drawPts[0][1]);
-      paintPath(ctx, pts, rPx, 'rgba(66,165,245,0.25)', '#42a5f5', 0.9);
+      paintPath(ctx, pts, rPx, activeColour, 0.25, activeColour, 0.9);
       if (strokeOffset) {
         const last = drawPts[drawPts.length - 1];
         const sc = displayUvToSceneUv(view, last[0], last[1]);
@@ -311,8 +321,8 @@
           sc[0] + strokeOffset[0],
           sc[1] + strokeOffset[1]
         );
-        ring(ctx, sxN * w, syN * h, rPx, 'rgba(120,220,140,0.95)', true);
-        crosshair(ctx, sxN * w, syN * h, 'rgba(120,220,140,0.95)');
+        ring(ctx, sxN * w, syN * h, rPx, sourceColour, true, 0.95);
+        crosshair(ctx, sxN * w, syN * h, sourceColour, 0.95);
       }
       return;
     }
@@ -325,14 +335,22 @@
       hover[0] * w,
       hover[1] * h,
       rPx,
-      picking ? 'rgba(120,220,140,0.9)' : 'rgba(255,255,255,0.8)',
-      picking
+      picking ? sourceColour : lightColour,
+      picking,
+      picking ? 0.9 : 0.8
     );
-    if (picking) crosshair(ctx, hover[0] * w, hover[1] * h, 'rgba(120,220,140,0.9)');
+    if (picking) crosshair(ctx, hover[0] * w, hover[1] * h, sourceColour, 0.9);
   }
 
-  function crosshair(ctx: CanvasRenderingContext2D, x: number, y: number, colour: string): void {
+  function crosshair(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    colour: string,
+    alpha: number
+  ): void {
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.strokeStyle = colour;
     ctx.lineWidth = 1;
     ctx.beginPath();

@@ -1,10 +1,16 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import {
+    segmentedControlClass,
+    segmentedRadioItemClass
+  } from '$lib/components/editor/controls/segmentedControl';
   import { hint, keyLabel } from '$lib/keybinds';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '$lib/types/edits';
+  import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mdiBandage, mdiClose, mdiEye, mdiEyeOff, mdiRestore, mdiStamper } from '@mdi/js';
+  import { RadioGroup } from 'bits-ui';
 
   const strokes = $derived(editor.edits.retouch);
   const selected = $derived<RetouchStroke | null>(
@@ -39,33 +45,34 @@
   }
 </script>
 
-<div class="flex flex-col gap-3">
-  <div class="flex items-center justify-between">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Tool</div>
-    <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-      <button
-        type="button"
-        class="flex items-center gap-1 px-2 leading-5 transition-colors {mode === 'heal'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-        title="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"
-        onclick={() => setMode('heal')}
+<div class="flex flex-col gap-1">
+  <div class="flex h-8 items-center justify-between border-b border-hairline">
+    <div class="text-[9px] font-semibold uppercase text-dark/65">Tool</div>
+    <RadioGroup.Root
+      bind:value={() => mode, (v) => setMode(v as RetouchMode)}
+      orientation="horizontal"
+      aria-label="Retouch tool"
+      class={segmentedControlClass}
+    >
+      <Tooltip
+        text="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"
       >
-        <Icon path={mdiBandage} size={12} />
-        Heal
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1 px-2 leading-5 transition-colors {mode === 'clone'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
-        title="{hint('Clone', 'retouchClone')} — copies the source pixels exactly"
-        onclick={() => setMode('clone')}
-      >
-        <Icon path={mdiStamper} size={12} />
-        Clone
-      </button>
-    </div>
+        {#snippet child({ props })}
+          <RadioGroup.Item value="heal" class="{segmentedRadioItemClass} gap-1 px-2" {...props}>
+            <Icon icon={mdiBandage} size="12px" aria-hidden="true" />
+            Heal
+          </RadioGroup.Item>
+        {/snippet}
+      </Tooltip>
+      <Tooltip text="{hint('Clone', 'retouchClone')} — copies the source pixels exactly">
+        {#snippet child({ props })}
+          <RadioGroup.Item value="clone" class="{segmentedRadioItemClass} gap-1 px-2" {...props}>
+            <Icon icon={mdiStamper} size="12px" aria-hidden="true" />
+            Clone
+          </RadioGroup.Item>
+        {/snippet}
+      </Tooltip>
+    </RadioGroup.Root>
   </div>
 
   <SliderRow
@@ -103,17 +110,17 @@
   />
 
   {#if editor.retouchAnchor}
-    <p class="text-[11px] text-immich-dark-fg/40 leading-snug">
+    <p class="border-l-2 border-primary/50 pl-2 text-[10px] leading-snug text-dark/65">
       Drag over a blemish to paint it out. The source follows your brush, offset from the point you
-      sampled. Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click
+      sampled. Hold <kbd class="rounded bg-light-200 px-1 font-sans">{keyLabel('Alt')}</kbd> and click
       to sample somewhere else, or drag the green circle to move one stroke's source.
     </p>
   {:else}
     <p
-      class="text-[11px] text-immich-dark-primary/90 leading-snug rounded-lg bg-immich-dark-primary/10 px-2 py-1.5"
+      class="border-l-2 border-white/15 bg-white/4 py-1 pl-2 text-[10px] leading-snug text-dark/65"
     >
-      Hold <kbd class="px-1 rounded bg-white/10 font-sans">{keyLabel('Alt')}</kbd> and click a clean patch
-      of the photo to set the source. Painting is disabled until you do.
+      Hold <kbd class="rounded bg-light-200 px-1 font-sans">{keyLabel('Alt')}</kbd> and click a clean
+      patch of the photo to set the source. Painting is disabled until you do.
     </p>
   {/if}
 
@@ -121,69 +128,71 @@
     <div class="flex flex-col gap-0.5">
       {#each strokes as stroke, i (stroke.id)}
         <div
-          class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors {editor.activeRetouchId ===
+          class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {editor.activeRetouchId ===
           stroke.id
-            ? 'bg-white/10'
-            : 'hover:bg-white/5'}"
-          role="button"
-          tabindex="0"
-          onclick={() => (editor.activeRetouchId = stroke.id)}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') editor.activeRetouchId = stroke.id;
-          }}
+            ? 'border-primary/25 bg-primary/10'
+            : 'border-transparent hover:border-hairline hover:bg-white/4'}"
         >
           <Icon
-            path={stroke.mode === 'heal' ? mdiBandage : mdiStamper}
-            size={13}
+            icon={stroke.mode === 'heal' ? mdiBandage : mdiStamper}
+            size="13px"
             class="shrink-0 opacity-50"
+            aria-hidden="true"
           />
-          <span
-            class="flex-1 text-xs text-immich-dark-fg/90 truncate {stroke.enabled
+          <Button
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark hover:bg-transparent {stroke.enabled
               ? ''
               : 'opacity-50'}"
+            aria-pressed={editor.activeRetouchId === stroke.id}
+            onclick={() => (editor.activeRetouchId = stroke.id)}
           >
             {label(stroke, i)}
-          </span>
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
+          </Button>
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            icon={stroke.enabled ? mdiEye : mdiEyeOff}
             title={stroke.enabled ? 'Disable' : 'Enable'}
             aria-label="Toggle retouch stroke"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               void editor.toggleRetouchStroke(stroke.id);
             }}
-          >
-            <Icon path={stroke.enabled ? mdiEye : mdiEyeOff} size={13} />
-          </button>
-          <button
-            type="button"
-            class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
+          />
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            icon={mdiClose}
             title="Delete"
             aria-label="Delete retouch stroke"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               void editor.removeRetouchStroke(stroke.id);
             }}
-          >
-            <Icon path={mdiClose} size={13} />
-          </button>
+          />
         </div>
       {/each}
     </div>
-    <button
+    <Button
       type="button"
-      class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs transition-colors"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="h-6 panel-action"
+      leadingIcon={mdiRestore}
       onclick={() => void editor.clearRetouch()}
     >
-      <Icon path={mdiRestore} size={14} />
       Remove all
-    </button>
+    </Button>
   {/if}
 
   {#if strokes.length >= MAX_RETOUCH_STROKES}
-    <div class="text-[11px] text-amber-400/80">
-      Limit of {MAX_RETOUCH_STROKES} retouch strokes reached.
-    </div>
+    <Notice color="warning" message={`Limit of ${MAX_RETOUCH_STROKES} retouch strokes reached.`} />
   {/if}
 </div>

@@ -9,6 +9,8 @@
     type GeometryTransform
   } from '$lib/utils/geomTransform';
   import { imageRect } from '$lib/utils/imageRect.svelte';
+  import { mergeProps } from '$lib/utils/mergeProps';
+  import { Tooltip } from '@immich/ui';
 
   let {
     img
@@ -178,7 +180,7 @@
   >
     {#if dragRect}
       <div
-        class="pointer-events-none absolute border-2 border-immich-primary bg-immich-primary/15"
+        class="pointer-events-none absolute border-2 border-primary bg-primary/15"
         style="left: {dragRect.left}px; top: {dragRect.top}px; width: {dragRect.width}px; height: {dragRect.height}px;"
       ></div>
     {/if}
@@ -192,21 +194,26 @@
     {#each points as p, i (i)}
       {@const pos = markerPos(p.x, p.y)}
       {#if pos}
-        <button
-          type="button"
-          class="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow transition hover:scale-125 hover:ring-2 hover:ring-white/60 disabled:cursor-wait"
-          class:bg-emerald-500={p.positive}
-          class:bg-red-500={!p.positive}
-          style="left: {pos.left}px; top: {pos.top}px;"
-          title="Remove this point"
-          aria-label="Remove this point"
-          disabled={editor.maskGenerating}
-          onpointerdown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            void editor.removeClickPoint(i);
-          }}
-        ></button>
+        <Tooltip text="Remove this point">
+          {#snippet child({ props })}
+            <button
+              type="button"
+              class="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow transition hover:scale-125 hover:ring-2 hover:ring-white/60 disabled:cursor-wait"
+              class:bg-emerald-500={p.positive}
+              class:bg-red-500={!p.positive}
+              style="left: {pos.left}px; top: {pos.top}px;"
+              aria-label="Remove this point"
+              disabled={editor.maskGenerating}
+              {...mergeProps(props, {
+                onpointerdown: (e: PointerEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  void editor.removeClickPoint(i);
+                }
+              })}
+            ></button>
+          {/snippet}
+        </Tooltip>
       {/if}
     {/each}
   </div>

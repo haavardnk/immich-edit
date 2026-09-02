@@ -1,34 +1,36 @@
 <script lang="ts">
+  import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { Button } from '@immich/ui';
 
   const size = $derived(editor.brushTool.size);
   const hardness = $derived(editor.brushTool.hardness);
   const flow = $derived(editor.brushTool.flow);
 </script>
 
-<div class="mt-2 flex flex-col gap-2">
-  <div class="flex items-center justify-between px-1">
-    <div class="text-[10px] uppercase tracking-wider text-immich-dark-fg/40">Brush</div>
-    <div class="flex rounded ring-1 ring-white/10 overflow-hidden text-[10px]">
-      <button
+<div class="mt-1 flex flex-col gap-1">
+  <div class="flex h-7 items-center justify-between">
+    <div class="text-[10px] font-medium text-dark/65">Brush</div>
+    <div class="{compactSegmentedControlClass} flex text-[10px]">
+      <Button
         type="button"
-        class="px-2 leading-5 transition-colors {editor.brushTool.mode === 'paint'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={editor.brushTool.mode === 'paint' ? 'filled' : 'ghost'}
+        color={editor.brushTool.mode === 'paint' ? 'primary' : 'secondary'}
         onclick={() => editor.setBrushTool({ mode: 'paint' })}
       >
         Paint
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        class="px-2 leading-5 transition-colors {editor.brushTool.mode === 'erase'
-          ? 'bg-white/15 text-immich-dark-fg'
-          : 'text-immich-dark-fg/50 hover:text-immich-dark-fg'}"
+        size="tiny"
+        variant={editor.brushTool.mode === 'erase' ? 'filled' : 'ghost'}
+        color={editor.brushTool.mode === 'erase' ? 'primary' : 'secondary'}
         onclick={() => editor.setBrushTool({ mode: 'erase' })}
       >
         Erase
-      </button>
+      </Button>
     </div>
   </div>
   <SliderRow

@@ -1,8 +1,9 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icon.svelte';
+  import EditableLabel from '$lib/components/EditableLabel.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { maskedEditsIsZero, type MaskLayer } from '$lib/types/edits';
   import type { MaskCapacity } from '$lib/types/masks';
+  import { Button, IconButton } from '@immich/ui';
   import {
     mdiChevronDown,
     mdiChevronUp,
@@ -46,149 +47,134 @@
     if (isPreview) editor.endMaskPreview();
     else editor.previewMaskWeight(layer.id);
   }
-
-  function focusOnMount(node: HTMLInputElement): void {
-    node.focus();
-    node.select();
-  }
 </script>
 
 <div
-  class="flex items-center gap-1.5 px-1.5 py-1 rounded transition-colors cursor-pointer {isActive
-    ? 'bg-white/10'
-    : 'hover:bg-white/5'}"
-  role="button"
-  tabindex="0"
-  onclick={() => editor.setActiveLayer(layer.id)}
-  onkeydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') editor.setActiveLayer(layer.id);
-  }}
+  class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {isActive
+    ? 'border-primary/25 bg-primary/10'
+    : 'border-transparent hover:border-hairline hover:bg-white/4'}"
 >
   <div
-    class="w-3 h-3 rounded-sm ring-1 ring-white/20 shrink-0"
+    class="h-3 w-1 shrink-0 rounded-full ring-1 ring-white/10"
     style="background-color: {layer.color}"
     title="Overlay colour for this mask"
   ></div>
-  <button
-    type="button"
-    class="shrink-0 text-immich-dark-fg/50 hover:text-immich-dark-fg"
+  <IconButton
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    icon={layer.enabled ? mdiEye : mdiEyeOff}
     title={layer.enabled ? 'Disable layer' : 'Enable layer'}
     aria-label="Toggle layer"
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.stopPropagation();
       void editor.toggleMaskLayerEnabled(layer.id);
     }}
-  >
-    <Icon path={layer.enabled ? mdiEye : mdiEyeOff} size={13} />
-  </button>
+  />
   {#if editing}
-    <input
-      class="flex-1 bg-white/5 border border-white/10 rounded px-1 text-xs text-immich-dark-fg outline-none"
-      bind:value={nameDraft}
-      onblur={() => void commitRename()}
-      onkeydown={(e) => {
-        if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-        else if (e.key === 'Escape') editing = false;
-      }}
-      use:focusOnMount
-      onclick={(e) => e.stopPropagation()}
-    />
+    <div class="flex-1 min-w-0">
+      <EditableLabel
+        ariaLabel="Mask name"
+        round
+        commitOnBlur
+        bind:value={nameDraft}
+        oncommit={commitRename}
+        oncancel={() => (editing = false)}
+      />
+    </div>
   {:else}
-    <button
+    <Button
       type="button"
-      class="flex-1 text-left text-xs text-immich-dark-fg/90 truncate {layer.enabled
-        ? ''
-        : 'opacity-50'}"
-      ondblclick={(e) => {
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="flex-1 min-w-0 justify-start {layer.enabled ? '' : 'opacity-50'}"
+      title="Double-click to rename"
+      ondblclick={(e: MouseEvent) => {
         e.stopPropagation();
         beginRename();
       }}
-      onclick={(e) => {
-        e.stopPropagation();
+      onclick={() => {
         editor.setActiveLayer(layer.id);
       }}
-      title="Double-click to rename"
     >
-      {layer.name}
-    </button>
+      <span class="truncate">{layer.name}</span>
+    </Button>
   {/if}
   <span
-    class="shrink-0 text-[10px] tabular-nums text-immich-dark-fg/30"
+    class="shrink-0 text-[10px] tabular-nums text-dark/65"
     title="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
   >
     {layer.components.length}
   </span>
   {#if !maskedEditsIsZero(layer.edits)}
-    <span
-      class="shrink-0 w-1.5 h-1.5 rounded-full bg-immich-dark-primary/70"
-      title="This mask has adjustments"
+    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" title="This mask has adjustments"
     ></span>
   {/if}
-  <button
-    type="button"
-    class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors {isPreview
-      ? 'text-immich-dark-primary'
-      : ''}"
+  <IconButton
+    size="tiny"
+    variant="ghost"
+    color={isPreview ? 'primary' : 'secondary'}
+    icon={mdiCircleOpacity}
     title={isPreview ? 'Hide the mask overlay' : 'Show this mask over the photo'}
     aria-label="Toggle mask preview"
-    onclick={(e) => {
+    aria-pressed={isPreview}
+    onclick={(e: MouseEvent) => {
       e.stopPropagation();
       togglePreview();
     }}
-  >
-    <Icon path={mdiCircleOpacity} size={13} />
-  </button>
+  />
   {#if isActive && total > 1}
-    <button
-      type="button"
-      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={mdiChevronUp}
       title="Move up. Masks further down the list are applied on top."
       aria-label="Move mask up"
       disabled={index === 0}
-      onclick={(e) => {
+      onclick={(e: MouseEvent) => {
         e.stopPropagation();
         void editor.reorderMaskLayer(layer.id, index - 1);
       }}
-    >
-      <Icon path={mdiChevronUp} size={13} />
-    </button>
-    <button
-      type="button"
-      class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+    />
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={mdiChevronDown}
       title="Move down. Masks further down the list are applied on top."
       aria-label="Move mask down"
       disabled={index === total - 1}
-      onclick={(e) => {
+      onclick={(e: MouseEvent) => {
         e.stopPropagation();
         void editor.reorderMaskLayer(layer.id, index + 1);
       }}
-    >
-      <Icon path={mdiChevronDown} size={13} />
-    </button>
+    />
   {/if}
-  <button
-    type="button"
-    class="shrink-0 text-immich-dark-fg/40 hover:text-immich-dark-fg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+  <IconButton
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    icon={mdiContentCopy}
     title="Duplicate layer"
     aria-label="Duplicate layer"
     disabled={cap.layersFull || cap.totalFull}
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.stopPropagation();
       void editor.duplicateMaskLayer(layer.id);
     }}
-  >
-    <Icon path={mdiContentCopy} size={12} />
-  </button>
-  <button
-    type="button"
-    class="shrink-0 text-immich-dark-fg/40 hover:text-red-400 transition-colors"
+  />
+  <IconButton
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    icon={mdiClose}
     title="Delete layer"
     aria-label="Delete layer"
-    onclick={(e) => {
+    onclick={(e: MouseEvent) => {
       e.stopPropagation();
       void editor.removeMaskLayer(layer.id);
     }}
-  >
-    <Icon path={mdiClose} size={13} />
-  </button>
+  />
 </div>

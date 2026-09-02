@@ -2,6 +2,7 @@ import {
   N_MAX_COMPONENTS_PER_LAYER,
   N_MAX_MASK_LAYERS,
   N_MAX_TOTAL_COMPONENTS,
+  MASK_COLOR_TOKENS,
   type Edits,
   type GeneratedMeta,
   type MaskComponent,
@@ -43,23 +44,12 @@ export function generatedLabel(kind: string): string {
   return GENERATED_LABELS[kind] ?? kind;
 }
 
-const PALETTE = [
-  '#ff3b30',
-  '#ff9500',
-  '#ffcc00',
-  '#34c759',
-  '#5ac8fa',
-  '#007aff',
-  '#af52de',
-  '#ff2d55'
-];
-
 function nextId(): string {
   return uuidv4();
 }
 
 export function defaultMaskColor(index: number): string {
-  return PALETTE[index % PALETTE.length];
+  return MASK_COLOR_TOKENS[index % MASK_COLOR_TOKENS.length];
 }
 
 export function defaultLinear(): MaskComponentKind {
