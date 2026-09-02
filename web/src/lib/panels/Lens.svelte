@@ -3,8 +3,9 @@
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import Notice from '$lib/components/Notice.svelte';
+  import { editsToManifest } from '$lib/edits/manifest';
   import { editor } from '$lib/stores/editor.svelte';
-  import { editsToManifest, NEUTRAL_LENS } from '$lib/types/edits';
+  import { NEUTRAL_LENS } from '$lib/types/edits';
   import { Button } from '@immich/ui';
 
   const profile = $derived(editor.lensProfile);

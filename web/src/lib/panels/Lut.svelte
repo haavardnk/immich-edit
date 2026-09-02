@@ -4,7 +4,7 @@
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import Notice from '$lib/components/Notice.svelte';
-  import { editsToManifest } from '$lib/types/edits';
+  import { editsToManifest } from '$lib/edits/manifest';
   import { mdiClose, mdiUpload } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';

@@ -1,6 +1,6 @@
 import { getJson, sendJson, ApiError, ConflictError } from './client';
+import { editsToManifest } from '$lib/edits/manifest';
 import type { Edits, EditRecord } from '$lib/types/edits';
-import { editsToManifest } from '$lib/types/edits';
 
 export interface EditedAssetEntry {
   id: string;

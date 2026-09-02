@@ -3,7 +3,6 @@ import {
   originalPreviewEdits,
   resetDevelopEdits,
   isIdentity,
-  manifestToEdits,
   effectiveLens,
   MAX_RETOUCH_STROKES,
   type AspectLock,
@@ -20,21 +19,15 @@ import {
   type RetouchStroke,
   type Vec2f
 } from '$lib/types/edits';
-import {
-  cloneLayerWithNewIds,
-  defaultLinear,
-  defaultMaskColor,
-  makeComponent,
-  MAX_POLYGON_POINTS,
-  makeLayer,
-  maskCapacity,
-  nextLayerName,
-  setMaskedEdit
-} from '$lib/types/masks';
+import { manifestToEdits } from '$lib/edits/manifest';
+import { defaultLinear, maskCapacity } from '$lib/types/masks';
 import type { BrushBuffer } from '$lib/utils/brush';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '$lib/api/masks';
+import * as exportActions from '$lib/stores/editor/export.svelte';
+import * as maskLayers from '$lib/stores/editor/maskLayers.svelte';
 import * as maskGen from '$lib/stores/editor/maskGen';
 import * as metadata from '$lib/stores/editor/metadata';
+import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import type { PreviewMeta } from '$lib/types/preview';
@@ -51,14 +44,7 @@ import {
   type PreviewMode,
   type ProofOptions
 } from '$lib/api/preview';
-import {
-  downloadExport,
-  EXTENSION_BY_FORMAT,
-  uploadToImmich,
-  type ColorSpaceOpt,
-  type ExportOptions,
-  type ImmichExportOptions
-} from '$lib/api/export';
+import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 import { isRejected } from '$lib/reject';
@@ -78,7 +64,6 @@ import { applyCopySections } from '$lib/copyPaste';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
-import { downloadBlob } from '$lib/utils/download';
 import { errorMessage } from '$lib/utils/errors';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
 
@@ -120,8 +105,8 @@ class EditorStore {
     effectiveLens(this.edits.lens, this.meta?.is_raw ? (this.lensProfile?.edits ?? null) : null)
   );
   lastWarnings = $state<string[]>([]);
-  private lastImmichOpts: ImmichExportOptions | null = null;
-  private lastExportOpts: ExportOptions | null = null;
+  lastImmichOpts: ImmichExportOptions | null = null;
+  lastExportOpts: ExportOptions | null = null;
   autoBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
@@ -789,444 +774,155 @@ class EditorStore {
     }
   };
 
-  onExport = async (opts: ExportOptions): Promise<void> => {
-    if (!this.assetId) return;
-    this.lastExportOpts = opts;
-    this.exporting = true;
-    try {
-      const blob = await downloadExport(this.assetId, $state.snapshot(this.edits), opts);
-      const base = (this.asset?.originalFileName ?? this.assetId).replace(/\.[^.]+$/, '');
-      const name = `${base}_edit.${EXTENSION_BY_FORMAT[opts.format]}`;
-      downloadBlob(blob, name);
-    } catch (e) {
-      this.error = errorMessage(e);
-    } finally {
-      this.exporting = false;
-    }
-  };
+  onExport = (opts: ExportOptions): Promise<void> => exportActions.onExport(this, opts);
 
-  retryExport = async (): Promise<void> => {
-    if (this.lastExportOpts) await this.onExport(this.lastExportOpts);
-  };
+  retryExport = (): Promise<void> => exportActions.retryExport(this);
 
-  onUploadToImmich = async (opts: ImmichExportOptions): Promise<void> => {
-    if (!this.assetId) return;
-    this.lastImmichOpts = opts;
-    this.exportingToImmich = true;
-    this.lastUpload = null;
-    this.lastWarnings = [];
-    try {
-      const result = await uploadToImmich(this.assetId, $state.snapshot(this.edits), opts);
-      const dup = result.status.toLowerCase() === 'duplicate';
-      const msg = dup
-        ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
-        : `Uploaded ${result.filename} to Immich`;
-      toasts.push(dup ? 'warn' : 'success', msg, 10000);
-      this.lastWarnings = result.warnings;
-      this.lastUpload = { kind: dup ? 'duplicate' : 'success', message: msg };
-      if (opts.stackWithOriginal || opts.favorite) {
-        try {
-          this.asset = await getAsset(this.assetId);
-        } catch {
-          /* ignore */
-        }
-      }
-    } catch (e) {
-      const m = errorMessage(e);
-      this.error = m;
-      this.lastUpload = { kind: 'error', message: `Upload failed: ${m}` };
-      toasts.push('error', `Upload failed: ${m}`, 10000);
-    } finally {
-      this.exportingToImmich = false;
-    }
-  };
+  onUploadToImmich = (opts: ImmichExportOptions): Promise<void> =>
+    exportActions.onUploadToImmich(this, opts);
 
-  retryUpload = async (): Promise<void> => {
-    if (this.lastImmichOpts) await this.onUploadToImmich(this.lastImmichOpts);
-  };
+  retryUpload = (): Promise<void> => exportActions.retryUpload(this);
 
-  maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> => {
-    return maskCapacity(this.edits, layerId);
-  };
+  maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> =>
+    maskLayers.maskCapacityFor(this, layerId);
 
-  activeLayer = (): MaskLayer | null => {
-    if (!this.activeLayerId) return null;
-    return this.edits.masks.find((l) => l.id === this.activeLayerId) ?? null;
-  };
+  activeLayer = (): MaskLayer | null => maskLayers.activeLayer(this);
 
-  setActiveLayer = (id: string | null): void => {
-    if (this.colorPicker && this.colorPicker.layerId !== id) this.cancelColorPicker();
-    if (this.activeLayerId !== id) this.activeMaskComponentId = null;
-    this.activeLayerId = id;
-    if (this.maskPreviewLayerId && this.maskPreviewLayerId !== id) {
-      this.endMaskPreview();
-    }
-  };
+  setActiveLayer = (id: string | null): void => maskLayers.setActiveLayer(this, id);
 
-  activeMaskComponent = (): MaskComponent | null => {
-    const layer = this.activeLayer();
-    if (!layer || !this.activeMaskComponentId) return null;
-    return layer.components.find((c) => c.id === this.activeMaskComponentId) ?? null;
-  };
+  activeMaskComponent = (): MaskComponent | null => maskLayers.activeMaskComponent(this);
 
-  setActiveMaskComponent = (id: string | null): void => {
-    if (this.colorPicker && this.colorPicker.componentId !== id) this.cancelColorPicker();
-    this.activeMaskComponentId = id;
-  };
+  setActiveMaskComponent = (id: string | null): void => maskLayers.setActiveMaskComponent(this, id);
 
-  setMaskComponentFeather = (layerId: string, componentId: string, feather: number): void => {
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    const comp = layer?.components.find((c) => c.id === componentId);
-    if (!comp) return;
-    const f = Math.max(0, Math.min(1, feather));
-    if (comp.kind.kind === 'linear') {
-      this.updateMaskComponentKind(layerId, componentId, { ...comp.kind, feather: f }, true);
-    } else if (comp.kind.kind === 'radial') {
-      this.updateMaskComponentKind(layerId, componentId, { ...comp.kind, feather: f }, true);
-    }
-  };
+  setMaskComponentFeather = (layerId: string, componentId: string, feather: number): void =>
+    maskLayers.setMaskComponentFeather(this, layerId, componentId, feather);
 
-  toggleMaskOverlay = (): void => {
-    this.maskOverlayVisible = !this.maskOverlayVisible;
-  };
+  toggleMaskOverlay = (): void => maskLayers.toggleMaskOverlay(this);
 
   retouchFull = $derived(this.edits.retouch.length >= MAX_RETOUCH_STROKES);
 
-  addRetouchStroke = async (stroke: RetouchStroke): Promise<void> => {
-    if (!this.initialised || this.edits.retouch.length >= MAX_RETOUCH_STROKES) return;
-    this.edits.retouch.push(stroke);
-    this.activeRetouchId = stroke.id;
-    this.onLive();
-    await this.onCommit('Retouch');
-  };
+  addRetouchStroke = (stroke: RetouchStroke): Promise<void> =>
+    retouch.addRetouchStroke(this, stroke, MAX_RETOUCH_STROKES);
 
-  updateRetouchStroke = (id: string, patch: Partial<RetouchStroke>): void => {
-    const i = this.edits.retouch.findIndex((s) => s.id === id);
-    if (i < 0) return;
-    this.edits.retouch[i] = { ...this.edits.retouch[i], ...patch };
-  };
+  updateRetouchStroke = (id: string, patch: Partial<RetouchStroke>): void =>
+    retouch.updateRetouchStroke(this, id, patch);
 
   setRetouchStroke = async (
     id: string,
     patch: Partial<RetouchStroke>,
     commit: boolean
-  ): Promise<void> => {
-    this.updateRetouchStroke(id, patch);
-    this.onLive();
-    if (commit) await this.onCommit('Retouch');
-  };
+  ): Promise<void> => retouch.setRetouchStroke(this, id, patch, commit);
 
-  commitRetouch = async (): Promise<void> => {
-    await this.onCommit('Retouch');
-  };
+  commitRetouch = (): Promise<void> => retouch.commitRetouch(this);
 
-  removeRetouchStroke = async (id: string): Promise<void> => {
-    const i = this.edits.retouch.findIndex((s) => s.id === id);
-    if (i < 0) return;
-    this.edits.retouch.splice(i, 1);
-    if (this.activeRetouchId === id) this.activeRetouchId = null;
-    this.onLive();
-    await this.onCommit('Remove Retouch');
-  };
+  removeRetouchStroke = (id: string): Promise<void> => retouch.removeRetouchStroke(this, id);
 
-  toggleRetouchStroke = async (id: string): Promise<void> => {
-    const s = this.edits.retouch.find((r) => r.id === id);
-    if (!s) return;
-    s.enabled = !s.enabled;
-    this.onLive();
-    await this.onCommit(s.enabled ? 'Enable Retouch' : 'Disable Retouch');
-  };
+  toggleRetouchStroke = (id: string): Promise<void> => retouch.toggleRetouchStroke(this, id);
 
-  clearRetouch = async (): Promise<void> => {
-    if (this.edits.retouch.length === 0) return;
-    this.edits.retouch = [];
-    this.activeRetouchId = null;
-    this.onLive();
-    await this.onCommit('Clear Retouch');
-  };
+  clearRetouch = (): Promise<void> => retouch.clearRetouch(this);
 
-  previewMaskWeight = (layerId: string): void => {
-    if (!this.initialised) return;
-    this.maskPreviewLayerId = layerId;
-    this.onPreview(maskWeightPreview(layerId));
-  };
+  previewMaskWeight = (layerId: string): void => maskLayers.previewMaskWeight(this, layerId);
 
-  endMaskPreview = (): void => {
-    if (!this.maskPreviewLayerId) return;
-    this.maskPreviewLayerId = null;
-    this.endPreview();
-  };
+  endMaskPreview = (): void => maskLayers.endMaskPreview(this);
 
-  beginColorPicker = (layerId: string, componentId: string): void => {
-    const layer = this.edits.masks.find((item) => item.id === layerId);
-    const component = layer?.components.find((item) => item.id === componentId);
-    if (!component || component.kind.kind !== 'color_range') return;
-    this.clearView();
-    if (this.splitMode) this.toggleSplit();
-    this.maskPreviewLayerId = null;
-    this.colorPicker = { layerId, componentId, ready: false };
-    const edits = $state.snapshot(this.edits) as Edits;
+  submitColorPickerPreview = (edits: Edits): void => {
     this.flight.submit({
-      edits: { ...edits, masks: [] },
+      edits,
       maxEdge: this.baseEdge(),
       previewMode: 'none',
       purpose: 'color-picker'
     });
   };
 
-  cancelColorPicker = (): void => {
-    if (!this.colorPicker) return;
-    this.colorPicker = null;
-    this.onLive();
-  };
+  beginColorPicker = (layerId: string, componentId: string): void =>
+    maskLayers.beginColorPicker(this, layerId, componentId);
 
-  commitColorSample = async (sampleRgb: [number, number, number]): Promise<void> => {
-    const picker = this.colorPicker;
-    if (!picker) return;
-    const layer = this.edits.masks.find((item) => item.id === picker.layerId);
-    const component = layer?.components.find((item) => item.id === picker.componentId);
-    if (!component || component.kind.kind !== 'color_range') {
-      this.cancelColorPicker();
-      return;
-    }
-    this.colorPicker = null;
-    this.updateMaskComponentKind(
-      picker.layerId,
-      picker.componentId,
-      { ...component.kind, sample_rgb: sampleRgb },
-      false
-    );
-    await this.commitMasks();
-  };
+  cancelColorPicker = (): void => maskLayers.cancelColorPicker(this);
 
-  addMaskLayer = async (kind: MaskComponentKind = defaultLinear()): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, null);
-    if (cap.layersFull || cap.totalFull) return null;
-    const layer = makeLayer(nextLayerName(this.edits.masks), this.edits.masks.length, kind);
-    this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
-    this.activeLayerId = layer.id;
-    this.activeMaskComponentId = layer.components[0]?.id ?? null;
-    await this.onCommit(`Add ${layer.name}`);
-    return layer.id;
-  };
+  commitColorSample = (sampleRgb: [number, number, number]): Promise<void> =>
+    maskLayers.commitColorSample(this, sampleRgb);
 
-  removeMaskLayer = async (id: string): Promise<void> => {
-    const idx = this.edits.masks.findIndex((l) => l.id === id);
-    if (idx < 0) return;
-    const name = this.edits.masks[idx].name;
-    const masks = this.edits.masks.filter((l) => l.id !== id);
-    this.edits = { ...this.edits, masks };
-    if (this.activeLayerId === id) {
-      this.activeLayerId = masks[idx]?.id ?? masks[masks.length - 1]?.id ?? null;
-      this.activeMaskComponentId = null;
-    }
-    if (this.maskPreviewLayerId === id) this.endMaskPreview();
-    await this.onCommit(`Delete ${name}`);
-  };
+  addMaskLayer = (kind: MaskComponentKind = defaultLinear()): Promise<string | null> =>
+    maskLayers.addMaskLayer(this, kind);
 
-  duplicateMaskLayer = async (id: string): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, null);
-    if (cap.layersFull || cap.totalFull) return null;
-    const src = this.edits.masks.find((l) => l.id === id);
-    if (!src) return null;
-    const copy = cloneLayerWithNewIds(
-      src,
-      defaultMaskColor(this.edits.masks.length),
-      `${src.name} copy`
-    );
-    const idx = this.edits.masks.findIndex((l) => l.id === id);
-    const masks = [...this.edits.masks];
-    masks.splice(idx + 1, 0, copy);
-    this.edits = { ...this.edits, masks };
-    this.activeLayerId = copy.id;
-    this.activeMaskComponentId = copy.components[0]?.id ?? null;
-    await this.onCommit(`Duplicate ${src.name}`);
-    return copy.id;
-  };
+  removeMaskLayer = (id: string): Promise<void> => maskLayers.removeMaskLayer(this, id);
 
-  reorderMaskLayer = async (id: string, toIndex: number): Promise<void> => {
-    const from = this.edits.masks.findIndex((l) => l.id === id);
-    if (from < 0) return;
-    const masks = [...this.edits.masks];
-    const [layer] = masks.splice(from, 1);
-    const clamped = Math.max(0, Math.min(toIndex, masks.length));
-    masks.splice(clamped, 0, layer);
-    this.edits = { ...this.edits, masks };
-    await this.onCommit('Reorder Masks');
-  };
+  duplicateMaskLayer = (id: string): Promise<string | null> =>
+    maskLayers.duplicateMaskLayer(this, id);
 
-  reorderMaskComponent = async (layerId: string, id: string, toIndex: number): Promise<void> => {
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return;
-    const from = layer.components.findIndex((c) => c.id === id);
-    if (from < 0) return;
-    const components = [...layer.components];
-    const [comp] = components.splice(from, 1);
-    const clamped = Math.max(0, Math.min(toIndex, components.length));
-    components.splice(clamped, 0, clamped === 0 ? { ...comp, mode: 'add' } : comp);
-    this.patchMaskLayer(layerId, { components }, false);
-    await this.onCommit('Reorder Mask Shapes');
-  };
+  reorderMaskLayer = (id: string, toIndex: number): Promise<void> =>
+    maskLayers.reorderMaskLayer(this, id, toIndex);
 
-  patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
-    const masks = this.edits.masks.map((l) => (l.id === id ? { ...l, ...patch } : l));
-    this.edits = { ...this.edits, masks };
-    if (!live) return;
-    if (this.maskPreviewLayerId === id) {
-      this.onPreview(maskWeightPreview(id));
-    } else {
-      this.onLive();
-    }
-  };
+  reorderMaskComponent = (layerId: string, id: string, toIndex: number): Promise<void> =>
+    maskLayers.reorderMaskComponent(this, layerId, id, toIndex);
 
-  toggleMaskLayerEnabled = async (id: string): Promise<void> => {
-    const layer = this.edits.masks.find((l) => l.id === id);
-    if (!layer) return;
-    this.patchMaskLayer(id, { enabled: !layer.enabled }, false);
-    await this.onCommit(layer.enabled ? `Disable ${layer.name}` : `Enable ${layer.name}`);
-  };
+  patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void =>
+    maskLayers.patchMaskLayer(this, id, patch, live);
 
-  renameMaskLayer = async (id: string, name: string): Promise<void> => {
-    this.patchMaskLayer(id, { name }, false);
-    await this.onCommit('Rename Mask');
-  };
+  toggleMaskLayerEnabled = (id: string): Promise<void> =>
+    maskLayers.toggleMaskLayerEnabled(this, id);
 
-  setMaskLayerColor = async (id: string, color: string): Promise<void> => {
-    this.patchMaskLayer(id, { color }, false);
-    await this.onCommit('Change Mask Color');
-  };
+  renameMaskLayer = (id: string, name: string): Promise<void> =>
+    maskLayers.renameMaskLayer(this, id, name);
 
-  setMaskLayerAmount = (id: string, amount: number): void => {
-    this.patchMaskLayer(id, { amount: Math.max(0, Math.min(1, amount)) }, true);
-  };
+  setMaskLayerColor = (id: string, color: string): Promise<void> =>
+    maskLayers.setMaskLayerColor(this, id, color);
 
-  toggleMaskLayerInvert = async (id: string): Promise<void> => {
-    const layer = this.edits.masks.find((l) => l.id === id);
-    if (!layer) return;
-    this.patchMaskLayer(id, { invert: !layer.invert }, false);
-    await this.onCommit(`Invert ${layer.name}`);
-  };
+  setMaskLayerAmount = (id: string, amount: number): void =>
+    maskLayers.setMaskLayerAmount(this, id, amount);
 
-  setMaskLayerEdit = (id: string, key: MaskedEditKey, value: number): void => {
-    const layer = this.edits.masks.find((l) => l.id === id);
-    if (!layer) return;
-    this.patchMaskLayer(id, { edits: setMaskedEdit(layer.edits, key, value) }, true);
-  };
+  toggleMaskLayerInvert = (id: string): Promise<void> => maskLayers.toggleMaskLayerInvert(this, id);
 
-  resetMaskLayerEdits = async (id: string): Promise<void> => {
-    this.patchMaskLayer(id, { amount: 1, edits: {} }, false);
-    await this.onCommit('Reset Mask Adjustments');
-  };
+  setMaskLayerEdit = (id: string, key: MaskedEditKey, value: number): void =>
+    maskLayers.setMaskLayerEdit(this, id, key, value);
 
-  beginPolygon = (layerId: string | null, mode: MaskComponentMode = 'add'): void => {
-    this.setActiveMaskComponent(null);
-    this.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
-    this.polygonDraft = { layerId, mode, points: [] };
-  };
+  resetMaskLayerEdits = (id: string): Promise<void> => maskLayers.resetMaskLayerEdits(this, id);
 
-  addPolygonPoint = (point: Vec2f): void => {
-    const draft = this.polygonDraft;
-    if (!draft || draft.points.length >= MAX_POLYGON_POINTS) return;
-    this.polygonDraft = { ...draft, points: [...draft.points, point] };
-  };
+  beginPolygon = (layerId: string | null, mode: MaskComponentMode = 'add'): void =>
+    maskLayers.beginPolygon(this, layerId, mode);
 
-  undoPolygonPoint = (): void => {
-    const draft = this.polygonDraft;
-    if (!draft || draft.points.length === 0) return;
-    this.polygonDraft = { ...draft, points: draft.points.slice(0, -1) };
-  };
+  addPolygonPoint = (point: Vec2f): void => maskLayers.addPolygonPoint(this, point);
 
-  cancelPolygon = (): void => {
-    this.polygonDraft = null;
-  };
+  undoPolygonPoint = (): void => maskLayers.undoPolygonPoint(this);
 
-  finishPolygon = async (): Promise<void> => {
-    const draft = this.polygonDraft;
-    if (!draft || draft.points.length < 3) return;
-    this.polygonDraft = null;
-    const kind: MaskComponentKind = {
-      kind: 'polygon',
-      points: draft.points,
-      feather: 0.05
-    };
-    if (draft.layerId && this.edits.masks.some((l) => l.id === draft.layerId)) {
-      await this.addMaskComponent(draft.layerId, kind, draft.mode);
-      return;
-    }
-    await this.addMaskLayer(kind);
-  };
+  cancelPolygon = (): void => maskLayers.cancelPolygon(this);
+
+  finishPolygon = (): Promise<void> => maskLayers.finishPolygon(this);
 
   addMaskComponent = async (
     layerId: string,
     kind: MaskComponentKind,
     mode: MaskComponentMode = 'add'
-  ): Promise<string | null> => {
-    const cap = maskCapacity(this.edits, layerId);
-    if (cap.componentsFull || cap.totalFull) return null;
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return null;
-    const comp = makeComponent(kind, mode);
-    this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
-    this.activeMaskComponentId = comp.id;
-    await this.onCommit(`Add ${kind.kind.replaceAll('_', ' ')} Shape`);
-    return comp.id;
-  };
+  ): Promise<string | null> => maskLayers.addMaskComponent(this, layerId, kind, mode);
 
-  removeMaskComponent = async (layerId: string, componentId: string): Promise<void> => {
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return;
-    const components = layer.components.filter((c) => c.id !== componentId);
-    this.patchMaskLayer(layerId, { components }, false);
-    if (this.activeMaskComponentId === componentId) this.activeMaskComponentId = null;
-    if (this.brushBuffers[componentId]) {
-      const { [componentId]: _drop, ...rest } = this.brushBuffers;
-      this.brushBuffers = rest;
-    }
-    delete this.brushBufferSource[componentId];
-    await this.onCommit('Delete Mask Shape');
-  };
+  removeMaskComponent = (layerId: string, componentId: string): Promise<void> =>
+    maskLayers.removeMaskComponent(this, layerId, componentId);
 
   patchMaskComponent = (
     layerId: string,
     componentId: string,
     patch: Partial<MaskComponent>,
     live = true
-  ): void => {
-    const layer = this.edits.masks.find((l) => l.id === layerId);
-    if (!layer) return;
-    const components = layer.components.map((c) => (c.id === componentId ? { ...c, ...patch } : c));
-    this.patchMaskLayer(layerId, { components }, live);
-  };
+  ): void => maskLayers.patchMaskComponent(this, layerId, componentId, patch, live);
 
   updateMaskComponentKind = (
     layerId: string,
     componentId: string,
     kind: MaskComponentKind,
     live = true
-  ): void => {
-    this.patchMaskComponent(layerId, componentId, { kind }, live);
-  };
+  ): void => maskLayers.updateMaskComponentKind(this, layerId, componentId, kind, live);
 
-  commitMasks = async (): Promise<void> => {
-    await this.onCommit('Adjust Mask');
-  };
+  commitMasks = (): Promise<void> => maskLayers.commitMasks(this);
 
   setBrushTool = (
     patch: Partial<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>
-  ): void => {
-    this.brushTool = { ...this.brushTool, ...patch };
-  };
+  ): void => maskLayers.setBrushTool(this, patch);
 
   setRetouchTool = (
     patch: Partial<{ mode: RetouchMode; size: number; hardness: number; opacity: number }>
-  ): void => {
-    this.retouchTool = { ...this.retouchTool, ...patch };
-  };
+  ): void => retouch.setRetouchTool(this, patch);
 
-  setRetouchMode = (mode: RetouchMode): void => {
-    this.retouchTool = { ...this.retouchTool, mode };
-    if (this.activeRetouchId) void this.setRetouchStroke(this.activeRetouchId, { mode }, true);
-  };
+  setRetouchMode = (mode: RetouchMode): void => retouch.setRetouchMode(this, mode);
 
   ensureBrushBuffer = (componentId: string, rasterId: string | null): Promise<BrushBuffer> =>
     maskGen.ensureBrushBuffer(this, componentId, rasterId);

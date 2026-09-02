@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { editsToManifest } from '$lib/edits/manifest';
 import type { AssetDetail } from '$lib/types/asset';
-import { editsToManifest, neutralEdits, type EditRecord } from '$lib/types/edits';
+import { neutralEdits, type EditRecord } from '$lib/types/edits';
 
 const mocks = vi.hoisted(() => ({
   getAsset: vi.fn(),
