@@ -1,14 +1,20 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { ASSET_ID, installMocks } from './helpers';
+
+async function createCopy(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await page.getByRole('button', { name: 'Create virtual copy' }).click();
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}_1(?:\\?.*)?$`));
+}
 
 test('create, rename and delete a virtual copy from the editor', async ({ page }) => {
   await installMocks(page);
 
-  await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.getByTitle('Back')).toBeVisible();
+  await page.goto(`/assets/${ASSET_ID}?from=${encodeURIComponent('/photos')}`);
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 
-  await page.getByTitle(/^Create a virtual copy/).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+  await createCopy(page);
+  await expect(page).toHaveURL(/\?from=%2Fphotos$/);
 
   await page.getByRole('button', { name: 'Versions', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Copy 1' })).toBeVisible();
@@ -32,9 +38,8 @@ test('a virtual copy shows up beside its master in the grid', async ({ page }) =
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.getByTitle('Back')).toBeVisible();
-  await page.getByTitle(/^Create a virtual copy/).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
+  await createCopy(page);
 
   await page.goto('/photos');
   const master = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
@@ -47,9 +52,8 @@ test('the loupe header marks a virtual copy', async ({ page }) => {
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.getByTitle('Back')).toBeVisible();
-  await page.getByTitle(/^Create a virtual copy/).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
+  await createCopy(page);
 
   await page.goto('/photos');
   const copy = page.locator(`a[href^="/assets/${ASSET_ID}_1?"]`).first();
@@ -69,9 +73,8 @@ test('the grid delete button drops a virtual copy after a confirm click', async 
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.getByTitle('Back')).toBeVisible();
-  await page.getByTitle(/^Create a virtual copy/).click();
-  await page.waitForURL(`**/assets/${ASSET_ID}_1`);
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
+  await createCopy(page);
 
   await page.goto('/photos');
   const copy = page.locator(`a[href^="/assets/${ASSET_ID}_1?"]`).first();

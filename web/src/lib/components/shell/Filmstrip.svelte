@@ -1,11 +1,13 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { observeSize } from '$lib/actions/observeSize';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
   import { createFilmstripLayout, visibleFilmstripRange } from '$lib/filmstripLayout';
   import { isRejected } from '$lib/reject';
   import { editorHref } from '$lib/editorNavigation';
+  import ResizeHandle from './ResizeHandle.svelte';
   import { Icon } from '@immich/ui';
   import { mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
@@ -40,9 +42,6 @@
   let scrollContainer: HTMLDivElement | undefined = $state();
   let containerWidth = $state(0);
   let scrollLeft = $state(0);
-  let resizing = $state(false);
-  let resizeStartY = 0;
-  let resizeStartHeight = 0;
 
   const view = $derived.by(() => {
     const range = visibleFilmstripRange(
@@ -66,46 +65,6 @@
     scrollLeft = scrollContainer.scrollLeft;
   }
 
-  function startResize(event: PointerEvent): void {
-    if (!resizable) return;
-    resizing = true;
-    resizeStartY = event.clientY;
-    resizeStartHeight = ui.filmstripHeight;
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }
-
-  function resize(event: PointerEvent): void {
-    if (!resizing) return;
-    ui.setFilmstripHeight(resizeStartHeight + resizeStartY - event.clientY);
-  }
-
-  function stopResize(event: PointerEvent): void {
-    if (!resizing) return;
-    resizing = false;
-    ui.persistEditorUi();
-    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-  }
-
-  function resizeWithKeyboard(event: KeyboardEvent): void {
-    if (!resizable) return;
-    const amount = event.shiftKey ? 16 : 8;
-    if (event.key === 'ArrowUp') ui.setFilmstripHeight(ui.filmstripHeight + amount);
-    else if (event.key === 'ArrowDown') ui.setFilmstripHeight(ui.filmstripHeight - amount);
-    else if (event.key === 'Home') ui.setFilmstripHeight(MIN_FILMSTRIP_HEIGHT);
-    else if (event.key === 'End') ui.setFilmstripHeight(MAX_FILMSTRIP_HEIGHT);
-    else return;
-    ui.persistEditorUi();
-    event.preventDefault();
-  }
-
-  $effect(() => {
-    if (!scrollContainer) return;
-    measure();
-    const ro = new ResizeObserver(() => measure());
-    ro.observe(scrollContainer);
-    return () => ro.disconnect();
-  });
-
   $effect(() => {
     if (!scrollContainer || currentIndex < 0) return;
     const box = layout.boxes[currentIndex];
@@ -119,27 +78,25 @@
 {#if assets.length > 0}
   <div class="relative flex-none border-t border-white/12 bg-editor-chrome shadow-filmstrip">
     {#if resizable && !collapsed}
-      <div
-        role="slider"
-        tabindex="0"
-        aria-label="Resize filmstrip"
-        aria-orientation="vertical"
-        aria-valuemin={MIN_FILMSTRIP_HEIGHT}
-        aria-valuemax={MAX_FILMSTRIP_HEIGHT}
-        aria-valuenow={ui.filmstripHeight}
+      <ResizeHandle
+        label="Resize filmstrip"
+        orientation="vertical"
+        value={ui.filmstripHeight}
+        min={MIN_FILMSTRIP_HEIGHT}
+        max={MAX_FILMSTRIP_HEIGHT}
+        step={8}
+        shiftStep={16}
         class="absolute inset-x-0 top-0 z-20 h-2 -translate-y-1/2 cursor-row-resize outline-none focus-visible:bg-primary/30"
-        onpointerdown={startResize}
-        onpointermove={resize}
-        onpointerup={stopResize}
-        onpointercancel={stopResize}
-        onkeydown={resizeWithKeyboard}
-      ></div>
+        onLive={ui.setFilmstripHeight}
+        onCommit={ui.persistEditorUi}
+      />
     {/if}
     {#if !collapsed}
       <div class="relative">
         <div
           class="overflow-x-auto py-1.5 scrollbar-hidden"
           bind:this={scrollContainer}
+          use:observeSize={measure}
           onscroll={measure}
         >
           <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">

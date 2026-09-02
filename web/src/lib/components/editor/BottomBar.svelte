@@ -1,91 +1,70 @@
 <script lang="ts">
-  import ToolbarButton from '$lib/components/ToolbarButton.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import { ui, MAX_ZOOM } from '$lib/stores/ui.svelte';
+  import ZoomPopover from '$lib/components/ZoomPopover.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';
-  import {
-    mdiMagnifyMinusOutline,
-    mdiMagnifyPlusOutline,
-    mdiFitToScreenOutline,
-    mdiFullscreen,
-    mdiFullscreenExit
-  } from '@mdi/js';
+  import { IconButton } from '@immich/ui';
+  import { mdiFilmstrip, mdiFullscreen, mdiFullscreenExit } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
+  const hasFilmstrip = $derived(browsing.assets.length > 0);
 </script>
 
-<div
-  class="flex items-center justify-between gap-3 px-3 py-1 bg-immich-dark-bg/80 backdrop-blur-sm border-t border-white/5"
+<nav
+  aria-label="Editor status and view controls"
+  class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
 >
-  <div class="flex items-center gap-3 min-w-0">
+  <div class="flex min-w-0 items-center gap-2 overflow-hidden">
     {#if hasAsset}
       <RatingControl />
-      <div class="min-w-0">
+      <div class="min-w-0 flex-1 overflow-hidden">
         <TagsStrip />
       </div>
-      <SaveStatus />
     {/if}
   </div>
 
-  <div class="flex items-center gap-0.5">
-    <Popover
+  <SaveStatus />
+
+  <div class="col-start-3 flex min-w-0 items-center justify-end gap-1">
+    <ZoomPopover
       open={ui.metaPopover === 'zoom'}
-      anchor="top"
-      align="end"
-      onClose={ui.closePopover}
-      contentClass="p-2"
-    >
-      {#snippet trigger()}
-        <ToolbarButton
-          variant="text"
-          label={`${ui.zoom}%`}
-          title="Zoom"
-          active={ui.metaPopover === 'zoom'}
-          onclick={() => ui.togglePopover('zoom')}
-        />
-      {/snippet}
-      <div class="flex items-center gap-2">
-        <ToolbarButton
-          path={mdiMagnifyMinusOutline}
-          size={16}
-          title="Zoom Out"
-          onclick={ui.zoomOut}
-        />
-        <input
-          type="range"
-          min="25"
-          max={MAX_ZOOM}
-          step="5"
-          value={ui.zoom}
-          oninput={(e: Event) => ui.setZoom(Number((e.target as HTMLInputElement).value))}
-          class="w-28 h-1 accent-immich-dark-primary"
-        />
-        <ToolbarButton path={mdiMagnifyPlusOutline} size={16} title="Zoom In" onclick={ui.zoomIn} />
-        <ToolbarButton
-          variant="text"
-          label="1:1"
-          title="One source pixel per screen pixel"
-          disabled={ui.nativeZoom === null}
-          active={ui.nativeZoom !== null && ui.zoom === ui.nativeZoom}
-          onclick={ui.zoomNative}
-        />
-        <ToolbarButton
-          path={mdiFitToScreenOutline}
-          size={16}
-          title={hint('Fit to screen', 'zoomToggle')}
-          onclick={ui.zoomFit}
-        />
-      </div>
-    </Popover>
-    <ToolbarButton
-      path={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}
-      size={18}
+      zoom={ui.zoom}
+      nativeZoom={ui.nativeZoom}
+      onOpenChange={(v) => (v ? ui.openPopover('zoom') : ui.closePopover())}
+      onZoom={ui.setZoom}
+      onFit={ui.zoomFit}
+    />
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color={hasFilmstrip && !ui.editorFilmstripCollapsed ? 'primary' : 'secondary'}
+      icon={mdiFilmstrip}
+      title={!hasFilmstrip
+        ? 'No filmstrip available'
+        : ui.editorFilmstripCollapsed
+          ? 'Show filmstrip'
+          : 'Hide filmstrip'}
+      aria-label={!hasFilmstrip
+        ? 'No filmstrip available'
+        : ui.editorFilmstripCollapsed
+          ? 'Show filmstrip'
+          : 'Hide filmstrip'}
+      aria-pressed={!ui.editorFilmstripCollapsed}
+      disabled={!hasFilmstrip}
+      onclick={ui.toggleEditorFilmstrip}
+    />
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}
       title={hint('Fullscreen', 'fullscreen')}
+      aria-label={hint('Fullscreen', 'fullscreen')}
       onclick={ui.toggleFullscreen}
     />
   </div>
-</div>
+</nav>

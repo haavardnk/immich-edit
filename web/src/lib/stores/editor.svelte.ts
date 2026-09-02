@@ -39,7 +39,7 @@ import * as geometry from '$lib/stores/editor/geometry.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
-import { getEdits, putEdits, deleteEdits, autoEdits } from '$lib/api/edits';
+import { getEdits, putEdits, deleteEdits, autoEdits, restoreEdits } from '$lib/api/edits';
 import { ConflictError, ApiError } from '$lib/api/client';
 import type { EditRecord } from '$lib/types/edits';
 import {
@@ -90,6 +90,13 @@ const MAX_HISTORY = 50;
 
 type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
+type SaveSession = {
+  assetId: string;
+  hash: string;
+  pending: number;
+  blocked: boolean;
+};
+
 class EditorStore {
   assetId = $state<string | null>(null);
   asset = $state<AssetDetail | null>(null);
@@ -103,6 +110,8 @@ class EditorStore {
   savedHash = $state<string>('');
   saveError = $state<string | null>(null);
   private lastSaveAction: string | undefined = undefined;
+  private saveSession: SaveSession | null = null;
+  private saveTail: Promise<void> = Promise.resolve();
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
@@ -476,6 +485,7 @@ class EditorStore {
       this.asset = a;
       this.edits = manifestToEdits(s.manifest);
       this.savedHash = s.hash;
+      this.saveSession = { assetId: id, hash: s.hash, pending: 0, blocked: false };
       this.initialised = true;
       this.pushHistory();
       this.fetchLensProfile(id);
@@ -528,6 +538,10 @@ class EditorStore {
     this.assetId = null;
     this.initialised = false;
     this.edits = neutralEdits();
+    this.saving = false;
+    this.savedHash = '';
+    this.saveError = null;
+    this.saveSession = null;
     this.history = [];
     this.historyCursor = -1;
     this.showingOriginal = false;
@@ -617,7 +631,8 @@ class EditorStore {
   };
 
   onCommit = async (action?: string): Promise<void> => {
-    if (!this.initialised || !this.assetId) return;
+    const session = this.saveSession;
+    if (!this.initialised || !session) return;
     if (!this.skipHistory) this.pushHistory();
     if (this.maskPreviewLayerId) {
       this.onPreview(maskWeightPreview(this.maskPreviewLayerId));
@@ -626,41 +641,80 @@ class EditorStore {
     }
     const effectiveAction = this.skipHistory ? undefined : action;
     this.lastSaveAction = effectiveAction;
-    this.saving = true;
+    await this.queueSave(session, $state.snapshot(this.edits) as Edits, effectiveAction);
+  };
+
+  private queueSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
+    return this.queueSessionTask(session, () => this.persistSave(session, edits, action));
+  }
+
+  private queueSessionTask(session: SaveSession, task: () => Promise<void>): Promise<void> {
+    session.pending++;
+    if (this.saveSession === session) this.saving = true;
+    const queued = this.saveTail.then(async () => {
+      if (session.blocked) return;
+      await task();
+    });
+    this.saveTail = queued.catch(() => undefined);
+    return queued.finally(() => {
+      session.pending--;
+      if (this.saveSession === session) this.saving = session.pending > 0;
+    });
+  }
+
+  restoreHistoryEntry = (entryId: number): Promise<void> => {
+    const session = this.saveSession;
+    if (!this.initialised || !session) return Promise.resolve();
+    session.blocked = false;
+    this.saveError = null;
+    return this.queueSessionTask(session, async () => {
+      if (this.saveSession !== session) return;
+      const saved = await restoreEdits(session.assetId, entryId);
+      if (this.saveSession !== session) return;
+      this.edits = saved ? manifestToEdits(saved.manifest) : neutralEdits();
+      session.hash = saved?.hash ?? '';
+      this.savedHash = session.hash;
+      this.error = null;
+      this.onLive();
+    });
+  };
+
+  private async persistSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
     try {
-      if (isIdentity(this.edits)) {
-        await deleteEdits(this.assetId, effectiveAction);
-        this.savedHash = '';
+      if (isIdentity(edits)) {
+        await deleteEdits(session.assetId, action);
+        session.hash = '';
       } else {
-        const saved = await putEdits(
-          this.assetId,
-          $state.snapshot(this.edits),
-          this.savedHash,
-          effectiveAction
-        );
-        this.edits = manifestToEdits(saved.manifest);
-        this.savedHash = saved.hash;
+        const saved = await putEdits(session.assetId, edits, session.hash, action);
+        session.hash = saved.hash;
       }
-      this.saveError = null;
+      if (this.saveSession === session) {
+        this.savedHash = session.hash;
+        this.saveError = null;
+      }
     } catch (e) {
+      session.blocked = true;
+      if (this.saveSession !== session) return;
       if (e instanceof ConflictError) {
         const current = e.current as EditRecord | undefined;
-        if (current) {
-          this.edits = manifestToEdits(current.manifest);
-          this.savedHash = current.hash;
-        }
-        this.saveError = null;
-        toasts.push('warn', 'Edits were changed elsewhere. Loaded latest version.');
+        if (current) session.hash = current.hash;
+        this.savedHash = session.hash;
+        this.saveError = 'Edits changed elsewhere. Local edits kept. Retry to save them.';
+        toasts.push('warn', this.saveError);
       } else {
         this.saveError = errorMessage(e);
         this.error = this.saveError;
       }
-    } finally {
-      this.saving = false;
     }
-  };
+  }
 
-  retrySave = (): Promise<void> => this.onCommit(this.lastSaveAction);
+  retrySave = (): Promise<void> => {
+    const session = this.saveSession;
+    if (!this.initialised || !session) return Promise.resolve();
+    session.blocked = false;
+    this.saveError = null;
+    return this.queueSave(session, $state.snapshot(this.edits) as Edits, this.lastSaveAction);
+  };
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
@@ -947,13 +1001,14 @@ class EditorStore {
     this.edits = { ...this.edits, masks: [...this.edits.masks, layer] };
     this.activeLayerId = layer.id;
     this.activeMaskComponentId = layer.components[0]?.id ?? null;
-    await this.onCommit('Masks');
+    await this.onCommit(`Add ${layer.name}`);
     return layer.id;
   };
 
   removeMaskLayer = async (id: string): Promise<void> => {
     const idx = this.edits.masks.findIndex((l) => l.id === id);
     if (idx < 0) return;
+    const name = this.edits.masks[idx].name;
     const masks = this.edits.masks.filter((l) => l.id !== id);
     this.edits = { ...this.edits, masks };
     if (this.activeLayerId === id) {
@@ -961,7 +1016,7 @@ class EditorStore {
       this.activeMaskComponentId = null;
     }
     if (this.maskPreviewLayerId === id) this.endMaskPreview();
-    await this.onCommit('Masks');
+    await this.onCommit(`Delete ${name}`);
   };
 
   duplicateMaskLayer = async (id: string): Promise<string | null> => {
@@ -980,7 +1035,7 @@ class EditorStore {
     this.edits = { ...this.edits, masks };
     this.activeLayerId = copy.id;
     this.activeMaskComponentId = copy.components[0]?.id ?? null;
-    await this.onCommit('Masks');
+    await this.onCommit(`Duplicate ${src.name}`);
     return copy.id;
   };
 
@@ -992,7 +1047,7 @@ class EditorStore {
     const clamped = Math.max(0, Math.min(toIndex, masks.length));
     masks.splice(clamped, 0, layer);
     this.edits = { ...this.edits, masks };
-    await this.onCommit('Masks');
+    await this.onCommit('Reorder Masks');
   };
 
   reorderMaskComponent = async (layerId: string, id: string, toIndex: number): Promise<void> => {
@@ -1005,7 +1060,7 @@ class EditorStore {
     const clamped = Math.max(0, Math.min(toIndex, components.length));
     components.splice(clamped, 0, clamped === 0 ? { ...comp, mode: 'add' } : comp);
     this.patchMaskLayer(layerId, { components }, false);
-    await this.onCommit('Masks');
+    await this.onCommit('Reorder Mask Shapes');
   };
 
   patchMaskLayer = (id: string, patch: Partial<MaskLayer>, live = true): void => {
@@ -1023,17 +1078,17 @@ class EditorStore {
     const layer = this.edits.masks.find((l) => l.id === id);
     if (!layer) return;
     this.patchMaskLayer(id, { enabled: !layer.enabled }, false);
-    await this.onCommit('Masks');
+    await this.onCommit(layer.enabled ? `Disable ${layer.name}` : `Enable ${layer.name}`);
   };
 
   renameMaskLayer = async (id: string, name: string): Promise<void> => {
     this.patchMaskLayer(id, { name }, false);
-    await this.onCommit('Masks');
+    await this.onCommit('Rename Mask');
   };
 
   setMaskLayerColor = async (id: string, color: string): Promise<void> => {
     this.patchMaskLayer(id, { color }, false);
-    await this.onCommit('Masks');
+    await this.onCommit('Change Mask Color');
   };
 
   setMaskLayerAmount = (id: string, amount: number): void => {
@@ -1044,7 +1099,7 @@ class EditorStore {
     const layer = this.edits.masks.find((l) => l.id === id);
     if (!layer) return;
     this.patchMaskLayer(id, { invert: !layer.invert }, false);
-    await this.onCommit('Masks');
+    await this.onCommit(`Invert ${layer.name}`);
   };
 
   setMaskLayerEdit = (id: string, key: MaskedEditKey, value: number): void => {
@@ -1055,7 +1110,7 @@ class EditorStore {
 
   resetMaskLayerEdits = async (id: string): Promise<void> => {
     this.patchMaskLayer(id, { amount: 1, edits: {} }, false);
-    await this.onCommit('Masks');
+    await this.onCommit('Reset Mask Adjustments');
   };
 
   beginPolygon = (layerId: string | null, mode: MaskComponentMode = 'add'): void => {
@@ -1108,7 +1163,7 @@ class EditorStore {
     const comp = makeComponent(kind, mode);
     this.patchMaskLayer(layerId, { components: [...layer.components, comp] }, false);
     this.activeMaskComponentId = comp.id;
-    await this.onCommit('Masks');
+    await this.onCommit(`Add ${kind.kind.replaceAll('_', ' ')} Shape`);
     return comp.id;
   };
 
@@ -1123,7 +1178,7 @@ class EditorStore {
       this.brushBuffers = rest;
     }
     delete this.brushBufferSource[componentId];
-    await this.onCommit('Masks');
+    await this.onCommit('Delete Mask Shape');
   };
 
   patchMaskComponent = (
@@ -1148,7 +1203,7 @@ class EditorStore {
   };
 
   commitMasks = async (): Promise<void> => {
-    await this.onCommit('Masks');
+    await this.onCommit('Adjust Mask');
   };
 
   setBrushTool = (

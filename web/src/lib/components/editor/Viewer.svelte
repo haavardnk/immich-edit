@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { observeSize } from '$lib/actions/observeSize';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import CropOverlay from './CropOverlay.svelte';
@@ -6,9 +7,11 @@
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
-  import Icon from '$lib/components/Icon.svelte';
+  import Notice from '$lib/components/Notice.svelte';
+  import { Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
-  import { frameBox, nativeZoom, placement, zoomAnchor } from '$lib/utils/view-geometry';
+  import { frameBox, nativeZoom, placement } from '$lib/utils/view-geometry';
+  import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
@@ -78,7 +81,17 @@
   function updateSplit(e: PointerEvent): void {
     if (!splitWrap) return;
     const rect = splitWrap.getBoundingClientRect();
-    editor.setSplitPos((e.clientX - rect.left) / rect.width);
+    editor.setSplitPos(splitPosition(e.clientX, rect.left, rect.width));
+  }
+
+  function onSplitKeyDown(e: KeyboardEvent): void {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    if (e.key === 'ArrowLeft') editor.setSplitPos(editor.splitPos - step);
+    else if (e.key === 'ArrowRight') editor.setSplitPos(editor.splitPos + step);
+    else if (e.key === 'Home') editor.setSplitPos(0);
+    else if (e.key === 'End') editor.setSplitPos(1);
+    else return;
+    e.preventDefault();
   }
 
   function zoomAt(next: number, clientX: number, clientY: number): void {
@@ -87,13 +100,14 @@
     ui.setZoom(next);
     if (!before || !container || ui.zoom === prev || ui.zoom <= 100) return;
     const rect = container.getBoundingClientRect();
-    const pan = zoomAnchor(
+    const pan = zoomAtAnchor(
       viewBox.w,
       viewBox.h,
       before,
       clientX - rect.left,
       clientY - rect.top,
-      ui.zoom / prev
+      prev,
+      ui.zoom
     );
     ui.panX = pan.panX;
     ui.panY = pan.panY;
@@ -119,11 +133,12 @@
     zoomAt(200, e.clientX, e.clientY);
   }
 
-  const viewTransform = $derived.by(() => {
-    if (ui.zoom === 100 && ui.panX === 0 && ui.panY === 0) return '';
-    const s = ui.zoom / 100;
-    return `transform: scale(${s}) translate(${ui.panX / s}px, ${ui.panY / s}px); transform-origin: center;`;
-  });
+  const viewTransform = $derived.by(() => viewportTransform(ui.zoom, ui.panX, ui.panY));
+
+  function measure(): void {
+    if (!container) return;
+    viewBox = { w: container.clientWidth, h: container.clientHeight };
+  }
 
   $effect(() => {
     const update = (): void => {
@@ -132,18 +147,6 @@
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  });
-
-  $effect(() => {
-    if (!container) return;
-    const el = container;
-    const measure = (): void => {
-      viewBox = { w: el.clientWidth, h: el.clientHeight };
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
   });
 
   $effect(() => {
@@ -164,8 +167,9 @@
 
 <div
   bind:this={container}
+  use:observeSize={measure}
   role="application"
-  class="flex-1 min-h-0 flex items-center justify-center bg-black/40 relative overflow-hidden"
+  class="editor-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
   class:cursor-grab={ui.zoom > 100 && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   onpointerdown={editor.geometrySession ? undefined : onPointerDown}
@@ -181,14 +185,14 @@
     {#if editor.splitMode && editor.originalUrl}
       <div
         bind:this={splitWrap}
-        class="relative shadow-2xl rounded overflow-hidden"
+        class="relative overflow-hidden shadow-image ring-1 ring-white/10"
         style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
           1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; {viewTransform}"
       >
         <img
           bind:this={imgEl}
           src={editor.originalUrl}
-          alt="original"
+          alt="Original"
           class="absolute inset-0 w-full h-full object-contain select-none"
           style="image-orientation: none;"
           draggable="false"
@@ -206,9 +210,17 @@
           draggable="false"
         />
         <div
-          class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_4px_rgba(0,0,0,0.6)] pointer-events-none"
+          class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-split pointer-events-none"
           style="left: {editor.splitPos * 100}%; transform: translateX(-50%);"
         ></div>
+        <span
+          class="pointer-events-none absolute left-2 top-2 rounded bg-black/65 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white"
+          >Original</span
+        >
+        <span
+          class="pointer-events-none absolute right-2 top-2 rounded bg-black/65 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white"
+          >Edited</span
+        >
         <div
           role="slider"
           tabindex="0"
@@ -222,6 +234,7 @@
           onpointermove={onSplitPointerMove}
           onpointerup={onSplitPointerUp}
           onpointercancel={onSplitPointerUp}
+          onkeydown={onSplitKeyDown}
         >
           ↔
         </div>
@@ -231,7 +244,7 @@
         bind:this={imgEl}
         src={editor.previewUrl}
         alt={editor.asset?.originalFileName ?? ''}
-        class="max-w-none max-h-none object-contain shadow-2xl rounded select-none"
+        class="max-h-none max-w-none select-none object-contain shadow-image ring-1 ring-white/10"
         style="{baseStyle} image-orientation: none;"
         draggable="false"
         onload={(e) => {
@@ -244,7 +257,7 @@
           src={editor.viewUrl}
           alt=""
           data-testid="view-render"
-          class="absolute max-w-none max-h-none pointer-events-none select-none rounded"
+          class="pointer-events-none absolute max-h-none max-w-none select-none"
           style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px; image-orientation: none;"
           draggable="false"
         />
@@ -261,27 +274,27 @@
         aria-live="polite"
       >
         <span
-          class="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-immich-dark-fg shadow-lg backdrop-blur-sm"
+          class="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-dark shadow-lg backdrop-blur-sm"
         >
-          <Icon path={mdiLoading} size={14} class="animate-spin" />
+          <Icon icon={mdiLoading} size="14px" class="animate-spin" aria-hidden="true" />
           Building mask…
         </span>
       </div>
     {/if}
   {:else if editor.error}
-    <div class="text-red-400 text-sm">{editor.error}</div>
+    <Notice message={editor.error} class="text-sm" />
   {:else}
     <div class="flex gap-1">
       <div
-        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
         style="animation-delay: 0ms"
       ></div>
       <div
-        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
         style="animation-delay: 150ms"
       ></div>
       <div
-        class="w-2 h-2 rounded-full bg-immich-dark-primary/50 animate-bounce"
+        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
         style="animation-delay: 300ms"
       ></div>
     </div>
