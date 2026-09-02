@@ -1,4 +1,4 @@
-# <img src="web/static/favicon.svg" width="32" height="32" alt=""> immich-edit
+# <img src="web/static/favicon.svg" width="24" height="24" alt=""> immich-edit
 
 A self-hosted, non-destructive RAW editor for an existing
 [Immich](https://immich.app/) library. It browses assets through Immich, renders on the server, and
@@ -8,12 +8,12 @@ stores edits locally. Originals remain unchanged.
 > immich-edit is under active `0.x` development. Back up `DATA_DIR`, read the upgrade notes, and
 > keep a separate backup of the Immich library.
 
-![immich-edit editor](docs/image/editor-v0_4.png)
+![immich-edit editor](docs/image/editor-v0_5.png)
 
-*Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
-[Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y).*
+_Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
+[Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y)._
 
-<!-- SCREENSHOT: Capture the v0.4.0 app viewport at 1600x832 with Develop > Basic open, hide the collapsed Camera Profile and Presets rows, scroll the panel 36px, and crop to the 1600x704 photo bounds. -->
+<!-- SCREENSHOT: Capture the app viewport at 2728x1530 with Develop > Basic open and Camera Profile and Presets collapsed. -->
 
 ## Documentation
 

@@ -2,9 +2,10 @@
   interface Props {
     size?: number;
     class?: string;
+    decorative?: boolean;
   }
 
-  let { size = 24, class: className = '' }: Props = $props();
+  let { size = 24, class: className = '', decorative = false }: Props = $props();
 </script>
 
 <svg
@@ -13,11 +14,18 @@
   width={size}
   height={size}
   class={className}
-  role="img"
-  aria-label="immich-edit"
+  role={decorative ? undefined : 'img'}
+  aria-label={decorative ? undefined : 'immich-edit'}
+  aria-hidden={decorative ? 'true' : undefined}
 >
-  <rect x="64" y="80" width="80" height="352" rx="40" fill="#6366F1" />
-  <rect x="180" y="110" width="260" height="72" rx="36" fill="#FF4D4D" />
-  <rect x="180" y="220" width="260" height="72" rx="36" fill="#F59E0B" />
-  <rect x="180" y="330" width="260" height="72" rx="36" fill="#22C55E" />
+  <path
+    d="M64 182V80h102M346 80h102v102M448 330v102H346M166 432H64V330"
+    fill="none"
+    stroke="var(--color-logo-primary)"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="150" y="144" width="52" height="224" rx="26" fill="var(--immich-ui-dark)" />
+  <path d="M262 144h116v42h-68v48h58v42h-58v50h68v42H262Z" fill="var(--immich-ui-dark)" />
 </svg>

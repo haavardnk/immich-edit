@@ -9,7 +9,13 @@ permalink: /attributions/
 
 immich-edit builds on these projects:
 
-- [Immich](https://immich.app/) provides the photo library and API.
+- [Immich](https://immich.app/) provides the photo library and API. The interface is built with its
+  [`@immich/ui`](https://github.com/immich-app/static-pages/tree/main/packages/ui) component library.
+- [Bits UI](https://bits-ui.com/) provides accessible Svelte interaction primitives under the MIT
+  license.
+- [Material Design Icons](https://pictogrammers.com/library/mdi/) provides interface icons through
+  `@mdi/js` under the Apache-2.0 license.
+- [uuid](https://github.com/uuidjs/uuid) generates browser-side identifiers under the MIT license.
 - [RapidRAW](https://github.com/CyberTimon/RapidRAW) inspired parts of the editing pipeline.
 - [rawler](https://github.com/dnglab/dnglab) parses RAW files.
 - [wgpu](https://wgpu.rs/) runs GPU rendering on Vulkan and Metal.

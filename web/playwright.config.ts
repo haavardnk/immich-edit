@@ -5,6 +5,7 @@ const port: number = Number(process.env.PORT ?? 4173);
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  workers: 4,
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
