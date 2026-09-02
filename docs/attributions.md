@@ -15,6 +15,7 @@ immich-edit builds on these projects:
 - [wgpu](https://wgpu.rs/) runs GPU rendering on Vulkan and Metal.
 - [ONNX Runtime](https://onnxruntime.ai/) runs local mask models.
 - [lensfun](https://lensfun.github.io/) provides lens correction data.
+- [justified-layout](https://github.com/flickr/justified-layout) arranges mixed-aspect photo rows.
 
 ## Bundled camera profiles
 
@@ -28,6 +29,15 @@ See the
 [full profile notice](https://github.com/haavardnk/immich-edit/blob/main/crates/backend/assets/dcp/NOTICE.md)
 and
 [profile manifest](https://github.com/haavardnk/immich-edit/blob/main/crates/backend/assets/dcp/manifest.json).
+
+## Bundled fonts
+
+The interface uses [Google Sans](https://github.com/googlefonts/googlesans) v14.000 and
+[Google Sans Code](https://github.com/googlefonts/googlesans-code) v7.001. Both fonts are
+distributed under the SIL Open Font License 1.1. Their copyright, license, and trademark notices
+are included under `web/static/licenses/`.
+
+The `justified-layout` license notice is also included under `web/static/licenses/`.
 
 ## Project license
 
