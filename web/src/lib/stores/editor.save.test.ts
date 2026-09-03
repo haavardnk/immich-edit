@@ -93,11 +93,11 @@ describe('editor save coordination', () => {
     const secondSave = editor.onCommit('Exposure');
 
     await vi.waitFor(() => expect(mocks.putEdits).toHaveBeenCalledTimes(1));
-    expect(mocks.putEdits.mock.calls[0][2]).toBe('hash-0');
+    expect(mocks.putEdits.mock.calls[0]?.[2]).toBe('hash-0');
 
     first.resolve(record('hash-1', 1));
     await vi.waitFor(() => expect(mocks.putEdits).toHaveBeenCalledTimes(2));
-    expect(mocks.putEdits.mock.calls[1][2]).toBe('hash-1');
+    expect(mocks.putEdits.mock.calls[1]?.[2]).toBe('hash-1');
     expect(editor.edits.basic.exposure_ev).toBe(2);
 
     second.resolve(record('hash-2', 2));
@@ -120,7 +120,7 @@ describe('editor save coordination', () => {
     await editor.onCommit('Exposure');
 
     expect(mocks.putEdits).toHaveBeenCalledTimes(1);
-    expect(mocks.putEdits.mock.calls[0][2]).toBe('hash-restored');
+    expect(mocks.putEdits.mock.calls[0]?.[2]).toBe('hash-restored');
     expect(editor.savedHash).toBe('hash-next');
   });
 

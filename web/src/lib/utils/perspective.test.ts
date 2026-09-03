@@ -170,11 +170,12 @@ describe('perspectiveCssMatrix', () => {
       .slice('matrix3d('.length, -1)
       .split(',')
       .map((s) => Number(s));
-    const px = [v[0] * -200 + v[4] * -150 + v[12], v[1] * -200 + v[5] * -150 + v[13]];
-    const w = v[3] * -200 + v[7] * -150 + v[15];
+    const at = (i: number): number => v[i] ?? NaN;
+    const px = [at(0) * -200 + at(4) * -150 + at(12), at(1) * -200 + at(5) * -150 + at(13)];
+    const w = at(3) * -200 + at(7) * -150 + at(15);
     const uv = mat3Apply(m, [0, 0]);
-    expect(px[0] / w).toBeCloseTo((uv[0] - 0.5) * 400, 4);
-    expect(px[1] / w).toBeCloseTo((uv[1] - 0.5) * 300, 4);
+    expect((px[0] ?? NaN) / w).toBeCloseTo((uv[0] - 0.5) * 400, 4);
+    expect((px[1] ?? NaN) / w).toBeCloseTo((uv[1] - 0.5) * 300, 4);
   });
 });
 

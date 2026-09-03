@@ -68,43 +68,51 @@
   }
 
   function hermite(pts: CurvePoint[], x: number): number {
-    if (pts.length < 2) return x;
-    if (x <= pts[0].x) return pts[0].y;
-    if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    if (!first || !last || pts.length < 2) return x;
+    if (x <= first.x) return first.y;
+    if (x >= last.x) return last.y;
     let idx = 0;
     for (let i = 0; i < pts.length - 1; i++) {
-      if (x >= pts[i].x && x <= pts[i + 1].x) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      if (a && b && x >= a.x && x <= b.x) {
         idx = i;
         break;
       }
     }
-    const x0 = pts[idx].x;
-    const y0 = pts[idx].y;
-    const x1 = pts[idx + 1].x;
-    const y1 = pts[idx + 1].y;
-    const dx = x1 - x0;
-    if (dx < 1e-10) return y0;
-    const t = (x - x0) / dx;
+    const p0 = pts[idx];
+    const p1 = pts[idx + 1];
+    if (!p0 || !p1) return x;
+    const dx = p1.x - p0.x;
+    if (dx < 1e-10) return p0.y;
+    const t = (x - p0.x) / dx;
     const m0 = tangent(pts, idx);
     const m1 = tangent(pts, idx + 1);
     const t2 = t * t;
     const t3 = t2 * t;
     const v =
-      (2 * t3 - 3 * t2 + 1) * y0 +
+      (2 * t3 - 3 * t2 + 1) * p0.y +
       (t3 - 2 * t2 + t) * dx * m0 +
-      (-2 * t3 + 3 * t2) * y1 +
+      (-2 * t3 + 3 * t2) * p1.y +
       (t3 - t2) * dx * m1;
     return Math.max(0, Math.min(1, v));
   }
 
+  function slope(a: CurvePoint, b: CurvePoint): number {
+    return (b.y - a.y) / Math.max(b.x - a.x, 1e-10);
+  }
+
   function tangent(pts: CurvePoint[], i: number): number {
-    if (i === 0) return (pts[1].y - pts[0].y) / Math.max(pts[1].x - pts[0].x, 1e-10);
-    if (i === pts.length - 1) {
-      const n = pts.length;
-      return (pts[n - 1].y - pts[n - 2].y) / Math.max(pts[n - 1].x - pts[n - 2].x, 1e-10);
-    }
-    const d0 = (pts[i].y - pts[i - 1].y) / Math.max(pts[i].x - pts[i - 1].x, 1e-10);
-    const d1 = (pts[i + 1].y - pts[i].y) / Math.max(pts[i + 1].x - pts[i].x, 1e-10);
+    const prev = pts[i - 1];
+    const cur = pts[i];
+    const next = pts[i + 1];
+    if (!cur) return 0;
+    if (!prev) return next ? slope(cur, next) : 0;
+    if (!next) return slope(prev, cur);
+    const d0 = slope(prev, cur);
+    const d1 = slope(cur, next);
     if (Math.sign(d0) !== Math.sign(d1)) return 0;
     return (d0 + d1) * 0.5;
   }
@@ -123,12 +131,16 @@
   }
 
   function isIdentityCurve(pts: CurvePoint[]): boolean {
+    const a = pts[0];
+    const b = pts[1];
     return (
       pts.length === 2 &&
-      Math.abs(pts[0].x) < 1e-10 &&
-      Math.abs(pts[0].y) < 1e-10 &&
-      Math.abs(pts[1].x - 1) < 1e-10 &&
-      Math.abs(pts[1].y - 1) < 1e-10
+      !!a &&
+      !!b &&
+      Math.abs(a.x) < 1e-10 &&
+      Math.abs(a.y) < 1e-10 &&
+      Math.abs(b.x - 1) < 1e-10 &&
+      Math.abs(b.y - 1) < 1e-10
     );
   }
 
@@ -152,7 +164,7 @@
     let d = `M ${pad} ${pad + inner}`;
     for (let i = 0; i < data.length; i++) {
       const x = pad + (i / (data.length - 1)) * inner;
-      const y = pad + inner - (data[i] / max) * inner * 0.8;
+      const y = pad + inner - ((data[i] ?? 0) / max) * inner * 0.8;
       d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }
     d += ` L ${pad + inner} ${pad + inner} Z`;
@@ -223,11 +235,10 @@
   }
 
   function hitTest(pts: CurvePoint[], sx: number, sy: number): number {
-    for (let i = 0; i < pts.length; i++) {
-      const sp = toSvg(pts[i]);
-      if (Math.hypot(sx - sp.x, sy - sp.y) < 12) return i;
-    }
-    return -1;
+    return pts.findIndex((p) => {
+      const sp = toSvg(p);
+      return Math.hypot(sx - sp.x, sy - sp.y) < 12;
+    });
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -241,13 +252,8 @@
       selected = hit;
     } else {
       const np = fromSvg(sx, sy);
-      let insertIdx = pts.length;
-      for (let i = 0; i < pts.length; i++) {
-        if (pts[i].x > np.x) {
-          insertIdx = i;
-          break;
-        }
-      }
+      const after = pts.findIndex((p) => p.x > np.x);
+      const insertIdx = after < 0 ? pts.length : after;
       const newPts = [...pts];
       newPts.splice(insertIdx, 0, np);
       setCurve(activeChannel, newPts);
@@ -271,8 +277,11 @@
     } else if (dragging === pts.length - 1) {
       pts[pts.length - 1] = { x: 1, y: np.y };
     } else {
-      const minX = pts[dragging - 1].x + 0.01;
-      const maxX = pts[dragging + 1].x - 0.01;
+      const before = pts[dragging - 1];
+      const after = pts[dragging + 1];
+      if (!before || !after) return;
+      const minX = before.x + 0.01;
+      const maxX = after.x - 0.01;
       pts[dragging] = { x: Math.max(minX, Math.min(maxX, np.x)), y: np.y };
     }
     setCurve(activeChannel, pts);
@@ -299,7 +308,9 @@
     const sy = (e.clientY - rect.top) * scale;
     const pts = getCurve(activeChannel);
     for (let i = 1; i < pts.length - 1; i++) {
-      const sp = toSvg(pts[i]);
+      const point = pts[i];
+      if (!point) continue;
+      const sp = toSvg(point);
       if (Math.hypot(sx - sp.x, sy - sp.y) < 12) {
         const newPts = [...pts];
         newPts.splice(i, 1);
@@ -315,12 +326,16 @@
     const pts = [...getCurve(activeChannel)];
     const isEndpoint = idx === 0 || idx === pts.length - 1;
     const p = pts[idx];
+    if (!p) return;
     const ny = Math.max(0, Math.min(1, p.y + dy));
     if (isEndpoint) {
       pts[idx] = { x: p.x, y: ny };
     } else {
-      const minX = pts[idx - 1].x + 0.01;
-      const maxX = pts[idx + 1].x - 0.01;
+      const before = pts[idx - 1];
+      const after = pts[idx + 1];
+      if (!before || !after) return;
+      const minX = before.x + 0.01;
+      const maxX = after.x - 0.01;
       const nx = Math.max(minX, Math.min(maxX, p.x + dx));
       pts[idx] = { x: nx, y: ny };
     }

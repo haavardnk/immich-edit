@@ -186,8 +186,9 @@ export async function addMaskLayer(
 
 export async function removeMaskLayer(ctx: MaskLayersCtx, id: string): Promise<void> {
   const index = ctx.edits.masks.findIndex((layer) => layer.id === id);
-  if (index < 0) return;
-  const name = ctx.edits.masks[index].name;
+  const removed = ctx.edits.masks[index];
+  if (!removed) return;
+  const name = removed.name;
   const masks = ctx.edits.masks.filter((layer) => layer.id !== id);
   ctx.edits = { ...ctx.edits, masks };
   if (ctx.activeLayerId === id) {
@@ -227,6 +228,7 @@ export async function reorderMaskLayer(
   if (from < 0) return;
   const masks = [...ctx.edits.masks];
   const [layer] = masks.splice(from, 1);
+  if (!layer) return;
   const clamped = Math.max(0, Math.min(toIndex, masks.length));
   masks.splice(clamped, 0, layer);
   ctx.edits = { ...ctx.edits, masks };
@@ -245,6 +247,7 @@ export async function reorderMaskComponent(
   if (from < 0) return;
   const components = [...layer.components];
   const [component] = components.splice(from, 1);
+  if (!component) return;
   const clamped = Math.max(0, Math.min(toIndex, components.length));
   components.splice(clamped, 0, clamped === 0 ? { ...component, mode: 'add' } : component);
   patchMaskLayer(ctx, layerId, { components }, false);

@@ -68,6 +68,7 @@
   $effect(() => {
     if (!scrollContainer || currentIndex < 0) return;
     const box = layout.boxes[currentIndex];
+    if (!box) return;
     if (box.left >= scrollLeft && box.left + box.width <= scrollLeft + containerWidth) return;
     const target = box.left + box.width / 2 - containerWidth / 2;
     const max = Math.max(0, layout.width - containerWidth);
@@ -102,7 +103,7 @@
           <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
               {#each visibleAssets as asset, visibleIndex (asset.id)}
-                {@const box = layout.boxes[view.startIdx + visibleIndex]}
+                {@const box = layout.boxes[view.startIdx + visibleIndex] ?? { width: 0 }}
                 {@const isCurrent = asset.id === currentId}
                 {@const paneNumber = (highlightIds?.indexOf(asset.id) ?? -1) + 1}
                 {@const isMember = !isCurrent && paneNumber > 0}

@@ -20,7 +20,7 @@ export function sortAssets(
   const groups: Group[] = [];
   for (const asset of assets) {
     const last = groups[groups.length - 1];
-    if (asset.copyOf && last && last.items[0].id === asset.copyOf) {
+    if (asset.copyOf && last && last.items[0]?.id === asset.copyOf) {
       last.items.push(asset);
       continue;
     }

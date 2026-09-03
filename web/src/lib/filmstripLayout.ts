@@ -36,13 +36,14 @@ export function visibleFilmstripRange(
   if (boxes.length === 0) return { startIndex: 0, endIndex: 0 };
 
   let startIndex = 0;
-  while (startIndex < boxes.length && boxes[startIndex].left + boxes[startIndex].width < left) {
+  for (const box of boxes) {
+    if (box.left + box.width >= left) break;
     startIndex += 1;
   }
   startIndex = Math.max(0, startIndex - overscan);
 
   let endIndex = startIndex;
-  while (endIndex < boxes.length && boxes[endIndex].left <= right) endIndex += 1;
+  while (endIndex < boxes.length && (boxes[endIndex]?.left ?? Infinity) <= right) endIndex += 1;
   endIndex = Math.min(boxes.length, endIndex + overscan);
   return { startIndex, endIndex };
 }

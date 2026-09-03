@@ -72,7 +72,7 @@ describe('SingleFlight', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(onError).toHaveBeenCalledTimes(1);
-    expect((onError.mock.calls[0][0] as Error).message).toBe('boom');
+    expect((onError.mock.calls[0]?.[0] as Error).message).toBe('boom');
   });
 
   it('cancel aborts the current call and clears the queue', async () => {

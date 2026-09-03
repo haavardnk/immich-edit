@@ -1,11 +1,10 @@
 export type Mat3 = [number, number, number, number, number, number, number, number, number];
 
-export type CornerOffsets = [
-  [number, number],
-  [number, number],
-  [number, number],
-  [number, number]
-];
+export type Point = [number, number];
+
+export type Quad = [Point, Point, Point, Point];
+
+export type CornerOffsets = Quad;
 
 export interface PerspectiveEdits {
   vertical: number;
@@ -59,9 +58,10 @@ export function perspectiveInverse(p: PerspectiveEdits | null): Mat3 {
   return perspectiveMatrices(p)[1];
 }
 
-export function perspectiveQuad(p: PerspectiveEdits | null): [number, number][] {
+export function perspectiveQuad(p: PerspectiveEdits | null): Quad {
   const f = perspectiveForward(p);
-  return unitSquareCorners().map((c) => mat3Apply(f, c));
+  const c = unitSquareCorners();
+  return [mat3Apply(f, c[0]), mat3Apply(f, c[1]), mat3Apply(f, c[2]), mat3Apply(f, c[3])];
 }
 
 function perspectiveParamsMatrix(p: PerspectiveEdits): Mat3 {
@@ -73,10 +73,11 @@ function perspectiveParamsMatrix(p: PerspectiveEdits): Mat3 {
 export function cornerOffsetsFor(
   p: PerspectiveEdits,
   index: number,
-  targetUv: [number, number]
+  targetUv: Point
 ): CornerOffsets {
-  const base = unitSquareCorners()[index];
   let next = p.corners ?? emptyCorners();
+  const base = unitSquareCorners()[index];
+  if (!base) return next;
   for (let i = 0; i < 4; i++) {
     const inv = mat3Inverse(perspectiveParamsMatrix({ ...p, corners: next }));
     if (!inv) return next;
@@ -107,13 +108,17 @@ export function perspectiveCssMatrix(m: Mat3, w: number, h: number): string {
 }
 
 export function mat3Mul(a: Mat3, b: Mat3): Mat3 {
-  const out = new Array<number>(9);
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      out[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
-    }
-  }
-  return out as Mat3;
+  return [
+    a[0] * b[0] + a[1] * b[3] + a[2] * b[6],
+    a[0] * b[1] + a[1] * b[4] + a[2] * b[7],
+    a[0] * b[2] + a[1] * b[5] + a[2] * b[8],
+    a[3] * b[0] + a[4] * b[3] + a[5] * b[6],
+    a[3] * b[1] + a[4] * b[4] + a[5] * b[7],
+    a[3] * b[2] + a[4] * b[5] + a[5] * b[8],
+    a[6] * b[0] + a[7] * b[3] + a[8] * b[6],
+    a[6] * b[1] + a[7] * b[4] + a[8] * b[7],
+    a[6] * b[2] + a[7] * b[5] + a[8] * b[8]
+  ];
 }
 
 export function mat3Inverse(m: Mat3): Mat3 | null {
@@ -136,13 +141,13 @@ export function mat3Inverse(m: Mat3): Mat3 | null {
   ];
 }
 
-export function mat3Apply(m: Mat3, p: [number, number]): [number, number] {
+export function mat3Apply(m: Mat3, p: Point): Point {
   const w = m[6] * p[0] + m[7] * p[1] + m[8];
   if (Math.abs(w) < 1e-9) return [p[0], p[1]];
   return [(m[0] * p[0] + m[1] * p[1] + m[2]) / w, (m[3] * p[0] + m[4] * p[1] + m[5]) / w];
 }
 
-export function squareToQuad(quad: [number, number][]): Mat3 | null {
+export function squareToQuad(quad: Quad): Mat3 | null {
   const [p0, p1, p2, p3] = quad;
   const sx = p0[0] - p1[0] + p2[0] - p3[0];
   const sy = p0[1] - p1[1] + p2[1] - p3[1];
@@ -188,7 +193,13 @@ function tryMatrices(c: PerspectiveEdits): [Mat3, Mat3] | null {
 }
 
 function fitToFrame(m: Mat3): Mat3 {
-  const pts = unitSquareCorners().map((p) => mat3Apply(m, p));
+  const c = unitSquareCorners();
+  const pts: Quad = [
+    mat3Apply(m, c[0]),
+    mat3Apply(m, c[1]),
+    mat3Apply(m, c[2]),
+    mat3Apply(m, c[3])
+  ];
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   const minX = Math.min(...xs);
@@ -242,7 +253,7 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function lerpPoint(a: [number, number], b: [number, number], t: number): [number, number] {
+function lerpPoint(a: Point, b: Point, t: number): Point {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 }
 
@@ -257,38 +268,55 @@ function paramsMatrix(p: PerspectiveEdits): Mat3 {
 }
 
 function cornerMatrix(p: PerspectiveEdits): Mat3 {
-  if (!p.corners) return IDENTITY_MAT3;
-  const base = unitSquareCorners();
-  const quad = base.map(
-    (b, i) => [b[0] + p.corners![i][0], b[1] + p.corners![i][1]] as [number, number]
-  );
+  const offsets = p.corners;
+  if (!offsets) return IDENTITY_MAT3;
+  const b = unitSquareCorners();
+  const quad: Quad = [
+    addPoint(b[0], offsets[0]),
+    addPoint(b[1], offsets[1]),
+    addPoint(b[2], offsets[2]),
+    addPoint(b[3], offsets[3])
+  ];
   if (!quadIsUsable(quad)) return IDENTITY_MAT3;
   return squareToQuad(quad) ?? IDENTITY_MAT3;
 }
 
-function quadIsUsable(quad: [number, number][]): boolean {
-  let area = 0;
-  let sign = 0;
-  for (let i = 0; i < 4; i++) {
-    const a = quad[i];
-    const b = quad[(i + 1) % 4];
-    const c = quad[(i + 2) % 4];
-    area += a[0] * b[1] - b[0] * a[1];
-    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
-    if (sign === 0) sign = cross;
-    else if (cross * sign < 0) return false;
-  }
-  return area * 0.5 >= MIN_QUAD_AREA;
+function addPoint(a: Point, b: Point): Point {
+  return [a[0] + b[0], a[1] + b[1]];
+}
+
+function cross(a: Point, b: Point, c: Point): number {
+  return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+}
+
+function quadIsUsable(quad: Quad): boolean {
+  const [p0, p1, p2, p3] = quad;
+  const area =
+    (p0[0] * p1[1] -
+      p1[0] * p0[1] +
+      (p1[0] * p2[1] - p2[0] * p1[1]) +
+      (p2[0] * p3[1] - p3[0] * p2[1]) +
+      (p3[0] * p0[1] - p0[0] * p3[1])) *
+    0.5;
+  if (area < MIN_QUAD_AREA) return false;
+  const turns = [cross(p0, p1, p2), cross(p1, p2, p3), cross(p2, p3, p0), cross(p3, p0, p1)];
+  return turns.every((t) => t >= 0) || turns.every((t) => t <= 0);
 }
 
 function clampCorners(corners: CornerOffsets): CornerOffsets {
-  return corners.map((c) => [
-    clamp(c[0], -CORNER_LIMIT, CORNER_LIMIT),
-    clamp(c[1], -CORNER_LIMIT, CORNER_LIMIT)
-  ]) as CornerOffsets;
+  return [
+    clampPoint(corners[0]),
+    clampPoint(corners[1]),
+    clampPoint(corners[2]),
+    clampPoint(corners[3])
+  ];
 }
 
-function unitSquareCorners(): [number, number][] {
+function clampPoint(p: Point): Point {
+  return [clamp(p[0], -CORNER_LIMIT, CORNER_LIMIT), clamp(p[1], -CORNER_LIMIT, CORNER_LIMIT)];
+}
+
+function unitSquareCorners(): Quad {
   return [
     [0, 0],
     [1, 0],

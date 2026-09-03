@@ -6,7 +6,7 @@ describe('editor modified state', () => {
   it('maps active operators to their develop panels', () => {
     const edits = neutralEdits();
     edits.basic.exposure_ev = 1;
-    edits.color.hsl.bands[2].sat = 20;
+    edits.color.hsl.bands[2]!.sat = 20;
     edits.effects.grain_amount = 10;
 
     expect([...modifiedDevelopPanels(edits)]).toEqual(['basic', 'hsl', 'effects']);

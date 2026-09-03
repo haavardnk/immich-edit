@@ -44,7 +44,7 @@ export function stampBuffer(
       }
       const add = Math.round(alphaByte * t);
       const i = row + x;
-      const cur = buf.bytes[i];
+      const cur = buf.bytes[i] ?? 0;
       buf.bytes[i] = erase ? Math.max(0, cur - add) : Math.min(255, cur + add);
     }
   }
@@ -60,7 +60,8 @@ export function bufferToImageData(
   const [r, g, b] = color;
   const k = Math.max(0, Math.min(1, intensity));
   for (let i = 0; i < buf.bytes.length; i++) {
-    const a = invert ? 255 - buf.bytes[i] : buf.bytes[i];
+    const raw = buf.bytes[i] ?? 0;
+    const a = invert ? 255 - raw : raw;
     const j = i * 4;
     data[j] = r;
     data[j + 1] = g;

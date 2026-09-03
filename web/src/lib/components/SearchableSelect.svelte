@@ -166,7 +166,8 @@
       >
         {#each suggestions as item, index (getId(item))}
           {@const group = getGroup?.(item)}
-          {@const previousGroup = index > 0 ? getGroup?.(suggestions[index - 1]) : null}
+          {@const previous = suggestions[index - 1]}
+          {@const previousGroup = previous ? getGroup?.(previous) : null}
           {@const description = getDescription?.(item)}
           {@const itemColor = getColor?.(item)}
           {#if group && group !== previousGroup}
