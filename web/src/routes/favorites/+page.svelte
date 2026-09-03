@@ -8,7 +8,7 @@
 
   onMount(() => {
     browseControls.enter('favorites', 'timeline');
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
   });
 
   $effect(() => feed.watchFilterChange());

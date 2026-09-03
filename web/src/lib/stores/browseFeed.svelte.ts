@@ -41,7 +41,7 @@ export class BrowseFeed {
     this.prevKey = '';
   }
 
-  fetchPage(initial: boolean): void {
+  fetchPage(initial: boolean): Promise<void> {
     const req = (this.reqId += 1);
     const base = this.opts.baseBody();
     if (initial) {
@@ -64,7 +64,7 @@ export class BrowseFeed {
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
     if (!initial && this.nextPage) body.page = Number(this.nextPage);
     const fetcher = this.opts.fetcher ?? searchMetadata;
-    Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
+    return Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
       .then(([result]) => {
         if (req !== this.reqId) return;
         const items = rejected.stamp(result.items);
@@ -88,14 +88,14 @@ export class BrowseFeed {
   loadMore(): void {
     if (this.loadingMore || !this.nextPage) return;
     this.loadingMore = true;
-    this.fetchPage(false);
+    void this.fetchPage(false);
   }
 
   watchFilterChange(): void {
     const key = browseControls.serverFilterKey;
     if (this.prevKey && key !== this.prevKey) {
       selection.clear();
-      this.fetchPage(true);
+      void this.fetchPage(true);
     }
     this.prevKey = key;
   }

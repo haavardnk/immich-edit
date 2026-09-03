@@ -5,10 +5,8 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { searchSmart, searchMetadata } from '$lib/api/search';
-  import type { SearchQuery, SearchResult } from '$lib/types/search';
+  import { runSearch } from '$lib/browseSources';
   import { resolveSearchMode, type SearchMode } from '$lib/searchMode';
-  import { toasts } from '$lib/stores/toasts.svelte';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import { Button, LoadingSpinner } from '@immich/ui';
@@ -16,21 +14,9 @@
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
   const mode = $derived(resolveSearchMode(query, page.url.searchParams.get('mode')));
 
-  async function runSearch(body: SearchQuery): Promise<SearchResult> {
-    const byFilename: SearchQuery = { ...body, originalFileName: query };
-    delete byFilename.query;
-    if (mode === 'filename') return searchMetadata(byFilename);
-    try {
-      return await searchSmart(body);
-    } catch {
-      toasts.push('warn', 'Smart search unavailable, showing filename matches');
-      return await searchMetadata(byFilename);
-    }
-  }
-
   const feed = new BrowseFeed({
     baseBody: () => (mode === 'filename' ? {} : { query }),
-    fetcher: runSearch,
+    fetcher: (body) => runSearch(query, mode, body),
     buildBody: (base) => browseControls.smartSearchBody(base),
     includeStats: false
   });
@@ -49,7 +35,7 @@
       selection.clear();
       browseControls.enter('search:' + query, null);
       feed.reset();
-      if (query) feed.fetchPage(true);
+      if (query) void feed.fetchPage(true);
     });
   });
 

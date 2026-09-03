@@ -26,7 +26,7 @@
       album.load(current);
       browseControls.enter('album:' + current, 'collection');
       feed.reset();
-      feed.fetchPage(true);
+      void feed.fetchPage(true);
     });
   });
 
@@ -45,7 +45,7 @@
   onRetry={() => {
     album.load(id);
     feed.reset();
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
   }}
   emptyTitle="This album is empty"
 />
