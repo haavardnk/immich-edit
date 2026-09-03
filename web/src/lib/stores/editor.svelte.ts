@@ -65,6 +65,15 @@ import { toasts } from '$lib/stores/toasts.svelte';
 import { SingleFlight } from '$lib/utils/single-flight';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import { errorMessage } from '$lib/utils/errors';
+import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
+import { viewTransform } from '$lib/utils/canvasCoords';
+import {
+  faceTargets,
+  nextTargetIndex,
+  panForTarget,
+  sharpestPoint,
+  type ZoomTarget
+} from '$lib/utils/zoomTarget';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
 
 const LIVE_EDGE = 1600;
@@ -72,6 +81,7 @@ const MAX_EDGE = 4096;
 const VIEW_MAX_EDGE = 65535;
 const VIEW_DEBOUNCE_MS = 150;
 const MAX_HISTORY = 50;
+const TARGET_ZOOM = 200;
 
 type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
@@ -179,6 +189,9 @@ class EditorStore {
   private viewSnap = $state<ViewSnapshot | null>(null);
   private viewKey = '';
   private viewFullEdge = 0;
+  private baseImage: HTMLImageElement | null = null;
+  private zoomTargetIndex: number | null = null;
+  private zoomTargetView: string | null = null;
   private srcLong = Number.POSITIVE_INFINITY;
   private originalEdge = 0;
   private originalGeomKey = '';
@@ -379,6 +392,49 @@ class EditorStore {
     this.scheduleIdleRender();
   };
 
+  setBaseImage = (element: HTMLImageElement | null): void => {
+    this.baseImage = element;
+  };
+
+  zoomCycle = (): void => {
+    const id = this.assetId;
+    if (!id) return;
+    if (cachedFaceData(id) === null) {
+      void loadFaceData(id).then(() => this.stepZoomTarget(id));
+      return;
+    }
+    this.stepZoomTarget(id);
+  };
+
+  private zoomTargets(id: string): ZoomTarget[] {
+    const data = cachedFaceData(id);
+    const faces = data ? faceTargets(data.faces, viewTransform(this.edits, this.meta)) : [];
+    if (faces.length > 0) return faces;
+    const sharp = this.baseImage ? sharpestPoint(this.baseImage) : null;
+    return [sharp ?? { u: 0.5, v: 0.5 }];
+  }
+
+  private stepZoomTarget(id: string): void {
+    if (this.assetId !== id) return;
+    const targets = this.zoomTargets(id);
+    const from = this.viewKeyOf() === this.zoomTargetView ? this.zoomTargetIndex : null;
+    const next = nextTargetIndex(from, targets.length);
+    this.zoomTargetIndex = next;
+    const target = next === null ? null : targets[next];
+    const snap = this.viewSnap;
+    if (!target || !snap || snap.frame.width <= 0 || ui.zoom <= 0) {
+      ui.setZoom(target ? TARGET_ZOOM : 100);
+    } else {
+      const pan = panForTarget(target, snap.frame, snap.viewW, snap.viewH, TARGET_ZOOM / ui.zoom);
+      ui.setView(TARGET_ZOOM, pan.panX, pan.panY);
+    }
+    this.zoomTargetView = this.viewKeyOf();
+  }
+
+  private viewKeyOf(): string {
+    return `${ui.zoom}:${Math.round(ui.panX)}:${Math.round(ui.panY)}`;
+  }
+
   toggleSplit = (): void => {
     if (this.geometrySession) return;
     this.clearView();
@@ -474,6 +530,7 @@ class EditorStore {
       this.initialised = true;
       this.pushHistory();
       this.fetchLensProfile(id);
+      void loadFaceData(id);
       this.flight.submit({
         edits: $state.snapshot(this.edits),
         maxEdge: LIVE_EDGE,
@@ -509,6 +566,8 @@ class EditorStore {
     this.originalFlight.cancel();
     this.clearView();
     this.viewSnap = null;
+    this.zoomTargetIndex = null;
+    this.zoomTargetView = null;
     this.srcLong = Number.POSITIVE_INFINITY;
     if (this.geometrySession) {
       if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);

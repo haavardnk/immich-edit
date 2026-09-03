@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_ID, ASSET_SUMMARY, installMocks, type InstallOpts } from './helpers';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 const ASSETS = [
@@ -10,8 +10,8 @@ const ASSETS = [
 const LOUPE_IMAGE = 'IMG_0001.ARW';
 const NEXT_IMAGE = 'IMG_0002.ARW';
 
-async function openLoupe(page: Page): Promise<void> {
-  await installMocks(page, { assets: ASSETS });
+async function openLoupe(page: Page, opts: InstallOpts = {}): Promise<void> {
+  await installMocks(page, { assets: ASSETS, ...opts });
   await page.addInitScript(() => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
@@ -60,6 +60,27 @@ test('shift+f toggles loupe fullscreen', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
+});
+
+test('zoom cycles through detected faces before returning to fit', async ({ page }) => {
+  await openLoupe(page, {
+    faces: [
+      { source_w: 1000, source_h: 800, x: 0.05, y: 0.05, w: 0.3, h: 0.3 },
+      { source_w: 1000, source_h: 800, x: 0.7, y: 0.7, w: 0.2, h: 0.2 }
+    ]
+  });
+  const image = page.getByRole('img', { name: LOUPE_IMAGE });
+
+  await page.keyboard.press('z');
+  await expect(image).toHaveAttribute('style', /scale\(2\.5\) translate\(/);
+  const first = await image.getAttribute('style');
+
+  await page.keyboard.press('z');
+  await expect(image).toHaveAttribute('style', /scale\(2\.5\) translate\(/);
+  expect(await image.getAttribute('style')).not.toBe(first);
+
+  await page.keyboard.press('z');
+  await expect(image).not.toHaveAttribute('style', /scale\(2\.5\)/);
 });
 
 test('number keys rate the loupe asset', async ({ page }) => {

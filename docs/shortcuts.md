@@ -43,7 +43,7 @@ Shortcuts do not run while focus is in a text field or other typing control.
 | Keys           | Action                               | Available in                   |
 | -------------- | ------------------------------------ | ------------------------------ |
 | Left or Right  | Open the previous or next photo      | Loupe                          |
-| `Z` or `Space` | Toggle zoom                          | Loupe, compare, survey, editor |
+| `Z` or `Space` | Zoom to the next face, then back out | Loupe, compare, survey, editor |
 | `I`            | Toggle photo information             | Loupe and editor               |
 | `T`            | Toggle tags                          | Loupe and editor               |
 | `J`            | Toggle clipping indicators           | Loupe, compare, survey, editor |

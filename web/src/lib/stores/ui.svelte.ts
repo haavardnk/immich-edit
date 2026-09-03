@@ -150,10 +150,6 @@ class UiStore {
     this.setZoom(100);
   };
 
-  zoomToggle = (): void => {
-    this.setZoom(this.zoom <= 100 ? 200 : 100);
-  };
-
   toggleKeybindsHelp = (): void => {
     this.keybindsHelpOpen = !this.keybindsHelpOpen;
   };
@@ -186,6 +182,13 @@ class UiStore {
       this.panX = 0;
       this.panY = 0;
     }
+  };
+
+  setView = (zoom: number, panX: number, panY: number): void => {
+    this.setZoom(zoom);
+    if (this.zoom <= 100) return;
+    this.panX = panX;
+    this.panY = panY;
   };
 
   zoomNative = (): void => {

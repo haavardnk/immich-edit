@@ -1,5 +1,4 @@
 import type { Edits, LensEdits } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
 import {
   lensWarpActive,
   lensWarpFromEdits,
@@ -12,7 +11,8 @@ import {
   geometryIsIdentity,
   geometryTransformFrom,
   maskUvToDisplayUv,
-  type GeometryTransform
+  type GeometryTransform,
+  type SourceDims
 } from '$lib/utils/geomTransform';
 
 export interface ViewTransform {
@@ -22,7 +22,7 @@ export interface ViewTransform {
 
 export function viewTransform(
   edits: Edits,
-  meta: PreviewMeta | null,
+  meta: SourceDims | null,
   lens?: LensEdits
 ): ViewTransform {
   const sw = meta?.source_w ?? 1;

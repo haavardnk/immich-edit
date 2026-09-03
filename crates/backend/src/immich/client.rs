@@ -7,8 +7,9 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, BulkIdResponse, PeopleResponse, PersonSummary,
-    SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary, UploadResponse,
+    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
+    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary,
+    UploadResponse,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -152,6 +153,13 @@ impl ImmichClient {
         let url = self.url(&format!("api/people/{id}/thumbnail"))?;
         self.bytes_with_content_type(self.authed(self.http.get(url)))
             .await
+    }
+
+    pub async fn asset_faces(&self, id: Uuid) -> ImmichResult<Vec<AssetFace>> {
+        let url = self.url("api/faces")?;
+        let req = self.authed(self.http.get(url).query(&[("id", id.to_string())]));
+        let bytes = send(req).await?;
+        parse_json(&bytes)
     }
 
     pub async fn list_tags(&self) -> ImmichResult<Vec<TagSummary>> {

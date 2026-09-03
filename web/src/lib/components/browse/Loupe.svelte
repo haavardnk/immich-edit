@@ -17,6 +17,13 @@
   import { copyIndex, isCopy } from '$lib/assetKey';
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
   import { putBounded } from '$lib/utils/boundedRecord';
+  import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
+  import {
+    faceTargets,
+    nextTargetIndex,
+    sharpestPoint,
+    type ZoomTarget
+  } from '$lib/utils/zoomTarget';
   import { editorHref } from '$lib/editorNavigation';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
@@ -29,6 +36,7 @@
   import { mdiChevronLeft, mdiChevronRight, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
+  const TARGET_ZOOM = 250;
 
   let paneMaxEdge = $state(MAX_EDGE);
 
@@ -58,11 +66,20 @@
   let tagCache = $state<Record<string, TagRef[]>>({});
   let tagOrder = $state<string[]>([]);
   let nativeZooms = $state<Record<string, number | null>>({});
+  let paneImages = $state<Record<string, HTMLImageElement>>({});
+  let paneImageOrder = $state<string[]>([]);
+  let targetIndex = $state<number | null>(null);
   const currentTags = $derived(focusedId ? (tagCache[focusedId] ?? []) : []);
   const focusedNativeZoom = $derived(focusedId ? (nativeZooms[focusedId] ?? null) : null);
 
   onDestroy(() => {
     ui.fullscreen = false;
+  });
+
+  $effect(() => {
+    const id = focusedId;
+    targetIndex = null;
+    if (id) void loadFaceData(id);
   });
 
   $effect(() => {
@@ -246,7 +263,34 @@
   }
 
   function toggleZoom(): void {
-    setZoom(zoom > 100 ? 100 : 250);
+    const id = focusedId;
+    if (!id) return;
+    if (cachedFaceData(id) === null) {
+      void loadFaceData(id).then(() => stepZoomTarget(id));
+      return;
+    }
+    stepZoomTarget(id);
+  }
+
+  function zoomTargetsFor(id: string): ZoomTarget[] {
+    const data = cachedFaceData(id);
+    const faces = data?.savedView ? faceTargets(data.faces, data.savedView) : [];
+    if (faces.length > 0) return faces;
+    const image = paneImages[id];
+    return [(image ? sharpestPoint(image) : null) ?? { u: 0.5, v: 0.5 }];
+  }
+
+  function stepZoomTarget(id: string): void {
+    if (id !== focusedId) return;
+    const targets = zoomTargetsFor(id);
+    const next = nextTargetIndex(zoom > 100 ? targetIndex : null, targets.length);
+    targetIndex = next;
+    const target = next === null ? null : targets[next];
+    if (!target) {
+      setZoom(100);
+      return;
+    }
+    compare.applyView(id, { zoom: TARGET_ZOOM, cx: target.u, cy: target.v });
   }
 
   function setZoom(value: number): void {
@@ -263,6 +307,13 @@
   function setNativeZoom(id: string, value: number | null): void {
     if (nativeZooms[id] === value) return;
     nativeZooms = { ...nativeZooms, [id]: value };
+  }
+
+  function setPaneImage(id: string, element: HTMLImageElement): void {
+    if (paneImages[id] === element) return;
+    const next = putBounded(paneImages, paneImageOrder, id, element, 9);
+    paneImages = next.record;
+    paneImageOrder = next.order;
   }
 
   function autoAdvance(id: string): void {
@@ -459,13 +510,17 @@
           showFocus={multi}
           badge={multi ? index + 1 : undefined}
           onFocus={() => (compare.focusIndex = index)}
-          onView={(next, solo) => compare.applyView(id, next, solo)}
+          onView={(next, solo) => {
+            targetIndex = null;
+            compare.applyView(id, next, solo);
+          }}
           onSize={(size) => (paneMaxEdge = size)}
           sourceLong={Math.max(
             paneAsset?.exifInfo?.exifImageWidth ?? 0,
             paneAsset?.exifInfo?.exifImageHeight ?? 0
           )}
           onNativeZoom={(value) => setNativeZoom(id, value)}
+          onImage={(element) => setPaneImage(id, element)}
         />
       {/each}
 
