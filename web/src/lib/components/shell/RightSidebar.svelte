@@ -95,7 +95,7 @@
       <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline px-3">
         <div class="min-w-0 flex-1">
           <h2 class="truncate text-[13px] font-semibold text-white/90">
-            {activeEditorTab.label}
+            {activeEditorTab?.label}
           </h2>
         </div>
       </div>

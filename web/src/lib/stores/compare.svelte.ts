@@ -49,9 +49,8 @@ class CompareStore {
   }
 
   setMember(index: number, id: string): void {
-    if (index < 0 || index >= this.members.length) return;
     const previous = this.members[index];
-    if (previous === id) return;
+    if (previous === undefined || previous === id) return;
     this.members[index] = id;
     const inherited = this.views[previous];
     delete this.views[previous];
@@ -71,14 +70,14 @@ class CompareStore {
   drop(index: number): void {
     if (index < 0 || index >= this.members.length) return;
     const [removed] = this.members.splice(index, 1);
-    delete this.views[removed];
+    if (removed !== undefined) delete this.views[removed];
     this.focusIndex = Math.min(this.focusIndex, Math.max(0, this.members.length - 1));
   }
 
   promote(index: number): void {
     if (index <= 0 || index >= this.members.length) return;
     const [moved] = this.members.splice(index, 1);
-    this.members.unshift(moved);
+    if (moved !== undefined) this.members.unshift(moved);
     this.focusIndex = 0;
   }
 

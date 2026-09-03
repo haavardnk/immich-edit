@@ -226,9 +226,9 @@ describe('manifest codec', () => {
       }
     });
     expect(edits.retouch).toHaveLength(1);
-    expect(edits.retouch[0].points).toHaveLength(256);
-    expect(edits.retouch[0].opacity).toBe(1);
-    expect(edits.retouch[0].enabled).toBe(true);
+    expect(edits.retouch[0]?.points).toHaveLength(256);
+    expect(edits.retouch[0]?.opacity).toBe(1);
+    expect(edits.retouch[0]?.enabled).toBe(true);
   });
 
   it('decodes a legacy single-curve points payload', () => {

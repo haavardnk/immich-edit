@@ -50,7 +50,8 @@
     let best = Infinity;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i];
-      const b = i + 1 < pts.length ? pts[i + 1] : pts[i];
+      const b = pts[i + 1] ?? a;
+      if (!a || !b) continue;
       const dx = b[0] - a[0];
       const dy = b[1] - a[1];
       const len2 = dx * dx + dy * dy;
@@ -73,6 +74,7 @@
   function hitStroke(nx: number, ny: number): RetouchStroke | null {
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
+      if (!s) continue;
       const pts = strokeDisplayPoints(s).map(
         ([x, y]) => [x * rect.w, y * rect.h] as [number, number]
       );
@@ -156,6 +158,7 @@
     if (!drawing) return;
     if (drawPts.length >= MAX_RETOUCH_POINTS) return;
     const last = drawPts[drawPts.length - 1];
+    if (!last) return;
     const radiusN = editor.retouchTool.size / scenePerDisplayAt(view, nx, ny);
     const step = Math.max(0.002, radiusN * 0.5);
     if (Math.hypot(nx - last[0], ny - last[1]) < step) return;
@@ -201,15 +204,17 @@
 
   function tracePath(ctx: CanvasRenderingContext2D, pts: [number, number][], rPx: number): void {
     const r = Math.max(0.5, rPx);
+    const head = pts[0];
+    if (!head) return;
     if (pts.length === 1) {
       ctx.beginPath();
-      ctx.arc(pts[0][0], pts[0][1], r, 0, Math.PI * 2);
+      ctx.arc(head[0], head[1], r, 0, Math.PI * 2);
       ctx.fill();
       return;
     }
     ctx.lineWidth = r * 2;
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
+    ctx.moveTo(head[0], head[1]);
     for (const p of pts.slice(1)) ctx.lineTo(p[0], p[1]);
     ctx.stroke();
   }
@@ -274,9 +279,10 @@
     for (const s of strokes) {
       if (!s.enabled) continue;
       const pts = strokeDisplayPoints(s).map(([x, y]) => [x * w, y * h] as [number, number]);
-      if (pts.length === 0) continue;
+      const head = pts[0];
+      if (!head) continue;
       const active = s.id === editor.activeRetouchId;
-      const rPx = displayRadius(s.radius, pts[0][0] / w, pts[0][1] / h);
+      const rPx = displayRadius(s.radius, head[0] / w, head[1] / h);
       paintPath(
         ctx,
         pts,
@@ -295,7 +301,7 @@
       ctx.strokeStyle = activeColour;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.moveTo(head[0], head[1]);
       ctx.lineTo(sx, sy);
       ctx.stroke();
       ctx.restore();
@@ -310,11 +316,13 @@
     }
 
     if (drawing && drawPts.length > 0) {
+      const first = drawPts[0];
+      const last = drawPts[drawPts.length - 1];
+      if (!first || !last) return;
       const pts = drawPts.map(([x, y]) => [x * w, y * h] as [number, number]);
-      const rPx = displayRadius(editor.retouchTool.size, drawPts[0][0], drawPts[0][1]);
+      const rPx = displayRadius(editor.retouchTool.size, first[0], first[1]);
       paintPath(ctx, pts, rPx, activeColour, 0.25, activeColour, 0.9);
       if (strokeOffset) {
-        const last = drawPts[drawPts.length - 1];
         const sc = displayUvToSceneUv(view, last[0], last[1]);
         const [sxN, syN] = sceneUvToDisplayUv(
           view,

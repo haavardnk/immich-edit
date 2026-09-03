@@ -49,7 +49,7 @@ function nextId(): string {
 }
 
 export function defaultMaskColor(index: number): string {
-  return MASK_COLOR_TOKENS[index % MASK_COLOR_TOKENS.length];
+  return MASK_COLOR_TOKENS[index % MASK_COLOR_TOKENS.length] ?? MASK_COLOR_TOKENS[0];
 }
 
 export function defaultLinear(): MaskComponentKind {

@@ -23,7 +23,8 @@
   import {
     createAssetGridLayout,
     verticalAssetIndex,
-    visibleAssetRange
+    visibleAssetRange,
+    type AssetGridBox
   } from '$lib/assetGridLayout';
 
   const GRID_CONTEXTS: KeybindContext[] = ['grid', 'global'];
@@ -67,10 +68,10 @@
   });
 
   const visibleAssets = $derived(
-    items.slice(view.startIndex, view.endIndex).map((asset, offset) => ({
-      asset,
-      box: layout.boxes[view.startIndex + offset]
-    }))
+    items
+      .slice(view.startIndex, view.endIndex)
+      .map((asset, offset) => ({ asset, box: layout.boxes[view.startIndex + offset] }))
+      .filter((item): item is { asset: AssetSummary; box: AssetGridBox } => item.box !== undefined)
   );
 
   const rangePreview = $derived.by(() => {
@@ -132,6 +133,7 @@
     const idx = items.findIndex((a) => a.id === id);
     if (idx < 0 || !scrollParent) return;
     const box = layout.boxes[idx];
+    if (!box) return;
     const rowTop = PAD + box.top;
     const rowBottom = rowTop + box.height;
     if (rowTop < viewTop) {
@@ -196,11 +198,12 @@
       selection.selected,
       browseView.activeId
     );
-    if (members.length < 2) {
+    const first = members[0];
+    if (members.length < 2 || !first) {
       toasts.push('info', `${mode} needs two photos`);
       return;
     }
-    browseView.openLoupe(members[0]);
+    browseView.openLoupe(first);
     compare.enter(mode, members);
   }
 

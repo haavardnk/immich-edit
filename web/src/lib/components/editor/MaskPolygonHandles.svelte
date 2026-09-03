@@ -26,6 +26,7 @@
   function midpoint(i: number): { x: number; y: number } {
     const a = kind.points[i];
     const b = kind.points[(i + 1) % kind.points.length];
+    if (!a || !b) return toPx({ x: 0, y: 0 });
     return toPx({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   }
 
@@ -49,6 +50,7 @@
     }
     const a = kind.points[after];
     const b = kind.points[(after + 1) % kind.points.length];
+    if (!a || !b) return;
     const next = [...kind.points];
     next.splice(after + 1, 0, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
     onPoints(next);

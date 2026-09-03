@@ -33,8 +33,9 @@ export function updateRetouchStroke(
   patch: Partial<RetouchStroke>
 ): void {
   const index = ctx.edits.retouch.findIndex((stroke) => stroke.id === id);
-  if (index < 0) return;
-  ctx.edits.retouch[index] = { ...ctx.edits.retouch[index], ...patch };
+  const current = ctx.edits.retouch[index];
+  if (!current) return;
+  ctx.edits.retouch[index] = { ...current, ...patch };
 }
 
 export async function setRetouchStroke(

@@ -128,7 +128,11 @@
     if (!context) return;
     context.drawImage(img, sx, sy, 1, 1, 0, 0, 1, 1);
     const pixel = context.getImageData(0, 0, 1, 1).data;
-    void editor.commitColorSample([pixel[0] / 255, pixel[1] / 255, pixel[2] / 255]);
+    void editor.commitColorSample([
+      (pixel[0] ?? 0) / 255,
+      (pixel[1] ?? 0) / 255,
+      (pixel[2] ?? 0) / 255
+    ]);
   }
 
   const draft = $derived(editor.polygonDraft);

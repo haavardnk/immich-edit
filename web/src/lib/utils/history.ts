@@ -304,21 +304,21 @@ for (let i = 0; i < HSL_BAND_NAMES.length; i++) {
       kind: 'number',
       section: 'color',
       label: `${name} Hue`,
-      get: (e) => e.color.hsl.bands[i].hue,
+      get: (e) => e.color.hsl.bands[i]?.hue ?? 0,
       signed: true
     },
     {
       kind: 'number',
       section: 'color',
       label: `${name} Saturation`,
-      get: (e) => e.color.hsl.bands[i].sat,
+      get: (e) => e.color.hsl.bands[i]?.sat ?? 0,
       signed: true
     },
     {
       kind: 'number',
       section: 'color',
       label: `${name} Luminance`,
-      get: (e) => e.color.hsl.bands[i].lum,
+      get: (e) => e.color.hsl.bands[i]?.lum ?? 0,
       signed: true
     }
   );
@@ -363,7 +363,10 @@ function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): 
 function curvesEqual(a: { x: number; y: number }[], b: { x: number; y: number }[]): boolean {
   return (
     a.length === b.length &&
-    a.every((point, i) => Math.abs(point.x - b[i].x) <= 1e-4 && Math.abs(point.y - b[i].y) <= 1e-4)
+    a.every((point, i) => {
+      const other = b[i];
+      return !!other && Math.abs(point.x - other.x) <= 1e-4 && Math.abs(point.y - other.y) <= 1e-4;
+    })
   );
 }
 
@@ -490,11 +493,13 @@ export function historyDetails(
   const groups = new Map<string, HistoryDetailGroup>();
   for (const field of FIELDS) {
     if (!fieldChanged(field, prev, curr, isRaw)) continue;
-    let group = groups.get(field.section);
-    if (!group) {
-      group = { key: field.section, label: SECTION_LABELS[field.section], items: [] };
-      groups.set(field.section, group);
-    }
+    const existing = groups.get(field.section);
+    const group = existing ?? {
+      key: field.section,
+      label: SECTION_LABELS[field.section] ?? field.section,
+      items: []
+    };
+    if (!existing) groups.set(field.section, group);
     const before = fmtField(field, prev, isRaw);
     const after = fmtField(field, curr, isRaw);
     group.items.push({ kind: 'value', label: field.label, before, after });
@@ -552,15 +557,15 @@ export function historyLabel(
   const scalarDiffs = FIELDS.filter((field) => fieldChanged(field, prev, curr, isRaw));
   const details = historyDetails(entry, previous, isRaw);
   const detailCount = details.reduce((count, group) => count + group.items.length, 0);
-  if (scalarDiffs.length === 1 && detailCount === 1) {
-    const field = scalarDiffs[0];
-    if (field.kind === 'number') {
+  const only = scalarDiffs.length === 1 ? scalarDiffs[0] : null;
+  if (only && detailCount === 1) {
+    if (only.kind === 'number') {
       return {
-        label: field.label,
-        delta: fmtDelta(field.get(curr, isRaw) - field.get(prev, isRaw), field.precision ?? 0)
+        label: only.label,
+        delta: fmtDelta(only.get(curr, isRaw) - only.get(prev, isRaw), only.precision ?? 0)
       };
     }
-    return { label: field.label };
+    return { label: only.label };
   }
   if (entry.action) return { label: entry.action };
   if (detailCount === 0) return { label: entry.manifest_hash.slice(0, 8) };

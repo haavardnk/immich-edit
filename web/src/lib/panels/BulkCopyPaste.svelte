@@ -15,7 +15,7 @@
 
   let copyId = $derived(
     selection.filterQuery === null && selection.selected.size === 1
-      ? [...selection.selected][0]
+      ? ([...selection.selected][0] ?? null)
       : null
   );
 

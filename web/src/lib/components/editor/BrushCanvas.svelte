@@ -120,7 +120,8 @@
           out[o + 3] = 0;
           continue;
         }
-        const a = invert ? 255 - bytes[by * bw + bx] : bytes[by * bw + bx];
+        const raw = bytes[by * bw + bx] ?? 0;
+        const a = invert ? 255 - raw : raw;
         out[o] = r;
         out[o + 1] = g;
         out[o + 2] = b;

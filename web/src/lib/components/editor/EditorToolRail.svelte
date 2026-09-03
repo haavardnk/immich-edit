@@ -40,9 +40,10 @@
     const offset = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
     if (offset === 0) return;
     event.preventDefault();
-    const next = (index + offset + tools.length) % tools.length;
-    ui.openTab(tools[next].id);
-    document.getElementById(`editor-tool-${tools[next].id}`)?.focus();
+    const next = tools[(index + offset + tools.length) % tools.length];
+    if (!next) return;
+    ui.openTab(next.id);
+    document.getElementById(`editor-tool-${next.id}`)?.focus();
   }
 
   function toggleTool(tool: EditorTab): void {

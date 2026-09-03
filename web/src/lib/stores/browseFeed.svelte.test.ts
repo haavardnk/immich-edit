@@ -47,8 +47,8 @@ describe('BrowseFeed pagination', () => {
     feed.loadMore();
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 
-    expect(seen[0].page).toBeUndefined();
-    expect(seen[1].page).toBe(2);
+    expect(seen[0]?.page).toBeUndefined();
+    expect(seen[1]?.page).toBe(2);
   });
 
   it('clears selection when the active filter changes', () => {
@@ -73,10 +73,10 @@ describe('BrowseFeed pagination', () => {
     void feed.fetchPage(true);
     expect(fetcher).toHaveBeenCalledTimes(2);
 
-    resolvers[1](result(null, ['new']));
+    resolvers[1]?.(result(null, ['new']));
     await vi.waitFor(() => expect(feed.assets.map((a) => a.id)).toEqual(['new']));
 
-    resolvers[0](result('2', ['stale']));
+    resolvers[0]?.(result('2', ['stale']));
     await flush();
 
     expect(feed.assets.map((a) => a.id)).toEqual(['new']);
@@ -89,17 +89,17 @@ describe('BrowseFeed pagination', () => {
     const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
 
     void feed.fetchPage(true);
-    resolvers[0](result('2', ['a']));
+    resolvers[0]?.(result('2', ['a']));
     await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
 
     feed.loadMore();
     expect(feed.loadingMore).toBe(true);
     void feed.fetchPage(true);
 
-    resolvers[2](result(null, ['b']));
+    resolvers[2]?.(result(null, ['b']));
     await vi.waitFor(() => expect(feed.assets.map((a) => a.id)).toEqual(['b']));
 
-    resolvers[1](result('3', ['a', 'stale']));
+    resolvers[1]?.(result('3', ['a', 'stale']));
     await flush();
 
     expect(feed.assets.map((a) => a.id)).toEqual(['b']);

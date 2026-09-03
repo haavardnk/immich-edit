@@ -143,7 +143,7 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (curves) {
     const decode = (points: number[][] | undefined): CurvePoint[] | null => {
       if (!points || points.length < 2) return null;
-      return points.map((point) => ({ x: point[0], y: point[1] }));
+      return points.map((point) => ({ x: point[0] ?? 0, y: point[1] ?? 0 }));
     };
     if (curves.points) {
       const legacy = decode(curves.points);
@@ -165,9 +165,11 @@ export function manifestToEdits(doc: EditManifest): Edits {
   if (hsl?.bands) {
     for (let index = 0; index < HSL_BANDS && index < hsl.bands.length; index++) {
       const band = hsl.bands[index];
-      if (band.hue !== undefined) edits.color.hsl.bands[index].hue = band.hue;
-      if (band.sat !== undefined) edits.color.hsl.bands[index].sat = band.sat;
-      if (band.lum !== undefined) edits.color.hsl.bands[index].lum = band.lum;
+      const target = edits.color.hsl.bands[index];
+      if (!band || !target) continue;
+      if (band.hue !== undefined) target.hue = band.hue;
+      if (band.sat !== undefined) target.sat = band.sat;
+      if (band.lum !== undefined) target.lum = band.lum;
     }
   }
   const colorGrade = ops.color_grade as

@@ -332,7 +332,7 @@
               {comp}
               index={i}
               total={active.components.length}
-              label={compLabels[i]}
+              label={compLabels[i] ?? ''}
             />
           {/each}
         {/if}

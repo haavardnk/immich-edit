@@ -58,14 +58,16 @@ export function createAssetGridLayout(
   });
   const rows: AssetGridRow[] = [];
   const boxes: AssetGridBox[] = geometry.boxes.map((box, index) => {
-    let row = rows.length - 1;
-    if (row < 0 || rows[row].top !== box.top) {
-      row += 1;
-      rows.push({ top: box.top, height: box.height, startIndex: index, endIndex: index + 1 });
+    let rowIndex = rows.length - 1;
+    let row = rows[rowIndex];
+    if (!row || row.top !== box.top) {
+      rowIndex += 1;
+      row = { top: box.top, height: box.height, startIndex: index, endIndex: index + 1 };
+      rows.push(row);
     } else {
-      rows[row].endIndex = index + 1;
+      row.endIndex = index + 1;
     }
-    return { ...box, row, column: index - rows[row].startIndex };
+    return { ...box, row: rowIndex, column: index - row.startIndex };
   });
 
   return { boxes, rows, height: geometry.containerHeight };
@@ -84,7 +86,7 @@ export function visibleAssetRange(
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
     const row = layout.rows[middle];
-    if (row.top + row.height < top) low = middle + 1;
+    if (row && row.top + row.height < top) low = middle + 1;
     else high = middle;
   }
   const startRow = Math.max(0, low - overscanRows);
@@ -93,7 +95,8 @@ export function visibleAssetRange(
   high = layout.rows.length;
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
-    if (layout.rows[middle].top <= bottom) low = middle + 1;
+    const row = layout.rows[middle];
+    if (row && row.top <= bottom) low = middle + 1;
     else high = middle;
   }
   const endRow = Math.min(layout.rows.length, low + overscanRows);
@@ -112,11 +115,13 @@ export function verticalAssetIndex(
   if (!box) return 0;
   const targetRowIndex = Math.min(layout.rows.length - 1, Math.max(0, box.row + rowDelta));
   const targetRow = layout.rows[targetRowIndex];
+  if (!targetRow) return index;
   const center = box.left + box.width / 2;
   let closestIndex = targetRow.startIndex;
   let closestDistance = Number.POSITIVE_INFINITY;
   for (let candidate = targetRow.startIndex; candidate < targetRow.endIndex; candidate += 1) {
     const candidateBox = layout.boxes[candidate];
+    if (!candidateBox) continue;
     const distance = Math.abs(candidateBox.left + candidateBox.width / 2 - center);
     if (distance < closestDistance) {
       closestIndex = candidate;
