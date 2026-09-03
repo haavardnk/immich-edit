@@ -1,13 +1,18 @@
+use std::collections::HashMap;
+
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
+use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
+use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry};
 use crate::services::render::RenderIdentity;
@@ -39,12 +44,77 @@ pub struct ActionBody {
     pub action: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct ListQuery {
+    #[serde(default)]
+    pub with_assets: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EditedAssetItem {
+    #[serde(flatten)]
+    pub entry: EditedAssetEntry,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset: Option<AssetDetail>,
+}
+
+const ASSET_FANOUT: usize = 8;
+
 pub async fn list(
     State(state): State<AppState>,
     ctx: AuthCtx,
-) -> Result<Json<Vec<EditedAssetEntry>>, AppError> {
+    Query(query): Query<ListQuery>,
+) -> Result<Json<Vec<EditedAssetItem>>, AppError> {
     let entries = state.edits.list_edited_assets(ctx.owner).await?;
-    Ok(Json(entries))
+    if !query.with_assets {
+        let items = entries
+            .into_iter()
+            .map(|entry| EditedAssetItem { entry, asset: None })
+            .collect();
+        return Ok(Json(items));
+    }
+
+    let sources: Vec<Uuid> = entries
+        .iter()
+        .filter(|e| e.id.is_copy())
+        .map(|e| e.id.source())
+        .collect();
+    let labels: HashMap<AssetKey, Option<String>> = state
+        .edits
+        .expand_copies(ctx.owner, &sources)
+        .await?
+        .into_values()
+        .flatten()
+        .map(|c| (c.id, c.name))
+        .collect();
+
+    let permits = Semaphore::new(ASSET_FANOUT);
+    let fetched = futures_util::future::join_all(entries.iter().map(|entry| {
+        let immich = &ctx.immich;
+        let permits = &permits;
+        async move {
+            let _permit = permits.acquire().await.ok()?;
+            immich.asset(entry.id.source()).await.ok()
+        }
+    }))
+    .await;
+
+    let items = entries
+        .into_iter()
+        .zip(fetched)
+        .map(|(entry, asset)| {
+            let asset = asset.map(|mut a| {
+                if entry.id.is_copy() {
+                    a.id = entry.id;
+                    a.copy_of = Some(entry.id.source());
+                    a.copy_label = labels.get(&entry.id).cloned().flatten();
+                }
+                a
+            });
+            EditedAssetItem { entry, asset }
+        })
+        .collect();
+    Ok(Json(items))
 }
 
 pub async fn get(

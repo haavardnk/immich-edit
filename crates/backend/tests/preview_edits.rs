@@ -302,6 +302,66 @@ async fn delete_with_if_match_conflict_returns_current() {
     }
 }
 
+#[tokio::test]
+async fn list_edits_stays_lean_unless_assets_are_requested() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}")))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": id,
+            "originalFileName": "beach.arw",
+            "type": "IMAGE",
+            "updatedAt": "2026-05-01T00:00:00Z",
+            "checksum": "deadbeef"
+        })))
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let put_body = serde_json::json!({
+        "schema_version": 2,
+        "ops": { "exposure": { "ev": 1.5 } }
+    });
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .body(Body::from(put_body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("put: {}", resp.status());
+    }
+
+    let resp = app.clone().oneshot(req_get("/api/edits")).await.unwrap();
+    let lean: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let entry = lean[0].as_object().expect("entry object");
+    let mut keys: Vec<&str> = entry.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    if keys != ["hash", "id", "updated_at"] {
+        panic!("default list shape changed: {lean}");
+    }
+
+    let resp = app
+        .oneshot(req_get("/api/edits?with_assets=true"))
+        .await
+        .unwrap();
+    let rich: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if rich[0]["asset"]["originalFileName"] != "beach.arw" {
+        panic!("enriched list: {rich}");
+    }
+    if rich[0]["hash"] != lean[0]["hash"] {
+        panic!("enriched entry lost its hash: {rich}");
+    }
+}
+
 fn arw_fixture() -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
