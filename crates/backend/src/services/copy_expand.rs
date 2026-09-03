@@ -1,8 +1,6 @@
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
-use crate::error::AppError;
-use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetDetail, AssetSummary};
 use crate::services::edits_store::{CopyRecord, EditsStore, EditsStoreError};
 
@@ -73,35 +71,4 @@ pub async fn expand_assets<T: CopyExpandable>(
         out.extend(expanded);
     }
     Ok(out)
-}
-
-pub async fn expand_search(
-    edits: &EditsStore,
-    immich: &ImmichClient,
-    owner: Uuid,
-    query: &serde_json::Value,
-    max_items: usize,
-) -> Result<Vec<String>, AppError> {
-    let base = query
-        .as_object()
-        .ok_or_else(|| AppError::BadRequest("invalid target.search".into()))?;
-    let mut ids: Vec<String> = Vec::new();
-    let mut page: Option<String> = None;
-    loop {
-        let mut body = base.clone();
-        body.insert("size".into(), serde_json::json!(1000));
-        if let Some(p) = &page {
-            body.insert("page".into(), serde_json::json!(p));
-        }
-        let result = immich
-            .search_metadata(&serde_json::Value::Object(body))
-            .await?;
-        let items = expand_assets(edits, owner, result.items).await?;
-        ids.extend(items.into_iter().map(|a| a.id.to_string()));
-        match result.next_page {
-            Some(next) if ids.len() <= max_items => page = Some(next),
-            _ => break,
-        }
-    }
-    Ok(ids)
 }

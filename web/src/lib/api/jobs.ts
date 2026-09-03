@@ -9,7 +9,6 @@ import type {
   TiffCompressionOpt
 } from './export';
 import type { EditManifest } from '$lib/types/edits';
-import type { SearchQuery } from '$lib/types/search';
 import type { CopySections } from '$lib/copyPaste';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -95,19 +94,10 @@ function baseParams(opts: ExportOptions): ExportJobParams {
   };
 }
 
-export type JobTarget = { assetIds: string[] } | { search: SearchQuery };
-
-type JobTargetFields = { asset_ids: string[] } | { target: { search: SearchQuery } };
-
-function targetFields(target: JobTarget): JobTargetFields {
-  if ('assetIds' in target) return { asset_ids: target.assetIds };
-  return { target: { search: target.search } };
-}
-
-export function createImmichExportJob(target: JobTarget, opts: ImmichExportOptions): Promise<Job> {
+export function createImmichExportJob(assetIds: string[], opts: ImmichExportOptions): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'export_immich',
-    ...targetFields(target),
+    asset_ids: assetIds,
     params: {
       ...baseParams(opts),
       album_ids: opts.albumIds,
@@ -121,13 +111,13 @@ export function createImmichExportJob(target: JobTarget, opts: ImmichExportOptio
 }
 
 export function createZipExportJob(
-  target: JobTarget,
+  assetIds: string[],
   opts: ExportOptions,
   filenameSuffix: string
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'download_zip',
-    ...targetFields(target),
+    asset_ids: assetIds,
     params: { ...baseParams(opts), filename_suffix: filenameSuffix }
   });
 }
@@ -138,13 +128,13 @@ export interface ApplyPresetOptions {
 }
 
 export function createApplyPresetJob(
-  target: JobTarget,
+  assetIds: string[],
   presetId: string,
   opts: ApplyPresetOptions
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'apply_preset',
-    ...targetFields(target),
+    asset_ids: assetIds,
     params: {
       preset_id: presetId,
       include_geometry: opts.includeGeometry,
@@ -154,21 +144,21 @@ export function createApplyPresetJob(
 }
 
 export function createPasteEditsJob(
-  target: JobTarget,
+  assetIds: string[],
   manifest: EditManifest,
   sections: CopySections
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'paste_edits',
-    ...targetFields(target),
+    asset_ids: assetIds,
     params: { manifest, sections }
   });
 }
 
-export function createResetEditsJob(target: JobTarget): Promise<Job> {
+export function createResetEditsJob(assetIds: string[]): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'reset_edits',
-    ...targetFields(target),
+    asset_ids: assetIds,
     params: {}
   });
 }

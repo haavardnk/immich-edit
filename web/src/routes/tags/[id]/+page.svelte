@@ -31,6 +31,7 @@
   loadingLabel="Loading tag…"
   loadingMore={feed.loadingMore}
   onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount}
   emptyTitle="No photos with this tag"
 />

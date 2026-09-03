@@ -17,7 +17,7 @@
   let tagsLoaded = $state(false);
   let chosenTags = $state<string[]>([]);
 
-  let metaBusy = $derived(busy || selection.allFiltered);
+  let metaBusy = $derived(busy);
   let chosenTagItems = $derived(tags.filter((tag) => chosenTags.includes(tag.id)));
 
   onMount(() => {
@@ -31,7 +31,7 @@
   });
 
   async function applyTags(add: boolean): Promise<void> {
-    if (busy || selection.allFiltered || chosenTags.length === 0) return;
+    if (busy || chosenTags.length === 0) return;
     if (!(await metadataConsent.gate())) return;
     busy = true;
     const ids = [...selection.selected];

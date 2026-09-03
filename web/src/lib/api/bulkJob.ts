@@ -1,17 +1,17 @@
-import type { Job, JobTarget } from '$lib/api/jobs';
+import type { Job } from '$lib/api/jobs';
 import { selection } from '$lib/stores/selection.svelte';
 import { jobs } from '$lib/stores/jobs.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 
 export async function runBulkJob(
-  create: (target: JobTarget) => Promise<Job>,
+  create: (assetIds: string[]) => Promise<Job>,
   opts: { success: (count: number) => string; error: string }
 ): Promise<boolean> {
-  const count = selection.targetCount;
+  const count = selection.count;
   if (count === 0) return false;
-  const target = selection.buildTarget();
+  const assetIds = [...selection.selected];
   try {
-    await create(target);
+    await create(assetIds);
     toasts.push('success', opts.success(count), 4000);
     if (jobs.open) {
       void jobs.load();

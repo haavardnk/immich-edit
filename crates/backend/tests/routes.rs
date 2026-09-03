@@ -636,84 +636,6 @@ async fn error_body_request_id_matches_inbound_header() {
 }
 
 #[tokio::test]
-async fn create_job_expands_search_target_via_paging() {
-    use uuid::Uuid;
-    use wiremock::matchers::{body_partial_json, method, path};
-    use wiremock::{Mock, ResponseTemplate};
-
-    let server = MockServer::start().await;
-    let id1 = Uuid::new_v4();
-    let id2 = Uuid::new_v4();
-    let id3 = Uuid::new_v4();
-
-    Mock::given(method("POST"))
-        .and(path("/api/search/metadata"))
-        .and(body_partial_json(serde_json::json!({ "page": "p2" })))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "assets": { "items": [{ "id": id3, "type": "IMAGE" }], "count": 1, "total": 3, "nextPage": null }
-        })))
-        .with_priority(1)
-        .mount(&server)
-        .await;
-
-    Mock::given(method("POST"))
-        .and(path("/api/search/metadata"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "assets": {
-                "items": [{ "id": id1, "type": "IMAGE" }, { "id": id2, "type": "IMAGE" }],
-                "count": 2, "total": 3, "nextPage": "p2"
-            }
-        })))
-        .with_priority(5)
-        .mount(&server)
-        .await;
-
-    let app = test_app(&server).await;
-    let create = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/jobs")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    serde_json::json!({
-                        "kind": "apply_preset",
-                        "target": { "search": { "albumIds": [album_id()] } },
-                        "params": {}
-                    })
-                    .to_string(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(create.status(), StatusCode::OK);
-    let job: serde_json::Value = serde_json::from_slice(&body_bytes(create).await).unwrap();
-    assert_eq!(job["total"], 3);
-    let job_id = job["id"].as_str().unwrap().to_string();
-
-    let detail = app
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/jobs/{job_id}"))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(detail.status(), StatusCode::OK);
-    let detail: serde_json::Value = serde_json::from_slice(&body_bytes(detail).await).unwrap();
-    let items = detail["items"].as_array().unwrap();
-    assert_eq!(items.len(), 3);
-    let ids: Vec<&str> = items
-        .iter()
-        .map(|i| i["asset_id"].as_str().unwrap())
-        .collect();
-    assert!(ids.contains(&id3.to_string().as_str()));
-}
-
-#[tokio::test]
 async fn search_smart_proxies_to_immich() {
     use wiremock::matchers::{body_partial_json, method, path};
     use wiremock::{Mock, ResponseTemplate};
@@ -752,7 +674,7 @@ async fn search_smart_proxies_to_immich() {
 }
 
 #[tokio::test]
-async fn create_job_without_ids_or_target_is_bad_request() {
+async fn create_job_with_search_target_is_bad_request() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
     let resp = app
@@ -762,7 +684,12 @@ async fn create_job_without_ids_or_target_is_bad_request() {
                 .uri("/api/jobs")
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    serde_json::json!({ "kind": "apply_preset", "params": {} }).to_string(),
+                    serde_json::json!({
+                        "kind": "apply_preset",
+                        "target": { "search": { "albumIds": [album_id()] } },
+                        "params": {}
+                    })
+                    .to_string(),
                 ))
                 .unwrap(),
         )

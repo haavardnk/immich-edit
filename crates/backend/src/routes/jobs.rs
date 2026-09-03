@@ -15,7 +15,6 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
-use crate::services::copy_expand::expand_search;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
 };
@@ -37,8 +36,6 @@ const LIST_LIMIT: i64 = 100;
 #[derive(Debug, Deserialize)]
 pub struct CreateJobBody {
     pub kind: String,
-    #[serde(default)]
-    pub target: serde_json::Value,
     #[serde(default)]
     pub params: serde_json::Value,
     #[serde(default)]
@@ -68,20 +65,7 @@ pub async fn create(
     if !KNOWN_JOB_KINDS.contains(&kind) {
         return Err(AppError::BadRequest(format!("unknown job kind: {kind}")));
     }
-    let asset_ids = if body.asset_ids.is_empty() {
-        match body.target.get("search") {
-            Some(query) => {
-                expand_search(&state.edits, &ctx.immich, ctx.owner, query, MAX_ITEMS).await?
-            }
-            None => {
-                return Err(AppError::BadRequest(
-                    "asset_ids or target.search required".into(),
-                ));
-            }
-        }
-    } else {
-        body.asset_ids
-    };
+    let asset_ids = body.asset_ids;
     if asset_ids.is_empty() {
         return Err(AppError::BadRequest("no matching assets".into()));
     }
@@ -102,7 +86,7 @@ pub async fn create(
             server_epoch: ctx.server_epoch,
             auth_session_id: ctx.session_id,
             kind,
-            target: &body.target,
+            target: &serde_json::Value::Null,
             params: &body.params,
             items: &items,
             cred: ctx.cred.as_slice(),

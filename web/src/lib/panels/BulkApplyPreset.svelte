@@ -40,7 +40,7 @@
 
 <div class="flex flex-col gap-2 px-3 py-2">
   <div class="text-[11px] text-dark/65 select-none">
-    {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'} selected
+    {selection.count} asset{selection.count === 1 ? '' : 's'} selected
   </div>
 
   {#if presets.presets.length === 0}
@@ -56,10 +56,10 @@
       fullWidth
       loading={busy}
       leadingIcon={mdiAutoFix}
-      disabled={busy || !presetId || selection.targetCount === 0}
+      disabled={busy || !presetId || selection.count === 0}
       onclick={() => void submit()}
     >
-      {selected ? `Apply ${selected.name} to ${selection.targetCount}` : `Select a preset`}
+      {selected ? `Apply ${selected.name} to ${selection.count}` : `Select a preset`}
     </Button>
 
     <p class="text-[10px] leading-snug text-dark/65">

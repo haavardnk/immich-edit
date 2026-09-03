@@ -93,7 +93,7 @@ export const KEYBINDS = [
     keys: ['Mod+a'],
     contexts: ['grid'],
     group: 'Grid',
-    label: 'Select every loaded photo'
+    label: 'Load and select every photo'
   },
   {
     id: 'gridClearSelection',

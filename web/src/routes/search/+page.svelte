@@ -107,6 +107,7 @@
         assets={feed.assets}
         loadingMore={feed.loadingMore}
         onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+        onLoadAll={() => feed.loadAll()}
       />
     </div>
   {/if}

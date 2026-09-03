@@ -24,7 +24,7 @@ imply planned support.
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
 | Ratings, favorites, tags, and reject marks | ✓ Yes | Writes metadata to Immich after consent |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
-| Multi-select and batch actions | ✓ Yes | Whole-filter selection enables jobs; individual photo selections enable metadata, culling, tags, and virtual copies; **Edit and export selected** opens copy, preset, and export controls |
+| Multi-select and batch actions | ✓ Yes | **Select all** shows the selected count growing as each result page loads, then selects concrete photos, so metadata, culling, tags, virtual copies, presets, and exports work across the full result set |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
 | Face-aware zoom | ✓ Yes | `Z` or `Space` steps through the faces Immich detected, largest first, then returns to fit; falls back to the sharpest region when no faces exist. It zooms to whatever level you last picked, 1:1 until you change it |
 | Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen |

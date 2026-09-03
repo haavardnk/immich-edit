@@ -32,11 +32,13 @@
   let {
     assets,
     loadingMore = false,
-    onLoadMore
+    onLoadMore,
+    onLoadAll
   }: {
     assets: AssetSummary[];
     loadingMore?: boolean;
     onLoadMore?: () => void;
+    onLoadAll?: () => Promise<boolean>;
   } = $props();
 
   const GAP = 4;
@@ -52,6 +54,7 @@
   let pendingRestore: number | null = null;
   let shiftPressed = $state(false);
   let hoveredId = $state<string | null>(null);
+  let selectingAll = $state(false);
 
   const items = $derived(
     browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
@@ -75,7 +78,7 @@
   );
 
   const rangePreview = $derived.by(() => {
-    if (!shiftPressed || !hoveredId || selection.allFiltered) return null;
+    if (selectingAll || !shiftPressed || !hoveredId) return null;
     return selection.rangeTarget(
       items.map((asset) => asset.id),
       hoveredId
@@ -207,6 +210,18 @@
     compare.enter(mode, members);
   }
 
+  async function selectAll(): Promise<boolean> {
+    if (loadingMore || selectingAll) return false;
+    selectingAll = true;
+    try {
+      if (onLoadAll && !(await onLoadAll())) return false;
+      selection.selectLoaded(items.map((asset) => asset.id));
+      return true;
+    } finally {
+      selectingAll = false;
+    }
+  }
+
   async function removeCopy(id: string): Promise<void> {
     try {
       await deleteCopy(id);
@@ -226,6 +241,10 @@
 
     const bind = matchKeybind(e, GRID_CONTEXTS);
     if (!bind) return;
+    if (selectingAll) {
+      e.preventDefault();
+      return;
+    }
 
     switch (bind) {
       case 'help':
@@ -237,7 +256,8 @@
         return selection.clear();
       case 'gridSelectAll':
         e.preventDefault();
-        return selection.selectLoaded(items.map((a) => a.id));
+        void selectAll();
+        return;
       case 'gridMove': {
         const current = activeIndex();
         if (current < 0) return moveAndShow(e, 0);
@@ -362,19 +382,23 @@
       <AssetTile
         asset={item.asset}
         active={item.asset.id === browseView.activeId}
-        selected={selection.has(item.asset.id)}
+        selected={selectingAll || selection.has(item.asset.id)}
         rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
-        selectionActive={selection.active}
-        onToggle={() => selection.toggle(item.asset.id)}
+        selectionActive={selection.active || selectingAll}
+        onToggle={() => {
+          if (!selectingAll) selection.toggle(item.asset.id);
+        }}
         onPreview={() => (hoveredId = item.asset.id)}
         onPreviewEnd={() => {
           if (hoveredId === item.asset.id) hoveredId = null;
         }}
-        onRange={() =>
+        onRange={() => {
+          if (selectingAll) return;
           selection.range(
             items.map((a) => a.id),
             item.asset.id
-          )}
+          );
+        }}
         onActivate={() => browseView.setActive(item.asset.id)}
         onLoupe={() => browseView.openLoupe(item.asset.id)}
         onDeleteCopy={isCopy(item.asset.id) ? () => void removeCopy(item.asset.id) : undefined}
@@ -386,4 +410,11 @@
   <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
 {/if}
 
-<BulkActionBar {assets} onMulti={openMulti} />
+<BulkActionBar
+  assets={items}
+  onMulti={openMulti}
+  onSelectAll={selectAll}
+  hasMore={onLoadMore !== undefined}
+  {loadingMore}
+  {selectingAll}
+/>

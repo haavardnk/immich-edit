@@ -47,33 +47,10 @@ describe('range', () => {
   });
 });
 
-describe('filtered selection', () => {
-  it('reports every asset as selected and targets the query', () => {
-    selection.selectFiltered({ query: 'cat' }, 42);
-    expect(selection.allFiltered).toBe(true);
-    expect(selection.has('anything')).toBe(true);
-    expect(selection.targetCount).toBe(42);
-    expect(selection.buildTarget()).toEqual({ search: { query: 'cat' } });
-  });
-
-  it.each([
-    ['toggle', () => selection.toggle('a')],
-    ['range', () => selection.range(ids, 'a')],
-    ['selectLoaded', () => selection.selectLoaded(['a'])]
-  ])('drops the filter on %s', (_name, act) => {
-    selection.selectFiltered({ query: 'cat' }, 42);
-    act();
-    expect(selection.allFiltered).toBe(false);
-    expect(selection.targetCount).toBe(1);
-    expect(selection.buildTarget()).toEqual({ assetIds: ['a'] });
-  });
-});
-
 describe('active', () => {
   it.each([
     ['empty', () => {}, false],
-    ['one selected', () => selection.toggle('a'), true],
-    ['filtered', () => selection.selectFiltered({ query: 'cat' }, 3), true]
+    ['one selected', () => selection.toggle('a'), true]
   ])('is %s', (_name, act, expected) => {
     act();
     expect(selection.active).toBe(expected);

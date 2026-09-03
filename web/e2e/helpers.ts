@@ -122,6 +122,7 @@ export interface PreviewRequest {
 
 export interface InstallOpts {
   assets?: MockAssetSummary[];
+  searchPages?: MockAssetSummary[][];
   total?: number;
   edits?: Array<{ id: string; hash: string; updated_at: string }>;
   presets?: Array<Record<string, unknown>>;
@@ -134,7 +135,7 @@ export interface InstallOpts {
   onPreview?: (req: PreviewRequest) => void;
   onSave?: (body: Record<string, unknown>) => void;
   onSmart?: (body: Record<string, unknown>) => void;
-  onMetadata?: (body: Record<string, unknown>) => void;
+  onMetadata?: (body: Record<string, unknown>) => Promise<void> | void;
   smartFails?: boolean;
   previewBody?: Buffer;
   previewRender?: (req: PreviewRequest) => Buffer;
@@ -147,10 +148,10 @@ export interface InstallOpts {
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const copies: CopyRecord[] = [];
-  const ordered = (order: unknown): MockAssetSummary[] => {
-    if (order !== 'asc' && order !== 'desc') return assets;
+  const ordered = (order: unknown, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
+    if (order !== 'asc' && order !== 'desc') return items;
     const sign = order === 'asc' ? 1 : -1;
-    return assets
+    return items
       .slice()
       .sort((a, b) => (Date.parse(a.fileCreatedAt) - Date.parse(b.fileCreatedAt)) * sign);
   };
@@ -170,6 +171,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           body: opts.previewBody
         }
       : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
+  const searchResult = (body: Record<string, unknown>) => {
+    const pageNumber = typeof body.page === 'number' ? body.page : 1;
+    const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
+    const items = expanded(ordered(body.order, pageAssets));
+    const total = opts.total ?? opts.searchPages?.flat().length ?? items.length;
+    const nextPage =
+      opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
+    return { items, count: items.length, total, nextPage };
+  };
 
   await page.route('**/api/**', async (route) => {
     const req = route.request();
@@ -181,21 +191,16 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
 
     if (p === '/api/search/smart') {
-      if (opts.onSmart) opts.onSmart((req.postDataJSON() as Record<string, unknown>) ?? {});
+      const body = (req.postDataJSON() as Record<string, unknown>) ?? {};
+      if (opts.onSmart) opts.onSmart(body);
       if (opts.smartFails)
         return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
-      const items = expanded();
-      return route.fulfill(
-        json({ items, count: items.length, total: opts.total ?? items.length, nextPage: null })
-      );
+      return route.fulfill(json(searchResult(body)));
     }
     if (p === '/api/search/metadata') {
       const body = (req.postDataJSON() as Record<string, unknown>) ?? {};
-      if (opts.onMetadata) opts.onMetadata(body);
-      const items = expanded(ordered(body.order));
-      return route.fulfill(
-        json({ items, count: items.length, total: opts.total ?? items.length, nextPage: null })
-      );
+      if (opts.onMetadata) await opts.onMetadata(body);
+      return route.fulfill(json(searchResult(body)));
     }
     if (p === '/api/search/statistics')
       return route.fulfill(json({ total: opts.total ?? assets.length }));

@@ -14,9 +14,7 @@
   let busy = $state(false);
 
   let copyId = $derived(
-    selection.filterQuery === null && selection.selected.size === 1
-      ? ([...selection.selected][0] ?? null)
-      : null
+    selection.selected.size === 1 ? ([...selection.selected][0] ?? null) : null
   );
 
   let canCopy = $derived(copyId !== null && editedThumbs.getHash(copyId) !== undefined);
@@ -52,7 +50,7 @@
   }
 
   async function reset(): Promise<void> {
-    if (busy || selection.targetCount === 0) return;
+    if (busy || selection.count === 0) return;
     busy = true;
     await runBulkJob((target) => createResetEditsJob(target), {
       success: (count) => `Queued reset on ${count} asset${count === 1 ? '' : 's'}`,
@@ -70,7 +68,7 @@
     class="h-6 flex-1 panel-action"
     leadingIcon={mdiRestore}
     title="Reset edits on selected assets to original"
-    disabled={busy || selection.targetCount === 0}
+    disabled={busy || selection.count === 0}
     onclick={() => void reset()}
   >
     Reset
@@ -98,7 +96,7 @@
     class="h-6 flex-1 panel-action"
     leadingIcon={mdiContentPaste}
     title={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
-    disabled={busy || !clipboard.has || selection.targetCount === 0}
+    disabled={busy || !clipboard.has || selection.count === 0}
     onclick={() => void paste()}
   >
     Paste

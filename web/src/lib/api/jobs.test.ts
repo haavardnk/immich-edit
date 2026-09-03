@@ -41,19 +41,18 @@ afterEach(() => {
 
 describe('export jobs', () => {
   it.each([
-    ['zip', () => createZipExportJob({ assetIds: ['a'] }, base, '_edit')],
-    ['immich', () => createImmichExportJob({ search: { tagIds: ['t'] } }, immich)]
+    ['zip', () => createZipExportJob(['a'], base, '_edit')],
+    ['immich', () => createImmichExportJob(['a'], immich)]
   ])('sends the chosen color space for %s exports', async (_kind, run) => {
     const req = stubFetch();
     await run();
     expect((req.body().params as Record<string, unknown>).color_space).toBe('displayp3');
   });
 
-  it('sends a search target instead of asset ids', async () => {
+  it('sends concrete asset ids', async () => {
     const req = stubFetch();
-    await createZipExportJob({ search: { tagIds: ['t'] } }, base, '_edit');
+    await createZipExportJob(['a', 'b'], base, '_edit');
     const body = req.body();
-    expect(body.target).toEqual({ search: { tagIds: ['t'] } });
-    expect(body.asset_ids).toBeUndefined();
+    expect(body.asset_ids).toEqual(['a', 'b']);
   });
 });

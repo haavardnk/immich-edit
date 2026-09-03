@@ -16,6 +16,7 @@
     favoriteLocked = false,
     loadingMore = false,
     onLoadMore,
+    onLoadAll,
     sortBasis = 'capture',
     error = null,
     onRetry
@@ -30,6 +31,7 @@
     favoriteLocked?: boolean;
     loadingMore?: boolean;
     onLoadMore?: () => void;
+    onLoadAll?: () => Promise<boolean>;
     sortBasis?: 'capture' | 'edit';
     error?: string | null;
     onRetry?: () => void;
@@ -64,7 +66,7 @@
     </div>
   {:else}
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
-      <AssetGrid {assets} {loadingMore} {onLoadMore} />
+      <AssetGrid {assets} {loadingMore} {onLoadMore} {onLoadAll} />
     </div>
   {/if}
 {/if}

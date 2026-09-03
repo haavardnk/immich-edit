@@ -21,6 +21,7 @@
   loadingLabel="Loading photos…"
   loadingMore={feed.loadingMore}
   onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount}
   emptyTitle="No photos"
   emptyMessage="Connect an Immich library or upload assets to get started."

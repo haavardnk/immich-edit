@@ -6,15 +6,18 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
+  import { toasts } from '$lib/stores/toasts.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({
     baseBody: () => ({ albumIds: [id] }),
-    onFetchError: (initial) => {
+    onFetchError: (initial, error) => {
       if (initial && album.current) {
         feed.assets = album.current.assets;
         browsing.set(feed.assets);
+      } else if (!initial) {
+        toasts.fail('load', error);
       }
     }
   });
@@ -40,6 +43,7 @@
   loadingLabel="Loading album…"
   loadingMore={feed.loadingMore}
   onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}
   onRetry={() => {

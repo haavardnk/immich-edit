@@ -1,7 +1,7 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
-  import { createImmichExportJob, createZipExportJob, type JobTarget } from '$lib/api/jobs';
+  import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
@@ -31,10 +31,10 @@
     busy = true;
     const verb = destination === 'immich' ? 'export to Immich' : 'zip download';
     await runBulkJob(
-      (target: JobTarget) =>
+      (assetIds) =>
         destination === 'immich'
-          ? createImmichExportJob(target, immichOptions(form))
-          : createZipExportJob(target, baseOptions(form), DEFAULT_FILENAME_SUFFIX),
+          ? createImmichExportJob(assetIds, immichOptions(form))
+          : createZipExportJob(assetIds, baseOptions(form), DEFAULT_FILENAME_SUFFIX),
       {
         success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
         error: 'Failed to queue export'
@@ -48,7 +48,7 @@
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
   <div class="text-[11px] text-dark/65 select-none">
-    {selection.targetCount} asset{selection.targetCount === 1 ? '' : 's'} selected
+    {selection.count} asset{selection.count === 1 ? '' : 's'} selected
   </div>
 
   <DestinationToggle bind:value={destination} downloadLabel="Download ZIP" />
@@ -75,12 +75,12 @@
     fullWidth
     loading={busy}
     leadingIcon={destination === 'immich' ? mdiCloudUpload : mdiFolderZip}
-    disabled={busy || selection.targetCount === 0}
+    disabled={busy || selection.count === 0}
     onclick={() => void submit()}
   >
     {destination === 'immich'
-      ? `Export ${selection.targetCount} to Immich`
-      : `Download ${selection.targetCount} as ${label} ZIP`}
+      ? `Export ${selection.count} to Immich`
+      : `Download ${selection.count} as ${label} ZIP`}
   </Button>
 
   <p class="text-[10px] leading-snug text-dark/65">

@@ -39,26 +39,39 @@
     mdiViewGridOutline
   } from '@mdi/js';
 
-  let { assets, onMulti }: { assets: AssetSummary[]; onMulti: (mode: MultiMode) => void } =
-    $props();
+  let {
+    assets,
+    onMulti,
+    onSelectAll,
+    hasMore = false,
+    loadingMore = false,
+    selectingAll = false
+  }: {
+    assets: AssetSummary[];
+    onMulti: (mode: MultiMode) => void;
+    onSelectAll: () => Promise<boolean>;
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    selectingAll?: boolean;
+  } = $props();
 
   let busy = $state(false);
   let showTags = $state(false);
   let bulkActionsOpen = $state(false);
 
-  let metaBusy = $derived(busy || selection.allFiltered);
-  let canCompare = $derived(!selection.allFiltered && selection.count === 2);
-  let canSurvey = $derived(
-    !selection.allFiltered && selection.count >= 2 && selection.count <= MAX_PANES
-  );
+  let metaBusy = $derived(busy || selectingAll);
+  let targetCount = $derived(selectingAll ? assets.length : selection.count);
+  let canCompare = $derived(!selectingAll && selection.count === 2);
+  let canSurvey = $derived(!selectingAll && selection.count >= 2 && selection.count <= MAX_PANES);
   let showSelectAll = $derived(
-    browsing.query !== null && browsing.total !== undefined && browsing.total > 0
+    hasMore || assets.some((asset) => !selection.selected.has(asset.id))
   );
 
-  function itemActionLabel(action: string): string {
-    return selection.allFiltered
-      ? `${action} unavailable when all filtered assets are selected`
-      : action;
+  async function selectAll(): Promise<void> {
+    if (busy || loadingMore || selectingAll) return;
+    showTags = false;
+    bulkActionsOpen = false;
+    await onSelectAll();
   }
 
   async function runPool<T>(
@@ -77,7 +90,7 @@
   }
 
   async function applyMeta(fn: (id: string) => Promise<AssetDetail>): Promise<void> {
-    if (busy || selection.allFiltered) return;
+    if (busy || selectingAll) return;
     if (!(await metadataConsent.gate())) return;
     busy = true;
     const ids = [...selection.selected];
@@ -109,7 +122,7 @@
   }
 
   async function createCopies(): Promise<void> {
-    if (busy || selection.allFiltered) return;
+    if (busy || selectingAll) return;
     busy = true;
     const ids = [...selection.selected];
     let failed = 0;
@@ -137,7 +150,7 @@
   }
 
   async function applyReject(value: boolean): Promise<void> {
-    if (busy || selection.allFiltered) return;
+    if (busy || selectingAll) return;
     if (!(await metadataConsent.gate())) return;
     const rejectTag = await ensureRejectTag();
     if (!rejectTag) {
@@ -176,14 +189,14 @@
   }
 </script>
 
-{#if selection.active}
+{#if selection.active || selectingAll}
   <div
     class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
     <ControlBar static shape="rectangle" class="min-w-0 px-3">
       <ControlBarHeader class="pe-2">
         <span class="whitespace-nowrap text-sm font-medium" aria-live="polite"
-          >{selection.targetCount} selected</span
+          >{targetCount} selected</span
         >
       </ControlBarHeader>
 
@@ -195,8 +208,10 @@
               variant="ghost"
               color="secondary"
               leadingIcon={mdiSelectAll}
-              title="Select all (job-based actions only)"
-              onclick={() => selection.selectFiltered(browsing.query!, browsing.total!)}
+              title="Load and select all photos"
+              loading={selectingAll}
+              disabled={busy || loadingMore}
+              onclick={selectAll}
             >
               Select all
             </Button>
@@ -209,8 +224,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiCompare}
-            title={itemActionLabel(hint('Compare selected', 'enterCompare'))}
-            aria-label={itemActionLabel('Compare selected')}
+            title={hint('Compare selected', 'enterCompare')}
+            aria-label="Compare selected"
             disabled={!canCompare}
             onclick={() => onMulti('compare')}
           />
@@ -219,8 +234,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiViewGridOutline}
-            title={itemActionLabel(hint('Survey selected', 'enterSurvey'))}
-            aria-label={itemActionLabel('Survey selected')}
+            title={hint('Survey selected', 'enterSurvey')}
+            aria-label="Survey selected"
             disabled={!canSurvey}
             onclick={() => onMulti('survey')}
           />
@@ -232,8 +247,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiHeart}
-            title={itemActionLabel('Favorite')}
-            aria-label={itemActionLabel('Favorite')}
+            title="Favorite"
+            aria-label="Favorite"
             disabled={metaBusy}
             onclick={() => setFavorite(true)}
           />
@@ -242,8 +257,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiHeartOutline}
-            title={itemActionLabel('Unfavorite')}
-            aria-label={itemActionLabel('Unfavorite')}
+            title="Unfavorite"
+            aria-label="Unfavorite"
             disabled={metaBusy}
             onclick={() => setFavorite(false)}
           />
@@ -256,8 +271,8 @@
               variant="ghost"
               color="secondary"
               icon={mdiStar}
-              title={itemActionLabel(`Rate ${n}`)}
-              aria-label={itemActionLabel(`Rate ${n}`)}
+              title={`Rate ${n}`}
+              aria-label={`Rate ${n}`}
               disabled={metaBusy}
               onclick={() => setRating(n)}
             />
@@ -267,8 +282,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiStarOutline}
-            title={itemActionLabel('Clear rating')}
-            aria-label={itemActionLabel('Clear rating')}
+            title="Clear rating"
+            aria-label="Clear rating"
             disabled={metaBusy}
             onclick={() => setRating(0)}
           />
@@ -280,8 +295,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiCloseCircle}
-            title={itemActionLabel('Reject')}
-            aria-label={itemActionLabel('Reject')}
+            title="Reject"
+            aria-label="Reject"
             disabled={metaBusy}
             onclick={() => void applyReject(true)}
           />
@@ -290,8 +305,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiCloseCircleOutline}
-            title={itemActionLabel('Unreject')}
-            aria-label={itemActionLabel('Unreject')}
+            title="Unreject"
+            aria-label="Unreject"
             disabled={metaBusy}
             onclick={() => void applyReject(false)}
           />
@@ -300,8 +315,8 @@
             variant="ghost"
             color="secondary"
             icon={mdiContentDuplicate}
-            title={itemActionLabel(hint('Create a virtual copy', 'createVirtualCopy'))}
-            aria-label={itemActionLabel('Create virtual copy')}
+            title={hint('Create a virtual copy', 'createVirtualCopy')}
+            aria-label="Create virtual copy"
             disabled={metaBusy}
             onclick={() => void createCopies()}
           />
@@ -312,6 +327,7 @@
             icon={mdiTuneVariant}
             title="Edit and export selected"
             aria-label="Edit and export selected"
+            disabled={selectingAll}
             onclick={() => (bulkActionsOpen = true)}
           />
           <IconButton
@@ -319,8 +335,8 @@
             variant={showTags ? 'filled' : 'ghost'}
             color={showTags ? 'primary' : 'secondary'}
             icon={mdiTagOutline}
-            title={itemActionLabel('Tags')}
-            aria-label={itemActionLabel('Tags')}
+            title="Tags"
+            aria-label="Tags"
             aria-pressed={showTags}
             disabled={metaBusy}
             onclick={() => (showTags = !showTags)}
@@ -336,19 +352,11 @@
           icon={mdiClose}
           title={hint('Clear selection', 'gridClearSelection')}
           aria-label="Clear selection"
+          disabled={selectingAll}
           onclick={selection.clear}
         />
       </ControlBarOverflow>
     </ControlBar>
-
-    {#if selection.allFiltered}
-      <div
-        role="status"
-        class="border-t border-hairline px-3 py-1 text-center text-[10px] text-dark/65"
-      >
-        Only job actions are available when all filtered assets are selected.
-      </div>
-    {/if}
 
     {#if showTags}
       <BulkTagBand {runPool} bind:busy />

@@ -51,6 +51,38 @@ describe('BrowseFeed pagination', () => {
     expect(seen[1]?.page).toBe(2);
   });
 
+  it('loads every remaining page before completing', async () => {
+    const fetcher = vi.fn(async (body: SearchQuery) => {
+      if (body.page === 2) return result('3', ['b']);
+      if (body.page === 3) return result(null, ['c']);
+      return result('2', ['a']);
+    });
+    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+
+    await feed.fetchPage(true);
+    expect(await feed.loadAll()).toBe(true);
+
+    expect(fetcher.mock.calls.map(([body]) => body.page)).toEqual([undefined, 2, 3]);
+    expect(feed.assets.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+    expect(feed.nextPage).toBeNull();
+    expect(feed.loadingMore).toBe(false);
+  });
+
+  it('does not report completion when a remaining page fails', async () => {
+    const fetcher = vi.fn(async (body: SearchQuery) => {
+      if (body.page === 2) throw new Error('page failed');
+      return result('2', ['a']);
+    });
+    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+
+    await feed.fetchPage(true);
+
+    expect(await feed.loadAll()).toBe(false);
+    expect(feed.assets.map((item) => item.id)).toEqual(['a']);
+    expect(feed.nextPage).toBe('2');
+    expect(feed.loadingMore).toBe(false);
+  });
+
   it('clears selection when the active filter changes', () => {
     const fetcher = vi.fn(async () => result(null));
     const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
