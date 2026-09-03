@@ -26,7 +26,8 @@ imply planned support.
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
 | Multi-select and batch actions | ✓ Yes | Whole-filter selection enables jobs; individual photo selections enable metadata, culling, tags, and virtual copies; **Edit and export selected** opens copy, preset, and export controls |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
-| Face-aware zoom | ✓ Yes | `Z` or `Space` steps through the faces Immich detected, largest first, then returns to fit; falls back to the sharpest region when no faces exist |
+| Face-aware zoom | ✓ Yes | `Z` or `Space` steps through the faces Immich detected, largest first, then returns to fit; falls back to the sharpest region when no faces exist. It zooms to whatever level you last picked, 1:1 until you change it |
+| Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen |
 | Fullscreen viewing | ✓ Yes | `Shift+F` hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |

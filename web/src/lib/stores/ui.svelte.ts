@@ -1,4 +1,5 @@
 import { readStored, writeStored } from '$lib/utils/storage';
+import { clampZoom, nextStop, readZoomLevel, writeZoomLevel } from '$lib/utils/zoomLevel';
 
 export type AspectRatio = 'free' | 'original' | '1:1' | '4:3' | '3:2' | '16:9' | '5:4' | '7:5';
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
@@ -14,7 +15,6 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
   { id: '7:5', label: '7:5', value: 7 / 5 }
 ];
 
-export const MAX_ZOOM = 800;
 export const MIN_INSPECTOR_WIDTH = 320;
 export const MAX_INSPECTOR_WIDTH = 520;
 export const MIN_FILMSTRIP_HEIGHT = 48;
@@ -41,7 +41,9 @@ class UiStore {
   searchQuery = $state('');
   fullscreen = $state(false);
   zoom = $state(100);
-  nativeZoom = $state<number | null>(null);
+  fitZoom = $state(100);
+  fitMode = $state(true);
+  zoomLevel = $state(readZoomLevel());
   panX = $state(0);
   panY = $state(0);
   keybindsHelpOpen = $state(false);
@@ -139,15 +141,18 @@ class UiStore {
   };
 
   zoomIn = (): void => {
-    this.setZoom(this.zoom + 25);
+    this.userZoom(nextStop(this.zoom, 1, this.fitZoom));
   };
 
   zoomOut = (): void => {
-    this.setZoom(this.zoom - 25);
+    this.userZoom(nextStop(this.zoom, -1, this.fitZoom));
   };
 
   zoomFit = (): void => {
-    this.setZoom(100);
+    this.fitMode = true;
+    this.zoom = this.fitZoom;
+    this.panX = 0;
+    this.panY = 0;
   };
 
   toggleKeybindsHelp = (): void => {
@@ -176,24 +181,46 @@ class UiStore {
     return true;
   };
 
+  get zoomed(): boolean {
+    return this.zoom > this.fitZoom;
+  }
+
+  setFitZoom = (value: number): void => {
+    const next = Number.isFinite(value) && value > 0 ? value : 100;
+    if (this.fitZoom === next) return;
+    this.fitZoom = next;
+    if (this.fitMode) {
+      this.zoom = next;
+      return;
+    }
+    this.zoom = clampZoom(this.zoom, next);
+  };
+
   setZoom = (value: number): void => {
-    this.zoom = Math.round(Math.max(25, Math.min(MAX_ZOOM, value)));
-    if (this.zoom <= 100) {
+    this.fitMode = false;
+    this.zoom = clampZoom(value, this.fitZoom);
+    if (!this.zoomed) {
       this.panX = 0;
       this.panY = 0;
     }
   };
 
+  userZoom = (value: number): void => {
+    this.setZoom(value);
+    if (!this.zoomed) return;
+    this.zoomLevel = this.zoom;
+    writeZoomLevel(this.zoom);
+  };
+
   setView = (zoom: number, panX: number, panY: number): void => {
     this.setZoom(zoom);
-    if (this.zoom <= 100) return;
+    if (!this.zoomed) return;
     this.panX = panX;
     this.panY = panY;
   };
 
   zoomNative = (): void => {
-    if (this.nativeZoom === null) return;
-    this.setZoom(this.nativeZoom);
+    this.userZoom(100);
   };
 }
 

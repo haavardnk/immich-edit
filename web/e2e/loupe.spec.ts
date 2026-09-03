@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, installMocks, type InstallOpts } from './helpers';
+import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks, type InstallOpts } from './helpers';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 const ASSETS = [
-  ASSET_SUMMARY,
-  { ...ASSET_SUMMARY, id: SECOND_ID, originalFileName: 'IMG_0002.ARW' }
+  { ...ASSET_SUMMARY, exifInfo: ASSET_EXIF },
+  { ...ASSET_SUMMARY, id: SECOND_ID, originalFileName: 'IMG_0002.ARW', exifInfo: ASSET_EXIF }
 ];
 
 const LOUPE_IMAGE = 'IMG_0001.ARW';
@@ -43,10 +43,10 @@ test('z toggles loupe zoom', async ({ page }) => {
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
 
   await page.keyboard.press('z');
-  await expect(image).toHaveAttribute('style', /scale\(2\.5\)/);
+  await expect(image).toHaveAttribute('style', /scale\(/);
 
   await page.keyboard.press('z');
-  await expect(image).not.toHaveAttribute('style', /scale\(2\.5\)/);
+  await expect(image).not.toHaveAttribute('style', /scale\(/);
 });
 
 test('shift+f toggles loupe fullscreen', async ({ page }) => {
@@ -72,15 +72,15 @@ test('zoom cycles through detected faces before returning to fit', async ({ page
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
 
   await page.keyboard.press('z');
-  await expect(image).toHaveAttribute('style', /scale\(2\.5\) translate\(/);
+  await expect(image).toHaveAttribute('style', /scale\([\d.]+\) translate\(/);
   const first = await image.getAttribute('style');
 
   await page.keyboard.press('z');
-  await expect(image).toHaveAttribute('style', /scale\(2\.5\) translate\(/);
+  await expect(image).toHaveAttribute('style', /scale\([\d.]+\) translate\(/);
   expect(await image.getAttribute('style')).not.toBe(first);
 
   await page.keyboard.press('z');
-  await expect(image).not.toHaveAttribute('style', /scale\(2\.5\)/);
+  await expect(image).not.toHaveAttribute('style', /scale\(/);
 });
 
 test('number keys rate the loupe asset', async ({ page }) => {

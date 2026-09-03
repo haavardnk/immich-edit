@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fitScale,
   frameBox,
   isFullFrame,
-  nativeZoom,
+  nativeScale,
   placement,
   renderRequest,
   roiCovers,
@@ -14,9 +15,10 @@ import {
 } from './view-geometry';
 
 const SERVER_MAX = 8192;
+const FIT = 0.25;
 
 function fitFrame(zoom: number, panX = 0, panY = 0): Rect {
-  const frame = frameBox(1000, 800, 4000, 3200, zoom, panX, panY, 2);
+  const frame = frameBox(1000, 800, 4000, 3200, (FIT * zoom) / 100, panX, panY, 2);
   if (!frame) throw new Error('expected a frame');
   return frame;
 }
@@ -66,7 +68,7 @@ describe('frameBox', () => {
   });
 
   it('snaps edges onto the device pixel grid', () => {
-    const frame = frameBox(1001, 800, 4000, 3200, 100, 0, 0, 2);
+    const frame = frameBox(1001, 800, 4000, 3200, FIT, 0, 0, 2);
     if (!frame) throw new Error('expected a frame');
     for (const v of [frame.left, frame.top, frame.width, frame.height]) {
       expect(Number.isInteger(v * 2)).toBe(true);
@@ -74,9 +76,9 @@ describe('frameBox', () => {
   });
 
   it.each<[string, Parameters<typeof frameBox>]>([
-    ['container not laid out', [0, 800, 4000, 3200, 100, 0, 0, 2]],
-    ['source unknown', [1000, 800, 0, 3200, 100, 0, 0, 2]],
-    ['zoom invalid', [1000, 800, 4000, 3200, 0, 0, 0, 2]]
+    ['container not laid out', [0, 800, 4000, 3200, FIT, 0, 0, 2]],
+    ['content unknown', [1000, 800, 0, 3200, FIT, 0, 0, 2]],
+    ['scale invalid', [1000, 800, 4000, 3200, 0, 0, 0, 2]]
   ])('returns null when %s', (_name, args) => {
     expect(frameBox(...args)).toBeNull();
   });
@@ -172,24 +174,35 @@ describe('zoomAnchor', () => {
   it('keeps the point under the cursor fixed', () => {
     const frame = fitFrame(100);
     const pan = zoomAnchor(1000, 800, frame, 250, 200, 2);
-    const next = frameBox(1000, 800, 4000, 3200, 200, pan.panX, pan.panY, 2);
+    const next = frameBox(1000, 800, 4000, 3200, FIT * 2, pan.panX, pan.panY, 2);
     if (!next) throw new Error('expected a frame');
     const u = (250 - frame.left) / frame.width;
     expect(next.left + u * next.width).toBeCloseTo(250, 6);
   });
 });
 
-describe('nativeZoom', () => {
-  it('lands one source pixel on one device pixel', () => {
-    const zoom = nativeZoom(fitFrame(100), 4000, 2);
-    expect(zoom).toBe(200);
-    const frame = frameBox(1000, 800, 4000, 3200, zoom ?? 0, 0, 0, 2);
+describe('fitScale and nativeScale', () => {
+  it('fits the content inside the container', () => {
+    expect(fitScale(1000, 800, 4000, 3200)).toBe(FIT);
+  });
+
+  it('returns zero when the container or content is unknown', () => {
+    expect(fitScale(0, 800, 4000, 3200)).toBe(0);
+    expect(fitScale(1000, 800, 4000, 0)).toBe(0);
+  });
+
+  it('lands one source pixel on one device pixel at 100%', () => {
+    const frame = frameBox(1000, 800, 4000, 3200, nativeScale(4000, 4000, 2), 0, 0, 2);
     expect(frame && frame.width * 2).toBe(4000);
   });
 
-  it('returns null without a known source size', () => {
-    expect(nativeZoom(fitFrame(100), Number.POSITIVE_INFINITY, 2)).toBeNull();
-    expect(nativeZoom(fitFrame(100), 0, 2)).toBeNull();
+  it('reports fit as a percentage of actual pixels', () => {
+    expect((100 * fitScale(1000, 800, 4000, 3200)) / nativeScale(4000, 4000, 2)).toBe(50);
+  });
+
+  it('returns zero without a known source size', () => {
+    expect(nativeScale(4000, 0, 2)).toBe(0);
+    expect(nativeScale(4000, Number.POSITIVE_INFINITY, 2)).toBe(0);
   });
 });
 

@@ -10,8 +10,10 @@
   import Notice from '$lib/components/Notice.svelte';
   import { Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
-  import { frameBox, nativeZoom, placement } from '$lib/utils/view-geometry';
+  import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/view-geometry';
   import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
+
+  const WHEEL_STEP = 1.1;
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<HTMLImageElement | null>(null);
@@ -26,9 +28,15 @@
   let lastX = 0;
   let lastY = 0;
 
+  const fit = $derived(baseNat ? fitScale(viewBox.w, viewBox.h, baseNat.w, baseNat.h) : 0);
+  const unit = $derived(
+    baseNat ? nativeScale(Math.max(baseNat.w, baseNat.h), editor.sourceLong, dpr) || fit : 0
+  );
+  const scale = $derived(ui.fitMode ? fit : (ui.zoom / 100) * unit);
+
   const frame = $derived.by(() => {
     if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) return null;
-    return frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, ui.zoom, ui.panX, ui.panY, dpr);
+    return frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, scale, ui.panX, ui.panY, dpr);
   });
 
   const viewPlace = $derived.by(() => {
@@ -43,7 +51,7 @@
   );
 
   function onPointerDown(e: PointerEvent): void {
-    if (ui.zoom <= 100) return;
+    if (!ui.zoomed) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -97,8 +105,8 @@
   function zoomAt(next: number, clientX: number, clientY: number): void {
     const before = frame;
     const prev = ui.zoom;
-    ui.setZoom(next);
-    if (!before || !container || ui.zoom === prev || ui.zoom <= 100) return;
+    ui.userZoom(next);
+    if (!before || !container || ui.zoom === prev || !ui.zoomed) return;
     const rect = container.getBoundingClientRect();
     const pan = zoomAtAnchor(
       viewBox.w,
@@ -116,24 +124,26 @@
   function onWheel(e: WheelEvent): void {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      zoomAt(ui.zoom + (e.deltaY > 0 ? -10 : 10), e.clientX, e.clientY);
+      zoomAt(ui.zoom * (e.deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP), e.clientX, e.clientY);
       return;
     }
-    if (ui.zoom <= 100) return;
+    if (!ui.zoomed) return;
     e.preventDefault();
     ui.panX -= e.deltaX;
     ui.panY -= e.deltaY;
   }
 
   function onDblClick(e: MouseEvent): void {
-    if (ui.zoom > 100) {
+    if (ui.zoomed) {
       ui.zoomFit();
       return;
     }
-    zoomAt(200, e.clientX, e.clientY);
+    zoomAt(ui.zoomLevel, e.clientX, e.clientY);
   }
 
-  const viewTransform = $derived.by(() => viewportTransform(ui.zoom, ui.panX, ui.panY));
+  const viewTransform = $derived.by(() =>
+    viewportTransform(fit > 0 ? scale / fit : 1, ui.panX, ui.panY)
+  );
 
   function measure(): void {
     if (!container) return;
@@ -161,12 +171,7 @@
   });
 
   $effect(() => {
-    if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) {
-      ui.nativeZoom = null;
-      return;
-    }
-    const fit = frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, 100, 0, 0, dpr);
-    ui.nativeZoom = fit ? nativeZoom(fit, editor.sourceLong, dpr) : null;
+    ui.setFitZoom(unit > 0 ? (100 * fit) / unit : 100);
   });
 </script>
 
@@ -175,7 +180,7 @@
   use:observeSize={measure}
   role="application"
   class="editor-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-  class:cursor-grab={ui.zoom > 100 && !dragging && !editor.geometrySession}
+  class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   onpointerdown={editor.geometrySession ? undefined : onPointerDown}
   onpointermove={editor.geometrySession ? undefined : onPointerMove}

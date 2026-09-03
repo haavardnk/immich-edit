@@ -33,9 +33,10 @@
     <ZoomPopover
       open={ui.metaPopover === 'zoom'}
       zoom={ui.zoom}
-      nativeZoom={ui.nativeZoom}
+      fitZoom={ui.fitZoom}
+      fitMode={ui.fitMode}
       onOpenChange={(v) => (v ? ui.openPopover('zoom') : ui.closePopover())}
-      onZoom={ui.setZoom}
+      onZoom={ui.userZoom}
       onFit={ui.zoomFit}
     />
     <IconButton

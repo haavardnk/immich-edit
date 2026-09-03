@@ -2,10 +2,9 @@
   import { observeSize } from '$lib/actions/observeSize';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { ui } from '$lib/stores/ui.svelte';
-  import type { PaneView } from '$lib/stores/compare.svelte';
-  import { nativeZoom } from '$lib/utils/view-geometry';
+  import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
+  import { fitScale, nativeScale } from '$lib/utils/view-geometry';
 
-  const CLICK_ZOOM = 250;
   const DRAG_THRESHOLD = 5;
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
@@ -21,7 +20,7 @@
     onFocus,
     onSize,
     sourceLong,
-    onNativeZoom,
+    onFitZoom,
     onImage
   }: {
     assetId: string;
@@ -34,7 +33,7 @@
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
     sourceLong?: number | null;
-    onNativeZoom?: (zoom: number | null) => void;
+    onFitZoom?: (zoom: number) => void;
     onImage?: (element: HTMLImageElement) => void;
   } = $props();
 
@@ -49,31 +48,34 @@
   let wasFocused = false;
 
   const dpr = typeof window === 'undefined' ? 1 : Math.min(2, window.devicePixelRatio || 1);
-  const zoomScale = $derived(view.zoom / 100);
-  const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, zoomScale)));
+  const fit = $derived(fitScale(box.w, box.h, natural.w, natural.h));
+  const unit = $derived(nativeScale(Math.max(natural.w, natural.h), sourceLong ?? 0, dpr) || fit);
+  const fitZoom = $derived(unit > 0 ? (100 * fit) / unit : 100);
+  const zoomed = $derived(view.zoom !== null && view.zoom > fitZoom);
+  const fitRatio = $derived(fit > 0 ? scaleFor(view.zoom) / fit : 1);
+  const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, fitRatio)));
   const src = $derived(persistedPreviewUrl(assetId, maxEdge, ui.clipWarn));
   const zoomBox = $derived.by(() => {
     return imageBoxAt(view.zoom);
   });
-  const oneToOneZoom = $derived.by(() => {
-    const fitBox = imageBoxAt(100);
-    if (!fitBox || !sourceLong) return null;
-    return nativeZoom({ left: 0, top: 0, width: fitBox.w, height: fitBox.h }, sourceLong, dpr);
-  });
   const boundedView = $derived(clampCenter(view));
   const transform = $derived.by(() => {
-    if (view.zoom === 100) return '';
-    if (!zoomBox) return `transform: scale(${zoomScale}); transform-origin: center;`;
+    if (fitRatio === 1) return '';
+    if (!zoomBox) return `transform: scale(${fitRatio}); transform-origin: center;`;
     const offsetX = (0.5 - boundedView.cx) * zoomBox.w;
     const offsetY = (0.5 - boundedView.cy) * zoomBox.h;
-    return `transform: scale(${zoomScale}) translate(${offsetX / zoomScale}px, ${offsetY / zoomScale}px); transform-origin: center;`;
+    return `transform: scale(${fitRatio}) translate(${offsetX / fitRatio}px, ${offsetY / fitRatio}px); transform-origin: center;`;
   });
 
-  function imageBoxAt(zoom: number): { w: number; h: number } | null {
+  function scaleFor(zoom: number | null): number {
+    return zoom === null ? fit : (zoom / 100) * unit;
+  }
+
+  function imageBoxAt(zoom: number | null): { w: number; h: number } | null {
     if (!box.w || !box.h || !natural.w || !natural.h) return null;
-    const fit = Math.min(box.w / natural.w, box.h / natural.h);
-    const scale = zoom / 100;
-    return { w: natural.w * fit * scale, h: natural.h * fit * scale };
+    const scale = scaleFor(zoom);
+    if (scale <= 0) return null;
+    return { w: natural.w * scale, h: natural.h * scale };
   }
 
   function quantize(value: number): number {
@@ -101,15 +103,15 @@
   }
 
   function zoomInAt(clientX: number, clientY: number, solo: boolean): void {
-    const nextBox = imageBoxAt(CLICK_ZOOM);
-    if (!nextBox || !container) {
-      onView({ zoom: CLICK_ZOOM, cx: 0.5, cy: 0.5 }, solo);
+    const zoom = ui.zoomLevel;
+    if (!zoomBox || !container) {
+      onView({ zoom, cx: 0.5, cy: 0.5 }, solo);
       return;
     }
     const rect = container.getBoundingClientRect();
-    const cx = 0.5 + ((clientX - (rect.left + rect.width / 2)) * CLICK_ZOOM) / nextBox.w;
-    const cy = 0.5 + ((clientY - (rect.top + rect.height / 2)) * CLICK_ZOOM) / nextBox.h;
-    onView(clampCenter({ zoom: CLICK_ZOOM, cx, cy }), solo);
+    const cx = 0.5 + (clientX - (rect.left + rect.width / 2)) / zoomBox.w;
+    const cy = 0.5 + (clientY - (rect.top + rect.height / 2)) / zoomBox.h;
+    onView(clampCenter({ zoom, cx, cy }), solo);
   }
 
   function onPointerDown(e: PointerEvent): void {
@@ -119,7 +121,7 @@
     lastX = e.clientX;
     lastY = e.clientY;
     totalDrag = 0;
-    if (view.zoom > 100) {
+    if (zoomed) {
       dragging = true;
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }
@@ -143,7 +145,7 @@
     dragging = false;
     if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
     if (!wasFocused) return;
-    if (view.zoom > 100) onView({ zoom: 100, cx: 0.5, cy: 0.5 }, e.altKey);
+    if (zoomed) onView(CENTERED, e.altKey);
     else zoomInAt(e.clientX, e.clientY, e.altKey);
   }
 
@@ -152,7 +154,7 @@
   });
 
   $effect(() => {
-    onNativeZoom?.(oneToOneZoom);
+    onFitZoom?.(fitZoom);
   });
 </script>
 
@@ -161,9 +163,8 @@
   use:observeSize={measure}
   role="button"
   tabindex="0"
-  aria-label={view.zoom > 100 ? 'Zoom out' : 'Zoom in'}
-  class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {view.zoom >
-  100
+  aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
+  class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {zoomed
     ? dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'

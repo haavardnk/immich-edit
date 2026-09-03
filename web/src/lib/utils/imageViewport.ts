@@ -19,8 +19,7 @@ export function splitPosition(clientX: number, rectLeft: number, rectWidth: numb
   return Math.min(1, Math.max(0, (clientX - rectLeft) / rectWidth));
 }
 
-export function viewportTransform(zoom: number, panX: number, panY: number): string {
-  if (zoom === 100 && panX === 0 && panY === 0) return '';
-  const scale = zoom / 100;
-  return `transform: scale(${scale}) translate(${panX / scale}px, ${panY / scale}px); transform-origin: center;`;
+export function viewportTransform(fitRatio: number, panX: number, panY: number): string {
+  if (fitRatio === 1 && panX === 0 && panY === 0) return '';
+  return `transform: scale(${fitRatio}) translate(${panX / fitRatio}px, ${panY / fitRatio}px); transform-origin: center;`;
 }

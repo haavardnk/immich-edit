@@ -19,7 +19,8 @@
     multi: boolean;
     paneCount: number;
     zoom: number;
-    nativeZoom: number | null;
+    fitZoom: number;
+    fitMode: boolean;
     onRate: (value: number | null) => void;
     onFavorite: () => void;
     onReject: () => void;
@@ -27,6 +28,7 @@
     onRemoveTag: (tagId: string) => Promise<void>;
     onCreateTag: (value: string) => Promise<TagRef | null>;
     onZoom: (value: number) => void;
+    onFit: () => void;
   };
 
   let {
@@ -37,14 +39,16 @@
     multi,
     paneCount,
     zoom,
-    nativeZoom,
+    fitZoom,
+    fitMode,
     onRate,
     onFavorite,
     onReject,
     onAddTag,
     onRemoveTag,
     onCreateTag,
-    onZoom
+    onZoom,
+    onFit
   }: Props = $props();
 </script>
 
@@ -92,10 +96,11 @@
     <ZoomPopover
       open={ui.metaPopover === 'zoom'}
       {zoom}
-      {nativeZoom}
+      {fitZoom}
+      {fitMode}
       onOpenChange={(value) => (value ? ui.openPopover('zoom') : ui.closePopover())}
       {onZoom}
-      onFit={() => onZoom(100)}
+      {onFit}
     />
     <IconButton
       size="tiny"

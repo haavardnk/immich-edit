@@ -112,4 +112,33 @@ test.describe('view rendering', () => {
     await expect(page.getByTestId('view-render')).toHaveCount(1);
     await expectDeviceExact(page);
   });
+
+  test('zoom returns to the level the photographer last picked', async ({ page }) => {
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H }
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+
+    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    await expect(zoom).toHaveText('Fit');
+
+    await zoom.click();
+    await page.getByRole('button', { name: '1:1', exact: true }).click();
+    await page.getByRole('button', { name: 'Zoom In', exact: true }).click();
+    await expect(zoom).toHaveText('200%');
+    await page.getByRole('button', { name: /Fit to screen/ }).click();
+    await expect(zoom).toHaveText('Fit');
+
+    await page.keyboard.press('z');
+    await expect(zoom).toHaveText('200%');
+
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+    await expect(zoom).toHaveText('Fit');
+
+    await page.keyboard.press('z');
+    await expect(zoom).toHaveText('200%');
+  });
 });
