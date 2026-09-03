@@ -3,8 +3,9 @@
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { rejected } from '$lib/stores/rejected.svelte';
   import { sortAssets } from '$lib/sortAssets';
-  import { getAsset } from '$lib/api/assets';
+  import { listEditedAssets } from '$lib/api/edits';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -16,39 +17,29 @@
   );
 
   async function hydrate(): Promise<void> {
-    const entries = editedThumbs.entries;
-    const results = entries.map<AssetSummary>((entry) => ({
-      id: entry.id,
-      originalFileName: entry.id,
-      type: 'IMAGE',
-      fileCreatedAt: null,
-      updatedAt: entry.updated_at,
-      checksum: null,
-      isFavorite: false,
-      exifInfo: null,
-      tags: []
-    }));
-    let next = 0;
-    const workers = Array.from({ length: Math.min(6, entries.length) }, async () => {
-      while (next < entries.length) {
-        const index = next++;
-        const entry = entries[index];
-        try {
-          const asset = await getAsset(entry.id);
-          results[index] = { ...asset, updatedAt: entry.updated_at };
-        } catch {
-          results[index] = { ...results[index], originalFileName: `Asset ${entry.id}` };
-        }
-      }
-    });
-    await Promise.all(workers);
-    hydrated = results;
+    const entries = await listEditedAssets(true);
+    hydrated = rejected.stamp(
+      entries.map<AssetSummary>((entry) =>
+        entry.asset
+          ? { ...entry.asset, updatedAt: entry.updated_at }
+          : {
+              id: entry.id,
+              originalFileName: `Asset ${entry.id}`,
+              type: 'IMAGE',
+              fileCreatedAt: null,
+              updatedAt: entry.updated_at,
+              checksum: null,
+              isFavorite: false,
+              exifInfo: null,
+              tags: []
+            }
+      )
+    );
   }
 
   onMount(async () => {
     browseControls.enter('edited', 'edited');
-    await editedThumbs.loadOnce();
-    await hydrate();
+    await Promise.all([editedThumbs.loadOnce(), rejected.load().catch(() => undefined), hydrate()]);
     loading = false;
   });
 

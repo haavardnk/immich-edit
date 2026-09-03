@@ -196,7 +196,12 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     }
     if (p === '/api/search/statistics')
       return route.fulfill(json({ total: opts.total ?? assets.length }));
-    if (p === '/api/edits') return route.fulfill(json(opts.edits ?? []));
+    if (p === '/api/edits') {
+      const entries = opts.edits ?? [];
+      if (url.searchParams.get('with_assets') !== 'true') return route.fulfill(json(entries));
+      const byId = new Map(expanded().map((a) => [a.id, a]));
+      return route.fulfill(json(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
+    }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));
     if (p === '/api/tags') return route.fulfill(json([]));
