@@ -81,12 +81,12 @@
           : mode === 'flat'
             ? 'Flat Profile'
             : 'Select DCP Profile';
-    editor.onCommit(action);
+    void editor.onCommit(action);
   }
 
   function setIlluminant(value: DcpIlluminant): void {
     dcp.illuminant = value;
-    editor.onCommit('DCP Illuminant');
+    void editor.onCommit('DCP Illuminant');
   }
 
   function toggle(
@@ -95,7 +95,7 @@
     checked: boolean
   ): void {
     dcp[field] = checked;
-    editor.onCommit(label);
+    void editor.onCommit(label);
   }
 
   function triggerImport(): void {

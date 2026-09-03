@@ -48,7 +48,7 @@
       if (editor.edits.lens.vignette_amount === 0)
         editor.edits.lens.vignette_amount = NEUTRAL_LENS.vignette_amount;
     }
-    editor.onCommit('Lens Profile');
+    void editor.onCommit('Lens Profile');
   }
 
   function onToggleCa(enabled: boolean): void {
@@ -60,7 +60,7 @@
     ) {
       loadProfileCoefficients();
     }
-    editor.onCommit('Chromatic Aberration');
+    void editor.onCommit('Chromatic Aberration');
   }
 
   function onToggleConstrain(checked: boolean): void {
@@ -69,12 +69,12 @@
       loadProfileCoefficients();
     }
     editor.edits.lens.constrain_crop = checked;
-    editor.onCommit('Constrain Crop');
+    void editor.onCommit('Constrain Crop');
   }
 
   function resetLens(): void {
     editor.edits.lens = { ...NEUTRAL_LENS };
-    editor.onCommit('Reset Lens Corrections');
+    void editor.onCommit('Reset Lens Corrections');
   }
 </script>
 

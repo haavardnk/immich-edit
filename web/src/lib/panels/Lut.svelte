@@ -40,7 +40,7 @@
   function select(id: string | null): void {
     editor.edits.color.lut_3d.lut_id = id;
     pendingDelete = false;
-    editor.onCommit(id ? 'Select LUT' : 'Remove LUT');
+    void editor.onCommit(id ? 'Select LUT' : 'Remove LUT');
   }
 
   function triggerImport(): void {
@@ -92,7 +92,7 @@
     editor.edits.color.lut_3d.lut_id = null;
     editor.edits.color.lut_3d.amount = 100;
     pendingDelete = false;
-    editor.onCommit('Reset LUT');
+    void editor.onCommit('Reset LUT');
   }
 </script>
 
