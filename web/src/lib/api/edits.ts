@@ -41,14 +41,32 @@ export async function putEdits(
     return saved;
   } catch (e) {
     if (e instanceof ApiError && e.status === 409) {
-      throw new ConflictError(e.message, (e as ApiError & { body?: EditRecord }).body);
+      throw new ConflictError(e.message, e.body as EditRecord | undefined);
     }
     throw e;
   }
 }
 
-export async function deleteEdits(assetId: string, action?: string): Promise<void> {
-  await sendJson<void>('DELETE', `/api/assets/${assetId}/edits`, { action: action ?? null });
+export async function deleteEdits(
+  assetId: string,
+  action?: string,
+  baseHash?: string
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (baseHash) headers['if-match'] = baseHash;
+  try {
+    await sendJson<void>(
+      'DELETE',
+      `/api/assets/${assetId}/edits`,
+      { action: action ?? null },
+      { headers }
+    );
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) {
+      throw new ConflictError(e.message, e.body as EditRecord | undefined);
+    }
+    throw e;
+  }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } }));
   }
