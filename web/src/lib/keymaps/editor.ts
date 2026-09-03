@@ -85,7 +85,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       editor.redo();
       return;
     case 'zoomToggle':
-      ui.zoomToggle();
+      editor.zoomCycle();
       return;
     case 'toggleInfo':
       ui.togglePopover('exif');

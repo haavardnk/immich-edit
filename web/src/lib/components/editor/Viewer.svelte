@@ -156,6 +156,11 @@
   });
 
   $effect(() => {
+    editor.setBaseImage(imgEl);
+    return () => editor.setBaseImage(null);
+  });
+
+  $effect(() => {
     if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) {
       ui.nativeZoom = null;
       return;

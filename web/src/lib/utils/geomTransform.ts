@@ -11,6 +11,8 @@ import {
 
 export type RotateQuarter = 0 | 90 | 180 | 270;
 
+export type SourceDims = Pick<PreviewMeta, 'source_w' | 'source_h'>;
+
 export interface GeometryTransform {
   inputW: number;
   inputH: number;
@@ -21,28 +23,22 @@ export interface GeometryTransform {
   crop: CropRect;
   perspectiveForward: Mat3;
   perspectiveInverse: Mat3;
-  outputW: number;
-  outputH: number;
 }
 
 export function geometryTransformFrom(
   g: GeometryEdits,
-  meta: PreviewMeta | null
+  meta: SourceDims | null
 ): GeometryTransform {
-  const sw = meta?.source_w ?? 1;
-  const sh = meta?.source_h ?? 1;
   return {
-    inputW: sw,
-    inputH: sh,
+    inputW: meta?.source_w ?? 1,
+    inputH: meta?.source_h ?? 1,
     rotateQuarter: g.rotate as RotateQuarter,
     flipH: g.flip_h,
     flipV: g.flip_v,
     angleDeg: g.rotate_angle,
     crop: g.crop ?? { x: 0, y: 0, w: 1, h: 1 },
     perspectiveForward: perspectiveForward(g.perspective),
-    perspectiveInverse: perspectiveInverse(g.perspective),
-    outputW: meta?.width ?? sw,
-    outputH: meta?.height ?? sh
+    perspectiveInverse: perspectiveInverse(g.perspective)
   };
 }
 

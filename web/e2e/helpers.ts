@@ -139,6 +139,7 @@ export interface InstallOpts {
   thumbnailRender?: (id: string) => Buffer;
   sourceSize?: { w: number; h: number };
   previewMeta?: Record<string, unknown>;
+  faces?: Array<Record<string, number>>;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -263,6 +264,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const body = (req.postDataJSON() as { name?: string | null } | null) ?? {};
       if (idx >= 0) copies[idx] = { ...copies[idx], name: body.name ?? null };
       return route.fulfill(json(copies[idx]));
+    }
+
+    if (p.match(/^\/api\/assets\/[^/]+\/faces$/)) {
+      return route.fulfill(json(opts.faces ?? []));
     }
 
     const editsMatch = p.match(/^\/api\/assets\/([^/]+)\/edits$/);

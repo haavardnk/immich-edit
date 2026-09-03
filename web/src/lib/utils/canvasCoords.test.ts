@@ -31,16 +31,7 @@ describe('view transform round trip', () => {
     edits.geometry.flip_h = flipH;
     edits.geometry.flip_v = flipV;
     edits.geometry.crop = { x: 0.1, y: 0.2, w: 0.6, h: 0.5 };
-    const view = viewTransform(edits, {
-      asset_id: 'a',
-      width: 600,
-      height: 400,
-      source_w: 1000,
-      source_h: 800,
-      renderer: 'cpu',
-      is_raw: true,
-      histogram: { r: [], g: [], b: [], l: [] }
-    });
+    const view = viewTransform(edits, { source_w: 1000, source_h: 800 });
     const scene = displayUvToSceneUv(view, 0.3, 0.7);
     const back = sceneUvToDisplayUv(view, scene[0], scene[1]);
     expect(back[0]).toBeCloseTo(0.3, 5);

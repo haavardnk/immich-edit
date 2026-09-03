@@ -21,7 +21,8 @@
     onFocus,
     onSize,
     sourceLong,
-    onNativeZoom
+    onNativeZoom,
+    onImage
   }: {
     assetId: string;
     alt: string;
@@ -34,6 +35,7 @@
     onSize?: (maxEdge: number) => void;
     sourceLong?: number | null;
     onNativeZoom?: (zoom: number | null) => void;
+    onImage?: (element: HTMLImageElement) => void;
   } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
@@ -92,7 +94,10 @@
 
   function measure(): void {
     if (container) box = { w: container.clientWidth, h: container.clientHeight };
-    if (image) natural = { w: image.naturalWidth, h: image.naturalHeight };
+    if (image) {
+      natural = { w: image.naturalWidth, h: image.naturalHeight };
+      onImage?.(image);
+    }
   }
 
   function zoomInAt(clientX: number, clientY: number, solo: boolean): void {

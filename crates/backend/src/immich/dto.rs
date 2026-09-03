@@ -162,6 +162,22 @@ pub struct PersonSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetFace {
+    #[serde(rename = "imageWidth", default)]
+    pub image_width: u32,
+    #[serde(rename = "imageHeight", default)]
+    pub image_height: u32,
+    #[serde(rename = "boundingBoxX1", default)]
+    pub bounding_box_x1: i64,
+    #[serde(rename = "boundingBoxY1", default)]
+    pub bounding_box_y1: i64,
+    #[serde(rename = "boundingBoxX2", default)]
+    pub bounding_box_x2: i64,
+    #[serde(rename = "boundingBoxY2", default)]
+    pub bounding_box_y2: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeopleResponse {
     pub people: Vec<PersonSummary>,
     #[serde(default)]
