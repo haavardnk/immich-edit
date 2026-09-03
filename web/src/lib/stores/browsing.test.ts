@@ -22,8 +22,8 @@ describe('browsing store', () => {
     browsing.insertCopy(`${A}_1`, A, 'Mono');
     expect(browsing.assets).toBe(feed);
     expect(feed.map((a) => a.id)).toEqual([A, `${A}_1`, B]);
-    expect(feed[1].copyOf).toBe(A);
-    expect(feed[1].copyLabel).toBe('Mono');
+    expect(feed[1]?.copyOf).toBe(A);
+    expect(feed[1]?.copyLabel).toBe('Mono');
   });
 
   it('inserts later copies after existing ones', () => {

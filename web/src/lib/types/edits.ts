@@ -78,7 +78,7 @@ export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 300, 
 
 export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map((h) => `hsl(${h}, 70%, 65%)`);
 
-export const MASK_COLOR_TOKENS: readonly string[] = [
+export const MASK_COLOR_TOKENS = [
   '#ff3b30',
   '#ff9500',
   '#ffcc00',
@@ -87,7 +87,7 @@ export const MASK_COLOR_TOKENS: readonly string[] = [
   '#007aff',
   '#af52de',
   '#ff2d55'
-];
+] as const;
 
 export interface HslEdits {
   bands: HslBand[];
@@ -594,12 +594,16 @@ export function colorGradeIsZero(cg: ColorGradeEdits): boolean {
 }
 
 export function curvesAreIdentity(pts: CurvePoint[]): boolean {
+  const a = pts[0];
+  const b = pts[1];
   return (
     pts.length === 2 &&
-    Math.abs(pts[0].x) < 1e-10 &&
-    Math.abs(pts[0].y) < 1e-10 &&
-    Math.abs(pts[1].x - 1) < 1e-10 &&
-    Math.abs(pts[1].y - 1) < 1e-10
+    !!a &&
+    !!b &&
+    Math.abs(a.x) < 1e-10 &&
+    Math.abs(a.y) < 1e-10 &&
+    Math.abs(b.x - 1) < 1e-10 &&
+    Math.abs(b.y - 1) < 1e-10
   );
 }
 

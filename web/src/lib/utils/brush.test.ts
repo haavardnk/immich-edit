@@ -16,7 +16,7 @@ describe('stampBuffer', () => {
     const buf = blankBuffer(11, 11);
     stampBuffer(buf, 5, 5, 4, 1, 200, false);
     const center = buf.bytes[5 * 11 + 5];
-    const edge = buf.bytes[5 * 11 + 1];
+    const edge = buf.bytes[5 * 11 + 1] ?? 0;
     expect(center).toBe(200);
     expect(center).toBeGreaterThanOrEqual(edge);
   });

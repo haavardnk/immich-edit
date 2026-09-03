@@ -57,7 +57,8 @@ class BrowseViewStore {
   stepGridSize(delta: number): void {
     const idx = SIZE_ORDER.indexOf(this.gridSize);
     const next = Math.min(SIZE_ORDER.length - 1, Math.max(0, idx + delta));
-    this.setGridSize(SIZE_ORDER[next]);
+    const size = SIZE_ORDER[next];
+    if (size) this.setGridSize(size);
   }
 
   setLoupeAutoAdvance(on: boolean): void {
@@ -85,14 +86,15 @@ class BrowseViewStore {
 
   moveActive(delta: number): string | null {
     const list = browsing.assets;
-    if (list.length === 0) return null;
+    const first = list[0];
+    if (!first) return null;
     const idx = this.activeId ? list.findIndex((a) => a.id === this.activeId) : -1;
     if (idx < 0) {
-      this.activeId = list[0].id;
+      this.activeId = first.id;
       return this.activeId;
     }
     const next = Math.min(list.length - 1, Math.max(0, idx + delta));
-    this.activeId = list[next].id;
+    this.activeId = list[next]?.id ?? this.activeId;
     return this.activeId;
   }
 

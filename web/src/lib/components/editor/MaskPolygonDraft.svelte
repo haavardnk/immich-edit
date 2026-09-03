@@ -82,6 +82,7 @@
   }}
 >
   {#if points.length > 0}
+    {@const last = points[points.length - 1]}
     <polyline
       points={points.map((p) => `${p.x},${p.y}`).join(' ')}
       fill="none"
@@ -90,10 +91,10 @@
       stroke-dasharray="4 3"
       style="pointer-events: none;"
     />
-    {#if cursor}
+    {#if cursor && last}
       <line
-        x1={points[points.length - 1].x}
-        y1={points[points.length - 1].y}
+        x1={last.x}
+        y1={last.y}
         x2={cursor.x}
         y2={cursor.y}
         stroke="var(--color-image-light)"

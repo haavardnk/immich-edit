@@ -10,6 +10,5 @@ export function isCopy(id: string): boolean {
 }
 
 export function sourceId(id: string): string {
-  const match = COPY_KEY.exec(id);
-  return match ? match[1] : id;
+  return COPY_KEY.exec(id)?.[1] ?? id;
 }

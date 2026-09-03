@@ -15,8 +15,8 @@ describe('steppedSegment', () => {
   ])('splits (%s,%s)->(%s,%s) at step %s into %s points', (ax, ay, bx, by, step, n) => {
     const pts = steppedSegment(ax, ay, bx, by, step);
     expect(pts).toHaveLength(n);
-    expect(pts[pts.length - 1][0]).toBeCloseTo(bx, 6);
-    expect(pts[pts.length - 1][1]).toBeCloseTo(by, 6);
+    expect(pts[pts.length - 1]?.[0]).toBeCloseTo(bx, 6);
+    expect(pts[pts.length - 1]?.[1]).toBeCloseTo(by, 6);
   });
 });
 

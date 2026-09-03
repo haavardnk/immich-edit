@@ -59,26 +59,26 @@ describe('toggleReject', () => {
   it('adds the reject tag and patches browsing', async () => {
     expect(await toggleReject('a')).toBe(true);
     expect(addTagToAsset).toHaveBeenCalledWith('r', 'a');
-    expect(isRejected(browsing.assets[0])).toBe(true);
+    expect(isRejected(browsing.assets[0]!)).toBe(true);
   });
 
   it('removes the reject tag when already rejected', async () => {
     browsing.set([asset('a', [rejectTag])]);
     expect(await toggleReject('a')).toBe(true);
     expect(removeTagFromAsset).toHaveBeenCalledWith('r', 'a');
-    expect(isRejected(browsing.assets[0])).toBe(false);
+    expect(isRejected(browsing.assets[0]!)).toBe(false);
   });
 
   it('rolls back on api error', async () => {
     addTagToAsset.mockImplementationOnce(() => Promise.reject(new Error('boom')));
     expect(await toggleReject('a')).toBe(true);
-    expect(isRejected(browsing.assets[0])).toBe(false);
+    expect(isRejected(browsing.assets[0]!)).toBe(false);
   });
 
   it('returns false and makes no change when consent denied', async () => {
     h.consent.value = false;
     expect(await toggleReject('a')).toBe(false);
     expect(addTagToAsset).not.toHaveBeenCalled();
-    expect(isRejected(browsing.assets[0])).toBe(false);
+    expect(isRejected(browsing.assets[0]!)).toBe(false);
   });
 });

@@ -178,7 +178,7 @@
                 class="mask-model-select w-48"
                 placeholder="Active model"
                 options={modelOptions}
-                value={models.active[kind] ?? installed[0].id}
+                value={models.active[kind] ?? installed[0]?.id}
                 onChange={(value) => void chooseModel(kind, value)}
               />
             {/if}

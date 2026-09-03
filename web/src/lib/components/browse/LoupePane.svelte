@@ -7,7 +7,8 @@
 
   const CLICK_ZOOM = 250;
   const DRAG_THRESHOLD = 5;
-  const SIZES = [768, 1024, 1536, 2048, 2560];
+  const MAX_SIZE = 2560;
+  const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
 
   let {
     assetId,
@@ -74,7 +75,7 @@
   }
 
   function quantize(value: number): number {
-    return SIZES.find((size) => size >= value) ?? SIZES[SIZES.length - 1];
+    return SIZES.find((size) => size >= value) ?? MAX_SIZE;
   }
 
   function clampCenter(next: PaneView): PaneView {

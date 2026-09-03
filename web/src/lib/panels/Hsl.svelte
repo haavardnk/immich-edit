@@ -12,6 +12,7 @@
 
   function resetBand(i: number): void {
     const b = editor.edits.color.hsl.bands[i];
+    if (!b) return;
     b.hue = 0;
     b.sat = 0;
     b.lum = 0;
@@ -27,10 +28,11 @@
     void editor.onCommit('Reset HSL');
   }
 
-  const bandHue = $derived(HSL_BAND_HUES[activeBand]);
+  const bandName = $derived(HSL_BAND_NAMES[activeBand] ?? '');
+  const bandHue = $derived(HSL_BAND_HUES[activeBand] ?? 0);
   const currentBand = $derived(editor.edits.color.hsl.bands[activeBand]);
-  const effectiveHue = $derived((bandHue + currentBand.hue + 360) % 360);
-  const effectiveSat = $derived(Math.max(0, Math.min(100, (currentBand.sat + 100) / 2)));
+  const effectiveHue = $derived((bandHue + (currentBand?.hue ?? 0) + 360) % 360);
+  const effectiveSat = $derived(Math.max(0, Math.min(100, ((currentBand?.sat ?? 0) + 100) / 2)));
   const hueGradient = $derived(
     `linear-gradient(to right, hsl(${(bandHue - 100 + 360) % 360}, 50%, 50%), hsl(${bandHue}, 50%, 50%), hsl(${(bandHue + 100) % 360}, 50%, 50%))`
   );
@@ -64,35 +66,37 @@
     {/each}
   </RadioGroup.Root>
   <div class="flex h-6 items-center justify-between">
-    <div class="text-[11px] text-dark/65">{HSL_BAND_NAMES[activeBand]}</div>
+    <div class="text-[11px] text-dark/65">{bandName}</div>
     <ResetButton
-      title="Reset {HSL_BAND_NAMES[activeBand]}  —  {keyLabel('Shift')}-click to reset all bands"
-      label="Reset {HSL_BAND_NAMES[activeBand]}"
+      title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
+      label="Reset {bandName}"
       onclick={(e) => (e.shiftKey ? resetAllHsl() : resetBand(activeBand))}
     />
   </div>
-  <EditSlider
-    label="Hue"
-    commitAction={`${HSL_BAND_NAMES[activeBand]} Hue`}
-    bind:value={editor.edits.color.hsl.bands[activeBand].hue}
-    min={-100}
-    max={100}
-    gradient={hueGradient}
-  />
-  <EditSlider
-    label="Saturation"
-    commitAction={`${HSL_BAND_NAMES[activeBand]} Saturation`}
-    bind:value={editor.edits.color.hsl.bands[activeBand].sat}
-    min={-100}
-    max={100}
-    gradient={satGradient}
-  />
-  <EditSlider
-    label="Luminance"
-    commitAction={`${HSL_BAND_NAMES[activeBand]} Luminance`}
-    bind:value={editor.edits.color.hsl.bands[activeBand].lum}
-    min={-100}
-    max={100}
-    gradient={lumGradient}
-  />
+  {#if currentBand}
+    <EditSlider
+      label="Hue"
+      commitAction={`${bandName} Hue`}
+      bind:value={currentBand.hue}
+      min={-100}
+      max={100}
+      gradient={hueGradient}
+    />
+    <EditSlider
+      label="Saturation"
+      commitAction={`${bandName} Saturation`}
+      bind:value={currentBand.sat}
+      min={-100}
+      max={100}
+      gradient={satGradient}
+    />
+    <EditSlider
+      label="Luminance"
+      commitAction={`${bandName} Luminance`}
+      bind:value={currentBand.lum}
+      min={-100}
+      max={100}
+      gradient={lumGradient}
+    />
+  {/if}
 </div>

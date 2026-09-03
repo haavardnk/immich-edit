@@ -14,7 +14,7 @@
     let d = `M 0 ${h}`;
     for (let i = 0; i < n; i++) {
       const x = (i / (n - 1)) * w;
-      const y = h - (values[i] / max) * h;
+      const y = h - ((values[i] ?? 0) / max) * h;
       d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
     }
     d += ` L ${w} ${h} Z`;
@@ -24,7 +24,7 @@
   function clippingPct(h: Histogram, bin: number): number {
     const total = h.l.reduce((a, b) => a + b, 0);
     if (total === 0) return 0;
-    return ((h.r[bin] + h.g[bin] + h.b[bin]) / (total * 3)) * 100;
+    return (((h.r[bin] ?? 0) + (h.g[bin] ?? 0) + (h.b[bin] ?? 0)) / (total * 3)) * 100;
   }
 
   const shadowClip = $derived(linearHist ? clippingPct(linearHist, 0) : 0);
