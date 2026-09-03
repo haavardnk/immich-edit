@@ -1,7 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
+  import { restoreBrowse } from '$lib/browseRestore';
   import { editorKeydown, editorKeyup } from '$lib/keymaps/editor';
   import Viewer from '$lib/components/editor/Viewer.svelte';
   import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
@@ -17,6 +19,11 @@
   $effect(() => {
     const current = id;
     untrack(() => editor.load(current));
+  });
+
+  onMount(() => {
+    if (browsing.assets.length > 0) return;
+    void restoreBrowse(page.url.searchParams.get('from'));
   });
 
   onDestroy(() => {

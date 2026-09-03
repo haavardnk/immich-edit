@@ -6,6 +6,9 @@
   import { setupStatus } from '$lib/api/auth';
   import { isBackendDown } from '$lib/api/client';
   import { session } from '$lib/stores/session.svelte';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { rememberBrowseContext } from '$lib/stores/browseContext';
+  import { matchBrowseRoute } from '$lib/browseRestore';
   import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
   import Shell from '$lib/components/shell/Shell.svelte';
   import Toasts from '$lib/components/shell/Toasts.svelte';
@@ -47,6 +50,12 @@
       const next = encodeURIComponent(path + page.url.search);
       void goto(`/login?next=${next}`, { replaceState: true });
     }
+  });
+
+  $effect(() => {
+    const filters = browseControls.filters;
+    if (!matchBrowseRoute(page.url)) return;
+    rememberBrowseContext(`${page.url.pathname}${page.url.search}`, filters);
   });
 </script>
 

@@ -17,7 +17,7 @@
       selection.clear();
       browseControls.enter('tag:' + id, 'collection');
       feed.reset();
-      feed.fetchPage(true);
+      void feed.fetchPage(true);
     });
   });
 
