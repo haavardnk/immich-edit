@@ -1,4 +1,4 @@
-import { getJson } from './client';
+import { getJson, url } from './client';
 import type { AssetDetail } from '$lib/types/asset';
 
 export function folderPaths(): Promise<string[]> {
@@ -6,5 +6,5 @@ export function folderPaths(): Promise<string[]> {
 }
 
 export function folderAssets(path: string): Promise<AssetDetail[]> {
-  return getJson(`/api/folders/assets?path=${encodeURIComponent(path)}`);
+  return getJson(url`/api/folders/assets?path=${path}`);
 }

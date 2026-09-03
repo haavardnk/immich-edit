@@ -1,4 +1,4 @@
-import { getJson, sendJson, ApiError, ConflictError } from './client';
+import { getJson, sendJson, url, ApiError, ConflictError } from './client';
 import { editsToManifest } from '$lib/edits/manifest';
 import type { Edits, EditRecord } from '$lib/types/edits';
 
@@ -13,7 +13,7 @@ export function listEditedAssets(): Promise<EditedAssetEntry[]> {
 }
 
 export function getEdits(assetId: string): Promise<EditRecord> {
-  return getJson(`/api/assets/${assetId}/edits`);
+  return getJson(url`/api/assets/${assetId}/edits`);
 }
 
 export async function putEdits(
@@ -27,7 +27,7 @@ export async function putEdits(
   try {
     const saved = await sendJson<EditRecord>(
       'PUT',
-      `/api/assets/${assetId}/edits`,
+      url`/api/assets/${assetId}/edits`,
       { manifest: editsToManifest(edits), action: action ?? null },
       { headers }
     );
@@ -57,7 +57,7 @@ export async function deleteEdits(
   try {
     await sendJson<void>(
       'DELETE',
-      `/api/assets/${assetId}/edits`,
+      url`/api/assets/${assetId}/edits`,
       { action: action ?? null },
       { headers }
     );
@@ -73,7 +73,7 @@ export async function deleteEdits(
 }
 
 export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
-  return sendJson('POST', `/api/assets/${assetId}/edits/auto`, context);
+  return sendJson('POST', url`/api/assets/${assetId}/edits/auto`, context);
 }
 
 export interface EditHistoryEntry {
@@ -86,13 +86,13 @@ export interface EditHistoryEntry {
 }
 
 export function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
-  return getJson(`/api/assets/${assetId}/edits/history`);
+  return getJson(url`/api/assets/${assetId}/edits/history`);
 }
 
 export async function restoreEdits(assetId: string, entryId: number): Promise<EditRecord | null> {
   const saved = await sendJson<EditRecord | undefined>(
     'POST',
-    `/api/assets/${assetId}/edits/restore`,
+    url`/api/assets/${assetId}/edits/restore`,
     { entry_id: entryId }
   );
   if (typeof window !== 'undefined') {

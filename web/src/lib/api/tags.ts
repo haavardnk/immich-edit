@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 
 export interface TagSummary {
   id: string;
@@ -26,9 +26,9 @@ export interface BulkIdResponse {
 }
 
 export function addTagToAsset(tagId: string, assetId: string): Promise<BulkIdResponse[]> {
-  return sendJson('PUT', `/api/tags/${tagId}/assets/${assetId}`, {});
+  return sendJson('PUT', url`/api/tags/${tagId}/assets/${assetId}`, {});
 }
 
 export function removeTagFromAsset(tagId: string, assetId: string): Promise<BulkIdResponse[]> {
-  return sendJson('DELETE', `/api/tags/${tagId}/assets/${assetId}`, {});
+  return sendJson('DELETE', url`/api/tags/${tagId}/assets/${assetId}`, {});
 }

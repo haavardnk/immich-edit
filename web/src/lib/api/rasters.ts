@@ -1,4 +1,4 @@
-import { request, sendBytes } from '$lib/api/client';
+import { request, sendBytes, url } from '$lib/api/client';
 
 export interface RasterMeta {
   raster_id: string;
@@ -19,7 +19,7 @@ export function uploadRaster(
 export async function fetchRaster(
   rasterId: string
 ): Promise<{ width: number; height: number; bytes: Uint8Array }> {
-  const r = await request(`/api/rasters/${rasterId}`);
+  const r = await request(url`/api/rasters/${rasterId}`);
   const width = Number(r.headers.get('x-raster-width') ?? 0);
   const height = Number(r.headers.get('x-raster-height') ?? 0);
   const ab = await r.arrayBuffer();

@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 import type {
   BitDepthOpt,
   ColorSpaceOpt,
@@ -56,11 +56,11 @@ export function listJobs(): Promise<Job[]> {
 }
 
 export function getJob(id: string): Promise<JobDetail> {
-  return getJson(`/api/jobs/${id}`);
+  return getJson(url`/api/jobs/${id}`);
 }
 
 export function cancelJob(id: string): Promise<void> {
-  return sendJson('POST', `/api/jobs/${id}/cancel`, undefined);
+  return sendJson('POST', url`/api/jobs/${id}/cancel`, undefined);
 }
 
 export function clearJobs(): Promise<void> {
@@ -68,7 +68,7 @@ export function clearJobs(): Promise<void> {
 }
 
 export function jobDownloadUrl(id: string): string {
-  return `/api/jobs/${id}/download`;
+  return url`/api/jobs/${id}/download`;
 }
 
 interface ExportJobParams {

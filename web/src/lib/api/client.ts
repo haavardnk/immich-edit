@@ -96,6 +96,13 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
   }
 }
 
+export function url(strings: TemplateStringsArray, ...values: unknown[]): string {
+  return strings.reduce(
+    (acc, part, i) => acc + (i > 0 ? encodeURIComponent(String(values[i - 1])) : '') + part,
+    ''
+  );
+}
+
 export async function request(
   path: string,
   init?: RequestInit,

@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 import type { EditManifest } from '$lib/types/edits';
 
 export interface Preset {
@@ -25,9 +25,9 @@ export function createPreset(input: PresetInput): Promise<Preset> {
 }
 
 export function updatePreset(id: string, input: PresetInput): Promise<Preset> {
-  return sendJson('PUT', `/api/presets/${id}`, input);
+  return sendJson('PUT', url`/api/presets/${id}`, input);
 }
 
 export function deletePreset(id: string): Promise<void> {
-  return sendJson('DELETE', `/api/presets/${id}`, undefined);
+  return sendJson('DELETE', url`/api/presets/${id}`, undefined);
 }

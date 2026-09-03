@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, ConflictError, NetworkError, isBackendDown, request } from './client';
+import { ApiError, ConflictError, NetworkError, isBackendDown, request, url } from './client';
 import { toasts } from '$lib/stores/toasts.svelte';
 
 describe('isBackendDown', () => {
@@ -45,5 +45,26 @@ describe('server error reporting', () => {
     const message = toasts.items.at(-1)?.message ?? '';
     expect(message).not.toContain('no such column');
     expect(message).toContain('abc-123');
+  });
+});
+
+describe('url', () => {
+  it.each([
+    ['../../etc/passwd', '/api/assets/..%2F..%2Fetc%2Fpasswd/edits'],
+    ['a?b=c#d', '/api/assets/a%3Fb%3Dc%23d/edits'],
+    ['spaced id', '/api/assets/spaced%20id/edits'],
+    ['smør&ost', '/api/assets/sm%C3%B8r%26ost/edits'],
+    [
+      '0f0d4ae1-1111-4222-8333-444455556666',
+      '/api/assets/0f0d4ae1-1111-4222-8333-444455556666/edits'
+    ]
+  ])('encodes %s into a single path segment', (id, expected) => {
+    expect(url`/api/assets/${id}/edits`).toBe(expected);
+  });
+
+  it('leaves literal separators alone and encodes query values', () => {
+    expect(url`/api/assets/${'a b'}/thumb?size=${'x&y'}`).toBe(
+      '/api/assets/a%20b/thumb?size=x%26y'
+    );
   });
 });
