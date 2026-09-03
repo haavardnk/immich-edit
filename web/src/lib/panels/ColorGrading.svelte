@@ -53,7 +53,7 @@
     reg.hue = 0;
     reg.sat = 0;
     reg.lum = 0;
-    editor.onCommit(`Reset ${REGION_LABELS[key]}`);
+    void editor.onCommit(`Reset ${REGION_LABELS[key]}`);
   }
 
   function resetAllGrading(): void {
@@ -65,7 +65,7 @@
     }
     cg.balance = 0;
     cg.blend = 0;
-    editor.onCommit('Reset Color Grading');
+    void editor.onCommit('Reset Color Grading');
   }
 </script>
 

@@ -18,7 +18,7 @@
 
   $effect(() => {
     const current = id;
-    untrack(() => editor.load(current));
+    void untrack(() => editor.load(current));
   });
 
   onMount(() => {

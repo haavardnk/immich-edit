@@ -12,14 +12,14 @@
     editor.edits.effects.vignette_midpoint = NEUTRAL_EFFECTS.vignette_midpoint;
     editor.edits.effects.vignette_feather = NEUTRAL_EFFECTS.vignette_feather;
     editor.edits.effects.vignette_roundness = NEUTRAL_EFFECTS.vignette_roundness;
-    editor.onCommit('Reset Vignette');
+    void editor.onCommit('Reset Vignette');
   }
 
   function resetGrain(): void {
     editor.edits.effects.grain_amount = NEUTRAL_EFFECTS.grain_amount;
     editor.edits.effects.grain_size = NEUTRAL_EFFECTS.grain_size;
     editor.edits.effects.grain_roughness = NEUTRAL_EFFECTS.grain_roughness;
-    editor.onCommit('Reset Grain');
+    void editor.onCommit('Reset Grain');
   }
 </script>
 

@@ -25,7 +25,7 @@
 
   $effect(() => {
     const p = queryPath;
-    untrack(() => loadFolder(p));
+    void untrack(() => loadFolder(p));
   });
 
   $effect(() => {
