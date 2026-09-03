@@ -23,6 +23,7 @@ export class BrowseFeed {
   nextPage = $state<string | null>(null);
   totalCount = $state<number | undefined>(undefined);
   private prevKey = '';
+  private reqId = 0;
   private opts: BrowseFeedOptions;
 
   constructor(opts: BrowseFeedOptions) {
@@ -30,6 +31,7 @@ export class BrowseFeed {
   }
 
   reset(): void {
+    this.reqId += 1;
     this.assets = [];
     this.loadedOnce = false;
     this.loading = false;
@@ -40,6 +42,7 @@ export class BrowseFeed {
   }
 
   fetchPage(initial: boolean): void {
+    const req = (this.reqId += 1);
     const base = this.opts.baseBody();
     if (initial) {
       if (!this.loadedOnce) this.loading = true;
@@ -49,10 +52,13 @@ export class BrowseFeed {
       if (this.opts.includeStats !== false) {
         searchStatistics(browseControls.statsBody(base))
           .then((s) => {
+            if (req !== this.reqId) return;
             this.totalCount = s.total;
             browsing.total = s.total;
           })
-          .catch((e) => toasts.fail('stats', e));
+          .catch((e) => {
+            if (req === this.reqId) toasts.fail('stats', e);
+          });
       }
     }
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
@@ -60,16 +66,19 @@ export class BrowseFeed {
     const fetcher = this.opts.fetcher ?? searchMetadata;
     Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
       .then(([result]) => {
+        if (req !== this.reqId) return;
         const items = rejected.stamp(result.items);
         this.assets = initial ? items : [...this.assets, ...items];
         browsing.set(this.assets);
         this.nextPage = result.nextPage;
       })
       .catch((e) => {
+        if (req !== this.reqId) return;
         if (this.opts.onFetchError) this.opts.onFetchError(initial, e);
         else toasts.fail('load', e);
       })
       .finally(() => {
+        if (req !== this.reqId) return;
         this.loading = false;
         this.loadedOnce = true;
         this.loadingMore = false;
