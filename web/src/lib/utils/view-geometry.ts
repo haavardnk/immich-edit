@@ -35,22 +35,35 @@ export function snapToDevice(v: number, dpr: number): number {
   return Math.round(v * safeDpr(dpr)) / safeDpr(dpr);
 }
 
+export function fitScale(
+  containerW: number,
+  containerH: number,
+  contentW: number,
+  contentH: number
+): number {
+  if (containerW <= 0 || containerH <= 0 || contentW <= 0 || contentH <= 0) return 0;
+  return Math.min(containerW / contentW, containerH / contentH);
+}
+
+export function nativeScale(contentLong: number, srcLong: number, dpr: number): number {
+  if (contentLong <= 0 || !Number.isFinite(srcLong) || srcLong <= 0) return 0;
+  return srcLong / (safeDpr(dpr) * contentLong);
+}
+
 export function frameBox(
   containerW: number,
   containerH: number,
-  srcW: number,
-  srcH: number,
-  zoom: number,
+  contentW: number,
+  contentH: number,
+  scale: number,
   panX: number,
   panY: number,
   dpr: number
 ): Rect | null {
-  if (containerW <= 0 || containerH <= 0 || srcW <= 0 || srcH <= 0) return null;
-  if (!Number.isFinite(zoom) || zoom <= 0) return null;
-  const fit = Math.min(containerW / srcW, containerH / srcH);
-  const scale = fit * (zoom / 100);
-  const width = snapToDevice(srcW * scale, dpr);
-  const height = snapToDevice(srcH * scale, dpr);
+  if (containerW <= 0 || containerH <= 0 || contentW <= 0 || contentH <= 0) return null;
+  if (!Number.isFinite(scale) || scale <= 0) return null;
+  const width = snapToDevice(contentW * scale, dpr);
+  const height = snapToDevice(contentH * scale, dpr);
   return {
     left: snapToDevice((containerW - width) / 2 + panX, dpr),
     top: snapToDevice((containerH - height) / 2 + panY, dpr),
@@ -131,12 +144,6 @@ export function placement(
     width: exact ? nativeW : targetW,
     height: exact ? nativeH : targetH
   };
-}
-
-export function nativeZoom(fitFrame: Rect, srcLong: number, dpr: number): number | null {
-  const fitLong = Math.max(fitFrame.width, fitFrame.height);
-  if (!Number.isFinite(srcLong) || srcLong <= 0 || fitLong <= 0) return null;
-  return Math.round((100 * (srcLong / safeDpr(dpr))) / fitLong);
 }
 
 export function zoomAnchor(

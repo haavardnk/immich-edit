@@ -6,7 +6,7 @@
   import { browseView } from '$lib/stores/browseView.svelte';
   import { compare, CENTERED, type CompareMode } from '$lib/stores/compare.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { MAX_ZOOM, ui } from '$lib/stores/ui.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { getAsset } from '$lib/api/assets';
@@ -32,11 +32,11 @@
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
+  import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { IconButton } from '@immich/ui';
   import { mdiChevronLeft, mdiChevronRight, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
-  const TARGET_ZOOM = 250;
 
   let paneMaxEdge = $state(MAX_EDGE);
 
@@ -56,7 +56,7 @@
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
   const exif = $derived(asset?.exifInfo ?? null);
-  const zoom = $derived(focusedId ? compare.viewOf(focusedId).zoom : 100);
+  const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
   const cols = $derived(panes.length <= 4 ? 2 : 3);
   const gridStyle = $derived(
     multi ? `grid-template-columns: repeat(${Math.min(cols, panes.length)}, minmax(0, 1fr));` : ''
@@ -65,12 +65,14 @@
 
   let tagCache = $state<Record<string, TagRef[]>>({});
   let tagOrder = $state<string[]>([]);
-  let nativeZooms = $state<Record<string, number | null>>({});
+  let fitZooms = $state<Record<string, number>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
   let paneImageOrder = $state<string[]>([]);
   let targetIndex = $state<number | null>(null);
   const currentTags = $derived(focusedId ? (tagCache[focusedId] ?? []) : []);
-  const focusedNativeZoom = $derived(focusedId ? (nativeZooms[focusedId] ?? null) : null);
+  const focusedFitZoom = $derived(focusedId ? (fitZooms[focusedId] ?? 100) : 100);
+  const zoom = $derived(paneView.zoom ?? focusedFitZoom);
+  const zoomed = $derived(paneView.zoom !== null && paneView.zoom > focusedFitZoom);
 
   onDestroy(() => {
     ui.fullscreen = false;
@@ -283,30 +285,39 @@
   function stepZoomTarget(id: string): void {
     if (id !== focusedId) return;
     const targets = zoomTargetsFor(id);
-    const next = nextTargetIndex(zoom > 100 ? targetIndex : null, targets.length);
+    const next = nextTargetIndex(zoomed ? targetIndex : null, targets.length);
     targetIndex = next;
     const target = next === null ? null : targets[next];
     if (!target) {
-      setZoom(100);
+      compare.applyView(id, CENTERED);
       return;
     }
-    compare.applyView(id, { zoom: TARGET_ZOOM, cx: target.u, cy: target.v });
+    compare.applyView(id, { zoom: ui.zoomLevel, cx: target.u, cy: target.v });
   }
 
   function setZoom(value: number): void {
     const id = focusedId;
     if (!id) return;
-    const nextZoom = Math.round(Math.min(MAX_ZOOM, Math.max(25, value)));
+    const nextZoom = clampZoom(value, focusedFitZoom);
     const view = compare.viewOf(id);
     compare.applyView(
       id,
-      nextZoom <= 100 ? { ...CENTERED, zoom: nextZoom } : { ...view, zoom: nextZoom }
+      nextZoom > focusedFitZoom ? { ...view, zoom: nextZoom } : { ...CENTERED, zoom: nextZoom }
     );
+    if (nextZoom <= focusedFitZoom) return;
+    ui.zoomLevel = nextZoom;
+    writeZoomLevel(nextZoom);
   }
 
-  function setNativeZoom(id: string, value: number | null): void {
-    if (nativeZooms[id] === value) return;
-    nativeZooms = { ...nativeZooms, [id]: value };
+  function fitZoom(): void {
+    const id = focusedId;
+    if (!id) return;
+    compare.applyView(id, CENTERED);
+  }
+
+  function setFitZoom(id: string, value: number): void {
+    if (fitZooms[id] === value) return;
+    fitZooms = { ...fitZooms, [id]: value };
   }
 
   function setPaneImage(id: string, element: HTMLImageElement): void {
@@ -519,7 +530,7 @@
             paneAsset?.exifInfo?.exifImageWidth ?? 0,
             paneAsset?.exifInfo?.exifImageHeight ?? 0
           )}
-          onNativeZoom={(value) => setNativeZoom(id, value)}
+          onFitZoom={(value) => setFitZoom(id, value)}
           onImage={(element) => setPaneImage(id, element)}
         />
       {/each}
@@ -600,7 +611,8 @@
         {multi}
         paneCount={panes.length}
         {zoom}
-        nativeZoom={focusedNativeZoom}
+        fitZoom={focusedFitZoom}
+        fitMode={paneView.zoom === null}
         onRate={rate}
         onFavorite={favorite}
         onReject={reject}
@@ -608,6 +620,7 @@
         onRemoveTag={removeTag}
         onCreateTag={createAndAddTag}
         onZoom={setZoom}
+        onFit={fitZoom}
       />
 
       <Filmstrip

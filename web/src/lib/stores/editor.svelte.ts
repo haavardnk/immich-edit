@@ -81,7 +81,6 @@ const MAX_EDGE = 4096;
 const VIEW_MAX_EDGE = 65535;
 const VIEW_DEBOUNCE_MS = 150;
 const MAX_HISTORY = 50;
-const TARGET_ZOOM = 200;
 
 type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
@@ -192,7 +191,7 @@ class EditorStore {
   private baseImage: HTMLImageElement | null = null;
   private zoomTargetIndex: number | null = null;
   private zoomTargetView: string | null = null;
-  private srcLong = Number.POSITIVE_INFINITY;
+  private srcLong = $state(Number.POSITIVE_INFINITY);
   private originalEdge = 0;
   private originalGeomKey = '';
 
@@ -422,11 +421,14 @@ class EditorStore {
     this.zoomTargetIndex = next;
     const target = next === null ? null : targets[next];
     const snap = this.viewSnap;
-    if (!target || !snap || snap.frame.width <= 0 || ui.zoom <= 0) {
-      ui.setZoom(target ? TARGET_ZOOM : 100);
+    if (!target) {
+      ui.zoomFit();
+    } else if (!snap || snap.frame.width <= 0 || ui.zoom <= 0) {
+      ui.setZoom(ui.zoomLevel);
     } else {
-      const pan = panForTarget(target, snap.frame, snap.viewW, snap.viewH, TARGET_ZOOM / ui.zoom);
-      ui.setView(TARGET_ZOOM, pan.panX, pan.panY);
+      const zoom = ui.zoomLevel;
+      const pan = panForTarget(target, snap.frame, snap.viewW, snap.viewH, zoom / ui.zoom);
+      ui.setView(zoom, pan.panX, pan.panY);
     }
     this.zoomTargetView = this.viewKeyOf();
   }

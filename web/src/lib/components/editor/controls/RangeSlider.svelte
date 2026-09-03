@@ -5,6 +5,7 @@
     max,
     step = 1,
     label,
+    valueText,
     disabled = false,
     class: className = '',
     gradient,
@@ -18,6 +19,7 @@
     max: number;
     step?: number;
     label: string;
+    valueText?: string;
     disabled?: boolean;
     class?: string;
     gradient?: string;
@@ -39,6 +41,7 @@
   class="slider-range {className}"
   style:background-image={background}
   aria-label={label}
+  aria-valuetext={valueText}
   {min}
   {max}
   {step}

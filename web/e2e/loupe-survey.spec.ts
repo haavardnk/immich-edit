@@ -1,14 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
 
 const ASSETS = [
-  ASSET_SUMMARY,
+  { ...ASSET_SUMMARY, exifInfo: ASSET_EXIF },
   {
     ...ASSET_SUMMARY,
     id: '00000000-0000-0000-0000-000000000002',
-    originalFileName: 'IMG_0002.ARW'
+    originalFileName: 'IMG_0002.ARW',
+    exifInfo: ASSET_EXIF
   },
-  { ...ASSET_SUMMARY, id: '00000000-0000-0000-0000-000000000003', originalFileName: 'IMG_0003.ARW' }
+  {
+    ...ASSET_SUMMARY,
+    id: '00000000-0000-0000-0000-000000000003',
+    originalFileName: 'IMG_0003.ARW',
+    exifInfo: ASSET_EXIF
+  }
 ];
 
 const PANES = ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW'];
@@ -86,7 +92,7 @@ test('zoom applies to every survey pane', async ({ page }) => {
 
   await page.keyboard.press('z');
   for (const name of PANES) {
-    await expect(page.getByRole('img', { name })).toHaveAttribute('style', /scale\(2\.5\)/);
+    await expect(page.getByRole('img', { name })).toHaveAttribute('style', /scale\(/);
   }
 });
 

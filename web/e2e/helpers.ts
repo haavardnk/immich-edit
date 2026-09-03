@@ -69,6 +69,8 @@ export const ASSET_SUMMARY = {
   exifInfo: null
 };
 
+export const ASSET_EXIF = { exifImageWidth: 6000, exifImageHeight: 4000 };
+
 export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;
 };

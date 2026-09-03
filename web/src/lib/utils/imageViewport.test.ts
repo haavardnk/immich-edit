@@ -27,10 +27,10 @@ describe('splitPosition', () => {
 
 describe('viewportTransform', () => {
   it.each<[number, number, number, string]>([
-    [100, 0, 0, ''],
-    [100, 20, -10, 'transform: scale(1) translate(20px, -10px); transform-origin: center;'],
-    [200, 20, -10, 'transform: scale(2) translate(10px, -5px); transform-origin: center;']
-  ])('formats zoom %s and pan (%s, %s)', (zoom, panX, panY, expected) => {
-    expect(viewportTransform(zoom, panX, panY)).toBe(expected);
+    [1, 0, 0, ''],
+    [1, 20, -10, 'transform: scale(1) translate(20px, -10px); transform-origin: center;'],
+    [2, 20, -10, 'transform: scale(2) translate(10px, -5px); transform-origin: center;']
+  ])('formats fit ratio %s and pan (%s, %s)', (fitRatio, panX, panY, expected) => {
+    expect(viewportTransform(fitRatio, panX, panY)).toBe(expected);
   });
 });
