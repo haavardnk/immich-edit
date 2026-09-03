@@ -7,7 +7,8 @@ permalink: /features/
 
 # Features
 
-This matrix covers v0.4.0. `✗ No` does not imply planned support.
+This matrix tracks `main`, so it can run slightly ahead of the newest release. `✗ No` does not
+imply planned support.
 
 ## Immich library and culling
 
