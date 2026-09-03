@@ -1,15 +1,17 @@
 import { getJson, sendJson, url, ApiError, ConflictError } from './client';
 import { editsToManifest } from '$lib/edits/manifest';
+import type { AssetDetail } from '$lib/types/asset';
 import type { Edits, EditRecord } from '$lib/types/edits';
 
 export interface EditedAssetEntry {
   id: string;
   hash: string;
   updated_at: string;
+  asset?: AssetDetail;
 }
 
-export function listEditedAssets(): Promise<EditedAssetEntry[]> {
-  return getJson('/api/edits');
+export function listEditedAssets(withAssets = false): Promise<EditedAssetEntry[]> {
+  return getJson(withAssets ? '/api/edits?with_assets=true' : '/api/edits');
 }
 
 export function getEdits(assetId: string): Promise<EditRecord> {

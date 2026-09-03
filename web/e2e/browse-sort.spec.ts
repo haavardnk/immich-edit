@@ -108,3 +108,23 @@ test('edited view sorts by edit time', async ({ page }) => {
   await page.getByRole('button', { name: 'Oldest edit first' }).click();
   await expectOrder(page, [MID_ID, OLD_ID, NEW_ID]);
 });
+
+test('edited view names photos from one enriched request', async ({ page }) => {
+  let assetDetailCalls = 0;
+  await installMocks(page, {
+    assets: ASSETS,
+    edits: [
+      { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
+      { id: MID_ID, hash: 'h2', updated_at: '2024-06-01T00:00:00Z' }
+    ]
+  });
+  await page.route('**/api/assets/*', async (route) => {
+    if (route.request().method() === 'GET') assetDetailCalls += 1;
+    await route.fallback();
+  });
+
+  await page.goto('/edited');
+  await expect(page.getByRole('link', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'IMG_0002.ARW' })).toBeVisible();
+  expect(assetDetailCalls).toBe(0);
+});
