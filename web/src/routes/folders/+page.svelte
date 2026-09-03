@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { onMount, untrack } from 'svelte';
-  import { folderAssets } from '$lib/api/folders';
+  import { loadFolderAssets } from '$lib/browseSources';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { sortAssets } from '$lib/sortAssets';
@@ -19,18 +19,7 @@
     if (!path) return;
     folderPath = path;
     loading = true;
-    const raw = await folderAssets(path);
-    loaded = raw.map((a) => ({
-      id: a.id,
-      originalFileName: a.originalFileName,
-      type: a.type,
-      fileCreatedAt: a.fileCreatedAt,
-      updatedAt: a.updatedAt,
-      checksum: a.checksum,
-      isFavorite: a.isFavorite ?? false,
-      exifInfo: a.exifInfo ?? null,
-      tags: []
-    }));
+    loaded = await loadFolderAssets(path);
     loading = false;
   }
 

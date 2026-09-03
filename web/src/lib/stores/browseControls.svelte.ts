@@ -5,12 +5,32 @@ export type { SortDir, Visibility };
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
 export type SortFamily = 'timeline' | 'collection' | 'edited';
 
+export interface BrowseFilters {
+  favoriteOnly: boolean;
+  rating: RatingFilter;
+  filename: string;
+  visibility: Visibility;
+  takenAfter: string;
+  takenBefore: string;
+  excludeRejected: boolean;
+}
+
 const SORT_KEY = 'immich-edit:browseSort';
 
 const SORT_DEFAULTS: Record<SortFamily, SortDir> = {
   timeline: 'desc',
   collection: 'asc',
   edited: 'asc'
+};
+
+export const FILTER_DEFAULTS: BrowseFilters = {
+  favoriteOnly: false,
+  rating: 'any',
+  filename: '',
+  visibility: 'timeline',
+  takenAfter: '',
+  takenBefore: '',
+  excludeRejected: false
 };
 
 export class BrowseControlsStore {
@@ -89,14 +109,30 @@ export class BrowseControlsStore {
     this.resetFilters();
   }
 
+  get filters(): BrowseFilters {
+    return {
+      favoriteOnly: this.favoriteOnly,
+      rating: this.rating,
+      filename: this.filename,
+      visibility: this.visibility,
+      takenAfter: this.takenAfter,
+      takenBefore: this.takenBefore,
+      excludeRejected: this.excludeRejected
+    };
+  }
+
+  applyFilters(filters: BrowseFilters): void {
+    this.favoriteOnly = filters.favoriteOnly;
+    this.rating = filters.rating;
+    this.filename = filters.filename;
+    this.visibility = filters.visibility;
+    this.takenAfter = filters.takenAfter;
+    this.takenBefore = filters.takenBefore;
+    this.excludeRejected = filters.excludeRejected;
+  }
+
   private resetFilters(): void {
-    this.favoriteOnly = false;
-    this.rating = 'any';
-    this.filename = '';
-    this.visibility = 'timeline';
-    this.takenAfter = '';
-    this.takenBefore = '';
-    this.excludeRejected = false;
+    this.applyFilters(FILTER_DEFAULTS);
   }
 
   searchBody(base: SearchQuery): SearchQuery {

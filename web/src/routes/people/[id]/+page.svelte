@@ -15,7 +15,7 @@
     untrack(() => {
       browseControls.enter('person:' + id, 'collection');
       feed.reset();
-      feed.fetchPage(true);
+      void feed.fetchPage(true);
     });
   });
 
