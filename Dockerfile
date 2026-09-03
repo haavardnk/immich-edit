@@ -7,7 +7,7 @@ COPY web/ .
 RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
     npm run build
 
-FROM rust:1.97-trixie AS chef
+FROM rust:1.98-trixie AS chef
 RUN cargo install cargo-chef cargo-edit --locked
 WORKDIR /build
 COPY .cargo/ .cargo/

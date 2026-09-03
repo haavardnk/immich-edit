@@ -87,7 +87,7 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ secrets.DOCKERHUB_USERNAME }}/immich-edit@sha256:%s ' *)
       - name: Generate SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@v0.24.1
         with:
           image: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit:${{ steps.meta.outputs.version }}
           format: cyclonedx-json

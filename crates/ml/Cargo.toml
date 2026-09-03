@@ -8,7 +8,7 @@ license.workspace = true
 half = "2"
 thiserror = { workspace = true }
 tracing = { workspace = true }
-ort = { version = "=2.0.0-rc.12", features = ["half"] }
+ort = { version = "=2.0.0-rc.13", features = ["half"] }
 
 [target.'cfg(not(all(target_arch = "aarch64", target_os = "linux")))'.dependencies]
-ort = { version = "=2.0.0-rc.12", features = ["webgpu"] }
+ort = { version = "=2.0.0-rc.13", features = ["webgpu"] }
