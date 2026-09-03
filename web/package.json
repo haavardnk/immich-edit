@@ -32,7 +32,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.22.0",
     "globals": "^17.9.0",
-    "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "prettier-plugin-svelte": "^4.1.1",
     "serve": "^14.2.6",
