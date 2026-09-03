@@ -3,11 +3,13 @@ import { toasts } from '$lib/stores/toasts.svelte';
 export class ApiError extends Error {
   status: number;
   code: string;
+  requestId?: string;
   body?: unknown;
-  constructor(status: number, code: string, message: string, body?: unknown) {
+  constructor(status: number, code: string, message: string, requestId?: string, body?: unknown) {
     super(message);
     this.status = status;
     this.code = code;
+    this.requestId = requestId;
     this.body = body;
   }
 }
@@ -43,16 +45,18 @@ function redirectToLogin(): void {
 async function parseError(resp: Response): Promise<ApiError> {
   let code = 'unknown';
   let message = resp.statusText || 'request failed';
+  let requestId: string | undefined;
   let body: unknown;
   try {
     body = await resp.json();
-    const b = body as { code?: unknown; message?: unknown } | null;
+    const b = body as { code?: unknown; message?: unknown; request_id?: unknown } | null;
     if (b && typeof b.code === 'string') code = b.code;
     if (b && typeof b.message === 'string') message = b.message;
+    if (b && typeof b.request_id === 'string') requestId = b.request_id;
   } catch {
     /* ignore */
   }
-  return new ApiError(resp.status, code, message, body);
+  return new ApiError(resp.status, code, message, requestId, body);
 }
 
 function reportError(err: unknown): void {
@@ -71,7 +75,8 @@ function reportError(err: unknown): void {
     } else if (err.code === 'upstream_timeout') {
       toasts.push('warn', 'Immich request timed out.');
     } else if (err.status >= 500) {
-      toasts.push('error', `Server error: ${err.message}`);
+      const reference = err.requestId ? ` Reference ${err.requestId}.` : '';
+      toasts.push('error', `Server error. Check the immich-edit logs for details.${reference}`);
     }
     return;
   }
