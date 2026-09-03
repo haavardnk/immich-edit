@@ -216,6 +216,92 @@ async fn put_with_if_match_conflict_returns_current() {
     }
 }
 
+#[tokio::test]
+async fn delete_with_if_match_conflict_returns_current() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}")))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": id,
+            "originalFileName": "x.arw",
+            "type": "IMAGE",
+            "updatedAt": "2026-05-01T00:00:00Z",
+            "checksum": "deadbeef"
+        })))
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let put_body = serde_json::json!({
+        "schema_version": 2,
+        "ops": { "exposure": { "ev": 1.5 } }
+    });
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("content-type", "application/json")
+                .body(Body::from(put_body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("put: {}", resp.status());
+    }
+    let saved: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let current_hash = saved["hash"].as_str().unwrap().to_string();
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("if-match", "stale-hash")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::CONFLICT {
+        panic!("expected 409, got {}", resp.status());
+    }
+    let body: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if body["hash"].as_str() != Some(current_hash.as_str()) {
+        panic!("conflict body hash: {body}");
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .await
+        .unwrap();
+    let kept: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if kept["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
+        panic!("conflicting delete must not reset: {kept}");
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/assets/{id}/edits"))
+                .header("if-match", format!("\"{current_hash}\""))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NO_CONTENT {
+        panic!("matching if-match should delete: {}", resp.status());
+    }
+}
+
 fn arw_fixture() -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
