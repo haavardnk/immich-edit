@@ -1,4 +1,5 @@
 import { cancelJob, clearJobs, getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
+import { url } from '$lib/api/client';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 
@@ -114,7 +115,7 @@ class JobsStore {
   private connect(id: string): void {
     if (this.sources.has(id)) return;
     if ((this.streamErrors.get(id) ?? 0) >= MAX_STREAM_ERRORS) return;
-    const source = new EventSource(`/api/jobs/${id}/events`);
+    const source = new EventSource(url`/api/jobs/${id}/events`);
     source.addEventListener('job', (ev) => {
       try {
         const job = JSON.parse((ev as MessageEvent).data) as Job;

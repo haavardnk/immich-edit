@@ -1,10 +1,10 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 import type { AssetDetail } from '$lib/types/asset';
 import { sourceId } from '$lib/assetKey';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 
 export function getAsset(id: string): Promise<AssetDetail> {
-  return getJson(`/api/assets/${id}`);
+  return getJson(url`/api/assets/${id}`);
 }
 
 export interface AssetUpdate {
@@ -13,15 +13,15 @@ export interface AssetUpdate {
 }
 
 export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail> {
-  return sendJson('PUT', `/api/assets/${id}`, body);
+  return sendJson('PUT', url`/api/assets/${id}`, body);
 }
 
 export function thumbUrl(id: string, size: 'thumbnail' | 'preview' = 'thumbnail'): string {
-  return `/api/assets/${id}/thumb?size=${size}`;
+  return url`/api/assets/${id}/thumb?size=${size}`;
 }
 
 export function editedThumbUrl(id: string, hash: string, size = 400): string {
-  return `/api/assets/${id}/edited-thumb?h=${encodeURIComponent(hash)}&size=${size}`;
+  return url`/api/assets/${id}/edited-thumb?h=${hash}&size=${size}`;
 }
 
 export function assetThumbUrl(

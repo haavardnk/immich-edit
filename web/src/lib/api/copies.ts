@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 
 export interface CopyRecord {
   id: string;
@@ -8,20 +8,20 @@ export interface CopyRecord {
 }
 
 export function listCopies(assetId: string): Promise<CopyRecord[]> {
-  return getJson(`/api/assets/${assetId}/copies`);
+  return getJson(url`/api/assets/${assetId}/copies`);
 }
 
 export function createCopy(
   assetId: string,
   body: { name?: string; from?: 'current' | 'neutral' } = {}
 ): Promise<CopyRecord> {
-  return sendJson('POST', `/api/assets/${assetId}/copies`, body);
+  return sendJson('POST', url`/api/assets/${assetId}/copies`, body);
 }
 
 export function renameCopy(id: string, name: string | null): Promise<CopyRecord> {
-  return sendJson('PATCH', `/api/copies/${id}`, { name });
+  return sendJson('PATCH', url`/api/copies/${id}`, { name });
 }
 
 export function deleteCopy(id: string): Promise<void> {
-  return sendJson('DELETE', `/api/copies/${id}`, undefined);
+  return sendJson('DELETE', url`/api/copies/${id}`, undefined);
 }

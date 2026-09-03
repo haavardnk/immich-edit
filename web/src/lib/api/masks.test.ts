@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clickMask } from './masks';
 import { sendJson } from './client';
 
-vi.mock('./client', () => ({ sendJson: vi.fn(() => Promise.resolve({})) }));
+vi.mock('./client', async (original) => ({
+  ...(await original<typeof import('./client')>()),
+  sendJson: vi.fn(() => Promise.resolve({}))
+}));
 
 const mocked = vi.mocked(sendJson);
 

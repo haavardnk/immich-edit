@@ -1,4 +1,4 @@
-import { getJson, sendBytes, sendJson } from './client';
+import { getJson, sendBytes, sendJson, url } from './client';
 
 export interface LutMeta {
   id: string;
@@ -13,9 +13,9 @@ export async function listLuts(): Promise<LutMeta[]> {
 }
 
 export async function importLut(name: string, bytes: Uint8Array): Promise<LutMeta> {
-  return sendBytes<LutMeta>(`/api/luts?name=${encodeURIComponent(name)}`, bytes);
+  return sendBytes<LutMeta>(url`/api/luts?name=${name}`, bytes);
 }
 
 export async function deleteLut(id: string): Promise<void> {
-  await sendJson<void>('DELETE', `/api/luts/${id}`, undefined);
+  await sendJson<void>('DELETE', url`/api/luts/${id}`, undefined);
 }
