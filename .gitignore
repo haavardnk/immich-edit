@@ -31,10 +31,16 @@ data/
 docker-compose.dev.yml
 Dockerfile.dev
 dev.sh
-.github/copilot-instructions.md
 
 # Local notes
 notes/
+
+# Agent knowledge
+/.kb/
+/AGENTS.md
+/.agents/
+/.codex/
+/.github/copilot-instructions.md
 
 # Local bench and probe examples, not part of the build
 crates/ml/examples/
