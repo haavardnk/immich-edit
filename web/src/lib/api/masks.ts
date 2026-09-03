@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 
 export type MaskKind = 'subject' | 'people' | 'sky' | 'depth' | 'semantic' | 'click';
 
@@ -62,7 +62,7 @@ export function generateMask(
   feather = 0,
   maskClass?: string
 ): Promise<GeneratedMask> {
-  return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/generate`, {
+  return sendJson<GeneratedMask>('POST', url`/api/assets/${assetId}/masks/generate`, {
     kind,
     grow,
     feather,
@@ -92,7 +92,7 @@ export function clickMask(
   subtract = false,
   bbox?: MaskBox
 ): Promise<GeneratedMask> {
-  return sendJson<GeneratedMask>('POST', `/api/assets/${assetId}/masks/click`, {
+  return sendJson<GeneratedMask>('POST', url`/api/assets/${assetId}/masks/click`, {
     points,
     grow,
     feather,
@@ -125,11 +125,13 @@ export function rebakeMask(
 }
 
 export function installMaskModel(id: string): Promise<void> {
-  return sendJson<void>('POST', `/api/admin/models/${id}`, undefined, undefined, { silent: true });
+  return sendJson<void>('POST', url`/api/admin/models/${id}`, undefined, undefined, {
+    silent: true
+  });
 }
 
 export function removeMaskModel(id: string): Promise<void> {
-  return sendJson<void>('DELETE', `/api/admin/models/${id}`, undefined);
+  return sendJson<void>('DELETE', url`/api/admin/models/${id}`, undefined);
 }
 
 export function selectMaskModel(kind: MaskKind, modelId: string): Promise<void> {

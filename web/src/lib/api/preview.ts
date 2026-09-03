@@ -1,4 +1,4 @@
-import { getJson, postForBlob } from './client';
+import { getJson, postForBlob, url } from './client';
 import type { Edits } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { ColorSpaceOpt } from './export';
@@ -29,7 +29,7 @@ export function previewModeIsNone(m: PreviewMode): boolean {
 }
 
 export function persistedPreviewUrl(assetId: string, max: number, clipWarn = false): string {
-  return `/api/assets/${assetId}/preview?max=${max}&clip=${clipWarn}`;
+  return url`/api/assets/${assetId}/preview?max=${max}&clip=${clipWarn}`;
 }
 
 export async function livePreview(
@@ -43,7 +43,7 @@ export async function livePreview(
   roi?: Roi
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
-    `/api/assets/${assetId}/preview`,
+    url`/api/assets/${assetId}/preview`,
     {
       max_edge: maxEdge,
       edits,
@@ -59,5 +59,5 @@ export async function livePreview(
 }
 
 export function getPreviewMeta(assetId: string, metaId: string): Promise<PreviewMeta> {
-  return getJson(`/api/assets/${assetId}/preview/meta/${metaId}`);
+  return getJson(url`/api/assets/${assetId}/preview/meta/${metaId}`);
 }

@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 
 export interface SessionInfo {
   id: string;
@@ -15,7 +15,7 @@ export async function listSessions(): Promise<SessionInfo[]> {
 }
 
 export async function revokeSession(id: string): Promise<void> {
-  await sendJson<{ ok: boolean }>('DELETE', `/api/auth/sessions/${id}`, undefined);
+  await sendJson<{ ok: boolean }>('DELETE', url`/api/auth/sessions/${id}`, undefined);
 }
 
 export async function revokeAllSessions(): Promise<void> {

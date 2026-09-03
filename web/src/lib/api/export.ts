@@ -1,4 +1,4 @@
-import { request, sendJson } from '$lib/api/client';
+import { request, sendJson, url } from '$lib/api/client';
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 import { v4 as uuidv4 } from 'uuid';
@@ -48,7 +48,7 @@ function queryString(opts: ExportOptions): string {
 }
 
 export function exportUrlPersisted(assetId: string, opts: ExportOptions): string {
-  return `/api/assets/${assetId}/export${queryString(opts)}`;
+  return url`/api/assets/${assetId}/export` + queryString(opts);
 }
 
 export async function downloadExport(
@@ -56,7 +56,7 @@ export async function downloadExport(
   edits: Edits,
   opts: ExportOptions
 ): Promise<Blob> {
-  const base = `/api/assets/${assetId}/export`;
+  const base = url`/api/assets/${assetId}/export`;
   if (isIdentity(edits)) {
     const resp = await request(base + queryString(opts));
     return resp.blob();
@@ -105,7 +105,7 @@ export async function uploadToImmich(
 ): Promise<ImmichExportResult> {
   return sendJson<ImmichExportResult>(
     'POST',
-    `/api/assets/${assetId}/export/immich`,
+    url`/api/assets/${assetId}/export/immich`,
     {
       edits,
       format: opts.format,

@@ -1,4 +1,4 @@
-import { getJson, sendJson } from './client';
+import { getJson, sendJson, url } from './client';
 
 export interface AdminUser {
   id: string;
@@ -28,11 +28,11 @@ export async function listUsers(): Promise<AdminUser[]> {
 }
 
 export async function setUserAccess(id: string, enabled: boolean): Promise<void> {
-  await sendJson<{ ok: boolean }>('PUT', `/api/admin/users/${id}/access`, { enabled });
+  await sendJson<{ ok: boolean }>('PUT', url`/api/admin/users/${id}/access`, { enabled });
 }
 
 export async function purgeUserData(id: string): Promise<void> {
-  await sendJson<{ ok: boolean }>('DELETE', `/api/admin/users/${id}/data`, undefined);
+  await sendJson<{ ok: boolean }>('DELETE', url`/api/admin/users/${id}/data`, undefined);
 }
 
 export async function getInstance(): Promise<InstanceInfo> {

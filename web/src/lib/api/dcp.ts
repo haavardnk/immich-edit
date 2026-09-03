@@ -1,4 +1,4 @@
-import { getJson, sendBytes, sendJson } from './client';
+import { getJson, sendBytes, sendJson, url } from './client';
 
 export interface DcpMeta {
   id: string;
@@ -21,9 +21,9 @@ export async function matchDcp(model: string, make?: string | null): Promise<Dcp
 }
 
 export async function importDcp(name: string, bytes: Uint8Array): Promise<DcpMeta> {
-  return sendBytes<DcpMeta>(`/api/dcp?name=${encodeURIComponent(name)}`, bytes);
+  return sendBytes<DcpMeta>(url`/api/dcp?name=${name}`, bytes);
 }
 
 export async function deleteDcp(id: string): Promise<void> {
-  await sendJson<void>('DELETE', `/api/dcp/${id}`, undefined);
+  await sendJson<void>('DELETE', url`/api/dcp/${id}`, undefined);
 }

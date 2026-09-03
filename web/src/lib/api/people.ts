@@ -1,4 +1,4 @@
-import { getJson } from './client';
+import { getJson, url } from './client';
 
 export interface PersonSummary {
   id: string;
@@ -14,5 +14,5 @@ export function listPeople(): Promise<PersonSummary[]> {
 }
 
 export function personThumbUrl(id: string): string {
-  return `/api/people/${id}/thumb`;
+  return url`/api/people/${id}/thumb`;
 }

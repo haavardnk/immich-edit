@@ -1,4 +1,4 @@
-import { getJson } from './client';
+import { getJson, url } from './client';
 
 export interface ProfileLensEdits {
   k1: number;
@@ -20,5 +20,5 @@ export interface LensProfileMatch {
 }
 
 export function getLensProfile(assetId: string): Promise<LensProfileMatch> {
-  return getJson(`/api/assets/${assetId}/lens-profile`);
+  return getJson(url`/api/assets/${assetId}/lens-profile`);
 }
