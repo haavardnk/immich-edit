@@ -40,12 +40,12 @@
   function submitSearch(value: string): void {
     const q = value.trim();
     if (q) {
-      goto('/search?q=' + encodeURIComponent(q), {
+      void goto('/search?q=' + encodeURIComponent(q), {
         replaceState: page.url.pathname === '/search',
         keepFocus: true
       });
     } else if (page.url.pathname === '/search') {
-      goto('/photos', { keepFocus: true });
+      void goto('/photos', { keepFocus: true });
     }
   }
 
@@ -65,14 +65,14 @@
   function clearSearch(): void {
     clearTimeout(searchTimeout);
     ui.searchQuery = '';
-    if (page.url.pathname === '/search') goto('/photos');
+    if (page.url.pathname === '/search') void goto('/photos');
   }
 
   function toggleSettings(): void {
     if (onSettings) {
       window.history.back();
     } else {
-      goto('/settings');
+      void goto('/settings');
     }
   }
 </script>

@@ -12,7 +12,7 @@
     fromPx
   }: {
     draft: { points: Vec2f[] };
-    rect: { x: number; y: number; w: number; h: number };
+    rect: { x: number; y: number };
     toPx: (v: Vec2f) => { x: number; y: number };
     fromPx: (px: number, py: number) => Vec2f;
   } = $props();

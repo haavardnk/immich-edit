@@ -24,7 +24,7 @@
   function resetWb(): void {
     editor.edits.basic.wb_temp = 0;
     editor.edits.basic.wb_tint = 0;
-    editor.onCommit('Reset White Balance');
+    void editor.onCommit('Reset White Balance');
   }
 
   function resetTone(): void {
@@ -35,7 +35,7 @@
     editor.edits.tone.shadows = 0;
     editor.edits.tone.whites = 0;
     editor.edits.tone.blacks = 0;
-    editor.onCommit('Reset Tone');
+    void editor.onCommit('Reset Tone');
   }
 
   function resetPresence(): void {
@@ -44,7 +44,7 @@
     editor.edits.basic.dehaze = 0;
     editor.edits.basic.vibrance = 0;
     editor.edits.basic.saturation = 0;
-    editor.onCommit('Reset Presence');
+    void editor.onCommit('Reset Presence');
   }
 </script>
 

@@ -42,7 +42,7 @@ describe('BrowseFeed pagination', () => {
     });
     const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
 
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
     await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
     feed.loadMore();
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
@@ -69,8 +69,8 @@ describe('BrowseFeed pagination', () => {
     const fetcher = vi.fn(() => new Promise<SearchResult>((r) => resolvers.push(r)));
     const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
 
-    feed.fetchPage(true);
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
+    void feed.fetchPage(true);
     expect(fetcher).toHaveBeenCalledTimes(2);
 
     resolvers[1](result(null, ['new']));
@@ -88,13 +88,13 @@ describe('BrowseFeed pagination', () => {
     const fetcher = vi.fn(() => new Promise<SearchResult>((r) => resolvers.push(r)));
     const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
 
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
     resolvers[0](result('2', ['a']));
     await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
 
     feed.loadMore();
     expect(feed.loadingMore).toBe(true);
-    feed.fetchPage(true);
+    void feed.fetchPage(true);
 
     resolvers[2](result(null, ['b']));
     await vi.waitFor(() => expect(feed.assets.map((a) => a.id)).toEqual(['b']));

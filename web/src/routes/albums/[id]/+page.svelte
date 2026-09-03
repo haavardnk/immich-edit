@@ -23,7 +23,7 @@
     const current = id;
     untrack(() => {
       selection.clear();
-      album.load(current);
+      void album.load(current);
       browseControls.enter('album:' + current, 'collection');
       feed.reset();
       void feed.fetchPage(true);
@@ -43,7 +43,7 @@
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}
   onRetry={() => {
-    album.load(id);
+    void album.load(id);
     feed.reset();
     void feed.fetchPage(true);
   }}

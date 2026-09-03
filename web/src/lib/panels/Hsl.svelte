@@ -15,7 +15,7 @@
     b.hue = 0;
     b.sat = 0;
     b.lum = 0;
-    editor.onCommit(`Reset ${HSL_BAND_NAMES[i]}`);
+    void editor.onCommit(`Reset ${HSL_BAND_NAMES[i]}`);
   }
 
   function resetAllHsl(): void {
@@ -24,7 +24,7 @@
       b.sat = 0;
       b.lum = 0;
     }
-    editor.onCommit('Reset HSL');
+    void editor.onCommit('Reset HSL');
   }
 
   const bandHue = $derived(HSL_BAND_HUES[activeBand]);

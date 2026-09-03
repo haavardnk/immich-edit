@@ -287,7 +287,7 @@
       target.releasePointerCapture(pointerId);
       pointerId = null;
     }
-    editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+    void editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
   }
 
   function onDblClick(e: MouseEvent) {
@@ -305,7 +305,7 @@
         newPts.splice(i, 1);
         setCurve(activeChannel, newPts);
         if (selected === i) selected = null;
-        editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+        void editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
         return;
       }
     }
@@ -357,7 +357,7 @@
         newPts.splice(selected, 1);
         setCurve(activeChannel, newPts);
         selected = null;
-        editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+        void editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
       }
       e.preventDefault();
     } else if (e.key === 'Escape') {
@@ -376,19 +376,19 @@
   function resetActive() {
     setCurve(activeChannel, identityCurve());
     selected = null;
-    editor.onCommit(`Reset Curve ${channelLabels[activeChannel]}`);
+    void editor.onCommit(`Reset Curve ${channelLabels[activeChannel]}`);
   }
 
   function resetAll() {
     editor.edits.basic.curves = neutralCurves();
     selected = null;
-    editor.onCommit('Reset Curves');
+    void editor.onCommit('Reset Curves');
   }
 
   function commitKeyboard(): void {
     if (!keyboardDirty) return;
     keyboardDirty = false;
-    editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
+    void editor.onCommit(`Curve ${channelLabels[activeChannel]}`);
   }
 
   function onKeyUp(e: KeyboardEvent): void {

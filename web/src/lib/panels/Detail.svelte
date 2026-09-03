@@ -28,7 +28,7 @@
 
   function onToggleCaptureSharpen(checked: boolean): void {
     editor.edits.detail.capture_sharpen = checked;
-    editor.onCommit('Capture Sharpening');
+    void editor.onCommit('Capture Sharpening');
   }
 
   function resetSharpen(): void {
@@ -37,7 +37,7 @@
     editor.edits.detail.sharpen_radius = NEUTRAL_DETAIL.sharpen_radius;
     editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
     editor.edits.detail.sharpen_masking = NEUTRAL_DETAIL.sharpen_masking;
-    editor.onCommit('Reset Sharpening');
+    void editor.onCommit('Reset Sharpening');
   }
 
   function resetNr(): void {
@@ -47,7 +47,7 @@
     editor.edits.detail.color_nr_amount = NEUTRAL_DETAIL.color_nr_amount;
     editor.edits.detail.color_nr_detail = NEUTRAL_DETAIL.color_nr_detail;
     editor.edits.detail.color_nr_smoothness = NEUTRAL_DETAIL.color_nr_smoothness;
-    editor.onCommit('Reset Noise Reduction');
+    void editor.onCommit('Reset Noise Reduction');
   }
 </script>
 
