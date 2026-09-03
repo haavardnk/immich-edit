@@ -672,7 +672,7 @@ class EditorStore {
   private async persistSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
     try {
       if (isIdentity(edits)) {
-        await deleteEdits(session.assetId, action);
+        await deleteEdits(session.assetId, action, session.hash);
         session.hash = '';
       } else {
         const saved = await putEdits(session.assetId, edits, session.hash, action);

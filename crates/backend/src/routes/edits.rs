@@ -96,8 +96,21 @@ pub async fn delete(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
+    headers: HeaderMap,
     body: Option<Json<ActionBody>>,
-) -> Result<StatusCode, AppError> {
+) -> Result<Response, AppError> {
+    let if_match = headers
+        .get("if-match")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim_matches('"').to_string());
+    if let Some(expected) = if_match.as_deref()
+        && let Some(current) = state
+            .edits
+            .if_match_conflict(ctx.owner, id, expected)
+            .await?
+    {
+        return Ok((StatusCode::CONFLICT, Json(current)).into_response());
+    }
     let action = body
         .and_then(|Json(b)| b.action)
         .unwrap_or_else(|| "Reset".to_string());
@@ -105,7 +118,7 @@ pub async fn delete(
         .edits
         .delete(ctx.owner, id, Some(action.as_str()))
         .await?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 pub async fn auto(

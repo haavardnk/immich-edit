@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConflictError } from '$lib/api/client';
 import { editsToManifest } from '$lib/edits/manifest';
 import type { AssetDetail } from '$lib/types/asset';
 import { neutralEdits, type EditRecord } from '$lib/types/edits';
@@ -121,5 +122,29 @@ describe('editor save coordination', () => {
     expect(mocks.putEdits).toHaveBeenCalledTimes(1);
     expect(mocks.putEdits.mock.calls[0][2]).toBe('hash-restored');
     expect(editor.savedHash).toBe('hash-next');
+  });
+
+  it('sends the known hash when a reset deletes the sidecar', async () => {
+    mocks.deleteEdits.mockClear();
+
+    editor.edits = neutralEdits();
+    await editor.onCommit('Reset');
+
+    expect(mocks.deleteEdits).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteEdits.mock.calls[0]).toEqual(['asset-1', 'Reset', 'hash-0']);
+    expect(editor.savedHash).toBe('');
+  });
+
+  it('keeps local edits when a reset conflicts', async () => {
+    mocks.deleteEdits.mockClear();
+    mocks.deleteEdits.mockRejectedValueOnce(
+      new ConflictError('conflict', record('hash-remote', 3))
+    );
+
+    editor.edits = neutralEdits();
+    await editor.onCommit('Reset');
+
+    expect(editor.savedHash).toBe('hash-remote');
+    expect(editor.saveError).toContain('changed elsewhere');
   });
 });
