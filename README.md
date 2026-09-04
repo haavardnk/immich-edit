@@ -5,8 +5,8 @@ A self-hosted, non-destructive RAW editor for an existing
 stores edits locally. Originals remain unchanged.
 
 > [!WARNING]
-> immich-edit is under active `0.x` development. Back up `DATA_DIR`, read the upgrade notes, and
-> keep a separate backup of the Immich library.
+> immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the upgrade notes
+> before upgrading.
 
 ![immich-edit editor](docs/image/editor-v0_5.png)
 
