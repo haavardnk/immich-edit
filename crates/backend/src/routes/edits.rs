@@ -14,7 +14,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
-use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry};
+use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry, WriteOutcome};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -139,27 +139,39 @@ pub async fn put(
         .get("if-match")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim_matches('"').to_string());
-    if let Some(expected) = if_match.as_deref()
-        && let Some(current) = state
-            .edits
-            .if_match_conflict(ctx.owner, id, expected)
-            .await?
-    {
-        return Ok((StatusCode::CONFLICT, Json(current)).into_response());
-    }
     let asset = ctx.immich.asset(id.source()).await?;
-    let saved = state
+    let Some(expected) = if_match.as_deref() else {
+        let saved = state
+            .edits
+            .put(
+                ctx.owner,
+                id,
+                manifest,
+                asset.updated_at,
+                asset.checksum,
+                action.as_deref(),
+            )
+            .await?;
+        return Ok(Json(saved).into_response());
+    };
+    let outcome = state
         .edits
-        .put(
+        .put_if_match(
             ctx.owner,
             id,
+            expected,
             manifest,
             asset.updated_at,
             asset.checksum,
             action.as_deref(),
         )
         .await?;
-    Ok(Json(saved).into_response())
+    match outcome {
+        WriteOutcome::Written(saved) => Ok(Json(saved).into_response()),
+        WriteOutcome::Conflict(current) => {
+            Ok((StatusCode::CONFLICT, Json(current)).into_response())
+        }
+    }
 }
 
 pub async fn delete(
@@ -173,22 +185,26 @@ pub async fn delete(
         .get("if-match")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim_matches('"').to_string());
-    if let Some(expected) = if_match.as_deref()
-        && let Some(current) = state
-            .edits
-            .if_match_conflict(ctx.owner, id, expected)
-            .await?
-    {
-        return Ok((StatusCode::CONFLICT, Json(current)).into_response());
-    }
     let action = body
         .and_then(|Json(b)| b.action)
         .unwrap_or_else(|| "Reset".to_string());
-    state
+    let Some(expected) = if_match.as_deref() else {
+        state
+            .edits
+            .delete(ctx.owner, id, Some(action.as_str()))
+            .await?;
+        return Ok(StatusCode::NO_CONTENT.into_response());
+    };
+    let outcome = state
         .edits
-        .delete(ctx.owner, id, Some(action.as_str()))
+        .delete_if_match(ctx.owner, id, expected, Some(action.as_str()))
         .await?;
-    Ok(StatusCode::NO_CONTENT.into_response())
+    match outcome {
+        WriteOutcome::Written(_) => Ok(StatusCode::NO_CONTENT.into_response()),
+        WriteOutcome::Conflict(current) => {
+            Ok((StatusCode::CONFLICT, Json(current)).into_response())
+        }
+    }
 }
 
 pub async fn auto(

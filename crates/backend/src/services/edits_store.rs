@@ -2,7 +2,7 @@ use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, Sqlite, SqliteExecutor, SqlitePool, Transaction};
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
@@ -77,6 +77,64 @@ pub struct EditHistoryEntry {
 
 const HISTORY_LIMIT_PER_ASSET: i64 = 50;
 
+#[derive(Debug)]
+pub enum WriteOutcome<T> {
+    Written(T),
+    Conflict(EditRecord),
+}
+
+async fn fetch_record<'e, E: SqliteExecutor<'e>>(
+    exec: E,
+    owner: Uuid,
+    asset_id: AssetKey,
+) -> Result<Option<EditRecord>, EditsStoreError> {
+    let row = sqlx::query(
+        "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
+         immich_checksum, updated_at FROM edits WHERE user_id = ?2 AND asset_id = ?1",
+    )
+    .bind(asset_id.to_string())
+    .bind(owner.to_string())
+    .fetch_optional(exec)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let edits_json: String = row.try_get("edits_json")?;
+    let schema_version: i64 = row.try_get("schema_version")?;
+    let renderer_version: String = row.try_get("renderer_version")?;
+    let immich_updated_at: Option<String> = row.try_get("immich_updated_at")?;
+    let immich_checksum: Option<String> = row.try_get("immich_checksum")?;
+    let updated_at: String = row.try_get("updated_at")?;
+    let edits: Edits = serde_json::from_str(&edits_json)?;
+    let hash = edits.stable_hash();
+    Ok(Some(EditRecord {
+        schema_version: schema_version as u32,
+        asset_id,
+        immich_updated_at,
+        immich_checksum,
+        renderer_version,
+        manifest: EditManifest::from_edits(&edits),
+        updated_at,
+        hash,
+    }))
+}
+
+fn conflict_with(
+    current: Option<EditRecord>,
+    expected: &str,
+    asset_id: AssetKey,
+) -> Option<EditRecord> {
+    let empty_hash = Edits::default().stable_hash();
+    let actual = match &current {
+        Some(record) if !record.hash.is_empty() => record.hash.as_str(),
+        _ => empty_hash.as_str(),
+    };
+    if expected == actual {
+        return None;
+    }
+    Some(current.unwrap_or_else(|| EditRecord::empty(asset_id)))
+}
+
 #[derive(Debug, Clone)]
 pub struct EditsStore {
     pool: SqlitePool,
@@ -88,53 +146,7 @@ impl EditsStore {
         owner: Uuid,
         asset_id: AssetKey,
     ) -> Result<Option<EditRecord>, EditsStoreError> {
-        let row = sqlx::query(
-            "SELECT edits_json, schema_version, renderer_version, immich_updated_at, \
-             immich_checksum, updated_at FROM edits WHERE user_id = ?2 AND asset_id = ?1",
-        )
-        .bind(asset_id.to_string())
-        .bind(owner.to_string())
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let edits_json: String = row.try_get("edits_json")?;
-        let schema_version: i64 = row.try_get("schema_version")?;
-        let renderer_version: String = row.try_get("renderer_version")?;
-        let immich_updated_at: Option<String> = row.try_get("immich_updated_at")?;
-        let immich_checksum: Option<String> = row.try_get("immich_checksum")?;
-        let updated_at: String = row.try_get("updated_at")?;
-        let edits: Edits = serde_json::from_str(&edits_json)?;
-        let hash = edits.stable_hash();
-        Ok(Some(EditRecord {
-            schema_version: schema_version as u32,
-            asset_id,
-            immich_updated_at,
-            immich_checksum,
-            renderer_version,
-            manifest: EditManifest::from_edits(&edits),
-            updated_at,
-            hash,
-        }))
-    }
-
-    pub async fn if_match_conflict(
-        &self,
-        owner: Uuid,
-        asset_id: AssetKey,
-        expected: &str,
-    ) -> Result<Option<EditRecord>, EditsStoreError> {
-        let current = self.get(owner, asset_id).await?;
-        let empty_hash = Edits::default().stable_hash();
-        let actual = match &current {
-            Some(record) if !record.hash.is_empty() => record.hash.as_str(),
-            _ => empty_hash.as_str(),
-        };
-        if expected == actual {
-            return Ok(None);
-        }
-        Ok(Some(current.unwrap_or_else(|| EditRecord::empty(asset_id))))
+        fetch_record(&self.pool, owner, asset_id).await
     }
 
     pub async fn get_edits_or_default(
@@ -157,6 +169,60 @@ impl EditsStore {
 
     pub async fn put(
         &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        manifest: EditManifest,
+        immich_updated_at: Option<String>,
+        immich_checksum: Option<String>,
+        action: Option<&str>,
+    ) -> Result<EditRecord, EditsStoreError> {
+        let tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        self.write_put(
+            tx,
+            owner,
+            asset_id,
+            manifest,
+            immich_updated_at,
+            immich_checksum,
+            action,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn put_if_match(
+        &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        expected: &str,
+        manifest: EditManifest,
+        immich_updated_at: Option<String>,
+        immich_checksum: Option<String>,
+        action: Option<&str>,
+    ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let current = fetch_record(&mut *tx, owner, asset_id).await?;
+        if let Some(conflict) = conflict_with(current, expected, asset_id) {
+            return Ok(WriteOutcome::Conflict(conflict));
+        }
+        let saved = self
+            .write_put(
+                tx,
+                owner,
+                asset_id,
+                manifest,
+                immich_updated_at,
+                immich_checksum,
+                action,
+            )
+            .await?;
+        Ok(WriteOutcome::Written(saved))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn write_put(
+        &self,
+        mut tx: Transaction<'static, Sqlite>,
         owner: Uuid,
         asset_id: AssetKey,
         manifest: EditManifest,
@@ -188,8 +254,9 @@ impl EditsStore {
         .bind(&immich_checksum)
         .bind(&now)
         .bind(owner.to_string())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         let hash = edits.stable_hash();
         self.write_history(owner, asset_id, &hash, Some(&edits_json), false, action)
             .await?;
@@ -243,11 +310,39 @@ impl EditsStore {
         asset_id: AssetKey,
         action: Option<&str>,
     ) -> Result<bool, EditsStoreError> {
+        let tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        self.write_delete(tx, owner, asset_id, action).await
+    }
+
+    pub async fn delete_if_match(
+        &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        expected: &str,
+        action: Option<&str>,
+    ) -> Result<WriteOutcome<bool>, EditsStoreError> {
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let current = fetch_record(&mut *tx, owner, asset_id).await?;
+        if let Some(conflict) = conflict_with(current, expected, asset_id) {
+            return Ok(WriteOutcome::Conflict(conflict));
+        }
+        let deleted = self.write_delete(tx, owner, asset_id, action).await?;
+        Ok(WriteOutcome::Written(deleted))
+    }
+
+    async fn write_delete(
+        &self,
+        mut tx: Transaction<'static, Sqlite>,
+        owner: Uuid,
+        asset_id: AssetKey,
+        action: Option<&str>,
+    ) -> Result<bool, EditsStoreError> {
         let res = sqlx::query("DELETE FROM edits WHERE user_id = ?2 AND asset_id = ?1")
             .bind(asset_id.to_string())
             .bind(owner.to_string())
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
         let deleted = res.rows_affected() > 0;
         if deleted {
             let tombstone_hash = Edits::default().stable_hash();
@@ -359,6 +454,72 @@ mod tests {
 
     fn manifest_with(edits: Edits) -> EditManifest {
         EditManifest::from_edits(&edits)
+    }
+
+    fn manifest_with_exposure(exposure_ev: f64) -> EditManifest {
+        manifest_with(Edits {
+            basic: raw_pipeline::edits::BasicEdits {
+                exposure_ev,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_if_match_writers_leave_one_winner() {
+        let dir = tempfile::tempdir().unwrap();
+        let url = format!("sqlite://{}/edits.db", dir.path().display());
+        let s = EditsStore::connect(&url).await.unwrap();
+        let id = key();
+        let expected = Edits::default().stable_hash();
+
+        let writers = (1..=8).map(|i| {
+            let store = s.clone();
+            let expected = expected.clone();
+            tokio::spawn(async move {
+                store
+                    .put_if_match(
+                        O,
+                        id,
+                        &expected,
+                        manifest_with_exposure(i as f64 * 0.1),
+                        None,
+                        None,
+                        None,
+                    )
+                    .await
+                    .unwrap()
+            })
+        });
+        let outcomes = futures_util::future::join_all(writers).await;
+        let written = outcomes
+            .into_iter()
+            .filter(|o| matches!(o.as_ref().unwrap(), WriteOutcome::Written(_)))
+            .count();
+        if written != 1 {
+            panic!("expected one winner, got {written}");
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_if_match_rejects_a_stale_hash() {
+        let s = store().await;
+        let id = key();
+        s.put(O, id, manifest_with_exposure(1.0), None, None, None)
+            .await
+            .unwrap();
+        let stale = Edits::default().stable_hash();
+        let outcome = s.delete_if_match(O, id, &stale, None).await.unwrap();
+        let WriteOutcome::Conflict(current) = outcome else {
+            panic!("expected conflict");
+        };
+        if current.manifest.to_edits().basic.exposure_ev != 1.0 {
+            panic!("conflict carries the wrong record");
+        }
+        if s.get(O, id).await.unwrap().is_none() {
+            panic!("edits were deleted despite the conflict");
+        }
     }
 
     #[tokio::test]
