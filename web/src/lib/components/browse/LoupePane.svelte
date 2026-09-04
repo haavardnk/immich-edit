@@ -164,15 +164,15 @@
   role="button"
   tabindex="0"
   aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
-  class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {zoomed
+  class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
     ? dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'
     : 'cursor-zoom-in'} {showFocus
     ? focused
       ? 'relative border-2 border-primary'
-      : 'relative border-2 border-white/20 hover:border-white/35'
-    : ''}"
+      : 'relative border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
+    : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}

@@ -91,6 +91,28 @@ test('pane borders stay outside the images', async ({ page }) => {
   );
 });
 
+test('keyboard focus never paints a ring inside a pane', async ({ page }) => {
+  await openCompare(page);
+  const pane = page.getByRole('button', { name: 'Zoom in' }).first();
+  await expect(pane).toBeVisible();
+
+  await page.keyboard.press('Tab');
+  await pane.focus();
+
+  const focus = await pane.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      visible: element.matches(':focus-visible'),
+      boxShadow: style.boxShadow,
+      borderColor: style.borderTopColor
+    };
+  });
+
+  expect(focus.visible).toBe(true);
+  expect(focus.boxShadow).toBe('none');
+  expect(focus.borderColor).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 test('auto-advance swaps the rated pane for the next photo', async ({ page }) => {
   await openCompare(page);
   await page.getByRole('button', { name: 'More loupe actions' }).click();
