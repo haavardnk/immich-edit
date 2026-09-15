@@ -250,11 +250,27 @@ pub async fn mock_album_detail(server: &MockServer) {
             "id": album_id(),
             "albumName": "Test Album",
             "assetCount": 1,
-            "assets": [{
-                "id": asset_id(),
-                "originalFileName": "DSC0001.ARW",
-                "type": "IMAGE"
-            }]
+            "updatedAt": "2026-01-01T00:00:00Z"
+        })))
+        .mount(server)
+        .await;
+}
+
+pub async fn mock_search_metadata(server: &MockServer) {
+    Mock::given(method("POST"))
+        .and(path("/api/search/metadata"))
+        .and(header("x-api-key", "test-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "assets": {
+                "items": [{
+                    "id": asset_id(),
+                    "originalFileName": "DSC0001.ARW",
+                    "type": "IMAGE"
+                }],
+                "count": 1,
+                "total": 1,
+                "nextPage": null
+            }
         })))
         .mount(server)
         .await;

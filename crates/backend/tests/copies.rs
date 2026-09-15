@@ -232,10 +232,10 @@ async fn rejects_a_copy_id_with_a_bad_index() {
 }
 
 #[tokio::test]
-async fn album_listing_places_copies_after_their_master() {
+async fn search_listing_places_copies_after_their_master() {
     let server = MockServer::start().await;
     mock_asset_detail(&server).await;
-    mock_album_detail(&server).await;
+    mock_search_metadata(&server).await;
     let id = asset_id();
     let app = test_app(&server).await;
 
@@ -260,14 +260,16 @@ async fn album_listing_places_copies_after_their_master() {
     let resp = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/albums/{}", album_id()))
-                .body(Body::empty())
+                .method("POST")
+                .uri("/api/search/metadata")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(r#"{{"albumIds":["{}"]}}"#, album_id())))
                 .unwrap(),
         )
         .await
         .unwrap();
-    let album = body_json(resp).await;
-    let assets = album["assets"].as_array().cloned().unwrap_or_default();
+    let search = body_json(resp).await;
+    let assets = search["items"].as_array().cloned().unwrap_or_default();
     let ids: Vec<&str> = assets.iter().filter_map(|a| a["id"].as_str()).collect();
     if ids != [id.to_string(), format!("{id}_1"), format!("{id}_2")] {
         panic!("expansion order: {ids:?}");

@@ -12,7 +12,6 @@ export interface AlbumDetail {
   id: string;
   albumName: string;
   assetCount: number;
-  assets: AssetSummary[];
   updatedAt: string | null;
 }
 

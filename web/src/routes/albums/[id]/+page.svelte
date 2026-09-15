@@ -2,25 +2,13 @@
   import { page } from '$app/state';
   import { untrack } from 'svelte';
   import { album } from '$lib/stores/album.svelte';
-  import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
-  const feed = new BrowseFeed({
-    baseBody: () => ({ albumIds: [id] }),
-    onFetchError: (initial, error) => {
-      if (initial && album.current) {
-        feed.assets = album.current.assets;
-        browsing.set(feed.assets);
-      } else if (!initial) {
-        toasts.fail('load', error);
-      }
-    }
-  });
+  const feed = new BrowseFeed({ baseBody: () => ({ albumIds: [id] }) });
 
   $effect(() => {
     const current = id;

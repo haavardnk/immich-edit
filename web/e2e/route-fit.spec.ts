@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json } from './helpers';
+import { installMocks, json } from './helpers';
 
 const ROUTES = [
   { path: '/photos', text: 'Photos' },
@@ -20,7 +20,6 @@ async function installRouteMocks(page: Page): Promise<void> {
         id: 'album-1',
         albumName: 'Review album',
         assetCount: 1,
-        assets: [ASSET_SUMMARY],
         updatedAt: '2024-01-01T00:00:00Z'
       })
     )

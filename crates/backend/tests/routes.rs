@@ -114,7 +114,7 @@ async fn lists_albums() {
 }
 
 #[tokio::test]
-async fn album_detail_returns_assets() {
+async fn album_detail_returns_metadata_without_assets() {
     let server = MockServer::start().await;
     mock_album_detail(&server).await;
     let app = test_app(&server).await;
@@ -131,8 +131,11 @@ async fn album_detail_returns_assets() {
         panic!("status {}", resp.status());
     }
     let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
-    if json["assets"][0]["originalFileName"] != "DSC0001.ARW" {
-        panic!("asset: {json}");
+    if json["albumName"] != "Test Album" || json["assetCount"] != 1 {
+        panic!("album: {json}");
+    }
+    if json.get("assets").is_some() {
+        panic!("album still carries assets: {json}");
     }
 }
 

@@ -23,8 +23,6 @@ pub struct AlbumDetail {
     pub album_name: String,
     #[serde(rename = "assetCount", default)]
     pub asset_count: u32,
-    #[serde(default)]
-    pub assets: Vec<AssetSummary>,
     #[serde(rename = "updatedAt", default)]
     pub updated_at: Option<String>,
 }
