@@ -200,8 +200,6 @@ impl ImmichClient {
             .mime_str(req.content_type)
             .map_err(|e| ImmichError::Decode(format!("mime: {e}")))?;
         let form = reqwest::multipart::Form::new()
-            .text("deviceAssetId", req.device_asset_id.to_string())
-            .text("deviceId", "immich-edit".to_string())
             .text("filename", req.filename.to_string())
             .text("fileCreatedAt", req.created_at.to_string())
             .text("fileModifiedAt", req.modified_at.to_string())
@@ -332,7 +330,6 @@ pub struct UploadRequest<'a> {
     pub is_favorite: bool,
     pub created_at: &'a str,
     pub modified_at: &'a str,
-    pub device_asset_id: &'a str,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

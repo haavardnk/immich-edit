@@ -72,11 +72,16 @@ fn resolves_custom_suffix() {
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use bytes::Bytes;
 use common::*;
 use http_body_util::BodyExt;
+use immich_edit_backend::immich::ImmichClient;
+use immich_edit_backend::immich::client::{ImmichAuth, UploadRequest};
+use std::time::Duration;
 use tower::ServiceExt;
 use uuid::Uuid;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
     resp.into_body()
@@ -149,5 +154,82 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     }
     if json["status"] != "created" {
         panic!("expected cached status: {json}");
+    }
+}
+
+fn test_client(server: &MockServer) -> ImmichClient {
+    ImmichClient::with_auth(
+        server.uri().parse().unwrap(),
+        ImmichAuth::ApiKey(TEST_API_KEY.into()),
+        Duration::from_secs(5),
+    )
+    .unwrap()
+}
+
+#[tokio::test]
+async fn upload_asset_sends_only_supported_multipart_fields() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/assets"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "id": Uuid::new_v4(),
+            "status": "created"
+        })))
+        .mount(&server)
+        .await;
+
+    test_client(&server)
+        .upload_asset(UploadRequest {
+            filename: "DSC0001_edit.jpg",
+            content_type: "image/jpeg",
+            bytes: Bytes::from_static(&[0xFF, 0xD8]),
+            is_favorite: true,
+            created_at: "2026-01-01T00:00:00Z",
+            modified_at: "2026-01-01T00:00:00Z",
+        })
+        .await
+        .unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    let body = String::from_utf8_lossy(&requests[0].body).into_owned();
+    for field in [
+        "assetData",
+        "filename",
+        "fileCreatedAt",
+        "fileModifiedAt",
+        "isFavorite",
+    ] {
+        if !body.contains(&format!("name=\"{field}\"")) {
+            panic!("upload is missing required field {field}");
+        }
+    }
+    for field in ["deviceId", "deviceAssetId"] {
+        if body.contains(&format!("name=\"{field}\"")) {
+            panic!("upload still sends removed field {field}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn stack_primary_update_uses_put() {
+    let server = MockServer::start().await;
+    let stack = Uuid::new_v4();
+    let primary = asset_id();
+    Mock::given(method("PUT"))
+        .and(path(format!("/api/stacks/{stack}")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": stack,
+            "primaryAssetId": primary,
+            "assets": []
+        })))
+        .mount(&server)
+        .await;
+
+    let updated = test_client(&server)
+        .update_stack_primary(stack, primary)
+        .await
+        .unwrap();
+    if updated.primary_asset_id != primary {
+        panic!("primary: {}", updated.primary_asset_id);
     }
 }

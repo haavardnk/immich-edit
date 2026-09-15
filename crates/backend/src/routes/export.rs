@@ -87,7 +87,6 @@ pub async fn post_export_immich(
             server_epoch: ctx.server_epoch,
             body: &body,
             idempotency_key: idem_key,
-            device_asset_id: None,
         },
     )
     .await?;

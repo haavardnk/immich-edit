@@ -142,7 +142,6 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
         stack_primary: params.stack_primary,
         filename_suffix: params.filename_suffix,
     };
-    let device_asset_id = format!("immich-edit-job-{}-{}", job.id, asset_id);
     let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(
         state,
@@ -153,7 +152,6 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
             server_epoch: job.server_epoch,
             body: &body,
             idempotency_key: Some(idempotency_key),
-            device_asset_id: Some(device_asset_id),
         },
     )
     .await?;

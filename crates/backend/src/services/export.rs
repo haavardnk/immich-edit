@@ -77,7 +77,6 @@ pub struct ExportImmichRequest<'a> {
     pub server_epoch: i64,
     pub body: &'a ExportToImmichBody,
     pub idempotency_key: Option<String>,
-    pub device_asset_id: Option<String>,
 }
 
 pub async fn render_export(
@@ -182,12 +181,6 @@ pub async fn export_to_immich(
             output.extension(),
             &existing_names,
         );
-        let device_asset_id = req.device_asset_id.unwrap_or_else(|| {
-            request_hash
-                .as_deref()
-                .map(|hash| format!("immich-edit-{id}-{hash}"))
-                .unwrap_or_else(|| format!("immich-edit-{filename}"))
-        });
         let now = Utc::now().to_rfc3339();
         let upload = immich
             .upload_asset(crate::immich::client::UploadRequest {
@@ -197,7 +190,6 @@ pub async fn export_to_immich(
                 is_favorite: body.favorite,
                 created_at: &now,
                 modified_at: &now,
-                device_asset_id: &device_asset_id,
             })
             .await?;
 
