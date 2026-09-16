@@ -118,6 +118,28 @@ export interface PreviewRequest {
   preview_mode: unknown;
   lane?: string;
   roi?: [number, number, number, number] | null;
+  scopes?: boolean;
+}
+
+const SCOPE_SHAPES: Record<string, { tag: number; width: number; height: number; ch: number }> = {
+  waveform: { tag: 0, width: 512, height: 256, ch: 1 },
+  parade: { tag: 1, width: 192, height: 256, ch: 3 },
+  vectorscope: { tag: 2, width: 384, height: 384, ch: 1 }
+};
+
+export function scopePayload(kind: string): Buffer {
+  const shape = SCOPE_SHAPES[kind] ?? SCOPE_SHAPES.waveform;
+  if (!shape) throw new Error(`unknown scope kind ${kind}`);
+  const header = Buffer.alloc(16);
+  header.write('SCOP', 0, 'ascii');
+  header.writeUInt8(1, 4);
+  header.writeUInt8(shape.tag, 5);
+  header.writeUInt8(shape.ch, 6);
+  header.writeUInt16LE(shape.width, 8);
+  header.writeUInt16LE(shape.height, 10);
+  header.writeUInt32LE(1000, 12);
+  const body = Buffer.alloc(shape.width * shape.height * shape.ch, 128);
+  return Buffer.concat([header, body]);
 }
 
 export interface InstallOpts {
@@ -317,6 +339,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       });
     }
 
+    const scope = p.match(/^\/api\/assets\/[^/]+\/preview\/meta\/[^/]+\/scope\/([a-z]+)$/);
+    if (scope) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/octet-stream',
+        body: scopePayload(scope[1] ?? 'waveform')
+      });
+    }
+
     if (p.match(/^\/api\/assets\/[^/]+\/preview\/meta\//)) {
       const size = opts.sourceSize ?? { w: 6000, h: 4000 };
       return route.fulfill(
@@ -329,6 +360,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           is_raw: true,
           histogram: null,
           linear_histogram: null,
+          has_scopes: true,
           ...(opts.previewMeta ?? {})
         })
       );

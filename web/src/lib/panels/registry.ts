@@ -1,5 +1,5 @@
 import type { Component } from 'svelte';
-import HistogramPanel from './Histogram.svelte';
+import ScopesPanel from './Scopes.svelte';
 import BasicPanel from './Basic.svelte';
 import CurvesPanel from './Curves.svelte';
 import HslPanel from './Hsl.svelte';
@@ -20,7 +20,7 @@ export interface PanelDef {
 }
 
 export const developPanels: PanelDef[] = [
-  { id: 'histogram', title: 'Histogram', component: HistogramPanel, defaultOpen: true },
+  { id: 'scopes', title: 'Scopes', component: ScopesPanel, defaultOpen: true },
   { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
   { id: 'presets', title: 'Presets', component: PresetsPanel, defaultOpen: false },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },

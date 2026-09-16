@@ -20,7 +20,8 @@ const meta: PreviewMeta = {
   source_h: 800,
   renderer: 'cpu',
   is_raw: true,
-  histogram: { r: [], g: [], b: [], l: [] }
+  histogram: { r: [], g: [], b: [], l: [] },
+  has_scopes: false
 };
 
 function geometry(patch: Partial<GeometryEdits> = {}): GeometryEdits {

@@ -458,12 +458,12 @@ test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
   expect(radii[1].bottomRight).toBe(0);
 });
 
-test('histogram has a slight inset without a frame', async ({ page }) => {
+test('scopes panel has a slight inset without a frame', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  const section = page.getByRole('button', { name: 'Histogram' }).locator('..');
-  const histogram = page.getByText('No histogram data').locator('..');
+  const section = page.getByRole('button', { name: 'Scopes' }).locator('..');
+  const histogram = page.getByText('No data');
   const geometry = await Promise.all(
     [section, histogram].map((element) =>
       element.evaluate((node) => {
@@ -483,6 +483,33 @@ test('histogram has a slight inset without a frame', async ({ page }) => {
   expect(geometry[1].right).toBe(geometry[0].right - 4);
   expect(geometry[1].radius).toBe(0);
   expect(geometry[1].shadow).toBe('none');
+});
+
+test('scope toggles stay unaccented', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const modes = page.getByRole('radiogroup', { name: 'Scope', exact: true });
+  const selected = modes.getByRole('radio', { name: 'Hist' });
+  await expect(selected).toHaveAttribute('aria-checked', 'true');
+
+  const paint = await Promise.all(
+    [modes, selected].map((element) =>
+      element.evaluate((node) => getComputedStyle(node).backgroundColor)
+    )
+  );
+  const primary = await page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = 'var(--color-primary)';
+    document.body.append(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  });
+
+  expect(paint[0]).toBe('rgba(0, 0, 0, 0)');
+  expect(paint[1]).not.toBe(primary);
+  expect(paint[1]).toMatch(/0\.08\)$/);
 });
 
 test('modified editor tools use a dot without duplicate counts', async ({ page }) => {

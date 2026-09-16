@@ -86,7 +86,7 @@ test('capture sharpening toggle is disabled for non-raw assets', async ({ page }
   await expect(page.getByRole('checkbox', { name: 'Capture Sharpening' })).toBeDisabled();
 });
 
-test('histogram distinguishes loading from absent data', async ({ page }) => {
+test('the scopes panel distinguishes loading from absent data', async ({ page }) => {
   let releaseMeta = (): void => {};
   const metaPending = new Promise<void>((resolve) => {
     releaseMeta = resolve;
@@ -98,9 +98,37 @@ test('histogram distinguishes loading from absent data', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await expect(page.getByText('Loading histogram…')).toBeVisible();
+  await expect(page.getByText('Loading…')).toBeVisible();
   releaseMeta();
-  await expect(page.getByText('No histogram data')).toBeVisible();
+  await expect(page.getByText('No data')).toBeVisible();
+});
+
+test('scope modes draw from the cached grids and survive a reload', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('radio', { name: 'Wave' }).click();
+  await expect(page.getByRole('img', { name: 'Waveform' })).toBeVisible();
+
+  await page.getByRole('radio', { name: 'Vector' }).click();
+  await expect(page.getByRole('img', { name: 'Vectorscope' })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('img', { name: 'Vectorscope' })).toBeVisible();
+});
+
+test('a scope mode re-renders the preview when the cached meta has no scopes', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  await installMocks(page, {
+    previewMeta: { has_scopes: false },
+    onPreview: (req) => requests.push(req)
+  });
+  await gotoAsset(page);
+  await expect(page.getByText('No data')).toBeVisible();
+
+  await page.getByRole('radio', { name: 'Parade' }).click();
+
+  await expect.poll(() => requests.some((req) => req.scopes === true)).toBe(true);
 });
 
 test('lens profile failure can be retried', async ({ page }) => {

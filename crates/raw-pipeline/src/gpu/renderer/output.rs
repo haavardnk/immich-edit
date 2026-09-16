@@ -10,6 +10,7 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
 use crate::gpu::resources::OutputTargets;
 use crate::histogram::Histogram;
+use crate::scopes::ScopeGrids;
 
 impl GpuRenderer {
     pub(super) fn encode_mask_overlay(
@@ -92,21 +93,34 @@ pub(super) fn finish_image(
         crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
     }
 
-    let ((histogram, linear_histogram), bytes) = rayon::join(
+    let ((histogram, linear_histogram, scopes), bytes) = rayon::join(
         || {
             let _span = tracing::debug_span!("gpu.histogram", w = out_w, h = out_h).entered();
-            rayon::join(
+            let ((histogram, linear_histogram), scopes) = rayon::join(
                 || {
-                    let _s = tracing::debug_span!("gpu.histogram.display", w = out_w, h = out_h)
-                        .entered();
-                    Histogram::from_rgba8(&rgba)
+                    rayon::join(
+                        || {
+                            let _s =
+                                tracing::debug_span!("gpu.histogram.display", w = out_w, h = out_h)
+                                    .entered();
+                            Histogram::from_rgba8(&rgba)
+                        },
+                        || {
+                            let _s =
+                                tracing::debug_span!("gpu.histogram.linear", w = out_w, h = out_h)
+                                    .entered();
+                            Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize)
+                        },
+                    )
                 },
                 || {
-                    let _s = tracing::debug_span!("gpu.histogram.linear", w = out_w, h = out_h)
-                        .entered();
-                    Histogram::from_rgb(&linear_rgb, out_w as usize, out_h as usize)
+                    opts.scopes.then(|| {
+                        let _s = tracing::debug_span!("gpu.scopes", w = out_w, h = out_h).entered();
+                        ScopeGrids::from_rgba8(&rgba, out_w as usize, out_h as usize)
+                    })
                 },
-            )
+            );
+            (histogram, linear_histogram, scopes)
         },
         || encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
     );
@@ -115,6 +129,7 @@ pub(super) fn finish_image(
         bytes: bytes?,
         histogram,
         linear_histogram: Some(linear_histogram),
+        scopes,
         width: out_w,
         height: out_h,
         source_w: source.0,

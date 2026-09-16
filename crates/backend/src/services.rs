@@ -25,6 +25,7 @@ pub mod model_install;
 pub mod model_store;
 pub mod paste_edits;
 pub mod preview_meta;
+pub mod preview_scopes;
 pub mod purge;
 pub mod raster_store;
 pub mod raw_frame_cache;

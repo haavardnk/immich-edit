@@ -1,6 +1,6 @@
-import { getJson, postForBlob, url } from './client';
+import { getJson, postForBlob, request, url } from './client';
 import type { Edits } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
+import type { PreviewMeta, ScopeGrid, ScopeKind } from '$lib/types/preview';
 import type { ColorSpaceOpt } from './export';
 
 export type PreviewMode =
@@ -40,7 +40,8 @@ export async function livePreview(
   proof?: ProofOptions,
   signal?: AbortSignal,
   lane: RenderLane = 'base',
-  roi?: Roi
+  roi?: Roi,
+  scopes = false
 ): Promise<{ blob: Blob; metaId: string | null }> {
   return postForBlob(
     url`/api/assets/${assetId}/preview`,
@@ -52,7 +53,8 @@ export async function livePreview(
       gamut_warn: proof?.gamutWarn ?? false,
       clip_warn: proof?.clipWarn ?? false,
       lane,
-      roi: roi ?? null
+      roi: roi ?? null,
+      scopes
     },
     signal
   );
@@ -60,4 +62,30 @@ export async function livePreview(
 
 export function getPreviewMeta(assetId: string, metaId: string): Promise<PreviewMeta> {
   return getJson(url`/api/assets/${assetId}/preview/meta/${metaId}`);
+}
+
+const SCOPE_MAGIC = 0x504f4353;
+const SCOPE_HEADER_LEN = 16;
+
+export async function getPreviewScope(
+  assetId: string,
+  metaId: string,
+  kind: ScopeKind,
+  signal?: AbortSignal
+): Promise<ScopeGrid> {
+  const resp = await request(
+    url`/api/assets/${assetId}/preview/meta/${metaId}/scope/${kind}`,
+    { signal },
+    { silent: true }
+  );
+  const buffer = await resp.arrayBuffer();
+  if (buffer.byteLength < SCOPE_HEADER_LEN) throw new Error('scope payload truncated');
+  const header = new DataView(buffer, 0, SCOPE_HEADER_LEN);
+  if (header.getUint32(0, true) !== SCOPE_MAGIC) throw new Error('scope payload malformed');
+  const width = header.getUint16(8, true);
+  const height = header.getUint16(10, true);
+  const channels = header.getUint8(6);
+  const data = new Uint8Array(buffer, SCOPE_HEADER_LEN);
+  if (data.length !== width * height * channels) throw new Error('scope payload size mismatch');
+  return { kind, width, height, channels, maxCount: header.getUint32(12, true), data };
 }

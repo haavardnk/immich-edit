@@ -260,6 +260,10 @@ fn finish_render(
     );
     cancel::check(cancel)?;
 
+    let scopes = options
+        .scopes
+        .then(|| crate::scopes::ScopeGrids::from_rgb_u8(&rgb_u8, w, h));
+
     let bytes = if want_16bit {
         encode_from_rgb16(
             rgb_u16.as_deref().unwrap(),
@@ -282,6 +286,7 @@ fn finish_render(
         bytes,
         histogram,
         linear_histogram: Some(linear_histogram),
+        scopes,
         width: w as u32,
         height: h as u32,
         source_w: oriented_w as u32,

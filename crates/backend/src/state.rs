@@ -18,6 +18,7 @@ use crate::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use crate::services::model_store::ModelStore;
 use crate::services::preview_meta::PreviewMetaStore;
+use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
@@ -36,6 +37,7 @@ pub struct AppState {
     pub render: RenderService,
     pub queue: RenderQueue,
     pub preview_meta: PreviewMetaStore,
+    pub preview_scopes: PreviewScopeStore,
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
     pub luts: LutStore,
@@ -139,6 +141,7 @@ impl AppState {
             render,
             queue,
             preview_meta: PreviewMetaStore::new(),
+            preview_scopes: PreviewScopeStore::new(),
             edited_thumb,
             rasters,
             luts,
