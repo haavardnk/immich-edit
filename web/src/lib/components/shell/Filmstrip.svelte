@@ -66,13 +66,16 @@
   }
 
   $effect(() => {
-    if (!scrollContainer || currentIndex < 0) return;
+    const container = scrollContainer;
+    if (!container || currentIndex < 0) return;
     const box = layout.boxes[currentIndex];
     if (!box) return;
-    if (box.left >= scrollLeft && box.left + box.width <= scrollLeft + containerWidth) return;
-    const target = box.left + box.width / 2 - containerWidth / 2;
-    const max = Math.max(0, layout.width - containerWidth);
-    scrollContainer.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
+    const viewLeft = container.scrollLeft;
+    const viewWidth = container.clientWidth;
+    if (box.left >= viewLeft && box.left + box.width <= viewLeft + viewWidth) return;
+    const target = box.left + box.width / 2 - viewWidth / 2;
+    const max = Math.max(0, layout.width - viewWidth);
+    container.scrollTo({ left: Math.min(Math.max(0, target), max), behavior: 'smooth' });
   });
 </script>
 
@@ -96,6 +99,7 @@
       <div class="relative">
         <div
           class="overflow-x-auto py-1.5 scrollbar-hidden"
+          data-testid="filmstrip-scroll"
           bind:this={scrollContainer}
           use:observeSize={measure}
           onscroll={measure}

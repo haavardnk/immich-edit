@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, NEUTRAL_RECORD, installMocks, json, gotoAsset } from './helpers';
+import { ASSET_ID, ASSET_SUMMARY, NEUTRAL_RECORD, installMocks, json, gotoAsset } from './helpers';
 import { neutralEdits } from '../src/lib/types/edits';
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
@@ -111,6 +111,37 @@ test('editor and loupe keep independent filmstrip visibility', async ({ page }) 
     'true'
   );
   await expect(page.getByRole('button', { name: 'IMG_0001.ARW' })).toBeVisible();
+});
+
+test('the filmstrip keeps a manual scroll away from the current photo', async ({ page }) => {
+  const assets = Array.from({ length: 80 }, (_, index) => {
+    const suffix = String(index + 1).padStart(12, '0');
+    return {
+      ...ASSET_SUMMARY,
+      id: `00000000-0000-0000-0000-${suffix}`,
+      originalFileName: `IMG_${String(index + 1).padStart(4, '0')}.ARW`,
+      checksum: suffix
+    };
+  });
+  await installMocks(page, { assets });
+
+  await page.goto(`/assets/${ASSET_ID}?from=%2Fphotos`);
+  const strip = page.getByTestId('filmstrip-scroll');
+  await expect(strip).toBeVisible();
+  await expect
+    .poll(() => strip.evaluate((el) => el.scrollWidth - el.clientWidth))
+    .toBeGreaterThan(1000);
+
+  await strip.evaluate((el) => {
+    el.scrollLeft = 600;
+    el.dispatchEvent(new Event('scroll'));
+  });
+  const settled = await strip.evaluate(async (el) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return el.scrollLeft;
+  });
+
+  expect(settled).toBe(600);
 });
 
 test('editor and loupe layout choices survive reload', async ({ page }) => {
