@@ -197,6 +197,10 @@ pub fn router(state: AppState) -> Router {
             "/assets/{id}/preview/meta/{meta_id}",
             get(routes::preview::get_meta),
         )
+        .route(
+            "/assets/{id}/preview/meta/{meta_id}/scope/{kind}",
+            get(routes::preview::get_scope),
+        )
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))

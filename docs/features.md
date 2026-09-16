@@ -135,7 +135,7 @@ imply planned support.
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
-| Waveform, RGB parade, or vectorscope | ✗ No | Histogram only |
+| Waveform, RGB parade, and vectorscope | ✓ Yes | Server-computed from the preview render, with gain and vectorscope zoom |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |
 | Focus-stack merge | ✗ No | — |
 | Tethered capture | ✗ No | The library comes from Immich |

@@ -51,6 +51,7 @@ import { isRejected } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
+import { scopes } from '$lib/stores/scopes.svelte';
 import {
   isFullFrame,
   renderRequest,
@@ -213,7 +214,10 @@ class EditorStore {
         args.maxEdge,
         args.previewMode,
         this.proofOptions(),
-        signal
+        signal,
+        'base',
+        undefined,
+        scopes.wants
       );
       return { url: makeObjectUrl(blob), metaId };
     },
@@ -584,6 +588,7 @@ class EditorStore {
     this.splitMode = false;
     this.asset = null;
     this.meta = null;
+    scopes.reset();
     this.lensProfile = null;
     this.lensProfileError = null;
     this.assetId = null;
@@ -1089,10 +1094,20 @@ class EditorStore {
       this.meta = await getPreviewMeta(this.assetId, metaId);
       const long = Math.max(this.meta.source_w, this.meta.source_h);
       if (Number.isFinite(long) && long > 0) this.srcLong = long;
+      scopes.onMeta(this.assetId, metaId, this.meta.has_scopes);
     } catch {
       this.meta = null;
     }
   }
+
+  refreshScopes = (): void => {
+    if (!this.initialised || !this.assetId) return;
+    this.flight.submit({
+      edits: $state.snapshot(this.edits),
+      maxEdge: LIVE_EDGE,
+      previewMode: 'none'
+    });
+  };
 
   startGeometrySession = (): void => geometry.startSession(this);
 

@@ -3,7 +3,7 @@ use crate::tone::{srgb_oetf, srgb_oetf_scalar};
 
 #[test]
 fn display_ready_output_skips_tone_mapping() {
-    let (rgb, _, _, _) = finish_output(
+    let (rgb, _, _) = finish_output(
         vec![0.5, 0.5, 0.5],
         1,
         1,
@@ -12,6 +12,7 @@ fn display_ready_output_skips_tone_mapping() {
         None,
         None,
         OutputColorSpace::SRgb,
+        false,
         false,
         false,
     );
@@ -22,7 +23,7 @@ fn display_ready_output_skips_tone_mapping() {
 
 #[test]
 fn gamut_warn_paints_out_of_gamut_pixels() {
-    let (rgb, _, _, _) = finish_output(
+    let (rgb, _, _) = finish_output(
         vec![0.9, -0.1, 0.2],
         1,
         1,
@@ -33,6 +34,7 @@ fn gamut_warn_paints_out_of_gamut_pixels() {
         OutputColorSpace::SRgb,
         true,
         false,
+        false,
     );
     if rgb != vec![255, 0, 255] {
         panic!("expected magenta gamut warning, got {rgb:?}");
@@ -41,7 +43,7 @@ fn gamut_warn_paints_out_of_gamut_pixels() {
 
 #[test]
 fn gamut_warn_ignores_bright_in_gamut_pixels() {
-    let (rgb, _, _, _) = finish_output(
+    let (rgb, _, _) = finish_output(
         vec![4.0, 0.0, 0.0],
         1,
         1,
@@ -52,6 +54,7 @@ fn gamut_warn_ignores_bright_in_gamut_pixels() {
         OutputColorSpace::SRgb,
         true,
         false,
+        false,
     );
     if rgb == vec![255, 0, 255] {
         panic!("bright in-gamut red must not be flagged out of gamut");
@@ -59,8 +62,37 @@ fn gamut_warn_ignores_bright_in_gamut_pixels() {
 }
 
 #[test]
+fn histograms_are_computed_only_when_requested() {
+    let run = |histogram: bool| {
+        finish_output(
+            vec![0.5, 0.5, 0.5],
+            1,
+            1,
+            false,
+            false,
+            None,
+            None,
+            OutputColorSpace::SRgb,
+            false,
+            false,
+            histogram,
+        )
+        .2
+    };
+    if run(false).is_some() {
+        panic!("histograms must be skipped when not requested");
+    }
+    let Some(histograms) = run(true) else {
+        panic!("histograms must be produced when requested");
+    };
+    if histograms.display.pixel_count() != 1 || histograms.linear.pixel_count() != 1 {
+        panic!("expected one sampled pixel per histogram");
+    }
+}
+
+#[test]
 fn gamut_warn_leaves_in_gamut_pixels() {
-    let (rgb, _, _, _) = finish_output(
+    let (rgb, _, _) = finish_output(
         vec![0.5, 0.5, 0.5],
         1,
         1,
@@ -70,6 +102,7 @@ fn gamut_warn_leaves_in_gamut_pixels() {
         None,
         OutputColorSpace::SRgb,
         true,
+        false,
         false,
     );
     if rgb == vec![255, 0, 255] {
@@ -87,7 +120,7 @@ fn clip_warn_paints_blown_and_crushed_pixels() {
         ([0.2, 0.25, 0.22], None),
     ];
     for (linear, want) in cases {
-        let (rgb, _, _, _) = finish_output(
+        let (rgb, _, _) = finish_output(
             linear.to_vec(),
             1,
             1,
@@ -98,6 +131,7 @@ fn clip_warn_paints_blown_and_crushed_pixels() {
             OutputColorSpace::SRgb,
             false,
             true,
+            false,
         );
         match want {
             Some(paint) => {
@@ -118,7 +152,7 @@ fn clip_warn_paints_blown_and_crushed_pixels() {
 
 #[test]
 fn clip_warn_off_leaves_blown_pixels_alone() {
-    let (rgb, _, _, _) = finish_output(
+    let (rgb, _, _) = finish_output(
         vec![4.0, 4.0, 4.0],
         1,
         1,
@@ -127,6 +161,7 @@ fn clip_warn_off_leaves_blown_pixels_alone() {
         None,
         None,
         OutputColorSpace::SRgb,
+        false,
         false,
         false,
     );

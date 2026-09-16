@@ -18,6 +18,7 @@ pub async fn purge_instance(state: &AppState) {
     state.queue.cancel_all().await;
     state.render.clear_frame_caches().await;
     state.preview_meta.clear().await;
+    state.preview_scopes.clear().await;
     state.tag_counts.clear().await;
     state.people_counts.clear().await;
     if let Err(error) = state.rasters.purge_all().await {

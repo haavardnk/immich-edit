@@ -6,6 +6,7 @@
     type EditorTab
   } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { scopes } from '$lib/stores/scopes.svelte';
   import { developPanels } from '$lib/panels/registry';
   import { isNonGeometryIdentity } from '$lib/types/edits';
   import { modifiedDevelopPanels } from '$lib/editorModified';
@@ -57,6 +58,10 @@
       openPanels.delete(id);
     }
     openPanels = new Set(openPanels);
+    if (id === 'scopes') {
+      scopes.setPanelOpen(open);
+      if (scopes.needsRender) editor.refreshScopes();
+    }
   }
 
   function toggleModifiedOnly(): void {
@@ -183,7 +188,7 @@
                   modified={modifiedPanels.has(panel.id)}
                   onOpenChange={(v) => setPanel(panel.id, v)}
                 >
-                  <div class="bg-black/10 {panel.id === 'histogram' ? 'p-1' : 'px-3 pb-2 pt-1'}">
+                  <div class="bg-black/10 {panel.id === 'scopes' ? 'p-1' : 'px-3 pb-2 pt-1'}">
                     <Comp />
                   </div>
                 </Disclosure>

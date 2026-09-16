@@ -85,7 +85,7 @@ cache. `tests/cpu_cache.rs` compares cache misses and hits with uncached `cpu::r
 | 15 | DCP finish | LookTable and profile tone curve |
 | 16 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
 | 17 | Mask overlay | Optional red coverage overlay |
-| 18 | Readback and encode | Warning paint, histogram, and output encoding |
+| 18 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
 
 The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
 the contract.

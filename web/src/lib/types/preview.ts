@@ -8,6 +8,18 @@ export interface PreviewMeta {
   is_raw: boolean;
   histogram: Histogram;
   linear_histogram?: Histogram;
+  has_scopes: boolean;
+}
+
+export type ScopeKind = 'waveform' | 'parade' | 'vectorscope';
+
+export interface ScopeGrid {
+  kind: ScopeKind;
+  width: number;
+  height: number;
+  channels: number;
+  maxCount: number;
+  data: Uint8Array;
 }
 
 export interface Histogram {

@@ -26,6 +26,8 @@ pub struct RenderOptions {
     pub preview_mode: PreviewMode,
     pub gamut_warn: bool,
     pub clip_warn: bool,
+    pub histogram: bool,
+    pub scopes: bool,
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
     pub dcp: Option<std::sync::Arc<crate::dcp::DcpProfile>>,
@@ -187,6 +189,8 @@ impl Default for RenderOptions {
             preview_mode: PreviewMode::None,
             gamut_warn: false,
             clip_warn: false,
+            histogram: false,
+            scopes: false,
             rasters: crate::mask_raster::empty_rasters(),
             luts: crate::lut::empty_luts(),
             dcp: None,
@@ -196,8 +200,9 @@ impl Default for RenderOptions {
 
 pub struct RenderedImage {
     pub bytes: Vec<u8>,
-    pub histogram: crate::histogram::Histogram,
+    pub histogram: Option<crate::histogram::Histogram>,
     pub linear_histogram: Option<crate::histogram::Histogram>,
+    pub scopes: Option<crate::scopes::ScopeGrids>,
     pub width: u32,
     pub height: u32,
     pub source_w: u32,

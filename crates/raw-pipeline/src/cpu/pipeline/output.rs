@@ -12,6 +12,11 @@ pub(super) type DcpFinish<'a> = (
     &'a [[f32; 3]; 3],
 );
 
+pub(super) struct Histograms {
+    pub display: Histogram,
+    pub linear: Histogram,
+}
+
 #[inline(always)]
 fn dither_hash(x: u32, y: u32, c: u32) -> f32 {
     let mut h =
@@ -80,7 +85,8 @@ pub(super) fn finish_output(
     color_space: OutputColorSpace,
     gamut_warn: bool,
     clip_warn: bool,
-) -> (Vec<u8>, Option<Vec<u16>>, Histogram, Histogram) {
+    histogram: bool,
+) -> (Vec<u8>, Option<Vec<u16>>, Option<Histograms>) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
     let pixel_count = w * h;
     let n = linear.len();
@@ -135,7 +141,7 @@ pub(super) fn finish_output(
                 dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0) as u16;
                 dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0) as u16;
             }
-            if p % step == 0 {
+            if histogram && p % step == 0 {
                 fold_linear(&mut acc.0, lr, lg, lb);
                 fold_display(&mut acc.1, ru, gu, bu);
             }
@@ -177,12 +183,11 @@ pub(super) fn finish_output(
     };
 
     let rgb_u16 = if want_16bit { Some(rgb_u16) } else { None };
-    (
-        rgb_u8,
-        rgb_u16,
-        bins_to_histogram(dis_bins),
-        bins_to_histogram(lin_bins),
-    )
+    let histograms = histogram.then(|| Histograms {
+        display: bins_to_histogram(dis_bins),
+        linear: bins_to_histogram(lin_bins),
+    });
+    (rgb_u8, rgb_u16, histograms)
 }
 
 #[cfg(test)]

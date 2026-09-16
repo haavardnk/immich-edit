@@ -133,6 +133,7 @@ fn identity_render_jpeg() {
     each_fixture(|name, frame| {
         let opts = RenderOptions {
             max_edge: 512,
+            histogram: true,
             ..Default::default()
         };
         let out = cpu::render(frame, &Edits::default(), &opts).unwrap();
@@ -145,7 +146,8 @@ fn identity_render_jpeg() {
         if out.width.max(out.height) > 512 {
             panic!("{name}: max edge exceeded {}x{}", out.width, out.height);
         }
-        if out.histogram.pixel_count() != (out.width as u64) * (out.height as u64) {
+        let histogram = out.histogram.expect("histogram requested");
+        if histogram.pixel_count() != (out.width as u64) * (out.height as u64) {
             panic!("{name}: histogram pixel count mismatch");
         }
     });
@@ -308,6 +310,7 @@ fn exposure_raises_mean() {
     each_fixture(|name, frame| {
         let opts = RenderOptions {
             max_edge: 256,
+            histogram: true,
             ..Default::default()
         };
         let base = cpu::render(frame, &Edits::default(), &opts).unwrap();
@@ -319,8 +322,10 @@ fn exposure_raises_mean() {
             ..Default::default()
         };
         let bright = cpu::render(frame, &bright_edits, &opts).unwrap();
-        let base_mean = histogram_mean(&base.histogram.l);
-        let bright_mean = histogram_mean(&bright.histogram.l);
+        let base_hist = base.histogram.expect("base histogram requested");
+        let bright_hist = bright.histogram.expect("bright histogram requested");
+        let base_mean = histogram_mean(&base_hist.l);
+        let bright_mean = histogram_mean(&bright_hist.l);
         if bright_mean <= base_mean {
             panic!(
                 "{name}: exposure +2 mean {} <= base {}",

@@ -12,6 +12,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
+use crate::services::preview_scopes::{ScopeKind, encode as encode_scope};
 use crate::services::render::{RenderError, RenderIdentity};
 use crate::services::render_queue::{RenderKey, RenderLane};
 use crate::state::AppState;
@@ -45,6 +46,8 @@ pub struct LivePreviewBody {
     pub lane: RenderLane,
     #[serde(default)]
     pub roi: Option<[f32; 4]>,
+    #[serde(default)]
+    pub scopes: bool,
 }
 
 pub async fn get_preview(
@@ -87,6 +90,7 @@ pub async fn get_preview(
             clip_warn: q.clip,
             lane: RenderLane::Base,
             roi: None,
+            scopes: false,
         },
     )
     .await?;
@@ -126,6 +130,7 @@ pub async fn post_preview(
             clip_warn: body.clip_warn,
             lane: body.lane,
             roi,
+            scopes: body.scopes,
         },
     )
     .await
@@ -143,6 +148,36 @@ pub async fn get_meta(
     }
 }
 
+pub async fn get_scope(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path((asset_id, meta_id, kind)): Path<(AssetKey, Uuid, ScopeKind)>,
+) -> Result<Response, AppError> {
+    let owned = state
+        .preview_meta
+        .get(meta_id)
+        .await
+        .is_some_and(|meta| meta.owner == ctx.owner && meta.asset_id == asset_id);
+    if !owned {
+        return Err(AppError::NotFound);
+    }
+    let grids = state
+        .preview_scopes
+        .get(meta_id)
+        .await
+        .ok_or(AppError::NotFound)?;
+    let mut resp = Response::new(Body::from(encode_scope(&grids, kind)));
+    resp.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
+    resp.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, max-age=60"),
+    );
+    Ok(resp)
+}
+
 struct PreviewRequest {
     asset_id: AssetKey,
     edits: Edits,
@@ -153,6 +188,7 @@ struct PreviewRequest {
     clip_warn: bool,
     lane: RenderLane,
     roi: Option<CropRect>,
+    scopes: bool,
 }
 
 async fn render_to_response(
@@ -170,6 +206,7 @@ async fn render_to_response(
         clip_warn,
         lane,
         roi,
+        scopes,
     } = req;
     let render = state.render.clone();
     let identity = RenderIdentity::from(ctx);
@@ -186,6 +223,8 @@ async fn render_to_response(
     } else {
         max_edge
     };
+    let stores_meta =
+        matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn && roi.is_none();
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
         quality: false,
@@ -198,6 +237,8 @@ async fn render_to_response(
         gamut_warn,
         clip_warn,
         roi,
+        histogram: stores_meta,
+        scopes: scopes && stores_meta,
         ..Default::default()
     };
     let work = render.render(
@@ -217,10 +258,16 @@ async fn render_to_response(
         }
     };
 
+    let scope_grids = rendered.scopes;
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    if matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn && roi.is_none() {
+    if let Some(histogram) = rendered.histogram {
+        let meta_id = Uuid::new_v4();
+        let has_scopes = scope_grids.is_some();
+        if let Some(grids) = scope_grids {
+            state.preview_scopes.put(meta_id, grids).await;
+        }
         let meta = PreviewMeta {
             owner: ctx.owner,
             asset_id,
@@ -230,10 +277,11 @@ async fn render_to_response(
             source_h: rendered.source_h,
             renderer: rendered.renderer.clone(),
             is_raw: rendered.is_raw,
-            histogram: rendered.histogram.clone(),
+            histogram,
             linear_histogram: rendered.linear_histogram.clone(),
+            has_scopes,
         };
-        let meta_id = state.preview_meta.put(meta).await;
+        state.preview_meta.put(meta_id, meta).await;
         resp.headers_mut().insert(
             HeaderName::from_static(META_HEADER),
             HeaderValue::from_str(&meta_id.to_string()).expect("uuid is valid header value"),

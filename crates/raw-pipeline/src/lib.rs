@@ -21,6 +21,7 @@ pub mod math;
 pub mod ops;
 pub mod perspective;
 pub mod presence;
+pub mod scopes;
 pub mod tone;
 pub mod warn;
 pub mod wgsl;

@@ -20,6 +20,7 @@ use immich_edit_backend::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::model_store::ModelStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
+use immich_edit_backend::services::preview_scopes::PreviewScopeStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
@@ -106,6 +107,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         ),
         queue: RenderQueue::new(1),
         preview_meta: PreviewMetaStore::new(),
+        preview_scopes: PreviewScopeStore::new(),
         edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
         rasters,
         luts,

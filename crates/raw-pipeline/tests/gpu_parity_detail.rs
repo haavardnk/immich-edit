@@ -345,7 +345,10 @@ fn gpu_linear_histogram_changes_with_vignette() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = rgb8_opts(96);
+    let opts = RenderOptions {
+        histogram: true,
+        ..rgb8_opts(96)
+    };
     let frame = synthetic_frame(96, 64);
     let neutral = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let edited = renderer

@@ -626,10 +626,10 @@ impl GpuRenderer {
         } else {
             display_src
         };
-        let linear_src = match sharpen_pool_guard.as_ref() {
+        let linear_src = opts.histogram.then(|| match sharpen_pool_guard.as_ref() {
             Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
-        };
+        });
         let (rgba, linear_rgb) =
             self.readback_image(encoder, p, display_src, linear_src, out_dims, cancel)?;
         drop(lut_target);

@@ -230,6 +230,7 @@ fn render_options(max_edge: u32, quality: bool) -> raw_pipeline::frame::RenderOp
     raw_pipeline::frame::RenderOptions {
         max_edge,
         quality,
+        histogram: true,
         ..Default::default()
     }
 }

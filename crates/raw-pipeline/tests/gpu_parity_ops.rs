@@ -50,7 +50,10 @@ fn gpu_exposure_brightens() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    let opts = rgb8_opts(256);
+    let opts = RenderOptions {
+        histogram: true,
+        ..rgb8_opts(256)
+    };
 
     let base = renderer.render(&frame, &Edits::default(), &opts).unwrap();
     let bright = Edits {
@@ -62,22 +65,22 @@ fn gpu_exposure_brightens() {
     };
     let bumped = renderer.render(&frame, &bright, &opts).unwrap();
 
-    let mean_base: f64 = base
-        .histogram
+    let base_hist = base.histogram.expect("base histogram requested");
+    let bumped_hist = bumped.histogram.expect("bumped histogram requested");
+    let mean_base: f64 = base_hist
         .l
         .iter()
         .enumerate()
         .map(|(i, &n)| i as f64 * n as f64)
         .sum::<f64>()
-        / base.histogram.l.iter().sum::<u32>().max(1) as f64;
-    let mean_bumped: f64 = bumped
-        .histogram
+        / base_hist.l.iter().sum::<u32>().max(1) as f64;
+    let mean_bumped: f64 = bumped_hist
         .l
         .iter()
         .enumerate()
         .map(|(i, &n)| i as f64 * n as f64)
         .sum::<f64>()
-        / bumped.histogram.l.iter().sum::<u32>().max(1) as f64;
+        / bumped_hist.l.iter().sum::<u32>().max(1) as f64;
 
     if mean_bumped <= mean_base {
         panic!("exposure did not brighten: {mean_base} -> {mean_bumped}");

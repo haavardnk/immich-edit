@@ -246,7 +246,7 @@ fn finish_render(
             &d.from_pp,
         )
     });
-    let (rgb_u8, rgb_u16, histogram, linear_histogram) = finish_output(
+    let (rgb_u8, rgb_u16, histograms) = finish_output(
         rgb,
         w,
         h,
@@ -257,8 +257,17 @@ fn finish_render(
         options.output_color_space,
         options.gamut_warn,
         options.clip_warn,
+        options.histogram,
     );
     cancel::check(cancel)?;
+    let (histogram, linear_histogram) = match histograms {
+        Some(h) => (Some(h.display), Some(h.linear)),
+        None => (None, None),
+    };
+
+    let scopes = options
+        .scopes
+        .then(|| crate::scopes::ScopeGrids::from_rgb_u8(&rgb_u8, w, h));
 
     let bytes = if want_16bit {
         encode_from_rgb16(
@@ -281,7 +290,8 @@ fn finish_render(
     Ok(RenderedImage {
         bytes,
         histogram,
-        linear_histogram: Some(linear_histogram),
+        linear_histogram,
+        scopes,
         width: w as u32,
         height: h as u32,
         source_w: oriented_w as u32,
