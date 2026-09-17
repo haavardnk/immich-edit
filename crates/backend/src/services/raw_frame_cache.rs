@@ -9,6 +9,7 @@ const FRAME_OVERHEAD_BYTES: u64 = 4096;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FrameCacheKey {
     pub server_epoch: i64,
+    pub owner: Uuid,
     pub asset_id: Uuid,
 }
 
@@ -98,22 +99,22 @@ mod tests {
         n * 1024 * 1024
     }
 
+    fn key(owner: Uuid, asset_id: Uuid) -> FrameCacheKey {
+        FrameCacheKey {
+            server_epoch: 1,
+            owner,
+            asset_id,
+        }
+    }
+
     #[test]
     fn evicts_lru_to_fit_budget() {
         let floats = (mb(1) / 4) as usize;
         let mut cache = RawFrameCache::new(mb(2) + FRAME_OVERHEAD_BYTES * 2);
-        let a = FrameCacheKey {
-            server_epoch: 1,
-            asset_id: Uuid::new_v4(),
-        };
-        let b = FrameCacheKey {
-            server_epoch: 1,
-            asset_id: Uuid::new_v4(),
-        };
-        let c = FrameCacheKey {
-            server_epoch: 1,
-            asset_id: Uuid::new_v4(),
-        };
+        let owner = Uuid::new_v4();
+        let a = key(owner, Uuid::new_v4());
+        let b = key(owner, Uuid::new_v4());
+        let c = key(owner, Uuid::new_v4());
         cache.put(a, frame_with_floats(floats));
         cache.put(b, frame_with_floats(floats));
         cache.get(&a);
@@ -127,13 +128,25 @@ mod tests {
     }
 
     #[test]
+    fn owners_do_not_share_frames() {
+        let mut cache = RawFrameCache::new(mb(4));
+        let asset = Uuid::new_v4();
+        let a = key(Uuid::new_v4(), asset);
+        let b = key(Uuid::new_v4(), asset);
+        cache.put(a, frame_with_floats(16));
+        if cache.get(&b).is_some() {
+            panic!("another owner must not hit the cached frame");
+        }
+        if cache.get(&a).is_none() {
+            panic!("owner a should still hit");
+        }
+    }
+
+    #[test]
     fn skips_oversized_frame() {
         let floats = (mb(4) / 4) as usize;
         let mut cache = RawFrameCache::new(mb(1));
-        let id = FrameCacheKey {
-            server_epoch: 1,
-            asset_id: Uuid::new_v4(),
-        };
+        let id = key(Uuid::new_v4(), Uuid::new_v4());
         cache.put(id, frame_with_floats(floats));
         if cache.get(&id).is_some() {
             panic!("oversized frame should not be retained");

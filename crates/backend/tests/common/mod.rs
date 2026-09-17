@@ -11,7 +11,7 @@ use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::embedding_cache::EmbeddingCache;
-use immich_edit_backend::services::instance_store::InstanceStore;
+use immich_edit_backend::services::instance_store::{InstanceStore, InstanceStoreError};
 use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
 use immich_edit_backend::services::lut_store::LutStore;
@@ -143,19 +143,27 @@ pub async fn seed_session_as(
     user: ImmichUser,
     kind: AuthKind,
 ) -> String {
-    state.instance.claim(&server.uri()).await.unwrap();
+    seed_session_with_cred(server, state, user, kind, TEST_API_KEY.as_bytes()).await
+}
+
+pub async fn seed_session_with_cred(
+    server: &MockServer,
+    state: &AppState,
+    user: ImmichUser,
+    kind: AuthKind,
+    cred: &[u8],
+) -> String {
+    if !matches!(
+        state.instance.claim(&server.uri()).await,
+        Ok(_) | Err(InstanceStoreError::AlreadyConfigured)
+    ) {
+        panic!("claim failed");
+    }
     let cfg = state.instance.get().await.unwrap();
     let rec = state.auth.upsert_user(&user).await.unwrap();
     state
         .auth
-        .create_session(
-            rec.id,
-            kind,
-            TEST_API_KEY.as_bytes(),
-            cfg.server_epoch,
-            None,
-            None,
-        )
+        .create_session(rec.id, kind, cred, cfg.server_epoch, None, None)
         .await
         .unwrap()
 }
@@ -197,7 +205,7 @@ pub async fn password_app(server: &MockServer) -> axum::Router {
     wrap_auth(app::router(state), token)
 }
 
-fn wrap_auth(app: axum::Router, token: String) -> axum::Router {
+pub fn wrap_auth(app: axum::Router, token: String) -> axum::Router {
     use axum::extract::Request;
     use axum::http::HeaderValue;
     use axum::middleware::{self, Next};

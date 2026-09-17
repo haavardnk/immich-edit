@@ -173,6 +173,7 @@ impl RenderService {
     {
         let key = FrameCacheKey {
             server_epoch: identity.server_epoch,
+            owner: identity.owner,
             asset_id: source,
         };
         if let Some(f) = cache.lock().await.get(&key) {
