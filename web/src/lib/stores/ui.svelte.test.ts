@@ -17,7 +17,8 @@ describe('editor layout persistence', () => {
         filmstripHeight: 88,
         rightCollapsed: true,
         editorFilmstripCollapsed: true,
-        loupeFilmstripCollapsed: true
+        loupeFilmstripCollapsed: true,
+        developOpenPanels: ['curves']
       })
     );
     vi.stubGlobal('localStorage', {
@@ -32,17 +33,20 @@ describe('editor layout persistence', () => {
     expect(ui.rightCollapsed).toBe(true);
     expect(ui.editorFilmstripCollapsed).toBe(true);
     expect(ui.loupeFilmstripCollapsed).toBe(true);
+    expect(ui.developOpenPanels).toEqual(['curves']);
 
     ui.togglePanels();
     ui.toggleEditorFilmstrip();
     ui.toggleLoupeFilmstrip();
+    ui.setDevelopPanels(['curves', 'hsl']);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
       inspectorWidth: 410,
       filmstripHeight: 88,
       rightCollapsed: false,
       editorFilmstripCollapsed: false,
-      loupeFilmstripCollapsed: false
+      loupeFilmstripCollapsed: false,
+      developOpenPanels: ['curves', 'hsl']
     });
   });
 });

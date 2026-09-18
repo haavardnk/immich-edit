@@ -132,6 +132,31 @@ test('the editor resize handles persist once per committed gesture', async ({ pa
   }
 });
 
+test('develop panel state survives fullscreen and reload', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 832 });
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const curves = page.getByRole('button', { name: 'Curves', exact: true });
+  await expect(curves).toHaveAttribute('aria-expanded', 'false');
+  await curves.click();
+  await expect(curves).toHaveAttribute('aria-expanded', 'true');
+
+  await page.keyboard.press('Shift+F');
+  await expect(page.getByRole('button', { name: 'Curves', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Shift+F');
+  await expect(page.getByRole('button', { name: 'Curves', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Curves', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+});
+
 test('the photo grid preserves mixed source orientations', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   const fixtures = [

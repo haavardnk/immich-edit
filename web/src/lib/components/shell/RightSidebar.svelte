@@ -35,8 +35,10 @@
     { id: 'export', label: 'Export' }
   ];
 
-  let openPanels = $state(new Set(developPanels.filter((p) => p.defaultOpen).map((p) => p.id)));
   let modifiedOnly = $state(false);
+  const openPanels = $derived(
+    new Set(ui.developOpenPanels ?? developPanels.filter((p) => p.defaultOpen).map((p) => p.id))
+  );
   const neutral = $derived(isNonGeometryIdentity(editor.edits));
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
   const activeEditorTab = $derived(
@@ -51,13 +53,18 @@
     if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
   });
 
+  $effect(() => {
+    scopes.setPanelOpen(openPanels.has('scopes'));
+  });
+
   function setPanel(id: string, open: boolean): void {
+    const next = new Set(openPanels);
     if (open) {
-      openPanels.add(id);
+      next.add(id);
     } else {
-      openPanels.delete(id);
+      next.delete(id);
     }
-    openPanels = new Set(openPanels);
+    ui.setDevelopPanels([...next]);
     if (id === 'scopes') {
       scopes.setPanelOpen(open);
       if (scopes.needsRender) editor.refreshScopes();
@@ -67,7 +74,7 @@
   function toggleModifiedOnly(): void {
     modifiedOnly = !modifiedOnly;
     if (!modifiedOnly) return;
-    openPanels = new Set([...openPanels, ...modifiedPanels]);
+    ui.setDevelopPanels([...new Set([...openPanels, ...modifiedPanels])]);
   }
 </script>
 

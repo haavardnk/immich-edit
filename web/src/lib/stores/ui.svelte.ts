@@ -28,6 +28,7 @@ type PersistedEditorUi = {
   rightCollapsed?: boolean;
   editorFilmstripCollapsed?: boolean;
   loupeFilmstripCollapsed?: boolean;
+  developOpenPanels?: string[];
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -38,6 +39,7 @@ class UiStore {
   filmstripHeight = $state(64);
   editorFilmstripCollapsed = $state(false);
   loupeFilmstripCollapsed = $state(false);
+  developOpenPanels = $state<string[] | null>(null);
   searchQuery = $state('');
   fullscreen = $state(false);
   zoom = $state(100);
@@ -75,7 +77,15 @@ class UiStore {
     if (typeof stored?.loupeFilmstripCollapsed === 'boolean') {
       this.loupeFilmstripCollapsed = stored.loupeFilmstripCollapsed;
     }
+    if (Array.isArray(stored?.developOpenPanels)) {
+      this.developOpenPanels = stored.developOpenPanels.filter((id) => typeof id === 'string');
+    }
   }
+
+  setDevelopPanels = (ids: string[]): void => {
+    this.developOpenPanels = ids;
+    this.persistEditorUi();
+  };
 
   persistEditorUi = (): void => {
     writeStored(UI_STORAGE_KEY, {
@@ -83,7 +93,8 @@ class UiStore {
       filmstripHeight: this.filmstripHeight,
       rightCollapsed: this.rightCollapsed,
       editorFilmstripCollapsed: this.editorFilmstripCollapsed,
-      loupeFilmstripCollapsed: this.loupeFilmstripCollapsed
+      loupeFilmstripCollapsed: this.loupeFilmstripCollapsed,
+      developOpenPanels: this.developOpenPanels ?? undefined
     } satisfies PersistedEditorUi);
   };
 
