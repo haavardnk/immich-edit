@@ -24,7 +24,9 @@ The backend serves `web/build` in production.
 ## Authentication and users
 
 First-run setup validates an Immich administrator and stores the Immich base URL. Later sign-ins
-validate each user's Immich password or API key and provision a local user record.
+validate each user's Immich password or API key, or run the Immich OAuth flow with PKCE, and
+provision a local user record. The flow state travels in a short-lived encrypted cookie rather than
+in server memory, so the code exchange survives a restart but cannot be replayed elsewhere.
 
 The browser receives an opaque HttpOnly session cookie. The backend encrypts each stored Immich
 credential with `DATA_DIR/instance.key`. Protected requests receive `AuthCtx`, which carries user

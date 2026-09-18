@@ -51,10 +51,29 @@ address. Use the normal hostname, loopback address, or private network address.
 
 ### A valid user cannot sign in
 
-Password login is unavailable for an OAuth-only Immich account. Create an Immich API key and use
-the API-key option. An administrator can also disable local access under **Settings**.
+An OAuth-only Immich account has no password. Use the OAuth button, or create an Immich API key and
+use the API-key option. An administrator can also disable local access under **Settings**.
 
 Repeated failures trigger temporary rate limiting.
+
+### The identity provider reports a redirect URI mismatch
+
+immich-edit returns from the provider to the page that started the flow. Register
+`https://<edit-host>/login` and `https://<edit-host>/setup` as redirect URIs in Immich and with the
+provider, using the address browsers actually use. A mismatch in scheme, port, or trailing path is
+enough to fail.
+
+### `The sign-in link expired. Start again.`
+
+The flow cookie lives for ten minutes and is bound to one browser. It also breaks when the tab that
+started the flow is not the tab that returns, or when a reverse proxy strips cookies from `/api`.
+Start the sign-in again from the login page.
+
+### The OAuth button is missing
+
+immich-edit asks the Immich server which methods it offers. When that lookup fails it shows the
+password form alone rather than guessing. Check that the container can reach the Immich URL, then
+reload.
 
 ## Immich is unavailable
 
