@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferUsages, CommandEncoder, Extent3d, TextureView, TextureViewDescriptor};
 
+use super::ATLAS_POOL_ITEMS;
 use super::GpuRenderer;
 use super::geometry::ProcessGeom;
 use crate::cpu::masked::LayerEval;
@@ -54,28 +55,68 @@ pub(super) struct MaskWeightJob<'a> {
     pub base_view: &'a TextureView,
 }
 
-pub(super) fn atlas_slot_map<'a>(
-    layers: impl Iterator<Item = &'a MaskLayer>,
-    rasters: &RasterMap,
-) -> HashMap<String, u32> {
-    let mut slot_map: HashMap<String, u32> = HashMap::new();
-    let brush_rasters = layers
-        .flat_map(|layer| layer.components.iter())
-        .filter(|comp| comp.enabled)
-        .filter_map(|comp| match &comp.kind {
-            MaskComponentKind::Brush { raster_id } => Some(raster_id),
-            _ => None,
+pub(super) struct MaskAtlas {
+    pub texture: wgpu::Texture,
+    resident: Vec<Option<String>>,
+    last_used: Vec<u64>,
+    clock: u64,
+}
+
+impl MaskAtlas {
+    fn new(device: &wgpu::Device) -> Self {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("mask-raster-atlas"),
+            size: Extent3d {
+                width: ATLAS_DIM,
+                height: ATLAS_DIM,
+                depth_or_array_layers: ATLAS_LAYERS,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
         });
-    for raster_id in brush_rasters {
-        if slot_map.len() as u32 >= ATLAS_LAYERS {
-            break;
-        }
-        if !slot_map.contains_key(raster_id) && rasters.contains_key(raster_id) {
-            let slot = slot_map.len() as u32;
-            slot_map.insert(raster_id.clone(), slot);
+        Self {
+            texture,
+            resident: vec![None; ATLAS_LAYERS as usize],
+            last_used: vec![0; ATLAS_LAYERS as usize],
+            clock: 0,
         }
     }
-    slot_map
+
+    fn assign(&mut self, ids: &[&String]) -> (HashMap<String, u32>, Vec<(String, u32)>) {
+        self.clock += 1;
+        let mut slot_map = HashMap::new();
+        let mut missing: Vec<&String> = Vec::new();
+        for id in ids {
+            if slot_map.contains_key(*id) {
+                continue;
+            }
+            match self.resident.iter().position(|r| r.as_ref() == Some(*id)) {
+                Some(slot) => {
+                    self.last_used[slot] = self.clock;
+                    slot_map.insert((*id).clone(), slot as u32);
+                }
+                None => missing.push(id),
+            }
+        }
+        let mut uploads = Vec::new();
+        for id in missing {
+            let free = (0..self.resident.len())
+                .filter(|&i| self.last_used[i] != self.clock)
+                .min_by_key(|&i| (self.resident[i].is_some(), self.last_used[i]));
+            let Some(slot) = free else {
+                break;
+            };
+            self.resident[slot] = Some((*id).clone());
+            self.last_used[slot] = self.clock;
+            slot_map.insert((*id).clone(), slot as u32);
+            uploads.push(((*id).clone(), slot as u32));
+        }
+        (slot_map, uploads)
+    }
 }
 
 pub(super) fn atlas_view(atlas: &wgpu::Texture) -> TextureView {
@@ -185,32 +226,36 @@ impl GpuRenderer {
         retained.binds.push(bind);
     }
 
-    pub(super) fn upload_mask_atlas(
+    pub(super) fn prepare_mask_atlas<'a>(
         &self,
-        slot_map: &HashMap<String, u32>,
+        layers: impl Iterator<Item = &'a MaskLayer>,
         rasters: &RasterMap,
-    ) -> wgpu::Texture {
-        let atlas = self.ctx.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("mask-raster-atlas"),
-            size: Extent3d {
-                width: ATLAS_DIM,
-                height: ATLAS_DIM,
-                depth_or_array_layers: ATLAS_LAYERS,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-        for (raster_id, slot) in slot_map {
-            let Some(raster) = rasters.get(raster_id) else {
+    ) -> (MaskAtlas, HashMap<String, u32>) {
+        let ids: Vec<&String> = layers
+            .flat_map(|layer| layer.components.iter())
+            .filter(|comp| comp.enabled)
+            .filter_map(|comp| match &comp.kind {
+                MaskComponentKind::Brush { raster_id } => Some(raster_id),
+                _ => None,
+            })
+            .filter(|raster_id| rasters.contains_key(*raster_id))
+            .collect();
+        let mut atlas = match self.atlas_pool.lock().pop() {
+            Some(atlas) => atlas,
+            None => {
+                self.atlas_allocs
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                MaskAtlas::new(&self.ctx.device)
+            }
+        };
+        let (slot_map, uploads) = atlas.assign(&ids);
+        for (raster_id, slot) in uploads {
+            let Some(raster) = rasters.get(&raster_id) else {
                 continue;
             };
             let bytes = {
                 let mut cache = self.atlas_cache.lock();
-                if let Some(b) = cache.get(raster_id).cloned() {
+                if let Some(b) = cache.get(&raster_id).cloned() {
                     b
                 } else {
                     let b = std::sync::Arc::new(resample_raster_to_atlas(raster));
@@ -218,14 +263,16 @@ impl GpuRenderer {
                     b
                 }
             };
+            self.atlas_uploads
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             self.ctx.queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
-                    texture: &atlas,
+                    texture: &atlas.texture,
                     mip_level: 0,
                     origin: wgpu::Origin3d {
                         x: 0,
                         y: 0,
-                        z: *slot,
+                        z: slot,
                     },
                     aspect: wgpu::TextureAspect::All,
                 },
@@ -242,6 +289,16 @@ impl GpuRenderer {
                 },
             );
         }
-        atlas
+        (atlas, slot_map)
+    }
+
+    pub(super) fn release_mask_atlas(&self, atlas: Option<MaskAtlas>) {
+        let Some(atlas) = atlas else {
+            return;
+        };
+        let mut pool = self.atlas_pool.lock();
+        if pool.len() < ATLAS_POOL_ITEMS {
+            pool.push(atlas);
+        }
     }
 }

@@ -65,6 +65,7 @@ pub struct GpuPoolStats {
     pub nr_cache: u64,
     pub capture_cache: u64,
     pub atlas_cache: u64,
+    pub atlas_pool: u64,
 }
 
 fn texture_bytes(tex: &Texture) -> u64 {
@@ -135,6 +136,12 @@ impl GpuRenderer {
                 .lock()
                 .iter()
                 .map(|(_, v)| v.len() as u64)
+                .sum(),
+            atlas_pool: self
+                .atlas_pool
+                .lock()
+                .iter()
+                .map(|a| texture_bytes(&a.texture))
                 .sum(),
         }
     }

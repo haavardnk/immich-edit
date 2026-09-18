@@ -94,6 +94,9 @@ pub struct GpuRenderer {
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
+    atlas_pool: Mutex<Vec<masks::MaskAtlas>>,
+    atlas_allocs: std::sync::atomic::AtomicU64,
+    atlas_uploads: std::sync::atomic::AtomicU64,
     atm_estimates: std::sync::atomic::AtomicU64,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
@@ -109,6 +112,7 @@ const LUT_TEX_CACHE_ITEMS: usize = 4;
 const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 
 const ATLAS_CACHE_ITEMS: usize = 32;
+const ATLAS_POOL_ITEMS: usize = 2;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
 const DEFAULT_TEXTURE_POOL_MAX_BYTES: u64 = 512 * 1024 * 1024;
@@ -162,6 +166,9 @@ impl GpuRenderer {
                 NonZeroUsize::new(ATLAS_CACHE_ITEMS).expect("nonzero"),
             )),
             atm_estimates: std::sync::atomic::AtomicU64::new(0),
+            atlas_pool: Mutex::new(Vec::new()),
+            atlas_allocs: std::sync::atomic::AtomicU64::new(0),
+            atlas_uploads: std::sync::atomic::AtomicU64::new(0),
             texture_pool: TexturePool::new(
                 TEXTURE_POOL_CAP_PER_KEY,
                 options.texture_pool_max_bytes,
@@ -182,6 +189,15 @@ impl GpuRenderer {
 
     pub fn atmosphere_estimates(&self) -> u64 {
         self.atm_estimates
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn mask_atlas_allocations(&self) -> u64 {
+        self.atlas_allocs.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn mask_atlas_uploads(&self) -> u64 {
+        self.atlas_uploads
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
@@ -350,11 +366,11 @@ impl GpuRenderer {
         let has_masks = !effective_layers.is_empty();
         let mut accum_in_alt = false;
         let mut retained = masks::Retained::default();
-        let mut _preview_atlas: Option<wgpu::Texture> = None;
+        let mut preview_atlas: Option<masks::MaskAtlas> = None;
+        let mut layer_atlas: Option<masks::MaskAtlas> = None;
         if let Some(layer) = preview_layer {
-            let slot_map = masks::atlas_slot_map(std::iter::once(layer), &opts.rasters);
-            let atlas = self.upload_mask_atlas(&slot_map, &opts.rasters);
-            let atlas_view = masks::atlas_view(&atlas);
+            let (atlas, slot_map) = self.prepare_mask_atlas(std::iter::once(layer), &opts.rasters);
+            let atlas_view = masks::atlas_view(&atlas.texture);
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
             let eval = crate::cpu::masked::build_layer_eval(layer, &opts.rasters);
             self.encode_mask_weight(
@@ -372,7 +388,7 @@ impl GpuRenderer {
                 out_dims,
                 &mut retained,
             );
-            _preview_atlas = Some(atlas);
+            preview_atlas = Some(atlas);
         }
         if has_masks {
             let scratch_linear_view = p
@@ -414,9 +430,10 @@ impl GpuRenderer {
                 .mask_base_linear
                 .create_view(&TextureViewDescriptor::default());
 
-            let slot_map = masks::atlas_slot_map(effective_layers.iter().copied(), &opts.rasters);
-            let atlas = self.upload_mask_atlas(&slot_map, &opts.rasters);
-            let atlas_view = masks::atlas_view(&atlas);
+            let (atlas, slot_map) =
+                self.prepare_mask_atlas(effective_layers.iter().copied(), &opts.rasters);
+            let atlas_view = masks::atlas_view(&atlas.texture);
+            layer_atlas = Some(atlas);
 
             for (layer_index, layer) in effective_layers.iter().enumerate() {
                 let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
@@ -643,6 +660,8 @@ impl GpuRenderer {
         });
         let (rgba, linear_rgb) =
             self.readback_image(encoder, p, display_src, linear_src, out_dims, cancel)?;
+        self.release_mask_atlas(preview_atlas);
+        self.release_mask_atlas(layer_atlas);
         drop(lut_target);
         drop(pool);
 
