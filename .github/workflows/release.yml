@@ -42,6 +42,14 @@ jobs:
             APP_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha,scope=build-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=build-${{ matrix.arch }}
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit@${{ steps.build.outputs.digest }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
@@ -93,11 +101,3 @@ jobs:
           format: cyclonedx-json
           artifact-name: sbom-${{ steps.meta.outputs.version }}.cdx.json
           upload-artifact: true
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit:${{ steps.meta.outputs.version }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
