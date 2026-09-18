@@ -35,7 +35,7 @@ mod retouch;
 mod uniform;
 mod upload;
 
-use cache_keys::capture_cache_key;
+use cache_keys::{capture_cache_key, spatial_cache_key};
 use geometry::{compute_out_dims, crop_px, process_geom};
 pub use pools::GpuPoolStats;
 
@@ -94,6 +94,7 @@ pub struct GpuRenderer {
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
+    atm_estimates: std::sync::atomic::AtomicU64,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
     output_pool: Mutex<Vec<OutputTargets>>,
@@ -160,6 +161,7 @@ impl GpuRenderer {
             atlas_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATLAS_CACHE_ITEMS).expect("nonzero"),
             )),
+            atm_estimates: std::sync::atomic::AtomicU64::new(0),
             texture_pool: TexturePool::new(
                 TEXTURE_POOL_CAP_PER_KEY,
                 options.texture_pool_max_bytes,
@@ -176,6 +178,11 @@ impl GpuRenderer {
 
     pub fn is_lost(&self) -> bool {
         self.ctx.is_lost()
+    }
+
+    pub fn atmosphere_estimates(&self) -> u64 {
+        self.atm_estimates
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -670,9 +677,9 @@ impl GpuRenderer {
             } else {
                 wb_base
             };
-        let full_src: Arc<Texture> = match crate::ops::capture_sharpen::frame_sigma(frame, edits)
-            .filter(|_| dims.0 >= 8 && dims.1 >= 8)
-        {
+        let sigma = crate::ops::capture_sharpen::frame_sigma(frame, edits)
+            .filter(|_| dims.0 >= 8 && dims.1 >= 8);
+        let full_src: Arc<Texture> = match sigma {
             Some(sigma) => {
                 let key = capture_cache_key(frame, edits, dims, setup.cam_to_srgb, sigma);
                 let t = self.run_capture_sharpen(&full_src, dims, sigma, key)?;
@@ -699,8 +706,8 @@ impl GpuRenderer {
             None => (dims, full_src),
         };
         let base = if edits.basic.dehaze != 0.0 {
-            let atm =
-                self.atmosphere_for(frame, edits, spatial_src.as_ref(), spatial_dims, cancel)?;
+            let key = spatial_cache_key(frame, edits, dims, setup.cam_to_srgb, sigma, spatial_dims);
+            let atm = self.atmosphere_for(key, spatial_src.as_ref(), spatial_dims, cancel)?;
             let _span = tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
                 .entered();
             let t = self.run_dehaze(spatial_src.as_ref(), spatial_dims, edits, atm)?;

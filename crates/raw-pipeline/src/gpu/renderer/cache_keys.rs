@@ -4,18 +4,6 @@ use super::GpuRenderer;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 
-pub(super) fn atmosphere_cache_key(frame: &RawFrame, edits: &Edits, dims: (u32, u32)) -> u64 {
-    let mut e = edits.clone();
-    e.basic.dehaze = 0.0;
-    let json = serde_json::to_vec(&e).unwrap_or_default();
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    GpuRenderer::frame_key(frame).hash(&mut h);
-    dims.0.hash(&mut h);
-    dims.1.hash(&mut h);
-    json.hash(&mut h);
-    h.finish()
-}
-
 pub(super) fn wb_cache_key(
     frame: &RawFrame,
     edits: &Edits,
@@ -62,5 +50,23 @@ pub(super) fn capture_cache_key(
     let mut h = std::collections::hash_map::DefaultHasher::new();
     nr_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h);
     sigma.to_bits().hash(&mut h);
+    h.finish()
+}
+
+pub(super) fn spatial_cache_key(
+    frame: &RawFrame,
+    edits: &Edits,
+    dims: (u32, u32),
+    cam_to_srgb: [[f32; 3]; 3],
+    sigma: Option<f32>,
+    spatial_dims: (u32, u32),
+) -> u64 {
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    match sigma {
+        Some(sigma) => capture_cache_key(frame, edits, dims, cam_to_srgb, sigma).hash(&mut h),
+        None => nr_cache_key(frame, edits, dims, cam_to_srgb).hash(&mut h),
+    }
+    spatial_dims.0.hash(&mut h);
+    spatial_dims.1.hash(&mut h);
     h.finish()
 }

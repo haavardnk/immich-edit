@@ -7,32 +7,30 @@ use wgpu::{
 
 use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, samp, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::dehaze::{
     DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams, MOMENT_FORMAT,
 };
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::renderer::cache_keys::atmosphere_cache_key;
 use crate::gpu::texture_pool::TextureKey;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn atmosphere_for(
         &self,
-        frame: &RawFrame,
-        edits: &Edits,
+        key: u64,
         src: &Texture,
         dims: (u32, u32),
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<[f32; 3]> {
-        let key = atmosphere_cache_key(frame, edits, dims);
         if let Some(a) = self.atm_cache.lock().get(&key).copied() {
             tracing::debug!(target: "dehaze", "atm cache hit");
             return Ok(a);
         }
         let _span = tracing::debug_span!("gpu_dehaze_atm", w = dims.0, h = dims.1).entered();
         let atm = self.estimate_atmosphere(src, dims, cancel)?;
+        self.atm_estimates
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.atm_cache.lock().put(key, atm);
         Ok(atm)
     }
