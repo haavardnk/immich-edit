@@ -98,6 +98,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         instance,
         auth,
         login_limiter,
+        providers: immich_edit_backend::services::oauth_providers::ProviderCache::new(),
         edits,
         jobs,
         render: RenderService::new(

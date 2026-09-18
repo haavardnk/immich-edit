@@ -30,6 +30,9 @@ pub async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
             | "/auth/logout"
             | "/auth/login/password"
             | "/auth/login/api-key"
+            | "/auth/providers"
+            | "/auth/oauth/start"
+            | "/auth/oauth/callback"
             | "/setup/status"
             | "/setup/complete"
     ) {
