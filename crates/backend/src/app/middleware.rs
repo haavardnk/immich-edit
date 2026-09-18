@@ -35,6 +35,9 @@ pub async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
             | "/auth/oauth/callback"
             | "/setup/status"
             | "/setup/complete"
+            | "/setup/providers"
+            | "/setup/oauth/start"
+            | "/setup/oauth/complete"
     ) {
         return next.run(req).await;
     }

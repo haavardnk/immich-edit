@@ -106,6 +106,12 @@ pub async fn begin_flow(
     Ok(resp)
 }
 
+pub fn clear_flow_cookie(resp: &mut Response) {
+    if let Ok(v) = HeaderValue::from_str(&oauth_flow::clear_cookie()) {
+        resp.headers_mut().append(SET_COOKIE, v);
+    }
+}
+
 pub fn open_flow(
     state: &AppState,
     headers: &HeaderMap,
@@ -247,15 +253,10 @@ async fn finish_callback(
         obj.insert("next".into(), json!(next));
     }
     let mut resp = (StatusCode::OK, Json(payload)).into_response();
-    let cookies = [
-        super::session_cookie(&token, client.secure),
-        oauth_flow::clear_cookie(),
-    ];
-    for cookie in cookies {
-        if let Ok(v) = HeaderValue::from_str(&cookie) {
-            resp.headers_mut().append(SET_COOKIE, v);
-        }
+    if let Ok(v) = HeaderValue::from_str(&super::session_cookie(&token, client.secure)) {
+        resp.headers_mut().append(SET_COOKIE, v);
     }
+    clear_flow_cookie(&mut resp);
     Ok(resp)
 }
 
