@@ -79,6 +79,10 @@ impl RenderPlan {
     }
 }
 
+fn wb_delta(edits: &Edits) -> (u64, u64) {
+    (edits.basic.wb_temp.to_bits(), edits.basic.wb_tint.to_bits())
+}
+
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
@@ -638,32 +642,125 @@ impl GpuRenderer {
         output::finish_image(rgba, linear_rgb, out_dims, geom.source, opts, frame.is_raw)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn spatial_base(
+        &self,
+        cached: &CachedFrame,
+        dims: (u32, u32),
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        setup: &crate::dcp_pipeline::DcpSetup,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<((u32, u32), Arc<Texture>)> {
+        let wb_base = self.run_wb_prepare(cached, frame, edits, setup)?;
+        crate::cancel::check(cancel)?;
+        let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
+            let t = self.run_retouch(wb_base, dims, frame, edits)?;
+            crate::cancel::check(cancel)?;
+            t
+        } else {
+            wb_base
+        };
+        let full_src: Arc<Texture> =
+            if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
+                let t = self.run_nr(&wb_base, dims, edits, frame, setup.cam_to_srgb)?;
+                crate::cancel::check(cancel)?;
+                t
+            } else {
+                wb_base
+            };
+        let full_src: Arc<Texture> = match crate::ops::capture_sharpen::frame_sigma(frame, edits)
+            .filter(|_| dims.0 >= 8 && dims.1 >= 8)
+        {
+            Some(sigma) => {
+                let key = capture_cache_key(frame, edits, dims, setup.cam_to_srgb, sigma);
+                let t = self.run_capture_sharpen(&full_src, dims, sigma, key)?;
+                crate::cancel::check(cancel)?;
+                t
+            }
+            None => full_src,
+        };
+        let preview_dims = crate::geom::preview_ratio(
+            frame.orientation,
+            edits,
+            dims,
+            options.max_edge,
+            options.quality,
+        )
+        .and_then(|ratio| crate::geom::resample_target(dims, ratio));
+        let (spatial_dims, spatial_src) = match preview_dims {
+            Some(preview_dims) => {
+                let downsampled =
+                    self.resample_lanczos(&full_src, dims, preview_dims, "preview-spatial-src")?;
+                crate::cancel::check(cancel)?;
+                (preview_dims, downsampled)
+            }
+            None => (dims, full_src),
+        };
+        let base = if edits.basic.dehaze != 0.0 {
+            let atm =
+                self.atmosphere_for(frame, edits, spatial_src.as_ref(), spatial_dims, cancel)?;
+            let _span = tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
+                .entered();
+            let t = self.run_dehaze(spatial_src.as_ref(), spatial_dims, edits, atm)?;
+            crate::cancel::check(cancel)?;
+            t
+        } else {
+            spatial_src
+        };
+        Ok((spatial_dims, base))
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn layer_presence_sources(
         &self,
-        src: &Arc<Texture>,
+        cached: &CachedFrame,
         dims: (u32, u32),
+        frame: &RawFrame,
         edits: &Edits,
+        options: &RenderOptions,
+        setup: &crate::dcp_pipeline::DcpSetup,
+        base: &Arc<Texture>,
+        spatial_dims: (u32, u32),
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<std::collections::HashMap<String, Arc<Texture>>> {
         let mut out = std::collections::HashMap::new();
         let global_amts = crate::presence::presence_amounts(edits);
-        let mut cache: std::collections::HashMap<(u32, u32), Arc<Texture>> =
+        let global_wb = wb_delta(edits);
+        let mut base_cache: std::collections::HashMap<(u64, u64), Arc<Texture>> =
+            std::collections::HashMap::new();
+        let mut cache: std::collections::HashMap<(u64, u64, u32, u32), Arc<Texture>> =
             std::collections::HashMap::new();
         for layer in edits.masks.iter().filter(|l| l.is_effective()) {
             let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
             let amts = crate::presence::presence_amounts(&eff);
-            if amts.texture == global_amts.texture && amts.clarity == global_amts.clarity {
+            let wb = wb_delta(&eff);
+            if wb == global_wb
+                && amts.texture == global_amts.texture
+                && amts.clarity == global_amts.clarity
+            {
                 continue;
             }
-            let key = (amts.texture.to_bits(), amts.clarity.to_bits());
+            let key = (wb.0, wb.1, amts.texture.to_bits(), amts.clarity.to_bits());
             if let Some(t) = cache.get(&key) {
                 out.insert(layer.id.clone(), t.clone());
                 continue;
             }
-            let t = if amts.texture == 0.0 && amts.clarity == 0.0 {
-                src.clone()
+            let layer_base = if wb == global_wb {
+                base.clone()
+            } else if let Some(t) = base_cache.get(&wb) {
+                t.clone()
             } else {
-                let t = self.run_presence(src, dims, &eff)?;
+                let (_, t) =
+                    self.spatial_base(cached, dims, frame, &eff, options, setup, cancel)?;
+                base_cache.insert(wb, t.clone());
+                t
+            };
+            let t = if amts.texture == 0.0 && amts.clarity == 0.0 {
+                layer_base
+            } else {
+                let t = self.run_presence(&layer_base, spatial_dims, &eff)?;
                 crate::cancel::check(cancel)?;
                 t
             };
@@ -727,76 +824,9 @@ impl GpuRenderer {
             }
             RenderPlan::Presence => {
                 let setup = crate::dcp_pipeline::resolve(frame, &edits_c, options.dcp.as_deref());
-                let wb_base = self.run_wb_prepare(&cached, frame, &edits_c, &setup)?;
-                crate::cancel::check(cancel)?;
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
-                let wb_base = if edits_c.retouch.iter().any(|s| s.is_effective()) {
-                    let t = self.run_retouch(wb_base, dims, frame, &edits_c)?;
-                    crate::cancel::check(cancel)?;
-                    t
-                } else {
-                    wb_base
-                };
-                let full_src: Arc<Texture> =
-                    if edits_c.detail.luma_nr_active() || edits_c.detail.color_nr_active() {
-                        let t = self.run_nr(&wb_base, dims, &edits_c, frame, setup.cam_to_srgb)?;
-                        crate::cancel::check(cancel)?;
-                        t
-                    } else {
-                        wb_base
-                    };
-                let full_src: Arc<Texture> =
-                    match crate::ops::capture_sharpen::frame_sigma(frame, &edits_c)
-                        .filter(|_| dims.0 >= 8 && dims.1 >= 8)
-                    {
-                        Some(sigma) => {
-                            let key =
-                                capture_cache_key(frame, &edits_c, dims, setup.cam_to_srgb, sigma);
-                            let t = self.run_capture_sharpen(&full_src, dims, sigma, key)?;
-                            crate::cancel::check(cancel)?;
-                            t
-                        }
-                        None => full_src,
-                    };
-                let preview_dims = crate::geom::preview_ratio(
-                    frame.orientation,
-                    &edits_c,
-                    dims,
-                    options.max_edge,
-                    options.quality,
-                )
-                .and_then(|ratio| crate::geom::resample_target(dims, ratio));
-                let (spatial_dims, spatial_src) = match preview_dims {
-                    Some(preview_dims) => {
-                        let downsampled = self.resample_lanczos(
-                            &full_src,
-                            dims,
-                            preview_dims,
-                            "preview-spatial-src",
-                        )?;
-                        crate::cancel::check(cancel)?;
-                        (preview_dims, downsampled)
-                    }
-                    None => (dims, full_src),
-                };
-                let dehaze_out: Option<Arc<Texture>> = if edits_c.basic.dehaze != 0.0 {
-                    let atm = self.atmosphere_for(
-                        frame,
-                        &edits_c,
-                        spatial_src.as_ref(),
-                        spatial_dims,
-                        cancel,
-                    )?;
-                    let _span =
-                        tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
-                            .entered();
-                    let t = self.run_dehaze(spatial_src.as_ref(), spatial_dims, &edits_c, atm)?;
-                    crate::cancel::check(cancel)?;
-                    Some(t)
-                } else {
-                    None
-                };
-                let base_src: Arc<Texture> = dehaze_out.unwrap_or(spatial_src);
+                let (spatial_dims, base_src) =
+                    self.spatial_base(&cached, dims, frame, &edits_c, options, &setup, cancel)?;
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
                     self.run_presence(&base_src, spatial_dims, &edits_c)?
@@ -804,8 +834,17 @@ impl GpuRenderer {
                     base_src.clone()
                 };
                 crate::cancel::check(cancel)?;
-                let layer_srcs =
-                    self.layer_presence_sources(&base_src, spatial_dims, &edits_c, cancel)?;
+                let layer_srcs = self.layer_presence_sources(
+                    &cached,
+                    dims,
+                    frame,
+                    &edits_c,
+                    options,
+                    &setup,
+                    &base_src,
+                    spatial_dims,
+                    cancel,
+                )?;
                 let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
                     Some(self.build_luma_pyramid(&processed_src, spatial_dims)?)
                 } else {

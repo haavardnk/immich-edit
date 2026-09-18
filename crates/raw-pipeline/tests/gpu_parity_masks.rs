@@ -5,8 +5,8 @@ use common::{
     try_renderer,
 };
 use raw_pipeline::edits::{
-    Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
-    Vec2f,
+    BasicEdits, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
+    MaskedEdits, Vec2f,
 };
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
 
@@ -252,6 +252,56 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
 
     let mut ledger = ParityLedger::new("masks");
     ledger.check("masked-sharpen", &cpu.bytes, &gpu.bytes, 0.35);
+    ledger.finish();
+}
+
+#[test]
+fn gpu_masked_wb_matches_cpu_on_presence_plan() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(96);
+    // dehaze is what puts the render on the Presence plan, where the layer pass runs a
+    // shader with no WhiteBalance stage.
+    let build = |wb_temp: Option<f64>| Edits {
+        basic: BasicEdits {
+            dehaze: 0.3,
+            ..Default::default()
+        },
+        masks: vec![layer(
+            vec![linear_component(0.4)],
+            MaskedEdits {
+                exposure_ev: Some(0.5),
+                wb_temp,
+                ..Default::default()
+            },
+            false,
+        )],
+        ..Default::default()
+    };
+    let edits = build(Some(80.0));
+    let no_wb = build(None);
+
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let cpu_no_wb = raw_pipeline::cpu::render(&frame, &no_wb, &opts).unwrap();
+    let cpu_effect = mean_abs_delta(&cpu.bytes, &cpu_no_wb.bytes);
+    eprintln!("masked presence wb cpu effect = {cpu_effect:.3}");
+    if cpu_effect < 0.5 {
+        panic!("masked white balance had no effect on the CPU path: {cpu_effect:.3}");
+    }
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let gpu_no_wb = renderer.render(&frame, &no_wb, &opts).unwrap();
+    let gpu_effect = mean_abs_delta(&gpu.bytes, &gpu_no_wb.bytes);
+    eprintln!("masked presence wb gpu effect = {gpu_effect:.3}");
+    if gpu_effect < 0.5 {
+        panic!("masked white balance had no effect on the GPU path: {gpu_effect:.3}");
+    }
+
+    require_same_dims("masked-presence-wb", &cpu, &gpu);
+    let mut ledger = ParityLedger::new("masks");
+    ledger.check("masked-presence-wb", &cpu.bytes, &gpu.bytes, 0.35);
     ledger.finish();
 }
 
