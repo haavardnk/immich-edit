@@ -72,10 +72,7 @@ pub async fn build_auth_ctx(state: &AppState, headers: &HeaderMap) -> Option<Aut
     let actx = state.auth.authenticate(&token).await.ok()??;
     let base = resolve_immich_base(state).await.ok()?;
     let cred = actx.immich_cred.to_utf8()?;
-    let auth = match actx.auth_kind {
-        AuthKind::Password => ImmichAuth::Bearer(cred),
-        AuthKind::ApiKey => ImmichAuth::ApiKey(cred),
-    };
+    let auth = actx.auth_kind.immich_auth(cred);
     let immich = ImmichClient::with_auth(
         base,
         auth,
@@ -202,10 +199,7 @@ fn user_json(user: &crate::services::auth_store::UserRecord, kind: AuthKind) -> 
         "email": user.email,
         "name": user.name,
         "is_admin": user.is_admin,
-        "auth_kind": match kind {
-            AuthKind::Password => "password",
-            AuthKind::ApiKey => "apikey",
-        },
+        "auth_kind": kind.as_str(),
     })
 }
 
@@ -436,7 +430,7 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Res
 pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let request_id = REQUEST_ID.try_with(|s| s.clone()).unwrap_or_default();
     if let Some(ctx) = build_auth_ctx(&state, &headers).await
-        && matches!(ctx.auth_kind, AuthKind::Password)
+        && ctx.auth_kind.revokes_upstream()
         && let Err(e) = ctx.immich.logout().await
     {
         tracing::warn!(
