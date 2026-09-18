@@ -33,9 +33,14 @@ use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 pub const TEST_API_KEY: &str = "test-key";
+pub const MEMBER_API_KEY: &str = "member-key";
 
 pub fn test_user_id() -> Uuid {
     Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap()
+}
+
+pub fn member_user_id() -> Uuid {
+    Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap()
 }
 
 pub async fn test_state(server: &MockServer) -> AppState {
@@ -179,12 +184,48 @@ pub async fn test_app(server: &MockServer) -> axum::Router {
 
 pub async fn seed_member_session(server: &MockServer, state: &AppState) -> String {
     let user = ImmichUser {
-        id: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+        id: member_user_id(),
         email: "member@test.local".into(),
         name: "Member".into(),
         is_admin: false,
     };
     seed_session_as(server, state, user, AuthKind::ApiKey).await
+}
+
+pub async fn two_owner_apps(server: &MockServer) -> (axum::Router, axum::Router) {
+    let state = test_state(server).await;
+    let admin = ImmichUser {
+        id: test_user_id(),
+        email: "admin@test.local".into(),
+        name: "Admin".into(),
+        is_admin: true,
+    };
+    let member = ImmichUser {
+        id: member_user_id(),
+        email: "member@test.local".into(),
+        name: "Member".into(),
+        is_admin: false,
+    };
+    let admin_token = seed_session_with_cred(
+        server,
+        &state,
+        admin,
+        AuthKind::ApiKey,
+        TEST_API_KEY.as_bytes(),
+    )
+    .await;
+    let member_token = seed_session_with_cred(
+        server,
+        &state,
+        member,
+        AuthKind::ApiKey,
+        MEMBER_API_KEY.as_bytes(),
+    )
+    .await;
+    (
+        wrap_auth(router(state.clone()), admin_token),
+        wrap_auth(router(state), member_token),
+    )
 }
 
 pub async fn member_app(server: &MockServer) -> axum::Router {

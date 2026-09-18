@@ -3,13 +3,9 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use immich_edit_backend::immich::client::ImmichUser;
-use immich_edit_backend::services::auth_store::AuthKind;
 use tower::ServiceExt;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-const MEMBER_API_KEY: &str = "member-key";
 
 fn arw_fixture() -> Vec<u8> {
     let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -36,42 +32,6 @@ async fn mock_original_owned_by_admin(server: &MockServer, id: uuid::Uuid) {
         .await;
 }
 
-async fn two_session_apps(server: &MockServer) -> (axum::Router, axum::Router) {
-    let state = test_state(server).await;
-    let admin = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
-    let member = ImmichUser {
-        id: uuid::Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
-        email: "member@test.local".into(),
-        name: "Member".into(),
-        is_admin: false,
-    };
-    let admin_token = seed_session_with_cred(
-        server,
-        &state,
-        admin,
-        AuthKind::ApiKey,
-        TEST_API_KEY.as_bytes(),
-    )
-    .await;
-    let member_token = seed_session_with_cred(
-        server,
-        &state,
-        member,
-        AuthKind::ApiKey,
-        MEMBER_API_KEY.as_bytes(),
-    )
-    .await;
-    (
-        wrap_auth(router(state.clone()), admin_token),
-        wrap_auth(router(state), member_token),
-    )
-}
-
 fn post_json(uri: &str, body: serde_json::Value) -> Request<Body> {
     Request::builder()
         .method("POST")
@@ -86,7 +46,7 @@ async fn cached_preview_frame_is_not_served_to_another_owner() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_original_owned_by_admin(&server, id).await;
-    let (admin, member) = two_session_apps(&server).await;
+    let (admin, member) = two_owner_apps(&server).await;
 
     let body = serde_json::json!({"max_edge": 512, "edits": {}});
     let resp = admin
@@ -114,7 +74,7 @@ async fn cached_quality_frame_is_not_served_to_another_owner() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_original_owned_by_admin(&server, id).await;
-    let (admin, member) = two_session_apps(&server).await;
+    let (admin, member) = two_owner_apps(&server).await;
 
     let body = serde_json::json!({"edits": {}});
     let resp = admin
