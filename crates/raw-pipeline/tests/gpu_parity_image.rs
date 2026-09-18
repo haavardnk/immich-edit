@@ -1,12 +1,175 @@
 mod common;
 
 use common::{
-    ParityLedger, any_fixture, mean_abs_laplacian, require_same_dims, rgb8_opts,
+    ParityLedger, any_fixture, mean_abs_laplacian, require_same_dims, rgb_frame, rgb8_opts,
     synthetic_bayer_frame, synthetic_frame, try_renderer, warn_pixels,
 };
 use raw_pipeline::decode;
 use raw_pipeline::edits::{BasicEdits, CropRect, Edits, GeometryEdits};
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
+use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RenderOptions};
+
+fn ramp_red_u16(png: &[u8]) -> Vec<u16> {
+    let frame = decode::decode(png).unwrap();
+    frame
+        .data
+        .chunks_exact(3)
+        .map(|px| (px[0].clamp(0.0, 1.0) * 65535.0).round() as u16)
+        .collect()
+}
+
+#[test]
+fn gpu_16bit_output_keeps_more_than_8_bit_levels() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let w = 512;
+    let h = 8;
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let u = x as f32 / (w - 1) as f32;
+            let i = (y * w + x) * 3;
+            data[i] = u;
+            data[i + 1] = u;
+            data[i + 2] = u;
+        }
+    }
+    let frame = rgb_frame(w, h, data);
+    let opts = RenderOptions {
+        max_edge: 1024,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Sixteen,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+    let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+    require_same_dims("ramp16", &cpu, &gpu);
+
+    let g = ramp_red_u16(&gpu.bytes);
+    let c = ramp_red_u16(&cpu.bytes);
+    let distinct: std::collections::BTreeSet<u16> = g.iter().copied().collect();
+    if distinct.len() <= 256 {
+        panic!(
+            "gpu 16-bit ramp has only {} distinct levels; display path is 8-bit",
+            distinct.len()
+        );
+    }
+    let delta = g
+        .iter()
+        .zip(&c)
+        .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs())
+        .max()
+        .unwrap();
+    if delta > 600 {
+        panic!("gpu vs cpu 16-bit ramp differs by {delta} levels");
+    }
+}
+
+#[test]
+fn gpu_16bit_lut_pass_reads_and_writes_16_bit() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let w = 512;
+    let h = 8;
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let u = x as f32 / (w - 1) as f32;
+            let i = (y * w + x) * 3;
+            data[i] = u;
+            data[i + 1] = u;
+            data[i + 2] = u;
+        }
+    }
+    let frame = rgb_frame(w, h, data);
+    let lut = raw_pipeline::Lut3d::parse_cube(tint_lut_cube(16).as_bytes()).unwrap();
+    let mut luts: raw_pipeline::LutMap = std::collections::HashMap::new();
+    luts.insert("test".to_string(), std::sync::Arc::new(lut));
+    let opts = RenderOptions {
+        max_edge: 1024,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Sixteen,
+            compression: PngCompression::Fast,
+        },
+        luts,
+        ..Default::default()
+    };
+    let mut edits = Edits::default();
+    edits.color.lut_3d.lut_id = Some("test".to_string());
+    edits.color.lut_3d.amount = 100.0;
+
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    let plain = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    if gpu.bytes == plain.bytes {
+        panic!("lut pass did not run; test is vacuous");
+    }
+    let g = ramp_red_u16(&gpu.bytes);
+    let distinct: std::collections::BTreeSet<u16> = g.iter().copied().collect();
+    if distinct.len() <= 256 {
+        panic!(
+            "gpu 16-bit lut ramp has only {} distinct levels",
+            distinct.len()
+        );
+    }
+}
+
+fn tint_lut_cube(size: usize) -> String {
+    let last = (size - 1) as f32;
+    let mut s = format!("LUT_3D_SIZE {size}\n");
+    for b in 0..size {
+        for g in 0..size {
+            for r in 0..size {
+                s.push_str(&format!(
+                    "{} {} {}\n",
+                    (r as f32 / last * 1.1).clamp(0.0, 1.0),
+                    g as f32 / last,
+                    (b as f32 / last * 0.85).clamp(0.0, 1.0)
+                ));
+            }
+        }
+    }
+    s
+}
+
+#[test]
+fn gpu_16bit_dcp_finish_writes_16_bit() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let Some(path) = any_fixture() else {
+        eprintln!("no fixture, skipping");
+        return;
+    };
+    let bytes = std::fs::read(&path).unwrap();
+    let frame = decode::decode(&bytes).unwrap();
+    let opts = RenderOptions {
+        max_edge: 512,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Sixteen,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+    let mut edits = Edits::default();
+    edits.color.dcp.mode = raw_pipeline::edits::DcpMode::Flat;
+    let with_dcp = renderer.render(&frame, &edits, &opts).unwrap();
+    edits.color.dcp.mode = raw_pipeline::edits::DcpMode::Off;
+    let without = renderer.render(&frame, &edits, &opts).unwrap();
+    if with_dcp.bytes == without.bytes {
+        panic!("dcp finish pass did not run; test is vacuous");
+    }
+    let g = ramp_red_u16(&with_dcp.bytes);
+    let distinct: std::collections::BTreeSet<u16> = g.iter().copied().collect();
+    if distinct.len() <= 256 {
+        panic!(
+            "gpu 16-bit dcp output has only {} distinct levels",
+            distinct.len()
+        );
+    }
+}
 
 #[test]
 fn gpu_demosaic_matches_cpu_mhc() {

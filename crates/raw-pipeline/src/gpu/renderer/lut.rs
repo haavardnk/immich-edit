@@ -9,18 +9,21 @@ use wgpu::{
 use crate::edits::Edits;
 use crate::frame::RenderOptions;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
+use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::lut::LutParams;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 use super::GpuRenderer;
 
 impl GpuRenderer {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn maybe_encode_lut(
         &self,
         encoder: &mut CommandEncoder,
         edits: &Edits,
         opts: &RenderOptions,
         src: &Texture,
+        depth: DisplayDepth,
         w: u32,
         h: u32,
     ) -> Option<PooledTexture> {
@@ -34,7 +37,7 @@ impl GpuRenderer {
         let target = self.texture_pool.acquire(
             &self.ctx.device,
             TextureKey::new(
-                wgpu::TextureFormat::Rgba8Unorm,
+                depth.format(),
                 w,
                 h,
                 1,
@@ -43,7 +46,7 @@ impl GpuRenderer {
             "lut-target",
         );
         let amount = (l.amount / 100.0) as f32;
-        self.encode_lut(encoder, src, &lut_tex, &target, lut, amount, w, h);
+        self.encode_lut(encoder, src, &lut_tex, &target, lut, amount, depth, w, h);
         Some(target)
     }
 
@@ -109,11 +112,15 @@ impl GpuRenderer {
         dst: &Texture,
         lut: &crate::lut::Lut3d,
         amount: f32,
+        depth: DisplayDepth,
         w: u32,
         h: u32,
     ) {
         let device = &self.ctx.device;
-        let pass = &self.passes.lut;
+        let pass = match depth {
+            DisplayDepth::Eight => &self.passes.lut,
+            DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).lut,
+        };
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let lut_view = lut_tex.create_view(&TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D3),

@@ -39,7 +39,23 @@ use cache_keys::{capture_cache_key, spatial_cache_key};
 use geometry::{compute_out_dims, crop_px, process_geom};
 pub use pools::GpuPoolStats;
 
+use super::display_depth::DisplayDepth;
+use super::texture_pool::TextureKey;
+
 const CACHE_ITEMS: usize = 2;
+
+fn display_depth(opts: &RenderOptions) -> DisplayDepth {
+    if opts.gamut_warn
+        || opts.clip_warn
+        || matches!(
+            opts.preview_mode,
+            crate::frame::PreviewMode::MaskWeight { .. }
+        )
+    {
+        return DisplayDepth::Eight;
+    }
+    DisplayDepth::for_output(&opts.output)
+}
 
 struct CachedFrame {
     texture: Arc<Texture>,
@@ -310,7 +326,28 @@ impl GpuRenderer {
 
         let pool = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h);
         let p = &pool[0];
-        let out_view = p.texture.create_view(&TextureViewDescriptor::default());
+        let depth = display_depth(opts);
+        let display_target = (depth == DisplayDepth::Sixteen).then(|| {
+            self.texture_pool.acquire(
+                &self.ctx.device,
+                TextureKey::new(
+                    depth.format(),
+                    out_w,
+                    out_h,
+                    1,
+                    TextureUsages::STORAGE_BINDING
+                        | TextureUsages::TEXTURE_BINDING
+                        | TextureUsages::COPY_SRC
+                        | TextureUsages::COPY_DST,
+                ),
+                "display-16",
+            )
+        });
+        let display_tex: &Texture = display_target
+            .as_ref()
+            .map(|t| t.texture())
+            .unwrap_or(&p.texture);
+        let out_view = display_tex.create_view(&TextureViewDescriptor::default());
         let linear_view = p
             .linear_texture
             .create_view(&TextureViewDescriptor::default());
@@ -621,6 +658,8 @@ impl GpuRenderer {
                 &edits,
                 p,
                 s,
+                display_tex,
+                depth,
                 out_w,
                 out_h,
                 run_sharpen,
@@ -635,7 +674,8 @@ impl GpuRenderer {
                 &mut encoder,
                 ctx_op.render.dcp.as_deref(),
                 &spool[0].post_lin,
-                &p.texture,
+                display_tex,
+                depth,
                 out_w,
                 out_h,
                 warn_flags | ((p3_active as u32) << 2),
@@ -643,8 +683,8 @@ impl GpuRenderer {
         });
 
         let lut_target =
-            self.maybe_encode_lut(&mut encoder, &edits, opts, &p.texture, out_w, out_h);
-        let display_src = lut_target.as_deref().unwrap_or(&p.texture);
+            self.maybe_encode_lut(&mut encoder, &edits, opts, display_tex, depth, out_w, out_h);
+        let display_src = lut_target.as_deref().unwrap_or(display_tex);
         let overlay = preview_layer.is_some();
         if overlay {
             self.encode_mask_overlay(&mut encoder, p, display_src, out_dims, &mut retained);
@@ -654,15 +694,26 @@ impl GpuRenderer {
         } else {
             display_src
         };
+        let display_readback = (depth == DisplayDepth::Sixteen).then(|| {
+            crate::gpu::readback::make_readback_buffer_wide(device, "readback-16", out_w, out_h)
+        });
         let linear_src = opts.histogram.then(|| match sharpen_pool_guard.as_ref() {
             Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
         });
-        let (rgba, linear_rgb) =
-            self.readback_image(encoder, p, display_src, linear_src, out_dims, cancel)?;
+        let (rgba, linear_rgb) = self.readback_image(
+            encoder,
+            p,
+            display_src,
+            display_readback.as_ref(),
+            linear_src,
+            out_dims,
+            cancel,
+        )?;
         self.release_mask_atlas(preview_atlas);
         self.release_mask_atlas(layer_atlas);
         drop(lut_target);
+        drop(display_target);
         drop(pool);
 
         output::finish_image(rgba, linear_rgb, out_dims, geom.source, opts, frame.is_raw)
@@ -831,10 +882,15 @@ impl GpuRenderer {
         };
         let dims = (cached.width, cached.height);
         let edits_c = edits.clamped();
+        let depth = display_depth(options);
         match plan {
             RenderPlan::Fast => {
+                let pass = match depth {
+                    DisplayDepth::Eight => &self.passes.process_fast,
+                    DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).process_fast,
+                };
                 let out = self.process(
-                    &self.passes.process_fast,
+                    pass,
                     cached.texture.as_ref(),
                     dims,
                     compute_out_dims(frame, &edits_c, dims, options.max_edge),
@@ -880,7 +936,10 @@ impl GpuRenderer {
                     .as_ref()
                     .map(|t| t.create_view(&TextureViewDescriptor::default()));
                 let out = self.process(
-                    &self.passes.process_post_wb,
+                    match depth {
+                        DisplayDepth::Eight => &self.passes.process_post_wb,
+                        DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).process_post_wb,
+                    },
                     &processed_src,
                     spatial_dims,
                     (out_w, out_h),

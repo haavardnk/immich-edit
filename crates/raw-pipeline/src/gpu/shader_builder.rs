@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use crate::gpu::display_depth::DisplayDepth;
 use crate::ops::{OpRegistry, Stage};
 
 pub const HEADER_BYTES: usize = size_of::<crate::gpu::uniforms::ProcessHeader>();
@@ -53,10 +54,14 @@ pub struct BuiltProcessShader {
 }
 
 pub fn build(registry: &OpRegistry) -> BuiltProcessShader {
-    build_for(registry, StageMask::fast())
+    build_for(registry, StageMask::fast(), DisplayDepth::Eight)
 }
 
-pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
+pub fn build_for(
+    registry: &OpRegistry,
+    mask: StageMask,
+    depth: DisplayDepth,
+) -> BuiltProcessShader {
     let mut struct_fields = String::new();
     let mut functions = String::new();
     let mut apply_wb = String::new();
@@ -119,6 +124,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
     let tone_wgsl = crate::tone::wgsl::tone_wgsl();
     let prelude = crate::ops::wgsl::op_prelude_wgsl();
     let geometry_wgsl = GEOMETRY_WGSL;
+    let display_store = depth.store_wgsl(3);
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -139,7 +145,7 @@ pub fn build_for(registry: &OpRegistry, mask: StageMask) -> BuiltProcessShader {
 @group(0) @binding(0) var<uniform> p: ProcessParams;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
 @group(0) @binding(2) var src_samp: sampler;
-@group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
+{display_store}
 @group(0) @binding(4) var linear_tex: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(5) var shadows_blur_tex: texture_2d<f32>;
 
@@ -247,7 +253,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
     let outc = tone_apply_rgb(outc_lin);
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
-    textureStore(out_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_d, 1.0));
+    store_display(vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_d, 1.0));
 }}
 "#
     );
@@ -383,7 +389,8 @@ mod tests {
         let registry = default_registry();
         let sources = [
             build(&registry).wgsl,
-            build_for(&registry, StageMask::tone_color()).wgsl,
+            build_for(&registry, StageMask::tone_color(), DisplayDepth::Eight).wgsl,
+            build_for(&registry, StageMask::fast(), DisplayDepth::Sixteen).wgsl,
             build_prepare_wb(&registry).wgsl,
         ];
         for src in sources {

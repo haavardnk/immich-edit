@@ -4,6 +4,7 @@ use std::sync::Arc;
 use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::gpu::context::GpuContext;
+use crate::gpu::display_depth::{DISPLAY_STORE_INJECT, DisplayDepth};
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
@@ -28,18 +29,19 @@ pub struct EffectsTonePass {
 }
 
 impl EffectsTonePass {
-    pub fn new(ctx: &Arc<GpuContext>) -> Self {
+    pub fn new(ctx: &Arc<GpuContext>, depth: DisplayDepth) -> Self {
         let layout = make_layout(
             ctx,
             "effects-tone-bgl",
             &[
                 uniform_entry(0, EFFECTS_TONE_UNIFORM_SIZE),
                 tex_entry(1),
-                storage_entry(2, wgpu::TextureFormat::Rgba8Unorm),
+                storage_entry(2, depth.format()),
                 storage_entry(3, ctx.linear_format),
             ],
         );
         let src = include_str!("../../../assets/shaders/effects_tone.wgsl")
+            .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(2))
             .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
         let pipeline = make_pipeline(ctx, &layout, "effects_tone.wgsl", &src);
 

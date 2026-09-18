@@ -8,7 +8,7 @@ struct EffectsToneParams {
 
 @group(0) @binding(0) var<uniform> p: EffectsToneParams;
 @group(0) @binding(1) var src_lin: texture_2d<f32>;
-@group(0) @binding(2) var out_tex: texture_storage_2d<rgba8unorm, write>;
+// DISPLAY_STORE_INJECT
 @group(0) @binding(3) var out_lin: texture_storage_2d<rgba16float, write>;
 
 // TONE_WGSL_INJECT
@@ -123,5 +123,5 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     } else if ((p.output.w & 2u) != 0u) {
         alpha = warn_clip_alpha(outc);
     }
-    textureStore(out_tex, vec2<i32>(x, y), vec4<f32>(outc_d, alpha));
+    store_display(vec2<i32>(x, y), vec4<f32>(outc_d, alpha));
 }

@@ -84,6 +84,28 @@ pub(super) fn storage_entry(binding: u32, format: TextureFormat) -> BindGroupLay
     storage_entry_with(binding, format, StorageTextureAccess::WriteOnly)
 }
 
+pub(super) fn display_src_entry(
+    binding: u32,
+    depth: crate::gpu::display_depth::DisplayDepth,
+) -> BindGroupLayoutEntry {
+    let sample_type = match depth {
+        crate::gpu::display_depth::DisplayDepth::Eight => {
+            TextureSampleType::Float { filterable: false }
+        }
+        crate::gpu::display_depth::DisplayDepth::Sixteen => TextureSampleType::Uint,
+    };
+    BindGroupLayoutEntry {
+        binding,
+        visibility: ShaderStages::COMPUTE,
+        ty: BindingType::Texture {
+            sample_type,
+            view_dimension: TextureViewDimension::D2,
+            multisampled: false,
+        },
+        count: None,
+    }
+}
+
 pub(super) fn storage_entry_with(
     binding: u32,
     format: TextureFormat,

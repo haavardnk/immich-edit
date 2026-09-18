@@ -4,13 +4,20 @@ use wgpu::{BufferUsages, CommandEncoder, Texture, TextureViewDescriptor};
 use super::GpuRenderer;
 use super::masks::Retained;
 use crate::PipelineResult;
-use crate::encode::encode_from_rgba8;
+use crate::encode::{encode_from_rgb16, encode_from_rgba8};
 use crate::frame::{RenderOptions, RenderedImage};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
-use crate::gpu::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb};
+use crate::gpu::readback::{
+    copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb, read_rgba16uint_as_rgb,
+};
 use crate::gpu::resources::OutputTargets;
 use crate::histogram::Histogram;
 use crate::scopes::ScopeGrids;
+
+pub(super) enum DisplayBuf {
+    Rgba8(Vec<u8>),
+    Rgb16(Vec<u16>),
+}
 
 impl GpuRenderer {
     pub(super) fn encode_mask_overlay(
@@ -60,32 +67,44 @@ impl GpuRenderer {
         retained.binds.push(bind);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn readback_image(
         &self,
         mut encoder: CommandEncoder,
         p: &OutputTargets,
         display_src: &Texture,
+        display_dst: Option<&wgpu::Buffer>,
         linear_src: Option<&Texture>,
         out_dims: (u32, u32),
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<(Vec<u8>, Option<Vec<f32>>)> {
+    ) -> PipelineResult<(DisplayBuf, Option<Vec<f32>>)> {
         let (out_w, out_h) = out_dims;
-        copy_texture_to_buffer(&mut encoder, display_src, &p.readback, out_w, out_h);
+        let display_dst = display_dst.unwrap_or(&p.readback);
+        copy_texture_to_buffer(&mut encoder, display_src, display_dst, out_w, out_h);
         if let Some(src) = linear_src {
             copy_texture_to_buffer(&mut encoder, src, &p.linear_readback, out_w, out_h);
         }
         self.ctx.queue.submit(Some(encoder.finish()));
 
-        let rgba = read_rgba8(&self.ctx, &p.readback, out_w, out_h, cancel)?;
+        let display = match display_src.format() {
+            wgpu::TextureFormat::Rgba16Uint => DisplayBuf::Rgb16(read_rgba16uint_as_rgb(
+                &self.ctx,
+                display_dst,
+                out_w,
+                out_h,
+                cancel,
+            )?),
+            _ => DisplayBuf::Rgba8(read_rgba8(&self.ctx, display_dst, out_w, out_h, cancel)?),
+        };
         let linear_rgb = linear_src
             .map(|_| read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel))
             .transpose()?;
-        Ok((rgba, linear_rgb))
+        Ok((display, linear_rgb))
     }
 }
 
 pub(super) fn finish_image(
-    mut rgba: Vec<u8>,
+    display: DisplayBuf,
     linear_rgb: Option<Vec<f32>>,
     out_dims: (u32, u32),
     source: (u32, u32),
@@ -93,7 +112,30 @@ pub(super) fn finish_image(
     is_raw: bool,
 ) -> PipelineResult<RenderedImage> {
     let (out_w, out_h) = out_dims;
-    if opts.gamut_warn || opts.clip_warn {
+    let mut rgb16: Option<Vec<u16>> = None;
+    let mut rgba = match display {
+        DisplayBuf::Rgba8(rgba) => rgba,
+        DisplayBuf::Rgb16(rgb) => {
+            let need_meta = linear_rgb.is_some() || opts.scopes;
+            let rgba = if need_meta {
+                rgb.chunks_exact(3)
+                    .flat_map(|px| {
+                        [
+                            (px[0] >> 8) as u8,
+                            (px[1] >> 8) as u8,
+                            (px[2] >> 8) as u8,
+                            255,
+                        ]
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            rgb16 = Some(rgb);
+            rgba
+        }
+    };
+    if rgb16.is_none() && (opts.gamut_warn || opts.clip_warn) {
         crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
     }
 
@@ -134,7 +176,12 @@ pub(super) fn finish_image(
                 },
             )
         },
-        || encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
+        || match &rgb16 {
+            Some(rgb) => {
+                encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
+            }
+            None => encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
+        },
     );
     let (histogram, linear_histogram) = match histograms {
         Some((display, linear)) => (Some(display), Some(linear)),

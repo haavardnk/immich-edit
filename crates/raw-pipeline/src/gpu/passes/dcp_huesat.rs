@@ -18,8 +18,8 @@ impl DcpHueSatPass {
         Self::with_format(ctx, wgpu::TextureFormat::Rgba16Float, "dcp-huesat")
     }
 
-    pub fn new_look(ctx: &Arc<GpuContext>) -> Self {
-        Self::with_format(ctx, wgpu::TextureFormat::Rgba8Unorm, "dcp-look")
+    pub fn new_look(ctx: &Arc<GpuContext>, out_format: wgpu::TextureFormat) -> Self {
+        Self::with_format(ctx, out_format, "dcp-look")
     }
 
     fn with_format(ctx: &Arc<GpuContext>, out_format: wgpu::TextureFormat, label: &str) -> Self {
@@ -34,17 +34,13 @@ impl DcpHueSatPass {
             ],
         );
         let src = include_str!("../../../assets/shaders/dcp_huesat.wgsl")
-            .replace("rgba16float", storage_format_str(out_format))
+            .replace(
+                crate::gpu::display_depth::DISPLAY_STORE_INJECT,
+                &crate::gpu::display_depth::store_wgsl(out_format, 3),
+            )
             .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label}-cp"), &src);
 
         Self { layout, pipeline }
-    }
-}
-
-fn storage_format_str(f: wgpu::TextureFormat) -> &'static str {
-    match f {
-        wgpu::TextureFormat::Rgba8Unorm => "rgba8unorm",
-        _ => "rgba16float",
     }
 }

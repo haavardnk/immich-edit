@@ -8,6 +8,7 @@ use wgpu::{
 
 use crate::dcp::{HsvEncoding, HueSatMap};
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
+use crate::gpu::display_depth::DisplayDepth;
 use crate::ops::ResolvedDcp;
 
 use super::GpuRenderer;
@@ -143,6 +144,7 @@ impl GpuRenderer {
         resolved: Option<&ResolvedDcp>,
         post_lin: &Texture,
         dst: &Texture,
+        depth: DisplayDepth,
         out_w: u32,
         out_h: u32,
         warn_flags: u32,
@@ -160,7 +162,7 @@ impl GpuRenderer {
         let scratch = self.texture_pool.acquire(
             &self.ctx.device,
             TextureKey::new(
-                wgpu::TextureFormat::Rgba8Unorm,
+                depth.format(),
                 out_w,
                 out_h,
                 1,
@@ -283,7 +285,10 @@ impl GpuRenderer {
     ) {
         let device = &self.ctx.device;
         let pass = if output {
-            &self.passes.dcp_look
+            match dst.format() {
+                wgpu::TextureFormat::Rgba16Uint => &self.passes.depth16(&self.ctx).dcp_look,
+                _ => &self.passes.dcp_look,
+            }
         } else {
             &self.passes.dcp_huesat
         };

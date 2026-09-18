@@ -26,6 +26,7 @@ use std::sync::Arc;
 use wgpu::{AddressMode, FilterMode, MipmapFilterMode, Sampler, SamplerDescriptor};
 
 use super::context::GpuContext;
+use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::shader_builder::StageMask;
 use crate::ops::{OpRegistry, default_registry};
 
@@ -78,6 +79,15 @@ pub struct GpuPasses {
     pub linear_sampler: Sampler,
     pub atlas_sampler: Sampler,
     pub registry: OpRegistry,
+    depth16: std::sync::OnceLock<Depth16Passes>,
+}
+
+pub struct Depth16Passes {
+    pub process_fast: ProcessFastPass,
+    pub process_post_wb: ProcessFastPass,
+    pub effects_tone: EffectsTonePass,
+    pub lut: LutPass,
+    pub dcp_look: DcpHueSatPass,
 }
 
 impl GpuPasses {
@@ -126,14 +136,15 @@ impl GpuPasses {
                     ctx,
                     &registry,
                     StageMask::tone_color(),
+                    DisplayDepth::Eight,
                     "process-post",
                 )
             });
             let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
-            let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx));
-            let lut_t = s.spawn(|| LutPass::new(ctx));
+            let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx, DisplayDepth::Eight));
+            let lut_t = s.spawn(|| LutPass::new(ctx, DisplayDepth::Eight));
             let dcp_huesat_t = s.spawn(|| DcpHueSatPass::new(ctx));
-            let dcp_look_t = s.spawn(|| DcpHueSatPass::new_look(ctx));
+            let dcp_look_t = s.spawn(|| DcpHueSatPass::new_look(ctx, DisplayDepth::Eight.format()));
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
             let mask_overlay_t = s.spawn(|| MaskOverlayPass::new(ctx));
@@ -202,6 +213,32 @@ impl GpuPasses {
             }),
             atlas_sampler: mask_weight::make_atlas_sampler(ctx),
             registry,
+            depth16: std::sync::OnceLock::new(),
         }
+    }
+
+    pub fn depth16(&self, ctx: &Arc<GpuContext>) -> &Depth16Passes {
+        self.depth16.get_or_init(|| {
+            let depth = DisplayDepth::Sixteen;
+            Depth16Passes {
+                process_fast: ProcessFastPass::new_with_mask(
+                    ctx,
+                    &self.registry,
+                    StageMask::fast(),
+                    depth,
+                    "process-fast16",
+                ),
+                process_post_wb: ProcessFastPass::new_with_mask(
+                    ctx,
+                    &self.registry,
+                    StageMask::tone_color(),
+                    depth,
+                    "process-post16",
+                ),
+                effects_tone: EffectsTonePass::new(ctx, depth),
+                lut: LutPass::new(ctx, depth),
+                dcp_look: DcpHueSatPass::new_look(ctx, depth.format()),
+            }
+        })
     }
 }

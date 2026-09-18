@@ -1,5 +1,6 @@
 pub mod context;
 mod dispatch;
+pub mod display_depth;
 mod helpers;
 pub mod passes;
 pub mod readback;

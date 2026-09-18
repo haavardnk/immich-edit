@@ -13,7 +13,7 @@ struct Params {
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
 @group(0) @binding(2) var lut_tex: texture_3d<f32>;
-@group(0) @binding(3) var out_tex: texture_storage_2d<rgba16float, write>;
+// DISPLAY_STORE_INJECT
 
 // TONE_WGSL_INJECT
 
@@ -288,8 +288,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         if (alpha != 0.0 && (p.flags.w & 2u) != 0u) {
             alpha = warn_clip_alpha(display);
         }
-        textureStore(out_tex, coord, vec4<f32>(display, alpha));
+        store_display(coord, vec4<f32>(display, alpha));
     } else {
-        textureStore(out_tex, coord, vec4<f32>(lin, src.a));
+        store_display(coord, vec4<f32>(lin, src.a));
     }
 }

@@ -2,6 +2,7 @@ use wgpu::{BindGroupEntry, CommandEncoder, TextureViewDescriptor};
 
 use crate::edits::Edits;
 use crate::gpu::dispatch::{bind_group, bind_group_indexed, dispatch_2d, tex};
+use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::effects_tone::EffectsToneParams;
 use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
@@ -177,6 +178,8 @@ impl GpuRenderer {
         edits: &Edits,
         out: &OutputTargets,
         sh: &SharpenTargets,
+        display: &wgpu::Texture,
+        depth: DisplayDepth,
         w: u32,
         h: u32,
         sharpen_ran: bool,
@@ -188,7 +191,10 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let e = &edits.effects;
-        let pass = &self.passes.effects_tone;
+        let pass = match depth {
+            DisplayDepth::Eight => &self.passes.effects_tone,
+            DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).effects_tone,
+        };
 
         let linear_view = out
             .linear_texture
@@ -197,7 +203,7 @@ impl GpuRenderer {
             .sharpened_lin
             .create_view(&TextureViewDescriptor::default());
         let post_lin_view = sh.post_lin.create_view(&TextureViewDescriptor::default());
-        let out_view = out.texture.create_view(&TextureViewDescriptor::default());
+        let out_view = display.create_view(&TextureViewDescriptor::default());
 
         let r = roi.unwrap_or(crate::edits::CropRect::full());
         let params = EffectsToneParams {

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat};
 
 use crate::gpu::context::GpuContext;
+use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::shader_builder::{self, BuiltProcessShader, StageMask};
 use crate::ops::OpRegistry;
 
@@ -19,16 +20,23 @@ pub struct ProcessFastPass {
 
 impl ProcessFastPass {
     pub fn new(ctx: &Arc<GpuContext>, registry: &OpRegistry) -> Self {
-        Self::new_with_mask(ctx, registry, StageMask::fast(), "process-fast")
+        Self::new_with_mask(
+            ctx,
+            registry,
+            StageMask::fast(),
+            DisplayDepth::Eight,
+            "process-fast",
+        )
     }
 
     pub fn new_with_mask(
         ctx: &Arc<GpuContext>,
         registry: &OpRegistry,
         mask: StageMask,
+        depth: DisplayDepth,
         label_prefix: &str,
     ) -> Self {
-        let built = shader_builder::build_for(registry, mask);
+        let built = shader_builder::build_for(registry, mask, depth);
 
         let layout = make_layout(
             ctx,
@@ -37,7 +45,7 @@ impl ProcessFastPass {
                 uniform_entry_unsized(0),
                 tex_entry(1),
                 sampler_entry(2),
-                storage_entry(3, TextureFormat::Rgba8Unorm),
+                storage_entry(3, depth.format()),
                 storage_entry(4, TextureFormat::Rgba16Float),
                 tex_entry(5),
             ],

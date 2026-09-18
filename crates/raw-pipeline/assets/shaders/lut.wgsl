@@ -6,9 +6,9 @@ struct LutParams {
 };
 
 @group(0) @binding(0) var<uniform> p: LutParams;
-@group(0) @binding(1) var src_tex: texture_2d<f32>;
+// DISPLAY_LOAD_INJECT
 @group(0) @binding(2) var lut_tex: texture_3d<f32>;
-@group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
+// DISPLAY_STORE_INJECT
 
 // TONE_WGSL_INJECT
 
@@ -72,7 +72,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let height = p.dims.y;
     if (gid.x >= width || gid.y >= height) { return; }
     let coord = vec2<i32>(i32(gid.x), i32(gid.y));
-    let src = textureLoad(src_tex, coord, 0);
+    let src = load_display(coord);
     let amount = p.misc.x;
     let sampled = lut_sample(src.rgb);
     let blended = clamp(src.rgb + amount * (sampled - src.rgb), vec3<f32>(0.0), vec3<f32>(1.0));
@@ -80,5 +80,5 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (alpha != 0.0) {
         alpha = warn_clip_alpha(blended);
     }
-    textureStore(out_tex, coord, vec4<f32>(blended, alpha));
+    store_display(coord, vec4<f32>(blended, alpha));
 }

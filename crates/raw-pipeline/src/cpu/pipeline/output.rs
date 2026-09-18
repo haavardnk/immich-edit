@@ -137,9 +137,9 @@ pub(super) fn finish_output(
             u8c[i + 1] = gu;
             u8c[i + 2] = bu;
             if let Some(dst) = u16c.as_deref_mut() {
-                dst[i] = (tr.clamp(0.0, 1.0) * 65535.0) as u16;
-                dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0) as u16;
-                dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0) as u16;
+                dst[i] = (tr.clamp(0.0, 1.0) * 65535.0).round() as u16;
+                dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
+                dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
             }
             if histogram && p % step == 0 {
                 fold_linear(&mut acc.0, lr, lg, lb);

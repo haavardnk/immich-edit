@@ -3,8 +3,11 @@ use std::sync::Arc;
 use wgpu::{BindGroupLayout, ComputePipeline, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
+use crate::gpu::display_depth::{DISPLAY_LOAD_INJECT, DISPLAY_STORE_INJECT, DisplayDepth};
 
-use super::common::{make_layout, make_pipeline, storage_entry, tex_entry_with, uniform_entry};
+use super::common::{
+    display_src_entry, make_layout, make_pipeline, storage_entry, tex_entry_with, uniform_entry,
+};
 
 pub const LUT_UNIFORM_SIZE: u64 = size_of::<LutParams>() as u64;
 
@@ -27,15 +30,15 @@ pub struct LutPass {
 }
 
 impl LutPass {
-    pub fn new(ctx: &Arc<GpuContext>) -> Self {
+    pub fn new(ctx: &Arc<GpuContext>, depth: DisplayDepth) -> Self {
         let layout = make_layout(
             ctx,
             "lut-bgl",
             &[
                 uniform_entry(0, LUT_UNIFORM_SIZE),
-                tex_entry_with(1, false, TextureViewDimension::D2),
+                display_src_entry(1, depth),
                 tex_entry_with(2, false, TextureViewDimension::D3),
-                storage_entry(3, wgpu::TextureFormat::Rgba8Unorm),
+                storage_entry(3, depth.format()),
             ],
         );
         let pipeline = make_pipeline(
@@ -43,6 +46,8 @@ impl LutPass {
             &layout,
             "lut.wgsl",
             &include_str!("../../../assets/shaders/lut.wgsl")
+                .replace(DISPLAY_LOAD_INJECT, &depth.load_wgsl(1))
+                .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(3))
                 .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl()),
         );
 
