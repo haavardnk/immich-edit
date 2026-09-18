@@ -1,6 +1,6 @@
 import { getJson, sendJson } from './client';
 
-export type AuthKind = 'password' | 'apikey';
+export type AuthKind = 'password' | 'apikey' | 'oauth';
 
 export interface SessionUser {
   id: string;
@@ -8,6 +8,15 @@ export interface SessionUser {
   name: string;
   is_admin: boolean;
   auth_kind: AuthKind;
+  next?: string;
+}
+
+export interface AuthProviders {
+  oauth: boolean;
+  password_login: boolean;
+  auto_launch: boolean;
+  button_text: string;
+  degraded: boolean;
 }
 
 export interface SetupStatus {
@@ -47,4 +56,47 @@ export async function me(): Promise<SessionUser> {
 
 export async function logout(): Promise<void> {
   await sendJson<{ ok: boolean }>('POST', '/api/auth/logout', {}, undefined, { silent: true });
+}
+
+export async function authProviders(): Promise<AuthProviders> {
+  return getJson<AuthProviders>('/api/auth/providers', undefined, { silent: true });
+}
+
+export async function startOAuthLogin(redirectUri: string, next?: string): Promise<string> {
+  const body = await sendJson<{ url: string }>(
+    'POST',
+    '/api/auth/oauth/start',
+    { redirect_uri: redirectUri, next },
+    undefined,
+    { silent: true }
+  );
+  return body.url;
+}
+
+export async function completeOAuthLogin(url: string): Promise<SessionUser> {
+  return sendJson<SessionUser>('POST', '/api/auth/oauth/callback', { url }, undefined, {
+    silent: true
+  });
+}
+
+export async function setupProviders(immichUrl: string): Promise<AuthProviders> {
+  const query = new URLSearchParams({ immich_url: immichUrl });
+  return getJson<AuthProviders>(`/api/setup/providers?${query}`, undefined, { silent: true });
+}
+
+export async function startOAuthSetup(immichUrl: string, redirectUri: string): Promise<string> {
+  const body = await sendJson<{ url: string }>(
+    'POST',
+    '/api/setup/oauth/start',
+    { immich_url: immichUrl, redirect_uri: redirectUri },
+    undefined,
+    { silent: true }
+  );
+  return body.url;
+}
+
+export async function completeOAuthSetup(url: string): Promise<SessionUser> {
+  return sendJson<SessionUser>('POST', '/api/setup/oauth/complete', { url }, undefined, {
+    silent: true
+  });
 }

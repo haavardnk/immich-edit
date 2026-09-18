@@ -34,7 +34,11 @@
           <span class="truncate font-mono">{session.user.email}</span>
           {#if session.user.is_admin}<Badge size="tiny" color="primary">admin</Badge>{/if}
           <Badge size="tiny" color="secondary">
-            {session.user.auth_kind === 'password' ? 'password' : 'API key'}
+            {session.user.auth_kind === 'password'
+              ? 'password'
+              : session.user.auth_kind === 'oauth'
+                ? 'single sign-on'
+                : 'API key'}
           </Badge>
         </div>
       </div>
