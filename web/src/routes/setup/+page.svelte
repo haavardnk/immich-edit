@@ -1,6 +1,15 @@
 <script lang="ts">
-  import { completeSetup } from '$lib/api/auth';
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import {
+    completeOAuthSetup,
+    completeSetup,
+    setupProviders,
+    startOAuthSetup,
+    type AuthProviders
+  } from '$lib/api/auth';
   import { ApiError, isBackendDown } from '$lib/api/client';
+  import { callbackError, isOAuthCallback, redirectUri } from '$lib/auth/oauth';
   import Wordmark from '$lib/components/Wordmark.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
@@ -13,10 +22,15 @@
   let apiKey = $state('');
   let submitting = $state(false);
   let error = $state<string | null>(null);
+  let providers = $state<AuthProviders | null>(null);
+  let probing = $state(false);
+  let oauthBusy = $state(false);
 
+  const trimmedUrl = $derived(immichUrl.trim());
+  const showOAuth = $derived(providers?.oauth === true);
   const canSubmit = $derived(
     !submitting &&
-      immichUrl.trim().length > 0 &&
+      trimmedUrl.length > 0 &&
       (method === 'password' ? email.length > 0 && password.length > 0 : apiKey.length > 0)
   );
 
@@ -34,8 +48,61 @@
         return 'Could not reach the Immich server. Check the URL.';
       case 'conflict':
         return 'This instance is already configured.';
+      case 'bad_request':
+        return 'The sign-in link expired. Start again.';
       default:
         return e.message || 'Setup failed.';
+    }
+  }
+
+  function describe(err: unknown, fallback: string): string {
+    if (isBackendDown(err)) {
+      return 'The immich-edit server is not responding. Check that it is running.';
+    }
+    if (err instanceof ApiError) return messageFor(err);
+    return (err as Error)?.message ?? fallback;
+  }
+
+  async function probeProviders(): Promise<void> {
+    if (trimmedUrl.length === 0) {
+      providers = null;
+      return;
+    }
+    probing = true;
+    try {
+      providers = await setupProviders(trimmedUrl);
+    } catch {
+      providers = null;
+    }
+    probing = false;
+  }
+
+  async function launchOAuth(): Promise<void> {
+    if (oauthBusy) return;
+    oauthBusy = true;
+    error = null;
+    try {
+      const url = await startOAuthSetup(trimmedUrl, redirectUri(page.url));
+      window.location.assign(url);
+    } catch (err: unknown) {
+      error = describe(err, 'Could not start single sign-on.');
+      oauthBusy = false;
+    }
+  }
+
+  async function completeCallback(): Promise<void> {
+    const declined = callbackError(page.url);
+    if (declined) {
+      error = `Single sign-on was declined (${declined}).`;
+      return;
+    }
+    oauthBusy = true;
+    try {
+      await completeOAuthSetup(page.url.href);
+      window.location.replace('/');
+    } catch (err: unknown) {
+      error = describe(err, 'Single sign-on failed.');
+      oauthBusy = false;
     }
   }
 
@@ -47,19 +114,19 @@
     try {
       const body =
         method === 'password'
-          ? { immich_url: immichUrl.trim(), email, password }
-          : { immich_url: immichUrl.trim(), api_key: apiKey };
+          ? { immich_url: trimmedUrl, email, password }
+          : { immich_url: trimmedUrl, api_key: apiKey };
       await completeSetup(body);
       window.location.replace('/');
     } catch (err: unknown) {
-      error = isBackendDown(err)
-        ? 'The immich-edit server is not responding. Check that it is running.'
-        : err instanceof ApiError
-          ? messageFor(err)
-          : ((err as Error)?.message ?? 'Setup failed');
+      error = describe(err, 'Setup failed');
       submitting = false;
     }
   }
+
+  onMount(() => {
+    if (isOAuthCallback(page.url)) void completeCallback();
+  });
 </script>
 
 <div class="auth-stage h-full w-full overflow-y-auto px-6 py-10">
@@ -82,9 +149,29 @@
             type="url"
             placeholder="https://immich.example.com"
             autocomplete="url"
+            onblur={probeProviders}
             bind:value={immichUrl}
           />
         </Field>
+
+        {#if showOAuth && providers}
+          <Button
+            type="button"
+            size="small"
+            color="primary"
+            disabled={oauthBusy || probing}
+            loading={oauthBusy}
+            fullWidth
+            onclick={launchOAuth}
+          >
+            {providers.button_text}
+          </Button>
+          <div class="flex items-center gap-3 text-xs text-white/35">
+            <span class="h-px flex-1 bg-white/15"></span>
+            or
+            <span class="h-px flex-1 bg-white/15"></span>
+          </div>
+        {/if}
 
         <div class="flex gap-1 rounded bg-light-100 p-1 text-sm">
           <Button
