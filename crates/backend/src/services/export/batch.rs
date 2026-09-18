@@ -112,14 +112,7 @@ pub async fn job_immich(
         .immich_url
         .ok_or_else(|| JobItemError::msg("instance not configured"))?;
     let base = url::Url::parse(&url)?;
-    let auth = match kind {
-        crate::services::auth_store::AuthKind::Password => {
-            crate::immich::client::ImmichAuth::Bearer(cred)
-        }
-        crate::services::auth_store::AuthKind::ApiKey => {
-            crate::immich::client::ImmichAuth::ApiKey(cred)
-        }
-    };
+    let auth = kind.immich_auth(cred);
     crate::immich::ImmichClient::with_auth(
         base,
         auth,

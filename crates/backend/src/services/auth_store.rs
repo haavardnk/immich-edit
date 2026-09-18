@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use crate::immich::client::ImmichUser;
+use crate::immich::client::{ImmichAuth, ImmichUser};
 use crate::services::crypto::{Encrypted, InstanceCrypto, SecretBytes};
 
 const IDLE_DAYS: i64 = 30;
@@ -29,6 +29,7 @@ pub enum AuthStoreError {
 pub enum AuthKind {
     Password,
     ApiKey,
+    OAuth,
 }
 
 impl AuthKind {
@@ -36,14 +37,27 @@ impl AuthKind {
         match self {
             Self::Password => "password",
             Self::ApiKey => "apikey",
+            Self::OAuth => "oauth",
         }
     }
 
     pub fn from_wire(s: &str) -> Self {
         match s {
             "apikey" => Self::ApiKey,
+            "oauth" => Self::OAuth,
             _ => Self::Password,
         }
+    }
+
+    pub fn immich_auth(self, cred: String) -> ImmichAuth {
+        match self {
+            Self::Password | Self::OAuth => ImmichAuth::Bearer(cred),
+            Self::ApiKey => ImmichAuth::ApiKey(cred),
+        }
+    }
+
+    pub fn revokes_upstream(self) -> bool {
+        matches!(self, Self::Password | Self::OAuth)
     }
 }
 
@@ -539,6 +553,38 @@ mod tests {
         assert_eq!(ctx.user.id, user.id);
         assert!(ctx.user.is_admin);
         assert_eq!(ctx.immich_cred.as_slice(), b"bearer-xyz");
+    }
+
+    #[tokio::test]
+    async fn auth_kind_survives_the_session_row() {
+        let s = store().await;
+        sqlx::query("UPDATE instance_config SET server_epoch = 1 WHERE id = 1")
+            .execute(&s.pool)
+            .await
+            .unwrap();
+        for kind in [AuthKind::Password, AuthKind::ApiKey, AuthKind::OAuth] {
+            let user = s.upsert_user(&immich_user(true)).await.unwrap();
+            let token = s
+                .create_session(user.id, kind, b"cred", 1, None, None)
+                .await
+                .unwrap();
+            let ctx = s.authenticate(&token).await.unwrap().unwrap();
+            assert_eq!(ctx.auth_kind, kind, "{}", kind.as_str());
+        }
+    }
+
+    #[test]
+    fn oauth_credentials_are_bearer_tokens() {
+        assert!(matches!(
+            AuthKind::OAuth.immich_auth("t".into()),
+            ImmichAuth::Bearer(_)
+        ));
+        assert!(matches!(
+            AuthKind::ApiKey.immich_auth("t".into()),
+            ImmichAuth::ApiKey(_)
+        ));
+        assert!(AuthKind::OAuth.revokes_upstream());
+        assert!(!AuthKind::ApiKey.revokes_upstream());
     }
 
     #[tokio::test]
