@@ -13,11 +13,14 @@ under **Account**. Sections stay collapsed until you open them.
 
 ## Users and sessions
 
-Users sign in with their own Immich password or API key. immich-edit provisions the local account
-from the authenticated Immich user and stores no local password.
+Users sign in through the Immich OAuth provider, with their own Immich password, or with an API
+key. immich-edit provisions the local account from the authenticated Immich user and stores no
+local password. The login page shows whichever methods the Immich server reports, and it starts the
+OAuth flow on its own when Immich has automatic launch enabled. Add `?password=1` to the login URL
+to reach the password form anyway.
 
-Users can revoke individual sessions or every other session. Signing out of a password session also
-revokes the Immich token behind it. Local edits, history, presets, jobs,
+Users can revoke individual sessions or every other session. Signing out of a password or OAuth
+session also revokes the Immich token behind it. Local edits, history, presets, jobs,
 and exports are private to each user. Ratings, favorites, tags, and reject marks are shared through
 Immich.
 

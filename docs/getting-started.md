@@ -49,11 +49,15 @@ setup form claims an unconfigured instance.
 ## Claim the instance
 
 1. Enter the Immich server URL.
-1. Choose password or API key authentication.
+1. Choose the OAuth button, password, or API key authentication.
 1. Sign in with an Immich administrator account.
 
+The OAuth button appears once the URL points at an Immich server with OAuth enabled. It sends you
+to your identity provider and back to immich-edit, so register `https://<edit-host>/setup` and
+`https://<edit-host>/login` as redirect URIs in Immich and with the provider.
+
 Other users sign in with their own Immich account; each sees only their own edits, presets, and
-jobs. OAuth-only Immich accounts use an API key.
+jobs.
 
 ## Next steps
 
