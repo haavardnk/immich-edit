@@ -11,7 +11,7 @@ use std::time::Duration;
 use url::Url;
 use uuid::Uuid;
 
-use crate::error::AppError;
+use crate::error::{AppError, REQUEST_ID};
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichUser};
 use crate::services::auth_store::{AuthContext, AuthKind, UserRecord};
 use crate::services::crypto::SecretBytes;
@@ -434,16 +434,26 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Res
 }
 
 pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let request_id = REQUEST_ID.try_with(|s| s.clone()).unwrap_or_default();
     if let Some(ctx) = build_auth_ctx(&state, &headers).await
         && matches!(ctx.auth_kind, AuthKind::Password)
+        && let Err(e) = ctx.immich.logout().await
     {
-        let _ = ctx.immich.logout().await;
+        tracing::warn!(
+            %request_id,
+            error = %e,
+            "upstream logout failed; the immich token may still be valid"
+        );
     }
     if let Some(token) = extract_token(&headers)
         && let Ok(Some(ctx)) = state.auth.authenticate(&token).await
     {
-        let _ = state.jobs.cancel_active_for_session(ctx.session_id).await;
-        let _ = state.auth.revoke_session(ctx.session_id).await;
+        if let Err(e) = state.jobs.cancel_active_for_session(ctx.session_id).await {
+            tracing::warn!(%request_id, session = %ctx.session_id, error = %e, "job cancel on logout failed");
+        }
+        if let Err(e) = state.auth.revoke_session(ctx.session_id).await {
+            tracing::warn!(%request_id, session = %ctx.session_id, error = %e, "session revoke on logout failed");
+        }
     }
     let cookie = format!("{AUTH_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
     let mut resp = (StatusCode::OK, Json(json!({"ok": true}))).into_response();
