@@ -15,6 +15,7 @@ use crate::error::AppError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichUser};
 use crate::services::auth_store::{AuthContext, AuthKind, UserRecord};
 use crate::services::crypto::SecretBytes;
+use crate::services::login_limiter::LoginKey;
 use crate::state::AppState;
 
 pub const AUTH_COOKIE: &str = "immich_edit_auth";
@@ -224,10 +225,6 @@ fn login_response(user: &UserRecord, kind: AuthKind, token: &str, secure: bool) 
     response
 }
 
-fn rate_key(ip: &str, ident: &str) -> String {
-    format!("{ip}|{}", ident.to_lowercase())
-}
-
 pub async fn require_session(
     state: &AppState,
     headers: &HeaderMap,
@@ -385,7 +382,7 @@ pub async fn login_password(
     headers: HeaderMap,
     Json(body): Json<PasswordLoginBody>,
 ) -> Result<Response, AppError> {
-    let key = rate_key(&client.ip, &body.email);
+    let key = LoginKey::identity("login", &client.ip, &body.email);
     if let Some(d) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }
@@ -407,7 +404,7 @@ pub async fn login_api_key(
     headers: HeaderMap,
     Json(body): Json<ApiKeyLoginBody>,
 ) -> Result<Response, AppError> {
-    let key = rate_key(&client.ip, "apikey");
+    let key = LoginKey::client("apikey", &client.ip);
     if let Some(d) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }

@@ -7,6 +7,7 @@ use serde_json::json;
 
 use crate::error::AppError;
 use crate::routes::auth;
+use crate::services::login_limiter::LoginKey;
 use crate::state::AppState;
 
 pub async fn status(State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
@@ -32,9 +33,11 @@ pub async fn complete(
     if cfg.is_configured() {
         return Err(AppError::Conflict("instance already configured".into()));
     }
-    let identity = body.email.as_deref().unwrap_or("apikey").to_lowercase();
-    let rate_key = format!("{}|setup|{identity}", client.ip);
-    if let Some(duration) = state.login_limiter.retry_after(&rate_key) {
+    let key = match body.email.as_deref() {
+        Some(email) => LoginKey::identity("setup", &client.ip, email),
+        None => LoginKey::client("setup", &client.ip),
+    };
+    if let Some(duration) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(duration.as_secs())));
     }
     let base = auth::validate_candidate_url(&body.immich_url)?;
@@ -49,16 +52,16 @@ pub async fn complete(
     let (user, kind, cred) = match validated {
         Ok(value) => value,
         Err(error) => {
-            state.login_limiter.record_failure(&rate_key);
+            state.login_limiter.record_failure(&key);
             return Err(error);
         }
     };
 
     if !user.is_admin {
-        state.login_limiter.record_failure(&rate_key);
+        state.login_limiter.record_failure(&key);
         return Err(AppError::AdminRequired);
     }
-    state.login_limiter.record_success(&rate_key);
+    state.login_limiter.record_success(&key);
 
     auth::finish_setup(&state, base.as_str(), &user, kind, &cred, &headers, &client).await
 }
