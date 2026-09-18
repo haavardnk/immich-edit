@@ -10,6 +10,8 @@ use crate::routes::auth;
 use crate::services::login_limiter::LoginKey;
 use crate::state::AppState;
 
+pub mod oauth;
+
 pub async fn status(State(state): State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     let cfg = state.instance.get().await?;
     Ok(Json(json!({ "configured": cfg.is_configured() })))

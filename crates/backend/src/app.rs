@@ -128,6 +128,12 @@ pub fn router(state: AppState) -> Router {
         .route("/admin/instance/rebind", post(routes::admin::rebind))
         .route("/setup/status", get(routes::setup::status))
         .route("/setup/complete", post(routes::setup::complete))
+        .route("/setup/providers", get(routes::setup::oauth::providers))
+        .route("/setup/oauth/start", post(routes::setup::oauth::start))
+        .route(
+            "/setup/oauth/complete",
+            post(routes::setup::oauth::complete),
+        )
         .route("/debug/timings", get(routes::debug::timings))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
