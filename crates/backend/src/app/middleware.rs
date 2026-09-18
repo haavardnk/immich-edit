@@ -1,4 +1,5 @@
 use super::REQUEST_ID_HEADER;
+use crate::config::Cidr;
 use crate::error::{AppError, REQUEST_ID};
 use crate::routes;
 use crate::state::AppState;
@@ -60,12 +61,16 @@ fn origin_allowed(origin: &str, host: Option<&str>, allowed: &[String]) -> bool 
     host == with_port || host == origin_host
 }
 
-pub async fn resolve_client_meta(mut req: Request<Body>, next: Next) -> Response {
+pub async fn resolve_client_meta(
+    State(state): State<AppState>,
+    mut req: Request<Body>,
+    next: Next,
+) -> Response {
     let peer = req
         .extensions()
         .get::<ConnectInfo<std::net::SocketAddr>>()
         .map(|c| c.0.ip());
-    let trust_forwarded = peer.is_some_and(is_trusted_peer);
+    let trust_forwarded = peer.is_some_and(|ip| is_trusted_peer(ip, &state.config.trusted_proxies));
     let (ip, secure) = if trust_forwarded {
         let forwarded = req
             .headers()
@@ -91,18 +96,8 @@ pub async fn resolve_client_meta(mut req: Request<Body>, next: Next) -> Response
     next.run(req).await
 }
 
-fn is_trusted_peer(ip: std::net::IpAddr) -> bool {
-    match ip {
-        std::net::IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local(),
-        std::net::IpAddr::V6(v6) => {
-            v6.is_loopback()
-                || v6.is_unique_local()
-                || v6.is_unicast_link_local()
-                || v6
-                    .to_ipv4_mapped()
-                    .is_some_and(|m| m.is_loopback() || m.is_private() || m.is_link_local())
-        }
-    }
+fn is_trusted_peer(ip: std::net::IpAddr, trusted: &[Cidr]) -> bool {
+    trusted.iter().any(|c| c.contains(ip))
 }
 
 pub async fn csrf_guard(State(state): State<AppState>, req: Request<Body>, next: Next) -> Response {
@@ -139,9 +134,15 @@ pub async fn request_id_scope(req: Request<Body>, next: Next) -> Response {
 #[cfg(test)]
 mod tests {
     use super::is_trusted_peer;
+    use crate::config::Cidr;
+
+    fn parse(list: &[&str]) -> Vec<Cidr> {
+        list.iter().map(|raw| raw.parse().expect(raw)).collect()
+    }
 
     #[test]
-    fn trusts_only_local_peers() {
+    fn trusts_only_local_peers_by_default() {
+        let trusted = crate::config::default_trusted_proxies();
         let cases = [
             ("127.0.0.1", true),
             ("10.1.2.3", true),
@@ -160,7 +161,27 @@ mod tests {
         ];
         for (raw, expected) in cases {
             let ip = raw.parse().unwrap();
-            assert_eq!(is_trusted_peer(ip), expected, "{raw}");
+            if is_trusted_peer(ip, &trusted) != expected {
+                panic!("{raw} should be trusted={expected}");
+            }
+        }
+    }
+
+    #[test]
+    fn trusts_a_configured_public_proxy() {
+        let trusted = parse(&["203.0.113.7"]);
+        if !is_trusted_peer("203.0.113.7".parse().unwrap(), &trusted) {
+            panic!("configured proxy must be trusted");
+        }
+        if is_trusted_peer("10.0.0.1".parse().unwrap(), &trusted) {
+            panic!("an explicit list replaces the private defaults");
+        }
+    }
+
+    #[test]
+    fn an_empty_list_trusts_nobody() {
+        if is_trusted_peer("127.0.0.1".parse().unwrap(), &[]) {
+            panic!("empty list must not trust loopback");
         }
     }
 }

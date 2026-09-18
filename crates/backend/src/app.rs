@@ -223,7 +223,7 @@ pub fn router(state: AppState) -> Router {
         .layer(from_fn(auth_middleware))
         .layer(from_fn_with_state(state.clone(), inject_auth_context))
         .layer(from_fn_with_state(state.clone(), csrf_guard))
-        .layer(from_fn(resolve_client_meta))
+        .layer(from_fn_with_state(state.clone(), resolve_client_meta))
         .layer(from_fn(request_id_scope));
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());

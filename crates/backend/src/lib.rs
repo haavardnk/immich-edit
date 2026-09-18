@@ -19,6 +19,7 @@ pub async fn run() -> anyhow::Result<()> {
     let config = config::Config::load()?;
     let bind_socket = config.bind_socket;
     tracing::info!(config = ?config.redacted(), "loaded config");
+    config.warn_on_unreachable_proxy_trust();
 
     let state = state::AppState::new(config).await?;
     let queue = state.queue.clone();

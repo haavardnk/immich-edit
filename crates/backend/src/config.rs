@@ -2,9 +2,14 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+mod cidr;
 mod env;
 
-use env::{ensure_dir_writable, load_allowed_origins, parse_or, pick, reject_removed_keys};
+pub use cidr::{Cidr, default_trusted_proxies};
+use env::{
+    ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_or, pick,
+    reject_removed_keys,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -58,6 +63,7 @@ pub struct Config {
     pub renderer: RendererMode,
     pub database_url: String,
     pub allowed_origins: Vec<String>,
+    pub trusted_proxies: Vec<Cidr>,
     pub max_body_mb: u64,
     pub request_timeout_secs: u64,
     pub original_timeout_secs: u64,
@@ -120,6 +126,7 @@ struct FileConfig {
     renderer: Option<String>,
     database_url: Option<String>,
     allowed_origins: Option<Vec<String>>,
+    trusted_proxies: Option<Vec<String>>,
     max_body_mb: Option<u64>,
     request_timeout_secs: Option<u64>,
     original_timeout_secs: Option<u64>,
@@ -280,6 +287,7 @@ impl Config {
         });
 
         let allowed_origins = load_allowed_origins(file.allowed_origins)?;
+        let trusted_proxies = load_trusted_proxies(file.trusted_proxies)?;
 
         let max_body_mb = parse_or("MAX_BODY_MB", file.max_body_mb, 128u64)?;
         if max_body_mb == 0 {
@@ -339,6 +347,7 @@ impl Config {
             renderer,
             database_url,
             allowed_origins,
+            trusted_proxies,
             max_body_mb,
             request_timeout_secs,
             original_timeout_secs,
@@ -348,6 +357,22 @@ impl Config {
             ml_max_concurrency,
             ml_idle_secs,
         })
+    }
+
+    pub fn warn_on_unreachable_proxy_trust(&self) {
+        let bind = self.bind_socket.ip();
+        if bind.is_unspecified() || bind.is_loopback() {
+            return;
+        }
+        if self.trusted_proxies.iter().any(|c| !c.is_private()) {
+            return;
+        }
+        tracing::warn!(
+            bind_addr = %self.bind_addr,
+            "bound to a public address while TRUSTED_PROXIES only lists private ranges; \
+             forwarded client IPs and X-Forwarded-Proto from a public reverse proxy are ignored, \
+             so rate limits collapse to the proxy IP and the session cookie loses Secure"
+        );
     }
 
     pub fn redacted(&self) -> RedactedConfig {
@@ -365,6 +390,7 @@ impl Config {
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             renderer: self.renderer.as_str(),
             allowed_origins: self.allowed_origins.clone(),
+            trusted_proxies: self.trusted_proxies.iter().map(Cidr::to_string).collect(),
             max_body_mb: self.max_body_mb,
             request_timeout_secs: self.request_timeout_secs,
             original_timeout_secs: self.original_timeout_secs,
@@ -392,6 +418,7 @@ pub struct RedactedConfig {
     pub gpu_texture_cache_mb: u64,
     pub renderer: &'static str,
     pub allowed_origins: Vec<String>,
+    pub trusted_proxies: Vec<String>,
     pub max_body_mb: u64,
     pub request_timeout_secs: u64,
     pub original_timeout_secs: u64,
@@ -426,6 +453,7 @@ mod tests {
             "IMMICH_EDIT_RENDERER",
             "IMMICH_EDIT_CONFIG",
             "ALLOWED_ORIGINS",
+            "TRUSTED_PROXIES",
             "MAX_BODY_MB",
             "REQUEST_TIMEOUT_SECS",
             "ORIGINAL_TIMEOUT_SECS",
@@ -544,6 +572,48 @@ mod tests {
             if !matches!(err, ConfigError::InvalidValue { .. }) {
                 panic!("expected invalid for {bad}, got {err:?}");
             }
+        }
+    }
+
+    #[test]
+    fn defaults_trusted_proxies_to_the_private_ranges() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+        }
+        let cfg = Config::load().unwrap();
+        if cfg.trusted_proxies != default_trusted_proxies() {
+            panic!("trusted_proxies {:?}", cfg.trusted_proxies);
+        }
+    }
+
+    #[test]
+    fn parses_trusted_proxies_csv() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+            std::env::set_var("TRUSTED_PROXIES", "203.0.113.7, 2001:db8::/32");
+        }
+        let cfg = Config::load().unwrap();
+        let rendered: Vec<String> = cfg.trusted_proxies.iter().map(Cidr::to_string).collect();
+        if rendered != vec!["203.0.113.7/32".to_string(), "2001:db8::/32".to_string()] {
+            panic!("trusted_proxies {rendered:?}");
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_trusted_proxy() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+            std::env::set_var("TRUSTED_PROXIES", "10.0.0.0/33");
+        }
+        let err = Config::load().unwrap_err();
+        if !matches!(err, ConfigError::InvalidValue { .. }) {
+            panic!("expected invalid, got {err:?}");
         }
     }
 }

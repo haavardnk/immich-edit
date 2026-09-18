@@ -21,6 +21,7 @@ export interface RedactedConfig {
   gpu_texture_cache_mb: number;
   renderer: string;
   allowed_origins: string[];
+  trusted_proxies: string[];
   max_body_mb: number;
   request_timeout_secs: number;
   original_timeout_secs: number;

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use url::Url;
 
 use super::ConfigError;
+use super::cidr::{self, Cidr};
 
 pub const REMOVED_KEYS: [(&str, &str); 5] = [
     ("CACHE_DIR", "DATA_DIR"),
@@ -55,6 +56,21 @@ pub fn load_allowed_origins(file_value: Option<Vec<String>>) -> Result<Vec<Strin
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(validate_allowed_origin)
+        .collect()
+}
+
+pub fn load_trusted_proxies(file_value: Option<Vec<String>>) -> Result<Vec<Cidr>, ConfigError> {
+    let raw: Vec<String> = match std::env::var("TRUSTED_PROXIES").ok() {
+        Some(s) if !s.is_empty() => s.split(',').map(str::to_string).collect(),
+        _ => match file_value {
+            Some(list) => list,
+            None => return Ok(cidr::default_trusted_proxies()),
+        },
+    };
+    raw.iter()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(str::parse)
         .collect()
 }
 

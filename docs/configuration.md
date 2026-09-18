@@ -35,6 +35,7 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `ML_MAX_CONCURRENCY` | `1` | Concurrent inference jobs; must be nonzero |
 | `ML_IDLE_SECS` | `60` | Seconds before an inactive model session unloads |
 | `ALLOWED_ORIGINS` | Empty | Comma-separated HTTP or HTTPS origins without a path or trailing slash |
+| `TRUSTED_PROXIES` | Loopback, private, and link-local ranges | Comma-separated IP addresses or CIDR prefixes whose `X-Forwarded-For` and `X-Forwarded-Proto` headers are believed |
 | `MAX_BODY_MB` | `128` | Maximum request body size; must be nonzero |
 | `REQUEST_TIMEOUT_SECS` | `60` | Timeout for ordinary API requests; must be nonzero. Export requests use `ORIGINAL_TIMEOUT_SECS` plus `EXPORT_TIMEOUT_SECS` instead |
 | `ORIGINAL_TIMEOUT_SECS` | `120` | Immich original-download timeout |
@@ -60,7 +61,31 @@ renderer = "auto"
 ml_runtime = "auto"
 render_max_concurrency = 2
 allowed_origins = ["https://edit.example.com"]
+trusted_proxies = ["10.0.0.0/8", "2001:db8::/32"]
 ```
+
+## Trusted proxies
+
+The client IP used for login rate limiting, and the `Secure` flag on the session cookie, come from
+`X-Forwarded-For` and `X-Forwarded-Proto`. Those headers are only believed when the connecting peer
+is listed in `TRUSTED_PROXIES`, because any client can send them.
+
+The default list is `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
+`169.254.0.0/16`, `::1/128`, `fc00::/7`, and `fe80::/10`, which covers a reverse proxy on the same
+host or the same Docker network. Set the variable when your proxy connects from a public address:
+
+```
+TRUSTED_PROXIES=203.0.113.7,2001:db8::/32
+```
+
+Setting the variable replaces the defaults rather than extending them, so include the private
+ranges you still need. An entry without a prefix length is a single host. To trust nothing, set
+`trusted_proxies = []` in the TOML file; every request then uses the peer address and no session
+cookie is marked `Secure`.
+
+Startup logs a warning when the server binds a specific public address and no trusted prefix is
+outside the private ranges, because that combination silently collapses every client to the proxy
+address.
 
 ## Removed settings
 
