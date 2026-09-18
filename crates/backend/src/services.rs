@@ -24,6 +24,7 @@ pub mod model_install;
 #[cfg(feature = "ml")]
 pub mod model_store;
 pub mod oauth_flow;
+pub mod oauth_providers;
 pub mod paste_edits;
 pub mod preview_meta;
 pub mod preview_scopes;

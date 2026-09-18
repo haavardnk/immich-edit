@@ -18,6 +18,8 @@ use crate::services::crypto::SecretBytes;
 use crate::services::login_limiter::LoginKey;
 use crate::state::AppState;
 
+pub mod oauth;
+
 pub const AUTH_COOKIE: &str = "immich_edit_auth";
 
 #[derive(Clone)]
@@ -231,14 +233,14 @@ pub async fn require_session(
     }
 }
 
-pub async fn finish_login(
+pub async fn start_session(
     state: &AppState,
     user: &ImmichUser,
     kind: AuthKind,
     cred: &[u8],
     headers: &HeaderMap,
     client: &ClientMeta,
-) -> Result<Response, AppError> {
+) -> Result<(UserRecord, String), AppError> {
     let epoch = state
         .instance
         .get()
@@ -261,6 +263,18 @@ pub async fn finish_login(
             Some(&client.ip),
         )
         .await?;
+    Ok((stored, token))
+}
+
+pub async fn finish_login(
+    state: &AppState,
+    user: &ImmichUser,
+    kind: AuthKind,
+    cred: &[u8],
+    headers: &HeaderMap,
+    client: &ClientMeta,
+) -> Result<Response, AppError> {
+    let (stored, token) = start_session(state, user, kind, cred, headers, client).await?;
     Ok(login_response(&stored, kind, &token, client.secure))
 }
 

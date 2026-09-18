@@ -17,6 +17,7 @@ use crate::services::lut_store::LutStore;
 use crate::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use crate::services::model_store::ModelStore;
+use crate::services::oauth_providers::ProviderCache;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
@@ -32,6 +33,7 @@ pub struct AppState {
     pub instance: InstanceStore,
     pub auth: AuthStore,
     pub login_limiter: Arc<LoginLimiter>,
+    pub providers: ProviderCache,
     pub edits: EditsStore,
     pub jobs: JobStore,
     pub render: RenderService,
@@ -136,6 +138,7 @@ impl AppState {
             instance,
             auth,
             login_limiter,
+            providers: ProviderCache::new(),
             edits,
             jobs,
             render,

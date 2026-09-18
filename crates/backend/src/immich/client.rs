@@ -101,6 +101,51 @@ impl ImmichClient {
         self.get_json("api/users/me").await
     }
 
+    pub async fn server_features(&self) -> ImmichResult<ServerFeatures> {
+        let url = self.url("api/server/features")?;
+        let bytes = send(self.http.get(url)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn server_config(&self) -> ImmichResult<ServerConfig> {
+        let url = self.url("api/server/config")?;
+        let bytes = send(self.http.get(url)).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn oauth_authorize(
+        &self,
+        redirect_uri: &str,
+        state: &str,
+        code_challenge: &str,
+    ) -> ImmichResult<String> {
+        let url = self.url("api/oauth/authorize")?;
+        let body = serde_json::json!({
+            "redirectUri": redirect_uri,
+            "state": state,
+            "codeChallenge": code_challenge,
+        });
+        let bytes = send_post_json(self.http.post(url).json(&body)).await?;
+        let parsed: OAuthAuthorize = parse_json(&bytes)?;
+        Ok(parsed.url)
+    }
+
+    pub async fn oauth_callback(
+        &self,
+        callback_url: &str,
+        state: &str,
+        code_verifier: &str,
+    ) -> ImmichResult<ImmichLogin> {
+        let url = self.url("api/oauth/callback")?;
+        let body = serde_json::json!({
+            "url": callback_url,
+            "state": state,
+            "codeVerifier": code_verifier,
+        });
+        let bytes = send_post_json(self.http.post(url).json(&body)).await?;
+        parse_json(&bytes)
+    }
+
     pub async fn logout(&self) -> ImmichResult<()> {
         let url = self.url("api/auth/logout")?;
         send(self.authed(self.http.post(url))).await.map(|_| ())
@@ -349,6 +394,26 @@ pub struct ImmichUser {
     pub email: String,
     pub name: String,
     pub is_admin: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerFeatures {
+    pub oauth: bool,
+    pub oauth_auto_launch: bool,
+    pub password_login: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerConfig {
+    #[serde(default)]
+    pub oauth_button_text: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct OAuthAuthorize {
+    url: String,
 }
 
 #[derive(Debug, Clone, Copy)]
