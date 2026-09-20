@@ -35,6 +35,15 @@ impl CancelToken {
         self.tracker.load(Ordering::Relaxed) != self.generation
     }
 
+    pub fn cancel(&self) {
+        let _ = self.tracker.compare_exchange(
+            self.generation,
+            self.generation + 1,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
+    }
+
     pub fn check(&self) -> crate::PipelineResult<()> {
         if self.is_cancelled() {
             Err(crate::PipelineError::Cancelled)
@@ -71,6 +80,21 @@ mod tests {
         let _b = t.next();
         if !a.is_cancelled() {
             panic!("prior token should be cancelled");
+        }
+    }
+
+    #[test]
+    fn cancel_only_affects_its_own_generation() {
+        let t = CancelTracker::new();
+        let a = t.next();
+        a.cancel();
+        if !a.is_cancelled() {
+            panic!("cancelled token should report cancelled");
+        }
+        let b = t.next();
+        a.cancel();
+        if b.is_cancelled() {
+            panic!("a superseded token must not cancel a newer one");
         }
     }
 }

@@ -14,7 +14,7 @@ use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::preview_scopes::{ScopeKind, encode as encode_scope};
 use crate::services::render::{RenderError, RenderIdentity};
-use crate::services::render_queue::{RenderKey, RenderLane};
+use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
@@ -247,9 +247,11 @@ async fn render_to_response(
         asset_id.source(),
         edits,
         opts,
-        Some(token),
+        Some(token.clone()),
     );
+    let guard = CancelOnDrop::new(token);
     let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
+    guard.disarm();
     let rendered = match result {
         Some(Ok(r)) => r,
         Some(Err(e)) => return Err(e.into()),
