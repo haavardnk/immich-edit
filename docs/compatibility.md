@@ -75,6 +75,10 @@ RGB, Rec.2020, custom ICC profiles, linear output, and HDR gain maps are not sup
 The Docker image supports Linux `amd64` and `arm64`. Metal cannot pass through the Linux virtual
 machine used by Docker on macOS.
 
+Hosts with no graphics hardware still get a Vulkan device from Mesa's software rasterizer, llvmpipe
+or lavapipe. The backend uses it and Diagnostics marks it as software. It is not hardware
+acceleration, but it does render preview-sized frames faster than the built-in CPU renderer.
+
 ## Browser and viewport
 
 The editor requires a desktop-width viewport and has no full mobile layout. RAW rendering runs on
