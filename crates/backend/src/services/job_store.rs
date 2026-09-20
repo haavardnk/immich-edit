@@ -6,6 +6,8 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 mod cancel;
+mod credentials;
+mod finalize;
 mod rows;
 
 use rows::{item_from_row, job_from_row, parse_uuid};
@@ -174,7 +176,6 @@ impl JobStore {
         let target_json = serde_json::to_string(target)?;
         let params_json = serde_json::to_string(params)?;
         let total = items.len() as i64;
-        let enc = self.crypto.encrypt(cred)?;
 
         let mut tx = self.pool.begin().await?;
         sqlx::query(
@@ -194,17 +195,7 @@ impl JobStore {
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query(
-            "INSERT INTO job_credentials (job_id, ciphertext, nonce, key_version, auth_kind) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .bind(id.to_string())
-        .bind(enc.ciphertext)
-        .bind(enc.nonce)
-        .bind(enc.key_version)
-        .bind(auth_kind.as_str())
-        .execute(&mut *tx)
-        .await?;
+        self.insert_credential(&mut tx, id, cred, auth_kind).await?;
 
         for item in items {
             sqlx::query(
@@ -225,29 +216,6 @@ impl JobStore {
         let job = self.get_job(id).await?.ok_or(sqlx::Error::RowNotFound)?;
         self.publish(&job);
         Ok(job)
-    }
-
-    pub async fn job_credential(
-        &self,
-        job_id: Uuid,
-    ) -> Result<Option<(SecretBytes, AuthKind)>, JobStoreError> {
-        let row = sqlx::query(
-            "SELECT ciphertext, nonce, key_version, auth_kind FROM job_credentials WHERE job_id = ?1",
-        )
-        .bind(job_id.to_string())
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let enc = crate::services::crypto::Encrypted {
-            ciphertext: row.get::<Vec<u8>, _>("ciphertext"),
-            nonce: row.get::<Vec<u8>, _>("nonce"),
-            key_version: row.get::<i64, _>("key_version"),
-        };
-        let cred = self.crypto.decrypt(&enc)?;
-        let auth_kind = AuthKind::from_wire(&row.get::<String, _>("auth_kind"));
-        Ok(Some((cred, auth_kind)))
     }
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
@@ -323,102 +291,6 @@ impl JobStore {
             }
         }
         Ok(item)
-    }
-
-    pub async fn complete_item(
-        &self,
-        item_id: Uuid,
-        result: &serde_json::Value,
-    ) -> Result<(), JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let result_json = serde_json::to_string(result)?;
-        sqlx::query(
-            "UPDATE job_items SET status = 'completed', result_json = ?, error = NULL, updated_at = ? WHERE id = ?",
-        )
-        .bind(&result_json)
-        .bind(&now)
-        .bind(item_id.to_string())
-        .execute(&self.pool)
-        .await?;
-        self.finalize_for_item(item_id).await
-    }
-
-    pub async fn fail_item(&self, item_id: Uuid, error: &str) -> Result<(), JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        sqlx::query(
-            "UPDATE job_items SET status = 'failed', error = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(error)
-        .bind(&now)
-        .bind(item_id.to_string())
-        .execute(&self.pool)
-        .await?;
-        self.finalize_for_item(item_id).await
-    }
-
-    async fn finalize_for_item(&self, item_id: Uuid) -> Result<(), JobStoreError> {
-        let row = sqlx::query("SELECT job_id FROM job_items WHERE id = ?")
-            .bind(item_id.to_string())
-            .fetch_optional(&self.pool)
-            .await?;
-        let Some(row) = row else {
-            return Ok(());
-        };
-        let job_id = parse_uuid(row.get::<String, _>("job_id"))?;
-        self.recompute_and_finalize(job_id).await
-    }
-
-    async fn recompute_and_finalize(&self, job_id: Uuid) -> Result<(), JobStoreError> {
-        let now = Utc::now().to_rfc3339();
-        let mut tx = self.pool.begin().await?;
-        sqlx::query(
-            "UPDATE jobs SET \
-                 completed = (SELECT COUNT(*) FROM job_items WHERE job_id = ?1 AND status = 'completed'), \
-                 failed = (SELECT COUNT(*) FROM job_items WHERE job_id = ?1 AND status = 'failed'), \
-                 updated_at = ?2 \
-             WHERE id = ?1",
-        )
-        .bind(job_id.to_string())
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
-
-        let row = sqlx::query(
-            "SELECT \
-                 (SELECT COUNT(*) FROM job_items WHERE job_id = ?1 AND status IN ('pending', 'running')) AS pending, \
-                 (SELECT COUNT(*) FROM job_items WHERE job_id = ?1 AND status = 'completed') AS completed, \
-                 (SELECT status FROM jobs WHERE id = ?1) AS status",
-        )
-        .bind(job_id.to_string())
-        .fetch_one(&mut *tx)
-        .await?;
-        let pending: i64 = row.get("pending");
-        let completed: i64 = row.get("completed");
-        let status = JobStatus::from_str(&row.get::<String, _>("status"))?;
-
-        if pending == 0 && matches!(status, JobStatus::Pending | JobStatus::Running) {
-            let final_status = if completed > 0 {
-                JobStatus::Completed
-            } else {
-                JobStatus::Failed
-            };
-            sqlx::query("UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?")
-                .bind(final_status.as_str())
-                .bind(&now)
-                .bind(job_id.to_string())
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
-                .bind(job_id.to_string())
-                .execute(&mut *tx)
-                .await?;
-        }
-        tx.commit().await?;
-
-        if let Some(job) = self.get_job(job_id).await? {
-            self.publish(&job);
-        }
-        Ok(())
     }
 
     pub async fn clear_finished(&self, owner: Uuid) -> Result<Vec<(Uuid, String)>, JobStoreError> {

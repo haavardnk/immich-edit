@@ -1,6 +1,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 
+use super::credentials::delete_credential;
 use super::*;
 
 impl JobStore {
@@ -18,10 +19,7 @@ impl JobStore {
         .await?;
         let cancelled = res.rows_affected() > 0;
         if cancelled {
-            sqlx::query("DELETE FROM job_credentials WHERE job_id = ?1")
-                .bind(id.to_string())
-                .execute(&mut *tx)
-                .await?;
+            delete_credential(&mut tx, id).await?;
         }
         tx.commit().await?;
         if cancelled && let Some(job) = self.get_job(id).await? {
