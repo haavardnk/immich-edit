@@ -6,21 +6,21 @@ use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::{PipelineError, RenderedImage};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
-use crate::services::raw_frame_cache::{FrameCacheKey, RawFrameCache};
 use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 
 mod device;
+mod frames;
 mod inputs;
 
 pub use device::ActiveRenderer;
 
 use device::RenderDevice;
+use frames::FrameStore;
 use inputs::RenderInputs;
 
 const MB: u64 = 1024 * 1024;
@@ -46,7 +46,7 @@ pub struct RenderIdentity {
     pub server_epoch: i64,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum RenderError {
     #[error("upstream: {0}")]
     Upstream(#[from] ImmichError),
@@ -60,8 +60,8 @@ pub enum RenderError {
 
 #[derive(Clone)]
 pub struct RenderService {
-    frames: Arc<Mutex<RawFrameCache>>,
-    quality_frames: Arc<Mutex<RawFrameCache>>,
+    frames: FrameStore,
+    quality_frames: FrameStore,
     device: RenderDevice,
     inputs: RenderInputs,
     telemetry: RenderTelemetry,
@@ -80,12 +80,8 @@ impl RenderService {
         dcp: crate::services::dcp_store::DcpStore,
     ) -> Self {
         Self {
-            frames: Arc::new(Mutex::new(RawFrameCache::new(
-                cache.raw_frame_cache_mb.saturating_mul(MB),
-            ))),
-            quality_frames: Arc::new(Mutex::new(RawFrameCache::new(
-                cache.quality_frame_cache_mb.saturating_mul(MB),
-            ))),
+            frames: FrameStore::new(cache.raw_frame_cache_mb.saturating_mul(MB)),
+            quality_frames: FrameStore::new(cache.quality_frame_cache_mb.saturating_mul(MB)),
             device: RenderDevice::new(mode, cache.gpu_texture_cache_mb.saturating_mul(MB)),
             inputs: RenderInputs::new(rasters, luts, dcp),
             telemetry: RenderTelemetry::new(),
@@ -113,44 +109,17 @@ impl RenderService {
     }
 
     pub async fn frame_cache_bytes(&self) -> FrameCacheBytes {
-        let preview = self.frames.lock().await;
-        let quality = self.quality_frames.lock().await;
         FrameCacheBytes {
-            preview_used: preview.current_bytes(),
-            preview_cap: preview.max_bytes(),
-            quality_used: quality.current_bytes(),
-            quality_cap: quality.max_bytes(),
+            preview_used: self.frames.used_bytes().await,
+            preview_cap: self.frames.max_bytes().await,
+            quality_used: self.quality_frames.used_bytes().await,
+            quality_cap: self.quality_frames.max_bytes().await,
         }
     }
 
     pub async fn clear_frame_caches(&self) {
-        self.frames.lock().await.clear();
-        self.quality_frames.lock().await.clear();
-    }
-
-    async fn cached_frame<F, Fut>(
-        cache: &Mutex<RawFrameCache>,
-        identity: RenderIdentity,
-        immich: &ImmichClient,
-        source: Uuid,
-        decode: F,
-    ) -> Result<Arc<RawFrame>, RenderError>
-    where
-        F: FnOnce(Bytes) -> Fut,
-        Fut: Future<Output = Result<Arc<RawFrame>, PipelineError>>,
-    {
-        let key = FrameCacheKey {
-            server_epoch: identity.server_epoch,
-            owner: identity.owner,
-            asset_id: source,
-        };
-        if let Some(f) = cache.lock().await.get(&key) {
-            return Ok(f);
-        }
-        let bytes = immich.original(source).await?;
-        let frame = decode(bytes).await?;
-        cache.lock().await.put(key, frame.clone());
-        Ok(frame)
+        self.frames.clear().await;
+        self.quality_frames.clear().await;
     }
 
     pub async fn frame(
@@ -159,7 +128,9 @@ impl RenderService {
         immich: &ImmichClient,
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        Self::cached_frame(&self.frames, identity, immich, source, decode_blocking).await
+        self.frames
+            .get_or_load(identity, immich, source, decode_blocking)
+            .await
     }
 
     pub async fn quality_frame(
@@ -168,14 +139,9 @@ impl RenderService {
         immich: &ImmichClient,
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        Self::cached_frame(
-            &self.quality_frames,
-            identity,
-            immich,
-            source,
-            decode_quality_blocking,
-        )
-        .await
+        self.quality_frames
+            .get_or_load(identity, immich, source, decode_quality_blocking)
+            .await
     }
 
     pub async fn render(

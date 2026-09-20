@@ -3,7 +3,7 @@ pub mod dto;
 
 pub use client::ImmichClient;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum ImmichError {
     #[error("upstream unauthorized")]
     Unauthorized,
