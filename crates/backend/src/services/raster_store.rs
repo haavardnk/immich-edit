@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -10,6 +9,13 @@ use sqlx::SqlitePool;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
+
+mod evict;
+mod legacy;
+
+pub use legacy::migrate_legacy_layout;
+
+use evict::CacheState;
 
 pub const MAX_RASTER_EDGE: u32 = 8192;
 pub const MAX_RASTER_BYTES: usize = 64 * 1024 * 1024;
@@ -37,79 +43,11 @@ pub struct RasterMeta {
     pub created_at: String,
 }
 
-struct CacheState {
-    lru: LruCache<(i64, Uuid, String), u64>,
-    total_bytes: u64,
-    cap_bytes: u64,
-}
-
 #[derive(Clone)]
 pub struct RasterStore {
     dir: PathBuf,
     pool: SqlitePool,
     state: Arc<Mutex<CacheState>>,
-}
-fn relative_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(current) = pending.pop() {
-        for entry in std::fs::read_dir(&current)? {
-            let entry = entry?;
-            let path = entry.path();
-            if entry.file_type()?.is_dir() {
-                pending.push(path);
-                continue;
-            }
-            let Ok(relative) = path.strip_prefix(root) else {
-                continue;
-            };
-            files.push(relative.to_path_buf());
-        }
-    }
-    Ok(files)
-}
-
-fn remove_empty_dirs(root: &Path) {
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        if entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
-            remove_empty_dirs(&entry.path());
-        }
-    }
-    let _ = std::fs::remove_dir(root);
-}
-
-pub fn migrate_legacy_layout(data_dir: &Path) -> std::io::Result<usize> {
-    let legacy = data_dir.join("cache").join("rasters");
-    if !legacy.is_dir() {
-        return Ok(0);
-    }
-    let dir = data_dir.join("rasters");
-    if !dir.exists() {
-        let moved = relative_files(&legacy)?.len();
-        if let Some(parent) = dir.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::rename(&legacy, &dir)?;
-        return Ok(moved);
-    }
-    let mut moved = 0;
-    for relative in relative_files(&legacy)? {
-        let source = legacy.join(&relative);
-        let target = dir.join(&relative);
-        if target.exists() {
-            continue;
-        }
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::rename(&source, &target)?;
-        moved += 1;
-    }
-    remove_empty_dirs(&legacy);
-    Ok(moved)
 }
 
 impl RasterStore {
@@ -180,11 +118,6 @@ impl RasterStore {
         Ok(store)
     }
 
-    pub fn disk_bytes(&self) -> (u64, u64) {
-        let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        (st.total_bytes, st.cap_bytes)
-    }
-
     fn paths(&self, server_epoch: i64, owner: Uuid, raster_id: &str) -> (PathBuf, PathBuf) {
         let owner_dir = self
             .dir
@@ -193,77 +126,6 @@ impl RasterStore {
         let bin = owner_dir.join(format!("{raster_id}.r8"));
         let meta = owner_dir.join(format!("{raster_id}.json"));
         (bin, meta)
-    }
-
-    async fn pinned_ids(&self) -> Result<HashSet<String>, RasterStoreError> {
-        let ids: Vec<String> = sqlx::query_scalar("SELECT DISTINCT raster_id FROM raster_refs")
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(ids.into_iter().collect())
-    }
-
-    async fn evict_to_cap(&self) -> Result<(), RasterStoreError> {
-        {
-            let st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            if st.total_bytes <= st.cap_bytes {
-                return Ok(());
-            }
-        }
-        let pinned = self.pinned_ids().await?;
-        loop {
-            let victim: Option<((i64, Uuid, String), u64)> = {
-                let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-                if st.total_bytes <= st.cap_bytes {
-                    return Ok(());
-                }
-                let next = st
-                    .lru
-                    .iter()
-                    .rev()
-                    .map(|(k, _)| k.clone())
-                    .find(|(_, _, id)| !pinned.contains(id));
-                match next {
-                    Some(key) => {
-                        let size = st.lru.pop(&key).unwrap_or(0);
-                        st.total_bytes = st.total_bytes.saturating_sub(size);
-                        Some((key, size))
-                    }
-                    None => {
-                        let used = st.total_bytes;
-                        let cap = st.cap_bytes;
-                        drop(st);
-                        tracing::warn!(
-                            used_bytes = used,
-                            cap_bytes = cap,
-                            "mask raster cache is over its cap but every remaining raster is \
-                             referenced by saved edits; raise MASK_CACHE_MB"
-                        );
-                        return Ok(());
-                    }
-                }
-            };
-            if let Some(((server_epoch, owner, id), _)) = victim {
-                let (bin, meta) = self.paths(server_epoch, owner, &id);
-                let _ = std::fs::remove_file(&bin);
-                let _ = std::fs::remove_file(&meta);
-            }
-        }
-    }
-
-    fn touch(&self, server_epoch: i64, owner: Uuid, raster_id: &str) {
-        let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let _ = st.lru.get(&(server_epoch, owner, raster_id.to_string()));
-    }
-
-    fn insert(&self, server_epoch: i64, owner: Uuid, raster_id: &str, size: u64) {
-        let mut st = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(prev) = st
-            .lru
-            .put((server_epoch, owner, raster_id.to_string()), size)
-        {
-            st.total_bytes = st.total_bytes.saturating_sub(prev);
-        }
-        st.total_bytes = st.total_bytes.saturating_add(size);
     }
 
     pub async fn store(
