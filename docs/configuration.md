@@ -29,7 +29,7 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures |
 | `MASK_CACHE_MB` | `512` | Disk budget for unreferenced mask rasters; must be nonzero |
 | `EMBEDDING_CACHE_MB` | `2048` | Disk budget for click-model embeddings; must be nonzero |
-| `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu` |
+| `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu`. A software rasterizer such as llvmpipe is used when no hardware GPU is present, and Diagnostics marks it |
 | `ML_RUNTIME` | `auto` | `auto`, `gpu`, `cpu`, or `off` |
 | `ML_MAX_EDGE` | `2048` | `256` to `8192`; source edge sent to mask inference |
 | `ML_MAX_CONCURRENCY` | `1` | Concurrent inference jobs; must be nonzero |

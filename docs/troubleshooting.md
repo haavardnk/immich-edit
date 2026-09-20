@@ -128,6 +128,33 @@ Open **Settings** > **Diagnostics** and inspect the active renderer and GPU adap
 
 `IMMICH_EDIT_RENDERER=gpu` logs GPU initialization failures, then falls back to CPU.
 
+### Diagnostics reports a software rasterizer
+
+When no graphics hardware is present, Mesa's llvmpipe (or lavapipe) advertises itself as a Vulkan
+device and runs the shaders on the CPU. The backend uses it, and Diagnostics labels it **GPU type:
+software rasterizer** so the adapter name in the row above is not mistaken for real hardware.
+
+That is expected rather than a broken setup: the Docker image ships Mesa so Intel and AMD
+passthrough works, and Mesa always registers llvmpipe as a fallback. Measured on a 6-core arm64
+container, llvmpipe rendered a 6000x4000 frame faster than the built-in CPU renderer at preview
+sizes — 0.54x the time at 1024 px, 0.72x at 2048 px — and reached parity at 4096 px. Hardware
+acceleration is still much faster than either; a software rasterizer only means the host has no GPU
+to pass through.
+
+## Previews are slow or time out
+
+A preview downloads the original from Immich, decodes it, then renders it. The first request for an
+asset pays the download and decode; later requests reuse the cached frame, and requests that arrive
+while a decode is running wait for that same decode instead of starting another one. A decode that
+outlives its request still finishes and still lands in the cache, so a retry after a
+`408 Request Timeout` is served from memory.
+
+If the first preview times out, press **Retry** in the viewer. If every preview times out:
+
+- Check Diagnostics for the active renderer. A skipped or missing GPU means CPU rendering.
+- Raise `REQUEST_TIMEOUT_SECS` on a slow host with large RAW files.
+- Give the frame cache enough room for the files in use (`RAW_FRAME_CACHE_MB`).
+
 ## The GPU device is lost
 
 The backend falls back to CPU for active renders and later attempts to rebuild the GPU renderer.
