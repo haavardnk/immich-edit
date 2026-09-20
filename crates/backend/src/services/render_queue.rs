@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use lru::LruCache;
-use raw_pipeline::CancelTracker;
+use raw_pipeline::{CancelToken, CancelTracker};
 use serde::Deserialize;
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
@@ -12,6 +12,29 @@ use crate::asset_key::AssetKey;
 
 const TRACKER_CAP: usize = 1024;
 const LATEST_CAP: usize = 1024;
+
+pub struct CancelOnDrop {
+    token: CancelToken,
+    armed: bool,
+}
+
+impl CancelOnDrop {
+    pub fn new(token: CancelToken) -> Self {
+        Self { token, armed: true }
+    }
+
+    pub fn disarm(mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        if self.armed {
+            self.token.cancel();
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -194,6 +217,32 @@ mod tests {
         }
         if runs.load(Ordering::SeqCst) > 2 {
             panic!("collapsed too few: ran {}", runs.load(Ordering::SeqCst));
+        }
+    }
+
+    #[tokio::test]
+    async fn dropping_an_armed_guard_cancels_the_render() {
+        let q = RenderQueue::new(1);
+        let id = key(Uuid::new_v4());
+        let tracker = q.tracker(id).await;
+
+        let abandoned = tracker.next();
+        drop(CancelOnDrop::new(abandoned.clone()));
+        if !abandoned.is_cancelled() {
+            panic!("dropping an armed guard should cancel the token");
+        }
+
+        let kept = tracker.next();
+        CancelOnDrop::new(kept.clone()).disarm();
+        if kept.is_cancelled() {
+            panic!("a disarmed guard should leave the token alive");
+        }
+
+        let superseded = CancelOnDrop::new(kept);
+        let newest = tracker.next();
+        drop(superseded);
+        if newest.is_cancelled() {
+            panic!("a superseded guard should not cancel the newest render");
         }
     }
 
