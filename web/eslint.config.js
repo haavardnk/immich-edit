@@ -14,7 +14,9 @@ export default ts.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: {
-        projectService: { allowDefaultProject: ['playwright.config.ts'] },
+        projectService: {
+          allowDefaultProject: ['playwright.config.ts', 'vitest-setup-client.ts']
+        },
         tsconfigRootDir: import.meta.dirname,
         extraFileExtensions: ['.svelte']
       }

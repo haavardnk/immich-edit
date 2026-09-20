@@ -15,13 +15,31 @@ export default defineConfig({
     }
   },
   test: {
-    include: ['src/**/*.{test,spec}.ts'],
-    exclude: ['e2e/**'],
-    environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/lib/**']
-    }
+    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['src/**/*.{test,spec}.ts'],
+          exclude: ['e2e/**', 'src/**/*.component.test.ts'],
+          environment: 'node'
+        }
+      },
+      {
+        extends: true,
+        resolve: { conditions: ['browser'] },
+        test: {
+          name: 'component',
+          include: ['src/**/*.component.test.ts'],
+          environment: 'jsdom',
+          setupFiles: ['./vitest-setup-client.ts']
+        }
+      }
+    ]
   }
 });
