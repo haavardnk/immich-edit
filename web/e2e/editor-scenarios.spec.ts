@@ -1,6 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { ASSET_ID, ASSET_SUMMARY, NEUTRAL_RECORD, installMocks, json, gotoAsset } from './helpers';
 import { neutralEdits } from '../src/lib/types/edits';
+
+async function openPresets(page: Page): Promise<void> {
+  const section = page.getByRole('button', { name: 'Presets', exact: true });
+  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
+}
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -287,6 +292,93 @@ test('preset rename commits with Enter and cancels with Escape', async ({ page }
   await name.press('Escape');
   await expect(name).toHaveCount(0);
   expect(updates).toHaveLength(1);
+});
+
+test('a preset saved from one asset applies to another', async ({ page }) => {
+  const second = {
+    ...ASSET_SUMMARY,
+    id: '00000000-0000-0000-0000-000000000002',
+    originalFileName: 'IMG_0002.ARW'
+  };
+  const created: Array<Record<string, unknown>> = [];
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    assets: [ASSET_SUMMARY, second],
+    onPresetCreate: (body) => created.push(body),
+    onSave: (body) => saves.push(body)
+  });
+  await gotoAsset(page);
+
+  const exposure = () =>
+    page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
+      .getByRole('slider');
+  await exposure().fill('1');
+
+  await openPresets(page);
+  await page.getByRole('button', { name: 'Save current as preset' }).click();
+  await page.getByRole('textbox', { name: 'Preset name' }).fill('Warm');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  await expect.poll(() => created.map((body) => body.name)).toEqual(['Warm']);
+  const manifest = created[0]?.manifest as { ops: Record<string, unknown> };
+  expect(Object.keys(manifest.ops).length).toBeGreaterThan(0);
+
+  await page.goto(`/assets/${second.id}`);
+  await expect(exposure()).toHaveValue('0');
+  await openPresets(page);
+  await page.getByRole('combobox', { name: 'Select a preset…' }).click();
+  await page.getByRole('option', { name: 'Warm', exact: true }).click();
+  await page.getByRole('button', { name: 'Apply Warm' }).click();
+
+  await expect(exposure()).toHaveValue('1');
+  await expect.poll(() => saves.some((body) => body.action === 'Preset: Warm')).toBe(true);
+});
+
+test('history restore waits for a save that is still in flight', async ({ page }) => {
+  const entries = [
+    {
+      id: 1,
+      manifest_hash: 'hash-prior',
+      deleted: false,
+      edits: neutralEdits(),
+      created_at: '2024-01-01T00:00:00Z',
+      action: 'Initial'
+    }
+  ];
+  let releaseSave: (() => void) | null = null;
+  let held = false;
+  let restoreCalled = false;
+  await installMocks(page, {
+    onHistory: (route) => route.fulfill(json(entries)),
+    onRestore: async (route) => {
+      restoreCalled = true;
+      await route.fulfill(json({ ...NEUTRAL_RECORD, hash: 'hash-restored' }));
+    }
+  });
+  await page.route('**/api/assets/*/edits', async (route) => {
+    if (route.request().method() !== 'PUT' || held) return route.fallback();
+    held = true;
+    await new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    return route.fallback();
+  });
+  await gotoAsset(page);
+
+  const exposure = page
+    .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
+    .getByRole('slider');
+  await exposure.fill('1');
+  await expect.poll(() => releaseSave !== null).toBe(true);
+
+  await page.getByRole('button', { name: 'Edit history' }).click();
+  await page.getByText('Initial').click();
+  expect(restoreCalled).toBe(false);
+
+  releaseSave?.();
+  await expect.poll(() => restoreCalled).toBe(true);
+  await expect(exposure).toHaveValue('0');
 });
 
 test('stack primary is a keyboard radio group', async ({ page }) => {

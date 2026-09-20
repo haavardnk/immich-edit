@@ -148,6 +148,7 @@ export interface InstallOpts {
   total?: number;
   edits?: Array<{ id: string; hash: string; updated_at: string }>;
   presets?: Array<Record<string, unknown>>;
+  onPresetCreate?: (body: Record<string, unknown>) => void;
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   editRecord?: EditRecord;
@@ -169,6 +170,7 @@ export interface InstallOpts {
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
   const assets = opts.assets ?? [ASSET_SUMMARY];
+  const presets = [...(opts.presets ?? [])];
   const copies: CopyRecord[] = [];
   const ordered = (order: unknown, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (order !== 'asc' && order !== 'desc') return items;
@@ -236,7 +238,21 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p === '/api/albums') return route.fulfill(json([]));
     if (p === '/api/tags') return route.fulfill(json([]));
     if (p === '/api/people') return route.fulfill(json([]));
-    if (p === '/api/presets') return route.fulfill(json(opts.presets ?? []));
+    if (p === '/api/presets') {
+      if (method === 'POST') {
+        const body = (req.postDataJSON() as Record<string, unknown>) ?? {};
+        opts.onPresetCreate?.(body);
+        const created = {
+          ...body,
+          id: `preset-${presets.length + 1}`,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z'
+        };
+        presets.push(created);
+        return route.fulfill({ ...json(created), status: 201 });
+      }
+      return route.fulfill(json(presets));
+    }
     if (p === '/api/luts') return route.fulfill(json([]));
     if (p === '/api/dcp') return route.fulfill(json([]));
     if (p === '/api/jobs') return route.fulfill(json([]));
@@ -244,12 +260,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const presetMatch = p.match(/^\/api\/presets\/([^/]+)$/);
     if (presetMatch && method === 'DELETE') {
       opts.onPresetDelete?.(presetMatch[1]);
+      const idx = presets.findIndex((preset) => preset.id === presetMatch[1]);
+      if (idx >= 0) presets.splice(idx, 1);
       return route.fulfill({ status: 204, body: '' });
     }
     if (presetMatch && method === 'PUT') {
       const body = JSON.parse(route.request().postData() ?? '{}');
       opts.onPresetUpdate?.(presetMatch[1], body);
-      return route.fulfill(json({ ...(opts.presets?.[0] ?? {}), ...body }));
+      return route.fulfill(json({ ...(presets[0] ?? {}), ...body }));
     }
 
     const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);
