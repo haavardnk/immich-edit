@@ -2,6 +2,7 @@ pub mod app;
 pub mod asset_key;
 pub mod config;
 pub mod error;
+pub mod host;
 pub mod immich;
 pub mod lens_profile;
 pub mod routes;

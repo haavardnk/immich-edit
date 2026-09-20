@@ -64,6 +64,7 @@ Runtime distribution has no WebGPU provider for that target.
 Open **Settings** > **Diagnostics** to inspect:
 
 - Server version, renderer mode, active renderer, and GPU adapter
+- Host OS, CPU model, cores available to the process, and memory
 - Immich connection state and database migration state
 - HEIC and AVIF decode and encode capabilities
 - Redacted configuration and resource paths

@@ -3,6 +3,7 @@ use axum::extract::State;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+use crate::host::{HostInfo, host_info};
 use crate::immich::ImmichConnectionStatus;
 use crate::routes::auth::AuthCtx;
 use crate::state::AppState;
@@ -15,6 +16,7 @@ pub struct Health {
     pub renderer_active: &'static str,
     pub gpu_adapter: Option<String>,
     pub gpu_software: bool,
+    pub host: &'static HostInfo,
     pub heif_codecs: raw_pipeline::codecs::HeifCodecs,
     pub immich_reachable: bool,
     pub immich_status: ImmichConnectionStatus,
@@ -38,6 +40,7 @@ pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health>
         renderer_active: state.render.active().as_str(),
         gpu_adapter: state.render.gpu_label().map(|s| s.to_string()),
         gpu_software: state.render.software_gpu(),
+        host: host_info(),
         heif_codecs: raw_pipeline::codecs::heif_codecs(),
         immich_reachable: immich_status.ok,
         immich_status,

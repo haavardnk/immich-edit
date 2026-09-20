@@ -47,6 +47,7 @@ zip = { version = "8", default-features = false }
 mimalloc = { version = "0.1", default-features = false }
 lensfun = "=0.7.0"
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
+sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -52,6 +52,12 @@ async fn health_returns_ok_with_redacted_config() {
     if json["immich_status"]["kind"] != "ok" {
         panic!("immich status: {}", json["immich_status"]);
     }
+    if json["host"]["cores"].as_u64().unwrap_or(0) == 0 {
+        panic!("host cores: {}", json["host"]);
+    }
+    if json["host"]["arch"].as_str().unwrap_or("").is_empty() {
+        panic!("host arch: {}", json["host"]);
+    }
 }
 
 #[tokio::test]
