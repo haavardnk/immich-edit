@@ -466,6 +466,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn credentials_are_dropped_when_a_job_settles() {
+        for cancel in [false, true] {
+            let store = store().await;
+            let job = create(
+                &store,
+                Uuid::nil(),
+                "test",
+                &json!(null),
+                &json!(null),
+                &items(&["a"]),
+            )
+            .await;
+            assert!(store.job_credential(job.id).await.unwrap().is_some());
+
+            if cancel {
+                store.cancel_job(job.id).await.unwrap();
+            } else {
+                let claimed = store.claim_next_item().await.unwrap().unwrap();
+                store
+                    .complete_item(claimed.id, &json!({"ok": true}))
+                    .await
+                    .unwrap();
+            }
+
+            assert!(
+                store.job_credential(job.id).await.unwrap().is_none(),
+                "cancel={cancel}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn corrupt_rows_are_rejected() {
         let cases = [
             (
