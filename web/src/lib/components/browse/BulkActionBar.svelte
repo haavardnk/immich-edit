@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { AssetSummary } from '$lib/types/album';
   import type { AssetDetail } from '$lib/types/asset';
-  import { selection } from '$lib/stores/selection.svelte';
   import { hint } from '$lib/keybinds';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
@@ -41,6 +40,8 @@
 
   let {
     assets,
+    selectedIds,
+    onClear,
     onMulti,
     onSelectAll,
     hasMore = false,
@@ -48,6 +49,8 @@
     selectingAll = false
   }: {
     assets: AssetSummary[];
+    selectedIds: string[];
+    onClear: () => void;
     onMulti: (mode: MultiMode) => void;
     onSelectAll: () => Promise<boolean>;
     hasMore?: boolean;
@@ -60,12 +63,15 @@
   let bulkActionsOpen = $state(false);
 
   let metaBusy = $derived(busy || selectingAll);
-  let targetCount = $derived(selectingAll ? assets.length : selection.count);
-  let canCompare = $derived(!selectingAll && selection.count === 2);
-  let canSurvey = $derived(!selectingAll && selection.count >= 2 && selection.count <= MAX_PANES);
-  let showSelectAll = $derived(
-    hasMore || assets.some((asset) => !selection.selected.has(asset.id))
-  );
+  let count = $derived(selectedIds.length);
+  let targetCount = $derived(selectingAll ? assets.length : count);
+  let canCompare = $derived(!selectingAll && count === 2);
+  let canSurvey = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
+  let showSelectAll = $derived.by(() => {
+    if (hasMore) return true;
+    const picked = new Set(selectedIds);
+    return assets.some((asset) => !picked.has(asset.id));
+  });
 
   async function selectAll(): Promise<void> {
     if (busy || loadingMore || selectingAll) return;
@@ -93,7 +99,7 @@
     if (busy || selectingAll) return;
     if (!(await metadataConsent.gate())) return;
     busy = true;
-    const ids = [...selection.selected];
+    const ids = [...selectedIds];
     const byId = new Map(assets.map((a) => [a.id, a]));
     let failed = 0;
     await runPool(ids, 6, async (id) => {
@@ -124,7 +130,7 @@
   async function createCopies(): Promise<void> {
     if (busy || selectingAll) return;
     busy = true;
-    const ids = [...selection.selected];
+    const ids = [...selectedIds];
     let failed = 0;
     await runPool(ids, 4, async (id) => {
       try {
@@ -158,7 +164,7 @@
       return;
     }
     busy = true;
-    const ids = [...selection.selected];
+    const ids = [...selectedIds];
     const byId = new Map(assets.map((a) => [a.id, a]));
     let failed = 0;
     await runPool(ids, 6, async (id) => {
@@ -189,7 +195,7 @@
   }
 </script>
 
-{#if selection.active || selectingAll}
+{#if count > 0 || selectingAll}
   <div
     class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
@@ -353,13 +359,13 @@
           title={hint('Clear selection', 'gridClearSelection')}
           aria-label="Clear selection"
           disabled={selectingAll}
-          onclick={selection.clear}
+          onclick={onClear}
         />
       </ControlBarOverflow>
     </ControlBar>
 
     {#if showTags}
-      <BulkTagBand {runPool} bind:busy />
+      <BulkTagBand ids={selectedIds} {runPool} bind:busy />
     {/if}
   </div>
 {/if}

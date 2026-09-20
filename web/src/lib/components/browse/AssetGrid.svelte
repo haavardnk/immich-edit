@@ -412,6 +412,8 @@
 
 <BulkActionBar
   assets={items}
+  selectedIds={[...selection.selected]}
+  onClear={selection.clear}
   onMulti={openMulti}
   onSelectAll={selectAll}
   hasMore={onLoadMore !== undefined}

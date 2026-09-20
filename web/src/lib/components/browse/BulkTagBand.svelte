@@ -6,12 +6,15 @@
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import { isManagedTag, toTagRef } from '$lib/reject';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
 
   type RunPool = <T>(items: T[], limit: number, fn: (item: T) => Promise<void>) => Promise<void>;
 
-  let { runPool, busy = $bindable() }: { runPool: RunPool; busy: boolean } = $props();
+  let {
+    ids,
+    runPool,
+    busy = $bindable()
+  }: { ids: string[]; runPool: RunPool; busy: boolean } = $props();
 
   let tags = $state<TagSummary[]>([]);
   let tagsLoaded = $state(false);
@@ -34,7 +37,6 @@
     if (busy || chosenTags.length === 0) return;
     if (!(await metadataConsent.gate())) return;
     busy = true;
-    const ids = [...selection.selected];
     let failed = 0;
     const pairs = ids.flatMap((id) => chosenTags.map((tagId) => ({ id, tagId })));
     await runPool(pairs, 6, async ({ id, tagId }) => {
@@ -60,9 +62,7 @@
 
 <div class="flex flex-col gap-2 border-t px-4 py-3">
   <span class="px-1 text-xs text-dark/60">
-    Pick tags, then apply them to the {selection.count} selected asset{selection.count === 1
-      ? ''
-      : 's'}
+    Pick tags, then apply them to the {ids.length} selected asset{ids.length === 1 ? '' : 's'}
   </span>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <div class="min-w-0 flex-1 sm:min-w-55">
