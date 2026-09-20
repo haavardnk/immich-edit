@@ -9,13 +9,12 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
   import { persistedPreviewUrl } from '$lib/api/preview';
-  import { getAsset } from '$lib/api/assets';
-  import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { isRejected } from '$lib/reject';
   import { copyIndex, isCopy } from '$lib/assetKey';
   import { multiMembers, type MultiMode } from '$lib/compareEntry';
+  import { paneColumns, paneGridStyle, switchMembers } from '$lib/loupeLayout';
+  import { loupeTags } from '$lib/stores/loupeTags.svelte';
   import { putBounded } from '$lib/utils/boundedRecord';
   import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
   import {
@@ -57,19 +56,15 @@
   );
   const exif = $derived(asset?.exifInfo ?? null);
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
-  const cols = $derived(panes.length <= 4 ? 2 : 3);
-  const gridStyle = $derived(
-    multi ? `grid-template-columns: repeat(${Math.min(cols, panes.length)}, minmax(0, 1fr));` : ''
-  );
+  const cols = $derived(paneColumns(panes.length));
+  const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
 
-  let tagCache = $state<Record<string, TagRef[]>>({});
-  let tagOrder = $state<string[]>([]);
   let fitZooms = $state<Record<string, number>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
   let paneImageOrder = $state<string[]>([]);
   let targetIndex = $state<number | null>(null);
-  const currentTags = $derived(focusedId ? (tagCache[focusedId] ?? []) : []);
+  const currentTags = $derived(loupeTags.tagsOf(focusedId));
   const focusedFitZoom = $derived(focusedId ? (fitZooms[focusedId] ?? 100) : 100);
   const zoom = $derived(paneView.zoom ?? focusedFitZoom);
   const zoomed = $derived(paneView.zoom !== null && paneView.zoom > focusedFitZoom);
@@ -86,81 +81,19 @@
 
   $effect(() => {
     const id = focusedId;
-    if (!id || tagCache[id]) return;
-    void getAsset(id)
-      .then((a) => setTags(id, a.tags))
-      .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
+    if (id) void loupeTags.ensure(id);
   });
 
-  function setTags(id: string, tags: TagRef[]): void {
-    const next = putBounded(tagCache, tagOrder, id, tags, 50);
-    tagCache = next.record;
-    tagOrder = next.order;
+  function addTag(tag: TagRef): Promise<void> {
+    return focusedId ? loupeTags.add(focusedId, tag) : Promise.resolve();
   }
 
-  async function addTag(tag: TagRef): Promise<void> {
-    const id = focusedId;
-    if (!id) return;
-    const prev = tagCache[id] ?? [];
-    if (prev.some((t) => t.id === tag.id)) return;
-    if (!(await metadataConsent.gate())) return;
-    setTags(id, [...prev, tag]);
-    try {
-      await addTagToAsset(tag.id, id);
-    } catch (e) {
-      setTags(id, prev);
-      toasts.push('error', `tag: ${(e as Error).message}`);
-    }
+  function removeTag(tagId: string): Promise<void> {
+    return focusedId ? loupeTags.remove(focusedId, tagId) : Promise.resolve();
   }
 
-  async function removeTag(tagId: string): Promise<void> {
-    const id = focusedId;
-    if (!id) return;
-    const prev = tagCache[id] ?? [];
-    if (!(await metadataConsent.gate())) return;
-    setTags(
-      id,
-      prev.filter((t) => t.id !== tagId)
-    );
-    try {
-      await removeTagFromAsset(tagId, id);
-    } catch (e) {
-      setTags(id, prev);
-      toasts.push('error', `tag: ${(e as Error).message}`);
-    }
-  }
-
-  async function createAndAddTag(value: string): Promise<TagRef | null> {
-    const id = focusedId;
-    if (!id) return null;
-    if (!(await metadataConsent.gate())) return null;
-    try {
-      const created = await upsertTags([value]);
-      const tag = created[0];
-      if (!tag) return null;
-      const ref: TagRef = {
-        id: tag.id,
-        name: tag.name,
-        value: tag.value,
-        parentId: tag.parentId,
-        color: tag.color
-      };
-      const prev = tagCache[id] ?? [];
-      if (!prev.some((t) => t.id === ref.id)) {
-        setTags(id, [...prev, ref]);
-        try {
-          await addTagToAsset(ref.id, id);
-        } catch (e) {
-          setTags(id, prev);
-          toasts.push('error', `tag: ${(e as Error).message}`);
-          return null;
-        }
-      }
-      return ref;
-    } catch (e) {
-      toasts.push('error', `tag: ${(e as Error).message}`);
-      return null;
-    }
+  function createAndAddTag(value: string): Promise<TagRef | null> {
+    return focusedId ? loupeTags.createAndAdd(focusedId, value) : Promise.resolve(null);
   }
 
   $effect(() => {
@@ -222,16 +155,15 @@
       enterMulti(mode);
       return;
     }
-    const focusedId = compare.focusedId;
-    const orderedIds = browsing.assets.map((asset) => asset.id);
-    const members =
-      mode === 'survey'
-        ? multiMembers(mode, orderedIds, selection.selected, focusedId)
-        : [focusedId, ...compare.members.filter((id) => id !== focusedId)].filter(
-            (id): id is string => id !== null
-          );
+    const members = switchMembers(
+      mode,
+      browsing.assets.map((asset) => asset.id),
+      selection.selected,
+      compare.focusedId,
+      compare.members
+    );
     if (members.length < 2) return;
-    compare.enter(mode, members.slice(0, mode === 'compare' ? 2 : undefined));
+    compare.enter(mode, members);
   }
 
   function leaveMulti(): void {
@@ -358,7 +290,7 @@
     void toggleReject(id).then((ok) => {
       if (!ok) return;
       const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) setTags(id, updated.tags);
+      if (updated) loupeTags.set(id, updated.tags);
       autoAdvance(id);
     });
   }
@@ -376,7 +308,7 @@
     void clearFlags(id).then((ok) => {
       if (!ok) return;
       const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) setTags(id, updated.tags);
+      if (updated) loupeTags.set(id, updated.tags);
     });
   }
 
