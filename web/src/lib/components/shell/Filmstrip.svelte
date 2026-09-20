@@ -9,7 +9,7 @@
   import { editorHref } from '$lib/editorNavigation';
   import ResizeHandle from './ResizeHandle.svelte';
   import { Icon } from '@immich/ui';
-  import { mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { mdiCheckCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
@@ -18,6 +18,7 @@
     resizable = false,
     showBadges = false,
     highlightIds,
+    selectedIds,
     collapsed = false
   }: {
     currentId?: string | null;
@@ -26,6 +27,7 @@
     resizable?: boolean;
     showBadges?: boolean;
     highlightIds?: string[];
+    selectedIds?: Set<string>;
     collapsed?: boolean;
   } = $props();
 
@@ -113,6 +115,7 @@
                 {@const isMember = !isCurrent && paneNumber > 0}
                 {@const rating = asset.exifInfo?.rating ?? 0}
                 {@const rejected = isRejected(asset)}
+                {@const picked = selectedIds?.has(asset.id) ?? false}
                 {#if onSelect}
                   <button
                     type="button"
@@ -146,6 +149,15 @@
                       >
                         {paneNumber}
                       </span>
+                    {/if}
+                    {#if picked}
+                      <div
+                        class="pointer-events-none absolute bottom-1 left-1 text-primary drop-shadow-md"
+                        role="img"
+                        aria-label="Selected"
+                      >
+                        <Icon icon={mdiCheckCircle} size="14px" />
+                      </div>
                     {/if}
                     {#if showBadges && asset.isFavorite}
                       <div

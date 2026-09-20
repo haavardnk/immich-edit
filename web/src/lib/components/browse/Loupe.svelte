@@ -56,6 +56,7 @@
   );
   const exif = $derived(asset?.exifInfo ?? null);
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
+  const selected = $derived(focusedId ? selection.has(focusedId) : false);
   const cols = $derived(paneColumns(panes.length));
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
@@ -174,16 +175,20 @@
     if (id) browseView.openLoupe(id);
   }
 
-  function dropFocused(): void {
-    if (compare.members.length <= 1) return;
-    compare.drop(compare.focusIndex);
-  }
-
   function togglePane(id: string): void {
     const at = compare.members.indexOf(id);
     if (at < 0) return compare.addMember(id);
     if (compare.members.length > 2) return compare.drop(at);
     browseView.openLoupe(compare.members.find((member) => member !== id) ?? id);
+  }
+
+  function dropFocused(): void {
+    if (compare.members.length <= 1) return;
+    compare.drop(compare.focusIndex);
+  }
+
+  function toggleSelect(): void {
+    if (focusedId) selection.toggle(focusedId);
   }
 
   function pickFromStrip(id: string, additive: boolean): void {
@@ -392,6 +397,9 @@
       case 'unflag':
         e.preventDefault();
         return unflag();
+      case 'toggleSelect':
+        e.preventDefault();
+        return toggleSelect();
       case 'zoomToggle':
         e.preventDefault();
         return toggleZoom();
@@ -434,6 +442,10 @@
         {copyBadge}
         {multi}
         {moreActive}
+        {selected}
+        selectionCount={selection.count}
+        onToggleSelect={toggleSelect}
+        onClearSelection={selection.clear}
         onSelectViewMode={selectViewMode}
         onOpenEditor={openEditor}
       />
@@ -558,6 +570,7 @@
       <Filmstrip
         currentId={focusedId}
         highlightIds={compare.members}
+        selectedIds={selection.selected}
         onSelect={pickFromStrip}
         resizable
         size={72}

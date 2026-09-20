@@ -173,6 +173,13 @@ export const KEYBINDS = [
     group: 'Loupe',
     label: 'Close the loupe'
   },
+  {
+    id: 'toggleSelect',
+    keys: ['s'],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe',
+    label: 'Select or deselect the focused photo'
+  },
 
   {
     id: 'compareFocus',

@@ -40,15 +40,16 @@ Shortcuts do not run while focus is in a text field or other typing control.
 
 ## Loupe
 
-| Keys           | Action                               | Available in                   |
-| -------------- | ------------------------------------ | ------------------------------ |
-| Left or Right  | Open the previous or next photo      | Loupe                          |
+| Keys           | Action                                                       | Available in                   |
+| -------------- | ------------------------------------------------------------ | ------------------------------ |
+| Left or Right  | Open the previous or next photo                              | Loupe                          |
 | `Z` or `Space` | Zoom to the next face at your last zoom level, then back out | Loupe, compare, survey, editor |
-| `I`            | Toggle photo information             | Loupe and editor               |
-| `T`            | Toggle tags                          | Loupe and editor               |
-| `J`            | Toggle clipping indicators           | Loupe, compare, survey, editor |
-| `Shift+F`      | Toggle fullscreen                    | Loupe, compare, survey, editor |
-| `Escape`       | Leave fullscreen or close the loupe  | Loupe                          |
+| `I`            | Toggle photo information                                     | Loupe and editor               |
+| `T`            | Toggle tags                                                  | Loupe and editor               |
+| `S`            | Select or deselect the focused photo                         | Loupe, compare, survey         |
+| `J`            | Toggle clipping indicators                                   | Loupe, compare, survey, editor |
+| `Shift+F`      | Toggle fullscreen                                            | Loupe, compare, survey, editor |
+| `Escape`       | Leave fullscreen or close the loupe                          | Loupe                          |
 
 ## Compare and survey
 
