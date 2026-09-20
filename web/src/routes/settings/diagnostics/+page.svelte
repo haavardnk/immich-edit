@@ -60,6 +60,9 @@
     lines.push(`- Renderer mode: ${h.renderer_mode}`);
     lines.push(`- Renderer active: ${h.renderer_active}`);
     lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
+    if (h.gpu_software) {
+      lines.push('- GPU adapter is a software rasterizer (no hardware GPU found)');
+    }
     lines.push(
       `- HEIF codecs: hevc decode ${codecLabel(h.heif_codecs.hevc_decode)}, hevc encode ${codecLabel(h.heif_codecs.hevc_encode)}, av1 decode ${codecLabel(h.heif_codecs.av1_decode)}, av1 encode ${codecLabel(h.heif_codecs.av1_encode)}`
     );
@@ -190,6 +193,10 @@
       <dd class="font-mono">{health.renderer_active}</dd>
       <dt class="text-dark/65">GPU adapter</dt>
       <dd class="font-mono">{health.gpu_adapter ?? '—'}</dd>
+      {#if health.gpu_software}
+        <dt class="text-dark/65">GPU type</dt>
+        <dd class="font-mono text-amber-300">software rasterizer (no hardware GPU found)</dd>
+      {/if}
       <dt class="text-dark/65">Immich</dt>
       <dd>
         <span

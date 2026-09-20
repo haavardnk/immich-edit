@@ -100,6 +100,10 @@ impl RenderService {
         self.device.label()
     }
 
+    pub fn software_gpu(&self) -> bool {
+        self.device.software_gpu()
+    }
+
     pub fn telemetry(&self) -> &RenderTelemetry {
         &self.telemetry
     }
