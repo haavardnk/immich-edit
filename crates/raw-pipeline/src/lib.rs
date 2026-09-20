@@ -28,7 +28,7 @@ pub mod wgsl;
 
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum PipelineError {
     #[error("decode: {0}")]
     Decode(String),
