@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listUsers, setUserAccess, purgeUserData, type AdminUser } from '$lib/api/admin';
+  import { errorMessage } from '$lib/utils/errors';
   import Notice from '$lib/components/Notice.svelte';
   import { mdiAccountCircleOutline, mdiDeleteOutline } from '@mdi/js';
   import { Badge, Button, Icon, IconButton, LoadingSpinner, Switch, Text } from '@immich/ui';
@@ -20,7 +21,7 @@
     try {
       users = await listUsers();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -34,7 +35,7 @@
       await setUserAccess(u.id, !u.access_enabled);
       await load();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       busyUser = null;
     }
@@ -50,7 +51,7 @@
       purgeConfirm = '';
       await load();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       busyUser = null;
     }

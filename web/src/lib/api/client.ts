@@ -90,7 +90,7 @@ async function safeFetch(input: RequestInfo, init?: RequestInit): Promise<Respon
     return await fetch(input, { credentials: 'same-origin', ...init });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    const netErr = new NetworkError((err as Error)?.message ?? 'network error');
+    const netErr = new NetworkError(err instanceof Error ? err.message : 'network error');
     reportError(netErr);
     throw netErr;
   }

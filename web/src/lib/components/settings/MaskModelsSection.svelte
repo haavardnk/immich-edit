@@ -10,6 +10,7 @@
     type MaskModelsResponse
   } from '$lib/api/masks';
   import { kindLabel, installPercent, formatSeconds, formatMb } from '$lib/utils/maskModels';
+  import { errorMessage } from '$lib/utils/errors';
   import Notice from '$lib/components/Notice.svelte';
   import { mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
   import { Badge, IconButton, LoadingSpinner, ProgressBar, Select, Text } from '@immich/ui';
@@ -35,7 +36,7 @@
     try {
       models = await listMaskModels();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     }
   }
 
@@ -51,7 +52,7 @@
       }
       await load();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       busyModels = busyModels.filter((id) => id !== m.id);
     }
@@ -68,7 +69,7 @@
       await selectMaskModel(kind, modelId);
       await load();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     }
   }
 

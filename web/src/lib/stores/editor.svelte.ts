@@ -271,7 +271,7 @@ class EditorStore {
       })
       .catch((e: unknown) => {
         if (this.assetId === id) {
-          this.lensProfileError = e instanceof Error ? e.message : String(e);
+          this.lensProfileError = errorMessage(e);
         }
       });
   }

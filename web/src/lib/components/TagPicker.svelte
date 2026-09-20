@@ -46,7 +46,7 @@
         .then((t) => {
           library.tags = t;
         })
-        .catch((e: unknown) => toasts.push('error', `tags: ${(e as Error).message}`));
+        .catch((e: unknown) => toasts.fail('tags', e));
     }
   });
 

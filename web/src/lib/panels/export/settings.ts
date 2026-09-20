@@ -104,7 +104,7 @@ export function ensureLibraryLoaded(): void {
       })
       .catch((e: unknown) => {
         albumsRequested = false;
-        toasts.push('error', `albums: ${(e as Error).message}`);
+        toasts.fail('albums', e);
       });
   }
   if (!tagsRequested) {
@@ -115,7 +115,7 @@ export function ensureLibraryLoaded(): void {
       })
       .catch((e: unknown) => {
         tagsRequested = false;
-        toasts.push('error', `tags: ${(e as Error).message}`);
+        toasts.fail('tags', e);
       });
   }
 }

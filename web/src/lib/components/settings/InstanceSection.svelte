@@ -4,6 +4,7 @@
   import { session } from '$lib/stores/session.svelte';
   import { getInstance, rebindInstance, type InstanceInfo } from '$lib/api/admin';
   import { formatWhen } from '$lib/utils/datetime';
+  import { errorMessage } from '$lib/utils/errors';
   import { mdiServerNetworkOutline, mdiSwapHorizontal } from '@mdi/js';
   import { Button, Icon, IconButton, Select } from '@immich/ui';
   import Notice from '$lib/components/Notice.svelte';
@@ -38,7 +39,7 @@
     try {
       instance = await getInstance();
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     }
   }
 
@@ -65,7 +66,7 @@
       session.clear();
       window.location.replace('/login');
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       busy = false;
     }

@@ -60,7 +60,7 @@
       return 'The immich-edit server is not responding. Check that it is running.';
     }
     if (err instanceof ApiError) return messageFor(err);
-    return (err as Error)?.message ?? fallback;
+    return err instanceof Error && err.message ? err.message : fallback;
   }
 
   async function probeProviders(): Promise<void> {

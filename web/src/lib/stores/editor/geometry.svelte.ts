@@ -1,5 +1,6 @@
 import { FULL_CROP, type AspectLock, type CropRect, type Edits } from '$lib/types/edits';
 import { livePreview } from '$lib/api/preview';
+import { errorMessage } from '$lib/utils/errors';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
 import {
   aspectRatioFor,
@@ -112,7 +113,7 @@ async function loadPinnedPreview(
   } catch (e) {
     if (url) revoke(url);
     if (ctx.geometrySession?.id !== sessionId) return;
-    ctx.error = e instanceof Error ? e.message : String(e);
+    ctx.error = errorMessage(e);
   }
 }
 

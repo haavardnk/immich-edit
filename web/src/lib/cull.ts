@@ -37,7 +37,7 @@ export async function rateAsset(id: string, rating: number | null): Promise<bool
     await updateAsset(id, { rating });
   } catch (e) {
     browsing.patch(id, { exifInfo: prev });
-    toasts.push('error', `rating: ${(e as Error).message}`);
+    toasts.fail('rating', e);
   }
   return true;
 }
@@ -52,7 +52,7 @@ export async function toggleFavorite(id: string): Promise<boolean> {
     await updateAsset(id, { isFavorite: next });
   } catch (e) {
     browsing.patch(id, { isFavorite: !next });
-    toasts.push('error', `favorite: ${(e as Error).message}`);
+    toasts.fail('favorite', e);
   }
   return true;
 }
@@ -87,7 +87,7 @@ export async function toggleReject(id: string): Promise<boolean> {
     browsing.patch(id, { tags: prev });
     if (next) rejected.remove(id);
     else rejected.add(id, rejectTag);
-    toasts.push('error', `reject: ${(e as Error).message}`);
+    toasts.fail('reject', e);
   }
   return true;
 }

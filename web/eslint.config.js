@@ -36,6 +36,13 @@ export default ts.config(
       'svelte/prefer-svelte-reactivity': 'off',
       'svelte/no-navigation-without-resolve': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "TSAsExpression > TSTypeReference > Identifier[name='Error']",
+          message: 'Use errorMessage(e) from $lib/utils/errors instead of casting to Error.'
+        }
+      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }

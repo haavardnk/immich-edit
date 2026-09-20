@@ -226,7 +226,7 @@
     try {
       await deleteCopy(id);
     } catch (e) {
-      toasts.push('error', `delete copy: ${(e as Error).message}`);
+      toasts.fail('delete copy', e);
       return;
     }
     if (selection.selected.has(id)) selection.toggle(id);

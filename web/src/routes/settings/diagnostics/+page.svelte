@@ -8,6 +8,7 @@
     type LatencyStats
   } from '$lib/api/diagnostics';
   import Notice from '$lib/components/Notice.svelte';
+  import { errorMessage } from '$lib/utils/errors';
   import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
 
   let health = $state<HealthInfo | null>(null);
@@ -27,7 +28,7 @@
         timings = null;
       }
     } catch (e) {
-      error = (e as Error).message;
+      error = errorMessage(e);
     } finally {
       loading = false;
     }

@@ -28,7 +28,7 @@
         toasts.push('success', 'Copied settings', 3000)
       );
     } catch (e) {
-      toasts.push('error', `Failed to copy edits: ${(e as Error).message}`, 6000);
+      toasts.fail('Failed to copy edits', e, 6000);
     } finally {
       busy = false;
     }
