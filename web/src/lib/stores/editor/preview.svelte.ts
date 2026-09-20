@@ -1,0 +1,399 @@
+import { ApiError } from '$lib/api/client';
+import {
+  getPreviewMeta,
+  livePreview,
+  persistedPreviewUrl,
+  previewModeIsNone,
+  type PreviewMode,
+  type ProofOptions
+} from '$lib/api/preview';
+import type { ColorSpaceOpt } from '$lib/api/export';
+import { scopes } from '$lib/stores/scopes.svelte';
+import { ui } from '$lib/stores/ui.svelte';
+import { originalPreviewEdits, type Edits } from '$lib/types/edits';
+import type { PreviewMeta } from '$lib/types/preview';
+import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
+import { errorMessage } from '$lib/utils/errors';
+import { makeObjectUrl, revoke } from '$lib/utils/object-url';
+import { SingleFlight } from '$lib/utils/single-flight';
+import {
+  isFullFrame,
+  renderRequest,
+  visibleRegion,
+  type Rect,
+  type RenderRequest,
+  type Roi
+} from '$lib/utils/view-geometry';
+import type { GeometrySession } from './geometry.svelte';
+
+const LIVE_EDGE = 1600;
+const MAX_EDGE = 4096;
+const VIEW_MAX_EDGE = 65535;
+const VIEW_DEBOUNCE_MS = 150;
+
+export type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
+
+export interface PreviewCtx {
+  assetId: string | null;
+  initialised: boolean;
+  edits: Edits;
+  meta: PreviewMeta | null;
+  previewUrl: string | null;
+  originalUrl: string | null;
+  viewUrl: string | null;
+  viewRoi: Roi | null;
+  viewNat: { w: number; h: number } | null;
+  pending: boolean;
+  error: string | null;
+  splitMode: boolean;
+  showingOriginal: boolean;
+  geometrySession: GeometrySession | null;
+  maskPreviewLayerId: string | null;
+  colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
+  proofSpace: ColorSpaceOpt;
+  gamutWarn: boolean;
+}
+
+export class PreviewEngine {
+  private ctx: PreviewCtx;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private viewSnap = $state<ViewSnapshot | null>(null);
+  private viewKey = '';
+  private viewFullEdge = 0;
+  private srcLong = $state(Number.POSITIVE_INFINITY);
+  private originalEdge = 0;
+  private originalGeomKey = '';
+
+  constructor(ctx: PreviewCtx) {
+    this.ctx = ctx;
+  }
+
+  private flight = new SingleFlight<
+    {
+      edits: Edits;
+      maxEdge: number;
+      previewMode: PreviewMode;
+      purpose?: 'color-picker';
+    },
+    { url: string; metaId: string | null }
+  >(
+    async (args, signal) => {
+      if (!this.ctx.assetId) throw new Error('no asset');
+      this.ctx.pending = true;
+      const { blob, metaId } = await livePreview(
+        this.ctx.assetId,
+        args.edits,
+        args.maxEdge,
+        args.previewMode,
+        this.proofOptions(),
+        signal,
+        'base',
+        undefined,
+        scopes.wants
+      );
+      return { url: makeObjectUrl(blob), metaId };
+    },
+    (args, result) => {
+      const prev = this.ctx.previewUrl;
+      this.ctx.previewUrl = result.url;
+      if (prev?.startsWith('blob:')) revoke(prev);
+      this.ctx.pending = false;
+      if (args.purpose === 'color-picker' && this.ctx.colorPicker) {
+        this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
+      }
+      if (previewModeIsNone(args.previewMode)) {
+        if (result.metaId) void this.loadMeta(result.metaId);
+        if (this.ctx.splitMode) this.refreshOriginal();
+      }
+    },
+    (err) => {
+      this.ctx.pending = false;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (err instanceof ApiError && err.code === 'superseded') return;
+      this.ctx.colorPicker = null;
+      this.ctx.error = errorMessage(err);
+    }
+  );
+
+  private originalFlight = new SingleFlight<{ edge: number; geomKey: string }, { url: string }>(
+    async (args, signal) => {
+      if (!this.ctx.assetId) throw new Error('no asset');
+      const snap = $state.snapshot(this.ctx.edits) as Edits;
+      const edits = originalPreviewEdits(snap);
+      const { blob } = await livePreview(
+        this.ctx.assetId,
+        edits,
+        args.edge,
+        'none',
+        this.proofOptions(),
+        signal,
+        'original'
+      );
+      return { url: makeObjectUrl(blob) };
+    },
+    (args, result) => {
+      const prev = this.ctx.originalUrl;
+      this.ctx.originalUrl = result.url;
+      if (prev?.startsWith('blob:')) revoke(prev);
+      this.originalEdge = args.edge;
+      this.originalGeomKey = args.geomKey;
+    },
+    () => {}
+  );
+
+  private viewFlight = new SingleFlight<RenderRequest, { url: string; w: number; h: number }>(
+    async (args, signal) => {
+      if (!this.ctx.assetId) throw new Error('no asset');
+      const { blob } = await livePreview(
+        this.ctx.assetId,
+        $state.snapshot(this.ctx.edits) as Edits,
+        args.maxEdge,
+        'none',
+        this.proofOptions(),
+        signal,
+        'roi',
+        isFullFrame(args.roi) ? undefined : args.roi
+      );
+      const url = makeObjectUrl(blob);
+      const decoded = new Image();
+      decoded.src = url;
+      await decoded.decode().catch(() => undefined);
+      return { url, w: decoded.naturalWidth, h: decoded.naturalHeight };
+    },
+    (args, result) => {
+      const prev = this.ctx.viewUrl;
+      this.ctx.viewUrl = result.url;
+      this.ctx.viewRoi = args.roi;
+      this.ctx.viewNat = { w: result.w, h: result.h };
+      const delivered = Math.max(result.w, result.h);
+      const fraction = args.fullEdge > 0 ? args.maxEdge / args.fullEdge : 1;
+      this.viewFullEdge = Math.round(delivered / fraction);
+      if (delivered < args.maxEdge * 0.98) this.srcLong = this.viewFullEdge;
+      if (prev?.startsWith('blob:')) revoke(prev);
+    },
+    () => {
+      this.viewKey = '';
+    }
+  );
+
+  get sourceLong(): number {
+    return this.srcLong;
+  }
+
+  get snapshot(): ViewSnapshot | null {
+    return this.viewSnap;
+  }
+
+  get viewScale(): number | null {
+    const snap = this.viewSnap;
+    if (!snap || !this.ctx.viewRoi || !this.ctx.viewNat) return null;
+    const boxLong =
+      Math.max(this.ctx.viewRoi[2] * snap.frame.width, this.ctx.viewRoi[3] * snap.frame.height) *
+      snap.dpr;
+    if (boxLong <= 0) return null;
+    return Math.max(this.ctx.viewNat.w, this.ctx.viewNat.h) / boxLong;
+  }
+
+  live(): void {
+    if (!this.ctx.initialised) return;
+    this.clearView();
+    this.submitBase(LIVE_EDGE, 'none');
+    this.scheduleIdle();
+  }
+
+  preview(mode: PreviewMode): void {
+    if (!this.ctx.initialised) return;
+    this.clearView();
+    this.submitBase(LIVE_EDGE, mode);
+  }
+
+  showOriginal(): void {
+    if (!this.ctx.initialised) return;
+    this.clearView();
+    const snap = $state.snapshot(this.ctx.edits) as Edits;
+    this.flight.submit({
+      edits: originalPreviewEdits(snap),
+      maxEdge: this.baseEdge(),
+      previewMode: 'none'
+    });
+  }
+
+  refreshBase(): void {
+    if (!this.ctx.initialised || !this.ctx.assetId) return;
+    this.submitBase(LIVE_EDGE, 'none');
+  }
+
+  submitColorPicker(edits: Edits): void {
+    this.flight.submit({
+      edits,
+      maxEdge: this.baseEdge(),
+      previewMode: 'none',
+      purpose: 'color-picker'
+    });
+  }
+
+  loadPersisted(): void {
+    if (!this.ctx.assetId) return;
+    const prev = this.ctx.previewUrl;
+    this.ctx.previewUrl =
+      persistedPreviewUrl(this.ctx.assetId, MAX_EDGE, ui.clipWarn) + `&_=${Date.now()}`;
+    if (prev?.startsWith('blob:')) revoke(prev);
+  }
+
+  toggleSplit(): void {
+    this.clearView();
+    this.ctx.splitMode = !this.ctx.splitMode;
+    if (this.ctx.splitMode) {
+      this.submitBase(this.baseEdge(), 'none');
+      this.refreshOriginal();
+    } else {
+      this.dropOriginal();
+      this.scheduleIdle();
+    }
+  }
+
+  reproof(): void {
+    if (!this.ctx.initialised || !this.ctx.assetId) return;
+    this.clearView();
+    this.submitBase(LIVE_EDGE, 'none');
+    this.scheduleIdle();
+    if (this.ctx.splitMode) this.refreshOriginal(true);
+  }
+
+  onViewChange(snap: ViewSnapshot): void {
+    this.viewSnap = snap;
+    if (this.viewBlocked()) return;
+    this.scheduleIdle();
+  }
+
+  clearView(): void {
+    this.viewFlight.cancel();
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (this.ctx.viewUrl?.startsWith('blob:')) revoke(this.ctx.viewUrl);
+    this.ctx.viewUrl = null;
+    this.ctx.viewRoi = null;
+    this.ctx.viewNat = null;
+    this.viewFullEdge = 0;
+    this.viewKey = '';
+  }
+
+  scheduleIdle(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.ctx.initialised) return;
+      if (this.ctx.splitMode) {
+        this.submitBase(this.baseEdge(), 'none');
+        return;
+      }
+      if (this.viewBlocked()) return;
+      this.submitView();
+    }, VIEW_DEBOUNCE_MS);
+  }
+
+  reset(): void {
+    this.flight.cancel();
+    this.originalFlight.cancel();
+    this.clearView();
+    this.viewSnap = null;
+    this.srcLong = Number.POSITIVE_INFINITY;
+    if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
+    this.ctx.previewUrl = null;
+    this.dropOriginal();
+    this.ctx.splitMode = false;
+  }
+
+  private submitBase(maxEdge: number, previewMode: PreviewMode): void {
+    this.flight.submit({ edits: $state.snapshot(this.ctx.edits) as Edits, maxEdge, previewMode });
+  }
+
+  private dropOriginal(): void {
+    this.originalFlight.cancel();
+    if (this.ctx.originalUrl?.startsWith('blob:')) revoke(this.ctx.originalUrl);
+    this.ctx.originalUrl = null;
+    this.originalEdge = 0;
+    this.originalGeomKey = '';
+  }
+
+  private refreshOriginal(force = false): void {
+    if (!this.ctx.splitMode || !this.ctx.assetId) return;
+    const edge = this.baseEdge();
+    const snap = $state.snapshot(this.ctx.edits) as Edits;
+    const geomKey = JSON.stringify({
+      g: snap.geometry,
+      l: snap.lens,
+      d: snap.color.dcp
+    });
+    if (
+      !force &&
+      this.originalEdge === edge &&
+      this.originalGeomKey === geomKey &&
+      this.ctx.originalUrl
+    )
+      return;
+    this.originalFlight.submit({ edge, geomKey });
+  }
+
+  private submitView(): void {
+    const snap = this.viewSnap;
+    if (!snap) return;
+    const visible = visibleRegion(snap.frame, snap.viewW, snap.viewH);
+    if (!visible) return;
+    const req = renderRequest({
+      frame: snap.frame,
+      visible,
+      dpr: snap.dpr,
+      srcLong: this.srcLong,
+      serverMaxEdge: VIEW_MAX_EDGE,
+      haveRoi: this.ctx.viewRoi,
+      haveFullEdge: this.viewFullEdge
+    });
+    if (!req) return;
+    const key = `${req.roi.join(',')}:${req.maxEdge}`;
+    if (key === this.viewKey) return;
+    this.viewKey = key;
+    this.viewFlight.submit(req);
+  }
+
+  private viewBlocked(): boolean {
+    return (
+      !this.ctx.initialised ||
+      !this.ctx.assetId ||
+      this.ctx.splitMode ||
+      this.ctx.showingOriginal ||
+      !!this.ctx.geometrySession ||
+      !!this.ctx.maskPreviewLayerId ||
+      !!this.ctx.colorPicker
+    );
+  }
+
+  private baseEdge(): number {
+    const snap = this.viewSnap;
+    if (!snap) return LIVE_EDGE;
+    const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
+    return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+  }
+
+  private proofOptions(): ProofOptions {
+    return {
+      colorSpace: previewColorSpace(this.ctx.proofSpace, this.ctx.gamutWarn, displayGamutIsWide()),
+      gamutWarn: this.ctx.gamutWarn,
+      clipWarn: ui.clipWarn
+    };
+  }
+
+  private async loadMeta(metaId: string): Promise<void> {
+    if (!this.ctx.assetId) return;
+    try {
+      this.ctx.meta = await getPreviewMeta(this.ctx.assetId, metaId);
+      const long = Math.max(this.ctx.meta.source_w, this.ctx.meta.source_h);
+      if (Number.isFinite(long) && long > 0) this.srcLong = long;
+      scopes.onMeta(this.ctx.assetId, metaId, this.ctx.meta.has_scopes);
+    } catch {
+      this.ctx.meta = null;
+    }
+  }
+}

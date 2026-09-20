@@ -3,6 +3,9 @@ node_modules
 /build
 /.svelte-kit
 /package
+/target
+/test-results
+/playwright-report
 /static/licenses/**
 .env
 .env.*

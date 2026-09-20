@@ -1,6 +1,5 @@
 import {
   neutralEdits,
-  originalPreviewEdits,
   resetDevelopEdits,
   isIdentity,
   effectiveLens,
@@ -30,20 +29,13 @@ import * as metadata from '$lib/stores/editor/metadata';
 import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
+import { EditHistory } from '$lib/stores/editor/history.svelte';
+import { SaveQueue } from '$lib/stores/editor/save.svelte';
+import { PreviewEngine, type ViewSnapshot } from '$lib/stores/editor/preview.svelte';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
-import { getEdits, putEdits, deleteEdits, autoEdits, restoreEdits } from '$lib/api/edits';
-import { ConflictError, ApiError } from '$lib/api/client';
-import type { EditRecord } from '$lib/types/edits';
-import {
-  livePreview,
-  persistedPreviewUrl,
-  getPreviewMeta,
-  previewModeIsNone,
-  maskWeightPreview,
-  type PreviewMode,
-  type ProofOptions
-} from '$lib/api/preview';
+import { getEdits, autoEdits } from '$lib/api/edits';
+import { maskWeightPreview, type PreviewMode } from '$lib/api/preview';
 import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
@@ -52,19 +44,9 @@ import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
-import {
-  isFullFrame,
-  renderRequest,
-  visibleRegion,
-  type Rect,
-  type RenderRequest,
-  type Roi
-} from '$lib/utils/view-geometry';
-import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
+import type { Roi } from '$lib/utils/view-geometry';
 import { applyCopySections } from '$lib/copyPaste';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { SingleFlight } from '$lib/utils/single-flight';
-import { makeObjectUrl, revoke } from '$lib/utils/object-url';
+import { revoke } from '$lib/utils/object-url';
 import { errorMessage } from '$lib/utils/errors';
 import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
 import { viewTransform } from '$lib/utils/canvasCoords';
@@ -76,21 +58,6 @@ import {
   type ZoomTarget
 } from '$lib/utils/zoomTarget';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
-
-const LIVE_EDGE = 1600;
-const MAX_EDGE = 4096;
-const VIEW_MAX_EDGE = 65535;
-const VIEW_DEBOUNCE_MS = 150;
-const MAX_HISTORY = 50;
-
-type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
-
-type SaveSession = {
-  assetId: string;
-  hash: string;
-  pending: number;
-  blocked: boolean;
-};
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -104,9 +71,6 @@ class EditorStore {
   saving = $state(false);
   savedHash = $state<string>('');
   saveError = $state<string | null>(null);
-  private lastSaveAction: string | undefined = undefined;
-  private saveSession: SaveSession | null = null;
-  private saveTail: Promise<void> = Promise.resolve();
   exporting = $state(false);
   exportingToImmich = $state(false);
   lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
@@ -180,219 +144,29 @@ class EditorStore {
   activeRetouchId = $state<string | null>(null);
   retouchAnchor = $state<Vec2f | null>(null);
 
-  private history = $state<Edits[]>([]);
-  private historyCursor = $state(-1);
-  private skipHistory = false;
+  private history = new EditHistory(this);
+  private saves = new SaveQueue(this);
+  private previews = new PreviewEngine(this);
 
   initialised = $state(false);
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
-  private viewSnap = $state<ViewSnapshot | null>(null);
-  private viewKey = '';
-  private viewFullEdge = 0;
   private baseImage: HTMLImageElement | null = null;
   private zoomTargetIndex: number | null = null;
   private zoomTargetView: string | null = null;
-  private srcLong = $state(Number.POSITIVE_INFINITY);
-  private originalEdge = 0;
-  private originalGeomKey = '';
-
-  private flight = new SingleFlight<
-    {
-      edits: Edits;
-      maxEdge: number;
-      previewMode: PreviewMode;
-      purpose?: 'color-picker';
-    },
-    { url: string; metaId: string | null }
-  >(
-    async (args, signal) => {
-      if (!this.assetId) throw new Error('no asset');
-      this.pending = true;
-      const { blob, metaId } = await livePreview(
-        this.assetId,
-        args.edits,
-        args.maxEdge,
-        args.previewMode,
-        this.proofOptions(),
-        signal,
-        'base',
-        undefined,
-        scopes.wants
-      );
-      return { url: makeObjectUrl(blob), metaId };
-    },
-    (args, result) => {
-      const prev = this.previewUrl;
-      this.previewUrl = result.url;
-      if (prev?.startsWith('blob:')) revoke(prev);
-      this.pending = false;
-      if (args.purpose === 'color-picker' && this.colorPicker) {
-        this.colorPicker = { ...this.colorPicker, ready: true };
-      }
-      if (previewModeIsNone(args.previewMode)) {
-        if (result.metaId) void this.loadMeta(result.metaId);
-        if (this.splitMode) this.refreshOriginal();
-      }
-    },
-    (err) => {
-      this.pending = false;
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      if (err instanceof ApiError && err.code === 'superseded') return;
-      this.colorPicker = null;
-      this.error = (err as Error).message;
-    }
-  );
-
-  private originalFlight = new SingleFlight<{ edge: number; geomKey: string }, { url: string }>(
-    async (args, signal) => {
-      if (!this.assetId) throw new Error('no asset');
-      const snap = $state.snapshot(this.edits) as Edits;
-      const edits = originalPreviewEdits(snap);
-      const { blob } = await livePreview(
-        this.assetId,
-        edits,
-        args.edge,
-        'none',
-        this.proofOptions(),
-        signal,
-        'original'
-      );
-      return { url: makeObjectUrl(blob) };
-    },
-    (args, result) => {
-      const prev = this.originalUrl;
-      this.originalUrl = result.url;
-      if (prev?.startsWith('blob:')) revoke(prev);
-      this.originalEdge = args.edge;
-      this.originalGeomKey = args.geomKey;
-    },
-    () => {}
-  );
-
-  private viewFlight = new SingleFlight<RenderRequest, { url: string; w: number; h: number }>(
-    async (args, signal) => {
-      if (!this.assetId) throw new Error('no asset');
-      const { blob } = await livePreview(
-        this.assetId,
-        $state.snapshot(this.edits) as Edits,
-        args.maxEdge,
-        'none',
-        this.proofOptions(),
-        signal,
-        'roi',
-        isFullFrame(args.roi) ? undefined : args.roi
-      );
-      const url = makeObjectUrl(blob);
-      const decoded = new Image();
-      decoded.src = url;
-      await decoded.decode().catch(() => undefined);
-      return { url, w: decoded.naturalWidth, h: decoded.naturalHeight };
-    },
-    (args, result) => {
-      const prev = this.viewUrl;
-      this.viewUrl = result.url;
-      this.viewRoi = args.roi;
-      this.viewNat = { w: result.w, h: result.h };
-      const delivered = Math.max(result.w, result.h);
-      const fraction = args.fullEdge > 0 ? args.maxEdge / args.fullEdge : 1;
-      this.viewFullEdge = Math.round(delivered / fraction);
-      if (delivered < args.maxEdge * 0.98) this.srcLong = this.viewFullEdge;
-      if (prev?.startsWith('blob:')) revoke(prev);
-    },
-    () => {
-      this.viewKey = '';
-    }
-  );
-
-  private viewBlocked(): boolean {
-    return (
-      !this.initialised ||
-      !this.assetId ||
-      this.splitMode ||
-      this.showingOriginal ||
-      !!this.geometrySession ||
-      !!this.maskPreviewLayerId ||
-      !!this.colorPicker
-    );
-  }
-
-  private baseEdge(): number {
-    const snap = this.viewSnap;
-    if (!snap) return LIVE_EDGE;
-    const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
-    return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
-  }
 
   get sourceLong(): number {
-    return this.srcLong;
+    return this.previews.sourceLong;
   }
 
   get viewScale(): number | null {
-    const snap = this.viewSnap;
-    if (!snap || !this.viewRoi || !this.viewNat) return null;
-    const boxLong =
-      Math.max(this.viewRoi[2] * snap.frame.width, this.viewRoi[3] * snap.frame.height) * snap.dpr;
-    if (boxLong <= 0) return null;
-    return Math.max(this.viewNat.w, this.viewNat.h) / boxLong;
+    return this.previews.viewScale;
   }
 
   clearView(): void {
-    this.viewFlight.cancel();
-    if (this.idleTimer) {
-      clearTimeout(this.idleTimer);
-      this.idleTimer = null;
-    }
-    if (this.viewUrl?.startsWith('blob:')) revoke(this.viewUrl);
-    this.viewUrl = null;
-    this.viewRoi = null;
-    this.viewNat = null;
-    this.viewFullEdge = 0;
-    this.viewKey = '';
-  }
-
-  private submitView(): void {
-    const snap = this.viewSnap;
-    if (!snap) return;
-    const visible = visibleRegion(snap.frame, snap.viewW, snap.viewH);
-    if (!visible) return;
-    const req = renderRequest({
-      frame: snap.frame,
-      visible,
-      dpr: snap.dpr,
-      srcLong: this.srcLong,
-      serverMaxEdge: VIEW_MAX_EDGE,
-      haveRoi: this.viewRoi,
-      haveFullEdge: this.viewFullEdge
-    });
-    if (!req) return;
-    const key = `${req.roi.join(',')}:${req.maxEdge}`;
-    if (key === this.viewKey) return;
-    this.viewKey = key;
-    this.viewFlight.submit(req);
-  }
-
-  private scheduleIdleRender(): void {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => {
-      this.idleTimer = null;
-      if (!this.initialised) return;
-      if (this.splitMode) {
-        this.flight.submit({
-          edits: $state.snapshot(this.edits),
-          maxEdge: this.baseEdge(),
-          previewMode: 'none'
-        });
-        return;
-      }
-      if (this.viewBlocked()) return;
-      this.submitView();
-    }, VIEW_DEBOUNCE_MS);
+    this.previews.clearView();
   }
 
   onViewChange = (snap: ViewSnapshot): void => {
-    this.viewSnap = snap;
-    if (this.viewBlocked()) return;
-    this.scheduleIdleRender();
+    this.previews.onViewChange(snap);
   };
 
   setBaseImage = (element: HTMLImageElement | null): void => {
@@ -424,7 +198,7 @@ class EditorStore {
     const next = nextTargetIndex(from, targets.length);
     this.zoomTargetIndex = next;
     const target = next === null ? null : targets[next];
-    const snap = this.viewSnap;
+    const snap = this.previews.snapshot;
     if (!target) {
       ui.zoomFit();
     } else if (!snap || snap.frame.width <= 0 || ui.zoom <= 0) {
@@ -443,83 +217,28 @@ class EditorStore {
 
   toggleSplit = (): void => {
     if (this.geometrySession) return;
-    this.clearView();
-    this.splitMode = !this.splitMode;
-    if (this.splitMode) {
-      this.flight.submit({
-        edits: $state.snapshot(this.edits),
-        maxEdge: this.baseEdge(),
-        previewMode: 'none'
-      });
-      this.refreshOriginal();
-    } else {
-      this.originalFlight.cancel();
-      if (this.originalUrl?.startsWith('blob:')) revoke(this.originalUrl);
-      this.originalUrl = null;
-      this.originalEdge = 0;
-      this.originalGeomKey = '';
-      this.scheduleIdleRender();
-    }
+    this.previews.toggleSplit();
   };
-
-  private proofOptions(): ProofOptions {
-    return {
-      colorSpace: previewColorSpace(this.proofSpace, this.gamutWarn, displayGamutIsWide()),
-      gamutWarn: this.gamutWarn,
-      clipWarn: ui.clipWarn
-    };
-  }
-
-  private reproof(): void {
-    if (!this.initialised || !this.assetId) return;
-    this.clearView();
-    this.flight.submit({
-      edits: $state.snapshot(this.edits),
-      maxEdge: LIVE_EDGE,
-      previewMode: 'none'
-    });
-    this.scheduleIdleRender();
-    if (this.splitMode) this.refreshOriginal(true);
-  }
 
   setProofSpace = (space: ColorSpaceOpt): void => {
     if (this.proofSpace === space) return;
     this.proofSpace = space;
-    this.reproof();
+    this.previews.reproof();
   };
 
   toggleGamutWarn = (): void => {
     this.gamutWarn = !this.gamutWarn;
-    this.reproof();
+    this.previews.reproof();
   };
 
   toggleClipWarn = (): void => {
     ui.toggleClipWarn();
-    this.reproof();
+    this.previews.reproof();
   };
 
   setSplitPos = (p: number): void => {
     this.splitPos = Math.min(1, Math.max(0, p));
   };
-
-  private refreshOriginal(force = false): void {
-    if (!this.splitMode || !this.assetId) return;
-    const edge = this.baseEdge();
-    const snap = $state.snapshot(this.edits);
-    const geomKey = JSON.stringify({
-      g: snap.geometry,
-      l: snap.lens,
-      d: snap.color.dcp
-    });
-    if (
-      !force &&
-      this.originalEdge === edge &&
-      this.originalGeomKey === geomKey &&
-      this.originalUrl
-    )
-      return;
-    this.originalFlight.submit({ edge, geomKey });
-  }
 
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
@@ -532,17 +251,12 @@ class EditorStore {
       this.asset = a;
       this.edits = manifestToEdits(s.manifest);
       this.savedHash = s.hash;
-      this.saveSession = { assetId: id, hash: s.hash, pending: 0, blocked: false };
+      this.saves.begin(id, s.hash);
       this.initialised = true;
-      this.pushHistory();
+      this.history.push($state.snapshot(this.edits) as Edits);
       this.fetchLensProfile(id);
       void loadFaceData(id);
-      this.flight.submit({
-        edits: $state.snapshot(this.edits),
-        maxEdge: LIVE_EDGE,
-        previewMode: 'none'
-      });
-      this.scheduleIdleRender();
+      this.previews.live();
     } catch (e) {
       this.error = errorMessage(e);
     }
@@ -568,24 +282,13 @@ class EditorStore {
   };
 
   unload(): void {
-    this.flight.cancel();
-    this.originalFlight.cancel();
-    this.clearView();
-    this.viewSnap = null;
+    this.previews.reset();
     this.zoomTargetIndex = null;
     this.zoomTargetView = null;
-    this.srcLong = Number.POSITIVE_INFINITY;
     if (this.geometrySession) {
       if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);
       this.geometrySession = null;
     }
-    if (this.previewUrl?.startsWith('blob:')) revoke(this.previewUrl);
-    this.previewUrl = null;
-    if (this.originalUrl?.startsWith('blob:')) revoke(this.originalUrl);
-    this.originalUrl = null;
-    this.originalEdge = 0;
-    this.originalGeomKey = '';
-    this.splitMode = false;
     this.asset = null;
     this.meta = null;
     scopes.reset();
@@ -597,9 +300,8 @@ class EditorStore {
     this.saving = false;
     this.savedHash = '';
     this.saveError = null;
-    this.saveSession = null;
-    this.history = [];
-    this.historyCursor = -1;
+    this.saves.end();
+    this.history.reset();
     this.showingOriginal = false;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
@@ -611,166 +313,57 @@ class EditorStore {
     this.brushBufferSource = {};
   }
 
-  private pushHistory(): void {
-    const trimmed = this.history.slice(0, this.historyCursor + 1);
-    trimmed.push($state.snapshot(this.edits));
-    if (trimmed.length > MAX_HISTORY) trimmed.shift();
-    this.history = trimmed;
-    this.historyCursor = this.history.length - 1;
-  }
-
   get canUndo(): boolean {
-    return this.historyCursor > 0;
+    return this.history.canUndo;
   }
 
   get canRedo(): boolean {
-    return this.historyCursor < this.history.length - 1;
+    return this.history.canRedo;
   }
 
   undo = (): void => {
-    if (!this.canUndo) return;
-    this.historyCursor--;
-    this.edits = $state.snapshot(this.history[this.historyCursor]) as Edits;
-    this.skipHistory = true;
-    void this.onCommit();
-    this.skipHistory = false;
+    this.history.undo();
   };
 
   redo = (): void => {
-    if (!this.canRedo) return;
-    this.historyCursor++;
-    this.edits = $state.snapshot(this.history[this.historyCursor]) as Edits;
-    this.skipHistory = true;
-    void this.onCommit();
-    this.skipHistory = false;
+    this.history.redo();
   };
 
   loadPersisted(): void {
-    if (!this.assetId) return;
-    const prev = this.previewUrl;
-    this.previewUrl = persistedPreviewUrl(this.assetId, MAX_EDGE, ui.clipWarn) + `&_=${Date.now()}`;
-    if (prev?.startsWith('blob:')) revoke(prev);
+    this.previews.loadPersisted();
   }
 
   showOriginal(): void {
-    if (!this.initialised) return;
-    this.clearView();
-    const snap = $state.snapshot(this.edits) as Edits;
-    const edits = originalPreviewEdits(snap);
-    this.flight.submit({ edits, maxEdge: this.baseEdge(), previewMode: 'none' });
+    this.previews.showOriginal();
   }
 
   onLive = (): void => {
-    if (!this.initialised) return;
-    this.clearView();
-    this.flight.submit({
-      edits: $state.snapshot(this.edits),
-      maxEdge: LIVE_EDGE,
-      previewMode: 'none'
-    });
-    this.scheduleIdleRender();
+    this.previews.live();
   };
 
   onPreview = (mode: PreviewMode): void => {
-    if (!this.initialised) return;
-    this.clearView();
-    this.flight.submit({
-      edits: $state.snapshot(this.edits),
-      maxEdge: LIVE_EDGE,
-      previewMode: mode
-    });
+    this.previews.preview(mode);
   };
 
   endPreview = (): void => {
-    if (!this.initialised) return;
-    this.onLive();
+    this.previews.live();
   };
 
   onCommit = async (action?: string): Promise<void> => {
-    const session = this.saveSession;
-    if (!this.initialised || !session) return;
-    if (!this.skipHistory) this.pushHistory();
+    if (!this.initialised || !this.saves.open) return;
+    const replaying = this.history.skipping;
+    if (!replaying) this.history.push($state.snapshot(this.edits) as Edits);
     if (this.maskPreviewLayerId) {
       this.onPreview(maskWeightPreview(this.maskPreviewLayerId));
     } else {
       this.onLive();
     }
-    const effectiveAction = this.skipHistory ? undefined : action;
-    this.lastSaveAction = effectiveAction;
-    await this.queueSave(session, $state.snapshot(this.edits) as Edits, effectiveAction);
+    await this.saves.commit($state.snapshot(this.edits) as Edits, replaying ? undefined : action);
   };
 
-  private queueSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
-    return this.queueSessionTask(session, () => this.persistSave(session, edits, action));
-  }
+  restoreHistoryEntry = (entryId: number): Promise<void> => this.saves.restoreEntry(entryId);
 
-  private queueSessionTask(session: SaveSession, task: () => Promise<void>): Promise<void> {
-    session.pending++;
-    if (this.saveSession === session) this.saving = true;
-    const queued = this.saveTail.then(async () => {
-      if (session.blocked) return;
-      await task();
-    });
-    this.saveTail = queued.catch(() => undefined);
-    return queued.finally(() => {
-      session.pending--;
-      if (this.saveSession === session) this.saving = session.pending > 0;
-    });
-  }
-
-  restoreHistoryEntry = (entryId: number): Promise<void> => {
-    const session = this.saveSession;
-    if (!this.initialised || !session) return Promise.resolve();
-    session.blocked = false;
-    this.saveError = null;
-    return this.queueSessionTask(session, async () => {
-      if (this.saveSession !== session) return;
-      const saved = await restoreEdits(session.assetId, entryId);
-      if (this.saveSession !== session) return;
-      this.edits = saved ? manifestToEdits(saved.manifest) : neutralEdits();
-      session.hash = saved?.hash ?? '';
-      this.savedHash = session.hash;
-      this.error = null;
-      this.onLive();
-    });
-  };
-
-  private async persistSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
-    try {
-      if (isIdentity(edits)) {
-        await deleteEdits(session.assetId, action, session.hash);
-        session.hash = '';
-      } else {
-        const saved = await putEdits(session.assetId, edits, session.hash, action);
-        session.hash = saved.hash;
-      }
-      if (this.saveSession === session) {
-        this.savedHash = session.hash;
-        this.saveError = null;
-      }
-    } catch (e) {
-      session.blocked = true;
-      if (this.saveSession !== session) return;
-      if (e instanceof ConflictError) {
-        const current = e.current as EditRecord | undefined;
-        if (current) session.hash = current.hash;
-        this.savedHash = session.hash;
-        this.saveError = 'Edits changed elsewhere. Local edits kept. Retry to save them.';
-        toasts.push('warn', this.saveError);
-      } else {
-        this.saveError = errorMessage(e);
-        this.error = this.saveError;
-      }
-    }
-  }
-
-  retrySave = (): Promise<void> => {
-    const session = this.saveSession;
-    if (!this.initialised || !session) return Promise.resolve();
-    session.blocked = false;
-    this.saveError = null;
-    return this.queueSave(session, $state.snapshot(this.edits) as Edits, this.lastSaveAction);
-  };
+  retrySave = (): Promise<void> => this.saves.retry();
 
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
@@ -892,12 +485,7 @@ class EditorStore {
   endMaskPreview = (): void => maskLayers.endMaskPreview(this);
 
   submitColorPickerPreview = (edits: Edits): void => {
-    this.flight.submit({
-      edits,
-      maxEdge: this.baseEdge(),
-      previewMode: 'none',
-      purpose: 'color-picker'
-    });
+    this.previews.submitColorPicker(edits);
   };
 
   beginColorPicker = (layerId: string, componentId: string): void =>
@@ -1088,25 +676,8 @@ class EditorStore {
     if (this.asset && isRejected(this.asset)) await this.toggleReject();
   };
 
-  private async loadMeta(metaId: string): Promise<void> {
-    if (!this.assetId) return;
-    try {
-      this.meta = await getPreviewMeta(this.assetId, metaId);
-      const long = Math.max(this.meta.source_w, this.meta.source_h);
-      if (Number.isFinite(long) && long > 0) this.srcLong = long;
-      scopes.onMeta(this.assetId, metaId, this.meta.has_scopes);
-    } catch {
-      this.meta = null;
-    }
-  }
-
   refreshScopes = (): void => {
-    if (!this.initialised || !this.assetId) return;
-    this.flight.submit({
-      edits: $state.snapshot(this.edits),
-      maxEdge: LIVE_EDGE,
-      previewMode: 'none'
-    });
+    this.previews.refreshBase();
   };
 
   startGeometrySession = (): void => geometry.startSession(this);

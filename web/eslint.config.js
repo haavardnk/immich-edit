@@ -47,6 +47,13 @@ export default ts.config(
     ...ts.configs.disableTypeChecked
   },
   {
-    ignores: ['build/', '.svelte-kit/', 'package/', 'test-results/', 'playwright-report/']
+    ignores: [
+      'build/',
+      '.svelte-kit/',
+      'package/',
+      'target/',
+      'test-results/',
+      'playwright-report/'
+    ]
   }
 );
