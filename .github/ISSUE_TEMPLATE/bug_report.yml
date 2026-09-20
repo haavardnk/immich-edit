@@ -74,6 +74,25 @@ body:
       placeholder: e.g. Ubuntu 24.04 amd64, Unraid 7.0, macOS 15 arm64
     validations:
       required: true
+  - type: dropdown
+    id: gpu_access
+    attributes:
+      label: GPU access
+      description: How the container reaches the GPU, if at all. Pick "No GPU passthrough" when only a software rasterizer such as llvmpipe is available.
+      options:
+        - No GPU passthrough
+        - /dev/dri passed through (Intel or AMD)
+        - NVIDIA Container Toolkit
+        - Native, not containerised
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: resource_limits
+    attributes:
+      label: Container CPU and memory limits
+      description: Only the limits, not your whole compose file. Leave blank if you set none.
+      placeholder: e.g. cpus 4, mem_limit 4g
   - type: input
     id: request_id
     attributes:

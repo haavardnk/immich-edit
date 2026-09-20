@@ -32,6 +32,16 @@ export interface RedactedConfig {
   ml_idle_secs: number;
 }
 
+export interface HostInfo {
+  os: string;
+  arch: string;
+  os_version: string | null;
+  cpu: string | null;
+  cores: number;
+  memory_total_bytes: number | null;
+  memory_limit_bytes: number | null;
+}
+
 export interface HealthInfo {
   status: string;
   version: string;
@@ -39,6 +49,7 @@ export interface HealthInfo {
   renderer_active: string;
   gpu_adapter: string | null;
   gpu_software: boolean;
+  host: HostInfo;
   heif_codecs: HeifCodecs;
   immich_reachable: boolean;
   immich_status: ImmichConnectionStatus;

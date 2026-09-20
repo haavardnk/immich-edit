@@ -57,6 +57,13 @@
     lines.push('## immich-edit support bundle');
     lines.push('');
     lines.push(`- Version: ${h.version}`);
+    lines.push(
+      `- Host: ${h.host.os} ${h.host.arch}${h.host.os_version ? ` (${h.host.os_version})` : ''}`
+    );
+    lines.push(`- CPU: ${h.host.cpu ?? 'unknown'}, ${h.host.cores} cores available`);
+    lines.push(
+      `- Memory: ${h.host.memory_total_bytes ? formatBytes(h.host.memory_total_bytes) : 'unknown'} total${h.host.memory_limit_bytes ? `, ${formatBytes(h.host.memory_limit_bytes)} container limit` : ''}`
+    );
     lines.push(`- Renderer mode: ${h.renderer_mode}`);
     lines.push(`- Renderer active: ${h.renderer_active}`);
     lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
@@ -218,6 +225,28 @@
       </dd>
       <dt class="text-dark/65">DB migration</dt>
       <dd class="font-mono">{health.db_migration_version ?? '—'}</dd>
+    </dl>
+  </section>
+
+  <section class="space-y-2 pt-5">
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Host</Heading>
+    <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
+      <dt class="text-dark/65">System</dt>
+      <dd class="font-mono">
+        {health.host.os}
+        {health.host.arch}{health.host.os_version ? ` (${health.host.os_version})` : ''}
+      </dd>
+      <dt class="text-dark/65">CPU</dt>
+      <dd class="font-mono">{health.host.cpu ?? '—'}</dd>
+      <dt class="text-dark/65">Cores available</dt>
+      <dd class="font-mono">{health.host.cores}</dd>
+      <dt class="text-dark/65">Memory</dt>
+      <dd class="font-mono">
+        {health.host.memory_total_bytes ? formatBytes(health.host.memory_total_bytes) : '—'}
+        {health.host.memory_limit_bytes
+          ? `(${formatBytes(health.host.memory_limit_bytes)} container limit)`
+          : ''}
+      </dd>
     </dl>
   </section>
 
