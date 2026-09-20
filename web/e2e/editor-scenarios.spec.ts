@@ -405,3 +405,26 @@ test('editor toggles report their pressed state', async ({ page }) => {
   await split.click();
   await expect(split).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('a failed preview render offers a retry that recovers', async ({ page }) => {
+  await installMocks(page);
+  let previewCalls = 0;
+  await page.route('**/api/assets/*/preview', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    previewCalls += 1;
+    if (previewCalls > 1) return route.fallback();
+    await route.fulfill({
+      status: 408,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'timeout', message: 'render timed out' })
+    });
+  });
+  await gotoAsset(page);
+
+  const retry = page.getByRole('button', { name: 'Retry' });
+  await expect(retry).toBeVisible();
+  await retry.click();
+
+  await expect(retry).toBeHidden();
+  await expect(page.getByRole('img', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
+});
