@@ -403,6 +403,20 @@ export const KEYBINDS = [
     label: 'Delete the selected shape, or undo the last polygon corner'
   },
   {
+    id: 'addBrushLayer',
+    keys: ['k'],
+    contexts: ['editor'],
+    group: 'Masks',
+    label: 'Add a brush mask layer'
+  },
+  {
+    id: 'addRadialLayer',
+    keys: ['Shift+m'],
+    contexts: ['editor'],
+    group: 'Masks',
+    label: 'Add a radial mask layer'
+  },
+  {
     id: 'maskOverlay',
     keys: ['o'],
     contexts: ['masks'],

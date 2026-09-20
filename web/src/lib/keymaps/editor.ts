@@ -9,6 +9,7 @@ import { nextRatingFromKey } from '$lib/ratingShortcuts';
 import { isKeybind, isRadioGroupTarget, isTypingTarget, matchKeybind } from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
 import { editorHref } from '$lib/editorNavigation';
+import { defaultRadial } from '$lib/types/masks';
 
 const RETOUCH_SIZE = { step: 0.005, min: 0.005, max: 0.3 };
 const BRUSH_SIZE = { step: 0.01, min: 0.005, max: 0.5 };
@@ -161,6 +162,14 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     }
     case 'maskOverlay':
       editor.toggleMaskOverlay();
+      return;
+    case 'addBrushLayer':
+      ui.openTab('masks');
+      void editor.addBrushLayer();
+      return;
+    case 'addRadialLayer':
+      ui.openTab('masks');
+      void editor.addMaskLayer(defaultRadial());
       return;
     case 'retouchHeal':
       editor.setRetouchMode('heal');

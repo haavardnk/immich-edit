@@ -95,6 +95,8 @@ Shortcuts do not run while focus is in a text field or other typing control.
 
 | Keys                    | Action                                                    | Available in      |
 | ----------------------- | --------------------------------------------------------- | ----------------- |
+| `K`                     | Add a brush mask layer                                    | Editor            |
+| `Shift+M`               | Add a radial mask layer                                   | Editor            |
 | `Backspace` or `Delete` | Delete the selected shape or undo the last polygon corner | Masks             |
 | `O`                     | Toggle the mask overlay                                   | Masks             |
 | `Escape`                | Cancel drawing, box selection, or the eyedropper          | Masks             |
