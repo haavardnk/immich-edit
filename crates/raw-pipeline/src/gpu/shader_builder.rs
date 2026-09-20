@@ -385,7 +385,9 @@ mod tests {
 
     #[test]
     fn process_shaders_compile() {
-        let Ok(ctx) = GpuContext::new() else { return };
+        let Ok(ctx) = GpuContext::new() else {
+            return;
+        };
         let registry = default_registry();
         let sources = [
             build(&registry).wgsl,

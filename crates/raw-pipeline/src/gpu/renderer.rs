@@ -199,6 +199,10 @@ impl GpuRenderer {
         self.ctx.adapter_label()
     }
 
+    pub fn is_software_adapter(&self) -> bool {
+        self.ctx.is_software()
+    }
+
     pub fn is_lost(&self) -> bool {
         self.ctx.is_lost()
     }

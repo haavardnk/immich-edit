@@ -34,19 +34,21 @@ pub struct RenderDevice {
     texture_cache_bytes: u64,
     active: Arc<RwLock<ActiveRenderer>>,
     label: Arc<RwLock<Option<String>>>,
+    software_gpu: Arc<RwLock<bool>>,
     last_rebuild: Arc<RwLock<Option<Instant>>>,
 }
 
 impl RenderDevice {
     pub fn new(mode: RendererMode, texture_cache_bytes: u64) -> Self {
-        let (gpu, active, label) = init_gpu(mode, texture_cache_bytes);
+        let init = init_gpu(mode, texture_cache_bytes);
         Self {
-            gpu: Arc::new(RwLock::new(gpu)),
+            gpu: Arc::new(RwLock::new(init.renderer)),
             cpu: Arc::new(CpuRenderer::new()),
             mode,
             texture_cache_bytes,
-            active: Arc::new(RwLock::new(active)),
-            label: Arc::new(RwLock::new(label)),
+            active: Arc::new(RwLock::new(init.active)),
+            label: Arc::new(RwLock::new(init.label)),
+            software_gpu: Arc::new(RwLock::new(init.software)),
             last_rebuild: Arc::new(RwLock::new(None)),
         }
     }
@@ -57,6 +59,10 @@ impl RenderDevice {
 
     pub fn label(&self) -> Option<String> {
         self.label.read().unwrap().clone()
+    }
+
+    pub fn software_gpu(&self) -> bool {
+        *self.software_gpu.read().unwrap()
     }
 
     pub fn pool_stats(&self) -> Option<raw_pipeline::GpuPoolStats> {
@@ -118,9 +124,11 @@ impl RenderDevice {
             Ok(r) => {
                 let label = r.adapter_label();
                 tracing::info!(adapter = %label, "gpu renderer rebuilt after device loss");
+                let software = r.is_software_adapter();
                 let arc = Arc::new(r);
                 *self.gpu.write().unwrap() = Some(arc.clone());
                 *self.label.write().unwrap() = Some(label);
+                *self.software_gpu.write().unwrap() = software;
                 *self.active.write().unwrap() = ActiveRenderer::Gpu;
                 Some(arc)
             }
@@ -135,25 +143,49 @@ impl RenderDevice {
         tracing::error!("gpu device lost; dropping renderer and falling back to cpu");
         *self.gpu.write().unwrap() = None;
         *self.label.write().unwrap() = None;
+        *self.software_gpu.write().unwrap() = false;
         *self.active.write().unwrap() = ActiveRenderer::Cpu;
         *self.last_rebuild.write().unwrap() = Some(Instant::now());
     }
 }
 
-fn init_gpu(
-    mode: RendererMode,
-    texture_pool_max_bytes: u64,
-) -> (Option<Arc<GpuRenderer>>, ActiveRenderer, Option<String>) {
+struct GpuInit {
+    renderer: Option<Arc<GpuRenderer>>,
+    active: ActiveRenderer,
+    label: Option<String>,
+    software: bool,
+}
+
+fn init_gpu(mode: RendererMode, texture_pool_max_bytes: u64) -> GpuInit {
+    let cpu_only = GpuInit {
+        renderer: None,
+        active: ActiveRenderer::Cpu,
+        label: None,
+        software: false,
+    };
     if matches!(mode, RendererMode::Cpu) {
-        return (None, ActiveRenderer::Cpu, None);
+        return cpu_only;
     }
     match GpuRenderer::with_options(GpuRendererOptions {
         texture_pool_max_bytes,
     }) {
         Ok(r) => {
             let label = r.adapter_label();
-            tracing::info!(adapter = %label, "gpu renderer initialized");
-            (Some(Arc::new(r)), ActiveRenderer::Gpu, Some(label))
+            let software = r.is_software_adapter();
+            if software {
+                tracing::info!(
+                    adapter = %label,
+                    "no hardware gpu found; using a software vulkan rasterizer, which still beats the cpu renderer"
+                );
+            } else {
+                tracing::info!(adapter = %label, "gpu renderer initialized");
+            }
+            GpuInit {
+                renderer: Some(Arc::new(r)),
+                active: ActiveRenderer::Gpu,
+                label: Some(label),
+                software,
+            }
         }
         Err(e) => {
             if matches!(mode, RendererMode::Gpu) {
@@ -161,7 +193,7 @@ fn init_gpu(
             } else {
                 tracing::warn!(error = %e, "gpu unavailable; using cpu");
             }
-            (None, ActiveRenderer::Cpu, None)
+            cpu_only
         }
     }
 }

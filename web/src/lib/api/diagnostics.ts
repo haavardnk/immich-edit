@@ -38,6 +38,7 @@ export interface HealthInfo {
   renderer_mode: string;
   renderer_active: string;
   gpu_adapter: string | null;
+  gpu_software: boolean;
   heif_codecs: HeifCodecs;
   immich_reachable: boolean;
   immich_status: ImmichConnectionStatus;

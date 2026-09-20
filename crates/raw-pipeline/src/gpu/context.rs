@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use wgpu::{
-    Adapter, AdapterInfo, Backends, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, MemoryHints, PowerPreference, Queue, RequestAdapterOptions,
-    TextureFormat, TextureFormatFeatureFlags, TextureUsages,
+    Adapter, AdapterInfo, Backends, Device, DeviceDescriptor, DeviceType, Features, Instance,
+    InstanceDescriptor, Limits, MemoryHints, Queue, TextureFormat, TextureFormatFeatureFlags,
+    TextureUsages,
 };
 
 use crate::{PipelineError, PipelineResult};
@@ -28,17 +28,20 @@ impl GpuContext {
         let mut instance_desc = InstanceDescriptor::new_without_display_handle();
         instance_desc.backends = Backends::PRIMARY;
         let instance = Instance::new(instance_desc);
-        let adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-                apply_limit_buckets: false,
-            })
-            .await
-            .map_err(|e| PipelineError::Unsupported(format!("gpu adapter: {e}")))?;
+        let adapters = instance.enumerate_adapters(Backends::PRIMARY).await;
+        let infos: Vec<AdapterInfo> = adapters.iter().map(|a| a.get_info()).collect();
+        let types: Vec<DeviceType> = infos.iter().map(|i| i.device_type).collect();
+        let index = pick_adapter_index(&types)
+            .ok_or_else(|| PipelineError::Unsupported("gpu adapter: none available".into()))?;
+        let adapter = adapters
+            .into_iter()
+            .nth(index)
+            .expect("index comes from the same list");
 
-        let adapter_info = adapter.get_info();
+        let adapter_info = infos
+            .into_iter()
+            .nth(index)
+            .expect("index comes from the same list");
         let adapter_limits = adapter.limits();
         let linear_format = pick_linear_format(&adapter);
 
@@ -91,10 +94,33 @@ impl GpuContext {
     }
 
     pub fn adapter_label(&self) -> String {
-        format!(
-            "{} ({:?}, {:?})",
-            self.adapter_info.name, self.adapter_info.device_type, self.adapter_info.backend
-        )
+        adapter_label(&self.adapter_info)
+    }
+
+    pub fn is_software(&self) -> bool {
+        self.adapter_info.device_type == DeviceType::Cpu
+    }
+}
+
+pub fn adapter_label(info: &AdapterInfo) -> String {
+    format!("{} ({:?}, {:?})", info.name, info.device_type, info.backend)
+}
+
+fn pick_adapter_index(types: &[DeviceType]) -> Option<usize> {
+    types
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, t)| adapter_rank(**t))
+        .map(|(i, _)| i)
+}
+
+fn adapter_rank(device_type: DeviceType) -> u8 {
+    match device_type {
+        DeviceType::DiscreteGpu => 0,
+        DeviceType::IntegratedGpu => 1,
+        DeviceType::VirtualGpu => 2,
+        DeviceType::Other => 3,
+        DeviceType::Cpu => 4,
     }
 }
 
@@ -107,4 +133,43 @@ fn pick_linear_format(adapter: &Adapter) -> TextureFormat {
         return prefer;
     }
     TextureFormat::Rgba32Float
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discrete_wins_over_integrated_and_software() {
+        let types = [
+            DeviceType::Cpu,
+            DeviceType::IntegratedGpu,
+            DeviceType::DiscreteGpu,
+        ];
+        assert_eq!(pick_adapter_index(&types), Some(2));
+    }
+
+    #[test]
+    fn software_is_the_last_resort_but_still_chosen() {
+        assert_eq!(pick_adapter_index(&[DeviceType::Cpu]), Some(0));
+        assert_eq!(
+            pick_adapter_index(&[DeviceType::Cpu, DeviceType::Other]),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn no_adapters_picks_nothing() {
+        assert_eq!(pick_adapter_index(&[]), None);
+    }
+
+    #[test]
+    fn the_first_adapter_of_the_best_rank_wins() {
+        let types = [
+            DeviceType::Other,
+            DeviceType::IntegratedGpu,
+            DeviceType::IntegratedGpu,
+        ];
+        assert_eq!(pick_adapter_index(&types), Some(1));
+    }
 }
