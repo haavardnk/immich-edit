@@ -281,6 +281,12 @@ class EditorStore {
     this.fetchLensProfile(this.assetId);
   };
 
+  retryPreview = (): void => {
+    if (!this.assetId) return;
+    this.error = null;
+    this.previews.live();
+  };
+
   unload(): void {
     this.previews.reset();
     this.zoomTargetIndex = null;

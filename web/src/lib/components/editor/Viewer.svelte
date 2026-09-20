@@ -8,7 +8,7 @@
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
   import Notice from '$lib/components/Notice.svelte';
-  import { Icon } from '@immich/ui';
+  import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
   import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/view-geometry';
   import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
@@ -292,7 +292,17 @@
       </div>
     {/if}
   {:else if editor.error}
-    <Notice message={editor.error} class="text-sm" />
+    <Notice message={editor.error} class="text-sm">
+      <Button
+        size="tiny"
+        variant="outline"
+        color="danger"
+        class="ms-1"
+        onclick={editor.retryPreview}
+      >
+        Retry
+      </Button>
+    </Notice>
   {:else}
     <div class="flex gap-1">
       <div
