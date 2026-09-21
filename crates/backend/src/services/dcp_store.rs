@@ -16,6 +16,7 @@ use uuid::Uuid;
 use super::blob_store;
 
 const PROFILE_CACHE_CAP: usize = 8;
+const MATCH_CACHE_CAP: usize = 256;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DcpStoreError {
@@ -47,8 +48,10 @@ pub struct DcpStore {
     pool: SqlitePool,
     dir: PathBuf,
     cache: Arc<Mutex<LruCache<String, Arc<DcpProfile>>>>,
+    matches: Arc<Mutex<LruCache<String, Option<DcpRecord>>>>,
 }
 
+#[derive(Clone)]
 struct DcpRecord {
     meta: DcpMeta,
     content_hash: String,
@@ -91,6 +94,9 @@ impl DcpStore {
             dir,
             cache: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(PROFILE_CACHE_CAP).unwrap(),
+            ))),
+            matches: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(MATCH_CACHE_CAP).unwrap(),
             ))),
         })
     }
@@ -168,6 +174,10 @@ impl DcpStore {
             }
             return Err(e.into());
         }
+        self.matches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
 
         Ok(DcpMeta {
             id,
@@ -262,6 +272,10 @@ impl DcpStore {
         if affected == 0 {
             return Err(DcpStoreError::NotFound);
         }
+        self.matches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         Ok(())
     }
 
@@ -297,18 +311,31 @@ impl DcpStore {
         if needle.is_empty() {
             return Ok(None);
         }
+        if let Some(hit) = self
+            .matches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&needle)
+        {
+            return Ok(hit.clone());
+        }
         let rows = sqlx::query(
             "SELECT id, name, camera_model, copyright, content_hash, bundled, size, created_at FROM dcp_profiles WHERE camera_model IS NOT NULL AND deleted = 0 ORDER BY bundled ASC, created_at DESC, name ASC, id ASC",
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.iter().find_map(|row| {
+        let found = rows.iter().find_map(|row| {
             let camera: String = row.get("camera_model");
             models_match(&camera, &needle).then(|| DcpRecord {
                 meta: Self::row_to_meta(row),
                 content_hash: row.get("content_hash"),
             })
-        }))
+        });
+        self.matches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .put(needle, found.clone());
+        Ok(found)
     }
 
     async fn load_hash(&self, content_hash: &str) -> Result<Arc<DcpProfile>, DcpStoreError> {
@@ -531,6 +558,17 @@ mod tests {
             .expect("camera match");
         assert_eq!(matched.id, imported_meta.id);
         assert!(!matched.bundled);
+    }
+
+    #[tokio::test]
+    async fn match_cache_follows_import_and_delete() {
+        let (store, _dir) = store().await;
+        assert!(store.match_camera_meta("ILCE-7M4").await.unwrap().is_none());
+        let bytes = build_dcp(Some("SONY ILCE-7M4"));
+        let meta = store.import(None, None, false, &bytes).await.unwrap();
+        assert!(store.match_camera_meta("ILCE-7M4").await.unwrap().is_some());
+        store.soft_delete(&meta.id).await.unwrap();
+        assert!(store.match_camera_meta("ILCE-7M4").await.unwrap().is_none());
     }
 
     #[tokio::test]
