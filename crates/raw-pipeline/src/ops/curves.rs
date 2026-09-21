@@ -2,8 +2,16 @@ use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
 use crate::math::luma;
+use std::sync::LazyLock;
 
 pub struct CurvesOp;
+
+static CURVES_WGSL: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        include_str!("../../assets/shaders/ops/curves.wgsl"),
+        size = CURVE_LUT_SIZE,
+    )
+});
 
 #[derive(Clone, Debug)]
 pub struct CurveLuts {
@@ -193,40 +201,9 @@ impl Op for CurvesOp {
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp {
             field_name: "curves",
-            functions: concat!(
-                "fn curves_get(base: u32, idx: u32) -> f32 {\n",
-                "  let abs_idx = base + idx;\n",
-                "  let vi = abs_idx / 4u;\n",
-                "  let ci = abs_idx % 4u;\n",
-                "  return p.curves[vi][ci];\n",
-                "}\n",
-                "fn curves_sample(base: u32, x: f32) -> f32 {\n",
-                "  let cx = clamp(x, 0.0, 1.0) * 15.0;\n",
-                "  let idx = u32(cx);\n",
-                "  let frac = cx - f32(idx);\n",
-                "  let v0 = curves_get(base, idx);\n",
-                "  let v1 = curves_get(base, min(idx + 1u, 15u));\n",
-                "  return mix(v0, v1, frac);\n",
-                "}\n",
-                "fn curves_apply(c: vec3<f32>) -> vec3<f32> {\n",
-                "  var r = curves_sample(0u, c.x);\n",
-                "  var g = curves_sample(0u, c.y);\n",
-                "  var b = curves_sample(0u, c.z);\n",
-                "  r = curves_sample(16u, r);\n",
-                "  g = curves_sample(32u, g);\n",
-                "  b = curves_sample(48u, b);\n",
-                "  let y0 = 0.2126 * r + 0.7152 * g + 0.0722 * b;\n",
-                "  let y0c = clamp(y0, 0.0, 1.0);\n",
-                "  let y1 = curves_sample(64u, y0c);\n",
-                "  if (y0 < 1e-5) {\n",
-                "    return vec3<f32>(y1);\n",
-                "  }\n",
-                "  let scale = y1 / y0;\n",
-                "  return vec3<f32>(r * scale, g * scale, b * scale);\n",
-                "}\n",
-            ),
+            functions: CURVES_WGSL.as_str(),
             apply: "lin = curves_apply(lin);",
-            vec4_count: 20,
+            vec4_count: 5 * CURVE_LUT_SIZE / 4,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
@@ -290,6 +267,22 @@ mod tests {
         let mid = lut[CURVE_LUT_SIZE / 2];
         if (mid - 0.5).abs() >= 0.05 {
             panic!("midpoint was {mid}");
+        }
+    }
+
+    #[test]
+    fn steep_curve_is_sampled_faithfully() {
+        let pts = vec![pt(0.0, 0.0), pt(0.2, 0.8), pt(1.0, 1.0)];
+        let lut = build_lut(&pts);
+        let worst = (0..=2000)
+            .map(|i| {
+                let x = i as f64 / 2000.0;
+                let exact = interpolate_monotone(&pts, x) as f32;
+                (sample_lut(&lut, x as f32) - exact).abs()
+            })
+            .fold(0.0f32, f32::max);
+        if worst >= 1e-3 {
+            panic!("linear interpolation between LUT samples was off by {worst}");
         }
     }
 

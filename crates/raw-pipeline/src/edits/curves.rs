@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const CURVE_LUT_SIZE: usize = 16;
+pub const CURVE_LUT_SIZE: usize = 256;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CurvePoint {
