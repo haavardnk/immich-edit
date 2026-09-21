@@ -84,6 +84,11 @@ impl Segmenter {
         };
         let (mw, mh) = plane_dims(&out_dims, values.len());
         let plane = mw * mh;
+        if plane == 0 {
+            return Err(SegmentError::Input(format!(
+                "output plane is {mw}x{mh} for dims {out_dims:?}"
+            )));
+        }
         if values.len() < plane {
             return Err(SegmentError::Input(format!(
                 "output has {} values, expected at least {plane}",

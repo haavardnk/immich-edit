@@ -244,6 +244,44 @@ mod tests {
     }
 
     #[test]
+    fn mask_to_source_round_trips_odd_non_square_frames() {
+        let edge = 64usize;
+        for (src_w, src_h) in [(37usize, 91usize), (91, 37), (13, 1), (1, 13), (65, 63)] {
+            let place = Placement::compute(Fit::Contain, edge, src_w as u32, src_h as u32);
+            let mut mask = vec![-1.0f32; edge * edge];
+            for y in 0..place.h {
+                for x in 0..place.w {
+                    mask[(place.y + y) * edge + place.x + x] =
+                        x as f32 / (place.w.max(2) - 1) as f32;
+                }
+            }
+            let out = mask_to_source(&mask, edge, edge, &place, src_w, src_h);
+            assert_eq!(out.len(), src_w * src_h);
+            let min = out.iter().copied().fold(f32::INFINITY, f32::min);
+            assert!(
+                min >= -1e-6,
+                "{src_w}x{src_h} sampled letterbox padding: {min}"
+            );
+            for row in out.chunks(src_w) {
+                for pair in row.windows(2) {
+                    assert!(
+                        pair[1] >= pair[0] - 1e-6,
+                        "{src_w}x{src_h} ramp is not monotone: {pair:?}"
+                    );
+                }
+            }
+            if src_w > 1 {
+                assert!(out[0] < 0.25, "{src_w}x{src_h} left edge {}", out[0]);
+                assert!(
+                    out[src_w - 1] > 0.75,
+                    "{src_w}x{src_h} right edge {}",
+                    out[src_w - 1]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn softmax_selects_channel() {
         let values = vec![0.0, 0.0, 2.0, 2.0, 0.0, 0.0];
         let out = activate(&values, 2, 1, Activation::Softmax { channel: 1 });

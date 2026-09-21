@@ -220,8 +220,15 @@ impl SamDecoder {
         if dims.len() < 2 {
             return Err(SegmentError::Input("decoder output has no plane".into()));
         }
-        let h = dims[dims.len() - 2] as usize;
-        let w = dims[dims.len() - 1] as usize;
+        let raw_h = dims[dims.len() - 2];
+        let raw_w = dims[dims.len() - 1];
+        if raw_h <= 0 || raw_w <= 0 {
+            return Err(SegmentError::Input(format!(
+                "decoder output plane is {raw_w}x{raw_h}"
+            )));
+        }
+        let h = raw_h as usize;
+        let w = raw_w as usize;
         let plane = w * h;
         if plane == 0 || values.len() < plane {
             return Err(SegmentError::Input(format!(
