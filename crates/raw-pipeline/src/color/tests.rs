@@ -154,6 +154,39 @@ fn prophoto_roundtrip_is_identity() {
 }
 
 #[test]
+fn huesat_sampling_wraps_between_the_last_and_first_hue_bin() {
+    let hue_div = 4usize;
+    let sat_div = 2usize;
+    let data: Vec<[f32; 3]> = (0..hue_div * sat_div)
+        .map(|i| [(i % hue_div) as f32 * 10.0, 1.0, 1.0])
+        .collect();
+    let map = HueSatMap {
+        hue_div: hue_div as u32,
+        sat_div: sat_div as u32,
+        val_div: 1,
+        encoding: HsvEncoding::Linear,
+        data,
+    };
+
+    let wrapped = sample_huesat(&map, [5.4, 0.0, 0.5]);
+    let want = 30.0 + (0.0 - 30.0) * 0.6;
+    assert!(
+        (wrapped[0] - want).abs() < 1e-4,
+        "hue wrap gave {} not {want}",
+        wrapped[0]
+    );
+
+    let zero = sample_huesat(&map, [0.0, 0.0, 0.5]);
+    let full = sample_huesat(&map, [6.0, 0.0, 0.5]);
+    assert!(
+        (zero[0] - full[0]).abs() < 1e-4,
+        "hue 0 and hue 6 must land on the same bin: {} vs {}",
+        zero[0],
+        full[0]
+    );
+}
+
+#[test]
 fn huesat_identity_map_preserves_color() {
     let map = HueSatMap {
         hue_div: 4,

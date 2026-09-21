@@ -430,4 +430,48 @@ mod tests {
             assert!((v - 0.5).abs() < 1e-4, "channel {c} = {v}");
         }
     }
+
+    fn ramp_cube(header: &str) -> String {
+        let mut s = String::from(header);
+        s.push_str("LUT_3D_SIZE 2\n");
+        for b in 0..2 {
+            for g in 0..2 {
+                for r in 0..2 {
+                    s.push_str(&format!("{r} {g} {b}\n"));
+                }
+            }
+        }
+        s
+    }
+
+    #[test]
+    fn domain_outside_the_unit_range_maps_and_clamps() {
+        let lut =
+            Lut3d::parse_cube(ramp_cube("DOMAIN_MIN -1 -1 -1\nDOMAIN_MAX 3 3 3\n").as_bytes())
+                .unwrap();
+        assert_eq!(lut.domain_min(), [-1.0; 3]);
+        assert_eq!(lut.domain_max(), [3.0; 3]);
+
+        for (input, want) in [
+            ([-1.0f32; 3], 0.0f32),
+            ([-9.0; 3], 0.0),
+            ([1.0; 3], 0.5),
+            ([3.0; 3], 1.0),
+            ([9.0; 3], 1.0),
+        ] {
+            let out = lut.sample(input);
+            for (c, v) in out.iter().enumerate() {
+                assert!((v - want).abs() < 1e-4, "{input:?} channel {c} = {v}");
+            }
+        }
+    }
+
+    #[test]
+    fn inverted_domain_is_rejected() {
+        let src = ramp_cube("DOMAIN_MIN 1 1 1\nDOMAIN_MAX 0 0 0\n");
+        assert_eq!(
+            Lut3d::parse_cube(src.as_bytes()).unwrap_err(),
+            LutParseError::InvalidDomain
+        );
+    }
 }

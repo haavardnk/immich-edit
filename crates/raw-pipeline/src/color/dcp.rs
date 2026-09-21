@@ -122,7 +122,7 @@ pub fn merge_huesat(a: &HueSatMap, b: &HueSatMap, g: f32) -> HueSatMap {
         data,
     }
 }
-fn sample_huesat(map: &HueSatMap, hsv: [f32; 3]) -> [f32; 3] {
+pub(super) fn sample_huesat(map: &HueSatMap, hsv: [f32; 3]) -> [f32; 3] {
     let hue_div = map.hue_div as usize;
     let sat_div = map.sat_div as usize;
     let val_div = map.val_div.max(1) as usize;

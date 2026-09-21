@@ -233,6 +233,37 @@ fn excessive_huesat_dimensions_are_ignored() {
 }
 
 #[test]
+fn huesat_dimensions_at_the_limit_are_accepted() {
+    let dim = DCP_MAX_TABLE_DIM;
+    let sat = 2u32;
+    let vals: Vec<f32> = (0..dim)
+        .flat_map(|h| (0..sat).flat_map(move |_| [h as f32, 1.0, 1.0]))
+        .collect();
+    let tiff = build_tiff(vec![
+        matrix_tag(T_COLOR_MATRIX1, CM1),
+        TagVal {
+            tag: T_HUESAT_DIMS,
+            typ: 4,
+            count: 3,
+            bytes: longs(&[dim, sat, 1]),
+        },
+        TagVal {
+            tag: T_HUESAT_DATA1,
+            typ: 11,
+            count: dim * sat * 3,
+            bytes: floats(&vals),
+        },
+    ]);
+    let p = parse_dcp(&tiff).unwrap();
+    let hs = p.huesatmap1.as_ref().expect("huesat");
+    assert_eq!((hs.hue_div, hs.sat_div, hs.val_div), (dim, sat, 1));
+    assert_eq!(hs.data.len(), (dim * sat) as usize);
+    assert_eq!(hs.data[0][0], 0.0);
+    assert_eq!(hs.data[dim as usize - 1][0], (dim - 1) as f32);
+    assert_eq!(hs.data[dim as usize][0], 0.0);
+}
+
+#[test]
 fn rejects_non_tiff() {
     assert_eq!(
         parse_dcp(b"not a tiff at all").unwrap_err(),
