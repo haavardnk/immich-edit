@@ -54,7 +54,17 @@ address. Use the normal hostname, loopback address, or private network address.
 An OAuth-only Immich account has no password. Use the OAuth button, or create an Immich API key and
 use the API-key option. An administrator can also disable local access under **Settings**.
 
-Repeated failures trigger temporary rate limiting.
+### `rate_limited`
+
+Sign-in, setup, API-key and OAuth-callback requests answer `429 Too Many Requests` with the error
+code `rate_limited` and a `Retry-After` header once failures pile up. Five failures from the same
+address for the same account lock that pair for 15 minutes, and 25 failures against one account
+from any address lock the account for an hour. Only failures count; a successful sign-in clears
+both counters immediately.
+
+Wait out the `Retry-After` value rather than retrying. If a working password is being rejected
+first, fix that before the limiter hides it. The counters live in memory, so restarting the
+container also clears them.
 
 ### The identity provider reports a redirect URI mismatch
 
