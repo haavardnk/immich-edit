@@ -99,6 +99,29 @@ pub struct MaskedEdits {
 }
 
 impl MaskedEdits {
+    pub const FIELDS: [&'static str; 14] = [
+        "exposure_ev",
+        "brightness",
+        "contrast",
+        "saturation",
+        "vibrance",
+        "wb_temp",
+        "wb_tint",
+        "highlights",
+        "shadows",
+        "whites",
+        "blacks",
+        "texture",
+        "clarity",
+        "sharpen",
+    ];
+
+    pub const SPATIAL_BOUNDARY_FIELDS: [&'static str; 2] = ["wb_temp", "wb_tint"];
+
+    pub fn crosses_spatial_boundary(&self) -> bool {
+        self.wb_temp.is_some() || self.wb_tint.is_some()
+    }
+
     pub fn is_zero(&self) -> bool {
         self.exposure_ev.is_none()
             && self.brightness.is_none()

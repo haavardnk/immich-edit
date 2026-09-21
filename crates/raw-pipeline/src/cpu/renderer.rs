@@ -83,7 +83,7 @@ pub(crate) fn sensor_cacheable(edits: &Edits, options: &RenderOptions) -> bool {
     !edits
         .masks
         .iter()
-        .any(|l| l.is_effective() && (l.edits.wb_temp.is_some() || l.edits.wb_tint.is_some()))
+        .any(|l| l.is_effective() && l.edits.crosses_spatial_boundary())
 }
 
 pub(crate) fn sensor_cache_key(

@@ -550,3 +550,32 @@ fn clamping_bounds_every_numeric_field() {
         );
     }
 }
+
+#[test]
+fn every_masked_edit_field_is_classified_against_the_spatial_boundary() {
+    let all = populated_edits().masks[0].edits.clone();
+    let doc = serde_json::to_value(&all).expect("serialize");
+    let present: Vec<String> = doc.as_object().expect("object").keys().cloned().collect();
+    let mut inventory: Vec<String> = MaskedEdits::FIELDS.iter().map(|f| f.to_string()).collect();
+    let mut serialized = present.clone();
+    inventory.sort();
+    serialized.sort();
+    assert_eq!(
+        serialized, inventory,
+        "MaskedEdits gained or lost a field; classify it in FIELDS and SPATIAL_BOUNDARY_FIELDS, \
+         and give it the GPU treatment if it reaches an op below SPATIAL_BOUNDARY"
+    );
+
+    for field in MaskedEdits::FIELDS {
+        let one: MaskedEdits =
+            serde_json::from_value(serde_json::json!({ field: 1.0 })).expect("deserialize one");
+        let expected = MaskedEdits::SPATIAL_BOUNDARY_FIELDS.contains(&field);
+        assert_eq!(
+            one.crosses_spatial_boundary(),
+            expected,
+            "{field} is misclassified against the spatial boundary"
+        );
+    }
+
+    assert!(!MaskedEdits::default().crosses_spatial_boundary());
+}
