@@ -1,6 +1,51 @@
 use super::*;
 
 #[test]
+fn degenerate_frames_survive_dehaze_and_noise_reduction() {
+    let edits = Edits {
+        basic: BasicEdits {
+            dehaze: 80.0,
+            ..Default::default()
+        },
+        detail: DetailEdits {
+            luma_nr_amount: 80.0,
+            luma_nr_detail: 50.0,
+            luma_nr_contrast: 20.0,
+            color_nr_amount: 80.0,
+            color_nr_detail: 50.0,
+            color_nr_smoothness: 50.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    for (w, h) in [
+        (1usize, 1usize),
+        (1, 9),
+        (9, 1),
+        (2, 2),
+        (7, 7),
+        (1, 64),
+        (64, 1),
+    ] {
+        let mut image = solid_image(w, h, [0.35, 0.45, 0.55]);
+        dehaze::DehazeOp
+            .apply_cpu(&mut image, &ctx(), &edits)
+            .unwrap();
+        luma_nr::LumaNrOp
+            .apply_cpu(&mut image, &ctx(), &edits)
+            .unwrap();
+        color_nr::ColorNrOp
+            .apply_cpu(&mut image, &ctx(), &edits)
+            .unwrap();
+        assert_eq!(image.rgb.len(), w * h * 3, "{w}x{h} changed length");
+        assert!(
+            image.rgb.iter().all(|v| v.is_finite()),
+            "{w}x{h} produced non-finite output"
+        );
+    }
+}
+
+#[test]
 fn texture_positive_amplifies_detail() {
     let w: usize = 256;
     let h: usize = 128;

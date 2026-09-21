@@ -15,7 +15,7 @@ impl LumaPyramid {
         let mut levels: Vec<Scratch> = Vec::with_capacity(n);
         let mut dims: Vec<(usize, usize)> = Vec::with_capacity(n);
         let n0 = image.width * image.height;
-        let mut l0 = Scratch::take_uninit(n0);
+        let mut l0 = Scratch::zeroed(n0);
         l0.par_iter_mut()
             .zip(image.rgb.par_chunks_exact(3))
             .for_each(|(slot, p)| {
@@ -28,7 +28,7 @@ impl LumaPyramid {
             let (pw, ph) = dims[last_idx];
             let nw = (pw / 2).max(1);
             let nh = (ph / 2).max(1);
-            let mut next = Scratch::take_uninit(nw * nh);
+            let mut next = Scratch::zeroed(nw * nh);
             {
                 let prev = &levels[last_idx];
                 let interior_w = if pw >= 2 { nw.min(pw / 2) } else { 0 };
@@ -95,7 +95,7 @@ impl LumaPyramid {
         let mip = &self.levels[level];
         let mw_i = mw as i32;
         let mh_i = mh as i32;
-        let mut out = Scratch::take_uninit(w * h);
+        let mut out = Scratch::zeroed(w * h);
         out.par_chunks_exact_mut(w)
             .enumerate()
             .for_each(|(y, row)| {

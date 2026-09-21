@@ -123,7 +123,7 @@ fn apply_sharpen(
 }
 
 fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
-    let mut lum = Scratch::take_uninit(w * h);
+    let mut lum = Scratch::zeroed(w * h);
     lum.par_chunks_mut(w)
         .zip(blur.par_chunks(w * 3))
         .for_each(|(lrow, brow)| {
@@ -132,7 +132,7 @@ fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
                 *slot = luma(brow[i], brow[i + 1], brow[i + 2]);
             }
         });
-    let mut mag = Scratch::take_uninit(w * h);
+    let mut mag = Scratch::zeroed(w * h);
     mag.par_chunks_mut(w).enumerate().for_each(|(y, mrow)| {
         let ym1 = y.saturating_sub(1);
         let yp1 = (y + 1).min(h - 1);

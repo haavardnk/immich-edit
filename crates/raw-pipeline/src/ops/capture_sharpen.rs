@@ -168,7 +168,7 @@ fn separable_extreme(
 }
 
 fn build_blend(image: &LinearImage, luma: &[f32], w: usize, h: usize) -> Scratch {
-    let mut blend = Scratch::take_uninit(w * h);
+    let mut blend = Scratch::zeroed(w * h);
     blend.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let up = y.saturating_sub(1) * w;
         let down = (y + 1).min(h - 1) * w;
@@ -198,7 +198,7 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
         return;
     }
     let n = w * h;
-    let mut lum = Scratch::take_uninit(n);
+    let mut lum = Scratch::zeroed(n);
     lum.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
@@ -211,11 +211,11 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
         return;
     }
     let kernel = gaussian_kernel(sigma);
-    let mut est = Scratch::take_uninit(n);
+    let mut est = Scratch::zeroed(n);
     est.copy_from_slice(&lum);
-    let mut conv = Scratch::take_uninit(n);
-    let mut corr = Scratch::take_uninit(n);
-    let mut tmp = Scratch::take_uninit(n);
+    let mut conv = Scratch::zeroed(n);
+    let mut corr = Scratch::zeroed(n);
+    let mut tmp = Scratch::zeroed(n);
     for _ in 0..ITERATIONS {
         convolve(&est, &mut conv, &mut tmp, w, h, &kernel);
         conv.par_iter_mut().zip(lum.par_iter()).for_each(|(c, l)| {

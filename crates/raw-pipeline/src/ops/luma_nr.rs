@@ -74,7 +74,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
         return;
     }
     let n = w * h;
-    let mut lum = Scratch::take_uninit(n);
+    let mut lum = Scratch::zeroed(n);
     lum.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
@@ -97,7 +97,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
     let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
     let inv_2sr = 1.0 / (2.0 * sigma_r * sigma_r);
     let alpha = (amount / 100.0) * (1.0 - contrast / 100.0);
-    let mut denoised = Scratch::take_uninit(n);
+    let mut denoised = Scratch::zeroed(n);
     denoised
         .par_chunks_mut(w)
         .enumerate()

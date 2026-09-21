@@ -1,4 +1,5 @@
 pub mod blur;
+pub mod box_filter;
 pub mod brightness;
 pub mod capture_sharpen;
 pub mod clarity;
