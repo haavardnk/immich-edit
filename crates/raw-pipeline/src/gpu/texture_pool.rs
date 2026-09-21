@@ -7,6 +7,8 @@ use wgpu::{
     Device, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 
+use super::budget::GpuBudget;
+
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct TextureKey {
     pub format: TextureFormat,
@@ -43,11 +45,11 @@ struct FreePool {
 pub struct TexturePool {
     free: Mutex<FreePool>,
     cap_per_key: usize,
-    max_bytes: u64,
+    budget: Arc<GpuBudget>,
 }
 
 impl TexturePool {
-    pub fn new(cap_per_key: usize, max_bytes: u64) -> Arc<Self> {
+    pub fn new(cap_per_key: usize, budget: Arc<GpuBudget>) -> Arc<Self> {
         Arc::new(Self {
             free: Mutex::new(FreePool {
                 by_key: HashMap::new(),
@@ -55,7 +57,7 @@ impl TexturePool {
                 retained_bytes: 0,
             }),
             cap_per_key,
-            max_bytes,
+            budget,
         })
     }
 
@@ -72,7 +74,9 @@ impl TexturePool {
                 if let Some(pos) = g.lru.iter().position(|k| *k == key) {
                     g.lru.remove(pos);
                 }
-                g.retained_bytes = g.retained_bytes.saturating_sub(texture_bytes(&key));
+                let bytes = texture_bytes(&key);
+                g.retained_bytes = g.retained_bytes.saturating_sub(bytes);
+                self.budget.release(bytes);
             }
             popped
         };
@@ -105,30 +109,40 @@ impl TexturePool {
         if g.by_key.get(&key).map(Vec::len).unwrap_or(0) >= self.cap_per_key {
             return;
         }
-        if tex_bytes > self.max_bytes {
-            return;
-        }
-        while g.retained_bytes + tex_bytes > self.max_bytes {
-            let Some(victim) = g.lru.pop_front() else {
-                break;
-            };
-            if let Some(v) = g.by_key.get_mut(&victim)
-                && v.pop().is_some()
-            {
-                g.retained_bytes = g.retained_bytes.saturating_sub(texture_bytes(&victim));
+        while !self.budget.try_reserve(tex_bytes) {
+            if !evict_one(&mut g, &self.budget) {
+                return;
             }
-        }
-        if g.retained_bytes + tex_bytes > self.max_bytes {
-            return;
         }
         g.by_key.entry(key).or_default().push(tex);
         g.lru.push_back(key);
         g.retained_bytes += tex_bytes;
     }
 
+    pub fn trim(&self, bytes: u64) -> u64 {
+        let mut g = self.free.lock();
+        let start = g.retained_bytes;
+        while start - g.retained_bytes < bytes && evict_one(&mut g, &self.budget) {}
+        start - g.retained_bytes
+    }
+
     pub fn bytes(&self) -> u64 {
         self.free.lock().retained_bytes
     }
+}
+
+fn evict_one(g: &mut FreePool, budget: &GpuBudget) -> bool {
+    let Some(victim) = g.lru.pop_front() else {
+        return false;
+    };
+    if let Some(v) = g.by_key.get_mut(&victim)
+        && v.pop().is_some()
+    {
+        let bytes = texture_bytes(&victim);
+        g.retained_bytes = g.retained_bytes.saturating_sub(bytes);
+        budget.release(bytes);
+    }
+    true
 }
 
 fn texture_bytes(k: &TextureKey) -> u64 {

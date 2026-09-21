@@ -26,7 +26,7 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `THUMB_MAX_CONCURRENCY` | Quarter of the CPU cores, clamped to `2` through `4` | Edited-thumbnail renders; must be nonzero |
 | `RAW_FRAME_CACHE_MB` | `max(RENDER_MAX_CONCURRENCY * 256, 512)` | `64` to `16384`; decoded preview frames in RAM |
 | `QUALITY_FRAME_CACHE_MB` | `512` | `64` to `16384`; decoded quality frames in RAM |
-| `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures |
+| `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures plus cached white balance, noise reduction, and capture sharpening results |
 | `MASK_CACHE_MB` | `512` | Disk budget for unreferenced mask rasters; must be nonzero |
 | `EMBEDDING_CACHE_MB` | `2048` | Disk budget for click-model embeddings; must be nonzero |
 | `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu`. A software rasterizer such as llvmpipe is used when no hardware GPU is present, and Diagnostics marks it |

@@ -12,6 +12,7 @@ use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::nr::NrParams;
 use crate::gpu::passes::nr_smooth::NrSmoothParams;
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::renderer::stage_cache::Stage;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_nr(
@@ -21,7 +22,7 @@ impl GpuRenderer {
         edits: &Edits,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.nr_cache.lock().get(&key).cloned() {
+        if let Some(t) = self.stages.get(Stage::Nr, key) {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
         }
@@ -139,7 +140,7 @@ impl GpuRenderer {
             self.encode_mipgen(&mut encoder, &dst, w, h);
             queue.submit(Some(encoder.finish()));
             let out = Arc::new(dst);
-            self.nr_cache.lock().put(key, out.clone());
+            self.stages.put(Stage::Nr, key, out.clone());
             return Ok(out);
         }
 
@@ -194,7 +195,7 @@ impl GpuRenderer {
         self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
         let out = Arc::new(dst);
-        self.nr_cache.lock().put(key, out.clone());
+        self.stages.put(Stage::Nr, key, out.clone());
         Ok(out)
     }
 }

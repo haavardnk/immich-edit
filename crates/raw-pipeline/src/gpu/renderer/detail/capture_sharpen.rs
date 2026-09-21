@@ -13,6 +13,7 @@ use crate::gpu::passes::capture_sharpen::{
     CaptureLumaParams,
 };
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::texture_pool::TextureKey;
 
 impl GpuRenderer {
@@ -23,7 +24,7 @@ impl GpuRenderer {
         sigma: f32,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.capture_cache.lock().get(&key).cloned() {
+        if let Some(t) = self.stages.get(Stage::Capture, key) {
             tracing::debug!(target: "gpu_cache", "capture_sharpen cache hit");
             return Ok(t);
         }
@@ -199,7 +200,7 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(out);
-        self.capture_cache.lock().put(key, out.clone());
+        self.stages.put(Stage::Capture, key, out.clone());
         Ok(out)
     }
 }

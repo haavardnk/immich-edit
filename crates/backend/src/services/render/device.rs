@@ -119,7 +119,7 @@ impl RenderDevice {
         *last = Some(now);
         drop(last);
         match GpuRenderer::with_options(GpuRendererOptions {
-            texture_pool_max_bytes: self.texture_cache_bytes,
+            texture_cache_max_bytes: self.texture_cache_bytes,
         }) {
             Ok(r) => {
                 let label = r.adapter_label();
@@ -156,7 +156,7 @@ struct GpuInit {
     software: bool,
 }
 
-fn init_gpu(mode: RendererMode, texture_pool_max_bytes: u64) -> GpuInit {
+fn init_gpu(mode: RendererMode, texture_cache_max_bytes: u64) -> GpuInit {
     let cpu_only = GpuInit {
         renderer: None,
         active: ActiveRenderer::Cpu,
@@ -167,7 +167,7 @@ fn init_gpu(mode: RendererMode, texture_pool_max_bytes: u64) -> GpuInit {
         return cpu_only;
     }
     match GpuRenderer::with_options(GpuRendererOptions {
-        texture_pool_max_bytes,
+        texture_cache_max_bytes,
     }) {
         Ok(r) => {
             let label = r.adapter_label();
