@@ -302,3 +302,269 @@ impl GpuRenderer {
         }
     }
 }
+
+pub(super) struct MaskStage<'a> {
+    pub pass: &'a crate::gpu::passes::process::ProcessFastPass,
+    pub edits: &'a Edits,
+    pub opts: &'a crate::frame::RenderOptions,
+    pub geom: &'a ProcessGeom,
+    pub ctx_op: &'a crate::ops::OpContext,
+    pub target: &'a crate::gpu::resources::OutputTargets,
+    pub src_view: &'a TextureView,
+    pub linear_view: &'a TextureView,
+    pub shadows_view: &'a TextureView,
+    pub layer_srcs: &'a HashMap<String, std::sync::Arc<wgpu::Texture>>,
+    pub sensor_dims: (u32, u32),
+    pub out_dims: (u32, u32),
+    pub shadows_mip: f32,
+    pub masked_sharpen: bool,
+}
+
+#[derive(Default)]
+pub(super) struct MaskStageOutput {
+    pub retained: Retained,
+    pub preview_atlas: Option<MaskAtlas>,
+    pub layer_atlas: Option<MaskAtlas>,
+    pub has_masks: bool,
+    pub preview_active: bool,
+}
+
+impl GpuRenderer {
+    pub(super) fn encode_mask_stage(
+        &self,
+        encoder: &mut CommandEncoder,
+        stage: MaskStage<'_>,
+    ) -> MaskStageOutput {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (out_w, out_h) = stage.out_dims;
+        let p = stage.target;
+        let edits = stage.edits;
+
+        let preview_layer = match &stage.opts.preview_mode {
+            crate::frame::PreviewMode::MaskWeight { layer_id } => {
+                edits.masks.iter().find(|l| &l.id == layer_id)
+            }
+            _ => None,
+        };
+        let effective_layers: Vec<&MaskLayer> = if preview_layer.is_some() {
+            Vec::new()
+        } else {
+            edits.masks.iter().filter(|l| l.is_effective()).collect()
+        };
+        let mut out = MaskStageOutput {
+            has_masks: !effective_layers.is_empty(),
+            preview_active: preview_layer.is_some(),
+            ..Default::default()
+        };
+
+        if let Some(layer) = preview_layer {
+            let (atlas, slot_map) =
+                self.prepare_mask_atlas(std::iter::once(layer), &stage.opts.rasters);
+            let atlas_view = atlas_view(&atlas.texture);
+            let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
+            let eval = crate::cpu::masked::build_layer_eval(layer, &stage.opts.rasters);
+            self.encode_mask_weight(
+                encoder,
+                MaskWeightJob {
+                    labels: &PREVIEW_LABELS,
+                    eval: &eval,
+                    slot_map: &slot_map,
+                    weight_view: &weight_view,
+                    atlas_view: &atlas_view,
+                    base_view: stage.linear_view,
+                },
+                edits,
+                stage.geom,
+                stage.out_dims,
+                &mut out.retained,
+            );
+            out.preview_atlas = Some(atlas);
+        }
+        if !out.has_masks {
+            return out;
+        }
+
+        let scratch_linear_view = p
+            .mask_scratch_linear
+            .create_view(&TextureViewDescriptor::default());
+        let scratch_tone_view = p
+            .mask_scratch_tone
+            .create_view(&TextureViewDescriptor::default());
+        let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
+        let sharpen_accum_view = p
+            .mask_sharpen
+            .create_view(&TextureViewDescriptor::default());
+        let accum_alt_view = p
+            .mask_accum_alt
+            .create_view(&TextureViewDescriptor::default());
+        let linear_view2 = p
+            .linear_texture
+            .create_view(&TextureViewDescriptor::default());
+        encoder.copy_texture_to_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &p.linear_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyTextureInfo {
+                texture: &p.mask_base_linear,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            Extent3d {
+                width: out_w,
+                height: out_h,
+                depth_or_array_layers: 1,
+            },
+        );
+        let base_linear_view = p
+            .mask_base_linear
+            .create_view(&TextureViewDescriptor::default());
+
+        let (atlas, slot_map) =
+            self.prepare_mask_atlas(effective_layers.iter().copied(), &stage.opts.rasters);
+        let atlas_view = atlas_view(&atlas.texture);
+        out.layer_atlas = Some(atlas);
+
+        let mut accum_in_alt = false;
+        for (layer_index, layer) in effective_layers.iter().enumerate() {
+            let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
+            let layer_src_view = stage
+                .layer_srcs
+                .get(&layer.id)
+                .map(|t| t.create_view(&TextureViewDescriptor::default()));
+            let layer_src_view_ref = layer_src_view.as_ref().unwrap_or(stage.src_view);
+            let eff_uniform = super::uniform::build_process_uniform(
+                &stage.pass.built,
+                &self.passes.registry,
+                &eff,
+                stage.ctx_op,
+                &super::uniform::process_header(
+                    edits,
+                    stage.geom,
+                    stage.sensor_dims,
+                    stage.out_dims,
+                    stage.shadows_mip,
+                    false,
+                ),
+            );
+            let eff_uniform_buf =
+                self.uniform_pool
+                    .acquire(device, queue, &eff_uniform, "process-uniform-layer");
+            let layer_bind = bind_group(
+                device,
+                "process-bg-layer",
+                &stage.pass.layout,
+                &[
+                    eff_uniform_buf.as_entire_binding(),
+                    tex(layer_src_view_ref),
+                    samp(&self.passes.linear_sampler),
+                    tex(&scratch_tone_view),
+                    tex(&scratch_linear_view),
+                    tex(stage.shadows_view),
+                ],
+            );
+            dispatch_2d(
+                encoder,
+                "process-layer",
+                &stage.pass.pipeline,
+                &layer_bind,
+                out_w.div_ceil(16),
+                out_h.div_ceil(16),
+            );
+            out.retained.uniforms.push(eff_uniform_buf);
+            out.retained.binds.push(layer_bind);
+
+            let eval = crate::cpu::masked::build_layer_eval(layer, &stage.opts.rasters);
+            self.encode_mask_weight(
+                encoder,
+                MaskWeightJob {
+                    labels: &LAYER_LABELS,
+                    eval: &eval,
+                    slot_map: &slot_map,
+                    weight_view: &weight_view,
+                    atlas_view: &atlas_view,
+                    base_view: &base_linear_view,
+                },
+                edits,
+                stage.geom,
+                stage.out_dims,
+                &mut out.retained,
+            );
+
+            let (curr_view, dst_view) = if accum_in_alt {
+                (&accum_alt_view, &linear_view2)
+            } else {
+                (&linear_view2, &accum_alt_view)
+            };
+            let sharpen_flags = if !stage.masked_sharpen {
+                0u32
+            } else if layer_index == 0 {
+                1u32
+            } else {
+                2u32
+            };
+            let bl_params = crate::gpu::passes::mask_blend::pack_params(
+                out_w,
+                out_h,
+                layer.edits.sharpen.unwrap_or(0.0) as f32,
+                sharpen_flags,
+            );
+            let bl_params_buf = device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("mask-blend-uniform"),
+                contents: bytemuck::bytes_of(&bl_params),
+                usage: BufferUsages::UNIFORM,
+            });
+            let bl_bind = bind_group(
+                device,
+                "mask-blend-bg",
+                &self.passes.mask_blend.layout,
+                &[
+                    bl_params_buf.as_entire_binding(),
+                    tex(curr_view),
+                    tex(&scratch_linear_view),
+                    tex(&weight_view),
+                    tex(dst_view),
+                    tex(&sharpen_accum_view),
+                ],
+            );
+            dispatch_2d(
+                encoder,
+                "mask-blend",
+                &self.passes.mask_blend.pipeline,
+                &bl_bind,
+                out_w.div_ceil(16),
+                out_h.div_ceil(16),
+            );
+            out.retained.bufs.push(bl_params_buf);
+            out.retained.binds.push(bl_bind);
+
+            accum_in_alt = !accum_in_alt;
+        }
+        if accum_in_alt {
+            encoder.copy_texture_to_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &p.mask_accum_alt,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::TexelCopyTextureInfo {
+                    texture: &p.linear_texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                Extent3d {
+                    width: out_w,
+                    height: out_h,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+        out
+    }
+}
