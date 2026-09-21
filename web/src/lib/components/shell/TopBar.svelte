@@ -81,7 +81,7 @@
   static
   variant="ghost"
   shape="rectangle"
-  class="h-16! select-none bg-neutral-950 px-2"
+  class="h-16! flex-nowrap select-none bg-neutral-950 px-2"
   aria-label="Global navigation"
 >
   <ControlBarHeader class="flex-row items-center gap-2 lg:w-60">
