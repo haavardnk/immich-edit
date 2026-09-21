@@ -4,11 +4,14 @@ use common::{
     ParityLedger, detail_frame, mean_abs_delta, require_same_dims, rgb8_opts, synthetic_frame,
     try_renderer,
 };
+use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
     BasicEdits, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
     MaskedEdits, Vec2f,
 };
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
+use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
+
+const PRESENCE_DEHAZE: f64 = 0.3;
 
 fn layer(components: Vec<MaskComponent>, edits: MaskedEdits, invert: bool) -> MaskLayer {
     MaskLayer {
@@ -21,6 +24,63 @@ fn layer(components: Vec<MaskComponent>, edits: MaskedEdits, invert: bool) -> Ma
         components,
         edits,
     }
+}
+
+struct PlanCase<'a> {
+    label: &'a str,
+    frame: &'a RawFrame,
+    opts: &'a RenderOptions,
+    components: Vec<MaskComponent>,
+    edits: MaskedEdits,
+    invert: bool,
+    fast_tolerance: f64,
+    presence_tolerance: f64,
+    min_effect: f64,
+}
+
+fn check_both_plans(renderer: &GpuRenderer, case: PlanCase) {
+    let mut ledger = ParityLedger::new("masks");
+    for (plan, dehaze, tolerance) in [
+        ("fast", 0.0, case.fast_tolerance),
+        ("presence", PRESENCE_DEHAZE, case.presence_tolerance),
+    ] {
+        let basic = BasicEdits {
+            dehaze,
+            ..Default::default()
+        };
+        let masked = Edits {
+            basic: basic.clone(),
+            masks: vec![layer(
+                case.components.clone(),
+                case.edits.clone(),
+                case.invert,
+            )],
+            ..Default::default()
+        };
+        let bare = Edits {
+            basic,
+            ..Default::default()
+        };
+        let label = format!("{}-{plan}", case.label);
+
+        let cpu = raw_pipeline::cpu::render(case.frame, &masked, case.opts).unwrap();
+        let cpu_bare = raw_pipeline::cpu::render(case.frame, &bare, case.opts).unwrap();
+        let gpu = renderer.render(case.frame, &masked, case.opts).unwrap();
+        let gpu_bare = renderer.render(case.frame, &bare, case.opts).unwrap();
+        require_same_dims(&label, &cpu, &gpu);
+
+        let cpu_effect = mean_abs_delta(&cpu.bytes, &cpu_bare.bytes);
+        let gpu_effect = mean_abs_delta(&gpu.bytes, &gpu_bare.bytes);
+        eprintln!("{label} cpu effect = {cpu_effect:.3} gpu effect = {gpu_effect:.3}");
+        if cpu_effect < case.min_effect {
+            panic!("{label}: the mask had no effect on the CPU path: {cpu_effect:.3}");
+        }
+        if gpu_effect < case.min_effect {
+            panic!("{label}: the mask had no effect on the GPU path: {gpu_effect:.3}");
+        }
+        ledger.check(&label, &cpu.bytes, &gpu.bytes, tolerance);
+    }
+    ledger.finish();
 }
 
 fn linear_component(feather: f32) -> MaskComponent {
@@ -47,7 +107,6 @@ fn gpu_masks_match_cpu_within_tolerance() {
     let frame = synthetic_frame(96, 64);
     let opts = rgb8_opts(96);
 
-    let mut ledger = ParityLedger::new("masks");
     for invert in [false, true] {
         let radial = MaskComponent {
             id: "c2".into(),
@@ -62,10 +121,14 @@ fn gpu_masks_match_cpu_within_tolerance() {
             source: MaskSource::Manual,
             generated: None,
         };
-        let edits = Edits {
-            masks: vec![layer(
-                vec![linear_component(0.4), radial],
-                MaskedEdits {
+        check_both_plans(
+            &renderer,
+            PlanCase {
+                label: if invert { "invert" } else { "normal" },
+                frame: &frame,
+                opts: &opts,
+                components: vec![linear_component(0.4), radial],
+                edits: MaskedEdits {
                     exposure_ev: Some(1.2),
                     brightness: Some(25.0),
                     saturation: Some(30.0),
@@ -74,17 +137,12 @@ fn gpu_masks_match_cpu_within_tolerance() {
                     ..Default::default()
                 },
                 invert,
-            )],
-            ..Default::default()
-        };
-
-        let label = if invert { "invert" } else { "normal" };
-        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-        require_same_dims(label, &cpu, &gpu);
-        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.07);
+                fast_tolerance: 0.07,
+                presence_tolerance: 0.35,
+                min_effect: 0.5,
+            },
+        );
     }
-    ledger.finish();
 }
 
 #[test]
@@ -128,25 +186,24 @@ fn gpu_brush_masks_match_cpu_within_tolerance() {
         source: MaskSource::Manual,
         generated: None,
     };
-    let edits = Edits {
-        masks: vec![layer(
-            vec![brush],
-            MaskedEdits {
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "brush",
+            frame: &frame,
+            opts: &opts,
+            components: vec![brush],
+            edits: MaskedEdits {
                 exposure_ev: Some(1.5),
                 saturation: Some(25.0),
                 ..Default::default()
             },
-            false,
-        )],
-        ..Default::default()
-    };
-
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    require_same_dims("brush", &cpu, &gpu);
-    let mut ledger = ParityLedger::new("masks");
-    ledger.check("brush", &cpu.bytes, &gpu.bytes, 0.05);
-    ledger.finish();
+            invert: false,
+            fast_tolerance: 0.05,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
 }
 
 #[test]
@@ -338,23 +395,22 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
         source: MaskSource::Manual,
         generated: None,
     };
-    let edits = Edits {
-        masks: vec![layer(
-            vec![color, luma],
-            MaskedEdits {
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "color+luma-range",
+            frame: &frame,
+            opts: &opts,
+            components: vec![color, luma],
+            edits: MaskedEdits {
                 exposure_ev: Some(0.8),
                 saturation: Some(20.0),
                 ..Default::default()
             },
-            false,
-        )],
-        ..Default::default()
-    };
-
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    require_same_dims("range", &cpu, &gpu);
-    let mut ledger = ParityLedger::new("masks");
-    ledger.check("color+luma-range", &cpu.bytes, &gpu.bytes, 0.07);
-    ledger.finish();
+            invert: false,
+            fast_tolerance: 0.07,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
 }
