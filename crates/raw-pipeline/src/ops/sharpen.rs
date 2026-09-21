@@ -94,12 +94,16 @@ fn apply_sharpen(
         return;
     }
     let strength = amount * detail_weight;
+    let mut src = Scratch::zeroed(w * h * 3);
+    src.copy_from_slice(&image.rgb);
     image
         .rgb
         .par_chunks_mut(w * 3)
         .zip(blur.par_chunks(w * 3))
         .enumerate()
         .for_each(|(y, (row, brow))| {
+            let ym = y.saturating_sub(1);
+            let yp = (y + 1).min(h - 1);
             for x in 0..w {
                 let i = x * 3;
                 let m = match &mask {
@@ -113,13 +117,34 @@ fn apply_sharpen(
                     }
                     None => strength * m,
                 };
+                let xm = x.saturating_sub(1);
+                let xp = (x + 1).min(w - 1);
+                let (lo, hi) = neighborhood_extrema(&src, w, [xm, x, xp], [ym, y, yp]);
                 for c in 0..3 {
                     let v = row[i + c];
                     let high = v - brow[i + c];
-                    row[i + c] = v + k * high;
+                    row[i + c] = (v + k * high).clamp(lo[c], hi[c]);
                 }
             }
         });
+}
+
+fn neighborhood_extrema(
+    src: &[f32],
+    w: usize,
+    xs: [usize; 3],
+    ys: [usize; 3],
+) -> ([f32; 3], [f32; 3]) {
+    let mut lo = [f32::INFINITY; 3];
+    let mut hi = [f32::NEG_INFINITY; 3];
+    for (ny, nx) in ys.into_iter().flat_map(|ny| xs.map(move |nx| (ny, nx))) {
+        let base = (ny * w + nx) * 3;
+        for c in 0..3 {
+            lo[c] = lo[c].min(src[base + c]);
+            hi[c] = hi[c].max(src[base + c]);
+        }
+    }
+    (lo, hi)
 }
 
 fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {

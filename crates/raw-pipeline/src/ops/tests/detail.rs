@@ -328,7 +328,8 @@ fn sharpen_amplifies_edge_contrast() {
         let mut buf = vec![0.0f32; w * h * 3];
         for y in 0..h {
             for x in 0..w {
-                let v = if x < w / 2 { 0.3 } else { 0.7 };
+                let t = ((x as f32 - (w / 2 - 3) as f32) / 6.0).clamp(0.0, 1.0);
+                let v = 0.3 + 0.4 * t * t * (3.0 - 2.0 * t);
                 let i = (y * w + x) * 3;
                 buf[i] = v;
                 buf[i + 1] = v;
@@ -348,14 +349,14 @@ fn sharpen_amplifies_edge_contrast() {
         ..Default::default()
     };
     let base = mk();
-    let base_left = base.rgb[(8 * w + (w / 2 - 1)) * 3];
-    let base_right = base.rgb[(8 * w + (w / 2)) * 3];
+    let base_left = base.rgb[(8 * w + (w / 2 - 2)) * 3];
+    let base_right = base.rgb[(8 * w + (w / 2 + 2)) * 3];
     let mut img = mk();
     sharpen::SharpenOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    let left = img.rgb[(8 * w + (w / 2 - 1)) * 3];
-    let right = img.rgb[(8 * w + (w / 2)) * 3];
+    let left = img.rgb[(8 * w + (w / 2 - 2)) * 3];
+    let right = img.rgb[(8 * w + (w / 2 + 2)) * 3];
     assert!(
         left < base_left && right > base_right,
         "expected sharper edge: base=({base_left},{base_right}) got=({left},{right})"

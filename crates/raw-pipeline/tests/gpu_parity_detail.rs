@@ -2,7 +2,7 @@ mod common;
 
 use common::{
     ParityLedger, detail_frame, fine_texture_frame, haze_frame, mean_abs_delta, require_same_dims,
-    rgb8_opts, split_tone_frame, stripe_frame, synthetic_frame, try_renderer,
+    rgb8_opts, split_tone_frame, step_edge_frame, stripe_frame, synthetic_frame, try_renderer,
 };
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
 use raw_pipeline::frame::{OutputFormat, PreviewMode, RenderOptions};
@@ -131,6 +131,64 @@ fn gpu_sharpen_matches_cpu() {
         ledger.check(label, &cpu.bytes, &gpu.bytes, limit);
     }
     ledger.finish();
+}
+
+fn worst_overshoot(base: &[u8], sharp: &[u8], w: usize, h: usize) -> i32 {
+    let mut worst = 0i32;
+    for (y, x) in (0..h).flat_map(|y| (0..w).map(move |x| (y, x))) {
+        let ys = [y.saturating_sub(1), y, (y + 1).min(h - 1)];
+        let xs = [x.saturating_sub(1), x, (x + 1).min(w - 1)];
+        for c in 0..3 {
+            let mut lo = u8::MAX;
+            let mut hi = u8::MIN;
+            for (ny, nx) in ys.into_iter().flat_map(|ny| xs.map(move |nx| (ny, nx))) {
+                let v = base[(ny * w + nx) * 3 + c];
+                lo = lo.min(v);
+                hi = hi.max(v);
+            }
+            let v = sharp[(y * w + x) * 3 + c] as i32;
+            worst = worst.max(v - hi as i32).max(lo as i32 - v);
+        }
+    }
+    worst
+}
+
+#[test]
+fn sharpen_stays_inside_local_extrema_on_a_step_edge() {
+    let opts = rgb8_opts(96);
+    let frame = step_edge_frame(96, 64);
+    let flat = Edits::default();
+    let sharp = Edits {
+        detail: DetailEdits {
+            sharpen_amount: Some(150.0),
+            sharpen_radius: 1.0,
+            sharpen_detail: 100.0,
+            sharpen_masking: 0.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cpu_flat = raw_pipeline::cpu::render(&frame, &flat, &opts).unwrap();
+    let cpu_sharp = raw_pipeline::cpu::render(&frame, &sharp, &opts).unwrap();
+    let w = cpu_flat.width as usize;
+    let h = cpu_flat.height as usize;
+    let mut renders = vec![("cpu", cpu_flat.bytes.clone(), cpu_sharp.bytes)];
+    if let Some(renderer) = try_renderer() {
+        let gpu_flat = renderer.render(&frame, &flat, &opts).unwrap();
+        let gpu_sharp = renderer.render(&frame, &sharp, &opts).unwrap();
+        require_same_dims("sharpen-overshoot", &cpu_flat, &gpu_sharp);
+        renders.push(("gpu", gpu_flat.bytes, gpu_sharp.bytes));
+    }
+    for (label, flat_bytes, sharp_bytes) in renders {
+        let effect = mean_abs_delta(&flat_bytes, &sharp_bytes);
+        if effect < 0.5 {
+            panic!("{label} sharpen had no visible effect: {effect:.3}");
+        }
+        let worst = worst_overshoot(&flat_bytes, &sharp_bytes, w, h);
+        if worst > 2 {
+            panic!("{label} sharpen overshot the local extrema by {worst}");
+        }
+    }
 }
 
 #[test]
@@ -265,7 +323,7 @@ fn gpu_capture_sharpen_matches_cpu() {
     require_same_dims("capture-sharpen", &cpu, &gpu);
     let effect = mean_abs_delta(&gpu.bytes, &gpu_off.bytes);
     eprintln!("capture sharpen effect = {effect:.3}");
-    if effect < 0.5 {
+    if effect < 0.3 {
         panic!("capture sharpen had no visible effect: {effect:.3}");
     }
     let mut ledger = ParityLedger::new("capture-sharpen");

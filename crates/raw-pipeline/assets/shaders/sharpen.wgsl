@@ -40,6 +40,16 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let blur = textureLoad(src_blur, vec2<i32>(x, y), 0).rgb;
     let hp = orig - blur;
 
+    var lo = orig;
+    var hi = orig;
+    for (var i = 0; i < 9; i = i + 1) {
+        let nx = clamp(x + i % 3 - 1, 0, max_x);
+        let ny = clamp(y + i / 3 - 1, 0, max_y);
+        let s = textureLoad(src_lin, vec2<i32>(nx, ny), 0).rgb;
+        lo = min(lo, s);
+        hi = max(hi, s);
+    }
+
     var mask = 1.0;
     if (use_mask == 1u) {
         let xm = max(x - 1, 0);
@@ -61,10 +71,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     let strength = (amount / 25.0) * detail_weight * mask;
-    var lin = orig + hp * strength;
+    var lin = clamp(orig + hp * strength, lo, hi);
     if (p.masked.x == 1u) {
         let amt = clamp(amount + textureLoad(mask_sharpen, vec2<i32>(x, y), 0).r, -150.0, 150.0);
-        lin = orig + hp * ((amt / 25.0) * detail_weight * mask);
+        lin = clamp(orig + hp * ((amt / 25.0) * detail_weight * mask), lo, hi);
     }
 
     if (preview_mode == 1u) {
