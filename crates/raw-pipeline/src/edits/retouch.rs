@@ -1,10 +1,11 @@
 use super::masks::{Vec2f, clamp_point};
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 pub const N_MAX_RETOUCH_STROKES: usize = 64;
 pub const N_MAX_RETOUCH_POINTS: usize = 256;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum RetouchMode {
     #[default]
@@ -41,6 +42,27 @@ fn enabled_default() -> bool {
 impl RetouchStroke {
     pub fn is_effective(&self) -> bool {
         self.enabled && !self.points.is_empty() && self.radius > 0.0 && self.opacity > 0.0
+    }
+
+    fn hash_key(&self, h: &mut impl Hasher) {
+        self.id.hash(h);
+        self.mode.hash(h);
+        self.enabled.hash(h);
+        self.points.len().hash(h);
+        for p in self.points.iter().copied().chain([self.source]) {
+            p.x.to_bits().hash(h);
+            p.y.to_bits().hash(h);
+        }
+        for v in [self.radius, self.hardness, self.opacity] {
+            v.to_bits().hash(h);
+        }
+    }
+}
+
+pub fn hash_strokes(strokes: &[RetouchStroke], h: &mut impl Hasher) {
+    strokes.len().hash(h);
+    for stroke in strokes {
+        stroke.hash_key(h);
     }
 }
 
