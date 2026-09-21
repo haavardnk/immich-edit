@@ -22,7 +22,7 @@ pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
 
 pub(crate) fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Scratch {
     let radius = kernel.len() / 2;
-    let mut tmp = Scratch::take_uninit(src.len());
+    let mut tmp = Scratch::zeroed(src.len());
     tmp.par_chunks_mut(w * 3)
         .zip(src.par_chunks(w * 3))
         .for_each(|(dst_row, src_row)| {
@@ -42,7 +42,7 @@ pub(crate) fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32])
                 dst_row[di + 2] = acc[2];
             }
         });
-    let mut out = Scratch::take_uninit(src.len());
+    let mut out = Scratch::zeroed(src.len());
     out.par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, dst_row)| {

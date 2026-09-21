@@ -18,21 +18,10 @@ impl std::fmt::Debug for Scratch {
 }
 
 impl Scratch {
-    pub fn take_zeroed(len: usize) -> Self {
+    pub fn zeroed(len: usize) -> Self {
         let mut v = checkout(len);
         v.clear();
         v.resize(len, 0.0);
-        Self(Some(v))
-    }
-
-    pub fn take_uninit(len: usize) -> Self {
-        let mut v = checkout(len);
-        v.clear();
-        v.reserve(len);
-        #[allow(clippy::uninit_vec)]
-        unsafe {
-            v.set_len(len);
-        }
         Self(Some(v))
     }
 
@@ -103,10 +92,10 @@ mod tests {
     fn reuse_preserves_capacity() {
         let cap_after_drop;
         {
-            let s = Scratch::take_zeroed(1000);
+            let s = Scratch::zeroed(1000);
             cap_after_drop = s.0.as_ref().unwrap().capacity();
         }
-        let s2 = Scratch::take_zeroed(500);
+        let s2 = Scratch::zeroed(500);
         if s2.0.as_ref().unwrap().capacity() < cap_after_drop {
             panic!("scratch did not reuse larger buffer");
         }
@@ -114,7 +103,7 @@ mod tests {
 
     #[test]
     fn zeroed_initializes_to_zero() {
-        let s = Scratch::take_zeroed(64);
+        let s = Scratch::zeroed(64);
         for &v in s.iter() {
             if v != 0.0 {
                 panic!("non-zero in zeroed scratch");
@@ -123,10 +112,29 @@ mod tests {
     }
 
     #[test]
-    fn uninit_has_correct_len() {
-        let s = Scratch::take_uninit(100);
+    fn reused_buffer_is_zeroed_again() {
+        let dirty_cap;
+        {
+            let mut s = Scratch::zeroed(256);
+            s.fill(7.0);
+            dirty_cap = s.0.as_ref().unwrap().capacity();
+        }
+        let s = Scratch::zeroed(256);
+        if s.0.as_ref().unwrap().capacity() != dirty_cap {
+            panic!("expected the dirty buffer back from the pool");
+        }
+        for &v in s.iter() {
+            if v != 0.0 {
+                panic!("pooled scratch handed back stale data");
+            }
+        }
+    }
+
+    #[test]
+    fn zeroed_has_correct_len() {
+        let s = Scratch::zeroed(100);
         if s.len() != 100 {
-            panic!("uninit len mismatch");
+            panic!("zeroed len mismatch");
         }
     }
 }

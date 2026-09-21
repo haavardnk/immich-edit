@@ -1,152 +1,11 @@
 use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
+use crate::ops::box_filter::{box_mean, min_filter};
 use rayon::prelude::*;
 
-fn box_mean_h(src: &[f32], dst: &mut [f32], w: usize, _h: usize, r: usize) {
-    dst.par_chunks_exact_mut(w)
-        .zip(src.par_chunks_exact(w))
-        .for_each(|(d, s)| {
-            let mut sum: f32 = 0.0;
-            for v in s.iter().take(r.min(w)) {
-                sum += *v;
-            }
-            for (x, dv) in d.iter_mut().enumerate() {
-                let add = x + r;
-                if add < w {
-                    sum += s[add];
-                }
-                let rem = x as isize - r as isize - 1;
-                if rem >= 0 {
-                    sum -= s[rem as usize];
-                }
-                let lo = rem.max(-1) + 1;
-                let hi = (add.min(w - 1)) as isize;
-                let count = (hi - lo + 1) as f32;
-                *dv = sum / count;
-            }
-        });
-}
-
-fn box_mean_v(src: &[f32], dst: &mut [f32], w: usize, h: usize, r: usize) {
-    let src_addr = src.as_ptr() as usize;
-    let dst_addr = dst.as_mut_ptr() as usize;
-    (0..w).into_par_iter().for_each(|x| {
-        let s_ptr = src_addr as *const f32;
-        let d_ptr = dst_addr as *mut f32;
-        let mut sum: f32 = 0.0;
-        for y in 0..(r.min(h)) {
-            unsafe {
-                sum += *s_ptr.add(y * w + x);
-            }
-        }
-        for y in 0..h {
-            let add = y + r;
-            if add < h {
-                unsafe {
-                    sum += *s_ptr.add(add * w + x);
-                }
-            }
-            let rem = y as isize - r as isize - 1;
-            if rem >= 0 {
-                unsafe {
-                    sum -= *s_ptr.add(rem as usize * w + x);
-                }
-            }
-            let lo = rem.max(-1) + 1;
-            let hi = (add.min(h - 1)) as isize;
-            let count = (hi - lo + 1) as f32;
-            unsafe {
-                *d_ptr.add(y * w + x) = sum / count;
-            }
-        }
-    });
-}
-
-fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
-    let mut tmp = Scratch::take_uninit(w * h);
-    let mut out = Scratch::take_uninit(w * h);
-    box_mean_h(src, &mut tmp, w, h, r);
-    box_mean_v(&tmp, &mut out, w, h, r);
-    out
-}
-
-fn min_filter_h(src: &[f32], dst: &mut [f32], w: usize, _h: usize, r: usize) {
-    dst.par_chunks_exact_mut(w)
-        .zip(src.par_chunks_exact(w))
-        .for_each(|(d, s)| {
-            let mut deque: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
-            for x in 0..w + r {
-                if x < w {
-                    while let Some(&back) = deque.back() {
-                        if s[back] >= s[x] {
-                            deque.pop_back();
-                        } else {
-                            break;
-                        }
-                    }
-                    deque.push_back(x);
-                }
-                let lo_isz = x as isize - 2 * r as isize;
-                while let Some(&front) = deque.front() {
-                    if (front as isize) < lo_isz {
-                        deque.pop_front();
-                    } else {
-                        break;
-                    }
-                }
-                if x >= r {
-                    d[x - r] = s[*deque.front().unwrap()];
-                }
-            }
-        });
-}
-
-fn min_filter_v(src: &[f32], dst: &mut [f32], w: usize, h: usize, r: usize) {
-    let dst_addr = dst.as_mut_ptr() as usize;
-    (0..w).into_par_iter().for_each(|x| {
-        let dst_ptr = dst_addr as *mut f32;
-        let mut deque: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
-        for y in 0..h + r {
-            if y < h {
-                let v = src[y * w + x];
-                while let Some(&back) = deque.back() {
-                    if src[back * w + x] >= v {
-                        deque.pop_back();
-                    } else {
-                        break;
-                    }
-                }
-                deque.push_back(y);
-            }
-            let lo_isz = y as isize - 2 * r as isize;
-            while let Some(&front) = deque.front() {
-                if (front as isize) < lo_isz {
-                    deque.pop_front();
-                } else {
-                    break;
-                }
-            }
-            if y >= r {
-                let c = y - r;
-                unsafe {
-                    *dst_ptr.add(c * w + x) = src[*deque.front().unwrap() * w + x];
-                }
-            }
-        }
-    });
-}
-
-fn min_filter(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
-    let mut tmp = Scratch::take_uninit(w * h);
-    let mut out = Scratch::take_uninit(w * h);
-    min_filter_h(src, &mut tmp, w, h, r);
-    min_filter_v(&tmp, &mut out, w, h, r);
-    out
-}
-
 fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
-    let mut out = Scratch::take_uninit(w * h);
+    let mut out = Scratch::zeroed(w * h);
     out.par_iter_mut().enumerate().for_each(|(i, v)| {
         let r = rgb[i * 3].clamp(0.0, 1.0);
         let g = rgb[i * 3 + 1].clamp(0.0, 1.0);
@@ -297,11 +156,11 @@ fn guided_coeffs(
     let n = w * h;
     let mean_i = box_mean(guide, w, h, r);
     let mean_p = box_mean(p, w, h, r);
-    let mut ii = Scratch::take_uninit(n);
+    let mut ii = Scratch::zeroed(n);
     ii.par_iter_mut()
         .zip(guide.par_iter())
         .for_each(|(d, x)| *d = x * x);
-    let mut ip = Scratch::take_uninit(n);
+    let mut ip = Scratch::zeroed(n);
     ip.par_iter_mut()
         .zip(guide.par_iter().zip(p.par_iter()))
         .for_each(|(d, (a, b))| *d = a * b);
@@ -309,7 +168,7 @@ fn guided_coeffs(
     drop(ii);
     let corr_ip = box_mean(&ip, w, h, r);
     drop(ip);
-    let mut a_coef = Scratch::take_uninit(n);
+    let mut a_coef = Scratch::zeroed(n);
     a_coef
         .par_iter_mut()
         .zip(
@@ -325,7 +184,7 @@ fn guided_coeffs(
         });
     drop(corr_i);
     drop(corr_ip);
-    let mut b_coef = Scratch::take_uninit(n);
+    let mut b_coef = Scratch::zeroed(n);
     b_coef
         .par_iter_mut()
         .zip(
@@ -393,7 +252,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
         bilinear_downsample(&image.rgb, w, h, lw, lh)
     };
     let n = lw * lh;
-    let mut dn = Scratch::take_uninit(n);
+    let mut dn = Scratch::zeroed(n);
     dn.par_iter_mut().enumerate().for_each(|(i, v)| {
         let r = (lo[i * 3] / atm[0]).clamp(0.0, 1.0);
         let g = (lo[i * 3 + 1] / atm[1]).clamp(0.0, 1.0);
@@ -402,13 +261,13 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     });
     let dn_patch = min_filter(&dn, lw, lh, r_patch);
     drop(dn);
-    let mut t_raw = Scratch::take_uninit(n);
+    let mut t_raw = Scratch::zeroed(n);
     t_raw
         .par_iter_mut()
         .zip(dn_patch.par_iter())
         .for_each(|(d, s)| *d = (1.0 - 0.95 * s).clamp(0.0, 1.0));
     drop(dn_patch);
-    let mut guide = Scratch::take_uninit(n);
+    let mut guide = Scratch::zeroed(n);
     guide.par_iter_mut().enumerate().for_each(|(i, v)| {
         *v = luma(
             lo[i * 3].clamp(0.0, 1.0),
