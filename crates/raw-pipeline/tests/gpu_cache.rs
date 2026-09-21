@@ -3,12 +3,69 @@ use std::sync::Arc;
 use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
 };
-use raw_pipeline::frame::{OutputFormat, RenderOptions};
+use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
 
 mod common;
 
-use common::{haze_frame, rgb8_opts, synthetic_frame, try_renderer};
+use common::{haze_frame, rgb8_opts, synthetic_frame, try_renderer, try_renderer_with_budget};
+
+fn nr_edits() -> Edits {
+    let mut edits = Edits::default();
+    edits.detail.luma_nr_amount = 40.0;
+    edits.detail.color_nr_amount = 30.0;
+    edits
+}
+
+#[test]
+fn stage_textures_stay_inside_the_texture_budget() {
+    const BUDGET: u64 = 256 * 1024;
+    let Some(renderer) = try_renderer_with_budget(BUDGET) else {
+        return;
+    };
+    let frames: Vec<RawFrame> = (0..6).map(|_| synthetic_frame(96, 64)).collect();
+    let edits = nr_edits();
+    let opts = rgb8_opts(96);
+    for frame in &frames {
+        renderer.render(frame, &edits, &opts).unwrap();
+    }
+
+    let stats = renderer.pool_stats();
+    let budgeted = stats.texture_pool + stats.wb_cache + stats.nr_cache + stats.capture_cache;
+    if budgeted > BUDGET {
+        panic!("cached gpu textures used {budgeted} bytes for a {BUDGET} byte budget");
+    }
+    if stats.nr_cache == 0 {
+        panic!("no noise reduction result was cached");
+    }
+}
+
+#[test]
+fn a_large_budget_keeps_more_than_two_stage_textures() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frames: Vec<RawFrame> = (0..4).map(|_| synthetic_frame(96, 64)).collect();
+    let edits = nr_edits();
+    let opts = rgb8_opts(96);
+
+    renderer.render(&frames[0], &edits, &opts).unwrap();
+    let one = renderer.pool_stats().nr_cache;
+    for frame in &frames[1..] {
+        renderer.render(frame, &edits, &opts).unwrap();
+    }
+    let all = renderer.pool_stats().nr_cache;
+
+    if one == 0 {
+        panic!("no noise reduction result was cached");
+    }
+    if all < one * 4 {
+        panic!(
+            "only {all} bytes of noise reduction results survived, expected {} ",
+            one * 4
+        );
+    }
+}
 
 #[test]
 fn atmosphere_is_reused_across_non_spatial_edits() {

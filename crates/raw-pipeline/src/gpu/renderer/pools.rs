@@ -68,7 +68,7 @@ pub struct GpuPoolStats {
     pub atlas_pool: u64,
 }
 
-fn texture_bytes(tex: &Texture) -> u64 {
+pub(super) fn texture_bytes(tex: &Texture) -> u64 {
     let bpp = tex.format().block_copy_size(None).unwrap_or(0) as u64;
     let w = tex.width() as u64;
     let h = tex.height() as u64;
@@ -113,24 +113,9 @@ impl GpuRenderer {
                 .iter()
                 .map(sharpen_targets_bytes)
                 .sum(),
-            wb_cache: self
-                .wb_cache
-                .lock()
-                .iter()
-                .map(|(_, t)| texture_bytes(t))
-                .sum(),
-            nr_cache: self
-                .nr_cache
-                .lock()
-                .iter()
-                .map(|(_, t)| texture_bytes(t))
-                .sum(),
-            capture_cache: self
-                .capture_cache
-                .lock()
-                .iter()
-                .map(|(_, t)| texture_bytes(t))
-                .sum(),
+            wb_cache: self.stages.bytes(super::Stage::Wb),
+            nr_cache: self.stages.bytes(super::Stage::Nr),
+            capture_cache: self.stages.bytes(super::Stage::Capture),
             atlas_cache: self
                 .atlas_cache
                 .lock()

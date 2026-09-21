@@ -31,13 +31,16 @@ mod output;
 mod pools;
 mod resample;
 mod retouch;
+mod stage_cache;
 mod uniform;
 mod upload;
 
 use cache_keys::StageKeys;
 use geometry::{compute_out_dims, crop_px, process_geom};
 pub use pools::GpuPoolStats;
+use stage_cache::{Stage, StageCache};
 
+use super::budget::GpuBudget;
 use super::display_depth::DisplayDepth;
 use super::texture_pool::TextureKey;
 
@@ -103,9 +106,7 @@ pub struct GpuRenderer {
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
-    wb_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
-    nr_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
-    capture_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
+    stages: StageCache,
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
@@ -120,9 +121,6 @@ pub struct GpuRenderer {
 }
 
 const ATM_CACHE_ITEMS: usize = 16;
-const WB_CACHE_ITEMS: usize = 2;
-const NR_CACHE_ITEMS: usize = 2;
-const CAPTURE_CACHE_ITEMS: usize = 2;
 const LUT_TEX_CACHE_ITEMS: usize = 4;
 const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 
@@ -130,17 +128,17 @@ const ATLAS_CACHE_ITEMS: usize = 32;
 const ATLAS_POOL_ITEMS: usize = 2;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
-const DEFAULT_TEXTURE_POOL_MAX_BYTES: u64 = 512 * 1024 * 1024;
+const DEFAULT_TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GpuRendererOptions {
-    pub texture_pool_max_bytes: u64,
+    pub texture_cache_max_bytes: u64,
 }
 
 impl Default for GpuRendererOptions {
     fn default() -> Self {
         Self {
-            texture_pool_max_bytes: DEFAULT_TEXTURE_POOL_MAX_BYTES,
+            texture_cache_max_bytes: DEFAULT_TEXTURE_CACHE_MAX_BYTES,
         }
     }
 }
@@ -153,6 +151,8 @@ impl GpuRenderer {
     pub fn with_options(options: GpuRendererOptions) -> PipelineResult<Self> {
         let ctx = GpuContext::new()?;
         let passes = Arc::new(GpuPasses::new(&ctx));
+        let budget = GpuBudget::new(options.texture_cache_max_bytes);
+        let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
         Ok(Self {
             ctx,
             passes,
@@ -162,15 +162,7 @@ impl GpuRenderer {
             atm_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATM_CACHE_ITEMS).expect("nonzero"),
             )),
-            wb_cache: Mutex::new(lru::LruCache::new(
-                NonZeroUsize::new(WB_CACHE_ITEMS).expect("nonzero"),
-            )),
-            nr_cache: Mutex::new(lru::LruCache::new(
-                NonZeroUsize::new(NR_CACHE_ITEMS).expect("nonzero"),
-            )),
-            capture_cache: Mutex::new(lru::LruCache::new(
-                NonZeroUsize::new(CAPTURE_CACHE_ITEMS).expect("nonzero"),
-            )),
+            stages: StageCache::new(budget, texture_pool.clone()),
             lut_tex_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(LUT_TEX_CACHE_ITEMS).expect("nonzero"),
             )),
@@ -184,10 +176,7 @@ impl GpuRenderer {
             atlas_pool: Mutex::new(Vec::new()),
             atlas_allocs: std::sync::atomic::AtomicU64::new(0),
             atlas_uploads: std::sync::atomic::AtomicU64::new(0),
-            texture_pool: TexturePool::new(
-                TEXTURE_POOL_CAP_PER_KEY,
-                options.texture_pool_max_bytes,
-            ),
+            texture_pool,
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
             output_pool: Mutex::new(Vec::new()),
             sharpen_pool: Mutex::new(Vec::new()),

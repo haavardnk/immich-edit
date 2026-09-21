@@ -10,6 +10,7 @@ use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
+use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
 use crate::gpu::uniforms::ProcessHeader;
@@ -24,7 +25,7 @@ impl GpuRenderer {
         setup: &crate::dcp_pipeline::DcpSetup,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.wb_cache.lock().get(&key).cloned() {
+        if let Some(t) = self.stages.get(Stage::Wb, key) {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);
         }
@@ -123,7 +124,7 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(wb_base);
-        self.wb_cache.lock().put(key, out.clone());
+        self.stages.put(Stage::Wb, key, out.clone());
         Ok(out)
     }
 }

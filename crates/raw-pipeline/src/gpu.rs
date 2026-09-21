@@ -1,3 +1,4 @@
+mod budget;
 pub mod context;
 mod dispatch;
 pub mod display_depth;

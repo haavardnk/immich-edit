@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use raw_pipeline::GpuRenderer;
+use raw_pipeline::GpuRendererOptions;
 use raw_pipeline::decode;
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions, RenderedImage};
 use std::path::{Path, PathBuf};
@@ -93,6 +94,18 @@ pub fn decode_jpeg_rgb(jpeg: &[u8]) -> (Vec<u8>, usize, usize) {
 
 pub fn try_renderer() -> Option<GpuRenderer> {
     match GpuRenderer::new() {
+        Ok(r) => Some(r),
+        Err(e) => {
+            eprintln!("no gpu adapter, skipping: {e}");
+            None
+        }
+    }
+}
+
+pub fn try_renderer_with_budget(texture_cache_max_bytes: u64) -> Option<GpuRenderer> {
+    match GpuRenderer::with_options(GpuRendererOptions {
+        texture_cache_max_bytes,
+    }) {
         Ok(r) => Some(r),
         Err(e) => {
             eprintln!("no gpu adapter, skipping: {e}");
