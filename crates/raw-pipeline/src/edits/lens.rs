@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 pub const MAX_LENS_COEFF: f64 = 2.0;
 pub const MAX_VIGNETTE_COEFF: f64 = 8.0;
@@ -58,6 +59,26 @@ impl Default for LensEdits {
 }
 
 impl LensEdits {
+    pub fn hash_key(&self, h: &mut impl Hasher) {
+        self.profile_enabled.hash(h);
+        self.ca_enabled.hash(h);
+        self.constrain_crop.hash(h);
+        for v in [
+            self.distortion_amount,
+            self.vignette_amount,
+            self.k1,
+            self.k2,
+            self.k3,
+            self.vk1,
+            self.vk2,
+            self.vk3,
+            self.ca_red_scale_x10000,
+            self.ca_blue_scale_x10000,
+        ] {
+            v.to_bits().hash(h);
+        }
+    }
+
     pub fn profile_active(&self) -> bool {
         self.profile_enabled.unwrap_or(false)
     }

@@ -23,7 +23,9 @@ pub use masks::{
     N_MAX_COMPONENTS_PER_LAYER, N_MAX_MASK_LAYERS, N_MAX_POLYGON_POINTS, N_MAX_RASTER_SLOTS,
     N_MAX_TOTAL_COMPONENTS, RangeMeta, Vec2f,
 };
-pub use retouch::{N_MAX_RETOUCH_POINTS, N_MAX_RETOUCH_STROKES, RetouchMode, RetouchStroke};
+pub use retouch::{
+    N_MAX_RETOUCH_POINTS, N_MAX_RETOUCH_STROKES, RetouchMode, RetouchStroke, hash_strokes,
+};
 
 use masks::clamp_masks;
 use retouch::clamp_retouch;

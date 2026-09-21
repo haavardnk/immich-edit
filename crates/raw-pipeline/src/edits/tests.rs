@@ -248,6 +248,76 @@ fn nr_hash_tracks_every_field() {
     }
 }
 
+#[test]
+fn lens_hash_tracks_every_field() {
+    fn hash(l: &LensEdits) -> u64 {
+        use std::hash::Hasher;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        l.hash_key(&mut h);
+        h.finish()
+    }
+    let mutators: [fn(&mut LensEdits); 13] = [
+        |l| l.profile_enabled = Some(true),
+        |l| l.ca_enabled = true,
+        |l| l.constrain_crop = true,
+        |l| l.distortion_amount = 50.0,
+        |l| l.vignette_amount = 50.0,
+        |l| l.k1 = 0.5,
+        |l| l.k2 = 0.5,
+        |l| l.k3 = 0.5,
+        |l| l.vk1 = 0.5,
+        |l| l.vk2 = 0.5,
+        |l| l.vk3 = 0.5,
+        |l| l.ca_red_scale_x10000 = 25.0,
+        |l| l.ca_blue_scale_x10000 = 25.0,
+    ];
+    let base = hash(&LensEdits::default());
+    for (i, mutate) in mutators.iter().enumerate() {
+        let mut l = LensEdits::default();
+        mutate(&mut l);
+        assert_ne!(hash(&l), base, "field {i}");
+    }
+}
+
+#[test]
+fn stroke_hash_tracks_every_field() {
+    fn stroke() -> RetouchStroke {
+        RetouchStroke {
+            id: "a".into(),
+            mode: RetouchMode::Heal,
+            points: vec![Vec2f { x: 0.1, y: 0.2 }],
+            radius: 0.05,
+            hardness: 0.5,
+            opacity: 1.0,
+            source: Vec2f { x: 0.3, y: 0.4 },
+            enabled: true,
+        }
+    }
+    fn hash(strokes: &[RetouchStroke]) -> u64 {
+        use std::hash::Hasher;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        hash_strokes(strokes, &mut h);
+        h.finish()
+    }
+    let mutators: [fn(&mut RetouchStroke); 8] = [
+        |s| s.id = "b".into(),
+        |s| s.mode = RetouchMode::Clone,
+        |s| s.points.push(Vec2f { x: 0.5, y: 0.6 }),
+        |s| s.radius = 0.06,
+        |s| s.hardness = 0.6,
+        |s| s.opacity = 0.9,
+        |s| s.source = Vec2f { x: 0.7, y: 0.8 },
+        |s| s.enabled = false,
+    ];
+    let base = hash(&[stroke()]);
+    for (i, mutate) in mutators.iter().enumerate() {
+        let mut s = stroke();
+        mutate(&mut s);
+        assert_ne!(hash(&[s]), base, "field {i}");
+    }
+    assert_ne!(hash(&[stroke(), stroke()]), base);
+}
+
 fn populated_edits() -> Edits {
     Edits {
         basic: BasicEdits {

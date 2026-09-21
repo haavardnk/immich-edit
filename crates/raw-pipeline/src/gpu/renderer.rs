@@ -34,7 +34,7 @@ mod retouch;
 mod uniform;
 mod upload;
 
-use cache_keys::{capture_cache_key, spatial_cache_key};
+use cache_keys::StageKeys;
 use geometry::{compute_out_dims, crop_px, process_geom};
 pub use pools::GpuPoolStats;
 
@@ -540,7 +540,8 @@ impl GpuRenderer {
         setup: &crate::dcp_pipeline::DcpSetup,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<((u32, u32), Arc<Texture>)> {
-        let wb_base = self.run_wb_prepare(cached, frame, edits, setup)?;
+        let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
+        let wb_base = self.run_wb_prepare(cached, frame, edits, setup, keys.wb)?;
         crate::cancel::check(cancel)?;
         let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
             let t = self.run_retouch(wb_base, dims, frame, edits)?;
@@ -551,7 +552,7 @@ impl GpuRenderer {
         };
         let full_src: Arc<Texture> =
             if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
-                let t = self.run_nr(&wb_base, dims, edits, frame, setup.cam_to_srgb)?;
+                let t = self.run_nr(&wb_base, dims, edits, keys.nr)?;
                 crate::cancel::check(cancel)?;
                 t
             } else {
@@ -561,8 +562,7 @@ impl GpuRenderer {
             .filter(|_| dims.0 >= 8 && dims.1 >= 8);
         let full_src: Arc<Texture> = match sigma {
             Some(sigma) => {
-                let key = capture_cache_key(frame, edits, dims, setup.cam_to_srgb, sigma);
-                let t = self.run_capture_sharpen(&full_src, dims, sigma, key)?;
+                let t = self.run_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))?;
                 crate::cancel::check(cancel)?;
                 t
             }
@@ -586,7 +586,7 @@ impl GpuRenderer {
             None => (dims, full_src),
         };
         let base = if edits.basic.dehaze != 0.0 {
-            let key = spatial_cache_key(frame, edits, dims, setup.cam_to_srgb, sigma, spatial_dims);
+            let key = keys.spatial(sigma, spatial_dims);
             let atm = self.atmosphere_for(key, spatial_src.as_ref(), spatial_dims, cancel)?;
             let _span = tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
                 .entered();

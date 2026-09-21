@@ -10,7 +10,6 @@ use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
-use crate::gpu::renderer::cache_keys::wb_cache_key;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
 use crate::gpu::uniforms::ProcessHeader;
@@ -23,13 +22,8 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
         setup: &crate::dcp_pipeline::DcpSetup,
+        key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        let key = wb_cache_key(
-            frame,
-            edits,
-            (cached.width, cached.height),
-            setup.cam_to_srgb,
-        );
         if let Some(t) = self.wb_cache.lock().get(&key).cloned() {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);

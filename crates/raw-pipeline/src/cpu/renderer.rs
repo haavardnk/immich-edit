@@ -113,18 +113,15 @@ pub(crate) fn sensor_cache_key(
         .hash(&mut h);
     edits.basic.wb_temp.to_bits().hash(&mut h);
     edits.basic.wb_tint.to_bits().hash(&mut h);
-    serde_json::to_vec(&edits.lens)
-        .unwrap_or_default()
-        .hash(&mut h);
-    serde_json::to_vec(&edits.retouch)
-        .unwrap_or_default()
-        .hash(&mut h);
+    edits.lens.hash_key(&mut h);
+    crate::edits::hash_strokes(&edits.retouch, &mut h);
     let d = &edits.detail;
     d.hash_nr(&mut h);
     d.capture_sharpen.hash(&mut h);
     preview_ratio.map(f32::to_bits).hash(&mut h);
-    serde_json::to_vec(&options.roi)
-        .unwrap_or_default()
-        .hash(&mut h);
+    options.roi.is_some().hash(&mut h);
+    if let Some(roi) = options.roi {
+        roi.hash_key(&mut h);
+    }
     h.finish()
 }

@@ -7,13 +7,11 @@ use wgpu::{
 
 use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::nr::NrParams;
 use crate::gpu::passes::nr_smooth::NrSmoothParams;
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::renderer::cache_keys::nr_cache_key;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_nr(
@@ -21,10 +19,8 @@ impl GpuRenderer {
         src: &Texture,
         dims: (u32, u32),
         edits: &Edits,
-        frame: &RawFrame,
-        cam_to_srgb: [[f32; 3]; 3],
+        key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        let key = nr_cache_key(frame, edits, dims, cam_to_srgb);
         if let Some(t) = self.nr_cache.lock().get(&key).cloned() {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);

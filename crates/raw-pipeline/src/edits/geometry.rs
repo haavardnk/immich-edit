@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 use crate::perspective::PerspectiveEdits;
 
@@ -11,6 +12,12 @@ pub struct CropRect {
 }
 
 impl CropRect {
+    pub fn hash_key(&self, h: &mut impl Hasher) {
+        for v in [self.x, self.y, self.w, self.h] {
+            v.to_bits().hash(h);
+        }
+    }
+
     pub fn full() -> Self {
         Self {
             x: 0.0,
