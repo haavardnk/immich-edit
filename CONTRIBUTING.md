@@ -12,7 +12,12 @@ Before changing code, read:
 - Add focused tests for changed behavior.
 - Update public documentation in the same commit as user-visible behavior, routes, configuration,
   storage, or render defaults.
-- Run the validation commands for the changed area.
+- Validate the changed area. Rust changes run `cargo fmt` and
+  `cargo clippy --workspace --lib --bins --tests -- -D warnings`; frontend changes run
+  `npm run lint`, `npm run check` and `npm run test:unit` in `web/`. Pick the test command for the
+  area you touched from the table in
+  [Development](https://haavardnk.github.io/immich-edit/development/#test-changes), and run the
+  Playwright specifications covering any user flow you changed.
 - Include local GPU evidence for shader, GPU pass, device, or CPU/GPU parity changes.
 - Use a conventional commit title under 50 characters.
 
