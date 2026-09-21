@@ -54,6 +54,7 @@ impl ModelStore {
     pub fn new(pool: SqlitePool, data_dir: &Path) -> Result<Self, ModelStoreError> {
         let dir = data_dir.join("models");
         std::fs::create_dir_all(&dir)?;
+        sweep_partial_downloads(&dir);
         Ok(Self { pool, dir })
     }
 
@@ -256,6 +257,29 @@ impl ModelStore {
     }
 }
 
+fn sweep_partial_downloads(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let stale = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(".tmp-"))
+        });
+    for path in stale {
+        match std::fs::remove_file(&path) {
+            Ok(()) => tracing::info!(path = %path.display(), "removed partial model download"),
+            Err(err) => {
+                tracing::warn!(path = %path.display(), %err, "failed to remove partial download")
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +307,23 @@ mod tests {
             hash: blob_store::content_hash(bytes),
             len: bytes.len() as u64,
         }
+    }
+
+    #[tokio::test]
+    async fn sweeps_partial_downloads_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let models = dir.path().join("models");
+        std::fs::create_dir_all(&models).unwrap();
+        let partial = models.join(format!(".tmp-{}", Uuid::new_v4()));
+        let blob = models.join("deadbeef.onnx");
+        std::fs::write(&partial, b"half a model").unwrap();
+        std::fs::write(&blob, b"a real blob").unwrap();
+
+        let edits = EditsStore::migrated_memory().await.unwrap();
+        ModelStore::new(edits.pool(), dir.path()).unwrap();
+
+        assert!(!partial.exists(), "partial download survived the sweep");
+        assert!(blob.exists(), "sweep removed an installed blob");
     }
 
     #[tokio::test]
