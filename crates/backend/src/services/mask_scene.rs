@@ -73,4 +73,20 @@ mod tests {
         let out = combine_coverage(&[255, 255, 128], &[255, 0, 128], true);
         assert_eq!(out, vec![0, 255, 64]);
     }
+
+    #[test]
+    fn the_coverage_ends_are_exact() {
+        let base: Vec<u8> = vec![0, 1, 127, 128, 254, 255];
+        let empty = vec![0u8; base.len()];
+        let full = vec![255u8; base.len()];
+        assert_eq!(combine_coverage(&base, &empty, false), base);
+        assert_eq!(combine_coverage(&base, &full, false), full);
+        assert_eq!(combine_coverage(&base, &empty, true), base);
+        assert_eq!(combine_coverage(&base, &full, true), empty);
+    }
+
+    #[test]
+    fn combining_stops_at_the_shorter_plane() {
+        assert_eq!(combine_coverage(&[10, 20, 30], &[255], false), vec![255]);
+    }
 }

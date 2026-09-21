@@ -283,6 +283,32 @@ mod tests {
     }
 
     #[test]
+    fn distance_transform_matches_a_brute_force_scan() {
+        let w = 11;
+        let h = 7;
+        let seeds = [(0usize, 0usize), (9, 2), (4, 6)];
+        let mut binary = vec![false; w * h];
+        for (x, y) in seeds {
+            binary[y * w + x] = true;
+        }
+        let d = distance_transform(&binary, w, h);
+        for y in 0..h {
+            for x in 0..w {
+                let want = seeds
+                    .iter()
+                    .map(|(sx, sy)| {
+                        let dx = x as f32 - *sx as f32;
+                        let dy = y as f32 - *sy as f32;
+                        (dx * dx + dy * dy).sqrt()
+                    })
+                    .fold(f32::INFINITY, f32::min);
+                let got = d[y * w + x];
+                assert!((got - want).abs() < 1e-4, "({x},{y}) = {got} not {want}");
+            }
+        }
+    }
+
+    #[test]
     fn grow_expands_and_shrinks() {
         let w = 32;
         let h = 8;
