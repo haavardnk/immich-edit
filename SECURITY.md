@@ -2,7 +2,9 @@
 
 ## Supported versions
 
-Only the latest released version receives security updates during the `0.x` release line.
+Only the latest release receives security updates. Fixes ship as a new release rather than as a
+patch to an older tag, so upgrade to the newest version listed on the
+[releases page](https://github.com/haavardnk/immich-edit/releases).
 
 ## Reporting a vulnerability
 
@@ -22,4 +24,7 @@ Please give me time to fix the issue before publishing details. I will publish a
 
 ## Dependency audit exceptions
 
-`RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` are temporarily excluded from the automated Rust audit. They affect XML attribute and namespace parsing in `quick-xml` through XMP code in `little_exif`. immich-edit uses EXIF read/write paths and does not parse XMP through those paths. The exceptions should be removed when `little_exif` supports `quick-xml` 0.41 or newer, or before adding XMP parsing.
+`cargo audit` runs in CI and a few advisories are excluded from it. The authoritative list is the
+`ignore:` line in [`.github/workflows/audit.yml`](.github/workflows/audit.yml), where each entry
+carries the reason it is there. An exception is only acceptable while the advisory cannot reach a
+code path immich-edit uses, and is removed as soon as an upgrade clears it.
