@@ -127,6 +127,10 @@ instead of copying one into a test binary.
 Local scratch files under `crates/ml/examples` and `crates/raw-pipeline/examples` are ignored and can
 break `--all-targets`. Do not add dependencies only to compile a scratch file.
 
+`docs/shortcuts.md` is generated from the `KEYBINDS` registry in `web/src/lib/keybinds.ts`. After
+changing a shortcut run `npm run docs:shortcuts` in `web/` instead of editing the page;
+`npm run test:unit` fails while the page and the registry disagree.
+
 ## Change the product
 
 - Keep raw-pipeline independent from HTTP, Immich, SQLite, and disk orchestration.
