@@ -167,6 +167,24 @@ pub fn detail_frame(w: usize, h: usize) -> RawFrame {
     rgb_frame(w, h, data)
 }
 
+pub fn step_edge_frame(w: usize, h: usize) -> RawFrame {
+    let mut data = vec![0.0f32; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) * 3;
+            let step = if x < w / 2 { 0.18 } else { 0.62 };
+            let ripple = 0.05
+                * (std::f32::consts::TAU * x as f32 / 7.0).sin()
+                * (std::f32::consts::TAU * y as f32 / 5.0).sin();
+            let level = step + ripple;
+            data[i] = level;
+            data[i + 1] = level * 0.9;
+            data[i + 2] = level * 0.8;
+        }
+    }
+    rgb_frame(w, h, data)
+}
+
 pub fn fine_texture_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     let period = 32.0f32;

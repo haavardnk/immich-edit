@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-    ParityLedger, detail_frame, mean_abs_delta, require_same_dims, rgb8_opts, synthetic_frame,
-    try_renderer,
+    ParityLedger, detail_frame, mean_abs_delta, require_same_dims, rgb8_opts, step_edge_frame,
+    synthetic_frame, try_renderer,
 };
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
@@ -253,7 +253,7 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let frame = detail_frame(96, 64);
+    let frame = step_edge_frame(96, 64);
     let opts = rgb8_opts(96);
     let edits = Edits {
         masks: vec![layer(
@@ -308,7 +308,7 @@ fn gpu_masked_sharpen_matches_cpu_and_changes_output() {
     }
 
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("masked-sharpen", &cpu.bytes, &gpu.bytes, 0.35);
+    ledger.check("masked-sharpen", &cpu.bytes, &gpu.bytes, 0.1);
     ledger.finish();
 }
 
