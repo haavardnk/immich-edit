@@ -113,6 +113,7 @@ impl AppState {
                 gpu_texture_cache_mb: config.gpu_texture_cache_mb,
             },
             config.renderer,
+            config.gpu_timestamps,
             rasters.clone(),
             luts.clone(),
             dcp.clone(),

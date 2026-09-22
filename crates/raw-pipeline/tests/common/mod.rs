@@ -105,6 +105,7 @@ pub fn try_renderer() -> Option<GpuRenderer> {
 pub fn try_renderer_with_budget(texture_cache_max_bytes: u64) -> Option<GpuRenderer> {
     match GpuRenderer::with_options(GpuRendererOptions {
         texture_cache_max_bytes,
+        timestamps: false,
     }) {
         Ok(r) => Some(r),
         Err(e) => {

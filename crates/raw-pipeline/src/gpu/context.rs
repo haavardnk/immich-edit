@@ -16,15 +16,20 @@ pub struct GpuContext {
     pub queue: Queue,
     pub adapter_info: AdapterInfo,
     pub linear_format: TextureFormat,
+    pub timestamps: bool,
     device_lost: Arc<AtomicBool>,
 }
 
 impl GpuContext {
     pub fn new() -> PipelineResult<Arc<Self>> {
-        pollster::block_on(Self::new_async())
+        Self::with_timestamps(false)
     }
 
-    pub async fn new_async() -> PipelineResult<Arc<Self>> {
+    pub fn with_timestamps(timestamps: bool) -> PipelineResult<Arc<Self>> {
+        pollster::block_on(Self::new_async(timestamps))
+    }
+
+    pub async fn new_async(timestamps: bool) -> PipelineResult<Arc<Self>> {
         let mut instance_desc = InstanceDescriptor::new_without_display_handle();
         instance_desc.backends = Backends::PRIMARY;
         let instance = Instance::new(instance_desc);
@@ -59,10 +64,17 @@ impl GpuContext {
             .max(512 * 1024 * 1024)
             .min(adapter_limits.max_buffer_size);
 
+        let timestamps = timestamps && adapter.features().contains(Features::TIMESTAMP_QUERY);
+        let required_features = if timestamps {
+            Features::TIMESTAMP_QUERY
+        } else {
+            Features::empty()
+        };
+
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: Some("immich-edit gpu"),
-                required_features: Features::empty(),
+                required_features,
                 required_limits: limits,
                 experimental_features: Default::default(),
                 memory_hints: MemoryHints::Performance,
@@ -85,6 +97,7 @@ impl GpuContext {
             queue,
             adapter_info,
             linear_format,
+            timestamps,
             device_lost,
         }))
     }

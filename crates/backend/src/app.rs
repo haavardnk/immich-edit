@@ -31,7 +31,8 @@ mod middleware;
 
 use cors::build_cors;
 use middleware::{
-    auth_middleware, csrf_guard, inject_auth_context, request_id_scope, resolve_client_meta,
+    auth_middleware, count_timeouts, csrf_guard, inject_auth_context, request_id_scope,
+    resolve_client_meta,
 };
 
 const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
@@ -97,7 +98,8 @@ pub fn router(state: AppState) -> Router {
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
             export_timeout,
-        ));
+        ))
+        .layer(from_fn_with_state(state.clone(), count_timeouts));
 
     let api = Router::new()
         .route("/health", get(routes::health::health))
@@ -235,6 +237,7 @@ pub fn router(state: AppState) -> Router {
             StatusCode::REQUEST_TIMEOUT,
             request_timeout,
         ))
+        .layer(from_fn_with_state(state.clone(), count_timeouts))
         .merge(exports)
         .fallback(api_not_found)
         .layer(from_fn(auth_middleware))

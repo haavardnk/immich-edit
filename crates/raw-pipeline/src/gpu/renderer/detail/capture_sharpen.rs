@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, Texture, TextureDescriptor,
-    TextureDimension, TextureUsages, TextureViewDescriptor,
+    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
-use crate::gpu::dispatch::{bind_group, tex};
+use crate::gpu::dispatch::{begin_pass, bind_group, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::capture_sharpen::{
     CAPTURE_KERNEL_MAX, CAPTURE_SCRATCH_FORMAT, CaptureApplyParams, CaptureBlurParams,
@@ -178,10 +178,7 @@ impl GpuRenderer {
             label: Some("capture-sharpen-enc"),
         });
         {
-            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("capture-sharpen-pass"),
-                timestamp_writes: None,
-            });
+            let mut cpass = begin_pass(&mut encoder, "capture-sharpen-pass");
             cpass.set_pipeline(&p.luma_pipeline);
             cpass.set_bind_group(0, &bg_luma, &[]);
             cpass.dispatch_workgroups(gx, gy, 1);

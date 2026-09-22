@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use wgpu::{
-    BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, Texture,
-    TextureUsages, TextureViewDescriptor,
+    BufferUsages, CommandEncoderDescriptor, Extent3d, Texture, TextureUsages, TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::gpu::dispatch::{bind_group, samp, tex};
+use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::dehaze::{
     DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams, MOMENT_FORMAT,
@@ -380,10 +379,7 @@ impl GpuRenderer {
         let gx = w.div_ceil(16);
         let gy = h.div_ceil(16);
         {
-            let mut c = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("dehaze-pass"),
-                timestamp_writes: None,
-            });
+            let mut c = begin_pass(&mut encoder, "dehaze-pass");
             c.set_pipeline(&p.downsample_pipeline);
             c.set_bind_group(0, &bg_downsample, &[]);
             c.dispatch_workgroups(gx_lo, gy_lo, 1);

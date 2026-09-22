@@ -20,6 +20,7 @@ export interface RedactedConfig {
   quality_frame_cache_mb: number;
   gpu_texture_cache_mb: number;
   renderer: string;
+  gpu_timestamps: boolean;
   allowed_origins: string[];
   trusted_proxies: string[];
   max_body_mb: number;
@@ -93,9 +94,27 @@ export interface CacheBytes {
   rasters_disk_cap: number;
 }
 
+export interface StageStats {
+  renderer: 'cpu' | 'gpu';
+  stage: string;
+  wall: LatencyStats;
+  gpu: LatencyStats | null;
+}
+
+export interface FrameStats {
+  fetch: LatencyStats;
+  decode: LatencyStats;
+  cache_hits: number;
+  cache_misses: number;
+}
+
 export interface DebugTimings {
   renderer_active: string;
+  gpu_timestamps: boolean;
   render_latency: { cpu: LatencyStats; gpu: LatencyStats };
+  stages: StageStats[];
+  frames: FrameStats;
+  request_timeouts: number;
   gpu_pool_bytes: GpuPoolBytes | null;
   cache_bytes: CacheBytes;
 }

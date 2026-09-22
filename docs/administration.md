@@ -68,7 +68,8 @@ Open **Settings** > **Diagnostics** to inspect:
 - Immich connection state and database migration state
 - HEIC and AVIF decode and encode capabilities
 - Redacted configuration and resource paths
-- CPU and GPU render latency
+- CPU and GPU render latency, broken down by pipeline stage
+- Original download and decode time, frame cache hit rate, and requests cut off by the timeout
 - Frame, raster, embedding, and GPU cache use
 
 Use **Copy support bundle** when opening a Discussion or issue.
