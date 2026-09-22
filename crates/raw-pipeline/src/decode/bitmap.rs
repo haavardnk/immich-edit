@@ -1,3 +1,5 @@
+use rayon::prelude::*;
+
 use super::format_hint;
 use crate::PipelineError;
 use crate::frame::RawFrame;
@@ -72,15 +74,29 @@ pub(super) fn decode_image(
     }
 }
 
-fn frame_from_rgb8(
+#[inline(always)]
+fn dither_tpdf(i: u32) -> f32 {
+    let mut h = i.wrapping_mul(0x8da6_b343);
+    h ^= h >> 16;
+    h = h.wrapping_mul(0x7feb_352d);
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x846c_a68b);
+    h ^= h >> 16;
+    let low = (h & 0xffff) as f32 / 65535.0;
+    let high = (h >> 16) as f32 / 65535.0;
+    low - high
+}
+
+pub(super) fn frame_from_rgb8(
     rgb: Vec<u8>,
     width: usize,
     height: usize,
     exif: Option<little_exif::metadata::Metadata>,
 ) -> RawFrame {
     let linear: Vec<f32> = rgb
-        .iter()
-        .map(|&v| srgb_to_linear(v as f32 / 255.0))
+        .par_iter()
+        .enumerate()
+        .map(|(i, &v)| srgb_to_linear(((v as f32 + dither_tpdf(i as u32)) / 255.0).clamp(0.0, 1.0)))
         .collect();
     let orientation = exif
         .as_ref()

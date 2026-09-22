@@ -1,4 +1,5 @@
-use super::bitmap::{InputFormat, sniff_format};
+use super::bitmap::{InputFormat, frame_from_rgb8, sniff_format};
+use crate::math::srgb_to_linear;
 
 #[test]
 fn sniff_known_magics() {
@@ -31,5 +32,32 @@ fn sniff_known_magics() {
 fn sniff_unknown_returns_none() {
     if sniff_format(b"not-an-image").is_some() {
         panic!("unknown bytes should not sniff");
+    }
+}
+
+#[test]
+fn rgb8_decode_dithers_deterministically() {
+    let flat = vec![128u8; 64 * 64 * 3];
+    let first = frame_from_rgb8(flat.clone(), 64, 64, None);
+    let second = frame_from_rgb8(flat, 64, 64, None);
+    if first.data != second.data {
+        panic!("dither must be deterministic across decodes");
+    }
+    let exact = srgb_to_linear(128.0 / 255.0);
+    if first.data.iter().all(|v| *v == exact) {
+        panic!("flat patch was left undithered");
+    }
+    let mean = first.data.iter().sum::<f32>() / first.data.len() as f32;
+    let step = srgb_to_linear(129.0 / 255.0) - exact;
+    if (mean - exact).abs() > step * 0.05 {
+        panic!("dither shifted the mean by {} (step {step})", mean - exact);
+    }
+    let worst = first
+        .data
+        .iter()
+        .map(|v| (v - exact).abs())
+        .fold(0.0f32, f32::max);
+    if worst > step {
+        panic!("dither exceeded one source LSB: {worst} > {step}");
     }
 }
