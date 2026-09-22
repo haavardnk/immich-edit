@@ -268,6 +268,24 @@ test('sliders use the primary violet fill without replacing color gradients', as
   expect(temperatureBackground).toContain(await resolvedColor(page, '--color-temperature-warm'));
 });
 
+test('symmetric sliders mark their default in the middle of the track', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const exposure = page.getByRole('slider', { name: 'Exposure', exact: true });
+  const track = await exposure.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      image: style.backgroundImage,
+      position: style.backgroundPosition,
+      size: style.backgroundSize
+    };
+  });
+  expect(track.image).toContain(await resolvedColor(page, '--color-slider-marker'));
+  expect(track.position.split(',')[0]).toContain('50%');
+  expect(track.size.split(',')[0].trim()).toBe('1px 6px');
+});
+
 test('the top bar search keeps its native pill shape', async ({ page }) => {
   await installMocks(page);
   await page.setViewportSize({ width: 1440, height: 900 });

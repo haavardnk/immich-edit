@@ -59,6 +59,29 @@ test('exact slider value entry commits through the shared control', async ({ pag
   await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('1.25');
 });
 
+test('shift with an arrow key moves a slider by ten steps', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (req) => requests.push(req) });
+  await gotoAsset(page);
+
+  const slider = exposureSlider(page);
+  await slider.focus();
+  await slider.press('ArrowRight');
+  await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('0.05');
+
+  await slider.press('Shift+ArrowRight');
+  await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('0.55');
+
+  await expect
+    .poll(() =>
+      requests.some(
+        (request) =>
+          (request.edits as { basic: { exposure_ev: number } }).basic.exposure_ev === 0.55
+      )
+    )
+    .toBe(true);
+});
+
 test('capture sharpening toggle is enabled only for raw assets', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { previewMeta: { is_raw: true }, onSave: (body) => saves.push(body) });

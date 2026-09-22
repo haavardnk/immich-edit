@@ -61,6 +61,7 @@
 :root {
   --color-slider-fill: var(--color-primary);
   --color-slider-track: color-mix(in srgb, var(--immich-ui-dark) 16%, transparent);
+  --color-slider-marker: color-mix(in srgb, var(--immich-ui-dark) 40%, transparent);
   --color-slider-thumb-outline: color-mix(in srgb, var(--color-black) 45%, transparent);
   --color-slider-thumb-shadow: color-mix(in srgb, var(--color-black) 70%, transparent);
   --color-control-line: color-mix(in srgb, var(--immich-ui-dark) 55%, transparent);
