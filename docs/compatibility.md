@@ -28,9 +28,16 @@ camera-specific fix. The rows marked tested have committed end-to-end fixtures.
 | Adobe DNG | Linear and Bayer `.dng` | Tested |
 | Sigma | `.x3f` | Not supported |
 
-Pixel-shift and multi-frame files decode only their first sub-frame. A CFA other than 2x2 Bayer or
-6x6 X-Trans is rejected. Fujifilm X-Trans uses a single-pass color-difference demosaic and can be
-softer than a multi-pass converter on fine detail.
+Pixel-shift and multi-frame files decode only their first sub-frame. Bayer and X-Trans sensors are
+supported; an unusual color filter array outside those is rejected. Fujifilm X-Trans uses a
+single-pass color-difference demosaic and can be softer than a multi-pass converter on fine detail.
+
+Recent bodies come with the decoder library and arrive as it is updated. The current version adds
+the Sony A7V, A7R VI, RX1R III and RX10 V, Nikon ZR, Fujifilm X-T30 III, Canon R50 V, C50 and
+PowerShot V1, OM System OM-5 II, Olympus E-P7, Leica SL3-P, and several Panasonic S and G models.
+It also corrects the Olympus E-M1X color filter array, Panasonic black levels, Nikon and Sony A100
+white balance, and Canon CR3 preview extraction, so files from those cameras can render slightly
+differently than before.
 
 ## Image input and export
 

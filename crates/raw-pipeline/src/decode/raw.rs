@@ -1,7 +1,24 @@
 use crate::PipelineError;
 use crate::frame::RawFrame;
+use rawler::cfa::CFA;
+use rawler::imgop::chromatic_adaption::adapt_bradford;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
+use rawler::imgop::matrix::transform_1d;
+use rawler::imgop::sensor::SensorType;
+use rawler::imgop::xyz::Illuminant;
 use rawler::rawimage::RawPhotometricInterpretation;
+
+const MATRIX_ILLUMINANTS: [Illuminant; 9] = [
+    Illuminant::D65,
+    Illuminant::A,
+    Illuminant::B,
+    Illuminant::C,
+    Illuminant::D50,
+    Illuminant::D55,
+    Illuminant::D75,
+    Illuminant::Daylight,
+    Illuminant::Flash,
+];
 
 type ExtractedMeta = (
     [f32; 4],
@@ -25,8 +42,8 @@ fn extract_common(
     (wb_coeffs, xyz_to_cam, color_matrices, orientation)
 }
 
-fn illuminant_to_cct(illu: &rawler::imgop::xyz::Illuminant) -> f32 {
-    use rawler::imgop::xyz::Illuminant::*;
+fn illuminant_to_cct(illu: &Illuminant) -> f32 {
+    use Illuminant::*;
     match illu {
         A | Tungsten => 2856.0,
         B => 4874.0,
@@ -76,18 +93,21 @@ fn populate_xyz_to_cam_from_color_matrix(raw_image: &mut rawler::RawImage) {
     {
         return;
     }
-    let matrix = raw_image
-        .color_matrix
-        .iter()
-        .find(|(illu, _)| **illu == rawler::imgop::xyz::Illuminant::D65)
-        .map(|(_, m)| m)
-        .or_else(|| raw_image.color_matrix.values().next());
-    let Some(matrix) = matrix else {
+    let Some((illu, matrix)) = raw_image.color_matrix_find_first(MATRIX_ILLUMINANTS) else {
         return;
     };
     if matrix.len() % 3 != 0 {
         return;
     }
+    let adapted = match (illu, transform_1d::<3, 3>(&matrix)) {
+        (Illuminant::D65, _) | (_, None) => None,
+        (illu, Some(rows)) => Some(
+            adapt_bradford(&illu, &Illuminant::D65, &rows)
+                .as_flattened()
+                .to_vec(),
+        ),
+    };
+    let matrix = adapted.unwrap_or(matrix);
     let components = (matrix.len() / 3).min(4);
     let mut xyz_to_cam = [[0.0f32; 3]; 4];
     for i in 0..components {
@@ -105,11 +125,11 @@ pub(super) fn decode_raw_fast(
     if raw_image.cpp != 1 {
         return decode_raw_quality(raw_image, exif);
     }
-    let cfa_name = match &raw_image.photometric {
+    let cfa = match &raw_image.photometric {
         RawPhotometricInterpretation::Cfa(config)
-            if config.cfa.is_rgb() && config.cfa.width == 2 && config.cfa.height == 2 =>
+            if config.sensor == SensorType::Bayer && config.cfa.is_rgb() =>
         {
-            config.cfa.name.clone()
+            config.cfa.clone()
         }
         _ => return decode_raw_quality(raw_image, exif),
     };
@@ -131,14 +151,14 @@ pub(super) fn decode_raw_fast(
 
     let (data, width, height, cfa_pattern) = if let Some(area) = raw_image.active_area {
         let cropped = pixels.crop(area);
-        let shifted = shift_cfa(&cfa_name, area.p.x, area.p.y);
+        let shifted = cfa.shift(area.p.x, area.p.y).name;
         let w = cropped.width;
         let h = cropped.height;
         (cropped.into_inner(), w, h, shifted)
     } else {
         let w = pixels.width;
         let h = pixels.height;
-        (pixels.into_inner(), w, h, cfa_name)
+        (pixels.into_inner(), w, h, cfa.name)
     };
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
@@ -168,19 +188,26 @@ pub(super) fn decode_raw_quality(
     if raw_image.cpp == 1
         && let RawPhotometricInterpretation::Cfa(config) = &raw_image.photometric
     {
-        match (config.cfa.width, config.cfa.height) {
-            (0, 0) | (2, 2) => {}
-            (6, 6) => {
-                let cfa_name = config.cfa.name.clone();
-                return decode_raw_xtrans(raw_image, exif, &cfa_name);
+        match config.sensor {
+            SensorType::Xtrans => {
+                let cfa = config.cfa.clone();
+                return decode_raw_xtrans(raw_image, exif, cfa);
             }
-            (w, h) => {
+            SensorType::Bayer if !config.cfa.is_rgb() && config.cfa.unique_colors() != 4 => {
                 return Err(PipelineError::Unsupported(format!(
-                    "unsupported {w}x{h} CFA pattern '{}'",
+                    "unsupported CFA pattern '{}'",
                     config.cfa.name
                 )));
             }
+            SensorType::Bayer => {}
         }
+    }
+
+    if raw_image.active_area.is_some() && raw_image.fuji_rotation_width.is_some() {
+        return Err(PipelineError::Unsupported(format!(
+            "rotated Fuji sensor not supported: '{}'",
+            raw_image.clean_model
+        )));
     }
 
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
@@ -247,13 +274,14 @@ pub(super) fn decode_raw_quality(
 fn decode_raw_xtrans(
     mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
-    cfa_name: &str,
+    cfa: CFA,
 ) -> crate::PipelineResult<RawFrame> {
-    let Some(pattern) = crate::cpu::demosaic::parse_xtrans(cfa_name) else {
+    if crate::cpu::demosaic::parse_xtrans(&cfa.name).is_none() {
         return Err(PipelineError::Unsupported(format!(
-            "unsupported 6x6 CFA pattern '{cfa_name}'"
+            "unsupported 6x6 CFA pattern '{}'",
+            cfa.name
         )));
-    };
+    }
 
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
@@ -271,8 +299,8 @@ fn decode_raw_xtrans(
         ));
     };
 
-    let (data, width, height, pattern) = if let Some(area) = raw_image.active_area {
-        let shifted = crate::cpu::demosaic::shift_xtrans(&pattern, area.p.x, area.p.y);
+    let (data, width, height, cfa_pattern) = if let Some(area) = raw_image.active_area {
+        let shifted = cfa.shift(area.p.x, area.p.y).name;
         let cropped = pixels.crop(area);
         let w = cropped.width;
         let h = cropped.height;
@@ -280,10 +308,9 @@ fn decode_raw_xtrans(
     } else {
         let w = pixels.width;
         let h = pixels.height;
-        (pixels.into_inner(), w, h, pattern)
+        (pixels.into_inner(), w, h, cfa.name)
     };
 
-    let cfa_pattern: String = pattern.iter().map(|b| *b as char).collect();
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
 
     Ok(RawFrame {
@@ -302,18 +329,4 @@ fn decode_raw_xtrans(
         model: raw_image.clean_model.clone(),
         exif,
     })
-}
-fn shift_cfa(cfa: &str, dx: usize, dy: usize) -> String {
-    let b = cfa.as_bytes();
-    if b.len() < 4 {
-        return cfa.to_string();
-    }
-    let get = |x: usize, y: usize| -> u8 { b[((y % 2) * 2 + (x % 2)) % 4] };
-    String::from_utf8(vec![
-        get(dx, dy),
-        get(dx + 1, dy),
-        get(dx, dy + 1),
-        get(dx + 1, dy + 1),
-    ])
-    .unwrap_or_else(|_| cfa.to_string())
 }

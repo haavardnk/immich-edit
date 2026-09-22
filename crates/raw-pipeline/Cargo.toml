@@ -11,7 +11,7 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rawler = "0.7"
+rawler = "0.8"
 turbojpeg = { version = "1", default-features = false, features = ["pkg-config"] }
 sha2 = "0.11"
 hex = "0.4"
