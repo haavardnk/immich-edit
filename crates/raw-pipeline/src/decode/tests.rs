@@ -1,5 +1,8 @@
 use super::bitmap::{InputFormat, frame_from_rgb8, sniff_format};
 use crate::math::srgb_to_linear;
+use rawler::cfa::CFA;
+
+const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
 #[test]
 fn sniff_known_magics() {
@@ -59,5 +62,29 @@ fn rgb8_decode_dithers_deterministically() {
         .fold(0.0f32, f32::max);
     if worst > step {
         panic!("dither exceeded one source LSB: {worst} > {step}");
+    }
+}
+
+#[test]
+fn cfa_shift_offsets_by_x_then_y() {
+    let cases = [XTRANS, "RGGB", "BGGR"]
+        .into_iter()
+        .flat_map(|name| [(0, 0), (1, 0), (0, 1), (2, 3), (7, 11)].map(|(dx, dy)| (name, dx, dy)));
+    for (name, dx, dy) in cases {
+        let cfa = CFA::new(name);
+        let shifted = cfa.shift(dx, dy);
+        let dim = cfa.width;
+        let wrong = (0..dim * dim).find(|&i| {
+            let x = i % dim;
+            let y = i / dim;
+            shifted.name.as_bytes()[i]
+                != cfa.name.as_bytes()[((y + dy) % dim) * dim + (x + dx) % dim]
+        });
+        if let Some(i) = wrong {
+            panic!(
+                "{name} shifted by {dx},{dy} is '{}', wrong at index {i}",
+                shifted.name
+            );
+        }
     }
 }

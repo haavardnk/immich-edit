@@ -143,16 +143,6 @@ pub fn parse_xtrans(cfa_pattern: &str) -> Option<[u8; XTRANS_LEN]> {
     Some(pattern)
 }
 
-pub fn shift_xtrans(pattern: &[u8; XTRANS_LEN], dx: usize, dy: usize) -> [u8; XTRANS_LEN] {
-    let mut out = [b'G'; XTRANS_LEN];
-    for (i, slot) in out.iter_mut().enumerate() {
-        let x = (i % XTRANS_DIM + dx) % XTRANS_DIM;
-        let y = (i / XTRANS_DIM + dy) % XTRANS_DIM;
-        *slot = pattern[y * XTRANS_DIM + x];
-    }
-    out
-}
-
 fn xtrans_channel(pattern: &[u8; XTRANS_LEN], x: usize, y: usize) -> usize {
     match pattern[(y % XTRANS_DIM) * XTRANS_DIM + x % XTRANS_DIM] {
         b'R' => 0,
@@ -324,21 +314,6 @@ mod tests {
         for pattern in ["RGGB", "", "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRE"] {
             if parse_xtrans(pattern).is_some() {
                 panic!("accepted {pattern}");
-            }
-        }
-    }
-
-    #[test]
-    fn shift_xtrans_matches_offset_lookup() {
-        let pattern = parse_xtrans(XTRANS).expect("valid pattern");
-        for (dx, dy) in [(0, 0), (1, 0), (0, 1), (2, 3), (7, 11)] {
-            let shifted = shift_xtrans(&pattern, dx, dy);
-            for i in 0..XTRANS_LEN {
-                let x = i % XTRANS_DIM;
-                let y = i / XTRANS_DIM;
-                if xtrans_channel(&shifted, x, y) != xtrans_channel(&pattern, x + dx, y + dy) {
-                    panic!("shift {dx},{dy} wrong at {x},{y}");
-                }
             }
         }
     }

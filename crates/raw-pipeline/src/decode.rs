@@ -7,42 +7,44 @@ mod tests;
 use crate::PipelineError;
 use crate::frame::RawFrame;
 use bitmap::{decode_image, sniff_format};
+use little_exif::metadata::Metadata;
 use raw::{decode_raw_fast, decode_raw_quality};
+use rawler::rawsource::RawSource;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+type DevelopFn = fn(rawler::RawImage, Option<Metadata>) -> crate::PipelineResult<RawFrame>;
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
-    let exif = crate::exif::parse(data);
-    let source = rawler::rawsource::RawSource::new_from_slice(data);
-    let params = rawler::decoders::RawDecodeParams::default();
-    match rawler::decode(&source, &params) {
-        Ok(raw_image) => decode_raw_fast(raw_image, exif),
-        Err(e) => raw_fallback_or_unsupported(e, data, exif),
-    }
+    decode_with(data, decode_raw_fast)
 }
 
 pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
-    let exif = crate::exif::parse(data);
-    let source = rawler::rawsource::RawSource::new_from_slice(data);
-    let params = rawler::decoders::RawDecodeParams::default();
-    match rawler::decode(&source, &params) {
-        Ok(raw_image) => decode_raw_quality(raw_image, exif),
-        Err(e) => raw_fallback_or_unsupported(e, data, exif),
-    }
+    decode_with(data, decode_raw_quality)
 }
 
-fn raw_fallback_or_unsupported(
-    err: impl std::fmt::Display,
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
-    let msg = format!("{err}");
-    if msg.contains("No decoder found") {
-        decode_image(data, exif)
-    } else {
+fn decode_with(data: &[u8], develop: DevelopFn) -> crate::PipelineResult<RawFrame> {
+    let exif = crate::exif::parse(data);
+    let source = RawSource::new_from_slice(data);
+    if let Err(err) = rawler::get_decoder(&source) {
+        return decode_image(data, exif).map_err(|_| {
+            PipelineError::Unsupported(format!(
+                "RAW format not supported by rawler ({}): {err}",
+                format_hint(data)
+            ))
+        });
+    }
+    let params = rawler::decoders::RawDecodeParams::default();
+    catch_unwind(AssertUnwindSafe(|| {
+        let raw_image = rawler::decode(&source, &params)
+            .map_err(|e| PipelineError::Decode(format!("rawler: {e}")))?;
+        develop(raw_image, exif)
+    }))
+    .unwrap_or_else(|_| {
         Err(PipelineError::Unsupported(format!(
-            "RAW format not supported by rawler ({}): {msg}",
+            "rawler panicked decoding ({})",
             format_hint(data)
         )))
-    }
+    })
 }
 
 fn format_hint(data: &[u8]) -> String {
