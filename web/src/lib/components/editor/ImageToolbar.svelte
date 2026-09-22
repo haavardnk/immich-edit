@@ -135,6 +135,16 @@
         disabled={!!editor.geometrySession}
         onclick={editor.toggleSplit}
       />
+      <IconButton
+        size="small"
+        variant="ghost"
+        color={ui.clipWarn ? 'primary' : 'secondary'}
+        icon={mdiTriangleOutline}
+        title={hint('Clipping overlay', 'clipWarn')}
+        aria-label={hint('Clipping overlay', 'clipWarn')}
+        aria-pressed={ui.clipWarn}
+        onclick={editor.toggleClipWarn}
+      />
     </div>
 
     <div class="mx-1 h-5 w-px shrink-0 bg-hairline"></div>
@@ -212,19 +222,19 @@
               moreOpen = false;
             }}>Before/After split</Button
           >
+          <Button
+            size="tiny"
+            variant="ghost"
+            color={ui.clipWarn ? 'primary' : 'secondary'}
+            class="w-full justify-start"
+            leadingIcon={mdiTriangleOutline}
+            aria-pressed={ui.clipWarn}
+            onclick={() => {
+              editor.toggleClipWarn();
+              moreOpen = false;
+            }}>Clipping overlay</Button
+          >
         </div>
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={ui.clipWarn ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiTriangleOutline}
-          aria-pressed={ui.clipWarn}
-          onclick={() => {
-            editor.toggleClipWarn();
-            moreOpen = false;
-          }}>Clipping overlay</Button
-        >
         <SoftProofControl />
       </div>
     </Popover>

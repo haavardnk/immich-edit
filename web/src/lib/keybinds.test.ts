@@ -57,7 +57,10 @@ describe('chord matching', () => {
     ['gridSize', { key: '+' }, true],
     ['gridSize', { key: '=' }, true],
     ['paneSwap', { key: 'ArrowLeft', shiftKey: true }, true],
-    ['paneSwap', { key: 'ArrowLeft' }, false]
+    ['paneSwap', { key: 'ArrowLeft' }, false],
+    ['autoAdjust', { key: 'u', metaKey: true }, true],
+    ['autoAdjust', { key: 'u' }, false],
+    ['unflag', { key: 'u', metaKey: true }, false]
   ])('%s matches %o -> %s', (id, event, expected) => {
     expect(isKeybind(key(event), id as KeybindId)).toBe(expected);
   });
@@ -136,5 +139,14 @@ describe('registry integrity', () => {
   it('has unique ids', () => {
     const ids = all.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives every keyless bind a display and no match', () => {
+    const keyless = all.filter((bind) => bind.keys.length === 0);
+    expect(keyless.length).toBeGreaterThan(0);
+    for (const bind of keyless) {
+      expect(bind.display, bind.id).toBeTruthy();
+      expect(matchKeybind(key({ key: 'Shift' }), bind.contexts)).not.toBe(bind.id);
+    }
   });
 });

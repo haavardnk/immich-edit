@@ -56,6 +56,22 @@ test('the editor has no serious accessibility violations', async ({ page }) => {
   expect(await audit(page)).toEqual([]);
 });
 
+test('the hue wheel reports hue and saturation together', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Color Grading', exact: true }).click();
+  const wheel = page.getByRole('slider', { name: 'Hue and saturation wheel' }).first();
+  await expect(wheel).toHaveAttribute('aria-valuetext', 'hue 0°, saturation 0%');
+
+  await wheel.focus();
+  await wheel.press('ArrowRight');
+  await wheel.press('ArrowUp');
+  await expect(wheel).toHaveAttribute('aria-valuetext', 'hue 1°, saturation 1%');
+
+  expect(await audit(page)).toEqual([]);
+});
+
 test('open shared overlays stay accessible and inside the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await installMocks(page);

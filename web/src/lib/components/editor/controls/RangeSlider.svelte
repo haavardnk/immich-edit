@@ -10,6 +10,7 @@
     defaultValue,
     label,
     valueText,
+    title,
     disabled = false,
     class: className = '',
     gradient,
@@ -26,6 +27,7 @@
     defaultValue?: number;
     label: string;
     valueText?: string;
+    title?: string;
     disabled?: boolean;
     class?: string;
     gradient?: string;
@@ -75,6 +77,7 @@
     : `calc(${markerAt}% - 0.5px) center, center`}
   aria-label={label}
   aria-valuetext={valueText}
+  {title}
   {min}
   {max}
   {step}

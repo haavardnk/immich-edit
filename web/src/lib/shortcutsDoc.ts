@@ -33,6 +33,10 @@ type Row = readonly [string, string, string];
 const HEADERS: Row = ['Keys', 'Action', 'Available in'];
 
 function keysCell(bind: Keybind): string {
+  if (bind.keys.length === 0) {
+    if (!bind.display) return '';
+    return `\`${typeof bind.display === 'string' ? bind.display : bind.display(false)}\``;
+  }
   return bind.keys.map((spec) => `\`${formatChord(spec, false)}\``).join(' / ');
 }
 
