@@ -163,6 +163,7 @@
     {min}
     {max}
     {step}
+    {defaultValue}
     {disabled}
     {value}
     {gradient}
