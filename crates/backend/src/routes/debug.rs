@@ -31,7 +31,9 @@ pub struct CacheBytes {
 #[derive(Serialize)]
 pub struct Timings {
     pub renderer_active: &'static str,
-    pub render_latency: TelemetrySnapshot,
+    pub gpu_timestamps: bool,
+    #[serde(flatten)]
+    pub telemetry: TelemetrySnapshot,
     pub gpu_pool_bytes: Option<GpuPoolBytes>,
     pub cache_bytes: CacheBytes,
 }
@@ -58,7 +60,8 @@ pub async fn timings(State(state): State<AppState>, _admin: AdminCtx) -> Json<Ti
     let (rasters_used, rasters_cap) = state.rasters.disk_bytes();
     Json(Timings {
         renderer_active: state.render.active().as_str(),
-        render_latency: snapshot,
+        gpu_timestamps: state.render.gpu_timestamps(),
+        telemetry: snapshot,
         gpu_pool_bytes,
         cache_bytes: CacheBytes {
             preview_frames_used: frames.preview_used,

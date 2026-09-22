@@ -11,8 +11,10 @@ use crate::gpu::readback::{
     copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb, read_rgba16uint_as_rgb,
 };
 use crate::gpu::resources::OutputTargets;
+use crate::gpu::timer::RenderTimings;
 use crate::histogram::Histogram;
 use crate::scopes::ScopeGrids;
+use crate::timing::{self, StageClock};
 
 pub(super) enum DisplayBuf {
     Rgba8(Vec<u8>),
@@ -76,9 +78,11 @@ impl GpuRenderer {
         display_dst: Option<&wgpu::Buffer>,
         linear_src: Option<&Texture>,
         out_dims: (u32, u32),
+        t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<(DisplayBuf, Option<Vec<f32>>)> {
         let (out_w, out_h) = out_dims;
+        let started = std::time::Instant::now();
         let display_dst = display_dst.unwrap_or(&p.readback);
         copy_texture_to_buffer(&mut encoder, display_src, display_dst, out_w, out_h);
         if let Some(src) = linear_src {
@@ -99,6 +103,7 @@ impl GpuRenderer {
         let linear_rgb = linear_src
             .map(|_| read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel))
             .transpose()?;
+        t.clock().add_wall(timing::READBACK, started.elapsed());
         Ok((display, linear_rgb))
     }
 }
@@ -110,6 +115,7 @@ pub(super) fn finish_image(
     source: (u32, u32),
     opts: &RenderOptions,
     is_raw: bool,
+    clock: &StageClock,
 ) -> PipelineResult<RenderedImage> {
     let (out_w, out_h) = out_dims;
     let mut rgb16: Option<Vec<u16>> = None;
@@ -146,41 +152,33 @@ pub(super) fn finish_image(
                     linear_rgb.map(|linear| {
                         let _span =
                             tracing::debug_span!("gpu.histogram", w = out_w, h = out_h).entered();
-                        rayon::join(
-                            || {
-                                let _s = tracing::debug_span!(
-                                    "gpu.histogram.display",
-                                    w = out_w,
-                                    h = out_h
-                                )
-                                .entered();
-                                Histogram::from_rgba8(&rgba)
-                            },
-                            || {
-                                let _s = tracing::debug_span!(
-                                    "gpu.histogram.linear",
-                                    w = out_w,
-                                    h = out_h
-                                )
-                                .entered();
-                                Histogram::from_rgb(&linear, out_w as usize, out_h as usize)
-                            },
-                        )
+                        clock.time(timing::HISTOGRAM, || {
+                            rayon::join(
+                                || Histogram::from_rgba8(&rgba),
+                                || Histogram::from_rgb(&linear, out_w as usize, out_h as usize),
+                            )
+                        })
                     })
                 },
                 || {
                     opts.scopes.then(|| {
                         let _s = tracing::debug_span!("gpu.scopes", w = out_w, h = out_h).entered();
-                        ScopeGrids::from_rgba8(&rgba, out_w as usize, out_h as usize)
+                        clock.time(timing::SCOPES, || {
+                            ScopeGrids::from_rgba8(&rgba, out_w as usize, out_h as usize)
+                        })
                     })
                 },
             )
         },
-        || match &rgb16 {
-            Some(rgb) => {
-                encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
-            }
-            None => encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space),
+        || {
+            clock.time(timing::ENCODE, || match &rgb16 {
+                Some(rgb) => {
+                    encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
+                }
+                None => {
+                    encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space)
+                }
+            })
         },
     );
     let (histogram, linear_histogram) = match histograms {
@@ -199,5 +197,6 @@ pub(super) fn finish_image(
         source_h: source.1,
         renderer: "gpu".into(),
         is_raw,
+        timings: Vec::new(),
     })
 }

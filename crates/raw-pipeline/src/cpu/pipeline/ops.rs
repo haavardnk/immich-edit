@@ -9,6 +9,7 @@ use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
+use crate::timing::{self, StageClock};
 use std::sync::Arc;
 
 const SPATIAL_BOUNDARY: (crate::ops::Stage, i32) = (crate::ops::Stage::Tone, -35);
@@ -49,9 +50,20 @@ pub fn run_pipeline_ops(
     rasters: &crate::mask_raster::RasterMap,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
-    run_pipeline_ops_inner(image, ctx, edits, rasters, OpRange::All, None, cancel).map(|_| ())
+    run_pipeline_ops_inner(
+        image,
+        ctx,
+        edits,
+        rasters,
+        OpRange::All,
+        None,
+        &StageClock::default(),
+        cancel,
+    )
+    .map(|_| ())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn run_pipeline_ops_inner(
     image: &mut LinearImage,
     ctx: &OpContext,
@@ -59,6 +71,7 @@ pub(super) fn run_pipeline_ops_inner(
     rasters: &crate::mask_raster::RasterMap,
     range: OpRange,
     preview_dims: Option<(u32, u32)>,
+    clock: &StageClock,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<Option<LinearImage>> {
     if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.render.preview_mode {
@@ -148,17 +161,19 @@ pub(super) fn run_pipeline_ops_inner(
                     .map(|_| LinearImage::new(image.rgb.clone(), image.width, image.height)),
             );
         }
-        if !segment.is_empty() {
-            apply_segment(image, segment);
-            segment.clear();
-        }
-        for (i, s) in layer_segments.iter_mut().enumerate() {
-            if s.is_empty() {
-                continue;
+        clock.time(timing::POINTWISE, || {
+            if !segment.is_empty() {
+                apply_segment(image, segment);
+                segment.clear();
             }
-            apply_segment(&mut layer_images[i], s);
-            s.clear();
-        }
+            for (i, s) in layer_segments.iter_mut().enumerate() {
+                if s.is_empty() {
+                    continue;
+                }
+                apply_segment(&mut layer_images[i], s);
+                s.clear();
+            }
+        });
     };
     let op_active = |op: &dyn crate::ops::Op| -> bool {
         op.is_active(edits) || layer_edits.iter().any(|e| op.is_active(e))
@@ -181,10 +196,12 @@ pub(super) fn run_pipeline_ops_inner(
             spatial_ready = true;
             flush(image, &mut layer_images, &mut segment, &mut layer_segments);
             if let Some((pw, ph)) = preview_dims {
-                downsample(image, pw, ph);
-                for li in layer_images.iter_mut() {
-                    downsample(li, pw, ph);
-                }
+                clock.time(timing::PREVIEW_RESAMPLE, || {
+                    downsample(image, pw, ph);
+                    for li in layer_images.iter_mut() {
+                        downsample(li, pw, ph);
+                    }
+                });
                 lens_warp = LensWarpParams::from_edits(
                     &edits.lens,
                     image.width as u32,
@@ -197,8 +214,11 @@ pub(super) fn run_pipeline_ops_inner(
                 let radii = presence_radii(w, h);
                 let mips = presence_mips(w, h, radii);
                 let levels = presence_pyramid_levels(w, h, radii) as usize;
-                let pyr = LumaPyramid::build(image, levels);
-                let shadows_blur = Arc::new(pyr.upsample(mips.shadows, image.width, image.height));
+                let (pyr, shadows_blur) = clock.time(timing::SHADOWS, || {
+                    let pyr = LumaPyramid::build(image, levels);
+                    let blur = Arc::new(pyr.upsample(mips.shadows, image.width, image.height));
+                    (pyr, blur)
+                });
                 pyramid_cache = Some(pyr);
                 pyramid_mips = Some(mips);
                 ctx_local = Some(OpContext {
@@ -221,23 +241,26 @@ pub(super) fn run_pipeline_ops_inner(
                 let h = image.height as u32;
                 let radii = presence_radii(w, h);
                 let mips = pyramid_mips.unwrap_or_else(|| presence_mips(w, h, radii));
-                let pyramid = match pyramid_cache.take() {
-                    Some(p) => p,
-                    None => {
-                        let levels = presence_pyramid_levels(w, h, radii) as usize;
-                        LumaPyramid::build(image, levels)
-                    }
-                };
                 let iw = image.width;
                 let ih = image.height;
                 let needs = |pick: fn(&crate::presence::PresenceAmounts) -> f32| {
                     pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
-                let texture_blur =
-                    needs(|a| a.texture).then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih)));
-                let clarity_blur =
-                    needs(|a| a.clarity).then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih)));
-                drop(pyramid);
+                let (texture_blur, clarity_blur) = clock.time(timing::PRESENCE, || {
+                    let pyramid = match pyramid_cache.take() {
+                        Some(p) => p,
+                        None => {
+                            let levels = presence_pyramid_levels(w, h, radii) as usize;
+                            LumaPyramid::build(image, levels)
+                        }
+                    };
+                    (
+                        needs(|a| a.texture)
+                            .then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih))),
+                        needs(|a| a.clarity)
+                            .then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih))),
+                    )
+                });
                 let make_op = |a: &crate::presence::PresenceAmounts| CpuFusedOp::Presence {
                     texture: a.texture,
                     clarity: a.clarity,
@@ -268,46 +291,55 @@ pub(super) fn run_pipeline_ops_inner(
         }
         flush(image, &mut layer_images, &mut segment, &mut layer_segments);
         if op.stage() == crate::ops::Stage::Geometry {
-            if sharpen_delta.is_none() && sharpen_deltas.iter().any(|d| *d != 0.0) {
-                sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
-                    image,
-                    &layer_evals,
-                    &sharpen_deltas,
-                    &lens_warp,
-                ));
+            clock.time(timing::MASKS, || {
+                if sharpen_delta.is_none() && sharpen_deltas.iter().any(|d| *d != 0.0) {
+                    sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
+                        image,
+                        &layer_evals,
+                        &sharpen_deltas,
+                        &lens_warp,
+                    ));
+                }
+                if !layer_images.is_empty() {
+                    blend_layer_images(image, &layer_images, &layer_evals, &lens_warp);
+                    layer_images.clear();
+                }
+            });
+        }
+        clock.time(timing::cpu_op_stage(op.id()), || {
+            op.apply_cpu(image, ctx, edits)?;
+            for (i, li) in layer_images.iter_mut().enumerate() {
+                op.apply_cpu(li, ctx, &layer_edits[i])?;
             }
-            if !layer_images.is_empty() {
-                blend_layer_images(image, &layer_images, &layer_evals, &lens_warp);
-                layer_images.clear();
+            if let Some(d) = sharpen_delta.as_mut()
+                && op.stage() == crate::ops::Stage::Geometry
+            {
+                op.apply_cpu(d, ctx, edits)?;
             }
-        }
-        op.apply_cpu(image, ctx, edits)?;
-        for (i, li) in layer_images.iter_mut().enumerate() {
-            op.apply_cpu(li, ctx, &layer_edits[i])?;
-        }
-        if let Some(d) = sharpen_delta.as_mut()
-            && op.stage() == crate::ops::Stage::Geometry
-        {
-            op.apply_cpu(d, ctx, edits)?;
-        }
+            crate::PipelineResult::Ok(())
+        })?;
     }
     flush(image, &mut layer_images, &mut segment, &mut layer_segments);
     if !layer_images.is_empty() {
-        blend_layer_images(image, &layer_images, &layer_evals, &lens_warp);
+        clock.time(timing::MASKS, || {
+            blend_layer_images(image, &layer_images, &layer_evals, &lens_warp)
+        });
     }
     if !spatial_ready && let Some((pw, ph)) = preview_dims {
-        downsample(image, pw, ph);
+        clock.time(timing::PREVIEW_RESAMPLE, || downsample(image, pw, ph));
     }
     if range != OpRange::BelowBoundary
         && sharpen_delta.is_none()
         && sharpen_deltas.iter().any(|d| *d != 0.0)
     {
-        sharpen_delta = Some(crate::cpu::masked::build_sharpen_delta_image(
-            image,
-            &layer_evals,
-            &sharpen_deltas,
-            &lens_warp,
-        ));
+        sharpen_delta = Some(clock.time(timing::MASKS, || {
+            crate::cpu::masked::build_sharpen_delta_image(
+                image,
+                &layer_evals,
+                &sharpen_deltas,
+                &lens_warp,
+            )
+        }));
     }
     Ok(sharpen_delta)
 }

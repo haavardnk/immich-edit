@@ -5,8 +5,8 @@ use crate::routes;
 use crate::state::AppState;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request, State};
-use axum::http::Method;
 use axum::http::header::{COOKIE, HOST, ORIGIN};
+use axum::http::{Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
@@ -135,6 +135,18 @@ pub async fn request_id_scope(req: Request<Body>, next: Next) -> Response {
         .unwrap_or("")
         .to_string();
     REQUEST_ID.scope(id, next.run(req)).await
+}
+
+pub async fn count_timeouts(
+    State(state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let res = next.run(req).await;
+    if res.status() == StatusCode::REQUEST_TIMEOUT {
+        state.render.telemetry().record_request_timeout();
+    }
+    res
 }
 
 #[cfg(test)]

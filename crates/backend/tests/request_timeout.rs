@@ -79,7 +79,9 @@ async fn light_routes_still_time_out() {
         )
         .mount(&server)
         .await;
-    let app = seed_and_wrap(&server, slow_state(&server).await).await;
+    let state = slow_state(&server).await;
+    let telemetry = state.render.telemetry().clone();
+    let app = seed_and_wrap(&server, state).await;
 
     let resp = app
         .oneshot(
@@ -93,5 +95,9 @@ async fn light_routes_still_time_out() {
 
     if resp.status() != StatusCode::REQUEST_TIMEOUT {
         panic!("expected 408, got {}", resp.status());
+    }
+    let timeouts = telemetry.snapshot().request_timeouts;
+    if timeouts != 1 {
+        panic!("diagnostics counted {timeouts} timed-out requests, expected 1");
     }
 }

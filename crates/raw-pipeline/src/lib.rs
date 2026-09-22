@@ -23,6 +23,7 @@ pub mod perspective;
 pub mod presence;
 pub mod scopes;
 mod sensor_sample;
+pub mod timing;
 pub mod tone;
 pub mod warn;
 pub mod wgsl;

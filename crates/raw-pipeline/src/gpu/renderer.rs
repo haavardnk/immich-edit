@@ -17,8 +17,10 @@ use super::context::GpuContext;
 use super::passes::GpuPasses;
 use super::resources::{OutputTargets, SharpenTargets};
 use super::texture_pool::TexturePool;
+use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
 use crate::presence::{presence_mips, presence_radii};
+use crate::timing;
 
 mod cache_keys;
 mod dcp;
@@ -133,12 +135,14 @@ const DEFAULT_TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
 #[derive(Debug, Clone, Copy)]
 pub struct GpuRendererOptions {
     pub texture_cache_max_bytes: u64,
+    pub timestamps: bool,
 }
 
 impl Default for GpuRendererOptions {
     fn default() -> Self {
         Self {
             texture_cache_max_bytes: DEFAULT_TEXTURE_CACHE_MAX_BYTES,
+            timestamps: false,
         }
     }
 }
@@ -149,7 +153,7 @@ impl GpuRenderer {
     }
 
     pub fn with_options(options: GpuRendererOptions) -> PipelineResult<Self> {
-        let ctx = GpuContext::new()?;
+        let ctx = GpuContext::with_timestamps(options.timestamps)?;
         let passes = Arc::new(GpuPasses::new(&ctx));
         let budget = GpuBudget::new(options.texture_cache_max_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
@@ -191,6 +195,10 @@ impl GpuRenderer {
         self.ctx.is_software()
     }
 
+    pub fn gpu_timestamps(&self) -> bool {
+        self.ctx.timestamps
+    }
+
     pub fn is_lost(&self) -> bool {
         self.ctx.is_lost()
     }
@@ -221,6 +229,7 @@ impl GpuRenderer {
         opts: &RenderOptions,
         shadows_blur: Option<&wgpu::TextureView>,
         layer_srcs: &std::collections::HashMap<String, Arc<Texture>>,
+        t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let device = &self.ctx.device;
@@ -249,23 +258,21 @@ impl GpuRenderer {
         let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
         let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
 
-        let downscaled = match crate::geom::resample_target(src_dims, ratio) {
-            Some(dims) => Some((
-                self.resample_lanczos(src_texture, src_dims, dims, "process-downscale")?,
-                dims,
-            )),
-            None => None,
-        };
-        let downscaled_layers: std::collections::HashMap<String, Arc<Texture>> = match &downscaled {
-            Some((_, dims)) => layer_srcs
+        let downscaled = t.stage(timing::RESAMPLE, || {
+            let Some(dims) = crate::geom::resample_target(src_dims, ratio) else {
+                return Ok((None, std::collections::HashMap::new()));
+            };
+            let main = self.resample_lanczos(src_texture, src_dims, dims, "process-downscale")?;
+            let layers = layer_srcs
                 .iter()
                 .map(|(id, tex)| {
-                    self.resample_lanczos(tex, src_dims, *dims, "layer-downscale")
+                    self.resample_lanczos(tex, src_dims, dims, "layer-downscale")
                         .map(|t| (id.clone(), t))
                 })
-                .collect::<PipelineResult<_>>()?,
-            None => std::collections::HashMap::new(),
-        };
+                .collect::<PipelineResult<std::collections::HashMap<String, Arc<Texture>>>>()?;
+            PipelineResult::Ok((Some((main, dims)), layers))
+        })?;
+        let (downscaled, downscaled_layers) = downscaled;
         let (src_texture, work_dims, layer_srcs) = match &downscaled {
             Some((tex, dims)) => (tex.as_ref(), *dims, &downscaled_layers),
             None => (src_texture, src_dims, layer_srcs),
@@ -372,6 +379,8 @@ impl GpuRenderer {
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("process-enc"),
         });
+        let display_started = std::time::Instant::now();
+        let display_scope = t.enter(timing::DISPLAY);
         dispatch_2d(
             &mut encoder,
             "process-pass",
@@ -500,6 +509,9 @@ impl GpuRenderer {
             Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
         });
+        drop(display_scope);
+        t.clock()
+            .add_wall(timing::DISPLAY, display_started.elapsed());
         let (rgba, linear_rgb) = self.readback_image(
             encoder,
             p,
@@ -507,6 +519,7 @@ impl GpuRenderer {
             display_readback.as_ref(),
             linear_src,
             out_dims,
+            t,
             cancel,
         )?;
         self.release_mask_atlas(preview_atlas);
@@ -515,7 +528,15 @@ impl GpuRenderer {
         drop(display_target);
         drop(pool);
 
-        output::finish_image(rgba, linear_rgb, out_dims, geom.source, opts, frame.is_raw)
+        output::finish_image(
+            rgba,
+            linear_rgb,
+            out_dims,
+            geom.source,
+            opts,
+            frame.is_raw,
+            t.clock(),
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -527,23 +548,30 @@ impl GpuRenderer {
         edits: &Edits,
         options: &RenderOptions,
         setup: &crate::dcp_pipeline::DcpSetup,
+        t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<((u32, u32), Arc<Texture>)> {
         let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
-        let wb_base = self.run_wb_prepare(cached, frame, edits, setup, keys.wb)?;
+        let wb_base = t.stage(timing::WB_PREPARE, || {
+            self.run_wb_prepare(cached, frame, edits, setup, keys.wb)
+        })?;
         crate::cancel::check(cancel)?;
         let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
-            let t = self.run_retouch(wb_base, dims, frame, edits)?;
+            let tex = t.stage(timing::RETOUCH, || {
+                self.run_retouch(wb_base, dims, frame, edits)
+            })?;
             crate::cancel::check(cancel)?;
-            t
+            tex
         } else {
             wb_base
         };
         let full_src: Arc<Texture> =
             if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
-                let t = self.run_nr(&wb_base, dims, edits, keys.nr)?;
+                let tex = t.stage(timing::NOISE_REDUCTION, || {
+                    self.run_nr(&wb_base, dims, edits, keys.nr)
+                })?;
                 crate::cancel::check(cancel)?;
-                t
+                tex
             } else {
                 wb_base
             };
@@ -551,9 +579,11 @@ impl GpuRenderer {
             .filter(|_| dims.0 >= 8 && dims.1 >= 8);
         let full_src: Arc<Texture> = match sigma {
             Some(sigma) => {
-                let t = self.run_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))?;
+                let tex = t.stage(timing::CAPTURE_SHARPEN, || {
+                    self.run_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))
+                })?;
                 crate::cancel::check(cancel)?;
-                t
+                tex
             }
             None => full_src,
         };
@@ -567,8 +597,9 @@ impl GpuRenderer {
         .and_then(|ratio| crate::geom::resample_target(dims, ratio));
         let (spatial_dims, spatial_src) = match preview_dims {
             Some(preview_dims) => {
-                let downsampled =
-                    self.resample_lanczos(&full_src, dims, preview_dims, "preview-spatial-src")?;
+                let downsampled = t.stage(timing::PREVIEW_RESAMPLE, || {
+                    self.resample_lanczos(&full_src, dims, preview_dims, "preview-spatial-src")
+                })?;
                 crate::cancel::check(cancel)?;
                 (preview_dims, downsampled)
             }
@@ -576,12 +607,15 @@ impl GpuRenderer {
         };
         let base = if edits.basic.dehaze != 0.0 {
             let key = keys.spatial(sigma, spatial_dims);
-            let atm = self.atmosphere_for(key, spatial_src.as_ref(), spatial_dims, cancel)?;
-            let _span = tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
-                .entered();
-            let t = self.run_dehaze(spatial_src.as_ref(), spatial_dims, edits, atm)?;
+            let tex = t.stage(timing::DEHAZE, || {
+                let atm = self.atmosphere_for(key, spatial_src.as_ref(), spatial_dims, cancel)?;
+                let _span =
+                    tracing::debug_span!("gpu_dehaze", w = spatial_dims.0, h = spatial_dims.1)
+                        .entered();
+                self.run_dehaze(spatial_src.as_ref(), spatial_dims, edits, atm)
+            })?;
             crate::cancel::check(cancel)?;
-            t
+            tex
         } else {
             spatial_src
         };
@@ -599,6 +633,7 @@ impl GpuRenderer {
         setup: &crate::dcp_pipeline::DcpSetup,
         base: &Arc<Texture>,
         spatial_dims: (u32, u32),
+        t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<std::collections::HashMap<String, Arc<Texture>>> {
         let mut out = std::collections::HashMap::new();
@@ -619,29 +654,31 @@ impl GpuRenderer {
                 continue;
             }
             let key = (wb.0, wb.1, amts.texture.to_bits(), amts.clarity.to_bits());
-            if let Some(t) = cache.get(&key) {
-                out.insert(layer.id.clone(), t.clone());
+            if let Some(tex) = cache.get(&key) {
+                out.insert(layer.id.clone(), tex.clone());
                 continue;
             }
             let layer_base = if wb == global_wb {
                 base.clone()
-            } else if let Some(t) = base_cache.get(&wb) {
-                t.clone()
+            } else if let Some(tex) = base_cache.get(&wb) {
+                tex.clone()
             } else {
-                let (_, t) =
-                    self.spatial_base(cached, dims, frame, &eff, options, setup, cancel)?;
-                base_cache.insert(wb, t.clone());
-                t
+                let (_, tex) =
+                    self.spatial_base(cached, dims, frame, &eff, options, setup, t, cancel)?;
+                base_cache.insert(wb, tex.clone());
+                tex
             };
-            let t = if amts.texture == 0.0 && amts.clarity == 0.0 {
+            let tex = if amts.texture == 0.0 && amts.clarity == 0.0 {
                 layer_base
             } else {
-                let t = self.run_presence(&layer_base, spatial_dims, &eff)?;
+                let tex = t.stage(timing::PRESENCE, || {
+                    self.run_presence(&layer_base, spatial_dims, &eff)
+                })?;
                 crate::cancel::check(cancel)?;
-                t
+                tex
             };
-            cache.insert(key, t.clone());
-            out.insert(layer.id.clone(), t);
+            cache.insert(key, tex.clone());
+            out.insert(layer.id.clone(), tex);
         }
         Ok(out)
     }
@@ -666,14 +703,28 @@ impl GpuRenderer {
             return Err(PipelineError::DeviceLost);
         }
         crate::cancel::check(cancel)?;
+        let timings = RenderTimings::new(&self.ctx);
+        let mut out = self.render_timed(frame, edits, options, &timings, cancel)?;
+        out.timings = timings.finish(cancel);
+        Ok(out)
+    }
+
+    fn render_timed(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        t: &RenderTimings,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<RenderedImage> {
         let mut composed = edits.clamped();
         composed.geometry.crop = crate::geom::compose_roi(composed.geometry.crop, options.roi);
         let edits = &composed;
         let plan = RenderPlan::select(edits, frame);
-        let cached = self.get_or_demosaic(frame)?;
+        let cached = t.stage(timing::DEMOSAIC, || self.get_or_demosaic(frame))?;
         crate::cancel::check(cancel)?;
         let cached = if edits.lens.any_active() {
-            let corrected = self.run_sensor(&cached, &edits.clamped())?;
+            let corrected = t.stage(timing::LENS, || self.run_sensor(&cached, &edits.clamped()))?;
             crate::cancel::check(cancel)?;
             corrected
         } else {
@@ -698,6 +749,7 @@ impl GpuRenderer {
                     options,
                     None,
                     &std::collections::HashMap::new(),
+                    t,
                     cancel,
                 )?;
                 crate::cancel::check(cancel)?;
@@ -707,10 +759,12 @@ impl GpuRenderer {
                 let setup = crate::dcp_pipeline::resolve(frame, &edits_c, options.dcp.as_deref());
                 let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
                 let (spatial_dims, base_src) =
-                    self.spatial_base(&cached, dims, frame, &edits_c, options, &setup, cancel)?;
+                    self.spatial_base(&cached, dims, frame, &edits_c, options, &setup, t, cancel)?;
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
                 let processed_src: Arc<Texture> = if presence_active {
-                    self.run_presence(&base_src, spatial_dims, &edits_c)?
+                    t.stage(timing::PRESENCE, || {
+                        self.run_presence(&base_src, spatial_dims, &edits_c)
+                    })?
                 } else {
                     base_src.clone()
                 };
@@ -724,10 +778,13 @@ impl GpuRenderer {
                     &setup,
                     &base_src,
                     spatial_dims,
+                    t,
                     cancel,
                 )?;
                 let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
-                    Some(self.build_luma_pyramid(&processed_src, spatial_dims)?)
+                    Some(t.stage(timing::SHADOWS, || {
+                        self.build_luma_pyramid(&processed_src, spatial_dims)
+                    })?)
                 } else {
                     None
                 };
@@ -747,6 +804,7 @@ impl GpuRenderer {
                     options,
                     shadows_view.as_ref(),
                     &layer_srcs,
+                    t,
                     cancel,
                 )?;
                 crate::cancel::check(cancel)?;

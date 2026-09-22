@@ -32,6 +32,7 @@ pub struct RenderDevice {
     cpu: Arc<CpuRenderer>,
     mode: RendererMode,
     texture_cache_bytes: u64,
+    timestamps: bool,
     active: Arc<RwLock<ActiveRenderer>>,
     label: Arc<RwLock<Option<String>>>,
     software_gpu: Arc<RwLock<bool>>,
@@ -39,13 +40,14 @@ pub struct RenderDevice {
 }
 
 impl RenderDevice {
-    pub fn new(mode: RendererMode, texture_cache_bytes: u64) -> Self {
-        let init = init_gpu(mode, texture_cache_bytes);
+    pub fn new(mode: RendererMode, texture_cache_bytes: u64, timestamps: bool) -> Self {
+        let init = init_gpu(mode, gpu_options(texture_cache_bytes, timestamps));
         Self {
             gpu: Arc::new(RwLock::new(init.renderer)),
             cpu: Arc::new(CpuRenderer::new()),
             mode,
             texture_cache_bytes,
+            timestamps,
             active: Arc::new(RwLock::new(init.active)),
             label: Arc::new(RwLock::new(init.label)),
             software_gpu: Arc::new(RwLock::new(init.software)),
@@ -55,6 +57,14 @@ impl RenderDevice {
 
     pub fn active(&self) -> ActiveRenderer {
         *self.active.read().unwrap()
+    }
+
+    pub fn gpu_timestamps(&self) -> bool {
+        self.gpu
+            .read()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|g| g.gpu_timestamps())
     }
 
     pub fn label(&self) -> Option<String> {
@@ -118,9 +128,7 @@ impl RenderDevice {
         }
         *last = Some(now);
         drop(last);
-        match GpuRenderer::with_options(GpuRendererOptions {
-            texture_cache_max_bytes: self.texture_cache_bytes,
-        }) {
+        match GpuRenderer::with_options(gpu_options(self.texture_cache_bytes, self.timestamps)) {
             Ok(r) => {
                 let label = r.adapter_label();
                 tracing::info!(adapter = %label, "gpu renderer rebuilt after device loss");
@@ -156,7 +164,14 @@ struct GpuInit {
     software: bool,
 }
 
-fn init_gpu(mode: RendererMode, texture_cache_max_bytes: u64) -> GpuInit {
+fn gpu_options(texture_cache_max_bytes: u64, timestamps: bool) -> GpuRendererOptions {
+    GpuRendererOptions {
+        texture_cache_max_bytes,
+        timestamps,
+    }
+}
+
+fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
     let cpu_only = GpuInit {
         renderer: None,
         active: ActiveRenderer::Cpu,
@@ -166,9 +181,7 @@ fn init_gpu(mode: RendererMode, texture_cache_max_bytes: u64) -> GpuInit {
     if matches!(mode, RendererMode::Cpu) {
         return cpu_only;
     }
-    match GpuRenderer::with_options(GpuRendererOptions {
-        texture_cache_max_bytes,
-    }) {
+    match GpuRenderer::with_options(options) {
         Ok(r) => {
             let label = r.adapter_label();
             let software = r.is_software_adapter();

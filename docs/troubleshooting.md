@@ -208,6 +208,13 @@ same backup.
 
 The first render decodes the original and fills caches. Later edits reuse the decoded frame.
 
+**Render stages** in Diagnostics shows where the time goes, with typical (p50) and slow (p95)
+times for each stage. **Source frames** covers the Immich download and the decode, which a cached
+frame skips. On the GPU renderer the wall time of a shader stage only covers recording the work;
+the device runs it later, and that wait shows up under `readback`. Set `GPU_TIMESTAMPS=true` to
+add a GPU column with the device time of each stage. On the GPU renderer `histogram`, `scopes`,
+and `encode` run in parallel, so their times overlap rather than add up.
+
 Use **Settings** > **Diagnostics** before changing budgets. For a constrained CPU-only host, start
 with:
 

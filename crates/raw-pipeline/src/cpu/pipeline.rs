@@ -10,6 +10,7 @@ use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::ops::LinearImage;
 use crate::ops::{OpContext, OpScratch, RenderContext};
+use crate::timing::{self, StageClock};
 use ops::{OpRange, run_pipeline_ops_inner};
 use output::{finish_output, resolve_lut};
 use std::sync::Arc;
@@ -74,6 +75,7 @@ pub(crate) fn render_cached(
         .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio));
 
     let cached = cache_key.and_then(|k| renderer.and_then(|r| r.get(k)));
+    let clock = StageClock::default();
 
     let (mut image, oriented_w, oriented_h) = match cached {
         Some(stage) => (
@@ -82,24 +84,28 @@ pub(crate) fn render_cached(
             stage.oriented_h,
         ),
         None => {
-            let rgb = if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
-                match demosaic::parse_xtrans(&frame.cfa_pattern) {
-                    Some(pattern) => {
-                        demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern)
+            let rgb = clock.time(timing::DEMOSAIC, || {
+                if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
+                    match demosaic::parse_xtrans(&frame.cfa_pattern) {
+                        Some(pattern) => {
+                            demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern)
+                        }
+                        None => demosaic::malvar_he_cutler(
+                            &frame.data,
+                            frame.width,
+                            frame.height,
+                            &frame.cfa_pattern,
+                        ),
                     }
-                    None => demosaic::malvar_he_cutler(
-                        &frame.data,
-                        frame.width,
-                        frame.height,
-                        &frame.cfa_pattern,
-                    ),
+                } else {
+                    frame.data.clone()
                 }
-            } else {
-                frame.data.clone()
-            };
+            });
 
             let mut sensor_image = LinearImage::new(rgb, frame.width, frame.height);
-            run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)?;
+            clock.time(timing::LENS, || {
+                run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)
+            })?;
             cancel::check(cancel)?;
             let (rgb, w, h) = transform::apply_orientation(
                 sensor_image.rgb,
@@ -125,6 +131,7 @@ pub(crate) fn render_cached(
                     &options.rasters,
                     OpRange::BelowBoundary,
                     preview_dims,
+                    &clock,
                     cancel,
                 )?;
                 r.put(
@@ -145,6 +152,7 @@ pub(crate) fn render_cached(
                     &options.rasters,
                     OpRange::All,
                     preview_dims,
+                    &clock,
                     cancel,
                 )?;
                 return finish_render(
@@ -156,6 +164,7 @@ pub(crate) fn render_cached(
                     sharpen_delta,
                     out_dims,
                     (oriented_w, oriented_h),
+                    clock,
                     cancel,
                 );
             }
@@ -170,6 +179,7 @@ pub(crate) fn render_cached(
         &options.rasters,
         OpRange::FromBoundary,
         None,
+        &clock,
         cancel,
     )?;
 
@@ -182,6 +192,7 @@ pub(crate) fn render_cached(
         sharpen_delta,
         out_dims,
         (oriented_w, oriented_h),
+        clock,
         cancel,
     )
 }
@@ -196,13 +207,15 @@ fn finish_render(
     sharpen_delta: Option<LinearImage>,
     out_dims: (u32, u32),
     oriented: (usize, usize),
+    clock: StageClock,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
     let (oriented_w, oriented_h) = oriented;
 
     cancel::check(cancel)?;
-    let (rgb, w, h) =
-        transform::resize_owned_to(image.rgb, image.width, image.height, out_dims.0, out_dims.1);
+    let (rgb, w, h) = clock.time(timing::RESAMPLE, || {
+        transform::resize_owned_to(image.rgb, image.width, image.height, out_dims.0, out_dims.1)
+    });
 
     let mut out_image = LinearImage::new(rgb, w, h);
     let display_ready = matches!(
@@ -228,7 +241,9 @@ fn finish_render(
             }
             None => ctx,
         };
-        run_output_ops(&mut out_image, ctx, edits, cancel)?;
+        clock.time(timing::OUTPUT, || {
+            run_output_ops(&mut out_image, ctx, edits, cancel)
+        })?;
     }
     let rgb = out_image.rgb;
     let w = out_image.width;
@@ -246,46 +261,52 @@ fn finish_render(
             &d.from_pp,
         )
     });
-    let (rgb_u8, rgb_u16, histograms) = finish_output(
-        rgb,
-        w,
-        h,
-        want_16bit,
-        display_ready,
-        lut_ref,
-        dcp_finish,
-        options.output_color_space,
-        options.gamut_warn,
-        options.clip_warn,
-        options.histogram,
-    );
+    let (rgb_u8, rgb_u16, histograms) = clock.time(timing::FINISH, || {
+        finish_output(
+            rgb,
+            w,
+            h,
+            want_16bit,
+            display_ready,
+            lut_ref,
+            dcp_finish,
+            options.output_color_space,
+            options.gamut_warn,
+            options.clip_warn,
+            options.histogram,
+        )
+    });
     cancel::check(cancel)?;
     let (histogram, linear_histogram) = match histograms {
         Some(h) => (Some(h.display), Some(h.linear)),
         None => (None, None),
     };
 
-    let scopes = options
-        .scopes
-        .then(|| crate::scopes::ScopeGrids::from_rgb_u8(&rgb_u8, w, h));
+    let scopes = options.scopes.then(|| {
+        clock.time(timing::SCOPES, || {
+            crate::scopes::ScopeGrids::from_rgb_u8(&rgb_u8, w, h)
+        })
+    });
 
-    let bytes = if want_16bit {
-        encode_from_rgb16(
-            rgb_u16.as_deref().unwrap(),
-            w as u32,
-            h as u32,
-            &options.output,
-            options.output_color_space,
-        )?
-    } else {
-        encode_from_rgb8(
-            &rgb_u8,
-            w as u32,
-            h as u32,
-            &options.output,
-            options.output_color_space,
-        )?
-    };
+    let bytes = clock.time(timing::ENCODE, || {
+        if want_16bit {
+            encode_from_rgb16(
+                rgb_u16.as_deref().unwrap(),
+                w as u32,
+                h as u32,
+                &options.output,
+                options.output_color_space,
+            )
+        } else {
+            encode_from_rgb8(
+                &rgb_u8,
+                w as u32,
+                h as u32,
+                &options.output,
+                options.output_color_space,
+            )
+        }
+    })?;
 
     Ok(RenderedImage {
         bytes,
@@ -298,5 +319,6 @@ fn finish_render(
         source_h: oriented_h as u32,
         renderer: "cpu".into(),
         is_raw: frame.is_raw,
+        timings: clock.finish(),
     })
 }

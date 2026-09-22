@@ -8,6 +8,9 @@
     type LatencyStats
   } from '$lib/api/diagnostics';
   import Notice from '$lib/components/Notice.svelte';
+  import RenderStages from '$lib/components/settings/RenderStages.svelte';
+  import { codecLabel, formatBytes, formatUs } from '$lib/diagnostics/format';
+  import { buildSupportBundle } from '$lib/diagnostics/supportBundle';
   import { errorMessage } from '$lib/utils/errors';
   import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
 
@@ -34,90 +37,10 @@
     }
   }
 
-  function formatUs(us: number): string {
-    if (us === 0) return '—';
-    if (us < 1000) return `${us}µs`;
-    return `${(us / 1000).toFixed(1)}ms`;
-  }
-
-  function formatBytes(b: number): string {
-    if (b < 1024) return `${b}B`;
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)}KiB`;
-    if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)}MiB`;
-    return `${(b / 1024 / 1024 / 1024).toFixed(2)}GiB`;
-  }
-
-  function codecLabel(ok: boolean): string {
-    return ok ? 'yes' : 'missing';
-  }
-
-  function buildSupportBundle(h: HealthInfo, t: DebugTimings | null): string {
-    const statusCode = h.immich_status.status_code ? ` HTTP ${h.immich_status.status_code}` : '';
-    const lines: string[] = [];
-    lines.push('## immich-edit support bundle');
-    lines.push('');
-    lines.push(`- Version: ${h.version}`);
-    lines.push(
-      `- Host: ${h.host.os} ${h.host.arch}${h.host.os_version ? ` (${h.host.os_version})` : ''}`
-    );
-    lines.push(`- CPU: ${h.host.cpu ?? 'unknown'}, ${h.host.cores} cores available`);
-    lines.push(
-      `- Memory: ${h.host.memory_total_bytes ? formatBytes(h.host.memory_total_bytes) : 'unknown'} total${h.host.memory_limit_bytes ? `, ${formatBytes(h.host.memory_limit_bytes)} container limit` : ''}`
-    );
-    lines.push(`- Renderer mode: ${h.renderer_mode}`);
-    lines.push(`- Renderer active: ${h.renderer_active}`);
-    lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
-    if (h.gpu_software) {
-      lines.push('- GPU adapter is a software rasterizer (no hardware GPU found)');
-    }
-    lines.push(
-      `- HEIF codecs: hevc decode ${codecLabel(h.heif_codecs.hevc_decode)}, hevc encode ${codecLabel(h.heif_codecs.hevc_encode)}, av1 decode ${codecLabel(h.heif_codecs.av1_decode)}, av1 encode ${codecLabel(h.heif_codecs.av1_encode)}`
-    );
-    lines.push(
-      `- Immich status: ${h.immich_status.kind}${statusCode} (${h.immich_status.message})`
-    );
-    lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
-    lines.push(`- Cache dir: ${h.config.cache_dir}`);
-    lines.push(`- User agent: ${navigator.userAgent}`);
-    lines.push('');
-    if (t) {
-      lines.push('### Render latency');
-      lines.push('');
-      lines.push('| Renderer | Count | p50 | p95 | p99 | max |');
-      lines.push('|---|---|---|---|---|---|');
-      const row = (name: string, s: typeof t.render_latency.cpu) =>
-        `| ${name} | ${s.count} | ${formatUs(s.p50_us)} | ${formatUs(s.p95_us)} | ${formatUs(s.p99_us)} | ${formatUs(s.max_us)} |`;
-      lines.push(row('cpu', t.render_latency.cpu));
-      lines.push(row('gpu', t.render_latency.gpu));
-      lines.push('');
-      lines.push(
-        `- Preview frames: ${formatBytes(t.cache_bytes.preview_frames_used)} / ${formatBytes(t.cache_bytes.preview_frames_cap)}`
-      );
-      lines.push(
-        `- Quality frames: ${formatBytes(t.cache_bytes.quality_frames_used)} / ${formatBytes(t.cache_bytes.quality_frames_cap)}`
-      );
-      lines.push(
-        `- Mask rasters on disk: ${formatBytes(t.cache_bytes.rasters_disk_used)} / ${formatBytes(t.cache_bytes.rasters_disk_cap)}`
-      );
-      if (t.gpu_pool_bytes) {
-        lines.push(`- GPU pool total: ${formatBytes(t.gpu_pool_bytes.total)}`);
-      }
-    } else {
-      lines.push('Render timings: unavailable.');
-    }
-    lines.push('');
-    lines.push('### Redacted config');
-    lines.push('');
-    lines.push('```json');
-    lines.push(JSON.stringify(h.config, null, 2));
-    lines.push('```');
-    return lines.join('\n');
-  }
-
   async function copySupportBundle(): Promise<void> {
     if (!health) return;
     try {
-      await navigator.clipboard.writeText(buildSupportBundle(health, timings));
+      await navigator.clipboard.writeText(buildSupportBundle(health, timings, navigator.userAgent));
       copyState = 'ok';
     } catch {
       copyState = 'fail';
@@ -136,23 +59,23 @@
   <div class="grid items-center gap-3 py-3 sm:grid-cols-[5rem_7rem_minmax(0,1fr)]">
     <div>
       <div class="text-xs font-medium">{name}</div>
-      <div class="text-[10px] text-dark/45">{stats.count} renders</div>
+      <div class="text-[10px] text-dark/65">{stats.count} renders</div>
     </div>
     <div>
-      <div class="text-[10px] uppercase text-dark/45">Typical</div>
+      <div class="text-[10px] uppercase text-dark/65">Typical</div>
       <div class="font-mono text-lg tabular-nums text-white/90">{formatUs(stats.p50_us)}</div>
     </div>
     <dl class="grid grid-cols-3 gap-3 text-right text-[10px]">
       <div>
-        <dt class="text-dark/45">p95</dt>
+        <dt class="text-dark/65">p95</dt>
         <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p95_us)}</dd>
       </div>
       <div>
-        <dt class="text-dark/45">p99</dt>
+        <dt class="text-dark/65">p99</dt>
         <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p99_us)}</dd>
       </div>
       <div>
-        <dt class="text-dark/45">Peak</dt>
+        <dt class="text-dark/65">Peak</dt>
         <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.max_us)}</dd>
       </div>
     </dl>
@@ -286,6 +209,8 @@
         {@render latencyRow('GPU', timings.render_latency.gpu)}
       </div>
     </section>
+
+    <RenderStages {timings} />
 
     <section class="space-y-2 pt-5">
       <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Cache usage</Heading>

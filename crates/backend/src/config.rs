@@ -61,6 +61,7 @@ pub struct Config {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
     pub renderer: RendererMode,
+    pub gpu_timestamps: bool,
     pub database_url: String,
     pub allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<Cidr>,
@@ -124,6 +125,7 @@ struct FileConfig {
     quality_frame_cache_mb: Option<u64>,
     gpu_texture_cache_mb: Option<u64>,
     renderer: Option<String>,
+    gpu_timestamps: Option<bool>,
     database_url: Option<String>,
     allowed_origins: Option<Vec<String>>,
     trusted_proxies: Option<Vec<String>>,
@@ -279,6 +281,7 @@ impl Config {
             Some(s) => s.parse()?,
             None => RendererMode::Auto,
         };
+        let gpu_timestamps = parse_or("GPU_TIMESTAMPS", file.gpu_timestamps, false)?;
 
         let database_url = pick("DATABASE_URL", file.database_url).unwrap_or_else(|| {
             let mut p = data_dir.clone();
@@ -345,6 +348,7 @@ impl Config {
             quality_frame_cache_mb,
             gpu_texture_cache_mb,
             renderer,
+            gpu_timestamps,
             database_url,
             allowed_origins,
             trusted_proxies,
@@ -389,6 +393,7 @@ impl Config {
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             renderer: self.renderer.as_str(),
+            gpu_timestamps: self.gpu_timestamps,
             allowed_origins: self.allowed_origins.clone(),
             trusted_proxies: self.trusted_proxies.iter().map(Cidr::to_string).collect(),
             max_body_mb: self.max_body_mb,
@@ -417,6 +422,7 @@ pub struct RedactedConfig {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
     pub renderer: &'static str,
+    pub gpu_timestamps: bool,
     pub allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<String>,
     pub max_body_mb: u64,
@@ -451,6 +457,7 @@ mod tests {
             "THUMB_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
+            "GPU_TIMESTAMPS",
             "IMMICH_EDIT_CONFIG",
             "ALLOWED_ORIGINS",
             "TRUSTED_PROXIES",

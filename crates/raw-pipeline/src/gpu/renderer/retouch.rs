@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, Texture,
-    TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
+    BufferUsages, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
 use crate::edits::{Edits, RetouchMode, RetouchStroke};
 use crate::frame::RawFrame;
-use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
+use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::retouch::RetouchParams;
 use crate::ops::retouch::{StrokeGeom, stroke_geometry};
@@ -194,10 +194,7 @@ impl GpuRenderer {
                 bh.div_ceil(16),
             );
             if heal {
-                let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                    label: Some("retouch-blur"),
-                    timestamp_writes: None,
-                });
+                let mut cpass = begin_pass(&mut encoder, "retouch-blur");
                 cpass.set_pipeline(&p.blur_pipeline);
                 cpass.set_bind_group(0, &blur_h_bind, &[]);
                 cpass.dispatch_workgroups(bw.div_ceil(16), bh.div_ceil(16), 1);

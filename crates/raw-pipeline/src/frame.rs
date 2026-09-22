@@ -209,4 +209,5 @@ pub struct RenderedImage {
     pub source_h: u32,
     pub renderer: String,
     pub is_raw: bool,
+    pub timings: Vec<crate::timing::StageTiming>,
 }

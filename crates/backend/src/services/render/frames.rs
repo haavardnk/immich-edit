@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
+use std::time::Instant;
 
 use bytes::Bytes;
 use raw_pipeline::PipelineError;
@@ -10,6 +11,7 @@ use uuid::Uuid;
 
 use crate::immich::ImmichClient;
 use crate::services::raw_frame_cache::{FrameCacheKey, RawFrameCache};
+use crate::services::render_telemetry::RenderTelemetry;
 
 use super::{RenderError, RenderIdentity};
 
@@ -19,13 +21,15 @@ type FrameResult = Result<Arc<RawFrame>, RenderError>;
 pub struct FrameStore {
     cache: Arc<Mutex<RawFrameCache>>,
     inflight: Arc<SyncMutex<HashMap<FrameCacheKey, watch::Receiver<Option<FrameResult>>>>>,
+    telemetry: RenderTelemetry,
 }
 
 impl FrameStore {
-    pub fn new(max_bytes: u64) -> Self {
+    pub fn new(max_bytes: u64, telemetry: RenderTelemetry) -> Self {
         Self {
             cache: Arc::new(Mutex::new(RawFrameCache::new(max_bytes))),
             inflight: Arc::new(SyncMutex::new(HashMap::new())),
+            telemetry,
         }
     }
 
@@ -58,8 +62,10 @@ impl FrameStore {
             asset_id: source,
         };
         if let Some(frame) = self.cache.lock().await.get(&key) {
+            self.telemetry.record_frame_hit();
             return Ok(frame);
         }
+        self.telemetry.record_frame_miss();
         let mut rx = self.leader_or_follower(key, immich, source, decode);
         loop {
             let current = rx.borrow_and_update().clone();
@@ -94,8 +100,9 @@ impl FrameStore {
         let cache = self.cache.clone();
         let pending = self.inflight.clone();
         let immich = immich.clone();
+        let telemetry = self.telemetry.clone();
         tokio::spawn(async move {
-            let result = load(&immich, source, decode).await;
+            let result = load(&immich, source, decode, &telemetry).await;
             if let Ok(frame) = &result {
                 cache.lock().await.put(key, frame.clone());
             }
@@ -106,11 +113,21 @@ impl FrameStore {
     }
 }
 
-async fn load<F, Fut>(immich: &ImmichClient, source: Uuid, decode: F) -> FrameResult
+async fn load<F, Fut>(
+    immich: &ImmichClient,
+    source: Uuid,
+    decode: F,
+    telemetry: &RenderTelemetry,
+) -> FrameResult
 where
     F: FnOnce(Bytes) -> Fut,
     Fut: Future<Output = Result<Arc<RawFrame>, PipelineError>>,
 {
+    let started = Instant::now();
     let bytes = immich.original(source).await?;
-    Ok(decode(bytes).await?)
+    let fetched = started.elapsed();
+    let started = Instant::now();
+    let frame = decode(bytes).await?;
+    telemetry.record_frame_load(fetched, started.elapsed());
+    Ok(frame)
 }

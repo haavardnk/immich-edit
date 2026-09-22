@@ -136,4 +136,31 @@ async fn a_timed_out_preview_keeps_the_decoded_frame() {
     if fetched != 1 {
         panic!("expected the retry to reuse the cached frame, got {fetched} downloads");
     }
+
+    let snap = state.render.telemetry().snapshot();
+    let frames = snap.frames;
+    if frames.cache_misses != 1 || frames.cache_hits != 1 {
+        panic!(
+            "expected one frame cache miss then one hit, got {} misses and {} hits",
+            frames.cache_misses, frames.cache_hits
+        );
+    }
+    if frames.fetch.count != 1 || frames.decode.count != 1 || frames.fetch.p50_us < 1_000_000 {
+        panic!("frame load timing not recorded once around the slow download: {frames:?}");
+    }
+    if snap.request_timeouts != 1 {
+        panic!(
+            "expected one timed-out request, got {}",
+            snap.request_timeouts
+        );
+    }
+    let stages: Vec<&str> = snap
+        .stages
+        .iter()
+        .filter(|s| s.renderer == "cpu")
+        .map(|s| s.stage)
+        .collect();
+    if !stages.contains(&"demosaic") || !stages.contains(&"encode") {
+        panic!("cpu stage timings missing from diagnostics: {stages:?}");
+    }
 }

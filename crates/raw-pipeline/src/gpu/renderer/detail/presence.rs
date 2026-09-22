@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CommandEncoder, CommandEncoderDescriptor, ComputePassDescriptor, Extent3d, Texture,
-    TextureDescriptor, TextureDimension, TextureUsages, TextureView, TextureViewDescriptor,
+    CommandEncoder, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor,
+    TextureDimension, TextureUsages, TextureView, TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
+use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
 use crate::gpu::passes::presence::PresenceParams;
@@ -85,10 +85,7 @@ impl GpuRenderer {
             h.div_ceil(16),
         );
         if !mipgen_binds.is_empty() {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some(labels.mipgen_pass),
-                timestamp_writes: None,
-            });
+            let mut pass = begin_pass(encoder, labels.mipgen_pass);
             pass.set_pipeline(&self.passes.mipgen.pipeline);
             let mut mw = w;
             let mut mh = h;

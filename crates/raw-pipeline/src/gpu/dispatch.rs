@@ -1,7 +1,10 @@
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindingResource, Buffer,
-    CommandEncoder, ComputePassDescriptor, ComputePipeline, Device, Sampler, TextureView,
+    CommandEncoder, ComputePass, ComputePassDescriptor, ComputePipeline, Device, Sampler,
+    TextureView,
 };
+
+use super::timer::with_pass_timestamps;
 
 pub(super) fn tex(view: &TextureView) -> BindingResource<'_> {
     BindingResource::TextureView(view)
@@ -45,6 +48,15 @@ pub(super) fn bind_group_indexed(
     })
 }
 
+pub(super) fn begin_pass<'e>(encoder: &'e mut CommandEncoder, label: &str) -> ComputePass<'e> {
+    with_pass_timestamps(|timestamp_writes| {
+        encoder.begin_compute_pass(&ComputePassDescriptor {
+            label: Some(label),
+            timestamp_writes,
+        })
+    })
+}
+
 pub(super) fn dispatch_2d(
     encoder: &mut CommandEncoder,
     label: &str,
@@ -53,10 +65,7 @@ pub(super) fn dispatch_2d(
     gx: u32,
     gy: u32,
 ) {
-    let mut cp = encoder.begin_compute_pass(&ComputePassDescriptor {
-        label: Some(label),
-        timestamp_writes: None,
-    });
+    let mut cp = begin_pass(encoder, label);
     cp.set_pipeline(pipeline);
     cp.set_bind_group(0, bind, &[]);
     cp.dispatch_workgroups(gx, gy, 1);

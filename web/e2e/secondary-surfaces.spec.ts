@@ -203,3 +203,87 @@ test('jobs drawer stays bounded and restores focus', async ({ page }) => {
   await expect(drawer).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+test('diagnostics break render time down by stage', async ({ page }) => {
+  const stats = (p50: number, p95: number) => ({
+    count: 3,
+    p50_us: p50,
+    p95_us: p95,
+    p99_us: p95,
+    max_us: p95
+  });
+  await installSecondaryMocks(page);
+  await page.route('**/api/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/health') {
+      return route.fulfill(
+        json({
+          status: 'ok',
+          version: '0.6.0',
+          renderer_mode: 'auto',
+          renderer_active: 'gpu',
+          gpu_adapter: 'Test GPU',
+          gpu_software: false,
+          host: {
+            os: 'linux',
+            arch: 'x86_64',
+            os_version: null,
+            cpu: null,
+            cores: 4,
+            memory_total_bytes: null,
+            memory_limit_bytes: null
+          },
+          heif_codecs: { hevc_decode: true, hevc_encode: true, av1_decode: true, av1_encode: true },
+          immich_reachable: true,
+          immich_status: { ok: true, kind: 'ok', message: 'Connected', status_code: null },
+          db_ready: true,
+          db_migration_version: 1,
+          config: {}
+        })
+      );
+    }
+    if (path === '/api/debug/timings') {
+      return route.fulfill(
+        json({
+          renderer_active: 'gpu',
+          gpu_timestamps: true,
+          render_latency: { cpu: stats(0, 0), gpu: stats(42_000, 61_000) },
+          stages: [
+            { renderer: 'gpu', stage: 'demosaic', wall: stats(300, 500), gpu: stats(2_100, 2_600) },
+            { renderer: 'gpu', stage: 'encode', wall: stats(9_400, 12_000), gpu: null }
+          ],
+          frames: {
+            fetch: stats(180_000, 240_000),
+            decode: stats(95_000, 130_000),
+            cache_hits: 3,
+            cache_misses: 1
+          },
+          request_timeouts: 2,
+          gpu_pool_bytes: null,
+          cache_bytes: {
+            preview_frames_used: 0,
+            preview_frames_cap: 0,
+            quality_frames_used: 0,
+            quality_frames_cap: 0,
+            rasters_disk_used: 0,
+            rasters_disk_cap: 0
+          }
+        })
+      );
+    }
+    return route.fallback();
+  });
+  await page.goto('/settings/diagnostics');
+
+  const table = page.getByRole('table', { name: 'GPU render stages' });
+  await expect(table.getByRole('columnheader', { name: 'GPU p50' })).toBeVisible();
+  await expect(
+    table.getByRole('row', { name: /demosaic 300µs 500µs 2\.1ms 2\.6ms/ })
+  ).toBeVisible();
+  await expect(table.getByRole('row', { name: /encode 9\.4ms 12\.0ms — —/ })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'CPU render stages' })).toHaveCount(0);
+  await expect(page.getByText('75% (3 / 4)')).toBeVisible();
+  await expect(page.getByText('GPU stage times are off')).toHaveCount(0);
+
+  expect(await seriousViolations(page)).toEqual([]);
+});

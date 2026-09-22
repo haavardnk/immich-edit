@@ -75,21 +75,37 @@ impl RenderService {
     pub fn new(
         cache: RenderCacheOptions,
         mode: RendererMode,
+        gpu_timestamps: bool,
         rasters: RasterStore,
         luts: crate::services::lut_store::LutStore,
         dcp: crate::services::dcp_store::DcpStore,
     ) -> Self {
+        let telemetry = RenderTelemetry::new();
         Self {
-            frames: FrameStore::new(cache.raw_frame_cache_mb.saturating_mul(MB)),
-            quality_frames: FrameStore::new(cache.quality_frame_cache_mb.saturating_mul(MB)),
-            device: RenderDevice::new(mode, cache.gpu_texture_cache_mb.saturating_mul(MB)),
+            frames: FrameStore::new(
+                cache.raw_frame_cache_mb.saturating_mul(MB),
+                telemetry.clone(),
+            ),
+            quality_frames: FrameStore::new(
+                cache.quality_frame_cache_mb.saturating_mul(MB),
+                telemetry.clone(),
+            ),
+            device: RenderDevice::new(
+                mode,
+                cache.gpu_texture_cache_mb.saturating_mul(MB),
+                gpu_timestamps,
+            ),
             inputs: RenderInputs::new(rasters, luts, dcp),
-            telemetry: RenderTelemetry::new(),
+            telemetry,
         }
     }
 
     pub fn active(&self) -> ActiveRenderer {
         self.device.active()
+    }
+
+    pub fn gpu_timestamps(&self) -> bool {
+        self.device.gpu_timestamps()
     }
 
     pub fn gpu_label(&self) -> Option<String> {
@@ -172,11 +188,11 @@ impl RenderService {
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
-        let kind = match self.active() {
-            ActiveRenderer::Cpu => RendererKind::Cpu,
-            ActiveRenderer::Gpu => RendererKind::Gpu,
-        };
-        self.telemetry.record(kind, start.elapsed());
+        self.telemetry.record(
+            RendererKind::from_label(&result.renderer),
+            start.elapsed(),
+            &result.timings,
+        );
         Ok(result)
     }
 }
