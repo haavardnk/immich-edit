@@ -10,7 +10,12 @@ import {
 import type { ColorSpaceOpt } from '$lib/api/export';
 import { scopes } from '$lib/stores/scopes.svelte';
 import { ui } from '$lib/stores/ui.svelte';
-import { originalPreviewEdits, type Edits } from '$lib/types/edits';
+import {
+  neutraliseSection,
+  originalPreviewEdits,
+  type DevelopSection,
+  type Edits
+} from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
 import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
 import { errorMessage } from '$lib/utils/errors';
@@ -47,6 +52,7 @@ export interface PreviewCtx {
   error: string | null;
   splitMode: boolean;
   showingOriginal: boolean;
+  bypassedSection: DevelopSection | null;
   geometrySession: GeometrySession | null;
   maskPreviewLayerId: string | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
@@ -218,6 +224,17 @@ export class PreviewEngine {
     });
   }
 
+  bypassSection(section: DevelopSection): void {
+    if (!this.ctx.initialised) return;
+    this.clearView();
+    const snap = $state.snapshot(this.ctx.edits) as Edits;
+    this.flight.submit({
+      edits: neutraliseSection(snap, section),
+      maxEdge: this.baseEdge(),
+      previewMode: 'none'
+    });
+  }
+
   refreshBase(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
     this.submitBase(LIVE_EDGE, 'none');
@@ -364,6 +381,7 @@ export class PreviewEngine {
       !this.ctx.assetId ||
       this.ctx.splitMode ||
       this.ctx.showingOriginal ||
+      !!this.ctx.bypassedSection ||
       !!this.ctx.geometrySession ||
       !!this.ctx.maskPreviewLayerId ||
       !!this.ctx.colorPicker

@@ -15,6 +15,11 @@ function geometrySlider(page: import('@playwright/test').Page, label: string) {
     .getByRole('slider');
 }
 
+function lastExposure(requests: PreviewRequest[]): number | null {
+  const last = requests.at(-1);
+  return last ? (last.edits as { basic: { exposure_ev: number } }).basic.exposure_ev : null;
+}
+
 test('adjusting a slider requests a live preview with the new edit', async ({ page }) => {
   const requests: PreviewRequest[] = [];
   await installMocks(page, { onPreview: (req) => requests.push(req) });
@@ -80,6 +85,26 @@ test('shift with an arrow key moves a slider by ten steps', async ({ page }) => 
       )
     )
     .toBe(true);
+});
+
+test('holding a section header renders that section bypassed', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (req) => requests.push(req) });
+  await gotoAsset(page);
+
+  const bypass = page.getByRole('button', { name: 'Bypass Tone' });
+  await expect(bypass).toHaveCount(0);
+
+  await exposureSlider(page).fill('1');
+  await expect.poll(() => lastExposure(requests)).toBe(1);
+
+  await bypass.hover();
+  await page.mouse.down();
+  await expect.poll(() => lastExposure(requests)).toBe(0);
+  await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('1.00');
+
+  await page.mouse.up();
+  await expect.poll(() => lastExposure(requests)).toBe(1);
 });
 
 test('capture sharpening toggle is enabled only for raw assets', async ({ page }) => {

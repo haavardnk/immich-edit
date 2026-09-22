@@ -6,6 +6,7 @@ import {
   MAX_RETOUCH_STROKES,
   type AspectLock,
   type CropRect,
+  type DevelopSection,
   type Edits,
   type EditManifest,
   type LensEdits,
@@ -87,6 +88,7 @@ class EditorStore {
   wbBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
+  bypassedSection = $state<DevelopSection | null>(null);
   splitMode = $state(false);
   splitPos = $state(0.5);
   proofSpace = $state<ColorSpaceOpt>('srgb');
@@ -312,6 +314,7 @@ class EditorStore {
     this.saves.end();
     this.history.reset();
     this.showingOriginal = false;
+    this.bypassedSection = null;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskPreviewLayerId = null;
@@ -345,6 +348,16 @@ class EditorStore {
   showOriginal(): void {
     this.previews.showOriginal();
   }
+
+  bypassSection = (section: DevelopSection): void => {
+    this.bypassedSection = section;
+    this.previews.bypassSection(section);
+  };
+
+  endBypass = (): void => {
+    this.bypassedSection = null;
+    this.previews.live();
+  };
 
   onLive = (): void => {
     this.previews.live();

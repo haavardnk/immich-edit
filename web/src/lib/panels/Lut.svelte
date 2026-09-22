@@ -97,7 +97,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5 pb-1">
-  <SectionHeader title="LUT" {modified} onReset={reset} />
+  <SectionHeader title="LUT" section="lut" {modified} onReset={reset} />
   <input
     bind:this={fileInput}
     type="file"
