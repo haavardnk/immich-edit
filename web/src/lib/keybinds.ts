@@ -9,7 +9,7 @@ export interface Keybind {
   readonly contexts: readonly KeybindContext[];
   readonly group: string;
   readonly label: string;
-  readonly display?: string;
+  readonly display?: string | ((mac: boolean) => string);
 }
 
 export const KEYBINDS = [
@@ -360,6 +360,13 @@ export const KEYBINDS = [
     label: 'Toggle fullscreen'
   },
   {
+    id: 'autoAdjust',
+    keys: ['Mod+u'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Auto adjust tone'
+  },
+  {
     id: 'resetEdits',
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],
@@ -393,6 +400,40 @@ export const KEYBINDS = [
     contexts: ['editor'],
     group: 'Editor',
     label: 'Step out of the active tool, panel or fullscreen'
+  },
+
+  {
+    id: 'sliderCoarseStep',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Move a focused slider ten steps',
+    display: (mac: boolean) =>
+      `${formatChord('Shift+ArrowLeft', mac)} / ${formatChord('Shift+ArrowRight', mac)}`
+  },
+  {
+    id: 'sliderReset',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Reset one slider',
+    display: 'Double-click the label'
+  },
+  {
+    id: 'sliderPreviewDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Preview the mask or radius a slider drives while you drag it',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag`
+  },
+  {
+    id: 'sliderResetGroup',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Reset every band or channel at once, on HSL and Curves',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + click the reset button`
   },
 
   {
@@ -602,7 +643,7 @@ export function formatChord(spec: string, mac: boolean = isMac): string {
 export function keysFor(id: KeybindId, mac: boolean = isMac): string {
   const bind = (KEYBINDS as readonly Keybind[]).find((b) => b.id === id);
   if (!bind) return '';
-  if (bind.display) return bind.display;
+  if (bind.display) return typeof bind.display === 'string' ? bind.display : bind.display(mac);
   return bind.keys.map((spec) => formatChord(spec, mac)).join(' / ');
 }
 

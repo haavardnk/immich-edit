@@ -6,6 +6,7 @@
     step = 1,
     label,
     valueText,
+    title,
     disabled = false,
     class: className = '',
     gradient,
@@ -20,6 +21,7 @@
     step?: number;
     label: string;
     valueText?: string;
+    title?: string;
     disabled?: boolean;
     class?: string;
     gradient?: string;
@@ -42,6 +44,7 @@
   style:background-image={background}
   aria-label={label}
   aria-valuetext={valueText}
+  {title}
   {min}
   {max}
   {step}

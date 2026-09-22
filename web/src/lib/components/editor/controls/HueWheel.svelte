@@ -30,6 +30,7 @@
   });
 
   const hasSat = $derived(sat > 0);
+  const valueText = $derived(`hue ${Math.round(hue)}°, saturation ${Math.round(sat)}%`);
 
   function updateFromEvent(ev: PointerEvent): void {
     if (!wheel) return;
@@ -116,6 +117,7 @@
   aria-valuenow={hue}
   aria-valuemin={0}
   aria-valuemax={360}
+  aria-valuetext={valueText}
   onpointerdown={pointerDown}
   onpointermove={pointerMove}
   onpointerup={pointerUp}

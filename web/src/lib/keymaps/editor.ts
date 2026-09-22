@@ -137,6 +137,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       if (ui.editorTab !== 'geometry') ui.openTab('geometry');
       ui.togglePerspectiveCorners();
       return;
+    case 'autoAdjust':
+      if (!editor.autoBusy) void editor.onAutoAdjust();
+      return;
     case 'resetEdits':
       void editor.onReset();
       return;

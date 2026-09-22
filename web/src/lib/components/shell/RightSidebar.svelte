@@ -121,6 +121,7 @@
               color="secondary"
               class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
               leadingIcon={mdiAutoFix}
+              title={hint('Auto adjust tone', 'autoAdjust')}
               aria-label="Auto"
               disabled={editor.autoBusy || !editor.assetId}
               onclick={() => void editor.onAutoAdjust()}

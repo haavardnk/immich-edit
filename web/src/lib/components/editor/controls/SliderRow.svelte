@@ -1,5 +1,6 @@
 <script lang="ts">
   import TextInput from '$lib/components/TextInput.svelte';
+  import { keysFor } from '$lib/keybinds';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
 
@@ -166,6 +167,7 @@
     {disabled}
     {value}
     {gradient}
+    title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
     onpointerdown={onPointerDown}
     oninput={onInput}
     onchange={() => onCommit(commitAction)}

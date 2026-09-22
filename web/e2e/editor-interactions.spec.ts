@@ -189,6 +189,47 @@ test('pending saves guard browser unload', async ({ page }) => {
   expect(await unloadPrevented()).toBe(false);
 });
 
+test('only sliders that drive a preview hint the alt drag', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Detail', exact: true }).click();
+  await expect(geometrySlider(page, 'Radius')).toHaveAttribute(
+    'title',
+    /^(⌥|Alt) \+ drag to preview$/
+  );
+  await expect(exposureSlider(page)).not.toHaveAttribute('title');
+});
+
+test('the clipping overlay toggles from the toolbar at desktop width', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const clip = page.getByRole('button', { name: 'Clipping overlay' });
+  await expect(clip).toHaveAttribute('aria-pressed', 'false');
+  await clip.click();
+  await expect(clip).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the auto adjust shortcut requests suggested edits', async ({ page }) => {
+  await installMocks(page);
+  let auto = 0;
+  await page.route('**/api/assets/*/edits/auto', async (route) => {
+    auto += 1;
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...body, basic: { ...body.basic, exposure_ev: 0.75 } })
+    });
+  });
+  await gotoAsset(page);
+
+  await page.keyboard.press('ControlOrMeta+u');
+  await expect(exposureSlider(page)).toHaveValue('0.75');
+  expect(auto).toBe(1);
+});
+
 test('the soft proof popover survives opening its nested select', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

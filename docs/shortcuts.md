@@ -96,11 +96,21 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Tab`          | Hide or show the side panels                     | Editor                         |
 | `Shift+Tab`    | Hide or show every panel                         | Editor                         |
 | `Shift+F`      | Toggle fullscreen                                | Loupe, Compare, Survey, Editor |
+| `Ctrl+U`       | Auto adjust tone                                 | Editor                         |
 | `Ctrl+Shift+R` | Reset every edit                                 | Editor                         |
 | `Ctrl+Shift+C` | Copy edits                                       | Editor                         |
 | `Ctrl+Shift+V` | Paste edits                                      | Editor                         |
 | `Ctrl+Shift+E` | Open Export                                      | Editor                         |
 | `Esc`          | Step out of the active tool, panel or fullscreen | Editor                         |
+
+## Sliders
+
+| Keys                             | Action                                                       | Available in |
+| -------------------------------- | ------------------------------------------------------------ | ------------ |
+| `Shift+← / Shift+→`              | Move a focused slider ten steps                              | Editor       |
+| `Double-click the label`         | Reset one slider                                             | Editor       |
+| `Alt + drag`                     | Preview the mask or radius a slider drives while you drag it | Editor       |
+| `Shift + click the reset button` | Reset every band or channel at once, on HSL and Curves       | Editor       |
 
 ## Masks
 
