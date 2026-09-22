@@ -40,6 +40,7 @@ class UiStore {
   editorFilmstripCollapsed = $state(false);
   loupeFilmstripCollapsed = $state(false);
   developOpenPanels = $state<string[] | null>(null);
+  developModifiedOnly = $state(false);
   searchQuery = $state('');
   fullscreen = $state(false);
   zoom = $state(100);

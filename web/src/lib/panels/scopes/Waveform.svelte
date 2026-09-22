@@ -7,14 +7,15 @@
     grid,
     gain,
     parade,
-    label
-  }: { grid: ScopeGrid; gain: number; parade: boolean; label: string } = $props();
+    label,
+    height
+  }: { grid: ScopeGrid; gain: number; parade: boolean; label: string; height: number } = $props();
 
   const raster = $derived(rasterize(grid, gain, parade));
   const levels = [0, 25, 50, 75, 100];
 </script>
 
-<div class="relative h-32 w-full bg-neutral-950" role="img" aria-label={label}>
+<div class="relative w-full bg-neutral-950" style:height="{height}px" role="img" aria-label={label}>
   <ScopeCanvas {raster} />
   <svg
     viewBox="0 0 100 100"

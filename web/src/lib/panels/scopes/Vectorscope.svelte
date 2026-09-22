@@ -3,7 +3,8 @@
   import { rasterizeVector } from './rasterize';
   import type { ScopeGrid } from '$lib/types/preview';
 
-  let { grid, gain, zoom }: { grid: ScopeGrid; gain: number; zoom: number } = $props();
+  let { grid, gain, zoom, size }: { grid: ScopeGrid; gain: number; zoom: number; size: number } =
+    $props();
 
   const raster = $derived(rasterizeVector(grid, gain));
 
@@ -34,7 +35,8 @@
 </script>
 
 <div
-  class="relative mx-auto aspect-square w-full max-w-44 overflow-hidden bg-neutral-950"
+  class="relative mx-auto aspect-square max-w-full overflow-hidden bg-neutral-950"
+  style:width="{size}px"
   role="img"
   aria-label="Vectorscope"
 >

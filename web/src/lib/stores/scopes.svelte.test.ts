@@ -34,7 +34,7 @@ function stubStorage(initial?: unknown): Map<string, string> {
 
 describe('scopes store', () => {
   it('restores stored view settings and clamps the gain', async () => {
-    stubStorage({ mode: 'vectorscope', channels: 'rgb', gain: 99, zoom: 2 });
+    stubStorage({ mode: 'vectorscope', channels: 'rgb', gain: 99, zoom: 2, pinned: true });
 
     const { scopes } = await import('./scopes.svelte');
 
@@ -42,10 +42,18 @@ describe('scopes store', () => {
     expect(scopes.channels).toBe('rgb');
     expect(scopes.gain).toBe(8);
     expect(scopes.zoom).toBe(2);
+    expect(scopes.pinned).toBe(true);
   });
 
   it('ignores unknown stored values', async () => {
-    stubStorage({ mode: 'oscilloscope', channels: 'cmyk', gain: 'loud', zoom: 5 });
+    stubStorage({
+      mode: 'oscilloscope',
+      channels: 'cmyk',
+      gain: 'loud',
+      zoom: 5,
+      pinned: 'yes',
+      height: 'tall'
+    });
 
     const { scopes } = await import('./scopes.svelte');
 
@@ -53,6 +61,23 @@ describe('scopes store', () => {
     expect(scopes.channels).toBe('luma');
     expect(scopes.gain).toBe(1);
     expect(scopes.zoom).toBe(1);
+    expect(scopes.pinned).toBe(false);
+    expect(scopes.height).toBe(128);
+  });
+
+  it.each([
+    [40, 96],
+    [200.4, 200],
+    [900, 360],
+    [Number.NaN, 128]
+  ])('clamps a scope height of %s to %s', async (height, expected) => {
+    stubStorage({ height });
+
+    const { scopes } = await import('./scopes.svelte');
+    expect(scopes.height).toBe(expected);
+
+    scopes.setHeight(height);
+    expect(scopes.height).toBe(expected);
   });
 
   it('stays idle while the histogram is selected', async () => {
@@ -132,12 +157,18 @@ describe('scopes store', () => {
     scopes.setMode('parade');
     scopes.setGain(4);
     scopes.setZoom(2);
+    scopes.togglePinned();
+    scopes.setHeight(180);
+    expect(JSON.parse(values.get(storageKey) ?? '{}').height).toBe(128);
+    scopes.commitHeight();
 
     expect(JSON.parse(values.get(storageKey) ?? '{}')).toEqual({
       mode: 'parade',
       channels: 'luma',
       gain: 4,
-      zoom: 2
+      zoom: 2,
+      pinned: true,
+      height: 180
     });
   });
 });
