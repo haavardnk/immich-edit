@@ -4,6 +4,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import CropOverlay from './CropOverlay.svelte';
   import MaskOverlay from './MaskOverlay.svelte';
+  import WhiteBalancePicker from './WhiteBalancePicker.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
@@ -273,6 +274,7 @@
         />
       {/if}
       <MaskOverlay img={imgEl} />
+      <WhiteBalancePicker img={imgEl} />
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />
       <RetouchOverlay img={imgEl} />

@@ -1,7 +1,8 @@
-use super::SAMPLE_TARGET;
 use crate::edits::{CropRect, Edits};
 use crate::frame::{OrientFlips, RawFrame};
 use crate::geom::GeometryTransform;
+
+pub(crate) const SAMPLE_TARGET: usize = 200_000;
 
 fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
     if raw[0] == 0.0 && raw[1] == 0.0 && raw[2] == 0.0 {
@@ -61,7 +62,7 @@ fn mosaic_block_rgb(
     }
     acc
 }
-pub(super) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
+pub(crate) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
     let wb = camera_wb_coeffs(frame.wb_coeffs);
     let xyz_to_cam =
         crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
@@ -71,7 +72,7 @@ pub(super) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
     (wb, crate::color::cam_to_srgb_matrix(xyz_to_cam))
 }
 
-pub(super) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {
+pub(crate) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {
     let r = (raw[0] * wb[0]).max(0.0);
     let g = (raw[1] * wb[1]).max(0.0);
     let b = (raw[2] * wb[2]).max(0.0);
@@ -82,10 +83,10 @@ pub(super) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32
     ]
 }
 
-pub(super) fn develop_luma(r: f32, g: f32, b: f32) -> f32 {
+pub(crate) fn develop_luma(r: f32, g: f32, b: f32) -> f32 {
     crate::tone::apply_display_luma([r, g, b])
 }
-pub(super) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f32; 3]> {
+pub(crate) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f32; 3]> {
     let w = frame.width as i32;
     let h = frame.height as i32;
     if w <= 0 || h <= 0 || frame.cpp < 3 {
@@ -116,7 +117,7 @@ pub(super) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f
     Some(out)
 }
 
-pub(super) fn sensor_to_oriented_uv(
+pub(crate) fn sensor_to_oriented_uv(
     px: f32,
     py: f32,
     w: usize,
@@ -142,7 +143,7 @@ pub(super) fn sensor_to_oriented_uv(
     (ox / ow, oy / oh)
 }
 
-pub(super) fn geometry_transform(
+pub(crate) fn geometry_transform(
     edits: &Edits,
     oriented_w: u32,
     oriented_h: u32,
@@ -169,7 +170,7 @@ pub(super) fn geometry_transform(
     };
     if t.is_identity() { None } else { Some(t) }
 }
-pub(super) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
+pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
     if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
         return None;
     }

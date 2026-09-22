@@ -28,6 +28,7 @@ import * as maskGen from '$lib/stores/editor/maskGen';
 import * as metadata from '$lib/stores/editor/metadata';
 import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
+import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { SaveQueue } from '$lib/stores/editor/save.svelte';
@@ -82,6 +83,8 @@ class EditorStore {
   lastImmichOpts: ImmichExportOptions | null = null;
   lastExportOpts: ExportOptions | null = null;
   autoBusy = $state(false);
+  wbPicking = $state(false);
+  wbBusy = $state(false);
   error = $state<string | null>(null);
   showingOriginal = $state(false);
   splitMode = $state(false);
@@ -438,6 +441,15 @@ class EditorStore {
       this.autoBusy = false;
     }
   };
+
+  toggleWbPicker = (): void => whiteBalance.toggleWbPicker(this);
+
+  cancelWbPicker = (): void => whiteBalance.cancelWbPicker(this);
+
+  pickWhiteBalance = (u: number, v: number): Promise<void> =>
+    whiteBalance.pickWhiteBalance(this, u, v);
+
+  onAutoWhiteBalance = (): Promise<void> => whiteBalance.autoWb(this);
 
   onExport = (opts: ExportOptions): Promise<void> => exportActions.onExport(this, opts);
 

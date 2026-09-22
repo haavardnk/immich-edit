@@ -231,6 +231,78 @@ pub async fn auto(
     Ok(Json(edits))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WhiteBalanceBody {
+    pub u: f32,
+    pub v: f32,
+    #[serde(default)]
+    pub edits: Edits,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WhiteBalanceResponse {
+    pub wb_temp: f64,
+    pub wb_tint: f64,
+}
+
+pub async fn white_balance_sample(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(id): Path<AssetKey>,
+    Json(body): Json<WhiteBalanceBody>,
+) -> Result<Json<WhiteBalanceResponse>, AppError> {
+    if !(0.0..=1.0).contains(&body.u) || !(0.0..=1.0).contains(&body.v) {
+        return Err(AppError::BadRequest(
+            "sample point must be inside 0..1".to_string(),
+        ));
+    }
+    let frame = state
+        .render
+        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .await
+        .map_err(AppError::from)?;
+    let solved = tokio::task::spawn_blocking(move || {
+        raw_pipeline::white_balance::sample_white_balance(&frame, &body.edits, body.u, body.v)
+    })
+    .await
+    .map_err(|_| AppError::Internal)?;
+    solved_response(solved)
+}
+
+pub async fn white_balance_auto(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(id): Path<AssetKey>,
+    body: axum::body::Bytes,
+) -> Result<Json<WhiteBalanceResponse>, AppError> {
+    let context = if body.is_empty() {
+        Edits::default()
+    } else {
+        serde_json::from_slice::<Edits>(&body)
+            .map_err(|e| AppError::BadRequest(format!("invalid edits body: {e}")))?
+    };
+    let frame = state
+        .render
+        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .await
+        .map_err(AppError::from)?;
+    let solved = tokio::task::spawn_blocking(move || {
+        raw_pipeline::white_balance::auto_white_balance(&frame, &context)
+    })
+    .await
+    .map_err(|_| AppError::Internal)?;
+    solved_response(solved)
+}
+
+fn solved_response(solved: Option<(f64, f64)>) -> Result<Json<WhiteBalanceResponse>, AppError> {
+    let Some((wb_temp, wb_tint)) = solved else {
+        return Err(AppError::Unprocessable(
+            "no usable colour at that point".to_string(),
+        ));
+    };
+    Ok(Json(WhiteBalanceResponse { wb_temp, wb_tint }))
+}
+
 pub async fn history(
     State(state): State<AppState>,
     ctx: AuthCtx,

@@ -728,6 +728,52 @@ async fn auto_edits_rejects_malformed_body() {
 }
 
 #[tokio::test]
+async fn white_balance_sample_rejects_out_of_range_point() {
+    use uuid::Uuid;
+
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/assets/{}/edits/white-balance",
+                    Uuid::new_v4()
+                ))
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"u":1.5,"v":0.5}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn white_balance_auto_rejects_malformed_body() {
+    use uuid::Uuid;
+
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/assets/{}/edits/white-balance/auto",
+                    Uuid::new_v4()
+                ))
+                .header("content-type", "application/json")
+                .body(Body::from("{ not json"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn create_job_with_unknown_kind_is_bad_request() {
     use uuid::Uuid;
 

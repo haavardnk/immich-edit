@@ -78,6 +78,28 @@ export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
   return sendJson('POST', url`/api/assets/${assetId}/edits/auto`, context);
 }
 
+export interface WhiteBalanceResult {
+  wb_temp: number;
+  wb_tint: number;
+}
+
+export function sampleWhiteBalance(
+  assetId: string,
+  u: number,
+  v: number,
+  context: Edits
+): Promise<WhiteBalanceResult> {
+  return sendJson('POST', url`/api/assets/${assetId}/edits/white-balance`, {
+    u,
+    v,
+    edits: context
+  });
+}
+
+export function autoWhiteBalance(assetId: string, context: Edits): Promise<WhiteBalanceResult> {
+  return sendJson('POST', url`/api/assets/${assetId}/edits/white-balance/auto`, context);
+}
+
 export interface EditHistoryEntry {
   id: number;
   manifest_hash: string;
