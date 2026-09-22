@@ -53,7 +53,12 @@
 
 <div class="flex flex-col divide-y divide-dark/10">
   <div class="flex flex-col gap-1 pb-1.5">
-    <SectionHeader title="Sharpening" modified={sharpenModified} onReset={resetSharpen} />
+    <SectionHeader
+      title="Sharpening"
+      section="sharpening"
+      modified={sharpenModified}
+      onReset={resetSharpen}
+    />
     <Tooltip
       text={isRaw
         ? 'Compensates for sensor and anti-aliasing filter blur'
@@ -111,7 +116,12 @@
     />
   </div>
   <div class="flex flex-col gap-1 py-1.5">
-    <SectionHeader title="Noise Reduction" modified={nrModified} onReset={resetNr} />
+    <SectionHeader
+      title="Noise Reduction"
+      section="noise_reduction"
+      modified={nrModified}
+      onReset={resetNr}
+    />
     <EditSlider
       label="Luminance"
       commitAction="Luminance NR"

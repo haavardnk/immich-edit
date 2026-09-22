@@ -82,6 +82,7 @@
   <div class="flex flex-col gap-1">
     <SectionHeader
       title="Lens Profile"
+      section="lens"
       {modified}
       onReset={resetLens}
       resetTitle="Reset Lens Corrections"

@@ -141,4 +141,39 @@ test.describe('view rendering', () => {
     await page.keyboard.press('z');
     await expect(zoom).toHaveText('200%');
   });
+
+  test('a held section bypass is not replaced by the view render', async ({ page }) => {
+    const requests: PreviewRequest[] = [];
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H },
+      onPreview: (req) => requests.push(req)
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+
+    const exposure = (req: PreviewRequest): number =>
+      (req.edits as { basic: { exposure_ev: number } }).basic.exposure_ev;
+    await page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
+      .getByRole('slider')
+      .fill('1');
+    await expect.poll(() => requests.some((r) => r.lane === 'roi' && exposure(r) === 1)).toBe(true);
+
+    await page.getByRole('button', { name: 'Bypass Tone' }).hover();
+    const held = requests.length;
+    await page.mouse.down();
+    await expect
+      .poll(() => requests.slice(held).some((r) => r.lane === 'base' && exposure(r) === 0))
+      .toBe(true);
+    await page.waitForTimeout(1000);
+
+    expect(requests.slice(held).filter((r) => exposure(r) !== 0)).toEqual([]);
+    await expect(page.getByTestId('view-render')).toHaveCount(0);
+
+    await page.mouse.up();
+    await expect
+      .poll(() => requests.slice(held).some((r) => r.lane === 'roi' && exposure(r) === 1))
+      .toBe(true);
+  });
 });

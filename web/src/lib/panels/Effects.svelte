@@ -25,7 +25,12 @@
 
 <div class="flex flex-col divide-y divide-dark/10">
   <div class="flex flex-col gap-1 pb-1.5">
-    <SectionHeader title="Vignette" modified={!vignetteInactive} onReset={resetVignette} />
+    <SectionHeader
+      title="Vignette"
+      section="vignette"
+      modified={!vignetteInactive}
+      onReset={resetVignette}
+    />
     <EditSlider
       label="Amount"
       commitAction="Vignette Amount"
@@ -61,7 +66,7 @@
     />
   </div>
   <div class="flex flex-col gap-1 pt-1.5">
-    <SectionHeader title="Grain" modified={!grainInactive} onReset={resetGrain} />
+    <SectionHeader title="Grain" section="grain" modified={!grainInactive} onReset={resetGrain} />
     <EditSlider
       label="Amount"
       commitAction="Grain Amount"

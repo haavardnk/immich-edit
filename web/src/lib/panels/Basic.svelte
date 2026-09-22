@@ -52,7 +52,12 @@
 
 <div class="flex flex-col divide-y divide-dark/10">
   <div class="flex flex-col gap-1 pb-1.5">
-    <SectionHeader title="White Balance" modified={wbModified} onReset={resetWb}>
+    <SectionHeader
+      title="White Balance"
+      section="white_balance"
+      modified={wbModified}
+      onReset={resetWb}
+    >
       {#snippet actions()}
         <IconButton
           size="small"
@@ -97,7 +102,7 @@
     />
   </div>
   <div class="flex flex-col gap-1 py-1.5">
-    <SectionHeader title="Tone" modified={toneModified} onReset={resetTone} />
+    <SectionHeader title="Tone" section="tone" modified={toneModified} onReset={resetTone} />
     <EditSlider
       label="Exposure"
       commitAction="Exposure"
@@ -152,7 +157,12 @@
     />
   </div>
   <div class="flex flex-col gap-1 pt-1.5">
-    <SectionHeader title="Presence" modified={presenceModified} onReset={resetPresence} />
+    <SectionHeader
+      title="Presence"
+      section="presence"
+      modified={presenceModified}
+      onReset={resetPresence}
+    />
     <EditSlider
       label="Texture"
       commitAction="Texture"
