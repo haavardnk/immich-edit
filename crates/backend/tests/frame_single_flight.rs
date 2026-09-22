@@ -101,9 +101,10 @@ async fn a_timed_out_preview_keeps_the_decoded_frame() {
     let id = asset_id();
     mock_original(&server, id, Duration::from_millis(1500)).await;
     let state = impatient_state(&server).await;
-    let app = seed_and_wrap(&server, state.clone()).await;
+    let token = seed_session(&server, &state).await;
+    let app = wrap_auth(router(state.clone()), token.clone());
 
-    let resp = app.clone().oneshot(preview(id)).await.unwrap();
+    let resp = app.oneshot(preview(id)).await.unwrap();
     if resp.status() != StatusCode::REQUEST_TIMEOUT {
         panic!(
             "expected the first preview to time out, got {}",
@@ -119,7 +120,15 @@ async fn a_timed_out_preview_keeps_the_decoded_frame() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 
-    let resp = app.oneshot(preview(id)).await.unwrap();
+    let mut patient = state.clone();
+    patient.config = Arc::new(Config {
+        request_timeout_secs: 60,
+        ..(*state.config).clone()
+    });
+    let resp = wrap_auth(router(patient), token)
+        .oneshot(preview(id))
+        .await
+        .unwrap();
     if resp.status() != StatusCode::OK {
         panic!("retry after the timeout failed: {}", resp.status());
     }
