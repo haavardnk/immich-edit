@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { Histogram } from '$lib/types/preview';
 
-  let { hist, linear, gain }: { hist: Histogram; linear: Histogram | null; gain: number } =
-    $props();
+  let {
+    hist,
+    linear,
+    gain,
+    height
+  }: { hist: Histogram; linear: Histogram | null; gain: number; height: number } = $props();
 
   const W = 256;
   const H = 100;
@@ -32,7 +36,12 @@
   const highlightClip = $derived(linear ? clippingPct(linear, 255) : 0);
 </script>
 
-<div class="relative h-32 w-full bg-neutral-950" role="img" aria-label="Histogram">
+<div
+  class="relative w-full bg-neutral-950"
+  style:height="{height}px"
+  role="img"
+  aria-label="Histogram"
+>
   <svg
     viewBox="0 0 {W} {H}"
     preserveAspectRatio="none"

@@ -20,6 +20,11 @@ function lastExposure(requests: PreviewRequest[]): number | null {
   return last ? (last.edits as { basic: { exposure_ev: number } }).basic.exposure_ev : null;
 }
 
+async function pickScope(page: import('@playwright/test').Page, label: string): Promise<void> {
+  await page.getByRole('button', { name: 'Scope', exact: true }).click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+}
+
 test('adjusting a slider requests a live preview with the new edit', async ({ page }) => {
   const requests: PreviewRequest[] = [];
   await installMocks(page, { onPreview: (req) => requests.push(req) });
@@ -155,14 +160,71 @@ test('scope modes draw from the cached grids and survive a reload', async ({ pag
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('radio', { name: 'Wave' }).click();
+  await pickScope(page, 'Waveform');
   await expect(page.getByRole('img', { name: 'Waveform' })).toBeVisible();
 
-  await page.getByRole('radio', { name: 'Vector' }).click();
+  await pickScope(page, 'Vectorscope');
   await expect(page.getByRole('img', { name: 'Vectorscope' })).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole('img', { name: 'Vectorscope' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scope', exact: true })).toHaveText('Vectorscope');
+});
+
+test('pinned scopes stay above the scrolling panels across a reload', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const scopesToggle = page.getByRole('button', { name: 'Scopes', exact: true });
+  const pin = page.getByRole('button', { name: 'Pin scopes' });
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+
+  const list = page.getByRole('button', { name: 'Versions', exact: true });
+  await list.scrollIntoViewIfNeeded();
+  await expect(scopesToggle).toBeInViewport();
+  const scroller = page.locator('.scrollbar-hidden').filter({ has: list });
+  expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(scroller.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Pin scopes' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(scroller.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
+});
+
+test('the scope height resizes by drag and keyboard and persists', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const status = page.getByRole('status').filter({ hasText: /No data|Loading/ });
+  const height = (): Promise<number> =>
+    status.evaluate((element) => Math.round(element.getBoundingClientRect().height));
+  await expect.poll(height).toBe(128);
+
+  const handle = page.getByRole('slider', { name: 'Resize scopes' });
+  await handle.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(height).toBe(136);
+
+  const box = await handle.boundingBox();
+  if (!box) throw new Error('resize handle has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 64, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(height).toBe(200);
+
+  await page.reload();
+  await expect.poll(height).toBe(200);
+  await expect(page.getByRole('slider', { name: 'Resize scopes' })).toHaveAttribute(
+    'aria-valuenow',
+    '200'
+  );
 });
 
 test('a scope mode re-renders the preview when the cached meta has no scopes', async ({ page }) => {
@@ -174,7 +236,7 @@ test('a scope mode re-renders the preview when the cached meta has no scopes', a
   await gotoAsset(page);
   await expect(page.getByText('No data')).toBeVisible();
 
-  await page.getByRole('radio', { name: 'Parade' }).click();
+  await pickScope(page, 'Parade');
 
   await expect.poll(() => requests.some((req) => req.scopes === true)).toBe(true);
 });

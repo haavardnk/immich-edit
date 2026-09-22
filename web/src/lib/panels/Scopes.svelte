@@ -3,15 +3,15 @@
   import Histogram from './scopes/Histogram.svelte';
   import Waveform from './scopes/Waveform.svelte';
   import Vectorscope from './scopes/Vectorscope.svelte';
+  import ResizeHandle from '$lib/components/shell/ResizeHandle.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { scopes, type ScopeMode, type WaveformChannels } from '$lib/stores/scopes.svelte';
+  import {
+    scopes,
+    MAX_SCOPE_HEIGHT,
+    MIN_SCOPE_HEIGHT,
+    type WaveformChannels
+  } from '$lib/stores/scopes.svelte';
 
-  const MODES: { value: ScopeMode; label: string }[] = [
-    { value: 'histogram', label: 'Hist' },
-    { value: 'waveform', label: 'Wave' },
-    { value: 'parade', label: 'Parade' },
-    { value: 'vectorscope', label: 'Vector' }
-  ];
   const GAINS = [1, 2, 4, 8];
 
   const groupClass = 'flex gap-0.5';
@@ -22,11 +22,6 @@
   const hist = $derived(editor.meta?.histogram ?? null);
   const linearHist = $derived(editor.meta?.linear_histogram ?? null);
 
-  function selectMode(value: string): void {
-    scopes.setMode(value as ScopeMode);
-    if (scopes.needsRender) editor.refreshScopes();
-  }
-
   function selectChannels(value: string): void {
     scopes.setChannels(value as WaveformChannels);
   }
@@ -35,45 +30,49 @@
 {#snippet placeholder(pending: boolean)}
   <div
     role="status"
-    class="flex h-32 items-center justify-center bg-neutral-950 text-[10px] text-dark/65"
+    class="flex items-center justify-center bg-neutral-950 text-[10px] text-dark/65"
+    style:height="{scopes.height}px"
   >
     {pending ? 'Loading…' : 'No data'}
   </div>
 {/snippet}
 
 <div class="flex flex-col gap-1">
-  <RadioGroup.Root
-    value={scopes.mode}
-    onValueChange={selectMode}
-    orientation="horizontal"
-    aria-label="Scope"
-    class="{groupClass} justify-between"
-  >
-    {#each MODES as mode (mode.value)}
-      <RadioGroup.Item value={mode.value} class="{itemClass} flex-1">
-        {mode.label}
-      </RadioGroup.Item>
-    {/each}
-  </RadioGroup.Root>
-
-  {#if scopes.mode === 'histogram'}
-    {#if hist === null}
-      {@render placeholder(editor.meta === null)}
+  <div class="relative">
+    {#if scopes.mode === 'histogram'}
+      {#if hist === null}
+        {@render placeholder(editor.meta === null)}
+      {:else}
+        <Histogram {hist} linear={linearHist} gain={scopes.gain} height={scopes.height} />
+      {/if}
+    {:else if grid === null}
+      {@render placeholder(scopes.loading)}
+    {:else if scopes.mode === 'vectorscope'}
+      <Vectorscope {grid} gain={scopes.gain} zoom={scopes.zoom} size={scopes.height} />
     {:else}
-      <Histogram {hist} linear={linearHist} gain={scopes.gain} />
+      <Waveform
+        {grid}
+        gain={scopes.gain}
+        height={scopes.height}
+        parade={scopes.mode === 'parade'}
+        label={scopes.mode === 'parade' ? 'RGB parade' : 'Waveform'}
+      />
     {/if}
-  {:else if grid === null}
-    {@render placeholder(scopes.loading)}
-  {:else if scopes.mode === 'vectorscope'}
-    <Vectorscope {grid} gain={scopes.gain} zoom={scopes.zoom} />
-  {:else}
-    <Waveform
-      {grid}
-      gain={scopes.gain}
-      parade={scopes.mode === 'parade'}
-      label={scopes.mode === 'parade' ? 'RGB parade' : 'Waveform'}
+    <ResizeHandle
+      label="Resize scopes"
+      orientation="vertical"
+      grow="end"
+      value={scopes.height}
+      min={MIN_SCOPE_HEIGHT}
+      max={MAX_SCOPE_HEIGHT}
+      step={8}
+      shiftStep={32}
+      class="absolute inset-x-0 -bottom-1.5 z-10 h-3 cursor-row-resize bg-transparent outline-none after:absolute after:inset-x-0 after:top-1/2 after:h-px after:-translate-y-1/2 after:transition-colors hover:after:bg-primary focus-visible:after:bg-primary"
+      activeClass="after:bg-primary"
+      onLive={scopes.setHeight}
+      onCommit={scopes.commitHeight}
     />
-  {/if}
+  </div>
 
   <div class="flex items-center gap-2">
     {#if scopes.mode === 'waveform'}

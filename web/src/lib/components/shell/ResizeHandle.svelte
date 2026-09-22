@@ -1,9 +1,11 @@
 <script lang="ts">
   type Orientation = 'horizontal' | 'vertical';
+  type Grow = 'start' | 'end';
 
   let {
     label,
     orientation,
+    grow = 'start',
     value,
     min,
     max,
@@ -16,6 +18,7 @@
   }: {
     label: string;
     orientation: Orientation;
+    grow?: Grow;
     value: number;
     min: number;
     max: number;
@@ -46,7 +49,8 @@
 
   function move(event: PointerEvent): void {
     if (event.pointerId !== pointerId) return;
-    onLive(startValue + startPosition - position(event));
+    const delta = startPosition - position(event);
+    onLive(startValue + (grow === 'start' ? delta : -delta));
   }
 
   function finish(event: PointerEvent): void {
@@ -59,8 +63,10 @@
 
   function resizeWithKeyboard(event: KeyboardEvent): void {
     const amount = event.shiftKey ? shiftStep : step;
-    const increaseKey = orientation === 'horizontal' ? 'ArrowLeft' : 'ArrowUp';
-    const decreaseKey = orientation === 'horizontal' ? 'ArrowRight' : 'ArrowDown';
+    const towardStart = orientation === 'horizontal' ? 'ArrowLeft' : 'ArrowUp';
+    const towardEnd = orientation === 'horizontal' ? 'ArrowRight' : 'ArrowDown';
+    const increaseKey = grow === 'start' ? towardStart : towardEnd;
+    const decreaseKey = grow === 'start' ? towardEnd : towardStart;
     if (event.key === increaseKey) onLive(value + amount);
     else if (event.key === decreaseKey) onLive(value - amount);
     else if (event.key === 'Home') onLive(min);

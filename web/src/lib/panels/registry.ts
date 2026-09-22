@@ -1,5 +1,4 @@
 import type { Component } from 'svelte';
-import ScopesPanel from './Scopes.svelte';
 import BasicPanel from './Basic.svelte';
 import CurvesPanel from './Curves.svelte';
 import HslPanel from './Hsl.svelte';
@@ -19,8 +18,9 @@ export interface PanelDef {
   defaultOpen: boolean;
 }
 
+export const SCOPES_PANEL = 'scopes';
+
 export const developPanels: PanelDef[] = [
-  { id: 'scopes', title: 'Scopes', component: ScopesPanel, defaultOpen: true },
   { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
   { id: 'presets', title: 'Presets', component: PresetsPanel, defaultOpen: false },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
@@ -33,3 +33,12 @@ export const developPanels: PanelDef[] = [
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false },
   { id: 'versions', title: 'Versions', component: VersionsPanel, defaultOpen: false }
 ];
+
+const defaultOpenPanels = [
+  SCOPES_PANEL,
+  ...developPanels.filter((panel) => panel.defaultOpen).map((panel) => panel.id)
+];
+
+export function openDevelopPanels(stored: readonly string[] | null): Set<string> {
+  return new Set(stored ?? defaultOpenPanels);
+}

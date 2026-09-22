@@ -11,12 +11,17 @@ const CHANNELS: WaveformChannels[] = ['luma', 'rgb'];
 
 export const MIN_GAIN = 1;
 export const MAX_GAIN = 8;
+export const MIN_SCOPE_HEIGHT = 96;
+export const MAX_SCOPE_HEIGHT = 360;
+const DEFAULT_SCOPE_HEIGHT = 128;
 
 type Persisted = {
   mode: ScopeMode;
   channels: WaveformChannels;
   gain: number;
   zoom: number;
+  pinned: boolean;
+  height: number;
 };
 
 class ScopesStore {
@@ -24,6 +29,8 @@ class ScopesStore {
   channels = $state<WaveformChannels>('luma');
   gain = $state(1);
   zoom = $state(1);
+  pinned = $state(false);
+  height = $state(DEFAULT_SCOPE_HEIGHT);
   panelOpen = $state(true);
   grid = $state<ScopeGrid | null>(null);
 
@@ -43,6 +50,8 @@ class ScopesStore {
     if (stored?.channels && CHANNELS.includes(stored.channels)) this.channels = stored.channels;
     if (typeof stored?.gain === 'number') this.gain = clampGain(stored.gain);
     if (stored?.zoom === 1 || stored?.zoom === 2) this.zoom = stored.zoom;
+    if (typeof stored?.pinned === 'boolean') this.pinned = stored.pinned;
+    if (typeof stored?.height === 'number') this.height = clampHeight(stored.height);
   }
 
   private persist(): void {
@@ -50,7 +59,9 @@ class ScopesStore {
       mode: this.mode,
       channels: this.channels,
       gain: this.gain,
-      zoom: this.zoom
+      zoom: this.zoom,
+      pinned: this.pinned,
+      height: this.height
     } satisfies Persisted);
   }
 
@@ -78,6 +89,19 @@ class ScopesStore {
     this.zoom = zoom === 2 ? 2 : 1;
     this.persist();
   }
+
+  togglePinned = (): void => {
+    this.pinned = !this.pinned;
+    this.persist();
+  };
+
+  setHeight = (height: number): void => {
+    this.height = clampHeight(height);
+  };
+
+  commitHeight = (): void => {
+    this.persist();
+  };
 
   setPanelOpen(open: boolean): void {
     this.panelOpen = open;
@@ -139,6 +163,11 @@ class ScopesStore {
 function clampGain(gain: number): number {
   if (!Number.isFinite(gain)) return MIN_GAIN;
   return Math.min(MAX_GAIN, Math.max(MIN_GAIN, gain));
+}
+
+function clampHeight(height: number): number {
+  if (!Number.isFinite(height)) return DEFAULT_SCOPE_HEIGHT;
+  return Math.round(Math.min(MAX_SCOPE_HEIGHT, Math.max(MIN_SCOPE_HEIGHT, height)));
 }
 
 export const scopes = new ScopesStore();

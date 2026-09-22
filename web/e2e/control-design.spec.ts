@@ -507,8 +507,8 @@ test('scope toggles stay unaccented', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  const modes = page.getByRole('radiogroup', { name: 'Scope', exact: true });
-  const selected = modes.getByRole('radio', { name: 'Hist' });
+  const modes = page.getByRole('radiogroup', { name: 'Scope gain', exact: true });
+  const selected = modes.getByRole('radio', { name: '1×' });
   await expect(selected).toHaveAttribute('aria-checked', 'true');
 
   const paint = await Promise.all(
@@ -528,6 +528,19 @@ test('scope toggles stay unaccented', async ({ page }) => {
   expect(paint[0]).toBe('rgba(0, 0, 0, 0)');
   expect(paint[1]).not.toBe(primary);
   expect(paint[1]).toMatch(/0\.08\)$/);
+});
+
+test('the scope mode dropdown is slim and only shows while expanded', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const mode = page.getByRole('button', { name: 'Scope', exact: true });
+  await expect(mode).toHaveText('Histogram');
+  expect((await metricsOf(mode.locator('div').first())).height).toBe(20);
+
+  await page.getByRole('button', { name: 'Scopes', exact: true }).click();
+  await expect(mode).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pin scopes' })).toBeVisible();
 });
 
 test('modified editor tools use a dot without duplicate counts', async ({ page }) => {

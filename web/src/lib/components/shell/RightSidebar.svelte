@@ -7,25 +7,16 @@
   } from '$lib/stores/ui.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { scopes } from '$lib/stores/scopes.svelte';
-  import { developPanels } from '$lib/panels/registry';
-  import { isNonGeometryIdentity } from '$lib/types/edits';
-  import { modifiedDevelopPanels } from '$lib/editorModified';
+  import { openDevelopPanels, SCOPES_PANEL } from '$lib/panels/registry';
+  import { setDevelopPanel } from '$lib/panels/developPanels';
+  import DevelopActions from '$lib/panels/DevelopActions.svelte';
+  import DevelopPanels from '$lib/panels/DevelopPanels.svelte';
+  import ScopesSection from '$lib/panels/scopes/ScopesSection.svelte';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
   import MasksPanel from '$lib/panels/Masks.svelte';
   import RetouchPanel from '$lib/panels/Retouch.svelte';
-  import Disclosure from '$lib/components/Disclosure.svelte';
-  import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
-  import { hint } from '$lib/keybinds';
-  import { Button, IconButton } from '@immich/ui';
-  import {
-    mdiAutoFix,
-    mdiRestore,
-    mdiFilterVariant,
-    mdiContentCopy,
-    mdiContentPaste
-  } from '@mdi/js';
 
   const editorTabs: { id: EditorTab; label: string }[] = [
     { id: 'develop', label: 'Develop' },
@@ -35,12 +26,7 @@
     { id: 'export', label: 'Export' }
   ];
 
-  let modifiedOnly = $state(false);
-  const openPanels = $derived(
-    new Set(ui.developOpenPanels ?? developPanels.filter((p) => p.defaultOpen).map((p) => p.id))
-  );
-  const neutral = $derived(isNonGeometryIdentity(editor.edits));
-  const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
+  const scopesOpen = $derived(openDevelopPanels(ui.developOpenPanels).has(SCOPES_PANEL));
   const activeEditorTab = $derived(
     editorTabs.find((tab) => tab.id === ui.editorTab) ?? editorTabs[0]
   );
@@ -54,28 +40,8 @@
   });
 
   $effect(() => {
-    scopes.setPanelOpen(openPanels.has('scopes'));
+    scopes.setPanelOpen(scopesOpen);
   });
-
-  function setPanel(id: string, open: boolean): void {
-    const next = new Set(openPanels);
-    if (open) {
-      next.add(id);
-    } else {
-      next.delete(id);
-    }
-    ui.setDevelopPanels([...next]);
-    if (id === 'scopes') {
-      scopes.setPanelOpen(open);
-      if (scopes.needsRender) editor.refreshScopes();
-    }
-  }
-
-  function toggleModifiedOnly(): void {
-    modifiedOnly = !modifiedOnly;
-    if (!modifiedOnly) return;
-    ui.setDevelopPanels([...new Set([...openPanels, ...modifiedPanels])]);
-  }
 </script>
 
 <aside
@@ -114,96 +80,21 @@
 
       {#if ui.editorTab === 'develop'}
         <div class="flex shrink-0 items-center gap-1.5 border-b border-hairline px-3 py-1.5">
-          <div class="flex min-w-0 flex-1 items-center gap-0.5">
-            <Button
-              size="tiny"
-              variant="ghost"
-              color="secondary"
-              class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
-              leadingIcon={mdiAutoFix}
-              title={hint('Auto adjust tone', 'autoAdjust')}
-              aria-label="Auto"
-              disabled={editor.autoBusy || !editor.assetId}
-              onclick={() => void editor.onAutoAdjust()}
-            >
-              {editor.autoBusy ? 'Analyzing…' : 'Auto'}
-            </Button>
-            <Button
-              size="tiny"
-              variant="ghost"
-              color="secondary"
-              class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
-              leadingIcon={mdiRestore}
-              title={hint('Reset edits', 'resetEdits')}
-              aria-label="Reset edits"
-              disabled={neutral || editor.saving}
-              onclick={() => void editor.onReset()}
-            >
-              Reset
-            </Button>
-          </div>
-          <div class="h-5 w-px shrink-0 bg-hairline"></div>
-          <div class="flex shrink-0 items-center gap-0.5">
-            <IconButton
-              size="small"
-              variant="ghost"
-              color="secondary"
-              class="bg-transparent hover:bg-white/6"
-              icon={mdiContentCopy}
-              title={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
-              disabled={!editor.assetId || !editor.hasEdits}
-              aria-label="Copy edits"
-              onclick={editor.copyEdits}
-            />
-            <IconButton
-              size="small"
-              variant="ghost"
-              color="secondary"
-              class="bg-transparent hover:bg-white/6"
-              icon={mdiContentPaste}
-              title={editor.hasClipboard ? hint('Paste edits', 'pasteEdits') : 'Nothing copied'}
-              disabled={!editor.assetId || !editor.hasClipboard || editor.saving}
-              aria-label="Paste edits"
-              onclick={() => void editor.pasteEdits()}
-            />
-            <HistoryPopover />
-            <IconButton
-              size="small"
-              variant="ghost"
-              color={modifiedOnly ? 'primary' : 'secondary'}
-              class="bg-transparent hover:bg-white/6"
-              icon={mdiFilterVariant}
-              title={modifiedOnly ? 'Show all adjustments' : 'Show modified only'}
-              aria-label={modifiedOnly ? 'Show all adjustments' : 'Show modified only'}
-              aria-pressed={modifiedOnly}
-              onclick={toggleModifiedOnly}
-            />
-          </div>
+          <DevelopActions />
         </div>
+        {#if scopes.pinned}
+          <div class="shrink-0">
+            <ScopesSection
+              open={scopesOpen}
+              onOpenChange={(open) => setDevelopPanel(SCOPES_PANEL, open)}
+            />
+          </div>
+        {/if}
       {/if}
 
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
         {#if ui.editorTab === 'develop'}
-          {#if modifiedOnly && modifiedPanels.size === 0}
-            <div class="px-4 py-8 text-center text-xs text-dark/65">No modified adjustments</div>
-          {:else}
-            {#each developPanels as panel (panel.id)}
-              {#if !modifiedOnly || modifiedPanels.has(panel.id)}
-                {@const Comp = panel.component}
-                <Disclosure
-                  open={openPanels.has(panel.id)}
-                  title={panel.title}
-                  modified={modifiedPanels.has(panel.id)}
-                  onOpenChange={(v) => setPanel(panel.id, v)}
-                >
-                  <div class="bg-black/10 {panel.id === 'scopes' ? 'p-1' : 'px-3 pb-2 pt-1'}">
-                    <Comp />
-                  </div>
-                </Disclosure>
-              {/if}
-            {/each}
-          {/if}
-          <div class="h-8"></div>
+          <DevelopPanels />
         {:else if ui.editorTab === 'masks'}
           <div class="px-3 py-2">
             <MasksPanel />
