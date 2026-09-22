@@ -1,4 +1,3 @@
-mod sample;
 mod stats;
 
 #[cfg(test)]
@@ -6,13 +5,12 @@ mod tests;
 
 use crate::edits::{BasicEdits, Edits, ToneEdits};
 use crate::frame::RawFrame;
-use sample::{decimate_mosaic, display_color};
+use crate::sensor_sample::{decimate_mosaic, display_color};
 use stats::{
     collect_stats_direct, collect_stats_output, hist_fraction_above, hist_fraction_below,
     hist_percentile, needs_output_pass,
 };
 
-const SAMPLE_TARGET: usize = 200_000;
 const HIST_BINS: usize = 256;
 const MIN_VALID_SAMPLES: u32 = 1000;
 pub fn scale_matrix(m: [[f32; 3]; 3], gain: f32) -> [[f32; 3]; 3] {

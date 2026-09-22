@@ -155,6 +155,7 @@ export interface InstallOpts {
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
+  onWhiteBalance?: (route: Route) => Promise<void> | void;
   onPreview?: (req: PreviewRequest) => void;
   onSave?: (body: Record<string, unknown>) => void;
   onSmart?: (body: Record<string, unknown>) => void;
@@ -345,6 +346,11 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p.match(/^\/api\/assets\/[^/]+\/edits\/restore$/)) {
       if (opts.onRestore) return opts.onRestore(route);
       return route.fulfill(json(null));
+    }
+
+    if (p.match(/^\/api\/assets\/[^/]+\/edits\/white-balance(\/auto)?$/)) {
+      if (opts.onWhiteBalance) return opts.onWhiteBalance(route);
+      return route.fulfill(json({ wb_temp: -18, wb_tint: 6 }));
     }
 
     if (p.match(/^\/api\/assets\/[^/]+\/export$/)) {

@@ -29,6 +29,8 @@ pub enum AppError {
     UpstreamTimeout,
     #[error("unsupported format: {0}")]
     UnsupportedFormat(String),
+    #[error("unprocessable: {0}")]
+    Unprocessable(String),
     #[error("internal error")]
     Internal,
     #[error("conflict: {0}")]
@@ -81,6 +83,9 @@ impl AppError {
                 "unsupported_format",
                 m.clone(),
             ),
+            Self::Unprocessable(m) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, "unprocessable", m.clone())
+            }
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal",

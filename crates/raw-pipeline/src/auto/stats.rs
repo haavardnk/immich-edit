@@ -1,12 +1,13 @@
-use super::sample::{
-    develop_luma, display_rgb, geometry_transform, sample_raw_bilinear, sensor_to_oriented_uv,
-};
-use super::{HIST_BINS, MIN_VALID_SAMPLES, SAMPLE_TARGET};
+use super::{HIST_BINS, MIN_VALID_SAMPLES};
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::geom::mask_uv_to_display_uv;
 use crate::ops::lens_distortion::{distortion_coeffs, distortion_zoom, output_px_to_source_px};
 use crate::ops::lens_vignette::{vignette_coeffs, vignette_correction};
+use crate::sensor_sample::{
+    SAMPLE_TARGET, develop_luma, display_rgb, geometry_transform, sample_raw_bilinear,
+    sensor_to_oriented_uv,
+};
 
 pub(super) struct Stats {
     pub(super) hist: [u32; HIST_BINS],

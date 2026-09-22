@@ -22,9 +22,11 @@ pub mod ops;
 pub mod perspective;
 pub mod presence;
 pub mod scopes;
+mod sensor_sample;
 pub mod tone;
 pub mod warn;
 pub mod wgsl;
+pub mod white_balance;
 
 use thiserror::Error;
 

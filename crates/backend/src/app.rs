@@ -195,6 +195,14 @@ pub fn router(state: AppState) -> Router {
         .route("/assets/{id}/edits/history", get(routes::edits::history))
         .route("/assets/{id}/edits/restore", post(routes::edits::restore))
         .route(
+            "/assets/{id}/edits/white-balance",
+            post(routes::edits::white_balance_sample),
+        )
+        .route(
+            "/assets/{id}/edits/white-balance/auto",
+            post(routes::edits::white_balance_auto),
+        )
+        .route(
             "/assets/{id}/lens-profile",
             get(routes::lens_profile::get_lens_profile),
         )

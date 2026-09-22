@@ -276,6 +276,57 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
 });
 
+test('white balance eyedropper applies the sampled neutral to both sliders', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  const sampled: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    onSave: (body) => saves.push(body),
+    onWhiteBalance: (route) => {
+      sampled.push((route.request().postDataJSON() as Record<string, unknown>) ?? {});
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ wb_temp: -19, wb_tint: 6 })
+      });
+    }
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Pick white balance' }).click();
+  const surface = page.getByTestId('wb-picker-surface');
+  await expect(surface).toBeVisible();
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('white balance picker has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  await expect(surface).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('-19');
+  await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('6');
+  expect(sampled).toHaveLength(1);
+  expect(sampled[0]?.u).toBeCloseTo(0.5, 1);
+  await expect.poll(() => saves.length).toBeGreaterThan(0);
+});
+
+test('auto white balance solves without touching exposure', async ({ page }) => {
+  await installMocks(page, {
+    onWhiteBalance: (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ wb_temp: 12, wb_tint: -4 })
+      })
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Auto white balance' }).click();
+
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('12');
+  await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('-4');
+  await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('0.00');
+});
+
 test('mask rename commits when its field loses focus', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { onSave: (body) => saves.push(body) });

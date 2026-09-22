@@ -63,7 +63,7 @@ imply planned support.
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Auto adjust | ✓ Yes | Reads Bayer and X-Trans mosaics |
-| Camera and custom white balance | ✓ Yes | Temperature and tint controls |
+| Camera and custom white balance | ✓ Yes | Temperature and tint controls, an eyedropper for neutral areas, and auto white balance |
 | Exposure and tone controls | ✓ Yes | Exposure, brightness, contrast, highlights, shadows, whites, and blacks |
 | RAW clipped-highlight reconstruction | ✓ Yes | Reconstructs clipped channels before tone work |
 | Sensor black- and white-point overrides | ✗ No | No RAW preprocessing controls |
