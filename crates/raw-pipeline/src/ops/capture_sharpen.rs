@@ -61,12 +61,13 @@ impl Op for CaptureSharpenOp {
     }
 }
 
-pub fn frame_sigma(frame: &RawFrame, edits: &Edits) -> Option<f32> {
+pub fn frame_sigma(frame: &RawFrame, edits: &Edits, block: usize) -> Option<f32> {
     if !edits.detail.capture_sharpen || !frame.is_raw {
         return None;
     }
     frame
         .capture_sigma
+        .map(|s| s / block as f32)
         .filter(|s| *s >= MIN_SIGMA)
         .map(|s| s.min(MAX_SIGMA))
 }

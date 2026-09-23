@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -9,7 +10,7 @@ use wgpu::{
 use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::helpers::{
-    DemosaicParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
+    DemosaicParams, SuperpixelParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
 };
 use crate::{PipelineError, PipelineResult};
 
@@ -20,18 +21,112 @@ impl GpuRenderer {
         crate::cpu::renderer::frame_cache_key(frame)
     }
 
-    pub(super) fn get_or_demosaic(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
-        let key = Self::frame_key(frame);
-        if let Some(c) = self.cache.lock().get(&key).cloned() {
+    pub(super) fn get_or_demosaic(
+        &self,
+        frame: &RawFrame,
+        block: Option<usize>,
+    ) -> PipelineResult<Arc<CachedFrame>> {
+        let cache = match block {
+            Some(_) => &self.superpixel_cache,
+            None => &self.cache,
+        };
+        let key = {
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            Self::frame_key(frame).hash(&mut h);
+            block.hash(&mut h);
+            h.finish()
+        };
+        if let Some(c) = cache.lock().get(&key).cloned() {
             return Ok(c);
         }
-        let cached = if frame.cpp == 3 {
-            self.upload_rgb_texture(frame)?
-        } else {
-            self.demosaic_to_texture(frame)?
+        let cached = match block {
+            Some(block) => self.superpixel_to_texture(frame, block)?,
+            None if frame.cpp == 3 => self.upload_rgb_texture(frame)?,
+            None => self.demosaic_to_texture(frame)?,
         };
-        self.cache.lock().put(key, cached.clone());
+        cache.lock().put(key, cached.clone());
         Ok(cached)
+    }
+
+    fn superpixel_to_texture(
+        &self,
+        frame: &RawFrame,
+        block: usize,
+    ) -> PipelineResult<Arc<CachedFrame>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let (period, pattern) = match crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern) {
+            Some(pattern) => (6, xtrans_to_indices(&pattern)),
+            None => {
+                let cfa = cfa_to_indices(&frame.cfa_pattern);
+                let mut pattern = [[1u32; 4]; 9];
+                pattern[0] = cfa;
+                (2, pattern)
+            }
+        };
+        let params = SuperpixelParams {
+            size: [frame.width as u32, frame.height as u32],
+            block: block as u32,
+            period,
+            pattern,
+        };
+        let w = (frame.width / block) as u32;
+        let h = (frame.height / block) as u32;
+        let uniform_buf = self.uniform_pool.acquire(
+            device,
+            queue,
+            bytemuck::bytes_of(&params),
+            "superpixel-uniform",
+        );
+        let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("superpixel-raw-storage"),
+            contents: bytemuck::cast_slice(&frame.data),
+            usage: BufferUsages::STORAGE,
+        });
+        let texture = device.create_texture(&TextureDescriptor {
+            label: Some("linear-superpixel"),
+            size: Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: mip_count(w, h),
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: self.ctx.linear_format,
+            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&TextureViewDescriptor {
+            base_mip_level: 0,
+            mip_level_count: Some(1),
+            ..Default::default()
+        });
+        let bind = bind_group(
+            device,
+            "superpixel-bg",
+            &self.passes.demosaic.layout,
+            &[uniform_buf.as_entire_binding(), buf(&raw_buf), tex(&view)],
+        );
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("superpixel-enc"),
+        });
+        dispatch_2d(
+            &mut encoder,
+            "superpixel-pass",
+            &self.passes.demosaic.superpixel,
+            &bind,
+            w.div_ceil(16),
+            h.div_ceil(16),
+        );
+        self.encode_mipgen(&mut encoder, &texture, w, h);
+        queue.submit(Some(encoder.finish()));
+        Ok(Arc::new(CachedFrame {
+            texture: Arc::new(texture),
+            width: w,
+            height: h,
+            block,
+        }))
     }
 
     fn upload_rgb_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
@@ -101,6 +196,7 @@ impl GpuRenderer {
             texture: Arc::new(texture),
             width: w,
             height: h,
+            block: 1,
         }))
     }
 
@@ -195,6 +291,7 @@ impl GpuRenderer {
             texture: Arc::new(texture),
             width: w,
             height: h,
+            block: 1,
         }))
     }
 
@@ -305,6 +402,7 @@ impl GpuRenderer {
             texture: Arc::new(texture),
             width: w,
             height: h,
+            block: 1,
         }))
     }
 

@@ -92,6 +92,7 @@ pub(crate) fn sensor_cache_key(
     setup: &DcpSetup,
     options: &RenderOptions,
     preview_ratio: Option<f32>,
+    superpixel_block: Option<usize>,
 ) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     frame_cache_key(frame).hash(&mut h);
@@ -114,6 +115,7 @@ pub(crate) fn sensor_cache_key(
     d.hash_nr(&mut h);
     d.capture_sharpen.hash(&mut h);
     preview_ratio.map(f32::to_bits).hash(&mut h);
+    superpixel_block.hash(&mut h);
     options.roi.is_some().hash(&mut h);
     if let Some(roi) = options.roi {
         roi.hash_key(&mut h);

@@ -35,6 +35,15 @@ pub(super) struct XtransParams {
     pub pattern: [[u32; 4]; 9],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub(super) struct SuperpixelParams {
+    pub size: [u32; 2],
+    pub block: u32,
+    pub period: u32,
+    pub pattern: [[u32; 4]; 9],
+}
+
 pub(super) fn xtrans_to_indices(pattern: &[u8; 36]) -> [[u32; 4]; 9] {
     let mut out = [[1u32; 4]; 9];
     for (i, b) in pattern.iter().enumerate() {

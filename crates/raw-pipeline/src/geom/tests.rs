@@ -1,6 +1,77 @@
 use super::*;
 
 #[test]
+fn preview_ratio_cases() {
+    let edits = crate::edits::Edits::default();
+    let cases = [
+        ((6000, 4000, 3000, false), Some(2.0)),
+        ((6000, 4000, 4000, false), Some(1.5)),
+        ((6000, 4000, 5960, false), None),
+        ((6000, 4000, 6000, false), None),
+        ((6000, 4000, 1600, true), None),
+        ((6000, 4000, 200, false), None),
+    ];
+    for ((w, h, max_edge, quality), want) in cases {
+        let got = preview_ratio((false, false, false), &edits, (w, h), max_edge, quality);
+        assert_eq!(got, want, "{w}x{h} @ {max_edge} quality={quality}");
+    }
+}
+
+fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
+    RawFrame {
+        width: 6000,
+        height: 4000,
+        cfa_pattern: cfa_pattern.into(),
+        bps: 14,
+        wb_coeffs: [1.0; 4],
+        xyz_to_cam: [[0.0; 3]; 4],
+        color_matrices: Vec::new(),
+        data: Vec::new(),
+        cpp,
+        orientation: (false, false, false),
+        is_raw: true,
+        capture_sigma: None,
+        model: String::new(),
+        exif: None,
+    }
+}
+
+#[test]
+fn superpixel_block_cases() {
+    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+    let roi = RenderOptions {
+        roi: Some(CropRect {
+            x: 0.0,
+            y: 0.0,
+            w: 0.5,
+            h: 0.5,
+        }),
+        ..Default::default()
+    };
+    let mask = RenderOptions {
+        preview_mode: PreviewMode::MaskWeight {
+            layer_id: "a".into(),
+        },
+        ..Default::default()
+    };
+    let plain = RenderOptions::default();
+    let cases = [
+        ("RGGB", 1, &plain, Some(2.0), Some(2)),
+        ("RGGB", 1, &plain, Some(1.9), None),
+        ("RGGB", 1, &plain, None, None),
+        ("RGGB", 1, &roi, Some(4.0), None),
+        ("RGGB", 1, &mask, Some(4.0), None),
+        ("", 3, &plain, Some(4.0), None),
+        (XTRANS, 1, &plain, Some(2.5), None),
+        (XTRANS, 1, &plain, Some(3.0), Some(3)),
+    ];
+    for (cfa, cpp, options, ratio, want) in cases {
+        let got = superpixel_block(&mosaic_frame(cfa, cpp), options, ratio);
+        assert_eq!(got, want, "{cfa} cpp={cpp} ratio={ratio:?}");
+    }
+}
+
+#[test]
 fn scale_to_max_cases() {
     let cases = [
         ((100, 50, 200), (100, 50)),

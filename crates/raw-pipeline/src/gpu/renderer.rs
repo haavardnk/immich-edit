@@ -65,6 +65,7 @@ struct CachedFrame {
     texture: Arc<Texture>,
     width: u32,
     height: u32,
+    block: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +90,7 @@ impl RenderPlan {
             || masked_presence
             || d.luma_nr_active()
             || d.color_nr_active()
-            || crate::ops::capture_sharpen::frame_sigma(frame, edits).is_some()
+            || crate::ops::capture_sharpen::frame_sigma(frame, edits, 1).is_some()
             || edits.retouch.iter().any(|s| s.is_effective())
         {
             Self::Presence
@@ -107,6 +108,7 @@ pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
     cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
+    superpixel_cache: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     atm_cache: Mutex<lru::LruCache<u64, [f32; 3]>>,
     stages: StageCache,
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
@@ -161,6 +163,9 @@ impl GpuRenderer {
             ctx,
             passes,
             cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(CACHE_ITEMS).expect("nonzero"),
+            )),
+            superpixel_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(CACHE_ITEMS).expect("nonzero"),
             )),
             atm_cache: Mutex::new(lru::LruCache::new(
@@ -575,7 +580,7 @@ impl GpuRenderer {
             } else {
                 wb_base
             };
-        let sigma = crate::ops::capture_sharpen::frame_sigma(frame, edits)
+        let sigma = crate::ops::capture_sharpen::frame_sigma(frame, edits, cached.block)
             .filter(|_| dims.0 >= 8 && dims.1 >= 8);
         let full_src: Arc<Texture> = match sigma {
             Some(sigma) => {
@@ -590,11 +595,11 @@ impl GpuRenderer {
         let preview_dims = crate::geom::preview_ratio(
             frame.orientation,
             edits,
-            dims,
+            (frame.width as u32, frame.height as u32),
             options.max_edge,
             options.quality,
         )
-        .and_then(|ratio| crate::geom::resample_target(dims, ratio));
+        .and_then(|ratio| crate::geom::resample_target(dims, ratio / cached.block as f32));
         let (spatial_dims, spatial_src) = match preview_dims {
             Some(preview_dims) => {
                 let downsampled = t.stage(timing::PREVIEW_RESAMPLE, || {
@@ -721,7 +726,16 @@ impl GpuRenderer {
         composed.geometry.crop = crate::geom::compose_roi(composed.geometry.crop, options.roi);
         let edits = &composed;
         let plan = RenderPlan::select(edits, frame);
-        let cached = t.stage(timing::DEMOSAIC, || self.get_or_demosaic(frame))?;
+        let full_dims = (frame.width as u32, frame.height as u32);
+        let preview_ratio = crate::geom::preview_ratio(
+            frame.orientation,
+            edits,
+            full_dims,
+            options.max_edge,
+            options.quality,
+        );
+        let block = crate::geom::superpixel_block(frame, options, preview_ratio);
+        let cached = t.stage(timing::DEMOSAIC, || self.get_or_demosaic(frame, block))?;
         crate::cancel::check(cancel)?;
         let cached = if edits.lens.any_active() {
             let corrected = t.stage(timing::LENS, || self.run_sensor(&cached, &edits.clamped()))?;
@@ -743,7 +757,7 @@ impl GpuRenderer {
                     pass,
                     cached.texture.as_ref(),
                     dims,
-                    compute_out_dims(frame, &edits_c, dims, options.max_edge),
+                    compute_out_dims(frame, &edits_c, full_dims, options.max_edge),
                     frame,
                     edits,
                     options,
@@ -757,7 +771,7 @@ impl GpuRenderer {
             }
             RenderPlan::Presence => {
                 let setup = crate::dcp_pipeline::resolve(frame, &edits_c, options.dcp.as_deref());
-                let (out_w, out_h) = compute_out_dims(frame, &edits_c, dims, options.max_edge);
+                let (out_w, out_h) = compute_out_dims(frame, &edits_c, full_dims, options.max_edge);
                 let (spatial_dims, base_src) =
                     self.spatial_base(&cached, dims, frame, &edits_c, options, &setup, t, cancel)?;
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;

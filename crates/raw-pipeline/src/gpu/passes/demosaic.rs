@@ -12,6 +12,7 @@ use super::common::{
 pub struct DemosaicPass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
+    pub superpixel: ComputePipeline,
 }
 
 impl DemosaicPass {
@@ -31,7 +32,17 @@ impl DemosaicPass {
             "demosaic.wgsl",
             include_str!("../../../assets/shaders/demosaic.wgsl"),
         );
-        Self { layout, pipeline }
+        let superpixel = make_pipeline(
+            ctx,
+            &layout,
+            "superpixel.wgsl",
+            include_str!("../../../assets/shaders/superpixel.wgsl"),
+        );
+        Self {
+            layout,
+            pipeline,
+            superpixel,
+        }
     }
 }
 
