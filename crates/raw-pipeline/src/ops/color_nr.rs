@@ -1,4 +1,5 @@
 use super::LinearImage;
+use super::bilateral::{self, Bilateral};
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
@@ -99,7 +100,7 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
                 prrow[x] = (r - yv) / PR_DEN;
             }
         });
-    let radius: i32 = if amount >= 66.0 {
+    let radius: usize = if amount >= 66.0 {
         4
     } else if amount >= 33.0 {
         3
@@ -108,49 +109,20 @@ fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness:
     };
     let sigma_s = radius as f32;
     let sigma_r = 0.005 + (1.0 - detail / 100.0) * 0.30;
-    let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
-    let inv_2sr = 1.0 / (2.0 * sigma_r * sigma_r);
     let alpha = amount / 100.0;
     let mut pb_out = Scratch::zeroed(n);
     let mut pr_out = Scratch::zeroed(n);
-    (pb_out.par_chunks_mut(w), pr_out.par_chunks_mut(w))
-        .into_par_iter()
-        .enumerate()
-        .for_each(|(y, (pbrow, prrow))| {
-            for x in 0..w {
-                let cb = pb_buf[y * w + x];
-                let cr = pr_buf[y * w + x];
-                let mut wsum = 0.0f32;
-                let mut acc_b = 0.0f32;
-                let mut acc_r = 0.0f32;
-                let y0 = (y as i32 - radius).max(0) as usize;
-                let y1 = (y as i32 + radius).min(h as i32 - 1) as usize;
-                let x0 = (x as i32 - radius).max(0) as usize;
-                let x1 = (x as i32 + radius).min(w as i32 - 1) as usize;
-                for yy in y0..=y1 {
-                    for xx in x0..=x1 {
-                        let vb = pb_buf[yy * w + xx];
-                        let vr = pr_buf[yy * w + xx];
-                        let dx = xx as f32 - x as f32;
-                        let dy = yy as f32 - y as f32;
-                        let dcb = vb - cb;
-                        let dcr = vr - cr;
-                        let dr2 = dcb * dcb + dcr * dcr;
-                        let wgt = (-(dx * dx + dy * dy) * inv_2ss - dr2 * inv_2sr).exp();
-                        wsum += wgt;
-                        acc_b += wgt * vb;
-                        acc_r += wgt * vr;
-                    }
-                }
-                if wsum > 0.0 {
-                    pbrow[x] = acc_b / wsum;
-                    prrow[x] = acc_r / wsum;
-                } else {
-                    pbrow[x] = cb;
-                    prrow[x] = cr;
-                }
-            }
-        });
+    bilateral::filter(
+        [&*pb_buf, &*pr_buf],
+        [&mut *pb_out, &mut *pr_out],
+        w,
+        h,
+        Bilateral {
+            radius,
+            inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
+            inv_2sr: 1.0 / (2.0 * sigma_r * sigma_r),
+        },
+    );
     let s = smoothness / 100.0;
     if s > 0.0 {
         let mut pb_s = Scratch::zeroed(n);
