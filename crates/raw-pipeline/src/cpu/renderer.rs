@@ -106,11 +106,6 @@ pub(crate) fn sensor_cache_key(
             v.to_bits().hash(&mut h);
         }
     }
-    setup
-        .resolved
-        .as_ref()
-        .map(|d| Arc::as_ptr(d) as usize)
-        .hash(&mut h);
     edits.basic.wb_temp.to_bits().hash(&mut h);
     edits.basic.wb_tint.to_bits().hash(&mut h);
     edits.lens.hash_key(&mut h);
