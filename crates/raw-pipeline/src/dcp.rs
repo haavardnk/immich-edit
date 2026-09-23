@@ -1,9 +1,11 @@
 mod parse;
+mod tone_curve;
 
 #[cfg(test)]
 mod tests;
 
 pub use parse::parse_dcp;
+pub use tone_curve::ToneCurve;
 
 use std::sync::Arc;
 
@@ -86,7 +88,7 @@ pub struct DcpProfile {
     pub huesatmap1: Option<Arc<HueSatMap>>,
     pub huesatmap2: Option<Arc<HueSatMap>>,
     pub look_table: Option<Arc<HueSatMap>>,
-    pub tone_curve: Option<Arc<Vec<[f32; 2]>>>,
+    pub tone_curve: Option<Arc<ToneCurve>>,
     pub baseline_exposure_offset: f32,
     pub default_black_render: u32,
     pub embed_policy: u32,
@@ -98,7 +100,9 @@ impl DcpProfile {
     }
 
     pub fn has_tone_curve(&self) -> bool {
-        self.tone_curve.as_ref().is_some_and(|c| c.len() >= 2)
+        self.tone_curve
+            .as_ref()
+            .is_some_and(|c| c.points().len() >= 2)
     }
 
     pub fn has_forward_matrix(&self) -> bool {

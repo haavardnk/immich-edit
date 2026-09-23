@@ -397,13 +397,15 @@ fn gpu_vs_cpu_parity_with_dcp_huesat() {
 #[test]
 fn gpu_vs_cpu_parity_with_dcp_tone() {
     let mut profile = make_huesat_profile();
-    profile.tone_curve = Some(std::sync::Arc::new(vec![
-        [0.0, 0.0],
-        [0.25, 0.18],
-        [0.5, 0.52],
-        [0.75, 0.84],
-        [1.0, 1.0],
-    ]));
+    profile.tone_curve = Some(std::sync::Arc::new(raw_pipeline::dcp::ToneCurve::new(
+        vec![
+            [0.0, 0.0],
+            [0.25, 0.18],
+            [0.5, 0.52],
+            [0.75, 0.84],
+            [1.0, 1.0],
+        ],
+    )));
     run_dcp_parity(profile, false);
 }
 

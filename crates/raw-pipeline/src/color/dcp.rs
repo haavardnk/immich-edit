@@ -3,7 +3,7 @@ use super::matrix::{
     D50_XY, bradford_cat, cam_to_srgb_matrix, estimate_scene_cct, mat3_mul, mat3_vec,
 };
 use super::{D65_XY, XYZ_TO_SRGB_D65};
-use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap};
+use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap, ToneCurve};
 
 pub fn dcp_illuminant_cct(code: u16) -> f32 {
     match code {
@@ -234,7 +234,7 @@ pub(super) fn apply_huesat_in_space(map: &HueSatMap, rgb: [f32; 3], bounded: boo
     }
 }
 
-pub(super) fn apply_profile_tone_curve(curve: &[[f32; 2]], rgb: [f32; 3]) -> [f32; 3] {
+pub(super) fn apply_profile_tone_curve(curve: &ToneCurve, rgb: [f32; 3]) -> [f32; 3] {
     if !rgb.iter().any(|v| (0.0..=1.0).contains(v)) {
         return rgb;
     }
@@ -248,8 +248,8 @@ pub(super) fn apply_profile_tone_curve(curve: &[[f32; 2]], rgb: [f32; 3]) -> [f3
     let lo = source[order[0]];
     let mid = source[order[1]];
     let hi = source[order[2]];
-    let lo_out = eval_tone_curve(curve, lo);
-    let hi_out = eval_tone_curve(curve, hi);
+    let lo_out = curve.eval(lo);
+    let hi_out = curve.eval(hi);
     let mid_out = if hi - lo <= 1e-8 {
         lo_out
     } else {
@@ -264,7 +264,7 @@ pub(super) fn apply_profile_tone_curve(curve: &[[f32; 2]], rgb: [f32; 3]) -> [f3
 
 pub fn apply_dcp_finish(
     look: Option<&HueSatMap>,
-    tone_curve: Option<&[[f32; 2]]>,
+    tone_curve: Option<&ToneCurve>,
     to_pp: &[[f32; 3]; 3],
     from_pp: &[[f32; 3]; 3],
     rgb: [f32; 3],
@@ -310,25 +310,3 @@ pub const DEFAULT_COLOR_TONE_CURVE: [[f32; 2]; 13] = [
     [0.9, 0.954_802],
     [1.0, 1.0],
 ];
-
-pub fn eval_tone_curve(curve: &[[f32; 2]], x: f32) -> f32 {
-    if curve.len() < 2 {
-        return x;
-    }
-    let x = x.clamp(0.0, 1.0);
-    if x <= curve[0][0] {
-        return curve[0][1];
-    }
-    if x >= curve[curve.len() - 1][0] {
-        return curve[curve.len() - 1][1];
-    }
-    let hi = curve.partition_point(|p| p[0] < x).max(1);
-    let a = curve[hi - 1];
-    let b = curve[hi];
-    let span = b[0] - a[0];
-    if span <= 1e-9 {
-        return a[1];
-    }
-    let t = (x - a[0]) / span;
-    a[1] + (b[1] - a[1]) * t
-}

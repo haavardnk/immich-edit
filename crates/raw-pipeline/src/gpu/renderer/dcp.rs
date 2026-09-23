@@ -6,7 +6,7 @@ use wgpu::{
     TextureUsages, TextureViewDescriptor,
 };
 
-use crate::dcp::{HsvEncoding, HueSatMap};
+use crate::dcp::{HsvEncoding, HueSatMap, ToneCurve};
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::ops::ResolvedDcp;
@@ -30,7 +30,7 @@ impl DcpHueSatUniform {
         resolved: &ResolvedDcp,
         output: bool,
         apply_table: bool,
-        tone_curve: Option<&[[f32; 2]]>,
+        tone_curve: Option<&ToneCurve>,
         warn_flags: u32,
     ) -> Self {
         let mat = |m: &[[f32; 3]; 3]| {
@@ -44,7 +44,7 @@ impl DcpHueSatUniform {
         if let Some(curve) = tone_curve {
             for i in 0..256 {
                 let x = i as f32 / 255.0;
-                tone_lut[i / 4][i % 4] = crate::color::eval_tone_curve(curve, x);
+                tone_lut[i / 4][i % 4] = curve.eval(x);
             }
         }
         Self {
@@ -150,7 +150,7 @@ impl GpuRenderer {
         warn_flags: u32,
     ) -> Option<PooledTexture> {
         let resolved = resolved?;
-        let tone = resolved.tone_curve.as_deref().map(Vec::as_slice);
+        let tone = resolved.tone_curve.as_deref();
         if resolved.look_table.is_none() && tone.is_none() {
             return None;
         }
@@ -280,7 +280,7 @@ impl GpuRenderer {
         h: u32,
         output: bool,
         apply_table: bool,
-        tone_curve: Option<&[[f32; 2]]>,
+        tone_curve: Option<&ToneCurve>,
         warn_flags: u32,
     ) {
         let device = &self.ctx.device;
