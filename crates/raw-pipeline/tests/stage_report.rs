@@ -7,7 +7,11 @@ use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, decode};
 
 mod common;
 
-const FIXTURE: &str = "Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf";
+const FIXTURES: [(&str, &str); 3] = [
+    ("X-T2", "Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf"),
+    ("R6", "Canon_EOS_R6_3-2.cr3"),
+    ("A7S", "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw"),
+];
 const ITERS: usize = 3;
 const EDGES: [u32; 2] = [1600, 3000];
 
@@ -112,35 +116,37 @@ fn stage_report() {
         eprintln!("skip: set STAGE_REPORT=1 to print per-stage render timings");
         return;
     }
-    let path = common::fixture_path(FIXTURE);
-    let frame = decode::decode(&std::fs::read(&path).unwrap()).unwrap();
-    println!("{FIXTURE}: {}x{}", frame.width, frame.height);
-
     let cpu = CpuRenderer::new();
-    report(
-        "cpu",
-        |edits, options| cpu.render(&frame, edits, options).unwrap(),
-        &frame,
-    );
-
-    let renderer = match GpuRenderer::with_options(GpuRendererOptions {
+    let gpu = GpuRenderer::with_options(GpuRendererOptions {
         timestamps: true,
         ..Default::default()
-    }) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("no gpu adapter, cpu only: {e}");
-            return;
-        }
-    };
-    let label = if renderer.gpu_timestamps() {
-        "gpu"
-    } else {
-        "gpu (no timestamp queries)"
-    };
-    report(
-        label,
-        |edits, options| renderer.render(&frame, edits, options).unwrap(),
-        &frame,
-    );
+    });
+    if let Err(e) = &gpu {
+        eprintln!("no gpu adapter, cpu only: {e}");
+    }
+    for (camera, fixture) in FIXTURES {
+        let path = common::fixture_path(fixture);
+        let frame = decode::decode(&std::fs::read(&path).unwrap()).unwrap();
+        println!("\n### {fixture}: {}x{}", frame.width, frame.height);
+
+        report(
+            &format!("{camera} cpu"),
+            |edits, options| cpu.render(&frame, edits, options).unwrap(),
+            &frame,
+        );
+
+        let Ok(renderer) = &gpu else {
+            continue;
+        };
+        let label = if renderer.gpu_timestamps() {
+            format!("{camera} gpu")
+        } else {
+            format!("{camera} gpu (no timestamp queries)")
+        };
+        report(
+            &label,
+            |edits, options| renderer.render(&frame, edits, options).unwrap(),
+            &frame,
+        );
+    }
 }
