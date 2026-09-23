@@ -33,6 +33,7 @@ jpegxl-rs = { version = "0.14", features = ["vendored"] }
 jpegxl-sys = "0.12"
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"] }
 libheif-rs = { version = "2.7", default-features = false, features = ["v1_19"] }
+multiversion = "0.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 turbojpeg = { version = "1", default-features = false, features = ["cmake"] }

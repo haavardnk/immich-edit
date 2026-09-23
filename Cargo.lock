@@ -3395,6 +3395,7 @@ dependencies = [
  "libheif-rs",
  "little_exif",
  "lru",
+ "multiversion 0.9.0",
  "parking_lot",
  "png",
  "pollster",

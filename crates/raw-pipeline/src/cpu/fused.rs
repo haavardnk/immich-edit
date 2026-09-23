@@ -2,6 +2,7 @@ use crate::edits::HSL_BANDS;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::curves::{CurveLuts, apply_curves_pixel};
+use multiversion::multiversion;
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -92,62 +93,89 @@ pub mod color_grade;
 pub mod hsl;
 pub mod presence;
 
-#[inline(always)]
 pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f32) {
+    apply_op_row(
+        op,
+        i,
+        std::slice::from_mut(r),
+        std::slice::from_mut(g),
+        std::slice::from_mut(b),
+    );
+}
+
+#[inline(always)]
+fn each(
+    r: &mut [f32],
+    g: &mut [f32],
+    b: &mut [f32],
+    mut f: impl FnMut(usize, &mut f32, &mut f32, &mut f32),
+) {
+    for (x, ((r, g), b)) in r.iter_mut().zip(g.iter_mut()).zip(b.iter_mut()).enumerate() {
+        f(x, r, g, b);
+    }
+}
+
+#[inline(always)]
+fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &mut [f32]) {
     match op {
         CpuFusedOp::WhiteBalance {
             coeffs,
             reconstruct,
-        } => presence::apply_white_balance(coeffs, *reconstruct, r, g, b),
-        CpuFusedOp::ColorMatrix { m } => {
+        } => each(r, g, b, |_, r, g, b| {
+            presence::apply_white_balance(coeffs, *reconstruct, r, g, b)
+        }),
+        CpuFusedOp::ColorMatrix { m } => each(r, g, b, |_, r, g, b| {
             let nr = m[0][0] * *r + m[0][1] * *g + m[0][2] * *b;
             let ng = m[1][0] * *r + m[1][1] * *g + m[1][2] * *b;
             let nb = m[2][0] * *r + m[2][1] * *g + m[2][2] * *b;
             *r = nr;
             *g = ng;
             *b = nb;
-        }
-        CpuFusedOp::Exposure { factor } => {
+        }),
+        CpuFusedOp::Exposure { factor } => each(r, g, b, |_, r, g, b| {
             *r *= *factor;
             *g *= *factor;
             *b *= *factor;
-        }
-        CpuFusedOp::Brightness { amount } => {
+        }),
+        CpuFusedOp::Brightness { amount } => each(r, g, b, |_, r, g, b| {
             let (nr, ng, nb) = crate::ops::brightness::apply_brightness_rgb(*r, *g, *b, *amount);
             *r = nr;
             *g = ng;
             *b = nb;
-        }
-        CpuFusedOp::Contrast { s } => {
+        }),
+        CpuFusedOp::Contrast { s } => each(r, g, b, |_, r, g, b| {
             *r = crate::ops::contrast::apply_perceptual_contrast(*r, *s);
             *g = crate::ops::contrast::apply_perceptual_contrast(*g, *s);
             *b = crate::ops::contrast::apply_perceptual_contrast(*b, *s);
-        }
-        CpuFusedOp::Saturation { factor } => {
+        }),
+        CpuFusedOp::Saturation { factor } => each(r, g, b, |_, r, g, b| {
             let luma = luma(*r, *g, *b);
             *r = luma + (*r - luma) * *factor;
             *g = luma + (*g - luma) * *factor;
             *b = luma + (*b - luma) * *factor;
-        }
-        CpuFusedOp::Vibrance { amount } => {
+        }),
+        CpuFusedOp::Vibrance { amount } => each(r, g, b, |_, r, g, b| {
             let (nr, ng, nb) = crate::ops::vibrance::apply_vibrance_rgb(*r, *g, *b, *amount);
             *r = nr;
             *g = ng;
             *b = nb;
-        }
+        }),
         CpuFusedOp::ToneRegions {
             hl,
             sh,
             bk,
             wh_gain,
             shadows_blur,
-        } => {
+        } => each(r, g, b, |x, r, g, b| {
             *r *= *wh_gain;
             *g *= *wh_gain;
             *b *= *wh_gain;
             if *sh != 0.0 {
                 let luma = luma(*r, *g, *b);
-                let blur_l = shadows_blur.as_ref().map(|buf| buf[i]).unwrap_or(luma);
+                let blur_l = shadows_blur
+                    .as_ref()
+                    .map(|buf| buf[base + x])
+                    .unwrap_or(luma);
                 let mult = crate::ops::tone_regions::shadows_mult(luma, blur_l, *sh);
                 *r *= mult;
                 *g *= mult;
@@ -158,13 +186,17 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             *r = nr;
             *g = ng;
             *b = nb;
-        }
-        CpuFusedOp::Curves { luts } => apply_curves_pixel(luts.as_ref(), r, g, b),
+        }),
+        CpuFusedOp::Curves { luts } => each(r, g, b, |_, r, g, b| {
+            apply_curves_pixel(luts.as_ref(), r, g, b)
+        }),
         CpuFusedOp::Hsl {
             hue_shifts,
             sat_gains,
             lum_gains,
-        } => hsl::apply_hsl(hue_shifts, sat_gains, lum_gains, r, g, b),
+        } => each(r, g, b, |_, r, g, b| {
+            hsl::apply_hsl(hue_shifts, sat_gains, lum_gains, r, g, b)
+        }),
         CpuFusedOp::ColorGrade {
             s_off,
             s_lum,
@@ -176,50 +208,94 @@ pub fn apply_one(op: &CpuFusedOp, i: usize, r: &mut f32, g: &mut f32, b: &mut f3
             g_lum,
             balance,
             blend,
-        } => color_grade::apply_color_grade(
-            color_grade::ColorGradeParams {
-                s_off,
-                s_lum: *s_lum,
-                m_off,
-                m_lum: *m_lum,
-                h_off,
-                h_lum: *h_lum,
-                g_off,
-                g_lum: *g_lum,
-                balance: *balance,
-                blend: *blend,
-            },
-            r,
-            g,
-            b,
-        ),
+        } => each(r, g, b, |_, r, g, b| {
+            color_grade::apply_color_grade(
+                color_grade::ColorGradeParams {
+                    s_off,
+                    s_lum: *s_lum,
+                    m_off,
+                    m_lum: *m_lum,
+                    h_off,
+                    h_lum: *h_lum,
+                    g_off,
+                    g_lum: *g_lum,
+                    balance: *balance,
+                    blend: *blend,
+                },
+                r,
+                g,
+                b,
+            )
+        }),
         CpuFusedOp::Presence {
             texture,
             clarity,
             texture_blur,
             clarity_blur,
-        } => presence::apply_presence(
-            presence::PresenceParams {
-                texture: *texture,
-                clarity: *clarity,
-                texture_blur: texture_blur.as_ref(),
-                clarity_blur: clarity_blur.as_ref(),
-            },
-            i,
-            r,
-            g,
-            b,
-        ),
+        } => each(r, g, b, |x, r, g, b| {
+            presence::apply_presence(
+                presence::PresenceParams {
+                    texture: *texture,
+                    clarity: *clarity,
+                    texture_blur: texture_blur.as_ref(),
+                    clarity_blur: clarity_blur.as_ref(),
+                },
+                base + x,
+                r,
+                g,
+                b,
+            )
+        }),
         CpuFusedOp::DcpHueSat {
             map,
             to_pp,
             from_pp,
-        } => {
+        } => each(r, g, b, |_, r, g, b| {
             let out = crate::color::apply_huesat(map, to_pp, from_pp, [*r, *g, *b]);
             *r = out[0];
             *g = out[1];
             *b = out[2];
+        }),
+    }
+}
+
+struct Planes {
+    r: Vec<f32>,
+    g: Vec<f32>,
+    b: Vec<f32>,
+}
+
+impl Planes {
+    fn new(width: usize) -> Self {
+        Self {
+            r: vec![0.0; width],
+            g: vec![0.0; width],
+            b: vec![0.0; width],
         }
+    }
+}
+
+#[multiversion(targets("x86_64+avx2", "x86_64+sse4.2"))]
+fn apply_row(ops: &[CpuFusedOp], base: usize, row: &mut [f32], planes: &mut Planes) {
+    let Planes { r, g, b } = planes;
+    for (px, ((r, g), b)) in row
+        .chunks_exact(3)
+        .zip(r.iter_mut().zip(g.iter_mut()).zip(b.iter_mut()))
+    {
+        *r = px[0];
+        *g = px[1];
+        *b = px[2];
+    }
+    for op in ops {
+        apply_op_row(op, base, r, g, b);
+    }
+    for (px, ((r, g), b)) in row
+        .chunks_exact_mut(3)
+        .zip(r.iter().zip(g.iter()).zip(b.iter()))
+    {
+        px[0] = *r;
+        px[1] = *g;
+        px[2] = *b;
     }
 }
 
@@ -229,26 +305,14 @@ pub fn apply_segment(image: &mut LinearImage, segment: &FusedSegment) {
     }
     let ops = segment.ops.as_slice();
     let img_w = image.width;
-    let row_floats = img_w * 3;
     image
         .rgb
-        .par_chunks_exact_mut(row_floats)
+        .par_chunks_exact_mut(img_w * 3)
         .enumerate()
-        .for_each(|(y, row)| {
-            let row_base = y * img_w;
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
-                let i = row_base + x;
-                let mut r = px[0];
-                let mut g = px[1];
-                let mut b = px[2];
-                for op in ops {
-                    apply_one(op, i, &mut r, &mut g, &mut b);
-                }
-                px[0] = r;
-                px[1] = g;
-                px[2] = b;
-            }
-        });
+        .for_each_init(
+            || Planes::new(img_w),
+            |planes, (y, row)| apply_row(ops, y * img_w, row, planes),
+        );
 }
 
 #[cfg(test)]
