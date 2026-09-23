@@ -51,6 +51,21 @@ impl DisplayDepth {
             ),
         }
     }
+
+    pub fn load_u8_wgsl(self, binding: u32) -> String {
+        match self {
+            Self::Eight => format!(
+                "@group(0) @binding({binding}) var src_tex: texture_2d<f32>;\n\
+                 fn load_display_u8(c: vec2<i32>) -> vec3<u32> {{\n    \
+                 return vec3<u32>(round(textureLoad(src_tex, c, 0).rgb * 255.0));\n}}"
+            ),
+            Self::Sixteen => format!(
+                "@group(0) @binding({binding}) var src_tex: texture_2d<u32>;\n\
+                 fn load_display_u8(c: vec2<i32>) -> vec3<u32> {{\n    \
+                 return textureLoad(src_tex, c, 0).rgb >> vec3<u32>(8u);\n}}"
+            ),
+        }
+    }
 }
 
 pub fn store_wgsl(format: TextureFormat, binding: u32) -> String {

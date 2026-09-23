@@ -3,17 +3,14 @@ use wgpu::{BufferUsages, CommandEncoder, Texture, TextureViewDescriptor};
 
 use super::GpuRenderer;
 use super::masks::Retained;
+use super::meta::{MetaCounts, MetaRequest};
 use crate::PipelineResult;
 use crate::encode::{encode_from_rgb16, encode_from_rgba8};
 use crate::frame::{RenderOptions, RenderedImage};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
-use crate::gpu::readback::{
-    copy_texture_to_buffer, read_rgba8, read_rgba16f_as_rgb, read_rgba16uint_as_rgb,
-};
+use crate::gpu::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16uint_as_rgb};
 use crate::gpu::resources::OutputTargets;
 use crate::gpu::timer::RenderTimings;
-use crate::histogram::Histogram;
-use crate::scopes::ScopeGrids;
 use crate::timing::{self, StageClock};
 
 pub(super) enum DisplayBuf {
@@ -76,18 +73,15 @@ impl GpuRenderer {
         p: &OutputTargets,
         display_src: &Texture,
         display_dst: Option<&wgpu::Buffer>,
-        linear_src: Option<&Texture>,
+        meta: MetaRequest,
         out_dims: (u32, u32),
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<(DisplayBuf, Option<Vec<f32>>)> {
+    ) -> PipelineResult<(DisplayBuf, MetaCounts)> {
         let (out_w, out_h) = out_dims;
         let started = std::time::Instant::now();
         let display_dst = display_dst.unwrap_or(&p.readback);
         copy_texture_to_buffer(&mut encoder, display_src, display_dst, out_w, out_h);
-        if let Some(src) = linear_src {
-            copy_texture_to_buffer(&mut encoder, src, &p.linear_readback, out_w, out_h);
-        }
         self.ctx.queue.submit(Some(encoder.finish()));
 
         let display = match display_src.format() {
@@ -100,17 +94,15 @@ impl GpuRenderer {
             )?),
             _ => DisplayBuf::Rgba8(read_rgba8(&self.ctx, display_dst, out_w, out_h, cancel)?),
         };
-        let linear_rgb = linear_src
-            .map(|_| read_rgba16f_as_rgb(&self.ctx, &p.linear_readback, out_w, out_h, cancel))
-            .transpose()?;
+        let counts = self.read_meta_counts(p, meta, cancel)?;
         t.clock().add_wall(timing::READBACK, started.elapsed());
-        Ok((display, linear_rgb))
+        Ok((display, counts))
     }
 }
 
 pub(super) fn finish_image(
     display: DisplayBuf,
-    linear_rgb: Option<Vec<f32>>,
+    counts: MetaCounts,
     out_dims: (u32, u32),
     source: (u32, u32),
     opts: &RenderOptions,
@@ -118,73 +110,27 @@ pub(super) fn finish_image(
     clock: &StageClock,
 ) -> PipelineResult<RenderedImage> {
     let (out_w, out_h) = out_dims;
-    let mut rgb16: Option<Vec<u16>> = None;
-    let mut rgba = match display {
-        DisplayBuf::Rgba8(rgba) => rgba,
-        DisplayBuf::Rgb16(rgb) => {
-            let need_meta = linear_rgb.is_some() || opts.scopes;
-            let rgba = if need_meta {
-                rgb.chunks_exact(3)
-                    .flat_map(|px| {
-                        [
-                            (px[0] >> 8) as u8,
-                            (px[1] >> 8) as u8,
-                            (px[2] >> 8) as u8,
-                            255,
-                        ]
-                    })
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            rgb16 = Some(rgb);
-            rgba
+    let display = match display {
+        DisplayBuf::Rgba8(mut rgba) if opts.gamut_warn || opts.clip_warn => {
+            crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
+            DisplayBuf::Rgba8(rgba)
         }
+        other => other,
     };
-    if rgb16.is_none() && (opts.gamut_warn || opts.clip_warn) {
-        crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
-    }
-
-    let ((histograms, scopes), bytes) = rayon::join(
+    let (histogram, linear_histogram) = counts.histograms();
+    let (scopes, bytes) = rayon::join(
+        || counts.scopes(clock),
         || {
-            rayon::join(
-                || {
-                    linear_rgb.map(|linear| {
-                        let _span =
-                            tracing::debug_span!("gpu.histogram", w = out_w, h = out_h).entered();
-                        clock.time(timing::HISTOGRAM, || {
-                            rayon::join(
-                                || Histogram::from_rgba8(&rgba),
-                                || Histogram::from_rgb(&linear, out_w as usize, out_h as usize),
-                            )
-                        })
-                    })
-                },
-                || {
-                    opts.scopes.then(|| {
-                        let _s = tracing::debug_span!("gpu.scopes", w = out_w, h = out_h).entered();
-                        clock.time(timing::SCOPES, || {
-                            ScopeGrids::from_rgba8(&rgba, out_w as usize, out_h as usize)
-                        })
-                    })
-                },
-            )
-        },
-        || {
-            clock.time(timing::ENCODE, || match &rgb16 {
-                Some(rgb) => {
+            clock.time(timing::ENCODE, || match &display {
+                DisplayBuf::Rgb16(rgb) => {
                     encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
                 }
-                None => {
-                    encode_from_rgba8(&rgba, out_w, out_h, &opts.output, opts.output_color_space)
+                DisplayBuf::Rgba8(rgba) => {
+                    encode_from_rgba8(rgba, out_w, out_h, &opts.output, opts.output_color_space)
                 }
             })
         },
     );
-    let (histogram, linear_histogram) = match histograms {
-        Some((display, linear)) => (Some(display), Some(linear)),
-        None => (None, None),
-    };
 
     Ok(RenderedImage {
         bytes: bytes?,

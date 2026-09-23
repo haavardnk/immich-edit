@@ -1,4 +1,3 @@
-mod bins;
 mod ops;
 mod output;
 

@@ -29,6 +29,7 @@ mod effects;
 mod geometry;
 mod lut;
 mod masks;
+mod meta;
 mod output;
 mod pools;
 mod resample;
@@ -510,19 +511,32 @@ impl GpuRenderer {
         let display_readback = (depth == DisplayDepth::Sixteen).then(|| {
             crate::gpu::readback::make_readback_buffer_wide(device, "readback-16", out_w, out_h)
         });
-        let linear_src = opts.histogram.then(|| match sharpen_pool_guard.as_ref() {
+        let linear_src = match sharpen_pool_guard.as_ref() {
             Some(spool) => &spool[0].post_lin,
             _ => &p.linear_texture,
-        });
+        };
         drop(display_scope);
         t.clock()
             .add_wall(timing::DISPLAY, display_started.elapsed());
-        let (rgba, linear_rgb) = self.readback_image(
+        let meta_request = meta::MetaRequest {
+            histogram: opts.histogram,
+            scopes: opts.scopes,
+        };
+        self.encode_meta_bins(
+            &mut encoder,
+            p,
+            display_src,
+            linear_src,
+            meta_request,
+            out_dims,
+            t,
+        );
+        let (rgba, counts) = self.readback_image(
             encoder,
             p,
             display_src,
             display_readback.as_ref(),
-            linear_src,
+            meta_request,
             out_dims,
             t,
             cancel,
@@ -535,7 +549,7 @@ impl GpuRenderer {
 
         output::finish_image(
             rgba,
-            linear_rgb,
+            counts,
             out_dims,
             geom.source,
             opts,

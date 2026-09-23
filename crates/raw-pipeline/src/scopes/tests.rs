@@ -92,17 +92,15 @@ fn waveform_follows_a_horizontal_ramp() {
 }
 
 #[test]
-fn rgba_and_rgb_inputs_agree() {
-    let rgb = solid(24, 24, [10, 200, 90]);
-    let rgba: Vec<u8> = rgb
-        .chunks_exact(3)
-        .flat_map(|p| [p[0], p[1], p[2], 255])
-        .collect();
-    let from_rgb = ScopeGrids::from_rgb_u8(&rgb, 24, 24);
-    let from_rgba = ScopeGrids::from_rgba8(&rgba, 24, 24);
-    assert_eq!(from_rgb.waveform.data, from_rgba.waveform.data);
-    assert_eq!(from_rgb.parade.data, from_rgba.parade.data);
-    assert_eq!(from_rgb.vectorscope.data, from_rgba.vectorscope.data);
+fn from_counts_matches_the_cpu_counter() {
+    let pixels: Vec<u8> = (0..40 * 30 * 3).map(|i| (i * 37 % 256) as u8).collect();
+    let counts = accumulate(&pixels, 40, 30);
+    let flat = [counts.waveform, counts.parade, counts.vectorscope].concat();
+    assert_eq!(flat.len(), SCOPE_CELLS);
+    assert_eq!(
+        ScopeGrids::from_counts(&flat),
+        ScopeGrids::from_rgb_u8(&pixels, 40, 30)
+    );
 }
 
 #[test]

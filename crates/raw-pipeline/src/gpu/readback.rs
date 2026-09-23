@@ -43,10 +43,6 @@ pub fn make_readback_buffer(device: &Device, width: u32, height: u32) -> Buffer 
     })
 }
 
-pub fn make_readback_buffer_f16(device: &Device, width: u32, height: u32) -> Buffer {
-    make_readback_buffer_wide(device, "readback-linear", width, height)
-}
-
 pub fn make_readback_buffer_wide(
     device: &Device,
     label: &'static str,
@@ -194,30 +190,19 @@ pub fn read_rgba16uint_as_rgb(
     Ok(out)
 }
 
-pub fn read_rgba16f_as_rgb(
+pub fn read_u32_ranges(
     ctx: &GpuContext,
     buffer: &Buffer,
-    width: u32,
-    height: u32,
+    ranges: &[std::ops::Range<u64>],
     cancel: Option<&CancelToken>,
-) -> PipelineResult<Vec<f32>> {
-    let padded = padded_row_bytes_f16(width) as usize;
-    let unpadded_bytes = (width * 8) as usize;
+) -> PipelineResult<Vec<Vec<u32>>> {
     map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);
-
     let data = mapped_range(&slice)?;
-    let px_count = (width * height) as usize;
-    let mut out = Vec::with_capacity(px_count * 3);
-    for row in 0..height as usize {
-        let start = row * padded;
-        let row_u16: &[u16] = bytemuck::cast_slice(&data[start..start + unpadded_bytes]);
-        for px in row_u16.chunks_exact(4) {
-            out.push(half::f16::from_bits(px[0]).to_f32());
-            out.push(half::f16::from_bits(px[1]).to_f32());
-            out.push(half::f16::from_bits(px[2]).to_f32());
-        }
-    }
+    let out = ranges
+        .iter()
+        .map(|r| bytemuck::pod_collect_to_vec(&data[r.start as usize..r.end as usize]))
+        .collect();
     drop(data);
     buffer.unmap();
     Ok(out)

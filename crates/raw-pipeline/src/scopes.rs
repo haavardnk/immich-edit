@@ -1,4 +1,4 @@
-use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
+use crate::histogram::{LUMA_SCALE, display_luma, sample_step, weighted_luma};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -7,12 +7,16 @@ pub const WAVEFORM_COLUMNS: usize = 512;
 pub const PARADE_COLUMNS: usize = 192;
 pub const VECTORSCOPE_SIZE: usize = 384;
 
-const CB_SCALE: f32 = 1.8556;
-const CR_SCALE: f32 = 1.5748;
-const DENSITY_GAMMA: f32 = 1.0 / 2.2;
-const SUBSAMPLE_ABOVE: usize = 500_000;
+pub(crate) const WAVEFORM_CELLS: usize = WAVEFORM_COLUMNS * LEVELS;
+pub(crate) const PARADE_CELLS: usize = PARADE_COLUMNS * LEVELS * 3;
+pub(crate) const VECTORSCOPE_CELLS: usize = VECTORSCOPE_SIZE * VECTORSCOPE_SIZE;
+pub(crate) const SCOPE_CELLS: usize = WAVEFORM_CELLS + PARADE_CELLS + VECTORSCOPE_CELLS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+const CB_DENOM: i32 = 255 * 18_556;
+const CR_DENOM: i32 = 255 * 15_748;
+const DENSITY_GAMMA: f32 = 1.0 / 2.2;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScopeGrid {
     pub width: u16,
     pub height: u16,
@@ -21,7 +25,7 @@ pub struct ScopeGrid {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScopeGrids {
     pub waveform: ScopeGrid,
     pub parade: ScopeGrid,
@@ -30,27 +34,34 @@ pub struct ScopeGrids {
 
 impl ScopeGrids {
     pub fn from_rgb_u8(pixels: &[u8], width: usize, height: usize) -> Self {
-        accumulate(pixels, 3, width, height).encode()
+        let counts = accumulate(pixels, width, height);
+        encode(&counts.waveform, &counts.parade, &counts.vectorscope)
     }
 
-    pub fn from_rgba8(pixels: &[u8], width: usize, height: usize) -> Self {
-        accumulate(pixels, 4, width, height).encode()
+    pub(crate) fn from_counts(counts: &[u32]) -> Self {
+        let (waveform, rest) = counts.split_at(WAVEFORM_CELLS);
+        let (parade, vectorscope) = rest.split_at(PARADE_CELLS);
+        encode(waveform, parade, &vectorscope[..VECTORSCOPE_CELLS])
     }
 }
 
-fn accumulate(pixels: &[u8], comps: usize, width: usize, height: usize) -> Counts {
-    let rows = (pixels.len() / comps / width.max(1)).min(height);
+pub(crate) fn row_step(width: usize, rows: usize) -> usize {
+    sample_step(width * rows)
+}
+
+fn accumulate(pixels: &[u8], width: usize, height: usize) -> Counts {
+    let rows = (pixels.len() / 3 / width.max(1)).min(height);
     if width == 0 || rows == 0 {
         return Counts::zero();
     }
-    let step = if width * rows > SUBSAMPLE_ABOVE { 2 } else { 1 };
+    let step = row_step(width, rows);
     let band = rows.div_ceil(rayon::current_num_threads().max(1)).max(1);
     let starts: Vec<usize> = (0..rows).step_by(band).collect();
     starts
         .into_par_iter()
         .map(|start| {
             let mut counts = Counts::zero();
-            counts.add_band(pixels, comps, width, start, (start + band).min(rows), step);
+            counts.add_band(pixels, width, start, (start + band).min(rows), step);
             counts
         })
         .reduce(Counts::zero, Counts::merge)
@@ -65,9 +76,9 @@ struct Counts {
 impl Counts {
     fn zero() -> Self {
         Self {
-            waveform: vec![0; WAVEFORM_COLUMNS * LEVELS],
-            parade: vec![0; PARADE_COLUMNS * LEVELS * 3],
-            vectorscope: vec![0; VECTORSCOPE_SIZE * VECTORSCOPE_SIZE],
+            waveform: vec![0; WAVEFORM_CELLS],
+            parade: vec![0; PARADE_CELLS],
+            vectorscope: vec![0; VECTORSCOPE_CELLS],
         }
     }
 
@@ -78,29 +89,21 @@ impl Counts {
         self
     }
 
-    fn add_band(
-        &mut self,
-        pixels: &[u8],
-        comps: usize,
-        width: usize,
-        start: usize,
-        end: usize,
-        step: usize,
-    ) {
-        let stride = width * comps;
+    fn add_band(&mut self, pixels: &[u8], width: usize, start: usize, end: usize, step: usize) {
+        let stride = width * 3;
         for y in (start..end).filter(|y| y % step == 0) {
-            self.add_row(&pixels[y * stride..(y + 1) * stride], comps, width);
+            self.add_row(&pixels[y * stride..(y + 1) * stride], width);
         }
     }
 
-    fn add_row(&mut self, row: &[u8], comps: usize, width: usize) {
-        for (x, px) in row.chunks_exact(comps).enumerate() {
+    fn add_row(&mut self, row: &[u8], width: usize) {
+        for (x, px) in row.chunks_exact(3).enumerate() {
             self.add_pixel(x, width, px[0], px[1], px[2]);
         }
     }
 
     fn add_pixel(&mut self, x: usize, width: usize, r: u8, g: u8, b: u8) {
-        let level = luma_level(r, g, b);
+        let level = display_luma(r, g, b);
         self.waveform[(LEVELS - 1 - level) * WAVEFORM_COLUMNS + x * WAVEFORM_COLUMNS / width] += 1;
 
         let column = x * PARADE_COLUMNS / width;
@@ -112,14 +115,6 @@ impl Counts {
         let (vx, vy) = vectorscope_cell(r, g, b);
         self.vectorscope[vy * VECTORSCOPE_SIZE + vx] += 1;
     }
-
-    fn encode(self) -> ScopeGrids {
-        ScopeGrids {
-            waveform: encode_grid(&self.waveform, WAVEFORM_COLUMNS, LEVELS, 1),
-            parade: encode_grid(&self.parade, PARADE_COLUMNS, LEVELS, 3),
-            vectorscope: encode_grid(&self.vectorscope, VECTORSCOPE_SIZE, VECTORSCOPE_SIZE, 1),
-        }
-    }
 }
 
 fn add_into(target: &mut [u32], source: &[u32]) {
@@ -129,23 +124,24 @@ fn add_into(target: &mut [u32], source: &[u32]) {
         .for_each(|(a, b)| *a = a.saturating_add(*b));
 }
 
-fn luma_level(r: u8, g: u8, b: u8) -> usize {
-    let value = LUMA_R * r as f32 + LUMA_G * g as f32 + LUMA_B * b as f32;
-    (value as usize).min(LEVELS - 1)
+/// BT.709 Y'CbCr plotted as x = Cb, y = Cr with +Cr upward, matching a broadcast vectorscope.
+/// Exact integer arithmetic, so `scopes.wgsl` lands every pixel in the same cell.
+fn vectorscope_cell(r: u8, g: u8, b: u8) -> (usize, usize) {
+    let y = weighted_luma(r, g, b) as i32;
+    let scale = LUMA_SCALE as i32;
+    let size = VECTORSCOPE_SIZE as i32;
+    let half = size / 2;
+    let x = (size * (scale * b as i32 - y) + half * CB_DENOM) / CB_DENOM;
+    let v = (half * CR_DENOM - size * (scale * r as i32 - y)) / CR_DENOM;
+    (x.clamp(0, size - 1) as usize, v.clamp(0, size - 1) as usize)
 }
 
-/// BT.709 Y'CbCr plotted as x = Cb, y = Cr with +Cr upward, matching a broadcast vectorscope.
-fn vectorscope_cell(r: u8, g: u8, b: u8) -> (usize, usize) {
-    let rf = r as f32 / 255.0;
-    let gf = g as f32 / 255.0;
-    let bf = b as f32 / 255.0;
-    let y = LUMA_R * rf + LUMA_G * gf + LUMA_B * bf;
-    let cb = (bf - y) / CB_SCALE;
-    let cr = (rf - y) / CR_SCALE;
-    let last = VECTORSCOPE_SIZE - 1;
-    let x = ((cb + 0.5) * VECTORSCOPE_SIZE as f32) as usize;
-    let v = ((0.5 - cr) * VECTORSCOPE_SIZE as f32) as usize;
-    (x.min(last), v.min(last))
+fn encode(waveform: &[u32], parade: &[u32], vectorscope: &[u32]) -> ScopeGrids {
+    ScopeGrids {
+        waveform: encode_grid(waveform, WAVEFORM_COLUMNS, LEVELS, 1),
+        parade: encode_grid(parade, PARADE_COLUMNS, LEVELS, 3),
+        vectorscope: encode_grid(vectorscope, VECTORSCOPE_SIZE, VECTORSCOPE_SIZE, 1),
+    }
 }
 
 fn encode_grid(counts: &[u32], width: usize, height: usize, channels: usize) -> ScopeGrid {
