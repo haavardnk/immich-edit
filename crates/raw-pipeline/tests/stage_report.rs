@@ -65,6 +65,7 @@ fn report(label: &str, render: impl Fn(&Edits, &RenderOptions) -> RenderedImage,
             let options = RenderOptions {
                 max_edge,
                 histogram: true,
+                scopes: true,
                 ..Default::default()
             };
             let started = Instant::now();
