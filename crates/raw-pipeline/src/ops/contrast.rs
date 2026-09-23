@@ -14,15 +14,14 @@ pub(crate) fn contrast_strength(amount: f32) -> f32 {
     (amount.clamp(-1.0, 1.0) * 1.25).exp2()
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) fn apply_perceptual_contrast(v: f32, s: f32) -> f32 {
     let p = vmath::pow(v.max(0.0), 1.0 / CONTRAST_GAMMA);
     let pc = p.clamp(0.0, 1.0);
-    let op = if pc < 0.5 {
-        0.5 * vmath::pow(2.0 * pc, s)
-    } else {
-        1.0 - 0.5 * vmath::pow(2.0 * (1.0 - pc), s)
-    };
+    let low = pc < 0.5;
+    let base = if low { 2.0 * pc } else { 2.0 * (1.0 - pc) };
+    let half = 0.5 * vmath::pow(base, s);
+    let op = if low { half } else { 1.0 - half };
     let lin = vmath::pow(op, CONTRAST_GAMMA);
     let m = smoothstep(CONTRAST_ROLLOFF_LO, CONTRAST_ROLLOFF_HI, v);
     lin * (1.0 - m) + v * m

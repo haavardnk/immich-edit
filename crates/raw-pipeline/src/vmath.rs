@@ -24,13 +24,13 @@ pub fn exp2(x: f32) -> f32 {
     let n = (x + ROUND_MAGIC) - ROUND_MAGIC;
     let f = x - n;
     let p = EXP2_POLY.iter().rev().fold(0.0, |acc, &c| acc * f + c);
-    p * f32::from_bits(((n as i32 + 127) as u32) << 23)
+    p * f32::from_bits(((n as i32).wrapping_add(127) as u32) << 23)
 }
 
 #[inline(always)]
 pub fn log2(x: f32) -> f32 {
     let bits = x.max(f32::MIN_POSITIVE).to_bits();
-    let exponent = (bits >> 23) as i32 - 127;
+    let exponent = ((bits >> 23) as i32).wrapping_sub(127);
     let m = f32::from_bits((bits & MANTISSA_MASK) | ONE_BITS);
     let high = m > SQRT_2;
     let m = if high { m * 0.5 } else { m };

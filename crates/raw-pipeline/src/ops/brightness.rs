@@ -11,12 +11,10 @@ pub const BRIGHTNESS_ROLLOFF_LO: f32 = 0.9;
 pub const BRIGHTNESS_ROLLOFF_HI: f32 = 1.0;
 pub const BRIGHTNESS_MAX_GAIN: f32 = 8.0;
 
-#[inline]
+#[inline(always)]
 pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
     let y0 = luma(r, g, b);
-    if y0 <= 1e-5 {
-        return (r, g, b);
-    }
+    let dark = y0 <= 1e-5;
     let a = amount.clamp(-1.0, 1.0);
     let yc = y0.clamp(0.0, 1.0);
     let d = yc + (1.0 - yc) * vmath::exp2(-a * BRIGHTNESS_K);
@@ -25,7 +23,11 @@ pub(crate) fn apply_brightness_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32,
     let rolloff = smoothstep(BRIGHTNESS_ROLLOFF_LO, BRIGHTNESS_ROLLOFF_HI, guard);
     let y1 = yl * (1.0 - rolloff) + y0 * rolloff;
     let s = (y1 / y0).clamp(0.0, BRIGHTNESS_MAX_GAIN);
-    (r * s, g * s, b * s)
+    if dark {
+        (r, g, b)
+    } else {
+        (r * s, g * s, b * s)
+    }
 }
 
 impl Op for BrightnessOp {
