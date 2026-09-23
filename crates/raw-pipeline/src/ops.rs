@@ -1,3 +1,4 @@
+pub(crate) mod bilateral;
 pub mod blur;
 pub mod box_filter;
 pub mod brightness;

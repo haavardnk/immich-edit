@@ -1,4 +1,5 @@
 use super::LinearImage;
+use super::bilateral::{self, Bilateral};
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
@@ -85,7 +86,7 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
                 lrow[x] = luma(r, g, b);
             }
         });
-    let radius: i32 = if amount >= 66.0 {
+    let radius: usize = if amount >= 66.0 {
         4
     } else if amount >= 33.0 {
         3
@@ -94,36 +95,19 @@ fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f3
     };
     let sigma_s = radius as f32;
     let sigma_r = 0.005 + (1.0 - detail / 100.0) * 0.20;
-    let inv_2ss = 1.0 / (2.0 * sigma_s * sigma_s);
-    let inv_2sr = 1.0 / (2.0 * sigma_r * sigma_r);
     let alpha = (amount / 100.0) * (1.0 - contrast / 100.0);
     let mut denoised = Scratch::zeroed(n);
-    denoised
-        .par_chunks_mut(w)
-        .enumerate()
-        .for_each(|(y, drow)| {
-            for x in 0..w {
-                let center = lum[y * w + x];
-                let mut wsum = 0.0f32;
-                let mut acc = 0.0f32;
-                let y0 = (y as i32 - radius).max(0) as usize;
-                let y1 = (y as i32 + radius).min(h as i32 - 1) as usize;
-                let x0 = (x as i32 - radius).max(0) as usize;
-                let x1 = (x as i32 + radius).min(w as i32 - 1) as usize;
-                for yy in y0..=y1 {
-                    for xx in x0..=x1 {
-                        let v = lum[yy * w + xx];
-                        let dx = xx as f32 - x as f32;
-                        let dy = yy as f32 - y as f32;
-                        let dr = v - center;
-                        let wgt = (-(dx * dx + dy * dy) * inv_2ss - dr * dr * inv_2sr).exp();
-                        wsum += wgt;
-                        acc += wgt * v;
-                    }
-                }
-                drow[x] = if wsum > 0.0 { acc / wsum } else { center };
-            }
-        });
+    bilateral::filter(
+        [&*lum],
+        [&mut *denoised],
+        w,
+        h,
+        Bilateral {
+            radius,
+            inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
+            inv_2sr: 1.0 / (2.0 * sigma_r * sigma_r),
+        },
+    );
     image
         .rgb
         .par_chunks_mut(w * 3)
