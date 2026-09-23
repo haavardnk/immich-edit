@@ -19,7 +19,8 @@ use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
 const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
-const PREVIEW_JPEG_QUALITY: u8 = 95;
+const PERSISTED_JPEG_QUALITY: u8 = 95;
+const LIVE_JPEG_QUALITY: u8 = 90;
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewQuery {
@@ -91,6 +92,7 @@ pub async fn get_preview(
             lane: RenderLane::Base,
             roi: None,
             scopes: false,
+            jpeg_quality: PERSISTED_JPEG_QUALITY,
         },
     )
     .await?;
@@ -131,6 +133,7 @@ pub async fn post_preview(
             lane: body.lane,
             roi,
             scopes: body.scopes,
+            jpeg_quality: LIVE_JPEG_QUALITY,
         },
     )
     .await
@@ -189,6 +192,7 @@ struct PreviewRequest {
     lane: RenderLane,
     roi: Option<CropRect>,
     scopes: bool,
+    jpeg_quality: u8,
 }
 
 async fn render_to_response(
@@ -207,6 +211,7 @@ async fn render_to_response(
         lane,
         roi,
         scopes,
+        jpeg_quality,
     } = req;
     let render = state.render.clone();
     let identity = RenderIdentity::from(ctx);
@@ -229,7 +234,7 @@ async fn render_to_response(
         max_edge,
         quality: false,
         output: raw_pipeline::frame::OutputFormat::Jpeg {
-            quality: PREVIEW_JPEG_QUALITY,
+            quality: jpeg_quality,
             subsampling: raw_pipeline::frame::JpegSubsampling::Chroma444,
         },
         output_color_space,

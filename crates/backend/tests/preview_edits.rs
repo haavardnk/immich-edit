@@ -444,6 +444,46 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
     }
 }
 
+fn luma_dc_quantizer(jpeg: &[u8]) -> u8 {
+    let mut at = 2;
+    while jpeg[at + 1] != 0xdb {
+        at += 2 + usize::from(u16::from_be_bytes([jpeg[at + 2], jpeg[at + 3]]));
+    }
+    jpeg[at + 5]
+}
+
+#[tokio::test]
+async fn live_previews_encode_lighter_than_persisted_ones() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    let app = test_app(&server).await;
+
+    let persisted = app
+        .clone()
+        .oneshot(req_get(&format!("/api/assets/{id}/preview?max=512")))
+        .await
+        .unwrap();
+    let persisted = body_bytes(persisted).await;
+    let live = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/preview"))
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::json!({"max_edge": 512}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let live = body_bytes(live).await;
+
+    let quantizers = (luma_dc_quantizer(&persisted), luma_dc_quantizer(&live));
+    if quantizers != (2, 3) {
+        panic!("expected quality 95 then 90 (luma DC 2 then 3), got {quantizers:?}");
+    }
+}
+
 #[tokio::test]
 async fn live_preview_rejects_bad_max_edge() {
     let server = MockServer::start().await;
