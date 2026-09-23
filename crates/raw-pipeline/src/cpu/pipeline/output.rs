@@ -1,3 +1,4 @@
+use multiversion::multiversion;
 use rayon::prelude::*;
 
 use crate::edits::Edits;
@@ -98,60 +99,16 @@ pub(super) fn finish_output(
     let step = histogram::sample_step(pixel_count);
     let chunk_px = histogram::chunk_pixels(pixel_count);
     let chunk = chunk_px * 3;
-
-    let finalize = |lr: f32, lg: f32, lb: f32| -> ([f32; 3], bool) {
-        if display_ready {
-            return ([lr, lg, lb], false);
-        }
-        let finished = match dcp_finish {
-            Some((look, curve, to_pp, from_pp)) => {
-                crate::color::apply_dcp_finish(look, curve, to_pp, from_pp, [lr, lg, lb])
-            }
-            None => [lr, lg, lb],
-        };
-        let clip = gamut_warn && crate::tone::is_out_of_gamut(finished, color_space);
-        let display = crate::tone::apply_rgb_cs(finished, color_space);
-        (apply_display_lut(display, lut), clip)
-    };
-
-    let process = |base_px: usize,
-                   s: &[f32],
-                   u8c: &mut [u8],
-                   mut u16c: Option<&mut [u16]>,
-                   acc: &mut (Bins, Bins)| {
-        let mut i = 0;
-        let mut p = 0usize;
-        while i + 2 < s.len() {
-            let lr = s[i];
-            let lg = s[i + 1];
-            let lb = s[i + 2];
-            let ([tr, tg, tb], clip) = finalize(lr, lg, lb);
-            let abs_px = base_px + p;
-            let px = (abs_px % w) as u32;
-            let py = (abs_px / w) as u32;
-            let ru = quantize_u8_dithered(tr, px, py, 0);
-            let gu = quantize_u8_dithered(tg, px, py, 1);
-            let bu = quantize_u8_dithered(tb, px, py, 2);
-            u8c[i] = ru;
-            u8c[i + 1] = gu;
-            u8c[i + 2] = bu;
-            if let Some(dst) = u16c.as_deref_mut() {
-                dst[i] = (tr.clamp(0.0, 1.0) * 65535.0).round() as u16;
-                dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
-                dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
-            }
-            if histogram && abs_px % step == 0 {
-                acc.0.add_linear(lr, lg, lb);
-                acc.1.add_display(ru, gu, bu);
-            }
-            if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, clip_warn) {
-                u8c[i] = paint[0];
-                u8c[i + 1] = paint[1];
-                u8c[i + 2] = paint[2];
-            }
-            i += 3;
-            p += 1;
-        }
+    let finish = Finish {
+        w,
+        step,
+        display_ready,
+        lut,
+        dcp_finish,
+        color_space,
+        gamut_warn,
+        clip_warn,
+        histogram,
     };
 
     let zero_bins = || (Bins::zero(), Bins::zero());
@@ -163,7 +120,7 @@ pub(super) fn finish_output(
             .zip(rgb_u8.par_chunks_mut(chunk))
             .zip(rgb_u16.par_chunks_mut(chunk))
             .fold(zero_bins, |mut acc, (((ci, s), u8c), u16c)| {
-                process(ci * chunk_px, s, u8c, Some(u16c), &mut acc);
+                finish_chunk(&finish, ci * chunk_px, s, u8c, Some(u16c), &mut acc);
                 acc
             })
             .reduce(zero_bins, merge_bins)
@@ -173,7 +130,7 @@ pub(super) fn finish_output(
             .enumerate()
             .zip(rgb_u8.par_chunks_mut(chunk))
             .fold(zero_bins, |mut acc, ((ci, s), u8c)| {
-                process(ci * chunk_px, s, u8c, None, &mut acc);
+                finish_chunk(&finish, ci * chunk_px, s, u8c, None, &mut acc);
                 acc
             })
             .reduce(zero_bins, merge_bins)
@@ -185,6 +142,75 @@ pub(super) fn finish_output(
         linear: lin_bins.into_histogram(),
     });
     (rgb_u8, rgb_u16, histograms)
+}
+
+struct Finish<'a> {
+    w: usize,
+    step: usize,
+    display_ready: bool,
+    lut: Option<(&'a crate::lut::Lut3d, f32)>,
+    dcp_finish: Option<DcpFinish<'a>>,
+    color_space: OutputColorSpace,
+    gamut_warn: bool,
+    clip_warn: bool,
+    histogram: bool,
+}
+
+impl Finish<'_> {
+    #[inline(always)]
+    fn finalize(&self, lr: f32, lg: f32, lb: f32) -> ([f32; 3], bool) {
+        if self.display_ready {
+            return ([lr, lg, lb], false);
+        }
+        let finished = match self.dcp_finish {
+            Some((look, curve, to_pp, from_pp)) => {
+                crate::color::apply_dcp_finish(look, curve, to_pp, from_pp, [lr, lg, lb])
+            }
+            None => [lr, lg, lb],
+        };
+        let clip = self.gamut_warn && crate::tone::is_out_of_gamut(finished, self.color_space);
+        let display = crate::tone::apply_rgb_cs(finished, self.color_space);
+        (apply_display_lut(display, self.lut), clip)
+    }
+}
+
+#[multiversion(targets("x86_64+avx2", "x86_64+sse4.2"))]
+fn finish_chunk(
+    f: &Finish,
+    base_px: usize,
+    s: &[f32],
+    u8c: &mut [u8],
+    mut u16c: Option<&mut [u16]>,
+    acc: &mut (Bins, Bins),
+) {
+    for (p, (px_in, px_out)) in s.chunks_exact(3).zip(u8c.chunks_exact_mut(3)).enumerate() {
+        let i = p * 3;
+        let lr = px_in[0];
+        let lg = px_in[1];
+        let lb = px_in[2];
+        let ([tr, tg, tb], clip) = f.finalize(lr, lg, lb);
+        let abs_px = base_px + p;
+        let px = (abs_px % f.w) as u32;
+        let py = (abs_px / f.w) as u32;
+        let ru = quantize_u8_dithered(tr, px, py, 0);
+        let gu = quantize_u8_dithered(tg, px, py, 1);
+        let bu = quantize_u8_dithered(tb, px, py, 2);
+        px_out[0] = ru;
+        px_out[1] = gu;
+        px_out[2] = bu;
+        if let Some(dst) = u16c.as_deref_mut() {
+            dst[i] = (tr.clamp(0.0, 1.0) * 65535.0).round() as u16;
+            dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
+            dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
+        }
+        if f.histogram && abs_px % f.step == 0 {
+            acc.0.add_linear(lr, lg, lb);
+            acc.1.add_display(ru, gu, bu);
+        }
+        if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, f.clip_warn) {
+            px_out.copy_from_slice(&paint);
+        }
+    }
 }
 
 #[cfg(test)]
