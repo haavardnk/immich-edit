@@ -243,6 +243,47 @@ pub fn xtrans(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> V
     out
 }
 
+pub fn superpixel(data: &[f32], w: usize, h: usize, cfa_pattern: &str, block: usize) -> Vec<f32> {
+    match parse_xtrans(cfa_pattern) {
+        Some(pattern) => superpixel_with(data, w, h, block, |x, y| xtrans_channel(&pattern, x, y)),
+        None => {
+            let cfa = parse_cfa(cfa_pattern);
+            superpixel_with(data, w, h, block, |x, y| cfa_channel(&cfa, x, y))
+        }
+    }
+}
+
+fn superpixel_with(
+    data: &[f32],
+    w: usize,
+    h: usize,
+    block: usize,
+    channel: impl Fn(usize, usize) -> usize + Sync,
+) -> Vec<f32> {
+    let out_w = w / block;
+    let out_h = h / block;
+    let mut out = vec![0.0f32; out_w * out_h * 3];
+    out.par_chunks_exact_mut(out_w * 3)
+        .enumerate()
+        .for_each(|(by, row)| {
+            for (bx, px) in row.chunks_exact_mut(3).enumerate() {
+                let (sum, count) =
+                    (0..block * block).fold(([0.0f32; 3], [0u32; 3]), |(mut sum, mut count), i| {
+                        let x = bx * block + i % block;
+                        let y = by * block + i / block;
+                        let ch = channel(x, y);
+                        sum[ch] += data[y * w + x];
+                        count[ch] += 1;
+                        (sum, count)
+                    });
+                px.iter_mut()
+                    .zip(sum.iter().zip(count))
+                    .for_each(|(v, (s, n))| *v = s / n.max(1) as f32);
+            }
+        });
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -307,6 +348,53 @@ mod tests {
             .map(|i| color[xtrans_channel(&pattern, i % w, i / w)])
             .collect();
         (data, pattern)
+    }
+
+    fn shifted_xtrans(sx: usize, sy: usize) -> String {
+        let pattern = parse_xtrans(XTRANS).expect("valid pattern");
+        (0..XTRANS_LEN)
+            .map(|i| {
+                pattern[((i / XTRANS_DIM + sy) % XTRANS_DIM) * XTRANS_DIM + (i + sx) % XTRANS_DIM]
+                    as char
+            })
+            .collect()
+    }
+
+    #[test]
+    fn superpixel_recovers_flat_color_for_every_cfa_phase() {
+        let color = [0.8f32, 0.5, 0.2];
+        let bayer = ["RGGB", "BGGR", "GRBG", "GBRG"].map(|p| (p.to_string(), 2));
+        let xtrans = (0..XTRANS_LEN).map(|i| (shifted_xtrans(i % XTRANS_DIM, i / XTRANS_DIM), 3));
+        let w = 25;
+        let h = 19;
+        for (pattern, block) in bayer.into_iter().chain(xtrans) {
+            let data: Vec<f32> = match parse_xtrans(&pattern) {
+                Some(p) => (0..w * h)
+                    .map(|i| color[xtrans_channel(&p, i % w, i / w)])
+                    .collect(),
+                None => {
+                    let cfa = parse_cfa(&pattern);
+                    (0..w * h)
+                        .map(|i| color[cfa_channel(&cfa, i % w, i / w)])
+                        .collect()
+                }
+            };
+            let out = superpixel(&data, w, h, &pattern, block);
+            if out.len() != (w / block) * (h / block) * 3 {
+                panic!("{pattern}: {} values for {w}x{h} / {block}", out.len());
+            }
+            if let Some((i, v)) = out
+                .iter()
+                .enumerate()
+                .find(|(i, v)| (**v - color[i % 3]).abs() > 1e-6)
+            {
+                panic!(
+                    "{pattern}: channel {} of pixel {} is {v}, a block lacks that colour",
+                    i % 3,
+                    i / 3
+                );
+            }
+        }
     }
 
     #[test]

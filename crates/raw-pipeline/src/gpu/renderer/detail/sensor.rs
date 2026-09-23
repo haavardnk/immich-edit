@@ -79,6 +79,7 @@ impl GpuRenderer {
             texture: Arc::new(dst),
             width: w,
             height: h,
+            block: src.block,
         }))
     }
 }

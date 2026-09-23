@@ -1,5 +1,5 @@
 use crate::edits::{AspectLock, CropRect};
-use crate::frame::OrientFlips;
+use crate::frame::{OrientFlips, PreviewMode, RawFrame, RenderOptions};
 use crate::perspective::{IDENTITY, Mat3, mat3_apply};
 
 #[derive(Clone, Copy, Debug)]
@@ -76,7 +76,6 @@ pub fn display_out_dims(
 
 const RESAMPLE_EPSILON: f32 = 1.01;
 const PREVIEW_MIN_OUT_EDGE: u32 = 256;
-const PREVIEW_MIN_RATIO: f32 = 2.0;
 
 pub fn resample_target(src_dims: (u32, u32), ratio: f32) -> Option<(u32, u32)> {
     if !ratio.is_finite() || ratio < RESAMPLE_EPSILON {
@@ -106,7 +105,30 @@ pub fn preview_ratio(
         return None;
     }
     let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
-    (ratio >= PREVIEW_MIN_RATIO).then_some(ratio)
+    (ratio >= RESAMPLE_EPSILON).then_some(ratio)
+}
+
+const BAYER_BLOCK: usize = 2;
+const XTRANS_BLOCK: usize = 3;
+
+pub fn superpixel_block(
+    frame: &RawFrame,
+    options: &RenderOptions,
+    preview_ratio: Option<f32>,
+) -> Option<usize> {
+    if frame.cpp != 1 || options.roi.is_some() || options.preview_mode != PreviewMode::None {
+        return None;
+    }
+    let block = if crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern).is_some() {
+        XTRANS_BLOCK
+    } else if frame.cfa_pattern.len() == 4 {
+        BAYER_BLOCK
+    } else {
+        return None;
+    };
+    preview_ratio
+        .filter(|ratio| *ratio >= block as f32)
+        .map(|_| block)
 }
 
 pub fn compose_roi(crop: Option<CropRect>, roi: Option<CropRect>) -> Option<CropRect> {

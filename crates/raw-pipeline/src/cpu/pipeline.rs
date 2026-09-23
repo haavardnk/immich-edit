@@ -55,6 +55,8 @@ pub(crate) fn render_cached(
         options.max_edge,
         options.quality,
     );
+    let block = crate::geom::superpixel_block(frame, options, preview_ratio);
+    let block_scale = block.unwrap_or(1) as f32;
 
     let setup = crate::dcp_pipeline::resolve(frame, &edits, options.dcp.as_deref());
     let ctx = OpContext {
@@ -62,7 +64,7 @@ pub(crate) fn render_cached(
             wb_coeffs: frame.wb_coeffs,
             cam_to_srgb: setup.cam_to_srgb,
             is_raw: frame.is_raw,
-            capture_sigma: frame.capture_sigma,
+            capture_sigma: frame.capture_sigma.map(|s| s / block_scale),
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
             dcp: setup.resolved.clone(),
@@ -72,7 +74,7 @@ pub(crate) fn render_cached(
 
     let cache_key = renderer
         .filter(|_| renderer::sensor_cacheable(&edits, options))
-        .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio));
+        .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio, block));
 
     let cached = cache_key.and_then(|k| renderer.and_then(|r| r.get(k)));
     let clock = StageClock::default();
@@ -84,25 +86,22 @@ pub(crate) fn render_cached(
             stage.oriented_h,
         ),
         None => {
-            let rgb = clock.time(timing::DEMOSAIC, || {
-                if frame.cpp == 1 && !frame.cfa_pattern.is_empty() {
-                    match demosaic::parse_xtrans(&frame.cfa_pattern) {
-                        Some(pattern) => {
-                            demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern)
-                        }
-                        None => demosaic::malvar_he_cutler(
-                            &frame.data,
-                            frame.width,
-                            frame.height,
-                            &frame.cfa_pattern,
-                        ),
-                    }
-                } else {
-                    frame.data.clone()
-                }
+            let (rgb, sensor_w, sensor_h) = clock.time(timing::DEMOSAIC, || match block {
+                Some(block) => (
+                    demosaic::superpixel(
+                        &frame.data,
+                        frame.width,
+                        frame.height,
+                        &frame.cfa_pattern,
+                        block,
+                    ),
+                    frame.width / block,
+                    frame.height / block,
+                ),
+                None => (full_demosaic(frame), frame.width, frame.height),
             });
 
-            let mut sensor_image = LinearImage::new(rgb, frame.width, frame.height);
+            let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
             clock.time(timing::LENS, || {
                 run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)
             })?;
@@ -114,14 +113,20 @@ pub(crate) fn render_cached(
                 frame.orientation,
             );
 
+            let full = if frame.orientation.0 {
+                (frame.height, frame.width)
+            } else {
+                (frame.width, frame.height)
+            };
             let (oriented_w, oriented_h) = match edits.geometry.rotate {
-                90 | 270 => (h, w),
-                _ => (w, h),
+                90 | 270 => (full.1, full.0),
+                _ => full,
             };
 
             let mut image = LinearImage::new(rgb, w, h);
-            let preview_dims = preview_ratio
-                .and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio));
+            let preview_dims = preview_ratio.and_then(|ratio| {
+                crate::geom::resample_target((w as u32, h as u32), ratio / block_scale)
+            });
 
             if let (Some(key), Some(r)) = (cache_key, renderer) {
                 run_pipeline_ops_inner(
@@ -195,6 +200,18 @@ pub(crate) fn render_cached(
         clock,
         cancel,
     )
+}
+
+fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
+    if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
+        return frame.data.clone();
+    }
+    match demosaic::parse_xtrans(&frame.cfa_pattern) {
+        Some(pattern) => demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern),
+        None => {
+            demosaic::malvar_he_cutler(&frame.data, frame.width, frame.height, &frame.cfa_pattern)
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
