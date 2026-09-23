@@ -25,6 +25,7 @@ pub mod scopes;
 mod sensor_sample;
 pub mod timing;
 pub mod tone;
+mod vmath;
 pub mod warn;
 pub mod wgsl;
 pub mod white_balance;
