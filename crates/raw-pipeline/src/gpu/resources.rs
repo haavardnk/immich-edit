@@ -1,16 +1,24 @@
 use wgpu::{
-    Buffer, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    Buffer, BufferDescriptor, BufferUsages, Extent3d, Texture, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureUsages,
 };
 
 use super::context::GpuContext;
 use super::helpers::round_up_256;
-use super::readback::{make_readback_buffer, make_readback_buffer_f16};
+use super::passes::meta_bins::HISTOGRAM_COUNTS;
+use super::readback::make_readback_buffer;
+use crate::scopes::SCOPE_CELLS;
+
+pub(super) const HISTOGRAM_BYTES: u64 = (HISTOGRAM_COUNTS * size_of::<u32>()) as u64;
+pub(super) const SCOPE_BYTES: u64 = (SCOPE_CELLS * size_of::<u32>()) as u64;
 
 pub(super) struct OutputTargets {
     pub texture: Texture,
     pub readback: Buffer,
     pub linear_texture: Texture,
-    pub linear_readback: Buffer,
+    pub histogram_counts: Buffer,
+    pub scope_counts: Buffer,
+    pub meta_readback: Buffer,
     pub mask_accum_alt: Texture,
     pub mask_base_linear: Texture,
     pub mask_scratch_linear: Texture,
@@ -83,7 +91,14 @@ impl OutputTargets {
                     | TextureUsages::COPY_DST,
                 view_formats: &[],
             }),
-            linear_readback: make_readback_buffer_f16(device, need_w, need_h),
+            histogram_counts: make_counts_buffer(device, "histogram-counts", HISTOGRAM_BYTES),
+            scope_counts: make_counts_buffer(device, "scope-counts", SCOPE_BYTES),
+            meta_readback: device.create_buffer(&BufferDescriptor {
+                label: Some("meta-readback"),
+                size: HISTOGRAM_BYTES + SCOPE_BYTES,
+                usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            }),
             mask_accum_alt: make_linear(
                 "mask-accum-alt",
                 linear_extra_usage | TextureUsages::COPY_SRC,
@@ -143,6 +158,15 @@ impl OutputTargets {
             alloc_h: need_h,
         }
     }
+}
+
+fn make_counts_buffer(device: &wgpu::Device, label: &'static str, size: u64) -> Buffer {
+    device.create_buffer(&BufferDescriptor {
+        label: Some(label),
+        size,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
 }
 
 pub(super) struct SharpenTargets {

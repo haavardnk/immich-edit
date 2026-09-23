@@ -9,6 +9,7 @@ pub mod lut;
 pub mod mask_blend;
 pub mod mask_overlay;
 pub mod mask_weight;
+pub mod meta_bins;
 pub mod mipgen;
 pub mod nr;
 pub mod nr_smooth;
@@ -40,6 +41,7 @@ use lut::LutPass;
 use mask_blend::MaskBlendPass;
 use mask_overlay::MaskOverlayPass;
 use mask_weight::MaskWeightPass;
+use meta_bins::MetaBinsPasses;
 use mipgen::MipgenPass;
 use nr::NrPass;
 use nr_smooth::NrSmoothPass;
@@ -75,6 +77,7 @@ pub struct GpuPasses {
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub mask_overlay: MaskOverlayPass,
+    pub meta_bins: MetaBinsPasses,
     pub sensor: SensorPass,
     pub linear_sampler: Sampler,
     pub atlas_sampler: Sampler,
@@ -88,6 +91,7 @@ pub struct Depth16Passes {
     pub effects_tone: EffectsTonePass,
     pub lut: LutPass,
     pub dcp_look: DcpHueSatPass,
+    pub meta_bins: MetaBinsPasses,
 }
 
 impl GpuPasses {
@@ -116,6 +120,7 @@ impl GpuPasses {
             mask_weight,
             mask_blend,
             mask_overlay,
+            meta_bins,
             sensor,
         ) = std::thread::scope(|s| {
             let dehaze_t = s.spawn(|| DehazePasses::new(ctx));
@@ -148,6 +153,7 @@ impl GpuPasses {
             let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
             let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
             let mask_overlay_t = s.spawn(|| MaskOverlayPass::new(ctx));
+            let meta_bins_t = s.spawn(|| MetaBinsPasses::new(ctx, DisplayDepth::Eight));
             let sensor_t = s.spawn(|| SensorPass::new(ctx));
             (
                 dehaze_t.join().expect("dehaze pass build"),
@@ -174,6 +180,7 @@ impl GpuPasses {
                 mask_weight_t.join().expect("mask weight pass build"),
                 mask_blend_t.join().expect("mask blend pass build"),
                 mask_overlay_t.join().expect("mask overlay pass build"),
+                meta_bins_t.join().expect("meta bins pass build"),
                 sensor_t.join().expect("sensor pass build"),
             )
         });
@@ -200,6 +207,7 @@ impl GpuPasses {
             mask_weight,
             mask_blend,
             mask_overlay,
+            meta_bins,
             sensor,
             linear_sampler: ctx.device.create_sampler(&SamplerDescriptor {
                 label: Some("linear-samp"),
@@ -238,6 +246,7 @@ impl GpuPasses {
                 effects_tone: EffectsTonePass::new(ctx, depth),
                 lut: LutPass::new(ctx, depth),
                 dcp_look: DcpHueSatPass::new_look(ctx, depth.format()),
+                meta_bins: MetaBinsPasses::new(ctx, depth),
             }
         })
     }

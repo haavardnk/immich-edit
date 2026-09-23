@@ -1,9 +1,8 @@
 use rayon::prelude::*;
 
-use super::bins::{HistBins, bins_to_histogram, fold_display, fold_linear, merge_bins, zero_bins};
 use crate::edits::Edits;
 use crate::frame::{OutputColorSpace, RenderOptions};
-use crate::histogram::{self, Histogram};
+use crate::histogram::{self, Bins, Histogram};
 
 pub(super) type DcpFinish<'a> = (
     Option<&'a crate::dcp::HueSatMap>,
@@ -96,7 +95,7 @@ pub(super) fn finish_output(
     } else {
         Vec::new()
     };
-    let step = if pixel_count > 500_000 { 2 } else { 1 };
+    let step = histogram::sample_step(pixel_count);
     let chunk_px = histogram::chunk_pixels(pixel_count);
     let chunk = chunk_px * 3;
 
@@ -119,7 +118,7 @@ pub(super) fn finish_output(
                    s: &[f32],
                    u8c: &mut [u8],
                    mut u16c: Option<&mut [u16]>,
-                   acc: &mut (HistBins, HistBins)| {
+                   acc: &mut (Bins, Bins)| {
         let mut i = 0;
         let mut p = 0usize;
         while i + 2 < s.len() {
@@ -141,9 +140,9 @@ pub(super) fn finish_output(
                 dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
                 dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
             }
-            if histogram && p % step == 0 {
-                fold_linear(&mut acc.0, lr, lg, lb);
-                fold_display(&mut acc.1, ru, gu, bu);
+            if histogram && abs_px % step == 0 {
+                acc.0.add_linear(lr, lg, lb);
+                acc.1.add_display(ru, gu, bu);
             }
             if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, clip_warn) {
                 u8c[i] = paint[0];
@@ -155,6 +154,8 @@ pub(super) fn finish_output(
         }
     };
 
+    let zero_bins = || (Bins::zero(), Bins::zero());
+    let merge_bins = |a: (Bins, Bins), b: (Bins, Bins)| (a.0.merge(b.0), a.1.merge(b.1));
     let (lin_bins, dis_bins) = if want_16bit {
         linear
             .par_chunks(chunk)
@@ -165,9 +166,7 @@ pub(super) fn finish_output(
                 process(ci * chunk_px, s, u8c, Some(u16c), &mut acc);
                 acc
             })
-            .reduce(zero_bins, |a, b| {
-                (merge_bins(a.0, b.0), merge_bins(a.1, b.1))
-            })
+            .reduce(zero_bins, merge_bins)
     } else {
         linear
             .par_chunks(chunk)
@@ -177,15 +176,13 @@ pub(super) fn finish_output(
                 process(ci * chunk_px, s, u8c, None, &mut acc);
                 acc
             })
-            .reduce(zero_bins, |a, b| {
-                (merge_bins(a.0, b.0), merge_bins(a.1, b.1))
-            })
+            .reduce(zero_bins, merge_bins)
     };
 
     let rgb_u16 = if want_16bit { Some(rgb_u16) } else { None };
     let histograms = histogram.then(|| Histograms {
-        display: bins_to_histogram(dis_bins),
-        linear: bins_to_histogram(lin_bins),
+        display: dis_bins.into_histogram(),
+        linear: lin_bins.into_histogram(),
     });
     (rgb_u8, rgb_u16, histograms)
 }
