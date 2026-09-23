@@ -97,6 +97,31 @@ fn cpu_cache_matches_uncached() {
 }
 
 #[test]
+fn cpu_cache_hits_on_every_tone_tick() {
+    let Some(frame) = common::first_fixture_frame() else {
+        eprintln!("no fixtures decoded; skipping");
+        return;
+    };
+    let options = RenderOptions {
+        max_edge: 900,
+        output: OutputFormat::Rgb8,
+        ..Default::default()
+    };
+    let renderer = CpuRenderer::new();
+    let misses: Vec<usize> = (0..20)
+        .filter(|step| {
+            let mut edits = Edits::default();
+            edits.basic.exposure_ev = *step as f64 * 0.05;
+            let image = renderer.render(&frame, &edits, &options).unwrap();
+            image.timings.iter().any(|t| t.stage == "demosaic")
+        })
+        .collect();
+    if misses != [0] {
+        panic!("sensor cache should miss only on the first tick, missed on {misses:?}");
+    }
+}
+
+#[test]
 fn cpu_cache_reuse_across_tone_edits() {
     let Some(frame) = common::first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
