@@ -31,7 +31,7 @@ pub(crate) fn whites_gain(wh: f32) -> f32 {
             * TONE_REGIONS_WHITES_SCALE)
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
     if hl == 0.0 {
         return x;
@@ -53,7 +53,7 @@ pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
     x * (1.0 - mask) + new * mask
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) fn shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
     if sh == 0.0 {
         return 1.0;
@@ -76,7 +76,7 @@ fn blacks_scalar(x: f32, bk: f32) -> f32 {
     xc + xc * (mult_bk - 1.0) * mask_bk
 }
 
-#[inline]
+#[inline(always)]
 pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -> (f32, f32, f32) {
     let clip = (r.max(g).max(b) - 1.0).max(0.0);
     let mut rr = highlights_apply(r, hl);
@@ -84,12 +84,10 @@ pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -
     let mut bb = highlights_apply(b, hl);
     let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip)
         * (-hl).clamp(0.0, 1.0);
-    if desat > 0.0 {
-        let luma = luma(rr, gg, bb);
-        rr = rr + (luma - rr) * desat;
-        gg = gg + (luma - gg) * desat;
-        bb = bb + (luma - bb) * desat;
-    }
+    let luma = luma(rr, gg, bb);
+    rr = rr + (luma - rr) * desat;
+    gg = gg + (luma - gg) * desat;
+    bb = bb + (luma - bb) * desat;
     (
         blacks_scalar(rr, bk),
         blacks_scalar(gg, bk),
