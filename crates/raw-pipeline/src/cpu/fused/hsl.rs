@@ -75,7 +75,7 @@ fn band_weights(h_deg: f32) -> [f32; HSL_BANDS] {
     let sigma2 = HSL_BAND_SIGMA_DEG * HSL_BAND_SIGMA_DEG;
     for i in 0..HSL_BANDS {
         let d = hue_dist(h_deg, HSL_BAND_CENTERS_DEG[i]);
-        w[i] = (-(d * d) / (2.0 * sigma2)).exp();
+        w[i] = crate::vmath::exp(-(d * d) / (2.0 * sigma2));
     }
     let sum: f32 = w.iter().sum();
     if sum > 1.0 {

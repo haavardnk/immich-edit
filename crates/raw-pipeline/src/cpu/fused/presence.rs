@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::math::{luma, smoothstep};
 use crate::tone::shared::{HL_RECONSTRUCT_BIAS, HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE};
+use crate::vmath;
 
 #[inline(always)]
 pub fn apply_white_balance(
@@ -58,17 +59,17 @@ pub fn apply_presence(p: PresenceParams<'_>, i: usize, r: &mut f32, g: &mut f32,
     let y0c = y0.max(1e-5);
     let mut log_gain = 0.0f32;
     if let Some(buf) = p.texture_blur {
-        log_gain += p.texture * (y0c / buf[i].max(1e-5)).log2();
+        log_gain += p.texture * vmath::log2(y0c / buf[i].max(1e-5));
     }
     if let Some(buf) = p.clarity_blur {
         let mt = smoothstep(0.0, 0.1, y0)
             * (1.0 - smoothstep(0.9, 1.0, y0))
             * (1.0 - (2.0 * y0 - 1.0).abs()).max(0.0);
-        let ratio = (y0c / buf[i].max(1e-5)).log2();
+        let ratio = vmath::log2(y0c / buf[i].max(1e-5));
         let gate = smoothstep(0.015, 0.12, ratio.abs());
         log_gain += p.clarity * mt * gate * ratio;
     }
-    let new_y = y0 * log_gain.exp2();
+    let new_y = y0 * vmath::exp2(log_gain);
     let goal = new_y.max(0.0);
     if y0 <= 1e-5 {
         *r = goal;
