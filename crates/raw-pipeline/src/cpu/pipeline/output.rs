@@ -7,7 +7,7 @@ use crate::histogram::{self, Bins, Histogram};
 
 pub(super) type DcpFinish<'a> = (
     Option<&'a crate::dcp::HueSatMap>,
-    Option<&'a [[f32; 2]]>,
+    Option<&'a crate::dcp::ToneCurve>,
     &'a [[f32; 3]; 3],
     &'a [[f32; 3]; 3],
 );

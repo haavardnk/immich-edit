@@ -6,7 +6,7 @@ fn default_color_curve_shapes_midtones() {
     if profile.base_table.is_some() || profile.look_table.is_some() {
         panic!("default color must not carry hue/sat tables");
     }
-    let curve = profile.tone_curve.as_deref().map(Vec::as_slice);
+    let curve = profile.tone_curve.as_deref();
     let at = |v: f32| {
         crate::color::apply_dcp_finish(None, curve, &profile.to_pp, &profile.from_pp, [v, v, v])[1]
     };

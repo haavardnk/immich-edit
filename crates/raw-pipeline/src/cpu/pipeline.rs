@@ -272,7 +272,7 @@ fn finish_render(
     let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
         (
             d.look_table.as_deref(),
-            d.tone_curve.as_deref().map(Vec::as_slice),
+            d.tone_curve.as_deref(),
             &d.to_pp,
             &d.from_pp,
         )

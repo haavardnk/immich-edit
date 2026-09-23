@@ -184,7 +184,22 @@ fn parses_huesat_and_tone_curve() {
     assert_eq!(hs.encoding, HsvEncoding::Srgb);
     assert_eq!(hs.data.len(), 4);
     assert!(p.has_tone_curve());
-    assert_eq!(p.tone_curve.as_ref().unwrap().len(), 3);
+    assert_eq!(p.tone_curve.as_ref().unwrap().points().len(), 3);
+}
+
+#[test]
+fn unsorted_tone_curve_is_ignored() {
+    let tiff = build_tiff(vec![
+        matrix_tag(T_COLOR_MATRIX1, CM1),
+        TagVal {
+            tag: T_TONE_CURVE,
+            typ: 11,
+            count: 6,
+            bytes: floats(&[0.0, 0.0, 0.7, 0.6, 0.5, 1.0]),
+        },
+    ]);
+    let profile = parse_dcp(&tiff).unwrap();
+    assert!(profile.tone_curve.is_none());
 }
 
 #[test]

@@ -7,7 +7,7 @@ mod tests;
 
 pub use dcp::{
     DCP_FALLBACK_TONE_CURVE, DEFAULT_COLOR_TONE_CURVE, apply_dcp_finish, apply_huesat,
-    dcp_cam_to_srgb, dcp_illuminant_cct, dcp_weight, eval_tone_curve, merge_huesat,
+    dcp_cam_to_srgb, dcp_illuminant_cct, dcp_weight, merge_huesat,
 };
 pub use matrix::{
     cam_to_srgb_matrix, display_p3_to_srgb_lin, estimate_scene_cct, identity_3x3,

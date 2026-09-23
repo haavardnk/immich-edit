@@ -1,6 +1,6 @@
 use super::{
     DCP_MAX_SOURCE_BYTES, DCP_MAX_TABLE_DIM, DCP_MAX_TABLE_ENTRIES, DcpParseError, DcpProfile,
-    HsvEncoding, HueSatMap,
+    HsvEncoding, HueSatMap, ToneCurve,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -166,12 +166,16 @@ fn read_huesat(
     Some(map)
 }
 
-fn read_tone_curve(tiff: &Tiff, e: Option<&Entry>) -> Option<Vec<[f32; 2]>> {
+fn read_tone_curve(tiff: &Tiff, e: Option<&Entry>) -> Option<ToneCurve> {
     let raw = tiff.f32_vec(e?)?;
     if raw.len() < 4 || raw.len() % 2 != 0 || raw.iter().any(|x| !x.is_finite()) {
         return None;
     }
-    Some(raw.chunks_exact(2).map(|c| [c[0], c[1]]).collect())
+    let points: Vec<[f32; 2]> = raw.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+    if points.windows(2).any(|w| w[1][0] < w[0][0]) {
+        return None;
+    }
+    Some(ToneCurve::new(points))
 }
 
 struct Entry {

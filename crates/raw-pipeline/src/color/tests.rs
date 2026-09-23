@@ -1,7 +1,7 @@
 use super::dcp::*;
 use super::hsv::*;
 use super::matrix::*;
-use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap};
+use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap, ToneCurve};
 
 const MATRIX_A: [[f32; 3]; 4] = [
     [0.8, 0.1, 0.1],
@@ -240,7 +240,7 @@ fn dcp_finish_preserves_neutral_axis() {
     let from_pp = prophoto_to_srgb_lin_matrix();
     let out = apply_dcp_finish(
         Some(&map),
-        Some(&DCP_FALLBACK_TONE_CURVE),
+        Some(&ToneCurve::new(DCP_FALLBACK_TONE_CURVE.to_vec())),
         &to_pp,
         &from_pp,
         [0.4, 0.4, 0.4],
@@ -259,7 +259,7 @@ fn dcp_finish_orders_looktable_before_tone_curve() {
         encoding: HsvEncoding::Srgb,
         data: vec![[24.0, 1.3, 0.85]; 9],
     };
-    let curve = [[0.0f32, 0.0], [0.25, 0.4], [0.6, 0.55], [1.0, 1.0]];
+    let curve = ToneCurve::new(vec![[0.0f32, 0.0], [0.25, 0.4], [0.6, 0.55], [1.0, 1.0]]);
     let to_pp = srgb_lin_to_prophoto_matrix();
     let from_pp = prophoto_to_srgb_lin_matrix();
     let rgb = [0.62, 0.28, 0.16];
@@ -310,7 +310,7 @@ fn dcp_base_table_golden() {
 fn profile_tone_curve_preserves_hsv_hue() {
     let rgb = [0.72, 0.31, 0.18];
     let before = rgb_to_hsv(rgb);
-    let out = apply_profile_tone_curve(&DCP_FALLBACK_TONE_CURVE, rgb);
+    let out = apply_profile_tone_curve(&ToneCurve::new(DCP_FALLBACK_TONE_CURVE.to_vec()), rgb);
     let after = rgb_to_hsv(out);
     if (before[0] - after[0]).abs() > 1e-5 {
         panic!("profile tone shifted hue: {before:?} -> {after:?}");
@@ -319,14 +319,15 @@ fn profile_tone_curve_preserves_hsv_hue() {
 
 #[test]
 fn tone_curve_is_monotonic_and_bounded() {
+    let curve = ToneCurve::new(DCP_FALLBACK_TONE_CURVE.to_vec());
     let mut prev = -1.0;
     for i in 0..=20 {
         let x = i as f32 / 20.0;
-        let y = eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, x);
+        let y = curve.eval(x);
         assert!((0.0..=1.0).contains(&y));
         assert!(y >= prev - 1e-6, "not monotonic at {x}");
         prev = y;
     }
-    assert!((eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, 0.0)).abs() < 1e-6);
-    assert!((eval_tone_curve(&DCP_FALLBACK_TONE_CURVE, 1.0) - 1.0).abs() < 1e-6);
+    assert!((curve.eval(0.0)).abs() < 1e-6);
+    assert!((curve.eval(1.0) - 1.0).abs() < 1e-6);
 }

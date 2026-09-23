@@ -98,17 +98,21 @@ pub struct RenderContext {
 pub struct ResolvedDcp {
     pub base_table: Option<std::sync::Arc<crate::dcp::HueSatMap>>,
     pub look_table: Option<std::sync::Arc<crate::dcp::HueSatMap>>,
-    pub tone_curve: Option<std::sync::Arc<Vec<[f32; 2]>>>,
+    pub tone_curve: Option<std::sync::Arc<crate::dcp::ToneCurve>>,
     pub to_pp: [[f32; 3]; 3],
     pub from_pp: [[f32; 3]; 3],
 }
 
 impl ResolvedDcp {
     pub fn default_color() -> Self {
-        static CURVE: std::sync::OnceLock<std::sync::Arc<Vec<[f32; 2]>>> =
+        static CURVE: std::sync::OnceLock<std::sync::Arc<crate::dcp::ToneCurve>> =
             std::sync::OnceLock::new();
         let tone_curve = CURVE
-            .get_or_init(|| std::sync::Arc::new(crate::color::DEFAULT_COLOR_TONE_CURVE.to_vec()))
+            .get_or_init(|| {
+                std::sync::Arc::new(crate::dcp::ToneCurve::new(
+                    crate::color::DEFAULT_COLOR_TONE_CURVE.to_vec(),
+                ))
+            })
             .clone();
         Self {
             base_table: None,
@@ -150,9 +154,17 @@ pub fn resolve_dcp(
         if profile.has_tone_curve() {
             profile.tone_curve.clone()
         } else if profile.is_adobe() {
-            Some(std::sync::Arc::new(
-                crate::color::DCP_FALLBACK_TONE_CURVE.to_vec(),
-            ))
+            static FALLBACK: std::sync::OnceLock<std::sync::Arc<crate::dcp::ToneCurve>> =
+                std::sync::OnceLock::new();
+            Some(
+                FALLBACK
+                    .get_or_init(|| {
+                        std::sync::Arc::new(crate::dcp::ToneCurve::new(
+                            crate::color::DCP_FALLBACK_TONE_CURVE.to_vec(),
+                        ))
+                    })
+                    .clone(),
+            )
         } else {
             None
         }

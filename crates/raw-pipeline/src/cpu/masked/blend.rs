@@ -108,7 +108,7 @@ pub fn render_mask_overlay(
     let finish = dcp.map(|d| {
         (
             d.look_table.as_deref(),
-            d.tone_curve.as_deref().map(Vec::as_slice),
+            d.tone_curve.as_deref(),
             &d.to_pp,
             &d.from_pp,
         )
