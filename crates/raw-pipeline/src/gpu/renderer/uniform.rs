@@ -8,6 +8,7 @@ pub(super) fn process_header(
     edits: &Edits,
     geom: &ProcessGeom,
     sensor: (u32, u32),
+    src_window: [f32; 4],
     out: (u32, u32),
     shadows_mip_f: f32,
     warp: bool,
@@ -33,6 +34,7 @@ pub(super) fn process_header(
         ],
         output: [0, 0, 0, 0],
         perspective: geom.persp_rows,
+        src_window,
     }
 }
 

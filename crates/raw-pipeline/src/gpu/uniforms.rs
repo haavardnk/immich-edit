@@ -1,6 +1,7 @@
 use std::mem::offset_of;
 
 pub(super) const ACTIVE_MASK_WORDS: usize = 4;
+pub(super) const FULL_WINDOW: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -15,6 +16,7 @@ pub(super) struct ProcessHeader {
     pub geom_extra3: [f32; 4],
     pub output: [u32; 4],
     pub perspective: [f32; 12],
+    pub src_window: [f32; 4],
 }
 
 pub(super) fn write_header(dst: &mut [u8], header: &ProcessHeader) {

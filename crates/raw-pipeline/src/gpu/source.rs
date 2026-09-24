@@ -5,7 +5,13 @@ use wgpu::Texture;
 use crate::frame::FrameMeta;
 #[cfg(feature = "native")]
 use crate::frame::RawFrame;
-use crate::source::{LinearKind, SourceHeader};
+use crate::source::{LinearKind, SourceHeader, SourceWindow};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SourceExtent {
+    pub dims: (u32, u32),
+    pub full: (u32, u32),
+}
 
 #[derive(Clone)]
 pub struct LinearSource {
@@ -14,6 +20,7 @@ pub struct LinearSource {
     pub dims: (u32, u32),
     pub texture: Arc<Texture>,
     pub atmosphere: Option<[f32; 3]>,
+    pub window: Option<SourceWindow>,
 }
 
 impl LinearSource {
@@ -23,6 +30,14 @@ impl LinearSource {
             kind: self.kind,
             dims: self.dims,
             atmosphere: self.atmosphere,
+            window: self.window,
+        }
+    }
+
+    pub fn extent(&self) -> SourceExtent {
+        SourceExtent {
+            dims: self.dims,
+            full: self.window.map_or(self.dims, |w| w.full),
         }
     }
 }

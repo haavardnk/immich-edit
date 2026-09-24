@@ -1,4 +1,4 @@
-use super::{LinearKind, SourceHeader};
+use super::{LinearKind, SourceHeader, SourceWindow};
 use crate::frame::FrameMeta;
 use crate::{PipelineError, PipelineResult};
 
@@ -34,6 +34,17 @@ pub(super) fn write(header: &SourceHeader, out: &mut Vec<u8>) -> PipelineResult<
     put_u32(out, header.dims.0);
     put_u32(out, header.dims.1);
     put_optional(out, header.atmosphere.as_ref());
+    out.push(u8::from(header.window.is_some()));
+    if let Some(window) = header.window {
+        for v in [
+            window.origin.0,
+            window.origin.1,
+            window.full.0,
+            window.full.1,
+        ] {
+            put_u32(out, v);
+        }
+    }
     Ok(())
 }
 
@@ -63,6 +74,21 @@ pub(super) fn read(bytes: &[u8]) -> PipelineResult<SourceHeader> {
     };
     let dims = (r.u32()?, r.u32()?);
     let atmosphere = r.optional::<3>()?;
+    let window = match r.flag()? {
+        true => Some(SourceWindow {
+            origin: (r.u32()?, r.u32()?),
+            full: (r.u32()?, r.u32()?),
+        }),
+        false => None,
+    };
+    if let Some(w) = window {
+        let fits = |origin: u32, size: u32, full: u32| {
+            origin.checked_add(size).is_some_and(|end| end <= full)
+        };
+        if !fits(w.origin.0, dims.0, w.full.0) || !fits(w.origin.1, dims.1, w.full.1) {
+            return Err(invalid("window lies outside the full source"));
+        }
+    }
     if r.pos != bytes.len() {
         return Err(invalid("trailing header bytes"));
     }
@@ -81,6 +107,7 @@ pub(super) fn read(bytes: &[u8]) -> PipelineResult<SourceHeader> {
         kind,
         dims,
         atmosphere,
+        window,
     })
 }
 

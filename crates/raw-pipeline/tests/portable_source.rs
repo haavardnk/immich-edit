@@ -123,7 +123,7 @@ fn a_source_survives_the_wire_and_renders_like_its_frame() {
                 panic!("{label} {case}: a source must be white balanced and carry an atmosphere");
             }
             let uploaded = renderer.upload_source(&decoded).unwrap();
-            if wire(&renderer.read_source(&uploaded, None).unwrap()) != bytes {
+            if wire(&renderer.read_source(&uploaded, None, None).unwrap()) != bytes {
                 panic!("{label} {case}: uploading and reading back changed the source");
             }
             let from_frame = renderer.render(&frame, &edits, &opts).unwrap();
@@ -216,6 +216,88 @@ fn a_cpu_source_renders_like_the_gpu_frame() {
             let delta = mean_abs_delta(&from_frame.bytes, &from_cpu.bytes);
             if delta > 2.0 {
                 panic!("{label} {case}: the cpu source drifted {delta:.3} from the gpu render");
+            }
+        }
+    }
+}
+
+fn tile_opts(max_edge: u32, roi: CropRect) -> RenderOptions {
+    RenderOptions {
+        roi: Some(roi),
+        ..rgb8_opts(max_edge)
+    }
+}
+
+fn tile_cases() -> Vec<(&'static str, Edits)> {
+    let mut tilted = all_edits();
+    tilted.geometry.rotate_angle = 3.0;
+    vec![("display", display_edits()), ("tilted", tilted)]
+}
+
+#[test]
+fn a_windowed_source_renders_the_tile_of_the_full_source() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let cpu = CpuRenderer::new();
+    let mut turned = haze_frame(800, 1200);
+    turned.meta.orientation = (true, false, true);
+    let roi = CropRect {
+        x: 0.4,
+        y: 0.35,
+        w: 0.2,
+        h: 0.25,
+    };
+    for (label, frame) in [("haze", haze_frame(1200, 800)), ("turned", turned)] {
+        let long = frame.meta.width.max(frame.meta.height) as u32;
+        for (case, edits) in tile_cases() {
+            let sensor = edits.sensor_stage();
+            let tile = tile_opts(long / 4, roi);
+            let sources = [
+                (
+                    "gpu",
+                    renderer.render_source(&frame, &sensor, &tile, None),
+                    renderer.render_source(&frame, &sensor, &rgb8_opts(long), None),
+                ),
+                (
+                    "cpu",
+                    cpu.render_source(&frame, &sensor, &tile, None),
+                    cpu.render_source(&frame, &sensor, &rgb8_opts(long), None),
+                ),
+            ];
+            for (kind, windowed, full) in sources {
+                let windowed = source::decode(&wire(&windowed.unwrap().image)).unwrap();
+                let full = source::decode(&wire(&full.unwrap().image)).unwrap();
+                let Some(window) = windowed.header.window else {
+                    panic!("{label} {case} {kind}: a small tile was not windowed");
+                };
+                if window.full != full.header.dims || windowed.header.dims.0 >= window.full.0 {
+                    panic!(
+                        "{label} {case} {kind}: window {window:?} does not sit in the full source"
+                    );
+                }
+                let from_window = renderer
+                    .render(&renderer.upload_source(&windowed).unwrap(), &edits, &tile)
+                    .unwrap();
+                let from_full = renderer
+                    .render(&renderer.upload_source(&full).unwrap(), &edits, &tile)
+                    .unwrap();
+                if (from_window.width, from_window.height) != (from_full.width, from_full.height) {
+                    panic!("{label} {case} {kind}: the tile rendered at different dims");
+                }
+                let delta = mean_abs_delta(&from_window.bytes, &from_full.bytes);
+                let worst = from_window
+                    .bytes
+                    .iter()
+                    .zip(&from_full.bytes)
+                    .map(|(a, b)| a.abs_diff(*b))
+                    .max()
+                    .unwrap_or(0);
+                if delta > 0.01 || worst > 1 {
+                    panic!(
+                        "{label} {case} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
+                    );
+                }
             }
         }
     }

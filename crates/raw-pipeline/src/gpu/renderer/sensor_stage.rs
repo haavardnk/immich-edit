@@ -108,7 +108,10 @@ impl GpuRenderer {
             cancel,
         )?;
         let started = std::time::Instant::now();
-        let image = self.read_source(&linear, cancel)?;
+        let window = options
+            .roi
+            .and_then(|_| crate::source::window_rect(&linear.meta, &edits, linear.dims));
+        let image = self.read_source(&linear, window, cancel)?;
         timings
             .clock()
             .add_wall(timing::READBACK, started.elapsed());
@@ -155,6 +158,7 @@ impl GpuRenderer {
                 dims,
                 texture: cached.texture.clone(),
                 atmosphere: None,
+                window: None,
             });
         }
         self.spatial_base(&cached, frame, &edits, options, plan.atmosphere, t, cancel)
@@ -243,6 +247,7 @@ impl GpuRenderer {
             dims: spatial_dims,
             texture,
             atmosphere,
+            window: None,
         })
     }
 }
