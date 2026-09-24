@@ -1,6 +1,5 @@
 use std::hash::{Hash, Hasher};
 
-use super::GpuRenderer;
 use crate::edits::{Edits, hash_strokes};
 use crate::frame::RawFrame;
 
@@ -17,7 +16,7 @@ impl StageKeys {
         cam_to_srgb: [[f32; 3]; 3],
     ) -> Self {
         let mut h = std::collections::hash_map::DefaultHasher::new();
-        GpuRenderer::frame_key(frame).hash(&mut h);
+        frame.cache_key().hash(&mut h);
         dims.0.hash(&mut h);
         dims.1.hash(&mut h);
         edits.basic.wb_temp.to_bits().hash(&mut h);

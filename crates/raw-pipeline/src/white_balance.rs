@@ -45,22 +45,22 @@ pub fn auto_white_balance(frame: &RawFrame, edits: &Edits) -> Option<(f64, f64)>
     let frame = decimated.as_ref().unwrap_or(frame);
     let (wb, m) = display_color(frame);
     let geom = oriented_geometry(frame, edits);
-    let total = frame.width * frame.height;
+    let total = frame.meta.width * frame.meta.height;
     let step = (total / SAMPLE_TARGET).max(1);
 
     let mut samples: Vec<[f32; 3]> = Vec::new();
     let mut i = 0;
     while i < total {
-        let px = (i % frame.width) as f32;
-        let py = (i / frame.width) as f32;
+        let px = (i % frame.meta.width) as f32;
+        let py = (i / frame.meta.width) as f32;
         i += step;
         if let Some(geom) = &geom {
             let (u, v) = sensor_to_oriented_uv(
                 px + 0.5,
                 py + 0.5,
-                frame.width,
-                frame.height,
-                frame.orientation,
+                frame.meta.width,
+                frame.meta.height,
+                frame.meta.orientation,
             );
             let d = mask_uv_to_display_uv(geom, [u, v]);
             if d[0] < 0.0 || d[0] > 1.0 || d[1] < 0.0 || d[1] > 1.0 {
@@ -154,11 +154,11 @@ fn residual(rgb: [f32; 3], temp: f64, tint: f64) -> Option<[f64; 2]> {
 }
 
 fn oriented_geometry(frame: &RawFrame, edits: &Edits) -> Option<GeometryTransform> {
-    let (transpose, _, _) = frame.orientation;
+    let (transpose, _, _) = frame.meta.orientation;
     let (ow, oh) = if transpose {
-        (frame.height, frame.width)
+        (frame.meta.height, frame.meta.width)
     } else {
-        (frame.width, frame.height)
+        (frame.meta.width, frame.meta.height)
     };
     geometry_transform(edits, ow as u32, oh as u32)
 }
@@ -175,9 +175,9 @@ fn display_uv_to_sensor_px(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> O
         return None;
     }
 
-    let w = frame.width as f32;
-    let h = frame.height as f32;
-    let (transpose, flip_h, flip_v) = frame.orientation;
+    let w = frame.meta.width as f32;
+    let h = frame.meta.height as f32;
+    let (transpose, flip_h, flip_v) = frame.meta.orientation;
     let (mut px, mut py) = if transpose {
         (oriented[1] * w, oriented[0] * h)
     } else {
@@ -202,8 +202,8 @@ fn display_uv_to_sensor_px(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> O
         k2,
         k3,
         zoom,
-        frame.width as u32,
-        frame.height as u32,
+        frame.meta.width as u32,
+        frame.meta.height as u32,
         px,
         py,
     );

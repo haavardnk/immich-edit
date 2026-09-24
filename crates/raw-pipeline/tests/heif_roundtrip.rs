@@ -19,8 +19,8 @@ fn split_tone_rgb() -> Vec<u8> {
 }
 
 fn region_mean(frame: &RawFrame, x0: usize, x1: usize) -> f32 {
-    let samples: Vec<f32> = (0..frame.height)
-        .flat_map(|y| (x0..x1).map(move |x| (y * frame.width + x) * 3))
+    let samples: Vec<f32> = (0..frame.meta.height)
+        .flat_map(|y| (x0..x1).map(move |x| (y * frame.meta.width + x) * 3))
         .flat_map(|i| frame.data[i..i + 3].iter().copied())
         .collect();
     samples.iter().sum::<f32>() / samples.len() as f32
@@ -41,10 +41,10 @@ fn roundtrip(encode_fn: EncodeFn) {
 
     let frame = decode(&encoded).expect("decode failed; the libheif codec plugin is missing");
 
-    assert_eq!(frame.width, WIDTH as usize);
-    assert_eq!(frame.height, HEIGHT as usize);
+    assert_eq!(frame.meta.width, WIDTH as usize);
+    assert_eq!(frame.meta.height, HEIGHT as usize);
     assert_eq!(frame.cpp, 3);
-    assert!(!frame.is_raw);
+    assert!(!frame.meta.is_raw);
 
     let dark = region_mean(&frame, 4, 28);
     let bright = region_mean(&frame, 36, 60);

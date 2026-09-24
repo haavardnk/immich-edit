@@ -41,14 +41,14 @@ pub(crate) fn render_cached(
     renderer: Option<&CpuRenderer>,
 ) -> crate::PipelineResult<RenderedImage> {
     let mut edits = edits.clamped();
-    edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.is_raw));
+    edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
     edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
 
-    let src_dims = (frame.width as u32, frame.height as u32);
+    let src_dims = (frame.meta.width as u32, frame.meta.height as u32);
     let out_dims =
-        crate::geom::display_out_dims(frame.orientation, &edits, src_dims, options.max_edge);
+        crate::geom::display_out_dims(frame.meta.orientation, &edits, src_dims, options.max_edge);
     let preview_ratio = crate::geom::preview_ratio(
-        frame.orientation,
+        frame.meta.orientation,
         &edits,
         src_dims,
         options.max_edge,
@@ -60,10 +60,10 @@ pub(crate) fn render_cached(
     let setup = crate::dcp_pipeline::resolve(frame, &edits, options.dcp.as_deref());
     let ctx = OpContext {
         render: RenderContext {
-            wb_coeffs: frame.wb_coeffs,
+            wb_coeffs: frame.meta.wb_coeffs,
             cam_to_srgb: setup.cam_to_srgb,
-            is_raw: frame.is_raw,
-            capture_sigma: frame.capture_sigma.map(|s| s / block_scale),
+            is_raw: frame.meta.is_raw,
+            capture_sigma: frame.meta.capture_sigma.map(|s| s / block_scale),
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
             dcp: setup.resolved.clone(),
@@ -89,15 +89,15 @@ pub(crate) fn render_cached(
                 Some(block) => (
                     demosaic::superpixel(
                         &frame.data,
-                        frame.width,
-                        frame.height,
+                        frame.meta.width,
+                        frame.meta.height,
                         &frame.cfa_pattern,
                         block,
                     ),
-                    frame.width / block,
-                    frame.height / block,
+                    frame.meta.width / block,
+                    frame.meta.height / block,
                 ),
-                None => (full_demosaic(frame), frame.width, frame.height),
+                None => (full_demosaic(frame), frame.meta.width, frame.meta.height),
             });
 
             let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
@@ -109,13 +109,13 @@ pub(crate) fn render_cached(
                 sensor_image.rgb,
                 sensor_image.width,
                 sensor_image.height,
-                frame.orientation,
+                frame.meta.orientation,
             );
 
-            let full = if frame.orientation.0 {
-                (frame.height, frame.width)
+            let full = if frame.meta.orientation.0 {
+                (frame.meta.height, frame.meta.width)
             } else {
-                (frame.width, frame.height)
+                (frame.meta.width, frame.meta.height)
             };
             let (oriented_w, oriented_h) = match edits.geometry.rotate {
                 90 | 270 => (full.1, full.0),
@@ -206,10 +206,15 @@ fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
         return frame.data.clone();
     }
     match demosaic::parse_xtrans(&frame.cfa_pattern) {
-        Some(pattern) => demosaic::xtrans(&frame.data, frame.width, frame.height, &pattern),
-        None => {
-            demosaic::malvar_he_cutler(&frame.data, frame.width, frame.height, &frame.cfa_pattern)
+        Some(pattern) => {
+            demosaic::xtrans(&frame.data, frame.meta.width, frame.meta.height, &pattern)
         }
+        None => demosaic::malvar_he_cutler(
+            &frame.data,
+            frame.meta.width,
+            frame.meta.height,
+            &frame.cfa_pattern,
+        ),
     }
 }
 
@@ -334,7 +339,7 @@ fn finish_render(
         source_w: oriented_w as u32,
         source_h: oriented_h as u32,
         renderer: "cpu".into(),
-        is_raw: frame.is_raw,
+        is_raw: frame.meta.is_raw,
         timings: clock.finish(),
     })
 }

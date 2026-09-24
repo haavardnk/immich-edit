@@ -1,20 +1,33 @@
 pub type OrientFlips = (bool, bool, bool);
 
-pub struct RawFrame {
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameMeta {
     pub width: usize,
     pub height: usize,
-    pub cfa_pattern: String,
-    pub bps: usize,
     pub wb_coeffs: [f32; 4],
     pub xyz_to_cam: [[f32; 3]; 4],
     pub color_matrices: Vec<(f32, [[f32; 3]; 4])>,
-    pub data: Vec<f32>,
-    pub cpp: usize,
     pub orientation: OrientFlips,
     pub is_raw: bool,
     pub capture_sigma: Option<f32>,
     pub model: String,
+}
+
+pub struct RawFrame {
+    pub meta: FrameMeta,
+    pub cfa_pattern: String,
+    pub bps: usize,
+    pub data: Vec<f32>,
+    pub cpp: usize,
     pub exif: Option<little_exif::metadata::Metadata>,
+}
+
+impl RawFrame {
+    pub fn cache_key(&self) -> u64 {
+        let ptr = self.data.as_ptr() as usize as u64;
+        let dims = ((self.meta.width as u64) << 32) | (self.meta.height as u64);
+        ptr ^ dims
+    }
 }
 
 pub struct RenderOptions {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::frame::FrameMeta;
 
 #[test]
 fn preview_ratio_cases() {
@@ -19,19 +20,21 @@ fn preview_ratio_cases() {
 
 fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
     RawFrame {
-        width: 6000,
-        height: 4000,
+        meta: FrameMeta {
+            width: 6000,
+            height: 4000,
+            wb_coeffs: [1.0; 4],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: true,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: cfa_pattern.into(),
         bps: 14,
-        wb_coeffs: [1.0; 4],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data: Vec::new(),
         cpp,
-        orientation: (false, false, false),
-        is_raw: true,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }

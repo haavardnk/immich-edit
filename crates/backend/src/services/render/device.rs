@@ -87,9 +87,9 @@ impl RenderDevice {
         cancel: Option<&CancelToken>,
     ) -> Result<RenderedImage, PipelineError> {
         tracing::debug!(
-            orient = ?frame.orientation,
-            sensor_w = frame.width,
-            sensor_h = frame.height,
+            orient = ?frame.meta.orientation,
+            sensor_w = frame.meta.width,
+            sensor_h = frame.meta.height,
             "render orientation"
         );
         if matches!(self.mode, RendererMode::Cpu) {

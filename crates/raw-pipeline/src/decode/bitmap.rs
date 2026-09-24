@@ -2,7 +2,7 @@ use rayon::prelude::*;
 
 use super::format_hint;
 use crate::PipelineError;
-use crate::frame::RawFrame;
+use crate::frame::{FrameMeta, RawFrame};
 use crate::math::srgb_to_linear;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,19 +103,21 @@ pub(super) fn frame_from_rgb8(
         .and_then(crate::exif::orientation)
         .unwrap_or((false, false, false));
     RawFrame {
-        width,
-        height,
+        meta: FrameMeta {
+            width,
+            height,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: identity_xyz_to_cam(),
+            color_matrices: Vec::new(),
+            orientation,
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: String::new(),
         bps: 8,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: identity_xyz_to_cam(),
-        color_matrices: Vec::new(),
         data: linear,
         cpp: 3,
-        orientation,
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif,
     }
 }
@@ -135,19 +137,21 @@ fn frame_from_rgb16(
         .and_then(crate::exif::orientation)
         .unwrap_or((false, false, false));
     RawFrame {
-        width,
-        height,
+        meta: FrameMeta {
+            width,
+            height,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: identity_xyz_to_cam(),
+            color_matrices: Vec::new(),
+            orientation,
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: String::new(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: identity_xyz_to_cam(),
-        color_matrices: Vec::new(),
         data: linear,
         cpp: 3,
-        orientation,
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif,
     }
 }
@@ -335,7 +339,7 @@ fn decode_heif(
         rgb.extend_from_slice(&plane.data[off..off + row_bytes]);
     }
     let mut frame = frame_from_rgb8(rgb, width, height, exif);
-    frame.orientation = (false, false, false);
+    frame.meta.orientation = (false, false, false);
     Ok(frame)
 }
 

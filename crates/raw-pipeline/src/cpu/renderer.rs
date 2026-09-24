@@ -67,12 +67,6 @@ impl CpuRenderer {
     }
 }
 
-pub(crate) fn frame_cache_key(frame: &RawFrame) -> u64 {
-    let ptr = frame.data.as_ptr() as usize as u64;
-    let dims = ((frame.width as u64) << 32) | (frame.height as u64);
-    ptr ^ dims
-}
-
 pub(crate) fn sensor_cacheable(edits: &Edits, options: &RenderOptions) -> bool {
     if options.quality {
         return false;
@@ -95,13 +89,13 @@ pub(crate) fn sensor_cache_key(
     superpixel_block: Option<usize>,
 ) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
-    frame_cache_key(frame).hash(&mut h);
-    frame.orientation.hash(&mut h);
-    frame.is_raw.hash(&mut h);
-    for v in frame.wb_coeffs {
+    frame.cache_key().hash(&mut h);
+    frame.meta.orientation.hash(&mut h);
+    frame.meta.is_raw.hash(&mut h);
+    for v in frame.meta.wb_coeffs {
         v.to_bits().hash(&mut h);
     }
-    frame.capture_sigma.map(f32::to_bits).hash(&mut h);
+    frame.meta.capture_sigma.map(f32::to_bits).hash(&mut h);
     for row in setup.cam_to_srgb {
         for v in row {
             v.to_bits().hash(&mut h);

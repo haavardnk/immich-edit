@@ -113,13 +113,13 @@ pub(super) fn collect_stats_output(
     wb: [f32; 3],
     m: [[f32; 3]; 3],
 ) -> Option<Stats> {
-    let w = frame.width;
-    let h = frame.height;
+    let w = frame.meta.width;
+    let h = frame.meta.height;
     if w == 0 || h == 0 || frame.cpp < 3 {
         return None;
     }
 
-    let (orient_t, _, _) = frame.orientation;
+    let (orient_t, _, _) = frame.meta.orientation;
     let (oriented_w, oriented_h) = if orient_t { (h, w) } else { (w, h) };
     let geom = geometry_transform(edits, oriented_w as u32, oriented_h as u32);
 
@@ -163,7 +163,7 @@ pub(super) fn collect_stats_output(
         }
 
         if let Some(geom) = &geom {
-            let (u, v) = sensor_to_oriented_uv(px + 0.5, py + 0.5, w, h, frame.orientation);
+            let (u, v) = sensor_to_oriented_uv(px + 0.5, py + 0.5, w, h, frame.meta.orientation);
             let d = mask_uv_to_display_uv(geom, [u, v]);
             if d[0] < 0.0 || d[0] > 1.0 || d[1] < 0.0 || d[1] > 1.0 {
                 i += step;

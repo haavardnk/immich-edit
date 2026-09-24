@@ -85,7 +85,7 @@ impl RenderInputs {
     ) -> Result<Option<Arc<raw_pipeline::dcp::DcpProfile>>, RenderError> {
         use raw_pipeline::edits::DcpMode;
         let dcp = &edits.color.dcp;
-        if !frame.is_raw || !dcp.is_active() {
+        if !frame.meta.is_raw || !dcp.is_active() {
             return Ok(None);
         }
         match dcp.mode {
@@ -103,7 +103,7 @@ impl RenderInputs {
             },
             DcpMode::Auto => self
                 .dcp
-                .match_camera(&frame.model)
+                .match_camera(&frame.meta.model)
                 .await
                 .map_err(|e| RenderError::Dcp(e.to_string())),
         }

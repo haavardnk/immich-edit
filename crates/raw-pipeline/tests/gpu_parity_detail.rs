@@ -296,8 +296,8 @@ fn gpu_capture_sharpen_matches_cpu() {
         ..Default::default()
     };
     let mut frame = detail_frame(256, 192);
-    frame.is_raw = true;
-    frame.capture_sigma = Some(0.7);
+    frame.meta.is_raw = true;
+    frame.meta.capture_sigma = Some(0.7);
     let flat = ColorEdits {
         dcp: DcpEdits {
             mode: DcpMode::Flat,
