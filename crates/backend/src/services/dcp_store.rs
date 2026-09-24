@@ -280,21 +280,33 @@ impl DcpStore {
     }
 
     pub async fn load(&self, id: &str) -> Result<Arc<DcpProfile>, DcpStoreError> {
+        let content_hash = self.active_hash(id).await?;
+        self.load_hash(&content_hash).await
+    }
+
+    pub async fn source_bytes(&self, id: &str) -> Result<Vec<u8>, DcpStoreError> {
+        let content_hash = self.active_hash(id).await?;
+        Ok(fs::read(self.blob_path(&content_hash)).await?)
+    }
+
+    async fn active_hash(&self, id: &str) -> Result<String, DcpStoreError> {
         let row = sqlx::query("SELECT content_hash FROM dcp_profiles WHERE id = ? AND deleted = 0")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(DcpStoreError::NotFound)?;
-        let content_hash: String = row.get("content_hash");
-        self.load_hash(&content_hash).await
+        Ok(row.get("content_hash"))
     }
 
     pub async fn match_camera(
         &self,
         model: &str,
-    ) -> Result<Option<Arc<DcpProfile>>, DcpStoreError> {
+    ) -> Result<Option<(String, Arc<DcpProfile>)>, DcpStoreError> {
         match self.match_camera_record(model).await? {
-            Some(record) => Ok(Some(self.load_hash(&record.content_hash).await?)),
+            Some(record) => Ok(Some((
+                record.meta.id,
+                self.load_hash(&record.content_hash).await?,
+            ))),
             None => Ok(None),
         }
     }

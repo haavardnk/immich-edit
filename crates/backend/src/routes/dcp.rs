@@ -2,10 +2,12 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::Response;
 use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::routes::auth::AdminCtx;
+use crate::routes::immutable_bytes;
 use crate::services::dcp_store::DcpMeta;
 use crate::state::AppState;
 
@@ -39,6 +41,14 @@ pub async fn match_camera(
     }
     let qualified = format!("{make} {}", params.model);
     Ok(Json(state.dcp.match_camera_meta(&qualified).await?))
+}
+
+pub async fn raw(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response, AppError> {
+    let bytes = state.dcp.source_bytes(&id).await?;
+    Ok(immutable_bytes(bytes))
 }
 
 pub async fn import(

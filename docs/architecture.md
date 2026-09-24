@@ -80,8 +80,14 @@ Live edits use `POST /api/assets/{key}/preview`. Persisted previews use `GET` wi
 from edit hash, requested edge, server epoch, profile revision, and warning mode. A matching ETag
 returns `304` before entering the render queue.
 
-The queue is latest-wins per asset and lane. Base, untouched original, and ROI requests have
-separate lanes so split view and zoom tiles do not cancel the main preview.
+The queue is latest-wins per asset and lane. Base, untouched original, ROI, and source requests have
+separate lanes so split view, zoom tiles, and source fetches do not cancel the main preview.
+
+`POST /api/assets/{key}/source` returns the portable linear source a client renders locally. Its
+ETag covers only the sensor-stage edits, the requested edge, the server epoch, and the profile
+revision, so a display-only change revalidates with `304`. The response names the DCP profile it
+was built with in `x-source-dcp`. `GET /api/dcp/{id}/raw` and `GET /api/luts/{id}/cube` return the
+profile and LUT files with immutable cache headers; mask rasters come from `GET /api/rasters/{id}`.
 
 The viewer measures its visible frame, device-pixel ratio, and source limit. It requests the exact
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.

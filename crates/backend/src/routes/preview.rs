@@ -69,10 +69,7 @@ pub async fn get_preview(
         dcp_revision,
         q.clip as u8
     );
-    let unchanged = headers
-        .get(header::IF_NONE_MATCH)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == etag));
+    let unchanged = etag_matches(&headers, &etag);
     if unchanged {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
         attach_validators(&mut resp, &etag);
@@ -100,7 +97,14 @@ pub async fn get_preview(
     Ok(resp)
 }
 
-fn attach_validators(resp: &mut Response, etag: &str) {
+pub(super) fn etag_matches(headers: &HeaderMap, etag: &str) -> bool {
+    headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == etag))
+}
+
+pub(super) fn attach_validators(resp: &mut Response, etag: &str) {
     if let Ok(value) = HeaderValue::from_str(etag) {
         resp.headers_mut().insert(header::ETAG, value);
     }
@@ -297,7 +301,7 @@ async fn render_to_response(
     Ok(resp.into_response())
 }
 
-fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
+pub(super) fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
     let value = requested.unwrap_or(default);
     if !(64..=65535).contains(&value) {
         return Err(AppError::BadRequest(format!(

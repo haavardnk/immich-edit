@@ -16,6 +16,11 @@ use super::{RenderError, RenderIdentity};
 
 const LENS_PROFILE_CACHE_CAP: usize = 4096;
 
+pub struct DcpSelection {
+    pub id: String,
+    pub profile: Arc<raw_pipeline::dcp::DcpProfile>,
+}
+
 #[derive(Clone)]
 pub struct RenderInputs {
     rasters: RasterStore,
@@ -82,7 +87,7 @@ impl RenderInputs {
         &self,
         edits: &Edits,
         frame: &RawFrame,
-    ) -> Result<Option<Arc<raw_pipeline::dcp::DcpProfile>>, RenderError> {
+    ) -> Result<Option<DcpSelection>, RenderError> {
         use raw_pipeline::edits::DcpMode;
         let dcp = &edits.color.dcp;
         if !frame.meta.is_raw || !dcp.is_active() {
@@ -92,20 +97,21 @@ impl RenderInputs {
             DcpMode::Off | DcpMode::Flat => Ok(None),
             DcpMode::Profile => match dcp.referenced_profile_id() {
                 Some(id) => {
-                    let p = self
+                    let profile = self
                         .dcp
                         .load(&id)
                         .await
                         .map_err(|e| RenderError::Dcp(format!("{id}: {e}")))?;
-                    Ok(Some(p))
+                    Ok(Some(DcpSelection { id, profile }))
                 }
                 None => Ok(None),
             },
-            DcpMode::Auto => self
+            DcpMode::Auto => Ok(self
                 .dcp
                 .match_camera(&frame.meta.model)
                 .await
-                .map_err(|e| RenderError::Dcp(e.to_string())),
+                .map_err(|e| RenderError::Dcp(e.to_string()))?
+                .map(|(id, profile)| DcpSelection { id, profile })),
         }
     }
 
