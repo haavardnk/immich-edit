@@ -53,8 +53,8 @@ png = { version = "0.18", optional = true }
 tiff = { version = "0.11", optional = true }
 webp = { version = "0.3", optional = true }
 flate2 = { version = "1", optional = true }
-jpegxl-rs = { version = "0.14", features = ["vendored"], optional = true }
-jpegxl-sys = { version = "0.12", optional = true }
+jpegxl-rs = { version = "0.15", features = ["vendored"], optional = true }
+jpegxl-sys = { version = "0.13", optional = true }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"], optional = true }
 libheif-rs = { version = "2.7", default-features = false, features = ["v1_19"], optional = true }
 futures-channel = { version = "0.3", optional = true }
