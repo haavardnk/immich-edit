@@ -147,7 +147,7 @@ mod tests {
     async fn rejects_non_https_url() {
         let dir = tempfile::tempdir().unwrap();
         let mut entry = catalog::find("ormbg").unwrap().clone();
-        entry.url = "http://example.invalid/model.onnx";
+        entry.url = "http://127.0.0.1/model.onnx";
         let err = fetch_catalog_model(&entry, dir.path(), &AtomicU64::new(0))
             .await
             .unwrap_err();
