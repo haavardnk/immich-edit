@@ -28,17 +28,16 @@ The default backend build includes local AI-mask inference and downloads ONNX Ru
 the first build. Use `--no-default-features` to compile the backend without ML routes.
 
 The frontend needs the browser renderer in `web/src/lib/wasm`, which is generated and ignored by
-Git. Build it once, and again after any change under `crates/raw-pipeline` or
-`crates/web-render`:
+Git. It needs the wasm target and the `wasm-bindgen` CLI at the version in `Cargo.lock`:
 
 ```shell
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --locked --version <the wasm-bindgen version in Cargo.lock>
-cd web && npm run wasm
 ```
 
-The script stops and prints the exact install command when the installed `wasm-bindgen` does not
-match `Cargo.lock`.
+`dev.sh` builds it before starting and rebuilds it when `crates/raw-pipeline` or
+`crates/web-render` change. Outside `dev.sh`, run `npm run wasm` in `web/`. The script stops and
+prints the exact install command when the installed `wasm-bindgen` does not match `Cargo.lock`.
 
 ## Run the development servers
 
@@ -48,14 +47,14 @@ Install `cargo-watch` once:
 cargo install cargo-watch --locked
 ```
 
-Run the watched backend and Vite frontend:
+Run the watched backend, the watched browser renderer, and the Vite frontend:
 
 ```shell
 bash dev.sh
 ```
 
 `dev.sh` runs `npm ci` in `web/` whenever `package-lock.json` is newer than the installed modules,
-and stops both servers on Ctrl-C. It sets native defaults: the backend listens on
+and stops all three on Ctrl-C. It sets native defaults: the backend listens on
 `127.0.0.1:8088`, keeps data in `./data`, reads camera profiles from `crates/backend/assets/dcp`,
 and builds into `target/dev-server`. Put overrides in `.env`, which `dev.sh` loads; see
 `.env.example`. Vite proxies `/api` to `BIND_ADDR` unless `IMMICH_EDIT_BACKEND` is set.

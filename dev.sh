@@ -31,9 +31,13 @@ if [[ web/package-lock.json -nt web/node_modules/.package-lock.json ]]; then
   npm --prefix web ci
 fi
 
+bash web/scripts/build-wasm.sh
+
 trap 'trap - INT TERM EXIT; kill 0 2>/dev/null || true' INT TERM EXIT
 
 cargo watch -w crates -w Cargo.toml -w Cargo.lock -x "run -p immich-edit-backend" &
+cargo watch --postpone -w crates/raw-pipeline -w crates/web-render \
+  -s "bash web/scripts/build-wasm.sh" &
 npm --prefix web run dev &
 
 wait
