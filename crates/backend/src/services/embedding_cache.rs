@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
+use crate::safe_path;
 
 const MEMORY_SLOTS: usize = 3;
 const DISK_SLOTS: usize = 8192;
@@ -131,11 +132,15 @@ impl EmbeddingCache {
         }
     }
 
-    fn path(&self, key: &EmbeddingKey) -> PathBuf {
-        self.dir
-            .join(key.server_epoch.to_string())
-            .join(key.owner.to_string())
-            .join(key.file_name())
+    fn path(&self, key: &EmbeddingKey) -> std::io::Result<PathBuf> {
+        safe_path::join(
+            &self.dir,
+            &[
+                &key.server_epoch.to_string(),
+                &key.owner.to_string(),
+                &key.file_name(),
+            ],
+        )
     }
 
     pub async fn get(&self, key: &EmbeddingKey) -> Option<Arc<Embedding>> {
@@ -147,7 +152,7 @@ impl EmbeddingCache {
                 return Some(hit.1);
             }
         }
-        let bytes = fs::read(self.path(key)).await.ok()?;
+        let bytes = fs::read(self.path(key).ok()?).await.ok()?;
         let embedding = decode(&bytes).ok()?;
         let shared = Arc::new(embedding);
         self.push_memory(key.clone(), shared.clone()).await;
@@ -157,10 +162,10 @@ impl EmbeddingCache {
     pub async fn put(&self, key: EmbeddingKey, embedding: Embedding) -> Arc<Embedding> {
         let shared = Arc::new(embedding);
         self.push_memory(key.clone(), shared.clone()).await;
-        let path = self.path(&key);
         let bytes = encode(&shared);
         let size = bytes.len() as u64;
-        if let Some(parent) = path.parent()
+        if let Ok(path) = self.path(&key)
+            && let Some(parent) = path.parent()
             && fs::create_dir_all(parent).await.is_ok()
             && fs::write(&path, bytes).await.is_ok()
         {

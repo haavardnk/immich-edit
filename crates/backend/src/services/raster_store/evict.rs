@@ -64,8 +64,9 @@ impl RasterStore {
                     }
                 }
             };
-            if let Some(((server_epoch, owner, id), _)) = victim {
-                let (bin, meta) = self.paths(server_epoch, owner, &id);
+            if let Some(((server_epoch, owner, id), _)) = victim
+                && let Ok((bin, meta)) = self.paths(server_epoch, owner, &id)
+            {
                 let _ = std::fs::remove_file(&bin);
                 let _ = std::fs::remove_file(&meta);
             }

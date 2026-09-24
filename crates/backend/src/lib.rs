@@ -6,6 +6,7 @@ pub mod host;
 pub mod immich;
 pub mod lens_profile;
 pub mod routes;
+pub mod safe_path;
 pub mod services;
 pub mod state;
 pub mod telemetry;

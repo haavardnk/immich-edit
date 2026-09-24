@@ -371,6 +371,45 @@ async fn rasters_are_scoped_to_the_owner() {
     .await;
 }
 
+fn raster_owner_dir(root: &std::path::Path, raster_id: &str) -> String {
+    let file = format!("{raster_id}.r8");
+    let dirs = std::fs::read_dir(root)
+        .unwrap()
+        .flat_map(|epoch| std::fs::read_dir(epoch.unwrap().path()).unwrap())
+        .map(|owner| owner.unwrap().path());
+    let Some(owner) = dirs.into_iter().find(|dir| dir.join(&file).exists()) else {
+        panic!("raster {raster_id} is not on disk");
+    };
+    owner.file_name().unwrap().to_string_lossy().into_owned()
+}
+
+#[tokio::test]
+async fn raster_ids_cannot_traverse_into_another_owner() {
+    let server = MockServer::start().await;
+    let (state, admin, member) = two_owner_state(&server).await;
+
+    let upload = Request::builder()
+        .method("POST")
+        .uri("/api/rasters?width=4&height=4")
+        .header("content-type", "application/octet-stream")
+        .body(Body::from(vec![200u8; 16]))
+        .unwrap();
+    let meta =
+        json_body(expect_status(&admin, upload, StatusCode::OK, "owner upload raster").await).await;
+    let raster_id = meta["raster_id"].as_str().expect("raster id").to_string();
+    let owner = raster_owner_dir(&state.config.data_dir.join("rasters"), &raster_id);
+
+    for suffix in ["", "/meta"] {
+        expect_status(
+            &member,
+            get(&format!("/api/rasters/..%2F{owner}%2F{raster_id}{suffix}")),
+            StatusCode::NOT_FOUND,
+            "member traverses to owner raster",
+        )
+        .await;
+    }
+}
+
 #[tokio::test]
 async fn jobs_and_their_downloads_are_scoped_to_the_owner() {
     let server = MockServer::start().await;

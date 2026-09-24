@@ -197,6 +197,11 @@ pub async fn seed_member_session(server: &MockServer, state: &AppState) -> Strin
 }
 
 pub async fn two_owner_apps(server: &MockServer) -> (axum::Router, axum::Router) {
+    let (_, admin, member) = two_owner_state(server).await;
+    (admin, member)
+}
+
+pub async fn two_owner_state(server: &MockServer) -> (AppState, axum::Router, axum::Router) {
     let state = test_state(server).await;
     let admin = ImmichUser {
         id: test_user_id(),
@@ -227,6 +232,7 @@ pub async fn two_owner_apps(server: &MockServer) -> (axum::Router, axum::Router)
     )
     .await;
     (
+        state.clone(),
         wrap_auth(router(state.clone()), admin_token),
         wrap_auth(router(state), member_token),
     )
