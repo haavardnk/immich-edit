@@ -93,6 +93,16 @@ profile and LUT files with immutable cache headers; mask rasters come from `GET 
 The viewer measures its visible frame, device-pixel ratio, and source limit. It requests the exact
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.
 
+When the browser has WebGPU and the preview renderer setting is **Browser when available**, the
+base preview renders in a worker (`web/src/lib/render`). The worker asks the wasm renderer for the
+sensor-stage key and the rasters and LUT an edit needs; a changed key fetches a new source while
+the last one keeps rendering, so only sensor-stage edits (noise reduction, capture sharpening,
+lens, retouch, profile, crop and rotation) reach the server. Frames return as `ImageBitmap`s drawn
+into a canvas that replaces the base `<img>`, and their histogram and scopes feed the same panels.
+Split view's original and zoom tiles past the base resolution still come from the server. A
+worker or GPU failure switches the session to server previews; a failed source request switches
+that asset.
+
 ## Render services and caches
 
 `RenderService` owns one long-lived CPU renderer and an optional GPU renderer. Both cache

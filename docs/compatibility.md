@@ -88,5 +88,7 @@ acceleration, but it does render preview-sized frames faster than the built-in C
 
 ## Browser and viewport
 
-The editor requires a desktop-width viewport and has no full mobile layout. RAW rendering runs on
-the server, so the browser does not need WebGPU.
+The editor requires a desktop-width viewport and has no full mobile layout. RAW decoding and the
+sensor stage run on the server. With WebGPU (current Chromium, Edge and Safari) the browser draws
+the fit-view preview itself; without it, or when **Settings** > **Preview rendering** is set to
+**Server**, the server renders every preview, so WebGPU is optional.
