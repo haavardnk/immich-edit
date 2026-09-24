@@ -41,7 +41,9 @@ impl GpuRenderer {
                 w,
                 h,
                 1,
-                TextureUsages::STORAGE_BINDING | TextureUsages::COPY_SRC,
+                TextureUsages::STORAGE_BINDING
+                    | TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_SRC,
             ),
             "lut-target",
         );
