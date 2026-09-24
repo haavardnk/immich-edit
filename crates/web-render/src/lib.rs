@@ -6,14 +6,16 @@ mod view;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use raw_pipeline::dcp::DcpProfile;
 use raw_pipeline::edits::Edits;
+use raw_pipeline::frame::RenderOptions;
 use raw_pipeline::gpu::{GpuRenderer, GpuRendererOptions, LinearSource};
 use raw_pipeline::lut::{Lut3d, LutMap};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
 use wgpu::ErrorFilter;
 
 use present::Presenter;
@@ -33,6 +35,7 @@ struct Inner {
     gpu: GpuRenderer,
     presenter: RefCell<Presenter>,
     inputs: RefCell<Inputs>,
+    lost: Arc<Mutex<Option<String>>>,
 }
 
 #[wasm_bindgen]
@@ -48,6 +51,14 @@ impl WebRenderer {
             timestamps: false,
         })
         .await?;
+        let lost = Arc::new(Mutex::new(None));
+        let sink = lost.clone();
+        gpu.context()
+            .device
+            .set_device_lost_callback(move |reason, message| {
+                *sink.lock().unwrap_or_else(PoisonError::into_inner) =
+                    Some(format!("{reason:?}, {message}"));
+            });
         let scope = gpu
             .context()
             .device
@@ -56,11 +67,15 @@ impl WebRenderer {
         if let Some(err) = scope.pop().await {
             return Err(JsError::new(&format!("presenter: {err}")));
         }
+        if let Some(reason) = device_lost(&lost).await {
+            return Err(JsError::new(&format!("the GPU device was lost: {reason}")));
+        }
         Ok(Self {
             inner: Rc::new(Inner {
                 gpu,
                 presenter: RefCell::new(presenter),
                 inputs: RefCell::new(Inputs::default()),
+                lost,
             }),
         })
     }
@@ -126,7 +141,13 @@ impl WebRenderer {
     pub fn render(&self, edits: String, view: String) -> js_sys::Promise {
         let inner = self.inner.clone();
         wasm_bindgen_futures::future_to_promise(async move {
-            render(&inner, &edits, &view).await.map_err(JsValue::from)
+            let rendered = render(&inner, &edits, &view).await;
+            if rendered.is_err()
+                && let Some(reason) = device_lost(&inner.lost).await
+            {
+                return Err(JsError::new(&format!("the GPU device was lost: {reason}")).into());
+            }
+            rendered.map_err(JsValue::from)
         })
     }
 }
@@ -149,7 +170,22 @@ async fn render(inner: &Inner, edits: &str, view: &str) -> Result<JsValue, JsErr
     };
     let ctx = inner.gpu.context();
     let scope = ctx.device.push_error_scope(ErrorFilter::Validation);
-    let mut frame = inner.gpu.render_display(&source, &edits, &opts)?;
+    let drawn = draw(inner, &source, &edits, &opts, &view).await;
+    if let Some(err) = scope.pop().await {
+        return Err(JsError::new(&format!("render: {err}")));
+    }
+    drawn
+}
+
+async fn draw(
+    inner: &Inner,
+    source: &LinearSource,
+    edits: &Edits,
+    opts: &RenderOptions,
+    view: &RenderView,
+) -> Result<JsValue, JsError> {
+    let ctx = inner.gpu.context();
+    let mut frame = inner.gpu.render_display(source, edits, opts)?;
     let target = inner
         .presenter
         .borrow_mut()
@@ -162,9 +198,11 @@ async fn render(inner: &Inner, edits: &str, view: &str) -> Result<JsValue, JsErr
             .blit(ctx, encoder, texture, &target.view)
     });
     let meta = inner.gpu.finish_display(frame).await?;
-    if let Some(err) = scope.pop().await {
-        return Err(JsError::new(&format!("render: {err}")));
-    }
     target.present(ctx);
     Ok(js::frame(&meta))
+}
+
+async fn device_lost(lost: &Mutex<Option<String>>) -> Option<String> {
+    let _ = JsFuture::from(js_sys::Promise::resolve(&JsValue::UNDEFINED)).await;
+    lost.lock().unwrap_or_else(PoisonError::into_inner).clone()
 }

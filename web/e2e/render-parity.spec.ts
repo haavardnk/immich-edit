@@ -63,7 +63,11 @@ test('the wasm renderer draws what the native renderer draws', async ({ page }) 
   });
   await page.goto('/__render/index.html');
   await page.waitForFunction(() => typeof window.runParity === 'function');
-  const result = await page.evaluate(() => window.runParity());
+  const result = await page
+    .evaluate(() => window.runParity())
+    .catch((err: Error) => {
+      throw new Error(`${err.message}\nconsole:\n${complaints.join('\n')}`);
+    });
   console.log(`render parity: ${JSON.stringify(result)}`);
 
   expect(complaints).toEqual([]);
