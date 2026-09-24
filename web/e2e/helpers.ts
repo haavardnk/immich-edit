@@ -425,5 +425,6 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 export async function gotoAsset(page: Page): Promise<void> {
   await page.goto(`/assets/${ASSET_ID}`);
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
-  await expect(page.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
+  const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
+  await expect(toolbar.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
 }
