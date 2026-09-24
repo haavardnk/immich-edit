@@ -117,7 +117,8 @@ impl GpuRenderer {
             lo_size: [lw, lh],
             atmosphere: [atm[0], atm[1], atm[2], 1.0],
             amount,
-            _pad: [0.0; 3],
+            scale: scale as f32,
+            _pad: [0.0; 2],
         };
         let apply_buf = self.uniform_pool.acquire(
             device,

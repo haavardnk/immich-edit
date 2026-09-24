@@ -1,7 +1,7 @@
 struct Params {
     size_lo: vec2<u32>,
     scale: u32,
-    src_lod: u32,
+    _pad: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -13,8 +13,8 @@ struct Params {
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size_lo.x || gid.y >= p.size_lo.y) { return; }
     let pos = vec2<i32>(i32(gid.x), i32(gid.y));
-    let inv = 1.0 / vec2<f32>(p.size_lo);
-    let uv = (vec2<f32>(pos) + vec2<f32>(0.5)) * inv;
-    let c = textureSampleLevel(src, samp, uv, f32(p.src_lod)).rgb;
+    let dims = vec2<f32>(textureDimensions(src, 0));
+    let uv = (vec2<f32>(pos) + vec2<f32>(0.5)) * f32(p.scale) / dims;
+    let c = textureSampleLevel(src, samp, uv, 0.0).rgb;
     textureStore(dst, pos, vec4<f32>(c, 1.0));
 }

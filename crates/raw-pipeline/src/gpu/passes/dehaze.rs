@@ -51,7 +51,8 @@ pub struct DehazeApplyParams {
     pub lo_size: [u32; 2],
     pub atmosphere: [f32; 4],
     pub amount: f32,
-    pub _pad: [f32; 3],
+    pub scale: f32,
+    pub _pad: [f32; 2],
 }
 
 fn make_layout_3(

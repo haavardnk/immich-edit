@@ -9,7 +9,7 @@ use crate::gpu::shader_builder::{self, BuiltProcessShader, StageMask};
 use crate::ops::OpRegistry;
 
 use super::common::{
-    make_layout, make_pipeline_raw, sampler_entry, storage_entry, tex_entry, uniform_entry_unsized,
+    make_layout, make_pipeline_raw, storage_entry, tex_entry, uniform_entry_unsized,
 };
 
 pub struct ProcessFastPass {
@@ -44,10 +44,9 @@ impl ProcessFastPass {
             &[
                 uniform_entry_unsized(0),
                 tex_entry(1),
-                sampler_entry(2),
-                storage_entry(3, depth.format()),
-                storage_entry(4, TextureFormat::Rgba16Float),
-                tex_entry(5),
+                storage_entry(2, depth.format()),
+                storage_entry(3, TextureFormat::Rgba16Float),
+                tex_entry(4),
             ],
         );
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label_prefix}-cp"), &built.wgsl);
