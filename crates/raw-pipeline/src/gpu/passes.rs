@@ -31,9 +31,11 @@ use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::shader_builder::StageMask;
 use crate::ops::{OpRegistry, default_registry};
 
+#[cfg(feature = "native")]
 use capture_sharpen::CaptureSharpenPasses;
 use dcp_huesat::DcpHueSatPass;
 use dehaze::DehazePasses;
+#[cfg(feature = "native")]
 use demosaic::DemosaicPass;
 use effects_tone::EffectsTonePass;
 use luma_pyramid::LumaPyramidPass;
@@ -43,15 +45,21 @@ use mask_overlay::MaskOverlayPass;
 use mask_weight::MaskWeightPass;
 use meta_bins::MetaBinsPasses;
 use mipgen::MipgenPass;
+#[cfg(feature = "native")]
 use nr::NrPass;
+#[cfg(feature = "native")]
 use nr_smooth::NrSmoothPass;
 use presence::PresencePass;
 use process::ProcessFastPass;
 use resample::ResamplePass;
+#[cfg(feature = "native")]
 use retouch::RetouchPasses;
+#[cfg(feature = "native")]
 use sensor::SensorPass;
 use sharpen::OutputSharpenPass;
+#[cfg(feature = "native")]
 use wb_prepare::WbPreparePass;
+#[cfg(feature = "native")]
 use xtrans::XtransPasses;
 
 macro_rules! build_passes {
@@ -68,17 +76,10 @@ macro_rules! build_passes {
 
 pub struct GpuPasses {
     pub dehaze: DehazePasses,
-    pub demosaic: DemosaicPass,
-    pub xtrans: XtransPasses,
     pub mipgen: MipgenPass,
     pub luma_pyramid: LumaPyramidPass,
-    pub nr: NrPass,
-    pub nr_smooth: NrSmoothPass,
-    pub capture_sharpen: CaptureSharpenPasses,
     pub presence: PresencePass,
     pub resample: ResamplePass,
-    pub retouch: RetouchPasses,
-    pub wb_prepare: WbPreparePass,
     pub process_fast: ProcessFastPass,
     pub process_post_wb: ProcessFastPass,
     pub output_sharpen: OutputSharpenPass,
@@ -90,11 +91,50 @@ pub struct GpuPasses {
     pub mask_blend: MaskBlendPass,
     pub mask_overlay: MaskOverlayPass,
     pub meta_bins: MetaBinsPasses,
-    pub sensor: SensorPass,
+    #[cfg(feature = "native")]
+    pub sensor_stage: SensorStagePasses,
     pub linear_sampler: Sampler,
     pub atlas_sampler: Sampler,
     pub registry: OpRegistry,
     depth16: std::sync::OnceLock<Depth16Passes>,
+}
+
+#[cfg(feature = "native")]
+pub struct SensorStagePasses {
+    pub demosaic: DemosaicPass,
+    pub xtrans: XtransPasses,
+    pub sensor: SensorPass,
+    pub wb_prepare: WbPreparePass,
+    pub retouch: RetouchPasses,
+    pub nr: NrPass,
+    pub nr_smooth: NrSmoothPass,
+    pub capture_sharpen: CaptureSharpenPasses,
+}
+
+#[cfg(feature = "native")]
+impl SensorStagePasses {
+    fn new(ctx: &Arc<GpuContext>, registry: &OpRegistry) -> Self {
+        build_passes! {
+            demosaic: DemosaicPass::new(ctx),
+            xtrans: XtransPasses::new(ctx),
+            sensor: SensorPass::new(ctx),
+            wb_prepare: WbPreparePass::new(ctx, registry),
+            retouch: RetouchPasses::new(ctx),
+            nr: NrPass::new(ctx),
+            nr_smooth: NrSmoothPass::new(ctx),
+            capture_sharpen: CaptureSharpenPasses::new(ctx),
+        }
+        Self {
+            demosaic,
+            xtrans,
+            sensor,
+            wb_prepare,
+            retouch,
+            nr,
+            nr_smooth,
+            capture_sharpen,
+        }
+    }
 }
 
 pub struct Depth16Passes {
@@ -111,17 +151,10 @@ impl GpuPasses {
         let registry = default_registry();
         build_passes! {
             dehaze: DehazePasses::new(ctx),
-            demosaic: DemosaicPass::new(ctx),
-            xtrans: XtransPasses::new(ctx),
             mipgen: MipgenPass::new(ctx),
             luma_pyramid: LumaPyramidPass::new(ctx),
-            nr: NrPass::new(ctx),
-            nr_smooth: NrSmoothPass::new(ctx),
-            capture_sharpen: CaptureSharpenPasses::new(ctx),
             presence: PresencePass::new(ctx),
             resample: ResamplePass::new(ctx),
-            retouch: RetouchPasses::new(ctx),
-            wb_prepare: WbPreparePass::new(ctx, &registry),
             process_fast: ProcessFastPass::new(ctx, &registry),
             process_post_wb: ProcessFastPass::new_with_mask(
                 ctx,
@@ -139,21 +172,13 @@ impl GpuPasses {
             mask_blend: MaskBlendPass::new(ctx),
             mask_overlay: MaskOverlayPass::new(ctx),
             meta_bins: MetaBinsPasses::new(ctx, DisplayDepth::Eight),
-            sensor: SensorPass::new(ctx),
         }
         Self {
             dehaze,
-            demosaic,
-            xtrans,
             mipgen,
             luma_pyramid,
-            nr,
-            nr_smooth,
-            capture_sharpen,
             presence,
             resample,
-            retouch,
-            wb_prepare,
             process_fast,
             process_post_wb,
             output_sharpen,
@@ -165,7 +190,8 @@ impl GpuPasses {
             mask_blend,
             mask_overlay,
             meta_bins,
-            sensor,
+            #[cfg(feature = "native")]
+            sensor_stage: SensorStagePasses::new(ctx, &registry),
             linear_sampler: ctx.device.create_sampler(&SamplerDescriptor {
                 label: Some("linear-samp"),
                 address_mode_u: AddressMode::ClampToEdge,

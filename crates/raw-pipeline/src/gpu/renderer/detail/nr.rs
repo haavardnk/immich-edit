@@ -104,13 +104,13 @@ impl GpuRenderer {
             let bind = bind_group(
                 device,
                 label,
-                &self.passes.nr.layout,
+                &self.passes.sensor_stage.nr.layout,
                 &[uniform.as_entire_binding(), tex(src), tex(dst)],
             );
             dispatch_2d(
                 encoder,
                 label,
-                &self.passes.nr.pipeline,
+                &self.passes.sensor_stage.nr.pipeline,
                 &bind,
                 w.div_ceil(16),
                 h.div_ceil(16),
@@ -176,7 +176,7 @@ impl GpuRenderer {
         let sbind = bind_group(
             device,
             "nr-smooth-bg",
-            &self.passes.nr_smooth.layout,
+            &self.passes.sensor_stage.nr_smooth.layout,
             &[
                 sbuf.as_entire_binding(),
                 tex(&base_view),
@@ -187,7 +187,7 @@ impl GpuRenderer {
         dispatch_2d(
             &mut encoder,
             "nr-chroma-finish",
-            &self.passes.nr_smooth.pipeline,
+            &self.passes.sensor_stage.nr_smooth.pipeline,
             &sbind,
             w.div_ceil(16),
             h.div_ceil(16),

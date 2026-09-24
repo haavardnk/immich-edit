@@ -51,7 +51,7 @@ impl GpuRenderer {
             mip_level_count: Some(1),
             ..Default::default()
         });
-        let pass = &self.passes.sensor;
+        let pass = &self.passes.sensor_stage.sensor;
         let bind = bind_group(
             device,
             "sensor-bg",

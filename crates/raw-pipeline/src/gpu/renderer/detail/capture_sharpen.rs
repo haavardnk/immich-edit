@@ -33,7 +33,7 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
-        let p = &self.passes.capture_sharpen;
+        let p = &self.passes.sensor_stage.capture_sharpen;
         let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
         let radius = (kernel.len() / 2) as u32;
 

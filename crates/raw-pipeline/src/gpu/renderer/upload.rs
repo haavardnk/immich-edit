@@ -101,7 +101,7 @@ impl GpuRenderer {
         let bind = bind_group(
             device,
             "superpixel-bg",
-            &self.passes.demosaic.layout,
+            &self.passes.sensor_stage.demosaic.layout,
             &[uniform_buf.as_entire_binding(), buf(&raw_buf), tex(&view)],
         );
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
@@ -110,7 +110,7 @@ impl GpuRenderer {
         dispatch_2d(
             &mut encoder,
             "superpixel-pass",
-            &self.passes.demosaic.superpixel,
+            &self.passes.sensor_stage.demosaic.superpixel,
             &bind,
             w.div_ceil(16),
             h.div_ceil(16),
@@ -265,7 +265,7 @@ impl GpuRenderer {
         let bind = bind_group(
             device,
             "demosaic-bg",
-            &self.passes.demosaic.layout,
+            &self.passes.sensor_stage.demosaic.layout,
             &[uniform_buf.as_entire_binding(), buf(&raw_buf), tex(&view)],
         );
 
@@ -275,7 +275,7 @@ impl GpuRenderer {
         dispatch_2d(
             &mut encoder,
             "demosaic-pass",
-            &self.passes.demosaic.pipeline,
+            &self.passes.sensor_stage.demosaic.pipeline,
             &bind,
             w.div_ceil(16),
             h.div_ceil(16),
@@ -351,7 +351,7 @@ impl GpuRenderer {
         let green_bind = bind_group(
             device,
             "xtrans-green-bg",
-            &self.passes.xtrans.green.layout,
+            &self.passes.sensor_stage.xtrans.green.layout,
             &[
                 uniform_buf.as_entire_binding(),
                 buf(&raw_buf),
@@ -361,7 +361,7 @@ impl GpuRenderer {
         let rgb_bind = bind_group(
             device,
             "xtrans-rgb-bg",
-            &self.passes.xtrans.rgb.layout,
+            &self.passes.sensor_stage.xtrans.rgb.layout,
             &[
                 uniform_buf.as_entire_binding(),
                 buf(&raw_buf),
@@ -378,7 +378,7 @@ impl GpuRenderer {
         dispatch_2d(
             &mut encoder,
             "xtrans-green-pass",
-            &self.passes.xtrans.green.pipeline,
+            &self.passes.sensor_stage.xtrans.green.pipeline,
             &green_bind,
             gx,
             gy,
@@ -386,7 +386,7 @@ impl GpuRenderer {
         dispatch_2d(
             &mut encoder,
             "xtrans-rgb-pass",
-            &self.passes.xtrans.rgb.pipeline,
+            &self.passes.sensor_stage.xtrans.rgb.pipeline,
             &rgb_bind,
             gx,
             gy,
