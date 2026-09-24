@@ -1,20 +1,14 @@
 use std::sync::Arc;
 
-use raw_pipeline::edits::{Edits, LensEdits};
+use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use tokio::sync::Mutex;
-use uuid::Uuid;
 
-use crate::immich::ImmichClient;
-use crate::lens_profile::ProfileLensEdits;
 use crate::services::dcp_store::DcpStore;
 use crate::services::lut_store::LutStore;
 use crate::services::raster_store::RasterStore;
 
 use super::{RenderError, RenderIdentity};
-
-const LENS_PROFILE_CACHE_CAP: usize = 4096;
 
 pub struct DcpSelection {
     pub id: String,
@@ -26,19 +20,11 @@ pub struct RenderInputs {
     rasters: RasterStore,
     luts: LutStore,
     dcp: DcpStore,
-    lens_profiles: Arc<Mutex<lru::LruCache<Uuid, Option<ProfileLensEdits>>>>,
 }
 
 impl RenderInputs {
     pub fn new(rasters: RasterStore, luts: LutStore, dcp: DcpStore) -> Self {
-        Self {
-            rasters,
-            luts,
-            dcp,
-            lens_profiles: Arc::new(Mutex::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(LENS_PROFILE_CACHE_CAP).unwrap(),
-            ))),
-        }
+        Self { rasters, luts, dcp }
     }
 
     pub async fn dcp_revision(&self) -> Result<String, RenderError> {
@@ -113,31 +99,5 @@ impl RenderInputs {
                 .map_err(|e| RenderError::Dcp(e.to_string()))?
                 .map(|(id, profile)| DcpSelection { id, profile })),
         }
-    }
-
-    pub async fn resolve_lens(
-        &self,
-        immich: &ImmichClient,
-        source: Uuid,
-        lens: LensEdits,
-    ) -> LensEdits {
-        if lens.profile_enabled.is_some() {
-            return lens;
-        }
-        if let Some(profile) = self.lens_profiles.lock().await.get(&source) {
-            return crate::lens_profile::apply_auto(lens, profile.as_ref());
-        }
-        let profile = match immich.asset(source).await {
-            Ok(asset) => asset
-                .exif_info
-                .as_ref()
-                .and_then(|exif| crate::lens_profile::lookup(exif).edits),
-            Err(e) => {
-                tracing::warn!(error = %e, "lens auto-resolve: asset lookup failed");
-                return lens;
-            }
-        };
-        self.lens_profiles.lock().await.put(source, profile.clone());
-        crate::lens_profile::apply_auto(lens, profile.as_ref())
     }
 }

@@ -17,12 +17,14 @@ use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
 mod device;
 mod frames;
 mod inputs;
+mod lens;
 
 pub use device::ActiveRenderer;
 
 use device::RenderDevice;
 use frames::FrameStore;
 use inputs::RenderInputs;
+use lens::LensProfiles;
 
 const MB: u64 = 1024 * 1024;
 
@@ -65,6 +67,7 @@ pub struct RenderService {
     quality_frames: FrameStore,
     device: RenderDevice,
     inputs: RenderInputs,
+    lens: LensProfiles,
     telemetry: RenderTelemetry,
 }
 
@@ -97,6 +100,7 @@ impl RenderService {
                 gpu_timestamps,
             ),
             inputs: RenderInputs::new(rasters, luts, dcp),
+            lens: LensProfiles::default(),
             telemetry,
         }
     }
@@ -177,7 +181,10 @@ impl RenderService {
         };
         let mut edits = edits;
         if frame.meta.is_raw {
-            edits.lens = self.inputs.resolve_lens(&immich, source, edits.lens).await;
+            edits.lens = self
+                .lens
+                .resolve(identity, &immich, source, edits.lens)
+                .await;
         }
         options.rasters = self.inputs.rasters_for(identity, &edits).await;
         options.luts = self.inputs.luts_for(&edits).await?;
@@ -213,7 +220,10 @@ impl RenderService {
         let frame = self.frame(identity, &immich, source).await?;
         let mut edits = edits;
         if frame.meta.is_raw {
-            edits.lens = self.inputs.resolve_lens(&immich, source, edits.lens).await;
+            edits.lens = self
+                .lens
+                .resolve(identity, &immich, source, edits.lens)
+                .await;
         }
         let dcp = self.inputs.dcp_for(&edits, &frame).await?;
         let dcp_id = dcp.as_ref().map(|selection| selection.id.clone());
