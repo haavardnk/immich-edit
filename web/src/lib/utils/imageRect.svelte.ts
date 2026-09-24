@@ -1,8 +1,9 @@
 import { ui } from '$lib/stores/ui.svelte';
+import type { PreviewSurface } from './preview-surface';
 
 export type ImageRect = { x: number; y: number; w: number; h: number };
 
-export function imageRect(img: () => HTMLImageElement | null): ImageRect {
+export function imageRect(img: () => PreviewSurface | null): ImageRect {
   const rect: ImageRect = $state({ x: 0, y: 0, w: 0, h: 0 });
 
   function recompute(): void {

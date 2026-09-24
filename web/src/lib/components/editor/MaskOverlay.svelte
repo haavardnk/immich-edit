@@ -1,5 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
+  import { surfaceSize, type PreviewSurface } from '$lib/utils/preview-surface';
   import { ui } from '$lib/stores/ui.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { isKeybind, isTypingTarget, keysFor } from '$lib/keybinds';
@@ -16,7 +17,7 @@
   let {
     img
   }: {
-    img: HTMLImageElement | null;
+    img: PreviewSurface | null;
   } = $props();
 
   const rect = imageRect(() => img);
@@ -115,12 +116,14 @@
   function sampleColor(e: PointerEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    if (!img || !editor.colorPicker?.ready || img.naturalWidth < 1 || img.naturalHeight < 1) return;
+    if (!img || !editor.colorPicker?.ready) return;
+    const size = surfaceSize(img);
+    if (size.w < 1 || size.h < 1) return;
     const bounds = img.getBoundingClientRect();
     const u = clamp01((e.clientX - bounds.left) / Math.max(bounds.width, 1));
     const v = clamp01((e.clientY - bounds.top) / Math.max(bounds.height, 1));
-    const sx = Math.min(img.naturalWidth - 1, Math.floor(u * img.naturalWidth));
-    const sy = Math.min(img.naturalHeight - 1, Math.floor(v * img.naturalHeight));
+    const sx = Math.min(size.w - 1, Math.floor(u * size.w));
+    const sy = Math.min(size.h - 1, Math.floor(v * size.h));
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;

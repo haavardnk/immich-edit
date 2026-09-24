@@ -1,19 +1,18 @@
-import init, { WebRenderer } from '$lib/wasm/web_render';
+import init, { WebRenderer, render_inputs } from '$lib/wasm/web_render';
 import { errorMessage } from '$lib/utils/errors';
 import { createDispatcher } from './dispatch';
 import type { Reply, Request } from './protocol';
 
-const dispatch = createDispatcher(async (canvas) => {
+const dispatch = createDispatcher(async () => {
   await init();
-  return WebRenderer.create(canvas);
+  return { renderer: await WebRenderer.create(), inputs: render_inputs };
 });
 
 self.onmessage = async ({ data }: MessageEvent<Request>) => {
-  let reply: Reply;
   try {
-    reply = { id: data.id, ok: true, value: await dispatch(data.call) };
+    const { value, transfer } = await dispatch(data.call);
+    self.postMessage({ id: data.id, ok: true, value } satisfies Reply, { transfer });
   } catch (err) {
-    reply = { id: data.id, ok: false, error: errorMessage(err) };
+    self.postMessage({ id: data.id, ok: false, error: errorMessage(err) } satisfies Reply);
   }
-  self.postMessage(reply);
 };

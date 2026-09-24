@@ -39,13 +39,26 @@ struct Inner {
 }
 
 #[wasm_bindgen]
+pub fn render_inputs(edits: &str, max_edge: u32) -> Result<JsValue, JsError> {
+    let edits = serde_json::from_str::<Edits>(edits)?.clamped();
+    let sensor_key = format!("{}-{max_edge}", edits.sensor_stage().stable_hash());
+    Ok(js::inputs(
+        &sensor_key,
+        &edits.referenced_raster_ids(),
+        edits.referenced_lut_id().as_deref(),
+    ))
+}
+
+#[wasm_bindgen]
 pub struct WebRenderer {
     inner: Rc<Inner>,
 }
 
 #[wasm_bindgen]
 impl WebRenderer {
-    pub async fn create(canvas: web_sys::OffscreenCanvas) -> Result<WebRenderer, JsError> {
+    pub async fn create() -> Result<WebRenderer, JsError> {
+        let canvas = web_sys::OffscreenCanvas::new(1, 1)
+            .map_err(|e| JsError::new(&format!("offscreen canvas: {e:?}")))?;
         let gpu = GpuRenderer::new_async(GpuRendererOptions {
             texture_cache_max_bytes: TEXTURE_CACHE_MAX_BYTES,
             timestamps: false,
@@ -199,7 +212,12 @@ async fn draw(
     });
     let meta = inner.gpu.finish_display(frame).await?;
     target.present(ctx);
-    Ok(js::frame(&meta))
+    let bitmap = inner
+        .presenter
+        .borrow()
+        .bitmap()
+        .map_err(|e| JsError::new(&e))?;
+    Ok(js::frame(&meta, bitmap))
 }
 
 async fn device_lost(lost: &Mutex<Option<String>>) -> Option<String> {

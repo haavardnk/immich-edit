@@ -8,16 +8,18 @@
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
+  import PreviewImage from './PreviewImage.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
   import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/view-geometry';
   import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
+  import type { PreviewSurface } from '$lib/utils/preview-surface';
 
   const WHEEL_STEP = 1.1;
 
   let container = $state<HTMLDivElement | null>(null);
-  let imgEl = $state<HTMLImageElement | null>(null);
+  let imgEl = $state<PreviewSurface | null>(null);
   let viewBox = $state({ w: 0, h: 0 });
   let dpr = $state(1);
   let baseNat = $state<{ w: number; h: number } | null>(null);
@@ -192,7 +194,7 @@
 >
   {#if editor.geometrySession && editor.geometrySession.pinnedReady}
     <CropOverlay />
-  {:else if editor.previewUrl}
+  {:else if editor.previewUrl || editor.previewFrame}
     {#if editor.splitMode && editor.originalUrl}
       <div
         bind:this={splitWrap}
@@ -213,12 +215,12 @@
             splitNatH = t.naturalHeight;
           }}
         />
-        <img
-          src={editor.previewUrl}
+        <PreviewImage
+          url={editor.previewUrl}
+          frame={editor.previewFrame}
           alt={editor.asset?.originalFileName ?? ''}
           class="absolute inset-0 w-full h-full object-contain select-none"
-          style="clip-path: inset(0 0 0 {editor.splitPos * 100}%); image-orientation: none;"
-          draggable="false"
+          style="clip-path: inset(0 0 0 {editor.splitPos * 100}%);"
         />
         <div
           class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-split pointer-events-none"
@@ -251,16 +253,15 @@
         </div>
       </div>
     {:else}
-      <img
-        bind:this={imgEl}
-        src={editor.previewUrl}
+      <PreviewImage
+        bind:element={imgEl}
+        url={editor.previewUrl}
+        frame={editor.previewFrame}
         alt={editor.asset?.originalFileName ?? ''}
         class="max-h-none max-w-none select-none object-contain shadow-image ring-1 ring-white/10"
-        style="{baseStyle} image-orientation: none;"
-        draggable="false"
-        onload={(e) => {
-          const t = e.target as HTMLImageElement;
-          if (t.naturalWidth > 0) baseNat = { w: t.naturalWidth, h: t.naturalHeight };
+        style={baseStyle}
+        onsize={(size) => {
+          if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
         }}
       />
       {#if editor.viewUrl && viewPlace}

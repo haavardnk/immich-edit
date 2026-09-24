@@ -8,13 +8,15 @@
   import UsersSection from '$lib/components/settings/UsersSection.svelte';
   import MaskModelsSection from '$lib/components/settings/MaskModelsSection.svelte';
   import InstanceSection from '$lib/components/settings/InstanceSection.svelte';
-  import { mdiAccountCircleOutline, mdiCogOutline } from '@mdi/js';
+  import PreviewRenderingSection from '$lib/components/settings/PreviewRenderingSection.svelte';
+  import { mdiAccountCircleOutline, mdiCogOutline, mdiMonitorShimmer } from '@mdi/js';
 
   type AdminSection = 'users' | 'models' | 'instance';
 
   let appOpen = $state(false);
   let accountOpen = $state(false);
   let sessionsOpen = $state(false);
+  let renderingOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
   const requestedAdminSection = $derived(adminSectionFromHash(page.url.hash));
@@ -112,6 +114,16 @@
       >
         <SessionsSection />
       </SettingsGroup>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="Preview rendering"
+      description="Choose where editor previews render on this device."
+      icon={mdiMonitorShimmer}
+      open={renderingOpen}
+      onOpenChange={(open) => (renderingOpen = open)}
+    >
+      <PreviewRenderingSection />
     </SettingsGroup>
   </div>
 {/if}

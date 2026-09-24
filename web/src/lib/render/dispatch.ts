@@ -11,19 +11,36 @@ export interface Renderer {
   render(edits: string, view: string): Promise<unknown>;
 }
 
-export type Load = (canvas: OffscreenCanvas) => Promise<Renderer>;
+export interface Wasm {
+  renderer: Renderer;
+  inputs(edits: string, maxEdge: number): unknown;
+}
 
-export function createDispatcher(load: Load): (call: Call) => Promise<unknown> {
-  let renderer: Renderer | null = null;
+export type Load = () => Promise<Wasm>;
+
+export interface Outcome {
+  value: unknown;
+  transfer: Transferable[];
+}
+
+export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
+  let wasm: Wasm | null = null;
   let queue: Promise<unknown> = Promise.resolve();
+
+  const loaded = (): Wasm => {
+    if (!wasm) throw new Error('the renderer has not been initialised');
+    return wasm;
+  };
 
   const run = async (call: Call): Promise<unknown> => {
     if (call.op === 'init') {
-      renderer = await load(call.canvas);
-      return renderer.adapter();
+      wasm = await load();
+      return wasm.renderer.adapter();
     }
-    if (!renderer) throw new Error('the renderer has not been initialised');
+    const { renderer, inputs } = loaded();
     switch (call.op) {
+      case 'inputs':
+        return inputs(JSON.stringify(call.edits), call.maxEdge);
       case 'setSource':
         return renderer.set_source(new Uint8Array(call.bytes));
       case 'setRaster':
@@ -41,9 +58,12 @@ export function createDispatcher(load: Load): (call: Call) => Promise<unknown> {
     }
   };
 
-  return (call) => {
+  return async (call) => {
+    if (call.op === 'inputs') return { value: await run(call), transfer: [] };
     const next = queue.then(() => run(call));
     queue = next.catch(() => undefined);
-    return next;
+    const value = await next;
+    const bitmap = call.op === 'render' ? (value as { bitmap?: ImageBitmap }).bitmap : undefined;
+    return { value, transfer: bitmap ? [bitmap] : [] };
   };
 }

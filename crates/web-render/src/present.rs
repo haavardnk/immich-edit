@@ -10,6 +10,7 @@ use wgpu::{
 };
 
 pub struct Presenter {
+    canvas: web_sys::OffscreenCanvas,
     surface: Surface<'static>,
     format: TextureFormat,
     layout: BindGroupLayout,
@@ -32,7 +33,7 @@ impl Presenter {
     pub fn new(ctx: &GpuContext, canvas: web_sys::OffscreenCanvas) -> Result<Self, String> {
         let surface = ctx
             .instance
-            .create_surface(SurfaceTarget::OffscreenCanvas(canvas))
+            .create_surface(SurfaceTarget::OffscreenCanvas(canvas.clone()))
             .map_err(|e| format!("canvas surface: {e}"))?;
         let format = surface
             .get_capabilities(&ctx.adapter)
@@ -82,6 +83,7 @@ impl Presenter {
             cache: None,
         });
         Ok(Self {
+            canvas,
             surface,
             format,
             layout,
@@ -114,6 +116,12 @@ impl Presenter {
             .texture
             .create_view(&TextureViewDescriptor::default());
         Ok(Target { texture, view })
+    }
+
+    pub fn bitmap(&self) -> Result<web_sys::ImageBitmap, String> {
+        self.canvas
+            .transfer_to_image_bitmap()
+            .map_err(|e| format!("frame bitmap: {e:?}"))
     }
 
     pub fn blit(

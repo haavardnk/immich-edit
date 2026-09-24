@@ -22,6 +22,12 @@ export interface SourceInfo {
   model: string;
 }
 
+export interface RenderInputs {
+  sensor_key: string;
+  rasters: string[];
+  lut: string | null;
+}
+
 export interface HistogramBins {
   r: Uint32Array;
   g: Uint32Array;
@@ -36,6 +42,7 @@ export interface StageTiming {
 }
 
 export interface RenderedFrame {
+  bitmap: ImageBitmap;
   width: number;
   height: number;
   source_w: number;
@@ -47,7 +54,8 @@ export interface RenderedFrame {
 }
 
 export type Call =
-  | { op: 'init'; canvas: OffscreenCanvas }
+  | { op: 'init' }
+  | { op: 'inputs'; edits: Edits; maxEdge: number }
   | { op: 'setSource'; bytes: ArrayBuffer }
   | { op: 'setRaster'; id: string; width: number; height: number; bytes: ArrayBuffer }
   | { op: 'dropRaster'; id: string }

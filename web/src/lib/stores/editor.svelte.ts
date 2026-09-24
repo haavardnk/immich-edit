@@ -33,7 +33,11 @@ import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { SaveQueue } from '$lib/stores/editor/save.svelte';
-import { PreviewEngine, type ViewSnapshot } from '$lib/stores/editor/preview.svelte';
+import {
+  PreviewEngine,
+  type PreviewFrame,
+  type ViewSnapshot
+} from '$lib/stores/editor/preview.svelte';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
 import { getEdits, autoEdits } from '$lib/api/edits';
@@ -60,12 +64,14 @@ import {
   type ZoomTarget
 } from '$lib/utils/zoomTarget';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
+import type { PreviewSurface } from '$lib/utils/preview-surface';
 
 class EditorStore {
   assetId = $state<string | null>(null);
   asset = $state<AssetDetail | null>(null);
   edits = $state<Edits>(neutralEdits());
   previewUrl = $state<string | null>(null);
+  previewFrame = $state.raw<PreviewFrame | null>(null);
   meta = $state<PreviewMeta | null>(null);
   lensProfile = $state<LensProfileMatch | null>(null);
   lensProfileError = $state<string | null>(null);
@@ -154,7 +160,7 @@ class EditorStore {
   private previews = new PreviewEngine(this);
 
   initialised = $state(false);
-  private baseImage: HTMLImageElement | null = null;
+  private baseImage: PreviewSurface | null = null;
   private zoomTargetIndex: number | null = null;
   private zoomTargetView: string | null = null;
 
@@ -174,7 +180,7 @@ class EditorStore {
     this.previews.onViewChange(snap);
   };
 
-  setBaseImage = (element: HTMLImageElement | null): void => {
+  setBaseImage = (element: PreviewSurface | null): void => {
     this.baseImage = element;
   };
 
