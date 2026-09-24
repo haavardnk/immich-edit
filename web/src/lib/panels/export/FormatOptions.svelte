@@ -1,35 +1,20 @@
 <script lang="ts">
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import type {
-    BitDepthOpt,
-    ColorSpaceOpt,
-    PngCompressionOpt,
-    TiffCompressionOpt
-  } from '$lib/api/export';
   import { Field, Select } from '@immich/ui';
   import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
-  import { FORMATS, type ExportForm } from './settings';
+  import {
+    BIT_DEPTHS,
+    COLOR_SPACES,
+    FORMATS,
+    PNG_COMPRESSIONS,
+    TIFF_COMPRESSIONS,
+    type ExportForm
+  } from './settings';
 
-  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
-
-  const colorSpaces: { value: ColorSpaceOpt; label: string }[] = [
-    { value: 'srgb', label: 'sRGB' },
-    { value: 'displayp3', label: 'Display P3' }
-  ];
-  const bitDepths: { value: BitDepthOpt; label: string }[] = [
-    { value: '8', label: '8-bit' },
-    { value: '16', label: '16-bit' }
-  ];
-  const pngCompressions: { value: PngCompressionOpt; label: string }[] = [
-    { value: 'fast', label: 'Fast' },
-    { value: 'default', label: 'Default' },
-    { value: 'best', label: 'Best' }
-  ];
-  const tiffCompressions: { value: TiffCompressionOpt; label: string }[] = [
-    { value: 'none', label: 'None' },
-    { value: 'lzw', label: 'LZW' },
-    { value: 'deflate', label: 'Deflate' }
-  ];
+  let {
+    form = $bindable<ExportForm>(),
+    outputSize = null
+  }: { form: ExportForm; outputSize?: string | null } = $props();
 
   let showQuality = $derived(
     form.format === 'jpeg' ||
@@ -56,11 +41,20 @@
   />
 </Field>
 
+{#if outputSize}
+  <div class="panel-row h-7 items-center">
+    <span class="editor-compact-label select-none">Size</span>
+    <span class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65"
+      >{outputSize}</span
+    >
+  </div>
+{/if}
+
 <Field label="Color space" size="tiny">
   <Select
     size="tiny"
     class="editor-compact-select editor-compact-field"
-    options={colorSpaces}
+    options={COLOR_SPACES}
     value={form.colorSpace}
     onChange={(v) => (form.colorSpace = v)}
   />
@@ -90,7 +84,7 @@
     <Select
       size="tiny"
       class="editor-compact-select editor-compact-field"
-      options={bitDepths}
+      options={BIT_DEPTHS}
       value={form.bitDepth}
       onChange={(v) => (form.bitDepth = v)}
     />
@@ -102,7 +96,7 @@
     <Select
       size="tiny"
       class="editor-compact-select editor-compact-field"
-      options={pngCompressions}
+      options={PNG_COMPRESSIONS}
       value={form.pngCompression}
       onChange={(v) => (form.pngCompression = v)}
     />
@@ -114,7 +108,7 @@
     <Select
       size="tiny"
       class="editor-compact-select editor-compact-field"
-      options={tiffCompressions}
+      options={TIFF_COMPRESSIONS}
       value={form.tiffCompression}
       onChange={(v) => (form.tiffCompression = v)}
     />

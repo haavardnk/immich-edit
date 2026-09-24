@@ -8,22 +8,15 @@
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
-  import {
-    baseOptions,
-    DEFAULT_FILENAME_SUFFIX,
-    defaultExportForm,
-    ensureLibraryLoaded,
-    formatLabel,
-    immichOptions,
-    type Destination
-  } from './export/settings';
+  import { exportSettings } from './export/exportSettings.svelte';
+  import { baseOptions, ensureLibraryLoaded, formatLabel, immichOptions } from './export/settings';
 
-  let destination = $state<Destination>('download');
-  let form = $state(defaultExportForm());
+  const form = $derived(exportSettings.form);
+  const destination = $derived(exportSettings.destination);
   let busy = $state(false);
 
   $effect(() => {
-    if (destination === 'immich') ensureLibraryLoaded();
+    if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
   });
 
   async function submit(): Promise<void> {
@@ -34,7 +27,7 @@
       (assetIds) =>
         destination === 'immich'
           ? createImmichExportJob(assetIds, immichOptions(form))
-          : createZipExportJob(assetIds, baseOptions(form), DEFAULT_FILENAME_SUFFIX),
+          : createZipExportJob(assetIds, baseOptions(form), form.filenameSuffix),
       {
         success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
         error: 'Failed to queue export'
@@ -51,23 +44,23 @@
     {selection.count} asset{selection.count === 1 ? '' : 's'} selected
   </div>
 
-  <DestinationToggle bind:value={destination} downloadLabel="Download ZIP" />
+  <DestinationToggle bind:value={exportSettings.destination} downloadLabel="Download ZIP" />
 
-  <FormatOptions bind:form />
+  <FormatOptions bind:form={exportSettings.form} />
 
-  {#if destination === 'immich'}
-    <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
-      <TextInput
-        label="Filename suffix"
-        compact
-        color="neutral"
-        class="ring-0 focus-within:ring-1 focus-within:ring-primary"
-        bind:value={form.filenameSuffix}
-        placeholder="_edit"
-      />
-      <ImmichOptions bind:form />
-    </div>
-  {/if}
+  <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
+    <TextInput
+      label="Filename suffix"
+      compact
+      color="neutral"
+      class="ring-0 focus-within:ring-1 focus-within:ring-primary"
+      bind:value={exportSettings.form.filenameSuffix}
+      placeholder="_edit"
+    />
+    {#if destination === 'immich'}
+      <ImmichOptions bind:form={exportSettings.form} />
+    {/if}
+  </div>
 
   <Button
     size="small"

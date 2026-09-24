@@ -7,10 +7,11 @@ import {
   cropRectInsideWarpedSource,
   largestInscribedRect,
   refitCropAtAspect,
-  constrainCropRect
+  constrainCropRect,
+  croppedOutputSize
 } from './geom';
 import type { CropRect } from '../types/edits';
-import { FULL_CROP } from '../types/edits';
+import { FULL_CROP, neutralEdits } from '../types/edits';
 
 describe('degToRad', () => {
   it('converts degrees to radians', () => {
@@ -129,5 +130,18 @@ describe('constrainCropRect', () => {
     const candidate: CropRect = { x: 0, y: 0, w: 1, h: 1 };
     const out = constrainCropRect(candidate, null, 100, 60, 20);
     expect(cropRectInsideWarpedSource(out, 100, 60, 20)).toBe(true);
+  });
+});
+
+describe('croppedOutputSize', () => {
+  it.each<[string, Partial<ReturnType<typeof neutralEdits>['geometry']>, number, number]>([
+    ['keeps the source without geometry', {}, 6000, 4000],
+    ['halves a centred crop', { crop: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } }, 3000, 2000],
+    ['swaps sides on a quarter turn', { rotate: 90 }, 4000, 6000],
+    ['grows the frame for a straighten angle', { rotate_angle: 90 }, 4000, 6000],
+    ['crops the rotated frame', { rotate: 270, crop: { x: 0, y: 0, w: 0.5, h: 1 } }, 2000, 6000]
+  ])('%s', (_name, patch, w, h) => {
+    const geometry = { ...neutralEdits().geometry, ...patch };
+    expect(croppedOutputSize(geometry, 6000, 4000)).toEqual({ w, h });
   });
 });

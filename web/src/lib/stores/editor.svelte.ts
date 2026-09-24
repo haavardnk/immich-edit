@@ -42,7 +42,7 @@ import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
 import { getEdits, autoEdits } from '$lib/api/edits';
 import { type PreviewMode } from '$lib/api/preview';
-import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
+import { type ColorSpaceOpt, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 import { isRejected } from '$lib/reject';
@@ -81,14 +81,15 @@ class EditorStore {
   saveError = $state<string | null>(null);
   exporting = $state(false);
   exportingToImmich = $state(false);
-  lastUpload = $state<{ kind: 'success' | 'duplicate' | 'error'; message: string } | null>(null);
+  lastUpload = $state<exportActions.ExportResult | null>(null);
+  lastDownload = $state<exportActions.ExportResult | null>(null);
   hasEdits = $derived(!isIdentity(this.edits));
   lensView: LensEdits = $derived(
     effectiveLens(this.edits.lens, this.meta?.is_raw ? (this.lensProfile?.edits ?? null) : null)
   );
   lastWarnings = $state<string[]>([]);
   lastImmichOpts: ImmichExportOptions | null = null;
-  lastExportOpts: ExportOptions | null = null;
+  lastDownloadRequest: exportActions.DownloadRequest | null = null;
   autoBusy = $state(false);
   wbPicking = $state(false);
   wbBusy = $state(false);
@@ -330,6 +331,11 @@ class EditorStore {
     this.colorPicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
+    this.lastUpload = null;
+    this.lastDownload = null;
+    this.lastWarnings = [];
+    this.lastImmichOpts = null;
+    this.lastDownloadRequest = null;
   }
 
   get canUndo(): boolean {
@@ -471,7 +477,8 @@ class EditorStore {
 
   onAutoWhiteBalance = (): Promise<void> => whiteBalance.autoWb(this);
 
-  onExport = (opts: ExportOptions): Promise<void> => exportActions.onExport(this, opts);
+  onExport = (request: exportActions.DownloadRequest): Promise<void> =>
+    exportActions.onExport(this, request);
 
   retryExport = (): Promise<void> => exportActions.retryExport(this);
 

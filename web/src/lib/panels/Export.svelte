@@ -4,23 +4,25 @@
   import Notice from '$lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
+  import { croppedOutputSize } from '$lib/utils/geom';
+  import { fmtDim } from '$lib/utils/exif';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
+  import { exportSettings } from './export/exportSettings.svelte';
   import {
     baseOptions,
-    defaultExportForm,
+    COLOR_SPACES,
     ensureLibraryLoaded,
     formatLabel,
-    immichOptions,
-    type Destination
+    immichOptions
   } from './export/settings';
 
-  let destination = $state<Destination>('download');
-  let form = $state(defaultExportForm());
+  const form = $derived(exportSettings.form);
+  const destination = $derived(exportSettings.destination);
 
   $effect(() => {
-    if (destination === 'immich') ensureLibraryLoaded();
+    if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
   });
 
   let isLoading = $derived(
@@ -31,44 +33,73 @@
     destination === 'download' ? `Export ${label}` : `Upload ${label} to Immich`
   );
   let busyLabel = $derived(destination === 'download' ? 'Exporting…' : 'Uploading…');
+  let result = $derived(destination === 'download' ? editor.lastDownload : editor.lastUpload);
+  let proofMismatch = $derived(editor.isProofing && editor.proofSpace !== form.colorSpace);
+  function spaceLabel(space: string): string {
+    return COLOR_SPACES.find((c) => c.value === space)?.label ?? space;
+  }
+  let outputSize = $derived.by(() => {
+    const meta = editor.meta;
+    if (!meta) return null;
+    const size = croppedOutputSize(editor.edits.geometry, meta.source_w, meta.source_h);
+    return `${fmtDim(size.w, size.h)} px`;
+  });
 </script>
 
 <div class="flex flex-col gap-1">
-  <DestinationToggle bind:value={destination} />
+  <DestinationToggle bind:value={exportSettings.destination} />
 
-  <FormatOptions bind:form />
+  <FormatOptions bind:form={exportSettings.form} {outputSize} />
 
-  {#if destination === 'immich'}
-    <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
-      <TextInput
-        label="Filename suffix"
-        compact
-        color="neutral"
-        class="ring-0 focus-within:ring-1 focus-within:ring-primary"
-        bind:value={form.filenameSuffix}
-        placeholder="_edit"
-      />
-      <ImmichOptions bind:form />
-    </div>
+  {#if proofMismatch}
+    <Notice
+      color="warning"
+      message={`Soft proofing ${spaceLabel(editor.proofSpace)}, exporting ${spaceLabel(form.colorSpace)}`}
+    >
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        class="h-6 panel-action"
+        onclick={() => (exportSettings.form.colorSpace = editor.proofSpace)}
+      >
+        Export {spaceLabel(editor.proofSpace)}
+      </Button>
+    </Notice>
   {/if}
 
-  {#if destination === 'immich' && editor.lastUpload}
+  <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
+    <TextInput
+      label="Filename suffix"
+      compact
+      color="neutral"
+      class="ring-0 focus-within:ring-1 focus-within:ring-primary"
+      bind:value={exportSettings.form.filenameSuffix}
+      placeholder="_edit"
+    />
+    {#if destination === 'immich'}
+      <ImmichOptions bind:form={exportSettings.form} />
+    {/if}
+  </div>
+
+  {#if result}
     <Notice
-      color={editor.lastUpload.kind === 'success'
+      color={result.kind === 'success'
         ? 'success'
-        : editor.lastUpload.kind === 'duplicate'
+        : result.kind === 'duplicate'
           ? 'warning'
           : 'danger'}
-      message={editor.lastUpload.message}
+      message={result.message}
     >
-      {#if editor.lastUpload.kind === 'error'}
+      {#if result.kind === 'error'}
         <Button
           size="tiny"
           variant="ghost"
           color="secondary"
           class="h-6 panel-action"
           leadingIcon={mdiRefresh}
-          onclick={() => void editor.retryUpload()}
+          onclick={() =>
+            void (destination === 'download' ? editor.retryExport() : editor.retryUpload())}
           disabled={isLoading}
         >
           Retry
@@ -99,7 +130,8 @@
       leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
       disabled={isLoading || !editor.assetId}
       onclick={() => {
-        if (destination === 'download') void editor.onExport(baseOptions(form));
+        if (destination === 'download')
+          void editor.onExport({ opts: baseOptions(form), suffix: form.filenameSuffix });
         else void editor.onUploadToImmich(immichOptions(form));
       }}
     >

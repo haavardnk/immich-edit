@@ -4,12 +4,32 @@ import {
   defaultExportForm,
   formatLabel,
   immichOptions,
+  restoreExportForm,
   type ExportForm
 } from './settings';
 
 function form(patch: Partial<ExportForm> = {}): ExportForm {
   return { ...defaultExportForm(), ...patch };
 }
+
+describe('restoreExportForm', () => {
+  it('round-trips a stored form', () => {
+    const saved = form({ format: 'avif', quality: 70, albumIds: ['al'], filenameSuffix: '_warm' });
+    expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
+  });
+
+  it('falls back per field on values it does not know', () => {
+    const restored = restoreExportForm({
+      format: 'bmp',
+      quality: 400,
+      bitDepth: '12',
+      includeExif: 'yes',
+      albumIds: ['al', 3],
+      stackPrimary: 'both'
+    });
+    expect(restored).toEqual(form({ quality: 100, albumIds: ['al'] }));
+  });
+});
 
 describe('baseOptions', () => {
   it.each<[string, Partial<ExportForm>, boolean]>([
