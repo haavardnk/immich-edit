@@ -148,8 +148,9 @@ BAKE_WEB_PARITY=1 cargo test -p raw-pipeline --test web_parity_fixture
 ```
 
 `e2e/client-render.spec.ts` opens the editor with the browser renderer on the same fixture source
-and asserts that a display slider redraws the canvas with no `/preview` or `/source` request, and
-that a browser without WebGPU gets server previews. Other specs pin the server renderer through
+and asserts that a display slider redraws the canvas with no `/preview` or `/source` request, that
+at 1:1 a slider tick redraws the tile with no request and a pan posts exactly one tile `/source`,
+and that a browser without WebGPU gets server previews. Other specs pin the server renderer through
 `installMocks`; pass `renderer: 'auto'` to opt in.
 
 Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
