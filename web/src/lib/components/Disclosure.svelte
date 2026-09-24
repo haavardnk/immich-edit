@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Icon } from '@immich/ui';
-  import { mdiChevronDown, mdiChevronRight } from '@mdi/js';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiChevronDown, mdiChevronRight, mdiRestore } from '@mdi/js';
   import { Collapsible } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
@@ -11,6 +11,7 @@
     title,
     onOpenChange,
     modified = false,
+    onReset,
     variant = 'section',
     children
   }: {
@@ -18,6 +19,7 @@
     title: string;
     onOpenChange: (open: boolean) => void;
     modified?: boolean;
+    onReset?: () => void;
     variant?: Variant;
     children: Snippet;
   } = $props();
@@ -31,7 +33,7 @@
   const iconSize = $derived(variant === 'section' ? 14 : 12);
 </script>
 
-<Collapsible.Root bind:open={() => open, onOpenChange} class={rootClass}>
+<Collapsible.Root bind:open={() => open, onOpenChange} class="relative {rootClass}">
   <Collapsible.Trigger class={triggerClass}>
     <Icon
       icon={open ? mdiChevronDown : mdiChevronRight}
@@ -40,10 +42,33 @@
       aria-hidden="true"
     />
     {title}
-    {#if modified}
+    {#if modified && !onReset}
       <span class="ml-auto size-1.5 rounded-full bg-primary" aria-label="Modified"></span>
     {/if}
   </Collapsible.Trigger>
+  {#if modified && onReset}
+    <Button
+      type="button"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="group/reset absolute top-1 right-0.75 size-6 rounded p-0 text-dark/55 hover:bg-hairline hover:text-dark"
+      title="Reset {title} panel"
+      aria-label="Reset {title} panel"
+      onclick={onReset}
+    >
+      <span
+        class="size-1.5 rounded-full bg-primary group-hover/reset:hidden group-focus-visible/reset:hidden"
+        aria-hidden="true"
+      ></span>
+      <Icon
+        icon={mdiRestore}
+        size="12px"
+        class="hidden group-hover/reset:block group-focus-visible/reset:block"
+        aria-hidden="true"
+      />
+    </Button>
+  {/if}
   <Collapsible.Content>
     {#if open}
       {@render children()}
