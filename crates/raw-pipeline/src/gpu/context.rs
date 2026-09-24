@@ -21,10 +21,12 @@ pub struct GpuContext {
 }
 
 impl GpuContext {
+    #[cfg(feature = "native")]
     pub fn new() -> PipelineResult<Arc<Self>> {
         Self::with_timestamps(false)
     }
 
+    #[cfg(feature = "native")]
     pub fn with_timestamps(timestamps: bool) -> PipelineResult<Arc<Self>> {
         pollster::block_on(Self::new_async(timestamps))
     }

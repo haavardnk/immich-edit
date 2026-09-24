@@ -4,20 +4,27 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use wgpu::{Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages};
 
+#[cfg(feature = "native")]
+use crate::PipelineError;
+use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::frame::{RawFrame, RenderOptions, RenderedImage};
-use crate::{PipelineError, PipelineResult};
+use crate::frame::RenderOptions;
+#[cfg(feature = "native")]
+use crate::frame::{RawFrame, RenderedImage};
 
 use super::budget::GpuBudget;
 use super::context::GpuContext;
 use super::display_depth::DisplayDepth;
 use super::passes::GpuPasses;
 use super::resources::{OutputTargets, SharpenTargets};
+#[cfg(feature = "native")]
 use super::source::RenderSource;
 use super::texture_pool::TexturePool;
+#[cfg(feature = "native")]
 use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
 
+#[cfg(feature = "native")]
 mod cache_keys;
 mod dcp;
 mod detail;
@@ -25,20 +32,34 @@ mod display;
 mod effects;
 mod geometry;
 mod lut;
+mod mask_overlay;
 mod masks;
 mod meta;
+mod mipgen;
+#[cfg(feature = "native")]
 mod output;
 mod pools;
 mod resample;
+#[cfg(feature = "native")]
 mod retouch;
+#[cfg(feature = "native")]
 mod sensor_stage;
+#[cfg(feature = "native")]
 mod stage_cache;
 mod uniform;
+#[cfg(feature = "native")]
 mod upload;
+#[cfg(feature = "web")]
+mod web;
 
+pub use display::DisplayFrame;
 pub use pools::GpuPoolStats;
+#[cfg(feature = "native")]
 use sensor_stage::{CachedFrame, SensorCaches};
+#[cfg(feature = "native")]
 use stage_cache::Stage;
+#[cfg(feature = "web")]
+pub use web::DisplayMeta;
 
 fn display_depth(opts: &RenderOptions) -> DisplayDepth {
     if opts.gamut_warn
@@ -80,6 +101,7 @@ pub enum RenderPlan {
 }
 
 impl RenderPlan {
+    #[cfg(feature = "native")]
     pub fn select(edits: &Edits, frame: &RawFrame) -> Self {
         let d = &edits.detail;
         if presence_display(edits)
@@ -98,6 +120,7 @@ impl RenderPlan {
 pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
+    #[cfg(feature = "native")]
     sensor: SensorCaches,
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
@@ -136,12 +159,18 @@ impl Default for GpuRendererOptions {
 }
 
 impl GpuRenderer {
+    #[cfg(feature = "native")]
     pub fn new() -> PipelineResult<Self> {
         Self::with_options(GpuRendererOptions::default())
     }
 
+    #[cfg(feature = "native")]
     pub fn with_options(options: GpuRendererOptions) -> PipelineResult<Self> {
-        let ctx = GpuContext::with_timestamps(options.timestamps)?;
+        pollster::block_on(Self::new_async(options))
+    }
+
+    pub async fn new_async(options: GpuRendererOptions) -> PipelineResult<Self> {
+        let ctx = GpuContext::new_async(options.timestamps).await?;
         let passes = Arc::new(GpuPasses::new(&ctx));
         let budget = GpuBudget::new(options.texture_cache_max_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
@@ -149,6 +178,7 @@ impl GpuRenderer {
         Ok(Self {
             ctx,
             passes,
+            #[cfg(feature = "native")]
             sensor: SensorCaches::new(budget, texture_pool.clone()),
             lut_tex_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(LUT_TEX_CACHE_ITEMS).expect("nonzero"),
@@ -195,6 +225,7 @@ impl GpuRenderer {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    #[cfg(feature = "native")]
     pub fn render<'s>(
         &self,
         source: impl Into<RenderSource<'s>>,
@@ -204,6 +235,7 @@ impl GpuRenderer {
         self.render_with_cancel(source, edits, options, None)
     }
 
+    #[cfg(feature = "native")]
     pub fn render_with_cancel<'s>(
         &self,
         source: impl Into<RenderSource<'s>>,

@@ -81,7 +81,7 @@ fn display_16(renderer: &GpuRenderer, width: u32, height: u32) -> Texture {
 
 fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: bool) -> MetaCounts {
     let (width, height) = dims;
-    let pool = pools::acquire_target(&renderer.output_pool, &renderer.ctx, width, height);
+    let pool = pools::acquire_target(&renderer.output_pool, &renderer.ctx, width, height).unwrap();
     let p = &pool[0];
     let linear: Vec<u16> = pixels
         .linear

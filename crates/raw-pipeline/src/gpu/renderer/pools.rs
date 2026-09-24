@@ -2,6 +2,9 @@ use parking_lot::{Mutex, MutexGuard};
 use wgpu::Texture;
 
 use super::GpuRenderer;
+#[cfg(not(feature = "native"))]
+use crate::PipelineError;
+use crate::PipelineResult;
 use crate::gpu::context::GpuContext;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 
@@ -37,8 +40,8 @@ pub(super) fn acquire_target<'a, T: PoolTarget>(
     ctx: &GpuContext,
     w: u32,
     h: u32,
-) -> MutexGuard<'a, Vec<T>> {
-    let mut guard = pool.lock();
+) -> PipelineResult<MutexGuard<'a, Vec<T>>> {
+    let mut guard = lock_pool(pool)?;
     match guard.iter().position(|t| t.fits(w, h)) {
         Some(0) => {}
         Some(i) => {
@@ -52,7 +55,18 @@ pub(super) fn acquire_target<'a, T: PoolTarget>(
             guard.insert(0, T::allocate(ctx, w, h));
         }
     }
-    guard
+    Ok(guard)
+}
+
+#[cfg(feature = "native")]
+fn lock_pool<T>(pool: &Mutex<Vec<T>>) -> PipelineResult<MutexGuard<'_, Vec<T>>> {
+    Ok(pool.lock())
+}
+
+#[cfg(not(feature = "native"))]
+fn lock_pool<T>(pool: &Mutex<Vec<T>>) -> PipelineResult<MutexGuard<'_, Vec<T>>> {
+    pool.try_lock()
+        .ok_or_else(|| PipelineError::Render("a display frame is still in flight".into()))
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -100,6 +114,7 @@ fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {
 
 impl GpuRenderer {
     pub fn pool_stats(&self) -> GpuPoolStats {
+        let [wb_cache, nr_cache, capture_cache] = self.stage_cache_bytes();
         GpuPoolStats {
             texture_pool: self.texture_pool.bytes(),
             uniform_pool: self.uniform_pool.bytes(),
@@ -115,9 +130,9 @@ impl GpuRenderer {
                 .iter()
                 .map(sharpen_targets_bytes)
                 .sum(),
-            wb_cache: self.sensor.stages.bytes(super::Stage::Wb),
-            nr_cache: self.sensor.stages.bytes(super::Stage::Nr),
-            capture_cache: self.sensor.stages.bytes(super::Stage::Capture),
+            wb_cache,
+            nr_cache,
+            capture_cache,
             atlas_cache: self
                 .atlas_cache
                 .lock()
@@ -131,5 +146,16 @@ impl GpuRenderer {
                 .map(|a| texture_bytes(&a.texture))
                 .sum(),
         }
+    }
+
+    #[cfg(feature = "native")]
+    fn stage_cache_bytes(&self) -> [u64; 3] {
+        [super::Stage::Wb, super::Stage::Nr, super::Stage::Capture]
+            .map(|stage| self.sensor.stages.bytes(stage))
+    }
+
+    #[cfg(not(feature = "native"))]
+    fn stage_cache_bytes(&self) -> [u64; 3] {
+        [0; 3]
     }
 }

@@ -14,6 +14,7 @@ impl GpuBudget {
         })
     }
 
+    #[cfg(feature = "native")]
     pub fn max_bytes(&self) -> u64 {
         self.max_bytes
     }

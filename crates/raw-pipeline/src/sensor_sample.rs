@@ -209,6 +209,7 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         bps: frame.bps,
         data,
         cpp: 3,
+        #[cfg(feature = "native")]
         exif: None,
     })
 }

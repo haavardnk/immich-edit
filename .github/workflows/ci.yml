@@ -46,6 +46,17 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
+  wasm:
+    runs-on: ubuntu-latest
+    container: rust:1.98-trixie
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - run: rustup target add wasm32-unknown-unknown
+      - run: >-
+          cargo clippy -p raw-pipeline --target wasm32-unknown-unknown
+          --no-default-features --features web -- -D warnings
+
   web:
     runs-on: ubuntu-latest
     steps:

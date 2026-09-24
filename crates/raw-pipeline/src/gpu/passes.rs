@@ -54,6 +54,18 @@ use sharpen::OutputSharpenPass;
 use wb_prepare::WbPreparePass;
 use xtrans::XtransPasses;
 
+macro_rules! build_passes {
+    ($($field:ident: $build:expr),* $(,)?) => {
+        #[cfg(feature = "native")]
+        let ($($field,)*) = std::thread::scope(|s| {
+            $(let $field = s.spawn(|| $build);)*
+            ($($field.join().expect(concat!(stringify!($field), " pass build")),)*)
+        });
+        #[cfg(not(feature = "native"))]
+        let ($($field,)*) = ($($build,)*);
+    };
+}
+
 pub struct GpuPasses {
     pub dehaze: DehazePasses,
     pub demosaic: DemosaicPass,
@@ -97,93 +109,38 @@ pub struct Depth16Passes {
 impl GpuPasses {
     pub fn new(ctx: &Arc<GpuContext>) -> Self {
         let registry = default_registry();
-        let (
-            dehaze,
-            demosaic,
-            xtrans,
-            mipgen,
-            luma_pyramid,
-            nr,
-            nr_smooth,
-            capture_sharpen,
-            presence,
-            resample,
-            retouch,
-            wb_prepare,
-            process_fast,
-            process_post_wb,
-            output_sharpen,
-            effects_tone,
-            lut,
-            dcp_huesat,
-            dcp_look,
-            mask_weight,
-            mask_blend,
-            mask_overlay,
-            meta_bins,
-            sensor,
-        ) = std::thread::scope(|s| {
-            let dehaze_t = s.spawn(|| DehazePasses::new(ctx));
-            let demosaic_t = s.spawn(|| DemosaicPass::new(ctx));
-            let xtrans_t = s.spawn(|| XtransPasses::new(ctx));
-            let mipgen_t = s.spawn(|| MipgenPass::new(ctx));
-            let luma_pyramid_t = s.spawn(|| LumaPyramidPass::new(ctx));
-            let nr_t = s.spawn(|| NrPass::new(ctx));
-            let nr_smooth_t = s.spawn(|| NrSmoothPass::new(ctx));
-            let capture_sharpen_t = s.spawn(|| CaptureSharpenPasses::new(ctx));
-            let presence_t = s.spawn(|| PresencePass::new(ctx));
-            let resample_t = s.spawn(|| ResamplePass::new(ctx));
-            let retouch_t = s.spawn(|| RetouchPasses::new(ctx));
-            let wb_prepare_t = s.spawn(|| WbPreparePass::new(ctx, &registry));
-            let process_fast_t = s.spawn(|| ProcessFastPass::new(ctx, &registry));
-            let process_post_wb_t = s.spawn(|| {
-                ProcessFastPass::new_with_mask(
-                    ctx,
-                    &registry,
-                    StageMask::tone_color(),
-                    DisplayDepth::Eight,
-                    "process-post",
-                )
-            });
-            let output_sharpen_t = s.spawn(|| OutputSharpenPass::new(ctx));
-            let effects_tone_t = s.spawn(|| EffectsTonePass::new(ctx, DisplayDepth::Eight));
-            let lut_t = s.spawn(|| LutPass::new(ctx, DisplayDepth::Eight));
-            let dcp_huesat_t = s.spawn(|| DcpHueSatPass::new(ctx));
-            let dcp_look_t = s.spawn(|| DcpHueSatPass::new_look(ctx, DisplayDepth::Eight.format()));
-            let mask_weight_t = s.spawn(|| MaskWeightPass::new(ctx));
-            let mask_blend_t = s.spawn(|| MaskBlendPass::new(ctx));
-            let mask_overlay_t = s.spawn(|| MaskOverlayPass::new(ctx));
-            let meta_bins_t = s.spawn(|| MetaBinsPasses::new(ctx, DisplayDepth::Eight));
-            let sensor_t = s.spawn(|| SensorPass::new(ctx));
-            (
-                dehaze_t.join().expect("dehaze pass build"),
-                demosaic_t.join().expect("demosaic pass build"),
-                xtrans_t.join().expect("xtrans pass build"),
-                mipgen_t.join().expect("mipgen pass build"),
-                luma_pyramid_t.join().expect("luma pyramid pass build"),
-                nr_t.join().expect("nr pass build"),
-                nr_smooth_t.join().expect("nr smooth pass build"),
-                capture_sharpen_t
-                    .join()
-                    .expect("capture sharpen pass build"),
-                presence_t.join().expect("presence pass build"),
-                resample_t.join().expect("resample pass build"),
-                retouch_t.join().expect("retouch pass build"),
-                wb_prepare_t.join().expect("wb prepare pass build"),
-                process_fast_t.join().expect("process fast pass build"),
-                process_post_wb_t.join().expect("process post pass build"),
-                output_sharpen_t.join().expect("output sharpen pass build"),
-                effects_tone_t.join().expect("effects tone pass build"),
-                lut_t.join().expect("lut pass build"),
-                dcp_huesat_t.join().expect("dcp huesat pass build"),
-                dcp_look_t.join().expect("dcp look pass build"),
-                mask_weight_t.join().expect("mask weight pass build"),
-                mask_blend_t.join().expect("mask blend pass build"),
-                mask_overlay_t.join().expect("mask overlay pass build"),
-                meta_bins_t.join().expect("meta bins pass build"),
-                sensor_t.join().expect("sensor pass build"),
-            )
-        });
+        build_passes! {
+            dehaze: DehazePasses::new(ctx),
+            demosaic: DemosaicPass::new(ctx),
+            xtrans: XtransPasses::new(ctx),
+            mipgen: MipgenPass::new(ctx),
+            luma_pyramid: LumaPyramidPass::new(ctx),
+            nr: NrPass::new(ctx),
+            nr_smooth: NrSmoothPass::new(ctx),
+            capture_sharpen: CaptureSharpenPasses::new(ctx),
+            presence: PresencePass::new(ctx),
+            resample: ResamplePass::new(ctx),
+            retouch: RetouchPasses::new(ctx),
+            wb_prepare: WbPreparePass::new(ctx, &registry),
+            process_fast: ProcessFastPass::new(ctx, &registry),
+            process_post_wb: ProcessFastPass::new_with_mask(
+                ctx,
+                &registry,
+                StageMask::tone_color(),
+                DisplayDepth::Eight,
+                "process-post",
+            ),
+            output_sharpen: OutputSharpenPass::new(ctx),
+            effects_tone: EffectsTonePass::new(ctx, DisplayDepth::Eight),
+            lut: LutPass::new(ctx, DisplayDepth::Eight),
+            dcp_huesat: DcpHueSatPass::new(ctx),
+            dcp_look: DcpHueSatPass::new_look(ctx, DisplayDepth::Eight.format()),
+            mask_weight: MaskWeightPass::new(ctx),
+            mask_blend: MaskBlendPass::new(ctx),
+            mask_overlay: MaskOverlayPass::new(ctx),
+            meta_bins: MetaBinsPasses::new(ctx, DisplayDepth::Eight),
+            sensor: SensorPass::new(ctx),
+        }
         Self {
             dehaze,
             demosaic,

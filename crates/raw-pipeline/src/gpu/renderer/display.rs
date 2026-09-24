@@ -53,21 +53,44 @@ impl DisplaySlot {
     }
 }
 
-pub(super) struct DisplayFrame<'a> {
-    pub encoder: CommandEncoder,
-    pub targets: MutexGuard<'a, Vec<OutputTargets>>,
-    pub slot: DisplaySlot,
-    pub bins: MetaRequest,
-    pub dims: (u32, u32),
-    pub source_dims: (u32, u32),
-    pub atlases: [Option<MaskAtlas>; 2],
-    pub timings: RenderTimings<'a>,
-    pub sharpen: Option<MutexGuard<'a, Vec<SharpenTargets>>>,
-    pub scratch: Vec<PooledTexture>,
-    pub retained: Retained,
+pub struct DisplayFrame<'a> {
+    pub(super) encoder: CommandEncoder,
+    pub(super) targets: MutexGuard<'a, Vec<OutputTargets>>,
+    pub(super) slot: DisplaySlot,
+    pub(super) bins: MetaRequest,
+    pub(super) dims: (u32, u32),
+    pub(super) source_dims: (u32, u32),
+    pub(super) atlases: [Option<MaskAtlas>; 2],
+    pub(super) timings: RenderTimings<'a>,
+    pub(super) sharpen: Option<MutexGuard<'a, Vec<SharpenTargets>>>,
+    pub(super) scratch: Vec<PooledTexture>,
+    pub(super) retained: Retained,
+}
+
+impl DisplayFrame<'_> {
+    pub fn texture(&self) -> &Texture {
+        self.slot.texture(&self.targets[0])
+    }
+
+    pub fn dims(&self) -> (u32, u32) {
+        self.dims
+    }
 }
 
 impl GpuRenderer {
+    pub fn render_display<'a>(
+        &'a self,
+        source: &LinearSource,
+        edits: &Edits,
+        opts: &RenderOptions,
+    ) -> PipelineResult<DisplayFrame<'a>> {
+        if self.ctx.is_lost() {
+            return Err(PipelineError::DeviceLost);
+        }
+        let edits = super::compose_edits(edits, opts);
+        self.display_chain(source, &edits, opts, RenderTimings::new(&self.ctx), None)
+    }
+
     pub(super) fn display_chain<'a>(
         &'a self,
         source: &LinearSource,
@@ -319,7 +342,7 @@ impl GpuRenderer {
                 .acquire(device, queue, &uniform_bytes, "process-uniform");
 
         let src_view = src.create_view(&TextureViewDescriptor::default());
-        let targets = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h);
+        let targets = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h)?;
         let p = &targets[0];
         let depth = display_depth(opts);
         let sixteen = (depth == DisplayDepth::Sixteen).then(|| {
@@ -371,7 +394,7 @@ impl GpuRenderer {
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("process-enc"),
         });
-        let display_started = std::time::Instant::now();
+        let display_started = web_time::Instant::now();
         let display_scope = t.enter(timing::DISPLAY);
         dispatch_2d(
             &mut encoder,
@@ -426,7 +449,8 @@ impl GpuRenderer {
             || opts.clip_warn;
         let warn_flags = opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1);
         let sharpen = final_pass_active
-            .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h));
+            .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h))
+            .transpose()?;
         let mut scratch: Vec<PooledTexture> = self
             .run_dcp_base_table(&mut encoder, dcp, &p.linear_texture, out_w, out_h)
             .into_iter()

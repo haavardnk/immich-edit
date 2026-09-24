@@ -1,5 +1,7 @@
 // color-space: sRGB-encoded Rgba8Unorm in (after tone-map in process or effects_tone) → 8-bit sRGB bytes out
+#[cfg(feature = "native")]
 use std::sync::mpsc::TryRecvError;
+#[cfg(feature = "native")]
 use std::time::Duration;
 
 use wgpu::{
@@ -7,10 +9,13 @@ use wgpu::{
     TexelCopyBufferInfo, TexelCopyBufferLayout, Texture, TextureAspect,
 };
 
+#[cfg(feature = "native")]
 use super::context::GpuContext;
+#[cfg(feature = "native")]
 use crate::cancel::CancelToken;
 use crate::{PipelineError, PipelineResult};
 
+#[cfg(feature = "native")]
 const CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(1);
 
 const ROW_ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -92,6 +97,7 @@ pub fn copy_texture_to_buffer(
     );
 }
 
+#[cfg(feature = "native")]
 pub fn map_buffer_cancellable(
     ctx: &GpuContext,
     buffer: &Buffer,
@@ -135,12 +141,26 @@ pub fn map_buffer_cancellable(
     }
 }
 
+#[cfg(feature = "web")]
+pub async fn map_read(buffer: &Buffer) -> PipelineResult<()> {
+    let (sender, receiver) = futures_channel::oneshot::channel();
+    buffer.slice(..).map_async(MapMode::Read, move |r| {
+        let _ = sender.send(r);
+    });
+    match receiver.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => Err(PipelineError::Render(format!("readback map: {e}"))),
+        Err(_) => Err(PipelineError::Render("readback channel closed".into())),
+    }
+}
+
 pub fn mapped_range(slice: &wgpu::BufferSlice) -> PipelineResult<wgpu::BufferView> {
     slice
         .get_mapped_range()
         .map_err(|e| PipelineError::Render(format!("readback range: {e}")))
 }
 
+#[cfg(feature = "native")]
 pub fn read_rgba8(
     ctx: &GpuContext,
     buffer: &Buffer,
@@ -164,6 +184,7 @@ pub fn read_rgba8(
     Ok(out)
 }
 
+#[cfg(feature = "native")]
 pub fn read_rgba16uint_as_rgb(
     ctx: &GpuContext,
     buffer: &Buffer,
@@ -190,6 +211,7 @@ pub fn read_rgba16uint_as_rgb(
     Ok(out)
 }
 
+#[cfg(feature = "native")]
 pub fn read_u32_ranges(
     ctx: &GpuContext,
     buffer: &Buffer,
@@ -197,6 +219,22 @@ pub fn read_u32_ranges(
     cancel: Option<&CancelToken>,
 ) -> PipelineResult<Vec<Vec<u32>>> {
     map_buffer_cancellable(ctx, buffer, cancel)?;
+    take_u32_ranges(buffer, ranges)
+}
+
+#[cfg(feature = "web")]
+pub async fn read_u32_ranges_async(
+    buffer: &Buffer,
+    ranges: &[std::ops::Range<u64>],
+) -> PipelineResult<Vec<Vec<u32>>> {
+    map_read(buffer).await?;
+    take_u32_ranges(buffer, ranges)
+}
+
+fn take_u32_ranges(
+    buffer: &Buffer,
+    ranges: &[std::ops::Range<u64>],
+) -> PipelineResult<Vec<Vec<u32>>> {
     let slice = buffer.slice(..);
     let data = mapped_range(&slice)?;
     let out = ranges

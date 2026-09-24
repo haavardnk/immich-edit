@@ -19,6 +19,7 @@ pub struct RawFrame {
     pub bps: usize,
     pub data: Vec<f32>,
     pub cpp: usize,
+    #[cfg(feature = "native")]
     pub exif: Option<little_exif::metadata::Metadata>,
 }
 
@@ -68,6 +69,7 @@ pub enum OutputColorSpace {
 }
 
 impl OutputColorSpace {
+    #[cfg(feature = "native")]
     pub fn icc_profile(&self) -> &'static [u8] {
         match self {
             Self::SRgb => crate::encode::icc::SRGB_ICC,
@@ -172,6 +174,7 @@ impl OutputFormat {
         }
     }
 
+    #[cfg(feature = "native")]
     pub fn exif_file_extension(&self) -> little_exif::filetype::FileExtension {
         use little_exif::filetype::FileExtension;
         match self {
