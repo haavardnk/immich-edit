@@ -3383,7 +3383,6 @@ name = "raw-pipeline"
 version = "0.0.0"
 dependencies = [
  "bytemuck",
- "bytes",
  "criterion",
  "fast_image_resize",
  "flate2",
@@ -3401,7 +3400,6 @@ dependencies = [
  "pollster",
  "rawler",
  "rayon",
- "rgb",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -3409,7 +3407,6 @@ dependencies = [
  "tiff",
  "tracing",
  "turbojpeg",
- "uuid",
  "webp",
  "wgpu",
 ]
@@ -3579,15 +3576,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
-]
-
-[[package]]
-name = "rgb"
-version = "0.8.53"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
-dependencies = [
- "bytemuck",
 ]
 
 [[package]]
