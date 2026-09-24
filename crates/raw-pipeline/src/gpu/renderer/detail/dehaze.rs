@@ -3,6 +3,7 @@ use std::sync::Arc;
 use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages, TextureViewDescriptor};
 
 use crate::PipelineResult;
+use crate::dehaze::DehazeGrid;
 use crate::edits::Edits;
 use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
 use crate::gpu::helpers::mip_count;
@@ -10,28 +11,27 @@ use crate::gpu::passes::dehaze::{
     DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams, MOMENT_FORMAT,
 };
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::source::SourceExtent;
 use crate::gpu::texture_pool::TextureKey;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_dehaze(
         &self,
         src: &Texture,
-        dims: (u32, u32),
+        extent: SourceExtent,
         edits: &Edits,
         atm: [f32; 3],
     ) -> PipelineResult<Arc<Texture>> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let (w, h) = dims;
-        let min_dim_full = w.min(h);
-        let half_min_full = (min_dim_full / 2).max(1);
-        let r_patch_full: u32 = (min_dim_full / 200).max(8).min(half_min_full);
-        let r_gf_full: u32 = (min_dim_full / 50).max(16).min(half_min_full);
-        let scale: u32 = if min_dim_full >= 512 { 4 } else { 1 };
+        let (w, h) = extent.dims;
+        let DehazeGrid {
+            scale,
+            patch: r_patch,
+            guided: r_gf,
+        } = DehazeGrid::for_dims(extent.full);
         let lw = (w / scale).max(1);
         let lh = (h / scale).max(1);
-        let r_patch: u32 = (r_patch_full / scale).max(2);
-        let r_gf: u32 = (r_gf_full / scale).max(4);
         let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
 
         let scratch_key = TextureKey::new(

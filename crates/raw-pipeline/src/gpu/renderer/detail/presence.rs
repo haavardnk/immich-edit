@@ -12,6 +12,7 @@ use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
 use crate::gpu::passes::presence::PresenceParams;
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::source::SourceExtent;
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
 struct PyramidLabels {
@@ -106,17 +107,19 @@ impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_presence(
         &self,
         src: &Texture,
-        dims: (u32, u32),
+        extent: SourceExtent,
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
+        let dims = extent.dims;
         let _span = tracing::debug_span!("gpu.run_presence", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
+        let (fw, fh) = extent.full;
         let edits = edits.clamped();
 
-        let radii = presence_radii(w, h);
-        let pyramid_levels = presence_pyramid_levels(w, h, radii);
+        let radii = presence_radii(fw, fh);
+        let pyramid_levels = presence_pyramid_levels(fw, fh, radii).min(mip_count(w, h));
 
         let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
         let adjusted = device.create_texture(&TextureDescriptor {
@@ -135,7 +138,7 @@ impl GpuRenderer {
         });
 
         let amts = presence_amounts(&edits);
-        let mip_sel = presence_mips(w, h, radii);
+        let mip_sel = presence_mips(fw, fh, radii);
         let params = PresenceParams {
             size: [w, h],
             _pad0: [0; 2],
@@ -196,13 +199,15 @@ impl GpuRenderer {
     pub(in crate::gpu::renderer) fn build_luma_pyramid(
         &self,
         src: &Texture,
-        dims: (u32, u32),
+        extent: SourceExtent,
     ) -> PipelineResult<Arc<Texture>> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
+        let dims = extent.dims;
         let (w, h) = dims;
-        let radii = presence_radii(w, h);
-        let pyramid_levels = presence_pyramid_levels(w, h, radii);
+        let radii = presence_radii(extent.full.0, extent.full.1);
+        let pyramid_levels =
+            presence_pyramid_levels(extent.full.0, extent.full.1, radii).min(mip_count(w, h));
         let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {

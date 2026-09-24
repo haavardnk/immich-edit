@@ -17,19 +17,21 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
-use crate::gpu::source::LinearSource;
+use crate::gpu::source::{LinearSource, SourceExtent};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
+use crate::gpu::uniforms::FULL_WINDOW;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::presence::{presence_mips, presence_radii};
-use crate::source::LinearKind;
+use crate::source::{LinearKind, SourceWindow};
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
 pub(super) struct DisplayInput<'s> {
     pub pass: &'s ProcessFastPass,
     pub src: &'s Texture,
-    pub src_dims: (u32, u32),
+    pub extent: SourceExtent,
+    pub window: Option<SourceWindow>,
     pub out_dims: (u32, u32),
     pub meta: &'s FrameMeta,
     pub edits: &'s Edits,
@@ -125,7 +127,8 @@ impl GpuRenderer {
             let input = DisplayInput {
                 pass: passes.0,
                 src: &source.texture,
-                src_dims: source.dims,
+                extent: source.extent(),
+                window: source.window,
                 out_dims,
                 meta,
                 edits,
@@ -137,20 +140,21 @@ impl GpuRenderer {
         }
 
         let t = &timings;
+        let extent = source.extent();
         let base = self.dehaze_source(source, &edits_c, t, cancel)?;
         let processed = if edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0 {
             let tex = t.stage(timing::PRESENCE, || {
-                self.run_presence(&base, source.dims, &edits_c)
+                self.run_presence(&base, extent, &edits_c)
             })?;
             crate::cancel::check(cancel)?;
             tex
         } else {
             base.clone()
         };
-        let layer_srcs = self.layer_presence_sources(&base, source.dims, &edits_c, t, cancel)?;
+        let layer_srcs = self.layer_presence_sources(&base, extent, &edits_c, t, cancel)?;
         let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
             Some(t.stage(timing::SHADOWS, || {
-                self.build_luma_pyramid(&processed, source.dims)
+                self.build_luma_pyramid(&processed, extent)
             })?)
         } else {
             None
@@ -161,7 +165,8 @@ impl GpuRenderer {
         let input = DisplayInput {
             pass: passes.1,
             src: &processed,
-            src_dims: source.dims,
+            extent,
+            window: source.window,
             out_dims,
             meta,
             edits,
@@ -188,7 +193,7 @@ impl GpuRenderer {
         })?;
         let tex = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-            self.run_dehaze(&source.texture, dims, edits, atmosphere)
+            self.run_dehaze(&source.texture, source.extent(), edits, atmosphere)
         })?;
         crate::cancel::check(cancel)?;
         Ok(tex)
@@ -197,7 +202,7 @@ impl GpuRenderer {
     fn layer_presence_sources(
         &self,
         base: &Arc<Texture>,
-        dims: (u32, u32),
+        extent: SourceExtent,
         edits: &Edits,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
@@ -216,7 +221,8 @@ impl GpuRenderer {
                 Some(tex) => tex.clone(),
                 None if amts.texture == 0.0 && amts.clarity == 0.0 => base.clone(),
                 None => {
-                    let tex = t.stage(timing::PRESENCE, || self.run_presence(base, dims, &eff))?;
+                    let tex =
+                        t.stage(timing::PRESENCE, || self.run_presence(base, extent, &eff))?;
                     crate::cancel::check(cancel)?;
                     tex
                 }
@@ -238,7 +244,8 @@ impl GpuRenderer {
         let DisplayInput {
             pass,
             src,
-            src_dims,
+            extent,
+            window,
             out_dims,
             meta,
             edits,
@@ -268,14 +275,19 @@ impl GpuRenderer {
         }
 
         let (out_w, out_h) = out_dims;
+        let SourceExtent {
+            dims: src_dims,
+            full: full_dims,
+        } = extent;
         let (crop_w_px, crop_h_px) =
-            crate::geom::display_crop_px(meta.orientation, &edits, src_dims);
+            crate::geom::display_crop_px(meta.orientation, &edits, full_dims);
         let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
 
         let (downscaled, downscaled_layers) = t.stage(timing::RESAMPLE, || {
-            let Some(dims) = crate::geom::resample_target(src_dims, ratio) else {
+            let Some(full_target) = crate::geom::resample_target(full_dims, ratio) else {
                 return Ok((None, HashMap::new()));
             };
+            let dims = scaled_dims(src_dims, full_dims, full_target);
             let main = self.resample_lanczos(src, src_dims, dims, "process-downscale")?;
             let layers = layer_srcs
                 .iter()
@@ -284,15 +296,16 @@ impl GpuRenderer {
                         .map(|t| (id.clone(), t))
                 })
                 .collect::<PipelineResult<HashMap<String, Arc<Texture>>>>()?;
-            PipelineResult::Ok((Some((main, dims)), layers))
+            PipelineResult::Ok((Some((main, dims, full_target)), layers))
         })?;
-        let (src, work_dims, layer_srcs) = match &downscaled {
-            Some((tex, dims)) => (tex.as_ref(), *dims, &downscaled_layers),
-            None => (src, src_dims, layer_srcs),
+        let (src, work_dims, work_full, layer_srcs) = match &downscaled {
+            Some((tex, dims, full)) => (tex.as_ref(), *dims, *full, &downscaled_layers),
+            None => (src, src_dims, full_dims, layer_srcs),
         };
         crate::cancel::check(cancel)?;
+        let src_window = window.map_or(FULL_WINDOW, |w| w.uv_rect(src_dims));
 
-        let geom = process_geom(meta, &edits, work_dims);
+        let geom = process_geom(meta, &edits, work_full);
         let setup = crate::dcp_pipeline::resolve(meta, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
@@ -307,15 +320,23 @@ impl GpuRenderer {
             scratch: OpScratch::default(),
         };
         let shadows_mip = {
-            let radii = presence_radii(src_dims.0, src_dims.1);
-            presence_mips(src_dims.0, src_dims.1, radii).shadows as f32
+            let radii = presence_radii(full_dims.0, full_dims.1);
+            presence_mips(full_dims.0, full_dims.1, radii).shadows as f32
         };
         let uniform_bytes = uniform::build_process_uniform(
             &pass.built,
             &self.passes.registry,
             &edits,
             &ctx_op,
-            &uniform::process_header(&edits, &geom, work_dims, out_dims, shadows_mip, true),
+            &uniform::process_header(
+                &edits,
+                &geom,
+                work_dims,
+                src_window,
+                out_dims,
+                shadows_mip,
+                true,
+            ),
         );
         let uniform_buf =
             self.uniform_pool
@@ -405,6 +426,7 @@ impl GpuRenderer {
                 shadows_view,
                 layer_srcs,
                 sensor_dims: work_dims,
+                src_window,
                 out_dims,
                 shadows_mip,
                 masked_sharpen,
@@ -526,4 +548,17 @@ impl GpuRenderer {
             retained,
         })
     }
+}
+
+fn scaled_dims(dims: (u32, u32), full: (u32, u32), target: (u32, u32)) -> (u32, u32) {
+    if dims == full {
+        return target;
+    }
+    let scale = |d: u32, f: u32, t: u32| {
+        ((u64::from(d) * u64::from(t) + u64::from(f) / 2) / u64::from(f)).max(1) as u32
+    };
+    (
+        scale(dims.0, full.0, target.0),
+        scale(dims.1, full.1, target.1),
+    )
 }

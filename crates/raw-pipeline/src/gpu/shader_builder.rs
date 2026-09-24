@@ -140,6 +140,7 @@ pub fn build_for(
     persp0: vec4<f32>,
     persp1: vec4<f32>,
     persp2: vec4<f32>,
+    src_window: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
@@ -242,6 +243,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     if (oh_t) {{ let tmp = su; su = sv; sv = tmp; }}
     if (oh_v) {{ sv = 1.0 - sv; }}
     if (oh_h) {{ su = 1.0 - su; }}
+    su = (su - p.src_window.x) / p.src_window.z;
+    sv = (sv - p.src_window.y) / p.src_window.w;
 
     let rgb = sample_src_cubic(vec2<f32>(su, sv));
     shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
@@ -327,6 +330,7 @@ pub fn build_prepare_wb(registry: &OpRegistry) -> BuiltProcessShader {
     persp0: vec4<f32>,
     persp1: vec4<f32>,
     persp2: vec4<f32>,
+    src_window: vec4<f32>,
 {struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;

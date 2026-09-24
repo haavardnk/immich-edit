@@ -4,7 +4,7 @@ use super::{SourceImage, header};
 use crate::{PipelineError, PipelineResult};
 
 const MAGIC: &[u8; 4] = b"IESR";
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 const PREFIX_BYTES: usize = 12;
 const MAX_HEADER_BYTES: usize = 4096;
 const MAX_PIXELS: u64 = 64 * 1024 * 1024;
@@ -112,7 +112,7 @@ fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
 mod tests {
     use super::*;
     use crate::frame::FrameMeta;
-    use crate::source::{LinearKind, SourceHeader};
+    use crate::source::{LinearKind, SourceHeader, SourceWindow};
 
     fn image(w: u32, h: u32) -> SourceImage {
         SourceImage {
@@ -131,6 +131,10 @@ mod tests {
                 kind: LinearKind::PostWb,
                 dims: (w, h),
                 atmosphere: Some([0.9, 0.8, 0.7]),
+                window: Some(SourceWindow {
+                    origin: (128, 256),
+                    full: (6000, 4000),
+                }),
             },
             rgb_f16: (0..w * h * 3)
                 .map(|i| half::f16::from_f32((i as f32 * 0.37).sin() * 4.0).to_bits())
@@ -164,6 +168,16 @@ mod tests {
             header::write(&header, &mut head).unwrap();
             assemble(&head, payload)
         };
+        let outside = {
+            let mut header = source.header.clone();
+            header.window = Some(SourceWindow {
+                origin: (5995, 0),
+                full: (6000, 4000),
+            });
+            let mut head = Vec::new();
+            header::write(&header, &mut head).unwrap();
+            assemble(&head, payload)
+        };
         let mut bad_magic = good.clone();
         bad_magic[0] = b'X';
         let mut bad_version = good.clone();
@@ -181,6 +195,7 @@ mod tests {
             ("truncated payload", good[..good.len() - 4].to_vec()),
             ("taller than the payload", restamp((8, 5))),
             ("zero dims", restamp((0, 4))),
+            ("window outside the frame", outside),
         ] {
             if decode(&bytes).is_ok() {
                 panic!("{label}: a malformed stream decoded");

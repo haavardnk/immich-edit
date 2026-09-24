@@ -6,6 +6,8 @@ use wgpu::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, Texture
 use super::GpuRenderer;
 use crate::gpu::source::LinearSource;
 use crate::source::SourceImage;
+#[cfg(feature = "native")]
+use crate::source::{SourceHeader, SourceWindow, WindowRect};
 use crate::{PipelineError, PipelineResult};
 
 impl GpuRenderer {
@@ -61,6 +63,7 @@ impl GpuRenderer {
             dims: (w, h),
             texture: Arc::new(texture),
             atmosphere: image.header.atmosphere,
+            window: image.header.window,
         })
     }
 
@@ -68,9 +71,13 @@ impl GpuRenderer {
     pub fn read_source(
         &self,
         source: &LinearSource,
+        window: Option<WindowRect>,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<SourceImage> {
-        let (w, h) = source.dims;
+        let (origin, (w, h)) = match window {
+            Some(rect) => (rect.origin, rect.dims),
+            None => ((0, 0), source.dims),
+        };
         let format = source.texture.format();
         let bpp = texel_size(format);
         let padded = (w * bpp).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
@@ -85,7 +92,16 @@ impl GpuRenderer {
             label: Some("linear-source-readback-enc"),
         });
         encoder.copy_texture_to_buffer(
-            source.texture.as_image_copy(),
+            wgpu::TexelCopyTextureInfo {
+                texture: &source.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: origin.0,
+                    y: origin.1,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
             wgpu::TexelCopyBufferInfo {
                 buffer: &buffer,
                 layout: wgpu::TexelCopyBufferLayout {
@@ -111,10 +127,15 @@ impl GpuRenderer {
         }
         drop(data);
         buffer.unmap();
-        Ok(SourceImage {
-            header: source.header(),
-            rgb_f16,
-        })
+        let header = SourceHeader {
+            dims: (w, h),
+            window: window.map(|rect| SourceWindow {
+                origin: rect.origin,
+                full: source.dims,
+            }),
+            ..source.header()
+        };
+        Ok(SourceImage { header, rgb_f16 })
     }
 }
 

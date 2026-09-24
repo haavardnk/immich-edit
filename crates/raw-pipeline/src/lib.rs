@@ -9,6 +9,7 @@ pub mod dcp;
 mod dcp_pipeline;
 #[cfg(feature = "native")]
 pub mod decode;
+pub mod dehaze;
 pub mod edit_manifest;
 pub mod edits;
 #[cfg(feature = "native")]

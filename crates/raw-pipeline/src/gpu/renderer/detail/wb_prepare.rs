@@ -13,7 +13,7 @@ use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
-use crate::gpu::uniforms::ProcessHeader;
+use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
 impl GpuRenderer {
@@ -66,6 +66,7 @@ impl GpuRenderer {
                 geom_extra3: [0.0; 4],
                 output: [0, 0, 0, 0],
                 perspective: crate::perspective::IDENTITY_ROWS,
+                src_window: FULL_WINDOW,
             },
         );
 
