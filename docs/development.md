@@ -135,23 +135,28 @@ npm run test:e2e
 GPU parity tests can skip when no adapter exists. Include local GPU evidence when changing shaders,
 GPU pass order, device setup, or CPU/GPU parity behavior.
 
-`e2e/render-parity.spec.ts` runs the wasm renderer in Chromium's WebGPU and compares its canvas with
-`web/e2e/fixtures/render/expected.rgb`, a native GPU render of the same source. Chromium validates
-WGSL with Tint, which rejects some code that naga accepts, so run it after any shader change. On
+`e2e/render-parity.spec.ts` runs the wasm renderer in Chromium's WebGPU on two cases under
+`web/e2e/fixtures/render/`: `fit`, the whole frame from a base source, and `tile`, a 1:1 region from
+a windowed source. Each compares the canvas with `expected.rgb`, the server's native GPU render of the
+same edits straight from the RAW, and fails below 50 dB PSNR. SwiftShader measures about 60 dB and
+a hardware GPU above 80 dB. Chromium validates WGSL with Tint,
+which rejects some code that naga accepts, so run it after any shader change. On
 Linux it uses SwiftShader and runs headed, so start it under a display server
 (`xvfb-run -a npx playwright test render-parity`): headless Chromium on Linux destroys the WebGPU
 device as soon as a canvas context is configured. Set `WEBGPU_SWIFTSHADER=1` to use SwiftShader
-elsewhere. When a render change is intended, rebake the fixture with a GPU:
+elsewhere. When a render change is intended, rebake the fixtures with a GPU:
 
 ```shell
 BAKE_WEB_PARITY=1 cargo test -p raw-pipeline --test web_parity_fixture
 ```
 
-`e2e/client-render.spec.ts` opens the editor with the browser renderer on the same fixture source
-and asserts that a display slider redraws the canvas with no `/preview` or `/source` request, that
-at 1:1 a slider tick redraws the tile with no request and a pan posts exactly one tile `/source`,
-and that a browser without WebGPU gets server previews. Other specs pin the server renderer through
-`installMocks`; pass `renderer: 'auto'` to opt in.
+`e2e/client-render.spec.ts` opens the editor with the browser renderer on the `fit` source and
+asserts that a display slider redraws the canvas with no `/preview` or `/source` request, that at
+1:1 a slider tick redraws the tile with no request and a pan posts exactly one tile `/source`, and
+that a browser without WebGPU, or one whose renderer fails to load, gets server previews. Other
+specs pin the server renderer through `installMocks`; pass `renderer: 'auto'` to opt in.
+
+CI fails when `web_render_bg.wasm` grows past 600 KiB gzipped.
 
 Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
 synthetic frames, JPEG decoding, and parity metrics. Declare `mod common;` and add a helper there
