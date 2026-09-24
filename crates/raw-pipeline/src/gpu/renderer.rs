@@ -44,6 +44,7 @@ mod resample;
 mod retouch;
 #[cfg(feature = "native")]
 mod sensor_stage;
+mod source_io;
 #[cfg(feature = "native")]
 mod stage_cache;
 mod uniform;
@@ -55,7 +56,7 @@ mod web;
 pub use display::DisplayFrame;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
-use sensor_stage::{CachedFrame, SensorCaches};
+use sensor_stage::{CachedFrame, SensorCaches, SourcePlan};
 #[cfg(feature = "native")]
 use stage_cache::Stage;
 #[cfg(feature = "web")]
@@ -252,7 +253,8 @@ impl GpuRenderer {
         let edits = compose_edits(edits, options);
         let display = match source {
             RenderSource::Raw(frame) => {
-                let linear = self.sensor_stage(frame, &edits, options, &timings, cancel)?;
+                let plan = SourcePlan::for_render(&edits, frame);
+                let linear = self.sensor_stage(frame, &edits, options, plan, &timings, cancel)?;
                 self.display_chain(&linear, &edits, options, timings, cancel)?
             }
             RenderSource::Linear(linear) => {

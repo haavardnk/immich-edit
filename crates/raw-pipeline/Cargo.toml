@@ -19,6 +19,7 @@ native = [
     "dep:little_exif",
     "dep:flate2",
     "dep:pollster",
+    "dep:zstd",
     "wgpu/dx12",
     "wgpu/metal",
     "wgpu/vulkan",
@@ -42,6 +43,8 @@ fast_image_resize = "6.0.0"
 rayon = { workspace = true }
 multiversion = "0.9"
 web-time = "1"
+ruzstd = "0.8"
+zstd = { version = "0.13", optional = true }
 rawler = { version = "0.8", optional = true }
 turbojpeg = { version = "1", default-features = false, features = ["pkg-config"], optional = true }
 pollster = { version = "1.0", optional = true }

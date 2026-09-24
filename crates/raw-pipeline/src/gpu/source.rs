@@ -5,12 +5,7 @@ use wgpu::Texture;
 use crate::frame::FrameMeta;
 #[cfg(feature = "native")]
 use crate::frame::RawFrame;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LinearKind {
-    PreWb,
-    PostWb,
-}
+use crate::source::{LinearKind, SourceHeader};
 
 #[derive(Clone)]
 pub struct LinearSource {
@@ -19,6 +14,17 @@ pub struct LinearSource {
     pub dims: (u32, u32),
     pub texture: Arc<Texture>,
     pub atmosphere: Option<[f32; 3]>,
+}
+
+impl LinearSource {
+    pub fn header(&self) -> SourceHeader {
+        SourceHeader {
+            meta: self.meta.clone(),
+            kind: self.kind,
+            dims: self.dims,
+            atmosphere: self.atmosphere,
+        }
+    }
 }
 
 #[cfg(feature = "native")]

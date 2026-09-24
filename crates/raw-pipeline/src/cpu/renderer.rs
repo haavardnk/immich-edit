@@ -58,6 +58,16 @@ impl CpuRenderer {
         crate::cpu::pipeline::render_cached(frame, edits, options, cancel, Some(self))
     }
 
+    pub fn render_source(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        cancel: Option<&CancelToken>,
+    ) -> crate::PipelineResult<crate::source::RenderedSource> {
+        crate::cpu::pipeline::render_source(frame, edits, options, cancel, self)
+    }
+
     pub(crate) fn get(&self, key: u64) -> Option<Arc<SensorStage>> {
         self.sensor_cache.lock().get(&key).cloned()
     }

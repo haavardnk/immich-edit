@@ -18,6 +18,6 @@ mod uniforms;
 pub use renderer::DisplayMeta;
 pub use renderer::GpuPoolStats;
 pub use renderer::{DisplayFrame, GpuRenderer, GpuRendererOptions, RenderPlan};
+pub use source::LinearSource;
 #[cfg(feature = "native")]
 pub use source::RenderSource;
-pub use source::{LinearKind, LinearSource};

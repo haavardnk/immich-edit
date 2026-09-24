@@ -6,7 +6,7 @@ use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
     Vec2f,
 };
-use raw_pipeline::gpu::LinearKind;
+use raw_pipeline::source::LinearKind;
 
 fn wb_layer() -> MaskLayer {
     MaskLayer {
