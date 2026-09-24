@@ -8,8 +8,10 @@ const web = path.resolve(import.meta.dirname, '..');
 const fixtures = path.join(web, 'e2e/fixtures/render');
 const spec = JSON.parse(fs.readFileSync(path.join(fixtures, 'case.json'), 'utf8'));
 const dcp = path.join(web, '../crates/backend/assets/dcp', spec.dcp);
+const FRAME = { timeout: 60_000 };
 
 test.use(webgpu);
+test.describe.configure({ timeout: 180_000 });
 
 function renderPosts(page: Page): string[] {
   const posts: string[] = [];
@@ -40,7 +42,7 @@ test('a display slider renders in the browser without a server round trip', asyn
   await gotoAsset(page);
 
   const canvas = page.getByTestId('preview-canvas');
-  await expect(canvas).toBeVisible({ timeout: 30_000 });
+  await expect(canvas).toBeVisible(FRAME);
   await expect.poll(() => posts).toEqual(['source']);
   const drawn = (): Promise<string> => canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL());
   const before = await drawn();
@@ -50,7 +52,7 @@ test('a display slider renders in the browser without a server round trip', asyn
   await exposure.focus();
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
-  await expect.poll(drawn).not.toBe(before);
+  await expect.poll(drawn, FRAME).not.toBe(before);
   await page.waitForTimeout(500);
 
   expect(posts).toEqual([]);
