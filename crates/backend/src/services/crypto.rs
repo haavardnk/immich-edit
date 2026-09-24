@@ -75,12 +75,7 @@ impl std::fmt::Debug for InstanceCrypto {
 impl InstanceCrypto {
     pub fn load_or_create(path: &Path, has_secrets: bool) -> Result<Self, CryptoError> {
         let key_bytes = match fs::read(path) {
-            Ok(bytes) => {
-                if bytes.len() != KEY_LEN {
-                    return Err(CryptoError::KeyCorrupt);
-                }
-                bytes
-            }
+            Ok(bytes) => bytes,
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 if has_secrets {
                     return Err(CryptoError::KeyMissing);
@@ -89,8 +84,7 @@ impl InstanceCrypto {
             }
             Err(e) => return Err(CryptoError::Io(e)),
         };
-        let mut key_arr = [0u8; KEY_LEN];
-        key_arr.copy_from_slice(&key_bytes);
+        let key_arr: [u8; KEY_LEN] = key_bytes.try_into().map_err(|_| CryptoError::KeyCorrupt)?;
         let key = Key::<Aes256Gcm>::from(key_arr);
         Ok(Self {
             cipher: Aes256Gcm::new(&key),
@@ -174,6 +168,19 @@ mod tests {
         }
         let dec = crypto.decrypt(&enc).unwrap();
         assert_eq!(dec.as_slice(), b"immich-token-secret");
+    }
+
+    #[test]
+    fn rejects_a_key_file_of_the_wrong_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("instance.key");
+        for len in [KEY_LEN - 1, KEY_LEN + 1] {
+            std::fs::write(&path, vec![7u8; len]).unwrap();
+            let result = InstanceCrypto::load_or_create(&path, true);
+            if !matches!(result, Err(CryptoError::KeyCorrupt)) {
+                panic!("a {len}-byte key must be rejected as corrupt");
+            }
+        }
     }
 
     #[test]
