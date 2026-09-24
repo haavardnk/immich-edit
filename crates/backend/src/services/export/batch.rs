@@ -169,7 +169,8 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> 
         &params.params,
     )
     .await?;
-    let dir = zip_job_dir(state, job.server_epoch, job.user_id, job.id);
+    let dir = zip_job_dir(state, job.server_epoch, job.user_id, job.id)
+        .map_err(|e| JobItemError::msg(format!("export dir: {e}")))?;
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| JobItemError::msg(format!("create export dir: {e}")))?;

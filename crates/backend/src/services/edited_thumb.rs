@@ -9,6 +9,7 @@ use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
+use crate::safe_path;
 use crate::services::render::{RenderError, RenderIdentity, RenderService};
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
@@ -77,11 +78,15 @@ impl EditedThumbService {
         asset_id: AssetKey,
         hash: &str,
         size: u32,
-    ) -> PathBuf {
-        self.dir
-            .join(identity.server_epoch.to_string())
-            .join(identity.owner.to_string())
-            .join(format!("{asset_id}-{hash}-{size}.jpg"))
+    ) -> std::io::Result<PathBuf> {
+        safe_path::join(
+            &self.dir,
+            &[
+                &identity.server_epoch.to_string(),
+                &identity.owner.to_string(),
+                &format!("{asset_id}-{hash}-{size}.jpg"),
+            ],
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -100,8 +105,8 @@ impl EditedThumbService {
             return Err(EditedThumbError::HashMismatch);
         }
         let dcp_revision = render.dcp_revision().await?;
-        let render_hash = format!("{expected_hash}-{dcp_revision}");
-        let path = self.cache_path(identity, asset_id, &render_hash, size);
+        let render_hash = format!("{actual}-{dcp_revision}");
+        let path = self.cache_path(identity, asset_id, &render_hash, size)?;
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);
         }
@@ -140,10 +145,10 @@ impl EditedThumbService {
     }
 
     pub async fn purge_asset(&self, server_epoch: i64, owner: Uuid, asset_id: AssetKey) {
-        let dir = self
-            .dir
-            .join(server_epoch.to_string())
-            .join(owner.to_string());
+        let Ok(dir) = safe_path::join(&self.dir, &[&server_epoch.to_string(), &owner.to_string()])
+        else {
+            return;
+        };
         let prefix = format!("{asset_id}-");
         let Ok(mut entries) = fs::read_dir(&dir).await else {
             return;

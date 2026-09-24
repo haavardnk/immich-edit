@@ -10,6 +10,8 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use crate::safe_path;
+
 mod evict;
 mod legacy;
 
@@ -118,14 +120,17 @@ impl RasterStore {
         Ok(store)
     }
 
-    fn paths(&self, server_epoch: i64, owner: Uuid, raster_id: &str) -> (PathBuf, PathBuf) {
-        let owner_dir = self
-            .dir
-            .join(server_epoch.to_string())
-            .join(owner.to_string());
-        let bin = owner_dir.join(format!("{raster_id}.r8"));
-        let meta = owner_dir.join(format!("{raster_id}.json"));
-        (bin, meta)
+    fn paths(
+        &self,
+        server_epoch: i64,
+        owner: Uuid,
+        raster_id: &str,
+    ) -> std::io::Result<(PathBuf, PathBuf)> {
+        let epoch = server_epoch.to_string();
+        let owner = owner.to_string();
+        let bin = safe_path::join(&self.dir, &[&epoch, &owner, &format!("{raster_id}.r8")])?;
+        let meta = safe_path::join(&self.dir, &[&epoch, &owner, &format!("{raster_id}.json")])?;
+        Ok((bin, meta))
     }
 
     pub async fn store(
@@ -161,7 +166,7 @@ impl RasterStore {
         hasher.update(bytes);
         let raster_id = hex::encode(hasher.finalize());
 
-        let (bin_path, meta_path) = self.paths(server_epoch, owner, &raster_id);
+        let (bin_path, meta_path) = self.paths(server_epoch, owner, &raster_id)?;
         if let Some(owner_dir) = bin_path.parent() {
             fs::create_dir_all(owner_dir).await?;
         }
@@ -192,7 +197,9 @@ impl RasterStore {
         owner: Uuid,
         raster_id: &str,
     ) -> Result<(RasterMeta, Vec<u8>), RasterStoreError> {
-        let (bin_path, meta_path) = self.paths(server_epoch, owner, raster_id);
+        let (bin_path, meta_path) = self
+            .paths(server_epoch, owner, raster_id)
+            .map_err(|_| RasterStoreError::NotFound)?;
         if !fs::try_exists(&meta_path).await? {
             return Err(RasterStoreError::NotFound);
         }
@@ -209,7 +216,9 @@ impl RasterStore {
         owner: Uuid,
         raster_id: &str,
     ) -> Result<RasterMeta, RasterStoreError> {
-        let (_, meta_path) = self.paths(server_epoch, owner, raster_id);
+        let (_, meta_path) = self
+            .paths(server_epoch, owner, raster_id)
+            .map_err(|_| RasterStoreError::NotFound)?;
         if !fs::try_exists(&meta_path).await? {
             return Err(RasterStoreError::NotFound);
         }

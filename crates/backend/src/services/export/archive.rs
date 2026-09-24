@@ -5,36 +5,55 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::safe_path;
 use crate::state::AppState;
 
-pub fn zip_job_dir(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) -> PathBuf {
-    state
-        .config
-        .cache_dir
-        .join("exports")
-        .join(server_epoch.to_string())
-        .join(owner.to_string())
-        .join(job_id.to_string())
+pub fn zip_job_dir(
+    state: &AppState,
+    server_epoch: i64,
+    owner: Uuid,
+    job_id: Uuid,
+) -> std::io::Result<PathBuf> {
+    safe_path::join(
+        &state.config.cache_dir,
+        &[
+            "exports",
+            &server_epoch.to_string(),
+            &owner.to_string(),
+            &job_id.to_string(),
+        ],
+    )
 }
 
-pub fn zip_archive_path(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) -> PathBuf {
-    state
-        .config
-        .cache_dir
-        .join("exports")
-        .join(server_epoch.to_string())
-        .join(owner.to_string())
-        .join(format!("{job_id}.zip"))
+pub fn zip_archive_path(
+    state: &AppState,
+    server_epoch: i64,
+    owner: Uuid,
+    job_id: Uuid,
+) -> std::io::Result<PathBuf> {
+    safe_path::join(
+        &state.config.cache_dir,
+        &[
+            "exports",
+            &server_epoch.to_string(),
+            &owner.to_string(),
+            &format!("{job_id}.zip"),
+        ],
+    )
 }
 
 pub async fn cleanup_zip_job(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) {
-    let dir = zip_job_dir(state, server_epoch, owner, job_id);
+    let (Ok(dir), Ok(archive)) = (
+        zip_job_dir(state, server_epoch, owner, job_id),
+        zip_archive_path(state, server_epoch, owner, job_id),
+    ) else {
+        return;
+    };
     if let Err(e) = tokio::fs::remove_dir_all(&dir).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
         tracing::warn!(error = %e, "remove export dir");
     }
-    let archive = zip_archive_path(state, server_epoch, owner, job_id);
     if let Err(e) = tokio::fs::remove_file(&archive).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
@@ -105,11 +124,17 @@ pub async fn build_zip_archive(
     owner: Uuid,
     job_id: Uuid,
 ) -> Result<PathBuf, AppError> {
-    let archive = zip_archive_path(state, server_epoch, owner, job_id);
+    let archive = zip_archive_path(state, server_epoch, owner, job_id).map_err(|e| {
+        tracing::error!(error = %e, "export archive path");
+        AppError::Internal
+    })?;
     if tokio::fs::try_exists(&archive).await.unwrap_or(false) {
         return Ok(archive);
     }
-    let dir = zip_job_dir(state, server_epoch, owner, job_id);
+    let dir = zip_job_dir(state, server_epoch, owner, job_id).map_err(|e| {
+        tracing::error!(error = %e, "export job dir");
+        AppError::Internal
+    })?;
     let archive_for_task = archive.clone();
     tokio::task::spawn_blocking(move || zip_dir_blocking(&dir, &archive_for_task))
         .await
