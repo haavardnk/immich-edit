@@ -1,12 +1,10 @@
 // color-space: linear scene-referred Rgba16Float in → R16Float luma pyramid out
 use std::sync::Arc;
 
-use wgpu::{
-    BindGroupLayout, ComputePipeline, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages,
-};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureUsages};
 
 use crate::gpu::context::GpuContext;
+use crate::gpu::texture_pool::TextureKey;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry};
 
@@ -34,20 +32,13 @@ impl LumaPyramidPass {
         }
     }
 
-    pub fn allocate_pyramid(ctx: &GpuContext, w: u32, h: u32, levels: u32) -> Texture {
-        ctx.device.create_texture(&TextureDescriptor {
-            label: Some("luma-pyramid"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: levels,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        })
+    pub fn pyramid_key(ctx: &GpuContext, w: u32, h: u32, levels: u32) -> TextureKey {
+        TextureKey::new(
+            ctx.linear_format,
+            w,
+            h,
+            levels,
+            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        )
     }
 }

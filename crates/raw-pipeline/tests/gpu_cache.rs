@@ -132,6 +132,35 @@ fn a_white_balance_change_reuses_the_sensor_stage() {
 }
 
 #[test]
+fn display_textures_are_reused_across_ticks() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let (w, h) = (768, 512);
+    let frame = haze_frame(w, h);
+    let opts = rgb8_opts(w as u32);
+    let mut edits = Edits::default();
+    edits.basic.dehaze = 30.0;
+    edits.basic.clarity = 25.0;
+    edits.tone.shadows = 30.0;
+    renderer.render(&frame, &edits, &opts).unwrap();
+    let first = renderer.pool_stats().texture_pool;
+    for exposure_ev in [0.2, 0.4, 0.6] {
+        edits.basic.exposure_ev = exposure_ev;
+        renderer.render(&frame, &edits, &opts).unwrap();
+    }
+    let later = renderer.pool_stats().texture_pool;
+
+    let full_size = (w * h * 8) as u64;
+    if first < 3 * full_size {
+        panic!("only {first} bytes of display textures went back to the pool");
+    }
+    if later != first {
+        panic!("display ticks grew the texture pool from {first} to {later} bytes");
+    }
+}
+
+#[test]
 fn mask_atlas_is_allocated_and_uploaded_once() {
     let Some(renderer) = try_renderer() else {
         return;

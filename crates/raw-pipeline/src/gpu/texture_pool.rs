@@ -170,8 +170,8 @@ impl PooledTexture {
         self.texture.as_ref().expect("pooled texture taken")
     }
 
-    pub fn into_arc(mut self) -> Arc<Texture> {
-        self.texture.take().expect("pooled texture taken")
+    pub fn shared(&self) -> Arc<Texture> {
+        self.texture.clone().expect("pooled texture taken")
     }
 }
 

@@ -34,6 +34,7 @@ mod lut;
 mod mask_overlay;
 mod masks;
 mod meta;
+#[cfg(feature = "native")]
 mod mipgen;
 #[cfg(feature = "native")]
 mod output;

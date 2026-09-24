@@ -1,18 +1,15 @@
-use std::sync::Arc;
-
 use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages, TextureViewDescriptor};
 
 use crate::PipelineResult;
 use crate::dehaze::DehazeGrid;
 use crate::edits::Edits;
 use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
-use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::dehaze::{
     DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams, MOMENT_FORMAT,
 };
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
-use crate::gpu::texture_pool::TextureKey;
+use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_dehaze(
@@ -21,7 +18,7 @@ impl GpuRenderer {
         extent: SourceExtent,
         edits: &Edits,
         atm: [f32; 3],
-    ) -> PipelineResult<Arc<Texture>> {
+    ) -> PipelineResult<PooledTexture> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = extent.dims;
@@ -66,7 +63,7 @@ impl GpuRenderer {
             self.ctx.linear_format,
             w,
             h,
-            mip_count(w, h),
+            1,
             TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
         );
         let out = self.texture_pool.acquire(device, out_key, "dehaze-out");
@@ -143,11 +140,7 @@ impl GpuRenderer {
         let ab_view = ab.create_view(&TextureViewDescriptor::default());
         let ab_h_view = ab_h.create_view(&TextureViewDescriptor::default());
         let ab_v_view = ab_v.create_view(&TextureViewDescriptor::default());
-        let out_view = out.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let out_view = out.create_view(&TextureViewDescriptor::default());
 
         let p = &self.passes.dehaze;
         let bg_downsample = bind_group(
@@ -304,8 +297,7 @@ impl GpuRenderer {
             c.set_bind_group(0, &bg_apply, &[]);
             c.dispatch_workgroups(gx, gy, 1);
         }
-        self.encode_mipgen(&mut encoder, &out, w, h);
         queue.submit(Some(encoder.finish()));
-        Ok(out.into_arc())
+        Ok(out)
     }
 }
