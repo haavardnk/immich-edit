@@ -131,7 +131,7 @@ imply planned support.
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
-| Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads |
+| Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads; a bookmarked or pasted editor link gets its timeline neighbours |
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |

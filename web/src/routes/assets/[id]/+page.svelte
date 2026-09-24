@@ -23,7 +23,7 @@
 
   onMount(() => {
     if (browsing.assets.length > 0) return;
-    void restoreBrowse(page.url.searchParams.get('from'));
+    void restoreBrowse(page.url.searchParams.get('from'), id);
   });
 
   onDestroy(() => {

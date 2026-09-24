@@ -37,6 +37,17 @@ test('opening the editor directly rebuilds the filmstrip from the return path', 
   await expect(page.getByRole('link', { name: 'IMG_0003.ARW' })).toBeVisible();
 });
 
+test('a deep link without a return path gets its timeline neighbours', async ({ page }) => {
+  await installMocks(page, { assets: ASSETS });
+
+  await page.goto(`/assets/${B}`);
+  await expect(page.getByRole('link', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'IMG_0003.ARW' })).toBeVisible();
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page).toHaveURL(new RegExp(A));
+});
+
 test('arrow keys move through the collection after a direct editor load', async ({ page }) => {
   await installMocks(page, { assets: ASSETS });
 
@@ -56,8 +67,14 @@ test('a restored grid keeps the filters that were active when the editor opened'
   await installMocks(page, { assets: ASSETS });
 
   const names: (string | undefined)[] = [];
+  const track = (body: unknown): string | undefined =>
+    (body as { originalFileName?: string }).originalFileName;
   await page.route('**/api/search/metadata', async (route) => {
-    names.push((route.request().postDataJSON() as { originalFileName?: string }).originalFileName);
+    names.push(track(route.request().postDataJSON()));
+    await route.fallback();
+  });
+  await page.route('**/api/search/window', async (route) => {
+    names.push(track((route.request().postDataJSON() as { query: unknown }).query));
     await route.fallback();
   });
 

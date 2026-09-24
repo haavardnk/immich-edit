@@ -1,3 +1,4 @@
+import { searchWindow } from '$lib/api/search';
 import { loadEditedAssets, loadFolderAssets, runSearch } from '$lib/browseSources';
 import { validReturnPath } from '$lib/editorNavigation';
 import { resolveSearchMode } from '$lib/searchMode';
@@ -8,6 +9,8 @@ import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelt
 import { browsing } from '$lib/stores/browsing.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
 import type { AssetSummary } from '$lib/types/album';
+
+const WINDOW_RADIUS = 250;
 
 interface RouteBase {
   context: string;
@@ -108,21 +111,32 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   return null;
 }
 
-export async function restoreBrowse(from: string | null): Promise<void> {
-  if (!validReturnPath(from)) return;
-  const url = new URL(from, 'http://restore.invalid');
-  const route = matchBrowseRoute(url);
+export async function restoreBrowse(from: string | null, assetId: string): Promise<void> {
+  const returnPath = validReturnPath(from) ? from : null;
+  const route = matchBrowseRoute(new URL(returnPath ?? '/photos', 'http://restore.invalid'));
   if (!route) return;
 
   browseControls.enter(route.context, route.family);
-  const filters = recallBrowseFilters(from);
+  const filters = returnPath ? recallBrowseFilters(returnPath) : null;
   if (filters) browseControls.applyFilters(filters);
 
   if ('feed' in route) {
-    await new BrowseFeed(route.feed).fetchPage(true);
+    if (!route.feed.fetcher && (await restoreWindow(route.feed, assetId))) return;
+    if (returnPath) await new BrowseFeed(route.feed).fetchPage(true);
     return;
   }
   await rejected.load().catch(() => undefined);
   const assets = await route.load();
   browsing.set(sortAssets(assets, route.sortAt, browseControls.sortDir));
+}
+
+async function restoreWindow(feed: BrowseFeedOptions, assetId: string): Promise<boolean> {
+  const query = browseControls.searchBody(feed.baseBody());
+  const [result] = await Promise.all([
+    searchWindow(assetId, query, WINDOW_RADIUS).catch(() => null),
+    rejected.load().catch(() => undefined)
+  ]);
+  if (!result?.items.length) return false;
+  browsing.set(rejected.stamp(result.items));
+  return true;
 }

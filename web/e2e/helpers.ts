@@ -235,6 +235,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     }
     if (p === '/api/search/statistics')
       return route.fulfill(json({ total: opts.total ?? assets.length }));
+    if (p === '/api/search/window') {
+      const body = req.postDataJSON() as {
+        assetId: string;
+        radius: number;
+        query: Record<string, unknown>;
+      };
+      const feed = ordered(body.query.order);
+      const at = feed.findIndex((a) => a.id === body.assetId.split('_')[0]);
+      const items =
+        at < 0 ? [] : expanded(feed.slice(Math.max(0, at - body.radius), at + body.radius + 1));
+      return route.fulfill(json({ items }));
+    }
     if (p === '/api/edits') {
       const entries = opts.edits ?? [];
       if (url.searchParams.get('with_assets') !== 'true') return route.fulfill(json(entries));
