@@ -49,7 +49,7 @@ impl GpuRenderer {
             scratch: OpScratch::default(),
         };
 
-        let pass = &self.passes.wb_prepare;
+        let pass = &self.passes.sensor_stage.wb_prepare;
         let uniform_bytes = build_process_uniform(
             &pass.built,
             &self.passes.registry,

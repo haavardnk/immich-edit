@@ -53,7 +53,7 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
-        let p = &self.passes.retouch;
+        let p = &self.passes.sensor_stage.retouch;
         let mut current = src;
 
         for stroke in edits.retouch.iter().filter(|s| s.is_effective()) {
