@@ -7,6 +7,7 @@ use wgpu::{
     TextureUsages,
 };
 
+use super::timer::TimerSlots;
 use crate::{PipelineError, PipelineResult};
 
 pub struct GpuContext {
@@ -17,6 +18,7 @@ pub struct GpuContext {
     pub adapter_info: AdapterInfo,
     pub linear_format: TextureFormat,
     pub timestamps: bool,
+    pub(crate) timer_slots: TimerSlots,
     device_lost: Arc<AtomicBool>,
 }
 
@@ -100,6 +102,7 @@ impl GpuContext {
             adapter_info,
             linear_format,
             timestamps,
+            timer_slots: TimerSlots::default(),
             device_lost,
         }))
     }
