@@ -128,7 +128,10 @@ fn stage_report() {
     for (camera, fixture) in FIXTURES {
         let path = common::fixture_path(fixture);
         let frame = decode::decode(&std::fs::read(&path).unwrap()).unwrap();
-        println!("\n### {fixture}: {}x{}", frame.width, frame.height);
+        println!(
+            "\n### {fixture}: {}x{}",
+            frame.meta.width, frame.meta.height
+        );
 
         report(
             &format!("{camera} cpu"),

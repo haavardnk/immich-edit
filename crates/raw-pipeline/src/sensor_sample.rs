@@ -1,5 +1,5 @@
 use crate::edits::{CropRect, Edits};
-use crate::frame::{OrientFlips, RawFrame};
+use crate::frame::{FrameMeta, OrientFlips, RawFrame};
 use crate::geom::GeometryTransform;
 
 pub(crate) const SAMPLE_TARGET: usize = 200_000;
@@ -63,10 +63,13 @@ fn mosaic_block_rgb(
     acc
 }
 pub(crate) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
-    let wb = camera_wb_coeffs(frame.wb_coeffs);
-    let xyz_to_cam =
-        crate::color::resolve_xyz_to_cam(&frame.color_matrices, frame.wb_coeffs, frame.xyz_to_cam);
-    if !frame.is_raw || crate::color::is_unusable_matrix(&xyz_to_cam) {
+    let wb = camera_wb_coeffs(frame.meta.wb_coeffs);
+    let xyz_to_cam = crate::color::resolve_xyz_to_cam(
+        &frame.meta.color_matrices,
+        frame.meta.wb_coeffs,
+        frame.meta.xyz_to_cam,
+    );
+    if !frame.meta.is_raw || crate::color::is_unusable_matrix(&xyz_to_cam) {
         return (wb, crate::color::identity_3x3());
     }
     (wb, crate::color::cam_to_srgb_matrix(xyz_to_cam))
@@ -87,8 +90,8 @@ pub(crate) fn develop_luma(r: f32, g: f32, b: f32) -> f32 {
     crate::tone::apply_display_luma([r, g, b])
 }
 pub(crate) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f32; 3]> {
-    let w = frame.width as i32;
-    let h = frame.height as i32;
+    let w = frame.meta.width as i32;
+    let h = frame.meta.height as i32;
     if w <= 0 || h <= 0 || frame.cpp < 3 {
         return None;
     }
@@ -100,7 +103,7 @@ pub(crate) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f
     let load = |ix: i32, iy: i32| -> [f32; 3] {
         let cx = ix.clamp(0, w - 1) as usize;
         let cy = iy.clamp(0, h - 1) as usize;
-        let off = (cy * frame.width + cx) * stride;
+        let off = (cy * frame.meta.width + cx) * stride;
         [frame.data[off], frame.data[off + 1], frame.data[off + 2]]
     };
     let c00 = load(xi, yi);
@@ -175,8 +178,8 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         return None;
     }
     let (dim, table) = cfa_block(&frame.cfa_pattern);
-    let bw = frame.width / dim;
-    let bh = frame.height / dim;
+    let bw = frame.meta.width / dim;
+    let bh = frame.meta.height / dim;
     if bw == 0 || bh == 0 {
         return None;
     }
@@ -187,7 +190,7 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
     for (oy, ox) in (0..out_h).flat_map(|oy| (0..out_w).map(move |ox| (oy, ox))) {
         let rgb = mosaic_block_rgb(
             &frame.data,
-            frame.width,
+            frame.meta.width,
             dim,
             &table,
             ox * stride * dim,
@@ -196,19 +199,16 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         data.extend_from_slice(&rgb);
     }
     Some(RawFrame {
-        width: out_w,
-        height: out_h,
+        meta: FrameMeta {
+            width: out_w,
+            height: out_h,
+            capture_sigma: None,
+            ..frame.meta.clone()
+        },
         cfa_pattern: String::new(),
         bps: frame.bps,
-        wb_coeffs: frame.wb_coeffs,
-        xyz_to_cam: frame.xyz_to_cam,
-        color_matrices: frame.color_matrices.clone(),
         data,
         cpp: 3,
-        orientation: frame.orientation,
-        is_raw: frame.is_raw,
-        capture_sigma: None,
-        model: frame.model.clone(),
         exif: None,
     })
 }

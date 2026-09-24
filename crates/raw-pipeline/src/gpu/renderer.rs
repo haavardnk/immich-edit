@@ -242,7 +242,7 @@ impl GpuRenderer {
         let queue = &self.ctx.queue;
 
         let mut edits = edits.clamped();
-        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.is_raw));
+        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
         let edits = edits;
         let sharpen_active = edits.detail.sharpen_active();
         let masked_sharpen = edits.masked_sharpen_active();
@@ -291,10 +291,10 @@ impl GpuRenderer {
         let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
-                wb_coeffs: frame.wb_coeffs,
+                wb_coeffs: frame.meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
-                is_raw: frame.is_raw,
-                capture_sigma: frame.capture_sigma,
+                is_raw: frame.meta.is_raw,
+                capture_sigma: frame.meta.capture_sigma,
                 preview_mode: opts.preview_mode.clone(),
                 roi: opts.roi,
                 dcp: setup.resolved,
@@ -553,7 +553,7 @@ impl GpuRenderer {
             out_dims,
             geom.source,
             opts,
-            frame.is_raw,
+            frame.meta.is_raw,
             t.clock(),
         )
     }
@@ -607,9 +607,9 @@ impl GpuRenderer {
             None => full_src,
         };
         let preview_dims = crate::geom::preview_ratio(
-            frame.orientation,
+            frame.meta.orientation,
             edits,
-            (frame.width as u32, frame.height as u32),
+            (frame.meta.width as u32, frame.meta.height as u32),
             options.max_edge,
             options.quality,
         )
@@ -740,9 +740,9 @@ impl GpuRenderer {
         composed.geometry.crop = crate::geom::compose_roi(composed.geometry.crop, options.roi);
         let edits = &composed;
         let plan = RenderPlan::select(edits, frame);
-        let full_dims = (frame.width as u32, frame.height as u32);
+        let full_dims = (frame.meta.width as u32, frame.meta.height as u32);
         let preview_ratio = crate::geom::preview_ratio(
-            frame.orientation,
+            frame.meta.orientation,
             edits,
             full_dims,
             options.max_edge,

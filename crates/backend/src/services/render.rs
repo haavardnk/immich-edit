@@ -175,7 +175,7 @@ impl RenderService {
             self.frame(identity, &immich, source).await?
         };
         let mut edits = edits;
-        if frame.is_raw {
+        if frame.meta.is_raw {
             edits.lens = self.inputs.resolve_lens(&immich, source, edits.lens).await;
         }
         options.rasters = self.inputs.rasters_for(identity, &edits).await;

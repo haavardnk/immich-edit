@@ -38,10 +38,10 @@ impl GpuRenderer {
 
         let ctx_op = OpContext {
             render: RenderContext {
-                wb_coeffs: frame.wb_coeffs,
+                wb_coeffs: frame.meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
-                is_raw: frame.is_raw,
-                capture_sigma: frame.capture_sigma,
+                is_raw: frame.meta.is_raw,
+                capture_sigma: frame.meta.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
                 dcp: setup.resolved.clone(),

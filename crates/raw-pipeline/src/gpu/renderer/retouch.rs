@@ -57,7 +57,8 @@ impl GpuRenderer {
         let mut current = src;
 
         for stroke in edits.retouch.iter().filter(|s| s.is_effective()) {
-            let Some(geom) = stroke_geometry(stroke, w as usize, h as usize, frame.orientation)
+            let Some(geom) =
+                stroke_geometry(stroke, w as usize, h as usize, frame.meta.orientation)
             else {
                 continue;
             };

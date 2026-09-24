@@ -414,7 +414,7 @@ fn gpu_exif_orientation_matches_cpu() {
     let mut ledger = ParityLedger::new("orientation");
     for &(orient, label) in orientations {
         let mut frame = rgb_frame(w, h, data.clone());
-        frame.orientation = orient;
+        frame.meta.orientation = orient;
 
         let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
         let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();

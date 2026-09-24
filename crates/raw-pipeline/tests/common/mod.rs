@@ -3,7 +3,7 @@
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::GpuRendererOptions;
 use raw_pipeline::decode;
-use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions, RenderedImage};
+use raw_pipeline::frame::{FrameMeta, OutputFormat, RawFrame, RenderOptions, RenderedImage};
 use std::path::{Path, PathBuf};
 
 const RAW_EXTS: &[&str] = &[
@@ -117,19 +117,21 @@ pub fn try_renderer_with_budget(texture_cache_max_bytes: u64) -> Option<GpuRende
 
 pub fn rgb_frame(w: usize, h: usize, data: Vec<f32>) -> RawFrame {
     RawFrame {
-        width: w,
-        height: h,
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: String::new(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data,
         cpp: 3,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }
@@ -260,19 +262,21 @@ pub fn synthetic_bayer_frame(w: usize, h: usize, cfa_pattern: &str) -> RawFrame 
         }
     }
     RawFrame {
-        width: w,
-        height: h,
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: cfa_pattern.to_string(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data,
         cpp: 1,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }

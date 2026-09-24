@@ -156,7 +156,7 @@ fn capture_sharpen_is_visible_at_one_to_one() {
     };
     let bytes = std::fs::read(&path).unwrap();
     let frame = decode::decode(&bytes).unwrap();
-    if frame.capture_sigma.is_none() {
+    if frame.meta.capture_sigma.is_none() {
         eprintln!("fixture has no capture sigma; skipping");
         return;
     }

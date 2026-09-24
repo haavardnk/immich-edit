@@ -1,5 +1,6 @@
 use super::*;
 use crate::edits::{CropRect, GeometryEdits, LensEdits};
+use crate::frame::FrameMeta;
 
 fn make_frame_luma(luma: f32, w: usize, h: usize) -> RawFrame {
     make_frame_with(w, h, |_, _| luma)
@@ -20,19 +21,21 @@ fn make_mosaic_frame_with<F: Fn(usize, usize) -> f32>(
         }
     }
     RawFrame {
-        width: w,
-        height: h,
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: cfa.to_string(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data,
         cpp: 1,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }
@@ -48,19 +51,21 @@ fn make_frame_with<F: Fn(usize, usize) -> f32>(w: usize, h: usize, f: F) -> RawF
         }
     }
     RawFrame {
-        width: w,
-        height: h,
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: String::new(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data,
         cpp: 3,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }

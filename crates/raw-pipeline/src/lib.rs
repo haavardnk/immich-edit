@@ -58,7 +58,8 @@ pub use cancel::{CancelToken, CancelTracker};
 pub use cpu::CpuRenderer;
 pub use dcp::{DcpProfile, parse_dcp};
 pub use frame::{
-    BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage, TiffCompression,
+    BitDepth, FrameMeta, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
+    TiffCompression,
 };
 pub use gpu::GpuPoolStats;
 pub use gpu::GpuRenderer;

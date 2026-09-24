@@ -1,5 +1,6 @@
 use super::*;
 use crate::edits::{CropRect, GeometryEdits};
+use crate::frame::FrameMeta;
 
 fn make_frame(w: usize, h: usize, rgb: [f32; 3]) -> RawFrame {
     make_frame_with(w, h, |_, _| rgb)
@@ -11,19 +12,21 @@ fn make_frame_with<F: Fn(usize, usize) -> [f32; 3]>(w: usize, h: usize, f: F) ->
         data.extend_from_slice(&f(x, y));
     }
     RawFrame {
-        width: w,
-        height: h,
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+            xyz_to_cam: [[0.0; 3]; 4],
+            color_matrices: Vec::new(),
+            orientation: (false, false, false),
+            is_raw: false,
+            capture_sigma: None,
+            model: String::new(),
+        },
         cfa_pattern: String::new(),
         bps: 16,
-        wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-        xyz_to_cam: [[0.0; 3]; 4],
-        color_matrices: Vec::new(),
         data,
         cpp: 3,
-        orientation: (false, false, false),
-        is_raw: false,
-        capture_sigma: None,
-        model: String::new(),
         exif: None,
     }
 }

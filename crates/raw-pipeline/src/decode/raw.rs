@@ -1,5 +1,5 @@
 use crate::PipelineError;
-use crate::frame::RawFrame;
+use crate::frame::{FrameMeta, RawFrame};
 use rawler::cfa::CFA;
 use rawler::imgop::chromatic_adaption::adapt_bradford;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
@@ -164,19 +164,21 @@ pub(super) fn decode_raw_fast(
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
 
     Ok(RawFrame {
-        width,
-        height,
+        meta: FrameMeta {
+            width,
+            height,
+            wb_coeffs,
+            xyz_to_cam,
+            color_matrices,
+            orientation,
+            is_raw: true,
+            capture_sigma,
+            model: raw_image.clean_model.clone(),
+        },
         cfa_pattern,
         bps: 16,
-        wb_coeffs,
-        xyz_to_cam,
-        color_matrices,
         data,
         cpp: 1,
-        orientation,
-        is_raw: true,
-        capture_sigma,
-        model: raw_image.clean_model.clone(),
         exif,
     })
 }
@@ -254,19 +256,21 @@ pub(super) fn decode_raw_quality(
     };
 
     Ok(RawFrame {
-        width,
-        height,
+        meta: FrameMeta {
+            width,
+            height,
+            wb_coeffs,
+            xyz_to_cam,
+            color_matrices,
+            orientation,
+            is_raw: true,
+            capture_sigma: None,
+            model: raw_image.clean_model.clone(),
+        },
         cfa_pattern: String::new(),
         bps: 16,
-        wb_coeffs,
-        xyz_to_cam,
-        color_matrices,
         data,
         cpp: 3,
-        orientation,
-        is_raw: true,
-        capture_sigma: None,
-        model: raw_image.clean_model.clone(),
         exif,
     })
 }
@@ -314,19 +318,21 @@ fn decode_raw_xtrans(
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
 
     Ok(RawFrame {
-        width,
-        height,
+        meta: FrameMeta {
+            width,
+            height,
+            wb_coeffs,
+            xyz_to_cam,
+            color_matrices,
+            orientation,
+            is_raw: true,
+            capture_sigma,
+            model: raw_image.clean_model.clone(),
+        },
         cfa_pattern,
         bps: 16,
-        wb_coeffs,
-        xyz_to_cam,
-        color_matrices,
         data,
         cpp: 1,
-        orientation,
-        is_raw: true,
-        capture_sigma,
-        model: raw_image.clean_model.clone(),
         exif,
     })
 }

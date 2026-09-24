@@ -75,22 +75,25 @@ impl RawFrameCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use raw_pipeline::frame::FrameMeta;
 
     fn frame_with_floats(n: usize) -> Arc<RawFrame> {
         Arc::new(RawFrame {
-            width: 1,
-            height: n,
+            meta: FrameMeta {
+                width: 1,
+                height: n,
+                wb_coeffs: [1.0; 4],
+                xyz_to_cam: [[0.0; 3]; 4],
+                color_matrices: Vec::new(),
+                orientation: (false, false, false),
+                is_raw: true,
+                capture_sigma: None,
+                model: String::new(),
+            },
             cfa_pattern: String::new(),
             bps: 16,
-            wb_coeffs: [1.0; 4],
-            xyz_to_cam: [[0.0; 3]; 4],
-            color_matrices: Vec::new(),
             data: vec![0.0f32; n],
             cpp: 1,
-            orientation: (false, false, false),
-            is_raw: true,
-            capture_sigma: None,
-            model: String::new(),
             exif: None,
         })
     }

@@ -17,10 +17,6 @@ use crate::{PipelineError, PipelineResult};
 use super::{CachedFrame, GpuRenderer};
 
 impl GpuRenderer {
-    pub(super) fn frame_key(frame: &RawFrame) -> u64 {
-        crate::cpu::renderer::frame_cache_key(frame)
-    }
-
     pub(super) fn get_or_demosaic(
         &self,
         frame: &RawFrame,
@@ -32,7 +28,7 @@ impl GpuRenderer {
         };
         let key = {
             let mut h = std::collections::hash_map::DefaultHasher::new();
-            Self::frame_key(frame).hash(&mut h);
+            frame.cache_key().hash(&mut h);
             block.hash(&mut h);
             h.finish()
         };
@@ -65,13 +61,13 @@ impl GpuRenderer {
             }
         };
         let params = SuperpixelParams {
-            size: [frame.width as u32, frame.height as u32],
+            size: [frame.meta.width as u32, frame.meta.height as u32],
             block: block as u32,
             period,
             pattern,
         };
-        let w = (frame.width / block) as u32;
-        let h = (frame.height / block) as u32;
+        let w = (frame.meta.width / block) as u32;
+        let h = (frame.meta.height / block) as u32;
         let uniform_buf = self.uniform_pool.acquire(
             device,
             queue,
@@ -132,14 +128,14 @@ impl GpuRenderer {
     fn upload_rgb_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
         let _span = tracing::debug_span!(
             "gpu.upload_rgb",
-            w = frame.width as u32,
-            h = frame.height as u32
+            w = frame.meta.width as u32,
+            h = frame.meta.height as u32
         )
         .entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.width as u32;
-        let h = frame.height as u32;
+        let w = frame.meta.width as u32;
+        let h = frame.meta.height as u32;
 
         let rgba_f16: Vec<u16> = frame
             .data
@@ -203,8 +199,8 @@ impl GpuRenderer {
     fn demosaic_to_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
         let _span = tracing::debug_span!(
             "gpu.demosaic",
-            w = frame.width as u32,
-            h = frame.height as u32
+            w = frame.meta.width as u32,
+            h = frame.meta.height as u32
         )
         .entered();
         if frame.cpp != 1 {
@@ -223,8 +219,8 @@ impl GpuRenderer {
         }
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.width as u32;
-        let h = frame.height as u32;
+        let w = frame.meta.width as u32;
+        let h = frame.meta.height as u32;
 
         let cfa = cfa_to_indices(&frame.cfa_pattern);
         let params = DemosaicParams {
@@ -302,14 +298,14 @@ impl GpuRenderer {
     ) -> PipelineResult<Arc<CachedFrame>> {
         let _span = tracing::debug_span!(
             "gpu.xtrans",
-            w = frame.width as u32,
-            h = frame.height as u32
+            w = frame.meta.width as u32,
+            h = frame.meta.height as u32
         )
         .entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.width as u32;
-        let h = frame.height as u32;
+        let w = frame.meta.width as u32;
+        let h = frame.meta.height as u32;
 
         let params = XtransParams {
             size: [w, h],
@@ -327,7 +323,7 @@ impl GpuRenderer {
         });
         let green_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("xtrans-green-storage"),
-            size: (frame.width as u64) * (frame.height as u64) * 4,
+            size: (frame.meta.width as u64) * (frame.meta.height as u64) * 4,
             usage: BufferUsages::STORAGE,
             mapped_at_creation: false,
         });

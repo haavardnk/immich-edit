@@ -1,4 +1,8 @@
-use raw_pipeline::{cpu, decode, edits::Edits, frame::RawFrame, frame::RenderOptions};
+use raw_pipeline::{
+    cpu, decode,
+    edits::Edits,
+    frame::{FrameMeta, RawFrame, RenderOptions},
+};
 
 mod common;
 
@@ -7,7 +11,7 @@ use common::each_fixture_frame as each_fixture;
 #[test]
 fn decode_metadata() {
     each_fixture(|name, frame| {
-        if frame.width == 0 || frame.height == 0 {
+        if frame.meta.width == 0 || frame.meta.height == 0 {
             panic!("{name}: zero dim");
         }
         if frame.cfa_pattern.is_empty() && frame.cpp == 1 {
@@ -32,12 +36,12 @@ fn decode_metadata() {
 fn capture_sigma_is_estimated_for_mosaic_fixtures() {
     each_fixture(|name, frame| {
         if frame.cpp != 1 {
-            if frame.capture_sigma.is_some() {
+            if frame.meta.capture_sigma.is_some() {
                 panic!("{name}: demosaiced frame reported a capture sigma");
             }
             return;
         }
-        let Some(sigma) = frame.capture_sigma else {
+        let Some(sigma) = frame.meta.capture_sigma else {
             panic!("{name}: mosaic frame has no capture sigma");
         };
         eprintln!("{name}: capture sigma {sigma}");
@@ -179,12 +183,13 @@ fn default_sharpening_is_raw_only() {
         panic!("raw render ignored the default sharpening");
     }
     let rendered = RawFrame {
+        meta: FrameMeta {
+            is_raw: false,
+            ..frame.meta.clone()
+        },
         cfa_pattern: frame.cfa_pattern.clone(),
-        color_matrices: frame.color_matrices.clone(),
         data: frame.data.clone(),
-        model: frame.model.clone(),
         exif: None,
-        is_raw: false,
         ..frame
     };
     let rendered_default = cpu::render(&rendered, &Edits::default(), &opts).unwrap();
@@ -197,7 +202,7 @@ fn default_sharpening_is_raw_only() {
 #[test]
 fn sensor_scaling_darkens_the_render() {
     each_fixture(|name, frame| {
-        if !frame.is_raw {
+        if !frame.meta.is_raw {
             return;
         }
         let opts = RenderOptions {
@@ -205,19 +210,11 @@ fn sensor_scaling_darkens_the_render() {
             ..Default::default()
         };
         let dim = RawFrame {
-            width: frame.width,
-            height: frame.height,
+            meta: frame.meta.clone(),
             cfa_pattern: frame.cfa_pattern.clone(),
             bps: frame.bps,
-            wb_coeffs: frame.wb_coeffs,
-            xyz_to_cam: frame.xyz_to_cam,
-            color_matrices: frame.color_matrices.clone(),
             data: frame.data.iter().map(|v| v * 0.25).collect(),
             cpp: frame.cpp,
-            orientation: frame.orientation,
-            is_raw: frame.is_raw,
-            capture_sigma: frame.capture_sigma,
-            model: frame.model.clone(),
             exif: None,
         };
         let bright = mean_luma(&cpu::render(frame, &Edits::default(), &opts).unwrap().bytes);
@@ -235,7 +232,7 @@ fn sensor_scaling_darkens_the_render() {
 fn default_color_differs_from_flat_on_raw() {
     use raw_pipeline::edits::DcpMode;
     each_fixture(|name, frame| {
-        if !frame.is_raw {
+        if !frame.meta.is_raw {
             return;
         }
         let opts = RenderOptions {
@@ -259,12 +256,13 @@ fn non_raw_ignores_the_profile_mode() {
             ..Default::default()
         };
         let rendered = RawFrame {
+            meta: FrameMeta {
+                is_raw: false,
+                ..frame.meta.clone()
+            },
             cfa_pattern: frame.cfa_pattern.clone(),
-            color_matrices: frame.color_matrices.clone(),
             data: frame.data.clone(),
-            model: frame.model.clone(),
             exif: None,
-            is_raw: false,
             ..*frame
         };
         let flat = cpu::render(&rendered, &with_dcp_mode(DcpMode::Flat), &opts).unwrap();
@@ -343,11 +341,11 @@ fn orientation_swaps_display_dims_when_transposed() {
             ..Default::default()
         };
         let out = cpu::render(frame, &Edits::default(), &opts).unwrap();
-        let (transpose, _, _) = frame.orientation;
+        let (transpose, _, _) = frame.meta.orientation;
         let (expected_w, expected_h) = if transpose {
-            (frame.height, frame.width)
+            (frame.meta.height, frame.meta.width)
         } else {
-            (frame.width, frame.height)
+            (frame.meta.width, frame.meta.height)
         };
         let landscape_sensor = expected_w > expected_h;
         let landscape_out = out.width > out.height;
