@@ -139,8 +139,10 @@ GPU pass order, device setup, or CPU/GPU parity behavior.
 `e2e/render-parity.spec.ts` runs the wasm renderer in Chromium's WebGPU and compares its canvas with
 `web/e2e/fixtures/render/expected.rgb`, a native GPU render of the same source. Chromium validates
 WGSL with Tint, which rejects some code that naga accepts, so run it after any shader change. On
-Linux it uses SwiftShader; set `WEBGPU_SWIFTSHADER=1` to do the same elsewhere. When a render
-change is intended, rebake the fixture with a GPU:
+Linux it uses SwiftShader and runs headed, so start it under a display server
+(`xvfb-run -a npx playwright test render-parity`): headless Chromium on Linux destroys the WebGPU
+device as soon as a canvas context is configured. Set `WEBGPU_SWIFTSHADER=1` to use SwiftShader
+elsewhere. When a render change is intended, rebake the fixture with a GPU:
 
 ```shell
 BAKE_WEB_PARITY=1 cargo test -p raw-pipeline --test web_parity_fixture
