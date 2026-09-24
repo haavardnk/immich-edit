@@ -1,4 +1,3 @@
-import { maskWeightPreview, type PreviewMode } from '$lib/api/preview';
 import type { BrushBuffer } from '$lib/utils/brush';
 import {
   cloneLayerWithNewIds,
@@ -45,13 +44,9 @@ export interface MaskLayersCtx {
     points: Vec2f[];
   } | null;
   splitMode: boolean;
-  clearView(): void;
   toggleSplit(): void;
-  onPreview(mode: PreviewMode): void;
-  endPreview(): void;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
-  submitColorPickerPreview(edits: Edits): void;
 }
 
 export function maskCapacityFor(
@@ -120,25 +115,23 @@ export function toggleMaskOverlay(ctx: MaskLayersCtx): void {
 export function previewMaskWeight(ctx: MaskLayersCtx, layerId: string): void {
   if (!ctx.initialised) return;
   ctx.maskPreviewLayerId = layerId;
-  ctx.onPreview(maskWeightPreview(layerId));
+  ctx.onLive();
 }
 
 export function endMaskPreview(ctx: MaskLayersCtx): void {
   if (!ctx.maskPreviewLayerId) return;
   ctx.maskPreviewLayerId = null;
-  ctx.endPreview();
+  ctx.onLive();
 }
 
 export function beginColorPicker(ctx: MaskLayersCtx, layerId: string, componentId: string): void {
   const layer = ctx.edits.masks.find((item) => item.id === layerId);
   const component = layer?.components.find((item) => item.id === componentId);
   if (!component || component.kind.kind !== 'color_range') return;
-  ctx.clearView();
   if (ctx.splitMode) ctx.toggleSplit();
   ctx.maskPreviewLayerId = null;
   ctx.colorPicker = { layerId, componentId, ready: false };
-  const edits = $state.snapshot(ctx.edits) as Edits;
-  ctx.submitColorPickerPreview({ ...edits, masks: [] });
+  ctx.onLive();
 }
 
 export function cancelColorPicker(ctx: MaskLayersCtx): void {
@@ -262,12 +255,7 @@ export function patchMaskLayer(
 ): void {
   const masks = ctx.edits.masks.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer));
   ctx.edits = { ...ctx.edits, masks };
-  if (!live) return;
-  if (ctx.maskPreviewLayerId === id) {
-    ctx.onPreview(maskWeightPreview(id));
-  } else {
-    ctx.onLive();
-  }
+  if (live) ctx.onLive();
 }
 
 export async function toggleMaskLayerEnabled(ctx: MaskLayersCtx, id: string): Promise<void> {

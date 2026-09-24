@@ -41,7 +41,7 @@ import {
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
 import { getEdits, autoEdits } from '$lib/api/edits';
-import { maskWeightPreview, type PreviewMode } from '$lib/api/preview';
+import { type PreviewMode } from '$lib/api/preview';
 import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
@@ -352,13 +352,9 @@ class EditorStore {
     this.previews.loadPersisted();
   }
 
-  showOriginal(): void {
-    this.previews.showOriginal();
-  }
-
   bypassSection = (section: DevelopSection): void => {
     this.bypassedSection = section;
-    this.previews.bypassSection(section);
+    this.previews.live();
   };
 
   endBypass = (): void => {
@@ -390,11 +386,7 @@ class EditorStore {
     if (!this.initialised || !this.saves.open) return;
     const replaying = this.history.skipping;
     if (!replaying) this.history.push($state.snapshot(this.edits) as Edits);
-    if (this.maskPreviewLayerId) {
-      this.onPreview(maskWeightPreview(this.maskPreviewLayerId));
-    } else {
-      this.onLive();
-    }
+    this.onLive();
     await this.saves.commit($state.snapshot(this.edits) as Edits, replaying ? undefined : action);
   };
 
@@ -529,10 +521,6 @@ class EditorStore {
   previewMaskWeight = (layerId: string): void => maskLayers.previewMaskWeight(this, layerId);
 
   endMaskPreview = (): void => maskLayers.endMaskPreview(this);
-
-  submitColorPickerPreview = (edits: Edits): void => {
-    this.previews.submitColorPicker(edits);
-  };
 
   beginColorPicker = (layerId: string, componentId: string): void =>
     maskLayers.beginColorPicker(this, layerId, componentId);

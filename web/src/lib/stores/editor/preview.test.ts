@@ -1,12 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RenderLane } from '$lib/api/preview';
+import type { PreviewMode, RenderLane } from '$lib/api/preview';
 import type { RenderView, RenderedFrame } from '$lib/render/protocol';
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import {
+  neutraliseSection,
+  neutralEdits,
+  originalPreviewEdits,
+  type Edits
+} from '$lib/types/edits';
+import { makeLayer, defaultLinear } from '$lib/types/masks';
 import type { Roi } from '$lib/utils/view-geometry';
 
 type Render = {
   lane: RenderLane;
   maxEdge: number;
+  mode: PreviewMode;
+  edits: Edits;
   roi: Roi | undefined;
   open: boolean;
   land: () => void;
@@ -19,9 +27,9 @@ vi.mock('$lib/api/preview', async (original) => ({
   livePreview: vi.fn(
     (
       _assetId: string,
-      _edits: unknown,
+      edits: Edits,
       maxEdge: number,
-      _mode: unknown,
+      mode: PreviewMode,
       _proof: unknown,
       signal: AbortSignal,
       lane: RenderLane,
@@ -31,6 +39,8 @@ vi.mock('$lib/api/preview', async (original) => ({
         const render: Render = {
           lane,
           maxEdge,
+          mode,
+          edits,
           roi,
           open: true,
           land: () => {
@@ -129,12 +139,14 @@ async function landLatest(): Promise<void> {
 
 describe('preview lanes during a slider drag', () => {
   let engine: PreviewEngine;
+  let ctx: PreviewCtx;
 
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.stubGlobal('Image', DecodedImage);
     renders.length = 0;
-    engine = new PreviewEngine(context());
+    ctx = context();
+    engine = new PreviewEngine(ctx);
     engine.onViewChange(SNAP);
     await vi.advanceTimersByTimeAsync(1000);
     await landLatest();
@@ -225,6 +237,54 @@ describe('preview lanes during a slider drag', () => {
     await vi.advanceTimersByTimeAsync(400);
     await landLatest();
     expect(lanes().at(-1)).toBe(`roi@${SETTLED_EDGE}`);
+  });
+
+  const held: Array<[string, (c: PreviewCtx) => void, (e: Edits) => Partial<Render>]> = [
+    [
+      'mask preview',
+      (c) => (c.maskPreviewLayerId = 'layer-1'),
+      (e) => ({ mode: { mask_weight: { layer_id: 'layer-1' } }, edits: e })
+    ],
+    [
+      'original',
+      (c) => (c.showingOriginal = true),
+      (e) => ({ mode: 'none', edits: originalPreviewEdits(e) })
+    ],
+    [
+      'section bypass',
+      (c) => (c.bypassedSection = 'tone'),
+      (e) => ({ mode: 'none', edits: neutraliseSection(e, 'tone') })
+    ],
+    [
+      'color picker',
+      (c) => (c.colorPicker = { layerId: 'layer-1', componentId: 'c-1', ready: false }),
+      (e) => ({ mode: 'none', edits: { ...e, masks: [] } })
+    ]
+  ];
+  const settles: Array<[string, (e: PreviewEngine) => void]> = [
+    ['live', (e) => e.live()],
+    ['reproof', (e) => e.reproof()],
+    ['refreshBase', (e) => e.refreshBase()],
+    ['toggleSplit', (e) => e.toggleSplit()]
+  ];
+
+  it.each(
+    held.flatMap(([state, hold, expected]) =>
+      settles.map(([entry, settle]) => ({ state, hold, expected, entry, settle }))
+    )
+  )('keeps the held $state on screen through $entry', async ({ hold, expected, settle }) => {
+    const edits: Edits = {
+      ...neutralEdits(),
+      basic: { ...neutralEdits().basic, exposure_ev: 1 },
+      masks: [makeLayer('Mask 1', 0, defaultLinear())]
+    };
+    ctx.edits = edits;
+    hold(ctx);
+    settle(engine);
+    await vi.advanceTimersByTimeAsync(400);
+    const base = renders.filter((r) => r.lane === 'base');
+    expect(base.at(-1)).toMatchObject(expected(edits));
+    expect(renders.filter((r) => r.lane === 'roi')).toEqual([]);
   });
 });
 
@@ -369,5 +429,22 @@ describe('preview lanes with the browser renderer', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(fake.tiles.length).toBe(2);
     expect(renders).toEqual([]);
+  });
+
+  it('drops the 1:1 tile when a mask preview starts', async () => {
+    const fake = fakeClient(async () => browserFrame());
+    browser.current = fake.client;
+    engine.onViewChange({ ...SNAP, frame: { left: -1500, top: -1000, width: 3000, height: 2000 } });
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.viewFrame).not.toBeNull();
+    const tiles = fake.views.filter((view) => view.roi).length;
+
+    ctx.maskPreviewLayerId = 'layer-1';
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.viewFrame).toBeNull();
+    expect(fake.views.filter((view) => view.roi).length).toBe(tiles);
+    expect(fake.views.at(-1)?.preview_mode).toEqual({ mask_weight: { layer_id: 'layer-1' } });
   });
 });

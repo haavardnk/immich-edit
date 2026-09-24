@@ -103,7 +103,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'holdOriginal':
       if (!editor.showingOriginal) {
         editor.showingOriginal = true;
-        editor.showOriginal();
+        editor.onLive();
       }
       return;
     case 'togglePanels':

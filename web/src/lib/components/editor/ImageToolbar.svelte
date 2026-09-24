@@ -35,11 +35,7 @@
 
   function holdOriginal(down: boolean): void {
     editor.showingOriginal = down;
-    if (down) {
-      editor.showOriginal();
-    } else {
-      editor.onLive();
-    }
+    editor.onLive();
   }
 </script>
 

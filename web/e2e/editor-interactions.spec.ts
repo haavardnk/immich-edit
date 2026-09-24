@@ -427,6 +427,58 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
 });
 
+test('mask preview survives a clipping toggle and a held original', async ({ page }) => {
+  const previews: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Color range', exact: true }).click();
+  await page.getByRole('button', { name: 'Toggle mask preview', exact: true }).click();
+  const isMaskWeight = (request: PreviewRequest | undefined): boolean =>
+    typeof request?.preview_mode === 'object' &&
+    request.preview_mode !== null &&
+    'mask_weight' in request.preview_mode;
+  await expect.poll(() => isMaskWeight(previews.at(-1))).toBe(true);
+
+  const toggled = previews.length;
+  await page.getByRole('button', { name: 'Clipping overlay' }).click();
+  await expect.poll(() => previews.length).toBeGreaterThan(toggled);
+  expect(isMaskWeight(previews.at(-1))).toBe(true);
+
+  const held = previews.length;
+  await page.locator('.editor-stage').hover();
+  await page.keyboard.down('\\');
+  await expect.poll(() => previews.length).toBeGreaterThan(held);
+  await page.keyboard.up('\\');
+  await expect.poll(() => previews.length).toBeGreaterThan(held + 1);
+  await page.waitForTimeout(500);
+  expect(isMaskWeight(previews.at(-1))).toBe(true);
+  expect(previews.slice(held).filter((request) => request.lane === 'roi')).toEqual([]);
+});
+
+test('color range eyedropper keeps the maskless preview through a clipping toggle', async ({
+  page
+}) => {
+  const previews: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Color range', exact: true }).click();
+  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  const maskCount = (request: PreviewRequest | undefined): number =>
+    ((request?.edits as { masks?: unknown[] } | undefined)?.masks ?? []).length;
+  await expect.poll(() => previews.length > 0 && maskCount(previews.at(-1)) === 0).toBe(true);
+
+  const toggled = previews.length;
+  await page.getByRole('button', { name: 'Clipping overlay' }).click();
+  await expect.poll(() => previews.length).toBeGreaterThan(toggled);
+  expect(previews.slice(toggled).map(maskCount)).toEqual(previews.slice(toggled).map(() => 0));
+});
+
 test('white balance eyedropper applies the sampled neutral to both sliders', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   const sampled: Array<Record<string, unknown>> = [];

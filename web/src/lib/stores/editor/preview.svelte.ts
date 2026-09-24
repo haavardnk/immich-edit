@@ -2,6 +2,7 @@ import { ApiError } from '$lib/api/client';
 import {
   getPreviewMeta,
   livePreview,
+  maskWeightPreview,
   persistedPreviewUrl,
   previewModeIsNone,
   type PreviewMode,
@@ -232,10 +233,10 @@ export class PreviewEngine {
     if (this.viewBlocked() || !this.client.refreshTile(this.snapshotEdits())) this.clearView();
     if (this.dragging) {
       this.draggedLive = true;
-      this.submitEdits(this.dragEdge(), 'none');
+      this.submitBase(this.settledArgs(this.dragEdge()));
       return;
     }
-    this.submitEdits(this.baseEdge(), 'none');
+    this.submitBase(this.settledArgs(this.baseEdge()));
     this.scheduleIdle();
   }
 
@@ -261,43 +262,16 @@ export class PreviewEngine {
   preview(mode: PreviewMode): void {
     if (!this.ctx.initialised) return;
     this.clearView();
-    this.submitEdits(this.dragging ? this.dragEdge() : LIVE_EDGE, mode);
-  }
-
-  showOriginal(): void {
-    if (!this.ctx.initialised) return;
-    this.clearView();
-    const snap = $state.snapshot(this.ctx.edits) as Edits;
     this.submitBase({
-      edits: originalPreviewEdits(snap),
-      maxEdge: this.baseEdge(),
-      previewMode: 'none'
-    });
-  }
-
-  bypassSection(section: DevelopSection): void {
-    if (!this.ctx.initialised) return;
-    this.clearView();
-    const snap = $state.snapshot(this.ctx.edits) as Edits;
-    this.submitBase({
-      edits: neutraliseSection(snap, section),
-      maxEdge: this.baseEdge(),
-      previewMode: 'none'
+      edits: this.snapshotEdits(),
+      maxEdge: this.dragging ? this.dragEdge() : LIVE_EDGE,
+      previewMode: mode
     });
   }
 
   refreshBase(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
-    this.submitEdits(this.baseEdge(), 'none');
-  }
-
-  submitColorPicker(edits: Edits): void {
-    this.submitBase({
-      edits,
-      maxEdge: this.baseEdge(),
-      previewMode: 'none',
-      purpose: 'color-picker'
-    });
+    this.submitBase(this.settledArgs(this.baseEdge()));
   }
 
   loadPersisted(): void {
@@ -313,7 +287,7 @@ export class PreviewEngine {
     this.clearView();
     this.ctx.splitMode = !this.ctx.splitMode;
     if (this.ctx.splitMode) {
-      this.submitEdits(this.baseEdge(), 'none');
+      this.submitBase(this.settledArgs(this.baseEdge()));
       this.refreshOriginal();
     } else {
       this.dropOriginal();
@@ -324,7 +298,7 @@ export class PreviewEngine {
   reproof(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
     this.clearView();
-    this.submitEdits(this.baseEdge(), 'none');
+    this.submitBase(this.settledArgs(this.baseEdge()));
     this.scheduleIdle();
     if (this.ctx.splitMode) this.refreshOriginal(true);
   }
@@ -379,12 +353,27 @@ export class PreviewEngine {
     this.ctx.splitMode = false;
   }
 
-  private submitEdits(maxEdge: number, previewMode: PreviewMode): void {
-    this.submitBase({ edits: this.snapshotEdits(), maxEdge, previewMode });
-  }
-
   private snapshotEdits(): Edits {
     return $state.snapshot(this.ctx.edits) as Edits;
+  }
+
+  private settledArgs(maxEdge: number): BaseArgs {
+    const edits = this.snapshotEdits();
+    const section = this.ctx.bypassedSection;
+    const layer = this.ctx.maskPreviewLayerId;
+    if (this.ctx.colorPicker) {
+      return {
+        edits: { ...edits, masks: [] },
+        maxEdge,
+        previewMode: 'none',
+        purpose: 'color-picker'
+      };
+    }
+    if (this.ctx.showingOriginal) {
+      return { edits: originalPreviewEdits(edits), maxEdge, previewMode: 'none' };
+    }
+    if (section) return { edits: neutraliseSection(edits, section), maxEdge, previewMode: 'none' };
+    return { edits, maxEdge, previewMode: layer ? maskWeightPreview(layer) : 'none' };
   }
 
   private submitBase(args: BaseArgs): void {
@@ -428,7 +417,7 @@ export class PreviewEngine {
   private fireIdle(): void {
     if (!this.ctx.initialised) return;
     if (this.ctx.splitMode) {
-      this.submitEdits(this.baseEdge(), 'none');
+      this.submitBase(this.settledArgs(this.baseEdge()));
       return;
     }
     if (this.viewBlocked()) return;
@@ -503,8 +492,8 @@ export class PreviewEngine {
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
       !!this.ctx.geometrySession ||
-      this.previewing ||
       !!this.ctx.maskPreviewLayerId ||
+      this.previewing ||
       !!this.ctx.colorPicker
     );
   }
