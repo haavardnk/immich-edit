@@ -260,18 +260,19 @@
         alt={editor.asset?.originalFileName ?? ''}
         class="max-h-none max-w-none select-none object-contain shadow-image ring-1 ring-white/10"
         style={baseStyle}
+        testid="preview-image"
         onsize={(size) => {
           if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
         }}
       />
-      {#if editor.viewUrl && viewPlace}
-        <img
-          src={editor.viewUrl}
+      {#if (editor.viewUrl || editor.viewFrame) && viewPlace}
+        <PreviewImage
+          url={editor.viewUrl}
+          frame={editor.viewFrame}
           alt=""
-          data-testid="view-render"
+          testid="view-render"
           class="pointer-events-none absolute max-h-none max-w-none select-none"
-          style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px; image-orientation: none;"
-          draggable="false"
+          style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px;"
         />
       {/if}
       <MaskOverlay img={imgEl} />

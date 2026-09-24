@@ -1,4 +1,4 @@
-import { ApiError, NetworkError } from '$lib/api/client';
+import { ApiError } from '$lib/api/client';
 import {
   getPreviewMeta,
   livePreview,
@@ -8,9 +8,6 @@ import {
   type ProofOptions
 } from '$lib/api/preview';
 import type { ColorSpaceOpt } from '$lib/api/export';
-import type { ClientRenderer } from '$lib/render/client-renderer';
-import { frameMeta } from '$lib/render/frame-meta';
-import type { RenderedFrame, SourceInfo } from '$lib/render/protocol';
 import { renderer } from '$lib/stores/renderer.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import { ui } from '$lib/stores/ui.svelte';
@@ -34,7 +31,7 @@ import {
   type Roi
 } from '$lib/utils/view-geometry';
 import type { GeometrySession } from './geometry.svelte';
-import { ClientLane, type ClientJob } from './client-lane';
+import { ClientPreview } from './client-preview';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
@@ -48,7 +45,7 @@ export interface PreviewFrame {
   colorSpace: PredefinedColorSpace;
 }
 
-type BaseArgs = {
+export type BaseArgs = {
   edits: Edits;
   maxEdge: number;
   previewMode: PreviewMode;
@@ -64,6 +61,7 @@ export interface PreviewCtx {
   previewFrame: PreviewFrame | null;
   originalUrl: string | null;
   viewUrl: string | null;
+  viewFrame: PreviewFrame | null;
   viewRoi: Roi | null;
   viewNat: { w: number; h: number } | null;
   pending: boolean;
@@ -91,14 +89,25 @@ export class PreviewEngine {
   private srcLong = $state(Number.POSITIVE_INFINITY);
   private originalEdge = 0;
   private originalGeomKey = '';
-  private lane: ClientLane | null = null;
-  private laneClient: ClientRenderer | null = null;
   private deferred: BaseArgs | null = null;
   private lastBase: BaseArgs | null = null;
-  private serverOnly = false;
+  private client: ClientPreview;
 
   constructor(ctx: PreviewCtx) {
     this.ctx = ctx;
+    this.client = new ClientPreview(ctx, {
+      proof: () => this.proofOptions(),
+      baseEdge: () => this.fitEdge(),
+      onBaseIdle: () => this.baseIdle(),
+      onSourceLong: (long) => {
+        this.srcLong = long;
+      },
+      onTile: (request, w, h) => this.landView(request, w, h),
+      onFallback: () => {
+        if (this.lastBase) this.flight.submit(this.lastBase);
+      },
+      refreshOriginal: () => this.refreshOriginal()
+    });
   }
 
   private flight = new SingleFlight<BaseArgs, { url: string; metaId: string | null }>(
@@ -190,10 +199,7 @@ export class PreviewEngine {
       this.ctx.viewUrl = result.url;
       this.ctx.viewRoi = args.roi;
       this.ctx.viewNat = { w: result.w, h: result.h };
-      const delivered = Math.max(result.w, result.h);
-      const fraction = args.fullEdge > 0 ? args.maxEdge / args.fullEdge : 1;
-      this.viewFullEdge = Math.round(delivered / fraction);
-      if (delivered < args.maxEdge * 0.98) this.srcLong = this.viewFullEdge;
+      this.landView(args, result.w, result.h);
       if (prev?.startsWith('blob:')) revoke(prev);
     },
     () => {
@@ -222,7 +228,7 @@ export class PreviewEngine {
   live(): void {
     if (!this.ctx.initialised) return;
     this.cancelRelease();
-    this.clearView();
+    if (this.viewBlocked() || !this.client.refreshTile(this.snapshotEdits())) this.clearView();
     if (this.dragging) {
       this.draggedLive = true;
       this.submitEdits(this.dragEdge(), 'none');
@@ -330,6 +336,7 @@ export class PreviewEngine {
 
   clearView(): void {
     this.viewFlight.cancel();
+    this.client.cancelTile();
     this.viewAfterBase = false;
     if (this.idleTimer) {
       clearTimeout(this.idleTimer);
@@ -353,10 +360,9 @@ export class PreviewEngine {
 
   reset(): void {
     this.flight.cancel();
-    this.lane?.reset();
+    this.client.reset();
     this.deferred = null;
     this.lastBase = null;
-    this.serverOnly = false;
     this.originalFlight.cancel();
     this.cancelRelease();
     this.dragging = false;
@@ -372,12 +378,16 @@ export class PreviewEngine {
   }
 
   private submitEdits(maxEdge: number, previewMode: PreviewMode): void {
-    this.submitBase({ edits: $state.snapshot(this.ctx.edits) as Edits, maxEdge, previewMode });
+    this.submitBase({ edits: this.snapshotEdits(), maxEdge, previewMode });
+  }
+
+  private snapshotEdits(): Edits {
+    return $state.snapshot(this.ctx.edits) as Edits;
   }
 
   private submitBase(args: BaseArgs): void {
     this.lastBase = args;
-    if (!this.serverOnly && renderer.undecided) {
+    if (!this.client.serverBound && renderer.undecided) {
       this.deferred = args;
       void renderer.start().then(() => {
         const next = this.deferred;
@@ -386,81 +396,14 @@ export class PreviewEngine {
       });
       return;
     }
-    const lane = this.clientLane();
-    if (!lane) {
-      this.flight.submit(args);
-      return;
-    }
-    this.ctx.pending = true;
-    lane.submit(this.clientJob(args));
+    if (!this.client.submitBase(args)) this.flight.submit(args);
   }
 
-  private clientLane(): ClientLane | null {
-    const client = this.serverOnly ? null : renderer.current;
-    if (this.lane && this.laneClient === client) return this.lane;
-    this.lane?.reset();
-    this.laneClient = client;
-    this.lane = client
-      ? new ClientLane(client, {
-          assetId: () => this.ctx.assetId,
-          onFrame: (job, frame, source, ms) => this.onClientFrame(job, frame, source, ms),
-          onError: (err) => this.onClientError(err),
-          onIdle: () => this.baseIdle()
-        })
-      : null;
-    return this.lane;
-  }
-
-  private clientJob(args: BaseArgs): ClientJob {
-    const proof = this.proofOptions();
-    const plain = previewModeIsNone(args.previewMode);
-    return {
-      edits: args.edits,
-      purpose: args.purpose,
-      view: {
-        max_edge: this.baseEdge(),
-        output_color_space: proof.colorSpace,
-        preview_mode: args.previewMode,
-        gamut_warn: proof.gamutWarn,
-        clip_warn: proof.clipWarn,
-        histogram: plain,
-        scopes: plain && scopes.wants
-      }
-    };
-  }
-
-  private onClientFrame(
-    job: ClientJob,
-    frame: RenderedFrame,
-    source: SourceInfo,
-    ms: number
-  ): void {
-    const prev = this.ctx.previewFrame;
-    this.ctx.previewFrame = {
-      bitmap: frame.bitmap,
-      colorSpace: job.view.output_color_space === 'displayp3' ? 'display-p3' : 'srgb'
-    };
-    prev?.bitmap.close();
-    if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
-    this.ctx.previewUrl = null;
-    this.ctx.pending = false;
-    renderer.recordRender(ms);
-    this.markPickerReady(job.purpose);
-    if (!job.view.histogram || !this.ctx.assetId) return;
-    this.ctx.meta = frameMeta(this.ctx.assetId, frame, source.is_raw, 'browser');
-    const long = Math.max(frame.source_w, frame.source_h);
-    if (long > 0) this.srcLong = long;
-    scopes.onGrids(frame.scopes ?? null);
-    if (this.ctx.splitMode) this.refreshOriginal();
-  }
-
-  private onClientError(err: unknown): void {
-    if (err instanceof ApiError && err.code === 'superseded') return;
-    if (!(err instanceof ApiError || err instanceof NetworkError)) renderer.fail(err);
-    this.serverOnly = true;
-    this.clientLane();
-    this.ctx.pending = false;
-    if (this.lastBase) this.flight.submit(this.lastBase);
+  private landView(request: RenderRequest, w: number, h: number): void {
+    const delivered = Math.max(w, h);
+    const fraction = request.fullEdge > 0 ? request.maxEdge / request.fullEdge : 1;
+    this.viewFullEdge = Math.round(delivered / fraction);
+    if (delivered < request.maxEdge * 0.98) this.srcLong = this.viewFullEdge;
   }
 
   private markPickerReady(purpose: BaseArgs['purpose']): void {
@@ -476,8 +419,7 @@ export class PreviewEngine {
   }
 
   private dropFrame(): void {
-    this.ctx.previewFrame?.bitmap.close();
-    this.ctx.previewFrame = null;
+    this.client.dropBase();
   }
 
   private fireIdle(): void {
@@ -487,7 +429,7 @@ export class PreviewEngine {
       return;
     }
     if (this.viewBlocked()) return;
-    if (this.flight.busy || this.lane?.busy) {
+    if (this.flight.busy || this.client.busy) {
       this.viewAfterBase = true;
       return;
     }
@@ -547,7 +489,7 @@ export class PreviewEngine {
     const key = `${req.roi.join(',')}:${req.maxEdge}`;
     if (key === this.viewKey) return;
     this.viewKey = key;
-    this.viewFlight.submit(req);
+    if (!this.client.submitTile(req, this.snapshotEdits())) this.viewFlight.submit(req);
   }
 
   private viewBlocked(): boolean {
@@ -568,6 +510,14 @@ export class PreviewEngine {
     if (!snap) return LIVE_EDGE;
     const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
     return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+  }
+
+  private fitEdge(): number {
+    const snap = this.viewSnap;
+    if (!snap || snap.frame.width <= 0 || snap.frame.height <= 0) return LIVE_EDGE;
+    const fit = Math.min(1, snap.viewW / snap.frame.width, snap.viewH / snap.frame.height);
+    const long = Math.max(snap.frame.width, snap.frame.height) * fit * snap.dpr;
+    return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, Math.round(long)));
   }
 
   private dragEdge(): number {

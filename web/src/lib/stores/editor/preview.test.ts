@@ -96,6 +96,7 @@ function context(): PreviewCtx {
     previewFrame: null,
     originalUrl: null,
     viewUrl: null,
+    viewFrame: null,
     viewRoi: null,
     viewNat: null,
     pending: false,
@@ -233,7 +234,16 @@ function browserFrame(): RenderedFrame {
 
 function fakeClient(render: () => Promise<RenderedFrame>) {
   const sources: number[] = [];
+  const tiles: string[] = [];
   const views: RenderView[] = [];
+  const info = {
+    width: 2400,
+    height: 1600,
+    frame_width: 6000,
+    frame_height: 4000,
+    is_raw: true,
+    model: 'x'
+  };
   const client = {
     inputs: async (edits: Edits) => ({
       sensor_key: String(edits.detail.luma_nr_amount),
@@ -242,22 +252,25 @@ function fakeClient(render: () => Promise<RenderedFrame>) {
     }),
     loadSource: async (_assetId: string, edits: Edits) => {
       sources.push(edits.detail.luma_nr_amount);
-      return {
-        width: 2400,
-        height: 1600,
-        frame_width: 6000,
-        frame_height: 4000,
-        is_raw: true,
-        model: 'x'
-      };
+      return info;
+    },
+    loadTile: async (_assetId: string, _edits: Edits, _maxEdge: number, roi: number[]) => {
+      tiles.push(roi.join(','));
+      return info;
     },
     prepare: async () => {},
     render: (_edits: Edits, view: RenderView) => {
       views.push(view);
-      return render();
+      if (!view.roi) return render();
+      return Promise.resolve({
+        ...browserFrame(),
+        bitmap: { width: view.max_edge, height: 900, close: () => {} } as ImageBitmap,
+        width: view.max_edge,
+        height: 900
+      });
     }
   };
-  return { client: client as unknown as ClientRenderer, sources, views };
+  return { client: client as unknown as ClientRenderer, sources, tiles, views };
 }
 
 describe('preview lanes with the browser renderer', () => {
@@ -313,5 +326,34 @@ describe('preview lanes with the browser renderer', () => {
 
     expect(browser.fail).toHaveBeenCalledOnce();
     expect(lanes()).toEqual([`base@${SETTLED_EDGE}`]);
+  });
+
+  it('renders 1:1 tiles locally and fetches one tile per pan', async () => {
+    const fake = fakeClient(async () => browserFrame());
+    browser.current = fake.client;
+    const zoomed: ViewSnapshot = {
+      ...SNAP,
+      frame: { left: -1500, top: -1000, width: 3000, height: 2000 }
+    };
+
+    engine.onViewChange(zoomed);
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fake.tiles.length).toBe(1);
+    expect(ctx.viewFrame).not.toBeNull();
+    const tileViews = () => fake.views.filter((view) => view.roi).length;
+    const rendered = tileViews();
+
+    ctx.edits = { ...ctx.edits, basic: { ...ctx.edits.basic, exposure_ev: 1 } };
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.viewFrame).not.toBeNull();
+    expect(tileViews()).toBe(rendered + 1);
+    expect(fake.tiles.length).toBe(1);
+
+    engine.onViewChange({ ...zoomed, frame: { ...zoomed.frame, left: -300 } });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fake.tiles.length).toBe(2);
+    expect(renders).toEqual([]);
   });
 });

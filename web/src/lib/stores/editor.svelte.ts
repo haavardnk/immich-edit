@@ -102,6 +102,7 @@ class EditorStore {
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
   originalUrl = $state<string | null>(null);
   viewUrl = $state<string | null>(null);
+  viewFrame = $state.raw<PreviewFrame | null>(null);
   viewRoi = $state<Roi | null>(null);
   viewNat = $state<{ w: number; h: number } | null>(null);
   geometrySession = $state<GeometrySession | null>(null);
