@@ -21,7 +21,7 @@ Debian or Ubuntu:
 
 ```shell
 sudo apt-get install -y nasm cmake ninja-build pkg-config libclang-dev \
-  libturbojpeg0-dev libheif-dev libjxl-dev
+  libturbojpeg0-dev libheif-dev
 ```
 
 The default backend build includes local AI-mask inference and downloads ONNX Runtime artifacts on
