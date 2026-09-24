@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use wgpu::{
-    CommandEncoder, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor,
-    TextureDimension, TextureUsages, TextureView, TextureViewDescriptor,
+    CommandEncoder, CommandEncoderDescriptor, Texture, TextureUsages, TextureView,
+    TextureViewDescriptor,
 };
 
 use crate::PipelineResult;
@@ -13,6 +11,7 @@ use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
 use crate::gpu::passes::presence::PresenceParams;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
+use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 
 struct PyramidLabels {
@@ -109,7 +108,7 @@ impl GpuRenderer {
         src: &Texture,
         extent: SourceExtent,
         edits: &Edits,
-    ) -> PipelineResult<Arc<Texture>> {
+    ) -> PipelineResult<PooledTexture> {
         let dims = extent.dims;
         let _span = tracing::debug_span!("gpu.run_presence", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
@@ -121,21 +120,22 @@ impl GpuRenderer {
         let radii = presence_radii(fw, fh);
         let pyramid_levels = presence_pyramid_levels(fw, fh, radii).min(mip_count(w, h));
 
-        let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
-        let adjusted = device.create_texture(&TextureDescriptor {
-            label: Some("presence-adjusted"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
+        let pyramid = self.texture_pool.acquire(
+            device,
+            LumaPyramidPass::pyramid_key(&self.ctx, w, h, pyramid_levels),
+            "luma-pyramid",
+        );
+        let adjusted = self.texture_pool.acquire(
+            device,
+            TextureKey::new(
+                self.ctx.linear_format,
+                w,
+                h,
+                1,
+                TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+            ),
+            "presence-adjusted",
+        );
 
         let amts = presence_amounts(&edits);
         let mip_sel = presence_mips(fw, fh, radii);
@@ -154,11 +154,7 @@ impl GpuRenderer {
 
         let src_view_full = src.create_view(&TextureViewDescriptor::default());
         let pyramid_full_view = pyramid.create_view(&TextureViewDescriptor::default());
-        let adjusted_mip0_view = adjusted.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let adjusted_view = adjusted.create_view(&TextureViewDescriptor::default());
         let presence_bind = bind_group(
             device,
             "presence-bg",
@@ -167,7 +163,7 @@ impl GpuRenderer {
                 uniform_buf.as_entire_binding(),
                 tex(&src_view_full),
                 tex(&pyramid_full_view),
-                tex(&adjusted_mip0_view),
+                tex(&adjusted_view),
             ],
         );
 
@@ -190,17 +186,16 @@ impl GpuRenderer {
             w.div_ceil(16),
             h.div_ceil(16),
         );
-        self.encode_mipgen(&mut encoder, &adjusted, w, h);
         queue.submit(Some(encoder.finish()));
 
-        Ok(Arc::new(adjusted))
+        Ok(adjusted)
     }
 
     pub(in crate::gpu::renderer) fn build_luma_pyramid(
         &self,
         src: &Texture,
         extent: SourceExtent,
-    ) -> PipelineResult<Arc<Texture>> {
+    ) -> PipelineResult<PooledTexture> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let dims = extent.dims;
@@ -208,7 +203,11 @@ impl GpuRenderer {
         let radii = presence_radii(extent.full.0, extent.full.1);
         let pyramid_levels =
             presence_pyramid_levels(extent.full.0, extent.full.1, radii).min(mip_count(w, h));
-        let pyramid = LumaPyramidPass::allocate_pyramid(&self.ctx, w, h, pyramid_levels);
+        let pyramid = self.texture_pool.acquire(
+            device,
+            LumaPyramidPass::pyramid_key(&self.ctx, w, h, pyramid_levels),
+            "shadows-pyramid",
+        );
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("shadows-pyramid-enc"),
@@ -222,6 +221,6 @@ impl GpuRenderer {
             &SHADOWS_PYRAMID,
         );
         queue.submit(Some(encoder.finish()));
-        Ok(Arc::new(pyramid))
+        Ok(pyramid)
     }
 }

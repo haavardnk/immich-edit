@@ -38,6 +38,7 @@ pub(super) struct DisplayInput<'s> {
     pub opts: &'s RenderOptions,
     pub shadows: Option<&'s wgpu::TextureView>,
     pub layer_srcs: &'s HashMap<String, Arc<Texture>>,
+    pub held: Vec<PooledTexture>,
 }
 
 pub(super) enum DisplaySlot {
@@ -135,27 +136,34 @@ impl GpuRenderer {
                 opts,
                 shadows: None,
                 layer_srcs: &HashMap::new(),
+                held: Vec::new(),
             };
             return self.encode_display(input, timings, cancel);
         }
 
         let t = &timings;
         let extent = source.extent();
-        let base = self.dehaze_source(source, &edits_c, t, cancel)?;
+        let mut held = Vec::new();
+        let base = match self.dehaze_source(source, &edits_c, t, cancel)? {
+            Some(dehazed) => hold(&mut held, dehazed),
+            None => source.texture.clone(),
+        };
         let processed = if edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0 {
             let tex = t.stage(timing::PRESENCE, || {
                 self.run_presence(&base, extent, &edits_c)
             })?;
             crate::cancel::check(cancel)?;
-            tex
+            hold(&mut held, tex)
         } else {
             base.clone()
         };
-        let layer_srcs = self.layer_presence_sources(&base, extent, &edits_c, t, cancel)?;
+        let layer_srcs =
+            self.layer_presence_sources(&base, extent, &edits_c, t, cancel, &mut held)?;
         let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
-            Some(t.stage(timing::SHADOWS, || {
+            let pyramid = t.stage(timing::SHADOWS, || {
                 self.build_luma_pyramid(&processed, extent)
-            })?)
+            })?;
+            Some(hold(&mut held, pyramid))
         } else {
             None
         };
@@ -173,6 +181,7 @@ impl GpuRenderer {
             opts,
             shadows: shadows_view.as_ref(),
             layer_srcs: &layer_srcs,
+            held,
         };
         self.encode_display(input, timings, cancel)
     }
@@ -183,9 +192,9 @@ impl GpuRenderer {
         edits: &Edits,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<Arc<Texture>> {
+    ) -> PipelineResult<Option<PooledTexture>> {
         if edits.basic.dehaze == 0.0 {
-            return Ok(source.texture.clone());
+            return Ok(None);
         }
         let dims = source.dims;
         let atmosphere = source.atmosphere.ok_or_else(|| {
@@ -196,7 +205,7 @@ impl GpuRenderer {
             self.run_dehaze(&source.texture, source.extent(), edits, atmosphere)
         })?;
         crate::cancel::check(cancel)?;
-        Ok(tex)
+        Ok(Some(tex))
     }
 
     fn layer_presence_sources(
@@ -206,6 +215,7 @@ impl GpuRenderer {
         edits: &Edits,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
+        held: &mut Vec<PooledTexture>,
     ) -> PipelineResult<HashMap<String, Arc<Texture>>> {
         let mut out = HashMap::new();
         let global = crate::presence::presence_amounts(edits);
@@ -224,7 +234,7 @@ impl GpuRenderer {
                     let tex =
                         t.stage(timing::PRESENCE, || self.run_presence(base, extent, &eff))?;
                     crate::cancel::check(cancel)?;
-                    tex
+                    hold(held, tex)
                 }
             };
             cache.insert(key, tex.clone());
@@ -252,6 +262,7 @@ impl GpuRenderer {
             opts,
             shadows,
             layer_srcs,
+            held,
         } = input;
         let t = &timings;
 
@@ -452,10 +463,8 @@ impl GpuRenderer {
         let sharpen = final_pass_active
             .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h))
             .transpose()?;
-        let mut scratch: Vec<PooledTexture> = self
-            .run_dcp_base_table(&mut encoder, dcp, &p.linear_texture, out_w, out_h)
-            .into_iter()
-            .collect();
+        let mut scratch: Vec<PooledTexture> = held;
+        scratch.extend(self.run_dcp_base_table(&mut encoder, dcp, &p.linear_texture, out_w, out_h));
         if let Some(s) = sharpen.as_ref().map(|guard| &guard[0]) {
             let run_sharpen = sharpen_active || masked_sharpen || sharpen_preview;
             if run_sharpen {
@@ -547,6 +556,12 @@ impl GpuRenderer {
             retained,
         })
     }
+}
+
+fn hold(held: &mut Vec<PooledTexture>, texture: PooledTexture) -> Arc<Texture> {
+    let shared = texture.shared();
+    held.push(texture);
+    shared
 }
 
 fn scaled_dims(dims: (u32, u32), full: (u32, u32), target: (u32, u32)) -> (u32, u32) {
