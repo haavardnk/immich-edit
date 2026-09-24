@@ -59,16 +59,19 @@ pub struct RenderKey {
 pub struct RenderQueue {
     max_concurrency: usize,
     semaphore: Arc<Semaphore>,
+    background: Arc<Semaphore>,
     latest: Arc<Mutex<LruCache<RenderKey, u64>>>,
     trackers: Arc<Mutex<LruCache<RenderKey, CancelTracker>>>,
 }
 
 impl RenderQueue {
-    pub fn new(max_concurrency: usize) -> Self {
+    pub fn new(max_concurrency: usize, background_concurrency: usize) -> Self {
         let cap = max_concurrency.max(1);
+        let background_cap = background_concurrency.min(cap - 1).max(1);
         Self {
             max_concurrency: cap,
             semaphore: Arc::new(Semaphore::new(cap)),
+            background: Arc::new(Semaphore::new(background_cap)),
             latest: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(LATEST_CAP).unwrap(),
             ))),
@@ -113,8 +116,15 @@ impl RenderQueue {
         Some(result)
     }
 
+    pub async fn background<F: std::future::Future>(&self, work: F) -> Option<F::Output> {
+        let _lane = self.background.acquire().await.ok()?;
+        let _slot = self.semaphore.acquire().await.ok()?;
+        Some(work.await)
+    }
+
     pub async fn shutdown(&self, timeout: Duration) {
         self.semaphore.close();
+        self.background.close();
         {
             let trackers = self.trackers.lock().await;
             for (_, t) in trackers.iter() {
@@ -167,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn latest_wins_collapses_pending() {
-        let q = RenderQueue::new(1);
+        let q = RenderQueue::new(1, 1);
         let id = key(Uuid::new_v4());
         let runs = Arc::new(AtomicUsize::new(0));
 
@@ -224,7 +234,7 @@ mod tests {
 
     #[tokio::test]
     async fn dropping_an_armed_guard_cancels_the_render() {
-        let q = RenderQueue::new(1);
+        let q = RenderQueue::new(1, 1);
         let id = key(Uuid::new_v4());
         let tracker = q.tracker(id).await;
 
@@ -250,7 +260,7 @@ mod tests {
 
     #[tokio::test]
     async fn lanes_do_not_supersede_each_other() {
-        let q = RenderQueue::new(2);
+        let q = RenderQueue::new(2, 2);
         let asset = Uuid::new_v4();
         let base = key(asset);
         let mut roi = base;
@@ -285,7 +295,7 @@ mod tests {
 
     #[tokio::test]
     async fn shutdown_cancels_trackers_and_drains() {
-        let q = RenderQueue::new(2);
+        let q = RenderQueue::new(2, 2);
         let a = key(Uuid::new_v4());
         let b = key(Uuid::new_v4());
         let token_a = q.tracker(a).await.next();
@@ -315,6 +325,53 @@ mod tests {
             .await;
         if after.is_some() {
             panic!("post-shutdown enqueue should be rejected");
+        }
+    }
+
+    #[tokio::test]
+    async fn background_lane_leaves_a_slot_for_previews() {
+        for (total, background, expected) in [(3, 4, 2), (1, 2, 1)] {
+            let q = RenderQueue::new(total, background);
+            let release = Arc::new(Semaphore::new(0));
+            let running = Arc::new(AtomicUsize::new(0));
+            let thumbs: Vec<_> = (0..4)
+                .map(|_| {
+                    let q = q.clone();
+                    let release = release.clone();
+                    let running = running.clone();
+                    tokio::spawn(async move {
+                        q.background(async move {
+                            running.fetch_add(1, Ordering::SeqCst);
+                            let _ = release.acquire().await;
+                            running.fetch_sub(1, Ordering::SeqCst);
+                        })
+                        .await
+                    })
+                })
+                .collect();
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            if running.load(Ordering::SeqCst) != expected {
+                panic!(
+                    "{total} slots ran {} thumbs, expected {expected}",
+                    running.load(Ordering::SeqCst)
+                );
+            }
+            if total > 1 {
+                let preview = tokio::time::timeout(
+                    Duration::from_secs(1),
+                    q.enqueue::<_, &'static str, ()>(key(Uuid::new_v4()), async { Ok("preview") }),
+                )
+                .await;
+                if !matches!(preview, Ok(Some(Ok(_)))) {
+                    panic!("preview waited behind background renders");
+                }
+            }
+            release.add_permits(thumbs.len());
+            for thumb in thumbs {
+                if thumb.await.unwrap().is_none() {
+                    panic!("background render was rejected");
+                }
+            }
         }
     }
 }

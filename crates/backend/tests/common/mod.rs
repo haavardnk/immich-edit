@@ -93,6 +93,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let embeddings = EmbeddingCache::new(&cache_dir, 512).unwrap();
     #[cfg(feature = "ml")]
     let segment = SegmentService::new(&config, models.clone(), embeddings);
+    let queue = RenderQueue::new(1, 1);
     AppState {
         config: Arc::new(config),
         crypto,
@@ -114,10 +115,10 @@ pub async fn test_state(server: &MockServer) -> AppState {
             luts.clone(),
             dcp.clone(),
         ),
-        queue: RenderQueue::new(1),
+        edited_thumb: EditedThumbService::new(&cache_dir, queue.clone()).unwrap(),
+        queue,
         preview_meta: PreviewMetaStore::new(),
         preview_scopes: PreviewScopeStore::new(),
-        edited_thumb: EditedThumbService::new(&cache_dir, 1).unwrap(),
         rasters,
         luts,
         dcp,
