@@ -74,19 +74,12 @@ pub fn select_mip(max_edge: u32, radius_px: u32) -> u32 {
     target.clamp(0, max_levels - 1) as u32
 }
 
-pub fn pyramid_levels_for(w: u32, h: u32, max_radius_px: u32) -> u32 {
-    let max_edge = w.max(h);
-    let by_size = (max_edge as f32).log2().floor() as u32 + 1;
-    let needed = ((max_radius_px.max(1) as f32).log2().ceil() as u32) + 1;
-    needed.min(by_size).max(1)
-}
-
 pub fn has_shadows(edits: &Edits) -> bool {
     edits.tone.shadows != 0.0
 }
 
 pub fn presence_pyramid_levels(width: u32, height: u32, radii: PresenceRadii) -> u32 {
-    pyramid_levels_for(width, height, radii.max())
+    select_mip(width.max(height), radii.max()) + 1
 }
 
 pub fn has_presence(edits: &Edits) -> bool {
