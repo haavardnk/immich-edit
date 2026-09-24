@@ -7,7 +7,7 @@ use wgpu::{
 
 use crate::PipelineResult;
 use crate::edits::Edits;
-use crate::frame::RawFrame;
+use crate::frame::FrameMeta;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::stage_cache::Stage;
@@ -20,12 +20,12 @@ impl GpuRenderer {
     pub(in crate::gpu::renderer) fn run_wb_prepare(
         &self,
         cached: &CachedFrame,
-        frame: &RawFrame,
+        meta: &FrameMeta,
         edits: &Edits,
         setup: &crate::dcp_pipeline::DcpSetup,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.stages.get(Stage::Wb, key) {
+        if let Some(t) = self.sensor.stages.get(Stage::Wb, key) {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);
         }
@@ -38,10 +38,10 @@ impl GpuRenderer {
 
         let ctx_op = OpContext {
             render: RenderContext {
-                wb_coeffs: frame.meta.wb_coeffs,
+                wb_coeffs: meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
-                is_raw: frame.meta.is_raw,
-                capture_sigma: frame.meta.capture_sigma,
+                is_raw: meta.is_raw,
+                capture_sigma: meta.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
                 dcp: setup.resolved.clone(),
@@ -124,7 +124,7 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(wb_base);
-        self.stages.put(Stage::Wb, key, out.clone());
+        self.sensor.stages.put(Stage::Wb, key, out.clone());
         Ok(out)
     }
 }

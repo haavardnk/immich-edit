@@ -22,7 +22,7 @@ impl GpuRenderer {
         edits: &Edits,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.stages.get(Stage::Nr, key) {
+        if let Some(t) = self.sensor.stages.get(Stage::Nr, key) {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
         }
@@ -140,7 +140,7 @@ impl GpuRenderer {
             self.encode_mipgen(&mut encoder, &dst, w, h);
             queue.submit(Some(encoder.finish()));
             let out = Arc::new(dst);
-            self.stages.put(Stage::Nr, key, out.clone());
+            self.sensor.stages.put(Stage::Nr, key, out.clone());
             return Ok(out);
         }
 
@@ -195,7 +195,7 @@ impl GpuRenderer {
         self.encode_mipgen(&mut encoder, &dst, w, h);
         queue.submit(Some(encoder.finish()));
         let out = Arc::new(dst);
-        self.stages.put(Stage::Nr, key, out.clone());
+        self.sensor.stages.put(Stage::Nr, key, out.clone());
         Ok(out)
     }
 }

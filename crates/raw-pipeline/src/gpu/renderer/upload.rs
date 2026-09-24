@@ -23,8 +23,8 @@ impl GpuRenderer {
         block: Option<usize>,
     ) -> PipelineResult<Arc<CachedFrame>> {
         let cache = match block {
-            Some(_) => &self.superpixel_cache,
-            None => &self.cache,
+            Some(_) => &self.sensor.superpixels,
+            None => &self.sensor.frames,
         };
         let key = {
             let mut h = std::collections::hash_map::DefaultHasher::new();

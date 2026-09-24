@@ -78,7 +78,7 @@ impl GpuRenderer {
             mut encoder,
             targets,
             slot,
-            meta,
+            bins,
             dims,
             source_dims,
             atlases,
@@ -108,7 +108,7 @@ impl GpuRenderer {
             )?),
             _ => DisplayBuf::Rgba8(read_rgba8(&self.ctx, display_dst, out_w, out_h, cancel)?),
         };
-        let counts = self.read_meta_counts(p, meta, cancel)?;
+        let counts = self.read_meta_counts(p, bins, cancel)?;
         timings
             .clock()
             .add_wall(timing::READBACK, started.elapsed());

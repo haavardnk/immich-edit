@@ -1,3 +1,4 @@
+mod atmosphere;
 mod capture_sharpen;
 mod dehaze;
 mod nr;

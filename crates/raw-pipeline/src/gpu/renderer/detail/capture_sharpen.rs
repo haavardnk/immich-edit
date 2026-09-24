@@ -24,7 +24,7 @@ impl GpuRenderer {
         sigma: f32,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.stages.get(Stage::Capture, key) {
+        if let Some(t) = self.sensor.stages.get(Stage::Capture, key) {
             tracing::debug!(target: "gpu_cache", "capture_sharpen cache hit");
             return Ok(t);
         }
@@ -197,7 +197,7 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(out);
-        self.stages.put(Stage::Capture, key, out.clone());
+        self.sensor.stages.put(Stage::Capture, key, out.clone());
         Ok(out)
     }
 }

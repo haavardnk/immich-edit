@@ -1,5 +1,5 @@
 use crate::edits::{CropRect, Edits};
-use crate::frame::RawFrame;
+use crate::frame::FrameMeta;
 
 pub(super) struct ProcessGeom {
     pub display: (u32, u32),
@@ -15,9 +15,9 @@ pub(super) struct ProcessGeom {
     pub geom_warps: bool,
 }
 
-pub(super) fn process_geom(frame: &RawFrame, edits: &Edits, work_dims: (u32, u32)) -> ProcessGeom {
+pub(super) fn process_geom(meta: &FrameMeta, edits: &Edits, work_dims: (u32, u32)) -> ProcessGeom {
     let (sensor_w, sensor_h) = work_dims;
-    let display = if frame.meta.orientation.0 {
+    let display = if meta.orientation.0 {
         (sensor_h, sensor_w)
     } else {
         (sensor_w, sensor_h)
@@ -27,10 +27,10 @@ pub(super) fn process_geom(frame: &RawFrame, edits: &Edits, work_dims: (u32, u32
         _ => display,
     };
 
-    let full_display = if frame.meta.orientation.0 {
-        (frame.meta.height as u32, frame.meta.width as u32)
+    let full_display = if meta.orientation.0 {
+        (meta.height as u32, meta.width as u32)
     } else {
-        (frame.meta.width as u32, frame.meta.height as u32)
+        (meta.width as u32, meta.height as u32)
     };
     let source = match edits.geometry.rotate {
         90 | 270 => (full_display.1, full_display.0),
@@ -43,7 +43,7 @@ pub(super) fn process_geom(frame: &RawFrame, edits: &Edits, work_dims: (u32, u32
     let a_rad = crate::geom::deg_to_rad(angle);
     let perspective_inverse = edits.geometry.perspective_inverse();
 
-    let (ot, oh_h, oh_v) = frame.meta.orientation;
+    let (ot, oh_h, oh_v) = meta.orientation;
     ProcessGeom {
         display,
         oriented,
@@ -59,17 +59,4 @@ pub(super) fn process_geom(frame: &RawFrame, edits: &Edits, work_dims: (u32, u32
             || angle.abs() > 1e-4
             || perspective_inverse != crate::perspective::IDENTITY,
     }
-}
-
-pub(super) fn compute_out_dims(
-    frame: &RawFrame,
-    edits: &Edits,
-    src_dims: (u32, u32),
-    max_edge: u32,
-) -> (u32, u32) {
-    crate::geom::display_out_dims(frame.meta.orientation, edits, src_dims, max_edge)
-}
-
-pub(super) fn crop_px(frame: &RawFrame, edits: &Edits, src_dims: (u32, u32)) -> (u32, u32) {
-    crate::geom::display_crop_px(frame.meta.orientation, edits, src_dims)
 }

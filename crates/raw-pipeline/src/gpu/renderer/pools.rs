@@ -115,9 +115,9 @@ impl GpuRenderer {
                 .iter()
                 .map(sharpen_targets_bytes)
                 .sum(),
-            wb_cache: self.stages.bytes(super::Stage::Wb),
-            nr_cache: self.stages.bytes(super::Stage::Nr),
-            capture_cache: self.stages.bytes(super::Stage::Capture),
+            wb_cache: self.sensor.stages.bytes(super::Stage::Wb),
+            nr_cache: self.sensor.stages.bytes(super::Stage::Nr),
+            capture_cache: self.sensor.stages.bytes(super::Stage::Capture),
             atlas_cache: self
                 .atlas_cache
                 .lock()
