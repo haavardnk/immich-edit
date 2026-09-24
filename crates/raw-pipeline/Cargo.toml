@@ -8,8 +8,6 @@ license.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-uuid = { workspace = true }
-bytes = { workspace = true }
 tracing = { workspace = true }
 rawler = "0.8"
 turbojpeg = { version = "1", default-features = false, features = ["pkg-config"] }
@@ -27,7 +25,6 @@ little_exif = "0.6"
 png = "0.18"
 tiff = "0.11"
 webp = "0.3"
-rgb = "0.8"
 flate2 = "1"
 jpegxl-rs = { version = "0.14", features = ["vendored"] }
 jpegxl-sys = "0.12"
