@@ -137,9 +137,11 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Retouch
 
-| Keys                | Action                      | Available in |
-| ------------------- | --------------------------- | ------------ |
-| `H`                 | Heal mode                   | Retouch      |
-| `C`                 | Clone mode                  | Retouch      |
-| `Backspace` / `Del` | Delete the selected stroke  | Retouch      |
-| `Esc`               | Deselect the current stroke | Retouch      |
+| Keys                  | Action                            | Available in |
+| --------------------- | --------------------------------- | ------------ |
+| `H`                   | Heal mode                         | Retouch      |
+| `C`                   | Clone mode                        | Retouch      |
+| `Backspace` / `Del`   | Delete the selected stroke        | Retouch      |
+| `Esc`                 | Deselect the current stroke       | Retouch      |
+| `Alt + click`         | Set the source point              | Retouch      |
+| `Drag the green ring` | Move the selected stroke's source | Retouch      |

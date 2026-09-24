@@ -1,16 +1,14 @@
 import type { Edits, RetouchMode, RetouchStroke, Vec2f } from '$lib/types/edits';
+import type { RetouchTool } from '$lib/stores/ui.svelte';
 
 export interface RetouchCtx {
   edits: Edits;
   initialised: boolean;
   activeRetouchId: string | null;
   retouchAnchor: Vec2f | null;
-  retouchTool: {
-    mode: RetouchMode;
-    size: number;
-    hardness: number;
-    opacity: number;
-  };
+  retouchSampling: boolean;
+  retouchSourceMissed: boolean;
+  retouchTool: RetouchTool;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
 }
@@ -78,11 +76,27 @@ export async function clearRetouch(ctx: RetouchCtx): Promise<void> {
   await ctx.onCommit('Clear Retouch');
 }
 
-export function setRetouchTool(
-  ctx: RetouchCtx,
-  patch: Partial<{ mode: RetouchMode; size: number; hardness: number; opacity: number }>
-): void {
+export function setRetouchTool(ctx: RetouchCtx, patch: Partial<RetouchTool>): void {
   ctx.retouchTool = { ...ctx.retouchTool, ...patch };
+}
+
+export function setRetouchAnchor(ctx: RetouchCtx, point: Vec2f): void {
+  ctx.retouchAnchor = point;
+  ctx.retouchSampling = false;
+  ctx.retouchSourceMissed = false;
+}
+
+export function clearRetouchAnchor(ctx: RetouchCtx): void {
+  ctx.retouchAnchor = null;
+  ctx.retouchSampling = false;
+}
+
+export function toggleRetouchSampling(ctx: RetouchCtx): void {
+  ctx.retouchSampling = !ctx.retouchSampling;
+}
+
+export function markRetouchSourceMissing(ctx: RetouchCtx): void {
+  ctx.retouchSourceMissed = true;
 }
 
 export function setRetouchMode(ctx: RetouchCtx, mode: RetouchMode): void {

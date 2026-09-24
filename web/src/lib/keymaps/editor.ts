@@ -53,6 +53,9 @@ function onEscape(e: KeyboardEvent): void {
     e.preventDefault();
     if (editor.geometryDirty) editor.cancelGeometrySession();
     ui.editorTab = 'develop';
+  } else if (ui.editorTab === 'retouch' && editor.retouchSampling) {
+    e.preventDefault();
+    editor.toggleRetouchSampling();
   } else if (ui.editorTab === 'retouch' && editor.activeRetouchId) {
     e.preventDefault();
     editor.activeRetouchId = null;

@@ -48,7 +48,7 @@ import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 import { isRejected } from '$lib/reject';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
-import { ui } from '$lib/stores/ui.svelte';
+import { ui, type BrushTool, type RetouchTool } from '$lib/stores/ui.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import type { Roi } from '$lib/utils/view-geometry';
 import { applyCopySections } from '$lib/copyPaste';
@@ -116,12 +116,6 @@ class EditorStore {
   maskRefineOpen = $state<Record<string, boolean>>({});
   maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
-  brushTool = $state<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>({
-    size: 0.08,
-    hardness: 0.5,
-    flow: 0.8,
-    mode: 'paint'
-  });
   brushBuffers = $state<Record<string, BrushBuffer>>({});
   brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
@@ -143,19 +137,26 @@ class EditorStore {
     points: Vec2f[];
   } | null>(null);
 
-  retouchTool = $state<{
-    mode: RetouchMode;
-    size: number;
-    hardness: number;
-    opacity: number;
-  }>({
-    mode: 'heal',
-    size: 0.05,
-    hardness: 0.5,
-    opacity: 1
-  });
   activeRetouchId = $state<string | null>(null);
   retouchAnchor = $state<Vec2f | null>(null);
+  retouchSampling = $state(false);
+  retouchSourceMissed = $state(false);
+
+  get brushTool(): BrushTool {
+    return ui.brushTool;
+  }
+
+  set brushTool(tool: BrushTool) {
+    ui.setBrushTool(tool);
+  }
+
+  get retouchTool(): RetouchTool {
+    return ui.retouchTool;
+  }
+
+  set retouchTool(tool: RetouchTool) {
+    ui.setRetouchTool(tool);
+  }
 
   private history = new EditHistory(this);
   private saves = new SaveQueue(this);
@@ -326,6 +327,8 @@ class EditorStore {
     this.maskPreviewLayerId = null;
     this.activeRetouchId = null;
     this.retouchAnchor = null;
+    this.retouchSampling = false;
+    this.retouchSourceMissed = false;
     this.colorPicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
@@ -611,15 +614,19 @@ class EditorStore {
 
   commitMasks = (): Promise<void> => maskLayers.commitMasks(this);
 
-  setBrushTool = (
-    patch: Partial<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>
-  ): void => maskLayers.setBrushTool(this, patch);
+  setBrushTool = (patch: Partial<BrushTool>): void => maskLayers.setBrushTool(this, patch);
 
-  setRetouchTool = (
-    patch: Partial<{ mode: RetouchMode; size: number; hardness: number; opacity: number }>
-  ): void => retouch.setRetouchTool(this, patch);
+  setRetouchTool = (patch: Partial<RetouchTool>): void => retouch.setRetouchTool(this, patch);
 
   setRetouchMode = (mode: RetouchMode): void => retouch.setRetouchMode(this, mode);
+
+  setRetouchAnchor = (point: Vec2f): void => retouch.setRetouchAnchor(this, point);
+
+  clearRetouchAnchor = (): void => retouch.clearRetouchAnchor(this);
+
+  toggleRetouchSampling = (): void => retouch.toggleRetouchSampling(this);
+
+  markRetouchSourceMissing = (): void => retouch.markRetouchSourceMissing(this);
 
   ensureBrushBuffer = (componentId: string, rasterId: string | null): Promise<BrushBuffer> =>
     maskGen.ensureBrushBuffer(this, componentId, rasterId);

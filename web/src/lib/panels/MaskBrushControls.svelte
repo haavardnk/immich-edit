@@ -2,6 +2,7 @@
   import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { formatBrushSize } from '$lib/utils/brushSize';
   import { Button } from '@immich/ui';
 
   const size = $derived(editor.brushTool.size);
@@ -42,7 +43,7 @@
     defaultValue={0.08}
     onLive={(v: number) => editor.setBrushTool({ size: v })}
     onCommit={() => editor.setBrushTool({ size })}
-    format={(v: number) => v.toFixed(3)}
+    format={(v: number) => formatBrushSize(v, editor.meta)}
   />
   <SliderRow
     label="Hardness"

@@ -56,12 +56,15 @@ test('painting a retouch stroke saves it and lists it in the panel', async ({ pa
   await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
 });
 
-test('painting without a sampled source does nothing', async ({ page }) => {
+test('painting without a sampled source asks for one', async ({ page }) => {
   await installMocks(page, { previewBody: PNG_64 });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Retouch' }).click();
+  const panel = page.getByRole('tabpanel');
+  await expect(panel.getByText('Not set', { exact: true })).toBeVisible();
   const canvas = page.getByLabel('retouch canvas');
+  await expect(canvas).toHaveCSS('cursor', 'not-allowed');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('retouch canvas has no bounding box');
 
@@ -71,6 +74,39 @@ test('painting without a sampled source does nothing', async ({ page }) => {
   await page.mouse.up();
 
   await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('status')).toHaveText('Set a source before painting');
+});
+
+test('Sample arms a one-shot source pick', async ({ page }) => {
+  await installMocks(page, { previewBody: PNG_64 });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  const panel = page.getByRole('tabpanel');
+  const sample = panel.getByRole('button', { name: 'Sample' });
+  await sample.click();
+  await expect(sample).toHaveAttribute('aria-pressed', 'true');
+
+  const canvas = page.getByLabel('retouch canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('retouch canvas has no bounding box');
+  await page.mouse.click(box.x + box.width * 0.7, box.y + box.height * 0.4);
+  await expect(panel.getByText('Set', { exact: true })).toBeVisible();
+  await expect(sample).toHaveAttribute('aria-pressed', 'false');
+
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.4);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
+  await expect(panel.getByText('Stroke 1', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Edit Size value' })).toHaveText(/^\s*\d+ px\s*$/);
+
+  await page.keyboard.press('Escape');
+  await expect(panel.getByText('Brush', { exact: true })).toBeVisible();
+
+  await panel.getByRole('button', { name: 'Clear source' }).click();
+  await expect(panel.getByText('Not set', { exact: true })).toBeVisible();
 });
 
 test('painting while zoomed in paints instead of panning', async ({ page }) => {

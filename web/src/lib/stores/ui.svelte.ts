@@ -1,5 +1,6 @@
 import { readStored, writeStored } from '$lib/utils/storage';
 import { clampZoom, nextStop, readZoomLevel, writeZoomLevel } from '$lib/utils/zoomLevel';
+import type { RetouchMode } from '$lib/types/edits';
 
 export type AspectRatio = 'free' | 'original' | '1:1' | '4:3' | '3:2' | '16:9' | '5:4' | '7:5';
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
@@ -22,6 +23,52 @@ export const MAX_FILMSTRIP_HEIGHT = 144;
 
 const UI_STORAGE_KEY = 'immich-edit:editorUi';
 
+export interface BrushTool {
+  size: number;
+  hardness: number;
+  flow: number;
+  mode: 'paint' | 'erase';
+}
+
+export interface RetouchTool {
+  mode: RetouchMode;
+  size: number;
+  hardness: number;
+  opacity: number;
+}
+
+const DEFAULT_BRUSH_TOOL: BrushTool = { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' };
+const DEFAULT_RETOUCH_TOOL: RetouchTool = { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 };
+
+function clampStored(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function restoreBrushTool(
+  stored: Partial<Record<keyof BrushTool, unknown>> | undefined
+): BrushTool {
+  const d = DEFAULT_BRUSH_TOOL;
+  return {
+    size: clampStored(stored?.size, 0.005, 0.5, d.size),
+    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
+    flow: clampStored(stored?.flow, 0.01, 1, d.flow),
+    mode: stored?.mode === 'erase' ? 'erase' : 'paint'
+  };
+}
+
+function restoreRetouchTool(
+  stored: Partial<Record<keyof RetouchTool, unknown>> | undefined
+): RetouchTool {
+  const d = DEFAULT_RETOUCH_TOOL;
+  return {
+    mode: stored?.mode === 'clone' ? 'clone' : 'heal',
+    size: clampStored(stored?.size, 0.005, 0.3, d.size),
+    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
+    opacity: clampStored(stored?.opacity, 0.05, 1, d.opacity)
+  };
+}
+
 type PersistedEditorUi = {
   inspectorWidth?: number;
   filmstripHeight?: number;
@@ -29,6 +76,8 @@ type PersistedEditorUi = {
   editorFilmstripCollapsed?: boolean;
   loupeFilmstripCollapsed?: boolean;
   developOpenPanels?: string[];
+  brushTool?: BrushTool;
+  retouchTool?: RetouchTool;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -54,9 +103,13 @@ class UiStore {
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
   clipWarn = $state(false);
+  brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
+  retouchTool = $state<RetouchTool>(DEFAULT_RETOUCH_TOOL);
 
   constructor() {
     const stored = readStored<PersistedEditorUi>(UI_STORAGE_KEY);
+    this.brushTool = restoreBrushTool(stored?.brushTool);
+    this.retouchTool = restoreRetouchTool(stored?.retouchTool);
     if (typeof stored?.inspectorWidth === 'number') {
       this.inspectorWidth = Math.min(
         MAX_INSPECTOR_WIDTH,
@@ -95,8 +148,20 @@ class UiStore {
       rightCollapsed: this.rightCollapsed,
       editorFilmstripCollapsed: this.editorFilmstripCollapsed,
       loupeFilmstripCollapsed: this.loupeFilmstripCollapsed,
-      developOpenPanels: this.developOpenPanels ?? undefined
+      developOpenPanels: this.developOpenPanels ?? undefined,
+      brushTool: this.brushTool,
+      retouchTool: this.retouchTool
     } satisfies PersistedEditorUi);
+  };
+
+  setBrushTool = (tool: BrushTool): void => {
+    this.brushTool = tool;
+    this.persistEditorUi();
+  };
+
+  setRetouchTool = (tool: RetouchTool): void => {
+    this.retouchTool = tool;
+    this.persistEditorUi();
   };
 
   setInspectorWidth = (width: number): void => {
