@@ -29,6 +29,7 @@ const swiftshader =
 
 test.use({
   channel: 'chromium',
+  headless: process.platform !== 'linux',
   launchOptions: { args: ['--enable-unsafe-webgpu', ...swiftshader] }
 });
 
