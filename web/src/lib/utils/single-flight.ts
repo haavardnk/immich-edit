@@ -5,15 +5,22 @@ export class SingleFlight<TArgs, TResult> {
   private fn: (args: TArgs, signal: AbortSignal) => Promise<TResult>;
   private onResult: (args: TArgs, result: TResult) => void;
   private onError: (err: unknown) => void;
+  private onIdle: () => void;
 
   constructor(
     fn: (args: TArgs, signal: AbortSignal) => Promise<TResult>,
     onResult: (args: TArgs, result: TResult) => void,
-    onError: (err: unknown) => void = () => {}
+    onError: (err: unknown) => void = () => {},
+    onIdle: () => void = () => {}
   ) {
     this.fn = fn;
     this.onResult = onResult;
     this.onError = onError;
+    this.onIdle = onIdle;
+  }
+
+  get busy(): boolean {
+    return this.running;
   }
 
   submit(args: TArgs): void {
@@ -42,6 +49,8 @@ export class SingleFlight<TArgs, TResult> {
       this.pending = null;
       if (next !== null) {
         void this.run(next);
+      } else {
+        this.onIdle();
       }
     }
   }
