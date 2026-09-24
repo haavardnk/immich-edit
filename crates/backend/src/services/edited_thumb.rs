@@ -5,12 +5,12 @@ use std::time::{Duration, SystemTime};
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{JpegSubsampling, OutputFormat, PreviewMode, RenderOptions};
 use tokio::fs;
-use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::safe_path;
 use crate::services::render::{RenderError, RenderIdentity, RenderService};
+use crate::services::render_queue::RenderQueue;
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 
@@ -29,16 +29,16 @@ pub enum EditedThumbError {
 #[derive(Clone)]
 pub struct EditedThumbService {
     dir: Arc<PathBuf>,
-    semaphore: Arc<Semaphore>,
+    queue: RenderQueue,
 }
 
 impl EditedThumbService {
-    pub fn new(cache_dir: &Path, max_concurrency: usize) -> std::io::Result<Self> {
+    pub fn new(cache_dir: &Path, queue: RenderQueue) -> std::io::Result<Self> {
         let dir = cache_dir.join("edited-thumb");
         std::fs::create_dir_all(&dir)?;
         let svc = Self {
             dir: Arc::new(dir),
-            semaphore: Arc::new(Semaphore::new(max_concurrency.max(1))),
+            queue,
         };
         svc.sweep_blocking();
         Ok(svc)
@@ -110,38 +110,38 @@ impl EditedThumbService {
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);
         }
-        let _permit = self
-            .semaphore
-            .clone()
-            .acquire_owned()
-            .await
-            .map_err(|_| EditedThumbError::Io(std::io::ErrorKind::Other.into()))?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-        if let Ok(bytes) = fs::read(&path).await {
-            return Ok(bytes);
-        }
-        let opts = RenderOptions {
-            max_edge: size,
-            quality: false,
-            output: OutputFormat::Jpeg {
-                quality: 80,
-                subsampling: JpegSubsampling::Chroma420,
-            },
-            preview_mode: PreviewMode::None,
-            ..Default::default()
+        let work = async {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).await?;
+            }
+            if let Ok(bytes) = fs::read(&path).await {
+                return Ok(bytes);
+            }
+            let opts = RenderOptions {
+                max_edge: size,
+                quality: false,
+                output: OutputFormat::Jpeg {
+                    quality: 80,
+                    subsampling: JpegSubsampling::Chroma420,
+                },
+                preview_mode: PreviewMode::None,
+                ..Default::default()
+            };
+            let rendered = render
+                .render(identity, immich, asset_id.source(), edits, opts, None)
+                .await?;
+            let tmp = path.with_extension(format!("{}.tmp", Uuid::new_v4()));
+            fs::write(&tmp, &rendered.bytes).await?;
+            if let Err(error) = fs::rename(&tmp, &path).await {
+                let _ = fs::remove_file(&tmp).await;
+                return Err(error.into());
+            }
+            Ok(rendered.bytes)
         };
-        let rendered = render
-            .render(identity, immich, asset_id.source(), edits, opts, None)
-            .await?;
-        let tmp = path.with_extension(format!("{}.tmp", Uuid::new_v4()));
-        fs::write(&tmp, &rendered.bytes).await?;
-        if let Err(error) = fs::rename(&tmp, &path).await {
-            let _ = fs::remove_file(&tmp).await;
-            return Err(error.into());
-        }
-        Ok(rendered.bytes)
+        self.queue
+            .background(work)
+            .await
+            .ok_or_else(|| EditedThumbError::Io(std::io::ErrorKind::Other.into()))?
     }
 
     pub async fn purge_asset(&self, server_epoch: i64, owner: Uuid, asset_id: AssetKey) {

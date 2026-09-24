@@ -43,7 +43,7 @@ async fn impatient_state(server: &MockServer) -> AppState {
 
 async fn parallel_state(server: &MockServer) -> AppState {
     let mut state = test_state(server).await;
-    state.queue = RenderQueue::new(4);
+    state.queue = RenderQueue::new(4, 4);
     state
 }
 
