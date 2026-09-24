@@ -12,37 +12,49 @@ import type { Edits } from '$lib/types/edits';
 import { downloadBlob } from '$lib/utils/download';
 import { errorMessage } from '$lib/utils/errors';
 
+export interface ExportResult {
+  kind: 'success' | 'duplicate' | 'error';
+  message: string;
+}
+
+export interface DownloadRequest {
+  opts: ExportOptions;
+  suffix: string;
+}
+
 export interface ExportCtx {
   assetId: string | null;
   asset: AssetDetail | null;
   edits: Edits;
-  error: string | null;
   exporting: boolean;
   exportingToImmich: boolean;
-  lastExportOpts: ExportOptions | null;
+  lastDownloadRequest: DownloadRequest | null;
   lastImmichOpts: ImmichExportOptions | null;
-  lastUpload: { kind: 'success' | 'duplicate' | 'error'; message: string } | null;
+  lastDownload: ExportResult | null;
+  lastUpload: ExportResult | null;
   lastWarnings: string[];
 }
 
-export async function onExport(ctx: ExportCtx, opts: ExportOptions): Promise<void> {
+export async function onExport(ctx: ExportCtx, request: DownloadRequest): Promise<void> {
   if (!ctx.assetId) return;
-  ctx.lastExportOpts = opts;
+  ctx.lastDownloadRequest = request;
   ctx.exporting = true;
+  ctx.lastDownload = null;
   try {
-    const blob = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), opts);
+    const blob = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), request.opts);
     const base = (ctx.asset?.originalFileName ?? ctx.assetId).replace(/\.[^.]+$/, '');
-    const name = `${base}_edit.${EXTENSION_BY_FORMAT[opts.format]}`;
+    const name = `${base}${request.suffix}.${EXTENSION_BY_FORMAT[request.opts.format]}`;
     downloadBlob(blob, name);
+    ctx.lastDownload = { kind: 'success', message: `Saved ${name}` };
   } catch (e) {
-    ctx.error = errorMessage(e);
+    ctx.lastDownload = { kind: 'error', message: `Export failed: ${errorMessage(e)}` };
   } finally {
     ctx.exporting = false;
   }
 }
 
 export async function retryExport(ctx: ExportCtx): Promise<void> {
-  if (ctx.lastExportOpts) await onExport(ctx, ctx.lastExportOpts);
+  if (ctx.lastDownloadRequest) await onExport(ctx, ctx.lastDownloadRequest);
 }
 
 export async function onUploadToImmich(ctx: ExportCtx, opts: ImmichExportOptions): Promise<void> {
@@ -69,7 +81,6 @@ export async function onUploadToImmich(ctx: ExportCtx, opts: ImmichExportOptions
     }
   } catch (e) {
     const message = errorMessage(e);
-    ctx.error = message;
     ctx.lastUpload = { kind: 'error', message: `Upload failed: ${message}` };
     toasts.push('error', `Upload failed: ${message}`, 10000);
   } finally {

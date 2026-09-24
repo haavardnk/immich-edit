@@ -1,4 +1,4 @@
-import type { AspectLock, CropRect } from '../types/edits';
+import type { AspectLock, CropRect, GeometryEdits } from '../types/edits';
 import { FULL_CROP } from '../types/edits';
 import { IDENTITY_MAT3, mat3Apply, type Mat3 } from './perspective';
 
@@ -213,4 +213,18 @@ export function clamp01(v: number): number {
   if (v < 0) return 0;
   if (v > 1) return 1;
   return v;
+}
+
+export function croppedOutputSize(geometry: GeometryEdits, sourceW: number, sourceH: number): Size {
+  const quarter = geometry.rotate === 90 || geometry.rotate === 270;
+  const bbox = rotatedBbox(
+    quarter ? sourceH : sourceW,
+    quarter ? sourceW : sourceH,
+    geometry.rotate_angle
+  );
+  const crop = geometry.crop ?? FULL_CROP;
+  return {
+    w: Math.max(1, Math.round(crop.w * bbox.w)),
+    h: Math.max(1, Math.round(crop.h * bbox.h))
+  };
 }

@@ -776,7 +776,7 @@ test('dense panel fields and selects share package sizing and states', async ({ 
   expect((await trigger.textContent())?.trim()).not.toBe(before);
 });
 
-test('bulk export shows the neutral suffix field only for Immich', async ({ page }) => {
+test('bulk export shows the neutral suffix field for both destinations', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
@@ -785,7 +785,7 @@ test('bulk export shows the neutral suffix field only for Immich', async ({ page
 
   const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
   const suffix = dialog.getByLabel('Filename suffix');
-  await expect(suffix).toBeHidden();
+  await expect(suffix).toBeVisible();
 
   await dialog.getByRole('radio', { name: 'To Immich' }).click();
   await expect(suffix).toBeVisible();
@@ -799,7 +799,7 @@ test('bulk export shows the neutral suffix field only for Immich', async ({ page
   await expectPrimaryFocusRing(page, suffix);
 
   await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
-  await expect(suffix).toBeHidden();
+  await expect(suffix).toBeVisible();
 });
 
 test('crop ratio controls share the neutral grey surface', async ({ page }) => {
