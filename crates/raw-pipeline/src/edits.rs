@@ -4,6 +4,7 @@ mod geometry;
 mod lens;
 mod masks;
 mod retouch;
+mod stages;
 #[cfg(test)]
 mod tests;
 

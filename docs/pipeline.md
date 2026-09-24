@@ -99,6 +99,26 @@ balance, and a white balance change reuses all of them.
 The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
 the contract.
 
+## Portable linear source
+
+A render splits into a sensor stage (passes 1 to 7 plus the dehaze atmosphere estimate) and a
+display chain (everything after). `render_source` on either renderer runs only the sensor stage and
+returns a `SourceImage`: the as-shot white-balanced, noise-reduced, preview-sized frame as
+half-float RGB, plus the frame metadata and the atmosphere the display chain needs for dehaze. It
+always takes the presence path and always estimates the atmosphere, so one source can render any
+display edit. `GpuRenderer::upload_source` turns a decoded source back into a texture, and the
+display chain renders it byte for byte like the frame it came from.
+
+`Edits::sensor_stage` keeps only the fields that change the source: noise reduction, capture
+sharpening, lens, retouch, the DCP selection, and crop and rotation, which set its resolution. The
+CPU source is already oriented, so its metadata carries identity orientation and oriented
+dimensions.
+
+`source::encode` writes an `IESR` stream: a versioned binary header that keeps every float bit for
+bit, then the half-float samples as per-channel planes of high and low bytes, each row delta
+coded against its left neighbour, compressed with zstd level 1. `source::decode` reads it on the
+server and in the browser with a pure Rust decoder.
+
 ## Resolution and geometry
 
 Both renderers use `geom::preview_ratio` and `geom::resample_target`. A non-quality preview whose

@@ -12,13 +12,34 @@ use crate::PipelineResult;
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::gpu::budget::GpuBudget;
-use crate::gpu::source::{LinearKind, LinearSource};
+use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
+use crate::source::{LinearKind, RenderedSource};
 use crate::timing;
 
 const FRAME_CACHE_ITEMS: usize = 2;
 const ATMOSPHERE_CACHE_ITEMS: usize = 16;
+
+#[derive(Clone, Copy)]
+pub(super) struct SourcePlan {
+    render: RenderPlan,
+    atmosphere: bool,
+}
+
+impl SourcePlan {
+    const PORTABLE: Self = Self {
+        render: RenderPlan::Presence,
+        atmosphere: true,
+    };
+
+    pub fn for_render(edits: &Edits, frame: &RawFrame) -> Self {
+        Self {
+            render: RenderPlan::select(edits, frame),
+            atmosphere: edits.basic.dehaze != 0.0,
+        }
+    }
+}
 
 pub(super) struct CachedFrame {
     pub texture: Arc<Texture>,
@@ -62,7 +83,40 @@ impl GpuRenderer {
     ) -> PipelineResult<LinearSource> {
         let timings = RenderTimings::new(&self.ctx);
         let edits = super::compose_edits(edits, options);
-        self.sensor_stage(frame, &edits, options, &timings, None)
+        let plan = SourcePlan::for_render(&edits, frame);
+        self.sensor_stage(frame, &edits, options, plan, &timings, None)
+    }
+
+    pub fn render_source(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<RenderedSource> {
+        if self.ctx.is_lost() {
+            return Err(crate::PipelineError::DeviceLost);
+        }
+        let timings = RenderTimings::new(&self.ctx);
+        let edits = super::compose_edits(edits, options);
+        let linear = self.sensor_stage(
+            frame,
+            &edits,
+            options,
+            SourcePlan::PORTABLE,
+            &timings,
+            cancel,
+        )?;
+        let started = std::time::Instant::now();
+        let image = self.read_source(&linear, cancel)?;
+        timings
+            .clock()
+            .add_wall(timing::READBACK, started.elapsed());
+        Ok(RenderedSource {
+            image,
+            renderer: "gpu".into(),
+            timings: timings.finish(cancel),
+        })
     }
 
     pub(super) fn sensor_stage(
@@ -70,6 +124,7 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
+        plan: SourcePlan,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<LinearSource> {
@@ -93,7 +148,7 @@ impl GpuRenderer {
             cached
         };
         let dims = (cached.width, cached.height);
-        if RenderPlan::select(&edits, frame) == RenderPlan::Fast {
+        if plan.render == RenderPlan::Fast {
             return Ok(LinearSource {
                 meta: frame.meta.clone(),
                 kind: LinearKind::PreWb,
@@ -102,15 +157,17 @@ impl GpuRenderer {
                 atmosphere: None,
             });
         }
-        self.spatial_base(&cached, frame, &edits, options, t, cancel)
+        self.spatial_base(&cached, frame, &edits, options, plan.atmosphere, t, cancel)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn spatial_base(
         &self,
         cached: &CachedFrame,
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
+        with_atmosphere: bool,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<LinearSource> {
@@ -170,7 +227,7 @@ impl GpuRenderer {
             }
             None => (dims, full_src),
         };
-        let atmosphere = if edits.basic.dehaze != 0.0 {
+        let atmosphere = if with_atmosphere {
             let key = keys.spatial(sigma, spatial_dims);
             let atm = t.stage(timing::DEHAZE, || {
                 self.atmosphere_for(key, &texture, spatial_dims, cancel)

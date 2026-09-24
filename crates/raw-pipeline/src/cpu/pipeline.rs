@@ -1,5 +1,6 @@
 mod ops;
 mod output;
+mod source;
 
 use crate::cancel::{self, CancelToken};
 use crate::cpu::renderer::{self, CpuRenderer};
@@ -15,6 +16,7 @@ use output::{finish_output, resolve_lut};
 use std::sync::Arc;
 
 pub use ops::{run_output_ops, run_pipeline_ops, run_sensor_ops};
+pub(crate) use source::render_source;
 
 pub fn render(
     frame: &RawFrame,

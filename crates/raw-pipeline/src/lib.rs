@@ -27,6 +27,7 @@ pub mod perspective;
 pub mod presence;
 pub mod scopes;
 mod sensor_sample;
+pub mod source;
 pub mod timing;
 pub mod tone;
 mod vmath;

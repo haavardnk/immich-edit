@@ -17,11 +17,12 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
-use crate::gpu::source::{LinearKind, LinearSource};
+use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::presence::{presence_mips, presence_radii};
+use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
