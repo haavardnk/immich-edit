@@ -5,7 +5,7 @@ import { gotoAsset, installMocks } from './helpers';
 import { webgpu } from './webgpu';
 
 const web = path.resolve(import.meta.dirname, '..');
-const fixtures = path.join(web, 'e2e/fixtures/render');
+const fixtures = path.join(web, 'e2e/fixtures/render/fit');
 const spec = JSON.parse(fs.readFileSync(path.join(fixtures, 'case.json'), 'utf8'));
 const dcp = path.join(web, '../crates/backend/assets/dcp', spec.dcp);
 const FRAME = { timeout: 60_000 };
