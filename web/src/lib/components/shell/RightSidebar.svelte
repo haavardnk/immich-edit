@@ -26,7 +26,9 @@
     { id: 'export', label: 'Export' }
   ];
 
-  const scopesOpen = $derived(openDevelopPanels(ui.developOpenPanels).has(SCOPES_PANEL));
+  const scopesOpen = $derived(
+    scopes.pinned || openDevelopPanels(ui.developOpenPanels).has(SCOPES_PANEL)
+  );
   const activeEditorTab = $derived(
     editorTabs.find((tab) => tab.id === ui.editorTab) ?? editorTabs[0]
   );

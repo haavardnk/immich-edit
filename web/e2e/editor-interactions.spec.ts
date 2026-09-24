@@ -181,20 +181,39 @@ test('pinned scopes stay above the scrolling panels across a reload', async ({ p
   await expect(pin).toHaveAttribute('aria-pressed', 'false');
   await pin.click();
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await expect(scopesToggle).toHaveCount(0);
 
   const list = page.getByRole('button', { name: 'Versions', exact: true });
   await list.scrollIntoViewIfNeeded();
-  await expect(scopesToggle).toBeInViewport();
+  await expect(pin).toBeInViewport();
   const scroller = page.locator('.scrollbar-hidden').filter({ has: list });
   expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await expect(scroller.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
 
   await page.reload();
   await expect(page.getByRole('button', { name: 'Pin scopes' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
-  await expect(scroller.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
+  await expect(scopesToggle).toHaveCount(0);
+
+  await pin.click();
+  await expect(scroller.getByRole('button', { name: 'Scopes', exact: true })).toBeVisible();
+});
+
+test('pinned scopes stay expanded when the panel was saved collapsed', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('immich-edit:scopes', JSON.stringify({ pinned: true }));
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ developOpenPanels: [] }));
+  });
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await expect(page.getByRole('button', { name: 'Pin scopes' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(page.getByRole('button', { name: 'Scope', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
 });
 
 test('the scope height resizes by drag and keyboard and persists', async ({ page }) => {
