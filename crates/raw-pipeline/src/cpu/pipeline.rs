@@ -33,13 +33,16 @@ pub fn render_with_cancel(
     render_cached(frame, edits, options, cancel, None)
 }
 
-pub(crate) fn render_cached(
-    frame: &RawFrame,
-    edits: &Edits,
-    options: &RenderOptions,
-    cancel: Option<&CancelToken>,
-    renderer: Option<&CpuRenderer>,
-) -> crate::PipelineResult<RenderedImage> {
+pub(super) struct Prepared {
+    pub edits: Edits,
+    pub ctx: OpContext,
+    setup: crate::dcp_pipeline::DcpSetup,
+    out_dims: (u32, u32),
+    preview_ratio: Option<f32>,
+    block: Option<usize>,
+}
+
+pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) -> Prepared {
     let mut edits = edits.clamped();
     edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
     edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
@@ -70,132 +73,163 @@ pub(crate) fn render_cached(
         },
         scratch: OpScratch::default(),
     };
+    Prepared {
+        edits,
+        ctx,
+        setup,
+        out_dims,
+        preview_ratio,
+        block,
+    }
+}
 
-    let cache_key = renderer
-        .filter(|_| renderer::sensor_cacheable(options))
-        .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio, block));
+pub(super) fn cached_sensor_stage(
+    frame: &RawFrame,
+    prep: &Prepared,
+    options: &RenderOptions,
+    renderer: &CpuRenderer,
+    clock: &StageClock,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<Arc<renderer::SensorStage>> {
+    let key = renderer::sensor_cache_key(
+        frame,
+        &prep.edits,
+        &prep.setup,
+        options,
+        prep.preview_ratio,
+        prep.block,
+    );
+    if let Some(stage) = renderer.get(key) {
+        return Ok(stage);
+    }
+    let (mut image, oriented, preview_dims) = oriented_sensor(frame, prep, clock, cancel)?;
+    run_pipeline_ops_inner(
+        &mut image,
+        &prep.ctx,
+        &prep.edits,
+        &options.rasters,
+        OpRange::BelowBoundary,
+        preview_dims,
+        clock,
+        cancel,
+    )?;
+    let stage = Arc::new(renderer::SensorStage {
+        rgb: image.rgb,
+        width: image.width,
+        height: image.height,
+        oriented_w: oriented.0,
+        oriented_h: oriented.1,
+    });
+    renderer.put(key, stage.clone());
+    Ok(stage)
+}
 
-    let cached = cache_key.and_then(|k| renderer.and_then(|r| r.get(k)));
-    let clock = StageClock::default();
+type OrientedSensor = (LinearImage, (usize, usize), Option<(u32, u32)>);
 
-    let (mut image, oriented_w, oriented_h) = match cached {
-        Some(stage) => (
-            LinearImage::new(stage.rgb.clone(), stage.width, stage.height),
-            stage.oriented_w,
-            stage.oriented_h,
+fn oriented_sensor(
+    frame: &RawFrame,
+    prep: &Prepared,
+    clock: &StageClock,
+    cancel: Option<&CancelToken>,
+) -> crate::PipelineResult<OrientedSensor> {
+    let (rgb, sensor_w, sensor_h) = clock.time(timing::DEMOSAIC, || match prep.block {
+        Some(block) => (
+            demosaic::superpixel(
+                &frame.data,
+                frame.meta.width,
+                frame.meta.height,
+                &frame.cfa_pattern,
+                block,
+            ),
+            frame.meta.width / block,
+            frame.meta.height / block,
         ),
-        None => {
-            let (rgb, sensor_w, sensor_h) = clock.time(timing::DEMOSAIC, || match block {
-                Some(block) => (
-                    demosaic::superpixel(
-                        &frame.data,
-                        frame.meta.width,
-                        frame.meta.height,
-                        &frame.cfa_pattern,
-                        block,
-                    ),
-                    frame.meta.width / block,
-                    frame.meta.height / block,
-                ),
-                None => (full_demosaic(frame), frame.meta.width, frame.meta.height),
-            });
+        None => (full_demosaic(frame), frame.meta.width, frame.meta.height),
+    });
 
-            let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
-            clock.time(timing::LENS, || {
-                run_sensor_ops(&mut sensor_image, &ctx, &edits, cancel)
-            })?;
-            cancel::check(cancel)?;
-            let (rgb, w, h) = transform::apply_orientation(
-                sensor_image.rgb,
-                sensor_image.width,
-                sensor_image.height,
-                frame.meta.orientation,
-            );
+    let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
+    clock.time(timing::LENS, || {
+        run_sensor_ops(&mut sensor_image, &prep.ctx, &prep.edits, cancel)
+    })?;
+    cancel::check(cancel)?;
+    let (rgb, w, h) = transform::apply_orientation(
+        sensor_image.rgb,
+        sensor_image.width,
+        sensor_image.height,
+        frame.meta.orientation,
+    );
 
-            let full = if frame.meta.orientation.0 {
-                (frame.meta.height, frame.meta.width)
-            } else {
-                (frame.meta.width, frame.meta.height)
-            };
-            let (oriented_w, oriented_h) = match edits.geometry.rotate {
-                90 | 270 => (full.1, full.0),
-                _ => full,
-            };
-
-            let mut image = LinearImage::new(rgb, w, h);
-            let preview_dims = preview_ratio.and_then(|ratio| {
-                crate::geom::resample_target((w as u32, h as u32), ratio / block_scale)
-            });
-
-            if let (Some(key), Some(r)) = (cache_key, renderer) {
-                run_pipeline_ops_inner(
-                    &mut image,
-                    &ctx,
-                    &edits,
-                    &options.rasters,
-                    OpRange::BelowBoundary,
-                    preview_dims,
-                    &clock,
-                    cancel,
-                )?;
-                r.put(
-                    key,
-                    Arc::new(renderer::SensorStage {
-                        rgb: image.rgb.clone(),
-                        width: image.width,
-                        height: image.height,
-                        oriented_w,
-                        oriented_h,
-                    }),
-                );
-            } else {
-                let sharpen_delta = run_pipeline_ops_inner(
-                    &mut image,
-                    &ctx,
-                    &edits,
-                    &options.rasters,
-                    OpRange::All,
-                    preview_dims,
-                    &clock,
-                    cancel,
-                )?;
-                return finish_render(
-                    frame,
-                    &edits,
-                    options,
-                    &ctx,
-                    image,
-                    sharpen_delta,
-                    out_dims,
-                    (oriented_w, oriented_h),
-                    clock,
-                    cancel,
-                );
-            }
-            (image, oriented_w, oriented_h)
-        }
+    let full = oriented_frame_dims(frame);
+    let oriented = match prep.edits.geometry.rotate {
+        90 | 270 => (full.1, full.0),
+        _ => full,
     };
+    let block_scale = prep.block.unwrap_or(1) as f32;
+    let preview_dims = prep
+        .preview_ratio
+        .and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio / block_scale));
+    Ok((LinearImage::new(rgb, w, h), oriented, preview_dims))
+}
 
+pub(super) fn oriented_frame_dims(frame: &RawFrame) -> (usize, usize) {
+    if frame.meta.orientation.0 {
+        (frame.meta.height, frame.meta.width)
+    } else {
+        (frame.meta.width, frame.meta.height)
+    }
+}
+
+pub(crate) fn render_cached(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+    cancel: Option<&CancelToken>,
+    renderer: Option<&CpuRenderer>,
+) -> crate::PipelineResult<RenderedImage> {
+    let prep = prepare(frame, edits, options);
+    let clock = StageClock::default();
+    let Some(renderer) = renderer.filter(|_| renderer::sensor_cacheable(options)) else {
+        let (mut image, oriented, preview_dims) = oriented_sensor(frame, &prep, &clock, cancel)?;
+        let sharpen_delta = run_pipeline_ops_inner(
+            &mut image,
+            &prep.ctx,
+            &prep.edits,
+            &options.rasters,
+            OpRange::All,
+            preview_dims,
+            &clock,
+            cancel,
+        )?;
+        return finish_render(
+            frame,
+            &prep,
+            options,
+            image,
+            sharpen_delta,
+            oriented,
+            clock,
+            cancel,
+        );
+    };
+    let stage = cached_sensor_stage(frame, &prep, options, renderer, &clock, cancel)?;
+    let mut image = LinearImage::new(stage.rgb.clone(), stage.width, stage.height);
     let sharpen_delta = run_pipeline_ops_inner(
         &mut image,
-        &ctx,
-        &edits,
+        &prep.ctx,
+        &prep.edits,
         &options.rasters,
         OpRange::FromBoundary,
         None,
         &clock,
         cancel,
     )?;
-
     finish_render(
         frame,
-        &edits,
+        &prep,
         options,
-        &ctx,
         image,
         sharpen_delta,
-        out_dims,
-        (oriented_w, oriented_h),
+        (stage.oriented_w, stage.oriented_h),
         clock,
         cancel,
     )
@@ -221,17 +255,18 @@ fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
 #[allow(clippy::too_many_arguments)]
 fn finish_render(
     frame: &RawFrame,
-    edits: &Edits,
+    prep: &Prepared,
     options: &RenderOptions,
-    ctx: &OpContext,
     image: LinearImage,
     sharpen_delta: Option<LinearImage>,
-    out_dims: (u32, u32),
     oriented: (usize, usize),
     clock: StageClock,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
     let (oriented_w, oriented_h) = oriented;
+    let edits = &prep.edits;
+    let ctx = &prep.ctx;
+    let out_dims = prep.out_dims;
 
     cancel::check(cancel)?;
     let (rgb, w, h) = clock.time(timing::RESAMPLE, || {
