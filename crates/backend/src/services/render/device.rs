@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::source::RenderedSource;
 use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, PipelineError, RenderedImage};
 
 use crate::config::RendererMode;
@@ -92,15 +93,39 @@ impl RenderDevice {
             sensor_h = frame.meta.height,
             "render orientation"
         );
+        self.run(
+            |gpu| gpu.render_with_cancel(frame, edits, opts, cancel),
+            |cpu| cpu.render_with_cancel(frame, edits, opts, cancel),
+        )
+    }
+
+    pub fn source_blocking(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        opts: &RenderOptions,
+        cancel: Option<&CancelToken>,
+    ) -> Result<RenderedSource, PipelineError> {
+        self.run(
+            |gpu| gpu.render_source(frame, edits, opts, cancel),
+            |cpu| cpu.render_source(frame, edits, opts, cancel),
+        )
+    }
+
+    fn run<T>(
+        &self,
+        on_gpu: impl FnOnce(&GpuRenderer) -> Result<T, PipelineError>,
+        on_cpu: impl FnOnce(&CpuRenderer) -> Result<T, PipelineError>,
+    ) -> Result<T, PipelineError> {
         if matches!(self.mode, RendererMode::Cpu) {
-            return self.cpu.render_with_cancel(frame, edits, opts, cancel);
+            return on_cpu(&self.cpu);
         }
         let gpu = self.gpu_or_rebuild();
         if let Some(g) = gpu {
             if g.is_lost() {
                 self.handle_device_lost();
             } else {
-                match g.render_with_cancel(frame, edits, opts, cancel) {
+                match on_gpu(&g) {
                     Ok(r) => return Ok(r),
                     Err(PipelineError::Cancelled) => return Err(PipelineError::Cancelled),
                     Err(PipelineError::DeviceLost) => {
@@ -112,7 +137,7 @@ impl RenderDevice {
                 }
             }
         }
-        self.cpu.render_with_cancel(frame, edits, opts, cancel)
+        on_cpu(&self.cpu)
     }
 
     fn gpu_or_rebuild(&self) -> Option<Arc<GpuRenderer>> {

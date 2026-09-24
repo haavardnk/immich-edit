@@ -157,12 +157,7 @@ impl LutStore {
     }
 
     pub async fn load(&self, id: &str) -> Result<Arc<Lut3d>, LutStoreError> {
-        let row = sqlx::query("SELECT content_hash FROM luts WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or(LutStoreError::NotFound)?;
-        let content_hash: String = row.get("content_hash");
+        let content_hash = self.content_hash(id).await?;
         if let Some(lut) = self
             .cache
             .lock()
@@ -179,5 +174,19 @@ impl LutStore {
             .unwrap_or_else(|e| e.into_inner())
             .put(content_hash, lut.clone());
         Ok(lut)
+    }
+
+    pub async fn source_bytes(&self, id: &str) -> Result<Vec<u8>, LutStoreError> {
+        let content_hash = self.content_hash(id).await?;
+        Ok(fs::read(self.blob_path(&content_hash)).await?)
+    }
+
+    async fn content_hash(&self, id: &str) -> Result<String, LutStoreError> {
+        let row = sqlx::query("SELECT content_hash FROM luts WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(LutStoreError::NotFound)?;
+        Ok(row.get("content_hash"))
     }
 }

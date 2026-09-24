@@ -12,6 +12,7 @@ use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::GlobalKeyExtractor;
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::compression::CompressionLayer;
+use tower_http::compression::predicate::{DefaultPredicate, NotForContentType, Predicate};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{
     MakeRequestId, PropagateRequestIdLayer, RequestId, SetRequestIdLayer,
@@ -220,6 +221,7 @@ pub fn router(state: AppState) -> Router {
             "/assets/{id}/preview/meta/{meta_id}/scope/{kind}",
             get(routes::preview::get_scope),
         )
+        .route("/assets/{id}/source", post(routes::source::post_source))
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))
@@ -228,9 +230,11 @@ pub fn router(state: AppState) -> Router {
             Router::new()
                 .route("/luts", get(routes::luts::list).post(routes::luts::import))
                 .route("/luts/{id}", axum::routing::delete(routes::luts::delete))
+                .route("/luts/{id}/cube", get(routes::luts::cube))
                 .route("/dcp", get(routes::dcp::list).post(routes::dcp::import))
                 .route("/dcp/match", get(routes::dcp::match_camera))
                 .route("/dcp/{id}", axum::routing::delete(routes::dcp::delete))
+                .route("/dcp/{id}/raw", get(routes::dcp::raw))
                 .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
         .layer(TimeoutLayer::with_status_code(
@@ -280,7 +284,11 @@ pub fn router(state: AppState) -> Router {
                 HeaderName::from_static("x-frame-options"),
                 HeaderValue::from_static("DENY"),
             ))
-            .layer(CompressionLayer::new())
+            .layer(
+                CompressionLayer::new().compress_when(DefaultPredicate::new().and(
+                    NotForContentType::const_new(routes::source::SOURCE_CONTENT_TYPE),
+                )),
+            )
             .layer(DefaultBodyLimit::max(body_bytes))
             .layer(RequestBodyLimitLayer::new(body_bytes))
             .layer(TimeoutLayer::with_status_code(

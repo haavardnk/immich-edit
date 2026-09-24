@@ -5,6 +5,7 @@ use bytes::Bytes;
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::timing::StageTiming;
 use raw_pipeline::{PipelineError, RenderedImage};
 use uuid::Uuid;
 
@@ -180,7 +181,11 @@ impl RenderService {
         }
         options.rasters = self.inputs.rasters_for(identity, &edits).await;
         options.luts = self.inputs.luts_for(&edits).await?;
-        options.dcp = self.inputs.dcp_for(&edits, &frame).await?;
+        options.dcp = self
+            .inputs
+            .dcp_for(&edits, &frame)
+            .await?
+            .map(|selection| selection.profile);
         let device = self.device.clone();
         let start = Instant::now();
         let result = tokio::task::spawn_blocking(move || {
@@ -195,6 +200,52 @@ impl RenderService {
         );
         Ok(result)
     }
+
+    pub async fn source(
+        &self,
+        identity: RenderIdentity,
+        immich: ImmichClient,
+        source: Uuid,
+        edits: Edits,
+        mut options: RenderOptions,
+        cancel: Option<CancelToken>,
+    ) -> Result<EncodedSource, RenderError> {
+        let frame = self.frame(identity, &immich, source).await?;
+        let mut edits = edits;
+        if frame.meta.is_raw {
+            edits.lens = self.inputs.resolve_lens(&immich, source, edits.lens).await;
+        }
+        let dcp = self.inputs.dcp_for(&edits, &frame).await?;
+        let dcp_id = dcp.as_ref().map(|selection| selection.id.clone());
+        options.dcp = dcp.map(|selection| selection.profile);
+        let device = self.device.clone();
+        let start = Instant::now();
+        let (bytes, renderer, timings) = tokio::task::spawn_blocking(move || {
+            let rendered = device.source_blocking(&frame, &edits, &options, cancel.as_ref())?;
+            let encode_start = Instant::now();
+            let bytes = raw_pipeline::source::encode(&rendered.image)?;
+            let mut timings = rendered.timings;
+            timings.push(StageTiming {
+                stage: raw_pipeline::timing::ENCODE,
+                wall: encode_start.elapsed(),
+                gpu: None,
+            });
+            Ok::<_, PipelineError>((bytes, rendered.renderer, timings))
+        })
+        .await
+        .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
+        self.telemetry.record(
+            RendererKind::from_label(&renderer),
+            start.elapsed(),
+            &timings,
+        );
+        Ok(EncodedSource { bytes, dcp_id })
+    }
+}
+
+pub struct EncodedSource {
+    pub bytes: Vec<u8>,
+    pub dcp_id: Option<String>,
 }
 
 async fn decode_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
