@@ -79,13 +79,27 @@ test('back returns to the grid and selects the photo left open', async ({ page }
   ).toHaveClass(/ring-primary/);
 });
 
-test('back from a directly opened photo lands on a clean grid', async ({ page }) => {
-  await installMocks(page);
+test('back from a photo outside the timeline lands on a clean grid', async ({ page }) => {
+  await installMocks(page, {
+    assets: [{ ...ASSET_SUMMARY, id: '00000000-0000-0000-0000-000000000002' }]
+  });
 
   await page.goto(`/assets/${ASSET_ID}`);
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
   await expect(page.getByRole('main').locator('.ring-primary')).toHaveCount(0);
+});
+
+test('back from a deep-linked timeline photo marks it on the grid', async ({ page }) => {
+  await installMocks(page);
+
+  await page.goto(`/assets/${ASSET_ID}`);
+  await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
+  await page.getByRole('button', { name: /^Back/ }).click();
+  await page.waitForURL('**/photos');
+  await expect(
+    page.getByRole('main').locator(`div:has(> a[href^="/assets/${ASSET_ID}?"])`)
+  ).toHaveClass(/ring-primary/);
 });
 
 test('the grid keeps its selection across an editor round trip', async ({ page }) => {
