@@ -363,6 +363,14 @@ class EditorStore {
     this.previews.live();
   };
 
+  beginDrag = (): void => {
+    this.previews.beginDrag();
+  };
+
+  endDrag = (): void => {
+    this.previews.endDrag();
+  };
+
   onPreview = (mode: PreviewMode): void => {
     this.previews.preview(mode);
   };

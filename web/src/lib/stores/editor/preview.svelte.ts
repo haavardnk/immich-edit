@@ -63,9 +63,13 @@ export interface PreviewCtx {
 export class PreviewEngine {
   private ctx: PreviewCtx;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private releaseTimer: ReturnType<typeof setTimeout> | null = null;
   private viewSnap = $state<ViewSnapshot | null>(null);
   private viewKey = '';
   private viewFullEdge = 0;
+  private viewAfterBase = false;
+  private dragging = false;
+  private draggedLive = false;
   private srcLong = $state(Number.POSITIVE_INFINITY);
   private originalEdge = 0;
   private originalGeomKey = '';
@@ -118,6 +122,11 @@ export class PreviewEngine {
       if (err instanceof ApiError && err.code === 'superseded') return;
       this.ctx.colorPicker = null;
       this.ctx.error = errorMessage(err);
+    },
+    () => {
+      if (!this.viewAfterBase) return;
+      this.viewAfterBase = false;
+      this.fireIdle();
     }
   );
 
@@ -202,15 +211,40 @@ export class PreviewEngine {
 
   live(): void {
     if (!this.ctx.initialised) return;
+    this.cancelRelease();
     this.clearView();
-    this.submitBase(LIVE_EDGE, 'none');
+    if (this.dragging) {
+      this.draggedLive = true;
+      this.submitBase(this.dragEdge(), 'none');
+      return;
+    }
+    this.submitBase(this.baseEdge(), 'none');
     this.scheduleIdle();
+  }
+
+  beginDrag(): void {
+    this.dragging = true;
+    this.draggedLive = false;
+  }
+
+  endDrag(): void {
+    if (!this.dragging) return;
+    this.dragging = false;
+    if (!this.draggedLive) {
+      if (!this.viewBlocked()) this.scheduleIdle();
+      return;
+    }
+    this.draggedLive = false;
+    this.releaseTimer = setTimeout(() => {
+      this.releaseTimer = null;
+      this.live();
+    }, 0);
   }
 
   preview(mode: PreviewMode): void {
     if (!this.ctx.initialised) return;
     this.clearView();
-    this.submitBase(LIVE_EDGE, mode);
+    this.submitBase(this.dragging ? this.dragEdge() : LIVE_EDGE, mode);
   }
 
   showOriginal(): void {
@@ -237,7 +271,7 @@ export class PreviewEngine {
 
   refreshBase(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
-    this.submitBase(LIVE_EDGE, 'none');
+    this.submitBase(this.baseEdge(), 'none');
   }
 
   submitColorPicker(edits: Edits): void {
@@ -272,19 +306,20 @@ export class PreviewEngine {
   reproof(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
     this.clearView();
-    this.submitBase(LIVE_EDGE, 'none');
+    this.submitBase(this.baseEdge(), 'none');
     this.scheduleIdle();
     if (this.ctx.splitMode) this.refreshOriginal(true);
   }
 
   onViewChange(snap: ViewSnapshot): void {
     this.viewSnap = snap;
-    if (this.viewBlocked()) return;
+    if (this.dragging || this.viewBlocked()) return;
     this.scheduleIdle();
   }
 
   clearView(): void {
     this.viewFlight.cancel();
+    this.viewAfterBase = false;
     if (this.idleTimer) {
       clearTimeout(this.idleTimer);
       this.idleTimer = null;
@@ -301,19 +336,16 @@ export class PreviewEngine {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
-      if (!this.ctx.initialised) return;
-      if (this.ctx.splitMode) {
-        this.submitBase(this.baseEdge(), 'none');
-        return;
-      }
-      if (this.viewBlocked()) return;
-      this.submitView();
+      this.fireIdle();
     }, VIEW_DEBOUNCE_MS);
   }
 
   reset(): void {
     this.flight.cancel();
     this.originalFlight.cancel();
+    this.cancelRelease();
+    this.dragging = false;
+    this.draggedLive = false;
     this.clearView();
     this.viewSnap = null;
     this.srcLong = Number.POSITIVE_INFINITY;
@@ -325,6 +357,26 @@ export class PreviewEngine {
 
   private submitBase(maxEdge: number, previewMode: PreviewMode): void {
     this.flight.submit({ edits: $state.snapshot(this.ctx.edits) as Edits, maxEdge, previewMode });
+  }
+
+  private fireIdle(): void {
+    if (!this.ctx.initialised) return;
+    if (this.ctx.splitMode) {
+      this.submitBase(this.baseEdge(), 'none');
+      return;
+    }
+    if (this.viewBlocked()) return;
+    if (this.flight.busy) {
+      this.viewAfterBase = true;
+      return;
+    }
+    this.submitView();
+  }
+
+  private cancelRelease(): void {
+    if (!this.releaseTimer) return;
+    clearTimeout(this.releaseTimer);
+    this.releaseTimer = null;
   }
 
   private dropOriginal(): void {
@@ -393,6 +445,11 @@ export class PreviewEngine {
     if (!snap) return LIVE_EDGE;
     const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
     return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+  }
+
+  private dragEdge(): number {
+    const long = Math.round(Math.max(this.viewSnap?.viewW ?? 0, this.viewSnap?.viewH ?? 0));
+    return long > 0 ? Math.min(LIVE_EDGE, long) : LIVE_EDGE;
   }
 
   private proofOptions(): ProofOptions {
