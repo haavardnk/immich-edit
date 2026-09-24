@@ -62,6 +62,11 @@ jobs:
           cargo clippy -p raw-pipeline -p web-render --target wasm32-unknown-unknown
           --no-default-features --features raw-pipeline/web -- -D warnings
       - run: web/scripts/build-wasm.sh
+      - name: Check the wasm size budget
+        run: |
+          size=$(gzip -9 -c web/src/lib/wasm/web_render_bg.wasm | wc -c)
+          echo "web_render_bg.wasm: $size bytes gzipped, budget 614400"
+          test "$size" -le 614400
       - uses: actions/upload-artifact@v7
         with:
           name: web-render-wasm
