@@ -117,7 +117,9 @@
   "lut_id": "warm",
   "view": {
     "histogram": true,
-    "max_edge": 384
+    "max_edge": 384,
+    "roi": null,
+    "tile": false
   },
   "width": 384
 }

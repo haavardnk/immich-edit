@@ -10,15 +10,17 @@
 
       const bytes = async (name) => new Uint8Array(await (await fetch(name)).arrayBuffer());
 
-      window.runParity = async () => {
+      window.runParity = async (name) => {
         await init();
-        const spec = await (await fetch('case.json')).json();
+        const spec = await (await fetch(`${name}/case.json`)).json();
         const started = performance.now();
         const renderer = await WebRenderer.create();
         const initMs = performance.now() - started;
         renderer.set_dcp(await bytes('dcp'));
         renderer.set_lut(spec.lut_id, await bytes('lut.cube'));
-        renderer.set_source(await bytes('source.iesr'));
+        const source = await bytes(`${name}/source.iesr`);
+        if (spec.view.tile) renderer.set_tile(source);
+        else renderer.set_source(source);
         const edits = JSON.stringify(spec.edits);
         const view = JSON.stringify(spec.view);
         const first = performance.now();
@@ -33,14 +35,16 @@
         const context = flat.getContext('2d');
         context.drawImage(bitmap, 0, 0);
         const rgba = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
-        const expected = await bytes('expected.rgb');
+        const expected = await bytes(`${name}/expected.rgb`);
         const pixels = bitmap.width * bitmap.height;
         let sum = 0;
+        let squares = 0;
         let max = 0;
         for (let i = 0; i < pixels && i * 3 + 2 < expected.length; i++) {
           for (let c = 0; c < 3; c++) {
             const d = Math.abs(rgba[i * 4 + c] - expected[i * 3 + c]);
             sum += d;
+            squares += d * d;
             max = Math.max(max, d);
           }
         }
@@ -52,6 +56,7 @@
           expected: [spec.width, spec.height],
           histogramCount: frame.histogram ? frame.histogram.l.reduce((a, b) => a + b, 0) : 0,
           meanAbs: sum / (pixels * 3),
+          mse: squares / (pixels * 3),
           max,
           initMs,
           firstRenderMs,
