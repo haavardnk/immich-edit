@@ -26,9 +26,5 @@
       onCommit={() => void editor.commitMasks()}
       format={(value: number) => value.toFixed(3)}
     />
-    <p class="px-1 text-[10px] text-dark/65">
-      Drag a corner to move it, the small dot between corners to add one, and double-click a corner
-      to remove it.
-    </p>
   </div>
 {/if}

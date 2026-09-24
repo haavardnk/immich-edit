@@ -3,11 +3,11 @@
   import { surfaceSize, type PreviewSurface } from '$lib/utils/preview-surface';
   import { ui } from '$lib/stores/ui.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind, isTypingTarget, keysFor } from '$lib/keybinds';
+  import { isKeybind, isRadioGroupTarget, isTypingTarget, keysFor } from '$lib/keybinds';
   import { type Vec2f } from '$lib/types/edits';
   import { displayUvToSceneUv, sceneUvToDisplayUv, viewTransform } from '$lib/utils/canvasCoords';
   import { clamp01 } from '$lib/utils/geom';
-  import { draggedKind, type DragKind } from '$lib/utils/maskDrag';
+  import { draggedKind, nudgedKind, type DragKind } from '$lib/utils/maskDrag';
   import { imageRect } from '$lib/utils/imageRect.svelte';
   import MaskLinearHandles from './MaskLinearHandles.svelte';
   import MaskRadialHandles from './MaskRadialHandles.svelte';
@@ -68,12 +68,30 @@
     editor.setActiveMaskComponent(componentId);
   }
 
+  function nudge(e: KeyboardEvent): boolean {
+    if (!isKeybind(e, 'maskNudge') && !isKeybind(e, 'editorNav')) return false;
+    if (ui.editorTab !== 'masks' || isTypingTarget(e) || isRadioGroupTarget(e) || !active)
+      return false;
+    const comp = active.components.find((c) => c.id === editor.activeMaskComponentId);
+    if (!comp) return false;
+    const step = e.shiftKey ? 10 : 1;
+    const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+    const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+    const next = nudgedKind(comp.kind, dx, dy, toPx, fromPx);
+    if (!next) return false;
+    e.preventDefault();
+    editor.updateMaskComponentKind(active.id, comp.id, next, true);
+    void editor.commitMasks();
+    return true;
+  }
+
   function onKeyDown(e: KeyboardEvent): void {
     if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
       e.preventDefault();
       editor.cancelColorPicker();
       return;
     }
+    if (nudge(e)) return;
     if (!isKeybind(e, 'maskDelete')) return;
     if (ui.editorTab !== 'masks' || isTypingTarget(e)) return;
     if (!active || !editor.activeMaskComponentId) return;

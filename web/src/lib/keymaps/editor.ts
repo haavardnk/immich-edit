@@ -9,7 +9,8 @@ import { nextRatingFromKey } from '$lib/ratingShortcuts';
 import { isKeybind, isRadioGroupTarget, isTypingTarget, matchKeybind } from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
 import { editorHref } from '$lib/editorNavigation';
-import { defaultRadial } from '$lib/types/masks';
+import { defaultLinear, defaultRadial } from '$lib/types/masks';
+import { nudgeable } from '$lib/utils/maskDrag';
 
 const RETOUCH_SIZE = { step: 0.005, min: 0.005, max: 0.3 };
 const BRUSH_SIZE = { step: 0.01, min: 0.005, max: 0.5 };
@@ -22,6 +23,13 @@ export function stepBrush(
 ): number {
   const delta = key === '[' || key === '{' ? -step : step;
   return Math.min(max, Math.max(min, current + delta));
+}
+
+function selectedShapeNudges(): boolean {
+  if (ui.editorTab !== 'masks' || !editor.activeMaskComponentId) return false;
+  const layer = editor.edits.masks.find((l) => l.id === editor.activeLayerId);
+  const comp = layer?.components.find((c) => c.id === editor.activeMaskComponentId);
+  return !!comp && nudgeable(comp.kind);
 }
 
 function isControlTarget(e: KeyboardEvent): boolean {
@@ -72,7 +80,8 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
   if (isRadioGroupTarget(e)) return;
 
   const bind = matchKeybind(e, activeContexts());
-  if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon') return;
+  if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon' || bind === 'maskNudge') return;
+  if (bind === 'editorNav' && selectedShapeNudges()) return;
   if (bind === 'geometryDone' && isControlTarget(e)) return;
   e.preventDefault();
 
@@ -184,6 +193,10 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'addRadialLayer':
       ui.openTab('masks');
       void editor.addMaskLayer(defaultRadial());
+      return;
+    case 'addLinearLayer':
+      ui.openTab('masks');
+      void editor.addMaskLayer(defaultLinear());
       return;
     case 'retouchHeal':
       editor.setRetouchMode('heal');

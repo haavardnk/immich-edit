@@ -113,6 +113,7 @@ class EditorStore {
   maskError = $state<string | null>(null);
   maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
+  maskRefineOpen = $state<Record<string, boolean>>({});
   maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
   brushTool = $state<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>({
@@ -321,6 +322,7 @@ class EditorStore {
     this.bypassedSection = null;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
+    this.maskRefineOpen = {};
     this.maskPreviewLayerId = null;
     this.activeRetouchId = null;
     this.retouchAnchor = null;
@@ -498,6 +500,10 @@ class EditorStore {
     maskLayers.setMaskComponentFeather(this, layerId, componentId, feather);
 
   toggleMaskOverlay = (): void => maskLayers.toggleMaskOverlay(this);
+
+  setMaskRefineOpen = (layerId: string, open: boolean): void => {
+    this.maskRefineOpen = { ...this.maskRefineOpen, [layerId]: open };
+  };
 
   retouchFull = $derived(this.edits.retouch.length >= MAX_RETOUCH_STROKES);
 

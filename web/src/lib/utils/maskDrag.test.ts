@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MaskComponentKind } from '$lib/types/edits';
-import { draggedKind } from './maskDrag';
+import { draggedKind, nudgedKind } from './maskDrag';
 
 const linear: Extract<MaskComponentKind, { kind: 'linear' }> = {
   kind: 'linear',
@@ -61,6 +61,11 @@ describe('draggedKind', () => {
     expect((next as Extract<MaskComponentKind, { kind: 'radial' }>).feather).toBeCloseTo(0.5, 6);
   });
 
+  it('pins radial feather at full when the handle reaches the centre', () => {
+    const next = draggedKind(radial, { kind: 'radial-feather' }, radial.center);
+    expect((next as Extract<MaskComponentKind, { kind: 'radial' }>).feather).toBe(1);
+  });
+
   it('moves one polygon vertex and leaves the rest alone', () => {
     const next = draggedKind(polygon, { kind: 'polygon-vertex', index: 1 }, { x: 0.5, y: 0.25 });
     expect(next).toEqual({
@@ -76,5 +81,45 @@ describe('draggedKind', () => {
 
   it('ignores a drag meant for another shape kind', () => {
     expect(draggedKind(linear, { kind: 'radial-center' }, { x: 0.5, y: 0.5 })).toBeNull();
+  });
+});
+
+describe('nudgedKind', () => {
+  const toPx = (v: { x: number; y: number }) => ({ x: v.x * 1000, y: v.y * 500 });
+  const fromPx = (x: number, y: number) => ({ x: x / 1000, y: y / 500 });
+
+  it.each<[string, MaskComponentKind, MaskComponentKind]>([
+    ['a radial centre', radial, { ...radial, center: { x: 0.51, y: 0.49 } }],
+    [
+      'both linear ends',
+      { ...linear, p1: { x: 0.5, y: 0.5 } },
+      { ...linear, p0: { x: 0.01, y: 0 }, p1: { x: 0.51, y: 0.49 } }
+    ],
+    [
+      'every polygon corner',
+      {
+        ...polygon,
+        points: [
+          { x: 0.2, y: 0.2 },
+          { x: 0.4, y: 0.4 }
+        ]
+      },
+      {
+        ...polygon,
+        points: [
+          { x: 0.21, y: 0.19 },
+          { x: 0.41, y: 0.39 }
+        ]
+      }
+    ]
+  ])('moves %s by display pixels', (_name, kind, expected) => {
+    const next = nudgedKind(kind, 10, -5, toPx, fromPx);
+    expect(JSON.stringify(next, (_k, v) => (typeof v === 'number' ? +v.toFixed(6) : v))).toBe(
+      JSON.stringify(expected)
+    );
+  });
+
+  it('leaves shapes without a position alone', () => {
+    expect(nudgedKind({ kind: 'brush', raster_id: 'r' }, 1, 0, toPx, fromPx)).toBeNull();
   });
 });

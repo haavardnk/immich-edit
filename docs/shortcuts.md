@@ -120,16 +120,20 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Masks
 
-| Keys                | Action                                                     | Available in   |
-| ------------------- | ---------------------------------------------------------- | -------------- |
-| `Backspace` / `Del` | Delete the selected shape, or undo the last polygon corner | Masks          |
-| `K`                 | Add a brush mask layer                                     | Editor         |
-| `Shift+M`           | Add a radial mask layer                                    | Editor         |
-| `O`                 | Toggle the mask overlay                                    | Masks          |
-| `Esc`               | Cancel drawing, box select or the eyedropper               | Masks          |
-| `Enter`             | Close the polygon you are drawing                          | Masks          |
-| `[` / `]`           | Smaller / larger brush                                     | Masks, Retouch |
-| `{` / `}`           | Softer / harder brush                                      | Masks, Retouch |
+| Keys                                                      | Action                                                     | Available in   |
+| --------------------------------------------------------- | ---------------------------------------------------------- | -------------- |
+| `Backspace` / `Del`                                       | Delete the selected shape, or undo the last polygon corner | Masks          |
+| `K`                                                       | Add a brush mask layer                                     | Editor         |
+| `Shift+M`                                                 | Add a radial mask layer                                    | Editor         |
+| `Shift+L`                                                 | Add a linear mask layer                                    | Editor         |
+| `↑` / `↓` / `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` | Nudge the selected shape one pixel, ten with Shift         | Masks          |
+| `Click the dot between two corners`                       | Add a polygon corner                                       | Masks          |
+| `Double-click the corner`                                 | Remove a polygon corner                                    | Masks          |
+| `O`                                                       | Toggle the mask overlay                                    | Masks          |
+| `Esc`                                                     | Cancel drawing, box select or the eyedropper               | Masks          |
+| `Enter`                                                   | Close the polygon you are drawing                          | Masks          |
+| `[` / `]`                                                 | Smaller / larger brush                                     | Masks, Retouch |
+| `{` / `}`                                                 | Softer / harder brush                                      | Masks, Retouch |
 
 ## Retouch
 

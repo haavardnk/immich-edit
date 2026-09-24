@@ -11,6 +11,7 @@
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import { hint } from '$lib/keybinds';
   import { maskModels } from '$lib/stores/maskModels.svelte';
   import {
     N_MAX_MASK_LAYERS,
@@ -35,7 +36,6 @@
 
   let layerMenu = $state<'header' | 'empty' | null>(null);
   let componentMenu = $state<MaskComponentMode | null>(null);
-  let refineOverride = $state<Record<string, boolean>>({});
 
   const layers = $derived(editor.edits.masks);
   const active = $derived<MaskLayer | null>(
@@ -58,7 +58,8 @@
   );
   const refineOpen = $derived(
     active
-      ? (refineOverride[active.id] ?? (active.components.length === 0 || activeComp !== null))
+      ? (editor.maskRefineOpen[active.id] ??
+          (active.components.length === 0 || activeComp !== null))
       : false
   );
   const featherValue = $derived(
@@ -73,7 +74,7 @@
 
   function toggleRefine(): void {
     if (!active) return;
-    refineOverride = { ...refineOverride, [active.id]: !refineOpen };
+    editor.setMaskRefineOpen(active.id, !refineOpen);
   }
 
   function onFeatherLive(v: number): void {
@@ -81,7 +82,7 @@
   }
 
   function openAddComponent(mode: MaskComponentMode, open: boolean): void {
-    if (open && active) refineOverride = { ...refineOverride, [active.id]: true };
+    if (open && active) editor.setMaskRefineOpen(active.id, true);
     componentMenu = open ? mode : null;
   }
 </script>
@@ -98,7 +99,10 @@
         color="secondary"
         class="bg-transparent hover:bg-white/6"
         icon={editor.maskOverlayVisible ? mdiEye : mdiEyeOff}
-        title={editor.maskOverlayVisible ? 'Hide mask overlays' : 'Show mask overlays'}
+        title={hint(
+          editor.maskOverlayVisible ? 'Hide mask overlays' : 'Show mask overlays',
+          'maskOverlay'
+        )}
         aria-label="Toggle mask overlays"
         aria-pressed={editor.maskOverlayVisible}
         onclick={editor.toggleMaskOverlay}
