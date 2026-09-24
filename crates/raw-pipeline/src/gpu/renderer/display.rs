@@ -76,6 +76,10 @@ impl DisplayFrame<'_> {
     pub fn dims(&self) -> (u32, u32) {
         self.dims
     }
+
+    pub fn record(&mut self, f: impl FnOnce(&mut CommandEncoder, &Texture)) {
+        f(&mut self.encoder, self.slot.texture(&self.targets[0]));
+    }
 }
 
 impl GpuRenderer {
