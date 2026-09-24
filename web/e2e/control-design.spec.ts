@@ -540,7 +540,7 @@ test('the scope mode dropdown is slim and only shows while expanded', async ({ p
 
   await page.getByRole('button', { name: 'Scopes', exact: true }).click();
   await expect(mode).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pin scopes' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pin scopes' })).toHaveCount(0);
 });
 
 test('modified editor tools use a dot without duplicate counts', async ({ page }) => {

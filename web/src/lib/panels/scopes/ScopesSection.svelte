@@ -15,32 +15,40 @@
       ? 'bg-white/4'
       : 'hover:bg-white/3'}"
   >
-    <Collapsible.Trigger
-      class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none {open
-        ? 'text-dark'
-        : 'text-dark/65 hover:text-dark'}"
-    >
-      <Icon
-        icon={open ? mdiChevronDown : mdiChevronRight}
-        size="14px"
-        class="text-dark/35 transition-colors group-hover:text-dark/60"
-        aria-hidden="true"
-      />
-      Scopes
-    </Collapsible.Trigger>
+    {#if scopes.pinned}
+      <div
+        class="flex h-8 min-w-0 flex-1 items-center px-3 text-[11px] font-semibold text-dark select-none"
+      >
+        Scopes
+      </div>
+    {:else}
+      <Collapsible.Trigger
+        class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none {open
+          ? 'text-dark'
+          : 'text-dark/65 hover:text-dark'}"
+      >
+        <Icon
+          icon={open ? mdiChevronDown : mdiChevronRight}
+          size="14px"
+          class="text-dark/35 transition-colors group-hover:text-dark/60"
+          aria-hidden="true"
+        />
+        Scopes
+      </Collapsible.Trigger>
+    {/if}
     {#if open}
       <ScopeModeSelect />
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color={scopes.pinned ? 'primary' : 'secondary'}
+        icon={scopes.pinned ? mdiPin : mdiPinOutline}
+        title={scopes.pinned ? 'Unpin scopes' : 'Pin scopes above the panels'}
+        aria-label="Pin scopes"
+        aria-pressed={scopes.pinned}
+        onclick={scopes.togglePinned}
+      />
     {/if}
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color={scopes.pinned ? 'primary' : 'secondary'}
-      icon={scopes.pinned ? mdiPin : mdiPinOutline}
-      title={scopes.pinned ? 'Unpin scopes' : 'Pin scopes above the panels'}
-      aria-label="Pin scopes"
-      aria-pressed={scopes.pinned}
-      onclick={scopes.togglePinned}
-    />
   </div>
   <Collapsible.Content>
     {#if open}
