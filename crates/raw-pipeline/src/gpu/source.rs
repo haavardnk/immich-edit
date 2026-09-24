@@ -1,18 +1,10 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use wgpu::Texture;
 
-use crate::edits::Edits;
 use crate::frame::FrameMeta;
 #[cfg(feature = "native")]
 use crate::frame::RawFrame;
-
-pub type WbKey = (u64, u64);
-
-pub fn wb_key(edits: &Edits) -> WbKey {
-    (edits.basic.wb_temp.to_bits(), edits.basic.wb_tint.to_bits())
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinearKind {
@@ -21,18 +13,12 @@ pub enum LinearKind {
 }
 
 #[derive(Clone)]
-pub struct LinearImage {
-    pub texture: Arc<Texture>,
-    pub atmosphere: Option<[f32; 3]>,
-}
-
-#[derive(Clone)]
 pub struct LinearSource {
     pub meta: FrameMeta,
     pub kind: LinearKind,
     pub dims: (u32, u32),
-    pub base: LinearImage,
-    pub layer_bases: HashMap<WbKey, LinearImage>,
+    pub texture: Arc<Texture>,
+    pub atmosphere: Option<[f32; 3]>,
 }
 
 #[cfg(feature = "native")]

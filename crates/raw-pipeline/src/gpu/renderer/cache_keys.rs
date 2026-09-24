@@ -19,8 +19,6 @@ impl StageKeys {
         frame.cache_key().hash(&mut h);
         dims.0.hash(&mut h);
         dims.1.hash(&mut h);
-        edits.basic.wb_temp.to_bits().hash(&mut h);
-        edits.basic.wb_tint.to_bits().hash(&mut h);
         for row in cam_to_srgb {
             for v in row {
                 v.to_bits().hash(&mut h);

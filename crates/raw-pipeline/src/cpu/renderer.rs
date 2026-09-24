@@ -67,17 +67,8 @@ impl CpuRenderer {
     }
 }
 
-pub(crate) fn sensor_cacheable(edits: &Edits, options: &RenderOptions) -> bool {
-    if options.quality {
-        return false;
-    }
-    if !matches!(options.preview_mode, PreviewMode::None) {
-        return false;
-    }
-    !edits
-        .masks
-        .iter()
-        .any(|l| l.is_effective() && l.edits.crosses_spatial_boundary())
+pub(crate) fn sensor_cacheable(options: &RenderOptions) -> bool {
+    !options.quality && matches!(options.preview_mode, PreviewMode::None)
 }
 
 pub(crate) fn sensor_cache_key(
@@ -101,8 +92,6 @@ pub(crate) fn sensor_cache_key(
             v.to_bits().hash(&mut h);
         }
     }
-    edits.basic.wb_temp.to_bits().hash(&mut h);
-    edits.basic.wb_tint.to_bits().hash(&mut h);
     edits.lens.hash_key(&mut h);
     crate::edits::hash_strokes(&edits.retouch, &mut h);
     let d = &edits.detail;

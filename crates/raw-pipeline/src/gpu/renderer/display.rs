@@ -17,7 +17,7 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
-use crate::gpu::source::{LinearImage, LinearKind, LinearSource, WbKey, wb_key};
+use crate::gpu::source::{LinearKind, LinearSource};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
@@ -119,7 +119,7 @@ impl GpuRenderer {
             }
             let input = DisplayInput {
                 pass: passes.0,
-                src: &source.base.texture,
+                src: &source.texture,
                 src_dims: source.dims,
                 out_dims,
                 meta,
@@ -132,7 +132,7 @@ impl GpuRenderer {
         }
 
         let t = &timings;
-        let base = self.dehaze_image(&source.base, source.dims, &edits_c, t, cancel)?;
+        let base = self.dehaze_source(source, &edits_c, t, cancel)?;
         let processed = if edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0 {
             let tex = t.stage(timing::PRESENCE, || {
                 self.run_presence(&base, source.dims, &edits_c)
@@ -142,7 +142,7 @@ impl GpuRenderer {
         } else {
             base.clone()
         };
-        let layer_srcs = self.layer_presence_sources(source, &base, &edits_c, t, cancel)?;
+        let layer_srcs = self.layer_presence_sources(&base, source.dims, &edits_c, t, cancel)?;
         let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
             Some(t.stage(timing::SHADOWS, || {
                 self.build_luma_pyramid(&processed, source.dims)
@@ -167,23 +167,23 @@ impl GpuRenderer {
         self.encode_display(input, timings, cancel)
     }
 
-    fn dehaze_image(
+    fn dehaze_source(
         &self,
-        image: &LinearImage,
-        dims: (u32, u32),
+        source: &LinearSource,
         edits: &Edits,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<Arc<Texture>> {
         if edits.basic.dehaze == 0.0 {
-            return Ok(image.texture.clone());
+            return Ok(source.texture.clone());
         }
-        let atmosphere = image.atmosphere.ok_or_else(|| {
+        let dims = source.dims;
+        let atmosphere = source.atmosphere.ok_or_else(|| {
             PipelineError::Unsupported("dehaze needs an atmosphere estimate on the source".into())
         })?;
         let tex = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-            self.run_dehaze(&image.texture, dims, edits, atmosphere)
+            self.run_dehaze(&source.texture, dims, edits, atmosphere)
         })?;
         crate::cancel::check(cancel)?;
         Ok(tex)
@@ -191,55 +191,30 @@ impl GpuRenderer {
 
     fn layer_presence_sources(
         &self,
-        source: &LinearSource,
         base: &Arc<Texture>,
+        dims: (u32, u32),
         edits: &Edits,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<HashMap<String, Arc<Texture>>> {
         let mut out = HashMap::new();
-        let global_amts = crate::presence::presence_amounts(edits);
-        let global_wb = wb_key(edits);
-        let mut dehazed: HashMap<WbKey, Arc<Texture>> = HashMap::new();
-        let mut cache: HashMap<(u64, u64, u32, u32), Arc<Texture>> = HashMap::new();
+        let global = crate::presence::presence_amounts(edits);
+        let mut cache: HashMap<(u32, u32), Arc<Texture>> = HashMap::new();
         for layer in edits.masks.iter().filter(|l| l.is_effective()) {
             let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
             let amts = crate::presence::presence_amounts(&eff);
-            let wb = wb_key(&eff);
-            if wb == global_wb
-                && amts.texture == global_amts.texture
-                && amts.clarity == global_amts.clarity
-            {
+            if amts.texture == global.texture && amts.clarity == global.clarity {
                 continue;
             }
-            let key = (wb.0, wb.1, amts.texture.to_bits(), amts.clarity.to_bits());
-            if let Some(tex) = cache.get(&key) {
-                out.insert(layer.id.clone(), tex.clone());
-                continue;
-            }
-            let layer_base = if wb == global_wb {
-                base.clone()
-            } else if let Some(tex) = dehazed.get(&wb) {
-                tex.clone()
-            } else {
-                let image = source.layer_bases.get(&wb).ok_or_else(|| {
-                    PipelineError::Unsupported(format!(
-                        "linear source has no base for mask layer {}",
-                        layer.id
-                    ))
-                })?;
-                let tex = self.dehaze_image(image, source.dims, &eff, t, cancel)?;
-                dehazed.insert(wb, tex.clone());
-                tex
-            };
-            let tex = if amts.texture == 0.0 && amts.clarity == 0.0 {
-                layer_base
-            } else {
-                let tex = t.stage(timing::PRESENCE, || {
-                    self.run_presence(&layer_base, source.dims, &eff)
-                })?;
-                crate::cancel::check(cancel)?;
-                tex
+            let key = (amts.texture.to_bits(), amts.clarity.to_bits());
+            let tex = match cache.get(&key) {
+                Some(tex) => tex.clone(),
+                None if amts.texture == 0.0 && amts.clarity == 0.0 => base.clone(),
+                None => {
+                    let tex = t.stage(timing::PRESENCE, || self.run_presence(base, dims, &eff))?;
+                    crate::cancel::check(cancel)?;
+                    tex
+                }
             };
             cache.insert(key, tex.clone());
             out.insert(layer.id.clone(), tex);

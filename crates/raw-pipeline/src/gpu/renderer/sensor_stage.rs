@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -10,11 +9,10 @@ use super::cache_keys::StageKeys;
 use super::stage_cache::StageCache;
 use super::{GpuRenderer, RenderPlan};
 use crate::PipelineResult;
-use crate::dcp_pipeline::DcpSetup;
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::gpu::budget::GpuBudget;
-use crate::gpu::source::{LinearImage, LinearKind, LinearSource, wb_key};
+use crate::gpu::source::{LinearKind, LinearSource};
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
 use crate::timing;
@@ -100,51 +98,27 @@ impl GpuRenderer {
                 meta: frame.meta.clone(),
                 kind: LinearKind::PreWb,
                 dims,
-                base: LinearImage {
-                    texture: cached.texture.clone(),
-                    atmosphere: None,
-                },
-                layer_bases: HashMap::new(),
+                texture: cached.texture.clone(),
+                atmosphere: None,
             });
         }
-        let setup = crate::dcp_pipeline::resolve(&frame.meta, &edits, options.dcp.as_deref());
-        let base_wb = wb_key(&edits);
-        let (spatial_dims, base) =
-            self.spatial_base(&cached, frame, &edits, options, &setup, t, cancel)?;
-        let mut layer_bases = HashMap::new();
-        for layer in edits.masks.iter().filter(|l| l.is_effective()) {
-            let eff = crate::cpu::masked::effective_edits_for_layer(&edits, layer);
-            let wb = wb_key(&eff);
-            if wb == base_wb || layer_bases.contains_key(&wb) {
-                continue;
-            }
-            let (_, image) = self.spatial_base(&cached, frame, &eff, options, &setup, t, cancel)?;
-            layer_bases.insert(wb, image);
-        }
-        Ok(LinearSource {
-            meta: frame.meta.clone(),
-            kind: LinearKind::PostWb,
-            dims: spatial_dims,
-            base,
-            layer_bases,
-        })
+        self.spatial_base(&cached, frame, &edits, options, t, cancel)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn spatial_base(
         &self,
         cached: &CachedFrame,
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
-        setup: &DcpSetup,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<((u32, u32), LinearImage)> {
+    ) -> PipelineResult<LinearSource> {
+        let setup = crate::dcp_pipeline::resolve(&frame.meta, edits, options.dcp.as_deref());
         let dims = (cached.width, cached.height);
         let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
         let wb_base = t.stage(timing::WB_PREPARE, || {
-            self.run_wb_prepare(cached, &frame.meta, edits, setup, keys.wb)
+            self.run_wb_prepare(cached, &frame.meta, edits, &setup, keys.wb)
         })?;
         crate::cancel::check(cancel)?;
         let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
@@ -206,12 +180,12 @@ impl GpuRenderer {
         } else {
             None
         };
-        Ok((
-            spatial_dims,
-            LinearImage {
-                texture,
-                atmosphere,
-            },
-        ))
+        Ok(LinearSource {
+            meta: frame.meta.clone(),
+            kind: LinearKind::PostWb,
+            dims: spatial_dims,
+            texture,
+            atmosphere,
+        })
     }
 }

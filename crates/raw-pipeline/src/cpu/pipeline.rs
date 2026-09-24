@@ -72,7 +72,7 @@ pub(crate) fn render_cached(
     };
 
     let cache_key = renderer
-        .filter(|_| renderer::sensor_cacheable(&edits, options))
+        .filter(|_| renderer::sensor_cacheable(options))
         .map(|_| renderer::sensor_cache_key(frame, &edits, &setup, options, preview_ratio, block));
 
     let cached = cache_key.and_then(|k| renderer.and_then(|r| r.get(k)));
