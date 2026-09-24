@@ -39,7 +39,6 @@ RUN apt-get update && \
     libclang-dev \
     libheif-dev \
     libheif-plugins-all \
-    libjxl-dev \
     libturbojpeg0-dev \
     nasm \
     pkg-config && \
@@ -68,7 +67,6 @@ RUN apt-get update && \
     curl \
     libheif1 \
     libheif-plugins-all \
-    libjxl0.11 \
     libturbojpeg0 \
     libvulkan1 \
     mesa-vulkan-drivers && \
