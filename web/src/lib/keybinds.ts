@@ -1,7 +1,7 @@
 import { isMac } from './platform';
 
 export type KeybindContext =
-  'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'masks' | 'retouch';
+  'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'geometry' | 'masks' | 'retouch';
 
 export interface Keybind {
   readonly id: string;
@@ -434,6 +434,14 @@ export const KEYBINDS = [
     group: 'Sliders',
     label: 'Reset every band or channel at once, on HSL and Curves',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + click the reset button`
+  },
+
+  {
+    id: 'geometryDone',
+    keys: ['Enter'],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Apply the crop and transform and return to Develop'
   },
 
   {

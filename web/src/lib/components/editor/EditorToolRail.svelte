@@ -47,15 +47,30 @@
   }
 
   function toggleTool(tool: EditorTab): void {
+    if (tool === 'geometry' && ui.editorTab === 'geometry' && !ui.rightCollapsed) {
+      void editor.finishGeometrySession();
+      ui.openTab('develop');
+      return;
+    }
     if (ui.editorTab === tool && !ui.rightCollapsed) {
       ui.togglePanels();
       return;
     }
     ui.openTab(tool);
   }
+
+  let rail = $state<HTMLDivElement>();
+
+  $effect(() => {
+    const current = `editor-tool-${ui.editorTab}`;
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused.id !== current && rail?.contains(focused))
+      focused.blur();
+  });
 </script>
 
 <div
+  bind:this={rail}
   role="tablist"
   aria-orientation="vertical"
   aria-label="Editor tools"

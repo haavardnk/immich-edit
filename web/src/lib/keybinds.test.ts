@@ -28,6 +28,7 @@ const CONTEXTS: KeybindContext[] = [
   'compare',
   'survey',
   'editor',
+  'geometry',
   'masks',
   'retouch'
 ];
@@ -80,6 +81,9 @@ describe('context resolution', () => {
     [{ key: 'f', shiftKey: true }, ['compare', 'global'], 'fullscreen'],
     [{ key: 'f', shiftKey: true }, ['survey', 'global'], 'fullscreen'],
     [{ key: 'c' }, ['retouch', 'editor', 'global'], 'retouchClone'],
+    [{ key: 'Enter' }, ['geometry', 'editor', 'global'], 'geometryDone'],
+    [{ key: 'Enter' }, ['editor', 'global'], null],
+    [{ key: 'Escape' }, ['geometry', 'editor', 'global'], 'editorEscape'],
     [{ key: 'c' }, ['grid', 'global'], 'enterCompare'],
     [{ key: 'q' }, ['grid', 'global'], null]
   ])('%o in %o resolves to %s', (event, contexts, expected) => {

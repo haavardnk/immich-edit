@@ -7,6 +7,7 @@ const CONTEXT_LABELS: Record<KeybindContext, string> = {
   compare: 'Compare',
   survey: 'Survey',
   editor: 'Editor',
+  geometry: 'Geometry',
   masks: 'Masks',
   retouch: 'Retouch'
 };
