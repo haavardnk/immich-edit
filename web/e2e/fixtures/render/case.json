@@ -1,0 +1,123 @@
+{
+  "adapter": "Apple M1 (IntegratedGpu, Metal)",
+  "dcp": "Canon EOS 5D.dcp",
+  "edits": {
+    "basic": {
+      "clarity": 15.0,
+      "contrast": 18.0,
+      "dehaze": 20.0,
+      "exposure_ev": 0.35,
+      "texture": 25.0,
+      "vibrance": 10.0,
+      "wb_temp": 12.0
+    },
+    "color": {
+      "dcp": {
+        "mode": "profile",
+        "profile_id": "bundled"
+      },
+      "hsl": {
+        "bands": [
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 20.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          },
+          {
+            "hue": 0.0,
+            "lum": 0.0,
+            "sat": 0.0
+          }
+        ]
+      },
+      "lut_3d": {
+        "amount": 60.0,
+        "lut_id": "warm"
+      }
+    },
+    "detail": {
+      "luma_nr_amount": 25.0,
+      "sharpen_amount": 50.0
+    },
+    "effects": {
+      "vignette_amount": -25.0
+    },
+    "masks": [
+      {
+        "amount": 1.0,
+        "color": "#3b82f6",
+        "components": [
+          {
+            "enabled": true,
+            "id": "c1",
+            "invert": false,
+            "kind": {
+              "feather": 0.5,
+              "kind": "linear",
+              "p0": {
+                "x": 0.5,
+                "y": 0.0
+              },
+              "p1": {
+                "x": 0.5,
+                "y": 0.6
+              }
+            },
+            "mode": "add",
+            "source": "manual"
+          }
+        ],
+        "edits": {
+          "clarity": 20.0,
+          "exposure_ev": -0.4,
+          "wb_temp": -15.0
+        },
+        "enabled": true,
+        "id": "sky",
+        "invert": false,
+        "name": ""
+      }
+    ],
+    "tone": {
+      "highlights": -40.0,
+      "shadows": 35.0
+    }
+  },
+  "height": 256,
+  "lut_id": "warm",
+  "view": {
+    "histogram": true,
+    "max_edge": 384
+  },
+  "width": 384
+}

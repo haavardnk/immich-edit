@@ -6,6 +6,7 @@ node_modules
 /target
 /test-results
 /playwright-report
+/src/lib/wasm
 /static/licenses/**
 .env
 .env.*

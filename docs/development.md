@@ -27,6 +27,19 @@ sudo apt-get install -y nasm cmake ninja-build pkg-config libclang-dev \
 The default backend build includes local AI-mask inference and downloads ONNX Runtime artifacts on
 the first build. Use `--no-default-features` to compile the backend without ML routes.
 
+The frontend needs the browser renderer in `web/src/lib/wasm`, which is generated and ignored by
+Git. Build it once, and again after any change under `crates/raw-pipeline` or
+`crates/web-render`:
+
+```shell
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --locked --version <the wasm-bindgen version in Cargo.lock>
+cd web && npm run wasm
+```
+
+The script stops and prints the exact install command when the installed `wasm-bindgen` does not
+match `Cargo.lock`.
+
 ## Run the development servers
 
 Install `cargo-watch` once:
@@ -54,6 +67,7 @@ On macOS, run natively to use Metal. Docker cannot pass Metal through its Linux 
 ```shell
 cd web
 npm ci
+npm run wasm
 npm run build
 cd ..
 cargo build --workspace
@@ -100,6 +114,7 @@ Then use the row matching the change:
 | ML only | `cargo test -p ml` |
 | Raw-pipeline plumbing | `cargo test -p raw-pipeline --lib` |
 | Render math, shaders, color, masks, geometry, or encode | `cargo test -p raw-pipeline --lib --tests` |
+| Browser renderer | `npm run wasm`, then `npx playwright test render-parity` in `web/` |
 | Cargo dependencies, profiles, CI, or Dockerfile | `cargo test --workspace --lib --tests` |
 
 Frontend changes:
@@ -120,6 +135,16 @@ npm run test:e2e
 
 GPU parity tests can skip when no adapter exists. Include local GPU evidence when changing shaders,
 GPU pass order, device setup, or CPU/GPU parity behavior.
+
+`e2e/render-parity.spec.ts` runs the wasm renderer in Chromium's WebGPU and compares its canvas with
+`web/e2e/fixtures/render/expected.rgb`, a native GPU render of the same source. Chromium validates
+WGSL with Tint, which rejects some code that naga accepts, so run it after any shader change. On
+Linux it uses SwiftShader; set `WEBGPU_SWIFTSHADER=1` to do the same elsewhere. When a render
+change is intended, rebake the fixture with a GPU:
+
+```shell
+BAKE_WEB_PARITY=1 cargo test -p raw-pipeline --test web_parity_fixture
+```
 
 Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
 synthetic frames, JPEG decoding, and parity metrics. Declare `mod common;` and add a helper there

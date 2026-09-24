@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>render parity</title>
+  </head>
+  <body>
+    <script type="module">
+      import init, { WebRenderer } from './web_render.js';
+
+      const bytes = async (name) => new Uint8Array(await (await fetch(name)).arrayBuffer());
+
+      window.runParity = async () => {
+        await init();
+        const spec = await (await fetch('case.json')).json();
+        const canvas = new OffscreenCanvas(1, 1);
+        const started = performance.now();
+        const renderer = await WebRenderer.create(canvas);
+        const initMs = performance.now() - started;
+        renderer.set_dcp(await bytes('dcp'));
+        renderer.set_lut(spec.lut_id, await bytes('lut.cube'));
+        renderer.set_source(await bytes('source.iesr'));
+        const edits = JSON.stringify(spec.edits);
+        const view = JSON.stringify(spec.view);
+        const first = performance.now();
+        await renderer.render(edits, view);
+        const firstRenderMs = performance.now() - first;
+        const again = performance.now();
+        const frame = await renderer.render(edits, view);
+        const renderMs = performance.now() - again;
+
+        const bitmap = canvas.transferToImageBitmap();
+        const flat = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const context = flat.getContext('2d');
+        context.drawImage(bitmap, 0, 0);
+        const rgba = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+        const expected = await bytes('expected.rgb');
+        const pixels = bitmap.width * bitmap.height;
+        let sum = 0;
+        let max = 0;
+        for (let i = 0; i < pixels && i * 3 + 2 < expected.length; i++) {
+          for (let c = 0; c < 3; c++) {
+            const d = Math.abs(rgba[i * 4 + c] - expected[i * 3 + c]);
+            sum += d;
+            max = Math.max(max, d);
+          }
+        }
+        return {
+          adapter: renderer.adapter(),
+          width: bitmap.width,
+          height: bitmap.height,
+          frame: [frame.width, frame.height],
+          expected: [spec.width, spec.height],
+          histogramCount: frame.histogram ? frame.histogram.l.reduce((a, b) => a + b, 0) : 0,
+          meanAbs: sum / (pixels * 3),
+          max,
+          initMs,
+          firstRenderMs,
+          renderMs
+        };
+      };
+    </script>
+  </body>
+</html>

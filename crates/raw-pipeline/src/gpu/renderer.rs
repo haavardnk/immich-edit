@@ -4,7 +4,6 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use wgpu::{Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages};
 
-#[cfg(feature = "native")]
 use crate::PipelineError;
 use crate::PipelineResult;
 use crate::edits::Edits;
@@ -172,10 +171,14 @@ impl GpuRenderer {
 
     pub async fn new_async(options: GpuRendererOptions) -> PipelineResult<Self> {
         let ctx = GpuContext::new_async(options.timestamps).await?;
+        let scope = ctx.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let passes = Arc::new(GpuPasses::new(&ctx));
+        let dummy_luma = make_dummy_luma(&ctx);
+        if let Some(err) = scope.pop().await {
+            return Err(PipelineError::Unsupported(format!("gpu pipelines: {err}")));
+        }
         let budget = GpuBudget::new(options.texture_cache_max_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
-        let dummy_luma = make_dummy_luma(&ctx);
         Ok(Self {
             ctx,
             passes,
@@ -203,6 +206,10 @@ impl GpuRenderer {
 
     pub fn adapter_label(&self) -> String {
         self.ctx.adapter_label()
+    }
+
+    pub fn context(&self) -> &GpuContext {
+        &self.ctx
     }
 
     pub fn is_software_adapter(&self) -> bool {

@@ -5090,6 +5090,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "web-render"
+version = "0.0.0"
+dependencies = [
+ "js-sys",
+ "raw-pipeline",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+]
+
+[[package]]
 name = "web-sys"
 version = "0.3.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"

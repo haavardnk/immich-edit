@@ -6,6 +6,9 @@ const backend = process.env.IMMICH_EDIT_BACKEND ?? 'http://127.0.0.1:8088';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
+  worker: {
+    format: 'es'
+  },
   server: {
     proxy: {
       '/api': {

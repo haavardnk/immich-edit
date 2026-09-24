@@ -62,7 +62,8 @@ export default ts.config(
       'package/',
       'target/',
       'test-results/',
-      'playwright-report/'
+      'playwright-report/',
+      'src/lib/wasm/'
     ]
   }
 );

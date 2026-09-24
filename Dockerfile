@@ -1,9 +1,23 @@
+FROM rust:1.98-trixie AS wasm
+WORKDIR /build
+COPY rust-toolchain.toml Cargo.lock ./
+RUN rustup target add wasm32-unknown-unknown && \
+    cargo install wasm-bindgen-cli --locked --version \
+    "$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')"
+COPY Cargo.toml ./
+COPY .cargo/ .cargo/
+COPY crates/ crates/
+COPY web/scripts/build-wasm.sh web/scripts/
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    web/scripts/build-wasm.sh
+
 FROM node:26-slim AS frontend
 ARG APP_VERSION=0.0.0
 WORKDIR /build/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ .
+COPY --from=wasm /build/web/src/lib/wasm/ src/lib/wasm/
 RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
     npm run build
 
