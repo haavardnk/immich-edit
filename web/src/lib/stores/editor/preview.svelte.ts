@@ -86,6 +86,7 @@ export class PreviewEngine {
   private viewAfterBase = false;
   private dragging = false;
   private draggedLive = false;
+  private previewing = false;
   private srcLong = $state(Number.POSITIVE_INFINITY);
   private originalEdge = 0;
   private originalGeomKey = '';
@@ -367,6 +368,7 @@ export class PreviewEngine {
     this.cancelRelease();
     this.dragging = false;
     this.draggedLive = false;
+    this.previewing = false;
     this.clearView();
     this.viewSnap = null;
     this.srcLong = Number.POSITIVE_INFINITY;
@@ -386,6 +388,7 @@ export class PreviewEngine {
   }
 
   private submitBase(args: BaseArgs): void {
+    this.previewing = !previewModeIsNone(args.previewMode);
     this.lastBase = args;
     if (!this.client.serverBound && renderer.undecided) {
       this.deferred = args;
@@ -500,6 +503,7 @@ export class PreviewEngine {
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
       !!this.ctx.geometrySession ||
+      this.previewing ||
       !!this.ctx.maskPreviewLayerId ||
       !!this.ctx.colorPicker
     );

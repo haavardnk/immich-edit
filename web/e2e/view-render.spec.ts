@@ -177,6 +177,44 @@ test.describe('view rendering', () => {
       .toBe(true);
   });
 
+  test('a paused alt-drag preview is not replaced by the view render', async ({ page }) => {
+    const requests: PreviewRequest[] = [];
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H },
+      onPreview: (req) => requests.push(req)
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Detail', exact: true }).click();
+    const slider = page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Masking', exact: true }) })
+      .getByRole('slider');
+    await slider.scrollIntoViewIfNeeded();
+    const box = await slider.boundingBox();
+    if (!box) throw new Error('masking slider has no box');
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + 4, y);
+    await page.keyboard.down('Alt');
+    const held = requests.length;
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, y, { steps: 8 });
+    await expect
+      .poll(() => requests.slice(held).some((r) => r.preview_mode === 'sharpen_mask'))
+      .toBe(true);
+    await page.waitForTimeout(1000);
+
+    expect(requests.slice(held).filter((r) => r.preview_mode !== 'sharpen_mask')).toEqual([]);
+    await expect(page.getByTestId('view-render')).toHaveCount(0);
+
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    await expect
+      .poll(() => requests.slice(held).some((r) => r.lane === 'roi' && r.preview_mode === 'none'))
+      .toBe(true);
+  });
+
   test('a slider drag keeps one 1x render in flight and settles at full DPR', async ({ page }) => {
     const requests: PreviewRequest[] = [];
     await installMocks(page, {

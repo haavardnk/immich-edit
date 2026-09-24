@@ -212,6 +212,20 @@ describe('preview lanes during a slider drag', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(lanes().map((lane) => lane.split('@')[0])).toEqual(['roi']);
   });
+
+  it('holds the view lane while a preview mode is on screen', async () => {
+    engine.preview('sharpen_mask');
+    engine.onViewChange({ ...SNAP, frame: { ...SNAP.frame, height: 801 } });
+    await vi.advanceTimersByTimeAsync(400);
+    await landLatest();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(lanes()).toEqual(['base@1600']);
+
+    engine.live();
+    await vi.advanceTimersByTimeAsync(400);
+    await landLatest();
+    expect(lanes().at(-1)).toBe(`roi@${SETTLED_EDGE}`);
+  });
 });
 
 function browserFrame(): RenderedFrame {
