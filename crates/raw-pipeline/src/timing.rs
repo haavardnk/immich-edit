@@ -1,6 +1,7 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use parking_lot::Mutex;
+use web_time::Instant;
 
 pub const DEMOSAIC: &str = "demosaic";
 pub const LENS: &str = "lens";

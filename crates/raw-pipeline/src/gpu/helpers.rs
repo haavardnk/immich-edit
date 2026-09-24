@@ -14,6 +14,7 @@ pub(super) fn mip_count(w: u32, h: u32) -> u32 {
     (w.max(h) as f32).log2().floor() as u32 + 1
 }
 
+#[cfg(feature = "native")]
 pub(super) fn cfa_to_indices(pattern: &str) -> [u32; 4] {
     let mut out = [1u32; 4];
     for (i, c) in pattern.chars().take(4).enumerate() {
@@ -44,6 +45,7 @@ pub(super) struct SuperpixelParams {
     pub pattern: [[u32; 4]; 9],
 }
 
+#[cfg(feature = "native")]
 pub(super) fn xtrans_to_indices(pattern: &[u8; 36]) -> [[u32; 4]; 9] {
     let mut out = [[1u32; 4]; 9];
     for (i, b) in pattern.iter().enumerate() {

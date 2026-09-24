@@ -1,4 +1,3 @@
-use crate::math::luma;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +24,7 @@ pub(crate) fn display_luma(r: u8, g: u8, b: u8) -> usize {
     (weighted_luma(r, g, b) / LUMA_SCALE) as usize
 }
 
+#[cfg(feature = "native")]
 fn linear_bin(v: f32) -> usize {
     ((v.clamp(0.0, 1.0) * 255.0) as usize).min(BINS - 1)
 }
@@ -54,11 +54,12 @@ impl Bins {
         self.l[display_luma(r, g, b)] += 1;
     }
 
+    #[cfg(feature = "native")]
     pub(crate) fn add_linear(&mut self, r: f32, g: f32, b: f32) {
         self.r[linear_bin(r)] += 1;
         self.g[linear_bin(g)] += 1;
         self.b[linear_bin(b)] += 1;
-        self.l[linear_bin(luma(r, g, b))] += 1;
+        self.l[linear_bin(crate::math::luma(r, g, b))] += 1;
     }
 
     pub(crate) fn merge(mut self, other: Self) -> Self {

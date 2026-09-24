@@ -1,15 +1,19 @@
 pub mod auto;
 pub mod cancel;
 pub mod capture_sigma;
+#[cfg(feature = "native")]
 pub mod codecs;
 pub mod color;
 pub mod cpu;
 pub mod dcp;
 mod dcp_pipeline;
+#[cfg(feature = "native")]
 pub mod decode;
 pub mod edit_manifest;
 pub mod edits;
+#[cfg(feature = "native")]
 pub mod encode;
+#[cfg(feature = "native")]
 pub mod exif;
 pub mod frame;
 pub mod geom;
@@ -55,6 +59,7 @@ pub fn version() -> &'static str {
 }
 
 pub use cancel::{CancelToken, CancelTracker};
+#[cfg(feature = "native")]
 pub use cpu::CpuRenderer;
 pub use dcp::{DcpProfile, parse_dcp};
 pub use frame::{

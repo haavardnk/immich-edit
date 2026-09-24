@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferUsages, CommandEncoder, Texture, TextureFormat, TextureViewDescriptor};
 
@@ -5,7 +7,10 @@ use super::GpuRenderer;
 use crate::PipelineResult;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::passes::meta_bins::{BinParams, HISTOGRAM_TILE, MetaBinsPasses, SCOPES_GROUP};
+#[cfg(feature = "native")]
 use crate::gpu::readback::read_u32_ranges;
+#[cfg(feature = "web")]
+use crate::gpu::readback::read_u32_ranges_async;
 use crate::gpu::resources::{HISTOGRAM_BYTES, OutputTargets, SCOPE_BYTES};
 use crate::gpu::timer::RenderTimings;
 use crate::histogram::{BINS, Histogram, sample_step};
@@ -18,6 +23,7 @@ pub(super) struct MetaRequest {
     pub scopes: bool,
 }
 
+#[derive(Default)]
 pub(super) struct MetaCounts {
     histogram: Option<Vec<u32>>,
     scopes: Option<Vec<u32>>,
@@ -159,31 +165,53 @@ impl GpuRenderer {
         })
     }
 
+    #[cfg(feature = "native")]
     pub(super) fn read_meta_counts(
         &self,
         p: &OutputTargets,
         request: MetaRequest,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<MetaCounts> {
-        let histogram_range = 0..HISTOGRAM_BYTES;
-        let scope_range = HISTOGRAM_BYTES..HISTOGRAM_BYTES + SCOPE_BYTES;
-        let ranges: Vec<_> = [
-            request.histogram.then_some(histogram_range),
-            request.scopes.then_some(scope_range),
+        let ranges = request.ranges();
+        if ranges.is_empty() {
+            return Ok(MetaCounts::default());
+        }
+        let counts = read_u32_ranges(&self.ctx, &p.meta_readback, &ranges, cancel)?;
+        Ok(request.collect(counts))
+    }
+
+    #[cfg(feature = "web")]
+    pub(super) async fn read_meta_counts_async(
+        &self,
+        p: &OutputTargets,
+        request: MetaRequest,
+    ) -> PipelineResult<MetaCounts> {
+        let ranges = request.ranges();
+        if ranges.is_empty() {
+            return Ok(MetaCounts::default());
+        }
+        let counts = read_u32_ranges_async(&p.meta_readback, &ranges).await?;
+        Ok(request.collect(counts))
+    }
+}
+
+impl MetaRequest {
+    fn ranges(self) -> Vec<Range<u64>> {
+        [
+            self.histogram.then_some(0..HISTOGRAM_BYTES),
+            self.scopes
+                .then_some(HISTOGRAM_BYTES..HISTOGRAM_BYTES + SCOPE_BYTES),
         ]
         .into_iter()
         .flatten()
-        .collect();
-        if ranges.is_empty() {
-            return Ok(MetaCounts {
-                histogram: None,
-                scopes: None,
-            });
-        }
-        let mut counts = read_u32_ranges(&self.ctx, &p.meta_readback, &ranges, cancel)?.into_iter();
-        let histogram = request.histogram.then(|| counts.next()).flatten();
-        let scopes = request.scopes.then(|| counts.next()).flatten();
-        Ok(MetaCounts { histogram, scopes })
+        .collect()
+    }
+
+    fn collect(self, counts: Vec<Vec<u32>>) -> MetaCounts {
+        let mut counts = counts.into_iter();
+        let histogram = self.histogram.then(|| counts.next()).flatten();
+        let scopes = self.scopes.then(|| counts.next()).flatten();
+        MetaCounts { histogram, scopes }
     }
 }
 

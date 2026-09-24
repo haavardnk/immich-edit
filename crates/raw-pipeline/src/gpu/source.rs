@@ -4,7 +4,9 @@ use std::sync::Arc;
 use wgpu::Texture;
 
 use crate::edits::Edits;
-use crate::frame::{FrameMeta, RawFrame};
+use crate::frame::FrameMeta;
+#[cfg(feature = "native")]
+use crate::frame::RawFrame;
 
 pub type WbKey = (u64, u64);
 
@@ -33,12 +35,14 @@ pub struct LinearSource {
     pub layer_bases: HashMap<WbKey, LinearImage>,
 }
 
+#[cfg(feature = "native")]
 #[derive(Clone, Copy)]
 pub enum RenderSource<'a> {
     Raw(&'a RawFrame),
     Linear(&'a LinearSource),
 }
 
+#[cfg(feature = "native")]
 impl RenderSource<'_> {
     pub fn meta(&self) -> &FrameMeta {
         match self {
@@ -48,12 +52,14 @@ impl RenderSource<'_> {
     }
 }
 
+#[cfg(feature = "native")]
 impl<'a> From<&'a RawFrame> for RenderSource<'a> {
     fn from(frame: &'a RawFrame) -> Self {
         Self::Raw(frame)
     }
 }
 
+#[cfg(feature = "native")]
 impl<'a> From<&'a LinearSource> for RenderSource<'a> {
     fn from(source: &'a LinearSource) -> Self {
         Self::Linear(source)

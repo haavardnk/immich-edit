@@ -14,6 +14,10 @@ mod timer;
 mod uniform_pool;
 mod uniforms;
 
+#[cfg(feature = "web")]
+pub use renderer::DisplayMeta;
 pub use renderer::GpuPoolStats;
-pub use renderer::{GpuRenderer, GpuRendererOptions, RenderPlan};
-pub use source::{LinearImage, LinearKind, LinearSource, RenderSource};
+pub use renderer::{DisplayFrame, GpuRenderer, GpuRendererOptions, RenderPlan};
+#[cfg(feature = "native")]
+pub use source::RenderSource;
+pub use source::{LinearImage, LinearKind, LinearSource};

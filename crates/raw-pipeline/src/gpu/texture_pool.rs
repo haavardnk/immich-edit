@@ -119,6 +119,7 @@ impl TexturePool {
         g.retained_bytes += tex_bytes;
     }
 
+    #[cfg(feature = "native")]
     pub fn trim(&self, bytes: u64) -> u64 {
         let mut g = self.free.lock();
         let start = g.retained_bytes;
