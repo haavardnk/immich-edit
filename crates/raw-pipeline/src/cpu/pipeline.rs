@@ -57,7 +57,7 @@ pub(crate) fn render_cached(
     let block = crate::geom::superpixel_block(frame, options, preview_ratio);
     let block_scale = block.unwrap_or(1) as f32;
 
-    let setup = crate::dcp_pipeline::resolve(frame, &edits, options.dcp.as_deref());
+    let setup = crate::dcp_pipeline::resolve(&frame.meta, &edits, options.dcp.as_deref());
     let ctx = OpContext {
         render: RenderContext {
             wb_coeffs: frame.meta.wb_coeffs,

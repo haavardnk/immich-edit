@@ -7,16 +7,17 @@ use wgpu::{
 };
 
 use super::GpuRenderer;
-use super::geometry::{crop_px, process_geom};
+use super::geometry::process_geom;
 use super::masks::{MaskAtlas, MaskStage, MaskStageOutput, Retained};
 use super::meta::MetaRequest;
 use super::{display_depth, pools, uniform};
 use crate::edits::Edits;
-use crate::frame::{OutputColorSpace, PreviewMode, RawFrame, RenderOptions};
+use crate::frame::{FrameMeta, OutputColorSpace, PreviewMode, RenderOptions};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
+use crate::gpu::source::{LinearImage, LinearKind, LinearSource, WbKey, wb_key};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
@@ -29,7 +30,7 @@ pub(super) struct DisplayInput<'s> {
     pub src: &'s Texture,
     pub src_dims: (u32, u32),
     pub out_dims: (u32, u32),
-    pub frame: &'s RawFrame,
+    pub meta: &'s FrameMeta,
     pub edits: &'s Edits,
     pub opts: &'s RenderOptions,
     pub shadows: Option<&'s wgpu::TextureView>,
@@ -56,7 +57,7 @@ pub(super) struct DisplayFrame<'a> {
     pub encoder: CommandEncoder,
     pub targets: MutexGuard<'a, Vec<OutputTargets>>,
     pub slot: DisplaySlot,
-    pub meta: MetaRequest,
+    pub bins: MetaRequest,
     pub dims: (u32, u32),
     pub source_dims: (u32, u32),
     pub atlases: [Option<MaskAtlas>; 2],
@@ -67,7 +68,163 @@ pub(super) struct DisplayFrame<'a> {
 }
 
 impl GpuRenderer {
-    pub(super) fn encode_display<'a>(
+    pub(super) fn display_chain<'a>(
+        &'a self,
+        source: &LinearSource,
+        edits: &Edits,
+        opts: &RenderOptions,
+        timings: RenderTimings<'a>,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<DisplayFrame<'a>> {
+        let edits_c = edits.clamped();
+        let meta = &source.meta;
+        let full_dims = (meta.width as u32, meta.height as u32);
+        let out_dims =
+            crate::geom::display_out_dims(meta.orientation, &edits_c, full_dims, opts.max_edge);
+        let passes = match display_depth(opts) {
+            DisplayDepth::Eight => (&self.passes.process_fast, &self.passes.process_post_wb),
+            DisplayDepth::Sixteen => {
+                let depth16 = self.passes.depth16(&self.ctx);
+                (&depth16.process_fast, &depth16.process_post_wb)
+            }
+        };
+        if source.kind == LinearKind::PreWb {
+            if super::presence_display(&edits_c) {
+                return Err(PipelineError::Unsupported(
+                    "presence edits need a white-balanced linear source".into(),
+                ));
+            }
+            let input = DisplayInput {
+                pass: passes.0,
+                src: &source.base.texture,
+                src_dims: source.dims,
+                out_dims,
+                meta,
+                edits,
+                opts,
+                shadows: None,
+                layer_srcs: &HashMap::new(),
+            };
+            return self.encode_display(input, timings, cancel);
+        }
+
+        let t = &timings;
+        let base = self.dehaze_image(&source.base, source.dims, &edits_c, t, cancel)?;
+        let processed = if edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0 {
+            let tex = t.stage(timing::PRESENCE, || {
+                self.run_presence(&base, source.dims, &edits_c)
+            })?;
+            crate::cancel::check(cancel)?;
+            tex
+        } else {
+            base.clone()
+        };
+        let layer_srcs = self.layer_presence_sources(source, &base, &edits_c, t, cancel)?;
+        let shadows_pyramid = if edits_c.tone.shadows != 0.0 {
+            Some(t.stage(timing::SHADOWS, || {
+                self.build_luma_pyramid(&processed, source.dims)
+            })?)
+        } else {
+            None
+        };
+        let shadows_view = shadows_pyramid
+            .as_ref()
+            .map(|t| t.create_view(&TextureViewDescriptor::default()));
+        let input = DisplayInput {
+            pass: passes.1,
+            src: &processed,
+            src_dims: source.dims,
+            out_dims,
+            meta,
+            edits,
+            opts,
+            shadows: shadows_view.as_ref(),
+            layer_srcs: &layer_srcs,
+        };
+        self.encode_display(input, timings, cancel)
+    }
+
+    fn dehaze_image(
+        &self,
+        image: &LinearImage,
+        dims: (u32, u32),
+        edits: &Edits,
+        t: &RenderTimings,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<Arc<Texture>> {
+        if edits.basic.dehaze == 0.0 {
+            return Ok(image.texture.clone());
+        }
+        let atmosphere = image.atmosphere.ok_or_else(|| {
+            PipelineError::Unsupported("dehaze needs an atmosphere estimate on the source".into())
+        })?;
+        let tex = t.stage(timing::DEHAZE, || {
+            let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
+            self.run_dehaze(&image.texture, dims, edits, atmosphere)
+        })?;
+        crate::cancel::check(cancel)?;
+        Ok(tex)
+    }
+
+    fn layer_presence_sources(
+        &self,
+        source: &LinearSource,
+        base: &Arc<Texture>,
+        edits: &Edits,
+        t: &RenderTimings,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<HashMap<String, Arc<Texture>>> {
+        let mut out = HashMap::new();
+        let global_amts = crate::presence::presence_amounts(edits);
+        let global_wb = wb_key(edits);
+        let mut dehazed: HashMap<WbKey, Arc<Texture>> = HashMap::new();
+        let mut cache: HashMap<(u64, u64, u32, u32), Arc<Texture>> = HashMap::new();
+        for layer in edits.masks.iter().filter(|l| l.is_effective()) {
+            let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
+            let amts = crate::presence::presence_amounts(&eff);
+            let wb = wb_key(&eff);
+            if wb == global_wb
+                && amts.texture == global_amts.texture
+                && amts.clarity == global_amts.clarity
+            {
+                continue;
+            }
+            let key = (wb.0, wb.1, amts.texture.to_bits(), amts.clarity.to_bits());
+            if let Some(tex) = cache.get(&key) {
+                out.insert(layer.id.clone(), tex.clone());
+                continue;
+            }
+            let layer_base = if wb == global_wb {
+                base.clone()
+            } else if let Some(tex) = dehazed.get(&wb) {
+                tex.clone()
+            } else {
+                let image = source.layer_bases.get(&wb).ok_or_else(|| {
+                    PipelineError::Unsupported(format!(
+                        "linear source has no base for mask layer {}",
+                        layer.id
+                    ))
+                })?;
+                let tex = self.dehaze_image(image, source.dims, &eff, t, cancel)?;
+                dehazed.insert(wb, tex.clone());
+                tex
+            };
+            let tex = if amts.texture == 0.0 && amts.clarity == 0.0 {
+                layer_base
+            } else {
+                let tex = t.stage(timing::PRESENCE, || {
+                    self.run_presence(&layer_base, source.dims, &eff)
+                })?;
+                crate::cancel::check(cancel)?;
+                tex
+            };
+            cache.insert(key, tex.clone());
+            out.insert(layer.id.clone(), tex);
+        }
+        Ok(out)
+    }
+
+    fn encode_display<'a>(
         &'a self,
         input: DisplayInput<'_>,
         timings: RenderTimings<'a>,
@@ -80,7 +237,7 @@ impl GpuRenderer {
             src,
             src_dims,
             out_dims,
-            frame,
+            meta,
             edits,
             opts,
             shadows,
@@ -89,7 +246,7 @@ impl GpuRenderer {
         let t = &timings;
 
         let mut edits = edits.clamped();
-        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
+        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(meta.is_raw));
         let edits = edits;
         let sharpen_active = edits.detail.sharpen_active();
         let masked_sharpen = edits.masked_sharpen_active();
@@ -108,7 +265,8 @@ impl GpuRenderer {
         }
 
         let (out_w, out_h) = out_dims;
-        let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
+        let (crop_w_px, crop_h_px) =
+            crate::geom::display_crop_px(meta.orientation, &edits, src_dims);
         let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
 
         let (downscaled, downscaled_layers) = t.stage(timing::RESAMPLE, || {
@@ -131,14 +289,14 @@ impl GpuRenderer {
         };
         crate::cancel::check(cancel)?;
 
-        let geom = process_geom(frame, &edits, work_dims);
-        let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
+        let geom = process_geom(meta, &edits, work_dims);
+        let setup = crate::dcp_pipeline::resolve(meta, &edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
-                wb_coeffs: frame.meta.wb_coeffs,
+                wb_coeffs: meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
-                is_raw: frame.meta.is_raw,
-                capture_sigma: frame.meta.capture_sigma,
+                is_raw: meta.is_raw,
+                capture_sigma: meta.capture_sigma,
                 preview_mode: opts.preview_mode.clone(),
                 roi: opts.roi,
                 dcp: setup.resolved,
@@ -331,11 +489,11 @@ impl GpuRenderer {
         drop(display_scope);
         t.clock()
             .add_wall(timing::DISPLAY, display_started.elapsed());
-        let meta = MetaRequest {
+        let bins = MetaRequest {
             histogram: opts.histogram,
             scopes: opts.scopes,
         };
-        self.encode_meta_bins(&mut encoder, p, display_src, linear_src, meta, out_dims, t);
+        self.encode_meta_bins(&mut encoder, p, display_src, linear_src, bins, out_dims, t);
 
         let slot = match (preview_active, lut, sixteen) {
             (true, lut, sixteen) => {
@@ -354,7 +512,7 @@ impl GpuRenderer {
             encoder,
             targets,
             slot,
-            meta,
+            bins,
             dims: out_dims,
             source_dims: geom.source,
             atlases: [preview_atlas, layer_atlas],
