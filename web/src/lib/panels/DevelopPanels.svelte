@@ -2,14 +2,25 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { scopes } from '$lib/stores/scopes.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { developPanels, openDevelopPanels, SCOPES_PANEL } from '$lib/panels/registry';
+  import {
+    developPanels,
+    openDevelopPanels,
+    SCOPES_PANEL,
+    type PanelDef
+  } from '$lib/panels/registry';
   import { setDevelopPanel } from '$lib/panels/developPanels';
+  import { resetDevelopPanel } from '$lib/panels/panelReset';
   import { modifiedDevelopPanels } from '$lib/editorModified';
   import Disclosure from '$lib/components/Disclosure.svelte';
   import ScopesSection from './scopes/ScopesSection.svelte';
 
   const openPanels = $derived(openDevelopPanels(ui.developOpenPanels));
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
+
+  function resetPanel(panel: PanelDef): void {
+    editor.edits = resetDevelopPanel(editor.edits, panel.id);
+    void editor.onCommit(`Reset ${panel.title}`);
+  }
 </script>
 
 {#if !scopes.pinned && !ui.developModifiedOnly}
@@ -28,6 +39,7 @@
         open={openPanels.has(panel.id)}
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
+        onReset={() => resetPanel(panel)}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
         <div class="bg-black/10 px-3 pb-2 pt-1">

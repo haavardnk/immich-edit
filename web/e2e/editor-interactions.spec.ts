@@ -261,7 +261,7 @@ test('lens profile failure can be retried', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  await page.getByRole('button', { name: 'Lens Corrections', exact: true }).click();
   await page.getByRole('button', { name: 'Try again' }).click();
 
   await expect(page.getByText('No matching lens profile')).toBeVisible();
@@ -807,8 +807,8 @@ test('lens reset clears all profile edits', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Lens Corrections' }).click();
-  const reset = page.getByRole('button', { name: 'Reset Lens Corrections' });
+  await page.getByRole('button', { name: 'Lens Corrections', exact: true }).click();
+  const reset = page.getByRole('button', { name: 'Reset Lens Corrections', exact: true });
   const resetBounds = await reset.boundingBox();
   if (!resetBounds) throw new Error('Lens reset has no bounds');
   expect(resetBounds.width).toBeGreaterThanOrEqual(24);
@@ -868,7 +868,7 @@ test('a matched profile corrects a raw file until the user says otherwise', asyn
   );
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Lens Corrections' }).click();
+  await page.getByRole('button', { name: 'Lens Corrections', exact: true }).click();
   const toggle = page.getByLabel('Enable Profile Corrections');
   await expect(toggle).toBeChecked();
   await expect(page.getByText('· Auto')).toBeVisible();

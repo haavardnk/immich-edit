@@ -567,6 +567,45 @@ test('modified editor tools use a dot without duplicate counts', async ({ page }
   expect(await indicator.evaluate((element) => element.getBoundingClientRect().width)).toBe(6);
 });
 
+test('hovering a panel modified dot offers a reset for the whole panel', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const reset = page.getByRole('button', { name: 'Reset Basic panel' });
+  await expect(reset).toHaveCount(0);
+
+  const slider = (label: string): Locator =>
+    page
+      .locator('div.group', { has: page.getByRole('button', { name: label, exact: true }) })
+      .getByRole('slider');
+  await slider('Exposure').fill('1');
+  await slider('Shadows').fill('20');
+
+  const dot = reset.locator('span');
+  const icon = reset.locator('svg');
+  await expect(dot).toBeVisible();
+  await expect(icon).toBeHidden();
+  await reset.hover();
+  await expect(dot).toBeHidden();
+  await expect(icon).toBeVisible();
+  expect((await metricsOf(reset)).height).toBe(24);
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await reset.click();
+  const body = (await saved).postDataJSON() as {
+    manifest: { ops: Record<string, unknown> };
+    action: string | null;
+  };
+  expect(body.action).toBe('Reset Basic');
+  expect(body.manifest.ops.exposure).toBeUndefined();
+  expect(body.manifest.ops.tone_regions).toBeUndefined();
+  await expect(reset).toHaveCount(0);
+  await expect(slider('Exposure')).toHaveValue('0');
+  await expect(slider('Exposure')).toBeVisible();
+});
+
 test('panel header actions match develop action buttons', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
