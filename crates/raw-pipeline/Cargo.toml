@@ -53,7 +53,7 @@ flate2 = { version = "1", optional = true }
 jpegxl-rs = { version = "0.14", features = ["vendored"], optional = true }
 jpegxl-sys = { version = "0.12", optional = true }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"], optional = true }
-libheif-rs = { version = "2.7", default-features = false, features = ["v1_19"], optional = true }
+libheif-rs = { version = "3.0", default-features = false, features = ["v1_19"], optional = true }
 futures-channel = { version = "0.3", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
