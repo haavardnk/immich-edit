@@ -29,12 +29,10 @@ the first build. Use `--no-default-features` to compile the backend without ML r
 
 ## Run the development servers
 
-Copy `.env.example` to `.env` and set the native development values:
+Install `cargo-watch` once:
 
 ```shell
-BIND_ADDR=127.0.0.1:8088
-DCP_DIR=crates/backend/assets/dcp
-DATA_DIR=./data
+cargo install cargo-watch --locked
 ```
 
 Run the watched backend and Vite frontend:
@@ -43,8 +41,11 @@ Run the watched backend and Vite frontend:
 bash dev.sh
 ```
 
-Vite proxies `/api` to `127.0.0.1:8088` by default. Set `IMMICH_EDIT_BACKEND` before starting Vite
-when the backend uses another address.
+`dev.sh` runs `npm ci` in `web/` whenever `package-lock.json` is newer than the installed modules,
+and stops both servers on Ctrl-C. It sets native defaults: the backend listens on
+`127.0.0.1:8088`, keeps data in `./data`, reads camera profiles from `crates/backend/assets/dcp`,
+and builds into `target/dev-server`. Put overrides in `.env`, which `dev.sh` loads; see
+`.env.example`. Vite proxies `/api` to `BIND_ADDR` unless `IMMICH_EDIT_BACKEND` is set.
 
 On macOS, run natively to use Metal. Docker cannot pass Metal through its Linux virtual machine.
 

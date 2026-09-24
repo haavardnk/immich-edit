@@ -30,7 +30,6 @@ cache/
 data/
 docker-compose.dev.yml
 Dockerfile.dev
-dev.sh
 
 # Local notes
 notes/
