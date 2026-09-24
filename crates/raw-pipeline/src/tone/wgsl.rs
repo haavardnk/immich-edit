@@ -37,7 +37,7 @@ fn tone_project_gamut(c: vec3<f32>, neutral: f32) -> vec3<f32> {{
 }}
 
 fn tone_dither_hash(x: u32, y: u32, c: u32) -> f32 {{
-    var h: u32 = x * 0x8da6b343u ^ y * 0xd8163841u ^ c * 0xcb1ab31fu;
+    var h: u32 = (x * 0x8da6b343u) ^ (y * 0xd8163841u) ^ (c * 0xcb1ab31fu);
     h ^= h >> 16u;
     h = h * 0x7feb352du;
     h ^= h >> 15u;
