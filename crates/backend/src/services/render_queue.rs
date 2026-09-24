@@ -44,6 +44,7 @@ pub enum RenderLane {
     Original,
     Roi,
     Source,
+    SourceTile,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

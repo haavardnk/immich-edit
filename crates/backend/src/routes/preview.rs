@@ -311,7 +311,7 @@ pub(super) fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, App
     Ok(value.min(default))
 }
 
-fn parse_roi(roi: Option<[f32; 4]>) -> Result<Option<CropRect>, AppError> {
+pub(crate) fn parse_roi(roi: Option<[f32; 4]>) -> Result<Option<CropRect>, AppError> {
     let Some([x, y, w, h]) = roi else {
         return Ok(None);
     };

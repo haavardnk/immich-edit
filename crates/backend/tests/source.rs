@@ -97,6 +97,45 @@ async fn source_returns_a_decodable_linear_source() {
 }
 
 #[tokio::test]
+async fn a_source_roi_windows_the_region() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    let app = test_app(&server).await;
+
+    let whole = app
+        .clone()
+        .oneshot(post_source(id, serde_json::json!({"max_edge": 256}), None))
+        .await
+        .unwrap();
+    let whole_etag = header_str(&whole, "etag").expect("etag");
+    let whole = source::decode(&body_bytes(whole).await).unwrap();
+    let tile = app
+        .oneshot(post_source(
+            id,
+            serde_json::json!({"max_edge": 256, "roi": [0.375, 0.375, 0.25, 0.25]}),
+            Some(&whole_etag),
+        ))
+        .await
+        .unwrap();
+    if tile.status() != StatusCode::OK || header_str(&tile, "etag").as_deref() == Some(&whole_etag)
+    {
+        panic!("a roi must be its own source: {}", tile.status());
+    }
+    let tile = source::decode(&body_bytes(tile).await).unwrap();
+    let Some(window) = tile.header.window else {
+        panic!("a quarter of the frame was not windowed");
+    };
+    let (w, h) = tile.header.dims;
+    if window.full.0 <= whole.header.dims.0 * 2 || w >= window.full.0 || h >= window.full.1 {
+        panic!(
+            "tile {w}x{h} in {:?} is not a window at tile resolution (whole {:?})",
+            window.full, whole.header.dims
+        );
+    }
+}
+
+#[tokio::test]
 async fn source_etag_ignores_display_edits() {
     let server = MockServer::start().await;
     let id = asset_id();
