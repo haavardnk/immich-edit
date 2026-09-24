@@ -1,6 +1,7 @@
 <script lang="ts">
   import TextInput from '$lib/components/TextInput.svelte';
   import { keysFor } from '$lib/keybinds';
+  import { editor } from '$lib/stores/editor.svelte';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
 
@@ -112,16 +113,21 @@
     if (disabled) return;
     dragging = true;
     altDown = e.altKey;
+    editor.beginDrag();
     updatePreview();
-    window.addEventListener('pointerup', onPointerUp, { once: true });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
     window.addEventListener('keydown', onKeyChange);
     window.addEventListener('keyup', onKeyChange);
   }
 
   function onPointerUp(): void {
     dragging = false;
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
     window.removeEventListener('keydown', onKeyChange);
     window.removeEventListener('keyup', onKeyChange);
+    editor.endDrag();
     if (previewing) {
       previewing = false;
       onPreviewEnd!();

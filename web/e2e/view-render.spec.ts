@@ -176,4 +176,82 @@ test.describe('view rendering', () => {
       .poll(() => requests.slice(held).some((r) => r.lane === 'roi' && exposure(r) === 1))
       .toBe(true);
   });
+
+  test('a slider drag keeps one 1x render in flight and settles at full DPR', async ({ page }) => {
+    const requests: PreviewRequest[] = [];
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H },
+      onPreview: (req) => requests.push(req)
+    });
+    await page.route('**/api/assets/*/preview', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      await new Promise((done) => setTimeout(done, 120));
+      await route.fallback().catch(() => undefined);
+    });
+    await page.addInitScript(() => {
+      const renders = { open: 0, peak: 0 };
+      Object.assign(window, { renders });
+      const send = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const target = input instanceof Request ? input.url : String(input);
+        const post = (init?.method ?? (input instanceof Request ? input.method : 'GET')) === 'POST';
+        if (!post || !new URL(target, location.href).pathname.endsWith('/preview')) {
+          return send(input, init);
+        }
+        renders.open += 1;
+        renders.peak = Math.max(renders.peak, renders.open);
+        return send(input, init).finally(() => {
+          renders.open -= 1;
+        });
+      };
+    });
+    const renderCount = (): Promise<{ open: number; peak: number }> =>
+      page.evaluate(
+        () => (window as unknown as { renders: { open: number; peak: number } }).renders
+      );
+
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+    await expect.poll(async () => (await renderCount()).open).toBe(0);
+    await page.evaluate(() => {
+      (window as unknown as { renders: { peak: number } }).renders.peak = 0;
+    });
+
+    const slider = page
+      .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
+      .getByRole('slider');
+    const box = await slider.boundingBox();
+    if (!box) throw new Error('exposure slider has no box');
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    const dragStart = requests.length;
+    for (let step = 1; step <= 6; step++) {
+      await page.mouse.move(box.x + box.width / 2 + step * 6, y, { steps: 2 });
+      await page.waitForTimeout(250);
+    }
+    const peakDuringDrag = (await renderCount()).peak;
+    const dragEnd = requests.length;
+    await page.mouse.up();
+
+    const during = requests.slice(dragStart, dragEnd);
+    const stageLong = await page
+      .locator('.editor-stage')
+      .evaluate((el) => Math.max(el.clientWidth, el.clientHeight));
+    const dragEdge = Math.min(1600, Math.round(stageLong));
+    expect(during.length).toBeGreaterThan(0);
+    expect(during.filter((r) => r.lane !== 'base' || r.max_edge !== dragEdge)).toEqual([]);
+    expect(peakDuringDrag).toBe(1);
+
+    await expect.poll(() => requests.slice(dragEnd).some((r) => r.lane === 'roi')).toBe(true);
+    const after = requests.slice(dragEnd);
+    const settled = after.findLast((r) => r.lane === 'base');
+    const view = after.find((r) => r.lane === 'roi');
+    if (!settled || !view) throw new Error('release did not render both lanes');
+    expect(settled.max_edge).toBe(view.max_edge);
+    expect(settled.max_edge).toBeGreaterThan(dragEdge);
+    expect(after.indexOf(settled)).toBeLessThan(after.indexOf(view));
+    await expectDeviceExact(page);
+  });
 });
