@@ -167,9 +167,15 @@ export interface InstallOpts {
   sourceSize?: { w: number; h: number };
   previewMeta?: Record<string, unknown>;
   faces?: Array<Record<string, number>>;
+  renderer?: 'auto' | 'server';
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
+  if ((opts.renderer ?? 'server') === 'server') {
+    await page.addInitScript(() =>
+      localStorage.setItem('immich-edit:renderer', JSON.stringify({ choice: 'server' }))
+    );
+  }
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const copies: CopyRecord[] = [];

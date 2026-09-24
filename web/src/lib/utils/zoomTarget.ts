@@ -1,6 +1,7 @@
 import type { FaceBox } from '$lib/api/faces';
 import { sceneUvToDisplayUv, type ViewTransform } from '$lib/utils/canvasCoords';
 import type { Pan } from '$lib/utils/imageViewport';
+import { surfaceSize, type PreviewSurface } from '$lib/utils/preview-surface';
 
 export interface ZoomTarget {
   u: number;
@@ -82,9 +83,8 @@ export function sharpestCell(
   };
 }
 
-export function sharpestPoint(image: HTMLImageElement): ZoomTarget | null {
-  const nw = image.naturalWidth;
-  const nh = image.naturalHeight;
+export function sharpestPoint(image: PreviewSurface): ZoomTarget | null {
+  const { w: nw, h: nh } = surfaceSize(image);
   if (nw <= 0 || nh <= 0) return null;
   const scale = Math.min(1, SAMPLE_EDGE / Math.max(nw, nh));
   const w = Math.max(3, Math.round(nw * scale));

@@ -1,9 +1,25 @@
 import type { Edits } from '$lib/types/edits';
-import type { Call, RenderView, RenderedFrame, Reply, Request, SourceInfo } from './protocol';
+import type {
+  Call,
+  RenderInputs,
+  RenderView,
+  RenderedFrame,
+  Reply,
+  Request,
+  SourceInfo
+} from './protocol';
+
+export interface PortEvents {
+  message: MessageEvent<Reply>;
+  error: ErrorEvent;
+}
 
 export interface Port {
   postMessage(message: Request, transfer: Transferable[]): void;
-  addEventListener(type: 'message', listener: (event: MessageEvent<Reply>) => void): void;
+  addEventListener<K extends keyof PortEvents>(
+    type: K,
+    listener: (event: PortEvents[K]) => void
+  ): void;
   terminate(): void;
 }
 
@@ -23,25 +39,28 @@ export class RenderHost {
   private constructor(port: Port) {
     this.port = port;
     port.addEventListener('message', ({ data }) => this.settle(data));
+    port.addEventListener('error', (event) =>
+      this.rejectAll(new Error(event.message || 'the render worker crashed'))
+    );
   }
 
   get adapter(): string {
     return this.label;
   }
 
-  static async start(
-    canvas: HTMLCanvasElement,
-    spawn: () => Port = spawnWorker
-  ): Promise<RenderHost> {
+  static async start(spawn: () => Port = spawnWorker): Promise<RenderHost> {
     const host = new RenderHost(spawn());
-    const offscreen = canvas.transferControlToOffscreen();
     try {
-      host.label = await host.call<string>({ op: 'init', canvas: offscreen }, [offscreen]);
+      host.label = await host.call<string>({ op: 'init' });
       return host;
     } catch (err) {
       host.dispose();
       throw err;
     }
+  }
+
+  inputs(edits: Edits, maxEdge: number): Promise<RenderInputs> {
+    return this.call({ op: 'inputs', edits, maxEdge });
   }
 
   setSource(bytes: ArrayBuffer): Promise<SourceInfo> {
@@ -74,7 +93,11 @@ export class RenderHost {
 
   dispose(): void {
     this.port.terminate();
-    for (const { reject } of this.pending.values()) reject(new Error('the renderer was disposed'));
+    this.rejectAll(new Error('the renderer was disposed'));
+  }
+
+  private rejectAll(error: Error): void {
+    for (const { reject } of this.pending.values()) reject(error);
     this.pending.clear();
   }
 

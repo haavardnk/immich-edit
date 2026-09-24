@@ -13,9 +13,8 @@
       window.runParity = async () => {
         await init();
         const spec = await (await fetch('case.json')).json();
-        const canvas = new OffscreenCanvas(1, 1);
         const started = performance.now();
-        const renderer = await WebRenderer.create(canvas);
+        const renderer = await WebRenderer.create();
         const initMs = performance.now() - started;
         renderer.set_dcp(await bytes('dcp'));
         renderer.set_lut(spec.lut_id, await bytes('lut.cube'));
@@ -23,13 +22,13 @@
         const edits = JSON.stringify(spec.edits);
         const view = JSON.stringify(spec.view);
         const first = performance.now();
-        await renderer.render(edits, view);
+        (await renderer.render(edits, view)).bitmap.close();
         const firstRenderMs = performance.now() - first;
         const again = performance.now();
         const frame = await renderer.render(edits, view);
         const renderMs = performance.now() - again;
 
-        const bitmap = canvas.transferToImageBitmap();
+        const bitmap = frame.bitmap;
         const flat = new OffscreenCanvas(bitmap.width, bitmap.height);
         const context = flat.getContext('2d');
         context.drawImage(bitmap, 0, 0);

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RenderLane } from '$lib/api/preview';
-import { neutralEdits } from '$lib/types/edits';
+import type { RenderView, RenderedFrame } from '$lib/render/protocol';
+import { neutralEdits, type Edits } from '$lib/types/edits';
 import type { Roi } from '$lib/utils/view-geometry';
 
 type Render = {
@@ -47,6 +48,24 @@ vi.mock('$lib/api/preview', async (original) => ({
 }));
 vi.mock('$lib/utils/object-url', () => ({ makeObjectUrl: () => 'blob:render', revoke: () => {} }));
 
+const browser = vi.hoisted(() => ({
+  current: null as ClientRenderer | null,
+  fail: vi.fn()
+}));
+
+vi.mock('$lib/stores/renderer.svelte', () => ({
+  renderer: {
+    undecided: false,
+    get current() {
+      return browser.current;
+    },
+    start: async () => browser.current,
+    fail: browser.fail,
+    recordRender: () => {}
+  }
+}));
+
+import type { ClientRenderer } from '$lib/render/client-renderer';
 import { PreviewEngine, type PreviewCtx, type ViewSnapshot } from './preview.svelte';
 
 const SNAP: ViewSnapshot = {
@@ -74,6 +93,7 @@ function context(): PreviewCtx {
     edits: neutralEdits(),
     meta: null,
     previewUrl: null,
+    previewFrame: null,
     originalUrl: null,
     viewUrl: null,
     viewRoi: null,
@@ -190,5 +210,108 @@ describe('preview lanes during a slider drag', () => {
     engine.endDrag();
     await vi.advanceTimersByTimeAsync(1000);
     expect(lanes().map((lane) => lane.split('@')[0])).toEqual(['roi']);
+  });
+});
+
+function browserFrame(): RenderedFrame {
+  const bins = {
+    r: new Uint32Array(1),
+    g: new Uint32Array(1),
+    b: new Uint32Array(1),
+    l: new Uint32Array(1)
+  };
+  return {
+    bitmap: { width: 2400, height: 1600, close: () => {} } as ImageBitmap,
+    width: 2400,
+    height: 1600,
+    source_w: 6000,
+    source_h: 4000,
+    histogram: bins,
+    timings: []
+  };
+}
+
+function fakeClient(render: () => Promise<RenderedFrame>) {
+  const sources: number[] = [];
+  const views: RenderView[] = [];
+  const client = {
+    inputs: async (edits: Edits) => ({
+      sensor_key: String(edits.detail.luma_nr_amount),
+      rasters: [],
+      lut: null
+    }),
+    loadSource: async (_assetId: string, edits: Edits) => {
+      sources.push(edits.detail.luma_nr_amount);
+      return {
+        width: 2400,
+        height: 1600,
+        frame_width: 6000,
+        frame_height: 4000,
+        is_raw: true,
+        model: 'x'
+      };
+    },
+    prepare: async () => {},
+    render: (_edits: Edits, view: RenderView) => {
+      views.push(view);
+      return render();
+    }
+  };
+  return { client: client as unknown as ClientRenderer, sources, views };
+}
+
+describe('preview lanes with the browser renderer', () => {
+  let engine: PreviewEngine;
+  let ctx: PreviewCtx;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('Image', DecodedImage);
+    renders.length = 0;
+    browser.fail.mockClear();
+    ctx = context();
+    engine = new PreviewEngine(ctx);
+    engine.onViewChange(SNAP);
+  });
+
+  afterEach(() => {
+    engine.reset();
+    browser.current = null;
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('renders display edits locally and fetches a source only for sensor edits', async () => {
+    const fake = fakeClient(async () => browserFrame());
+    browser.current = fake.client;
+
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    ctx.edits = { ...ctx.edits, basic: { ...ctx.edits.basic, exposure_ev: 1 } };
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    ctx.edits = { ...ctx.edits, detail: { ...ctx.edits.detail, luma_nr_amount: 30 } };
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(renders).toEqual([]);
+    expect(fake.sources).toEqual([0, 30]);
+    expect(fake.views.length).toBe(4);
+    expect(fake.views.every((view) => view.max_edge === SETTLED_EDGE && view.histogram)).toBe(true);
+    expect(ctx.previewFrame?.bitmap.width).toBe(2400);
+    expect(ctx.meta?.renderer).toBe('browser');
+  });
+
+  it('falls back to the server lane when the browser render fails', async () => {
+    const fake = fakeClient(async () => {
+      throw new Error('device lost');
+    });
+    browser.current = fake.client;
+
+    engine.live();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(browser.fail).toHaveBeenCalledOnce();
+    expect(lanes()).toEqual([`base@${SETTLED_EDGE}`]);
   });
 });

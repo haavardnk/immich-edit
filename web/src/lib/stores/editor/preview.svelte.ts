@@ -1,4 +1,4 @@
-import { ApiError } from '$lib/api/client';
+import { ApiError, NetworkError } from '$lib/api/client';
 import {
   getPreviewMeta,
   livePreview,
@@ -8,6 +8,10 @@ import {
   type ProofOptions
 } from '$lib/api/preview';
 import type { ColorSpaceOpt } from '$lib/api/export';
+import type { ClientRenderer } from '$lib/render/client-renderer';
+import { frameMeta } from '$lib/render/frame-meta';
+import type { RenderedFrame, SourceInfo } from '$lib/render/protocol';
+import { renderer } from '$lib/stores/renderer.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import {
@@ -30,6 +34,7 @@ import {
   type Roi
 } from '$lib/utils/view-geometry';
 import type { GeometrySession } from './geometry.svelte';
+import { ClientLane, type ClientJob } from './client-lane';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;
@@ -38,12 +43,25 @@ const VIEW_DEBOUNCE_MS = 150;
 
 export type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
+export interface PreviewFrame {
+  bitmap: ImageBitmap;
+  colorSpace: PredefinedColorSpace;
+}
+
+type BaseArgs = {
+  edits: Edits;
+  maxEdge: number;
+  previewMode: PreviewMode;
+  purpose?: 'color-picker';
+};
+
 export interface PreviewCtx {
   assetId: string | null;
   initialised: boolean;
   edits: Edits;
   meta: PreviewMeta | null;
   previewUrl: string | null;
+  previewFrame: PreviewFrame | null;
   originalUrl: string | null;
   viewUrl: string | null;
   viewRoi: Roi | null;
@@ -73,20 +91,17 @@ export class PreviewEngine {
   private srcLong = $state(Number.POSITIVE_INFINITY);
   private originalEdge = 0;
   private originalGeomKey = '';
+  private lane: ClientLane | null = null;
+  private laneClient: ClientRenderer | null = null;
+  private deferred: BaseArgs | null = null;
+  private lastBase: BaseArgs | null = null;
+  private serverOnly = false;
 
   constructor(ctx: PreviewCtx) {
     this.ctx = ctx;
   }
 
-  private flight = new SingleFlight<
-    {
-      edits: Edits;
-      maxEdge: number;
-      previewMode: PreviewMode;
-      purpose?: 'color-picker';
-    },
-    { url: string; metaId: string | null }
-  >(
+  private flight = new SingleFlight<BaseArgs, { url: string; metaId: string | null }>(
     async (args, signal) => {
       if (!this.ctx.assetId) throw new Error('no asset');
       this.ctx.pending = true;
@@ -107,10 +122,9 @@ export class PreviewEngine {
       const prev = this.ctx.previewUrl;
       this.ctx.previewUrl = result.url;
       if (prev?.startsWith('blob:')) revoke(prev);
+      this.dropFrame();
       this.ctx.pending = false;
-      if (args.purpose === 'color-picker' && this.ctx.colorPicker) {
-        this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
-      }
+      this.markPickerReady(args.purpose);
       if (previewModeIsNone(args.previewMode)) {
         if (result.metaId) void this.loadMeta(result.metaId);
         if (this.ctx.splitMode) this.refreshOriginal();
@@ -123,11 +137,7 @@ export class PreviewEngine {
       this.ctx.colorPicker = null;
       this.ctx.error = errorMessage(err);
     },
-    () => {
-      if (!this.viewAfterBase) return;
-      this.viewAfterBase = false;
-      this.fireIdle();
-    }
+    () => this.baseIdle()
   );
 
   private originalFlight = new SingleFlight<{ edge: number; geomKey: string }, { url: string }>(
@@ -215,10 +225,10 @@ export class PreviewEngine {
     this.clearView();
     if (this.dragging) {
       this.draggedLive = true;
-      this.submitBase(this.dragEdge(), 'none');
+      this.submitEdits(this.dragEdge(), 'none');
       return;
     }
-    this.submitBase(this.baseEdge(), 'none');
+    this.submitEdits(this.baseEdge(), 'none');
     this.scheduleIdle();
   }
 
@@ -244,14 +254,14 @@ export class PreviewEngine {
   preview(mode: PreviewMode): void {
     if (!this.ctx.initialised) return;
     this.clearView();
-    this.submitBase(this.dragging ? this.dragEdge() : LIVE_EDGE, mode);
+    this.submitEdits(this.dragging ? this.dragEdge() : LIVE_EDGE, mode);
   }
 
   showOriginal(): void {
     if (!this.ctx.initialised) return;
     this.clearView();
     const snap = $state.snapshot(this.ctx.edits) as Edits;
-    this.flight.submit({
+    this.submitBase({
       edits: originalPreviewEdits(snap),
       maxEdge: this.baseEdge(),
       previewMode: 'none'
@@ -262,7 +272,7 @@ export class PreviewEngine {
     if (!this.ctx.initialised) return;
     this.clearView();
     const snap = $state.snapshot(this.ctx.edits) as Edits;
-    this.flight.submit({
+    this.submitBase({
       edits: neutraliseSection(snap, section),
       maxEdge: this.baseEdge(),
       previewMode: 'none'
@@ -271,11 +281,11 @@ export class PreviewEngine {
 
   refreshBase(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
-    this.submitBase(this.baseEdge(), 'none');
+    this.submitEdits(this.baseEdge(), 'none');
   }
 
   submitColorPicker(edits: Edits): void {
-    this.flight.submit({
+    this.submitBase({
       edits,
       maxEdge: this.baseEdge(),
       previewMode: 'none',
@@ -289,13 +299,14 @@ export class PreviewEngine {
     this.ctx.previewUrl =
       persistedPreviewUrl(this.ctx.assetId, MAX_EDGE, ui.clipWarn) + `&_=${Date.now()}`;
     if (prev?.startsWith('blob:')) revoke(prev);
+    this.dropFrame();
   }
 
   toggleSplit(): void {
     this.clearView();
     this.ctx.splitMode = !this.ctx.splitMode;
     if (this.ctx.splitMode) {
-      this.submitBase(this.baseEdge(), 'none');
+      this.submitEdits(this.baseEdge(), 'none');
       this.refreshOriginal();
     } else {
       this.dropOriginal();
@@ -306,7 +317,7 @@ export class PreviewEngine {
   reproof(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
     this.clearView();
-    this.submitBase(this.baseEdge(), 'none');
+    this.submitEdits(this.baseEdge(), 'none');
     this.scheduleIdle();
     if (this.ctx.splitMode) this.refreshOriginal(true);
   }
@@ -342,6 +353,10 @@ export class PreviewEngine {
 
   reset(): void {
     this.flight.cancel();
+    this.lane?.reset();
+    this.deferred = null;
+    this.lastBase = null;
+    this.serverOnly = false;
     this.originalFlight.cancel();
     this.cancelRelease();
     this.dragging = false;
@@ -351,22 +366,128 @@ export class PreviewEngine {
     this.srcLong = Number.POSITIVE_INFINITY;
     if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
     this.ctx.previewUrl = null;
+    this.dropFrame();
     this.dropOriginal();
     this.ctx.splitMode = false;
   }
 
-  private submitBase(maxEdge: number, previewMode: PreviewMode): void {
-    this.flight.submit({ edits: $state.snapshot(this.ctx.edits) as Edits, maxEdge, previewMode });
+  private submitEdits(maxEdge: number, previewMode: PreviewMode): void {
+    this.submitBase({ edits: $state.snapshot(this.ctx.edits) as Edits, maxEdge, previewMode });
+  }
+
+  private submitBase(args: BaseArgs): void {
+    this.lastBase = args;
+    if (!this.serverOnly && renderer.undecided) {
+      this.deferred = args;
+      void renderer.start().then(() => {
+        const next = this.deferred;
+        this.deferred = null;
+        if (next) this.submitBase(next);
+      });
+      return;
+    }
+    const lane = this.clientLane();
+    if (!lane) {
+      this.flight.submit(args);
+      return;
+    }
+    this.ctx.pending = true;
+    lane.submit(this.clientJob(args));
+  }
+
+  private clientLane(): ClientLane | null {
+    const client = this.serverOnly ? null : renderer.current;
+    if (this.lane && this.laneClient === client) return this.lane;
+    this.lane?.reset();
+    this.laneClient = client;
+    this.lane = client
+      ? new ClientLane(client, {
+          assetId: () => this.ctx.assetId,
+          onFrame: (job, frame, source, ms) => this.onClientFrame(job, frame, source, ms),
+          onError: (err) => this.onClientError(err),
+          onIdle: () => this.baseIdle()
+        })
+      : null;
+    return this.lane;
+  }
+
+  private clientJob(args: BaseArgs): ClientJob {
+    const proof = this.proofOptions();
+    const plain = previewModeIsNone(args.previewMode);
+    return {
+      edits: args.edits,
+      purpose: args.purpose,
+      view: {
+        max_edge: this.baseEdge(),
+        output_color_space: proof.colorSpace,
+        preview_mode: args.previewMode,
+        gamut_warn: proof.gamutWarn,
+        clip_warn: proof.clipWarn,
+        histogram: plain,
+        scopes: plain && scopes.wants
+      }
+    };
+  }
+
+  private onClientFrame(
+    job: ClientJob,
+    frame: RenderedFrame,
+    source: SourceInfo,
+    ms: number
+  ): void {
+    const prev = this.ctx.previewFrame;
+    this.ctx.previewFrame = {
+      bitmap: frame.bitmap,
+      colorSpace: job.view.output_color_space === 'displayp3' ? 'display-p3' : 'srgb'
+    };
+    prev?.bitmap.close();
+    if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
+    this.ctx.previewUrl = null;
+    this.ctx.pending = false;
+    renderer.recordRender(ms);
+    this.markPickerReady(job.purpose);
+    if (!job.view.histogram || !this.ctx.assetId) return;
+    this.ctx.meta = frameMeta(this.ctx.assetId, frame, source.is_raw, 'browser');
+    const long = Math.max(frame.source_w, frame.source_h);
+    if (long > 0) this.srcLong = long;
+    scopes.onGrids(frame.scopes ?? null);
+    if (this.ctx.splitMode) this.refreshOriginal();
+  }
+
+  private onClientError(err: unknown): void {
+    if (err instanceof ApiError && err.code === 'superseded') return;
+    if (!(err instanceof ApiError || err instanceof NetworkError)) renderer.fail(err);
+    this.serverOnly = true;
+    this.clientLane();
+    this.ctx.pending = false;
+    if (this.lastBase) this.flight.submit(this.lastBase);
+  }
+
+  private markPickerReady(purpose: BaseArgs['purpose']): void {
+    if (purpose === 'color-picker' && this.ctx.colorPicker) {
+      this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
+    }
+  }
+
+  private baseIdle(): void {
+    if (!this.viewAfterBase) return;
+    this.viewAfterBase = false;
+    this.fireIdle();
+  }
+
+  private dropFrame(): void {
+    this.ctx.previewFrame?.bitmap.close();
+    this.ctx.previewFrame = null;
   }
 
   private fireIdle(): void {
     if (!this.ctx.initialised) return;
     if (this.ctx.splitMode) {
-      this.submitBase(this.baseEdge(), 'none');
+      this.submitEdits(this.baseEdge(), 'none');
       return;
     }
     if (this.viewBlocked()) return;
-    if (this.flight.busy) {
+    if (this.flight.busy || this.lane?.busy) {
       this.viewAfterBase = true;
       return;
     }
@@ -421,6 +542,8 @@ export class PreviewEngine {
       haveFullEdge: this.viewFullEdge
     });
     if (!req) return;
+    const drawn = this.ctx.previewFrame?.bitmap;
+    if (drawn && req.fullEdge <= Math.max(drawn.width, drawn.height)) return;
     const key = `${req.roi.join(',')}:${req.maxEdge}`;
     if (key === this.viewKey) return;
     this.viewKey = key;

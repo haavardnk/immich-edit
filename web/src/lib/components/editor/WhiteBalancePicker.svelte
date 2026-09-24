@@ -1,12 +1,13 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
+  import type { PreviewSurface } from '$lib/utils/preview-surface';
   import { clamp01 } from '$lib/utils/geom';
   import { imageRect } from '$lib/utils/imageRect.svelte';
 
   let {
     img
   }: {
-    img: HTMLImageElement | null;
+    img: PreviewSurface | null;
   } = $props();
 
   const rect = imageRect(() => img);

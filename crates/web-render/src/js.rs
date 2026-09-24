@@ -17,8 +17,24 @@ pub fn source(header: &SourceHeader) -> JsValue {
     ])
 }
 
-pub fn frame(meta: &DisplayMeta) -> JsValue {
+pub fn inputs(sensor_key: &str, rasters: &[String], lut: Option<&str>) -> JsValue {
+    object(&[
+        ("sensor_key", sensor_key.into()),
+        (
+            "rasters",
+            rasters
+                .iter()
+                .map(|id| JsValue::from_str(id))
+                .collect::<Array>()
+                .into(),
+        ),
+        ("lut", lut.map_or(JsValue::NULL, JsValue::from_str)),
+    ])
+}
+
+pub fn frame(meta: &DisplayMeta, bitmap: web_sys::ImageBitmap) -> JsValue {
     let mut fields = vec![
+        ("bitmap", bitmap.into()),
         ("width", meta.dims.0.into()),
         ("height", meta.dims.1.into()),
         ("source_w", meta.source_dims.0.into()),

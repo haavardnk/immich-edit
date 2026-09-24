@@ -1,5 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
+  import type { PreviewSurface } from '$lib/utils/preview-surface';
   import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
   import {
     bufferToImageData,
@@ -19,7 +20,7 @@
   let {
     img
   }: {
-    img: HTMLImageElement | null;
+    img: PreviewSurface | null;
   } = $props();
 
   const rect = imageRect(() => img);

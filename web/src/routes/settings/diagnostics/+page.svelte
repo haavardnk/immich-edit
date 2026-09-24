@@ -11,6 +11,7 @@
   import RenderStages from '$lib/components/settings/RenderStages.svelte';
   import { codecLabel, formatBytes, formatUs } from '$lib/diagnostics/format';
   import { buildSupportBundle } from '$lib/diagnostics/supportBundle';
+  import { renderer } from '$lib/stores/renderer.svelte';
   import { errorMessage } from '$lib/utils/errors';
   import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
 
@@ -148,6 +149,28 @@
       </dd>
       <dt class="text-dark/65">DB migration</dt>
       <dd class="font-mono">{health.db_migration_version ?? '—'}</dd>
+    </dl>
+  </section>
+
+  <section class="space-y-2 pt-5">
+    <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Browser renderer</Heading>
+    <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
+      <dt class="text-dark/65">Previews</dt>
+      <dd class="font-mono">{renderer.state}</dd>
+      {#if renderer.state === 'server' && renderer.reason}
+        <dt class="text-dark/65">Reason</dt>
+        <dd>{renderer.reason}</dd>
+      {/if}
+      <dt class="text-dark/65">GPU adapter</dt>
+      <dd class="font-mono">{renderer.adapter || '—'}</dd>
+      <dt class="text-dark/65">Wasm load</dt>
+      <dd class="font-mono">
+        {renderer.initMs === null ? '—' : formatUs(Math.round(renderer.initMs * 1000))}
+      </dd>
+      <dt class="text-dark/65">Last render</dt>
+      <dd class="font-mono">
+        {renderer.lastRenderMs === null ? '—' : formatUs(Math.round(renderer.lastRenderMs * 1000))}
+      </dd>
     </dl>
   </section>
 

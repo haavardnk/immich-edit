@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { webgpu } from './webgpu';
 
 const web = path.resolve(import.meta.dirname, '..');
 const fixtures = path.join(web, 'e2e/fixtures/render');
@@ -17,21 +18,7 @@ const files: Record<string, [string, string]> = {
   dcp: [path.join(web, '../crates/backend/assets/dcp', spec.dcp), 'application/octet-stream']
 };
 
-const swiftshader =
-  process.platform === 'linux' || process.env.WEBGPU_SWIFTSHADER === '1'
-    ? [
-        '--enable-features=Vulkan',
-        '--use-vulkan=swiftshader',
-        '--use-webgpu-adapter=swiftshader',
-        '--disable-vulkan-surface'
-      ]
-    : [];
-
-test.use({
-  channel: 'chromium',
-  headless: process.platform !== 'linux',
-  launchOptions: { args: ['--enable-unsafe-webgpu', ...swiftshader] }
-});
+test.use(webgpu);
 
 declare global {
   interface Window {

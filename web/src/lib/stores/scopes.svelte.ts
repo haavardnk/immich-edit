@@ -4,6 +4,7 @@ import { readStored, writeStored } from '$lib/utils/storage';
 
 export type ScopeMode = 'histogram' | ScopeKind;
 export type WaveformChannels = 'luma' | 'rgb';
+export type ScopeGrids = Record<ScopeKind, ScopeGrid>;
 
 const STORAGE_KEY = 'immich-edit:scopes';
 const MODES: ScopeMode[] = ['histogram', 'waveform', 'parade', 'vectorscope'];
@@ -36,6 +37,7 @@ class ScopesStore {
 
   private assetId: string | null = null;
   private metaId: string | null = null;
+  private local: ScopeGrids | null = null;
   private hasScopes = $state(false);
   private failed = $state(false);
   private inflight: AbortController | null = null;
@@ -112,7 +114,16 @@ class ScopesStore {
   onMeta(assetId: string, metaId: string, hasScopes: boolean): void {
     this.assetId = assetId;
     this.metaId = metaId;
+    this.local = null;
     this.hasScopes = hasScopes;
+    this.fetch();
+  }
+
+  onGrids(grids: ScopeGrids | null): void {
+    this.assetId = null;
+    this.metaId = null;
+    this.local = grids;
+    this.hasScopes = grids !== null;
     this.fetch();
   }
 
@@ -120,6 +131,7 @@ class ScopesStore {
     this.cancel();
     this.assetId = null;
     this.metaId = null;
+    this.local = null;
     this.hasScopes = false;
     this.failed = false;
     this.grid = null;
@@ -133,9 +145,13 @@ class ScopesStore {
   private fetch(): void {
     this.cancel();
     this.failed = false;
+    const kind = this.kind();
+    if (this.local) {
+      if (kind) this.grid = this.local[kind];
+      return;
+    }
     const assetId = this.assetId;
     const metaId = this.metaId;
-    const kind = this.kind();
     if (!assetId || !metaId || !kind || !this.hasScopes) return;
     const controller = new AbortController();
     this.inflight = controller;

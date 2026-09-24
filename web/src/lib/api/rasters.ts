@@ -18,7 +18,7 @@ export function uploadRaster(
 
 export async function fetchRaster(
   rasterId: string
-): Promise<{ width: number; height: number; bytes: Uint8Array }> {
+): Promise<{ width: number; height: number; bytes: Uint8Array<ArrayBuffer> }> {
   const r = await request(url`/api/rasters/${rasterId}`);
   const width = Number(r.headers.get('x-raster-width') ?? 0);
   const height = Number(r.headers.get('x-raster-height') ?? 0);
