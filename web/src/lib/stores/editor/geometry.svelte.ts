@@ -1,4 +1,10 @@
-import { FULL_CROP, type AspectLock, type CropRect, type Edits } from '$lib/types/edits';
+import {
+  FULL_CROP,
+  type AspectLock,
+  type CropRect,
+  type Edits,
+  type GeometryEdits
+} from '$lib/types/edits';
 import { livePreview } from '$lib/api/preview';
 import { errorMessage } from '$lib/utils/errors';
 import { makeObjectUrl, revoke } from '$lib/utils/object-url';
@@ -32,6 +38,7 @@ export interface GeometrySession {
   draftAspect: AspectLock;
   draftPerspective: PerspectiveEdits;
   userEditedCrop: boolean;
+  startGeometry: GeometryEdits;
 }
 
 export interface GeometryCtx {
@@ -46,6 +53,7 @@ export interface GeometryCtx {
 
 const LIVE_EDGE = 1600;
 let nextSessionId = 0;
+let liveSessionId = 0;
 
 function perspInv(sess: GeometrySession): Mat3 {
   return perspectiveInverse(sess.draftPerspective);
@@ -122,6 +130,7 @@ export function startSession(ctx: GeometryCtx): void {
   ctx.clearView();
   const baseEdits = $state.snapshot(ctx.edits) as Edits;
   const sessionId = ++nextSessionId;
+  liveSessionId = sessionId;
   ctx.geometrySession = {
     id: sessionId,
     pinnedUrl: null,
@@ -135,20 +144,17 @@ export function startSession(ctx: GeometryCtx): void {
     draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
     draftAspect: baseEdits.geometry.aspect,
     draftPerspective: baseEdits.geometry.perspective ?? neutralPerspective(),
-    userEditedCrop: baseEdits.geometry.crop !== null
+    userEditedCrop: baseEdits.geometry.crop !== null,
+    startGeometry: baseEdits.geometry
   };
   void loadPinnedPreview(ctx, baseEdits, sessionId);
 }
 
-export async function finishSession(ctx: GeometryCtx): Promise<void> {
-  const sess = ctx.geometrySession;
-  if (!sess) return;
-  if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-  ctx.geometrySession = null;
+function draftGeometry(sess: GeometrySession, base: GeometryEdits): GeometryEdits {
   const dc = sess.draftCrop;
   const full = dc.x === 0 && dc.y === 0 && dc.w === 1 && dc.h === 1;
-  const geometry = {
-    ...ctx.edits.geometry,
+  return {
+    ...base,
     rotate: sess.draftRotate,
     flip_h: sess.draftFlipH,
     flip_v: sess.draftFlipV,
@@ -159,7 +165,32 @@ export async function finishSession(ctx: GeometryCtx): Promise<void> {
       ? null
       : clampPerspective(sess.draftPerspective)
   };
-  if (JSON.stringify(ctx.edits.geometry) === JSON.stringify(geometry)) return;
+}
+
+function sameGeometry(a: GeometryEdits, b: GeometryEdits): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function sessionDirty(sess: GeometrySession): boolean {
+  return !sameGeometry(draftGeometry(sess, sess.startGeometry), sess.startGeometry);
+}
+
+export function cancelSession(ctx: GeometryCtx): void {
+  const sess = ctx.geometrySession;
+  if (!sess) return;
+  liveSessionId = 0;
+  if (sess.pinnedUrl) revoke(sess.pinnedUrl);
+  ctx.geometrySession = null;
+}
+
+export async function finishSession(ctx: GeometryCtx): Promise<void> {
+  const sess = ctx.geometrySession;
+  if (!sess || sess.id !== liveSessionId) return;
+  liveSessionId = 0;
+  if (sess.pinnedUrl) revoke(sess.pinnedUrl);
+  ctx.geometrySession = null;
+  const geometry = draftGeometry(sess, ctx.edits.geometry);
+  if (sameGeometry(ctx.edits.geometry, geometry)) return;
   ctx.edits = { ...ctx.edits, geometry };
   await ctx.onCommit('Geometry');
 }
@@ -226,15 +257,5 @@ export function updateDraftAspect(ctx: GeometryCtx, aspect: AspectLock): void {
   const ratio = aspectRatioFor(aspect, sw, sh);
   if (ratio === null) return;
   sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio, perspInv(sess));
-  sess.userEditedCrop = false;
-}
-
-export function resetDraft(ctx: GeometryCtx): void {
-  const sess = ctx.geometrySession;
-  if (!sess) return;
-  sess.draftAngle = 0;
-  sess.draftAspect = { kind: 'original' };
-  sess.draftCrop = FULL_CROP;
-  sess.draftPerspective = neutralPerspective();
   sess.userEditedCrop = false;
 }

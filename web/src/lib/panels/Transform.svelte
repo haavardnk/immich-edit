@@ -138,6 +138,16 @@
   }
 
   function noCommit(): void {}
+
+  function done(): void {
+    void editor.finishGeometrySession();
+    ui.openTab('develop');
+  }
+
+  function cancel(): void {
+    editor.cancelGeometrySession();
+    ui.openTab('develop');
+  }
 </script>
 
 <div class="flex flex-col divide-y divide-dark/10">
@@ -265,6 +275,23 @@
         onclick={toggleFlipV}
       >
         Flip Vertical
+      </Button>
+    </div>
+
+    <div
+      class="sticky bottom-0 -mx-3 grid grid-cols-2 gap-1 border-t border-hairline bg-light px-3 py-1.5"
+    >
+      <Button
+        size="small"
+        variant="ghost"
+        color="secondary"
+        title={hint('Cancel', 'editorEscape')}
+        onclick={cancel}
+      >
+        Cancel
+      </Button>
+      <Button size="small" color="primary" title={hint('Done', 'geometryDone')} onclick={done}>
+        Done
       </Button>
     </div>
   {/if}

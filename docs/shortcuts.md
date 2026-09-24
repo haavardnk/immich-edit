@@ -112,6 +112,12 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Alt + drag`                     | Preview the mask or radius a slider drives while you drag it | Editor       |
 | `Shift + click the reset button` | Reset every band or channel at once, on HSL and Curves       | Editor       |
 
+## Geometry
+
+| Keys    | Action                                             | Available in |
+| ------- | -------------------------------------------------- | ------------ |
+| `Enter` | Apply the crop and transform and return to Develop | Geometry     |
+
 ## Masks
 
 | Keys                | Action                                                     | Available in   |

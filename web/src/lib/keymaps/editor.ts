@@ -24,6 +24,11 @@ export function stepBrush(
   return Math.min(max, Math.max(min, current + delta));
 }
 
+function isControlTarget(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null;
+  return !!el?.closest('button:not([role="tab"]), a, [role="button"], [role="combobox"]');
+}
+
 function onEscape(e: KeyboardEvent): void {
   if (ui.closeMetadataPopovers()) {
     e.preventDefault();
@@ -38,6 +43,7 @@ function onEscape(e: KeyboardEvent): void {
     ui.perspectiveCorners = false;
   } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
     e.preventDefault();
+    if (editor.geometryDirty) editor.cancelGeometrySession();
     ui.editorTab = 'develop';
   } else if (ui.editorTab === 'retouch' && editor.activeRetouchId) {
     e.preventDefault();
@@ -67,6 +73,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
 
   const bind = matchKeybind(e, activeContexts());
   if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon') return;
+  if (bind === 'geometryDone' && isControlTarget(e)) return;
   e.preventDefault();
 
   switch (bind) {
@@ -136,6 +143,10 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'perspective':
       if (ui.editorTab !== 'geometry') ui.openTab('geometry');
       ui.togglePerspectiveCorners();
+      return;
+    case 'geometryDone':
+      void editor.finishGeometrySession();
+      ui.openTab('develop');
       return;
     case 'autoAdjust':
       if (!editor.autoBusy) void editor.onAutoAdjust();

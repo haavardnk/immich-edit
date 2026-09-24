@@ -8,6 +8,7 @@ export function activeContexts(): KeybindContext[] {
   if (page.url.pathname.startsWith('/assets/')) {
     if (ui.editorTab === 'masks') return ['masks', 'editor', 'global'];
     if (ui.editorTab === 'retouch') return ['retouch', 'editor', 'global'];
+    if (ui.editorTab === 'geometry') return ['geometry', 'editor', 'global'];
     return ['editor', 'global'];
   }
   if (compare.mode !== 'single') return [compare.mode, 'global'];

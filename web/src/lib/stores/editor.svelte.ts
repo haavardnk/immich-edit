@@ -52,7 +52,6 @@ import { ui } from '$lib/stores/ui.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import type { Roi } from '$lib/utils/view-geometry';
 import { applyCopySections } from '$lib/copyPaste';
-import { revoke } from '$lib/utils/object-url';
 import { errorMessage } from '$lib/utils/errors';
 import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
 import { viewTransform } from '$lib/utils/canvasCoords';
@@ -304,10 +303,7 @@ class EditorStore {
     this.previews.reset();
     this.zoomTargetIndex = null;
     this.zoomTargetView = null;
-    if (this.geometrySession) {
-      if (this.geometrySession.pinnedUrl) revoke(this.geometrySession.pinnedUrl);
-      this.geometrySession = null;
-    }
+    geometry.cancelSession(this);
     this.asset = null;
     this.meta = null;
     scopes.reset();
@@ -725,6 +721,12 @@ class EditorStore {
 
   finishGeometrySession = (): Promise<void> => geometry.finishSession(this);
 
+  cancelGeometrySession = (): void => geometry.cancelSession(this);
+
+  get geometryDirty(): boolean {
+    return !!this.geometrySession && geometry.sessionDirty(this.geometrySession);
+  }
+
   rotateStep = (delta: 90 | 270): void => geometry.rotateStep(this, delta);
 
   flipStep = (axis: 'h' | 'v'): void => geometry.flipStep(this, axis);
@@ -738,8 +740,6 @@ class EditorStore {
 
   updateGeometryDraftAspect = (aspect: AspectLock): void =>
     geometry.updateDraftAspect(this, aspect);
-
-  resetGeometryDraft = (): void => geometry.resetDraft(this);
 }
 
 export const editor = new EditorStore();

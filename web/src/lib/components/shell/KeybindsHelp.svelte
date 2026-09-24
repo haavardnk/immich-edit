@@ -17,6 +17,7 @@
     compare: 'compare',
     survey: 'survey',
     editor: 'the editor',
+    geometry: 'the Geometry panel',
     masks: 'the Masks panel',
     retouch: 'the Retouch panel'
   };

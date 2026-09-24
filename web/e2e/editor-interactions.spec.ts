@@ -727,25 +727,22 @@ test('collapsed editor controls leave the canvas and retain their state', async 
 
   await expect(page.getByRole('navigation', { name: 'Global navigation' })).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Library' })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   const controls = page.locator('aside[aria-label="Editor controls"]');
   const viewer = page.getByRole('application');
   const openWidth = await controls.evaluate((element) => element.getBoundingClientRect().width);
   const viewerWidth = await viewer.evaluate((element) => element.getBoundingClientRect().width);
   expect(openWidth).toBe(384);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await expect(controls).toBeHidden();
   expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(0);
   expect(await viewer.evaluate((element) => element.getBoundingClientRect().width)).toBe(
     viewerWidth + openWidth
   );
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await expect(page.getByRole('tab', { name: 'Masks' })).toHaveAttribute('aria-selected', 'true');
   expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(384);
 });
 
@@ -829,8 +826,19 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   expect(corners?.[0][1]).toBeGreaterThan(0);
 });
 
-test('R opens Geometry and Escape returns to Develop', async ({ page }) => {
-  await installMocks(page);
+async function dragCropCorner(page: import('@playwright/test').Page): Promise<void> {
+  const handle = page.getByRole('button', { name: 'resize nw' });
+  const box = await handle.boundingBox();
+  if (!box) throw new Error('crop handle has no box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 30, { steps: 5 });
+  await page.mouse.up();
+}
+
+test('R opens Geometry and Escape drops the crop', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Develop' }).click();
@@ -843,11 +851,49 @@ test('R opens Geometry and Escape returns to Develop', async ({ page }) => {
   );
   await expect(page.getByText('Angle', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
+  await dragCropCorner(page);
 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(saves.filter((body) => JSON.stringify(body).includes('"crop"'))).toEqual([]);
 });
+
+for (const [open, apply] of [
+  ['r', 'Enter'],
+  ['rail', 'Enter'],
+  ['rail', 'rail']
+] as const) {
+  test(`Geometry opened by ${open} applies the crop on ${apply} and returns to Develop`, async ({
+    page
+  }) => {
+    await installMocks(page);
+    await gotoAsset(page);
+    const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+
+    if (open === 'rail') await geometryTab.click();
+    else await page.keyboard.press('r');
+    await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
+    await dragCropCorner(page);
+
+    const saved = page.waitForRequest(
+      (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+    );
+    if (apply === 'rail') await geometryTab.click();
+    else await page.keyboard.press('Enter');
+    await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
+    await expect(geometryTab).not.toBeFocused();
+    const body = (await saved).postDataJSON() as {
+      manifest: { ops: { transform?: { crop?: { w: number } } } };
+    };
+    expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
+  });
+}
 
 test('lens reset clears all profile edits', async ({ page }) => {
   await installMocks(page, {
