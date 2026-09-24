@@ -286,6 +286,25 @@ describe('preview lanes during a slider drag', () => {
     expect(base.at(-1)).toMatchObject(expected(edits));
     expect(renders.filter((r) => r.lane === 'roi')).toEqual([]);
   });
+
+  it('drops a view render cancelled while it decodes', async () => {
+    let decoded = (): void => {};
+    vi.stubGlobal(
+      'Image',
+      class extends DecodedImage {
+        override decode(): Promise<void> {
+          return new Promise((done) => (decoded = done));
+        }
+      }
+    );
+    engine.onViewChange({ ...SNAP, frame: { left: -600, top: -400, width: 2400, height: 1600 } });
+    await vi.advanceTimersByTimeAsync(400);
+    await landLatest();
+    engine.preview('sharpen_mask');
+    decoded();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ctx.viewUrl).toBeNull();
+  });
 });
 
 function browserFrame(): RenderedFrame {
