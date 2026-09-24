@@ -81,14 +81,21 @@ Live edits use `POST /api/assets/{key}/preview`. Persisted previews use `GET` wi
 from edit hash, requested edge, server epoch, profile revision, and warning mode. A matching ETag
 returns `304` before entering the render queue.
 
-The queue is latest-wins per asset and lane. Base, untouched original, ROI, and source requests have
-separate lanes so split view, zoom tiles, and source fetches do not cancel the main preview.
+The queue is latest-wins per asset and lane. Base, untouched original, ROI, source, and source-tile
+requests have separate lanes so split view, zoom tiles, and source fetches do not cancel the main
+preview.
 
 `POST /api/assets/{key}/source` returns the portable linear source a client renders locally. Its
-ETag covers only the sensor-stage edits, the requested edge, the server epoch, and the profile
-revision, so a display-only change revalidates with `304`. The response names the DCP profile it
-was built with in `x-source-dcp`. `GET /api/dcp/{id}/raw` and `GET /api/luts/{id}/cube` return the
-profile and LUT files with immutable cache headers; mask rasters come from `GET /api/rasters/{id}`.
+ETag covers only the sensor-stage edits, the requested edge, the server epoch, the profile
+revision, and the `roi` if one is sent, so a display-only change revalidates with `304`. With a
+`roi` the server renders the sensor stage for the whole frame at the tile's resolution, then sends
+only a window around the region: the header records the window's origin and the full source size,
+so the renderer computes texture, clarity, shadows and dehaze radii from the full frame and
+samples the window through its position in the frame. The window carries a margin as wide as
+those filters reach and starts on the coarsest pyramid level's grid, so a tile renders like the
+same region of the full source. The response names the DCP profile it was built with in
+`x-source-dcp`. `GET /api/dcp/{id}/raw` and `GET /api/luts/{id}/cube` return the profile and LUT
+files with immutable cache headers; mask rasters come from `GET /api/rasters/{id}`.
 
 The viewer measures its visible frame, device-pixel ratio, and source limit. It requests the exact
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.
@@ -99,9 +106,10 @@ sensor-stage key and the rasters and LUT an edit needs; a changed key fetches a 
 the last one keeps rendering, so only sensor-stage edits (noise reduction, capture sharpening,
 lens, retouch, profile, crop and rotation) reach the server. Frames return as `ImageBitmap`s drawn
 into a canvas that replaces the base `<img>`, and their histogram and scopes feed the same panels.
-Split view's original and zoom tiles past the base resolution still come from the server. A
-worker or GPU failure switches the session to server previews; a failed source request switches
-that asset.
+The browser base renders at the fit size. Zoomed past it, the viewer asks for a windowed source for
+the visible region and renders that tile locally too, so a slider at 1:1 posts nothing and a pan
+posts one tile request. Split view's original still comes from the server. A worker or GPU failure
+switches the session to server previews; a failed source request switches that asset.
 
 ## Render services and caches
 
