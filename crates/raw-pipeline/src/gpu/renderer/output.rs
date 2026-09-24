@@ -2,16 +2,19 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferUsages, CommandEncoder, Texture, TextureViewDescriptor};
 
 use super::GpuRenderer;
+use super::display::DisplayFrame;
 use super::masks::Retained;
-use super::meta::{MetaCounts, MetaRequest};
+use super::meta::MetaCounts;
 use crate::PipelineResult;
 use crate::encode::{encode_from_rgb16, encode_from_rgba8};
 use crate::frame::{RenderOptions, RenderedImage};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
-use crate::gpu::readback::{copy_texture_to_buffer, read_rgba8, read_rgba16uint_as_rgb};
+use crate::gpu::readback::{
+    copy_texture_to_buffer, make_readback_buffer_wide, read_rgba8, read_rgba16uint_as_rgb,
+};
 use crate::gpu::resources::OutputTargets;
 use crate::gpu::timer::RenderTimings;
-use crate::timing::{self, StageClock};
+use crate::timing;
 
 pub(super) enum DisplayBuf {
     Rgba8(Vec<u8>),
@@ -66,23 +69,34 @@ impl GpuRenderer {
         retained.binds.push(bind);
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn readback_image(
-        &self,
-        mut encoder: CommandEncoder,
-        p: &OutputTargets,
-        display_src: &Texture,
-        display_dst: Option<&wgpu::Buffer>,
-        meta: MetaRequest,
-        out_dims: (u32, u32),
-        t: &RenderTimings,
+    pub(super) fn readback_image<'a>(
+        &'a self,
+        frame: DisplayFrame<'a>,
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<(DisplayBuf, MetaCounts)> {
-        let (out_w, out_h) = out_dims;
+    ) -> PipelineResult<ReadbackImage<'a>> {
+        let DisplayFrame {
+            mut encoder,
+            targets,
+            slot,
+            meta,
+            dims,
+            source_dims,
+            atlases,
+            timings,
+            sharpen,
+            scratch,
+            retained,
+        } = frame;
+        let (out_w, out_h) = dims;
         let started = std::time::Instant::now();
-        let display_dst = display_dst.unwrap_or(&p.readback);
+        let p = &targets[0];
+        let display_src = slot.texture(p);
+        let wide = (display_src.format() == wgpu::TextureFormat::Rgba16Uint)
+            .then(|| make_readback_buffer_wide(&self.ctx.device, "readback-16", out_w, out_h));
+        let display_dst = wide.as_ref().unwrap_or(&p.readback);
         copy_texture_to_buffer(&mut encoder, display_src, display_dst, out_w, out_h);
         self.ctx.queue.submit(Some(encoder.finish()));
+        drop((sharpen, scratch, retained));
 
         let display = match display_src.format() {
             wgpu::TextureFormat::Rgba16Uint => DisplayBuf::Rgb16(read_rgba16uint_as_rgb(
@@ -95,21 +109,44 @@ impl GpuRenderer {
             _ => DisplayBuf::Rgba8(read_rgba8(&self.ctx, display_dst, out_w, out_h, cancel)?),
         };
         let counts = self.read_meta_counts(p, meta, cancel)?;
-        t.clock().add_wall(timing::READBACK, started.elapsed());
-        Ok((display, counts))
+        timings
+            .clock()
+            .add_wall(timing::READBACK, started.elapsed());
+        let [preview_atlas, layer_atlas] = atlases;
+        self.release_mask_atlas(preview_atlas);
+        self.release_mask_atlas(layer_atlas);
+        Ok(ReadbackImage {
+            display,
+            counts,
+            dims,
+            source_dims,
+            timings,
+        })
     }
 }
 
-pub(super) fn finish_image(
+pub(super) struct ReadbackImage<'a> {
     display: DisplayBuf,
     counts: MetaCounts,
-    out_dims: (u32, u32),
-    source: (u32, u32),
+    dims: (u32, u32),
+    source_dims: (u32, u32),
+    timings: RenderTimings<'a>,
+}
+
+pub(super) fn finish_image(
+    image: ReadbackImage<'_>,
     opts: &RenderOptions,
     is_raw: bool,
-    clock: &StageClock,
+    cancel: Option<&crate::cancel::CancelToken>,
 ) -> PipelineResult<RenderedImage> {
-    let (out_w, out_h) = out_dims;
+    let ReadbackImage {
+        display,
+        counts,
+        dims: (out_w, out_h),
+        source_dims,
+        timings,
+    } = image;
+    let clock = timings.clock();
     let display = match display {
         DisplayBuf::Rgba8(mut rgba) if opts.gamut_warn || opts.clip_warn => {
             crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
@@ -131,18 +168,18 @@ pub(super) fn finish_image(
             })
         },
     );
-
+    let bytes = bytes?;
     Ok(RenderedImage {
-        bytes: bytes?,
+        bytes,
         histogram,
         linear_histogram,
         scopes,
         width: out_w,
         height: out_h,
-        source_w: source.0,
-        source_h: source.1,
+        source_w: source_dims.0,
+        source_h: source_dims.1,
         renderer: "gpu".into(),
         is_raw,
-        timings: Vec::new(),
+        timings: timings.finish(cancel),
     })
 }

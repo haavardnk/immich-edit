@@ -1,16 +1,14 @@
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
 use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
+    Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
 };
 
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
-use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
-use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
 use crate::{PipelineError, PipelineResult};
 
 use super::context::GpuContext;
@@ -19,12 +17,12 @@ use super::resources::{OutputTargets, SharpenTargets};
 use super::texture_pool::TexturePool;
 use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
-use crate::presence::{presence_mips, presence_radii};
 use crate::timing;
 
 mod cache_keys;
 mod dcp;
 mod detail;
+mod display;
 mod effects;
 mod geometry;
 mod lut;
@@ -39,13 +37,13 @@ mod uniform;
 mod upload;
 
 use cache_keys::StageKeys;
-use geometry::{compute_out_dims, crop_px, process_geom};
+use display::{DisplayFrame, DisplayInput};
+use geometry::compute_out_dims;
 pub use pools::GpuPoolStats;
 use stage_cache::{Stage, StageCache};
 
 use super::budget::GpuBudget;
 use super::display_depth::DisplayDepth;
-use super::texture_pool::TextureKey;
 
 const CACHE_ITEMS: usize = 2;
 
@@ -123,6 +121,7 @@ pub struct GpuRenderer {
     uniform_pool: Arc<UniformPool>,
     output_pool: Mutex<Vec<OutputTargets>>,
     sharpen_pool: Mutex<Vec<SharpenTargets>>,
+    dummy_luma: Texture,
 }
 
 const ATM_CACHE_ITEMS: usize = 16;
@@ -160,6 +159,7 @@ impl GpuRenderer {
         let passes = Arc::new(GpuPasses::new(&ctx));
         let budget = GpuBudget::new(options.texture_cache_max_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
+        let dummy_luma = make_dummy_luma(&ctx);
         Ok(Self {
             ctx,
             passes,
@@ -190,6 +190,7 @@ impl GpuRenderer {
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
             output_pool: Mutex::new(Vec::new()),
             sharpen_pool: Mutex::new(Vec::new()),
+            dummy_luma,
         })
     }
 
@@ -221,341 +222,6 @@ impl GpuRenderer {
     pub fn mask_atlas_uploads(&self) -> u64 {
         self.atlas_uploads
             .load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn process(
-        &self,
-        pass: &super::passes::process::ProcessFastPass,
-        src_texture: &Texture,
-        src_dims: (u32, u32),
-        out_dims: (u32, u32),
-        frame: &RawFrame,
-        edits: &Edits,
-        opts: &RenderOptions,
-        shadows_blur: Option<&wgpu::TextureView>,
-        layer_srcs: &std::collections::HashMap<String, Arc<Texture>>,
-        t: &RenderTimings,
-        cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<RenderedImage> {
-        let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
-
-        let mut edits = edits.clamped();
-        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
-        let edits = edits;
-        let sharpen_active = edits.detail.sharpen_active();
-        let masked_sharpen = edits.masked_sharpen_active();
-        let effects_active = edits.effects.any_active();
-
-        for op in self.passes.registry.active(&edits) {
-            if op.gpu_route() != GpuRoute::Fused {
-                continue;
-            }
-            if op.gpu().is_none() {
-                return Err(PipelineError::Unsupported(format!(
-                    "gpu pipeline missing op: {}",
-                    op.id()
-                )));
-            }
-        }
-
-        let (out_w, out_h) = out_dims;
-        let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
-        let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
-
-        let downscaled = t.stage(timing::RESAMPLE, || {
-            let Some(dims) = crate::geom::resample_target(src_dims, ratio) else {
-                return Ok((None, std::collections::HashMap::new()));
-            };
-            let main = self.resample_lanczos(src_texture, src_dims, dims, "process-downscale")?;
-            let layers = layer_srcs
-                .iter()
-                .map(|(id, tex)| {
-                    self.resample_lanczos(tex, src_dims, dims, "layer-downscale")
-                        .map(|t| (id.clone(), t))
-                })
-                .collect::<PipelineResult<std::collections::HashMap<String, Arc<Texture>>>>()?;
-            PipelineResult::Ok((Some((main, dims)), layers))
-        })?;
-        let (downscaled, downscaled_layers) = downscaled;
-        let (src_texture, work_dims, layer_srcs) = match &downscaled {
-            Some((tex, dims)) => (tex.as_ref(), *dims, &downscaled_layers),
-            None => (src_texture, src_dims, layer_srcs),
-        };
-        crate::cancel::check(cancel)?;
-
-        let (sensor_w, sensor_h) = work_dims;
-        let geom = process_geom(frame, &edits, work_dims);
-
-        let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
-        let ctx_op = OpContext {
-            render: RenderContext {
-                wb_coeffs: frame.meta.wb_coeffs,
-                cam_to_srgb: setup.cam_to_srgb,
-                is_raw: frame.meta.is_raw,
-                capture_sigma: frame.meta.capture_sigma,
-                preview_mode: opts.preview_mode.clone(),
-                roi: opts.roi,
-                dcp: setup.resolved,
-            },
-            scratch: OpScratch::default(),
-        };
-        let built = &pass.built;
-        let registry = &self.passes.registry;
-        let shadows_mip_f = {
-            let radii = presence_radii(src_dims.0, src_dims.1);
-            let mips = presence_mips(src_dims.0, src_dims.1, radii);
-            mips.shadows as f32
-        };
-        let uniform_bytes = uniform::build_process_uniform(
-            built,
-            registry,
-            &edits,
-            &ctx_op,
-            &uniform::process_header(
-                &edits,
-                &geom,
-                (sensor_w, sensor_h),
-                out_dims,
-                shadows_mip_f,
-                true,
-            ),
-        );
-
-        let uniform_buf =
-            self.uniform_pool
-                .acquire(device, queue, &uniform_bytes, "process-uniform");
-
-        let src_view = src_texture.create_view(&TextureViewDescriptor::default());
-
-        let pool = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h);
-        let p = &pool[0];
-        let depth = display_depth(opts);
-        let display_target = (depth == DisplayDepth::Sixteen).then(|| {
-            self.texture_pool.acquire(
-                &self.ctx.device,
-                TextureKey::new(
-                    depth.format(),
-                    out_w,
-                    out_h,
-                    1,
-                    TextureUsages::STORAGE_BINDING
-                        | TextureUsages::TEXTURE_BINDING
-                        | TextureUsages::COPY_SRC
-                        | TextureUsages::COPY_DST,
-                ),
-                "display-16",
-            )
-        });
-        let display_tex: &Texture = display_target
-            .as_ref()
-            .map(|t| t.texture())
-            .unwrap_or(&p.texture);
-        let out_view = display_tex.create_view(&TextureViewDescriptor::default());
-        let linear_view = p
-            .linear_texture
-            .create_view(&TextureViewDescriptor::default());
-
-        let dummy_shadows = if shadows_blur.is_none() {
-            Some(make_dummy_luma(&self.ctx))
-        } else {
-            None
-        };
-        let dummy_view = dummy_shadows
-            .as_ref()
-            .map(|t| t.create_view(&TextureViewDescriptor::default()));
-        let shadows_view_ref: &wgpu::TextureView =
-            shadows_blur.unwrap_or_else(|| dummy_view.as_ref().unwrap());
-
-        let bind = bind_group(
-            device,
-            "process-bg",
-            &pass.layout,
-            &[
-                uniform_buf.as_entire_binding(),
-                tex(&src_view),
-                samp(&self.passes.linear_sampler),
-                tex(&out_view),
-                tex(&linear_view),
-                tex(shadows_view_ref),
-            ],
-        );
-
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("process-enc"),
-        });
-        let display_started = std::time::Instant::now();
-        let display_scope = t.enter(timing::DISPLAY);
-        dispatch_2d(
-            &mut encoder,
-            "process-pass",
-            &pass.pipeline,
-            &bind,
-            out_w.div_ceil(16),
-            out_h.div_ceil(16),
-        );
-
-        let mask_stage = self.encode_mask_stage(
-            &mut encoder,
-            masks::MaskStage {
-                pass,
-                edits: &edits,
-                opts,
-                geom: &geom,
-                ctx_op: &ctx_op,
-                target: p,
-                src_view: &src_view,
-                linear_view: &linear_view,
-                shadows_view: shadows_view_ref,
-                layer_srcs,
-                sensor_dims: (sensor_w, sensor_h),
-                out_dims,
-                shadows_mip: shadows_mip_f,
-                masked_sharpen,
-            },
-        );
-        let masks::MaskStageOutput {
-            mut retained,
-            preview_atlas,
-            layer_atlas,
-            has_masks,
-            preview_active,
-        } = mask_stage;
-
-        let sharpen_preview = matches!(
-            opts.preview_mode,
-            crate::frame::PreviewMode::SharpenMask
-                | crate::frame::PreviewMode::SharpenRadius
-                | crate::frame::PreviewMode::SharpenDetail
-        );
-        let dcp_active = ctx_op.render.dcp.is_some();
-        let p3_active = matches!(
-            opts.output_color_space,
-            crate::frame::OutputColorSpace::DisplayP3
-        );
-        let final_pass_active = sharpen_active
-            || sharpen_preview
-            || effects_active
-            || has_masks
-            || dcp_active
-            || p3_active
-            || opts.gamut_warn
-            || opts.clip_warn;
-        let warn_flags = opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1);
-        let sharpen_pool_guard = final_pass_active
-            .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h));
-        let _huesat_scratch = self.run_dcp_base_table(
-            &mut encoder,
-            ctx_op.render.dcp.as_deref(),
-            &p.linear_texture,
-            out_w,
-            out_h,
-        );
-        if let Some(spool) = sharpen_pool_guard.as_ref() {
-            let s = &spool[0];
-            let run_sharpen = sharpen_active || masked_sharpen || sharpen_preview;
-            if run_sharpen {
-                self.encode_sharpen(
-                    &mut encoder,
-                    &edits,
-                    p,
-                    s,
-                    out_w,
-                    out_h,
-                    &opts.preview_mode,
-                    masked_sharpen,
-                );
-            }
-            self.encode_effects_tone(
-                &mut encoder,
-                &edits,
-                p,
-                s,
-                display_tex,
-                depth,
-                out_w,
-                out_h,
-                run_sharpen,
-                opts.output_color_space,
-                warn_flags,
-                opts.roi,
-            );
-        }
-
-        let _dcp_finish_scratch = sharpen_pool_guard.as_ref().and_then(|spool| {
-            self.run_dcp_finish(
-                &mut encoder,
-                ctx_op.render.dcp.as_deref(),
-                &spool[0].post_lin,
-                display_tex,
-                depth,
-                out_w,
-                out_h,
-                warn_flags | ((p3_active as u32) << 2),
-            )
-        });
-
-        let lut_target =
-            self.maybe_encode_lut(&mut encoder, &edits, opts, display_tex, depth, out_w, out_h);
-        let display_src = lut_target.as_deref().unwrap_or(display_tex);
-        let overlay = preview_active;
-        if overlay {
-            self.encode_mask_overlay(&mut encoder, p, display_src, out_dims, &mut retained);
-        }
-        let display_src = if overlay {
-            &p.mask_scratch_tone
-        } else {
-            display_src
-        };
-        let display_readback = (depth == DisplayDepth::Sixteen).then(|| {
-            crate::gpu::readback::make_readback_buffer_wide(device, "readback-16", out_w, out_h)
-        });
-        let linear_src = match sharpen_pool_guard.as_ref() {
-            Some(spool) => &spool[0].post_lin,
-            _ => &p.linear_texture,
-        };
-        drop(display_scope);
-        t.clock()
-            .add_wall(timing::DISPLAY, display_started.elapsed());
-        let meta_request = meta::MetaRequest {
-            histogram: opts.histogram,
-            scopes: opts.scopes,
-        };
-        self.encode_meta_bins(
-            &mut encoder,
-            p,
-            display_src,
-            linear_src,
-            meta_request,
-            out_dims,
-            t,
-        );
-        let (rgba, counts) = self.readback_image(
-            encoder,
-            p,
-            display_src,
-            display_readback.as_ref(),
-            meta_request,
-            out_dims,
-            t,
-            cancel,
-        )?;
-        self.release_mask_atlas(preview_atlas);
-        self.release_mask_atlas(layer_atlas);
-        drop(lut_target);
-        drop(display_target);
-        drop(pool);
-
-        output::finish_image(
-            rgba,
-            counts,
-            out_dims,
-            geom.source,
-            opts,
-            frame.meta.is_raw,
-            t.clock(),
-        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -723,19 +389,20 @@ impl GpuRenderer {
         }
         crate::cancel::check(cancel)?;
         let timings = RenderTimings::new(&self.ctx);
-        let mut out = self.render_timed(frame, edits, options, &timings, cancel)?;
-        out.timings = timings.finish(cancel);
-        Ok(out)
+        let display = self.render_display(frame, edits, options, timings, cancel)?;
+        let image = self.readback_image(display, cancel)?;
+        output::finish_image(image, options, frame.meta.is_raw, cancel)
     }
 
-    fn render_timed(
-        &self,
+    fn render_display<'a>(
+        &'a self,
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
-        t: &RenderTimings,
+        timings: RenderTimings<'a>,
         cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<RenderedImage> {
+    ) -> PipelineResult<DisplayFrame<'a>> {
+        let t = &timings;
         let mut composed = edits.clamped();
         composed.geometry.crop = crate::geom::compose_roi(composed.geometry.crop, options.roi);
         let edits = &composed;
@@ -761,31 +428,28 @@ impl GpuRenderer {
         let dims = (cached.width, cached.height);
         let edits_c = edits.clamped();
         let depth = display_depth(options);
+        let out_dims = compute_out_dims(frame, &edits_c, full_dims, options.max_edge);
         match plan {
             RenderPlan::Fast => {
                 let pass = match depth {
                     DisplayDepth::Eight => &self.passes.process_fast,
                     DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).process_fast,
                 };
-                let out = self.process(
+                let input = DisplayInput {
                     pass,
-                    cached.texture.as_ref(),
-                    dims,
-                    compute_out_dims(frame, &edits_c, full_dims, options.max_edge),
+                    src: cached.texture.as_ref(),
+                    src_dims: dims,
+                    out_dims,
                     frame,
                     edits,
-                    options,
-                    None,
-                    &std::collections::HashMap::new(),
-                    t,
-                    cancel,
-                )?;
-                crate::cancel::check(cancel)?;
-                Ok(out)
+                    opts: options,
+                    shadows: None,
+                    layer_srcs: &HashMap::new(),
+                };
+                self.encode_display(input, timings, cancel)
             }
             RenderPlan::Presence => {
                 let setup = crate::dcp_pipeline::resolve(frame, &edits_c, options.dcp.as_deref());
-                let (out_w, out_h) = compute_out_dims(frame, &edits_c, full_dims, options.max_edge);
                 let (spatial_dims, base_src) =
                     self.spatial_base(&cached, dims, frame, &edits_c, options, &setup, t, cancel)?;
                 let presence_active = edits_c.basic.texture != 0.0 || edits_c.basic.clarity != 0.0;
@@ -819,32 +483,29 @@ impl GpuRenderer {
                 let shadows_view = shadows_pyramid
                     .as_ref()
                     .map(|t| t.create_view(&TextureViewDescriptor::default()));
-                let out = self.process(
-                    match depth {
-                        DisplayDepth::Eight => &self.passes.process_post_wb,
-                        DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).process_post_wb,
-                    },
-                    &processed_src,
-                    spatial_dims,
-                    (out_w, out_h),
+                let pass = match depth {
+                    DisplayDepth::Eight => &self.passes.process_post_wb,
+                    DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).process_post_wb,
+                };
+                let input = DisplayInput {
+                    pass,
+                    src: &processed_src,
+                    src_dims: spatial_dims,
+                    out_dims,
                     frame,
                     edits,
-                    options,
-                    shadows_view.as_ref(),
-                    &layer_srcs,
-                    t,
-                    cancel,
-                )?;
-                crate::cancel::check(cancel)?;
-                drop(shadows_view);
-                drop(shadows_pyramid);
-                Ok(out)
+                    opts: options,
+                    shadows: shadows_view.as_ref(),
+                    layer_srcs: &layer_srcs,
+                };
+                self.encode_display(input, timings, cancel)
             }
         }
     }
 }
 
 fn make_dummy_luma(ctx: &GpuContext) -> Texture {
+    let bytes_per_texel = ctx.linear_format.block_copy_size(None).unwrap_or(8);
     let tex = ctx.device.create_texture(&TextureDescriptor {
         label: Some("shadows-blur-dummy"),
         size: Extent3d {
@@ -859,7 +520,6 @@ fn make_dummy_luma(ctx: &GpuContext) -> Texture {
         usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         view_formats: &[],
     });
-    let zero = [0u8; 8];
     ctx.queue.write_texture(
         wgpu::TexelCopyTextureInfo {
             texture: &tex,
@@ -867,10 +527,10 @@ fn make_dummy_luma(ctx: &GpuContext) -> Texture {
             origin: wgpu::Origin3d::ZERO,
             aspect: wgpu::TextureAspect::All,
         },
-        &zero,
+        &vec![0u8; bytes_per_texel as usize],
         wgpu::TexelCopyBufferLayout {
             offset: 0,
-            bytes_per_row: Some(8),
+            bytes_per_row: Some(bytes_per_texel),
             rows_per_image: Some(1),
         },
         Extent3d {
