@@ -113,7 +113,7 @@ Then use the row matching the change:
 | ML only | `cargo test -p ml` |
 | Raw-pipeline plumbing | `cargo test -p raw-pipeline --lib` |
 | Render math, shaders, color, masks, geometry, or encode | `cargo test -p raw-pipeline --lib --tests` |
-| Browser renderer | `npm run wasm`, then `npx playwright test render-parity` in `web/` |
+| Browser renderer | `npm run wasm`, then `npx playwright test render-parity client-render` in `web/` |
 | Cargo dependencies, profiles, CI, or Dockerfile | `cargo test --workspace --lib --tests` |
 
 Frontend changes:
@@ -146,6 +146,11 @@ elsewhere. When a render change is intended, rebake the fixture with a GPU:
 ```shell
 BAKE_WEB_PARITY=1 cargo test -p raw-pipeline --test web_parity_fixture
 ```
+
+`e2e/client-render.spec.ts` opens the editor with the browser renderer on the same fixture source
+and asserts that a display slider redraws the canvas with no `/preview` or `/source` request, and
+that a browser without WebGPU gets server previews. Other specs pin the server renderer through
+`installMocks`; pass `renderer: 'auto'` to opt in.
 
 Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
 synthetic frames, JPEG decoding, and parity metrics. Declare `mod common;` and add a helper there

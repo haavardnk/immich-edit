@@ -138,6 +138,14 @@ Open **Settings** > **Diagnostics** and inspect the active renderer and GPU adap
 
 `IMMICH_EDIT_RENDERER=gpu` logs GPU initialization failures, then falls back to CPU.
 
+### Browser previews
+
+**Browser renderer** in Diagnostics shows whether this browser draws previews, its GPU adapter, how
+long the renderer took to load, and the last render time. When it reads `server`, the row below
+names the reason: no WebGPU, the setting, or the error that stopped it. Set **Settings** >
+**Preview rendering** to **Server** to rule the browser out; choosing **Browser when available**
+again retries after a failure.
+
 ### Diagnostics reports a software rasterizer
 
 When no graphics hardware is present, Mesa's llvmpipe (or lavapipe) advertises itself as a Vulkan
