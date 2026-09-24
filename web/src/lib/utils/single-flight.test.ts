@@ -76,6 +76,29 @@ describe('SingleFlight', () => {
     expect(errorMessage(onError.mock.calls[0]?.[0])).toBe('boom');
   });
 
+  it('reports idle once, after the queue drains', async () => {
+    const first = deferred<number>();
+    const onIdle = vi.fn();
+    const sf = new SingleFlight<number, number>(
+      async (n, signal) => {
+        if (n === 1) {
+          await first.promise;
+          if (signal.aborted) throw new DOMException('aborted', 'AbortError');
+        }
+        return n;
+      },
+      () => {},
+      () => {},
+      onIdle
+    );
+    sf.submit(1);
+    expect(sf.busy).toBe(true);
+    sf.submit(2);
+    first.resolve(1);
+    await vi.waitFor(() => expect(onIdle).toHaveBeenCalledTimes(1));
+    expect(sf.busy).toBe(false);
+  });
+
   it('cancel aborts the current call and clears the queue', async () => {
     const d = deferred<number>();
     const onResult = vi.fn();
