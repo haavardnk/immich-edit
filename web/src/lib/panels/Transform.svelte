@@ -4,7 +4,6 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { type AspectLock } from '$lib/types/edits';
   import {
@@ -179,9 +178,8 @@
     </div>
 
     <div class="flex flex-col gap-1 py-1.5">
-      <div class="flex h-6 items-center justify-between border-b border-white/6">
-        <div class="text-[9px] font-semibold uppercase text-dark/65">Transform</div>
-        <div class="flex items-center gap-1">
+      <SectionHeader title="Transform" modified={transformModified} onReset={resetTransform}>
+        {#snippet actions()}
           <IconButton
             size="tiny"
             variant="ghost"
@@ -192,13 +190,8 @@
             aria-pressed={ui.perspectiveCorners}
             onclick={ui.togglePerspectiveCorners}
           />
-          <ResetButton
-            title="Reset Transform"
-            disabled={!transformModified}
-            onclick={resetTransform}
-          />
-        </div>
-      </div>
+        {/snippet}
+      </SectionHeader>
       <SliderRow
         label="Angle"
         value={editor.geometrySession.draftAngle}
