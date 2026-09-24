@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::routes::preview::{attach_validators, clamp_max, etag_matches};
+use crate::routes::preview::{attach_validators, clamp_max, etag_matches, parse_roi};
 use crate::services::render::{RenderError, RenderIdentity};
 use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
@@ -23,6 +23,8 @@ pub struct SourceBody {
     pub max_edge: Option<u32>,
     #[serde(default)]
     pub edits: Edits,
+    #[serde(default)]
+    pub roi: Option<[f32; 4]>,
 }
 
 pub async fn post_source(
@@ -33,14 +35,19 @@ pub async fn post_source(
     Json(body): Json<SourceBody>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
+    let roi = parse_roi(body.roi)?;
     let edits = body.edits.clamped().sensor_stage();
     let dcp_revision = state.render.dcp_revision().await?;
+    let region = roi.map_or(String::new(), |r| {
+        format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
+    });
     let etag = format!(
-        "\"{}-{}-{}-{}\"",
+        "\"{}-{}-{}-{}{}\"",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
-        dcp_revision
+        dcp_revision,
+        region
     );
     if etag_matches(&headers, &etag) {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
@@ -51,11 +58,16 @@ pub async fn post_source(
         owner: ctx.owner,
         server_epoch: ctx.server_epoch,
         asset_id: id,
-        lane: RenderLane::Source,
+        lane: if roi.is_some() {
+            RenderLane::SourceTile
+        } else {
+            RenderLane::Source
+        },
     };
     let token = state.queue.tracker(key).await.next();
     let opts = RenderOptions {
         max_edge,
+        roi,
         ..Default::default()
     };
     let work = state.render.source(
