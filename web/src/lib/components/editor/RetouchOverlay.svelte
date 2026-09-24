@@ -33,6 +33,7 @@
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
   const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
+  const canPick = $derived(!!anchor || hoverAlt || editor.retouchSampling);
 
   function minSide(): number {
     return Math.max(1, Math.min(rect.w, rect.h));
@@ -124,9 +125,9 @@
     e.preventDefault();
     e.stopPropagation();
     const [nx, ny] = normalise(e);
-    if (e.altKey) {
+    if (e.altKey || editor.retouchSampling) {
       const s = displayUvToSceneUv(view, nx, ny);
-      editor.retouchAnchor = { x: s[0], y: s[1] };
+      editor.setRetouchAnchor({ x: s[0], y: s[1] });
       return;
     }
     canvasEl.setPointerCapture(e.pointerId);
@@ -140,7 +141,11 @@
       editor.activeRetouchId = hit.id;
       return;
     }
-    if (editor.retouchFull || !anchor) return;
+    if (editor.retouchFull) return;
+    if (!anchor) {
+      editor.markRetouchSourceMissing();
+      return;
+    }
     const start = displayUvToSceneUv(view, nx, ny);
     strokeOffset = [anchor.x - start[0], anchor.y - start[1]];
     drawing = true;
@@ -338,7 +343,7 @@
 
     if (!hover) return;
     const rPx = displayRadius(editor.retouchTool.size, hover[0], hover[1]);
-    const picking = hoverAlt || !anchor;
+    const picking = hoverAlt || !anchor || editor.retouchSampling;
     ring(
       ctx,
       hover[0] * w,
@@ -381,6 +386,7 @@
     void rect.w;
     void rect.h;
     void editor.activeRetouchId;
+    void editor.retouchSampling;
     void editor.retouchTool.size;
     draw();
   });
@@ -391,7 +397,9 @@
     bind:this={canvasEl}
     aria-label="retouch canvas"
     class="absolute"
-    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: {canPick
+      ? 'crosshair'
+      : 'not-allowed'};"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}

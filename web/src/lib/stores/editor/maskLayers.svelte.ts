@@ -1,4 +1,5 @@
 import type { BrushBuffer } from '$lib/utils/brush';
+import type { BrushTool } from '$lib/stores/ui.svelte';
 import {
   cloneLayerWithNewIds,
   defaultLinear,
@@ -28,7 +29,7 @@ export interface MaskLayersCtx {
   maskOverlayVisible: boolean;
   maskPreviewLayerId: string | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
-  brushTool: { size: number; hardness: number; flow: number; mode: 'paint' | 'erase' };
+  brushTool: BrushTool;
   brushBuffers: Record<string, BrushBuffer>;
   brushBufferSource: Record<string, string>;
   clickTool: {
@@ -412,9 +413,6 @@ export async function commitMasks(ctx: MaskLayersCtx): Promise<void> {
   await ctx.onCommit('Adjust Mask');
 }
 
-export function setBrushTool(
-  ctx: MaskLayersCtx,
-  patch: Partial<{ size: number; hardness: number; flow: number; mode: 'paint' | 'erase' }>
-): void {
+export function setBrushTool(ctx: MaskLayersCtx, patch: Partial<BrushTool>): void {
   ctx.brushTool = { ...ctx.brushTool, ...patch };
 }

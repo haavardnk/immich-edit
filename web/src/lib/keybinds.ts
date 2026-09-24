@@ -567,6 +567,22 @@ export const KEYBINDS = [
     contexts: ['retouch'],
     group: 'Retouch',
     label: 'Deselect the current stroke'
+  },
+  {
+    id: 'retouchSample',
+    keys: [],
+    contexts: ['retouch'],
+    group: 'Retouch',
+    label: 'Set the source point',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + click`
+  },
+  {
+    id: 'retouchMoveSource',
+    keys: [],
+    contexts: ['retouch'],
+    group: 'Retouch',
+    label: "Move the selected stroke's source",
+    display: 'Drag the green ring'
   }
 ] as const satisfies readonly Keybind[];
 
