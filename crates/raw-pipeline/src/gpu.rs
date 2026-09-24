@@ -20,4 +20,4 @@ pub use renderer::GpuPoolStats;
 pub use renderer::{DisplayFrame, GpuRenderer, GpuRendererOptions, RenderPlan};
 #[cfg(feature = "native")]
 pub use source::RenderSource;
-pub use source::{LinearImage, LinearKind, LinearSource};
+pub use source::{LinearKind, LinearSource};

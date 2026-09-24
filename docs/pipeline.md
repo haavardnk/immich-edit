@@ -55,12 +55,21 @@ retouch, dehaze, masks, and geometry all have CPU implementations.
 ### Sensor-stage cache
 
 `SPATIAL_BOUNDARY = (Tone, -35)` separates expensive source-dependent work from display work.
-`CpuRenderer` can cache the lower half for previews: demosaic, lens correction, orientation, white
-balance, retouch, noise reduction, capture sharpening, and preview reduction. Exposure, tone,
-color, geometry, masks, and output continue from the cached image.
+`CpuRenderer` can cache the lower half for previews: demosaic, lens correction, orientation, as-shot
+white balance and camera matrix, retouch, noise reduction, capture sharpening, and preview
+reduction. User white balance, exposure, tone, color, geometry, masks, and output continue from the
+cached image, so a white balance change never re-runs noise reduction.
 
-Quality renders, nonstandard preview modes, and masks that change local white balance bypass the
-cache. `tests/cpu_cache.rs` compares cache misses and hits with uncached `cpu::render`.
+Quality renders and nonstandard preview modes bypass the cache. `tests/cpu_cache.rs` compares cache
+misses and hits with uncached `cpu::render`.
+
+### White balance order
+
+The as-shot white balance and camera matrix run in the `WhiteBalance` stage. The user temperature
+and tint are a pointwise Bradford adaptation in linear sRGB that runs in the `Tone` stage after
+dehaze, texture, and clarity and before exposure, on both renderers and for mask layers too. Noise
+reduction, capture sharpening, and the dehaze atmosphere estimate therefore see the as-shot white
+balance, and a white balance change reuses all of them.
 
 ## GPU flow
 
@@ -70,14 +79,14 @@ cache. `tests/cpu_cache.rs` compares cache misses and hits with uncached `cpu::r
 | --- | --- | --- |
 | 1 | Upload and demosaic | Mosaic or RGB input to scene-linear texture |
 | 2 | Sensor | Lens vignette and sensor-space corrections |
-| 3 | White-balance preparation | White balance and camera-to-sRGB base |
+| 3 | White-balance preparation | As-shot white balance and camera-to-sRGB base |
 | 4 | Retouch | Heal and clone strokes when active |
 | 5 | Noise reduction | Luma, then color bilateral stages |
 | 6 | Capture sharpening | RAW-only deconvolution before preview reduction |
-| 7 | Preview reduction | Shared Lanczos3 target when the source is over twice the preview size |
+| 7 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
 | 8 | Dehaze | Bounded atmosphere estimate and guided filter |
 | 9 | Presence | Texture, clarity, and shadows pyramid |
-| 10 | Process | Fused operators and geometry sampling |
+| 10 | Process | User white balance, fused operators, and geometry sampling |
 | 11 | DCP base table | Camera HueSatMap in linear ProPhoto |
 | 12 | Masks | Component weight and local adjustment blend |
 | 13 | Sharpen | Global and per-pixel masked amount |
@@ -93,7 +102,7 @@ the contract.
 ## Resolution and geometry
 
 Both renderers use `geom::preview_ratio` and `geom::resample_target`. A non-quality preview whose
-cropped source is at least twice its output size reduces at the spatial boundary. Noise reduction,
+cropped source is larger than its output reduces at the spatial boundary. Noise reduction,
 retouch, and capture sharpening remain at source resolution; dehaze and later work run near preview
 size.
 

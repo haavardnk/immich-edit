@@ -12,10 +12,10 @@ impl Op for UserWbOp {
         super::GpuRoute::Fused
     }
     fn stage(&self) -> Stage {
-        Stage::WhiteBalance
+        Stage::Tone
     }
     fn order(&self) -> i32 {
-        20
+        -10
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.basic.wb_temp != 0.0 || edits.basic.wb_tint != 0.0

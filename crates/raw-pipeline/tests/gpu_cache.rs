@@ -68,34 +68,66 @@ fn a_large_budget_keeps_more_than_two_stage_textures() {
 }
 
 #[test]
-fn atmosphere_is_reused_across_non_spatial_edits() {
+fn atmosphere_is_reused_across_display_edits() {
     let Some(renderer) = try_renderer() else {
         return;
     };
     let frame = haze_frame(96, 64);
     let opts = rgb8_opts(96);
-    let render = |exposure_ev: f64, wb_temp: f64| {
+    let render = |exposure_ev: f64, wb_temp: f64, luma_nr_amount: f64| {
         let mut edits = Edits::default();
         edits.basic.dehaze = 0.4;
         edits.basic.exposure_ev = exposure_ev;
         edits.basic.wb_temp = wb_temp;
+        edits.detail.luma_nr_amount = luma_nr_amount;
         renderer.render(&frame, &edits, &opts).unwrap()
     };
 
-    render(0.0, 0.0);
+    render(0.0, 0.0, 0.0);
     let after_first = renderer.atmosphere_estimates();
-    render(0.7, 0.0);
-    render(-0.5, 0.0);
+    render(0.7, 0.0, 0.0);
+    render(-0.5, 60.0, 0.0);
     let after_rest = renderer.atmosphere_estimates();
 
     if after_rest != after_first {
-        panic!("exposure changes re-estimated the atmosphere: {after_first} -> {after_rest}");
+        panic!(
+            "exposure and white balance re-estimated the atmosphere: {after_first} -> {after_rest}"
+        );
     }
 
-    render(0.0, 60.0);
-    let after_wb = renderer.atmosphere_estimates();
-    if after_wb == after_rest {
-        panic!("a white balance change reused a stale atmosphere: {after_wb}");
+    render(0.0, 0.0, 40.0);
+    let after_nr = renderer.atmosphere_estimates();
+    if after_nr == after_rest {
+        panic!("a noise reduction change reused a stale atmosphere: {after_nr}");
+    }
+}
+
+#[test]
+fn a_white_balance_change_reuses_the_sensor_stage() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let render = |wb_temp: f64| {
+        let mut edits = nr_edits();
+        edits.basic.wb_temp = wb_temp;
+        renderer.render(&frame, &edits, &opts).unwrap()
+    };
+
+    let neutral = render(0.0);
+    let cached = renderer.pool_stats();
+    let warm = render(40.0);
+    let after = renderer.pool_stats();
+
+    if neutral.bytes == warm.bytes {
+        panic!("the white balance change had no effect");
+    }
+    if (after.wb_cache, after.nr_cache) != (cached.wb_cache, cached.nr_cache) {
+        panic!(
+            "a white balance change re-ran the sensor stage: wb {} -> {}, nr {} -> {}",
+            cached.wb_cache, after.wb_cache, cached.nr_cache, after.nr_cache
+        );
     }
 }
 

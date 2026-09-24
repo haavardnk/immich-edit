@@ -1,6 +1,9 @@
 use raw_pipeline::{
     CpuRenderer, cpu,
-    edits::{CropRect, Edits},
+    edits::{
+        CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer,
+        MaskSource, MaskedEdits, Vec2f,
+    },
     frame::{OutputFormat, RenderOptions},
 };
 
@@ -45,6 +48,35 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     clarity.basic.clarity = 45.0;
     clarity.basic.dehaze = 30.0;
 
+    let masked_wb = Edits {
+        masks: vec![MaskLayer {
+            id: "warm".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#ff3b30".into(),
+            amount: 1.0,
+            invert: false,
+            components: vec![MaskComponent {
+                id: "c1".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                invert: false,
+                kind: MaskComponentKind::Linear {
+                    p0: Vec2f { x: 0.0, y: 0.5 },
+                    p1: Vec2f { x: 1.0, y: 0.5 },
+                    feather: 0.4,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            }],
+            edits: MaskedEdits {
+                wb_temp: Some(40.0),
+                ..Default::default()
+            },
+        }],
+        ..Default::default()
+    };
+
     vec![
         ("identity", Edits::default(), preview()),
         ("exposure", exposure, preview()),
@@ -54,6 +86,7 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
         ("no_capture_sharpen", no_capture, preview()),
         ("geometry", geometry, preview()),
         ("clarity_dehaze", clarity, preview()),
+        ("masked_wb", masked_wb, preview()),
         (
             "quality",
             Edits::default(),
@@ -97,7 +130,7 @@ fn cpu_cache_matches_uncached() {
 }
 
 #[test]
-fn cpu_cache_hits_on_every_tone_tick() {
+fn cpu_cache_hits_on_every_display_tick() {
     let Some(frame) = common::first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
@@ -107,17 +140,34 @@ fn cpu_cache_hits_on_every_tone_tick() {
         output: OutputFormat::Rgb8,
         ..Default::default()
     };
-    let renderer = CpuRenderer::new();
-    let misses: Vec<usize> = (0..20)
-        .filter(|step| {
-            let mut edits = Edits::default();
-            edits.basic.exposure_ev = *step as f64 * 0.05;
-            let image = renderer.render(&frame, &edits, &options).unwrap();
-            image.timings.iter().any(|t| t.stage == "demosaic")
-        })
-        .collect();
-    if misses != [0] {
-        panic!("sensor cache should miss only on the first tick, missed on {misses:?}");
+    fn exposure(step: usize) -> Edits {
+        let mut edits = Edits::default();
+        edits.basic.exposure_ev = step as f64 * 0.05;
+        edits
+    }
+    fn white_balance(step: usize) -> Edits {
+        let mut edits = Edits::default();
+        edits.detail.luma_nr_amount = 40.0;
+        edits.basic.wb_temp = step as f64 * 3.0;
+        edits
+    }
+    for (label, tick) in [
+        ("exposure", exposure as fn(usize) -> Edits),
+        ("white balance with noise reduction", white_balance),
+    ] {
+        let renderer = CpuRenderer::new();
+        let misses: Vec<usize> = (0..20)
+            .filter(|step| {
+                let edits = tick(*step);
+                let image = renderer.render(&frame, &edits, &options).unwrap();
+                image.timings.iter().any(|t| t.stage == "demosaic")
+            })
+            .collect();
+        if misses != [0] {
+            panic!(
+                "{label}: sensor cache should miss only on the first tick, missed on {misses:?}"
+            );
+        }
     }
 }
 

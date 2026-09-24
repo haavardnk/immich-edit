@@ -66,25 +66,26 @@ fn a_linear_source_renders_the_same_bytes_as_its_raw_frame() {
     };
     let frame = haze_frame(96, 64);
     let opts = rgb8_opts(96);
-    for (label, kind, layer_bases) in [
-        ("fast", LinearKind::PreWb, 0),
-        ("presence", LinearKind::PostWb, 0),
-        ("noise", LinearKind::PostWb, 0),
-        ("layer-wb", LinearKind::PostWb, 1),
+    for (label, kind) in [
+        ("fast", LinearKind::PreWb),
+        ("presence", LinearKind::PostWb),
+        ("noise", LinearKind::PostWb),
+        ("layer-wb", LinearKind::PostWb),
     ] {
-        let edits = case(label);
-        let source = renderer.linear_source(&frame, &edits, &opts).unwrap();
-        if source.kind != kind || source.layer_bases.len() != layer_bases {
-            panic!(
-                "{label}: source is {:?} with {} layer bases, expected {kind:?} with {layer_bases}",
-                source.kind,
-                source.layer_bases.len()
-            );
+        let source = renderer.linear_source(&frame, &case(label), &opts).unwrap();
+        if source.kind != kind {
+            panic!("{label}: source is {:?}, expected {kind:?}", source.kind);
         }
-        let from_raw = renderer.render(&frame, &edits, &opts).unwrap();
-        let from_source = renderer.render(&source, &edits, &opts).unwrap();
-        if from_raw.bytes != from_source.bytes {
-            panic!("{label}: rendering the linear source changed the output");
+        for wb_temp in [0.0, 35.0] {
+            let mut edits = case(label);
+            edits.basic.wb_temp = wb_temp;
+            let from_raw = renderer.render(&frame, &edits, &opts).unwrap();
+            let from_source = renderer.render(&source, &edits, &opts).unwrap();
+            if from_raw.bytes != from_source.bytes {
+                panic!(
+                    "{label} at wb_temp {wb_temp}: rendering the linear source changed the output"
+                );
+            }
         }
     }
 }

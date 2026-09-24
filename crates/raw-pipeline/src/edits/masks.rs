@@ -116,12 +116,6 @@ impl MaskedEdits {
         "sharpen",
     ];
 
-    pub const SPATIAL_BOUNDARY_FIELDS: [&'static str; 2] = ["wb_temp", "wb_tint"];
-
-    pub fn crosses_spatial_boundary(&self) -> bool {
-        self.wb_temp.is_some() || self.wb_tint.is_some()
-    }
-
     pub fn is_zero(&self) -> bool {
         self.exposure_ev.is_none()
             && self.brightness.is_none()
