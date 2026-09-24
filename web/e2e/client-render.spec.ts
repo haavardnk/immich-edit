@@ -97,15 +97,30 @@ test('at 1:1 a slider tick posts nothing and a pan posts one tile', async ({ pag
   expect(posts).toEqual(['tile']);
 });
 
-test('previews fall back to the server without WebGPU', async ({ page }) => {
-  const posts = renderPosts(page);
-  await page.addInitScript(() =>
-    Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined })
-  );
-  await installMocks(page, { renderer: 'auto' });
-  await gotoAsset(page);
+const fallbacks: [string, (page: Page) => Promise<void>][] = [
+  [
+    'without WebGPU',
+    (page) =>
+      page.addInitScript(() =>
+        Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined })
+      )
+  ],
+  [
+    'when the renderer fails to start',
+    (page) => page.route(/web_render_bg[^/]*\.wasm$/, (route) => route.fulfill({ status: 404 }))
+  ]
+];
 
-  await expect.poll(() => posts).toContain('preview');
-  expect(posts).not.toContain('source');
-  await expect(page.locator('canvas[data-testid="preview-image"]')).toHaveCount(0);
-});
+for (const [when, breakRenderer] of fallbacks) {
+  test(`previews fall back to the server ${when}`, async ({ page }) => {
+    const posts = renderPosts(page);
+    await breakRenderer(page);
+    await installMocks(page, { renderer: 'auto' });
+    await gotoAsset(page);
+
+    await expect.poll(() => posts).toContain('preview');
+    expect(posts).not.toContain('source');
+    await expect(page.locator('img[data-testid="preview-image"]')).toBeVisible();
+    await expect(page.locator('canvas[data-testid="preview-image"]')).toHaveCount(0);
+  });
+}
