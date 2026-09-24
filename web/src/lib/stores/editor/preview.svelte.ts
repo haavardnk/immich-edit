@@ -194,6 +194,10 @@ export class PreviewEngine {
       const decoded = new Image();
       decoded.src = url;
       await decoded.decode().catch(() => undefined);
+      if (signal.aborted) {
+        revoke(url);
+        throw new DOMException('aborted', 'AbortError');
+      }
       return { url, w: decoded.naturalWidth, h: decoded.naturalHeight };
     },
     (args, result) => {
