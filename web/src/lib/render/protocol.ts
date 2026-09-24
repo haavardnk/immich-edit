@@ -1,5 +1,5 @@
 import type { ColorSpaceOpt } from '$lib/api/export';
-import type { PreviewMode } from '$lib/api/preview';
+import type { PreviewMode, Roi } from '$lib/api/preview';
 import type { Edits } from '$lib/types/edits';
 import type { ScopeGrid } from '$lib/types/preview';
 
@@ -11,6 +11,8 @@ export interface RenderView {
   clip_warn?: boolean;
   histogram?: boolean;
   scopes?: boolean;
+  roi?: Roi;
+  tile?: boolean;
 }
 
 export interface SourceInfo {
@@ -57,6 +59,8 @@ export type Call =
   | { op: 'init' }
   | { op: 'inputs'; edits: Edits; maxEdge: number }
   | { op: 'setSource'; bytes: ArrayBuffer }
+  | { op: 'setTile'; bytes: ArrayBuffer }
+  | { op: 'dropTile' }
   | { op: 'setRaster'; id: string; width: number; height: number; bytes: ArrayBuffer }
   | { op: 'dropRaster'; id: string }
   | { op: 'setLut'; id: string; bytes: ArrayBuffer }

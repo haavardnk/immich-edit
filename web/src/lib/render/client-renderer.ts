@@ -1,3 +1,4 @@
+import type { Roi } from '$lib/api/preview';
 import { fetchRaster } from '$lib/api/rasters';
 import { fetchDcpBytes, fetchLutCube, fetchSource } from '$lib/api/source';
 import type { Edits } from '$lib/types/edits';
@@ -46,6 +47,18 @@ export class ClientRenderer {
     await setDcp;
     this.dcpId = dcpId;
     return info;
+  }
+
+  async loadTile(
+    assetId: string,
+    edits: Edits,
+    maxEdge: number,
+    roi: Roi,
+    signal: AbortSignal
+  ): Promise<SourceInfo> {
+    const { bytes } = await fetchSource(assetId, edits, maxEdge, signal, roi);
+    signal.throwIfAborted();
+    return this.host.setTile(bytes);
   }
 
   async prepare(inputs: RenderInputs): Promise<void> {

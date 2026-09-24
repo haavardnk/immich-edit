@@ -9,6 +9,7 @@
     alt,
     class: className,
     style,
+    testid,
     element = $bindable(null),
     onsize
   }: {
@@ -17,6 +18,7 @@
     alt: string;
     class: string;
     style: string;
+    testid?: string;
     element?: PreviewSurface | null;
     onsize?: (size: { w: number; h: number }) => void;
   } = $props();
@@ -34,14 +36,14 @@
 
 {#if frame}
   {#key frame.colorSpace}
-    <canvas bind:this={element} data-testid="preview-canvas" class={className} {style}>{alt}</canvas
-    >
+    <canvas bind:this={element} data-testid={testid} class={className} {style}>{alt}</canvas>
   {/key}
 {:else if url}
   <img
     bind:this={element}
     src={url}
     {alt}
+    data-testid={testid}
     class={className}
     style="{style} image-orientation: none;"
     draggable="false"

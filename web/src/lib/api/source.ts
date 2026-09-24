@@ -1,4 +1,5 @@
 import { request, url } from './client';
+import type { Roi } from './preview';
 import type { Edits } from '$lib/types/edits';
 
 export interface SourcePayload {
@@ -10,12 +11,13 @@ export async function fetchSource(
   assetId: string,
   edits: Edits,
   maxEdge: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  roi?: Roi
 ): Promise<SourcePayload> {
   const resp = await request(url`/api/assets/${assetId}/source`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ max_edge: maxEdge, edits }),
+    body: JSON.stringify({ max_edge: maxEdge, edits, roi: roi ?? null }),
     signal
   });
   return { bytes: await resp.arrayBuffer(), dcpId: resp.headers.get('x-source-dcp') };

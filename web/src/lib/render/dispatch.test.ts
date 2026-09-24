@@ -12,6 +12,11 @@ function fakeRenderer(): Renderer & { calls: string[] } {
       calls.push(`source:${bytes.length}`);
       return { width: 4, height: 2 };
     },
+    set_tile: (bytes) => {
+      calls.push(`tile:${bytes.length}`);
+      return { width: 2, height: 1 };
+    },
+    drop_tile: () => void calls.push('drop-tile'),
     set_raster: (id, width, height, bytes) =>
       void calls.push(`raster:${id}:${width}x${height}:${bytes.length}`),
     drop_raster: (id) => void calls.push(`drop-raster:${id}`),
@@ -49,6 +54,8 @@ describe('render dispatcher', () => {
       height: 2
     });
     await dispatch({ op: 'setRaster', id: 'r', width: 2, height: 1, bytes: new ArrayBuffer(2) });
+    await dispatch({ op: 'setTile', bytes: new ArrayBuffer(4) });
+    await dispatch({ op: 'dropTile' });
     await dispatch({ op: 'dropRaster', id: 'r' });
     await dispatch({ op: 'setLut', id: 'l', bytes: new ArrayBuffer(3) });
     await dispatch({ op: 'dropLut', id: 'l' });
@@ -58,6 +65,8 @@ describe('render dispatcher', () => {
     expect(renderer.calls).toEqual([
       'source:6',
       'raster:r:2x1:2',
+      'tile:4',
+      'drop-tile',
       'drop-raster:r',
       'lut:l:3',
       'drop-lut:l',

@@ -3,6 +3,8 @@ import type { Call } from './protocol';
 export interface Renderer {
   adapter(): string;
   set_source(bytes: Uint8Array): unknown;
+  set_tile(bytes: Uint8Array): unknown;
+  drop_tile(): void;
   set_raster(id: string, width: number, height: number, bytes: Uint8Array): void;
   drop_raster(id: string): void;
   set_lut(id: string, bytes: Uint8Array): void;
@@ -43,6 +45,10 @@ export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
         return inputs(JSON.stringify(call.edits), call.maxEdge);
       case 'setSource':
         return renderer.set_source(new Uint8Array(call.bytes));
+      case 'setTile':
+        return renderer.set_tile(new Uint8Array(call.bytes));
+      case 'dropTile':
+        return renderer.drop_tile();
       case 'setRaster':
         return renderer.set_raster(call.id, call.width, call.height, new Uint8Array(call.bytes));
       case 'dropRaster':

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use raw_pipeline::dcp::DcpProfile;
+use raw_pipeline::edits::CropRect;
 use raw_pipeline::frame::{OutputColorSpace, OutputFormat, PreviewMode, RenderOptions};
 use raw_pipeline::lut::LutMap;
 use raw_pipeline::mask_raster::RasterMap;
@@ -22,6 +23,10 @@ pub struct RenderView {
     pub histogram: bool,
     #[serde(default)]
     pub scopes: bool,
+    #[serde(default)]
+    pub roi: Option<[f32; 4]>,
+    #[serde(default)]
+    pub tile: bool,
 }
 
 impl RenderView {
@@ -40,6 +45,7 @@ impl RenderView {
             clip_warn: self.clip_warn,
             histogram: self.histogram,
             scopes: self.histogram && self.scopes,
+            roi: self.roi.map(|[x, y, w, h]| CropRect { x, y, w, h }),
             rasters,
             luts,
             dcp,

@@ -67,6 +67,14 @@ export class RenderHost {
     return this.call({ op: 'setSource', bytes }, [bytes]);
   }
 
+  setTile(bytes: ArrayBuffer): Promise<SourceInfo> {
+    return this.call({ op: 'setTile', bytes }, [bytes]);
+  }
+
+  dropTile(): Promise<void> {
+    return this.call({ op: 'dropTile' });
+  }
+
   setRaster(id: string, width: number, height: number, bytes: ArrayBuffer): Promise<void> {
     return this.call({ op: 'setRaster', id, width, height, bytes }, [bytes]);
   }

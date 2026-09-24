@@ -26,6 +26,7 @@ const TEXTURE_CACHE_MAX_BYTES: u64 = 256 * 1024 * 1024;
 #[derive(Default)]
 struct Inputs {
     source: Option<LinearSource>,
+    tile: Option<LinearSource>,
     rasters: RasterMap,
     luts: LutMap,
     dcp: Option<Arc<DcpProfile>>,
@@ -34,6 +35,7 @@ struct Inputs {
 struct Inner {
     gpu: GpuRenderer,
     presenter: RefCell<Presenter>,
+    tile_presenter: RefCell<Presenter>,
     inputs: RefCell<Inputs>,
     lost: Arc<Mutex<Option<String>>>,
 }
@@ -57,8 +59,6 @@ pub struct WebRenderer {
 #[wasm_bindgen]
 impl WebRenderer {
     pub async fn create() -> Result<WebRenderer, JsError> {
-        let canvas = web_sys::OffscreenCanvas::new(1, 1)
-            .map_err(|e| JsError::new(&format!("offscreen canvas: {e:?}")))?;
         let gpu = GpuRenderer::new_async(GpuRendererOptions {
             texture_cache_max_bytes: TEXTURE_CACHE_MAX_BYTES,
             timestamps: false,
@@ -76,7 +76,8 @@ impl WebRenderer {
             .context()
             .device
             .push_error_scope(ErrorFilter::Validation);
-        let presenter = Presenter::new(gpu.context(), canvas).map_err(|e| JsError::new(&e))?;
+        let presenter = new_presenter(&gpu)?;
+        let tile_presenter = new_presenter(&gpu)?;
         if let Some(err) = scope.pop().await {
             return Err(JsError::new(&format!("presenter: {err}")));
         }
@@ -87,6 +88,7 @@ impl WebRenderer {
             inner: Rc::new(Inner {
                 gpu,
                 presenter: RefCell::new(presenter),
+                tile_presenter: RefCell::new(tile_presenter),
                 inputs: RefCell::new(Inputs::default()),
                 lost,
             }),
@@ -103,6 +105,18 @@ impl WebRenderer {
         let info = js::source(&image.header);
         self.inner.inputs.borrow_mut().source = Some(source);
         Ok(info)
+    }
+
+    pub fn set_tile(&self, bytes: &[u8]) -> Result<JsValue, JsError> {
+        let image = raw_pipeline::source::decode(bytes)?;
+        let tile = self.inner.gpu.upload_source(&image)?;
+        let info = js::source(&image.header);
+        self.inner.inputs.borrow_mut().tile = Some(tile);
+        Ok(info)
+    }
+
+    pub fn drop_tile(&self) {
+        self.inner.inputs.borrow_mut().tile = None;
     }
 
     pub fn set_raster(
@@ -170,10 +184,18 @@ async fn render(inner: &Inner, edits: &str, view: &str) -> Result<JsValue, JsErr
     let view: RenderView = serde_json::from_str(view)?;
     let (source, opts) = {
         let inputs = inner.inputs.borrow();
-        let source = inputs
-            .source
-            .clone()
-            .ok_or_else(|| JsError::new("no source has been set"))?;
+        let slot = if view.tile {
+            &inputs.tile
+        } else {
+            &inputs.source
+        };
+        let source = slot.clone().ok_or_else(|| {
+            JsError::new(if view.tile {
+                "no tile has been set"
+            } else {
+                "no source has been set"
+            })
+        })?;
         let opts = view.options(
             inputs.rasters.clone(),
             inputs.luts.clone(),
@@ -198,26 +220,27 @@ async fn draw(
     view: &RenderView,
 ) -> Result<JsValue, JsError> {
     let ctx = inner.gpu.context();
+    let presenter = if view.roi.is_some() {
+        &inner.tile_presenter
+    } else {
+        &inner.presenter
+    };
     let mut frame = inner.gpu.render_display(source, edits, opts)?;
-    let target = inner
-        .presenter
+    let target = presenter
         .borrow_mut()
         .acquire(ctx, frame.dims(), view.canvas_color_space())
         .map_err(|e| JsError::new(&e))?;
-    frame.record(|encoder, texture| {
-        inner
-            .presenter
-            .borrow()
-            .blit(ctx, encoder, texture, &target.view)
-    });
+    frame.record(|encoder, texture| presenter.borrow().blit(ctx, encoder, texture, &target.view));
     let meta = inner.gpu.finish_display(frame).await?;
     target.present(ctx);
-    let bitmap = inner
-        .presenter
-        .borrow()
-        .bitmap()
-        .map_err(|e| JsError::new(&e))?;
+    let bitmap = presenter.borrow().bitmap().map_err(|e| JsError::new(&e))?;
     Ok(js::frame(&meta, bitmap))
+}
+
+fn new_presenter(gpu: &GpuRenderer) -> Result<Presenter, JsError> {
+    let canvas = web_sys::OffscreenCanvas::new(1, 1)
+        .map_err(|e| JsError::new(&format!("offscreen canvas: {e:?}")))?;
+    Presenter::new(gpu.context(), canvas).map_err(|e| JsError::new(&e))
 }
 
 async fn device_lost(lost: &Mutex<Option<String>>) -> Option<String> {
