@@ -1,0 +1,367 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use parking_lot::MutexGuard;
+use wgpu::{
+    CommandEncoder, CommandEncoderDescriptor, Texture, TextureUsages, TextureViewDescriptor,
+};
+
+use super::GpuRenderer;
+use super::geometry::{crop_px, process_geom};
+use super::masks::{MaskAtlas, MaskStage, MaskStageOutput, Retained};
+use super::meta::MetaRequest;
+use super::{display_depth, pools, uniform};
+use crate::edits::Edits;
+use crate::frame::{OutputColorSpace, PreviewMode, RawFrame, RenderOptions};
+use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
+use crate::gpu::display_depth::DisplayDepth;
+use crate::gpu::passes::process::ProcessFastPass;
+use crate::gpu::resources::{OutputTargets, SharpenTargets};
+use crate::gpu::texture_pool::{PooledTexture, TextureKey};
+use crate::gpu::timer::RenderTimings;
+use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext};
+use crate::presence::{presence_mips, presence_radii};
+use crate::timing;
+use crate::{PipelineError, PipelineResult};
+
+pub(super) struct DisplayInput<'s> {
+    pub pass: &'s ProcessFastPass,
+    pub src: &'s Texture,
+    pub src_dims: (u32, u32),
+    pub out_dims: (u32, u32),
+    pub frame: &'s RawFrame,
+    pub edits: &'s Edits,
+    pub opts: &'s RenderOptions,
+    pub shadows: Option<&'s wgpu::TextureView>,
+    pub layer_srcs: &'s HashMap<String, Arc<Texture>>,
+}
+
+pub(super) enum DisplaySlot {
+    Output,
+    Overlay,
+    Pooled(PooledTexture),
+}
+
+impl DisplaySlot {
+    pub fn texture<'t>(&'t self, targets: &'t OutputTargets) -> &'t Texture {
+        match self {
+            Self::Output => &targets.texture,
+            Self::Overlay => &targets.mask_scratch_tone,
+            Self::Pooled(texture) => texture,
+        }
+    }
+}
+
+pub(super) struct DisplayFrame<'a> {
+    pub encoder: CommandEncoder,
+    pub targets: MutexGuard<'a, Vec<OutputTargets>>,
+    pub slot: DisplaySlot,
+    pub meta: MetaRequest,
+    pub dims: (u32, u32),
+    pub source_dims: (u32, u32),
+    pub atlases: [Option<MaskAtlas>; 2],
+    pub timings: RenderTimings<'a>,
+    pub sharpen: Option<MutexGuard<'a, Vec<SharpenTargets>>>,
+    pub scratch: Vec<PooledTexture>,
+    pub retained: Retained,
+}
+
+impl GpuRenderer {
+    pub(super) fn encode_display<'a>(
+        &'a self,
+        input: DisplayInput<'_>,
+        timings: RenderTimings<'a>,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<DisplayFrame<'a>> {
+        let device = &self.ctx.device;
+        let queue = &self.ctx.queue;
+        let DisplayInput {
+            pass,
+            src,
+            src_dims,
+            out_dims,
+            frame,
+            edits,
+            opts,
+            shadows,
+            layer_srcs,
+        } = input;
+        let t = &timings;
+
+        let mut edits = edits.clamped();
+        edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
+        let edits = edits;
+        let sharpen_active = edits.detail.sharpen_active();
+        let masked_sharpen = edits.masked_sharpen_active();
+        let effects_active = edits.effects.any_active();
+
+        if let Some(op) = self
+            .passes
+            .registry
+            .active(&edits)
+            .find(|op| op.gpu_route() == GpuRoute::Fused && op.gpu().is_none())
+        {
+            return Err(PipelineError::Unsupported(format!(
+                "gpu pipeline missing op: {}",
+                op.id()
+            )));
+        }
+
+        let (out_w, out_h) = out_dims;
+        let (crop_w_px, crop_h_px) = crop_px(frame, &edits, src_dims);
+        let ratio = (crop_w_px as f32 / out_w as f32).max(crop_h_px as f32 / out_h as f32);
+
+        let (downscaled, downscaled_layers) = t.stage(timing::RESAMPLE, || {
+            let Some(dims) = crate::geom::resample_target(src_dims, ratio) else {
+                return Ok((None, HashMap::new()));
+            };
+            let main = self.resample_lanczos(src, src_dims, dims, "process-downscale")?;
+            let layers = layer_srcs
+                .iter()
+                .map(|(id, tex)| {
+                    self.resample_lanczos(tex, src_dims, dims, "layer-downscale")
+                        .map(|t| (id.clone(), t))
+                })
+                .collect::<PipelineResult<HashMap<String, Arc<Texture>>>>()?;
+            PipelineResult::Ok((Some((main, dims)), layers))
+        })?;
+        let (src, work_dims, layer_srcs) = match &downscaled {
+            Some((tex, dims)) => (tex.as_ref(), *dims, &downscaled_layers),
+            None => (src, src_dims, layer_srcs),
+        };
+        crate::cancel::check(cancel)?;
+
+        let geom = process_geom(frame, &edits, work_dims);
+        let setup = crate::dcp_pipeline::resolve(frame, &edits, opts.dcp.as_deref());
+        let ctx_op = OpContext {
+            render: RenderContext {
+                wb_coeffs: frame.meta.wb_coeffs,
+                cam_to_srgb: setup.cam_to_srgb,
+                is_raw: frame.meta.is_raw,
+                capture_sigma: frame.meta.capture_sigma,
+                preview_mode: opts.preview_mode.clone(),
+                roi: opts.roi,
+                dcp: setup.resolved,
+            },
+            scratch: OpScratch::default(),
+        };
+        let shadows_mip = {
+            let radii = presence_radii(src_dims.0, src_dims.1);
+            presence_mips(src_dims.0, src_dims.1, radii).shadows as f32
+        };
+        let uniform_bytes = uniform::build_process_uniform(
+            &pass.built,
+            &self.passes.registry,
+            &edits,
+            &ctx_op,
+            &uniform::process_header(&edits, &geom, work_dims, out_dims, shadows_mip, true),
+        );
+        let uniform_buf =
+            self.uniform_pool
+                .acquire(device, queue, &uniform_bytes, "process-uniform");
+
+        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let targets = pools::acquire_target(&self.output_pool, &self.ctx, out_w, out_h);
+        let p = &targets[0];
+        let depth = display_depth(opts);
+        let sixteen = (depth == DisplayDepth::Sixteen).then(|| {
+            self.texture_pool.acquire(
+                device,
+                TextureKey::new(
+                    depth.format(),
+                    out_w,
+                    out_h,
+                    1,
+                    TextureUsages::STORAGE_BINDING
+                        | TextureUsages::TEXTURE_BINDING
+                        | TextureUsages::COPY_SRC
+                        | TextureUsages::COPY_DST,
+                ),
+                "display-16",
+            )
+        });
+        let display_tex: &Texture = sixteen.as_deref().unwrap_or(&p.texture);
+        let out_view = display_tex.create_view(&TextureViewDescriptor::default());
+        let linear_view = p
+            .linear_texture
+            .create_view(&TextureViewDescriptor::default());
+        let dummy_view;
+        let shadows_view = match shadows {
+            Some(view) => view,
+            None => {
+                dummy_view = self
+                    .dummy_luma
+                    .create_view(&TextureViewDescriptor::default());
+                &dummy_view
+            }
+        };
+
+        let bind = bind_group(
+            device,
+            "process-bg",
+            &pass.layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view),
+                samp(&self.passes.linear_sampler),
+                tex(&out_view),
+                tex(&linear_view),
+                tex(shadows_view),
+            ],
+        );
+
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("process-enc"),
+        });
+        let display_started = std::time::Instant::now();
+        let display_scope = t.enter(timing::DISPLAY);
+        dispatch_2d(
+            &mut encoder,
+            "process-pass",
+            &pass.pipeline,
+            &bind,
+            out_w.div_ceil(16),
+            out_h.div_ceil(16),
+        );
+
+        let MaskStageOutput {
+            mut retained,
+            preview_atlas,
+            layer_atlas,
+            has_masks,
+            preview_active,
+        } = self.encode_mask_stage(
+            &mut encoder,
+            MaskStage {
+                pass,
+                edits: &edits,
+                opts,
+                geom: &geom,
+                ctx_op: &ctx_op,
+                target: p,
+                src_view: &src_view,
+                linear_view: &linear_view,
+                shadows_view,
+                layer_srcs,
+                sensor_dims: work_dims,
+                out_dims,
+                shadows_mip,
+                masked_sharpen,
+            },
+        );
+        retained.uniforms.push(uniform_buf);
+        retained.binds.push(bind);
+
+        let sharpen_preview = matches!(
+            opts.preview_mode,
+            PreviewMode::SharpenMask | PreviewMode::SharpenRadius | PreviewMode::SharpenDetail
+        );
+        let dcp = ctx_op.render.dcp.as_deref();
+        let p3_active = matches!(opts.output_color_space, OutputColorSpace::DisplayP3);
+        let final_pass_active = sharpen_active
+            || sharpen_preview
+            || effects_active
+            || has_masks
+            || dcp.is_some()
+            || p3_active
+            || opts.gamut_warn
+            || opts.clip_warn;
+        let warn_flags = opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1);
+        let sharpen = final_pass_active
+            .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h));
+        let mut scratch: Vec<PooledTexture> = self
+            .run_dcp_base_table(&mut encoder, dcp, &p.linear_texture, out_w, out_h)
+            .into_iter()
+            .collect();
+        if let Some(s) = sharpen.as_ref().map(|guard| &guard[0]) {
+            let run_sharpen = sharpen_active || masked_sharpen || sharpen_preview;
+            if run_sharpen {
+                self.encode_sharpen(
+                    &mut encoder,
+                    &edits,
+                    p,
+                    s,
+                    out_w,
+                    out_h,
+                    &opts.preview_mode,
+                    masked_sharpen,
+                );
+            }
+            self.encode_effects_tone(
+                &mut encoder,
+                &edits,
+                p,
+                s,
+                display_tex,
+                depth,
+                out_w,
+                out_h,
+                run_sharpen,
+                opts.output_color_space,
+                warn_flags,
+                opts.roi,
+            );
+            scratch.extend(self.run_dcp_finish(
+                &mut encoder,
+                dcp,
+                &s.post_lin,
+                display_tex,
+                depth,
+                out_w,
+                out_h,
+                warn_flags | ((p3_active as u32) << 2),
+            ));
+        }
+
+        let lut =
+            self.maybe_encode_lut(&mut encoder, &edits, opts, display_tex, depth, out_w, out_h);
+        let graded: &Texture = lut.as_deref().unwrap_or(display_tex);
+        if preview_active {
+            self.encode_mask_overlay(&mut encoder, p, graded, out_dims, &mut retained);
+        }
+        let display_src = if preview_active {
+            &p.mask_scratch_tone
+        } else {
+            graded
+        };
+        let linear_src = match sharpen.as_ref() {
+            Some(guard) => &guard[0].post_lin,
+            None => &p.linear_texture,
+        };
+        drop(display_scope);
+        t.clock()
+            .add_wall(timing::DISPLAY, display_started.elapsed());
+        let meta = MetaRequest {
+            histogram: opts.histogram,
+            scopes: opts.scopes,
+        };
+        self.encode_meta_bins(&mut encoder, p, display_src, linear_src, meta, out_dims, t);
+
+        let slot = match (preview_active, lut, sixteen) {
+            (true, lut, sixteen) => {
+                scratch.extend(lut);
+                scratch.extend(sixteen);
+                DisplaySlot::Overlay
+            }
+            (false, Some(lut), sixteen) => {
+                scratch.extend(sixteen);
+                DisplaySlot::Pooled(lut)
+            }
+            (false, None, Some(sixteen)) => DisplaySlot::Pooled(sixteen),
+            (false, None, None) => DisplaySlot::Output,
+        };
+        Ok(DisplayFrame {
+            encoder,
+            targets,
+            slot,
+            meta,
+            dims: out_dims,
+            source_dims: geom.source,
+            atlases: [preview_atlas, layer_atlas],
+            timings,
+            sharpen,
+            scratch,
+            retained,
+        })
+    }
+}
