@@ -17,6 +17,7 @@
   } from '@mdi/js';
   import type { MaskKind, SemanticClass } from '$lib/api/masks';
   import { generatedLabel, visibleSceneClasses, type ManualTool } from '$lib/types/masks';
+  import { keysFor, type KeybindId } from '$lib/keybinds';
 
   let {
     aiKinds,
@@ -42,20 +43,34 @@
 
   const sceneClasses = $derived(visibleSceneClasses(semanticClasses, aiKinds));
 
-  const MANUAL: { tool: ManualTool; label: string; hint: string; icon: string }[] = [
+  const MANUAL: {
+    tool: ManualTool;
+    label: string;
+    hint: string;
+    icon: string;
+    bind?: KeybindId;
+  }[] = [
     {
       tool: 'linear',
       label: 'Linear gradient',
       hint: 'Fades across a straight edge',
-      icon: mdiGradientHorizontal
+      icon: mdiGradientHorizontal,
+      bind: 'addLinearLayer'
     },
     {
       tool: 'radial',
       label: 'Radial gradient',
       hint: 'Fades out from an ellipse',
-      icon: mdiCircleOutline
+      icon: mdiCircleOutline,
+      bind: 'addRadialLayer'
     },
-    { tool: 'brush', label: 'Brush', hint: 'Paint the area by hand', icon: mdiBrush },
+    {
+      tool: 'brush',
+      label: 'Brush',
+      hint: 'Paint the area by hand',
+      icon: mdiBrush,
+      bind: 'addBrushLayer'
+    },
     {
       tool: 'polygon',
       label: 'Polygon',
@@ -220,6 +235,9 @@
         <span class="block text-xs truncate">{item.label}</span>
         <span class="block text-[10px] text-dark/65 truncate">{item.hint}</span>
       </span>
+      {#if item.bind}
+        <span class="mt-0.5 shrink-0 font-mono text-[10px] text-dark/65">{keysFor(item.bind)}</span>
+      {/if}
     </Button>
   {/each}
 </div>

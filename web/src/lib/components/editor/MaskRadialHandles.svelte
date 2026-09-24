@@ -2,6 +2,8 @@
   import type { MaskComponent, MaskComponentKind, Vec2f } from '$lib/types/edits';
   import type { DragKind } from '$lib/utils/maskDrag';
 
+  const MIN_FEATHER_HANDLE_SCALE = 0.08;
+
   let {
     comp,
     kind,
@@ -31,6 +33,7 @@
   const ry = $derived(Math.hypot(ryDx, ryDy));
   const tilt = $derived((Math.atan2(rxDy, rxDx) * 180) / Math.PI);
   const innerScale = $derived(1 - kind.feather);
+  const featherHandleScale = $derived(Math.max(innerScale, MIN_FEATHER_HANDLE_SCALE));
   const gradId = $derived(`mask-radial-${comp.id}`);
   const fillOp = $derived(comp.invert ? 0.0 : 0.55);
   const emptyOp = $derived(comp.invert ? 0.55 : 0.0);
@@ -165,19 +168,19 @@
       stroke-dasharray="4 4"
       opacity="0.7"
     />
-    <circle
-      cx={c.x + rxDx * innerScale}
-      cy={c.y + rxDy * innerScale}
-      r="5"
-      fill={color}
-      fill-opacity="0.3"
-      stroke={color}
-      stroke-width="1.5"
-      style="cursor: move;"
-      role="button"
-      aria-label="Radial feather"
-      tabindex="-1"
-      onpointerdown={(e) => onDrag(e, { kind: 'radial-feather' })}
-    />
   {/if}
+  <circle
+    cx={c.x + rxDx * featherHandleScale}
+    cy={c.y + rxDy * featherHandleScale}
+    r="5"
+    fill={color}
+    fill-opacity="0.3"
+    stroke={color}
+    stroke-width="1.5"
+    style="cursor: move;"
+    role="button"
+    aria-label="Radial feather"
+    tabindex="-1"
+    onpointerdown={(e) => onDrag(e, { kind: 'radial-feather' })}
+  />
 </g>

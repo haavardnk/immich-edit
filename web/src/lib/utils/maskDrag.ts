@@ -78,3 +78,37 @@ export function draggedKind(
 
   return null;
 }
+
+function moveDrag(kind: MaskComponentKind): { anchor: Vec2f; drag: DragKind } | null {
+  if (kind.kind === 'linear') {
+    const anchor = { x: (kind.p0.x + kind.p1.x) / 2, y: (kind.p0.y + kind.p1.y) / 2 };
+    return {
+      anchor,
+      drag: { kind: 'linear-move', startP0: kind.p0, startP1: kind.p1, downAtN: anchor }
+    };
+  }
+  if (kind.kind === 'radial') return { anchor: kind.center, drag: { kind: 'radial-center' } };
+  if (kind.kind === 'polygon') {
+    const anchor = kind.points[0];
+    if (!anchor) return null;
+    return { anchor, drag: { kind: 'polygon-move', start: kind.points, downAtN: anchor } };
+  }
+  return null;
+}
+
+export function nudgeable(kind: MaskComponentKind): boolean {
+  return moveDrag(kind) !== null;
+}
+
+export function nudgedKind(
+  kind: MaskComponentKind,
+  dx: number,
+  dy: number,
+  toPx: (v: Vec2f) => { x: number; y: number },
+  fromPx: (x: number, y: number) => Vec2f
+): MaskComponentKind | null {
+  const move = moveDrag(kind);
+  if (!move) return null;
+  const at = toPx(move.anchor);
+  return draggedKind(kind, move.drag, fromPx(at.x + dx, at.y + dy));
+}

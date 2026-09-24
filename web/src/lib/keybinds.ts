@@ -466,6 +466,45 @@ export const KEYBINDS = [
     label: 'Add a radial mask layer'
   },
   {
+    id: 'addLinearLayer',
+    keys: ['Shift+l'],
+    contexts: ['editor'],
+    group: 'Masks',
+    label: 'Add a linear mask layer'
+  },
+  {
+    id: 'maskNudge',
+    keys: [
+      'ArrowUp',
+      'ArrowDown',
+      'Shift+ArrowLeft',
+      'Shift+ArrowRight',
+      'Shift+ArrowUp',
+      'Shift+ArrowDown'
+    ],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Nudge the selected shape one pixel, ten with Shift',
+    display: (mac: boolean) =>
+      `${keyLabel('ArrowLeft', mac)} ${keyLabel('ArrowRight', mac)} ${keyLabel('ArrowUp', mac)} ${keyLabel('ArrowDown', mac)}`
+  },
+  {
+    id: 'polygonAddCorner',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Add a polygon corner',
+    display: 'Click the dot between two corners'
+  },
+  {
+    id: 'polygonRemoveCorner',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Remove a polygon corner',
+    display: 'Double-click the corner'
+  },
+  {
     id: 'maskOverlay',
     keys: ['o'],
     contexts: ['masks'],
