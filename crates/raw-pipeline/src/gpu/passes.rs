@@ -24,7 +24,7 @@ pub mod xtrans;
 
 use std::sync::Arc;
 
-use wgpu::{AddressMode, FilterMode, MipmapFilterMode, Sampler, SamplerDescriptor};
+use wgpu::Sampler;
 
 use super::context::GpuContext;
 use crate::gpu::display_depth::DisplayDepth;
@@ -93,7 +93,6 @@ pub struct GpuPasses {
     pub meta_bins: MetaBinsPasses,
     #[cfg(feature = "native")]
     pub sensor_stage: SensorStagePasses,
-    pub linear_sampler: Sampler,
     pub atlas_sampler: Sampler,
     pub registry: OpRegistry,
     depth16: std::sync::OnceLock<Depth16Passes>,
@@ -192,16 +191,6 @@ impl GpuPasses {
             meta_bins,
             #[cfg(feature = "native")]
             sensor_stage: SensorStagePasses::new(ctx, &registry),
-            linear_sampler: ctx.device.create_sampler(&SamplerDescriptor {
-                label: Some("linear-samp"),
-                address_mode_u: AddressMode::ClampToEdge,
-                address_mode_v: AddressMode::ClampToEdge,
-                address_mode_w: AddressMode::ClampToEdge,
-                mag_filter: FilterMode::Linear,
-                min_filter: FilterMode::Linear,
-                mipmap_filter: MipmapFilterMode::Linear,
-                ..Default::default()
-            }),
             atlas_sampler: mask_weight::make_atlas_sampler(ctx),
             registry,
             depth16: std::sync::OnceLock::new(),

@@ -124,7 +124,7 @@ pub fn build_for(
     let tone_wgsl = crate::tone::wgsl::tone_wgsl();
     let prelude = crate::ops::wgsl::op_prelude_wgsl();
     let geometry_wgsl = GEOMETRY_WGSL;
-    let display_store = depth.store_wgsl(3);
+    let display_store = depth.store_wgsl(2);
 
     let wgsl = format!(
         r#"struct ProcessParams {{
@@ -145,12 +145,30 @@ pub fn build_for(
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
-@group(0) @binding(2) var src_samp: sampler;
 {display_store}
-@group(0) @binding(4) var linear_tex: texture_storage_2d<rgba16float, write>;
-@group(0) @binding(5) var shadows_blur_tex: texture_2d<f32>;
+@group(0) @binding(3) var linear_tex: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(4) var shadows_blur_tex: texture_2d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
+
+fn shadows_luma_at(level: u32, x: i32, y: i32) -> f32 {{
+    let dim = vec2<i32>(textureDimensions(shadows_blur_tex, level));
+    let at = clamp(vec2<i32>(x, y), vec2<i32>(0), dim - 1);
+    return textureLoad(shadows_blur_tex, at, i32(level)).r;
+}}
+
+fn sample_shadows_blur(uv: vec2<f32>, mip: f32) -> f32 {{
+    let level = min(u32(mip), textureNumLevels(shadows_blur_tex) - 1u);
+    let base = vec2<f32>(textureDimensions(shadows_blur_tex, 0u));
+    let pos = uv * base / f32(1u << level) - 0.5;
+    let origin = floor(pos);
+    let t = pos - origin;
+    let x0 = i32(origin.x);
+    let y0 = i32(origin.y);
+    let top = mix(shadows_luma_at(level, x0, y0), shadows_luma_at(level, x0 + 1, y0), t.x);
+    let bottom = mix(shadows_luma_at(level, x0, y0 + 1), shadows_luma_at(level, x0 + 1, y0 + 1), t.x);
+    return mix(top, bottom, t.y);
+}}
 
 fn sample_src_cubic(uv: vec2<f32>) -> vec3<f32> {{
     let dims = vec2<f32>(f32(p.src_size.x), f32(p.src_size.y));
@@ -247,7 +265,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     sv = (sv - p.src_window.y) / p.src_window.w;
 
     let rgb = sample_src_cubic(vec2<f32>(su, sv));
-    shadows_blur_l = textureSampleLevel(shadows_blur_tex, src_samp, vec2<f32>(su, sv), p.geom_extra.y).r;
+    shadows_blur_l = sample_shadows_blur(vec2<f32>(su, sv), p.geom_extra.y);
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);
     if (p.geom_extra3.z > 0.5 && (src_px.x < 0.0 || src_px.y < 0.0 || src_px.x > p.geom_extra3.x - 1.0 || src_px.y > p.geom_extra3.y - 1.0)) {{

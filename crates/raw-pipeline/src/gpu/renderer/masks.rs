@@ -463,7 +463,6 @@ impl GpuRenderer {
                 &[
                     eff_uniform_buf.as_entire_binding(),
                     tex(layer_src_view_ref),
-                    samp(&self.passes.linear_sampler),
                     tex(&scratch_tone_view),
                     tex(&scratch_linear_view),
                     tex(stage.shadows_view),

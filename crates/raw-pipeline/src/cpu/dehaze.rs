@@ -52,20 +52,22 @@ fn mip_halve(rgb: &[f32], w: usize, h: usize) -> (Vec<f32>, usize, usize) {
     (out, lw, lh)
 }
 
-fn bilinear_downsample(rgb: &[f32], w: usize, h: usize, lw: usize, lh: usize) -> Vec<f32> {
+fn bilinear_downsample(rgb: &[f32], w: usize, h: usize, scale: usize) -> Vec<f32> {
+    let lw = (w / scale).max(1);
+    let lh = (h / scale).max(1);
     let mut out = vec![0.0f32; lw * lh * 3];
     let maxx = w as isize - 1;
     let maxy = h as isize - 1;
     out.par_chunks_exact_mut(lw * 3)
         .enumerate()
         .for_each(|(ly, row)| {
-            let sy = (ly as f32 + 0.5) / lh as f32 * h as f32 - 0.5;
+            let sy = (ly as f32 + 0.5) * scale as f32 - 0.5;
             let by = sy.floor();
             let fy = sy - by;
             let ya = (by as isize).clamp(0, maxy) as usize;
             let yb = (by as isize + 1).clamp(0, maxy) as usize;
             for (lx, px) in row.chunks_exact_mut(3).enumerate() {
-                let sx = (lx as f32 + 0.5) / lw as f32 * w as f32 - 0.5;
+                let sx = (lx as f32 + 0.5) * scale as f32 - 0.5;
                 let bx = sx.floor();
                 let fx = sx - bx;
                 let xa = (bx as isize).clamp(0, maxx) as usize;
@@ -200,9 +202,7 @@ fn guided_coeffs(
     (mean_a, mean_b)
 }
 
-fn sample_ab(mean_a: &[f32], mean_b: &[f32], lw: usize, lh: usize, u: f32, v: f32) -> (f32, f32) {
-    let sx = u * lw as f32 - 0.5;
-    let sy = v * lh as f32 - 0.5;
+fn sample_ab(mean_a: &[f32], mean_b: &[f32], lw: usize, lh: usize, sx: f32, sy: f32) -> (f32, f32) {
     let bx = sx.floor();
     let by = sy.floor();
     let fx = sx - bx;
@@ -249,7 +249,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     let lo = if scale == 1 {
         image.rgb.clone()
     } else {
-        bilinear_downsample(&image.rgb, w, h, lw, lh)
+        bilinear_downsample(&image.rgb, w, h, scale)
     };
     let n = lw * lh;
     let mut dn = Scratch::zeroed(n);
@@ -280,9 +280,9 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     drop(t_raw);
     drop(lo);
     let transmission = |x: usize, y: usize, px: &[f32]| -> f32 {
-        let u = (x as f32 + 0.5) / w as f32;
-        let v = (y as f32 + 0.5) / h as f32;
-        let (ca, cb) = sample_ab(&mean_a, &mean_b, lw, lh, u, v);
+        let sx = (x as f32 + 0.5) / scale as f32 - 0.5;
+        let sy = (y as f32 + 0.5) / scale as f32 - 0.5;
+        let (ca, cb) = sample_ab(&mean_a, &mean_b, lw, lh, sx, sy);
         let g = luma(
             px[0].clamp(0.0, 1.0),
             px[1].clamp(0.0, 1.0),

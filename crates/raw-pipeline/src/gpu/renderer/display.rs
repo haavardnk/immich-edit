@@ -13,7 +13,7 @@ use super::meta::MetaRequest;
 use super::{display_depth, pools, uniform};
 use crate::edits::Edits;
 use crate::frame::{FrameMeta, OutputColorSpace, PreviewMode, RenderOptions};
-use crate::gpu::dispatch::{bind_group, dispatch_2d, samp, tex};
+use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
@@ -385,7 +385,6 @@ impl GpuRenderer {
             &[
                 uniform_buf.as_entire_binding(),
                 tex(&src_view),
-                samp(&self.passes.linear_sampler),
                 tex(&out_view),
                 tex(&linear_view),
                 tex(shadows_view),

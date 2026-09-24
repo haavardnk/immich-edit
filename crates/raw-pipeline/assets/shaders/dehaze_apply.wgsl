@@ -2,7 +2,9 @@ struct Params {
     size: vec2<u32>,
     size_lo: vec2<u32>,
     atm: vec4<f32>,
-    amount: vec4<f32>,
+    amount: f32,
+    scale: f32,
+    _pad: vec2<f32>,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -10,8 +12,7 @@ struct Params {
 @group(0) @binding(2) var ab_mean: texture_2d<f32>;
 @group(0) @binding(3) var dst: texture_storage_2d<rgba16float, write>;
 
-fn sample_ab(uv: vec2<f32>) -> vec2<f32> {
-    let sp = uv * vec2<f32>(p.size_lo) - vec2<f32>(0.5);
+fn sample_ab(sp: vec2<f32>) -> vec2<f32> {
     let base = floor(sp);
     let f = sp - base;
     let hi = vec2<i32>(p.size_lo) - vec2<i32>(1);
@@ -31,13 +32,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
     let pos = vec2<i32>(i32(gid.x), i32(gid.y));
     let c = textureLoad(rgb_in, pos, 0).rgb;
-    let uv = (vec2<f32>(pos) + vec2<f32>(0.5)) / vec2<f32>(p.size);
-    let ab = sample_ab(uv);
+    let ab = sample_ab((vec2<f32>(pos) + vec2<f32>(0.5)) / p.scale - vec2<f32>(0.5));
     let cc = clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
     let g = 0.2126 * cc.r + 0.7152 * cc.g + 0.0722 * cc.b;
     let t = clamp(ab.x * g + ab.y, 0.0, 1.0);
     let atm = p.atm.rgb;
-    let amt = p.amount.x;
+    let amt = p.amount;
     var outc: vec3<f32>;
     if (amt > 0.0) {
         let ti = max(t, 0.16);

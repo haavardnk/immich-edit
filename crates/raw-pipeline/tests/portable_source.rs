@@ -1,6 +1,8 @@
 mod common;
 
-use common::{first_fixture_frame, haze_frame, mean_abs_delta, rgb8_opts, try_renderer};
+use common::{
+    first_fixture_frame, haze_frame, mean_abs_delta, rgb8_opts, split_tone_frame, try_renderer,
+};
 use raw_pipeline::CpuRenderer;
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
@@ -248,7 +250,13 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
         w: 0.2,
         h: 0.25,
     };
-    for (label, frame) in [("haze", haze_frame(1200, 800)), ("turned", turned)] {
+    let frames = [
+        ("haze", haze_frame(1200, 800)),
+        ("odd", haze_frame(1203, 805)),
+        ("split", split_tone_frame(1203, 805)),
+        ("turned", turned),
+    ];
+    for (label, frame) in frames {
         let long = frame.meta.width.max(frame.meta.height) as u32;
         for (case, edits) in tile_cases() {
             let sensor = edits.sensor_stage();
