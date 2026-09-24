@@ -21,7 +21,7 @@ use wgpu::ErrorFilter;
 use present::Presenter;
 use view::RenderView;
 
-const TEXTURE_CACHE_MAX_BYTES: u64 = 256 * 1024 * 1024;
+const TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
 
 #[derive(Default)]
 struct Inputs {
