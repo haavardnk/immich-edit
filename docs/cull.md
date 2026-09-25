@@ -78,7 +78,9 @@ ones with `Backspace` until the keepers are left, or press `Enter` to keep only 
 `Esc` goes back to the loupe with the survivors selected.
 
 The loupe's **View mode** button switches between **Single photo**, **Compare** and **Survey** as
-well.
+well. In compare and survey, the bar under the photos has buttons for the same pane actions:
+**Sync zoom and pan**, **Promote to the left** in compare or **Keep only this photo** in survey,
+and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 
 ## A culling pass
 
