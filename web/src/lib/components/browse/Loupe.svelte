@@ -503,7 +503,7 @@
           shape="round"
           class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
           icon={mdiChevronLeft}
-          title="Previous"
+          title={hint('Previous', 'loupeNav')}
           aria-label="Previous"
           onclick={() => go(-1)}
         />
@@ -517,7 +517,7 @@
           shape="round"
           class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
           icon={mdiChevronRight}
-          title="Next"
+          title={hint('Next', 'loupeNav')}
           aria-label="Next"
           loading={atLoadedEnd && browsing.loadingMore}
           onclick={() => go(1)}

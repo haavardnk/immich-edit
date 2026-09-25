@@ -359,7 +359,7 @@ for (const size of [
 
     if (size.width === 390) {
       await page.getByRole('button', { name: 'More loupe actions' }).click();
-      const clipping = page.getByRole('button', { name: 'Clipping overlay', exact: true });
+      const clipping = page.getByRole('button', { name: /^Clipping overlay/ });
       await expect(clipping).toBeInViewport();
       await clipping.click();
       await expect(page.getByRole('button', { name: 'More loupe actions' })).toBeFocused();

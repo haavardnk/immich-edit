@@ -44,7 +44,7 @@ test('the loupe and mobile action menu have no serious accessibility violations'
 
   await page.getByLabel('Quick review').click();
   await page.getByRole('button', { name: 'More loupe actions' }).click();
-  await expect(page.getByRole('button', { name: 'Clipping overlay', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Clipping overlay/ })).toBeVisible();
 
   expect(await audit(page)).toEqual([]);
 });
