@@ -69,3 +69,21 @@ test('the bulk bar rates and then clears the rating of a selection', async ({ pa
   expect(updates.slice(0, 2).every((update) => update.rating === 3)).toBe(true);
   expect(updates.slice(2).every((update) => update.rating === 0)).toBe(true);
 });
+
+test('the preset picker opens above the bulk dialog', async ({ page }) => {
+  await installMocks(page, {
+    assets: ASSETS,
+    presets: [{ id: 'preset-warm', name: 'Warm', group_name: null, manifest: { ops: {} } }]
+  });
+
+  await page.goto('/photos');
+  await selectBoth(page);
+  await page.getByRole('button', { name: 'Edit and export selected' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  const section = dialog.getByRole('button', { name: 'Presets', exact: true });
+  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
+  await dialog.getByRole('combobox', { name: 'Select a preset…' }).click();
+  await page.getByRole('option', { name: 'Warm', exact: true }).click();
+
+  await expect(dialog.getByRole('button', { name: 'Apply Warm to 2' })).toBeEnabled();
+});
