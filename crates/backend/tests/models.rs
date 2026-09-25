@@ -164,6 +164,33 @@ async fn installing_unknown_model_is_not_found() {
 }
 
 #[tokio::test]
+async fn cancelling_an_install_is_idempotent_for_catalog_models() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = router(state);
+    for (id, want) in [
+        ("ormbg", StatusCode::NO_CONTENT),
+        ("not-a-real-model", StatusCode::NOT_FOUND),
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/api/admin/models/{id}/install"))
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), want, "{id}");
+    }
+}
+
+#[tokio::test]
 async fn removing_uninstalled_model_is_not_found() {
     let server = MockServer::start().await;
     mock_ping_ok(&server).await;

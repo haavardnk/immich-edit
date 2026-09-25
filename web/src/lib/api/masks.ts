@@ -130,6 +130,10 @@ export function installMaskModel(id: string): Promise<void> {
   });
 }
 
+export function cancelMaskModelInstall(id: string): Promise<void> {
+  return sendJson<void>('DELETE', url`/api/admin/models/${id}/install`, undefined);
+}
+
 export function removeMaskModel(id: string): Promise<void> {
   return sendJson<void>('DELETE', url`/api/admin/models/${id}`, undefined);
 }
