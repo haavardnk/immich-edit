@@ -118,7 +118,10 @@ test('collection rows expose current state only on their own route', async ({ pa
   );
 
   await page.goto('/tags/shared-id');
-  await page.getByRole('button', { name: /^Tags/ }).click();
+  await expect(page.getByRole('button', { name: /^Tags/ })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
   await expect(page.getByRole('link', { name: 'Travel' })).toHaveAttribute('aria-current', 'page');
 
   await page.getByRole('button', { name: /^Albums/ }).click();

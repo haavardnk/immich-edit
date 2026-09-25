@@ -14,9 +14,11 @@ here as soon as Immich has it.
 ## Find photos
 
 The sidebar has **Photos**, **People**, **Favorites**, **Albums**, **Tags**, **Folders** and
-**Edited**. **Edited** lists the photos you have changed in immich-edit. The search box at the top
-uses Immich's smart search, so a description such as `red car at night` works. When Immich's
-machine learning is down, it falls back to searching filenames.
+**Edited**. **Edited** lists the photos you have changed in immich-edit. **People**, **Albums**,
+**Tags** and **Folders** remember whether you left them open, and the one holding the page you are
+on opens by itself. The search box at the top uses Immich's smart search, so a description such as
+`red car at night` works. When Immich's machine learning is down, it falls back to searching
+filenames.
 
 **Filters** narrows the current view by **Visibility**, **Rating**, **Favorites only**,
 **Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
