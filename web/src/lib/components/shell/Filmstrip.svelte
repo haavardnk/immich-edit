@@ -73,6 +73,12 @@
     scrollLeft = scrollContainer.scrollLeft;
   }
 
+  function onWheel(e: WheelEvent): void {
+    if (!scrollContainer || e.deltaX !== 0 || e.deltaY === 0 || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    scrollContainer.scrollLeft += e.deltaY;
+  }
+
   let revealed: { id: string; container: HTMLDivElement } | null = null;
 
   $effect(() => {
@@ -116,6 +122,7 @@
           bind:this={scrollContainer}
           use:observeSize={measure}
           onscroll={measure}
+          onwheel={onWheel}
         >
           <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
