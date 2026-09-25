@@ -156,6 +156,11 @@ than amounts, such as the camera profile, the LUT file, sharpening and lens corr
 from the preset as saved. At 0% the look returns to defaults. Geometry and masks are never
 scaled. Double-click the slider to go back to 100%.
 
+**Export all** downloads every preset as one `.json` file, and the download button beside
+**Rename** exports only the selected one. **Import presets** reads such a file and adds its
+presets to your library. A preset whose name is already in your library is skipped, so
+importing the same file twice adds nothing.
+
 ## Try variations
 
 **Versions** lists the original and its virtual copies. **Create virtual copy**, or `Ctrl+'`,

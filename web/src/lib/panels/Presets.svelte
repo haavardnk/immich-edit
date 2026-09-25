@@ -3,8 +3,16 @@
   import PresetPicker from './preset/PresetPicker.svelte';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import EditableLabel from '$lib/components/EditableLabel.svelte';
+  import FileImportButton from '$lib/components/FileImportButton.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
-  import { mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline, mdiAutoFix } from '@mdi/js';
+  import {
+    mdiPencil,
+    mdiCheck,
+    mdiClose,
+    mdiContentSaveOutline,
+    mdiAutoFix,
+    mdiDownload
+  } from '@mdi/js';
   import { editsToManifest } from '$lib/edits/manifest';
   import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
   import type { ApplyPresetOptions } from '$lib/api/jobs';
@@ -145,6 +153,26 @@
     </Button>
   {/if}
 
+  <div class="flex gap-1">
+    <FileImportButton
+      accept=".json,application/json"
+      label="Import presets"
+      class="flex-1"
+      onfile={presets.importFile}
+    />
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="h-7 flex-1 panel-action"
+      leadingIcon={mdiDownload}
+      disabled={presets.presets.length === 0}
+      onclick={presets.exportAll}
+    >
+      Export all
+    </Button>
+  </div>
+
   {#if presets.presets.length === 0}
     <div class="px-1 py-1 text-xs text-dark/65">No presets yet.</div>
   {:else}
@@ -161,6 +189,16 @@
         aria-label="Rename preset"
         disabled={!selected}
         onclick={startRename}
+      />
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiDownload}
+        title="Export"
+        aria-label="Export preset"
+        disabled={!selected}
+        onclick={() => selected && presets.exportOne(selected)}
       />
       <DeleteConfirmation
         bind:pending={pendingDelete}
