@@ -182,6 +182,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'straighten':
       ui.toggleStraighten();
       return;
+    case 'cropGrid':
+      ui.cycleCropGrid();
+      return;
     case 'autoAdjust':
       if (!editor.autoBusy) void editor.onAutoAdjust();
       return;

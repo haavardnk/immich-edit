@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { ui, CROP_GRIDS } from '$lib/stores/ui.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { type AspectLock } from '$lib/types/edits';
@@ -20,7 +20,8 @@
     mdiCropLandscape,
     mdiCropPortrait,
     mdiVectorSquare,
-    mdiAngleAcute
+    mdiAngleAcute,
+    mdiGrid
   } from '@mdi/js';
 
   $effect(() => {
@@ -110,6 +111,8 @@
         !perspectiveIsIdentity(editor.geometrySession.draftPerspective))
   );
 
+  const cropGridLabel = $derived(CROP_GRIDS.find((g) => g.id === ui.cropGrid)?.label ?? '');
+
   function toggleOrientation(): void {
     const sess = editor.geometrySession;
     if (!sess || sess.draftAspect.kind !== 'ratio') return;
@@ -154,7 +157,19 @@
 <div class="flex flex-col divide-y divide-dark/10">
   {#if editor.geometrySession}
     <div class="flex flex-col gap-1 pb-1.5">
-      <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop} />
+      <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop}>
+        {#snippet actions()}
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            icon={mdiGrid}
+            title={hint(`Crop guide: ${cropGridLabel}`, 'cropGrid')}
+            aria-label={`Crop guide: ${cropGridLabel}`}
+            onclick={ui.cycleCropGrid}
+          />
+        {/snippet}
+      </SectionHeader>
       <div class="flex items-center gap-1.5">
         <Field label="Aspect Ratio" size="tiny" class="min-w-0 flex-1">
           <Select

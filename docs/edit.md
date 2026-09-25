@@ -147,7 +147,10 @@ for the next stroke. `H` and `C` switch between heal and clone.
 another tool.
 
 - **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1** or
-  **3:2**.
+  **3:2**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
+  shape of a free crop. `Ctrl` or `Cmd` with the mouse wheel scales the crop, and with a drag inside
+  it moves the photo under the crop. **Crop guide**, or `O`, cycles the overlay between rule of
+  thirds, golden ratio, diagonals, a grid and none, and remembers your choice.
 - **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `Shift+A`,
   and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
   the same without the button. **Rotate left 90°** and **Rotate right 90°** turn the photo, and

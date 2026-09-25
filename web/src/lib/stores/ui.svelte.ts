@@ -16,6 +16,16 @@ export const ASPECT_RATIOS: { id: AspectRatio; label: string; value: number | nu
   { id: '7:5', label: '7:5', value: 7 / 5 }
 ];
 
+export type CropGrid = 'thirds' | 'golden' | 'diagonal' | 'grid' | 'off';
+
+export const CROP_GRIDS: { id: CropGrid; label: string }[] = [
+  { id: 'thirds', label: 'Rule of thirds' },
+  { id: 'golden', label: 'Golden ratio' },
+  { id: 'diagonal', label: 'Diagonals' },
+  { id: 'grid', label: 'Grid' },
+  { id: 'off', label: 'No guide' }
+];
+
 export const MIN_INSPECTOR_WIDTH = 320;
 export const MAX_INSPECTOR_WIDTH = 520;
 export const MIN_FILMSTRIP_HEIGHT = 48;
@@ -79,6 +89,7 @@ type PersistedEditorUi = {
   brushTool?: BrushTool;
   retouchTool?: RetouchTool;
   greyCanvas?: boolean;
+  cropGrid?: CropGrid;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -104,6 +115,7 @@ class UiStore {
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
   straightening = $state(false);
+  cropGrid = $state<CropGrid>('thirds');
   clipWarn = $state(false);
   greyCanvas = $state(false);
   brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
@@ -138,6 +150,7 @@ class UiStore {
       this.developOpenPanels = stored.developOpenPanels.filter((id) => typeof id === 'string');
     }
     this.greyCanvas = stored?.greyCanvas === true;
+    this.cropGrid = CROP_GRIDS.find((g) => g.id === stored?.cropGrid)?.id ?? 'thirds';
   }
 
   setDevelopPanels = (ids: string[]): void => {
@@ -155,7 +168,8 @@ class UiStore {
       developOpenPanels: this.developOpenPanels ?? undefined,
       brushTool: this.brushTool,
       retouchTool: this.retouchTool,
-      greyCanvas: this.greyCanvas
+      greyCanvas: this.greyCanvas,
+      cropGrid: this.cropGrid
     } satisfies PersistedEditorUi);
   };
 
@@ -196,6 +210,12 @@ class UiStore {
 
   toggleStraighten = (): void => {
     this.straightening = !this.straightening;
+  };
+
+  cycleCropGrid = (): void => {
+    const at = CROP_GRIDS.findIndex((g) => g.id === this.cropGrid);
+    this.cropGrid = CROP_GRIDS[(at + 1) % CROP_GRIDS.length]?.id ?? 'thirds';
+    this.persistEditorUi();
   };
 
   openTab = (tab: EditorTab): void => {

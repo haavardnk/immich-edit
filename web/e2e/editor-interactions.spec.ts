@@ -855,6 +855,26 @@ async function dragCropCorner(page: import('@playwright/test').Page): Promise<vo
   await page.mouse.up();
 }
 
+test('o cycles the crop guide and the choice survives a reload', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.keyboard.press('r');
+  const guide = page.getByTestId('crop-guide');
+  await expect(guide).toHaveAttribute('data-mode', 'thirds');
+  for (const mode of ['golden', 'diagonal', 'grid', 'off']) {
+    await page.keyboard.press('o');
+    await expect(guide).toHaveAttribute('data-mode', mode);
+  }
+  await page.keyboard.press('o');
+  await page.keyboard.press('o');
+  await expect(guide).toHaveAttribute('data-mode', 'golden');
+
+  await page.reload();
+  await page.keyboard.press('r');
+  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
+  await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();
+});
+
 for (const how of ['tool', 'shift'] as const) {
   test(`a line drawn with the straighten ${how} levels the photo`, async ({ page }) => {
     await installMocks(page);

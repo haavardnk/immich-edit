@@ -17,6 +17,58 @@ export function degToRad(deg: number): number {
 }
 
 export const MAX_STRAIGHTEN_DEG = 45;
+export const MIN_CROP = 0.05;
+
+export type CropHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+export interface CropResize {
+  ratio: number | null;
+  fromCentre: boolean;
+  stageAspect: number;
+}
+
+function handleSign(handle: CropHandle, low: 'w' | 'n', high: 'e' | 's'): -1 | 0 | 1 {
+  if (handle.includes(high)) return 1;
+  if (handle.includes(low)) return -1;
+  return 0;
+}
+
+export function resizeCrop(
+  start: CropRect,
+  handle: CropHandle,
+  dx: number,
+  dy: number,
+  { ratio, fromCentre, stageAspect }: CropResize
+): CropRect {
+  const kx = handleSign(handle, 'w', 'e');
+  const ky = handleSign(handle, 'n', 's');
+  const growth = fromCentre ? 2 : 1;
+  let w = Math.max(MIN_CROP, start.w + kx * dx * growth);
+  let h = Math.max(MIN_CROP, start.h + ky * dy * growth);
+  if (ratio !== null) {
+    if (kx === 0) w = (h * ratio) / stageAspect;
+    else if (ky === 0) h = (w * stageAspect) / ratio;
+    else if ((w * stageAspect) / h > ratio) h = (w * stageAspect) / ratio;
+    else w = (h * ratio) / stageAspect;
+  }
+  const anchor = (from: number, size: number, next: number, k: -1 | 0 | 1): number => {
+    if (fromCentre || k === 0) return from + (size - next) / 2;
+    return k === -1 ? from + size - next : from;
+  };
+  return {
+    x: anchor(start.x, start.w, w, kx),
+    y: anchor(start.y, start.h, h, ky),
+    w,
+    h
+  };
+}
+
+export function scaleCropAboutCentre(crop: CropRect, factor: number): CropRect {
+  const scale = Math.max(factor, MIN_CROP / Math.min(crop.w, crop.h));
+  const w = crop.w * scale;
+  const h = crop.h * scale;
+  return { x: crop.x + (crop.w - w) / 2, y: crop.y + (crop.h - h) / 2, w, h };
+}
 
 export function angleFromLine(p0: Point, p1: Point): number {
   const deg = (Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180) / Math.PI;

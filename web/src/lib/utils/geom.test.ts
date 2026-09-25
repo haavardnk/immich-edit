@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   angleFromLine,
+  resizeCrop,
+  scaleCropAboutCentre,
   degToRad,
   rotatedBbox,
   aspectRatioFor,
@@ -27,6 +29,73 @@ describe('angleFromLine', () => {
     ['near vertical, drawn upward', { x: 100 * t, y: -100 }, -10]
   ])('%s', (_name, to, want) => {
     expect(angleFromLine({ x: 0, y: 0 }, to)).toBeCloseTo(want, 6);
+  });
+});
+
+describe('resizeCrop', () => {
+  const start = { x: 0.2, y: 0.2, w: 0.4, h: 0.4 };
+  const free = { ratio: null, fromCentre: false, stageAspect: 1 };
+  it.each([
+    ['se grows from the nw corner', 'se', 0.1, 0.1, free, { x: 0.2, y: 0.2, w: 0.5, h: 0.5 }],
+    ['w keeps the right edge', 'w', -0.1, 0, free, { x: 0.1, y: 0.2, w: 0.5, h: 0.4 }],
+    [
+      'Alt grows both sides about the centre',
+      'e',
+      0.1,
+      0,
+      { ...free, fromCentre: true },
+      { x: 0.1, y: 0.2, w: 0.6, h: 0.4 }
+    ],
+    [
+      'a locked ratio follows the wider pull on a corner',
+      'se',
+      0.2,
+      0,
+      { ...free, ratio: 1 },
+      { x: 0.2, y: 0.2, w: 0.6, h: 0.6 }
+    ],
+    [
+      'a locked ratio on a top edge re-centres the width',
+      'n',
+      0,
+      -0.2,
+      { ...free, ratio: 1 },
+      { x: 0.1, y: 0, w: 0.6, h: 0.6 }
+    ],
+    [
+      'the ratio is in pixels, not stage units',
+      'e',
+      0.2,
+      0,
+      { ...free, ratio: 1, stageAspect: 2 },
+      { x: 0.2, y: 0.2 - 0.4, w: 0.6, h: 1.2 }
+    ]
+  ] as const)('%s', (_name, handle, dx, dy, options, want) => {
+    const got = resizeCrop(start, handle, dx, dy, options);
+    expect(got.x).toBeCloseTo(want.x, 9);
+    expect(got.y).toBeCloseTo(want.y, 9);
+    expect(got.w).toBeCloseTo(want.w, 9);
+    expect(got.h).toBeCloseTo(want.h, 9);
+  });
+
+  it('never shrinks below the minimum crop', () => {
+    const got = resizeCrop(start, 'se', -1, -1, free);
+    expect(got).toEqual({ x: 0.2, y: 0.2, w: 0.05, h: 0.05 });
+  });
+});
+
+describe('scaleCropAboutCentre', () => {
+  it('keeps the centre and the shape', () => {
+    const got = scaleCropAboutCentre({ x: 0.2, y: 0.3, w: 0.4, h: 0.2 }, 1.5);
+    expect(got.x + got.w / 2).toBeCloseTo(0.4, 9);
+    expect(got.y + got.h / 2).toBeCloseTo(0.4, 9);
+    expect(got.w / got.h).toBeCloseTo(2, 9);
+  });
+
+  it('stops at the minimum crop', () => {
+    const got = scaleCropAboutCentre({ x: 0.4, y: 0.4, w: 0.1, h: 0.2 }, 0.01);
+    expect(got.w).toBeCloseTo(0.05, 9);
+    expect(got.h).toBeCloseTo(0.1, 9);
   });
 });
 
