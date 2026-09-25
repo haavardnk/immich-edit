@@ -67,7 +67,11 @@ describe('draggedKind', () => {
   });
 
   it('moves one polygon vertex and leaves the rest alone', () => {
-    const next = draggedKind(polygon, { kind: 'polygon-vertex', index: 1 }, { x: 0.5, y: 0.25 });
+    const next = draggedKind(
+      polygon,
+      { kind: 'polygon-vertex', index: 1, origin: { x: 1, y: 0 } },
+      { x: 0.5, y: 0.25 }
+    );
     expect(next).toEqual({
       kind: 'polygon',
       feather: 0,
@@ -137,7 +141,7 @@ describe('rotated radials', () => {
     [{ x: 0.2, y: 0.5 }, 1, -180],
     [{ x: 0.7, y: 0.7 }, 2, (Math.atan2(0.2, 0.4) * 180) / Math.PI]
   ])('the rotation grip points the x axis at %o on aspect %s', (at, aspect, want) => {
-    const next = draggedKind(ellipse, { kind: 'radial-rotate' }, at, { aspect });
+    const next = draggedKind(ellipse, { kind: 'radial-rotate' }, at, { aspect, shift: false });
     if (next?.kind !== 'radial') throw new Error('not radial');
     expect(next.angle).toBeCloseTo(want, 6);
   });
@@ -148,7 +152,7 @@ describe('rotated radials', () => {
       tilted,
       { kind: 'radial-rotate' },
       { x: 0.9, y: 0.5 },
-      { aspect: 1.5 }
+      { aspect: 1.5, shift: false }
     );
     expect(next).toEqual(ellipse);
   });
@@ -159,7 +163,7 @@ describe('rotated radials', () => {
       tilted,
       { kind: 'radial-rx', sign: 1 },
       { x: 0.5, y: 0.8 },
-      { aspect: 2 }
+      { aspect: 2, shift: false }
     );
     if (next?.kind !== 'radial') throw new Error('not radial');
     expect(next.radius_xy.x).toBeCloseTo(0.15, 6);
@@ -170,5 +174,56 @@ describe('rotated radials', () => {
     const axes = radialAxes({ ...ellipse, angle: 30 }, 1.5);
     expect(axes.x.x * 1.5 * axes.y.x * 1.5 + axes.x.y * axes.y.y).toBeCloseTo(0, 9);
     expect(Math.hypot(axes.x.x * 1.5, axes.x.y)).toBeCloseTo(0.2 * 1.5, 9);
+  });
+});
+
+describe('Shift while dragging a mask handle', () => {
+  const shift = (aspect: number) => ({ aspect, shift: true });
+
+  it.each([
+    [{ kind: 'radial-rx', sign: 1 } as const, { x: 0.8, y: 0.5 }, { x: 0.3, y: 0.45 }],
+    [{ kind: 'radial-ry', sign: 1 } as const, { x: 0.5, y: 0.8 }, { x: 0.2, y: 0.3 }]
+  ])('%o keeps the radial round in pixels', (drag, at, radius) => {
+    const next = draggedKind(radial, drag, at, shift(1.5));
+    if (next?.kind !== 'radial') throw new Error('not radial');
+    expect(next.radius_xy.x).toBeCloseTo(radius.x, 9);
+    expect(next.radius_xy.y).toBeCloseTo(radius.y, 9);
+  });
+
+  it.each([
+    [
+      { x: 1, y: 0.1 },
+      { x: Math.hypot(1, 0.1), y: 0 }
+    ],
+    [
+      { x: 0.3, y: 0.28 },
+      { x: Math.hypot(0.3, 0.28) / Math.SQRT2, y: Math.hypot(0.3, 0.28) / Math.SQRT2 }
+    ]
+  ])('snaps a linear end dragged to %o onto the nearest 45° step', (at, want) => {
+    const next = draggedKind(linear, { kind: 'linear-p1' }, at, shift(1));
+    if (next?.kind !== 'linear') throw new Error('not linear');
+    expect(next.p1.x).toBeCloseTo(want.x, 9);
+    expect(next.p1.y).toBeCloseTo(want.y, 9);
+    expect(next.p0).toEqual(linear.p0);
+  });
+
+  it.each([
+    [
+      { x: 0.7, y: 0.05 },
+      { x: 0.7, y: 0 }
+    ],
+    [
+      { x: 0.95, y: 0.3 },
+      { x: 1, y: 0.3 }
+    ]
+  ])('locks a polygon corner dragged to %o to its larger axis', (at, want) => {
+    const next = draggedKind(
+      polygon,
+      { kind: 'polygon-vertex', index: 1, origin: { x: 1, y: 0 } },
+      at,
+      shift(1)
+    );
+    if (next?.kind !== 'polygon') throw new Error('not polygon');
+    expect(next.points[1]).toEqual(want);
   });
 });

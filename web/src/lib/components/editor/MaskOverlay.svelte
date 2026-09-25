@@ -115,7 +115,7 @@
     if (!comp) return;
     const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const n = fromPx(e.clientX - r.left, e.clientY - r.top);
-    const next = draggedKind(comp.kind, current.kind, n, { aspect });
+    const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: e.shiftKey });
     if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
   }
 
