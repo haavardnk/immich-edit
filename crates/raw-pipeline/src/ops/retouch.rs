@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::blur::{gaussian_blur_rgb, gaussian_kernel};
+use super::blur::{gaussian_blur, gaussian_kernel};
 use super::sample::sample_rgb_bicubic;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
@@ -234,8 +234,8 @@ fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
                 out.copy_from_slice(&image.rgb[src_row..src_row + pw * 3]);
             });
         let kernel = gaussian_kernel(geom.sigma);
-        let bd = gaussian_blur_rgb(&dst_patch, pw, ph, &kernel);
-        let bs = gaussian_blur_rgb(&src_patch, pw, ph, &kernel);
+        let bd = gaussian_blur::<3>(&dst_patch, pw, ph, &kernel);
+        let bs = gaussian_blur::<3>(&src_patch, pw, ph, &kernel);
         (Some(bd), Some(bs))
     } else {
         (None, None)

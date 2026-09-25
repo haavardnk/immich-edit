@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::blur::{gaussian_blur_rgb, gaussian_kernel};
+use super::blur::{gaussian_blur, gaussian_kernel};
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
@@ -83,7 +83,7 @@ fn apply_sharpen(
         return;
     }
     let kernel = gaussian_kernel(sigma);
-    let blur = gaussian_blur_rgb(&image.rgb, w, h, &kernel);
+    let blur = gaussian_blur::<3>(&image.rgb, w, h, &kernel);
     let mask = if masking > 0.0 || matches!(preview, crate::frame::PreviewMode::SharpenMask) {
         Some(edge_mask(&blur, w, h, masking))
     } else {
