@@ -8,7 +8,7 @@
   import { createVirtualCopy } from '$lib/copies';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
-  import { ensureRejectTag, setRejectedTags } from '$lib/reject';
+  import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
   import {
     LABEL_NAMES,
     labelOf,
@@ -19,6 +19,10 @@
   } from '$lib/labels';
   import { assignLabel } from '$lib/stores/labels.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
+  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import RejectButton from '$lib/components/RejectButton.svelte';
+  import StarRating from '$lib/components/StarRating.svelte';
+  import { commonValue, coverage } from '$lib/utils/selectionState';
   import { toasts } from '$lib/stores/toasts.svelte';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
@@ -34,14 +38,8 @@
   import { MAX_PANES } from '$lib/stores/compare.svelte';
   import {
     mdiClose,
-    mdiCloseCircle,
-    mdiCloseCircleOutline,
     mdiCompare,
     mdiContentDuplicate,
-    mdiHeart,
-    mdiHeartOutline,
-    mdiStar,
-    mdiStarOutline,
     mdiSelectAll,
     mdiTagOutline,
     mdiTuneVariant,
@@ -82,11 +80,14 @@
   let targetCount = $derived(selectingAll ? assets.length : count);
   let canCompare = $derived(!selectingAll && count === 2);
   let canSurvey = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
-  let commonLabel = $derived.by(() => {
-    const picked = new Set(selectedIds);
-    const labels = assets.filter((a) => picked.has(a.id)).map((a) => labelOf(a));
-    return labels.length > 0 && labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
+  let picked = $derived.by(() => {
+    const ids = new Set(selectedIds);
+    return assets.filter((a) => ids.has(a.id));
   });
+  let favoriteState = $derived(coverage(picked, count, (a) => a.isFavorite));
+  let rejectState = $derived(coverage(picked, count, (a) => isRejected(a)));
+  let commonRating = $derived(commonValue(picked, count, (a) => a.exifInfo?.rating ?? 0));
+  let commonLabel = $derived(commonValue(picked, count, (a) => labelOf(a)));
   let showSelectAll = $derived.by(() => {
     if (hasMore) return true;
     const picked = new Set(selectedIds);
@@ -307,73 +308,26 @@
         </div>
 
         <div class="ms-2 flex shrink-0 items-center gap-1">
-          <IconButton
+          <FavoriteButton
             size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiHeart}
-            title={hint('Favorite', 'favorite')}
-            aria-label="Favorite"
+            isFavorite={favoriteState === 'all'}
+            mixed={favoriteState === 'some'}
             disabled={metaBusy}
-            onclick={() => setFavorite(true)}
+            ontoggle={() => setFavorite(favoriteState !== 'all')}
           />
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiHeartOutline}
-            title={hint('Unfavorite', 'favorite')}
-            aria-label="Unfavorite"
+          <StarRating
+            size={20}
+            rating={commonRating ?? 0}
+            mixed={commonRating === null}
             disabled={metaBusy}
-            onclick={() => setFavorite(false)}
+            onchange={(rating) => setRating(rating ?? 0)}
           />
-        </div>
-
-        <div class="ms-2 flex shrink-0 items-center gap-0.5" role="group" aria-label="Set rating">
-          {#each [1, 2, 3, 4, 5] as n (n)}
-            <IconButton
-              size="medium"
-              variant="ghost"
-              color="secondary"
-              icon={mdiStar}
-              title={hint(`Rate ${n}`, 'rate')}
-              aria-label={`Rate ${n}`}
-              disabled={metaBusy}
-              onclick={() => setRating(n)}
-            />
-          {/each}
-          <IconButton
+          <RejectButton
             size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiStarOutline}
-            title="Clear rating"
-            aria-label="Clear rating"
+            isRejected={rejectState === 'all'}
+            mixed={rejectState === 'some'}
             disabled={metaBusy}
-            onclick={() => setRating(0)}
-          />
-        </div>
-
-        <div class="ms-2 flex shrink-0 items-center gap-1">
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiCloseCircle}
-            title={hint('Reject', 'reject')}
-            aria-label="Reject"
-            disabled={metaBusy}
-            onclick={() => void applyReject(true)}
-          />
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiCloseCircleOutline}
-            title={hint('Unreject', 'reject')}
-            aria-label="Unreject"
-            disabled={metaBusy}
-            onclick={() => void applyReject(false)}
+            ontoggle={() => void applyReject(rejectState !== 'all')}
           />
           <LabelPicker
             size="medium"

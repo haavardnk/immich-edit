@@ -833,11 +833,13 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();
 
   await page.getByRole('button', { name: 'Select', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Favorite', exact: true }).hover();
+  await page.getByRole('button', { name: /^Favorite \(/ }).hover();
   await expect(page.getByText('Favorite (P / F)')).toBeVisible();
-  await page.getByRole('button', { name: 'Rate 3', exact: true }).hover();
-  await expect(page.getByText('Rate 3 (0 – 5)')).toBeVisible();
-  await page.getByRole('button', { name: 'Reject', exact: true }).hover();
+  await expect(page.getByRole('radio', { name: '3 stars', exact: true })).toHaveAttribute(
+    'title',
+    '3 stars (0 – 5)'
+  );
+  await page.getByRole('button', { name: /^Reject \(/ }).hover();
   await expect(page.getByText('Reject (X)')).toBeVisible();
   await page.getByRole('button', { name: 'Clear selection' }).click();
 

@@ -5,24 +5,28 @@
 
   interface Props {
     isFavorite: boolean;
+    mixed?: boolean;
+    size?: 'tiny' | 'small' | 'medium';
+    disabled?: boolean;
     ontoggle: () => void;
   }
 
-  let { isFavorite, ontoggle }: Props = $props();
+  let { isFavorite, mixed = false, size = 'tiny', disabled = false, ontoggle }: Props = $props();
 
   const label = $derived(
-    isFavorite ? hint('Unfavorite', 'favorite') : hint('Favorite', 'favorite')
+    isFavorite && !mixed ? hint('Unfavorite', 'favorite') : hint('Favorite', 'favorite')
   );
 </script>
 
 <IconButton
-  size="tiny"
+  {size}
   variant="ghost"
   color="secondary"
-  class={isFavorite ? 'text-red-400' : ''}
-  icon={isFavorite ? mdiHeart : mdiHeartOutline}
+  class={mixed ? 'text-red-400/50' : isFavorite ? 'text-red-400' : ''}
+  icon={isFavorite || mixed ? mdiHeart : mdiHeartOutline}
   title={label}
   aria-label={label}
-  aria-pressed={isFavorite}
+  aria-pressed={mixed ? 'mixed' : isFavorite}
+  {disabled}
   onclick={ontoggle}
 />

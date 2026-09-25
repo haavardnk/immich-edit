@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hint } from '$lib/keybinds';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import { Icon } from '@immich/ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';
@@ -7,9 +8,11 @@
     rating: number;
     onchange: (rating: number | null) => void;
     size?: number;
+    mixed?: boolean;
+    disabled?: boolean;
   }
 
-  let { rating, onchange, size = 15 }: Props = $props();
+  let { rating, onchange, size = 15, mixed = false, disabled = false }: Props = $props();
 
   let hover = $state<number>(0);
 
@@ -44,26 +47,28 @@
 
 <div
   role="radiogroup"
-  aria-label="Rating"
-  tabindex="0"
+  aria-label={mixed ? 'Rating, mixed' : 'Rating'}
+  tabindex={disabled ? -1 : 0}
   class="flex items-center px-1 rounded focus:outline-none focus:ring-1 focus:ring-white/20"
-  oncontextmenu={onGroupContext}
-  onkeydown={onGroupKey}
+  oncontextmenu={disabled ? undefined : onGroupContext}
+  onkeydown={disabled ? undefined : onGroupKey}
   onmouseleave={() => (hover = 0)}
 >
   {#each [1, 2, 3, 4, 5] as n (n)}
     {@const active = hover > 0 ? n <= hover : n <= rating}
     {@const preview = hover > 0 && n <= hover && n > rating}
+    {@const name = `${n} star${n > 1 ? 's' : ''}`}
     <button
       type="button"
       role="radio"
       aria-checked={n === rating}
       tabindex="-1"
-      class="p-0.5 leading-none transition-colors {active
+      class="p-0.5 leading-none transition-colors disabled:opacity-40 {active
         ? 'text-dark'
         : 'text-dark/45 hover:text-dark/65'} {preview ? 'opacity-70' : ''}"
-      aria-label={`${n} star${n > 1 ? 's' : ''}`}
-      title={`${n} star${n > 1 ? 's' : ''}`}
+      aria-label={name}
+      title={hint(n === rating ? 'Clear rating' : name, 'rate')}
+      {disabled}
       onmouseenter={() => (hover = n)}
       onclick={(e) => onStarClick(n, e)}
     >

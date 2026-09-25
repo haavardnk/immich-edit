@@ -107,8 +107,11 @@ and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 
 ## Act on a selection
 
-With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a rating,
-**Clear rating**, **Reject**, **Unreject**, **Tags**, **Create virtual copy**, and
+With photos selected, the selection bar shows one heart, one star row, one reject button and the
+color label. Each shows what the selection already is: filled when every photo has it, faded when
+only some do. A click sets every photo the same way, so **Favorite** on a mixed selection favorites
+all of them instead of flipping each one, and a star sets that rating on all. Click the lit star
+again to clear the rating. The bar also has **Tags**, **Create virtual copy**, and
 **Edit and export selected**. The last one pastes edits, applies a preset or exports every selected
 photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
 focus from the grid into the selection bar.
