@@ -307,6 +307,9 @@
       case 'gridSize':
         e.preventDefault();
         return browseView.stepGridSize(e.key === '-' || e.key === '_' ? -1 : 1);
+      case 'gridTileInfo':
+        e.preventDefault();
+        return browseView.cycleTileInfo();
       case 'favorite':
         e.preventDefault();
         return applyFavorite();
@@ -418,6 +421,7 @@
     >
       <AssetTile
         asset={item.asset}
+        info={browseView.tileInfo}
         active={item.asset.id === browseView.activeId}
         selected={selectingAll || selection.has(item.asset.id)}
         rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}

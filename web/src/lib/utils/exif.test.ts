@@ -6,6 +6,7 @@ import {
   fmtDim,
   fmtSize,
   fmtDate,
+  fmtDay,
   fmtCamera,
   exifDetailRows
 } from './exif';
@@ -75,6 +76,16 @@ describe('fmtDate', () => {
   it('returns the input for an invalid date', () => {
     expect(fmtDate('garbage')).toBe('garbage');
     expect(fmtDate(null)).toBeNull();
+  });
+});
+
+describe('fmtDay', () => {
+  it('formats the calendar day and drops unreadable dates', () => {
+    expect(fmtDay('2024-01-02T03:04:05Z')).toBe(
+      new Date('2024-01-02T03:04:05Z').toLocaleDateString()
+    );
+    expect(fmtDay('garbage')).toBeNull();
+    expect(fmtDay(null)).toBeNull();
   });
 });
 

@@ -33,19 +33,20 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Grid
 
-| Keys                  | Action                      | Available in |
-| --------------------- | --------------------------- | ------------ |
-| `←` / `→` / `↑` / `↓` | Move the active photo       | Grid         |
-| `Home` / `End`        | First / last photo          | Grid         |
-| `PgUp` / `PgDn`       | Jump a page                 | Grid         |
-| `-` / `_` / `=` / `+` | Thumbnail size              | Grid         |
-| `Ctrl+A`              | Load and select every photo | Grid         |
-| `Esc`                 | Clear the selection         | Grid         |
-| `Shift+B`             | Focus the selection actions | Grid         |
-| `E` / `Space`         | Open the loupe              | Grid         |
-| `D` / `Enter`         | Open the editor             | Grid, Loupe  |
-| `C`                   | Compare the selected photos | Grid, Loupe  |
-| `N`                   | Survey the selected photos  | Grid, Loupe  |
+| Keys                  | Action                                                  | Available in |
+| --------------------- | ------------------------------------------------------- | ------------ |
+| `←` / `→` / `↑` / `↓` | Move the active photo                                   | Grid         |
+| `Home` / `End`        | First / last photo                                      | Grid         |
+| `PgUp` / `PgDn`       | Jump a page                                             | Grid         |
+| `-` / `_` / `=` / `+` | Thumbnail size                                          | Grid         |
+| `Shift+I`             | Cycle thumbnail info: hover only, badges, name and date | Grid         |
+| `Ctrl+A`              | Load and select every photo                             | Grid         |
+| `Esc`                 | Clear the selection                                     | Grid         |
+| `Shift+B`             | Focus the selection actions                             | Grid         |
+| `E` / `Space`         | Open the loupe                                          | Grid         |
+| `D` / `Enter`         | Open the editor                                         | Grid, Loupe  |
+| `C`                   | Compare the selected photos                             | Grid, Loupe  |
+| `N`                   | Survey the selected photos                              | Grid, Loupe  |
 
 ## Loupe
 

@@ -3,7 +3,7 @@
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { browseControls, type Visibility } from '$lib/stores/browseControls.svelte';
-  import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
+  import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { mergeProps } from '$lib/utils/mergeProps';
   import { hint } from '$lib/keybinds';
   import {
@@ -13,7 +13,13 @@
     type FilterKey
   } from '$lib/browseFilterChips';
   import { Button, Field, IconButton, Select } from '@immich/ui';
-  import { mdiSortAscending, mdiSortDescending, mdiFilterOutline, mdiClose } from '@mdi/js';
+  import {
+    mdiSortAscending,
+    mdiSortDescending,
+    mdiFilterOutline,
+    mdiClose,
+    mdiTextBoxOutline
+  } from '@mdi/js';
 
   let {
     title,
@@ -101,6 +107,12 @@
     { value: 'lg', label: 'L' },
     { value: 'xl', label: 'XL' }
   ];
+
+  const TILE_INFO_LABELS: Record<TileInfo, string> = {
+    none: 'hover only',
+    badges: 'badges',
+    full: 'name and date'
+  };
 </script>
 
 <header
@@ -132,6 +144,15 @@
           {opt.label}
         </Button>
       {/each}
+      <IconButton
+        size="small"
+        variant="ghost"
+        color={browseView.tileInfo === 'full' ? 'primary' : 'secondary'}
+        icon={mdiTextBoxOutline}
+        title={hint(`Thumbnail info: ${TILE_INFO_LABELS[browseView.tileInfo]}`, 'gridTileInfo')}
+        aria-label={`Thumbnail info: ${TILE_INFO_LABELS[browseView.tileInfo]}`}
+        onclick={() => browseView.cycleTileInfo()}
+      />
     </div>
 
     <div class="mx-1 h-4 w-px bg-hairline"></div>
