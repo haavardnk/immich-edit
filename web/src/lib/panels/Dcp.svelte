@@ -2,28 +2,27 @@
   import DcpPicker from './dcp/DcpPicker.svelte';
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import FileImportButton from '$lib/components/FileImportButton.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
   } from '$lib/components/editor/controls/segmentedControl';
-  import { mdiChevronDown, mdiClose, mdiTuneVariant, mdiUpload } from '@mdi/js';
+  import { mdiChevronDown, mdiClose, mdiTuneVariant } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listDcps, matchDcp, importDcp, deleteDcp, type DcpMeta } from '$lib/api/dcp';
   import { ApiError } from '$lib/api/client';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { DcpIlluminant, DcpMode } from '$lib/types/edits';
-  import { Button, Icon, IconButton } from '@immich/ui';
+  import { Icon, IconButton } from '@immich/ui';
   import { Collapsible, RadioGroup } from 'bits-ui';
 
   let dcps = $state<DcpMeta[]>([]);
   let loaded = $state(false);
-  let importing = $state(false);
   let optionsOpen = $state(false);
   let pendingDelete = $state(false);
   let autoMatch = $state<DcpMeta | null>(null);
-  let fileInput: HTMLInputElement | null = $state(null);
 
   const dcp = $derived(editor.edits.color.dcp);
   const selectedId = $derived(dcp.mode === 'profile' ? dcp.profile_id : null);
@@ -98,18 +97,9 @@
     void editor.onCommit(label);
   }
 
-  function triggerImport(): void {
-    fileInput?.click();
-  }
-
-  async function onFile(e: Event): Promise<void> {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
+  async function importFile(file: File): Promise<void> {
     const name = file.name.replace(/\.[^.]+$/, '');
     const bytes = new Uint8Array(await file.arrayBuffer());
-    importing = true;
     try {
       const meta = await importDcp(name, bytes);
       await load();
@@ -133,8 +123,6 @@
       } else {
         toasts.push('error', 'Profile import failed.');
       }
-    } finally {
-      importing = false;
     }
   }
 
@@ -151,14 +139,6 @@
 </script>
 
 <div class="flex flex-col gap-1 pb-1">
-  <input
-    bind:this={fileInput}
-    type="file"
-    accept=".dcp"
-    class="hidden"
-    onchange={(e) => void onFile(e)}
-  />
-
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
       <DcpPicker
@@ -181,19 +161,7 @@
   </div>
 
   {#if session.isAdmin}
-    <Button
-      type="button"
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      fullWidth
-      class="panel-action h-7"
-      leadingIcon={mdiUpload}
-      disabled={importing}
-      onclick={triggerImport}
-    >
-      {importing ? 'Importing…' : 'Import .dcp profile'}
-    </Button>
+    <FileImportButton accept=".dcp" label="Import .dcp profile" fullWidth onfile={importFile} />
   {/if}
 
   {#if missingSelected}
