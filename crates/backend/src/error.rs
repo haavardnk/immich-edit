@@ -228,6 +228,11 @@ internal_from!(crate::services::job_store::JobStoreError, "job store");
 internal_from!(std::io::Error, "io");
 store_from!(crate::services::dcp_store::DcpStoreError, "dcp", dup);
 store_from!(crate::services::lut_store::LutStoreError, "lut", dup);
+store_from!(
+    crate::services::watermark_store::WatermarkStoreError,
+    "watermark",
+    dup
+);
 store_from!(crate::services::model_store::ModelStoreError, "model store");
 store_from!(
     crate::services::raster_store::RasterStoreError,

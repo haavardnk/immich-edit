@@ -236,6 +236,15 @@ pub fn router(state: AppState) -> Router {
                 .route("/dcp/match", get(routes::dcp::match_camera))
                 .route("/dcp/{id}", axum::routing::delete(routes::dcp::delete))
                 .route("/dcp/{id}/raw", get(routes::dcp::raw))
+                .route(
+                    "/watermarks",
+                    get(routes::watermarks::list).post(routes::watermarks::import),
+                )
+                .route(
+                    "/watermarks/{id}",
+                    axum::routing::delete(routes::watermarks::delete),
+                )
+                .route("/watermarks/{id}/png", get(routes::watermarks::png))
                 .layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
         )
         .layer(TimeoutLayer::with_status_code(

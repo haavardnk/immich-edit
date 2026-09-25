@@ -170,6 +170,7 @@ export interface InstallOpts {
   onPresetCreate?: (body: Record<string, unknown>) => void;
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
+  watermarks?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -199,6 +200,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   }
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
+  const watermarks = [...(opts.watermarks ?? [])];
   const copies: CopyRecord[] = [];
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
@@ -335,6 +337,27 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(presets));
     }
     if (p === '/api/luts') return route.fulfill(json([]));
+    if (p === '/api/watermarks') {
+      if (method === 'POST') {
+        const created = {
+          id: `wm-${watermarks.length + 1}`,
+          name: url.searchParams.get('name') ?? '',
+          width: 64,
+          height: 32,
+          size: req.postDataBuffer()?.length ?? 0,
+          created_at: '2024-01-01T00:00:00Z'
+        };
+        watermarks.unshift(created);
+        return route.fulfill({ ...json(created), status: 201 });
+      }
+      return route.fulfill(json(watermarks));
+    }
+    const watermarkMatch = p.match(/^\/api\/watermarks\/([^/]+)$/);
+    if (watermarkMatch && method === 'DELETE') {
+      const idx = watermarks.findIndex((w) => w.id === watermarkMatch[1]);
+      if (idx >= 0) watermarks.splice(idx, 1);
+      return route.fulfill({ status: 204, body: '' });
+    }
     if (p === '/api/dcp') return route.fulfill(json([]));
     if (p === '/api/jobs') return route.fulfill(json([]));
 

@@ -26,6 +26,7 @@ use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::segment::SegmentService;
+use immich_edit_backend::services::watermark_store::WatermarkStore;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -83,6 +84,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
     let auth = AuthStore::new(edits.pool(), crypto.clone());
     let login_limiter = Arc::new(LoginLimiter::new());
     let luts = LutStore::new(edits.pool(), &cache_dir).unwrap();
+    let watermarks = WatermarkStore::new(edits.pool(), &cache_dir).unwrap();
     let dcp = DcpStore::new(edits.pool(), &cache_dir).unwrap();
     let jobs = JobStore::new(edits.pool(), crypto.clone());
     #[cfg(feature = "ml")]
@@ -121,6 +123,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         preview_scopes: PreviewScopeStore::new(),
         rasters,
         luts,
+        watermarks,
         dcp,
         #[cfg(feature = "ml")]
         models,

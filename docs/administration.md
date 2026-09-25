@@ -61,16 +61,19 @@ license before commercial use. Select an installed default when a kind has more 
 skips WebGPU, and `off` disables AI masks. On arm64 Linux, inference is CPU-only because the ONNX
 Runtime distribution has no WebGPU provider for that target.
 
-## LUTs and camera profiles
+## LUTs, camera profiles, and watermarks
 
-Imported 3D LUTs and DCP camera profiles are shared by every user, so only an administrator can
-import or remove them. Both happen in the editor, not in Settings:
+Imported 3D LUTs, DCP camera profiles, and export watermarks are shared by every user, so only an
+administrator can import or remove them. This happens where they are used, not in Settings:
 
 - **Develop** > **LUT**: **Import .cube LUT**, and **Delete LUT** for the selected one.
 - **Develop** > **Camera Profile**: **Import .dcp profile**, and **Delete imported profile** for the
   selected one. Bundled profiles cannot be deleted.
+- **Export** > **Watermark**: **Import PNG watermark**, and **Delete watermark** for the selected
+  one.
 
-All users can browse and apply them. The files live under `DATA_DIR/luts` and `DATA_DIR/dcp`.
+All users can browse and apply them. The files live under `DATA_DIR/luts`, `DATA_DIR/dcp`, and
+`DATA_DIR/watermarks`.
 
 ## Diagnostics
 

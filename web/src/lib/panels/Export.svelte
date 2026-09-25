@@ -12,6 +12,7 @@
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
   import SharpenOptions from './export/SharpenOptions.svelte';
+  import WatermarkOptions from './export/WatermarkOptions.svelte';
   import { resizedSize } from './export/resize';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
@@ -74,6 +75,7 @@
   <FormatOptions bind:form={exportSettings.form} {outputSize} />
   <ResizeOptions bind:form={exportSettings.form} {crop} />
   <SharpenOptions bind:form={exportSettings.form} />
+  <WatermarkOptions bind:form={exportSettings.form} />
 
   {#if proofMismatch}
     <Notice

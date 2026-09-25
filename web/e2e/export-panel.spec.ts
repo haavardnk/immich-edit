@@ -223,6 +223,72 @@ test('every export option label fits on one line', async ({ page }) => {
   expect(lines.filter(([, count]) => count > 1)).toEqual([]);
 });
 
+test('a download carries the chosen watermark', async ({ page }) => {
+  const sent: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    watermarks: [
+      {
+        id: 'wm-signature',
+        name: 'Signature',
+        width: 64,
+        height: 32,
+        size: 10,
+        created_at: '2024-01-01T00:00:00Z'
+      }
+    ],
+    onExport: (route) => {
+      const request = route.request();
+      const query = Object.fromEntries(new URL(request.url()).searchParams);
+      sent.push(
+        request.method() === 'POST' ? (request.postDataJSON() as Record<string, unknown>) : query
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"' },
+        body: JPEG_BLOB
+      });
+    }
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  const exportButton = page.getByRole('button', { name: /Export JPEG/ });
+  const picker = page.getByRole('button', { name: 'Watermark', exact: true });
+
+  await picker.click();
+  await page.getByRole('option', { name: 'Signature' }).click();
+  await page.getByRole('slider', { name: 'Watermark opacity' }).fill('50');
+  const topLeft = page.getByRole('button', { name: 'Top left' });
+  await topLeft.click();
+  await expect(topLeft).toHaveAttribute('aria-pressed', 'true');
+  const first = page.waitForEvent('download');
+  await exportButton.click();
+  await first;
+  expect(
+    [
+      'watermark_id',
+      'watermark_size',
+      'watermark_opacity',
+      'watermark_anchor',
+      'watermark_inset'
+    ].map((key) => String(sent[0]?.[key]))
+  ).toEqual(['wm-signature', '0.2', '0.5', 'top_left', '0.03']);
+
+  await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
+    name: 'logo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+  });
+  await expect(picker).toContainText('logo');
+  await page.getByRole('button', { name: 'Delete watermark', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm delete watermark' }).click();
+  await expect(page.getByRole('slider', { name: 'Watermark size' })).toBeHidden();
+  const second = page.waitForEvent('download');
+  await exportButton.click();
+  await second;
+  expect(sent[1]).not.toHaveProperty('watermark_id');
+});
+
 test('export warns when it will not match the soft proof', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

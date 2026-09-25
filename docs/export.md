@@ -33,9 +33,9 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
 | **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out |
 
-Exports cannot be watermarked yet; [features](features.md#export-color-and-interoperability) lists
-what is and is not supported. [Compatibility](compatibility.md#image-input-and-export) lists the
-bit depths each format supports.
+[Features](features.md#export-color-and-interoperability) lists what is and is not supported.
+[Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
+supports.
 
 ## Resize
 
@@ -78,6 +78,30 @@ smaller printed pixels. Sharpening works on brightness only, so it does not add 
 and it never pushes a pixel past its neighbors, so edges do not get bright or dark halos. The
 Detail panel's Sharpen is still the place to sharpen the photo itself; output sharpening is for
 the output.
+
+## Watermark
+
+**Watermark** stamps a PNG from the shared watermark library onto the export, such as a logo, a
+signature or a copyright line saved with a transparent background. It goes on last, after the
+resize and output sharpening, so it is never resampled with the photo or sharpened. It never
+touches the editor preview or the saved edit.
+
+| Control | What it does |
+| --- | --- |
+| **Watermark** | **None** (the default) or a PNG from the library |
+| **Size** | The watermark's longer side as a share of the photo's shorter side, 1 to 100% (20% by default) |
+| **Opacity** | 1 to 100% (80% by default), on top of the PNG's own transparency |
+| **Inset** | Distance from the nearest edges as a share of the photo's shorter side, 0 to 50% (3% by default) |
+| **Position** | One of nine spots: a corner, the middle of an edge, or the center |
+
+Size and inset follow the photo's shorter side, so the watermark keeps its proportion in portrait
+and landscape photos and at every export size. Watermark PNGs are treated as sRGB, and a
+Display P3 export converts them so their colors still match.
+
+The library is shared by every user. Only an administrator can add or remove watermarks, with
+**Import PNG watermark** under the picker and **Delete watermark** beside it. A PNG may be up to
+16 MB and 4096 pixels on its longest side. Deleting a watermark removes it from the picker;
+exports already queued with it still finish.
 
 ## Name the file
 

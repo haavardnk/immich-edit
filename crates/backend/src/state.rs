@@ -25,6 +25,7 @@ use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
 #[cfg(feature = "ml")]
 use crate::services::segment::SegmentService;
+use crate::services::watermark_store::WatermarkStore;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -43,6 +44,7 @@ pub struct AppState {
     pub edited_thumb: EditedThumbService,
     pub rasters: RasterStore,
     pub luts: LutStore,
+    pub watermarks: WatermarkStore,
     pub dcp: DcpStore,
     #[cfg(feature = "ml")]
     pub models: ModelStore,
@@ -92,6 +94,8 @@ impl AppState {
             .map_err(|e| anyhow::anyhow!("raster store: {e}"))?;
         let luts = LutStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("lut store: {e}"))?;
+        let watermarks = WatermarkStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
+            .map_err(|e| anyhow::anyhow!("watermark store: {e}"))?;
         let dcp = DcpStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
             .map_err(|e| anyhow::anyhow!("dcp store: {e}"))?;
         let dcp_dir = std::env::var("DCP_DIR").unwrap_or_else(|_| "./assets/dcp".into());
@@ -149,6 +153,7 @@ impl AppState {
             edited_thumb,
             rasters,
             luts,
+            watermarks,
             dcp,
             #[cfg(feature = "ml")]
             models,

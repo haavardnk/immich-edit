@@ -19,6 +19,13 @@ import {
   type SharpenAmount,
   type SharpenMedia
 } from './sharpen';
+import {
+  WATERMARK_ANCHORS,
+  WATERMARK_PERCENT,
+  pickPercent,
+  type ExportWatermark,
+  type WatermarkAnchor
+} from './watermark';
 import type {
   BitDepthOpt,
   ColorSpaceOpt,
@@ -56,6 +63,11 @@ export interface ExportForm {
   sharpenMedia: SharpenMedia | 'none';
   sharpenAmount: SharpenAmount;
   sharpenPpi: number;
+  watermarkId: string | null;
+  watermarkSize: number;
+  watermarkOpacity: number;
+  watermarkAnchor: WatermarkAnchor;
+  watermarkInset: number;
 }
 
 interface Option<T extends string> {
@@ -174,7 +186,12 @@ export function defaultExportForm(): ExportForm {
     resizeEnlarge: false,
     sharpenMedia: 'none',
     sharpenAmount: 'standard',
-    sharpenPpi: SHARPEN_PPI.default
+    sharpenPpi: SHARPEN_PPI.default,
+    watermarkId: null,
+    watermarkSize: WATERMARK_PERCENT.size.default,
+    watermarkOpacity: WATERMARK_PERCENT.opacity.default,
+    watermarkAnchor: 'bottom_right',
+    watermarkInset: WATERMARK_PERCENT.inset.default
   };
 }
 
@@ -214,7 +231,16 @@ export function restoreExportForm(
     sharpenPpi:
       typeof sharpenPpi === 'number' && Number.isInteger(sharpenPpi) && sharpenPpi > 0
         ? sharpenPpi
-        : form.sharpenPpi
+        : form.sharpenPpi,
+    watermarkId: typeof stored.watermarkId === 'string' ? stored.watermarkId : null,
+    watermarkSize: pickPercent(stored.watermarkSize, WATERMARK_PERCENT.size, form.watermarkSize),
+    watermarkOpacity: pickPercent(
+      stored.watermarkOpacity,
+      WATERMARK_PERCENT.opacity,
+      form.watermarkOpacity
+    ),
+    watermarkAnchor: pickOption(stored.watermarkAnchor, WATERMARK_ANCHORS, form.watermarkAnchor),
+    watermarkInset: pickPercent(stored.watermarkInset, WATERMARK_PERCENT.inset, form.watermarkInset)
   };
 }
 
@@ -241,6 +267,17 @@ export function formSharpen(f: ExportForm): ExportSharpen | null {
   return { media: f.sharpenMedia, amount: f.sharpenAmount, ppi: f.sharpenPpi };
 }
 
+export function formWatermark(f: ExportForm): ExportWatermark | null {
+  if (!f.watermarkId) return null;
+  return {
+    id: f.watermarkId,
+    size: f.watermarkSize,
+    opacity: f.watermarkOpacity,
+    anchor: f.watermarkAnchor,
+    inset: f.watermarkInset
+  };
+}
+
 export function formInvalid(f: ExportForm): boolean {
   return (
     templateError(f.filenameTemplate) !== null ||
@@ -261,7 +298,8 @@ export function baseOptions(f: ExportForm): ExportOptions {
     colorSpace: f.colorSpace,
     filenameTemplate: f.filenameTemplate,
     resize: formResize(f),
-    sharpen: formSharpen(f)
+    sharpen: formSharpen(f),
+    watermark: formWatermark(f)
   };
 }
 

@@ -1,6 +1,7 @@
 import { request, sendJson, url } from '$lib/api/client';
 import type { ExportResize } from '$lib/panels/export/resize';
 import { isPrintMedia, type ExportSharpen } from '$lib/panels/export/sharpen';
+import type { ExportWatermark } from '$lib/panels/export/watermark';
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,6 +24,7 @@ export interface ExportOptions {
   filenameTemplate: string;
   resize: ExportResize | null;
   sharpen: ExportSharpen | null;
+  watermark: ExportWatermark | null;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -78,10 +80,33 @@ function sharpenParams(sharpen: ExportSharpen | null): SharpenParams {
   return params;
 }
 
-export type FinishParams = ResizeParams & SharpenParams;
+export type FinishParams = ResizeParams & SharpenParams & WatermarkParams;
+
+interface WatermarkParams {
+  watermark_id?: string;
+  watermark_size?: number;
+  watermark_opacity?: number;
+  watermark_anchor?: ExportWatermark['anchor'];
+  watermark_inset?: number;
+}
+
+function watermarkParams(watermark: ExportWatermark | null): WatermarkParams {
+  if (!watermark) return {};
+  return {
+    watermark_id: watermark.id,
+    watermark_size: watermark.size / 100,
+    watermark_opacity: watermark.opacity / 100,
+    watermark_anchor: watermark.anchor,
+    watermark_inset: watermark.inset / 100
+  };
+}
 
 export function finishParams(opts: ExportOptions): FinishParams {
-  return { ...resizeParams(opts.resize), ...sharpenParams(opts.sharpen) };
+  return {
+    ...resizeParams(opts.resize),
+    ...sharpenParams(opts.sharpen),
+    ...watermarkParams(opts.watermark)
+  };
 }
 
 function paramsObject(opts: ExportOptions): Record<string, string> {

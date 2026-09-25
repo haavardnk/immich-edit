@@ -26,7 +26,12 @@ describe('restoreExportForm', () => {
       resizeEnlarge: true,
       sharpenMedia: 'matte',
       sharpenAmount: 'high',
-      sharpenPpi: 240
+      sharpenPpi: 240,
+      watermarkId: 'wm',
+      watermarkSize: 35,
+      watermarkOpacity: 50,
+      watermarkAnchor: 'top',
+      watermarkInset: 0
     });
     expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
   });
@@ -68,9 +73,16 @@ describe('restoreExportForm', () => {
       bitDepth: '12',
       includeExif: 'yes',
       albumIds: ['al', 3],
-      stackPrimary: 'both'
+      stackPrimary: 'both',
+      watermarkId: 7,
+      watermarkSize: 250,
+      watermarkOpacity: 'full',
+      watermarkAnchor: 'middle',
+      watermarkInset: -4
     });
-    expect(restored).toEqual(form({ quality: 100, albumIds: ['al'] }));
+    expect(restored).toEqual(
+      form({ quality: 100, albumIds: ['al'], watermarkSize: 100, watermarkInset: 0 })
+    );
   });
 });
 
@@ -122,6 +134,16 @@ describe('baseOptions', () => {
     ]
   ])('turns %o into sharpen %o', (patch, sharpen) => {
     expect(baseOptions(form(patch)).sharpen).toEqual(sharpen);
+  });
+
+  it.each<[Partial<ExportForm>, unknown]>([
+    [{ watermarkId: null, watermarkSize: 40 }, null],
+    [
+      { watermarkId: 'wm', watermarkAnchor: 'left' },
+      { id: 'wm', size: 20, opacity: 80, anchor: 'left', inset: 3 }
+    ]
+  ])('turns %o into watermark %o', (patch, watermark) => {
+    expect(baseOptions(form(patch)).watermark).toEqual(watermark);
   });
 });
 
