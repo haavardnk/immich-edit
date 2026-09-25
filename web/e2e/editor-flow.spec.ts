@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { ASSET_ID, ASSET_SUMMARY, installMocks, numberedAssets } from './helpers';
 
 test('photos → asset → export tab', async ({ page }) => {
@@ -69,6 +69,52 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
     ).toBeVisible();
   }
   expect(pages).toEqual([undefined, 2]);
+});
+
+async function expectActiveTileInView(page: Page, name: string): Promise<void> {
+  const scroller = page.getByRole('main').locator('.overflow-y-auto').first();
+  const tile = page.locator('[role="group"].ring-primary');
+  await expect(tile).toHaveAttribute('title', name);
+  await expect
+    .poll(async () => {
+      const [outer, inner] = await Promise.all([scroller.boundingBox(), tile.boundingBox()]);
+      if (!outer || !inner) return false;
+      return inner.y >= outer.y && inner.y + inner.height <= outer.y + outer.height;
+    })
+    .toBe(true);
+}
+
+test('closing the loupe reveals the photo it ended on', async ({ page }) => {
+  await installMocks(page, { assets: numberedAssets(80) });
+  await page.goto('/photos');
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await page.getByLabel('Quick review').first().click();
+
+  for (let step = 0; step < 59; step += 1) await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('img', { name: 'IMG_0060.ARW' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await expectActiveTileInView(page, 'IMG_0060.ARW');
+});
+
+test('editor back reveals the photo reached with the arrow keys', async ({ page }) => {
+  await installMocks(page, { assets: numberedAssets(80) });
+  await page.goto('/photos');
+  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  await expect(tile).toBeVisible();
+  await tile.evaluate((el) => (el as HTMLAnchorElement).click());
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}\\?`));
+
+  const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
+  for (let step = 2; step <= 60; step += 1) {
+    await page.keyboard.press('ArrowRight');
+    await page.waitForURL(new RegExp(`-0*${step}\\?`));
+  }
+  await expect(toolbar.getByText('IMG_0060.ARW', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /^Back/ }).click();
+  await page.waitForURL('**/photos');
+
+  await expectActiveTileInView(page, 'IMG_0060.ARW');
 });
 
 test('back returns to the grid and selects the photo left open', async ({ page }) => {
