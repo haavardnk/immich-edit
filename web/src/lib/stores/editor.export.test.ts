@@ -17,7 +17,7 @@ import { editor } from './editor.svelte';
 const JPEG: ExportOptions = {
   format: 'jpeg',
   quality: 90,
-  includeExif: true,
+  metadata: 'all',
   bitDepth: '8',
   pngCompression: 'default',
   tiffCompression: 'lzw',

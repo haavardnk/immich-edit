@@ -1075,3 +1075,97 @@ async fn persisted_preview_revalidates_with_etag() {
         panic!("etag unchanged after edit: {next}");
     }
 }
+
+fn jpeg_with_camera_and_gps() -> Vec<u8> {
+    use little_exif::exif_tag::ExifTag;
+    let rgb = vec![128u8; 64 * 48 * 3];
+    let mut jpeg = raw_pipeline::encode::encode_jpeg_rgb(
+        raw_pipeline::encode::ImageRgb8 {
+            rgb: &rgb,
+            width: 64,
+            height: 48,
+        },
+        90,
+        raw_pipeline::frame::JpegSubsampling::Chroma420,
+        raw_pipeline::frame::OutputColorSpace::SRgb,
+    )
+    .unwrap();
+    let mut meta = little_exif::metadata::Metadata::new();
+    meta.set_tag(ExifTag::Make("SONY".into()));
+    meta.set_tag(ExifTag::GPSLatitudeRef("N".into()));
+    meta.set_tag(ExifTag::GPSLatitude(vec![59u32.into(); 3]));
+    raw_pipeline::exif::inject(&mut jpeg, &meta, little_exif::filetype::FileExtension::JPEG)
+        .unwrap();
+    jpeg
+}
+
+#[tokio::test]
+async fn export_metadata_keeps_or_strips_camera_and_location() {
+    use little_exif::exif_tag::ExifTag;
+    use little_exif::ifd::ExifTagGroup;
+    for (label, options, want_make, want_gps) in [
+        ("all", serde_json::json!({ "metadata": "all" }), true, true),
+        (
+            "no-location",
+            serde_json::json!({ "metadata": "no-location" }),
+            true,
+            false,
+        ),
+        (
+            "none",
+            serde_json::json!({ "metadata": "none" }),
+            false,
+            false,
+        ),
+        (
+            "legacy off",
+            serde_json::json!({ "include_exif": false }),
+            false,
+            false,
+        ),
+    ] {
+        let metadata = label;
+        let server = MockServer::start().await;
+        let id = asset_id();
+        Mock::given(method("GET"))
+            .and(path(format!("/api/assets/{id}/original")))
+            .and(header("x-api-key", "test-key"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "image/jpeg")
+                    .set_body_bytes(jpeg_with_camera_and_gps()),
+            )
+            .mount(&server)
+            .await;
+        mock_asset_detail(&server).await;
+        let app = test_app(&server).await;
+        let mut body = options;
+        body["edits"] = serde_json::json!({});
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/assets/{id}/export"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("{metadata}: status {}", resp.status());
+        }
+        let bytes = body_bytes(resp).await;
+        let parsed = raw_pipeline::exif::parse(&bytes);
+        let has_make = parsed.as_ref().is_some_and(|m| {
+            m.into_iter()
+                .any(|t| matches!(t, ExifTag::Make(v) if v == "SONY"))
+        });
+        let has_gps = parsed
+            .as_ref()
+            .is_some_and(|m| m.into_iter().any(|t| t.get_group() == ExifTagGroup::GPS));
+        if has_make != want_make || has_gps != want_gps {
+            panic!("{metadata}: make {has_make}, gps {has_gps}");
+        }
+    }
+}

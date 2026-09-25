@@ -4,7 +4,7 @@ import { dispositionFilename, exportUrlPersisted, type ExportOptions } from './e
 const base: ExportOptions = {
   format: 'jpeg',
   quality: 90,
-  includeExif: true,
+  metadata: 'all',
   bitDepth: '8',
   pngCompression: 'default',
   tiffCompression: 'lzw',

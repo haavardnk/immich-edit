@@ -1827,6 +1827,7 @@ dependencies = [
  "http",
  "http-body-util",
  "lensfun",
+ "little_exif",
  "lru",
  "mimalloc",
  "ml",
