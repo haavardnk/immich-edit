@@ -52,7 +52,9 @@ API key for it.
 AI masks are optional. Install models under **App settings** > **Mask models**.
 
 Installs run one at a time and verify a pinned SHA-256 digest. A failed item shows the reason and a
-**Retry** action. Models are shared by all users and stored under `DATA_DIR/models`.
+**Retry** action. **Cancel download** stops a running or queued install and deletes the partial
+file, so a stalled download no longer holds up the others. Models are shared by all users and stored
+under `DATA_DIR/models`.
 
 The catalog covers subject, people, sky, depth, scene, and click selection. Check each model's
 license before commercial use. Select an installed default when a kind has more than one model.

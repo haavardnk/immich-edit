@@ -24,7 +24,8 @@ const MODEL = {
 async function installSettingsMocks(
   page: Page,
   models: () => Array<typeof MODEL>,
-  onInstall?: () => void
+  onInstall?: () => void,
+  onCancel?: () => void
 ): Promise<void> {
   await page.route('**/api/**', (route) => {
     const p = new URL(route.request().url()).pathname;
@@ -34,6 +35,10 @@ async function installSettingsMocks(
       return route.fulfill(
         json({ runtime: 'cpu', enabled: true, models: models(), active: {}, semantic_classes: [] })
       );
+    if (p.startsWith('/api/admin/models/') && p.endsWith('/install')) {
+      onCancel?.();
+      return route.fulfill({ status: 204 });
+    }
     if (p.startsWith('/api/admin/models/')) {
       onInstall?.();
       return route.fulfill({ status: 202, contentType: 'application/json', body: '{}' });
@@ -86,4 +91,35 @@ test('download button shows install progress and surfaces failures', async ({ pa
   current = { ...MODEL, install_error: 'download server returned 404' };
   await expect(page.getByText('Download failed: download server returned 404')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+});
+
+test('a running download can be cancelled', async ({ page }) => {
+  let current = { ...MODEL };
+  const cancels: string[] = [];
+  await installSettingsMocks(
+    page,
+    () => [current],
+    () => {
+      current = { ...MODEL, installing: true, progress_bytes: 100 };
+    },
+    () => {
+      cancels.push(current.id);
+      current = { ...MODEL };
+    }
+  );
+  await page.goto('/settings');
+  await page.getByRole('button', { name: /app settings/i }).click();
+  await page.getByRole('button', { name: /^Mask models/ }).click();
+  await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
+  await expect(
+    page.getByRole('progressbar', { name: 'SAM 2 Tiny download progress' })
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Cancel download SAM 2 Tiny' }).click();
+
+  await expect(page.getByRole('button', { name: 'Download SAM 2 Tiny' })).toBeEnabled();
+  await expect(
+    page.getByRole('progressbar', { name: 'SAM 2 Tiny download progress' })
+  ).toBeHidden();
+  expect(cancels).toEqual(['sam2_tiny']);
 });

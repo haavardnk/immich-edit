@@ -159,6 +159,16 @@ pub async fn install(
     ))
 }
 
+pub async fn cancel_install(
+    State(state): State<AppState>,
+    _admin: AdminCtx,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    let entry = catalog::find(&id).ok_or(AppError::NotFound)?;
+    state.installs.cancel(entry.id);
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn remove(
     State(state): State<AppState>,
     _admin: AdminCtx,

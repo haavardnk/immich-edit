@@ -60,6 +60,10 @@ fn model_routes() -> Router<AppState> {
             "/admin/models/{id}",
             post(routes::models::install).delete(routes::models::remove),
         )
+        .route(
+            "/admin/models/{id}/install",
+            axum::routing::delete(routes::models::cancel_install),
+        )
 }
 
 #[cfg(not(feature = "ml"))]

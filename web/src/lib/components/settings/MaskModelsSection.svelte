@@ -3,6 +3,7 @@
   import {
     listMaskModels,
     installMaskModel,
+    cancelMaskModelInstall,
     removeMaskModel,
     selectMaskModel,
     type MaskKind,
@@ -12,7 +13,7 @@
   import { kindLabel, installPercent, formatSeconds, formatMb } from '$lib/utils/maskModels';
   import { errorMessage } from '$lib/utils/errors';
   import Notice from '$lib/components/Notice.svelte';
-  import { mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
+  import { mdiClose, mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
   import { Badge, IconButton, LoadingSpinner, ProgressBar, Select, Text } from '@immich/ui';
 
   let models = $state<MaskModelsResponse | null>(null);
@@ -41,11 +42,13 @@
   }
 
   async function toggleModel(m: MaskModel): Promise<void> {
-    if (busyModels.includes(m.id) || m.installing) return;
+    if (busyModels.includes(m.id)) return;
     busyModels = [...busyModels, m.id];
     error = null;
     try {
-      if (m.installed) {
+      if (m.installing) {
+        await cancelMaskModelInstall(m.id);
+      } else if (m.installed) {
         await removeMaskModel(m.id);
       } else {
         await installMaskModel(m.id);
@@ -112,6 +115,13 @@
     </div>
 
     {#snippet modelRow(model: MaskModel)}
+      {@const action = model.installing
+        ? 'Cancel download'
+        : model.installed
+          ? 'Remove'
+          : model.install_error
+            ? 'Retry'
+            : 'Download'}
       <li class="flex min-h-18 items-center gap-3 py-2.5 text-xs">
         <div class="min-w-0 flex-1">
           <div class="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -147,15 +157,21 @@
           size="small"
           variant="ghost"
           color={model.installed ? 'danger' : 'secondary'}
-          icon={model.installed ? mdiDeleteOutline : mdiDownloadOutline}
-          title={model.installed
-            ? 'Remove model'
-            : model.install_error
-              ? 'Retry download'
-              : 'Download model'}
-          aria-label={`${model.installed ? 'Remove' : model.install_error ? 'Retry' : 'Download'} ${model.name}`}
+          icon={model.installing
+            ? mdiClose
+            : model.installed
+              ? mdiDeleteOutline
+              : mdiDownloadOutline}
+          title={model.installing
+            ? 'Cancel download'
+            : model.installed
+              ? 'Remove model'
+              : model.install_error
+                ? 'Retry download'
+                : 'Download model'}
+          aria-label={`${action} ${model.name}`}
           onclick={() => void toggleModel(model)}
-          disabled={busyModels.includes(model.id) || model.installing}
+          disabled={busyModels.includes(model.id)}
         />
       </li>
     {/snippet}
