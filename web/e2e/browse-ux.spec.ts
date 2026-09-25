@@ -1,7 +1,26 @@
 import { expect, test } from '@playwright/test';
-import { installMocks, numberedAssets } from './helpers';
+import { installMocks, json, numberedAssets } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
+
+test('a cold album link opens the albums section at the current album', async ({ page }) => {
+  const album = {
+    id: 'album-1',
+    albumName: 'Review album',
+    assetCount: 1,
+    updatedAt: '2024-01-01T00:00:00Z'
+  };
+  await installMocks(page);
+  await page.route('**/api/albums', (route) => route.fulfill(json([album])));
+  await page.route('**/api/albums/album-1', (route) => route.fulfill(json(album)));
+
+  await page.goto('/albums/album-1');
+
+  const sidebar = page.getByRole('complementary', { name: 'Library' });
+  const link = sidebar.getByRole('link', { name: /Review album/ });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('aria-current', 'page');
+});
 
 test('grid shows total count without loaded progress', async ({ page }) => {
   await installMocks(page, { total: 1000 });

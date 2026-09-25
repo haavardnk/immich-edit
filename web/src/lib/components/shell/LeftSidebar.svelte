@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { page } from '$app/state';
   import { library } from '$lib/stores/library.svelte';
+  import { sidebar, type SidebarSectionId } from '$lib/stores/sidebar.svelte';
   import AlbumList from '$lib/components/library/AlbumList.svelte';
   import PeopleList from '$lib/components/library/PeopleList.svelte';
   import TagList from '$lib/components/library/TagList.svelte';
@@ -18,21 +19,16 @@
     mdiPencilOutline
   } from '@mdi/js';
 
-  type ExpandableSection = 'people' | 'albums' | 'tags' | 'folders';
-
-  let expanded = $state(new Set<ExpandableSection>());
-
-  function toggleSection(id: ExpandableSection): void {
-    if (expanded.has(id)) {
-      expanded.delete(id);
-    } else {
-      expanded.add(id);
-      void library.loadView(id);
-    }
-    expanded = new Set(expanded);
+  function toggleSection(id: SidebarSectionId): void {
+    if (sidebar.toggle(id)) void library.loadView(id);
   }
 
   const currentPath = $derived(page.url.pathname);
+
+  $effect(() => {
+    const path = currentPath;
+    untrack(() => sidebar.reveal(path));
+  });
 
   onMount(() => {
     void library.load();
@@ -59,7 +55,7 @@
       icon={mdiAccountOutline}
       label="People"
       count={library.people.length}
-      expanded={expanded.has('people')}
+      expanded={sidebar.isOpen('people')}
       onToggle={() => toggleSection('people')}
     >
       <PeopleList />
@@ -76,7 +72,7 @@
       icon={mdiImageAlbum}
       label="Albums"
       count={library.albums.length}
-      expanded={expanded.has('albums')}
+      expanded={sidebar.isOpen('albums')}
       onToggle={() => toggleSection('albums')}
     >
       <AlbumList />
@@ -85,7 +81,7 @@
       icon={mdiTagMultipleOutline}
       label="Tags"
       count={library.tags.length}
-      expanded={expanded.has('tags')}
+      expanded={sidebar.isOpen('tags')}
       onToggle={() => toggleSection('tags')}
     >
       <TagList />
@@ -94,7 +90,7 @@
       icon={mdiFolderOutline}
       label="Folders"
       count={library.foldersCount}
-      expanded={expanded.has('folders')}
+      expanded={sidebar.isOpen('folders')}
       onToggle={() => toggleSection('folders')}
     >
       <FolderTree nodes={library.folderTree} />
