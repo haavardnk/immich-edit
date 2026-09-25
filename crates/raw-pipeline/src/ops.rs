@@ -2,6 +2,7 @@ pub(crate) mod bilateral;
 pub mod blur;
 pub mod box_filter;
 pub mod brightness;
+pub mod bw;
 pub mod capture_sharpen;
 pub mod clarity;
 pub mod color_grade;
@@ -308,6 +309,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(saturation::SaturationOp),
         Box::new(vibrance::VibranceOp),
         Box::new(hsl::HslOp),
+        Box::new(bw::BwOp),
         Box::new(color_grade::ColorGradeOp),
         Box::new(dcp_profile::DcpProfileOp),
         Box::new(lut::Lut3dOp),

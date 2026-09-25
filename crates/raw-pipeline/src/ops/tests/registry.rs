@@ -65,6 +65,19 @@ fn hsl_runs_before_saturation_and_vibrance() {
     assert!(hsl < sat);
     assert!(hsl < vib);
 }
+
+#[test]
+fn black_and_white_runs_after_colour_edits_and_before_grading() {
+    let reg = default_registry();
+    let ids: Vec<&str> = reg.ops().iter().map(|o| o.id()).collect();
+    let pos = |id: &str| ids.iter().position(|s| *s == id).unwrap();
+    for before in ["hsl", "saturation", "vibrance"] {
+        assert!(pos(before) < pos("bw"), "{before}");
+    }
+    for after in ["color_grade", "dcp_hue_sat", "lut_3d"] {
+        assert!(pos("bw") < pos(after), "{after}");
+    }
+}
 #[test]
 fn ops_inactive_on_default_edits() {
     let ops: Vec<Box<dyn Op>> = vec![

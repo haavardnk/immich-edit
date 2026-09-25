@@ -396,6 +396,7 @@ fn populated_edits() -> Edits {
                 use_look_table: false,
                 use_baseline_exposure: false,
             },
+            bw: Default::default(),
         },
         detail: DetailEdits {
             sharpen_amount: Some(80.0),

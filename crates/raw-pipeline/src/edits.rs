@@ -14,8 +14,8 @@ use sha2::{Digest, Sha256};
 
 pub use amount::LOOK_AMOUNT_FULL;
 pub use color::{
-    ColorEdits, ColorGradeEdits, ColorGradeRegion, DcpEdits, DcpMode, HSL_BANDS, HslBand, HslEdits,
-    Lut3dEdits,
+    BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, DcpEdits, DcpMode,
+    HSL_BANDS, HslBand, HslEdits, Lut3dEdits,
 };
 pub use curves::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits};
 pub use geometry::{AspectLock, CropRect, GeometryEdits};

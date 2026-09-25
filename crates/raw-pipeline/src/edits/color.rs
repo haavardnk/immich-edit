@@ -248,6 +248,8 @@ pub struct ColorEdits {
     pub lut_3d: Lut3dEdits,
     #[serde(default)]
     pub dcp: DcpEdits,
+    #[serde(default, skip_serializing_if = "BwEdits::is_neutral")]
+    pub bw: BwEdits,
 }
 
 impl ColorEdits {
@@ -257,6 +259,96 @@ impl ColorEdits {
             color_grade: self.color_grade.clamped(),
             lut_3d: self.lut_3d.clamped(),
             dcp: self.dcp.clamped(),
+            bw: self.bw.clamped(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub struct BwMix {
+    #[serde(default)]
+    pub red: f64,
+    #[serde(default)]
+    pub yellow: f64,
+    #[serde(default)]
+    pub green: f64,
+    #[serde(default)]
+    pub aqua: f64,
+    #[serde(default)]
+    pub blue: f64,
+    #[serde(default)]
+    pub magenta: f64,
+}
+
+impl BwMix {
+    pub fn channels(&self) -> [f64; 6] {
+        [
+            self.red,
+            self.yellow,
+            self.green,
+            self.aqua,
+            self.blue,
+            self.magenta,
+        ]
+    }
+
+    pub fn clamped(&self) -> Self {
+        let [red, yellow, green, aqua, blue, magenta] =
+            self.channels().map(|v| v.clamp(-100.0, 100.0));
+        Self {
+            red,
+            yellow,
+            green,
+            aqua,
+            blue,
+            magenta,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub struct BwTint {
+    #[serde(default)]
+    pub hue: f64,
+    #[serde(default)]
+    pub sat: f64,
+}
+
+impl BwTint {
+    pub fn clamped(&self) -> Self {
+        Self {
+            hue: self.hue.rem_euclid(360.0),
+            sat: self.sat.clamp(0.0, 100.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub struct BwEdits {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub mix: BwMix,
+    #[serde(default)]
+    pub shadows: BwTint,
+    #[serde(default)]
+    pub highlights: BwTint,
+    #[serde(default)]
+    pub balance: f64,
+}
+
+impl BwEdits {
+    pub fn is_neutral(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn clamped(&self) -> Self {
+        Self {
+            enabled: self.enabled,
+            mix: self.mix.clamped(),
+            shadows: self.shadows.clamped(),
+            highlights: self.highlights.clamped(),
+            balance: self.balance.clamp(-100.0, 100.0),
         }
     }
 }
