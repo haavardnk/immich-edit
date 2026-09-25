@@ -36,6 +36,14 @@ pub fn parse(data: &[u8]) -> Option<Metadata> {
     .flatten()
 }
 
+pub fn without_location(meta: &Metadata) -> Metadata {
+    let mut out = Metadata::new();
+    meta.into_iter()
+        .filter(|t| t.get_group() != ExifTagGroup::GPS)
+        .for_each(|t| out.set_tag(t.clone()));
+    out
+}
+
 fn detect(data: &[u8]) -> Option<FileExtension> {
     let mut cursor = std::io::Cursor::new(data);
     FileExtension::auto_detect(&mut cursor)
@@ -248,6 +256,23 @@ mod tests {
             .collect();
         if !missing.is_empty() {
             panic!("png lost {missing:04x?}");
+        }
+    }
+
+    #[test]
+    fn without_location_keeps_the_camera_and_drops_gps() {
+        let mut src = Metadata::new();
+        src.set_tag(ExifTag::Make("SONY".to_string()));
+        src.set_tag(ExifTag::GPSLatitude(vec![59u32.into(); 3]));
+        src.set_tag(ExifTag::GPSLatitudeRef("N".to_string()));
+
+        let stripped = without_location(&src);
+        let groups: Vec<ExifTagGroup> = stripped.into_iter().map(|t| t.get_group()).collect();
+        let has_make = stripped
+            .into_iter()
+            .any(|t| matches!(t, ExifTag::Make(v) if v == "SONY"));
+        if !has_make || groups.contains(&ExifTagGroup::GPS) {
+            panic!("expected Make without GPS, got groups {groups:?}");
         }
     }
 

@@ -245,4 +245,26 @@ mod tests {
             None
         );
     }
+
+    #[test]
+    fn a_legacy_include_exif_maps_onto_metadata() {
+        for (params, want) in [
+            (
+                serde_json::json!({ "include_exif": false }),
+                MetadataOpt::None,
+            ),
+            (
+                serde_json::json!({ "include_exif": true }),
+                MetadataOpt::All,
+            ),
+            (serde_json::json!({}), MetadataOpt::All),
+            (
+                serde_json::json!({ "metadata": "no-location" }),
+                MetadataOpt::NoLocation,
+            ),
+        ] {
+            let got = ExportJobParams::parse(&params).unwrap().params.metadata();
+            assert_eq!(got, want, "{params}");
+        }
+    }
 }

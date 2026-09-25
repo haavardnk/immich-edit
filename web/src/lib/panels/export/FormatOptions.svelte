@@ -7,6 +7,7 @@
     changeFormat,
     COLOR_SPACES,
     FORMATS,
+    METADATA_OPTIONS,
     PNG_COMPRESSIONS,
     TIFF_COMPRESSIONS,
     type ExportForm
@@ -18,7 +19,7 @@
     form.format === 'jpeg' ||
       form.format === 'avif' ||
       form.format === 'heic' ||
-      (form.format === 'webp' && !(form.lossless || form.includeExif))
+      (form.format === 'webp' && !(form.lossless || form.metadata !== 'none'))
   );
   let showBitDepth = $derived(
     form.format === 'png' || form.format === 'tiff' || form.format === 'jxl'
@@ -26,7 +27,7 @@
   let showPngCompression = $derived(form.format === 'png');
   let showTiffCompression = $derived(form.format === 'tiff');
   let showLossless = $derived(form.format === 'webp');
-  let losslessForced = $derived(form.format === 'webp' && form.includeExif);
+  let losslessForced = $derived(form.format === 'webp' && form.metadata !== 'none');
 </script>
 
 <Field label="Format" size="tiny">
@@ -96,7 +97,7 @@
 
 {#if showLossless}
   <CheckboxRow
-    label={`Lossless${losslessForced ? ' (required for EXIF)' : ''}`}
+    label={`Lossless${losslessForced ? ' (required for metadata)' : ''}`}
     checked={losslessForced ? true : form.lossless}
     disabled={losslessForced}
     onChange={(v) => (form.lossless = v)}
@@ -113,8 +114,12 @@
   />
 </Field>
 
-<CheckboxRow
-  label="Include EXIF metadata"
-  checked={form.includeExif}
-  onChange={(v) => (form.includeExif = v)}
-/>
+<Field label="Metadata" size="tiny">
+  <Select
+    size="tiny"
+    class="editor-compact-select editor-compact-field"
+    options={METADATA_OPTIONS}
+    value={form.metadata}
+    onChange={(v) => (form.metadata = v)}
+  />
+</Field>

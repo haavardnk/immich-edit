@@ -29,10 +29,6 @@ fn default_watermark_inset() -> f32 {
     DEFAULT_INSET
 }
 
-fn default_include_exif() -> bool {
-    true
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportFormatKind {
@@ -74,6 +70,15 @@ pub enum TiffCompressionOpt {
     Deflate,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MetadataOpt {
+    #[default]
+    All,
+    NoLocation,
+    None,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ColorSpaceOpt {
@@ -88,8 +93,10 @@ pub struct ExportParams {
     pub format: ExportFormatKind,
     #[serde(default = "default_quality")]
     pub quality: u8,
-    #[serde(default = "default_include_exif")]
-    pub include_exif: bool,
+    #[serde(default)]
+    pub metadata: MetadataOpt,
+    #[serde(default, rename = "include_exif")]
+    pub legacy_include_exif: Option<bool>,
     #[serde(default)]
     pub bit_depth: BitDepthOpt,
     #[serde(default)]
@@ -137,7 +144,8 @@ impl Default for ExportParams {
         Self {
             format: ExportFormatKind::default(),
             quality: DEFAULT_QUALITY,
-            include_exif: true,
+            metadata: MetadataOpt::All,
+            legacy_include_exif: None,
             bit_depth: BitDepthOpt::default(),
             png_compression: PngCompressionOpt::default(),
             tiff_compression: TiffCompressionOpt::default(),
@@ -163,6 +171,13 @@ impl Default for ExportParams {
 }
 
 impl ExportParams {
+    pub fn metadata(&self) -> MetadataOpt {
+        if self.legacy_include_exif == Some(false) {
+            return MetadataOpt::None;
+        }
+        self.metadata
+    }
+
     pub fn resize(&self) -> Result<Option<Resize>, AppError> {
         self.resize_mode
             .map(|mode| match mode {
@@ -229,7 +244,7 @@ impl ExportParams {
             },
             ExportFormatKind::Webp => OutputFormat::Webp {
                 quality,
-                lossless: self.lossless || self.include_exif,
+                lossless: self.lossless || self.metadata() != MetadataOpt::None,
             },
             ExportFormatKind::Avif => OutputFormat::Avif { quality },
             ExportFormatKind::Heic => OutputFormat::Heic { quality },

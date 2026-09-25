@@ -4,6 +4,7 @@ import {
   type BitDepthOpt,
   type ColorSpaceOpt,
   type ExportFormat,
+  type ExportMetadata,
   type ExportOptions,
   type FinishParams,
   type ImmichExportOptions,
@@ -75,7 +76,7 @@ export function jobDownloadUrl(id: string): string {
 interface ExportJobParams extends FinishParams {
   format: ExportFormat;
   quality: number;
-  include_exif: boolean;
+  metadata: ExportMetadata;
   bit_depth: BitDepthOpt;
   png_compression: PngCompressionOpt;
   tiff_compression: TiffCompressionOpt;
@@ -88,7 +89,7 @@ function baseParams(opts: ExportOptions): ExportJobParams {
   return {
     format: opts.format,
     quality: opts.quality,
-    include_exif: opts.includeExif,
+    metadata: opts.metadata,
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
