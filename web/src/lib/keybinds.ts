@@ -267,6 +267,13 @@ export const KEYBINDS = [
     group: 'View',
     label: 'Toggle fullscreen'
   },
+  {
+    id: 'loupeFilmstrip',
+    keys: ['Shift+t'],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'View',
+    label: 'Hide or show the filmstrip'
+  },
 
   {
     id: 'editorNav',

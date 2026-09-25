@@ -40,6 +40,16 @@ async function openSurvey(page: Page): Promise<void> {
   }
 }
 
+test('keep only in the survey rail leaves the focused pane', async ({ page }) => {
+  await openSurvey(page);
+
+  await page.getByRole('button', { name: 'Keep only this photo' }).click();
+
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeHidden();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeHidden();
+});
+
 test('backspace drops the focused survey pane', async ({ page }) => {
   await openSurvey(page);
 

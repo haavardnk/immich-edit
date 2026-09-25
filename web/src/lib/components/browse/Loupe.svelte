@@ -60,6 +60,7 @@
   const cols = $derived(paneColumns(panes.length));
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
+  const canDrop = $derived(compare.members.length > (compare.mode === 'compare' ? 2 : 1));
 
   let fitZooms = $state<Record<string, number>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
@@ -197,7 +198,7 @@
   }
 
   function dropFocused(): void {
-    if (compare.members.length <= 1) return;
+    if (!canDrop) return;
     compare.drop(compare.focusIndex);
   }
 
@@ -433,6 +434,10 @@
         e.preventDefault();
         ui.toggleFullscreen();
         return;
+      case 'loupeFilmstrip':
+        e.preventDefault();
+        ui.toggleLoupeFilmstrip();
+        return;
       case 'rate': {
         const next = nextRatingFromKey(e.key, rating);
         if (next === undefined) return;
@@ -581,6 +586,8 @@
         onCreateTag={createAndAddTag}
         onZoom={setZoom}
         onFit={fitZoom}
+        {canDrop}
+        onDrop={dropFocused}
       />
 
       <Filmstrip

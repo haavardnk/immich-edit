@@ -30,6 +30,17 @@ async function openCompare(page: Page): Promise<void> {
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
 }
 
+test('the compare rail toggles sync and keeps two panes', async ({ page }) => {
+  await openCompare(page);
+  const sync = page.getByRole('button', { name: 'Sync zoom and pan' });
+
+  await expect(sync).toHaveAttribute('aria-pressed', 'true');
+  await sync.click();
+  await expect(sync).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Drop this photo' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Promote to the left' })).toBeDisabled();
+});
+
 test('shift+arrow swaps only the focused compare pane', async ({ page }) => {
   await openCompare(page);
 

@@ -108,6 +108,15 @@ test('shift+f toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
+test('shift+t hides the loupe filmstrip', async ({ page }) => {
+  await openLoupe(page);
+  await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();
+
+  await page.keyboard.press('Shift+t');
+
+  await expect(page.getByTestId('filmstrip-scroll')).toHaveCount(0);
+});
+
 test('the loupe toolbar enters fullscreen', async ({ page }) => {
   await openLoupe(page);
 
