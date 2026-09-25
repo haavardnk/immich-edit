@@ -5,6 +5,7 @@
   import { browseControls, type Visibility } from '$lib/stores/browseControls.svelte';
   import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
   import { mergeProps } from '$lib/utils/mergeProps';
+  import { hint } from '$lib/keybinds';
   import { Button, Field, IconButton, Select } from '@immich/ui';
   import { mdiSortAscending, mdiSortDescending, mdiFilterOutline, mdiClose } from '@mdi/js';
 
@@ -109,7 +110,7 @@
           variant={browseView.gridSize === opt.value ? 'filled' : 'ghost'}
           color={browseView.gridSize === opt.value ? 'primary' : 'secondary'}
           class="min-w-7 px-1.5 sm:min-w-8 sm:px-2"
-          title="Thumbnail size {opt.label}"
+          title={hint(`Thumbnail size ${opt.label}`, 'gridSize')}
           aria-label="Thumbnail size {opt.label}"
           aria-pressed={browseView.gridSize === opt.value}
           onclick={() => browseView.setGridSize(opt.value)}

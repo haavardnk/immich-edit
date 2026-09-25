@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, json } from './helpers';
+import { ASSET_ID, gotoAsset, installMocks, json, numberedAssets } from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -822,6 +822,30 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
   await expect
     .poll(async () => (await metricsOf(rotateLeft)).background)
     .toBe(await resolvedBackground(page, 'bg-white/10'));
+});
+
+test('browse and loupe controls name their shortcuts', async ({ page }) => {
+  await installMocks(page, { assets: numberedAssets(2) });
+  await page.goto('/photos');
+  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Thumbnail size XL' }).hover();
+  await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Select', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Favorite', exact: true }).hover();
+  await expect(page.getByText('Favorite (P / F)')).toBeVisible();
+  await page.getByRole('button', { name: 'Rate 3', exact: true }).hover();
+  await expect(page.getByText('Rate 3 (0 – 5)')).toBeVisible();
+  await page.getByRole('button', { name: 'Reject', exact: true }).hover();
+  await expect(page.getByText('Reject (X)')).toBeVisible();
+  await page.getByRole('button', { name: 'Clear selection' }).click();
+
+  await page.getByLabel('Quick review').first().click();
+  await page.getByRole('button', { name: 'Next', exact: true }).hover();
+  await expect(page.getByText('Next (← / →)')).toBeVisible();
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  await expect(page.getByRole('button', { name: 'Clipping overlay (J)' })).toBeVisible();
 });
 
 test('browse filter popover uses a neutral dark surface', async ({ page }) => {

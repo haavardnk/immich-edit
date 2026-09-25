@@ -234,7 +234,7 @@
           onclick={() => {
             ui.toggleClipWarn();
             moreOpen = false;
-          }}>Clipping overlay</Button
+          }}>{hint('Clipping overlay', 'clipWarn')}</Button
         >
       </div>
     </Popover>

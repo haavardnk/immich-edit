@@ -253,7 +253,7 @@
             variant="ghost"
             color="secondary"
             icon={mdiHeart}
-            title="Favorite"
+            title={hint('Favorite', 'favorite')}
             aria-label="Favorite"
             disabled={metaBusy}
             onclick={() => setFavorite(true)}
@@ -263,7 +263,7 @@
             variant="ghost"
             color="secondary"
             icon={mdiHeartOutline}
-            title="Unfavorite"
+            title={hint('Unfavorite', 'favorite')}
             aria-label="Unfavorite"
             disabled={metaBusy}
             onclick={() => setFavorite(false)}
@@ -277,7 +277,7 @@
               variant="ghost"
               color="secondary"
               icon={mdiStar}
-              title={`Rate ${n}`}
+              title={hint(`Rate ${n}`, 'rate')}
               aria-label={`Rate ${n}`}
               disabled={metaBusy}
               onclick={() => setRating(n)}
@@ -301,7 +301,7 @@
             variant="ghost"
             color="secondary"
             icon={mdiCloseCircle}
-            title="Reject"
+            title={hint('Reject', 'reject')}
             aria-label="Reject"
             disabled={metaBusy}
             onclick={() => void applyReject(true)}
@@ -311,7 +311,7 @@
             variant="ghost"
             color="secondary"
             icon={mdiCloseCircleOutline}
-            title="Unreject"
+            title={hint('Unreject', 'reject')}
             aria-label="Unreject"
             disabled={metaBusy}
             onclick={() => void applyReject(false)}
