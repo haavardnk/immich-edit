@@ -106,7 +106,8 @@
       role="button"
       aria-label="Polygon corner"
       tabindex="-1"
-      onpointerdown={(e) => onDrag(e, { kind: 'polygon-vertex', index: i })}
+      onpointerdown={(e) =>
+        onDrag(e, { kind: 'polygon-vertex', index: i, origin: kind.points[i] ?? { x: 0, y: 0 } })}
       ondblclick={(e) => deleteVertex(e, i)}
     />
   {/each}

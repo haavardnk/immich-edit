@@ -638,6 +638,30 @@ export const KEYBINDS = [
     display: 'Double-click the corner'
   },
   {
+    id: 'maskRoundRadial',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Keep a radial round while resizing it',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a radial size handle`
+  },
+  {
+    id: 'maskSnapLinear',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Snap a linear gradient to 45° steps',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a linear end`
+  },
+  {
+    id: 'maskLockCorner',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Move a polygon corner straight across or straight up and down',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a polygon corner`
+  },
+  {
     id: 'maskOverlay',
     keys: ['o'],
     contexts: ['masks'],

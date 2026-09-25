@@ -709,6 +709,13 @@ test('keyboard help splits binds by the current context', async ({ page }) => {
   await page.keyboard.press('m');
   await page.keyboard.press('Shift+/');
   await expect(page.getByRole('heading', { name: 'Available in the Masks panel' })).toBeVisible();
+  for (const label of [
+    'Keep a radial round while resizing it',
+    'Snap a linear gradient to 45° steps',
+    'Move a polygon corner straight across or straight up and down'
+  ]) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
 });
 
 test('D opens Develop, Q opens Retouch and M opens Masks', async ({ page }) => {
