@@ -2,6 +2,7 @@ import { library } from '$lib/stores/library.svelte';
 import { listAlbums } from '$lib/api/albums';
 import { listTags } from '$lib/api/tags';
 import { toasts } from '$lib/stores/toasts.svelte';
+import { DEFAULT_FILENAME_TEMPLATE } from '$lib/filenameTemplate';
 import type {
   BitDepthOpt,
   ColorSpaceOpt,
@@ -14,8 +15,6 @@ import type {
 } from '$lib/api/export';
 
 export type Destination = 'download' | 'immich';
-
-const DEFAULT_FILENAME_SUFFIX = '_edit';
 
 export interface ExportForm {
   format: ExportFormat;
@@ -31,7 +30,7 @@ export interface ExportForm {
   favorite: boolean;
   stackWithOriginal: boolean;
   stackPrimary: StackPrimary;
-  filenameSuffix: string;
+  filenameTemplate: string;
 }
 
 interface Option<T extends string> {
@@ -85,6 +84,13 @@ function pickIds(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
 }
 
+function pickTemplate(template: unknown, legacySuffix: unknown): string {
+  if (typeof template === 'string') return template;
+  if (typeof legacySuffix === 'string' && legacySuffix.trim())
+    return `{name}${legacySuffix.trim()}`;
+  return DEFAULT_FILENAME_TEMPLATE;
+}
+
 export function defaultExportForm(): ExportForm {
   return {
     format: 'jpeg',
@@ -100,12 +106,12 @@ export function defaultExportForm(): ExportForm {
     favorite: false,
     stackWithOriginal: false,
     stackPrimary: 'edited',
-    filenameSuffix: DEFAULT_FILENAME_SUFFIX
+    filenameTemplate: DEFAULT_FILENAME_TEMPLATE
   };
 }
 
 export function restoreExportForm(
-  stored: Partial<Record<keyof ExportForm, unknown>> | undefined
+  stored: (Partial<Record<keyof ExportForm, unknown>> & { filenameSuffix?: unknown }) | undefined
 ): ExportForm {
   const form = defaultExportForm();
   if (!stored) return form;
@@ -127,8 +133,7 @@ export function restoreExportForm(
     favorite: pickBoolean(stored.favorite, form.favorite),
     stackWithOriginal: pickBoolean(stored.stackWithOriginal, form.stackWithOriginal),
     stackPrimary: STACK_PRIMARIES.find((p) => p === stored.stackPrimary) ?? form.stackPrimary,
-    filenameSuffix:
-      typeof stored.filenameSuffix === 'string' ? stored.filenameSuffix : form.filenameSuffix
+    filenameTemplate: pickTemplate(stored.filenameTemplate, stored.filenameSuffix)
   };
 }
 
@@ -145,7 +150,8 @@ export function baseOptions(f: ExportForm): ExportOptions {
     pngCompression: f.pngCompression,
     tiffCompression: f.tiffCompression,
     lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
-    colorSpace: f.colorSpace
+    colorSpace: f.colorSpace,
+    filenameTemplate: f.filenameTemplate
   };
 }
 
@@ -156,8 +162,7 @@ export function immichOptions(f: ExportForm): ImmichExportOptions {
     tagIds: f.tagIds,
     favorite: f.favorite,
     stackWithOriginal: f.stackWithOriginal,
-    stackPrimary: f.stackPrimary,
-    filenameSuffix: f.filenameSuffix
+    stackPrimary: f.stackPrimary
   };
 }
 

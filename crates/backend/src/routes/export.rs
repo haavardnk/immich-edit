@@ -7,7 +7,10 @@ use axum::response::{IntoResponse, Response};
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
+use crate::services::export::{
+    self, ExportBody, ExportImmichRequest, ExportToImmichResult, NameContext, NameTemplate, Seq,
+    capture_date,
+};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
@@ -23,17 +26,7 @@ pub async fn get_export(
     Query(params): Query<ExportParams>,
 ) -> Result<Response, AppError> {
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
-    let (bytes, output) = export::render_export(
-        &state,
-        RenderIdentity::from(&ctx),
-        &ctx.immich,
-        id,
-        edits,
-        &params,
-        RenderPriority::Interactive,
-    )
-    .await?;
-    Ok(download_response(id, bytes, output))
+    download(&state, &ctx, id, edits, &params).await
 }
 
 pub async fn post_export(
@@ -42,34 +35,79 @@ pub async fn post_export(
     Path(id): Path<AssetKey>,
     Json(body): Json<ExportBody>,
 ) -> Result<Response, AppError> {
-    let (bytes, output) = export::render_export(
-        &state,
-        RenderIdentity::from(&ctx),
-        &ctx.immich,
-        id,
-        body.edits.clamped(),
-        &body.params,
-        RenderPriority::Interactive,
-    )
-    .await?;
-    Ok(download_response(id, bytes, output))
+    download(&state, &ctx, id, body.edits.clamped(), &body.params).await
+}
+
+async fn download(
+    state: &AppState,
+    ctx: &AuthCtx,
+    id: AssetKey,
+    edits: raw_pipeline::edits::Edits,
+    params: &ExportParams,
+) -> Result<Response, AppError> {
+    let template = NameTemplate::parse(params.filename_template.as_deref())?;
+    let (rendered, asset) = tokio::join!(
+        export::render_export(
+            state,
+            RenderIdentity::from(ctx),
+            &ctx.immich,
+            id,
+            edits,
+            params,
+            RenderPriority::Interactive,
+        ),
+        ctx.immich.asset(id.source()),
+    );
+    let (bytes, output) = rendered?;
+    let asset = asset?;
+    let stem = template.render(&NameContext {
+        original: &asset.original_file_name,
+        date: capture_date(&asset),
+        seq: Seq::SINGLE,
+    });
+    let filename = format!("{stem}.{}", output.extension());
+    Ok(download_response(&filename, bytes, output))
+}
+
+fn content_disposition(filename: &str) -> HeaderValue {
+    let ascii: String = filename
+        .chars()
+        .map(|c| {
+            if (c.is_ascii_graphic() && c != '"' && c != '\\') || c == ' ' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let encoded: String = filename
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b"!#$&+-.^_`|~".contains(&b) {
+                char::from(b).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect();
+    HeaderValue::from_str(&format!(
+        "attachment; filename=\"{ascii}\"; filename*=UTF-8''{encoded}"
+    ))
+    .unwrap_or(HeaderValue::from_static("attachment"))
 }
 
 fn download_response(
-    id: AssetKey,
+    filename: &str,
     bytes: bytes::Bytes,
     output: raw_pipeline::frame::OutputFormat,
 ) -> Response {
-    let content_type = output.content_type();
-    let extension = output.extension();
     let mut resp = Response::new(Body::from(bytes));
-    resp.headers_mut()
-        .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     resp.headers_mut().insert(
-        header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!("attachment; filename=\"{id}.{extension}\""))
-            .unwrap_or(HeaderValue::from_static("attachment")),
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(output.content_type()),
     );
+    resp.headers_mut()
+        .insert(header::CONTENT_DISPOSITION, content_disposition(filename));
     resp.into_response()
 }
 
@@ -91,6 +129,7 @@ pub async fn post_export_immich(
             body: &body,
             idempotency_key: idem_key,
             priority: RenderPriority::Interactive,
+            seq: Seq::SINGLE,
         },
     )
     .await?;

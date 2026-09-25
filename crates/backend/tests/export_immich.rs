@@ -19,7 +19,6 @@ fn hash_request_differs_by_color_space() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
-        filename_suffix: "_edit".into(),
     };
     let srgb = hash_request(asset, &make(ColorSpaceOpt::Srgb));
     let p3 = hash_request(asset, &make(ColorSpaceOpt::Displayp3));
@@ -27,15 +26,36 @@ fn hash_request_differs_by_color_space() {
 }
 
 #[test]
+fn hash_request_differs_by_filename_template() {
+    let asset = AssetKey::master(uuid::Uuid::nil());
+    let make = |template: Option<&str>| ExportToImmichBody {
+        edits: Default::default(),
+        params: ExportParams {
+            filename_template: template.map(str::to_string),
+            ..ExportParams::default()
+        },
+        album_ids: Vec::new(),
+        tag_ids: Vec::new(),
+        favorite: false,
+        stack_with_original: false,
+        stack_primary: StackPrimary::default(),
+    };
+    assert_ne!(
+        hash_request(asset, &make(Some("{name}_a"))),
+        hash_request(asset, &make(Some("{name}_b")))
+    );
+}
+
+#[test]
 fn resolves_with_no_existing() {
-    let name = resolve_filename("DSC0001.ARW", "_edit", "jpg", &["DSC0001.ARW".into()]);
+    let name = resolve_filename("DSC0001_edit", "jpg", &["DSC0001.ARW".into()]);
     assert_eq!(name, "DSC0001_edit.jpg");
 }
 
 #[test]
 fn resolves_increments_on_collision() {
     let existing = vec!["DSC0001.ARW".into(), "DSC0001_edit.jpg".into()];
-    let name = resolve_filename("DSC0001.ARW", "_edit", "jpg", &existing);
+    let name = resolve_filename("DSC0001_edit", "jpg", &existing);
     assert_eq!(name, "DSC0001_edit_2.jpg");
 }
 
@@ -47,27 +67,15 @@ fn resolves_skips_multiple_collisions() {
         "DSC0001_edit_2.jpg".into(),
         "DSC0001_edit_3.jpg".into(),
     ];
-    let name = resolve_filename("DSC0001.ARW", "_edit", "jpg", &existing);
+    let name = resolve_filename("DSC0001_edit", "jpg", &existing);
     assert_eq!(name, "DSC0001_edit_4.jpg");
 }
 
 #[test]
 fn resolves_case_insensitive() {
     let existing = vec!["IMG.JPG".into(), "IMG_EDIT.JPG".into()];
-    let name = resolve_filename("IMG.JPG", "_edit", "jpg", &existing);
+    let name = resolve_filename("IMG_edit", "jpg", &existing);
     assert_eq!(name, "IMG_edit_2.jpg");
-}
-
-#[test]
-fn resolves_handles_no_extension_original() {
-    let name = resolve_filename("raw", "_edit", "png", &["raw".into()]);
-    assert_eq!(name, "raw_edit.png");
-}
-
-#[test]
-fn resolves_custom_suffix() {
-    let name = resolve_filename("a.arw", "-final", "tif", &["a.arw".into()]);
-    assert_eq!(name, "a-final.tif");
 }
 
 use axum::body::Body;
@@ -106,7 +114,6 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
-        filename_suffix: "_edit".into(),
     };
     let hash = hash_request(asset, &body);
     state
@@ -129,7 +136,7 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         .unwrap();
 
     let app = seed_and_wrap(&server, state).await;
-    let req_body = serde_json::json!({"filename_suffix": "_edit"});
+    let req_body = serde_json::json!({});
     let resp = app
         .oneshot(
             Request::builder()

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
+  import { EXTENSION_BY_FORMAT } from '$lib/api/export';
+  import { captureDate, templateError } from '$lib/filenameTemplate';
   import { croppedOutputSize } from '$lib/utils/geom';
   import { fmtDim } from '$lib/utils/exif';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
@@ -44,6 +46,17 @@
     const size = croppedOutputSize(editor.edits.geometry, meta.source_w, meta.source_h);
     return `${fmtDim(size.w, size.h)} px`;
   });
+  let nameExample = $derived(
+    editor.asset
+      ? {
+          original: editor.asset.originalFileName,
+          date: captureDate(editor.asset),
+          position: 1,
+          total: 1
+        }
+      : null
+  );
+  let nameInvalid = $derived(templateError(form.filenameTemplate) !== null);
 </script>
 
 <div class="flex flex-col gap-1">
@@ -69,13 +82,10 @@
   {/if}
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
-    <TextInput
-      label="Filename suffix"
-      compact
-      color="neutral"
-      class="ring-0 focus-within:ring-1 focus-within:ring-primary"
-      bind:value={exportSettings.form.filenameSuffix}
-      placeholder="_edit"
+    <FilenameTemplateField
+      bind:value={exportSettings.form.filenameTemplate}
+      example={nameExample}
+      extension={EXTENSION_BY_FORMAT[form.format]}
     />
     {#if destination === 'immich'}
       <ImmichOptions bind:form={exportSettings.form} />
@@ -128,10 +138,9 @@
       fullWidth
       loading={isLoading}
       leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
-      disabled={isLoading || !editor.assetId}
+      disabled={isLoading || !editor.assetId || nameInvalid}
       onclick={() => {
-        if (destination === 'download')
-          void editor.onExport({ opts: baseOptions(form), suffix: form.filenameSuffix });
+        if (destination === 'download') void editor.onExport(baseOptions(form));
         else void editor.onUploadToImmich(immichOptions(form));
       }}
     >

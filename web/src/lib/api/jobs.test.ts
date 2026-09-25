@@ -10,7 +10,8 @@ const base: ExportOptions = {
   pngCompression: 'default',
   tiffCompression: 'lzw',
   lossless: false,
-  colorSpace: 'displayp3'
+  colorSpace: 'displayp3',
+  filenameTemplate: '{date}_{seq}'
 };
 
 const immich: ImmichExportOptions = {
@@ -19,8 +20,7 @@ const immich: ImmichExportOptions = {
   tagIds: [],
   favorite: false,
   stackWithOriginal: false,
-  stackPrimary: 'edited',
-  filenameSuffix: '_edit'
+  stackPrimary: 'edited'
 };
 
 function stubFetch(): { body: () => Record<string, unknown> } {
@@ -41,17 +41,20 @@ afterEach(() => {
 
 describe('export jobs', () => {
   it.each([
-    ['zip', () => createZipExportJob(['a'], base, '_edit')],
+    ['zip', () => createZipExportJob(['a'], base)],
     ['immich', () => createImmichExportJob(['a'], immich)]
-  ])('sends the chosen color space for %s exports', async (_kind, run) => {
+  ])('sends the chosen color space and filename template for %s exports', async (_kind, run) => {
     const req = stubFetch();
     await run();
-    expect((req.body().params as Record<string, unknown>).color_space).toBe('displayp3');
+    const params = req.body().params as Record<string, unknown>;
+    expect(params.color_space).toBe('displayp3');
+    expect(params.filename_template).toBe('{date}_{seq}');
+    expect(params).not.toHaveProperty('filename_suffix');
   });
 
   it('sends concrete asset ids', async () => {
     const req = stubFetch();
-    await createZipExportJob(['a', 'b'], base, '_edit');
+    await createZipExportJob(['a', 'b'], base);
     const body = req.body();
     expect(body.asset_ids).toEqual(['a', 'b']);
   });

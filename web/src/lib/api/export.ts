@@ -18,6 +18,7 @@ export interface ExportOptions {
   tiffCompression: TiffCompressionOpt;
   lossless: boolean;
   colorSpace: ColorSpaceOpt;
+  filenameTemplate: string;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -39,7 +40,8 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
     lossless: String(opts.lossless),
-    color_space: opts.colorSpace
+    color_space: opts.colorSpace,
+    filename_template: opts.filenameTemplate
   };
 }
 
@@ -51,32 +53,52 @@ export function exportUrlPersisted(assetId: string, opts: ExportOptions): string
   return url`/api/assets/${assetId}/export` + queryString(opts);
 }
 
+export interface ExportDownload {
+  blob: Blob;
+  filename: string | null;
+}
+
+export function dispositionFilename(header: string | null): string | null {
+  if (!header) return null;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded.trim());
+    } catch {
+      return null;
+    }
+  }
+  return /filename="([^"]*)"/i.exec(header)?.[1] ?? null;
+}
+
 export async function downloadExport(
   assetId: string,
   edits: Edits,
   opts: ExportOptions
-): Promise<Blob> {
+): Promise<ExportDownload> {
   const base = url`/api/assets/${assetId}/export`;
-  if (isIdentity(edits)) {
-    const resp = await request(base + queryString(opts));
-    return resp.blob();
-  }
-  const resp = await request(base, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      edits,
-      format: opts.format,
-      quality: opts.quality,
-      include_exif: opts.includeExif,
-      bit_depth: opts.bitDepth,
-      png_compression: opts.pngCompression,
-      tiff_compression: opts.tiffCompression,
-      lossless: opts.lossless,
-      color_space: opts.colorSpace
-    })
-  });
-  return resp.blob();
+  const resp = isIdentity(edits)
+    ? await request(base + queryString(opts))
+    : await request(base, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          edits,
+          format: opts.format,
+          quality: opts.quality,
+          include_exif: opts.includeExif,
+          bit_depth: opts.bitDepth,
+          png_compression: opts.pngCompression,
+          tiff_compression: opts.tiffCompression,
+          lossless: opts.lossless,
+          color_space: opts.colorSpace,
+          filename_template: opts.filenameTemplate
+        })
+      });
+  return {
+    blob: await resp.blob(),
+    filename: dispositionFilename(resp.headers.get('content-disposition'))
+  };
 }
 
 export type StackPrimary = 'edited' | 'original';
@@ -87,7 +109,6 @@ export interface ImmichExportOptions extends ExportOptions {
   favorite: boolean;
   stackWithOriginal: boolean;
   stackPrimary: StackPrimary;
-  filenameSuffix: string;
 }
 
 export interface ImmichExportResult {
@@ -121,7 +142,7 @@ export async function uploadToImmich(
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
-      filename_suffix: opts.filenameSuffix
+      filename_template: opts.filenameTemplate
     },
     { headers: { 'idempotency-key': idempotencyKey } }
   );

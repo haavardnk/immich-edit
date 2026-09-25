@@ -17,34 +17,28 @@ export interface ExportResult {
   message: string;
 }
 
-export interface DownloadRequest {
-  opts: ExportOptions;
-  suffix: string;
-}
-
 export interface ExportCtx {
   assetId: string | null;
   asset: AssetDetail | null;
   edits: Edits;
   exporting: boolean;
   exportingToImmich: boolean;
-  lastDownloadRequest: DownloadRequest | null;
+  lastDownloadOpts: ExportOptions | null;
   lastImmichOpts: ImmichExportOptions | null;
   lastDownload: ExportResult | null;
   lastUpload: ExportResult | null;
   lastWarnings: string[];
 }
 
-export async function onExport(ctx: ExportCtx, request: DownloadRequest): Promise<void> {
+export async function onExport(ctx: ExportCtx, opts: ExportOptions): Promise<void> {
   if (!ctx.assetId) return;
-  ctx.lastDownloadRequest = request;
+  ctx.lastDownloadOpts = opts;
   ctx.exporting = true;
   ctx.lastDownload = null;
   try {
-    const blob = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), request.opts);
-    const base = (ctx.asset?.originalFileName ?? ctx.assetId).replace(/\.[^.]+$/, '');
-    const name = `${base}${request.suffix}.${EXTENSION_BY_FORMAT[request.opts.format]}`;
-    downloadBlob(blob, name);
+    const download = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), opts);
+    const name = download.filename ?? `${ctx.assetId}.${EXTENSION_BY_FORMAT[opts.format]}`;
+    downloadBlob(download.blob, name);
     ctx.lastDownload = { kind: 'success', message: `Saved ${name}` };
   } catch (e) {
     ctx.lastDownload = { kind: 'error', message: `Export failed: ${errorMessage(e)}` };
@@ -54,7 +48,7 @@ export async function onExport(ctx: ExportCtx, request: DownloadRequest): Promis
 }
 
 export async function retryExport(ctx: ExportCtx): Promise<void> {
-  if (ctx.lastDownloadRequest) await onExport(ctx, ctx.lastDownloadRequest);
+  if (ctx.lastDownloadOpts) await onExport(ctx, ctx.lastDownloadOpts);
 }
 
 export async function onUploadToImmich(ctx: ExportCtx, opts: ImmichExportOptions): Promise<void> {

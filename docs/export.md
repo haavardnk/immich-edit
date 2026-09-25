@@ -33,17 +33,34 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
 | **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out |
 
-Output always has the edited photo's full size. Exports cannot be resized, watermarked or named
-from a template; [features](features.md#export-color-and-interoperability) lists what is and is
-not supported. [Compatibility](compatibility.md#image-input-and-export) lists the bit depths each
-format supports.
+Output always has the edited photo's full size. Exports cannot be resized or watermarked;
+[features](features.md#export-color-and-interoperability) lists what is and is not supported.
+[Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
+supports.
+
+## Name the file
+
+**Filename** takes a template that names every export, whether it downloads, goes into a ZIP or
+uploads to Immich. It starts as `{name}_edit`. Under the field you see the name the current photo
+will get.
+
+| Token | Becomes |
+| --- | --- |
+| `{name}` | The original's name without its extension |
+| `{date}` | The capture date as `YYYY-MM-DD`, from the camera's local time. A photo without one uses the file's date |
+| `{seq}` | The photo's place in the export, from 1. It gets leading zeros to match the count, so 120 photos run `001` to `120`. A single export is `1` |
+
+Text around the tokens is kept, so `{date}_{name}` gives `2024-05-01_IMG_0001.jpg` and
+`trip_{seq}` gives `trip_007.jpg`. The extension comes from the format. Characters that are
+not allowed in file names, such as `/`, `:` or `*`, are refused in the template and replaced by
+`_` when they come from the original's name. If a name is already taken, next to the original
+in Immich or earlier in the same ZIP, it gets `_2`, `_3` and so on. An unknown token or an
+unmatched brace shows an error under the field and blocks the export until you fix it.
 
 ## Upload to Immich
 
 **To Immich** adds these options:
 
-- **Filename suffix** is added to the original's name, `_edit` unless you change it. A name that is
-  already taken gets a number.
 - **Albums** and **Tags** add the new photo to existing Immich albums and tags.
 - **Mark as favorite** favorites the new photo.
 - **Stack with original** stacks the new photo with the original in Immich. **Edit primary** shows

@@ -13,10 +13,6 @@ fn default_include_exif() -> bool {
     true
 }
 
-pub fn default_suffix() -> String {
-    "_edit".into()
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportFormatKind {
@@ -84,6 +80,8 @@ pub struct ExportParams {
     pub lossless: bool,
     #[serde(default)]
     pub color_space: ColorSpaceOpt,
+    #[serde(default)]
+    pub filename_template: Option<String>,
 }
 
 impl Default for ExportParams {
@@ -97,6 +95,7 @@ impl Default for ExportParams {
             tiff_compression: TiffCompressionOpt::default(),
             lossless: false,
             color_space: ColorSpaceOpt::default(),
+            filename_template: None,
         }
     }
 }

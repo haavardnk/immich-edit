@@ -79,6 +79,7 @@ interface ExportJobParams {
   tiff_compression: TiffCompressionOpt;
   lossless: boolean;
   color_space: ColorSpaceOpt;
+  filename_template: string;
 }
 
 function baseParams(opts: ExportOptions): ExportJobParams {
@@ -90,7 +91,8 @@ function baseParams(opts: ExportOptions): ExportJobParams {
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
     lossless: opts.lossless,
-    color_space: opts.colorSpace
+    color_space: opts.colorSpace,
+    filename_template: opts.filenameTemplate
   };
 }
 
@@ -104,21 +106,16 @@ export function createImmichExportJob(assetIds: string[], opts: ImmichExportOpti
       tag_ids: opts.tagIds,
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
-      stack_primary: opts.stackPrimary,
-      filename_suffix: opts.filenameSuffix
+      stack_primary: opts.stackPrimary
     }
   });
 }
 
-export function createZipExportJob(
-  assetIds: string[],
-  opts: ExportOptions,
-  filenameSuffix: string
-): Promise<Job> {
+export function createZipExportJob(assetIds: string[], opts: ExportOptions): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: 'download_zip',
     asset_ids: assetIds,
-    params: { ...baseParams(opts), filename_suffix: filenameSuffix }
+    params: baseParams(opts)
   });
 }
 

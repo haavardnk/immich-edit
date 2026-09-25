@@ -1,11 +1,14 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
+  import { browsing } from '$lib/stores/browsing.svelte';
+  import { EXTENSION_BY_FORMAT } from '$lib/api/export';
   import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
+  import { captureDate, templateError } from '$lib/filenameTemplate';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
@@ -27,7 +30,7 @@
       (assetIds) =>
         destination === 'immich'
           ? createImmichExportJob(assetIds, immichOptions(form))
-          : createZipExportJob(assetIds, baseOptions(form), form.filenameSuffix),
+          : createZipExportJob(assetIds, baseOptions(form)),
       {
         success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
         error: 'Failed to queue export'
@@ -37,6 +40,18 @@
   }
 
   let label = $derived(formatLabel(form.format));
+  let first = $derived(browsing.assets.find((asset) => selection.selected.has(asset.id)) ?? null);
+  let nameExample = $derived(
+    first
+      ? {
+          original: first.originalFileName,
+          date: captureDate(first),
+          position: 1,
+          total: selection.count
+        }
+      : null
+  );
+  let nameInvalid = $derived(templateError(form.filenameTemplate) !== null);
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
@@ -49,13 +64,10 @@
   <FormatOptions bind:form={exportSettings.form} />
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
-    <TextInput
-      label="Filename suffix"
-      compact
-      color="neutral"
-      class="ring-0 focus-within:ring-1 focus-within:ring-primary"
-      bind:value={exportSettings.form.filenameSuffix}
-      placeholder="_edit"
+    <FilenameTemplateField
+      bind:value={exportSettings.form.filenameTemplate}
+      example={nameExample}
+      extension={EXTENSION_BY_FORMAT[form.format]}
     />
     {#if destination === 'immich'}
       <ImmichOptions bind:form={exportSettings.form} />
@@ -68,7 +80,7 @@
     fullWidth
     loading={busy}
     leadingIcon={destination === 'immich' ? mdiCloudUpload : mdiFolderZip}
-    disabled={busy || selection.count === 0}
+    disabled={busy || selection.count === 0 || nameInvalid}
     onclick={() => void submit()}
   >
     {destination === 'immich'

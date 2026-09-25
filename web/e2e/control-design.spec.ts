@@ -128,7 +128,7 @@ test('text inputs retain the package focus ring', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
-  await expectPrimaryFocusRing(page, page.getByLabel('Filename suffix'));
+  await expectPrimaryFocusRing(page, page.getByLabel('Filename', { exact: true }));
 });
 
 function milliseconds(duration: string): number {
@@ -705,27 +705,27 @@ test('dense panel fields and selects share package sizing and states', async ({ 
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
 
-  const suffix = page.getByLabel('Filename suffix');
-  await expect(suffix).toBeVisible();
+  const template = page.getByLabel('Filename', { exact: true });
+  await expect(template).toBeVisible();
   const neutral = await resolvedColor(page, '--color-neutral-800');
   const neutralHover = await resolvedColor(page, '--color-neutral-700');
-  const suffixMetrics = await metricsOf(containerOf(suffix));
-  expect(suffixMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-  expect(suffixMetrics.background).toBe(neutral);
+  const templateMetrics = await metricsOf(containerOf(template));
+  expect(templateMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
+  expect(templateMetrics.background).toBe(neutral);
   expect(
-    (suffixMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
+    (templateMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
       (length) => Number.parseFloat(length) === 0
     )
   ).toBe(true);
-  await containerOf(suffix).hover();
+  await containerOf(template).hover();
   await expect
-    .poll(async () => (await metricsOf(containerOf(suffix))).background)
+    .poll(async () => (await metricsOf(containerOf(template))).background)
     .toBe(neutralHover);
-  await expectPrimaryFocusRing(page, suffix);
+  await expectPrimaryFocusRing(page, template);
 
   const panel = page.getByRole('tabpanel');
   const labelMetrics = await Promise.all(
-    ['Format', 'Color space', 'Quality', 'Filename suffix', 'Albums', 'Tags'].map((label) =>
+    ['Format', 'Color space', 'Quality', 'Filename', 'Albums', 'Tags'].map((label) =>
       metricsOf(panel.getByText(label, { exact: true }))
     )
   );
@@ -776,7 +776,9 @@ test('dense panel fields and selects share package sizing and states', async ({ 
   expect((await trigger.textContent())?.trim()).not.toBe(before);
 });
 
-test('bulk export shows the neutral suffix field for both destinations', async ({ page }) => {
+test('bulk export shows the neutral filename template field for both destinations', async ({
+  page
+}) => {
   await installMocks(page);
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
@@ -784,22 +786,23 @@ test('bulk export shows the neutral suffix field for both destinations', async (
   await page.getByRole('tab', { name: 'Export' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  const suffix = dialog.getByLabel('Filename suffix');
-  await expect(suffix).toBeVisible();
+  const template = dialog.getByLabel('Filename', { exact: true });
+  await expect(template).toBeVisible();
+  await expect(dialog.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();
 
   await dialog.getByRole('radio', { name: 'To Immich' }).click();
-  await expect(suffix).toBeVisible();
-  const suffixMetrics = await metricsOf(containerOf(suffix));
-  expect(suffixMetrics.background).toBe(await resolvedColor(page, '--color-neutral-800'));
+  await expect(template).toBeVisible();
+  const templateMetrics = await metricsOf(containerOf(template));
+  expect(templateMetrics.background).toBe(await resolvedColor(page, '--color-neutral-800'));
   expect(
-    (suffixMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
+    (templateMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
       (length) => Number.parseFloat(length) === 0
     )
   ).toBe(true);
-  await expectPrimaryFocusRing(page, suffix);
+  await expectPrimaryFocusRing(page, template);
 
   await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
-  await expect(suffix).toBeVisible();
+  await expect(template).toBeVisible();
 });
 
 test('crop ratio controls share the neutral grey surface', async ({ page }) => {
