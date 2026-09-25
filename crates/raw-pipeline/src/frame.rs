@@ -35,6 +35,7 @@ pub struct RenderOptions {
     pub max_edge: u32,
     pub enlarge: bool,
     pub output_sharpen: Option<OutputSharpen>,
+    pub watermark: Option<Watermark>,
     pub quality: bool,
     pub roi: Option<crate::edits::CropRect>,
     pub output: OutputFormat,
@@ -67,6 +68,35 @@ pub enum SharpenLevel {
 pub struct OutputSharpen {
     pub media: SharpenMedia,
     pub level: SharpenLevel,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WatermarkImage {
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Align {
+    Start,
+    Center,
+    End,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WatermarkAnchor {
+    pub x: Align,
+    pub y: Align,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Watermark {
+    pub image: std::sync::Arc<WatermarkImage>,
+    pub size: f32,
+    pub opacity: f32,
+    pub anchor: WatermarkAnchor,
+    pub inset: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -219,6 +249,7 @@ impl Default for RenderOptions {
             max_edge: 4096,
             enlarge: false,
             output_sharpen: None,
+            watermark: None,
             quality: false,
             roi: None,
             output: OutputFormat::Jpeg {

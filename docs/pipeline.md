@@ -191,6 +191,11 @@ stay identical from there on by construction.
    paper, clamped to 0.5–4 px. Each result is clamped to its 3×3 neighborhood, so edges cannot
    overshoot into halos. It is separate from the Detail panel's creative sharpening, which runs
    inside the renderers.
+1. **Watermark.** `RenderOptions.watermark` composites a decoded PNG (`finish/watermark.rs`) last,
+   so it is never resampled with the photo or sharpened. Its size and inset are fractions of the
+   photo's short edge; it is placed at one of nine anchors and blended with its own alpha times the
+   chosen opacity. The PNG is treated as sRGB and converted through linear light for Display P3
+   exports.
 
 ## Masks
 
