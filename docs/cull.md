@@ -101,7 +101,8 @@ and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a rating,
 **Clear rating**, **Reject**, **Unreject**, **Tags**, **Create virtual copy**, and
 **Edit and export selected**. The last one pastes edits, applies a preset or exports every selected
-photo in one go; see [export many photos](export.md#export-many-photos).
+photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
+focus from the grid into the selection bar.
 
 ## Virtual copies
 

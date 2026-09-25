@@ -24,6 +24,38 @@ test('grid tiles and counts are readable by assistive tech', async ({ page }) =>
   );
 });
 
+test('shift+b moves focus into the selection actions', async ({ page }) => {
+  await installMocks(page, { assets: GRID_ASSETS.slice(0, 3) });
+  await page.goto('/photos');
+
+  for (const name of ['IMG_0001.ARW', 'IMG_0002.ARW']) {
+    await page.locator(`div[title="${name}"]`).getByRole('button', { name: 'Select' }).click();
+  }
+  await expect(page.getByText('2 selected')).toBeVisible();
+  await page.keyboard.press('Shift+b');
+
+  const toolbar = page.getByRole('toolbar', { name: 'Selection actions' });
+  await expect.poll(() => toolbar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+
+  const ringClipped = await page.evaluate(() => {
+    const focused = document.activeElement as HTMLElement;
+    const style = getComputedStyle(focused);
+    const reach = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+    let clip = focused.parentElement;
+    while (clip && getComputedStyle(clip).overflowX === 'visible') clip = clip.parentElement;
+    if (!clip || reach <= 0) return `no ring or clip (${reach})`;
+    const ring = focused.getBoundingClientRect();
+    const box = clip.getBoundingClientRect();
+    return ring.left - reach < box.left ||
+      ring.right + reach > box.right ||
+      ring.top - reach < box.top ||
+      ring.bottom + reach > box.bottom
+      ? 'clipped'
+      : '';
+  });
+  expect(ringClipped).toBe('');
+});
+
 test('grid selection previews and commits a shift range', async ({ page }) => {
   await installMocks(page, { assets: GRID_ASSETS.slice(0, 3) });
   await page.goto('/photos');

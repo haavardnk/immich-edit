@@ -61,6 +61,11 @@
   let busy = $state(false);
   let showTags = $state(false);
   let bulkActionsOpen = $state(false);
+  let bar = $state<HTMLDivElement | null>(null);
+
+  export function focusFirst(): void {
+    bar?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus();
+  }
 
   let metaBusy = $derived(busy || selectingAll);
   let count = $derived(selectedIds.length);
@@ -197,6 +202,9 @@
 
 {#if count > 0 || selectingAll}
   <div
+    bind:this={bar}
+    role="toolbar"
+    aria-label="Selection actions"
     class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
     <ControlBar static shape="rectangle" class="min-w-0 px-3">
@@ -206,7 +214,9 @@
         >
       </ControlBarHeader>
 
-      <ControlBarContent class="min-w-0 gap-1 overflow-x-auto overscroll-contain scrollbar-hidden">
+      <ControlBarContent
+        class="-my-1 min-w-0 gap-1 overflow-x-auto overscroll-contain p-1 scrollbar-hidden"
+      >
         {#if showSelectAll}
           <div class="flex shrink-0 items-center gap-1">
             <Button
