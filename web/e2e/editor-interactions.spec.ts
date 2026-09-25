@@ -340,6 +340,25 @@ test('the clipping overlay toggles from the toolbar at desktop width', async ({ 
   await expect(clip).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('the grey background preference survives a reload', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  const stage = page.locator('.editor-stage');
+  await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await page.getByRole('button', { name: 'Grey background' }).click();
+  await expect(stage).toHaveCSS('background-color', 'rgb(118, 118, 118)');
+
+  await page.reload();
+  await expect(page.locator('.editor-stage')).toHaveCSS('background-color', 'rgb(118, 118, 118)');
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await expect(page.getByRole('button', { name: 'Grey background' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+});
+
 test('the auto adjust shortcut requests suggested edits', async ({ page }) => {
   await installMocks(page);
   let auto = 0;

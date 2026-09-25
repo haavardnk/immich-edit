@@ -50,6 +50,10 @@
   $effect(() => {
     if (page.url.pathname && narrowViewport) sidebarOpen = false;
   });
+
+  $effect(() => {
+    document.documentElement.classList.toggle('grey-canvas', ui.greyCanvas);
+  });
 </script>
 
 {#if editorRoute}

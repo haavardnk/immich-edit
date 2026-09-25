@@ -18,7 +18,8 @@ describe('editor layout persistence', () => {
         rightCollapsed: true,
         editorFilmstripCollapsed: true,
         loupeFilmstripCollapsed: true,
-        developOpenPanels: ['curves']
+        developOpenPanels: ['curves'],
+        greyCanvas: true
       })
     );
     vi.stubGlobal('localStorage', {
@@ -34,10 +35,12 @@ describe('editor layout persistence', () => {
     expect(ui.editorFilmstripCollapsed).toBe(true);
     expect(ui.loupeFilmstripCollapsed).toBe(true);
     expect(ui.developOpenPanels).toEqual(['curves']);
+    expect(ui.greyCanvas).toBe(true);
 
     ui.togglePanels();
     ui.toggleEditorFilmstrip();
     ui.toggleLoupeFilmstrip();
+    ui.toggleGreyCanvas();
     ui.setDevelopPanels(['curves', 'hsl']);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
@@ -48,7 +51,8 @@ describe('editor layout persistence', () => {
       loupeFilmstripCollapsed: false,
       developOpenPanels: ['curves', 'hsl'],
       brushTool: { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' },
-      retouchTool: { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 }
+      retouchTool: { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 },
+      greyCanvas: false
     });
   });
 

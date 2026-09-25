@@ -19,7 +19,8 @@
     mdiContentDuplicate,
     mdiTriangleOutline,
     mdiDotsVertical,
-    mdiKeyboardOutline
+    mdiKeyboardOutline,
+    mdiCircleHalfFull
   } from '@mdi/js';
 
   let moreOpen = $state(false);
@@ -231,6 +232,18 @@
             }}>Clipping overlay</Button
           >
         </div>
+        <Button
+          size="tiny"
+          variant="ghost"
+          color={ui.greyCanvas ? 'primary' : 'secondary'}
+          class="w-full justify-start"
+          leadingIcon={mdiCircleHalfFull}
+          aria-pressed={ui.greyCanvas}
+          onclick={() => {
+            ui.toggleGreyCanvas();
+            moreOpen = false;
+          }}>Grey background</Button
+        >
         <SoftProofControl />
       </div>
     </Popover>

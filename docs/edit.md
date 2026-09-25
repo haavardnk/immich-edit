@@ -85,6 +85,7 @@ and white. The panel's dot resets all of them.
 | **Hold for original**, or hold `\` | Shows the unedited photo while held |
 | **Before / after split**, or `Y` | Splits the view; drag the divider to move it |
 | **Clipping overlay**, or `J` | Marks pure black and pure white areas |
+| **More editor actions** > **Grey background** | Swaps the black surround for middle grey, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
 | **More editor actions** > **Soft proof** | Previews the photo in a **Proof space**; **Show gamut warning** marks colors it cannot show |
 

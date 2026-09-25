@@ -78,6 +78,7 @@ type PersistedEditorUi = {
   developOpenPanels?: string[];
   brushTool?: BrushTool;
   retouchTool?: RetouchTool;
+  greyCanvas?: boolean;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -103,6 +104,7 @@ class UiStore {
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
   clipWarn = $state(false);
+  greyCanvas = $state(false);
   brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
   retouchTool = $state<RetouchTool>(DEFAULT_RETOUCH_TOOL);
 
@@ -134,6 +136,7 @@ class UiStore {
     if (Array.isArray(stored?.developOpenPanels)) {
       this.developOpenPanels = stored.developOpenPanels.filter((id) => typeof id === 'string');
     }
+    this.greyCanvas = stored?.greyCanvas === true;
   }
 
   setDevelopPanels = (ids: string[]): void => {
@@ -150,7 +153,8 @@ class UiStore {
       loupeFilmstripCollapsed: this.loupeFilmstripCollapsed,
       developOpenPanels: this.developOpenPanels ?? undefined,
       brushTool: this.brushTool,
-      retouchTool: this.retouchTool
+      retouchTool: this.retouchTool,
+      greyCanvas: this.greyCanvas
     } satisfies PersistedEditorUi);
   };
 
@@ -178,6 +182,11 @@ class UiStore {
 
   toggleClipWarn = (): void => {
     this.clipWarn = !this.clipWarn;
+  };
+
+  toggleGreyCanvas = (): void => {
+    this.greyCanvas = !this.greyCanvas;
+    this.persistEditorUi();
   };
 
   togglePerspectiveCorners = (): void => {

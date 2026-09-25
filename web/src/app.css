@@ -190,6 +190,10 @@
   background-color: var(--color-image-canvas);
 }
 
+:root.grey-canvas {
+  --color-image-canvas: #767676;
+}
+
 .auth-stage {
   background-color: var(--color-auth-stage);
   background-image:
