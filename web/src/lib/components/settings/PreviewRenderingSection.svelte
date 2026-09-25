@@ -39,4 +39,12 @@
     {/each}
   </RadioGroup.Root>
   <p class="text-xs text-dark/65">{status}</p>
+  {#if renderer.choice === 'auto' && !isSecureContext}
+    <a
+      class="text-xs text-primary hover:underline"
+      href="https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network"
+      target="_blank"
+      rel="noopener">Enable browser previews on a local network</a
+    >
+  {/if}
 </section>
