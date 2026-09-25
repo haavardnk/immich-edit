@@ -916,6 +916,8 @@ async fn shared_profile_writes_require_admin() {
         ("DELETE", "/api/luts/some-id"),
         ("POST", "/api/dcp?name=x"),
         ("DELETE", "/api/dcp/some-id"),
+        ("POST", "/api/watermarks?name=x"),
+        ("DELETE", "/api/watermarks/some-id"),
     ];
     for (method, uri) in cases {
         let server = MockServer::start().await;
@@ -938,7 +940,7 @@ async fn shared_profile_writes_require_admin() {
 
 #[tokio::test]
 async fn shared_profile_reads_allow_members() {
-    let cases = ["/api/luts", "/api/dcp"];
+    let cases = ["/api/luts", "/api/dcp", "/api/watermarks"];
     for uri in cases {
         let server = MockServer::start().await;
         let app = member_app(&server).await;

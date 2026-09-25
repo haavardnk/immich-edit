@@ -165,7 +165,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
 | Export presets or recipes | ✗ No | Edit presets do not store export settings |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |
-| Export watermark | ✗ No | — |
+| Export watermark | ✓ Yes | PNG from a shared library, with size, opacity, inset and one of nine positions |
 | Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original |
 | DNG export | ✗ No | — |
 | PSD export | ✗ No | — |

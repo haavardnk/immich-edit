@@ -7,10 +7,26 @@ use serde::Deserialize;
 use super::DEFAULT_QUALITY;
 use super::output_sharpen::{SharpenAmountOpt, SharpenMediaOpt, output_sharpen};
 use super::resize::{Resize, ResizeMode};
+use super::watermark::{
+    DEFAULT_INSET, DEFAULT_OPACITY, DEFAULT_SIZE, WatermarkAnchorOpt, WatermarkPlacement,
+    watermark_placement,
+};
 use crate::error::AppError;
 
 fn default_quality() -> u8 {
     DEFAULT_QUALITY
+}
+
+fn default_watermark_size() -> f32 {
+    DEFAULT_SIZE
+}
+
+fn default_watermark_opacity() -> f32 {
+    DEFAULT_OPACITY
+}
+
+fn default_watermark_inset() -> f32 {
+    DEFAULT_INSET
 }
 
 fn default_include_exif() -> bool {
@@ -104,6 +120,16 @@ pub struct ExportParams {
     pub output_sharpen_amount: SharpenAmountOpt,
     #[serde(default)]
     pub output_sharpen_ppi: Option<u32>,
+    #[serde(default)]
+    pub watermark_id: Option<String>,
+    #[serde(default = "default_watermark_size")]
+    pub watermark_size: f32,
+    #[serde(default = "default_watermark_opacity")]
+    pub watermark_opacity: f32,
+    #[serde(default)]
+    pub watermark_anchor: WatermarkAnchorOpt,
+    #[serde(default = "default_watermark_inset")]
+    pub watermark_inset: f32,
 }
 
 impl Default for ExportParams {
@@ -127,6 +153,11 @@ impl Default for ExportParams {
             output_sharpen_media: None,
             output_sharpen_amount: SharpenAmountOpt::default(),
             output_sharpen_ppi: None,
+            watermark_id: None,
+            watermark_size: DEFAULT_SIZE,
+            watermark_opacity: DEFAULT_OPACITY,
+            watermark_anchor: WatermarkAnchorOpt::default(),
+            watermark_inset: DEFAULT_INSET,
         }
     }
 }
@@ -151,6 +182,16 @@ impl ExportParams {
             self.output_sharpen_media,
             self.output_sharpen_amount,
             self.output_sharpen_ppi,
+        )
+    }
+
+    pub fn watermark(&self) -> Result<Option<WatermarkPlacement>, AppError> {
+        watermark_placement(
+            self.watermark_id.as_deref(),
+            self.watermark_size,
+            self.watermark_opacity,
+            self.watermark_anchor,
+            self.watermark_inset,
         )
     }
 

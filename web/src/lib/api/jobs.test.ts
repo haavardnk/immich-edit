@@ -13,7 +13,8 @@ const base: ExportOptions = {
   colorSpace: 'displayp3',
   filenameTemplate: '{date}_{seq}',
   resize: { mode: 'dimensions', width: 2048, height: 2048, enlarge: false },
-  sharpen: { media: 'glossy', amount: 'high', ppi: 360 }
+  sharpen: { media: 'glossy', amount: 'high', ppi: 360 },
+  watermark: { id: 'wm', size: 20, opacity: 80, anchor: 'bottom', inset: 3 }
 };
 
 const immich: ImmichExportOptions = {
@@ -58,7 +59,12 @@ describe('export jobs', () => {
       resize_enlarge: false,
       output_sharpen_media: 'glossy',
       output_sharpen_amount: 'high',
-      output_sharpen_ppi: 360
+      output_sharpen_ppi: 360,
+      watermark_id: 'wm',
+      watermark_size: 0.2,
+      watermark_opacity: 0.8,
+      watermark_anchor: 'bottom',
+      watermark_inset: 0.03
     });
     expect(params).not.toHaveProperty('filename_suffix');
   });

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::routes::auth::AdminCtx;
 use crate::routes::immutable_bytes;
-use crate::services::lut_store::LutMeta;
+use crate::services::watermark_store::WatermarkMeta;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -16,17 +16,16 @@ pub struct ImportParams {
     pub name: String,
 }
 
-pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<LutMeta>>, AppError> {
-    let luts = state.luts.list().await?;
-    Ok(Json(luts))
+pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<WatermarkMeta>>, AppError> {
+    Ok(Json(state.watermarks.list().await?))
 }
 
-pub async fn cube(
+pub async fn png(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, AppError> {
-    let bytes = state.luts.source_bytes(&id).await?;
-    Ok(immutable_bytes(bytes, "application/octet-stream"))
+    let bytes = state.watermarks.png_bytes(&id).await?;
+    Ok(immutable_bytes(bytes, "image/png"))
 }
 
 pub async fn import(
@@ -34,8 +33,8 @@ pub async fn import(
     _admin: AdminCtx,
     Query(params): Query<ImportParams>,
     body: Bytes,
-) -> Result<(StatusCode, Json<LutMeta>), AppError> {
-    let meta = state.luts.import(&params.name, &body).await?;
+) -> Result<(StatusCode, Json<WatermarkMeta>), AppError> {
+    let meta = state.watermarks.import(&params.name, &body).await?;
     Ok((StatusCode::CREATED, Json(meta)))
 }
 
@@ -44,6 +43,6 @@ pub async fn delete(
     _admin: AdminCtx,
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    state.luts.soft_delete(&id).await?;
+    state.watermarks.soft_delete(&id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

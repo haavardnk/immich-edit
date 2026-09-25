@@ -12,6 +12,7 @@
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
   import SharpenOptions from './export/SharpenOptions.svelte';
+  import WatermarkOptions from './export/WatermarkOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import {
@@ -72,6 +73,7 @@
   <FormatOptions bind:form={exportSettings.form} />
   <ResizeOptions bind:form={exportSettings.form} />
   <SharpenOptions bind:form={exportSettings.form} />
+  <WatermarkOptions bind:form={exportSettings.form} />
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
     <FilenameTemplateField

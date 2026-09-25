@@ -26,6 +26,7 @@ a host directory instead, such as `./data:/data`, back up that directory.
 | `luts/` | Imported `.cube` files referenced by edits |
 | `models/` | Downloaded mask models; reinstallable, but part of a complete backup |
 | `rasters/` | Brush and generated-mask pixels referenced by saved edits |
+| `watermarks/` | Imported export watermark PNGs referenced by the database |
 
 Directories under `cache/` contain regenerable thumbnails, click-model embeddings, export staging
 files, and frame-related caches.
@@ -72,7 +73,8 @@ sqlite3 /data/immich-edit.db ".backup '/data/immich-edit-backup.db'"
 ## Restore
 
 1. Stop immich-edit.
-1. Restore the database, `instance.key`, `dcp/`, `luts/`, and `rasters/` from the same backup. For
+1. Restore the database, `instance.key`, `dcp/`, `luts/`, `rasters/`, and `watermarks/` from the
+   same backup. For
    the archive above:
 
    ```shell

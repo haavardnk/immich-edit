@@ -48,7 +48,7 @@ pub async fn raw(
     Path(id): Path<String>,
 ) -> Result<Response, AppError> {
     let bytes = state.dcp.source_bytes(&id).await?;
-    Ok(immutable_bytes(bytes))
+    Ok(immutable_bytes(bytes, "application/octet-stream"))
 }
 
 pub async fn import(

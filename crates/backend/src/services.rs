@@ -38,3 +38,4 @@ pub mod reset_edits;
 pub mod search_window;
 #[cfg(feature = "ml")]
 pub mod segment;
+pub mod watermark_store;

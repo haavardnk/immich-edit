@@ -12,6 +12,7 @@ use crate::immich::dto::AssetDetail;
 use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
+use crate::services::watermark_store::WatermarkStoreError;
 use crate::state::AppState;
 
 pub const EXPORT_MAX_EDGE: u32 = 65535;
@@ -25,6 +26,7 @@ mod naming;
 mod output_sharpen;
 mod params;
 mod resize;
+mod watermark;
 
 pub use archive::*;
 pub use batch::*;
@@ -94,6 +96,22 @@ pub async fn render_export(
 ) -> Result<(Bytes, OutputFormat), AppError> {
     let resize = params.resize()?;
     let output_sharpen = params.output_sharpen()?;
+    let watermark = match params.watermark()? {
+        Some(placement) => {
+            let image = state
+                .watermarks
+                .load(&placement.id)
+                .await
+                .map_err(|e| match e {
+                    WatermarkStoreError::NotFound => {
+                        AppError::BadRequest(format!("unknown watermark: {}", placement.id))
+                    }
+                    e => e.into(),
+                })?;
+            Some(placement.with_image(image))
+        }
+        None => None,
+    };
     let work = async {
         let frame = state
             .render
@@ -111,6 +129,7 @@ pub async fn render_export(
             max_edge: edge.map_or(EXPORT_MAX_EDGE, |e| e.max_edge),
             enlarge: edge.is_some_and(|e| e.enlarge),
             output_sharpen,
+            watermark,
             quality: true,
             output,
             output_color_space: params.output_color_space(),
@@ -295,6 +314,11 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "output_sharpen_media": body.params.output_sharpen_media.map(|m| format!("{m:?}")),
         "output_sharpen_amount": format!("{:?}", body.params.output_sharpen_amount),
         "output_sharpen_ppi": body.params.output_sharpen_ppi,
+        "watermark_id": body.params.watermark_id,
+        "watermark_size": body.params.watermark_size,
+        "watermark_opacity": body.params.watermark_opacity,
+        "watermark_anchor": format!("{:?}", body.params.watermark_anchor),
+        "watermark_inset": body.params.watermark_inset,
     });
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();

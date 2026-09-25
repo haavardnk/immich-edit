@@ -12,7 +12,8 @@ const base: ExportOptions = {
   colorSpace: 'srgb',
   filenameTemplate: '{name}_edit',
   resize: null,
-  sharpen: null
+  sharpen: null,
+  watermark: null
 };
 
 describe('exportUrlPersisted', () => {
@@ -59,6 +60,17 @@ describe('exportUrlPersisted', () => {
     const url = exportUrlPersisted('a', { ...base, sharpen });
     if (!sharpen) expect(url).not.toContain('output_sharpen');
     else expect(url.endsWith(expected)).toBe(true);
+  });
+
+  it('encodes a watermark as fractions only when one is set', () => {
+    expect(exportUrlPersisted('a', base)).not.toContain('watermark');
+    const url = exportUrlPersisted('a', {
+      ...base,
+      watermark: { id: 'wm', size: 25, opacity: 60, anchor: 'top_left', inset: 5 }
+    });
+    expect(url).toContain(
+      'watermark_id=wm&watermark_size=0.25&watermark_opacity=0.6&watermark_anchor=top_left&watermark_inset=0.05'
+    );
   });
 });
 
