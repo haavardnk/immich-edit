@@ -18,6 +18,7 @@ const PANEL_RESETS: Record<string, PanelReset> = {
     ...edits,
     color: { ...edits.color, color_grade: neutral.color.color_grade }
   }),
+  bw: (edits, neutral) => ({ ...edits, color: { ...edits.color, bw: neutral.color.bw } }),
   lut: (edits, neutral) => ({ ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } }),
   detail: (edits, neutral) => ({ ...edits, detail: neutral.detail }),
   lens: (edits, neutral) => ({ ...edits, lens: neutral.lens }),

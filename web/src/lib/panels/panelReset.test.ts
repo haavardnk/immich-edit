@@ -15,6 +15,7 @@ function everyPanelModified(): Edits {
   ];
   edits.color.hsl.bands[2]!.sat = 20;
   edits.color.color_grade.shadows.sat = 30;
+  edits.color.bw.enabled = true;
   edits.color.lut_3d.lut_id = 'lut-1';
   edits.detail.luma_nr_amount = 25;
   edits.lens.k1 = 0.1;
@@ -33,6 +34,7 @@ describe('resetDevelopPanel', () => {
       'curves',
       'hsl',
       'color-grading',
+      'bw',
       'lut',
       'detail',
       'lens',

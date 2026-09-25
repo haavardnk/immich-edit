@@ -164,6 +164,45 @@ export interface ColorEdits {
   color_grade: ColorGradeEdits;
   lut_3d: Lut3dEdits;
   dcp: DcpEdits;
+  bw: BwEdits;
+}
+
+export const BW_CHANNELS = ['red', 'yellow', 'green', 'aqua', 'blue', 'magenta'] as const;
+export type BwChannel = (typeof BW_CHANNELS)[number];
+
+export interface BwTint {
+  hue: number;
+  sat: number;
+}
+
+export interface BwEdits {
+  enabled: boolean;
+  mix: Record<BwChannel, number>;
+  shadows: BwTint;
+  highlights: BwTint;
+  balance: number;
+}
+
+export function neutralBw(): BwEdits {
+  return {
+    enabled: false,
+    mix: { red: 0, yellow: 0, green: 0, aqua: 0, blue: 0, magenta: 0 },
+    shadows: { hue: 0, sat: 0 },
+    highlights: { hue: 0, sat: 0 },
+    balance: 0
+  };
+}
+
+export function bwIsNeutral(bw: BwEdits): boolean {
+  return (
+    !bw.enabled &&
+    BW_CHANNELS.every((channel) => bw.mix[channel] === 0) &&
+    bw.shadows.hue === 0 &&
+    bw.shadows.sat === 0 &&
+    bw.highlights.hue === 0 &&
+    bw.highlights.sat === 0 &&
+    bw.balance === 0
+  );
 }
 
 export interface DetailEdits {
@@ -531,7 +570,8 @@ export function neutralEdits(): Edits {
       hsl: { bands: neutralBands() },
       color_grade: neutralColorGrade(),
       lut_3d: neutralLut3d(),
-      dcp: neutralDcp()
+      dcp: neutralDcp(),
+      bw: neutralBw()
     },
     detail: { ...NEUTRAL_DETAIL },
     effects: { ...NEUTRAL_EFFECTS },
@@ -585,7 +625,8 @@ export type DevelopSection =
   | 'vignette'
   | 'grain'
   | 'lens'
-  | 'lut';
+  | 'lut'
+  | 'bw';
 
 export function neutraliseSection(edits: Edits, section: DevelopSection): Edits {
   const neutral = neutralEdits();
@@ -668,6 +709,8 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
       return { ...edits, lens: neutral.lens };
     case 'lut':
       return { ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } };
+    case 'bw':
+      return { ...edits, color: { ...edits.color, bw: neutral.color.bw } };
   }
 }
 
@@ -1042,6 +1085,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
+    bwIsNeutral(e.color.bw) &&
     e.masks.length === 0 &&
     e.retouch.length === 0
   );

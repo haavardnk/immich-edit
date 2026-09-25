@@ -151,7 +151,8 @@ const SECTION_FIELDS: Record<DevelopSection, string[]> = {
   ],
   grain: ['effects.grain_amount', 'effects.grain_size', 'effects.grain_roughness'],
   lens: ['lens.profile_enabled', 'lens.k1'],
-  lut: ['color.lut_3d.lut_id', 'color.lut_3d.amount']
+  lut: ['color.lut_3d.lut_id', 'color.lut_3d.amount'],
+  bw: ['color.bw.enabled', 'color.bw.mix.green', 'color.bw.shadows.sat', 'color.bw.balance']
 };
 
 function read(edits: Edits, path: string): unknown {
@@ -199,6 +200,10 @@ function graded(): Edits {
   edits.color.lut_3d.lut_id = 'lut';
   edits.color.lut_3d.amount = 60;
   edits.color.hsl.bands = edits.color.hsl.bands.map((band) => ({ ...band, hue: 10 }));
+  edits.color.bw.enabled = true;
+  edits.color.bw.mix.green = 40;
+  edits.color.bw.shadows.sat = 25;
+  edits.color.bw.balance = -30;
   edits.geometry.rotate = 90;
   return edits;
 }

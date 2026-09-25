@@ -44,6 +44,7 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
      boosts muted colors more gently than **Saturation**.
 1. **Curves**, **HSL** and **Color Grading** shape color and contrast further. **LUT** applies a
    creative look from a `.cube` file, with an **Amount**.
+1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
    **Remove Chromatic Aberration** is off until you turn it on.
@@ -61,6 +62,21 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
 - A panel with changes shows a dot next to its name. Click the dot to reset the whole panel.
 - Press and hold a changed section's name, such as **Tone**, to see the photo without that section.
 - **Show modified only**, in the row at the top of **Develop**, hides every untouched panel.
+
+### Black and white
+
+**Convert to Black & White** in the **Black & White** panel replaces the colors with their
+brightness. It runs after **Basic** and **HSL**, so their color changes still decide what each
+color turns into, and before **Color Grading** and **LUT**, which can tint the result.
+
+| Control | What it does |
+| --- | --- |
+| **Red**, **Yellow**, **Green**, **Aqua**, **Blue**, **Magenta** | Makes that color lighter or darker in the gray version, up to about 1.5 stops each way. Neutral grays never move, and faint colors move less than strong ones |
+| **Shadows** and **Highlights** wheels | Tint the dark and the light tones with a hue, at the chosen strength, without changing their brightness |
+| **Balance** | Moves the point where the shadow tint gives way to the highlight tint; positive values give the highlight tint more of the photo |
+
+Turning the conversion off keeps the mixer and tint settings, so you can compare color and black
+and white. The panel's dot resets all of them.
 
 ## Check your work
 
