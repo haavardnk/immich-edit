@@ -79,30 +79,35 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Enter`               | Keep only the focused photo                                   | Survey       |
 | `E` / `Esc`           | Back to the loupe, selecting the survivors if you dropped any | Survey       |
 
+## View
+
+| Keys      | Action            | Available in                   |
+| --------- | ----------------- | ------------------------------ |
+| `Shift+F` | Toggle fullscreen | Loupe, Compare, Survey, Editor |
+
 ## Editor
 
-| Keys           | Action                                           | Available in                   |
-| -------------- | ------------------------------------------------ | ------------------------------ |
-| `←` / `→`      | Previous / next photo                            | Editor                         |
-| `Ctrl+Z`       | Undo                                             | Editor                         |
-| `Ctrl+Shift+Z` | Redo                                             | Editor                         |
-| `D`            | Open Develop                                     | Editor                         |
-| `R`            | Open Geometry                                    | Editor                         |
-| `Q`            | Open Retouch                                     | Editor                         |
-| `M`            | Open Masks                                       | Editor                         |
-| `Ctrl+'`       | Create a virtual copy                            | Grid, Loupe, Editor            |
-| `Shift+P`      | Toggle the perspective corner handles            | Editor                         |
-| `Y`            | Toggle the before / after split                  | Editor                         |
-| `\`            | Hold to view the original                        | Editor                         |
-| `Tab`          | Hide or show the side panels                     | Editor                         |
-| `Shift+Tab`    | Hide or show every panel                         | Editor                         |
-| `Shift+F`      | Toggle fullscreen                                | Loupe, Compare, Survey, Editor |
-| `Ctrl+U`       | Auto adjust tone                                 | Editor                         |
-| `Ctrl+Shift+R` | Reset every edit                                 | Editor                         |
-| `Ctrl+Shift+C` | Copy edits                                       | Editor                         |
-| `Ctrl+Shift+V` | Paste edits                                      | Editor                         |
-| `Ctrl+Shift+E` | Open Export                                      | Editor                         |
-| `Esc`          | Step out of the active tool, panel or fullscreen | Editor                         |
+| Keys           | Action                                           | Available in        |
+| -------------- | ------------------------------------------------ | ------------------- |
+| `←` / `→`      | Previous / next photo                            | Editor              |
+| `Ctrl+Z`       | Undo                                             | Editor              |
+| `Ctrl+Shift+Z` | Redo                                             | Editor              |
+| `D`            | Open Develop                                     | Editor              |
+| `R`            | Open Geometry                                    | Editor              |
+| `Q`            | Open Retouch                                     | Editor              |
+| `M`            | Open Masks                                       | Editor              |
+| `Ctrl+'`       | Create a virtual copy                            | Grid, Loupe, Editor |
+| `Shift+P`      | Toggle the perspective corner handles            | Editor              |
+| `Y`            | Toggle the before / after split                  | Editor              |
+| `\`            | Hold to view the original                        | Editor              |
+| `Tab`          | Hide or show the side panels                     | Editor              |
+| `Shift+Tab`    | Hide or show every panel                         | Editor              |
+| `Ctrl+U`       | Auto adjust tone                                 | Editor              |
+| `Ctrl+Shift+R` | Reset every edit                                 | Editor              |
+| `Ctrl+Shift+C` | Copy edits                                       | Editor              |
+| `Ctrl+Shift+V` | Paste edits                                      | Editor              |
+| `Ctrl+Shift+E` | Open Export                                      | Editor              |
+| `Esc`          | Step out of the active tool, panel or fullscreen | Editor              |
 
 ## Sliders
 

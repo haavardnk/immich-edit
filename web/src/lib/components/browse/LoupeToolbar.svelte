@@ -11,6 +11,7 @@
     mdiCheckCircleOutline,
     mdiCompare,
     mdiContentDuplicate,
+    mdiFullscreen,
     mdiImageOutline,
     mdiTriangleOutline,
     mdiInformationOutline,
@@ -183,6 +184,15 @@
       title={hint('Edit', 'openEditor')}
       aria-label={hint('Edit', 'openEditor')}
       onclick={onOpenEditor}
+    />
+    <IconButton
+      size="small"
+      variant="ghost"
+      color="secondary"
+      icon={mdiFullscreen}
+      title={hint('Fullscreen', 'fullscreen')}
+      aria-label={hint('Fullscreen', 'fullscreen')}
+      onclick={ui.toggleFullscreen}
     />
     <IconButton
       size="small"

@@ -261,6 +261,14 @@ export const KEYBINDS = [
   },
 
   {
+    id: 'fullscreen',
+    keys: ['Shift+f'],
+    contexts: ['loupe', 'compare', 'survey', 'editor'],
+    group: 'View',
+    label: 'Toggle fullscreen'
+  },
+
+  {
     id: 'editorNav',
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['editor'],
@@ -351,13 +359,6 @@ export const KEYBINDS = [
     contexts: ['editor'],
     group: 'Editor',
     label: 'Hide or show every panel'
-  },
-  {
-    id: 'fullscreen',
-    keys: ['Shift+f'],
-    contexts: ['loupe', 'compare', 'survey', 'editor'],
-    group: 'Editor',
-    label: 'Toggle fullscreen'
   },
   {
     id: 'autoAdjust',
