@@ -30,7 +30,8 @@ Clicking a photo opens it in the [editor](edit.md). To look without editing, hov
 **Quick review**, or press `E`. That opens the loupe: one photo at full size, with the filmstrip
 below. Arrow keys move through the photos, `Z` zooms, and `I` opens the info panel. The loupe, the
 editor and their filmstrips load the rest of the view as you reach the end of what is loaded, so
-the arrow keys walk the whole album or search result.
+the arrow keys walk the whole album or search result. When you close the loupe or go back from the
+editor, the grid scrolls to the photo you ended on if it is off screen.
 
 `Z` zooms to the faces Immich found, largest first, and back to fit after the last one. Without
 faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 until you change

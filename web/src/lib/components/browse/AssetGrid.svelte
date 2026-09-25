@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { afterNavigate, goto } from '$app/navigation';
   import { observeSize } from '$lib/actions/observeSize';
   import type { AssetSummary } from '$lib/types/album';
@@ -52,6 +52,8 @@
   let viewTop = $state(0);
   let scrollKey = '';
   let pendingRestore: number | null = null;
+  let revealOnReturn = false;
+  let loupeWasOpen = false;
   let shiftPressed = $state(false);
   let hoveredId = $state<string | null>(null);
   let selectingAll = $state(false);
@@ -144,6 +146,27 @@
     } else if (rowBottom > viewTop + parentHeight) {
       scrollParent.scrollTop += rowBottom - (viewTop + parentHeight) + GAP;
     }
+  }
+
+  function centerIfHidden(box: AssetGridBox): void {
+    const rowTop = PAD + box.top;
+    if (rowTop + box.height > viewTop && rowTop < viewTop + parentHeight) return;
+    const center = rowTop + box.height / 2 - parentHeight / 2;
+    pendingRestore = Math.min(Math.max(0, center), Math.max(0, layout.totalHeight - parentHeight));
+    restoreScroll();
+  }
+
+  function revealActive(): boolean {
+    const id = browseView.activeId;
+    if (!id) return true;
+    const box = layout.boxes[items.findIndex((a) => a.id === id)];
+    if (box) {
+      centerIfHidden(box);
+      return true;
+    }
+    if (!onLoadMore) return true;
+    if (!loadingMore) onLoadMore();
+    return false;
   }
 
   function isTyping(): boolean {
@@ -336,6 +359,7 @@
   onMount(() => {
     const path = `${window.location.pathname}${window.location.search}`;
     if (browseView.lastGridPath !== path) selection.clear();
+    else revealOnReturn = true;
     if (!root) return;
     scrollKey = path;
     browseView.setLastGridPath(scrollKey);
@@ -362,6 +386,14 @@
     const _tracked = items.length;
     measure();
     restoreScroll();
+    if (revealOnReturn && pendingRestore === null && items.length > 0)
+      revealOnReturn = !untrack(revealActive);
+  });
+
+  $effect(() => {
+    const open = browseView.loupeId !== null;
+    if (loupeWasOpen && !open) untrack(revealActive);
+    loupeWasOpen = open;
   });
 </script>
 
