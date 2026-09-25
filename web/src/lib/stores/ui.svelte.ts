@@ -103,6 +103,7 @@ class UiStore {
   metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
   perspectiveCorners = $state(false);
+  straightening = $state(false);
   clipWarn = $state(false);
   greyCanvas = $state(false);
   brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
@@ -191,6 +192,10 @@ class UiStore {
 
   togglePerspectiveCorners = (): void => {
     this.perspectiveCorners = !this.perspectiveCorners;
+  };
+
+  toggleStraighten = (): void => {
+    this.straightening = !this.straightening;
   };
 
   openTab = (tab: EditorTab): void => {

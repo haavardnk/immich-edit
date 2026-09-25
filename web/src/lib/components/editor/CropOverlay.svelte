@@ -2,7 +2,13 @@
   import { observeSize } from '$lib/actions/observeSize';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rotatedBbox, aspectRatioFor, degToRad } from '$lib/utils/geom';
+  import {
+    rotatedBbox,
+    aspectRatioFor,
+    degToRad,
+    angleFromLine,
+    type Point
+  } from '$lib/utils/geom';
   import {
     cornerOffsetsFor,
     mat3Apply,
@@ -12,8 +18,12 @@
   import type { CropRect } from '$lib/types/edits';
 
   let container = $state<HTMLDivElement | null>(null);
+  let stage = $state<HTMLDivElement | null>(null);
   let containerW = $state(0);
   let containerH = $state(0);
+  let line = $state<{ from: Point; to: Point } | null>(null);
+
+  const MIN_LINE_PX = 10;
 
   function measure(): void {
     if (!container) return;
@@ -76,7 +86,40 @@
   let dragStartY = 0;
   let dragStartCrop: CropRect | null = null;
 
+  function stagePoint(e: PointerEvent): Point {
+    const rect = stage?.getBoundingClientRect();
+    return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
+  }
+
+  function startLine(e: PointerEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const at = stagePoint(e);
+    line = { from: at, to: at };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onLineMove(e: PointerEvent): void {
+    if (!line) return;
+    line = { from: line.from, to: stagePoint(e) };
+  }
+
+  function onLineUp(e: PointerEvent): void {
+    const drawn = line;
+    line = null;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (!drawn || !sess) return;
+    const length = Math.hypot(drawn.to.x - drawn.from.x, drawn.to.y - drawn.from.y);
+    if (length < MIN_LINE_PX) return;
+    editor.updateGeometryDraftAngle(sess.draftAngle + angleFromLine(drawn.from, drawn.to));
+    ui.straightening = false;
+  }
+
   function startDrag(e: PointerEvent, kind: DragKind): void {
+    if (kind === 'move' && e.shiftKey) {
+      startLine(e);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (!sess) return;
@@ -88,6 +131,10 @@
   }
 
   function onMove(e: PointerEvent): void {
+    if (line) {
+      onLineMove(e);
+      return;
+    }
     if (!dragKind || !dragStartCrop || !sess) return;
     const dx = (e.clientX - dragStartX) / Math.max(bboxW, 1);
     const dy = (e.clientY - dragStartY) / Math.max(bboxH, 1);
@@ -150,6 +197,10 @@
   }
 
   function onUp(e: PointerEvent): void {
+    if (line) {
+      onLineUp(e);
+      return;
+    }
     dragKind = null;
     dragStartCrop = null;
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
@@ -198,7 +249,7 @@
   class="absolute inset-0 flex items-center justify-center select-none"
 >
   {#if sess && sess.pinnedReady && sess.pinnedUrl}
-    <div class="relative" style="width: {bboxW}px; height: {bboxH}px;">
+    <div bind:this={stage} class="relative" style="width: {bboxW}px; height: {bboxH}px;">
       <img
         src={sess.pinnedUrl}
         alt=""
@@ -265,6 +316,36 @@
           ></button>
         {/each}
       </div>
+
+      {#if ui.straightening}
+        <div
+          class="absolute inset-0 cursor-crosshair touch-none"
+          data-testid="straighten-surface"
+          role="presentation"
+          onpointerdown={startLine}
+          onpointermove={onLineMove}
+          onpointerup={onLineUp}
+          onpointercancel={onLineUp}
+        ></div>
+      {/if}
+
+      {#if line}
+        <svg
+          class="absolute inset-0 pointer-events-none"
+          width={bboxW}
+          height={bboxH}
+          aria-hidden="true"
+        >
+          <line
+            x1={line.from.x}
+            y1={line.from.y}
+            x2={line.to.x}
+            y2={line.to.y}
+            stroke="var(--color-primary)"
+            stroke-width="2"
+          />
+        </svg>
+      {/if}
 
       {#if ui.perspectiveCorners}
         <svg

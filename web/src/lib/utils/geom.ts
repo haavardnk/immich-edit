@@ -16,6 +16,15 @@ export function degToRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
+export const MAX_STRAIGHTEN_DEG = 45;
+
+export function angleFromLine(p0: Point, p1: Point): number {
+  const deg = (Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180) / Math.PI;
+  const tilt = ((((deg + 90) % 180) + 180) % 180) - 90;
+  if (Math.abs(tilt) <= 45) return 0 - tilt;
+  return tilt > 0 ? 90 - tilt : -90 - tilt;
+}
+
 export function rotatedBbox(sw: number, sh: number, angleDeg: number): Size {
   const a = degToRad(angleDeg);
   const c = Math.abs(Math.cos(a));

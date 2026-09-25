@@ -65,4 +65,15 @@ describe('geometry session', () => {
     expect(c.edits.geometry.rotate_angle).toBe(5);
     expect(c.commits).toBe(1);
   });
+
+  it.each([
+    [60, 45],
+    [-60, -45],
+    [12.5, 12.5]
+  ])('clamps a draft angle of %s to %s', (angle, want) => {
+    const c = ctx();
+    startSession(c);
+    updateDraftAngle(c, angle);
+    expect(c.geometrySession?.draftAngle).toBe(want);
+  });
 });

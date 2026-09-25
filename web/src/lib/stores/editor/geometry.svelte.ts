@@ -12,6 +12,7 @@ import {
   aspectRatioFor,
   constrainCropRect,
   largestInscribedRect,
+  MAX_STRAIGHTEN_DEG,
   refitCropAtAspect
 } from '$lib/utils/geom';
 import {
@@ -227,7 +228,7 @@ export function flipStep(ctx: GeometryCtx, axis: 'h' | 'v'): void {
 export function updateDraftAngle(ctx: GeometryCtx, angle: number): void {
   const sess = ctx.geometrySession;
   if (!sess) return;
-  sess.draftAngle = angle;
+  sess.draftAngle = Math.max(-MAX_STRAIGHTEN_DEG, Math.min(MAX_STRAIGHTEN_DEG, angle));
   refitDraftCrop(sess);
 }
 

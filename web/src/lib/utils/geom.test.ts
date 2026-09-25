@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  angleFromLine,
   degToRad,
   rotatedBbox,
   aspectRatioFor,
@@ -12,6 +13,22 @@ import {
 } from './geom';
 import type { CropRect } from '../types/edits';
 import { FULL_CROP, neutralEdits } from '../types/edits';
+
+describe('angleFromLine', () => {
+  const t = Math.tan(degToRad(10));
+  it.each([
+    ['level', { x: 100, y: 0 }, 0],
+    ['right and down', { x: 100, y: 100 * t }, -10],
+    ['right and up', { x: 100, y: -100 * t }, 10],
+    ['left and down', { x: -100, y: 100 * t }, 10],
+    ['left and up', { x: -100, y: -100 * t }, -10],
+    ['near vertical, leaning left', { x: 100 * t, y: 100 }, 10],
+    ['near vertical, leaning right', { x: -100 * t, y: 100 }, -10],
+    ['near vertical, drawn upward', { x: 100 * t, y: -100 }, -10]
+  ])('%s', (_name, to, want) => {
+    expect(angleFromLine({ x: 0, y: 0 }, to)).toBeCloseTo(want, 6);
+  });
+});
 
 describe('degToRad', () => {
   it('converts degrees to radians', () => {

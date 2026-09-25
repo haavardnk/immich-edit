@@ -515,6 +515,21 @@ export const KEYBINDS = [
     group: 'Geometry',
     label: 'Apply the crop and transform and return to Develop'
   },
+  {
+    id: 'straighten',
+    keys: ['Shift+a'],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Draw a line along the horizon to level the photo'
+  },
+  {
+    id: 'straightenDrag',
+    keys: [],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Draw a straighten line without arming the tool',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag inside the crop`
+  },
 
   {
     id: 'maskDelete',

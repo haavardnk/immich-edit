@@ -148,8 +148,10 @@ another tool.
 
 - **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1** or
   **3:2**.
-- **Angle** straightens the horizon. **Rotate left 90°** and **Rotate right 90°** turn the photo,
-  and **Flip Horizontal** and **Flip Vertical** mirror it.
+- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `Shift+A`,
+  and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
+  the same without the button. **Rotate left 90°** and **Rotate right 90°** turn the photo, and
+  **Flip Horizontal** and **Flip Vertical** mirror it.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
   afterwards. **Corner handles**, or `Shift+P`, lets you drag the four corners onto a shape that
   should be rectangular instead.
