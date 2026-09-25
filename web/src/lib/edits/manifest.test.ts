@@ -361,6 +361,41 @@ describe('manifest codec', () => {
     expect(roundTrip(edits).masks).toEqual(edits.masks);
   });
 
+  it.each([
+    [0, undefined],
+    [35, 35]
+  ])('round trips a radial angle of %s and omits zero', (angle, want) => {
+    const edits = neutralEdits();
+    const kind = {
+      kind: 'radial' as const,
+      center: { x: 0.4, y: 0.5 },
+      radius_xy: { x: 0.2, y: 0.1 },
+      feather: 0.3,
+      ...(angle ? { angle } : {})
+    };
+    edits.masks = [
+      {
+        id: 'layer',
+        name: 'Radial',
+        enabled: true,
+        color: '#ff3b30',
+        amount: 1,
+        invert: false,
+        components: [
+          { id: 'r', enabled: true, mode: 'add', invert: false, kind, source: 'manual' }
+        ],
+        edits: {}
+      }
+    ];
+    const manifest = JSON.parse(JSON.stringify(editsToManifest(edits)));
+    const sent = manifest.ops.masks.layers[0].components[0].kind;
+    expect(sent.angle).toBe(want);
+    expect('angle' in sent).toBe(want !== undefined);
+    manifest.ops.masks.layers[0].components[0].kind.angle = angle;
+    const parsed = manifestToEdits(manifest).masks[0]?.components[0]?.kind;
+    expect(parsed).toEqual(kind);
+  });
+
   it('preserves generated mask provenance', () => {
     const edits = neutralEdits();
     edits.masks = [

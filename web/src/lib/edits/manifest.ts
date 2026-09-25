@@ -428,11 +428,16 @@ function parseMaskKind(raw: unknown): MaskComponentKind | null {
     const center = parseVec2f(record.center);
     const radius = parseVec2f(record.radius_xy);
     if (!center || !radius) return null;
+    const angle =
+      typeof record.angle === 'number' && Number.isFinite(record.angle) && record.angle !== 0
+        ? { angle: record.angle }
+        : {};
     return {
       kind: 'radial',
       center,
       radius_xy: radius,
-      feather: typeof record.feather === 'number' ? record.feather : 0
+      feather: typeof record.feather === 'number' ? record.feather : 0,
+      ...angle
     };
   }
   if (record.kind === 'brush') {

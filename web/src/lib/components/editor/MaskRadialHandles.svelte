@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { MaskComponent, MaskComponentKind, Vec2f } from '$lib/types/edits';
-  import type { DragKind } from '$lib/utils/maskDrag';
+  import { radialAxes, type DragKind } from '$lib/utils/maskDrag';
 
   const MIN_FEATHER_HANDLE_SCALE = 0.08;
+  const ROTATE_GRIP_GAP = 22;
 
   let {
     comp,
@@ -10,6 +11,7 @@
     color,
     rect,
     toPx,
+    aspect,
     onSelect,
     onDrag
   }: {
@@ -18,13 +20,15 @@
     color: string;
     rect: { x: number; y: number; w: number; h: number };
     toPx: (v: Vec2f) => { x: number; y: number };
+    aspect: number;
     onSelect: (e: PointerEvent) => void;
     onDrag: (e: PointerEvent, kind: DragKind) => void;
   } = $props();
 
   const c = $derived(toPx(kind.center));
-  const rxEnd = $derived(toPx({ x: kind.center.x + kind.radius_xy.x, y: kind.center.y }));
-  const ryEnd = $derived(toPx({ x: kind.center.x, y: kind.center.y + kind.radius_xy.y }));
+  const axes = $derived(radialAxes(kind, aspect));
+  const rxEnd = $derived(toPx({ x: kind.center.x + axes.x.x, y: kind.center.y + axes.x.y }));
+  const ryEnd = $derived(toPx({ x: kind.center.x + axes.y.x, y: kind.center.y + axes.y.y }));
   const rxDx = $derived(rxEnd.x - c.x);
   const rxDy = $derived(rxEnd.y - c.y);
   const ryDx = $derived(ryEnd.x - c.x);
@@ -38,6 +42,10 @@
   const fillOp = $derived(comp.invert ? 0.0 : 0.55);
   const emptyOp = $derived(comp.invert ? 0.55 : 0.0);
   const rMax = $derived(Math.max(rx, ry, 1));
+  const grip = $derived({
+    x: c.x + (rxDx / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP),
+    y: c.y + (rxDy / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP)
+  });
 </script>
 
 <g style="pointer-events: auto;">
@@ -169,6 +177,29 @@
       opacity="0.7"
     />
   {/if}
+  <line
+    x1={c.x + rxDx}
+    y1={c.y + rxDy}
+    x2={grip.x}
+    y2={grip.y}
+    stroke={color}
+    stroke-width="1"
+    opacity="0.7"
+    style="pointer-events: none;"
+  />
+  <circle
+    cx={grip.x}
+    cy={grip.y}
+    r="5"
+    fill="var(--color-image-light)"
+    stroke={color}
+    stroke-width="2"
+    style="cursor: grab;"
+    role="button"
+    aria-label="Radial rotation"
+    tabindex="-1"
+    onpointerdown={(e) => onDrag(e, { kind: 'radial-rotate' })}
+  />
   <circle
     cx={c.x + rxDx * featherHandleScale}
     cy={c.y + rxDy * featherHandleScale}

@@ -127,6 +127,10 @@ pub(super) fn atlas_view(atlas: &wgpu::Texture) -> TextureView {
     })
 }
 
+fn mask_aspect(geom: &ProcessGeom) -> f32 {
+    geom.display.0 as f32 / geom.display.1.max(1) as f32
+}
+
 fn mask_weight_params(
     edits: &Edits,
     geom: &ProcessGeom,
@@ -364,7 +368,11 @@ impl GpuRenderer {
                 self.prepare_mask_atlas(std::iter::once(layer), &stage.opts.rasters);
             let atlas_view = atlas_view(&atlas.texture);
             let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
-            let eval = crate::cpu::masked::build_layer_eval(layer, &stage.opts.rasters);
+            let eval = crate::cpu::masked::build_layer_eval(
+                layer,
+                &stage.opts.rasters,
+                mask_aspect(stage.geom),
+            );
             self.encode_mask_weight(
                 encoder,
                 MaskWeightJob {
@@ -479,7 +487,11 @@ impl GpuRenderer {
             out.retained.uniforms.push(eff_uniform_buf);
             out.retained.binds.push(layer_bind);
 
-            let eval = crate::cpu::masked::build_layer_eval(layer, &stage.opts.rasters);
+            let eval = crate::cpu::masked::build_layer_eval(
+                layer,
+                &stage.opts.rasters,
+                mask_aspect(stage.geom),
+            );
             self.encode_mask_weight(
                 encoder,
                 MaskWeightJob {

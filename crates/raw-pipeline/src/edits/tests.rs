@@ -552,6 +552,7 @@ fn every_component_kind() -> Vec<MaskComponent> {
             center: Vec2f { x: 0.5, y: 0.5 },
             radius_xy: Vec2f { x: 0.3, y: 0.4 },
             feather: 0.2,
+            angle: 12.0,
         },
         MaskComponentKind::Brush {
             raster_id: "raster-1".into(),
@@ -635,4 +636,49 @@ fn every_masked_edit_field_is_inventoried() {
         "MaskedEdits gained or lost a field; list it in FIELDS, and if it feeds an op below \
          SPATIAL_BOUNDARY the sensor stage caches on both renderers must learn about it"
     );
+}
+
+fn radial_kind(angle: f32) -> MaskComponentKind {
+    MaskComponentKind::Radial {
+        center: Vec2f { x: 0.5, y: 0.5 },
+        radius_xy: Vec2f { x: 0.2, y: 0.1 },
+        feather: 0.2,
+        angle,
+    }
+}
+
+#[test]
+fn a_zero_radial_angle_stays_out_of_the_manifest() {
+    let zero = serde_json::to_value(radial_kind(0.0)).expect("serialize");
+    assert!(zero.get("angle").is_none(), "{zero}");
+    let tilted = serde_json::to_value(radial_kind(30.0)).expect("serialize");
+    assert_eq!(tilted["angle"], serde_json::json!(30.0));
+    let legacy: MaskComponentKind = serde_json::from_value(serde_json::json!({
+        "kind": "radial",
+        "center": { "x": 0.5, "y": 0.5 },
+        "radius_xy": { "x": 0.2, "y": 0.1 },
+        "feather": 0.2
+    }))
+    .expect("deserialize");
+    assert_eq!(legacy, radial_kind(0.0));
+}
+
+#[test]
+fn radial_angles_are_normalised_to_half_turns() {
+    for (angle, want) in [
+        (270.0, -90.0),
+        (-190.0, 170.0),
+        (180.0, -180.0),
+        (f32::NAN, 0.0),
+    ] {
+        let mut e = populated_edits();
+        e.masks[0].components = every_component_kind();
+        e.masks[0].components[0].kind = radial_kind(angle);
+        let clamped = e.clamped();
+        assert_eq!(
+            clamped.masks[0].components[0].kind,
+            radial_kind(want),
+            "{angle}"
+        );
+    }
 }

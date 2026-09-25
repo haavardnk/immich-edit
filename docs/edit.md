@@ -111,7 +111,8 @@ set of adjustments.
 1. Press **New**, or **Create a mask** on a photo without masks.
 1. Pick a shape:
    - **Linear gradient** and **Radial gradient** fade out from a line or an ellipse. Drag the
-     handles on the photo.
+     handles on the photo. The small grip past the radial's side handle turns the ellipse, for a
+     tilted face or horizon.
    - **Brush** paints the area by hand. `[` and `]` change the size, `{` and `}` the hardness, and
      **Erase** takes paint away.
    - **Polygon** follows straight edges. Click to place corners and click the first one, or press

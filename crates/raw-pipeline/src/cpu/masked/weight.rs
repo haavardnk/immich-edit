@@ -98,11 +98,13 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) ->
         }
         ComponentKindEval::Radial {
             center,
-            inv_radius,
+            axes,
             feather,
         } => {
-            let dx = (u - center.0) * inv_radius.0;
-            let dy = (v - center.1) * inv_radius.1;
+            let du = u - center.0;
+            let dv = v - center.1;
+            let dx = du * axes[0] + dv * axes[1];
+            let dy = du * axes[2] + dv * axes[3];
             let d = (dx * dx + dy * dy).sqrt();
             1.0 - smoothstep(1.0 - feather.max(1e-3), 1.0, d)
         }

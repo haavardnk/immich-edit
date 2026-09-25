@@ -63,6 +63,10 @@ pub fn run_pipeline_ops(
     .map(|_| ())
 }
 
+fn image_aspect(image: &LinearImage) -> f32 {
+    image.width as f32 / image.height.max(1) as f32
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn run_pipeline_ops_inner(
     image: &mut LinearImage,
@@ -77,7 +81,7 @@ pub(super) fn run_pipeline_ops_inner(
     if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.render.preview_mode {
         let layer = edits.masks.iter().find(|l| &l.id == layer_id);
         let eval = match layer {
-            Some(l) => crate::cpu::masked::build_layer_eval(l, rasters),
+            Some(l) => crate::cpu::masked::build_layer_eval(l, rasters, image_aspect(image)),
             None => crate::cpu::masked::LayerEval {
                 amount: 0.0,
                 invert: false,
@@ -117,7 +121,7 @@ pub(super) fn run_pipeline_ops_inner(
         return Ok(None);
     }
     let registry = default_registry();
-    let layer_evals = build_layer_evals(&edits.masks, rasters);
+    let layer_evals = build_layer_evals(&edits.masks, rasters, image_aspect(image));
     let layer_edits: Vec<Edits> = edits
         .masks
         .iter()

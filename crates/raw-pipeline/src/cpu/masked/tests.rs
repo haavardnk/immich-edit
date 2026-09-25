@@ -33,7 +33,7 @@ fn linear_gradient_weights() {
         )],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let w_left = fold_layer_weight(&eval, 0.0, 0.5);
     let w_right = fold_layer_weight(&eval, 1.0, 0.5);
     let w_mid = fold_layer_weight(&eval, 0.5, 0.5);
@@ -55,6 +55,7 @@ fn radial_inside_outside() {
         center: Vec2f { x: 0.5, y: 0.5 },
         radius_xy: Vec2f { x: 0.2, y: 0.2 },
         feather: 0.1,
+        angle: 0.0,
     };
     let layer = MaskLayer {
         id: "l".into(),
@@ -66,7 +67,7 @@ fn radial_inside_outside() {
         components: vec![comp],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let inside = fold_layer_weight(&eval, 0.5, 0.5);
     let outside = fold_layer_weight(&eval, 0.9, 0.9);
     if inside < 0.95 {
@@ -84,6 +85,7 @@ fn layer_invert_flips_the_folded_weight() {
         center: Vec2f { x: 0.5, y: 0.5 },
         radius_xy: Vec2f { x: 0.2, y: 0.2 },
         feather: 0.1,
+        angle: 0.0,
     };
     let mut layer = MaskLayer {
         id: "l".into(),
@@ -95,7 +97,7 @@ fn layer_invert_flips_the_folded_weight() {
         components: vec![comp],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let inside = fold_layer_weight(&eval, 0.5, 0.5);
     let outside = fold_layer_weight(&eval, 0.9, 0.9);
     if inside > 0.05 {
@@ -105,7 +107,7 @@ fn layer_invert_flips_the_folded_weight() {
         panic!("expected inverted surround selected, got {outside}");
     }
     layer.amount = 0.5;
-    let scaled = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let scaled = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let half = fold_layer_weight(&scaled, 0.9, 0.9);
     if (half - 0.5).abs() > 0.05 {
         panic!("expected amount to scale after invert, got {half}");
@@ -121,6 +123,7 @@ fn subtract_carves_out() {
         center: Vec2f { x: 0.5, y: 0.5 },
         radius_xy: Vec2f { x: 0.1, y: 0.1 },
         feather: 0.05,
+        angle: 0.0,
     };
     let layer = MaskLayer {
         id: "l".into(),
@@ -132,7 +135,7 @@ fn subtract_carves_out() {
         components: vec![add, sub],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let on_carve = fold_layer_weight(&eval, 0.5, 0.5);
     let right_clear = fold_layer_weight(&eval, 0.95, 0.5);
     if on_carve > 0.1 {
@@ -167,7 +170,7 @@ fn masked_exposure_brightens_only_right_half() {
             ..Default::default()
         },
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let mut layer_seg = FusedSegment::default();
     layer_seg.push(CpuFusedOp::Exposure { factor: 4.0 });
     let mut layer_image = LinearImage::new(image.rgb.clone(), w, h);
@@ -207,7 +210,7 @@ fn sharpen_delta_image_follows_mask_weight() {
             ..Default::default()
         },
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
     let delta = build_sharpen_delta_image(&image, &[eval], &[100.0], &warp);
     let left = delta.rgb[0];
@@ -240,7 +243,7 @@ fn render_mask_overlay_preserves_context_and_marks_selection_red() {
         )],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
     render_mask_overlay(&mut image, &eval, &warp, None);
     let left = [image.rgb[0], image.rgb[1], image.rgb[2]];
@@ -288,7 +291,7 @@ fn brush_raster_samples_bilinear() {
         components: vec![comp],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &rasters);
+    let eval = build_layer_eval(&layer, &rasters, 1.0);
     let tl = fold_layer_weight(&eval, 0.0, 0.0);
     let br = fold_layer_weight(&eval, 1.0, 1.0);
     let mid = fold_layer_weight(&eval, 0.5, 0.5);
@@ -332,7 +335,7 @@ fn polygon_selects_inside_and_rejects_outside() {
         Vec2f { x: 0.8, y: 0.8 },
         Vec2f { x: 0.2, y: 0.8 },
     ];
-    let eval = build_layer_eval(&polygon_layer(square, 0.0), &RasterMap::new());
+    let eval = build_layer_eval(&polygon_layer(square, 0.0), &RasterMap::new(), 1.0);
     let inside = fold_layer_weight(&eval, 0.5, 0.5);
     let outside = fold_layer_weight(&eval, 0.05, 0.5);
     let corner = fold_layer_weight(&eval, 0.9, 0.9);
@@ -356,7 +359,7 @@ fn polygon_handles_a_concave_shape() {
         Vec2f { x: 0.9, y: 0.9 },
         Vec2f { x: 0.1, y: 0.9 },
     ];
-    let eval = build_layer_eval(&polygon_layer(arrow, 0.0), &RasterMap::new());
+    let eval = build_layer_eval(&polygon_layer(arrow, 0.0), &RasterMap::new(), 1.0);
     let filled = fold_layer_weight(&eval, 0.2, 0.5);
     let notch = fold_layer_weight(&eval, 0.8, 0.5);
     if filled < 0.99 {
@@ -375,7 +378,7 @@ fn polygon_feather_softens_the_inner_edge() {
         Vec2f { x: 0.8, y: 0.8 },
         Vec2f { x: 0.2, y: 0.8 },
     ];
-    let eval = build_layer_eval(&polygon_layer(square, 0.2), &RasterMap::new());
+    let eval = build_layer_eval(&polygon_layer(square, 0.2), &RasterMap::new(), 1.0);
     let centre = fold_layer_weight(&eval, 0.5, 0.5);
     let near_edge = fold_layer_weight(&eval, 0.25, 0.5);
     if centre < 0.99 {
@@ -389,7 +392,7 @@ fn polygon_feather_softens_the_inner_edge() {
 #[test]
 fn polygon_under_three_points_is_empty() {
     let line = vec![Vec2f { x: 0.2, y: 0.2 }, Vec2f { x: 0.8, y: 0.8 }];
-    let eval = build_layer_eval(&polygon_layer(line, 0.0), &RasterMap::new());
+    let eval = build_layer_eval(&polygon_layer(line, 0.0), &RasterMap::new(), 1.0);
     let w = fold_layer_weight(&eval, 0.5, 0.5);
     if w > 1e-6 {
         panic!("expected zero weight for a degenerate polygon, got {w}");
@@ -419,7 +422,7 @@ fn brush_missing_raster_yields_zero_weight() {
         components: vec![comp],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &RasterMap::new());
+    let eval = build_layer_eval(&layer, &RasterMap::new(), 1.0);
     let w = fold_layer_weight(&eval, 0.5, 0.5);
     if w > 1e-6 {
         panic!("expected 0 with missing raster, got {w}");
@@ -451,7 +454,7 @@ fn luma_range_selects_and_softens_boundaries() {
         components: vec![component],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &RasterMap::new());
+    let eval = build_layer_eval(&layer, &RasterMap::new(), 1.0);
     let inside = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.5, 0.5, 0.5]);
     let soft = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.3, 0.3, 0.3]);
     let outside = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.1, 0.1, 0.1]);
@@ -491,7 +494,7 @@ fn color_range_prefers_sampled_color() {
         components: vec![component],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &RasterMap::new());
+    let eval = build_layer_eval(&layer, &RasterMap::new(), 1.0);
     let red = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.9, 0.1, 0.1]);
     let blue = fold_layer_weight_with_display(&eval, 0.5, 0.5, [0.1, 0.1, 0.9]);
     if red < 0.99 {
@@ -547,7 +550,7 @@ fn scene_space_mask_anchors_through_lens_warp() {
         )],
         edits: Default::default(),
     };
-    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters());
+    let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let identity = LensWarpParams::from_edits(&LensEdits::default(), w as u32, h as u32);
     let lens = LensEdits {
         profile_enabled: Some(true),
@@ -576,6 +579,59 @@ fn scene_space_mask_anchors_through_lens_warp() {
             panic!(
                 "anchor mismatch at ({u},{v}): warped={warped} identity_at_scene={identity_at_scene}"
             );
+        }
+    }
+}
+
+fn radial_layer(radius_xy: Vec2f, angle: f32) -> MaskLayer {
+    let mut comp = linear("r", Vec2f { x: 0.0, y: 0.0 }, Vec2f { x: 1.0, y: 0.0 }, 0.0);
+    comp.kind = MaskComponentKind::Radial {
+        center: Vec2f { x: 0.5, y: 0.5 },
+        radius_xy,
+        feather: 0.05,
+        angle,
+    };
+    MaskLayer {
+        id: "l".into(),
+        name: String::new(),
+        enabled: true,
+        color: "#fff".into(),
+        amount: 1.0,
+        invert: false,
+        components: vec![comp],
+        edits: Default::default(),
+    }
+}
+
+#[test]
+fn rotating_a_radial_a_quarter_turn_swaps_its_axes_in_pixels() {
+    let radius = Vec2f { x: 0.3, y: 0.1 };
+    for (aspect, angle, along_u, along_v) in [
+        (1.0, 0.0, true, false),
+        (1.0, 90.0, false, true),
+        (1.0, -90.0, false, true),
+        (2.0, 90.0, false, true),
+    ] {
+        let eval = build_layer_eval(&radial_layer(radius, angle), &RasterMap::new(), aspect);
+        let reach_v = if angle == 0.0 { 0.25 } else { 0.245 * aspect };
+        let on_u = fold_layer_weight(&eval, 0.75, 0.5);
+        let on_v = fold_layer_weight(&eval, 0.5, 0.5 + reach_v);
+        if (on_u > 0.5) != along_u || (on_v > 0.5) != along_v {
+            panic!("aspect {aspect} angle {angle}: u weight {on_u}, v weight {on_v}");
+        }
+    }
+}
+
+#[test]
+fn a_zero_angle_radial_ignores_the_aspect() {
+    let radius = Vec2f { x: 0.3, y: 0.1 };
+    let square = build_layer_eval(&radial_layer(radius, 0.0), &RasterMap::new(), 1.0);
+    let wide = build_layer_eval(&radial_layer(radius, 0.0), &RasterMap::new(), 1.7);
+    for (u, v) in [(0.7, 0.5), (0.5, 0.58), (0.72, 0.56)] {
+        let a = fold_layer_weight(&square, u, v);
+        let b = fold_layer_weight(&wide, u, v);
+        if a != b {
+            panic!("({u}, {v}): {a} on a square frame, {b} on a wide one");
         }
     }
 }

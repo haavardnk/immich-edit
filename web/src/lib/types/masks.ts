@@ -219,7 +219,8 @@ function cloneKind(k: MaskComponentKind): MaskComponentKind {
       kind: 'radial',
       center: { ...k.center },
       radius_xy: { ...k.radius_xy },
-      feather: k.feather
+      feather: k.feather,
+      ...(k.angle ? { angle: k.angle } : {})
     };
   }
   if (k.kind === 'brush') return { kind: 'brush', raster_id: k.raster_id };

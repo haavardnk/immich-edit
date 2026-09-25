@@ -290,6 +290,7 @@ fn masks_roundtrip_sparse() {
                     center: Vec2f { x: 0.3, y: 0.2 },
                     radius_xy: Vec2f { x: 0.2, y: 0.15 },
                     feather: 0.2,
+                    angle: 0.0,
                 },
                 source: MaskSource::Manual,
                 generated: None,

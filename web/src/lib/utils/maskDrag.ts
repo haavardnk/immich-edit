@@ -1,5 +1,11 @@
 import type { MaskComponentKind, Vec2f } from '$lib/types/edits';
-import { clamp01 } from '$lib/utils/geom';
+import { clamp01, degToRad } from '$lib/utils/geom';
+
+type RadialKind = Extract<MaskComponentKind, { kind: 'radial' }>;
+
+export interface DragContext {
+  aspect: number;
+}
 
 export type DragKind =
   | { kind: 'linear-p0' }
@@ -10,13 +16,81 @@ export type DragKind =
   | { kind: 'radial-rx'; sign: 1 | -1 }
   | { kind: 'radial-ry'; sign: 1 | -1 }
   | { kind: 'radial-feather' }
+  | { kind: 'radial-rotate' }
   | { kind: 'polygon-vertex'; index: number }
   | { kind: 'polygon-move'; start: Vec2f[]; downAtN: Vec2f };
+
+export function normalizeDegrees(deg: number): number {
+  return ((((deg + 180) % 360) + 360) % 360) - 180;
+}
+
+export function radialAxes(kind: RadialKind, aspect: number): { x: Vec2f; y: Vec2f } {
+  const t = degToRad(kind.angle ?? 0);
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  const { x: rx, y: ry } = kind.radius_xy;
+  return { x: { x: rx * c, y: rx * aspect * s }, y: { x: (-ry * s) / aspect, y: ry * c } };
+}
+
+function radialLocal(
+  kind: RadialKind,
+  n: Vec2f,
+  aspect: number
+): { along: number; across: number } {
+  const t = degToRad(kind.angle ?? 0);
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  const dx = (n.x - kind.center.x) * aspect;
+  const dy = n.y - kind.center.y;
+  return { along: dx * c + dy * s, across: -dx * s + dy * c };
+}
+
+function withAngle(kind: RadialKind, deg: number): RadialKind {
+  const angle = normalizeDegrees(deg);
+  const plain: RadialKind = {
+    kind: 'radial',
+    center: kind.center,
+    radius_xy: kind.radius_xy,
+    feather: kind.feather
+  };
+  return angle === 0 ? plain : { ...plain, angle };
+}
+
+function draggedRadial(
+  kind: RadialKind,
+  drag: DragKind,
+  n: Vec2f,
+  aspect: number
+): RadialKind | null {
+  if (drag.kind === 'radial-center') return { ...kind, center: n };
+  const { along, across } = radialLocal(kind, n, aspect);
+  if (drag.kind === 'radial-rx') {
+    const rx = Math.max(0.005, Math.abs(along) / aspect);
+    return { ...kind, radius_xy: { x: rx, y: kind.radius_xy.y } };
+  }
+  if (drag.kind === 'radial-ry') {
+    const ry = Math.max(0.005, Math.abs(across));
+    return { ...kind, radius_xy: { x: kind.radius_xy.x, y: ry } };
+  }
+  if (drag.kind === 'radial-feather') {
+    const ex = kind.radius_xy.x < 1e-6 ? 0 : along / (kind.radius_xy.x * aspect);
+    const ey = kind.radius_xy.y < 1e-6 ? 0 : across / kind.radius_xy.y;
+    return { ...kind, feather: clamp01(1 - Math.hypot(ex, ey)) };
+  }
+  if (drag.kind === 'radial-rotate') {
+    const dx = (n.x - kind.center.x) * aspect;
+    const dy = n.y - kind.center.y;
+    if (Math.hypot(dx, dy) < 1e-6) return null;
+    return withAngle(kind, (Math.atan2(dy, dx) * 180) / Math.PI);
+  }
+  return null;
+}
 
 export function draggedKind(
   kind: MaskComponentKind,
   drag: DragKind,
-  n: Vec2f
+  n: Vec2f,
+  { aspect }: DragContext = { aspect: 1 }
 ): MaskComponentKind | null {
   if (kind.kind === 'linear') {
     if (drag.kind === 'linear-p0') return { ...kind, p0: n };
@@ -42,23 +116,7 @@ export function draggedKind(
     return null;
   }
 
-  if (kind.kind === 'radial') {
-    if (drag.kind === 'radial-center') return { ...kind, center: n };
-    if (drag.kind === 'radial-rx') {
-      const rx = Math.max(0.005, Math.abs(n.x - kind.center.x));
-      return { ...kind, radius_xy: { x: rx, y: kind.radius_xy.y } };
-    }
-    if (drag.kind === 'radial-ry') {
-      const ry = Math.max(0.005, Math.abs(n.y - kind.center.y));
-      return { ...kind, radius_xy: { x: kind.radius_xy.x, y: ry } };
-    }
-    if (drag.kind === 'radial-feather') {
-      const ex = kind.radius_xy.x < 1e-6 ? 0 : (n.x - kind.center.x) / kind.radius_xy.x;
-      const ey = kind.radius_xy.y < 1e-6 ? 0 : (n.y - kind.center.y) / kind.radius_xy.y;
-      return { ...kind, feather: clamp01(1 - Math.hypot(ex, ey)) };
-    }
-    return null;
-  }
+  if (kind.kind === 'radial') return draggedRadial(kind, drag, n, aspect);
 
   if (kind.kind === 'polygon') {
     if (drag.kind === 'polygon-vertex') {

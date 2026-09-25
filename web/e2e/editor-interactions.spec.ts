@@ -629,6 +629,39 @@ test('dragging the radial centre handle moves the saved shape', async ({ page })
     .toBeGreaterThan(0.5);
 });
 
+test('the radial rotation grip saves the angle', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body), previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
+
+  const centre = await page.getByRole('button', { name: 'Radial center' }).boundingBox();
+  const grip = await page.getByRole('button', { name: 'Radial rotation' }).boundingBox();
+  if (!centre || !grip) throw new Error('radial handles have no box');
+  const cx = centre.x + centre.width / 2;
+  const cy = centre.y + centre.height / 2;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy + 80, { steps: 6 });
+  await page.mouse.up();
+
+  await expect
+    .poll(() => {
+      const body = saves.at(-1) as {
+        manifest?: {
+          ops?: {
+            masks?: { layers?: Array<{ components?: Array<{ kind?: { angle?: number } }> }> };
+          };
+        };
+      };
+      return body?.manifest?.ops?.masks?.layers?.[0]?.components?.[0]?.kind?.angle ?? 0;
+    })
+    .toBeCloseTo(90, 0);
+});
+
 test('keyboard help modal toggles with the ? key', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
