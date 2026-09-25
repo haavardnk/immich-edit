@@ -153,7 +153,7 @@
       collisionPadding={8}
       avoidCollisions={!compact}
       customAnchor={compact ? anchor : null}
-      class="z-40 w-(--bits-floating-anchor-width) text-dark {color === 'neutral'
+      class="z-50 w-(--bits-floating-anchor-width) text-dark {color === 'neutral'
         ? 'border-white/10 bg-neutral-800'
         : 'border-gray-900 bg-gray-800'} {compact
         ? `editor-compact-combobox-content border py-1 ${side === 'top' ? 'rounded-t-lg rounded-b-none' : 'rounded-t-none rounded-b-lg'}`

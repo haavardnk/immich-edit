@@ -46,7 +46,7 @@
       {align}
       sideOffset={4}
       collisionPadding={8}
-      class="z-40 {appearanceClass} {contentClass}"
+      class="z-50 {appearanceClass} {contentClass}"
     >
       {@render children()}
     </Bits.Content>
