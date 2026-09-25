@@ -1,14 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json, type MockAssetSummary } from './helpers';
+import { installMocks, json, numberedAssets } from './helpers';
 
-const ASSETS: MockAssetSummary[] = Array.from({ length: 2 }, (_, index) => {
-  const number = index + 1;
-  return {
-    ...ASSET_SUMMARY,
-    id: `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`,
-    originalFileName: `IMG_${String(number).padStart(4, '0')}.ARW`
-  };
-});
+const ASSETS = numberedAssets(2);
 
 interface AssetUpdate {
   id: string;
