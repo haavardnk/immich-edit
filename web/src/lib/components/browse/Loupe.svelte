@@ -61,6 +61,12 @@
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
   const canDrop = $derived(compare.members.length > (compare.mode === 'compare' ? 2 : 1));
+  const position = $derived(
+    multi ? compare.focusIndex + 1 : browsing.assets.findIndex((a) => a.id === currentId) + 1
+  );
+  const count = $derived(
+    multi ? panes.length : Math.max(browsing.total ?? 0, browsing.assets.length)
+  );
 
   let fitZooms = $state<Record<string, number>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
@@ -574,7 +580,8 @@
         {rejected}
         tags={currentTags}
         {multi}
-        paneCount={panes.length}
+        {position}
+        {count}
         {zoom}
         fitZoom={focusedFitZoom}
         fitMode={paneView.zoom === null}
