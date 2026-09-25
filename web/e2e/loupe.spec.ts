@@ -108,6 +108,16 @@ test('shift+f toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
+test('the single loupe shows its position in the set', async ({ page }) => {
+  await openLoupe(page);
+  const rail = page.getByRole('navigation', { name: 'Photo actions' });
+  await expect(rail.getByText('1 of 2', { exact: true })).toBeVisible();
+
+  await page.keyboard.press('ArrowRight');
+
+  await expect(rail.getByText('2 of 2', { exact: true })).toBeVisible();
+});
+
 test('shift+t hides the loupe filmstrip', async ({ page }) => {
   await openLoupe(page);
   await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();

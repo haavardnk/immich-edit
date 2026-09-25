@@ -27,7 +27,8 @@
     rejected: boolean;
     tags: TagRef[];
     multi: boolean;
-    paneCount: number;
+    position: number;
+    count: number;
     canDrop: boolean;
     zoom: number;
     fitZoom: number;
@@ -49,7 +50,8 @@
     rejected,
     tags,
     multi,
-    paneCount,
+    position,
+    count,
     canDrop,
     zoom,
     fitZoom,
@@ -91,9 +93,9 @@
       </div>
     </div>
   </div>
-  {#if multi}
-    <div class="flex items-center gap-1">
-      <div class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-white/65">
+  <div class="flex items-center gap-1">
+    <div class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-white/65">
+      {#if multi}
         <Icon
           icon={compare.mode === 'compare' ? mdiCompare : mdiViewGridOutline}
           size="13px"
@@ -104,8 +106,10 @@
           {compare.mode === 'compare' ? 'Compare' : 'Survey'}
         </span>
         <span class="h-3 w-px bg-white/15"></span>
-        <span class="tabular-nums">{compare.focusIndex + 1} of {paneCount}</span>
-      </div>
+      {/if}
+      <span class="tabular-nums">{position} of {count}</span>
+    </div>
+    {#if multi}
       <IconButton
         size="tiny"
         variant="ghost"
@@ -148,8 +152,8 @@
         disabled={!canDrop}
         onclick={onDrop}
       />
-    </div>
-  {/if}
+    {/if}
+  </div>
   <div class="col-start-3 flex min-w-0 items-center justify-end gap-0.5">
     <ZoomPopover
       open={ui.metaPopover === 'zoom'}
