@@ -22,8 +22,8 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `DATA_DIR` | `./data` | Durable database, key, imports, models, and mask rasters; Docker sets `/data` |
 | `DATABASE_URL` | `sqlite://DATA_DIR/immich-edit.db?mode=rwc` | SQLite connection URL |
 | `PREVIEW_MAX_EDGE` | `65535` | `256` to `65535`; hard ceiling for preview requests |
-| `RENDER_MAX_CONCURRENCY` | Half the CPU cores, clamped to `2` through `4` | Total concurrent renders, previews and edited thumbnails together; must be nonzero |
-| `THUMB_MAX_CONCURRENCY` | Quarter of the CPU cores, clamped to `2` through `4` | Edited-thumbnail renders, capped one below `RENDER_MAX_CONCURRENCY` so a preview always has a slot; must be nonzero |
+| `RENDER_MAX_CONCURRENCY` | Half the CPU cores, clamped to `2` through `4` | Total concurrent renders: previews, exports, AI mask scene renders and edited thumbnails together; must be nonzero |
+| `THUMB_MAX_CONCURRENCY` | Quarter of the CPU cores, clamped to `2` through `4` | Background renders (edited thumbnails and batch export jobs), capped one below `RENDER_MAX_CONCURRENCY` so the editor always has a slot; must be nonzero |
 | `RAW_FRAME_CACHE_MB` | `max(RENDER_MAX_CONCURRENCY * 256, 512)` | `64` to `16384`; decoded preview frames in RAM |
 | `QUALITY_FRAME_CACHE_MB` | `512` | `64` to `16384`; decoded quality frames in RAM |
 | `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures plus cached white balance, noise reduction, and capture sharpening results |

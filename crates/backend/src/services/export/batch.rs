@@ -145,6 +145,7 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
             server_epoch: job.server_epoch,
             body: &body,
             idempotency_key: Some(idempotency_key),
+            priority: RenderPriority::Background,
         },
     )
     .await?;
@@ -167,6 +168,7 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> 
         asset_id,
         edits.clamped(),
         &params.params,
+        RenderPriority::Background,
     )
     .await?;
     let dir = zip_job_dir(state, job.server_epoch, job.user_id, job.id)

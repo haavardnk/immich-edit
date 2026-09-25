@@ -55,6 +55,12 @@ pub struct RenderKey {
     pub lane: RenderLane,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderPriority {
+    Interactive,
+    Background,
+}
+
 #[derive(Clone)]
 pub struct RenderQueue {
     max_concurrency: usize,
@@ -116,8 +122,15 @@ impl RenderQueue {
         Some(result)
     }
 
-    pub async fn background<F: std::future::Future>(&self, work: F) -> Option<F::Output> {
-        let _lane = self.background.acquire().await.ok()?;
+    pub async fn run<F: std::future::Future>(
+        &self,
+        priority: RenderPriority,
+        work: F,
+    ) -> Option<F::Output> {
+        let _lane = match priority {
+            RenderPriority::Background => Some(self.background.acquire().await.ok()?),
+            RenderPriority::Interactive => None,
+        };
         let _slot = self.semaphore.acquire().await.ok()?;
         Some(work.await)
     }
@@ -340,7 +353,7 @@ mod tests {
                     let release = release.clone();
                     let running = running.clone();
                     tokio::spawn(async move {
-                        q.background(async move {
+                        q.run(RenderPriority::Background, async move {
                             running.fetch_add(1, Ordering::SeqCst);
                             let _ = release.acquire().await;
                             running.fetch_sub(1, Ordering::SeqCst);
@@ -364,6 +377,14 @@ mod tests {
                 .await;
                 if !matches!(preview, Ok(Some(Ok(_)))) {
                     panic!("preview waited behind background renders");
+                }
+                let export = tokio::time::timeout(
+                    Duration::from_secs(1),
+                    q.run(RenderPriority::Interactive, async { "export" }),
+                )
+                .await;
+                if !matches!(export, Ok(Some(_))) {
+                    panic!("interactive export waited behind background renders");
                 }
             }
             release.add_permits(thumbs.len());

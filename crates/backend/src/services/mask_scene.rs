@@ -5,6 +5,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::services::render::RenderIdentity;
+use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub struct SceneImage {
@@ -35,9 +36,15 @@ pub async fn render_scene(
         ..Default::default()
     };
     let rendered = state
-        .render
-        .render(identity, immich, asset_id.source(), edits, opts, None)
-        .await?;
+        .queue
+        .run(
+            RenderPriority::Interactive,
+            state
+                .render
+                .render(identity, immich, asset_id.source(), edits, opts, None),
+        )
+        .await
+        .ok_or(AppError::Internal)??;
     Ok(SceneImage {
         rgb8: rendered.bytes,
         width: rendered.width,
