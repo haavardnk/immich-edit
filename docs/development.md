@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Development
-nav_order: 14
+parent: Contribute
+nav_order: 1
 permalink: /development/
 ---
 

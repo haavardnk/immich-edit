@@ -17,25 +17,21 @@ services:
     #   ML_MAX_CONCURRENCY: 1
     #   ML_IDLE_SECS: 60
 
-    # --- AMD GPU (uncomment) ---
+    # --- AMD or Intel GPU (uncomment) ---
+    # Replace 105 with the group ID that owns the render node on the host:
+    #   stat -c '%g' /dev/dri/renderD128
+    # Use the number, not a name like "render"; names are looked up inside
+    # the container, where they do not match the host.
     # devices:
     #   - /dev/dri:/dev/dri
     # group_add:
-    #   - video
-    #   - render
-    #   # On Unraid or distros without a `render` group, replace the names
-    #   # above with the numeric GID of the host group owning /dev/dri/renderD128
-    #   # (find it with: stat -c '%g' /dev/dri/renderD128), e.g. "18".
+    #   - "105"
 
-    # --- Intel GPU (uncomment) ---
-    # devices:
-    #   - /dev/dri:/dev/dri
-    # group_add:
-    #   - video
-    #   - render
-    #   # Same Unraid note as above applies.
-
-    # --- NVIDIA GPU (uncomment) ---
+    # --- NVIDIA GPU (uncomment, needs NVIDIA Container Toolkit) ---
+    # "graphics" adds the Vulkan driver; the toolkit's default leaves it out.
+    # Merge this with the environment block above if you use both.
+    # environment:
+    #   NVIDIA_DRIVER_CAPABILITIES: graphics,utility
     # deploy:
     #   resources:
     #     reservations:

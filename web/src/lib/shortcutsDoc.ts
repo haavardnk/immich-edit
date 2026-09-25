@@ -15,6 +15,7 @@ const CONTEXT_LABELS: Record<KeybindContext, string> = {
 const PREAMBLE = `---
 layout: default
 title: Keyboard shortcuts
+parent: Use the editor
 nav_order: 4
 permalink: /shortcuts/
 ---

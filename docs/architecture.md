@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Architecture
-nav_order: 15
+parent: Contribute
+nav_order: 2
 permalink: /architecture/
 ---
 
@@ -66,14 +67,17 @@ directory as durable.
 
 ```text
 Browser -> local /api route -> per-user Immich client -> Immich
-                    |
-                    +-> SQLite and DATA_DIR
-                    |
-                    +-> render queue -> CPU or GPU renderer -> encoded response
+   |                |
+   |                +-> SQLite and DATA_DIR
+   |                |
+   |                +-> render queue -> CPU or GPU renderer -> encoded image or linear source
+   |
+   +-> render worker -> wasm display chain -> canvas
 ```
 
 The frontend never fetches Immich directly. Backend routes proxy library data and originals, persist
-local state, and map Immich failures to typed local errors.
+local state, and map Immich failures to typed local errors. [Rendering](rendering.md) describes the
+server and browser split for operators; the sections below describe its implementation.
 
 ## Preview rendering
 

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Compatibility
-nav_order: 13
+parent: Use the editor
+nav_order: 6
 permalink: /compatibility/
 ---
 
@@ -32,12 +33,9 @@ Pixel-shift and multi-frame files decode only their first sub-frame. Bayer and X
 supported; an unusual color filter array outside those is rejected. Fujifilm X-Trans uses a
 single-pass color-difference demosaic and can be softer than a multi-pass converter on fine detail.
 
-Recent bodies come with the decoder library and arrive as it is updated. The current version adds
-the Sony A7V, A7R VI, RX1R III and RX10 V, Nikon ZR, Fujifilm X-T30 III, Canon R50 V, C50 and
-PowerShot V1, OM System OM-5 II, Olympus E-P7, Leica SL3-P, and several Panasonic S and G models.
-It also corrects the Olympus E-M1X color filter array, Panasonic black levels, Nikon and Sony A100
-white balance, and Canon CR3 preview extraction, so files from those cameras can render slightly
-differently than before.
+New camera bodies arrive with updates to the decoder library. The
+[release notes](https://github.com/haavardnk/immich-edit/releases) list the cameras each update adds
+and any decoder fixes that change how existing files render.
 
 ## Image input and export
 
@@ -73,22 +71,20 @@ RGB, Rec.2020, custom ICC profiles, linear output, and HDR gain maps are not sup
 | Host | Image rendering | AI masks |
 | --- | --- | --- |
 | Linux amd64 with Vulkan GPU | GPU, CPU fallback | WebGPU, CPU fallback |
-| Linux amd64 without GPU | CPU | CPU; x86-64-v3 CPU required by ONNX Runtime |
+| Linux amd64 without GPU | Software rasterizer, CPU fallback | CPU; x86-64-v3 CPU required by ONNX Runtime |
 | Linux arm64 with Vulkan GPU | GPU, CPU fallback | CPU only |
-| Linux arm64 without GPU | CPU | CPU |
+| Linux arm64 without GPU | Software rasterizer, CPU fallback | CPU |
 | macOS native | Metal, CPU fallback | WebGPU, CPU fallback |
-| macOS Docker | CPU | CPU |
+| macOS Docker | Software rasterizer, CPU fallback | CPU |
 
 The Docker image supports Linux `amd64` and `arm64`. Metal cannot pass through the Linux virtual
-machine used by Docker on macOS.
-
-Hosts with no graphics hardware still get a Vulkan device from Mesa's software rasterizer, llvmpipe
-or lavapipe. The backend uses it and Diagnostics marks it as software. It is not hardware
-acceleration, but it does render preview-sized frames faster than the built-in CPU renderer.
+machine used by Docker on macOS. The software rasterizer is Mesa's llvmpipe, which runs the GPU
+code on CPU cores; [rendering](rendering.md#the-server) explains when it is used.
 
 ## Browser and viewport
 
-The editor requires a desktop-width viewport and has no full mobile layout. RAW decoding and the
-sensor stage run on the server. With WebGPU (current Chromium, Edge and Safari) the browser draws
-the preview itself, including zoomed tiles; without it, or when **Settings** > **Preview
-rendering** is set to **Server**, the server renders every preview, so WebGPU is optional.
+The editor requires a desktop-width viewport and has no full mobile layout. Browsers with WebGPU
+(current Chromium, Edge and Safari) draw the editor preview themselves when the page is served over
+HTTPS or from `localhost`. Other browsers, and plain HTTP from another machine, get previews from
+the server, so WebGPU is optional. See
+[browser previews on a local network](rendering.md#browser-previews-on-a-local-network).

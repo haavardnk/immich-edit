@@ -7,27 +7,24 @@ permalink: /
 
 # immich-edit
 
-## Start here
+A self-hosted, non-destructive RAW editor for an existing [Immich](https://immich.app/) library.
+It browses and culls your photos through Immich, keeps edits in its own database, and exports the
+results back to Immich. Originals are never changed.
 
-- [Install and connect to Immich](getting-started.md)
-- [Check available and missing features](features.md)
-- [Learn the keyboard shortcuts](shortcuts.md)
-- [Deploy on a server](deploy.md)
-- [Back up or upgrade](backup-and-upgrade.md)
+![The immich-edit editor with the Develop panels open](image/editor-v0_5.png)
 
-## Operate the server
+_Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
+[Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y)._
 
-- [Configure immich-edit](configuration.md)
-- [Manage users, models, and diagnostics](administration.md)
-- [Troubleshoot a problem](troubleshooting.md)
-- [Check format and platform compatibility](compatibility.md)
+<!-- SCREENSHOT: Same image as README.md; capture the app viewport at 2728x1530 with Develop > Basic open and Camera Profile and Presets collapsed. -->
 
-## Contribute
+## Where to start
 
-- [Set up development](development.md)
-- [Read the architecture](architecture.md)
-- [Read the render pipeline](pipeline.md)
-- [View attributions](attributions.md)
+- [Getting started](getting-started.md) installs immich-edit and connects it to Immich.
+- [Use the editor](use.md) walks through culling, editing and exporting.
+- [Run the server](operate.md) covers HTTPS, GPUs, OAuth, configuration and backups.
+- [Troubleshooting](troubleshooting.md) is organized by symptom and error message.
+- [Contribute](contribute.md) has the development setup and architecture.
 
 ## Get help
 

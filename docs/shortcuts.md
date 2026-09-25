@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Keyboard shortcuts
+parent: Use the editor
 nav_order: 4
 permalink: /shortcuts/
 ---

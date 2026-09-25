@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Getting started
-nav_order: 3
+nav_order: 2
 permalink: /getting-started/
 ---
 
@@ -13,7 +13,8 @@ Use Docker Compose for a first installation.
 
 - A running Immich server reachable from the immich-edit container
 - Docker Engine with the `docker compose` plugin
-- A desktop browser for the editor
+- A desktop browser for the editor. With WebGPU it can draw previews itself; on a plain
+  `http://` LAN address that takes [one extra step](rendering.md#browser-previews-on-a-local-network)
 - 8 GB RAM recommended for RAW rendering and local mask models
 
 ## Start the container
@@ -49,19 +50,19 @@ setup form claims an unconfigured instance.
 ## Claim the instance
 
 1. Enter the Immich server URL.
-1. Choose the OAuth button, password, or API key authentication.
-1. Sign in with an Immich administrator account.
+1. Sign in with an Immich administrator account, using the OAuth button, email and password, or
+   an API key.
 
-The OAuth button appears once the URL points at an Immich server with OAuth enabled. It sends you
-to your identity provider and back to immich-edit, so register `https://<edit-host>/setup` and
-`https://<edit-host>/login` as redirect URIs in Immich and with the provider.
+The OAuth button appears when Immich has OAuth enabled. It only works once immich-edit's addresses
+are registered with your identity provider; see [OAuth sign-in](oauth.md).
 
 Other users sign in with their own Immich account; each sees only their own edits, presets, and
 jobs.
 
 ## Next steps
 
-- [Back up `DATA_DIR`](backup-and-upgrade.md)
-- [Enable GPU rendering](deploy.md#gpu-passthrough)
-- [Install optional mask models](administration.md#mask-models)
-- [Learn the keyboard shortcuts](shortcuts.md)
+- [Put it behind HTTPS](deploy.md#reverse-proxy), or pick another way to get
+  [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
+- [Pass a GPU through](gpu-passthrough.md) for faster exports and AI masks.
+- [Install mask models](administration.md#mask-models) if you want AI masks.
+- [Start editing](use.md).

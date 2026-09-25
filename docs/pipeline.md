@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Render pipeline
-nav_order: 16
+parent: Contribute
+nav_order: 3
 permalink: /pipeline/
 ---
 

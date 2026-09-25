@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Attributions
-nav_order: 17
+parent: Contribute
+nav_order: 4
 permalink: /attributions/
 ---
 

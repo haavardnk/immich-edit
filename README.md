@@ -1,8 +1,9 @@
 # <img src="web/static/favicon.svg" width="24" height="24" alt=""> immich-edit
 
 A self-hosted, non-destructive RAW editor for an existing
-[Immich](https://immich.app/) library. It browses assets through Immich, renders on the server, and
-stores edits locally. Originals remain unchanged.
+[Immich](https://immich.app/) library. It browses assets through Immich, decodes and exports on the
+server, draws live previews in the browser when WebGPU is available, and stores edits locally.
+Originals remain unchanged.
 
 > [!WARNING]
 > immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the upgrade notes
@@ -18,10 +19,11 @@ _Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
 ## Documentation
 
 - [Getting started](https://haavardnk.github.io/immich-edit/getting-started/)
-- [Feature matrix](https://haavardnk.github.io/immich-edit/features/)
-- [Deployment](https://haavardnk.github.io/immich-edit/deploy/)
-- [Backup and upgrade](https://haavardnk.github.io/immich-edit/backup-and-upgrade/)
+- [Use the editor](https://haavardnk.github.io/immich-edit/use/): culling, editing and exporting
+- [Run the server](https://haavardnk.github.io/immich-edit/operate/): HTTPS, GPU passthrough,
+  OAuth, configuration and backups
 - [Troubleshooting](https://haavardnk.github.io/immich-edit/troubleshooting/)
+- [Feature matrix](https://haavardnk.github.io/immich-edit/features/)
 
 ## Project
 
