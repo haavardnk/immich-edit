@@ -5,6 +5,9 @@ use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::RenderOptions;
 
 mod sharpen;
+mod watermark;
+
+pub use watermark::{WATERMARK_MAX_EDGE, WATERMARK_MAX_SOURCE_BYTES, decode_watermark};
 
 pub enum FinalPixels {
     Rgb8(Vec<u8>),
@@ -29,7 +32,7 @@ fn enlarged_dims(w: u32, h: u32, opts: &RenderOptions) -> Option<(u32, u32)> {
 }
 
 pub fn has_final_stage(w: u32, h: u32, opts: &RenderOptions) -> bool {
-    enlarged_dims(w, h, opts).is_some() || opts.output_sharpen.is_some()
+    enlarged_dims(w, h, opts).is_some() || opts.output_sharpen.is_some() || opts.watermark.is_some()
 }
 
 fn resize(src: Vec<u8>, w: u32, h: u32, dims: (u32, u32), pixel: PixelType) -> Option<Vec<u8>> {
@@ -77,6 +80,9 @@ pub fn final_stage(image: FinalImage, opts: &RenderOptions) -> crate::PipelineRe
     };
     if let Some(output_sharpen) = opts.output_sharpen {
         sharpen::sharpen(&mut image, output_sharpen);
+    }
+    if let Some(mark) = &opts.watermark {
+        watermark::composite(&mut image, mark, opts.output_color_space)?;
     }
     Ok(image)
 }
