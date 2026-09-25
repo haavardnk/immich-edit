@@ -59,7 +59,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="panel-row min-h-7 items-start">
-    <span class="editor-compact-label leading-7 select-none">Albums</span>
+    <span class="editor-compact-label flex h-7 items-center select-none">Albums</span>
     <div class="col-span-2 col-start-2 min-w-0">
       <SearchableSelect
         compact
@@ -78,7 +78,7 @@
   </div>
 
   <div class="panel-row min-h-7 items-start">
-    <span class="editor-compact-label leading-7 select-none">Tags</span>
+    <span class="editor-compact-label flex h-7 items-center select-none">Tags</span>
     <div class="col-span-2 col-start-2 min-w-0">
       <SearchableSelect
         compact
