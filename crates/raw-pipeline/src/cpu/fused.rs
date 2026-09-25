@@ -45,6 +45,12 @@ pub enum CpuFusedOp {
         sat_gains: [f32; HSL_BANDS],
         lum_gains: [f32; HSL_BANDS],
     },
+    Bw {
+        mix: [f32; 6],
+        shadow_tint: [f32; 3],
+        highlight_tint: [f32; 3],
+        balance: f32,
+    },
     ColorGrade {
         s_off: [f32; 3],
         s_lum: f32,
@@ -89,6 +95,7 @@ impl FusedSegment {
     }
 }
 
+pub mod bw;
 pub mod color_grade;
 pub mod hsl;
 pub mod presence;
@@ -241,6 +248,22 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
         } => {
             for ((r, g), b) in rgb(r, g, b) {
                 hsl::apply_hsl(hue_shifts, sat_gains, lum_gains, r, g, b);
+            }
+        }
+        CpuFusedOp::Bw {
+            mix,
+            shadow_tint,
+            highlight_tint,
+            balance,
+        } => {
+            let params = bw::BwParams {
+                mix,
+                shadow_tint,
+                highlight_tint,
+                balance: *balance,
+            };
+            for ((r, g), b) in rgb(r, g, b) {
+                bw::apply_bw(params, r, g, b);
             }
         }
         CpuFusedOp::ColorGrade {

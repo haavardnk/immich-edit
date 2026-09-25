@@ -16,6 +16,22 @@ fn empty_edits_yields_empty_doc() {
 }
 
 #[test]
+fn black_and_white_round_trips_and_keeps_a_disabled_mix() {
+    let mut edits = Edits::default();
+    edits.color.bw.mix.green = 40.0;
+    edits.color.bw.highlights.sat = 20.0;
+    let off = EditManifest::from_edits(&edits);
+    if off.ops["bw"]["enabled"] != false {
+        panic!("a disabled mix must still be stored: {:?}", off.ops);
+    }
+    edits.color.bw.enabled = true;
+    let restored = EditManifest::from_edits(&edits).to_edits();
+    if restored.color.bw != edits.color.bw {
+        panic!("round trip gave {:?}", restored.color.bw);
+    }
+}
+
+#[test]
 fn roundtrip_preserves_fields() {
     let mut bands = [HslBand::default(); 8];
     bands[0] = HslBand {
@@ -53,6 +69,7 @@ fn roundtrip_preserves_fields() {
             color_grade: Default::default(),
             lut_3d: Default::default(),
             dcp: Default::default(),
+            bw: Default::default(),
         },
         detail: DetailEdits {
             sharpen_amount: Some(60.0),

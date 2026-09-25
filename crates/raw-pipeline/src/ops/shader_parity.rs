@@ -4,8 +4,8 @@ use wgpu::util::DeviceExt;
 
 use super::{GpuRoute, LinearImage, Op, OpContext, OpScratch, RenderContext, default_registry};
 use crate::edits::{
-    BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint, CurvePoints,
-    CurvesEdits, Edits, HslBand, HslEdits, ToneEdits,
+    BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint,
+    CurvePoints, CurvesEdits, Edits, HslBand, HslEdits, ToneEdits,
 };
 use crate::gpu::context::GpuContext;
 
@@ -109,6 +109,26 @@ fn probe_edits() -> Edits {
                 },
                 balance: -20.0,
                 blend: 65.0,
+            },
+            bw: BwEdits {
+                enabled: true,
+                mix: BwMix {
+                    red: 60.0,
+                    yellow: -35.0,
+                    green: 80.0,
+                    aqua: -70.0,
+                    blue: 45.0,
+                    magenta: -90.0,
+                },
+                shadows: BwTint {
+                    hue: 215.0,
+                    sat: 45.0,
+                },
+                highlights: BwTint {
+                    hue: 38.0,
+                    sat: 60.0,
+                },
+                balance: 30.0,
             },
             ..Default::default()
         },
