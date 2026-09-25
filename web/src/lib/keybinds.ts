@@ -530,6 +530,45 @@ export const KEYBINDS = [
     label: 'Draw a straighten line without arming the tool',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag inside the crop`
   },
+  {
+    id: 'cropGrid',
+    keys: ['o'],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Cycle the crop guide: thirds, golden ratio, diagonals, grid, none'
+  },
+  {
+    id: 'cropFromCentre',
+    keys: [],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Resize the crop about its centre',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a crop handle`
+  },
+  {
+    id: 'cropLockRatio',
+    keys: [],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Keep the current shape of a free crop while resizing',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a crop handle`
+  },
+  {
+    id: 'cropScale',
+    keys: [],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Scale the crop about its centre',
+    display: (mac: boolean) => `${keyLabel('Mod', mac)} + scroll over the crop`
+  },
+  {
+    id: 'cropPan',
+    keys: [],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Move the photo under a fixed crop',
+    display: (mac: boolean) => `${keyLabel('Mod', mac)} + drag inside the crop`
+  },
 
   {
     id: 'maskDelete',

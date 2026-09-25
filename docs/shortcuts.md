@@ -134,11 +134,16 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Geometry
 
-| Keys                           | Action                                             | Available in |
-| ------------------------------ | -------------------------------------------------- | ------------ |
-| `Enter`                        | Apply the crop and transform and return to Develop | Geometry     |
-| `Shift+A`                      | Draw a line along the horizon to level the photo   | Geometry     |
-| `Shift + drag inside the crop` | Draw a straighten line without arming the tool     | Geometry     |
+| Keys                           | Action                                                            | Available in |
+| ------------------------------ | ----------------------------------------------------------------- | ------------ |
+| `Enter`                        | Apply the crop and transform and return to Develop                | Geometry     |
+| `Shift+A`                      | Draw a line along the horizon to level the photo                  | Geometry     |
+| `Shift + drag inside the crop` | Draw a straighten line without arming the tool                    | Geometry     |
+| `O`                            | Cycle the crop guide: thirds, golden ratio, diagonals, grid, none | Geometry     |
+| `Alt + drag a crop handle`     | Resize the crop about its centre                                  | Geometry     |
+| `Shift + drag a crop handle`   | Keep the current shape of a free crop while resizing              | Geometry     |
+| `Ctrl + scroll over the crop`  | Scale the crop about its centre                                   | Geometry     |
+| `Ctrl + drag inside the crop`  | Move the photo under a fixed crop                                 | Geometry     |
 
 ## Masks
 

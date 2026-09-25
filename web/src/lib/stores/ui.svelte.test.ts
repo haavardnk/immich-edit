@@ -52,8 +52,27 @@ describe('editor layout persistence', () => {
       developOpenPanels: ['curves', 'hsl'],
       brushTool: { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' },
       retouchTool: { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 },
-      greyCanvas: false
+      greyCanvas: false,
+      cropGrid: 'thirds'
     });
+  });
+
+  it.each([
+    ['golden', 'diagonal'],
+    ['off', 'thirds'],
+    ['bogus', 'golden']
+  ])('restores crop guide %s and cycles to %s', async (stored, next) => {
+    const values = new Map<string, string>([[storageKey, JSON.stringify({ cropGrid: stored })]]);
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value)
+    });
+
+    const { ui } = await import('./ui.svelte');
+    ui.cycleCropGrid();
+
+    expect(ui.cropGrid).toBe(next);
+    expect(JSON.parse(values.get(storageKey) ?? '').cropGrid).toBe(next);
   });
 
   it('restores brush and retouch tools inside their ranges', async () => {
