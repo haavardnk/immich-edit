@@ -1,16 +1,20 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
   import { presets } from '$lib/stores/presets.svelte';
-  import { createApplyPresetJob } from '$lib/api/jobs';
+  import { createApplyPresetJob, type ApplyPresetOptions } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import PresetIncludeToggles from './preset/IncludeToggles.svelte';
+  import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
+  import PresetApplyOptions from './preset/ApplyOptions.svelte';
   import PresetPicker from './preset/PresetPicker.svelte';
   import { Button } from '@immich/ui';
   import { mdiAutoFix } from '@mdi/js';
 
   let presetId = $state<string | null>(null);
-  let includeGeometry = $state(false);
-  let includeMasks = $state(false);
+  let applyOptions = $state<ApplyPresetOptions>({
+    includeGeometry: false,
+    includeMasks: false,
+    amount: LOOK_AMOUNT_FULL
+  });
   let busy = $state(false);
 
   $effect(() => {
@@ -26,14 +30,12 @@
   async function submit(): Promise<void> {
     if (busy || !presetId) return;
     const id = presetId;
+    const options = $state.snapshot(applyOptions);
     busy = true;
-    await runBulkJob(
-      (target) => createApplyPresetJob(target, id, { includeGeometry, includeMasks }),
-      {
-        success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue preset'
-      }
-    );
+    await runBulkJob((target) => createApplyPresetJob(target, id, options), {
+      success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
+      error: 'Failed to queue preset'
+    });
     busy = false;
   }
 </script>
@@ -48,22 +50,24 @@
   {:else}
     <PresetPicker bind:selectedId={presetId} />
 
-    <PresetIncludeToggles bind:includeGeometry bind:includeMasks bordered />
+    {#if selected}
+      <PresetApplyOptions bind:options={applyOptions} bordered />
 
-    <Button
-      size="tiny"
-      color="primary"
-      fullWidth
-      loading={busy}
-      leadingIcon={mdiAutoFix}
-      disabled={busy || !presetId || selection.count === 0}
-      onclick={() => void submit()}
-    >
-      {selected ? `Apply ${selected.name} to ${selection.count}` : `Select a preset`}
-    </Button>
+      <Button
+        size="tiny"
+        color="primary"
+        fullWidth
+        loading={busy}
+        leadingIcon={mdiAutoFix}
+        disabled={busy || selection.count === 0}
+        onclick={() => void submit()}
+      >
+        Apply {selected.name} to {selection.count}
+      </Button>
 
-    <p class="text-[10px] leading-snug text-dark/65">
-      Runs as a background job. Track progress in the Jobs panel.
-    </p>
+      <p class="text-[10px] leading-snug text-dark/65">
+        Runs as a background job. Track progress in the Jobs panel.
+      </p>
+    {/if}
   {/if}
 </div>

@@ -20,6 +20,8 @@ import {
   type Vec2f
 } from '$lib/types/edits';
 import { manifestToEdits } from '$lib/edits/manifest';
+import { LOOK_AMOUNT_FULL, withLookAmount } from '$lib/edits/lookAmount';
+import type { ApplyPresetOptions } from '$lib/api/jobs';
 import { defaultLinear, maskCapacity } from '$lib/types/masks';
 import type { BrushBuffer } from '$lib/utils/brush';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '$lib/api/masks';
@@ -425,11 +427,11 @@ class EditorStore {
 
   applyPreset = async (
     manifest: EditManifest,
-    opts: { includeGeometry: boolean; includeMasks: boolean },
+    opts: ApplyPresetOptions,
     name?: string
   ): Promise<void> => {
     if (!this.initialised) return;
-    const incoming = manifestToEdits(manifest);
+    const incoming = withLookAmount(manifestToEdits(manifest), opts.amount);
     this.edits = {
       basic: incoming.basic,
       tone: incoming.tone,
@@ -442,7 +444,8 @@ class EditorStore {
       retouch: this.edits.retouch
     };
     this.onLive();
-    await this.onCommit(name ? `Preset: ${name}` : 'Preset');
+    const action = name ? `Preset: ${name}` : 'Preset';
+    await this.onCommit(opts.amount === LOOK_AMOUNT_FULL ? action : `${action} (${opts.amount}%)`);
   };
 
   onAutoAdjust = async (): Promise<void> => {

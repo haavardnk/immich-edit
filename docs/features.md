@@ -128,7 +128,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Undo, redo, and saved history | ✓ Yes | History entries can be restored; closing or reloading during a pending save asks for confirmation |
-| Presets | ✓ Yes | Save, apply, and batch apply |
+| Presets | ✓ Yes | Save, apply at 0–200% amount, and batch apply |
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | Per-section bypass and reset | ✓ Yes | Hold a modified section header to see the image without that section; a panel's modified dot resets the whole panel |

@@ -1,18 +1,23 @@
 <script lang="ts">
-  import PresetIncludeToggles from './preset/IncludeToggles.svelte';
+  import PresetApplyOptions from './preset/ApplyOptions.svelte';
   import PresetPicker from './preset/PresetPicker.svelte';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import EditableLabel from '$lib/components/EditableLabel.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
   import { mdiPencil, mdiCheck, mdiClose, mdiContentSaveOutline, mdiAutoFix } from '@mdi/js';
   import { editsToManifest } from '$lib/edits/manifest';
+  import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
+  import type { ApplyPresetOptions } from '$lib/api/jobs';
   import { editor } from '$lib/stores/editor.svelte';
   import { presets } from '$lib/stores/presets.svelte';
   import { isIdentity } from '$lib/types/edits';
   import { Button, IconButton } from '@immich/ui';
 
-  let includeGeometry = $state(false);
-  let includeMasks = $state(false);
+  let applyOptions = $state<ApplyPresetOptions>({
+    includeGeometry: false,
+    includeMasks: false,
+    amount: LOOK_AMOUNT_FULL
+  });
 
   let saving = $state(false);
   let newName = $state('');
@@ -61,7 +66,7 @@
 
   function apply(): void {
     if (!selected) return;
-    void editor.applyPreset(selected.manifest, { includeGeometry, includeMasks }, selected.name);
+    void editor.applyPreset(selected.manifest, $state.snapshot(applyOptions), selected.name);
   }
 
   function startRename(): void {
@@ -207,17 +212,19 @@
       </div>
     {/if}
 
-    <PresetIncludeToggles bind:includeGeometry bind:includeMasks />
+    {#if selected}
+      <PresetApplyOptions bind:options={applyOptions} />
 
-    <Button
-      size="tiny"
-      color="primary"
-      leadingIcon={mdiAutoFix}
-      title={selected ? `Apply ${selected.name}` : 'Select a preset'}
-      disabled={!selected || !editor.assetId || editor.saving}
-      onclick={apply}
-    >
-      {selected ? `Apply ${selected.name}` : 'Apply preset'}
-    </Button>
+      <Button
+        size="tiny"
+        color="primary"
+        leadingIcon={mdiAutoFix}
+        title="Apply {selected.name}"
+        disabled={!editor.assetId || editor.saving}
+        onclick={apply}
+      >
+        Apply {selected.name}
+      </Button>
+    {/if}
   {/if}
 </div>
