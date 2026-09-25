@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 use crate::safe_path;
 use crate::services::render::{RenderError, RenderIdentity, RenderService};
-use crate::services::render_queue::RenderQueue;
+use crate::services::render_queue::{RenderPriority, RenderQueue};
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 
@@ -139,7 +139,7 @@ impl EditedThumbService {
             Ok(rendered.bytes)
         };
         self.queue
-            .background(work)
+            .run(RenderPriority::Background, work)
             .await
             .ok_or_else(|| EditedThumbError::Io(std::io::ErrorKind::Other.into()))?
     }

@@ -9,6 +9,7 @@ use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::export::{self, ExportBody, ExportImmichRequest, ExportToImmichResult};
 use crate::services::render::RenderIdentity;
+use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub use crate::services::export::{
@@ -29,6 +30,7 @@ pub async fn get_export(
         id,
         edits,
         &params,
+        RenderPriority::Interactive,
     )
     .await?;
     Ok(download_response(id, bytes, output))
@@ -47,6 +49,7 @@ pub async fn post_export(
         id,
         body.edits.clamped(),
         &body.params,
+        RenderPriority::Interactive,
     )
     .await?;
     Ok(download_response(id, bytes, output))
@@ -87,6 +90,7 @@ pub async fn post_export_immich(
             server_epoch: ctx.server_epoch,
             body: &body,
             idempotency_key: idem_key,
+            priority: RenderPriority::Interactive,
         },
     )
     .await?;

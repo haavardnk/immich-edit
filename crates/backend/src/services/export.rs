@@ -11,6 +11,7 @@ use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
 use crate::services::render::RenderIdentity;
+use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub const EXPORT_MAX_EDGE: u32 = 65535;
@@ -77,6 +78,7 @@ pub struct ExportImmichRequest<'a> {
     pub server_epoch: i64,
     pub body: &'a ExportToImmichBody,
     pub idempotency_key: Option<String>,
+    pub priority: RenderPriority,
 }
 
 pub async fn render_export(
@@ -86,34 +88,43 @@ pub async fn render_export(
     id: AssetKey,
     edits: Edits,
     params: &ExportParams,
+    priority: RenderPriority,
 ) -> Result<(Bytes, OutputFormat), AppError> {
-    let frame = state
-        .render
-        .frame(identity, immich, id.source())
-        .await
-        .map_err(AppError::from)?;
-    let output = params.output_format();
-    let opts = raw_pipeline::frame::RenderOptions {
-        max_edge: EXPORT_MAX_EDGE,
-        quality: true,
-        output,
-        output_color_space: params.output_color_space(),
-        ..Default::default()
-    };
-    let rendered = state
-        .render
-        .render(identity, immich.clone(), id.source(), edits, opts, None)
-        .await
-        .map_err(AppError::from)?;
+    let work = async {
+        let frame = state
+            .render
+            .frame(identity, immich, id.source())
+            .await
+            .map_err(AppError::from)?;
+        let output = params.output_format();
+        let opts = raw_pipeline::frame::RenderOptions {
+            max_edge: EXPORT_MAX_EDGE,
+            quality: true,
+            output,
+            output_color_space: params.output_color_space(),
+            ..Default::default()
+        };
+        let rendered = state
+            .render
+            .render(identity, immich.clone(), id.source(), edits, opts, None)
+            .await
+            .map_err(AppError::from)?;
 
-    let mut bytes = rendered.bytes;
-    if params.include_exif
-        && let Some(exif) = frame.exif.as_ref()
-        && let Err(e) = raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
-    {
-        tracing::warn!(error = %e, "exif inject failed");
-    }
-    Ok((Bytes::from(bytes), output))
+        let mut bytes = rendered.bytes;
+        if params.include_exif
+            && let Some(exif) = frame.exif.as_ref()
+            && let Err(e) =
+                raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
+        {
+            tracing::warn!(error = %e, "exif inject failed");
+        }
+        Ok((Bytes::from(bytes), output))
+    };
+    state
+        .queue
+        .run(priority, work)
+        .await
+        .ok_or(AppError::Internal)?
 }
 
 pub async fn export_to_immich(
@@ -173,6 +184,7 @@ pub async fn export_to_immich(
             id,
             body.edits.clamped(),
             &body.params,
+            req.priority,
         )
         .await?;
         let filename = resolve_filename(
