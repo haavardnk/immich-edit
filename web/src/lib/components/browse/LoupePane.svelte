@@ -5,8 +5,10 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
   import { fitScale, nativeScale } from '$lib/utils/view-geometry';
+  import { clampZoom } from '$lib/utils/zoomLevel';
 
   const DRAG_THRESHOLD = 5;
+  const WHEEL_STEP = 1.1;
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
 
@@ -148,6 +150,43 @@
     );
   }
 
+  function zoomAtPointer(e: WheelEvent): void {
+    const current = zoomBox;
+    const next = clampZoom(
+      (view.zoom ?? fitZoom) * (e.deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP),
+      fitZoom
+    );
+    const nextBox = imageBoxAt(next);
+    if (next <= fitZoom || !current || !nextBox || !container) {
+      onView(CENTERED, e.altKey);
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    const u = boundedView.cx + dx / current.w;
+    const v = boundedView.cy + dy / current.h;
+    onView(clampCenter({ zoom: next, cx: u - dx / nextBox.w, cy: v - dy / nextBox.h }), e.altKey);
+  }
+
+  function onWheel(e: WheelEvent): void {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      zoomAtPointer(e);
+      return;
+    }
+    if (!zoomed || !zoomBox) return;
+    e.preventDefault();
+    onView(
+      clampCenter({
+        zoom: view.zoom,
+        cx: boundedView.cx + e.deltaX / zoomBox.w,
+        cy: boundedView.cy + e.deltaY / zoomBox.h
+      }),
+      e.altKey
+    );
+  }
+
   function onPointerUp(e: PointerEvent): void {
     const wasDragging = dragging;
     dragging = false;
@@ -186,6 +225,7 @@
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
+  onwheel={onWheel}
 >
   {#if badge !== undefined}
     <span

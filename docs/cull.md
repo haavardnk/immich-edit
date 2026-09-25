@@ -31,10 +31,13 @@ The **S**, **M**, **L** and **XL** buttons set the thumbnail size.
 Clicking a photo opens it in the [editor](edit.md). To look without editing, hover it and press
 **Quick review**, or press `E`. That opens the loupe: one photo at full size, with the filmstrip
 below. Arrow keys move through the photos, `Z` zooms, and `I` opens the info panel, which stays
-open until you close it, reloads included. The loupe, the
-editor and their filmstrips load the rest of the view as you reach the end of what is loaded, so
-the arrow keys walk the whole album or search result. When you close the loupe or go back from the
-editor, the grid scrolls to the photo you ended on if it is off screen.
+open until you close it, reloads included. The loupe, the editor and their filmstrips load the rest
+of the view as you reach the end of what is loaded, so the arrow keys walk the whole album or search
+result. When you close the loupe or go back from the editor, the grid scrolls to the photo you ended
+on if it is off screen.
+
+`Ctrl` or `Cmd` with the mouse wheel zooms at the pointer in the loupe, compare and survey, the
+wheel alone pans a zoomed photo, and a plain wheel over a filmstrip scrolls it.
 
 `Z` zooms to the faces Immich found, largest first, and back to fit after the last one. Without
 faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 until you change

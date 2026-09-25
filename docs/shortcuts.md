@@ -91,7 +91,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | Keys                                          | Action                                                          | Available in           |
 | --------------------------------------------- | --------------------------------------------------------------- | ---------------------- |
 | `Click the photo`                             | Zoom in at the pointer, or back to fit when zoomed              | Loupe, Compare, Survey |
-| `Drag`                                        | Pan a zoomed photo                                              | Loupe, Compare, Survey |
+| `Drag or scroll`                              | Pan a zoomed photo                                              | Loupe, Compare, Survey |
+| `Ctrl + scroll`                               | Zoom at the pointer                                             | Loupe, Compare, Survey |
 | `Alt + click or drag`                         | Zoom or pan only the focused pane while zoom and pan are synced | Compare, Survey        |
 | `Shift or Ctrl + click a filmstrip thumbnail` | Add or remove a compare pane                                    | Loupe, Compare, Survey |
 

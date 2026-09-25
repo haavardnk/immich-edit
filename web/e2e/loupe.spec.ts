@@ -132,6 +132,20 @@ test('the shortcuts dialog lists the loupe gestures', async ({ page }) => {
   }
 });
 
+test('a vertical wheel scrolls the loupe filmstrip', async ({ page }) => {
+  await openLoupe(page, { assets: numberedAssets(60) });
+  const strip = page.getByTestId('filmstrip-scroll');
+  await expect(strip).toBeVisible();
+  await expect
+    .poll(() => strip.evaluate((el) => el.scrollWidth - el.clientWidth))
+    .toBeGreaterThan(0);
+
+  await strip.hover();
+  await page.mouse.wheel(0, 400);
+
+  await expect.poll(() => strip.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+});
+
 test('shift+t hides the loupe filmstrip', async ({ page }) => {
   await openLoupe(page);
   await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();

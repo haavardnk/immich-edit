@@ -289,7 +289,15 @@ export const KEYBINDS = [
     contexts: ['loupe', 'compare', 'survey'],
     group: 'Loupe gestures',
     label: 'Pan a zoomed photo',
-    display: 'Drag'
+    display: 'Drag or scroll'
+  },
+  {
+    id: 'loupeWheelZoom',
+    keys: [],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe gestures',
+    label: 'Zoom at the pointer',
+    display: (mac: boolean) => `${keyLabel('Mod', mac)} + scroll`
   },
   {
     id: 'paneSoloView',
