@@ -20,46 +20,45 @@ pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     k
 }
 
-pub(crate) fn gaussian_blur_rgb(src: &[f32], w: usize, h: usize, kernel: &[f32]) -> Scratch {
+pub(crate) fn gaussian_blur<const C: usize>(
+    src: &[f32],
+    w: usize,
+    h: usize,
+    kernel: &[f32],
+) -> Scratch {
     let radius = kernel.len() / 2;
     let mut tmp = Scratch::zeroed(src.len());
-    tmp.par_chunks_mut(w * 3)
-        .zip(src.par_chunks(w * 3))
+    tmp.par_chunks_mut(w * C)
+        .zip(src.par_chunks(w * C))
         .for_each(|(dst_row, src_row)| {
             for x in 0..w {
-                let mut acc = [0.0f32; 3];
+                let mut acc = [0.0f32; C];
                 for (k, weight) in kernel.iter().enumerate() {
                     let sx = (x as isize + k as isize - radius as isize).clamp(0, w as isize - 1)
                         as usize;
-                    let si = sx * 3;
-                    acc[0] += src_row[si] * weight;
-                    acc[1] += src_row[si + 1] * weight;
-                    acc[2] += src_row[si + 2] * weight;
+                    let si = sx * C;
+                    for (c, a) in acc.iter_mut().enumerate() {
+                        *a += src_row[si + c] * weight;
+                    }
                 }
-                let di = x * 3;
-                dst_row[di] = acc[0];
-                dst_row[di + 1] = acc[1];
-                dst_row[di + 2] = acc[2];
+                dst_row[x * C..x * C + C].copy_from_slice(&acc);
             }
         });
     let mut out = Scratch::zeroed(src.len());
-    out.par_chunks_mut(w * 3)
+    out.par_chunks_mut(w * C)
         .enumerate()
         .for_each(|(y, dst_row)| {
             for x in 0..w {
-                let mut acc = [0.0f32; 3];
+                let mut acc = [0.0f32; C];
                 for (k, weight) in kernel.iter().enumerate() {
                     let sy = (y as isize + k as isize - radius as isize).clamp(0, h as isize - 1)
                         as usize;
-                    let si = (sy * w + x) * 3;
-                    acc[0] += tmp[si] * weight;
-                    acc[1] += tmp[si + 1] * weight;
-                    acc[2] += tmp[si + 2] * weight;
+                    let si = (sy * w + x) * C;
+                    for (c, a) in acc.iter_mut().enumerate() {
+                        *a += tmp[si + c] * weight;
+                    }
                 }
-                let di = x * 3;
-                dst_row[di] = acc[0];
-                dst_row[di + 1] = acc[1];
-                dst_row[di + 2] = acc[2];
+                dst_row[x * C..x * C + C].copy_from_slice(&acc);
             }
         });
     out
