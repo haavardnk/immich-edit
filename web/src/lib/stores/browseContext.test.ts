@@ -9,7 +9,8 @@ const FILTERS = {
   visibility: 'archive' as const,
   takenAfter: '2024-01-01',
   takenBefore: '2024-02-01',
-  excludeRejected: true
+  excludeRejected: true,
+  label: 'purple' as const
 };
 
 let store: Record<string, string>;
@@ -53,7 +54,8 @@ describe('browseContext', () => {
     ['rating', { rating: 9 }, 'rating', 'any'],
     ['visibility', { visibility: 'everywhere' }, 'visibility', 'timeline'],
     ['filename', { filename: 42 }, 'filename', ''],
-    ['favoriteOnly', { favoriteOnly: 'yes' }, 'favoriteOnly', false]
+    ['favoriteOnly', { favoriteOnly: 'yes' }, 'favoriteOnly', false],
+    ['label', { label: 'teal' }, 'label', 'any']
   ])('replaces a corrupt %s with its default', async (_name, patch, field, expected) => {
     const { recallBrowseFilters } = await load();
     store[KEY] = JSON.stringify({ path: '/photos', filters: { ...FILTERS, ...patch } });

@@ -18,7 +18,7 @@
   aria-label="Editor status and view controls"
   class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
 >
-  <div class="flex min-w-0 items-center gap-2 overflow-hidden">
+  <div class="-my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1">
     {#if hasAsset}
       <RatingControl />
       <div class="min-w-0 flex-1 overflow-hidden">

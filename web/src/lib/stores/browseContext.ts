@@ -1,6 +1,12 @@
 import { readStored, writeStored } from '$lib/utils/storage';
-import { FILTER_DEFAULTS, type BrowseFilters, type RatingFilter } from './browseControls.svelte';
+import {
+  FILTER_DEFAULTS,
+  type BrowseFilters,
+  type LabelFilter,
+  type RatingFilter
+} from './browseControls.svelte';
 import type { Visibility } from '$lib/types/search';
+import { LABEL_COLORS } from '$lib/labels';
 
 const KEY = 'immich-edit:browseContext';
 
@@ -11,6 +17,7 @@ interface BrowseContextSnapshot {
 
 const RATINGS: RatingFilter[] = ['any', 'unrated', 1, 2, 3, 4, 5];
 const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
+const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
 function sanitize(filters: Partial<BrowseFilters>): BrowseFilters {
   return {
@@ -20,7 +27,8 @@ function sanitize(filters: Partial<BrowseFilters>): BrowseFilters {
     visibility: VISIBILITIES.find((v) => v === filters.visibility) ?? FILTER_DEFAULTS.visibility,
     takenAfter: typeof filters.takenAfter === 'string' ? filters.takenAfter : '',
     takenBefore: typeof filters.takenBefore === 'string' ? filters.takenBefore : '',
-    excludeRejected: filters.excludeRejected === true
+    excludeRejected: filters.excludeRejected === true,
+    label: LABELS.find((l) => l === filters.label) ?? FILTER_DEFAULTS.label
   };
 }
 

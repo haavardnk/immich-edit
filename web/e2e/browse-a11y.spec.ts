@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
+import { ASSET_SUMMARY, focusRingClipped, installMocks, json, numberedAssets } from './helpers';
 
 const GRID_ASSETS = numberedAssets(10, {
   exifInfo: { exifImageWidth: 6000, exifImageHeight: 4000 }
@@ -36,24 +36,7 @@ test('shift+b moves focus into the selection actions', async ({ page }) => {
 
   const toolbar = page.getByRole('toolbar', { name: 'Selection actions' });
   await expect.poll(() => toolbar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-
-  const ringClipped = await page.evaluate(() => {
-    const focused = document.activeElement as HTMLElement;
-    const style = getComputedStyle(focused);
-    const reach = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
-    let clip = focused.parentElement;
-    while (clip && getComputedStyle(clip).overflowX === 'visible') clip = clip.parentElement;
-    if (!clip || reach <= 0) return `no ring or clip (${reach})`;
-    const ring = focused.getBoundingClientRect();
-    const box = clip.getBoundingClientRect();
-    return ring.left - reach < box.left ||
-      ring.right + reach > box.right ||
-      ring.top - reach < box.top ||
-      ring.bottom + reach > box.bottom
-      ? 'clipped'
-      : '';
-  });
-  expect(ringClipped).toBe('');
+  expect(await focusRingClipped(page.locator(':focus'))).toBe('');
 });
 
 test('grid selection previews and commits a shift range', async ({ page }) => {

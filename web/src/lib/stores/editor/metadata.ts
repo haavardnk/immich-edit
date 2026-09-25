@@ -4,6 +4,15 @@ import { browsing } from '$lib/stores/browsing.svelte';
 import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
 import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
+import {
+  isLabelTag,
+  labelOf,
+  labelTagFor,
+  withLabel,
+  writeLabel,
+  type LabelColor
+} from '$lib/labels';
+import { assignLabel } from '$lib/stores/labels.svelte';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { errorMessage } from '$lib/utils/errors';
 
@@ -130,6 +139,29 @@ export async function toggleReject(ctx: MetadataCtx): Promise<void> {
     if (c.asset) c.asset = { ...c.asset, tags: prev };
     if (next) rejected.remove(c.assetId);
     else rejected.add(c.assetId, rejectTag);
+    c.error = errorMessage(e);
+  }
+}
+
+export async function setLabel(ctx: MetadataCtx, color: LabelColor | null): Promise<void> {
+  const c = await ready(ctx);
+  if (!c) return;
+  const tag = await labelTagFor(color);
+  if (tag === undefined) {
+    c.error = 'label: could not create tag';
+    return;
+  }
+  const prev = c.asset.tags;
+  const prevColor = labelOf(c.asset);
+  const prevTag = prev.find(isLabelTag) ?? null;
+  c.asset = { ...c.asset, tags: withLabel(prev, tag) };
+  assignLabel(c.assetId, color, tag);
+  try {
+    await writeLabel(c.assetId, prev, tag);
+    syncBrowsing(c);
+  } catch (e) {
+    if (c.asset) c.asset = { ...c.asset, tags: prev };
+    assignLabel(c.assetId, prevColor, prevTag);
     c.error = errorMessage(e);
   }
 }

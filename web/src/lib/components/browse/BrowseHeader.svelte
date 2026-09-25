@@ -2,7 +2,12 @@
   import TextInput from '$lib/components/TextInput.svelte';
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { browseControls, type Visibility } from '$lib/stores/browseControls.svelte';
+  import {
+    browseControls,
+    type LabelFilter,
+    type Visibility
+  } from '$lib/stores/browseControls.svelte';
+  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { mergeProps } from '$lib/utils/mergeProps';
   import { hint } from '$lib/keybinds';
@@ -12,11 +17,18 @@
     withoutFilter,
     type FilterKey
   } from '$lib/browseFilterChips';
-  import { Button, Field, IconButton, Select } from '@immich/ui';
+  import { Button, Field, Icon, IconButton, Select } from '@immich/ui';
+  import { RadioGroup } from 'bits-ui';
+  import {
+    segmentedControlClass,
+    segmentedRadioItemClass
+  } from '$lib/components/editor/controls/segmentedControl';
   import {
     mdiSortAscending,
     mdiSortDescending,
     mdiFilterOutline,
+    mdiCircle,
+    mdiCircleOffOutline,
     mdiClose,
     mdiTextBoxOutline
   } from '@mdi/js';
@@ -228,6 +240,35 @@
         />
       </Field>
 
+      <Field label="Label" size="small">
+        <RadioGroup.Root
+          bind:value={() => browseControls.label, (v) => (browseControls.label = v as LabelFilter)}
+          orientation="horizontal"
+          aria-label="Label"
+          class={segmentedControlClass}
+        >
+          <RadioGroup.Item value="any" class="{segmentedRadioItemClass} px-2">Any</RadioGroup.Item>
+          {#each LABEL_COLORS as color (color)}
+            <RadioGroup.Item
+              value={color}
+              aria-label={`${LABEL_NAMES[color]} label`}
+              title={`${LABEL_NAMES[color]} label`}
+              class="{segmentedRadioItemClass} w-6"
+            >
+              <Icon icon={mdiCircle} size="12px" class={LABEL_TEXT[color]} aria-hidden="true" />
+            </RadioGroup.Item>
+          {/each}
+          <RadioGroup.Item
+            value="none"
+            aria-label="No label"
+            title="No label"
+            class="{segmentedRadioItemClass} w-6"
+          >
+            <Icon icon={mdiCircleOffOutline} size="12px" aria-hidden="true" />
+          </RadioGroup.Item>
+        </RadioGroup.Root>
+      </Field>
+
       {#if !favoriteLocked}
         <CheckboxRow
           label="Favorites only"
@@ -298,6 +339,9 @@
         role="listitem"
         class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2.5 text-[11px] whitespace-nowrap"
       >
+        {#if chip.color}
+          <Icon icon={mdiCircle} size="10px" class={LABEL_TEXT[chip.color]} aria-hidden="true" />
+        {/if}
         {chip.label}
         <IconButton
           size="tiny"

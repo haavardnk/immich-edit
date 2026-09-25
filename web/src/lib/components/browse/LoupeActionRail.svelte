@@ -8,6 +8,8 @@
   import StarRating from '$lib/components/StarRating.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
+  import LabelPicker from '$lib/components/LabelPicker.svelte';
+  import type { LabelColor } from '$lib/labels';
   import { hint } from '$lib/keybinds';
   import { Icon, IconButton } from '@immich/ui';
   import {
@@ -25,6 +27,7 @@
     rating: number;
     isFavorite: boolean;
     rejected: boolean;
+    label: LabelColor | null;
     tags: TagRef[];
     multi: boolean;
     position: number;
@@ -36,6 +39,7 @@
     onRate: (value: number | null) => void;
     onFavorite: () => void;
     onReject: () => void;
+    onLabel: (color: LabelColor | null) => void;
     onAddTag: (tag: TagRef) => Promise<void>;
     onRemoveTag: (tagId: string) => Promise<void>;
     onCreateTag: (value: string) => Promise<TagRef | null>;
@@ -48,6 +52,7 @@
     rating,
     isFavorite,
     rejected,
+    label,
     tags,
     multi,
     position,
@@ -59,6 +64,7 @@
     onRate,
     onFavorite,
     onReject,
+    onLabel,
     onAddTag,
     onRemoveTag,
     onCreateTag,
@@ -79,6 +85,7 @@
       </div>
       <FavoriteButton {isFavorite} ontoggle={onFavorite} />
       <RejectButton isRejected={rejected} ontoggle={onReject} />
+      <LabelPicker {label} onchange={onLabel} />
       <div class="min-w-0">
         <TagPicker
           {tags}

@@ -58,6 +58,14 @@ export const KEYBINDS = [
     group: 'Culling',
     label: 'Clear favorite and reject'
   },
+  {
+    id: 'label',
+    keys: ['6', '7', '8', '9'],
+    contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
+    group: 'Culling',
+    label: 'Set or clear the red, yellow, green or blue label',
+    display: '6 – 9'
+  },
 
   {
     id: 'gridMove',

@@ -3,7 +3,6 @@
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { isRejected } from '$lib/reject';
   import type { AssetSummary } from '$lib/types/album';
   import { Button, LoadingSpinner } from '@immich/ui';
 
@@ -39,9 +38,7 @@
     onRetry?: () => void;
   } = $props();
 
-  const hiddenCount = $derived(
-    browseControls.excludeRejected ? assets.filter((asset) => isRejected(asset)).length : 0
-  );
+  const hiddenCount = $derived(assets.filter((asset) => browseControls.hides(asset)).length);
 </script>
 
 {#if loading}

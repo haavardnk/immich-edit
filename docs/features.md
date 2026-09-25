@@ -19,11 +19,11 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Read-only album browsing | ✓ Yes | Albums and their assets come from Immich |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search |
 | Filename search | ✓ Yes | Searches Immich metadata |
-| Rating, favorite, date, filename, visibility, and reject filters | ✓ Yes | Available in browse and search views; active filters show as removable chips; changing a filter clears the current selection |
+| Rating, favorite, date, filename, visibility, label, and reject filters | ✓ Yes | Available in browse and search views; label and reject filter the loaded photos; active filters show as removable chips; changing a filter clears the current selection |
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the direction you pick |
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
-| Ratings, favorites, tags, and reject marks | ✓ Yes | Writes metadata to Immich after consent |
+| Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/` |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
 | Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
@@ -32,7 +32,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Fullscreen viewing | ✓ Yes | `Shift+F` or the loupe's **Fullscreen** button hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
-| Color labels | ✗ No | — |
+| Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
 | Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
