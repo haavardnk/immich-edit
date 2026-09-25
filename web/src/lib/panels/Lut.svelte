@@ -2,22 +2,21 @@
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import FileImportButton from '$lib/components/FileImportButton.svelte';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { editsToManifest } from '$lib/edits/manifest';
-  import { mdiClose, mdiUpload } from '@mdi/js';
+  import { mdiClose } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { session } from '$lib/stores/session.svelte';
   import { listLuts, importLut, deleteLut, type LutMeta } from '$lib/api/luts';
   import { ApiError } from '$lib/api/client';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { Button, IconButton } from '@immich/ui';
+  import { IconButton } from '@immich/ui';
 
   let luts = $state<LutMeta[]>([]);
   let loaded = $state(false);
-  let importing = $state(false);
   let pendingDelete = $state(false);
-  let fileInput: HTMLInputElement | null = $state(null);
 
   const selectedId = $derived(editor.edits.color.lut_3d.lut_id);
   const selected = $derived(luts.find((lut) => lut.id === selectedId) ?? null);
@@ -43,18 +42,9 @@
     void editor.onCommit(id ? 'Select LUT' : 'Remove LUT');
   }
 
-  function triggerImport(): void {
-    fileInput?.click();
-  }
-
-  async function onFile(e: Event): Promise<void> {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
+  async function importFile(file: File): Promise<void> {
     const name = file.name.replace(/\.[^.]+$/, '');
     const bytes = new Uint8Array(await file.arrayBuffer());
-    importing = true;
     try {
       const meta = await importLut(name, bytes);
       await load();
@@ -72,8 +62,6 @@
       } else {
         toasts.push('error', 'LUT import failed.');
       }
-    } finally {
-      importing = false;
     }
   }
 
@@ -98,13 +86,6 @@
 
 <div class="flex flex-col gap-1.5 pb-1">
   <SectionHeader title="LUT" section="lut" {modified} onReset={reset} />
-  <input
-    bind:this={fileInput}
-    type="file"
-    accept=".cube"
-    class="hidden"
-    onchange={(e) => void onFile(e)}
-  />
 
   <div class="flex items-center gap-1">
     <div class="min-w-0 flex-1">
@@ -133,18 +114,7 @@
   </div>
 
   {#if session.isAdmin}
-    <Button
-      type="button"
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      class="h-7 panel-action"
-      leadingIcon={mdiUpload}
-      disabled={importing}
-      onclick={triggerImport}
-    >
-      {importing ? 'Importing…' : 'Import .cube LUT'}
-    </Button>
+    <FileImportButton accept=".cube" label="Import .cube LUT" onfile={importFile} />
   {/if}
 
   {#if missingSelected}
