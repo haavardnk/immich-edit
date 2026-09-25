@@ -1,4 +1,3 @@
-import { browsing } from './browsing.svelte';
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 
@@ -90,20 +89,6 @@ class BrowseViewStore {
   getGridScroll(key: string): number {
     if (!key) return 0;
     return this.gridScroll.get(key) ?? 0;
-  }
-
-  moveActive(delta: number): string | null {
-    const list = browsing.assets;
-    const first = list[0];
-    if (!first) return null;
-    const idx = this.activeId ? list.findIndex((a) => a.id === this.activeId) : -1;
-    if (idx < 0) {
-      this.activeId = first.id;
-      return this.activeId;
-    }
-    const next = Math.min(list.length - 1, Math.max(0, idx + delta));
-    this.activeId = list[next]?.id ?? this.activeId;
-    return this.activeId;
   }
 
   resetLoupeView(): void {
