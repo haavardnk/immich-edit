@@ -61,7 +61,7 @@ test('arrow keys nudge the selected radial', async ({ page }) => {
   await page.keyboard.press('Shift+ArrowRight');
   await page.keyboard.press('ArrowUp');
   await expect.poll(() => lastRadial(saves)?.center?.x ?? 0).toBeGreaterThan(0.5);
-  expect(lastRadial(saves)?.center?.y ?? 1).toBeLessThan(0.5);
+  await expect.poll(() => lastRadial(saves)?.center?.y ?? 1).toBeLessThan(0.5);
   await expect(page).toHaveURL(/\/assets\/[^/?]+/);
 });
 
