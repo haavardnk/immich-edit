@@ -6,12 +6,19 @@
   import { browseView, type GridSize } from '$lib/stores/browseView.svelte';
   import { mergeProps } from '$lib/utils/mergeProps';
   import { hint } from '$lib/keybinds';
+  import {
+    activeFilterChips,
+    photoCountLabel,
+    withoutFilter,
+    type FilterKey
+  } from '$lib/browseFilterChips';
   import { Button, Field, IconButton, Select } from '@immich/ui';
   import { mdiSortAscending, mdiSortDescending, mdiFilterOutline, mdiClose } from '@mdi/js';
 
   let {
     title,
     totalCount,
+    hiddenCount = 0,
     favoriteLocked = false,
     hideSort = false,
     hideFilenameFilter = false,
@@ -19,11 +26,18 @@
   }: {
     title: string;
     totalCount?: number;
+    hiddenCount?: number;
     favoriteLocked?: boolean;
     hideSort?: boolean;
     hideFilenameFilter?: boolean;
     sortBasis?: 'capture' | 'edit';
   } = $props();
+
+  const chips = $derived(activeFilterChips(browseControls.filters));
+
+  function removeFilter(key: FilterKey): void {
+    browseControls.applyFilters(withoutFilter(browseControls.filters, key));
+  }
 
   const sortLabel = $derived(
     browseControls.sortDir === 'asc'
@@ -97,7 +111,7 @@
     {#if totalCount !== undefined}
       <span class="shrink-0 text-white/20">·</span>
       <p class="shrink-0 text-[10px] text-dark/65">
-        {totalCount} asset{totalCount === 1 ? '' : 's'}
+        {photoCountLabel(totalCount, hiddenCount)}
       </p>
     {/if}
   </div>
@@ -252,3 +266,29 @@
     </Popover>
   </div>
 </header>
+{#if chips.length > 0}
+  <div
+    role="list"
+    aria-label="Active filters"
+    class="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-hairline bg-light px-3 py-1.5 sm:px-5"
+  >
+    {#each chips as chip (chip.key)}
+      <span
+        role="listitem"
+        class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2.5 text-[11px] whitespace-nowrap"
+      >
+        {chip.label}
+        <IconButton
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="opacity-60 hover:opacity-100"
+          icon={mdiClose}
+          title={`Remove ${chip.label}`}
+          aria-label={`Remove ${chip.label}`}
+          onclick={() => removeFilter(chip.key)}
+        />
+      </span>
+    {/each}
+  </div>
+{/if}

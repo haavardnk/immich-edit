@@ -2,6 +2,8 @@
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import Notice from '$lib/components/Notice.svelte';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { isRejected } from '$lib/reject';
   import type { AssetSummary } from '$lib/types/album';
   import { Button, LoadingSpinner } from '@immich/ui';
 
@@ -36,6 +38,10 @@
     error?: string | null;
     onRetry?: () => void;
   } = $props();
+
+  const hiddenCount = $derived(
+    browseControls.excludeRejected ? assets.filter((asset) => isRejected(asset)).length : 0
+  );
 </script>
 
 {#if loading}
@@ -56,7 +62,7 @@
     </Notice>
   </div>
 {:else}
-  <BrowseHeader {title} {totalCount} {favoriteLocked} {sortBasis} />
+  <BrowseHeader {title} {totalCount} {hiddenCount} {favoriteLocked} {sortBasis} />
   {#if assets.length === 0}
     <div class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted">
       <h2 class="text-base font-medium text-white">{emptyTitle}</h2>

@@ -24,6 +24,9 @@ filenames.
 **Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. The sort button next to it flips between newest
 and oldest first, and each view remembers its own order. **Reset filters and sort** clears both.
+Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
+The count beside the title is the number of photos in the view, followed by how many of the loaded
+ones **Exclude rejected** is hiding.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size.
 
 ## Look at photos

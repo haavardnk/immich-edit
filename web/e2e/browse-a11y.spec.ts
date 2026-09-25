@@ -11,7 +11,7 @@ test('grid tiles and counts are readable by assistive tech', async ({ page }) =>
   });
 
   await page.goto('/photos');
-  await expect(page.getByText('1 asset', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 photo', { exact: true })).toBeVisible();
 
   await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Favorite' })).toBeVisible();

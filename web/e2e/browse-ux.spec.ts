@@ -27,9 +27,46 @@ test('grid shows total count without loaded progress', async ({ page }) => {
 
   await page.goto('/photos');
 
-  await expect(page.getByText('1000 assets', { exact: true })).toBeVisible();
+  await expect(page.getByText('1000 photos', { exact: true })).toBeVisible();
   await expect(page.getByText('1 of 1000', { exact: true })).toHaveCount(0);
   await expect(page.getByText('1 loaded', { exact: true })).toHaveCount(0);
+});
+
+test('active filters stay visible as removable chips', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('checkbox', { name: 'Favorites only' }).click();
+  await page.getByLabel('Filename').fill('portrait');
+  await page.getByRole('button', { name: 'Close filters' }).click();
+
+  const chips = page.getByRole('list', { name: 'Active filters' });
+  await expect(chips.getByRole('listitem')).toHaveText(['Favorites', 'Name: portrait']);
+  await expect.poll(() => bodies.at(-1)?.originalFileName).toBe('portrait');
+
+  await chips.getByRole('button', { name: 'Remove Favorites' }).click();
+
+  await expect(chips.getByRole('listitem')).toHaveText(['Name: portrait']);
+  await expect.poll(() => bodies.at(-1)?.isFavorite).toBeUndefined();
+  expect(bodies.at(-1)?.originalFileName).toBe('portrait');
+});
+
+test('the count names photos hidden by the reject filter', async ({ page }) => {
+  const [kept, dropped] = numberedAssets(2);
+  if (!kept || !dropped) throw new Error('missing assets');
+  const rejectedAsset = {
+    ...dropped,
+    tags: [{ id: 'r', name: 'reject', value: 'immich-edit/reject' }]
+  };
+  await installMocks(page, { assets: [kept, rejectedAsset] });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('checkbox', { name: 'Exclude rejected' }).click();
+
+  await expect(page.getByText('2 photos, 1 hidden', { exact: true })).toBeVisible();
 });
 
 test('select all loads every page and enables local actions', async ({ page }) => {
