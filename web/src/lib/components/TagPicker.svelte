@@ -6,7 +6,7 @@
   import { listTags, type TagSummary } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { TagRef } from '$lib/types/asset';
-  import { isManagedTag } from '$lib/reject';
+  import { isManagedTag } from '$lib/managedTags';
   import { mergeProps } from '$lib/utils/mergeProps';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';

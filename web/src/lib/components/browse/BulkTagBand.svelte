@@ -4,7 +4,7 @@
   import { mdiClose } from '@mdi/js';
   import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import { isManagedTag, toTagRef } from '$lib/reject';
+  import { isManagedTag, toTagRef } from '$lib/managedTags';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
 

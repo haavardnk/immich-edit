@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isRejectTag,
-  isManagedTag,
   isRejected,
-  toTagRef,
   addRejectTag,
   removeRejectTag,
   setRejectedTags,
@@ -29,19 +27,6 @@ describe('isRejectTag', () => {
   });
 });
 
-describe('isManagedTag', () => {
-  it('matches the namespace root and children', () => {
-    expect(isManagedTag({ id: '1', name: 'x', value: 'immich-edit' })).toBe(true);
-    expect(isManagedTag({ id: '1', name: 'x', value: 'immich-edit/reject' })).toBe(true);
-    expect(isManagedTag({ id: '1', name: 'x', value: 'IMMICH-EDIT/Reject' })).toBe(true);
-  });
-
-  it('ignores unrelated tags', () => {
-    expect(isManagedTag(keep)).toBe(false);
-    expect(isManagedTag({ id: '1', name: 'x', value: 'immich-editor' })).toBe(false);
-  });
-});
-
 describe('isRejected', () => {
   it('detects a reject tag among others', () => {
     expect(isRejected({ tags: [keep, reject] })).toBe(true);
@@ -50,26 +35,6 @@ describe('isRejected', () => {
   it('handles missing tags', () => {
     expect(isRejected({ tags: null })).toBe(false);
     expect(isRejected({})).toBe(false);
-  });
-});
-
-describe('toTagRef', () => {
-  it('maps summary fields', () => {
-    const ref = toTagRef({
-      id: 'r',
-      name: 'reject',
-      value: 'immich-edit/reject',
-      parentId: 'p',
-      color: '#fff',
-      createdAt: ''
-    });
-    expect(ref).toEqual({
-      id: 'r',
-      name: 'reject',
-      value: 'immich-edit/reject',
-      parentId: 'p',
-      color: '#fff'
-    });
   });
 });
 
