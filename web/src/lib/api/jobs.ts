@@ -1,13 +1,13 @@
 import { getJson, sendJson, url } from './client';
 import {
-  resizeParams,
+  finishParams,
   type BitDepthOpt,
   type ColorSpaceOpt,
   type ExportFormat,
   type ExportOptions,
+  type FinishParams,
   type ImmichExportOptions,
   type PngCompressionOpt,
-  type ResizeParams,
   type TiffCompressionOpt
 } from './export';
 import type { EditManifest } from '$lib/types/edits';
@@ -72,7 +72,7 @@ export function jobDownloadUrl(id: string): string {
   return url`/api/jobs/${id}/download`;
 }
 
-interface ExportJobParams extends ResizeParams {
+interface ExportJobParams extends FinishParams {
   format: ExportFormat;
   quality: number;
   include_exif: boolean;
@@ -95,7 +95,7 @@ function baseParams(opts: ExportOptions): ExportJobParams {
     lossless: opts.lossless,
     color_space: opts.colorSpace,
     filename_template: opts.filenameTemplate,
-    ...resizeParams(opts.resize)
+    ...finishParams(opts)
   };
 }
 

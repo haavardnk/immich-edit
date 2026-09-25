@@ -6,7 +6,10 @@ use common::{
 };
 use raw_pipeline::decode;
 use raw_pipeline::edits::{BasicEdits, CropRect, Edits, GeometryEdits};
-use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RenderOptions};
+use raw_pipeline::frame::{
+    BitDepth, OutputFormat, OutputSharpen, PngCompression, RenderOptions, SharpenLevel,
+    SharpenMedia,
+};
 
 fn ramp_red_u16(png: &[u8]) -> Vec<u16> {
     let frame = decode::decode(png).unwrap();
@@ -287,6 +290,37 @@ fn gpu_enlarged_export_matches_cpu() {
     }
     let mut ledger = ParityLedger::new("enlarge");
     ledger.check("2.5x", &cpu.bytes, &gpu.bytes, 0.05);
+    ledger.finish();
+}
+
+#[test]
+fn gpu_output_sharpened_export_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let sharpen = OutputSharpen {
+        media: SharpenMedia::Matte { ppi: 300 },
+        level: SharpenLevel::High,
+    };
+    let opts = RenderOptions {
+        output_sharpen: Some(sharpen),
+        ..rgb8_opts(96)
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+    let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    require_same_dims("output sharpen", &cpu, &gpu);
+    let plain_cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &rgb8_opts(96)).unwrap();
+    let plain_gpu = renderer
+        .render(&frame, &Edits::default(), &rgb8_opts(96))
+        .unwrap();
+    if plain_cpu.bytes == cpu.bytes {
+        panic!("output sharpening left the export unchanged");
+    }
+    let mut ledger = ParityLedger::new("output sharpen");
+    let plain = ledger.check("plain", &plain_cpu.bytes, &plain_gpu.bytes, 0.05);
+    // One shared CPU unsharp mask (k = 1.6) runs on both readbacks; it can widen their gap by at most 1 + 2k.
+    ledger.check("matte high", &cpu.bytes, &gpu.bytes, plain * 4.2 + 0.005);
     ledger.finish();
 }
 

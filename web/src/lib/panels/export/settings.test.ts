@@ -3,6 +3,7 @@ import {
   baseOptions,
   defaultExportForm,
   formatLabel,
+  formInvalid,
   immichOptions,
   restoreExportForm,
   type ExportForm
@@ -22,7 +23,10 @@ describe('restoreExportForm', () => {
       resizeMode: 'dimensions',
       resizeWidth: 1350,
       resizeHeight: null,
-      resizeEnlarge: true
+      resizeEnlarge: true,
+      sharpenMedia: 'matte',
+      sharpenAmount: 'high',
+      sharpenPpi: 240
     });
     expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
   });
@@ -108,6 +112,29 @@ describe('baseOptions', () => {
     ]
   ])('turns %o into resize %o', (patch, resize) => {
     expect(baseOptions(form(patch)).resize).toEqual(resize);
+  });
+
+  it.each<[Partial<ExportForm>, unknown]>([
+    [{ sharpenMedia: 'none', sharpenAmount: 'high' }, null],
+    [
+      { sharpenMedia: 'glossy', sharpenAmount: 'low', sharpenPpi: 600 },
+      { media: 'glossy', amount: 'low', ppi: 600 }
+    ]
+  ])('turns %o into sharpen %o', (patch, sharpen) => {
+    expect(baseOptions(form(patch)).sharpen).toEqual(sharpen);
+  });
+});
+
+describe('formInvalid', () => {
+  it.each<[Partial<ExportForm>, boolean]>([
+    [{}, false],
+    [{ sharpenMedia: 'matte', sharpenPpi: 50 }, true],
+    [{ sharpenMedia: 'glossy', sharpenPpi: 300.5 }, true],
+    [{ sharpenMedia: 'screen', sharpenPpi: Number.NaN }, false],
+    [{ resizeMode: 'dimensions', resizeWidth: 0 }, true],
+    [{ filenameTemplate: '{bogus}' }, true]
+  ])('flags %o as %s', (patch, invalid) => {
+    expect(formInvalid(form(patch))).toBe(invalid);
   });
 });
 

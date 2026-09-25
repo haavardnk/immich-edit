@@ -11,7 +11,8 @@ const base: ExportOptions = {
   lossless: false,
   colorSpace: 'srgb',
   filenameTemplate: '{name}_edit',
-  resize: null
+  resize: null,
+  sharpen: null
 };
 
 describe('exportUrlPersisted', () => {
@@ -42,6 +43,22 @@ describe('exportUrlPersisted', () => {
       resize: { mode: 'megapixels', megapixels: 12, enlarge: false }
     });
     expect(sized).toContain('resize_mode=megapixels&resize_megapixels=12&resize_enlarge=false');
+  });
+
+  it.each([
+    [null, ''],
+    [
+      { media: 'screen', amount: 'low', ppi: 300 },
+      'output_sharpen_media=screen&output_sharpen_amount=low'
+    ],
+    [
+      { media: 'matte', amount: 'standard', ppi: 240 },
+      'output_sharpen_media=matte&output_sharpen_amount=standard&output_sharpen_ppi=240'
+    ]
+  ] as const)('encodes output sharpening %o', (sharpen, expected) => {
+    const url = exportUrlPersisted('a', { ...base, sharpen });
+    if (!sharpen) expect(url).not.toContain('output_sharpen');
+    else expect(url.endsWith(expected)).toBe(true);
   });
 });
 

@@ -4,21 +4,21 @@
   import { EXTENSION_BY_FORMAT } from '$lib/api/export';
   import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import { captureDate, templateError } from '$lib/filenameTemplate';
+  import { captureDate } from '$lib/filenameTemplate';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
-  import { resizeError } from './export/resize';
+  import SharpenOptions from './export/SharpenOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import {
     baseOptions,
     ensureLibraryLoaded,
     formatLabel,
-    formResize,
+    formInvalid,
     immichOptions
   } from './export/settings';
 
@@ -59,9 +59,7 @@
         }
       : null
   );
-  let formInvalid = $derived(
-    templateError(form.filenameTemplate) !== null || resizeError(formResize(form)) !== null
-  );
+  let invalid = $derived(formInvalid(form));
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
@@ -73,6 +71,7 @@
 
   <FormatOptions bind:form={exportSettings.form} />
   <ResizeOptions bind:form={exportSettings.form} />
+  <SharpenOptions bind:form={exportSettings.form} />
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
     <FilenameTemplateField
@@ -91,7 +90,7 @@
     fullWidth
     loading={busy}
     leadingIcon={destination === 'immich' ? mdiCloudUpload : mdiFolderZip}
-    disabled={busy || selection.count === 0 || formInvalid}
+    disabled={busy || selection.count === 0 || invalid}
     onclick={() => void submit()}
   >
     {destination === 'immich'

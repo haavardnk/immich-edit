@@ -34,6 +34,7 @@ impl RawFrame {
 pub struct RenderOptions {
     pub max_edge: u32,
     pub enlarge: bool,
+    pub output_sharpen: Option<OutputSharpen>,
     pub quality: bool,
     pub roi: Option<crate::edits::CropRect>,
     pub output: OutputFormat,
@@ -46,6 +47,26 @@ pub struct RenderOptions {
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
     pub dcp: Option<std::sync::Arc<crate::dcp::DcpProfile>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SharpenMedia {
+    Screen,
+    Matte { ppi: u32 },
+    Glossy { ppi: u32 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SharpenLevel {
+    Low,
+    Standard,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OutputSharpen {
+    pub media: SharpenMedia,
+    pub level: SharpenLevel,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -197,6 +218,7 @@ impl Default for RenderOptions {
         Self {
             max_edge: 4096,
             enlarge: false,
+            output_sharpen: None,
             quality: false,
             roi: None,
             output: OutputFormat::Jpeg {

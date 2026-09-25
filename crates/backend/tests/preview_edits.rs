@@ -621,7 +621,7 @@ async fn export_returns_full_res_jpeg() {
     }
 }
 
-async fn export_dims(body: serde_json::Value) -> (usize, usize) {
+async fn export_frame(body: serde_json::Value) -> raw_pipeline::frame::RawFrame {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
@@ -641,8 +641,78 @@ async fn export_dims(body: serde_json::Value) -> (usize, usize) {
     if resp.status() != StatusCode::OK {
         panic!("status {} for {body}", resp.status());
     }
-    let frame = raw_pipeline::decode::decode(&body_bytes(resp).await).unwrap();
+    raw_pipeline::decode::decode(&body_bytes(resp).await).unwrap()
+}
+
+async fn export_dims(body: serde_json::Value) -> (usize, usize) {
+    let frame = export_frame(body).await;
     (frame.meta.width, frame.meta.height)
+}
+
+fn neighbour_contrast(frame: &raw_pipeline::frame::RawFrame) -> f64 {
+    frame
+        .data
+        .iter()
+        .zip(&frame.data[frame.cpp..])
+        .map(|(a, b)| f64::from((b - a).abs()))
+        .sum()
+}
+
+#[tokio::test]
+async fn export_output_sharpening_raises_local_contrast() {
+    let plain = export_frame(serde_json::json!({
+        "edits": {},
+        "format": "png",
+        "resize_mode": "dimensions",
+        "resize_width": 600,
+        "resize_height": 600
+    }))
+    .await;
+    let sharpened = export_frame(serde_json::json!({
+        "edits": {},
+        "format": "png",
+        "resize_mode": "dimensions",
+        "resize_width": 600,
+        "resize_height": 600,
+        "output_sharpen_media": "matte",
+        "output_sharpen_amount": "high"
+    }))
+    .await;
+    if (plain.meta.width, plain.meta.height) != (sharpened.meta.width, sharpened.meta.height) {
+        panic!("output sharpening changed the size");
+    }
+    let before = neighbour_contrast(&plain);
+    let after = neighbour_contrast(&sharpened);
+    if after <= before * 1.05 {
+        panic!("sharpened contrast {after} vs plain {before}");
+    }
+}
+
+#[tokio::test]
+async fn export_rejects_bad_output_sharpening_density() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{}/export", asset_id()))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "edits": {},
+                        "output_sharpen_media": "glossy",
+                        "output_sharpen_ppi": 20
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::BAD_REQUEST {
+        panic!("status {}", resp.status());
+    }
 }
 
 #[tokio::test]

@@ -185,6 +185,12 @@ stay identical from there on by construction.
    the result up to `max_edge`. Downscaling stays inside the renderers through `max_edge`, so every
    edit operator, grain and sharpening included, runs at the resolution it would without the
    enlarge.
+1. **Output sharpening.** `RenderOptions.output_sharpen` runs a luma-only unsharp mask
+   (`finish/sharpen.rs`) on the final pixels, after any resize. The Gaussian radius follows the
+   medium: fixed for screen, scaled by print ppi against a 300 ppi reference for glossy and matte
+   paper, clamped to 0.5–4 px. Each result is clamped to its 3×3 neighborhood, so edges cannot
+   overshoot into halos. It is separate from the Detail panel's creative sharpening, which runs
+   inside the renderers.
 
 ## Masks
 

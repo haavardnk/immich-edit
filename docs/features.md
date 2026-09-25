@@ -87,7 +87,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | --- | :---: | --- |
 | Capture sharpening | ✓ Yes | RAW-only default, switchable per photo |
 | Creative sharpening | ✓ Yes | Amount, radius, detail, and masking |
-| Export-stage output sharpening | ✗ No | No screen, matte, or glossy pass separate from Develop sharpening |
+| Export-stage output sharpening | ✓ Yes | Screen, matte, or glossy pass after the resize, separate from Develop sharpening; see [export](export.md#output-sharpening) |
 | Deconvolution sharpening | ✗ No | Unsharp-mask style sharpening only |
 | Luma and color noise reduction | ✓ Yes | CPU and GPU |
 | AI denoise | ✗ No | — |
@@ -161,6 +161,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Safe EXIF preservation | ✓ Yes | Optional; embedded previews and image-strip tags are removed |
 | Selective metadata or GPS stripping | ✗ No | EXIF is all or none |
 | Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
+| Output sharpening for screen or print | ✓ Yes | Screen, matte or glossy paper at low, standard or high, applied after the resize; paper uses the print resolution |
 | Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
 | Export presets or recipes | ✗ No | Edit presets do not store export settings |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |

@@ -1,5 +1,6 @@
 import { request, sendJson, url } from '$lib/api/client';
 import type { ExportResize } from '$lib/panels/export/resize';
+import { isPrintMedia, type ExportSharpen } from '$lib/panels/export/sharpen';
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,6 +22,7 @@ export interface ExportOptions {
   colorSpace: ColorSpaceOpt;
   filenameTemplate: string;
   resize: ExportResize | null;
+  sharpen: ExportSharpen | null;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -33,7 +35,7 @@ export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
   jxl: 'jxl'
 };
 
-export interface ResizeParams {
+interface ResizeParams {
   resize_mode?: ExportResize['mode'];
   resize_width?: number;
   resize_height?: number;
@@ -42,7 +44,7 @@ export interface ResizeParams {
   resize_enlarge?: boolean;
 }
 
-export function resizeParams(resize: ExportResize | null): ResizeParams {
+function resizeParams(resize: ExportResize | null): ResizeParams {
   if (!resize) return {};
   if (resize.mode === 'percent') return { resize_mode: 'percent', resize_percent: resize.percent };
   if (resize.mode === 'megapixels') {
@@ -60,6 +62,28 @@ export function resizeParams(resize: ExportResize | null): ResizeParams {
   };
 }
 
+interface SharpenParams {
+  output_sharpen_media?: ExportSharpen['media'];
+  output_sharpen_amount?: ExportSharpen['amount'];
+  output_sharpen_ppi?: number;
+}
+
+function sharpenParams(sharpen: ExportSharpen | null): SharpenParams {
+  if (!sharpen) return {};
+  const params: SharpenParams = {
+    output_sharpen_media: sharpen.media,
+    output_sharpen_amount: sharpen.amount
+  };
+  if (isPrintMedia(sharpen.media)) params.output_sharpen_ppi = sharpen.ppi;
+  return params;
+}
+
+export type FinishParams = ResizeParams & SharpenParams;
+
+export function finishParams(opts: ExportOptions): FinishParams {
+  return { ...resizeParams(opts.resize), ...sharpenParams(opts.sharpen) };
+}
+
 function paramsObject(opts: ExportOptions): Record<string, string> {
   return {
     format: opts.format,
@@ -72,7 +96,7 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
     color_space: opts.colorSpace,
     filename_template: opts.filenameTemplate,
     ...Object.fromEntries(
-      Object.entries(resizeParams(opts.resize)).map(([key, value]) => [key, String(value)])
+      Object.entries(finishParams(opts)).map(([key, value]) => [key, String(value)])
     )
   };
 }
@@ -125,7 +149,7 @@ export async function downloadExport(
           lossless: opts.lossless,
           color_space: opts.colorSpace,
           filename_template: opts.filenameTemplate,
-          ...resizeParams(opts.resize)
+          ...finishParams(opts)
         })
       });
   return {
@@ -176,7 +200,7 @@ export async function uploadToImmich(
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
       filename_template: opts.filenameTemplate,
-      ...resizeParams(opts.resize)
+      ...finishParams(opts)
     },
     { headers: { 'idempotency-key': idempotencyKey } }
   );
