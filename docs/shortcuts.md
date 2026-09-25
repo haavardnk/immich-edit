@@ -52,7 +52,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | ------------- | ------------------------------------ | ------------------------------ |
 | `←` / `→`     | Previous / next photo                | Loupe                          |
 | `Z` / `Space` | Toggle zoom                          | Loupe, Compare, Survey, Editor |
-| `I`           | Toggle the info panel                | Loupe, Editor                  |
+| `I`           | Toggle the info panel                | Loupe, Compare, Survey, Editor |
 | `T`           | Toggle the tags panel                | Loupe, Editor                  |
 | `J`           | Toggle the clipping indicators       | Loupe, Compare, Survey, Editor |
 | `Esc`         | Close the loupe                      | Loupe                          |

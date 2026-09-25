@@ -8,6 +8,7 @@ import { compare } from '$lib/stores/compare.svelte';
 import { selection } from '$lib/stores/selection.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import type { AssetSummary } from '$lib/types/album';
+import type { ExifInfo } from '$lib/types/asset';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -113,5 +114,23 @@ describe('Loupe', () => {
     press('ArrowRight');
     expect(browseView.loupeId).toBe('c');
     expect(query('nav[aria-label="Loupe toolbar"] h2')?.textContent).toBe('c.jpg');
+  });
+
+  it('describes the photo with the editor EXIF rows and closes the info panel', () => {
+    const taken = '2024-05-06T07:08:09Z';
+    browsing.patch('b', {
+      exifInfo: { dateTimeOriginal: taken, fileSizeInByte: 2 * 1024 * 1024 } as ExifInfo
+    });
+    if (!browseView.loupeInfoOpen) browseView.toggleLoupeInfo();
+    render();
+
+    const info = query('section[aria-label="Photo info"]');
+    expect(info?.textContent).toContain('b.jpg');
+    expect(info?.textContent).toContain(new Date(taken).toLocaleString());
+    expect(info?.textContent).toContain('2.0 MB');
+
+    query('button[aria-label="Close info"]')?.click();
+    flushSync();
+    expect(query('section[aria-label="Photo info"]')).toBeNull();
   });
 });

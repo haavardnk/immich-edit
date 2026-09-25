@@ -29,11 +29,12 @@
   import LoupeActionRail from '$lib/components/browse/LoupeActionRail.svelte';
   import LoupePane from '$lib/components/browse/LoupePane.svelte';
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
+  import ExifRows from '$lib/components/ExifRows.svelte';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { IconButton } from '@immich/ui';
-  import { mdiChevronLeft, mdiChevronRight, mdiFullscreenExit } from '@mdi/js';
+  import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -535,27 +536,29 @@
         />
       {/if}
 
-      {#if browseView.loupeInfoOpen && exif && !ui.fullscreen}
-        <div
-          class="absolute top-2 right-2 flex w-56 flex-col gap-1 rounded-lg border border-gray-700 bg-gray-900/95 p-3 text-[11px] text-white/80 shadow-xl"
+      {#if browseView.loupeInfoOpen && !ui.fullscreen}
+        <section
+          aria-label="Photo info"
+          class="absolute top-2 right-2 flex flex-col gap-2 rounded-lg border border-gray-700 bg-gray-900/95 p-3 shadow-xl"
         >
-          {#if exif.make || exif.model}
-            <span>{[exif.make, exif.model].filter(Boolean).join(' ')}</span>
-          {/if}
-          {#if exif.lensModel}<span class="text-muted">{exif.lensModel}</span>{/if}
-          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-muted">
-            {#if exif.fNumber}<span>ƒ/{exif.fNumber}</span>{/if}
-            {#if exif.exposureTime}<span>{exif.exposureTime}s</span>{/if}
-            {#if exif.iso}<span>ISO {exif.iso}</span>{/if}
-            {#if exif.focalLength}<span>{exif.focalLength}mm</span>{/if}
+          <div class="flex items-start gap-2">
+            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-white/90">
+              {asset.originalFileName}
+            </span>
+            <IconButton
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              shape="round"
+              class="-mt-2 -me-2"
+              icon={mdiClose}
+              title={hint('Close', 'toggleInfo')}
+              aria-label="Close info"
+              onclick={() => browseView.toggleLoupeInfo()}
+            />
           </div>
-          {#if exif.exifImageWidth && exif.exifImageHeight}
-            <span class="text-muted">{exif.exifImageWidth} × {exif.exifImageHeight}</span>
-          {/if}
-          {#if exif.dateTimeOriginal}
-            <span class="text-muted">{exif.dateTimeOriginal}</span>
-          {/if}
-        </div>
+          <ExifRows {exif} />
+        </section>
       {/if}
 
       {#if ui.fullscreen}

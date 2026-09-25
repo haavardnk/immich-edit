@@ -148,7 +148,7 @@ export const KEYBINDS = [
   {
     id: 'toggleInfo',
     keys: ['i'],
-    contexts: ['loupe', 'editor'],
+    contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'Loupe',
     label: 'Toggle the info panel'
   },
