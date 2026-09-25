@@ -240,6 +240,57 @@ fn gpu_xtrans_fixture_matches_cpu() {
 }
 
 #[test]
+fn gpu_enlarged_export_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let edits = Edits {
+        geometry: GeometryEdits {
+            crop: Some(CropRect {
+                x: 0.25,
+                y: 0.25,
+                w: 0.5,
+                h: 0.5,
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let opts = RenderOptions {
+        max_edge: 240,
+        enlarge: true,
+        output: OutputFormat::Rgb8,
+        quality: true,
+        ..Default::default()
+    };
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    require_same_dims("enlarge", &cpu, &gpu);
+    if (cpu.width, cpu.height) != (240, 160) {
+        panic!(
+            "enlarged crop is {}x{}, want 240x160",
+            cpu.width, cpu.height
+        );
+    }
+    let native = raw_pipeline::cpu::render(
+        &frame,
+        &edits,
+        &RenderOptions {
+            enlarge: false,
+            ..rgb8_opts(240)
+        },
+    )
+    .unwrap();
+    if (native.width, native.height) != (48, 32) {
+        panic!("crop without enlarge is {}x{}", native.width, native.height);
+    }
+    let mut ledger = ParityLedger::new("enlarge");
+    ledger.check("2.5x", &cpu.bytes, &gpu.bytes, 0.05);
+    ledger.finish();
+}
+
+#[test]
 fn gpu_matches_cpu_for_clipping_warnings() {
     let Some(renderer) = try_renderer() else {
         return;

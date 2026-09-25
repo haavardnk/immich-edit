@@ -174,6 +174,18 @@ Clipping and gamut classes travel through the GPU display texture's alpha channe
 Any pass added after tone must preserve or recompute alpha. CPU and GPU classify the undithered,
 post-LUT display result. Warnings are preview-only and never enter edits or exports.
 
+## Export final stage
+
+`raw_pipeline::finish::final_stage` is a CPU step between the render and the encoder. Only exports
+use it. It runs after either renderer has produced display-encoded pixels, so CPU and GPU exports
+stay identical from there on by construction.
+
+1. **Enlarge.** With `RenderOptions.enlarge` set and a crop smaller than `max_edge`, the renderer
+   finishes at the crop's own size and a Lanczos3 pass (`fast_image_resize`, 8- or 16-bit) scales
+   the result up to `max_edge`. Downscaling stays inside the renderers through `max_edge`, so every
+   edit operator, grain and sharpening included, runs at the resolution it would without the
+   enlarge.
+
 ## Masks
 
 Masks are manifest operators with dedicated render paths. Components evaluate in scene space and

@@ -19,6 +19,7 @@ pub const RESAMPLE: &str = "resample";
 pub const DISPLAY: &str = "display";
 pub const OUTPUT: &str = "output";
 pub const FINISH: &str = "finish";
+pub const EXPORT_FINISH: &str = "export_finish";
 pub const READBACK: &str = "readback";
 pub const HISTOGRAM: &str = "histogram";
 pub const SCOPES: &str = "scopes";
