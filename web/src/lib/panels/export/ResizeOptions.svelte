@@ -1,6 +1,7 @@
 <script lang="ts">
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
+  import { fmtDim } from '$lib/utils/exif';
   import { Field, Select } from '@immich/ui';
   import {
     EXPORT_MAX_EDGE,
@@ -8,6 +9,7 @@
     MAX_RESIZE_PERCENT,
     linkedEdge,
     resizeError,
+    resizedSize,
     type PixelSize
   } from './resize';
   import { RESIZE_MODES, formResize, type ExportForm } from './settings';
@@ -18,6 +20,7 @@
   }: { form: ExportForm; crop?: PixelSize | null } = $props();
 
   const error = $derived(resizeError(formResize(form)));
+  const outputSize = $derived(crop ? resizedSize(crop, formResize(form)) : null);
   const edgeInputClass =
     'ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 [&_input]:px-2';
 
@@ -134,4 +137,13 @@
     checked={!form.resizeEnlarge}
     onChange={(keep) => (form.resizeEnlarge = !keep)}
   />
+{/if}
+
+{#if outputSize}
+  <div class="panel-row h-7 items-center">
+    <span class="editor-compact-label select-none">Size</span>
+    <span class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65"
+      >{fmtDim(outputSize.w, outputSize.h)} px</span
+    >
+  </div>
 {/if}

@@ -6,14 +6,13 @@
   import { EXTENSION_BY_FORMAT } from '$lib/api/export';
   import { captureDate } from '$lib/filenameTemplate';
   import { croppedOutputSize } from '$lib/utils/geom';
-  import { fmtDim } from '$lib/utils/exif';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import ExportSection from './export/ExportSection.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
   import SharpenOptions from './export/SharpenOptions.svelte';
   import WatermarkOptions from './export/WatermarkOptions.svelte';
-  import { resizedSize } from './export/resize';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import {
@@ -22,7 +21,6 @@
     ensureLibraryLoaded,
     formatLabel,
     formInvalid,
-    formResize,
     immichOptions
   } from './export/settings';
 
@@ -51,11 +49,6 @@
       ? croppedOutputSize(editor.edits.geometry, editor.meta.source_w, editor.meta.source_h)
       : null
   );
-  let outputSize = $derived.by(() => {
-    if (!crop) return null;
-    const size = resizedSize(crop, formResize(form));
-    return `${fmtDim(size.w, size.h)} px`;
-  });
   let nameExample = $derived(
     editor.asset
       ? {
@@ -72,38 +65,48 @@
 <div class="flex flex-col gap-1">
   <DestinationToggle bind:value={exportSettings.destination} />
 
-  <FormatOptions bind:form={exportSettings.form} {outputSize} />
-  <ResizeOptions bind:form={exportSettings.form} {crop} />
-  <SharpenOptions bind:form={exportSettings.form} />
-  <WatermarkOptions bind:form={exportSettings.form} />
-
-  {#if proofMismatch}
-    <Notice
-      color="warning"
-      message={`Soft proofing ${spaceLabel(editor.proofSpace)}, exporting ${spaceLabel(form.colorSpace)}`}
-    >
-      <Button
-        size="tiny"
-        variant="ghost"
-        color="secondary"
-        class="h-6 panel-action"
-        onclick={() => (exportSettings.form.colorSpace = editor.proofSpace)}
+  <ExportSection title="File">
+    <FormatOptions bind:form={exportSettings.form} />
+    {#if proofMismatch}
+      <Notice
+        color="warning"
+        message={`Soft proofing ${spaceLabel(editor.proofSpace)}, exporting ${spaceLabel(form.colorSpace)}`}
       >
-        Export {spaceLabel(editor.proofSpace)}
-      </Button>
-    </Notice>
-  {/if}
+        <Button
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          class="h-6 panel-action"
+          onclick={() => (exportSettings.form.colorSpace = editor.proofSpace)}
+        >
+          Export {spaceLabel(editor.proofSpace)}
+        </Button>
+      </Notice>
+    {/if}
+  </ExportSection>
 
-  <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
+  <ExportSection title="Size">
+    <ResizeOptions bind:form={exportSettings.form} {crop} />
+    <SharpenOptions bind:form={exportSettings.form} />
+  </ExportSection>
+
+  <ExportSection title="Watermark">
+    <WatermarkOptions bind:form={exportSettings.form} />
+  </ExportSection>
+
+  <ExportSection title="Name">
     <FilenameTemplateField
       bind:value={exportSettings.form.filenameTemplate}
       example={nameExample}
       extension={EXTENSION_BY_FORMAT[form.format]}
     />
-    {#if destination === 'immich'}
+  </ExportSection>
+
+  {#if destination === 'immich'}
+    <ExportSection title="Immich">
       <ImmichOptions bind:form={exportSettings.form} />
-    {/if}
-  </div>
+    </ExportSection>
+  {/if}
 
   {#if result}
     <Notice

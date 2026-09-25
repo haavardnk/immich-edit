@@ -19,6 +19,9 @@ downloads to your computer or uploads to Immich as a new photo next to the origi
 1. Press the button at the bottom. It names the format, such as **Export JPEG** or
    **Upload JPEG to Immich**.
 
+The options are grouped into **File**, **Size**, **Watermark** and **Name**, plus **Immich** when
+you upload. The sections below follow the same order.
+
 The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and viewing in Immich.
 
 ## Format options
@@ -26,11 +29,11 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | Option | Shown for | Notes |
 | --- | --- | --- |
 | **Format** | Always | **JPEG**, **PNG**, **WebP**, **AVIF**, **HEIC**, **TIFF** or **JPEG XL** |
-| **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
 | **Quality** | JPEG, AVIF, HEIC, lossy WebP | 1 to 100 |
 | **Bit depth** | PNG, TIFF, JPEG XL | **16-bit** keeps smooth gradients through later editing elsewhere |
 | **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
+| **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
 | **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out |
 
 [Features](features.md#export-color-and-interoperability) lists what is and is not supported.
@@ -55,8 +58,9 @@ photo fits inside. Leave one side empty to limit only the other.
 
 **Don't enlarge** is on by default for **Dimensions** and **Megapixels**, so a photo that is
 already smaller than the size you ask for keeps its own size. Turn it off to scale small crops up;
-the enlarged photo is resampled once, at the end, after every edit. The **Size** line above shows
-the size the export will have. The largest export is 65,535 pixels on the long edge.
+the enlarged photo is resampled once, at the end, after every edit. In the editor, the **Size**
+line under the resize options shows the size the export will have. The largest export is 65,535
+pixels on the long edge.
 
 ## Output sharpening
 
@@ -88,7 +92,7 @@ touches the editor preview or the saved edit.
 
 | Control | What it does |
 | --- | --- |
-| **Watermark** | **None** (the default) or a PNG from the library |
+| **Image** | **None** (the default) or a PNG from the library |
 | **Size** | The watermark's longer side as a share of the photo's shorter side, 1 to 100% (20% by default) |
 | **Opacity** | 1 to 100% (80% by default), on top of the PNG's own transparency |
 | **Inset** | Distance from the nearest edges as a share of the photo's shorter side, 0 to 50% (3% by default) |
@@ -99,7 +103,7 @@ and landscape photos and at every export size. Watermark PNGs are treated as sRG
 Display P3 export converts them so their colors still match.
 
 The library is shared by every user. Only an administrator can add or remove watermarks, with
-**Import PNG watermark** under the picker and **Delete watermark** beside it. A PNG may be up to
+the **Import PNG watermark** and **Delete watermark** buttons beside the picker. A PNG may be up to
 16 MB and 4096 pixels on its longest side. Deleting a watermark removes it from the picker;
 exports already queued with it still finish.
 
@@ -107,7 +111,7 @@ exports already queued with it still finish.
 
 **Filename** takes a template that names every export, whether it downloads, goes into a ZIP or
 uploads to Immich. It starts as `{name}_edit`. Under the field you see the name the current photo
-will get.
+will get, and the list of tokens while the field is focused.
 
 | Token | Becomes |
 | --- | --- |

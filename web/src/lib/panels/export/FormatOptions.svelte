@@ -11,10 +11,7 @@
     type ExportForm
   } from './settings';
 
-  let {
-    form = $bindable<ExportForm>(),
-    outputSize = null
-  }: { form: ExportForm; outputSize?: string | null } = $props();
+  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
 
   let showQuality = $derived(
     form.format === 'jpeg' ||
@@ -38,25 +35,6 @@
     options={FORMATS}
     value={form.format}
     onChange={(v) => (form.format = v)}
-  />
-</Field>
-
-{#if outputSize}
-  <div class="panel-row h-7 items-center">
-    <span class="editor-compact-label select-none">Size</span>
-    <span class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65"
-      >{outputSize}</span
-    >
-  </div>
-{/if}
-
-<Field label="Color space" size="tiny">
-  <Select
-    size="tiny"
-    class="editor-compact-select editor-compact-field"
-    options={COLOR_SPACES}
-    value={form.colorSpace}
-    onChange={(v) => (form.colorSpace = v)}
   />
 </Field>
 
@@ -123,6 +101,16 @@
     onChange={(v) => (form.lossless = v)}
   />
 {/if}
+
+<Field label="Color space" size="tiny">
+  <Select
+    size="tiny"
+    class="editor-compact-select editor-compact-field"
+    options={COLOR_SPACES}
+    value={form.colorSpace}
+    onChange={(v) => (form.colorSpace = v)}
+  />
+</Field>
 
 <CheckboxRow
   label="Include EXIF metadata"
