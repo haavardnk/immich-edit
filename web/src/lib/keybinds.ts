@@ -103,6 +103,13 @@ export const KEYBINDS = [
     label: 'Clear the selection'
   },
   {
+    id: 'focusBulkBar',
+    keys: ['Shift+b'],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Focus the selection actions'
+  },
+  {
     id: 'openLoupe',
     keys: ['e', 'Space'],
     contexts: ['grid'],

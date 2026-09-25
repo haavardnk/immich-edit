@@ -41,6 +41,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `-` / `_` / `=` / `+` | Thumbnail size              | Grid         |
 | `Ctrl+A`              | Load and select every photo | Grid         |
 | `Esc`                 | Clear the selection         | Grid         |
+| `Shift+B`             | Focus the selection actions | Grid         |
 | `E` / `Space`         | Open the loupe              | Grid         |
 | `D` / `Enter`         | Open the editor             | Grid, Loupe  |
 | `C`                   | Compare the selected photos | Grid, Loupe  |

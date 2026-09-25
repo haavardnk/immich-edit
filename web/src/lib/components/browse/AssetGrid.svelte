@@ -57,6 +57,7 @@
   let shiftPressed = $state(false);
   let hoveredId = $state<string | null>(null);
   let selectingAll = $state(false);
+  let bulkBar: BulkActionBar | undefined = $state();
 
   const items = $derived(
     browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
@@ -277,6 +278,10 @@
         if (!selection.active) return;
         e.preventDefault();
         return selection.clear();
+      case 'focusBulkBar':
+        if (!selection.active) return;
+        e.preventDefault();
+        return bulkBar?.focusFirst();
       case 'gridSelectAll':
         e.preventDefault();
         void selectAll();
@@ -443,6 +448,7 @@
 {/if}
 
 <BulkActionBar
+  bind:this={bulkBar}
   assets={items}
   selectedIds={[...selection.selected]}
   onClear={selection.clear}
