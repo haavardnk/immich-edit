@@ -18,9 +18,34 @@ describe('restoreExportForm', () => {
       format: 'avif',
       quality: 70,
       albumIds: ['al'],
-      filenameTemplate: '{date}_{name}'
+      filenameTemplate: '{date}_{name}',
+      resizeMode: 'dimensions',
+      resizeWidth: 1350,
+      resizeHeight: null,
+      resizeEnlarge: true
     });
     expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
+  });
+
+  it.each<[Record<string, unknown>, Partial<ExportForm>]>([
+    [
+      { resizeMode: 'percent', resizePercent: -3 },
+      { resizeMode: 'percent', resizePercent: 50 }
+    ],
+    [
+      { resizeMode: 'megapixels', resizeMegapixels: 'lots' },
+      { resizeMode: 'megapixels', resizeMegapixels: 12 }
+    ],
+    [
+      { resizeMode: 'long_edge', resizeWidth: 900, resizeHeight: 0 },
+      { resizeMode: 'none', resizeWidth: 900, resizeHeight: 2048 }
+    ],
+    [
+      { resizeMode: 'dimensions', resizeWidth: 12.5, resizeHeight: 'big' },
+      { resizeMode: 'dimensions', resizeWidth: 2048, resizeHeight: 2048 }
+    ]
+  ])('restores resize %o as %o', (stored, expected) => {
+    expect(restoreExportForm(stored)).toMatchObject(expected);
   });
 
   it.each([
@@ -65,6 +90,24 @@ describe('baseOptions', () => {
       tiffCompression: 'lzw',
       colorSpace: 'srgb'
     });
+  });
+
+  it.each<[Partial<ExportForm>, unknown]>([
+    [{ resizeMode: 'none', resizeWidth: 900 }, null],
+    [
+      { resizeMode: 'dimensions', resizeWidth: 1600, resizeHeight: null, resizeEnlarge: true },
+      { mode: 'dimensions', width: 1600, height: null, enlarge: true }
+    ],
+    [
+      { resizeMode: 'percent', resizePercent: 25 },
+      { mode: 'percent', percent: 25 }
+    ],
+    [
+      { resizeMode: 'megapixels', resizeMegapixels: 24, resizeEnlarge: true },
+      { mode: 'megapixels', megapixels: 24, enlarge: true }
+    ]
+  ])('turns %o into resize %o', (patch, resize) => {
+    expect(baseOptions(form(patch)).resize).toEqual(resize);
   });
 });
 

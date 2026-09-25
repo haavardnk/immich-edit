@@ -23,7 +23,8 @@ const JPEG: ExportOptions = {
   tiffCompression: 'lzw',
   lossless: false,
   colorSpace: 'srgb',
-  filenameTemplate: '{name}_warm'
+  filenameTemplate: '{name}_warm',
+  resize: null
 };
 
 describe('editor export results', () => {

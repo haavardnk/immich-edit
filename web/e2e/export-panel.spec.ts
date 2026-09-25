@@ -80,6 +80,61 @@ test('a download is named by the filename template', async ({ page }) => {
   await expect(page.getByText('Saved 2024-01-01_IMG_0001.jpg')).toBeVisible();
 });
 
+test('a download carries the resize settings', async ({ page }) => {
+  const sent: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    onExport: (route) => {
+      const request = route.request();
+      const query = Object.fromEntries(new URL(request.url()).searchParams);
+      sent.push(
+        request.method() === 'POST' ? (request.postDataJSON() as Record<string, unknown>) : query
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"' },
+        body: JPEG_BLOB
+      });
+    }
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('option', { name: 'Dimensions' }).click();
+  const width = page.getByRole('spinbutton', { name: 'Width' });
+  const height = page.getByRole('spinbutton', { name: 'Height' });
+  await expect(width).toHaveValue('6000');
+  await expect(height).toHaveValue('4000');
+  const exportButton = page.getByRole('button', { name: /Export JPEG/ });
+
+  await width.fill('0');
+  await expect(page.getByText('Enter whole pixels from 1 to 65535')).toBeVisible();
+  await expect(exportButton).toBeDisabled();
+
+  await width.fill('1600');
+  await expect(height).toHaveValue('1067');
+  await expect(page.getByText('1600 × 1067 px')).toBeVisible();
+  await height.fill('500');
+  await expect(width).toHaveValue('750');
+  const dontEnlarge = page.getByRole('checkbox', { name: "Don't enlarge" });
+  await expect(dontEnlarge).toBeChecked();
+  await dontEnlarge.click();
+  const downloadPromise = page.waitForEvent('download');
+  await exportButton.click();
+  await downloadPromise;
+  expect(
+    ['resize_mode', 'resize_width', 'resize_height', 'resize_enlarge'].map((key) =>
+      String(sent[0]?.[key])
+    )
+  ).toEqual(['dimensions', '750', '500', 'true']);
+
+  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('option', { name: 'Megapixels' }).click();
+  await page.getByRole('spinbutton', { name: 'Megapixels' }).fill('6');
+  await expect(page.getByText('3000 × 2000 px')).toBeVisible();
+});
+
 test('export warns when it will not match the soft proof', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

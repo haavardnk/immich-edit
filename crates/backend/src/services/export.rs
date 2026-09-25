@@ -23,11 +23,13 @@ mod archive;
 mod batch;
 mod naming;
 mod params;
+mod resize;
 
 pub use archive::*;
 pub use batch::*;
 pub use naming::*;
 pub use params::*;
+pub use resize::{Resize, ResizeMode};
 
 #[derive(Debug, Deserialize)]
 pub struct ExportBody {
@@ -89,6 +91,7 @@ pub async fn render_export(
     params: &ExportParams,
     priority: RenderPriority,
 ) -> Result<(Bytes, OutputFormat), AppError> {
+    let resize = params.resize()?;
     let work = async {
         let frame = state
             .render
@@ -96,8 +99,15 @@ pub async fn render_export(
             .await
             .map_err(AppError::from)?;
         let output = params.output_format();
+        let crop = raw_pipeline::geom::display_crop_px(
+            frame.meta.orientation,
+            &edits.clamped(),
+            (frame.meta.width as u32, frame.meta.height as u32),
+        );
+        let edge = resize.map(|r| r.output_edge(crop));
         let opts = raw_pipeline::frame::RenderOptions {
-            max_edge: EXPORT_MAX_EDGE,
+            max_edge: edge.map_or(EXPORT_MAX_EDGE, |e| e.max_edge),
+            enlarge: edge.is_some_and(|e| e.enlarge),
             quality: true,
             output,
             output_color_space: params.output_color_space(),
@@ -273,6 +283,12 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "stack_with_original": body.stack_with_original,
         "stack_primary": format!("{:?}", body.stack_primary),
         "filename_template": body.params.filename_template,
+        "resize_mode": body.params.resize_mode.map(|m| format!("{m:?}")),
+        "resize_width": body.params.resize_width,
+        "resize_height": body.params.resize_height,
+        "resize_megapixels": body.params.resize_megapixels,
+        "resize_percent": body.params.resize_percent,
+        "resize_enlarge": body.params.resize_enlarge,
     });
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();

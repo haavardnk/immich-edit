@@ -4,6 +4,8 @@ use raw_pipeline::frame::{
 use serde::Deserialize;
 
 use super::DEFAULT_QUALITY;
+use super::resize::{Resize, ResizeMode};
+use crate::error::AppError;
 
 fn default_quality() -> u8 {
     DEFAULT_QUALITY
@@ -82,6 +84,18 @@ pub struct ExportParams {
     pub color_space: ColorSpaceOpt,
     #[serde(default)]
     pub filename_template: Option<String>,
+    #[serde(default)]
+    pub resize_mode: Option<ResizeMode>,
+    #[serde(default)]
+    pub resize_width: Option<u32>,
+    #[serde(default)]
+    pub resize_height: Option<u32>,
+    #[serde(default)]
+    pub resize_megapixels: Option<f64>,
+    #[serde(default)]
+    pub resize_percent: Option<f64>,
+    #[serde(default)]
+    pub resize_enlarge: bool,
 }
 
 impl Default for ExportParams {
@@ -96,11 +110,31 @@ impl Default for ExportParams {
             lossless: false,
             color_space: ColorSpaceOpt::default(),
             filename_template: None,
+            resize_mode: None,
+            resize_width: None,
+            resize_height: None,
+            resize_megapixels: None,
+            resize_percent: None,
+            resize_enlarge: false,
         }
     }
 }
 
 impl ExportParams {
+    pub fn resize(&self) -> Result<Option<Resize>, AppError> {
+        self.resize_mode
+            .map(|mode| match mode {
+                ResizeMode::Dimensions => {
+                    Resize::fit(self.resize_width, self.resize_height, self.resize_enlarge)
+                }
+                ResizeMode::Megapixels => {
+                    Resize::megapixels(self.resize_megapixels, self.resize_enlarge)
+                }
+                ResizeMode::Percent => Resize::percent(self.resize_percent),
+            })
+            .transpose()
+    }
+
     pub fn output_color_space(&self) -> OutputColorSpace {
         match self.color_space {
             ColorSpaceOpt::Srgb => OutputColorSpace::SRgb,

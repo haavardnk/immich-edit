@@ -11,7 +11,8 @@ const base: ExportOptions = {
   tiffCompression: 'lzw',
   lossless: false,
   colorSpace: 'displayp3',
-  filenameTemplate: '{date}_{seq}'
+  filenameTemplate: '{date}_{seq}',
+  resize: { mode: 'dimensions', width: 2048, height: 2048, enlarge: false }
 };
 
 const immich: ImmichExportOptions = {
@@ -49,6 +50,12 @@ describe('export jobs', () => {
     const params = req.body().params as Record<string, unknown>;
     expect(params.color_space).toBe('displayp3');
     expect(params.filename_template).toBe('{date}_{seq}');
+    expect(params).toMatchObject({
+      resize_mode: 'dimensions',
+      resize_width: 2048,
+      resize_height: 2048,
+      resize_enlarge: false
+    });
     expect(params).not.toHaveProperty('filename_suffix');
   });
 

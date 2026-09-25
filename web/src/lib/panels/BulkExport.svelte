@@ -10,9 +10,17 @@
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
+  import ResizeOptions from './export/ResizeOptions.svelte';
+  import { resizeError } from './export/resize';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
-  import { baseOptions, ensureLibraryLoaded, formatLabel, immichOptions } from './export/settings';
+  import {
+    baseOptions,
+    ensureLibraryLoaded,
+    formatLabel,
+    formResize,
+    immichOptions
+  } from './export/settings';
 
   const form = $derived(exportSettings.form);
   const destination = $derived(exportSettings.destination);
@@ -51,7 +59,9 @@
         }
       : null
   );
-  let nameInvalid = $derived(templateError(form.filenameTemplate) !== null);
+  let formInvalid = $derived(
+    templateError(form.filenameTemplate) !== null || resizeError(formResize(form)) !== null
+  );
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
@@ -62,6 +72,7 @@
   <DestinationToggle bind:value={exportSettings.destination} downloadLabel="Download ZIP" />
 
   <FormatOptions bind:form={exportSettings.form} />
+  <ResizeOptions bind:form={exportSettings.form} />
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
     <FilenameTemplateField
@@ -80,7 +91,7 @@
     fullWidth
     loading={busy}
     leadingIcon={destination === 'immich' ? mdiCloudUpload : mdiFolderZip}
-    disabled={busy || selection.count === 0 || nameInvalid}
+    disabled={busy || selection.count === 0 || formInvalid}
     onclick={() => void submit()}
   >
     {destination === 'immich'

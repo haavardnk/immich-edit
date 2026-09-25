@@ -160,7 +160,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Printer-profile soft proof and rendering intents | ✗ No | Soft proof is limited to sRGB and Display P3 |
 | Safe EXIF preservation | ✓ Yes | Optional; embedded previews and image-strip tags are removed |
 | Selective metadata or GPS stripping | ✗ No | EXIF is all or none |
-| Export resize by dimensions, edge, or megapixels | ✗ No | Exports use the edited image's full resolution |
+| Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
 | Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
 | Export presets or recipes | ✗ No | Edit presets do not store export settings |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |
