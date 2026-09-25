@@ -40,8 +40,6 @@
         return 'That account is not an Immich administrator. Setup requires an admin.';
       case 'invalid_credentials':
         return 'Invalid credentials.';
-      case 'missing_permissions':
-        return 'The API key is missing required permissions.';
       case 'rate_limited':
         return 'Too many attempts. Wait a moment and try again.';
       case 'upstream_unavailable':

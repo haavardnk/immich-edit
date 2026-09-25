@@ -48,8 +48,6 @@
         return 'Invalid credentials.';
       case 'access_disabled':
         return 'Access for this account is disabled.';
-      case 'missing_permissions':
-        return 'The API key is missing required permissions.';
       case 'rate_limited':
         return 'Too many attempts. Wait a moment and try again.';
       case 'upstream_unavailable':
