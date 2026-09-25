@@ -15,7 +15,7 @@ impl RangeWindow {
 pub struct BakeParams {
     pub grow: f32,
     pub feather: f32,
-    pub guided_radius: usize,
+    pub guided: bool,
     pub guided_eps: f32,
     pub range: Option<RangeWindow>,
 }
@@ -25,11 +25,25 @@ impl Default for BakeParams {
         Self {
             grow: 0.0,
             feather: 0.0,
-            guided_radius: 8,
+            guided: true,
             guided_eps: 1e-4,
             range: None,
         }
     }
+}
+
+const LEVEL_BLACK: f32 = 0.03;
+const LEVEL_RANGE: f32 = 0.94;
+
+fn guided_radius(w: usize, h: usize) -> usize {
+    (w.max(h) as f32 * 0.0075).round().clamp(8.0, 24.0) as usize
+}
+
+fn edge_refine(guide: &[f32], coarse: &[f32], w: usize, h: usize, eps: f32) -> Vec<f32> {
+    guided_filter(guide, coarse, w, h, guided_radius(w, h), eps)
+        .into_iter()
+        .map(|v| ((v - LEVEL_BLACK) / LEVEL_RANGE).clamp(0.0, 1.0))
+        .collect()
 }
 
 fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
@@ -211,15 +225,8 @@ pub fn bake(prob: &[f32], guide: &[f32], w: usize, h: usize, params: BakeParams)
         Some(window) => prob.iter().map(|v| range_weight(*v, window)).collect(),
         None => prob.to_vec(),
     };
-    let mut mask = if params.guided_radius > 0 {
-        guided_filter(
-            guide,
-            &windowed,
-            w,
-            h,
-            params.guided_radius,
-            params.guided_eps,
-        )
+    let mut mask = if params.guided {
+        edge_refine(guide, &windowed, w, h, params.guided_eps)
     } else {
         windowed
     };
@@ -334,6 +341,71 @@ mod tests {
     }
 
     #[test]
+    fn guided_radius_follows_the_long_edge() {
+        let cases = [((1000, 500), 8), ((1365, 2048), 15), ((6000, 4000), 24)];
+        for ((w, h), want) in cases {
+            assert_eq!(guided_radius(w, h), want, "{w}x{h}");
+        }
+    }
+
+    struct Scene {
+        n: usize,
+        truth: Vec<f32>,
+        guide: Vec<f32>,
+        coarse: Vec<f32>,
+        perimeter: f32,
+    }
+
+    fn sam_like_scene(n: usize) -> Scene {
+        const LOW: usize = 256;
+        let radius = 0.3 * n as f32;
+        let centre = n as f32 / 2.0;
+        let truth: Vec<f32> = (0..n * n)
+            .map(|i| {
+                let x = (i % n) as f32 + 0.5 - centre;
+                let y = (i / n) as f32 + 0.5 - centre;
+                let edge = radius * (1.0 + 0.08 * (y.atan2(x) * 7.0).sin());
+                if x.hypot(y) < edge { 1.0 } else { 0.0 }
+            })
+            .collect();
+        let noise = |i: usize| ((i.wrapping_mul(2_654_435_761) >> 7) % 1000) as f32 / 1000.0 - 0.5;
+        let guide = (0..n * n)
+            .map(|i| 0.3 + 0.35 * truth[i] + 0.04 * noise(i))
+            .collect();
+        let cell = n / LOW;
+        let mut coverage = vec![0.0f32; LOW * LOW];
+        truth.iter().enumerate().for_each(|(i, v)| {
+            coverage[(i / n / cell) * LOW + (i % n) / cell] += v / (cell * cell) as f32;
+        });
+        let probs: Vec<f32> = coverage
+            .iter()
+            .map(|c| 1.0 / (1.0 + (-(c - 0.5) * 12.0).exp()))
+            .collect();
+        Scene {
+            n,
+            coarse: crate::image::resize_mask(&probs, LOW, LOW, n, n),
+            truth,
+            guide,
+            perimeter: 2.0 * std::f32::consts::PI * radius,
+        }
+    }
+
+    #[test]
+    fn bake_refines_upsampled_sam_edges_at_full_size() {
+        let s = sam_like_scene(2048);
+        let out = bake(&s.coarse, &s.guide, s.n, s.n, BakeParams::default());
+        let err: f32 = out
+            .iter()
+            .zip(&s.truth)
+            .map(|(v, t)| (*v as f32 / 255.0 - t).abs())
+            .sum::<f32>()
+            / s.perimeter;
+        let soft = out.iter().filter(|v| **v > 5 && **v < 250).count() as f32 / s.perimeter;
+        assert!(err <= 2.0, "edge error {err} px per edge pixel");
+        assert!(soft <= 30.0, "soft band {soft} px wide");
+    }
+
+    #[test]
     fn range_weight_selects_a_band_with_soft_edges() {
         let window = RangeWindow {
             min: 0.4,
@@ -354,7 +426,7 @@ mod tests {
         let prob: Vec<f32> = (0..w).map(|x| x as f32 / (w - 1) as f32).collect();
         let guide = vec![0.0f32; w];
         let params = BakeParams {
-            guided_radius: 0,
+            guided: false,
             range: Some(RangeWindow {
                 min: 0.0,
                 max: 0.3,
