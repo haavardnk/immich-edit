@@ -611,7 +611,7 @@ test('panel header actions match develop action buttons', async ({ page }) => {
   await gotoAsset(page);
 
   const auto = page.getByRole('button', { name: 'Auto', exact: true });
-  const reset = page.getByRole('button', { name: /Reset edits/ });
+  const reset = page.getByRole('button', { name: /Reset develop settings/ });
   const copy = page.getByRole('button', { name: 'Copy edits', exact: true });
   const paste = page.getByRole('button', { name: 'Paste edits', exact: true });
   const history = page.getByRole('button', { name: 'Edit history', exact: true });

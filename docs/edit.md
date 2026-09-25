@@ -98,7 +98,9 @@ to that state.
 Going back in **Edit history** deletes every entry after the one you pick. Make a
 [virtual copy](#try-variations) first if you might want the later state again.
 
-**Reset edits**, or `Ctrl+Shift+R`, returns the photo to its original state.
+**Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
+It keeps the camera profile, the crop and rotation, masks and retouch strokes. Reset the crop in
+**Geometry**, and delete masks and strokes in their own tabs.
 
 ## Adjust part of the photo
 

@@ -598,7 +598,9 @@ export function resetDevelopEdits(edits: Edits): Edits {
       ...neutral.color,
       dcp: { ...edits.color.dcp }
     },
-    geometry: edits.geometry
+    geometry: edits.geometry,
+    masks: edits.masks,
+    retouch: edits.retouch
   };
 }
 
@@ -1079,14 +1081,16 @@ export function isIdentity(e: Edits): boolean {
 }
 
 export function isNonGeometryIdentity(e: Edits): boolean {
+  return isDevelopIdentity(e) && e.masks.length === 0 && e.retouch.length === 0;
+}
+
+export function isDevelopIdentity(e: Edits): boolean {
   return (
     flatOpsAreIdentity(e) &&
     curvesEditsIsIdentity(e.basic.curves) &&
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
-    bwIsNeutral(e.color.bw) &&
-    e.masks.length === 0 &&
-    e.retouch.length === 0
+    bwIsNeutral(e.color.bw)
   );
 }
