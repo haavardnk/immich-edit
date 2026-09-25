@@ -14,8 +14,22 @@ function form(patch: Partial<ExportForm> = {}): ExportForm {
 
 describe('restoreExportForm', () => {
   it('round-trips a stored form', () => {
-    const saved = form({ format: 'avif', quality: 70, albumIds: ['al'], filenameSuffix: '_warm' });
+    const saved = form({
+      format: 'avif',
+      quality: 70,
+      albumIds: ['al'],
+      filenameTemplate: '{date}_{name}'
+    });
     expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
+  });
+
+  it.each([
+    [{ filenameSuffix: '_warm' }, '{name}_warm'],
+    [{ filenameSuffix: '  ' }, '{name}_edit'],
+    [{ filenameSuffix: '_warm', filenameTemplate: '{seq}' }, '{seq}'],
+    [{}, '{name}_edit']
+  ])('turns stored naming %o into template %s', (stored, template) => {
+    expect(restoreExportForm(stored).filenameTemplate).toBe(template);
   });
 
   it('falls back per field on values it does not know', () => {
@@ -67,7 +81,7 @@ describe('immichOptions', () => {
       favorite: true,
       stackWithOriginal: false,
       stackPrimary: 'edited',
-      filenameSuffix: '_edit'
+      filenameTemplate: '{name}_edit'
     });
   });
 });

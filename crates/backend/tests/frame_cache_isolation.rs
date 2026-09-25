@@ -74,6 +74,7 @@ async fn cached_quality_frame_is_not_served_to_another_owner() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_original_owned_by_admin(&server, id).await;
+    mock_asset_detail(&server).await;
     let (admin, member) = two_owner_apps(&server).await;
 
     let body = serde_json::json!({"edits": {}});

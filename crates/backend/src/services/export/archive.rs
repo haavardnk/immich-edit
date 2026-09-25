@@ -61,42 +61,18 @@ pub async fn cleanup_zip_job(state: &AppState, server_epoch: i64, owner: Uuid, j
     }
 }
 
-pub(super) fn sanitize_filename(name: &str) -> String {
-    let stem = match name.rsplit_once('.') {
-        Some((s, _)) => s,
-        None => name,
-    };
-    let cleaned: String = stem
-        .chars()
-        .map(|c| {
-            if c.is_control() || matches!(c, '/' | '\\' | '\0' | ':') {
-                '_'
-            } else {
-                c
-            }
-        })
-        .collect();
-    let trimmed = cleaned.trim();
-    if trimmed.is_empty() {
-        "export".into()
-    } else {
-        trimmed.to_string()
-    }
-}
-
 pub(super) async fn write_unique(
     dir: &Path,
     stem: &str,
-    suffix: &str,
     extension: &str,
     bytes: &[u8],
 ) -> std::io::Result<String> {
     let mut n: u32 = 1;
     loop {
         let filename = if n == 1 {
-            format!("{stem}{suffix}.{extension}")
+            format!("{stem}.{extension}")
         } else {
-            format!("{stem}{suffix}_{n}.{extension}")
+            format!("{stem}_{n}.{extension}")
         };
         match tokio::fs::OpenOptions::new()
             .write(true)
@@ -222,7 +198,7 @@ mod tests {
     async fn zip_entries_carry_the_export_time() {
         let dir = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
-        let filename = write_unique(dir.path(), "photo", "_edit", "jpg", b"data")
+        let filename = write_unique(dir.path(), "photo_edit", "jpg", b"data")
             .await
             .unwrap();
         let written = std::fs::metadata(dir.path().join(&filename))

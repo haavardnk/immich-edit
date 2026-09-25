@@ -1,12 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { gotoAsset, installMocks } from './helpers';
+import { JPEG_BLOB, gotoAsset, installMocks } from './helpers';
 
 test('a failed download export offers a retry beside the button', async ({ page }) => {
   let failures = 1;
   await installMocks(page, {
     onExport: async (route) => {
       if (failures-- > 0) return route.fulfill({ status: 500, body: '{}' });
-      return route.fallback();
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"' },
+        body: JPEG_BLOB
+      });
     }
   });
   await gotoAsset(page);
@@ -36,15 +41,43 @@ test('export settings survive a reload', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Export AVIF/ })).toBeVisible();
 });
 
-test('a download carries the filename suffix', async ({ page }) => {
-  await installMocks(page);
+test('a download is named by the filename template', async ({ page }) => {
+  const templates: Array<string | null> = [];
+  await installMocks(page, {
+    onExport: (route) => {
+      const request = route.request();
+      templates.push(
+        new URL(request.url()).searchParams.get('filename_template') ??
+          (request.postDataJSON() as { filename_template?: string } | null)?.filename_template ??
+          null
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: {
+          'content-disposition': `attachment; filename="2024-01-01_IMG_0001.jpg"; filename*=UTF-8''2024-01-01_IMG_0001.jpg`
+        },
+        body: JPEG_BLOB
+      });
+    }
+  });
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByLabel('Filename suffix').fill('_warm');
+  const field = page.getByLabel('Filename', { exact: true });
+  await expect(field).toHaveValue('{name}_edit');
+  await expect(page.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();
+
+  await field.fill('{name');
+  await expect(page.getByText('Filename template has an unmatched {')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Export JPEG/ })).toBeDisabled();
+
+  await field.fill('{date}_{name}');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
-  expect((await downloadPromise).suggestedFilename()).toBe('IMG_0001_warm.jpg');
+  expect((await downloadPromise).suggestedFilename()).toBe('2024-01-01_IMG_0001.jpg');
+  expect(templates).toEqual(['{date}_{name}']);
+  await expect(page.getByText('Saved 2024-01-01_IMG_0001.jpg')).toBeVisible();
 });
 
 test('export warns when it will not match the soft proof', async ({ page }) => {

@@ -22,7 +22,8 @@ const JPEG: ExportOptions = {
   pngCompression: 'default',
   tiffCompression: 'lzw',
   lossless: false,
-  colorSpace: 'srgb'
+  colorSpace: 'srgb',
+  filenameTemplate: '{name}_warm'
 };
 
 describe('editor export results', () => {
@@ -36,10 +37,9 @@ describe('editor export results', () => {
       tagIds: [],
       favorite: false,
       stackWithOriginal: false,
-      stackPrimary: 'edited',
-      filenameSuffix: '_edit'
+      stackPrimary: 'edited'
     };
-    editor.lastDownloadRequest = { opts: JPEG, suffix: '_edit' };
+    editor.lastDownloadOpts = JPEG;
 
     editor.unload();
 
@@ -47,19 +47,28 @@ describe('editor export results', () => {
     expect(editor.lastDownload).toBeNull();
     expect(editor.lastWarnings).toEqual([]);
     expect(editor.lastImmichOpts).toBeNull();
-    expect(editor.lastDownloadRequest).toBeNull();
+    expect(editor.lastDownloadOpts).toBeNull();
   });
 
   it('reports a download next to the button and retries the same request', async () => {
     editor.assetId = 'asset-1';
     mocks.downloadExport.mockRejectedValueOnce(new Error('boom'));
-    await editor.onExport({ opts: JPEG, suffix: '_warm' });
+    await editor.onExport(JPEG);
     expect(editor.lastDownload).toEqual({ kind: 'error', message: 'Export failed: boom' });
     expect(editor.error).toBeNull();
 
-    mocks.downloadExport.mockResolvedValueOnce(new Blob());
+    const blob = new Blob();
+    mocks.downloadExport.mockResolvedValueOnce({ blob, filename: 'IMG_0001_warm.jpg' });
     await editor.retryExport();
-    expect(mocks.downloadBlob).toHaveBeenLastCalledWith(expect.any(Blob), 'asset-1_warm.jpg');
-    expect(editor.lastDownload).toEqual({ kind: 'success', message: 'Saved asset-1_warm.jpg' });
+    expect(mocks.downloadExport).toHaveBeenLastCalledWith('asset-1', expect.anything(), JPEG);
+    expect(mocks.downloadBlob).toHaveBeenLastCalledWith(blob, 'IMG_0001_warm.jpg');
+    expect(editor.lastDownload).toEqual({ kind: 'success', message: 'Saved IMG_0001_warm.jpg' });
+  });
+
+  it('falls back to the asset id when the server sends no filename', async () => {
+    editor.assetId = 'asset-1';
+    mocks.downloadExport.mockResolvedValueOnce({ blob: new Blob(), filename: null });
+    await editor.onExport(JPEG);
+    expect(mocks.downloadBlob).toHaveBeenLastCalledWith(expect.any(Blob), 'asset-1.jpg');
   });
 });

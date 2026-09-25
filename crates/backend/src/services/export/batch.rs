@@ -11,7 +11,7 @@ use crate::services::job_store::{JobItemRecord, JobRecord};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
-use super::archive::{sanitize_filename, write_unique};
+use super::archive::write_unique;
 use super::*;
 
 #[derive(Debug, Deserialize)]
@@ -28,10 +28,30 @@ pub struct ExportJobParams {
     pub stack_with_original: bool,
     #[serde(default)]
     pub stack_primary: StackPrimary,
-    #[serde(default = "default_suffix")]
-    pub filename_suffix: String,
+    #[serde(default, rename = "filename_suffix")]
+    legacy_suffix: Option<String>,
     #[serde(default)]
     pub manifest: Option<EditManifest>,
+}
+
+impl ExportJobParams {
+    fn parse(value: &serde_json::Value) -> Result<Self, JobItemError> {
+        let mut parsed: Self = serde_json::from_value(value.clone())
+            .map_err(|e| JobItemError::msg(format!("invalid export params: {e}")))?;
+        if parsed.params.filename_template.is_none()
+            && let Some(suffix) = parsed.legacy_suffix.take().filter(|s| !s.trim().is_empty())
+        {
+            parsed.params.filename_template = Some(format!("{{name}}{}", suffix.trim()));
+        }
+        Ok(parsed)
+    }
+}
+
+fn item_seq(job: &JobRecord, item: &JobItemRecord) -> Seq {
+    Seq {
+        position: u32::try_from(item.position).unwrap_or(1).max(1),
+        total: u32::try_from(job.total).unwrap_or(1).max(1),
+    }
 }
 
 pub struct BatchExecutor {
@@ -57,8 +77,8 @@ impl JobExecutor for BatchExecutor {
                 .parse::<AssetKey>()
                 .map_err(|_| JobItemError::msg("invalid asset id"))?;
             match job.kind.as_str() {
-                EXPORT_JOB_KIND => run_immich_item(&state, &job, asset_id).await,
-                DOWNLOAD_ZIP_KIND => run_zip_item(&state, &job, asset_id).await,
+                EXPORT_JOB_KIND => run_immich_item(&state, &job, &item, asset_id).await,
+                DOWNLOAD_ZIP_KIND => run_zip_item(&state, &job, &item, asset_id).await,
                 crate::services::apply_preset::APPLY_PRESET_KIND => {
                     crate::services::apply_preset::run_apply_preset_item(&state, &job, asset_id)
                         .await
@@ -73,11 +93,6 @@ impl JobExecutor for BatchExecutor {
             }
         })
     }
-}
-
-fn parse_job_params(job: &JobRecord) -> Result<ExportJobParams, JobItemError> {
-    serde_json::from_value(job.params.clone())
-        .map_err(|e| JobItemError::msg(format!("invalid export params: {e}")))
 }
 
 async fn job_edits(
@@ -121,9 +136,14 @@ pub async fn job_immich(
     .map_err(JobItemError::from)
 }
 
-async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
+async fn run_immich_item(
+    state: &AppState,
+    job: &JobRecord,
+    item: &JobItemRecord,
+    asset_id: AssetKey,
+) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
-    let params = parse_job_params(job)?;
+    let params = ExportJobParams::parse(&job.params)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let body = ExportToImmichBody {
         edits: edits.clamped(),
@@ -133,7 +153,6 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
         favorite: params.favorite,
         stack_with_original: params.stack_with_original,
         stack_primary: params.stack_primary,
-        filename_suffix: params.filename_suffix,
     };
     let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(
@@ -146,17 +165,23 @@ async fn run_immich_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) 
             body: &body,
             idempotency_key: Some(idempotency_key),
             priority: RenderPriority::Background,
+            seq: item_seq(job, item),
         },
     )
     .await?;
     Ok(serde_json::to_value(result)?)
 }
 
-async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> ItemOutcome {
+async fn run_zip_item(
+    state: &AppState,
+    job: &JobRecord,
+    item: &JobItemRecord,
+    asset_id: AssetKey,
+) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
-    let params = parse_job_params(job)?;
+    let params = ExportJobParams::parse(&job.params)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
-    let suffix = validate_suffix(&params.filename_suffix)?;
+    let template = NameTemplate::parse(params.params.filename_template.as_deref())?;
     let original = immich.asset(asset_id.source()).await?;
     let (bytes, output) = render_export(
         state,
@@ -176,9 +201,48 @@ async fn run_zip_item(state: &AppState, job: &JobRecord, asset_id: AssetKey) -> 
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| JobItemError::msg(format!("create export dir: {e}")))?;
-    let base = sanitize_filename(&original.original_file_name);
-    let filename = write_unique(&dir, &base, &suffix, output.extension(), &bytes)
+    let stem = template.render(&NameContext {
+        original: &original.original_file_name,
+        date: capture_date(&original),
+        seq: item_seq(job, item),
+    });
+    let filename = write_unique(&dir, &stem, output.extension(), &bytes)
         .await
         .map_err(|e| JobItemError::msg(format!("write export file: {e}")))?;
     Ok(serde_json::json!({ "filename": filename, "bytes": bytes.len() }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn template_of(params: serde_json::Value) -> Option<String> {
+        ExportJobParams::parse(&params)
+            .unwrap()
+            .params
+            .filename_template
+    }
+
+    #[test]
+    fn a_legacy_suffix_becomes_a_name_template() {
+        assert_eq!(
+            template_of(serde_json::json!({ "filename_suffix": "_warm" })).as_deref(),
+            Some("{name}_warm")
+        );
+    }
+
+    #[test]
+    fn a_template_wins_over_a_legacy_suffix() {
+        let params =
+            serde_json::json!({ "filename_template": "{seq}", "filename_suffix": "_warm" });
+        assert_eq!(template_of(params).as_deref(), Some("{seq}"));
+    }
+
+    #[test]
+    fn a_blank_legacy_suffix_keeps_the_default() {
+        assert_eq!(
+            template_of(serde_json::json!({ "filename_suffix": " " })),
+            None
+        );
+    }
 }

@@ -61,8 +61,6 @@ pub struct ExportToImmichBody {
     pub stack_with_original: bool,
     #[serde(default)]
     pub stack_primary: StackPrimary,
-    #[serde(default = "default_suffix")]
-    pub filename_suffix: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +77,7 @@ pub struct ExportImmichRequest<'a> {
     pub body: &'a ExportToImmichBody,
     pub idempotency_key: Option<String>,
     pub priority: RenderPriority,
+    pub seq: Seq,
 }
 
 pub async fn render_export(
@@ -170,7 +169,7 @@ pub async fn export_to_immich(
     }
 
     let result: Result<ExportToImmichResult, AppError> = async {
-        let suffix = validate_suffix(&body.filename_suffix)?;
+        let template = NameTemplate::parse(body.params.filename_template.as_deref())?;
         let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
@@ -187,12 +186,12 @@ pub async fn export_to_immich(
             req.priority,
         )
         .await?;
-        let filename = resolve_filename(
-            &original.original_file_name,
-            &suffix,
-            output.extension(),
-            &existing_names,
-        );
+        let stem = template.render(&NameContext {
+            original: &original.original_file_name,
+            date: capture_date(&original),
+            seq: req.seq,
+        });
+        let filename = resolve_filename(&stem, output.extension(), &existing_names);
         let now = Utc::now().to_rfc3339();
         let upload = immich
             .upload_asset(crate::immich::client::UploadRequest {
@@ -273,7 +272,7 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "favorite": body.favorite,
         "stack_with_original": body.stack_with_original,
         "stack_primary": format!("{:?}", body.stack_primary),
-        "filename_suffix": body.filename_suffix,
+        "filename_template": body.params.filename_template,
     });
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();

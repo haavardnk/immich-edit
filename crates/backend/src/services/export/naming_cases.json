@@ -1,0 +1,48 @@
+[
+  { "template": null, "original": "DSC0001.ARW", "expect": "DSC0001_edit" },
+  { "template": "   ", "original": "DSC0001.ARW", "expect": "DSC0001_edit" },
+  { "template": "{name}-final", "original": "a.arw", "expect": "a-final" },
+  {
+    "template": "{date}_{name}",
+    "original": "DSC0001.ARW",
+    "date": "2024-05-01",
+    "expect": "2024-05-01_DSC0001"
+  },
+  {
+    "template": "{date}",
+    "original": "DSC0001.ARW",
+    "date": null,
+    "expect": "undated"
+  },
+  {
+    "template": "trip_{seq}",
+    "position": 7,
+    "total": 120,
+    "expect": "trip_007"
+  },
+  { "template": "trip_{seq}", "position": 3, "total": 9, "expect": "trip_3" },
+  {
+    "template": "{name}-{seq}",
+    "original": "DSC0001.ARW",
+    "position": 1,
+    "total": 1,
+    "expect": "DSC0001-1"
+  },
+  { "template": "{name}", "original": "a:b*c.jpg", "expect": "a_b_c" },
+  { "template": "{name}", "original": "raw", "expect": "raw" },
+  { "template": "{name}", "original": "Fjord æøå.jpg", "expect": "Fjord æøå" },
+  { "template": ".{name}.", "original": "raw", "expect": "raw" },
+  { "template": "...", "expect": "export" },
+  { "template": "{foo}", "error": "Unknown filename token {foo}" },
+  { "template": "{}", "error": "Unknown filename token {}" },
+  { "template": "{name", "error": "Filename template has an unmatched {" },
+  { "template": "name}", "error": "Filename template has an unmatched }" },
+  {
+    "template": "a/b",
+    "error": "Filename template contains a character that is not allowed in file names"
+  },
+  {
+    "template": "{name}_abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij",
+    "error": "Filename template is too long"
+  }
+]

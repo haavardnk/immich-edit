@@ -49,6 +49,7 @@ async fn export_outlives_the_light_request_timeout() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_slow_original(&server, id, arw_fixture()).await;
+    mock_asset_detail(&server).await;
     let app = seed_and_wrap(&server, slow_state(&server).await).await;
 
     let resp = app

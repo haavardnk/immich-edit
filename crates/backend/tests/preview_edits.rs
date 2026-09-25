@@ -583,9 +583,10 @@ async fn export_returns_full_res_jpeg() {
     let server = MockServer::start().await;
     let id = asset_id();
     mock_arw_original(&server, id).await;
+    mock_asset_detail(&server).await;
     let app = test_app(&server).await;
 
-    let body = serde_json::json!({"edits": {}});
+    let body = serde_json::json!({"edits": {}, "filename_template": "{date}_{name}"});
     let resp = app
         .oneshot(
             Request::builder()
@@ -606,7 +607,9 @@ async fn export_returns_full_res_jpeg() {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_string();
-    if !disp.contains("attachment") {
+    if disp
+        != "attachment; filename=\"2026-01-01_DSC0001.jpg\"; filename*=UTF-8''2026-01-01_DSC0001.jpg"
+    {
         panic!("disposition: {disp}");
     }
     let bytes = body_bytes(resp).await;

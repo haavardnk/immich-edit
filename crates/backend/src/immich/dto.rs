@@ -34,6 +34,8 @@ pub struct AssetSummary {
     pub original_file_name: String,
     #[serde(rename = "type", default)]
     pub asset_type: String,
+    #[serde(rename = "localDateTime", default)]
+    pub local_date_time: Option<String>,
     #[serde(rename = "fileCreatedAt", default)]
     pub file_created_at: Option<String>,
     #[serde(rename = "updatedAt", default)]
@@ -61,6 +63,8 @@ pub struct AssetDetail {
     pub asset_type: String,
     #[serde(rename = "originalMimeType", default)]
     pub original_mime_type: Option<String>,
+    #[serde(rename = "localDateTime", default)]
+    pub local_date_time: Option<String>,
     #[serde(rename = "fileCreatedAt", default)]
     pub file_created_at: Option<String>,
     #[serde(rename = "updatedAt", default)]
