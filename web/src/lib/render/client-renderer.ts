@@ -18,6 +18,7 @@ export class ClientRenderer {
   }
 
   static async start(): Promise<ClientRenderer> {
+    if (!isSecureContext) throw new Error('browsers only offer WebGPU over HTTPS or on localhost');
     if (!('gpu' in navigator) || !navigator.gpu) throw new Error('this browser has no WebGPU');
     const started = performance.now();
     const host = await RenderHost.start();
