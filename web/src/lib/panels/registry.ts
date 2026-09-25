@@ -3,6 +3,7 @@ import BasicPanel from './Basic.svelte';
 import CurvesPanel from './Curves.svelte';
 import HslPanel from './Hsl.svelte';
 import ColorGradingPanel from './ColorGrading.svelte';
+import BwPanel from './Bw.svelte';
 import LutPanel from './Lut.svelte';
 import DcpPanel from './Dcp.svelte';
 import DetailPanel from './Detail.svelte';
@@ -27,6 +28,7 @@ export const developPanels: PanelDef[] = [
   { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
   { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: false },
+  { id: 'bw', title: 'Black & White', component: BwPanel, defaultOpen: false },
   { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },

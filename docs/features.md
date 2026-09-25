@@ -70,7 +70,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Sensor black- and white-point overrides | ✗ No | No RAW preprocessing controls |
 | RGB and luma curves | ✓ Yes | Composite and per-channel curves |
 | HSL and color grading | ✓ Yes | HSL mixer and color wheels |
-| Black-and-white channel mixer | ✗ No | Saturation can be reduced, but there is no dedicated mixer |
+| Black-and-white channel mixer | ✓ Yes | Six-channel mixer with a shadows and highlights tint; see [black and white](edit.md#black-and-white) |
 | Channel mixer or calibration-primary controls | ✗ No | — |
 | DCP camera profiles | ✓ Yes | Auto, Default Color, Flat, bundled profiles, admin imports, and retry for failed automatic lens lookup |
 | Custom camera ICC input profiles | ✗ No | Camera profiles use DCP only |

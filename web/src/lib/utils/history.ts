@@ -1,6 +1,7 @@
 import type { EditHistoryEntry } from '$lib/api/edits';
 import type { CurveChannel, Edits, GeometryEdits, LensEdits, MaskLayer } from '$lib/types/edits';
 import {
+  BW_CHANNELS,
   CURVE_CHANNELS,
   HSL_BAND_NAMES,
   isFullCrop,
@@ -250,6 +251,14 @@ const FIELDS: FieldDef[] = [
     section: 'color',
     label: 'DCP Baseline Exposure',
     get: (e) => e.color.dcp.use_baseline_exposure
+  },
+  { kind: 'boolean', section: 'color', label: 'Black & White', get: (e) => e.color.bw.enabled },
+  {
+    kind: 'number',
+    section: 'color',
+    label: 'B&W Tint Balance',
+    get: (e) => e.color.bw.balance,
+    signed: true
   }
 ];
 
@@ -269,6 +278,34 @@ const CURVE_LABELS: Record<CurveChannel, string> = {
   b: 'Blue',
   luma: 'Luma'
 };
+
+for (const region of ['Shadows', 'Highlights'] as const) {
+  const key = region.toLowerCase() as 'shadows' | 'highlights';
+  FIELDS.push(
+    {
+      kind: 'number',
+      section: 'color',
+      label: `B&W ${region} Hue`,
+      get: (e) => e.color.bw[key].hue
+    },
+    {
+      kind: 'number',
+      section: 'color',
+      label: `B&W ${region} Saturation`,
+      get: (e) => e.color.bw[key].sat
+    }
+  );
+}
+
+for (const channel of BW_CHANNELS) {
+  FIELDS.push({
+    kind: 'number',
+    section: 'color',
+    label: `B&W ${channel[0]?.toUpperCase()}${channel.slice(1)}`,
+    get: (e) => e.color.bw.mix[channel],
+    signed: true
+  });
+}
 
 for (const region of ['Shadows', 'Midtones', 'Highlights', 'Global'] as const) {
   const key = region.toLowerCase() as 'shadows' | 'midtones' | 'highlights' | 'global';

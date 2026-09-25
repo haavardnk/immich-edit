@@ -40,6 +40,20 @@ describe('manifest codec', () => {
     expect(roundTrip(edits).color.lut_3d).toEqual(edits.color.lut_3d);
   });
 
+  it.each([true, false])('round trips black and white with enabled %s', (enabled) => {
+    const edits = neutralEdits();
+    edits.color.bw = {
+      enabled,
+      mix: { red: 20, yellow: -10, green: 35, aqua: 0, blue: -60, magenta: 5 },
+      shadows: { hue: 210, sat: 30 },
+      highlights: { hue: 40, sat: 15 },
+      balance: 25
+    };
+    expect(editsToManifest(edits).ops.bw).toMatchObject({ enabled });
+    expect(roundTrip(edits).color.bw).toEqual(edits.color.bw);
+    expect(isIdentity(edits)).toBe(false);
+  });
+
   it('omits inactive lut from manifest', () => {
     const edits = neutralEdits();
     edits.color.lut_3d = { lut_id: null, amount: 100 };

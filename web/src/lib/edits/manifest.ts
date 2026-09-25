@@ -1,5 +1,7 @@
 import {
   bandsAllZero,
+  BW_CHANNELS,
+  bwIsNeutral,
   colorGradeIsZero,
   curvesAreIdentity,
   curvesEditsIsIdentity,
@@ -15,6 +17,8 @@ import {
   MAX_RETOUCH_STROKES,
   neutralEdits,
   type AspectLock,
+  type BwEdits,
+  type BwTint,
   type ClickPointMeta,
   type ColorGradeRegion,
   type CropRect,
@@ -62,6 +66,16 @@ export function editsToManifest(edits: Edits): EditManifest {
         lum: band.lum
       }))
     };
+  if (!bwIsNeutral(edits.color.bw)) {
+    const bw = edits.color.bw;
+    ops.bw = {
+      enabled: bw.enabled,
+      mix: { ...bw.mix },
+      shadows: { ...bw.shadows },
+      highlights: { ...bw.highlights },
+      balance: bw.balance
+    };
+  }
   if (!colorGradeIsZero(edits.color.color_grade)) {
     const colorGrade = edits.color.color_grade;
     const region = (value: ColorGradeRegion) => ({
@@ -171,6 +185,27 @@ export function manifestToEdits(doc: EditManifest): Edits {
       if (band.sat !== undefined) target.sat = band.sat;
       if (band.lum !== undefined) target.lum = band.lum;
     }
+  }
+  const bw = ops.bw as
+    | (Partial<Omit<BwEdits, 'mix' | 'shadows' | 'highlights'>> & {
+        mix?: Partial<BwEdits['mix']>;
+        shadows?: Partial<BwTint>;
+        highlights?: Partial<BwTint>;
+      })
+    | undefined;
+  if (bw) {
+    const target = edits.color.bw;
+    if (typeof bw.enabled === 'boolean') target.enabled = bw.enabled;
+    for (const channel of BW_CHANNELS) {
+      const value = bw.mix?.[channel];
+      if (typeof value === 'number') target.mix[channel] = value;
+    }
+    for (const region of ['shadows', 'highlights'] as const) {
+      const source = bw[region];
+      if (typeof source?.hue === 'number') target[region].hue = source.hue;
+      if (typeof source?.sat === 'number') target[region].sat = source.sat;
+    }
+    if (typeof bw.balance === 'number') target.balance = bw.balance;
   }
   const colorGrade = ops.color_grade as
     | {
