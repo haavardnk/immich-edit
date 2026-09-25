@@ -621,6 +621,103 @@ async fn export_returns_full_res_jpeg() {
     }
 }
 
+async fn export_dims(body: serde_json::Value) -> (usize, usize) {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_arw_original(&server, id).await;
+    mock_asset_detail(&server).await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/export"))
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {} for {body}", resp.status());
+    }
+    let frame = raw_pipeline::decode::decode(&body_bytes(resp).await).unwrap();
+    (frame.meta.width, frame.meta.height)
+}
+
+#[tokio::test]
+async fn export_fits_the_requested_dimensions() {
+    let boxed = export_dims(serde_json::json!({
+        "edits": {},
+        "resize_mode": "dimensions",
+        "resize_width": 800,
+        "resize_height": 800
+    }))
+    .await;
+    if boxed.0.max(boxed.1) != 800 {
+        panic!("800x800 export is {boxed:?}");
+    }
+    let wide = export_dims(serde_json::json!({
+        "edits": {},
+        "resize_mode": "dimensions",
+        "resize_width": 400
+    }))
+    .await;
+    if wide.0 != 400 {
+        panic!("400 wide export is {wide:?}");
+    }
+}
+
+#[tokio::test]
+async fn export_enlarges_a_small_crop_only_when_asked() {
+    let edits = serde_json::json!({
+        "geometry": { "crop": { "x": 0.4, "y": 0.4, "w": 0.1, "h": 0.1 } }
+    });
+    let kept = export_dims(serde_json::json!({
+        "edits": edits,
+        "resize_mode": "dimensions",
+        "resize_width": 1500,
+        "resize_height": 1500
+    }))
+    .await;
+    if kept.0.max(kept.1) >= 1500 {
+        panic!("crop was enlarged without asking: {kept:?}");
+    }
+    let enlarged = export_dims(serde_json::json!({
+        "edits": edits,
+        "resize_mode": "dimensions",
+        "resize_width": 1500,
+        "resize_height": 1500,
+        "resize_enlarge": true
+    }))
+    .await;
+    if enlarged.0.max(enlarged.1) != 1500 {
+        panic!("enlarged crop is {enlarged:?}");
+    }
+}
+
+#[tokio::test]
+async fn export_rejects_a_resize_without_a_size() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{}/export", asset_id()))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({ "edits": {}, "resize_mode": "dimensions" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::BAD_REQUEST {
+        panic!("status {}", resp.status());
+    }
+}
+
 async fn mock_asset_metadata(server: &MockServer, id: uuid::Uuid, checksum: &str) {
     Mock::given(method("GET"))
         .and(path(format!("/api/assets/{id}")))

@@ -33,10 +33,30 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
 | **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out |
 
-Output always has the edited photo's full size. Exports cannot be resized or watermarked;
-[features](features.md#export-color-and-interoperability) lists what is and is not supported.
-[Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
-supports.
+Exports cannot be watermarked yet; [features](features.md#export-color-and-interoperability) lists
+what is and is not supported. [Compatibility](compatibility.md#image-input-and-export) lists the
+bit depths each format supports.
+
+## Resize
+
+**Resize** starts at **Full size**, the edited photo's own resolution after the crop. The other
+choices scale the export:
+
+| Choice | You enter | Result |
+| --- | --- | --- |
+| **Dimensions** | Width × height in pixels | The photo fits inside that size and keeps its shape |
+| **Megapixels** | Megapixels | The photo keeps its shape and has about this many pixels in total |
+| **Percentage** | 1 to 400 | Both sides scale by this much; above 100 enlarges |
+
+In the editor, width and height are linked to the crop's shape. **Dimensions** starts at the
+crop's own size, and typing one side fills in the other, so the export comes out at exactly the
+size you see. In a bulk export the photos have different shapes, so the two numbers are a box each
+photo fits inside. Leave one side empty to limit only the other.
+
+**Don't enlarge** is on by default for **Dimensions** and **Megapixels**, so a photo that is
+already smaller than the size you ask for keeps its own size. Turn it off to scale small crops up;
+the enlarged photo is resampled once, at the end, after every edit. The **Size** line above shows
+the size the export will have. The largest export is 65,535 pixels on the long edge.
 
 ## Name the file
 

@@ -10,6 +10,8 @@
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
+  import ResizeOptions from './export/ResizeOptions.svelte';
+  import { resizeError, resizedSize } from './export/resize';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import {
@@ -17,6 +19,7 @@
     COLOR_SPACES,
     ensureLibraryLoaded,
     formatLabel,
+    formResize,
     immichOptions
   } from './export/settings';
 
@@ -40,10 +43,14 @@
   function spaceLabel(space: string): string {
     return COLOR_SPACES.find((c) => c.value === space)?.label ?? space;
   }
+  let crop = $derived(
+    editor.meta
+      ? croppedOutputSize(editor.edits.geometry, editor.meta.source_w, editor.meta.source_h)
+      : null
+  );
   let outputSize = $derived.by(() => {
-    const meta = editor.meta;
-    if (!meta) return null;
-    const size = croppedOutputSize(editor.edits.geometry, meta.source_w, meta.source_h);
+    if (!crop) return null;
+    const size = resizedSize(crop, formResize(form));
     return `${fmtDim(size.w, size.h)} px`;
   });
   let nameExample = $derived(
@@ -56,13 +63,16 @@
         }
       : null
   );
-  let nameInvalid = $derived(templateError(form.filenameTemplate) !== null);
+  let formInvalid = $derived(
+    templateError(form.filenameTemplate) !== null || resizeError(formResize(form)) !== null
+  );
 </script>
 
 <div class="flex flex-col gap-1">
   <DestinationToggle bind:value={exportSettings.destination} />
 
   <FormatOptions bind:form={exportSettings.form} {outputSize} />
+  <ResizeOptions bind:form={exportSettings.form} {crop} />
 
   {#if proofMismatch}
     <Notice
@@ -138,7 +148,7 @@
       fullWidth
       loading={isLoading}
       leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
-      disabled={isLoading || !editor.assetId || nameInvalid}
+      disabled={isLoading || !editor.assetId || formInvalid}
       onclick={() => {
         if (destination === 'download') void editor.onExport(baseOptions(form));
         else void editor.onUploadToImmich(immichOptions(form));

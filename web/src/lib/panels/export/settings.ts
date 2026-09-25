@@ -3,6 +3,14 @@ import { listAlbums } from '$lib/api/albums';
 import { listTags } from '$lib/api/tags';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { DEFAULT_FILENAME_TEMPLATE } from '$lib/filenameTemplate';
+import {
+  DEFAULT_RESIZE_BOX,
+  DEFAULT_RESIZE_MEGAPIXELS,
+  DEFAULT_RESIZE_PERCENT,
+  EXPORT_MAX_EDGE,
+  type ExportResize,
+  type ResizeMode
+} from './resize';
 import type {
   BitDepthOpt,
   ColorSpaceOpt,
@@ -31,6 +39,12 @@ export interface ExportForm {
   stackWithOriginal: boolean;
   stackPrimary: StackPrimary;
   filenameTemplate: string;
+  resizeMode: ResizeMode | 'none';
+  resizeWidth: number | null;
+  resizeHeight: number | null;
+  resizeMegapixels: number;
+  resizePercent: number;
+  resizeEnlarge: boolean;
 }
 
 interface Option<T extends string> {
@@ -70,6 +84,13 @@ export const TIFF_COMPRESSIONS: Option<TiffCompressionOpt>[] = [
   { value: 'deflate', label: 'Deflate' }
 ];
 
+export const RESIZE_MODES: Option<ResizeMode | 'none'>[] = [
+  { value: 'none', label: 'Full size' },
+  { value: 'dimensions', label: 'Dimensions' },
+  { value: 'megapixels', label: 'Megapixels' },
+  { value: 'percent', label: 'Percentage' }
+];
+
 const STACK_PRIMARIES: StackPrimary[] = ['edited', 'original'];
 
 function pickOption<T extends string>(value: unknown, options: Option<T>[], fallback: T): T {
@@ -91,6 +112,20 @@ function pickTemplate(template: unknown, legacySuffix: unknown): string {
   return DEFAULT_FILENAME_TEMPLATE;
 }
 
+function pickEdge(value: unknown, fallback: number | null): number | null {
+  if (value === null) return null;
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= EXPORT_MAX_EDGE
+    ? value
+    : fallback;
+}
+
+function pickPositive(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export function defaultExportForm(): ExportForm {
   return {
     format: 'jpeg',
@@ -106,7 +141,13 @@ export function defaultExportForm(): ExportForm {
     favorite: false,
     stackWithOriginal: false,
     stackPrimary: 'edited',
-    filenameTemplate: DEFAULT_FILENAME_TEMPLATE
+    filenameTemplate: DEFAULT_FILENAME_TEMPLATE,
+    resizeMode: 'none',
+    resizeWidth: DEFAULT_RESIZE_BOX,
+    resizeHeight: DEFAULT_RESIZE_BOX,
+    resizeMegapixels: DEFAULT_RESIZE_MEGAPIXELS,
+    resizePercent: DEFAULT_RESIZE_PERCENT,
+    resizeEnlarge: false
   };
 }
 
@@ -133,12 +174,32 @@ export function restoreExportForm(
     favorite: pickBoolean(stored.favorite, form.favorite),
     stackWithOriginal: pickBoolean(stored.stackWithOriginal, form.stackWithOriginal),
     stackPrimary: STACK_PRIMARIES.find((p) => p === stored.stackPrimary) ?? form.stackPrimary,
-    filenameTemplate: pickTemplate(stored.filenameTemplate, stored.filenameSuffix)
+    filenameTemplate: pickTemplate(stored.filenameTemplate, stored.filenameSuffix),
+    resizeMode: pickOption(stored.resizeMode, RESIZE_MODES, form.resizeMode),
+    resizeWidth: pickEdge(stored.resizeWidth, form.resizeWidth),
+    resizeHeight: pickEdge(stored.resizeHeight, form.resizeHeight),
+    resizeMegapixels: pickPositive(stored.resizeMegapixels, form.resizeMegapixels),
+    resizePercent: pickPositive(stored.resizePercent, form.resizePercent),
+    resizeEnlarge: pickBoolean(stored.resizeEnlarge, form.resizeEnlarge)
   };
 }
 
 export function formatLabel(format: ExportFormat): string {
   return FORMATS.find((f) => f.value === format)?.label ?? format;
+}
+
+export function formResize(f: ExportForm): ExportResize | null {
+  if (f.resizeMode === 'none') return null;
+  if (f.resizeMode === 'percent') return { mode: 'percent', percent: f.resizePercent };
+  if (f.resizeMode === 'megapixels') {
+    return { mode: 'megapixels', megapixels: f.resizeMegapixels, enlarge: f.resizeEnlarge };
+  }
+  return {
+    mode: 'dimensions',
+    width: f.resizeWidth,
+    height: f.resizeHeight,
+    enlarge: f.resizeEnlarge
+  };
 }
 
 export function baseOptions(f: ExportForm): ExportOptions {
@@ -151,7 +212,8 @@ export function baseOptions(f: ExportForm): ExportOptions {
     tiffCompression: f.tiffCompression,
     lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
     colorSpace: f.colorSpace,
-    filenameTemplate: f.filenameTemplate
+    filenameTemplate: f.filenameTemplate,
+    resize: formResize(f)
   };
 }
 

@@ -1,4 +1,5 @@
 import { request, sendJson, url } from '$lib/api/client';
+import type { ExportResize } from '$lib/panels/export/resize';
 import type { Edits } from '$lib/types/edits';
 import { isIdentity } from '$lib/types/edits';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +20,7 @@ export interface ExportOptions {
   lossless: boolean;
   colorSpace: ColorSpaceOpt;
   filenameTemplate: string;
+  resize: ExportResize | null;
 }
 
 export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
@@ -31,6 +33,33 @@ export const EXTENSION_BY_FORMAT: Record<ExportFormat, string> = {
   jxl: 'jxl'
 };
 
+export interface ResizeParams {
+  resize_mode?: ExportResize['mode'];
+  resize_width?: number;
+  resize_height?: number;
+  resize_megapixels?: number;
+  resize_percent?: number;
+  resize_enlarge?: boolean;
+}
+
+export function resizeParams(resize: ExportResize | null): ResizeParams {
+  if (!resize) return {};
+  if (resize.mode === 'percent') return { resize_mode: 'percent', resize_percent: resize.percent };
+  if (resize.mode === 'megapixels') {
+    return {
+      resize_mode: 'megapixels',
+      resize_megapixels: resize.megapixels,
+      resize_enlarge: resize.enlarge
+    };
+  }
+  return {
+    resize_mode: 'dimensions',
+    ...(resize.width === null ? {} : { resize_width: resize.width }),
+    ...(resize.height === null ? {} : { resize_height: resize.height }),
+    resize_enlarge: resize.enlarge
+  };
+}
+
 function paramsObject(opts: ExportOptions): Record<string, string> {
   return {
     format: opts.format,
@@ -41,7 +70,10 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
     tiff_compression: opts.tiffCompression,
     lossless: String(opts.lossless),
     color_space: opts.colorSpace,
-    filename_template: opts.filenameTemplate
+    filename_template: opts.filenameTemplate,
+    ...Object.fromEntries(
+      Object.entries(resizeParams(opts.resize)).map(([key, value]) => [key, String(value)])
+    )
   };
 }
 
@@ -92,7 +124,8 @@ export async function downloadExport(
           tiff_compression: opts.tiffCompression,
           lossless: opts.lossless,
           color_space: opts.colorSpace,
-          filename_template: opts.filenameTemplate
+          filename_template: opts.filenameTemplate,
+          ...resizeParams(opts.resize)
         })
       });
   return {
@@ -142,7 +175,8 @@ export async function uploadToImmich(
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
-      filename_template: opts.filenameTemplate
+      filename_template: opts.filenameTemplate,
+      ...resizeParams(opts.resize)
     },
     { headers: { 'idempotency-key': idempotencyKey } }
   );
