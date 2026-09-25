@@ -8,6 +8,7 @@
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import ExportSection from './export/ExportSection.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
@@ -70,21 +71,32 @@
 
   <DestinationToggle bind:value={exportSettings.destination} downloadLabel="Download ZIP" />
 
-  <FormatOptions bind:form={exportSettings.form} />
-  <ResizeOptions bind:form={exportSettings.form} />
-  <SharpenOptions bind:form={exportSettings.form} />
-  <WatermarkOptions bind:form={exportSettings.form} />
+  <ExportSection title="File">
+    <FormatOptions bind:form={exportSettings.form} />
+  </ExportSection>
 
-  <div class="flex flex-col gap-1 border-t border-hairline pt-1.5">
+  <ExportSection title="Size">
+    <ResizeOptions bind:form={exportSettings.form} />
+    <SharpenOptions bind:form={exportSettings.form} />
+  </ExportSection>
+
+  <ExportSection title="Watermark">
+    <WatermarkOptions bind:form={exportSettings.form} />
+  </ExportSection>
+
+  <ExportSection title="Name">
     <FilenameTemplateField
       bind:value={exportSettings.form.filenameTemplate}
       example={nameExample}
       extension={EXTENSION_BY_FORMAT[form.format]}
     />
-    {#if destination === 'immich'}
+  </ExportSection>
+
+  {#if destination === 'immich'}
+    <ExportSection title="Immich">
       <ImmichOptions bind:form={exportSettings.form} />
-    {/if}
-  </div>
+    </ExportSection>
+  {/if}
 
   <Button
     size="small"

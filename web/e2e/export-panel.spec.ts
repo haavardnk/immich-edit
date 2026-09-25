@@ -225,6 +225,9 @@ test('every export option label fits on one line', async ({ page }) => {
 
 test('a download carries the chosen watermark', async ({ page }) => {
   const sent: Array<Record<string, unknown>> = [];
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
   await installMocks(page, {
     watermarks: [
       {
@@ -253,7 +256,9 @@ test('a download carries the chosen watermark', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   const exportButton = page.getByRole('button', { name: /Export JPEG/ });
-  const picker = page.getByRole('button', { name: 'Watermark', exact: true });
+  const picker = page
+    .getByRole('region', { name: 'Watermark' })
+    .getByRole('button', { name: 'Image', exact: true });
 
   await picker.click();
   await page.getByRole('option', { name: 'Signature' }).click();
@@ -281,6 +286,19 @@ test('a download carries the chosen watermark', async ({ page }) => {
   });
   await expect(picker).toContainText('logo');
   await page.getByRole('button', { name: 'Delete watermark', exact: true }).click();
+  const region = page.getByRole('region', { name: 'Watermark' });
+  const rowButtons = region.locator('.panel-row').first().getByRole('button');
+  const boxes = await Promise.all(
+    [region.getByText('Image', { exact: true }), ...(await rowButtons.all())].map((locator) =>
+      locator.boundingBox()
+    )
+  );
+  const edges = boxes.map((box) => {
+    if (!box) throw new Error('watermark row is not laid out');
+    return [box.x, box.x + box.width] as const;
+  });
+  expect(edges.length).toBe(4);
+  expect(edges.slice(1).every(([start], i) => start >= (edges[i]?.[1] ?? Infinity))).toBe(true);
   await page.getByRole('button', { name: 'Confirm delete watermark' }).click();
   await expect(page.getByRole('slider', { name: 'Watermark size' })).toBeHidden();
   const second = page.waitForEvent('download');
@@ -306,4 +324,29 @@ test('export warns when it will not match the soft proof', async ({ page }) => {
   await page.getByRole('button', { name: 'Export sRGB' }).click();
   await expect(warning).toBeHidden();
   await expect(page.getByRole('button', { name: 'Color space' })).toHaveText('sRGB');
+});
+
+test('export options sit in the same sections in the editor and the bulk dialog', async ({
+  page
+}) => {
+  const titles = ['File', 'Size', 'Watermark', 'Name'];
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  const panel = page.getByRole('tabpanel');
+  const headings = panel.locator('section[aria-labelledby] > h3');
+  await expect(headings).toHaveText(titles);
+  await expect(panel.getByRole('region', { name: 'Size' })).toContainText('6000 × 4000 px');
+  await page.getByRole('radio', { name: 'To Immich' }).click();
+  await expect(headings).toHaveText([...titles, 'Immich']);
+  await expect(
+    panel.getByRole('region', { name: 'Immich' }).getByLabel('Add album…')
+  ).toBeVisible();
+
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit and export selected' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  await dialog.getByRole('tab', { name: 'Export' }).click();
+  await expect(dialog.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
 });

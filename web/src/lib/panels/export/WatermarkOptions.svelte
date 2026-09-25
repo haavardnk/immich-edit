@@ -10,7 +10,7 @@
   } from '$lib/api/watermarks';
   import { session } from '$lib/stores/session.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { Button, Field, Select } from '@immich/ui';
+  import { IconButton, Select } from '@immich/ui';
   import { mdiUpload } from '@mdi/js';
   import { WATERMARK_ANCHORS, WATERMARK_PERCENT } from './watermark';
   import type { ExportForm } from './settings';
@@ -121,42 +121,41 @@
   onchange={(e) => void onFile(e)}
 />
 
-<div class="flex items-end gap-1">
-  <div class="min-w-0 flex-1">
-    <Field label="Watermark" size="tiny">
+<div class="panel-row h-7 items-center">
+  <span class="editor-compact-label select-none" aria-hidden="true">Image</span>
+  <div class="col-span-2 flex min-w-0 items-center gap-1">
+    <div class="min-w-0 flex-1">
       <Select
         size="tiny"
-        class="editor-compact-select editor-compact-field"
+        class="editor-compact-select"
+        placeholder="Image"
         {options}
         value={form.watermarkId ?? 'none'}
         onChange={(id) => select(id === 'none' ? null : id)}
       />
-    </Field>
+    </div>
+    {#if session.isAdmin && !pendingDelete}
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiUpload}
+        title="Import PNG watermark"
+        aria-label="Import PNG watermark"
+        disabled={importing}
+        onclick={() => fileInput?.click()}
+      />
+    {/if}
+    {#if selected && session.isAdmin}
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete watermark"
+        confirmLabel="Confirm delete watermark"
+        onconfirm={confirmDelete}
+      />
+    {/if}
   </div>
-  {#if selected && session.isAdmin}
-    <DeleteConfirmation
-      bind:pending={pendingDelete}
-      label="Delete watermark"
-      confirmLabel="Confirm delete watermark"
-      onconfirm={confirmDelete}
-    />
-  {/if}
 </div>
-
-{#if session.isAdmin}
-  <Button
-    type="button"
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    class="h-7 panel-action"
-    leadingIcon={mdiUpload}
-    disabled={importing}
-    onclick={() => fileInput?.click()}
-  >
-    {importing ? 'Importing…' : 'Import PNG watermark'}
-  </Button>
-{/if}
 
 {#if selected}
   {#each sliders as slider (slider.label)}

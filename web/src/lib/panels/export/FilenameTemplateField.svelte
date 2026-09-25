@@ -25,21 +25,23 @@
   );
 </script>
 
-<TextInput
-  label="Filename"
-  compact
-  color="neutral"
-  class="ring-0 focus-within:ring-1 focus-within:ring-primary"
-  bind:value
-  placeholder={DEFAULT_FILENAME_TEMPLATE}
-  aria-invalid={error ? 'true' : undefined}
-  aria-describedby="{id}-hint"
-/>
-<p id="{id}-hint" class="px-1 text-[10px] leading-snug text-dark/65">
-  {#if error}
-    <span class="text-danger-300">{error}</span>
-  {:else if preview}
-    <span class="font-mono">{preview}</span>
-  {/if}
-  <span class="block">Tokens: {FILENAME_TOKENS.join(', ')}</span>
-</p>
+<div class="group flex flex-col gap-1">
+  <TextInput
+    label="Filename"
+    compact
+    color="neutral"
+    class="ring-0 focus-within:ring-1 focus-within:ring-primary"
+    bind:value
+    placeholder={DEFAULT_FILENAME_TEMPLATE}
+    aria-invalid={error ? 'true' : undefined}
+    aria-describedby="{id}-hint"
+  />
+  <p id="{id}-hint" class="px-1 text-[10px] leading-snug text-dark/65">
+    {#if error}
+      <span class="text-danger-300">{error}</span>
+    {:else if preview}
+      <span class="font-mono">{preview}</span>
+    {/if}
+    <span class="hidden group-focus-within:block">Tokens: {FILENAME_TOKENS.join(', ')}</span>
+  </p>
+</div>
