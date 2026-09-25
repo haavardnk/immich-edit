@@ -6,7 +6,7 @@ use crate::cancel::{self, CancelToken};
 use crate::cpu::renderer::{self, CpuRenderer};
 use crate::cpu::{demosaic, transform};
 use crate::edits::Edits;
-use crate::encode::{encode_from_rgb8, encode_from_rgb16};
+use crate::finish::{FinalImage, FinalPixels, encode, final_stage, has_final_stage};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::ops::LinearImage;
 use crate::ops::{OpContext, OpScratch, RenderContext};
@@ -346,33 +346,30 @@ fn finish_render(
         })
     });
 
-    let bytes = clock.time(timing::ENCODE, || {
-        if want_16bit {
-            encode_from_rgb16(
-                rgb_u16.as_deref().unwrap(),
-                w as u32,
-                h as u32,
-                &options.output,
-                options.output_color_space,
-            )
-        } else {
-            encode_from_rgb8(
-                &rgb_u8,
-                w as u32,
-                h as u32,
-                &options.output,
-                options.output_color_space,
-            )
-        }
-    })?;
+    let pixels = match rgb_u16 {
+        Some(rgb16) if want_16bit => FinalPixels::Rgb16(rgb16),
+        _ => FinalPixels::Rgb8(rgb_u8),
+    };
+    let rendered = FinalImage {
+        pixels,
+        width: w as u32,
+        height: h as u32,
+    };
+    let final_image = if has_final_stage(rendered.width, rendered.height, options) {
+        clock.time(timing::EXPORT_FINISH, || final_stage(rendered, options))?
+    } else {
+        rendered
+    };
+
+    let bytes = clock.time(timing::ENCODE, || encode(&final_image, options))?;
 
     Ok(RenderedImage {
         bytes,
         histogram,
         linear_histogram,
         scopes,
-        width: w as u32,
-        height: h as u32,
+        width: final_image.width,
+        height: final_image.height,
         source_w: oriented_w as u32,
         source_h: oriented_h as u32,
         renderer: "cpu".into(),

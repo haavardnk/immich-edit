@@ -16,6 +16,8 @@ pub mod edits;
 pub mod encode;
 #[cfg(feature = "native")]
 pub mod exif;
+#[cfg(feature = "native")]
+pub mod finish;
 pub mod frame;
 pub mod geom;
 pub mod gpu;

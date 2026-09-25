@@ -3,6 +3,7 @@ use super::display::DisplayFrame;
 use super::meta::MetaCounts;
 use crate::PipelineResult;
 use crate::encode::{encode_from_rgb16, encode_from_rgba8};
+use crate::finish::{FinalImage, FinalPixels, encode, final_stage, has_final_stage};
 use crate::frame::{RenderOptions, RenderedImage};
 use crate::gpu::readback::{
     copy_texture_to_buffer, make_readback_buffer_wide, read_rgba8, read_rgba16uint_as_rgb,
@@ -102,27 +103,50 @@ pub(super) fn finish_image(
         other => other,
     };
     let (histogram, linear_histogram) = counts.histograms();
-    let (scopes, bytes) = rayon::join(
-        || counts.scopes(clock),
-        || {
-            clock.time(timing::ENCODE, || match &display {
-                DisplayBuf::Rgb16(rgb) => {
-                    encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
-                }
-                DisplayBuf::Rgba8(rgba) => {
-                    encode_from_rgba8(rgba, out_w, out_h, &opts.output, opts.output_color_space)
-                }
-            })
-        },
-    );
-    let bytes = bytes?;
+    let (scopes, encoded) = if has_final_stage(out_w, out_h, opts) {
+        let pixels = match display {
+            DisplayBuf::Rgb16(rgb) => FinalPixels::Rgb16(rgb),
+            DisplayBuf::Rgba8(rgba) => FinalPixels::Rgb8(
+                rgba.chunks_exact(4)
+                    .flat_map(|px| [px[0], px[1], px[2]])
+                    .collect(),
+            ),
+        };
+        let rendered = FinalImage {
+            pixels,
+            width: out_w,
+            height: out_h,
+        };
+        let finished = clock.time(timing::EXPORT_FINISH, || final_stage(rendered, opts))?;
+        let bytes = clock.time(timing::ENCODE, || encode(&finished, opts));
+        (
+            counts.scopes(clock),
+            bytes.map(|b| (b, finished.width, finished.height)),
+        )
+    } else {
+        let (scopes, bytes) = rayon::join(
+            || counts.scopes(clock),
+            || {
+                clock.time(timing::ENCODE, || match &display {
+                    DisplayBuf::Rgb16(rgb) => {
+                        encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
+                    }
+                    DisplayBuf::Rgba8(rgba) => {
+                        encode_from_rgba8(rgba, out_w, out_h, &opts.output, opts.output_color_space)
+                    }
+                })
+            },
+        );
+        (scopes, bytes.map(|b| (b, out_w, out_h)))
+    };
+    let (bytes, width, height) = encoded?;
     Ok(RenderedImage {
         bytes,
         histogram,
         linear_histogram,
         scopes,
-        width: out_w,
-        height: out_h,
+        width,
+        height,
         source_w: source_dims.0,
         source_h: source_dims.1,
         renderer: "gpu".into(),

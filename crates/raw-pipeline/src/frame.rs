@@ -33,6 +33,7 @@ impl RawFrame {
 
 pub struct RenderOptions {
     pub max_edge: u32,
+    pub enlarge: bool,
     pub quality: bool,
     pub roi: Option<crate::edits::CropRect>,
     pub output: OutputFormat,
@@ -195,6 +196,7 @@ impl Default for RenderOptions {
     fn default() -> Self {
         Self {
             max_edge: 4096,
+            enlarge: false,
             quality: false,
             roi: None,
             output: OutputFormat::Jpeg {
