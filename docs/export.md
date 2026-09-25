@@ -29,7 +29,7 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | Option | Shown for | Notes |
 | --- | --- | --- |
 | **Format** | Always | **JPEG**, **PNG**, **WebP**, **AVIF**, **HEIC**, **TIFF** or **JPEG XL** |
-| **Quality** | JPEG, AVIF, HEIC, lossy WebP | 1 to 100 |
+| **Quality** | JPEG, AVIF, HEIC, lossy WebP | 1 to 100. Each format keeps its own quality: 90 for JPEG, 85 for WebP, 65 for HEIC and 60 for AVIF until you change it, and switching back to a format brings back the value you last used there |
 | **Bit depth** | PNG, TIFF, JPEG XL | **16-bit** keeps smooth gradients through later editing elsewhere |
 | **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |

@@ -42,6 +42,7 @@ export type Destination = 'download' | 'immich';
 export interface ExportForm {
   format: ExportFormat;
   quality: number;
+  qualities: Partial<Record<ExportFormat, number>>;
   includeExif: boolean;
   bitDepth: BitDepthOpt;
   pngCompression: PngCompressionOpt;
@@ -162,10 +163,45 @@ function pickPositive(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+export const QUALITY_DEFAULTS: Partial<Record<ExportFormat, number>> = {
+  jpeg: 90,
+  webp: 85,
+  avif: 60,
+  heic: 65
+};
+
+export function changeFormat(form: ExportForm, next: ExportFormat): void {
+  if (QUALITY_DEFAULTS[form.format] !== undefined) {
+    form.qualities = { ...form.qualities, [form.format]: form.quality };
+  }
+  const incoming = form.qualities[next] ?? QUALITY_DEFAULTS[next];
+  if (incoming !== undefined) form.quality = incoming;
+  form.format = next;
+}
+
+function pickQuality(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(100, Math.max(1, Math.round(value)))
+    : null;
+}
+
+function pickQualities(value: unknown): Partial<Record<ExportFormat, number>> {
+  if (typeof value !== 'object' || value === null) return {};
+  const entries = Object.entries(value).flatMap(([key, raw]): [ExportFormat, number][] => {
+    const format = FORMATS.find((f) => f.value === key)?.value;
+    const quality = pickQuality(raw);
+    return format && QUALITY_DEFAULTS[format] !== undefined && quality !== null
+      ? [[format, quality]]
+      : [];
+  });
+  return Object.fromEntries(entries);
+}
+
 export function defaultExportForm(): ExportForm {
   return {
     format: 'jpeg',
     quality: 90,
+    qualities: {},
     includeExif: true,
     bitDepth: '8',
     pngCompression: 'default',
@@ -200,14 +236,11 @@ export function restoreExportForm(
 ): ExportForm {
   const form = defaultExportForm();
   if (!stored) return form;
-  const quality = stored.quality;
   const sharpenPpi = stored.sharpenPpi;
   return {
     format: pickOption(stored.format, FORMATS, form.format),
-    quality:
-      typeof quality === 'number' && Number.isFinite(quality)
-        ? Math.min(100, Math.max(1, Math.round(quality)))
-        : form.quality,
+    quality: pickQuality(stored.quality) ?? form.quality,
+    qualities: pickQualities(stored.qualities),
     includeExif: pickBoolean(stored.includeExif, form.includeExif),
     bitDepth: pickOption(stored.bitDepth, BIT_DEPTHS, form.bitDepth),
     pngCompression: pickOption(stored.pngCompression, PNG_COMPRESSIONS, form.pngCompression),

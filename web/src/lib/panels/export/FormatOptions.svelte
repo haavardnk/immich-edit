@@ -4,6 +4,7 @@
   import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
   import {
     BIT_DEPTHS,
+    changeFormat,
     COLOR_SPACES,
     FORMATS,
     PNG_COMPRESSIONS,
@@ -34,7 +35,7 @@
     class="editor-compact-select editor-compact-field"
     options={FORMATS}
     value={form.format}
-    onChange={(v) => (form.format = v)}
+    onChange={(v) => changeFormat(form, v)}
   />
 </Field>
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   baseOptions,
+  changeFormat,
   defaultExportForm,
   formatLabel,
   formInvalid,
@@ -8,6 +9,7 @@ import {
   restoreExportForm,
   type ExportForm
 } from './settings';
+import type { ExportFormat } from '$lib/api/export';
 
 function form(patch: Partial<ExportForm> = {}): ExportForm {
   return { ...defaultExportForm(), ...patch };
@@ -18,6 +20,7 @@ describe('restoreExportForm', () => {
     const saved = form({
       format: 'avif',
       quality: 70,
+      qualities: { jpeg: 95, avif: 70 },
       albumIds: ['al'],
       filenameTemplate: '{date}_{name}',
       resizeMode: 'dimensions',
@@ -70,6 +73,7 @@ describe('restoreExportForm', () => {
     const restored = restoreExportForm({
       format: 'bmp',
       quality: 400,
+      qualities: { jpeg: 250, png: 50, bmp: 40, webp: 'high', avif: 12.4 },
       bitDepth: '12',
       includeExif: 'yes',
       albumIds: ['al', 3],
@@ -81,7 +85,13 @@ describe('restoreExportForm', () => {
       watermarkInset: -4
     });
     expect(restored).toEqual(
-      form({ quality: 100, albumIds: ['al'], watermarkSize: 100, watermarkInset: 0 })
+      form({
+        quality: 100,
+        qualities: { jpeg: 100, avif: 12 },
+        albumIds: ['al'],
+        watermarkSize: 100,
+        watermarkInset: 0
+      })
     );
   });
 });
@@ -184,5 +194,32 @@ describe('formatLabel', () => {
     ['jxl', 'JPEG XL']
   ] as const)('labels %s as %s', (format, label) => {
     expect(formatLabel(format)).toBe(label);
+  });
+});
+
+describe('changeFormat', () => {
+  it.each<[string, number, ExportFormat[], number]>([
+    ['starts avif at its default', 90, ['avif'], 60],
+    ['starts heic at its default', 90, ['avif', 'heic'], 65],
+    ['gives webp its default after a hand-set jpeg', 95, ['png', 'webp'], 85],
+    ['gives avif its default after a hand-set jpeg', 95, ['avif'], 60],
+    ['brings a hand-set jpeg back', 95, ['avif', 'jpeg'], 95],
+    ['brings a hand-set jpeg back through png', 95, ['png', 'webp', 'jpeg'], 95],
+    ['leaves quality alone on png', 95, ['png'], 95]
+  ])('%s', (_name, jpegQuality, path, want) => {
+    const f = form({ format: 'jpeg', quality: jpegQuality });
+    for (const next of path) changeFormat(f, next);
+    expect(f.format).toBe(path.at(-1));
+    expect(f.quality).toBe(want);
+  });
+
+  it('remembers a quality set on the new format', () => {
+    const f = form();
+    changeFormat(f, 'avif');
+    f.quality = 45;
+    changeFormat(f, 'jpeg');
+    changeFormat(f, 'avif');
+    expect(f.quality).toBe(45);
+    expect(f.qualities).toEqual({ jpeg: 90, avif: 45 });
   });
 });
