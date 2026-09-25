@@ -160,7 +160,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | sRGB and Display P3 soft proof | ✓ Yes | Optional gamut warning overlay |
 | Printer-profile soft proof and rendering intents | ✗ No | Soft proof is limited to sRGB and Display P3 |
 | Safe EXIF preservation | ✓ Yes | Optional; embedded previews and image-strip tags are removed, and JPEG EXIF is trimmed to fit 64 KB |
-| Selective metadata or GPS stripping | ✗ No | EXIF is all or none |
+| Selective metadata or GPS stripping | ✓ Yes | All, all but location, or none |
 | Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
 | Output sharpening for screen or print | ✓ Yes | Screen, matte or glossy paper at low, standard or high, applied after the resize; paper uses the print resolution |
 | Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |

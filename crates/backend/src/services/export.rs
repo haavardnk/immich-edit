@@ -4,6 +4,7 @@ use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::OutputFormat;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
@@ -142,8 +143,15 @@ pub async fn render_export(
             .map_err(AppError::from)?;
 
         let mut bytes = rendered.bytes;
-        if params.include_exif
-            && let Some(exif) = frame.exif.as_ref()
+        let exif = match params.metadata() {
+            MetadataOpt::All => frame.exif.as_ref().map(Cow::Borrowed),
+            MetadataOpt::NoLocation => frame
+                .exif
+                .as_ref()
+                .map(|m| Cow::Owned(raw_pipeline::exif::without_location(m))),
+            MetadataOpt::None => None,
+        };
+        if let Some(exif) = exif.as_deref()
             && let Err(e) =
                 raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
         {
@@ -293,7 +301,7 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "edits": body.edits.clamped(),
         "format": format!("{:?}", body.params.format),
         "quality": body.params.quality,
-        "include_exif": body.params.include_exif,
+        "metadata": format!("{:?}", body.params.metadata()),
         "bit_depth": format!("{:?}", body.params.bit_depth),
         "png_compression": format!("{:?}", body.params.png_compression),
         "tiff_compression": format!("{:?}", body.params.tiff_compression),

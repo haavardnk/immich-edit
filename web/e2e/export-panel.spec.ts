@@ -135,6 +135,35 @@ test('a download carries the resize settings', async ({ page }) => {
   await expect(page.getByText('3000 × 2000 px')).toBeVisible();
 });
 
+test('a download carries the metadata choice', async ({ page }) => {
+  const sent: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    onExport: (route) => {
+      const request = route.request();
+      const query = Object.fromEntries(new URL(request.url()).searchParams);
+      sent.push(
+        request.method() === 'POST' ? (request.postDataJSON() as Record<string, unknown>) : query
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"' },
+        body: JPEG_BLOB
+      });
+    }
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Metadata' }).click();
+  await page.getByRole('option', { name: 'All but location' }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /Export JPEG/ }).click();
+  await downloadPromise;
+  expect(sent[0]?.metadata).toBe('no-location');
+  expect(sent[0]).not.toHaveProperty('include_exif');
+});
+
 test('a download carries the output sharpening settings', async ({ page }) => {
   const sent: Array<Record<string, unknown>> = [];
   await installMocks(page, {

@@ -32,9 +32,9 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Quality** | JPEG, AVIF, HEIC, lossy WebP | 1 to 100. Each format keeps its own quality: 90 for JPEG, 85 for WebP, 65 for HEIC and 60 for AVIF until you change it, and switching back to a format brings back the value you last used there |
 | **Bit depth** | PNG, TIFF, JPEG XL | **16-bit** keeps smooth gradients through later editing elsewhere |
 | **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
-| **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
+| **Lossless** | WebP | Forced on while **Metadata** keeps anything |
 | **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
-| **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out. In a JPEG, EXIF over 64 KB loses maker notes and user comments first, then everything but capture, copyright and location; other formats keep it all |
+| **Metadata** | Always | **All** copies camera, lens, date and location. **All but location** drops the GPS position, for sharing without saying where. **None** writes no EXIF. Embedded previews are always left out. In a JPEG, EXIF over 64 KB loses maker notes and user comments first, then everything but capture, copyright and location; other formats keep it all |
 
 [Features](features.md#export-color-and-interoperability) lists what is and is not supported.
 [Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format

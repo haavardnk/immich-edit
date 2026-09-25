@@ -30,6 +30,7 @@ import type {
   BitDepthOpt,
   ColorSpaceOpt,
   ExportFormat,
+  ExportMetadata,
   ExportOptions,
   ImmichExportOptions,
   PngCompressionOpt,
@@ -43,7 +44,7 @@ export interface ExportForm {
   format: ExportFormat;
   quality: number;
   qualities: Partial<Record<ExportFormat, number>>;
-  includeExif: boolean;
+  metadata: ExportMetadata;
   bitDepth: BitDepthOpt;
   pngCompression: PngCompressionOpt;
   tiffCompression: TiffCompressionOpt;
@@ -91,6 +92,12 @@ export const COLOR_SPACES: Option<ColorSpaceOpt>[] = [
   { value: 'displayp3', label: 'Display P3' }
 ];
 
+export const METADATA_OPTIONS: Option<ExportMetadata>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'no-location', label: 'All but location' },
+  { value: 'none', label: 'None' }
+];
+
 export const BIT_DEPTHS: Option<BitDepthOpt>[] = [
   { value: '8', label: '8-bit' },
   { value: '16', label: '16-bit' }
@@ -136,6 +143,17 @@ function pickOption<T extends string>(value: unknown, options: Option<T>[], fall
 
 function pickBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function pickMetadata(
+  value: unknown,
+  legacyInclude: unknown,
+  fallback: ExportMetadata
+): ExportMetadata {
+  const picked = METADATA_OPTIONS.find((o) => o.value === value)?.value;
+  if (picked) return picked;
+  if (typeof legacyInclude === 'boolean') return legacyInclude ? 'all' : 'none';
+  return fallback;
 }
 
 function pickIds(value: unknown): string[] {
@@ -202,7 +220,7 @@ export function defaultExportForm(): ExportForm {
     format: 'jpeg',
     quality: 90,
     qualities: {},
-    includeExif: true,
+    metadata: 'all',
     bitDepth: '8',
     pngCompression: 'default',
     tiffCompression: 'lzw',
@@ -232,7 +250,12 @@ export function defaultExportForm(): ExportForm {
 }
 
 export function restoreExportForm(
-  stored: (Partial<Record<keyof ExportForm, unknown>> & { filenameSuffix?: unknown }) | undefined
+  stored:
+    | (Partial<Record<keyof ExportForm, unknown>> & {
+        filenameSuffix?: unknown;
+        includeExif?: unknown;
+      })
+    | undefined
 ): ExportForm {
   const form = defaultExportForm();
   if (!stored) return form;
@@ -241,7 +264,7 @@ export function restoreExportForm(
     format: pickOption(stored.format, FORMATS, form.format),
     quality: pickQuality(stored.quality) ?? form.quality,
     qualities: pickQualities(stored.qualities),
-    includeExif: pickBoolean(stored.includeExif, form.includeExif),
+    metadata: pickMetadata(stored.metadata, stored.includeExif, form.metadata),
     bitDepth: pickOption(stored.bitDepth, BIT_DEPTHS, form.bitDepth),
     pngCompression: pickOption(stored.pngCompression, PNG_COMPRESSIONS, form.pngCompression),
     tiffCompression: pickOption(stored.tiffCompression, TIFF_COMPRESSIONS, form.tiffCompression),
@@ -323,11 +346,11 @@ export function baseOptions(f: ExportForm): ExportOptions {
   return {
     format: f.format,
     quality: f.quality,
-    includeExif: f.includeExif,
+    metadata: f.metadata,
     bitDepth: f.bitDepth,
     pngCompression: f.pngCompression,
     tiffCompression: f.tiffCompression,
-    lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
+    lossless: f.format === 'webp' ? f.lossless || f.metadata !== 'none' : f.lossless,
     colorSpace: f.colorSpace,
     filenameTemplate: f.filenameTemplate,
     resize: formResize(f),
