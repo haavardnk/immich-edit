@@ -108,6 +108,15 @@ test('shift+f toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
+test('the loupe toolbar enters fullscreen', async ({ page }) => {
+  await openLoupe(page);
+
+  await page.getByRole('button', { name: /^Fullscreen/ }).click();
+
+  await expect(page.getByRole('button', { name: /^Exit fullscreen/ })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toHaveCount(0);
+});
+
 test('zoom cycles through detected faces before returning to fit', async ({ page }) => {
   await openLoupe(page, {
     faces: [
