@@ -118,6 +118,20 @@ test('the single loupe shows its position in the set', async ({ page }) => {
   await expect(rail.getByText('2 of 2', { exact: true })).toBeVisible();
 });
 
+test('the shortcuts dialog lists the loupe gestures', async ({ page }) => {
+  await openLoupe(page);
+
+  await page.keyboard.press('?');
+
+  for (const label of [
+    'Zoom in at the pointer, or back to fit when zoomed',
+    'Pan a zoomed photo',
+    'Add or remove a compare pane'
+  ]) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
+});
+
 test('shift+t hides the loupe filmstrip', async ({ page }) => {
   await openLoupe(page);
   await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();

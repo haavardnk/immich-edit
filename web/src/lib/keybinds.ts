@@ -276,6 +276,40 @@ export const KEYBINDS = [
   },
 
   {
+    id: 'loupeClickZoom',
+    keys: [],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe gestures',
+    label: 'Zoom in at the pointer, or back to fit when zoomed',
+    display: 'Click the photo'
+  },
+  {
+    id: 'loupeDragPan',
+    keys: [],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe gestures',
+    label: 'Pan a zoomed photo',
+    display: 'Drag'
+  },
+  {
+    id: 'paneSoloView',
+    keys: [],
+    contexts: ['compare', 'survey'],
+    group: 'Loupe gestures',
+    label: 'Zoom or pan only the focused pane while zoom and pan are synced',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + click or drag`
+  },
+  {
+    id: 'stripTogglePane',
+    keys: [],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe gestures',
+    label: 'Add or remove a compare pane',
+    display: (mac: boolean) =>
+      `${keyLabel('Shift', mac)} or ${keyLabel('Mod', mac)} + click a filmstrip thumbnail`
+  },
+
+  {
     id: 'editorNav',
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['editor'],
