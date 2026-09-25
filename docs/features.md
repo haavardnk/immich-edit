@@ -104,7 +104,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 
 | Capability | Available | Notes |
 | --- | :---: | --- |
-| Linear, radial, brush, and polygon masks | ✓ Yes | Non-destructive local adjustments |
+| Linear, radial, brush, and polygon masks | ✓ Yes | Non-destructive local adjustments; radial masks rotate |
 | Luminance and color range masks | ✓ Yes | Eyedropper and softness controls |
 | Subject, background, people, sky, depth, and scene masks | ✓ Yes | Requires admin-installed models |
 | Named-person or face-aware selection | ✗ No | Immich people data is not used for masks |

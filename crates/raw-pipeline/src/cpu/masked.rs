@@ -4,7 +4,7 @@ mod weight;
 #[cfg(test)]
 mod tests;
 
-use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer};
+use crate::edits::{Edits, MaskComponentKind, MaskComponentMode, MaskLayer, Vec2f};
 use crate::mask_raster::{MaskRaster, RasterMap};
 use std::sync::Arc;
 use weight::display_srgb_to_oklab;
@@ -22,7 +22,7 @@ pub enum ComponentKindEval {
     },
     Radial {
         center: (f32, f32),
-        inv_radius: (f32, f32),
+        axes: [f32; 4],
         feather: f32,
     },
     Brush {
@@ -60,15 +60,27 @@ pub struct LayerEval {
     pub components: Vec<ComponentEval>,
 }
 
-pub fn build_layer_evals(layers: &[MaskLayer], rasters: &RasterMap) -> Vec<LayerEval> {
+pub fn build_layer_evals(layers: &[MaskLayer], rasters: &RasterMap, aspect: f32) -> Vec<LayerEval> {
     layers
         .iter()
         .filter(|l| l.is_effective())
-        .map(|l| build_layer_eval(l, rasters))
+        .map(|l| build_layer_eval(l, rasters, aspect))
         .collect()
 }
 
-pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
+fn radial_axes(radius_xy: Vec2f, angle: f32, aspect: f32) -> [f32; 4] {
+    let inv = |r: f32| if r.abs() < 1e-6 { 0.0 } else { 1.0 / r };
+    let ix = inv(radius_xy.x);
+    let iy = inv(radius_xy.y);
+    if angle == 0.0 {
+        return [ix, 0.0, 0.0, iy];
+    }
+    let a = aspect.max(1e-6);
+    let (sin, cos) = angle.to_radians().sin_cos();
+    [cos * ix, sin * ix / a, -a * sin * iy, cos * iy]
+}
+
+pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap, aspect: f32) -> LayerEval {
     let components: Vec<ComponentEval> = layer
         .components
         .iter()
@@ -90,23 +102,12 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap) -> LayerEval {
                     center,
                     radius_xy,
                     feather,
-                } => {
-                    let ix = if radius_xy.x.abs() < 1e-6 {
-                        0.0
-                    } else {
-                        1.0 / radius_xy.x
-                    };
-                    let iy = if radius_xy.y.abs() < 1e-6 {
-                        0.0
-                    } else {
-                        1.0 / radius_xy.y
-                    };
-                    ComponentKindEval::Radial {
-                        center: (center.x, center.y),
-                        inv_radius: (ix, iy),
-                        feather: feather.clamp(0.0, 1.0),
-                    }
-                }
+                    angle,
+                } => ComponentKindEval::Radial {
+                    center: (center.x, center.y),
+                    axes: radial_axes(*radius_xy, *angle, aspect),
+                    feather: feather.clamp(0.0, 1.0),
+                },
                 MaskComponentKind::Brush { raster_id } => ComponentKindEval::Brush {
                     raster_id: raster_id.clone(),
                     raster: rasters.get(raster_id).cloned(),

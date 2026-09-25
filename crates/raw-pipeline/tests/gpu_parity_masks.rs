@@ -117,6 +117,7 @@ fn gpu_masks_match_cpu_within_tolerance() {
                 center: Vec2f { x: 0.25, y: 0.5 },
                 radius_xy: Vec2f { x: 0.2, y: 0.2 },
                 feather: 0.3,
+                angle: 0.0,
             },
             source: MaskSource::Manual,
             generated: None,
@@ -143,6 +144,47 @@ fn gpu_masks_match_cpu_within_tolerance() {
             },
         );
     }
+}
+
+#[test]
+fn gpu_rotated_radial_matches_cpu_on_a_wide_frame() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let radial = MaskComponent {
+        id: "r1".into(),
+        enabled: true,
+        mode: MaskComponentMode::Add,
+        invert: false,
+        kind: MaskComponentKind::Radial {
+            center: Vec2f { x: 0.5, y: 0.5 },
+            radius_xy: Vec2f { x: 0.35, y: 0.12 },
+            feather: 0.3,
+            angle: 35.0,
+        },
+        source: MaskSource::Manual,
+        generated: None,
+    };
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "rotated",
+            frame: &frame,
+            opts: &opts,
+            components: vec![radial],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.2),
+                saturation: Some(30.0),
+                ..Default::default()
+            },
+            invert: false,
+            fast_tolerance: 0.07,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
 }
 
 #[test]

@@ -23,6 +23,9 @@
   const rect = imageRect(() => img);
 
   const view = $derived(viewTransform(editor.edits, editor.meta, editor.lensView));
+  const aspect = $derived(
+    editor.meta ? editor.meta.source_w / Math.max(editor.meta.source_h, 1) : 1
+  );
 
   const active = $derived(
     editor.activeLayerId
@@ -112,7 +115,7 @@
     if (!comp) return;
     const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const n = fromPx(e.clientX - r.left, e.clientY - r.top);
-    const next = draggedKind(comp.kind, current.kind, n);
+    const next = draggedKind(comp.kind, current.kind, n, { aspect });
     if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
   }
 
@@ -201,6 +204,7 @@
             color={active.color}
             {rect}
             {toPx}
+            {aspect}
             onSelect={(e) => selectOnly(e, comp.id)}
             onDrag={(e, kind) => startDrag(e, comp.id, kind)}
           />

@@ -157,13 +157,11 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
         let half_f = 0.5 * feather;
         raw = smoothstep_calc(0.5 - half_f, 0.5 + half_f, t);
     } else if (kind == 1u) {
-        let cx = c.geom_a.x;
-        let cy = c.geom_a.y;
-        let inv_rx = c.geom_a.z;
-        let inv_ry = c.geom_a.w;
+        let du = u - c.geom_a.x;
+        let dv = v - c.geom_a.y;
         let feather = clamp(c.geom_b.y, 0.0, 1.0);
-        let ddx = (u - cx) * inv_rx;
-        let ddy = (v - cy) * inv_ry;
+        let ddx = du * c.geom_a.z + dv * c.geom_b.x;
+        let ddy = du * c.geom_b.z + dv * c.geom_a.w;
         let d = sqrt(ddx * ddx + ddy * ddy);
         raw = 1.0 - smoothstep_calc(1.0 - max(feather, 1e-3), 1.0, d);
     } else if (kind == 2u) {

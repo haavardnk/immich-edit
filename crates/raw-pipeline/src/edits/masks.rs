@@ -45,6 +45,8 @@ pub enum MaskComponentKind {
         radius_xy: Vec2f,
         #[serde(default)]
         feather: f32,
+        #[serde(default, skip_serializing_if = "is_zero_angle")]
+        angle: f32,
     },
     Brush {
         raster_id: String,
@@ -285,6 +287,17 @@ pub(super) fn clamp_point(p: Vec2f) -> Vec2f {
     }
 }
 
+fn is_zero_angle(angle: &f32) -> bool {
+    *angle == 0.0
+}
+
+fn normalize_degrees(angle: f32) -> f32 {
+    if !angle.is_finite() {
+        return 0.0;
+    }
+    (angle + 180.0).rem_euclid(360.0) - 180.0
+}
+
 fn clamp_component(c: &MaskComponent) -> MaskComponent {
     let kind = match &c.kind {
         MaskComponentKind::Linear { p0, p1, feather } => MaskComponentKind::Linear {
@@ -296,6 +309,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
             center,
             radius_xy,
             feather,
+            angle,
         } => MaskComponentKind::Radial {
             center: clamp_point(*center),
             radius_xy: Vec2f {
@@ -303,6 +317,7 @@ fn clamp_component(c: &MaskComponent) -> MaskComponent {
                 y: radius_xy.y.clamp(0.0, 2.0),
             },
             feather: feather.clamp(0.0, 1.0),
+            angle: normalize_degrees(*angle),
         },
         MaskComponentKind::Brush { raster_id } => MaskComponentKind::Brush {
             raster_id: raster_id.clone(),

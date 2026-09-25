@@ -387,7 +387,7 @@ export interface Vec2f {
 
 export type MaskComponentKind =
   | { kind: 'linear'; p0: Vec2f; p1: Vec2f; feather: number }
-  | { kind: 'radial'; center: Vec2f; radius_xy: Vec2f; feather: number }
+  | { kind: 'radial'; center: Vec2f; radius_xy: Vec2f; feather: number; angle?: number }
   | { kind: 'brush'; raster_id: string }
   | { kind: 'luma_range'; min: number; max: number; softness: number }
   | {

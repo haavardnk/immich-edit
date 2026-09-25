@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MaskComponentKind } from '$lib/types/edits';
-import { draggedKind, nudgedKind } from './maskDrag';
+import { draggedKind, nudgedKind, radialAxes } from './maskDrag';
 
 const linear: Extract<MaskComponentKind, { kind: 'linear' }> = {
   kind: 'linear',
@@ -121,5 +121,54 @@ describe('nudgedKind', () => {
 
   it('leaves shapes without a position alone', () => {
     expect(nudgedKind({ kind: 'brush', raster_id: 'r' }, 1, 0, toPx, fromPx)).toBeNull();
+  });
+});
+
+describe('rotated radials', () => {
+  const ellipse: Extract<MaskComponentKind, { kind: 'radial' }> = {
+    kind: 'radial',
+    center: { x: 0.5, y: 0.5 },
+    radius_xy: { x: 0.2, y: 0.1 },
+    feather: 0.2
+  };
+
+  it.each([
+    [{ x: 0.5, y: 0.8 }, 1, 90],
+    [{ x: 0.2, y: 0.5 }, 1, -180],
+    [{ x: 0.7, y: 0.7 }, 2, (Math.atan2(0.2, 0.4) * 180) / Math.PI]
+  ])('the rotation grip points the x axis at %o on aspect %s', (at, aspect, want) => {
+    const next = draggedKind(ellipse, { kind: 'radial-rotate' }, at, { aspect });
+    if (next?.kind !== 'radial') throw new Error('not radial');
+    expect(next.angle).toBeCloseTo(want, 6);
+  });
+
+  it('leaves the angle out when the grip lines up with the frame again', () => {
+    const tilted = { ...ellipse, angle: 30 };
+    const next = draggedKind(
+      tilted,
+      { kind: 'radial-rotate' },
+      { x: 0.9, y: 0.5 },
+      { aspect: 1.5 }
+    );
+    expect(next).toEqual(ellipse);
+  });
+
+  it('measures the x radius along the rotated axis in pixels', () => {
+    const tilted = { ...ellipse, angle: 90 };
+    const next = draggedKind(
+      tilted,
+      { kind: 'radial-rx', sign: 1 },
+      { x: 0.5, y: 0.8 },
+      { aspect: 2 }
+    );
+    if (next?.kind !== 'radial') throw new Error('not radial');
+    expect(next.radius_xy.x).toBeCloseTo(0.15, 6);
+    expect(next.radius_xy.y).toBe(0.1);
+  });
+
+  it('places the rotated axes in uv so they are perpendicular in pixels', () => {
+    const axes = radialAxes({ ...ellipse, angle: 30 }, 1.5);
+    expect(axes.x.x * 1.5 * axes.y.x * 1.5 + axes.x.y * axes.y.y).toBeCloseTo(0, 9);
+    expect(Math.hypot(axes.x.x * 1.5, axes.x.y)).toBeCloseTo(0.2 * 1.5, 9);
   });
 });

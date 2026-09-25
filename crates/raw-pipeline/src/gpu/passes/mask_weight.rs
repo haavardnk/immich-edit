@@ -132,12 +132,12 @@ pub fn pack_layer_eval(
             ),
             crate::cpu::masked::ComponentKindEval::Radial {
                 center,
-                inv_radius,
+                axes,
                 feather,
             } => (
                 1u32,
-                [center.0, center.1, inv_radius.0, inv_radius.1],
-                [0.0, *feather, 0.0, 0.0],
+                [center.0, center.1, axes[0], axes[3]],
+                [axes[1], *feather, axes[2], 0.0],
             ),
             crate::cpu::masked::ComponentKindEval::Brush { raster_id, raster } => {
                 if raster.is_none() {
