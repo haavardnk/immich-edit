@@ -112,6 +112,7 @@ pub struct JobItemRecord {
     pub result: Option<serde_json::Value>,
     pub idempotency_key: Option<String>,
     pub attempts: i64,
+    pub position: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -197,15 +198,16 @@ impl JobStore {
 
         self.insert_credential(&mut tx, id, cred, auth_kind).await?;
 
-        for item in items {
+        for (position, item) in (1_i64..).zip(items) {
             sqlx::query(
-                "INSERT INTO job_items (id, job_id, asset_id, status, idempotency_key, attempts, created_at, updated_at) \
-                 VALUES (?, ?, ?, 'pending', ?, 0, ?, ?)",
+                "INSERT INTO job_items (id, job_id, asset_id, status, idempotency_key, attempts, position, created_at, updated_at) \
+                 VALUES (?, ?, ?, 'pending', ?, 0, ?, ?, ?)",
             )
             .bind(Uuid::new_v4().to_string())
             .bind(id.to_string())
             .bind(&item.asset_id)
             .bind(item.idempotency_key.as_deref())
+            .bind(position)
             .bind(&now)
             .bind(&now)
             .execute(&mut *tx)
@@ -247,8 +249,8 @@ impl JobStore {
 
     pub async fn list_items(&self, job_id: Uuid) -> Result<Vec<JobItemRecord>, JobStoreError> {
         let rows = sqlx::query(
-            "SELECT id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, created_at, updated_at \
-             FROM job_items WHERE job_id = ? ORDER BY created_at ASC",
+            "SELECT id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, created_at, updated_at \
+             FROM job_items WHERE job_id = ? ORDER BY position ASC, created_at ASC",
         )
         .bind(job_id.to_string())
         .fetch_all(&self.pool)
@@ -267,9 +269,9 @@ impl JobStore {
                  WHERE ji.status = 'pending' \
                    AND j.status IN ('pending', 'running') \
                    AND j.cancelled_at IS NULL \
-                 ORDER BY ji.created_at ASC LIMIT 1 \
+                 ORDER BY ji.created_at ASC, ji.position ASC LIMIT 1 \
              ) \
-             RETURNING id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, created_at, updated_at",
+             RETURNING id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, created_at, updated_at",
         )
         .bind(&now)
         .fetch_optional(&self.pool)
@@ -418,6 +420,30 @@ mod tests {
         assert_eq!(done.status, JobStatus::Completed);
         assert_eq!(done.completed, 1);
         assert_eq!(done.failed, 1);
+    }
+
+    #[tokio::test]
+    async fn items_keep_their_selection_order() {
+        let store = store().await;
+        let job = create(
+            &store,
+            Uuid::nil(),
+            "test",
+            &json!(null),
+            &json!(null),
+            &items(&["c", "a", "b"]),
+        )
+        .await;
+        let listed: Vec<(String, i64)> = store
+            .list_items(job.id)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|item| (item.asset_id, item.position))
+            .collect();
+        assert_eq!(listed, [("c".into(), 1), ("a".into(), 2), ("b".into(), 3)]);
+        let claimed = store.claim_next_item().await.unwrap().unwrap();
+        assert_eq!((claimed.asset_id.as_str(), claimed.position), ("c", 1));
     }
 
     #[tokio::test]
