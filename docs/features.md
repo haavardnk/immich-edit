@@ -1,14 +1,15 @@
 ---
 layout: default
 title: Features
-nav_order: 2
+parent: Use the editor
+nav_order: 5
 permalink: /features/
 ---
 
 # Features
 
 This matrix tracks `main`, so it can run slightly ahead of the newest release. `✗ No` does not
-imply planned support.
+imply planned support. [Use the editor](use.md) explains how to use what is here.
 
 ## Immich library and culling
 
@@ -24,9 +25,9 @@ imply planned support.
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
 | Ratings, favorites, tags, and reject marks | ✓ Yes | Writes metadata to Immich after consent |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
-| Multi-select and batch actions | ✓ Yes | **Select all** shows the selected count growing as each result page loads, then selects concrete photos, so metadata, culling, tags, virtual copies, presets, and exports work across the full result set |
+| Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
-| Face-aware zoom | ✓ Yes | `Z` or `Space` steps through the faces Immich detected, largest first, then returns to fit; falls back to the sharpest region when no faces exist. It zooms to whatever level you last picked, 1:1 until you change it |
+| Face-aware zoom | ✓ Yes | Steps through the faces Immich detected, then the sharpest region when there are none; see [look at photos](cull.md#look-at-photos) |
 | Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen |
 | Fullscreen viewing | ✓ Yes | `Shift+F` hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
@@ -130,12 +131,13 @@ imply planned support.
 | Presets | ✓ Yes | Save, apply, and batch apply |
 | Batch editing and export | ✓ Yes | Persistent background jobs |
 | Before and after view | ✓ Yes | Split view and hold-original control |
-| True 1:1 viewing | ✓ Yes | Source-resolution server-rendered tiles |
+| Per-section bypass and reset | ✓ Yes | Hold a modified section header to see the image without that section; a panel's modified dot resets the whole panel |
+| True 1:1 viewing | ✓ Yes | Source-resolution tiles, rendered in the browser when browser previews are active and on the server otherwise |
 | Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads; a bookmarked or pasted editor link gets its timeline neighbours |
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
-| Waveform, RGB parade, and vectorscope | ✓ Yes | Server-computed from the preview render, with gain and vectorscope zoom |
+| Waveform, RGB parade, and vectorscope | ✓ Yes | Computed from the rendered preview, with gain and vectorscope zoom; the Scopes section can be pinned open and resized |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |
 | Focus-stack merge | ✗ No | — |
 | Tethered capture | ✗ No | The library comes from Immich |
@@ -175,9 +177,12 @@ imply planned support.
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Multiple Immich users | ✓ Yes | Local edits and jobs are isolated by user |
+| OAuth sign-in | ✓ Yes | Through Immich's own OAuth settings; see [OAuth sign-in](oauth.md) |
+| Sign-in without an Immich account | ✗ No | Every user is an Immich user |
 | Docker on Linux amd64 and arm64 | ✓ Yes | Multi-architecture image |
-| Vulkan GPU rendering on Linux | ✓ Yes | Requires GPU passthrough |
+| Vulkan GPU rendering on Linux | ✓ Yes | Requires [GPU passthrough](gpu-passthrough.md) |
 | Metal GPU rendering on macOS | ✓ Yes | Native process only |
 | CPU rendering fallback | ✓ Yes | Available on every supported deployment |
+| Browser preview rendering | ✓ Yes | Browsers with WebGPU render editor previews locally, so most slider moves send nothing to the server; other browsers, and any browser renderer failure, use server previews. A plain `http://` LAN address needs [one extra step](rendering.md#browser-previews-on-a-local-network) |
 | Local AI inference | ✓ Yes | Models run on the server; no cloud service |
 | Full mobile editor | ✗ No | The editor requires a desktop-width viewport |

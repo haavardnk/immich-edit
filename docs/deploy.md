@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Deployment
-nav_order: 8
+parent: Run the server
+nav_order: 1
 permalink: /deploy/
 ---
 
@@ -16,8 +17,8 @@ runs as UID and GID `10001`.
 
 [`haavardnk/immich-edit`](https://hub.docker.com/r/haavardnk/immich-edit) publishes:
 
-- Exact semantic versions such as `0.4.0`
-- Moving minor and major tags such as `0.4` and `0`
+- Exact semantic versions such as `0.5.1`
+- Moving minor and major tags such as `0.5` and `0`
 - `latest` for the newest stable release
 - `edge` for the newest release, including prereleases
 
@@ -27,10 +28,14 @@ Every release image supports Linux `amd64` and `arm64`.
 
 After first-run setup, keep immich-edit on a private network or loopback address and terminate TLS
 with Caddy, nginx, Traefik, or another reverse proxy. Immich authentication is built in; no separate
-authentication proxy is required.
+authentication proxy is required. TLS also turns on browser previews: browsers only offer WebGPU to
+HTTPS pages and `localhost`. See
+[browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
 
-Forward `Host`, `X-Forwarded-For`, and `X-Forwarded-Proto`. The backend trusts forwarding headers
-only from loopback and private peers. `X-Forwarded-Proto: https` makes session cookies secure.
+Forward `Host`, `X-Forwarded-For`, and `X-Forwarded-Proto`. The backend believes forwarding
+headers only from the peers in `TRUSTED_PROXIES`, which defaults to loopback and private ranges;
+see [trusted proxies](configuration.md#trusted-proxies). `X-Forwarded-Proto: https` makes session
+cookies secure.
 
 ### Caddy
 
@@ -65,57 +70,10 @@ server {
 
 Keep `client_max_body_size` above `MAX_BODY_MB` when large originals pass through the proxy.
 
-## GPU passthrough
+## GPU
 
-The image contains Vulkan and Mesa drivers. The host still provides the device and, for NVIDIA,
-the vendor runtime.
-
-### AMD or Intel on Linux
-
-Add the DRI device and its groups:
-
-```yaml
-services:
-  immich-edit:
-    devices:
-      - /dev/dri:/dev/dri
-    group_add:
-      - video
-      - render
-```
-
-On a host without named `video` or `render` groups, use the numeric group ID that owns
-`/dev/dri/renderD128`:
-
-```shell
-stat -c '%g' /dev/dri/renderD128
-```
-
-### NVIDIA on Linux
-
-Install
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
-then add:
-
-```yaml
-services:
-  immich-edit:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-```
-
-### macOS
-
-Docker cannot pass Metal through its Linux virtual machine. The container uses CPU rendering. Run
-the binary natively to use Metal.
-
-Open **Settings** > **Diagnostics** after startup to confirm the active renderer and adapter. Use
-`IMMICH_EDIT_RENDERER=cpu` to force CPU or `gpu` to request GPU and log a failure before fallback.
+The container renders on the CPU until a GPU is passed through. See
+[GPU passthrough](gpu-passthrough.md) for AMD, Intel and NVIDIA.
 
 ## Health checks
 

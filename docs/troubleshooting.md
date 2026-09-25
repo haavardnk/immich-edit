@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Troubleshooting
-nav_order: 12
+nav_order: 5
 permalink: /troubleshooting/
 ---
 
@@ -19,8 +19,7 @@ Fix the bind-mount ownership or use a named volume.
 
 ### A removed setting is reported
 
-v0.4.0 refuses `CACHE_DIR` and `SEGMENT_*`. Replace them with `DATA_DIR` and `ML_*`. Remove old
-Immich URL or shared credential variables and configure the connection in the browser.
+The error names the replacement. See [removed settings](configuration.md#removed-settings).
 
 ### SQLite cannot open the database
 
@@ -51,8 +50,11 @@ address. Use the normal hostname, loopback address, or private network address.
 
 ### A valid user cannot sign in
 
-An OAuth-only Immich account has no password. Use the OAuth button, or create an Immich API key and
-use the API-key option. An administrator can also disable local access under **Settings**.
+`Access for this account is disabled.` means an administrator turned the account off under
+**Settings** > **App settings** > **Users**.
+
+An OAuth-only Immich account has no password. Use the OAuth button, or create an Immich API key
+and choose **Use an Immich API key instead**.
 
 ### `rate_limited`
 
@@ -68,22 +70,29 @@ container also clears them.
 
 ### The identity provider reports a redirect URI mismatch
 
-immich-edit returns from the provider to the page that started the flow. Register
-`https://<edit-host>/login` and `https://<edit-host>/setup` as redirect URIs in Immich and with the
-provider, using the address browsers actually use. A mismatch in scheme, port, or trailing path is
-enough to fail.
+The provider returns to the immich-edit page that started the sign-in, so it must know that
+address. Register `/login` and `/setup` under the exact address browsers use, with the client
+application Immich uses. A different scheme, port, or trailing path is enough to fail. Immich
+itself has no list to update. See
+[which addresses to register](oauth.md#which-addresses-to-register).
+
+### `Single sign-on was declined`
+
+The identity provider refused the sign-in and the message ends with its reason. Check the user's
+access to the client application at the provider, then try Immich's own OAuth login with the same
+account. If that fails too, the problem is in the provider or Immich's OAuth settings.
 
 ### `The sign-in link expired. Start again.`
 
-The flow cookie lives for ten minutes and is bound to one browser. It also breaks when the tab that
-started the flow is not the tab that returns, or when a reverse proxy strips cookies from `/api`.
-Start the sign-in again from the login page.
+The sign-in has to finish within ten minutes in the browser that started it. Starting a second
+sign-in, in any tab, replaces the first. It also fails when a reverse proxy strips cookies from
+`/api`. Start again from the login page.
 
 ### The OAuth button is missing
 
-immich-edit asks the Immich server which methods it offers. When that lookup fails it shows the
-password form alone rather than guessing. Check that the container can reach the Immich URL, then
-reload.
+immich-edit asks the Immich server which sign-in methods it offers and remembers the answer for a
+minute. Reload a minute after enabling OAuth in Immich. When the lookup fails, the login page shows
+the password form alone rather than guessing; check that the container can reach the Immich URL.
 
 ## Immich is unavailable
 
@@ -127,37 +136,44 @@ hardware a large file can take several minutes. Exports are allowed `ORIGINAL_TI
 `EXPORT_TIMEOUT_SECS`; raise both if exports are cut short. A reverse proxy in front of immich-edit
 needs a read timeout at least as long — see [deploy](deploy.md).
 
-## Rendering uses the CPU
+## The server does not use the GPU
 
-Open **Settings** > **Diagnostics** and inspect the active renderer and GPU adapter.
+Open **Settings** > **Diagnostics** and read **GPU adapter** and **GPU type**. **Renderer active**
+reads `gpu` even on the software rasterizer, so it does not settle the question on its own.
 
-- AMD or Intel Docker: pass `/dev/dri` and the group that owns the render node.
-- NVIDIA Docker: install NVIDIA Container Toolkit and add the GPU reservation.
+- **GPU type** reads `software rasterizer`: the container has no GPU. Follow
+  [GPU passthrough](gpu-passthrough.md), then
+  [check that it worked](gpu-passthrough.md#check-that-it-worked).
+- AMD or Intel: pass `/dev/dri` and add the numeric ID of the group that owns the render node.
+  A group name such as `render` does not work inside the container.
+- NVIDIA: set `NVIDIA_DRIVER_CAPABILITIES` to include `graphics`. The toolkit's default gives the
+  container no Vulkan driver.
 - macOS Docker: Metal passthrough is unavailable. Use native execution for GPU rendering.
 - Native macOS: inspect the startup log for the Metal adapter and device errors.
 
 `IMMICH_EDIT_RENDERER=gpu` logs GPU initialization failures, then falls back to CPU.
 
-### Browser previews
+A software rasterizer is not a broken setup. It is the expected result on a host without graphics
+hardware, and it is faster than the built-in CPU renderer at preview sizes; see
+[rendering](rendering.md#the-server).
+
+## Previews do not render in the browser
 
 **Browser renderer** in Diagnostics shows whether this browser draws previews, its GPU adapter, how
-long the renderer took to load, and the last render time. When it reads `server`, the row below
-names the reason: no WebGPU, the setting, or the error that stopped it. Set **Settings** >
-**Preview rendering** to **Server** to rule the browser out; choosing **Browser when available**
-again retries after a failure.
+long the renderer took to load, and the last render time. When **Previews** reads `server`,
+**Reason** says why:
 
-### Diagnostics reports a software rasterizer
+- `browsers only offer WebGPU over HTTPS or on localhost`: the page is served over plain HTTP from
+  another machine. See
+  [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
+- `this browser has no WebGPU`: the browser lacks WebGPU, or has it turned off.
+- `Server rendering is selected`: **Settings** > **Preview rendering** is set to **Server** in this
+  browser.
+- Any other message: the renderer could not start, or it stopped, with the error it reported. The
+  editor uses server previews for the rest of the session.
 
-When no graphics hardware is present, Mesa's llvmpipe (or lavapipe) advertises itself as a Vulkan
-device and runs the shaders on the CPU. The backend uses it, and Diagnostics labels it **GPU type:
-software rasterizer** so the adapter name in the row above is not mistaken for real hardware.
-
-That is expected rather than a broken setup: the Docker image ships Mesa so Intel and AMD
-passthrough works, and Mesa always registers llvmpipe as a fallback. Measured on a 6-core arm64
-container, llvmpipe rendered a 6000x4000 frame faster than the built-in CPU renderer at preview
-sizes — 0.54x the time at 1024 px, 0.72x at 2048 px — and reached parity at 4096 px. Hardware
-acceleration is still much faster than either; a software rasterizer only means the host has no GPU
-to pass through.
+Choosing **Browser when available** again retries after a failure. Set it to **Server** to rule the
+browser out when a preview looks wrong.
 
 ## Previews are slow or time out
 
@@ -169,7 +185,10 @@ outlives its request still finishes and still lands in the cache, so a retry aft
 
 If the first preview times out, press **Retry** in the viewer. If every preview times out:
 
-- Check Diagnostics for the active renderer. A skipped or missing GPU means CPU rendering.
+- Check **GPU adapter** and **GPU type** in Diagnostics. A software rasterizer or the CPU renderer
+  is far slower than a GPU; see [the server does not use the GPU](#the-server-does-not-use-the-gpu).
+- Use browser previews where you can. Slider moves then render in the browser and never wait on
+  the server.
 - Raise `REQUEST_TIMEOUT_SECS` on a slow host with large RAW files.
 - Give the frame cache enough room for the files in use (`RAW_FRAME_CACHE_MB`).
 
@@ -203,8 +222,8 @@ no automatic merge. Keep one tab's changes or reapply them after loading the cur
 
 ## A virtual copy shares metadata
 
-Ratings, favorites, tags, and reject marks belong to the underlying Immich asset and appear on every
-copy. Edits, masks, history, and export jobs belong to one local version.
+That is expected: ratings, favorites, tags, and reject marks belong to the Immich photo. See
+[virtual copies](cull.md#virtual-copies).
 
 ## Mask pixels disappeared
 
@@ -228,12 +247,15 @@ with:
 
 ```text
 RENDER_MAX_CONCURRENCY=1
-THUMB_MAX_CONCURRENCY=1
 RAW_FRAME_CACHE_MB=256
 QUALITY_FRAME_CACHE_MB=256
 GPU_TEXTURE_CACHE_MB=256
 MASK_CACHE_MB=256
 ```
+
+With one render slot, an edited thumbnail or a batch export can make the editor wait for the
+current render to finish. Keep `RENDER_MAX_CONCURRENCY` at `2` or more if that wait matters more
+than memory.
 
 Reducing `PREVIEW_MAX_EDGE` limits image detail and should be a last resort. GPU rendering remains
 the recommended path for large RAW files.

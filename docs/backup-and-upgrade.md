@@ -1,13 +1,20 @@
 ---
 layout: default
 title: Backup and upgrade
-nav_order: 11
+parent: Run the server
+nav_order: 7
 permalink: /backup-and-upgrade/
 ---
 
 # Backup and upgrade
 
-Back up the complete `DATA_DIR`. Docker mounts it at `/data` by default.
+immich-edit keeps everything it owns in one directory, `DATA_DIR`: the database with your edits,
+presets and settings, plus masks, imported profiles and models. Your photos are not in it; they
+stay in Immich and need Immich's own backup.
+
+In the container, `DATA_DIR` is `/data`. With the Compose file from
+[Getting started](getting-started.md), that is the named volume `immich-edit-data`. If you mounted
+a host directory instead, such as `./data:/data`, back up that directory.
 
 ## Durable data
 
@@ -29,22 +36,34 @@ Without it, stored credentials cannot be decrypted.
 
 ## Back up
 
-For the simplest consistent backup:
+For the simplest consistent backup, stop the service and copy the whole directory.
 
-1. Stop the service:
+With a named volume:
+
+1. Find the volume's full name. Compose prefixes it with the project, usually the folder name:
+
+   ```shell
+   docker volume ls --filter name=immich-edit-data
+   ```
+
+   ```text
+   DRIVER    VOLUME NAME
+   local     immich_immich-edit-data
+   ```
+
+1. Stop the service, archive the volume into the current directory, and start it again:
 
    ```shell
    docker compose stop immich-edit
-   ```
-
-1. Copy the complete volume or bind-mounted `DATA_DIR` to backup storage.
-1. Start the service:
-
-   ```shell
+   docker run --rm -v immich_immich-edit-data:/data -v "$PWD":/backup alpine \
+     tar czf /backup/immich-edit-data.tgz -C /data .
    docker compose start immich-edit
    ```
 
-To copy a live database, use SQLite's backup command before copying the remaining files:
+With a host directory, stop the service, copy the directory with `cp -a` or your usual backup tool,
+and start it again.
+
+To copy a live database instead, use SQLite's backup command before copying the remaining files:
 
 ```shell
 sqlite3 /data/immich-edit.db ".backup '/data/immich-edit-backup.db'"
@@ -53,7 +72,14 @@ sqlite3 /data/immich-edit.db ".backup '/data/immich-edit-backup.db'"
 ## Restore
 
 1. Stop immich-edit.
-1. Restore the database, `instance.key`, `dcp/`, `luts/`, and `rasters/` from the same backup.
+1. Restore the database, `instance.key`, `dcp/`, `luts/`, and `rasters/` from the same backup. For
+   the archive above:
+
+   ```shell
+   docker run --rm -v immich_immich-edit-data:/data -v "$PWD":/backup alpine \
+     tar xzf /backup/immich-edit-data.tgz -C /data
+   ```
+
 1. Restore `models/` or reinstall models later.
 1. Confirm the restored files are writable by container UID and GID `10001`.
 1. Start immich-edit and inspect **Settings** > **Diagnostics**.

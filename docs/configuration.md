@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Configuration
-nav_order: 9
+parent: Run the server
+nav_order: 4
 permalink: /configuration/
 ---
 
@@ -23,13 +24,13 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `DATABASE_URL` | `sqlite://DATA_DIR/immich-edit.db?mode=rwc` | SQLite connection URL |
 | `PREVIEW_MAX_EDGE` | `65535` | `256` to `65535`; hard ceiling for preview requests |
 | `RENDER_MAX_CONCURRENCY` | Half the CPU cores, clamped to `2` through `4` | Total concurrent renders: previews, exports, AI mask scene renders and edited thumbnails together; must be nonzero |
-| `THUMB_MAX_CONCURRENCY` | Quarter of the CPU cores, clamped to `2` through `4` | Background renders (edited thumbnails and batch export jobs), capped one below `RENDER_MAX_CONCURRENCY` so the editor always has a slot; must be nonzero |
+| `THUMB_MAX_CONCURRENCY` | Quarter of the CPU cores, clamped to `2` through `4` | Background renders (edited thumbnails and batch export jobs), capped one below `RENDER_MAX_CONCURRENCY` so the editor keeps a slot; with `RENDER_MAX_CONCURRENCY=1` background renders share the only slot; must be nonzero |
 | `RAW_FRAME_CACHE_MB` | `max(RENDER_MAX_CONCURRENCY * 256, 512)` | `64` to `16384`; decoded preview frames in RAM |
 | `QUALITY_FRAME_CACHE_MB` | `512` | `64` to `16384`; decoded quality frames in RAM |
 | `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures plus cached white balance, noise reduction, and capture sharpening results |
 | `MASK_CACHE_MB` | `512` | Disk budget for unreferenced mask rasters; must be nonzero |
 | `EMBEDDING_CACHE_MB` | `2048` | Disk budget for click-model embeddings; must be nonzero |
-| `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu`. A software rasterizer such as llvmpipe is used when no hardware GPU is present, and Diagnostics marks it |
+| `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu` for the server renderer. A software rasterizer such as llvmpipe is used when no hardware GPU is present, and Diagnostics marks it. Browser previews are chosen per browser under **Settings** > **Preview rendering**; see [rendering](rendering.md) |
 | `GPU_TIMESTAMPS` | `false` | `true` records device time per GPU render stage in Diagnostics. Needs an adapter with timestamp queries; others fall back to wall time only |
 | `ML_RUNTIME` | `auto` | `auto`, `gpu`, `cpu`, or `off` |
 | `ML_MAX_EDGE` | `2048` | `256` to `8192`; source edge sent to mask inference |

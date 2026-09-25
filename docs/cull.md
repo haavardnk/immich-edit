@@ -1,0 +1,102 @@
+---
+layout: default
+title: Browse and cull
+parent: Use the editor
+nav_order: 1
+permalink: /cull/
+---
+
+# Browse and cull
+
+immich-edit reads your library straight from Immich. Nothing is imported or copied, so a photo is
+here as soon as Immich has it.
+
+## Find photos
+
+The sidebar has **Photos**, **People**, **Favorites**, **Albums**, **Tags**, **Folders** and
+**Edited**. **Edited** lists the photos you have changed in immich-edit. The search box at the top
+uses Immich's smart search, so a description such as `red car at night` works. When Immich's
+machine learning is down, it falls back to searching filenames.
+
+**Filters** narrows the current view by **Visibility**, **Rating**, **Favorites only**,
+**Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
+between **Timeline**, **Archived** and **Hidden**. The sort button next to it flips between newest
+and oldest first, and each view remembers its own order. **Reset filters and sort** clears both.
+The **S**, **M**, **L** and **XL** buttons set the thumbnail size.
+
+## Look at photos
+
+Clicking a photo opens it in the [editor](edit.md). To look without editing, hover it and press
+**Quick review**, or press `E`. That opens the loupe: one photo at full size, with the filmstrip
+below. Arrow keys move through the photos, `Z` zooms, and `I` opens the info panel.
+
+`Z` zooms to the faces Immich found, largest first, and back to fit after the last one. Without
+faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 until you change
+it. Zoom percentages are percentages of the original, so 100% shows one camera pixel on one screen
+pixel.
+
+## Rate and reject
+
+These keys work in the grid, the loupe, compare, survey and the editor:
+
+| Key | Does |
+| --- | --- |
+| `1` to `5` | Set the rating; the same key again clears it |
+| `0` | Clear the rating |
+| `P` or `F` | Toggle favorite |
+| `X` | Toggle reject |
+| `U` | Clear favorite and reject |
+
+The first time you rate, favorite, tag or reject in a browser, immich-edit asks before it writes to
+Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in Immich, so
+they show up there too. Reject adds the Immich tag `immich-edit/reject`. immich-edit never deletes
+a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or delete them in
+Immich later.
+
+## Choose between similar shots
+
+Select photos first:
+
+- `Ctrl`-click, or `Cmd`-click on macOS, adds or removes one photo.
+- `Shift`-click selects everything between the last selected photo and this one.
+- The circle in a thumbnail's corner also toggles it. Once anything is selected, a plain click
+  toggles too.
+- **Select all**, or `Ctrl+A`, loads and selects every photo in the view.
+
+With two photos selected, press `C` or **Compare selected**. The two sit side by side, and zoom and
+pan move together until you press `Y`. `Shift+←` or `Shift+→` swaps the focused side for the
+previous or next photo, which is the quickest way to hold a winner and step through the rest.
+
+With up to nine selected, press `N` or **Survey selected** to see them all at once. Drop the weaker
+ones with `Backspace` until the keepers are left, or press `Enter` to keep only the focused photo.
+`Esc` goes back to the loupe with the survivors selected.
+
+The loupe's **View mode** button switches between **Single photo**, **Compare** and **Survey** as
+well.
+
+## A culling pass
+
+1. Open the album, folder or day, and turn on **Exclude rejected**.
+1. Press `E` on the first photo. Step through with `→`, pressing `X` on misses and a rating on
+   keepers.
+1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.
+1. Set **Rating** to the lowest rating you want to edit. What is left is your edit list.
+
+## Act on a selection
+
+With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a rating,
+**Clear rating**, **Reject**, **Unreject**, **Tags**, **Create virtual copy**, and
+**Edit and export selected**. The last one pastes edits, applies a preset or exports every selected
+photo in one go; see [export many photos](export.md#export-many-photos).
+
+## Virtual copies
+
+A virtual copy is a second, independent set of edits on the same original, such as a black and
+white version next to the color one. It takes no space in Immich until you export it. Create one
+with **Create virtual copy** or `Ctrl+'`. It shows up next to the original with a `Copy` badge.
+
+Ratings, favorites, tags and reject marks belong to the Immich photo, so every copy shares them.
+Edits, masks, history and exports belong to one copy. Delete a copy from its thumbnail, or from the
+[**Versions**](edit.md#try-variations) panel in the editor.
+
+The full key list is on [keyboard shortcuts](shortcuts.md).
