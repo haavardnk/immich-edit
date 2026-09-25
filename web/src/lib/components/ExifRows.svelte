@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
+  import type { ExifInfo } from '$lib/types/asset';
   import { exifDetailRows } from '$lib/utils/exif';
 
-  const rows = $derived(exifDetailRows(editor.asset?.exifInfo ?? null));
+  let { exif }: { exif: ExifInfo | null } = $props();
+
+  const rows = $derived(exifDetailRows(exif));
 </script>
 
 <div class="flex flex-col gap-1 text-[11px] min-w-56">
