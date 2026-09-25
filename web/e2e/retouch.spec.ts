@@ -154,3 +154,42 @@ test('saved retouch strokes reappear after a reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Delete retouch stroke', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toHaveCount(0);
 });
+
+for (const [name, to, want] of [
+  ['moves it with its source', [0.5, 0.55], [0.5, 0.55]],
+  ['stops the source at the photo edge', [0.95, 0.4], [0.7, 0.4]]
+] as const) {
+  test(`dragging a selected stroke ${name}`, async ({ page }) => {
+    const saves: Array<Record<string, unknown>> = [];
+    await installMocks(page, {
+      previewBody: PNG_64,
+      editRecord: RETOUCH_RECORD,
+      onSave: (body) => saves.push(body)
+    });
+    await gotoAsset(page);
+    await page.getByRole('tab', { name: 'Retouch' }).click();
+    await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toBeVisible();
+    const box = await page.getByLabel('retouch canvas').boundingBox();
+    if (!box) throw new Error('retouch canvas has no bounding box');
+    const at = (u: number, v: number) => [box.x + box.width * u, box.y + box.height * v] as const;
+
+    await page.mouse.click(...at(0.4, 0.4));
+    await page.mouse.move(...at(0.4, 0.4));
+    await page.mouse.down();
+    await page.mouse.move(...at(...to), { steps: 5 });
+    await page.mouse.up();
+
+    type Stroke = { points: Array<{ x: number; y: number }>; source: { x: number; y: number } };
+    const moved = async (): Promise<Stroke | undefined> => {
+      const ops = saves.at(-1)?.manifest as { ops?: { retouch?: { strokes?: Stroke[] } } };
+      return ops?.ops?.retouch?.strokes?.[0];
+    };
+    await expect.poll(async () => (await moved())?.points[0]?.x ?? 0).toBeCloseTo(want[0], 1);
+    const stroke = await moved();
+    const first = stroke?.points[0];
+    if (!stroke || !first) throw new Error('no saved stroke');
+    expect(first.y).toBeCloseTo(want[1], 1);
+    expect(stroke.source.x - first.x).toBeCloseTo(0.3, 5);
+    expect(stroke.source.y - first.y).toBeCloseTo(0, 5);
+  });
+}

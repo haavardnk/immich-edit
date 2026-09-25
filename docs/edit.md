@@ -140,8 +140,10 @@ ones above them, and **Duplicate layer** starts a new mask from an existing one.
 1. Hold `Alt` and click a clean area to set the source.
 1. Paint over the spot. The source follows the brush at the same offset.
 
-Drag a stroke's green circle to move its source, and set **Size**, **Hardness** and **Opacity**
-for the next stroke. `H` and `C` switch between heal and clone.
+Drag a stroke's green circle to move its source. Click a stroke to select it, then drag it to move
+the stroke and its source together, so a stroke that landed a little off does not need repainting.
+The move stops where the stroke or its source would leave the photo.
+Set **Size**, **Hardness** and **Opacity** for the next stroke. `H` and `C` switch between heal and clone.
 
 ## Crop and straighten
 
