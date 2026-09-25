@@ -19,7 +19,8 @@
     mdiKeyboardOutline,
     mdiPencilOutline,
     mdiDotsVertical,
-    mdiViewGridOutline
+    mdiViewGridOutline,
+    mdiCircleHalfFull
   } from '@mdi/js';
 
   type Props = {
@@ -245,6 +246,18 @@
             ui.toggleClipWarn();
             moreOpen = false;
           }}>{hint('Clipping overlay', 'clipWarn')}</Button
+        >
+        <Button
+          size="tiny"
+          variant="ghost"
+          color={ui.greyCanvas ? 'primary' : 'secondary'}
+          class="w-full justify-start"
+          leadingIcon={mdiCircleHalfFull}
+          aria-pressed={ui.greyCanvas}
+          onclick={() => {
+            ui.toggleGreyCanvas();
+            moreOpen = false;
+          }}>Grey background</Button
         >
       </div>
     </Popover>

@@ -137,6 +137,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
+| Neutral viewing background | ✓ Yes | Black or middle grey around the photo in the editor and loupe; remembered across reloads |
 | Waveform, RGB parade, and vectorscope | ✓ Yes | Computed from the rendered preview, with gain and vectorscope zoom; the Scopes section can be pinned open and resized |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |
 | Focus-stack merge | ✗ No | — |
