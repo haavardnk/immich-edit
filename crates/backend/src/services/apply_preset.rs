@@ -1,5 +1,5 @@
 use raw_pipeline::edit_manifest::EditManifest;
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{Edits, LOOK_AMOUNT_FULL};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -18,6 +18,12 @@ pub struct ApplyPresetParams {
     pub include_geometry: bool,
     #[serde(default)]
     pub include_masks: bool,
+    #[serde(default = "full_amount")]
+    pub amount: f64,
+}
+
+fn full_amount() -> f64 {
+    LOOK_AMOUNT_FULL
 }
 
 pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -> Edits {
@@ -26,7 +32,15 @@ pub fn merge_preset(current: Edits, preset: Edits, params: &ApplyPresetParams) -
         masks: params.include_masks,
         ..MergeSections::look_only()
     };
-    merge_edits(current, preset, sections)
+    merge_edits(current, preset.with_look_amount(params.amount), sections)
+}
+
+fn preset_action(name: &str, amount: f64) -> String {
+    if amount == LOOK_AMOUNT_FULL {
+        format!("Apply preset: {name}")
+    } else {
+        format!("Apply preset: {name} ({amount}%)")
+    }
 }
 
 pub async fn run_apply_preset_item(
@@ -49,7 +63,7 @@ pub async fn run_apply_preset_item(
     let manifest = EditManifest::from_edits(&merged);
     let immich = crate::services::export::job_immich(state, job).await?;
     let asset = immich.asset(asset_id.source()).await?;
-    let action = format!("Apply preset: {}", preset.name);
+    let action = preset_action(&preset.name, params.amount);
     let saved = state
         .edits
         .put(
@@ -65,6 +79,7 @@ pub async fn run_apply_preset_item(
         "hash": saved.hash,
         "updated_at": saved.updated_at,
         "preset": preset.name,
+        "amount": params.amount,
     }))
 }
 
@@ -77,6 +92,7 @@ mod tests {
             preset_id: Uuid::nil(),
             include_geometry: geometry,
             include_masks: false,
+            amount: LOOK_AMOUNT_FULL,
         }
     }
 
@@ -103,5 +119,29 @@ mod tests {
     fn included_groups_take_preset() {
         let merged = merge_preset(Edits::default(), preset_edits(), &params(true));
         assert_eq!(merged.geometry.rotate, 2);
+    }
+
+    #[test]
+    fn amount_scales_the_look_but_not_geometry() {
+        let half = ApplyPresetParams {
+            amount: 50.0,
+            ..params(true)
+        };
+        let merged = merge_preset(Edits::default(), preset_edits(), &half);
+        assert_eq!(merged.effects.vignette_amount, 20.0);
+        assert_eq!(merged.geometry.rotate, 2);
+    }
+
+    #[test]
+    fn amount_defaults_to_full() {
+        let parsed: ApplyPresetParams =
+            serde_json::from_value(serde_json::json!({ "preset_id": Uuid::nil() })).unwrap();
+        assert_eq!(parsed.amount, LOOK_AMOUNT_FULL);
+    }
+
+    #[test]
+    fn action_names_a_partial_amount() {
+        assert_eq!(preset_action("Warm", 100.0), "Apply preset: Warm");
+        assert_eq!(preset_action("Warm", 50.0), "Apply preset: Warm (50%)");
     }
 }

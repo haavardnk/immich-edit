@@ -1,0 +1,184 @@
+[
+  {
+    "name": "half",
+    "amount": 50,
+    "preset": {
+      "basic": {
+        "exposure_ev": 1.0,
+        "contrast": 40,
+        "saturation": -30,
+        "curves": {
+          "composite": [
+            { "x": 0, "y": 0 },
+            { "x": 0.5, "y": 0.75 },
+            { "x": 1, "y": 1 }
+          ]
+        }
+      },
+      "tone": { "shadows": 60 },
+      "color": {
+        "hsl": {
+          "bands": [
+            { "hue": 20, "sat": 30, "lum": -10 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 },
+            { "hue": 0, "sat": 0, "lum": 0 }
+          ]
+        },
+        "color_grade": {
+          "shadows": { "hue": 200, "sat": 40, "lum": 10 },
+          "balance": -20,
+          "blend": 50
+        },
+        "lut_3d": { "lut_id": "warm", "amount": 80 },
+        "dcp": { "mode": "flat" }
+      },
+      "detail": {
+        "capture_sharpen": false,
+        "sharpen_amount": 60,
+        "luma_nr_amount": 40,
+        "luma_nr_detail": 70
+      },
+      "effects": {
+        "vignette_amount": -40,
+        "vignette_midpoint": 70,
+        "grain_amount": 30,
+        "grain_size": 75
+      },
+      "geometry": { "flip_h": true }
+    },
+    "expect": {
+      "/basic/exposure_ev": 0.5,
+      "/basic/contrast": 20,
+      "/basic/saturation": -15,
+      "/basic/curves/composite": [
+        { "x": 0, "y": 0 },
+        { "x": 0.5, "y": 0.625 },
+        { "x": 1, "y": 1 }
+      ],
+      "/tone/shadows": 30,
+      "/color/hsl/bands/0": { "hue": 10, "sat": 15, "lum": -5 },
+      "/color/color_grade/shadows": { "hue": 200, "sat": 20, "lum": 5 },
+      "/color/color_grade/balance": -10,
+      "/color/color_grade/blend": 25,
+      "/color/lut_3d": { "lut_id": "warm", "amount": 40 },
+      "/color/dcp/mode": "flat",
+      "/detail/capture_sharpen": false,
+      "/detail/sharpen_amount": 60,
+      "/detail/luma_nr_amount": 20,
+      "/detail/luma_nr_detail": 60,
+      "/effects/vignette_amount": -20,
+      "/effects/vignette_midpoint": 60,
+      "/effects/grain_amount": 15,
+      "/effects/grain_size": 50,
+      "/geometry/flip_h": true
+    }
+  },
+  {
+    "name": "double clamps to each field range",
+    "amount": 200,
+    "preset": {
+      "basic": {
+        "exposure_ev": 3.0,
+        "contrast": 40,
+        "saturation": -80,
+        "curves": {
+          "composite": [
+            { "x": 0, "y": 0 },
+            { "x": 0.5, "y": 0.75 },
+            { "x": 1, "y": 1 }
+          ]
+        }
+      },
+      "color": {
+        "color_grade": { "shadows": { "hue": 30, "sat": 40, "lum": 40 } },
+        "lut_3d": { "lut_id": "warm", "amount": 80 }
+      },
+      "effects": { "vignette_midpoint": 70, "grain_size": 75 }
+    },
+    "expect": {
+      "/basic/exposure_ev": 5,
+      "/basic/contrast": 80,
+      "/basic/saturation": -100,
+      "/basic/curves/composite/1": { "x": 0.5, "y": 1 },
+      "/color/color_grade/shadows": { "hue": 30, "sat": 80, "lum": 50 },
+      "/color/lut_3d/amount": 100,
+      "/effects/vignette_midpoint": 90,
+      "/effects/grain_size": 100
+    }
+  },
+  {
+    "name": "amount above the maximum is capped",
+    "amount": 250,
+    "preset": { "basic": { "contrast": 40 } },
+    "expect": { "/basic/contrast": 80 }
+  },
+  {
+    "name": "zero is the neutral look",
+    "amount": 0,
+    "preset": {
+      "basic": {
+        "exposure_ev": 1.0,
+        "curves": {
+          "composite": [
+            { "x": 0, "y": 0 },
+            { "x": 0.5, "y": 0.75 },
+            { "x": 1, "y": 1 }
+          ]
+        }
+      },
+      "color": {
+        "lut_3d": { "lut_id": "warm", "amount": 80 },
+        "dcp": { "mode": "flat" }
+      },
+      "detail": { "capture_sharpen": false, "sharpen_amount": 60 },
+      "lens": { "profile_enabled": true },
+      "geometry": { "flip_h": true }
+    },
+    "expect": {
+      "/basic/exposure_ev": 0,
+      "/basic/curves/composite": [
+        { "x": 0, "y": 0 },
+        { "x": 1, "y": 1 }
+      ],
+      "/color/lut_3d": { "lut_id": null, "amount": 100 },
+      "/color/dcp/mode": "auto",
+      "/detail/capture_sharpen": true,
+      "/detail/sharpen_amount": null,
+      "/lens/profile_enabled": null,
+      "/geometry/flip_h": true
+    }
+  },
+  {
+    "name": "full is the preset unchanged",
+    "amount": 100,
+    "preset": {
+      "basic": {
+        "exposure_ev": 0.3,
+        "curves": {
+          "composite": [
+            { "x": 0, "y": 0 },
+            { "x": 0.3, "y": 0.45 },
+            { "x": 1, "y": 1 }
+          ]
+        }
+      },
+      "color": { "lut_3d": { "lut_id": "warm", "amount": 80 } }
+    },
+    "expect": {
+      "/basic/exposure_ev": 0.3,
+      "/basic/curves/composite/1": { "x": 0.3, "y": 0.45 },
+      "/color/lut_3d": { "lut_id": "warm", "amount": 80 }
+    }
+  },
+  {
+    "name": "lut amount without a lut is left alone",
+    "amount": 50,
+    "preset": { "color": { "lut_3d": { "lut_id": null, "amount": 60 } } },
+    "expect": { "/color/lut_3d": { "lut_id": null, "amount": 60 } }
+  }
+]

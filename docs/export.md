@@ -73,7 +73,7 @@ The **Edit** tab of the same dialog works on the whole selection too:
 
 - **Copy** takes the edits from a single selected photo and opens **Copy settings**.
 - **Paste** applies the copied edits to every selected photo.
-- **Presets** applies a preset to every selected photo.
+- **Presets** applies a preset to every selected photo, at the **Amount** you choose.
 - **Reset** returns every selected photo to its original state.
 
 These also run as jobs.

@@ -1,3 +1,4 @@
+mod amount;
 mod color;
 mod curves;
 mod geometry;
@@ -11,6 +12,7 @@ mod tests;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+pub use amount::LOOK_AMOUNT_FULL;
 pub use color::{
     ColorEdits, ColorGradeEdits, ColorGradeRegion, DcpEdits, DcpMode, HSL_BANDS, HslBand, HslEdits,
     Lut3dEdits,
