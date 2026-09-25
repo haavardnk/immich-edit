@@ -1,5 +1,6 @@
 <script lang="ts">
   import { observeSize } from '$lib/actions/observeSize';
+  import { assetThumbUrl } from '$lib/api/assets';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { ui } from '$lib/stores/ui.svelte';
   import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
@@ -42,6 +43,7 @@
   let box = $state({ w: 0, h: 0 });
   let natural = $state({ w: 0, h: 0 });
   let dragging = $state(false);
+  let loadedId = $state<string | null>(null);
   let lastX = 0;
   let lastY = 0;
   let totalDrag = 0;
@@ -55,6 +57,7 @@
   const fitRatio = $derived(fit > 0 ? scaleFor(view.zoom) / fit : 1);
   const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, fitRatio)));
   const src = $derived(persistedPreviewUrl(assetId, maxEdge, ui.clipWarn));
+  const loading = $derived(loadedId !== assetId);
   const zoomBox = $derived.by(() => {
     return imageBoxAt(view.zoom);
   });
@@ -100,6 +103,11 @@
       natural = { w: image.naturalWidth, h: image.naturalHeight };
       onImage?.(image);
     }
+  }
+
+  function onLoad(id: string): void {
+    loadedId = id;
+    measure();
   }
 
   function zoomInAt(clientX: number, clientY: number, solo: boolean): void {
@@ -164,14 +172,15 @@
   role="button"
   tabindex="0"
   aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
-  class="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
+  aria-busy={loading}
+  class="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
     ? dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'
     : 'cursor-zoom-in'} {showFocus
     ? focused
-      ? 'relative border-2 border-primary'
-      : 'relative border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
+      ? 'border-2 border-primary'
+      : 'border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
     : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
@@ -188,14 +197,25 @@
     </span>
   {/if}
   {#if box.w > 0}
-    <img
-      bind:this={image}
-      {src}
-      {alt}
-      draggable="false"
-      class="max-w-full max-h-full object-contain select-none"
-      style={transform}
-      onload={measure}
-    />
+    {#if loading}
+      <img
+        src={assetThumbUrl(assetId)}
+        alt=""
+        draggable="false"
+        data-testid="loupe-underlay"
+        class="pointer-events-none absolute inset-0 h-full w-full object-contain blur-sm select-none"
+      />
+    {/if}
+    {#key assetId}
+      <img
+        bind:this={image}
+        {src}
+        {alt}
+        draggable="false"
+        class="relative max-w-full max-h-full object-contain select-none"
+        style={transform}
+        onload={() => onLoad(assetId)}
+      />
+    {/key}
   {/if}
 </div>
