@@ -8,6 +8,7 @@ import {
   gotoAsset,
   numberedAssets
 } from './helpers';
+import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
 
 async function openPresets(page: Page): Promise<void> {
@@ -428,4 +429,62 @@ test('a failed preview render offers a retry that recovers', async ({ page }) =>
 
   await expect(retry).toBeHidden();
   await expect(page.getByRole('img', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
+});
+
+test('develop reset keeps masks, retouch and the crop', async ({ page }) => {
+  const edits = neutralEdits();
+  edits.basic.exposure_ev = 1;
+  edits.geometry.rotate = 90;
+  edits.masks = [
+    {
+      id: 'layer',
+      name: 'Sky',
+      enabled: true,
+      color: '#ff3b30',
+      amount: 1,
+      invert: false,
+      components: [
+        {
+          id: 'luma',
+          enabled: true,
+          mode: 'add',
+          invert: false,
+          kind: { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 },
+          source: 'manual'
+        }
+      ],
+      edits: { exposure_ev: 0.5 }
+    }
+  ];
+  edits.retouch = [
+    {
+      id: 'spot',
+      mode: 'heal',
+      points: [{ x: 0.4, y: 0.5 }],
+      radius: 0.05,
+      hardness: 0.5,
+      opacity: 1,
+      source: { x: 0.6, y: 0.5 },
+      enabled: true
+    }
+  ];
+  await installMocks(page, {
+    editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits), hash: 'hash-edited' }
+  });
+  await gotoAsset(page);
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await page.getByRole('button', { name: 'Reset develop settings' }).click();
+  const body = (await saved).postDataJSON() as {
+    manifest: { ops: Record<string, { layers?: unknown[]; strokes?: unknown[] } | undefined> };
+    action: string | null;
+  };
+  expect(body.action).toBe('Reset Develop');
+  expect(body.manifest.ops.exposure).toBeUndefined();
+  expect(body.manifest.ops.masks?.layers).toHaveLength(1);
+  expect(body.manifest.ops.retouch?.strokes).toHaveLength(1);
+  expect(body.manifest.ops.transform).toBeDefined();
+  await expect(page.getByRole('button', { name: 'Reset develop settings' })).toBeDisabled();
 });

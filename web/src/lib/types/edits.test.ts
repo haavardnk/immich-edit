@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   neutralEdits,
   isIdentity,
+  isDevelopIdentity,
   isNonGeometryIdentity,
   curvesEditsIsIdentity,
   neutralSharpenAmount,
@@ -25,16 +26,22 @@ describe('neutralEdits identity', () => {
     expect(neutralEdits().color.dcp.mode).toBe('auto');
   });
 
-  it('reset preserves camera profile and geometry', () => {
+  it('reset preserves camera profile, geometry, masks and retouch', () => {
     const edits = neutralEdits();
     edits.basic.exposure_ev = 2;
     edits.color.dcp.mode = 'profile';
     edits.color.dcp.profile_id = 'sony';
     edits.geometry.rotate = 90;
+    edits.masks = [maskLayer()];
+    edits.retouch = [retouchStroke()];
     const reset = resetDevelopEdits(edits);
     expect(reset.basic.exposure_ev).toBe(0);
     expect(reset.color.dcp).toEqual(edits.color.dcp);
     expect(reset.geometry).toEqual(edits.geometry);
+    expect(reset.masks).toEqual(edits.masks);
+    expect(reset.retouch).toEqual(edits.retouch);
+    expect(isDevelopIdentity(reset)).toBe(true);
+    expect(isNonGeometryIdentity(reset)).toBe(false);
   });
 
   it('camera profile alone does not enable develop reset', () => {
@@ -66,49 +73,55 @@ describe('neutralEdits identity', () => {
 
   it('treats mask-only edits as non-identity', () => {
     const edits = neutralEdits();
-    edits.masks = [
-      {
-        id: 'layer',
-        name: 'Range',
-        enabled: true,
-        color: '#ff3b30',
-        amount: 1,
-        invert: false,
-        components: [
-          {
-            id: 'luma',
-            enabled: true,
-            mode: 'add',
-            invert: false,
-            kind: { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 },
-            source: 'manual'
-          }
-        ],
-        edits: {}
-      }
-    ];
+    edits.masks = [maskLayer()];
     expect(isIdentity(edits)).toBe(false);
     expect(isNonGeometryIdentity(edits)).toBe(false);
+    expect(isDevelopIdentity(edits)).toBe(true);
   });
 
   it('treats retouch-only edits as non-identity', () => {
     const edits = neutralEdits();
-    edits.retouch = [
-      {
-        id: 'spot',
-        mode: 'heal',
-        points: [{ x: 0.4, y: 0.5 }],
-        radius: 0.05,
-        hardness: 0.5,
-        opacity: 1,
-        source: { x: 0.6, y: 0.5 },
-        enabled: true
-      }
-    ];
+    edits.retouch = [retouchStroke()];
     expect(isIdentity(edits)).toBe(false);
     expect(isNonGeometryIdentity(edits)).toBe(false);
+    expect(isDevelopIdentity(edits)).toBe(true);
   });
 });
+
+function maskLayer(): Edits['masks'][number] {
+  return {
+    id: 'layer',
+    name: 'Range',
+    enabled: true,
+    color: '#ff3b30',
+    amount: 1,
+    invert: false,
+    components: [
+      {
+        id: 'luma',
+        enabled: true,
+        mode: 'add',
+        invert: false,
+        kind: { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 },
+        source: 'manual'
+      }
+    ],
+    edits: {}
+  };
+}
+
+function retouchStroke(): Edits['retouch'][number] {
+  return {
+    id: 'spot',
+    mode: 'heal',
+    points: [{ x: 0.4, y: 0.5 }],
+    radius: 0.05,
+    hardness: 0.5,
+    opacity: 1,
+    source: { x: 0.6, y: 0.5 },
+    enabled: true
+  };
+}
 
 const SECTION_FIELDS: Record<DevelopSection, string[]> = {
   white_balance: ['basic.wb_temp', 'basic.wb_tint'],

@@ -2,7 +2,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { openDevelopPanels } from '$lib/panels/registry';
-  import { isNonGeometryIdentity } from '$lib/types/edits';
+  import { isDevelopIdentity } from '$lib/types/edits';
   import { modifiedDevelopPanels } from '$lib/editorModified';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
   import { hint } from '$lib/keybinds';
@@ -15,7 +15,7 @@
     mdiContentPaste
   } from '@mdi/js';
 
-  const neutral = $derived(isNonGeometryIdentity(editor.edits));
+  const neutral = $derived(isDevelopIdentity(editor.edits));
 
   function toggleModifiedOnly(): void {
     ui.developModifiedOnly = !ui.developModifiedOnly;
@@ -45,8 +45,8 @@
     color="secondary"
     class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
     leadingIcon={mdiRestore}
-    title={hint('Reset edits', 'resetEdits')}
-    aria-label="Reset edits"
+    title={hint('Reset develop settings', 'resetEdits')}
+    aria-label="Reset develop settings"
     disabled={neutral || editor.saving}
     onclick={() => void editor.onReset()}
   >

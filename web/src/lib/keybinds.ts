@@ -443,7 +443,7 @@ export const KEYBINDS = [
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Reset every edit'
+    label: 'Reset develop settings'
   },
   {
     id: 'copyEdits',

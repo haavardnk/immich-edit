@@ -407,7 +407,7 @@ class EditorStore {
   onReset = async (): Promise<void> => {
     if (!this.assetId) return;
     this.edits = resetDevelopEdits(this.edits);
-    await this.onCommit('Reset');
+    await this.onCommit('Reset Develop');
   };
 
   copyEdits = (): void => {

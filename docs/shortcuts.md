@@ -117,7 +117,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Tab`          | Hide or show the side panels                     | Editor              |
 | `Shift+Tab`    | Hide or show every panel                         | Editor              |
 | `Ctrl+U`       | Auto adjust tone                                 | Editor              |
-| `Ctrl+Shift+R` | Reset every edit                                 | Editor              |
+| `Ctrl+Shift+R` | Reset develop settings                           | Editor              |
 | `Ctrl+Shift+C` | Copy edits                                       | Editor              |
 | `Ctrl+Shift+V` | Paste edits                                      | Editor              |
 | `Ctrl+Shift+E` | Open Export                                      | Editor              |
