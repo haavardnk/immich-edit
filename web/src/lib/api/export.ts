@@ -11,11 +11,12 @@ export type BitDepthOpt = '8' | '16';
 export type PngCompressionOpt = 'fast' | 'default' | 'best';
 export type TiffCompressionOpt = 'none' | 'lzw' | 'deflate';
 export type ColorSpaceOpt = 'srgb' | 'displayp3';
+export type ExportMetadata = 'all' | 'no-location' | 'none';
 
 export interface ExportOptions {
   format: ExportFormat;
   quality: number;
-  includeExif: boolean;
+  metadata: ExportMetadata;
   bitDepth: BitDepthOpt;
   pngCompression: PngCompressionOpt;
   tiffCompression: TiffCompressionOpt;
@@ -113,7 +114,7 @@ function paramsObject(opts: ExportOptions): Record<string, string> {
   return {
     format: opts.format,
     quality: String(opts.quality),
-    include_exif: String(opts.includeExif),
+    metadata: opts.metadata,
     bit_depth: opts.bitDepth,
     png_compression: opts.pngCompression,
     tiff_compression: opts.tiffCompression,
@@ -167,7 +168,7 @@ export async function downloadExport(
           edits,
           format: opts.format,
           quality: opts.quality,
-          include_exif: opts.includeExif,
+          metadata: opts.metadata,
           bit_depth: opts.bitDepth,
           png_compression: opts.pngCompression,
           tiff_compression: opts.tiffCompression,
@@ -213,7 +214,7 @@ export async function uploadToImmich(
       edits,
       format: opts.format,
       quality: opts.quality,
-      include_exif: opts.includeExif,
+      metadata: opts.metadata,
       bit_depth: opts.bitDepth,
       png_compression: opts.pngCompression,
       tiff_compression: opts.tiffCompression,

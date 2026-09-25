@@ -69,6 +69,16 @@ describe('restoreExportForm', () => {
     expect(restoreExportForm(stored).filenameTemplate).toBe(template);
   });
 
+  it.each([
+    [{ metadata: 'no-location' }, 'no-location'],
+    [{ metadata: 'gps' }, 'all'],
+    [{ includeExif: false }, 'none'],
+    [{ includeExif: true }, 'all'],
+    [{ metadata: 'none', includeExif: true }, 'none']
+  ])('restores metadata from %o as %s', (stored, metadata) => {
+    expect(restoreExportForm(stored).metadata).toBe(metadata);
+  });
+
   it('falls back per field on values it does not know', () => {
     const restored = restoreExportForm({
       format: 'bmp',
@@ -98,10 +108,15 @@ describe('restoreExportForm', () => {
 
 describe('baseOptions', () => {
   it.each<[string, Partial<ExportForm>, boolean]>([
-    ['webp keeping exif', { format: 'webp', includeExif: true, lossless: false }, true],
-    ['webp dropping exif', { format: 'webp', includeExif: false, lossless: false }, false],
-    ['webp asked for lossless', { format: 'webp', includeExif: false, lossless: true }, true],
-    ['jpeg keeping exif', { format: 'jpeg', includeExif: true, lossless: false }, false]
+    ['webp keeping metadata', { format: 'webp', metadata: 'all', lossless: false }, true],
+    [
+      'webp keeping all but location',
+      { format: 'webp', metadata: 'no-location', lossless: false },
+      true
+    ],
+    ['webp dropping metadata', { format: 'webp', metadata: 'none', lossless: false }, false],
+    ['webp asked for lossless', { format: 'webp', metadata: 'none', lossless: true }, true],
+    ['jpeg keeping metadata', { format: 'jpeg', metadata: 'all', lossless: false }, false]
   ])('resolves lossless for %s', (_name, patch, expected) => {
     expect(baseOptions(form(patch)).lossless).toBe(expected);
   });
@@ -173,7 +188,7 @@ describe('formInvalid', () => {
 describe('immichOptions', () => {
   it('adds the destination fields to the encoder settings', () => {
     const opts = immichOptions(
-      form({ format: 'webp', includeExif: true, albumIds: ['al'], tagIds: ['t'], favorite: true })
+      form({ format: 'webp', metadata: 'all', albumIds: ['al'], tagIds: ['t'], favorite: true })
     );
     expect(opts).toMatchObject({
       format: 'webp',
