@@ -42,6 +42,7 @@ pub fn item_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<JobItemRecord, Job
         result,
         idempotency_key: row.get("idempotency_key"),
         attempts: row.get("attempts"),
+        position: row.get("position"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
