@@ -18,6 +18,7 @@ const STORAGE_KEY = 'immich-edit:browseView';
 type Persisted = {
   gridSize: GridSize;
   loupeAutoAdvance: boolean;
+  loupeInfoOpen: boolean;
 };
 
 class BrowseViewStore {
@@ -36,12 +37,14 @@ class BrowseViewStore {
     if (stored?.gridSize && SIZE_ORDER.includes(stored.gridSize)) this.gridSize = stored.gridSize;
     if (typeof stored?.loupeAutoAdvance === 'boolean')
       this.loupeAutoAdvance = stored.loupeAutoAdvance;
+    if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
   }
 
   private persist(): void {
     writeStored(STORAGE_KEY, {
       gridSize: this.gridSize,
-      loupeAutoAdvance: this.loupeAutoAdvance
+      loupeAutoAdvance: this.loupeAutoAdvance,
+      loupeInfoOpen: this.loupeInfoOpen
     } satisfies Persisted);
   }
 
@@ -63,6 +66,11 @@ class BrowseViewStore {
 
   setLoupeAutoAdvance(on: boolean): void {
     this.loupeAutoAdvance = on;
+    this.persist();
+  }
+
+  toggleLoupeInfo(): void {
+    this.loupeInfoOpen = !this.loupeInfoOpen;
     this.persist();
   }
 

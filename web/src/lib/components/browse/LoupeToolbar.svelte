@@ -173,7 +173,7 @@
       title={hint('Info', 'toggleInfo')}
       aria-label={hint('Info', 'toggleInfo')}
       aria-pressed={browseView.loupeInfoOpen}
-      onclick={() => (browseView.loupeInfoOpen = !browseView.loupeInfoOpen)}
+      onclick={() => browseView.toggleLoupeInfo()}
     />
     <IconButton
       size="small"

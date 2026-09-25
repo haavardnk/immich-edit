@@ -419,7 +419,7 @@
         return toggleZoom();
       case 'toggleInfo':
         e.preventDefault();
-        browseView.loupeInfoOpen = !browseView.loupeInfoOpen;
+        browseView.toggleLoupeInfo();
         return;
       case 'toggleTags':
         e.preventDefault();
