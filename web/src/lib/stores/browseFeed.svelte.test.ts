@@ -4,6 +4,7 @@ import type { SearchQuery, SearchResult } from '$lib/types/search';
 import type { AssetSummary } from '$lib/types/album';
 import { browseControls } from './browseControls.svelte';
 import { selection } from './selection.svelte';
+import { browsing } from './browsing.svelte';
 
 function asset(id: string): AssetSummary {
   return {
@@ -31,6 +32,7 @@ function flush(): Promise<void> {
 beforeEach(() => {
   browseControls.reset();
   selection.clear();
+  browsing.clear();
 });
 
 describe('BrowseFeed pagination', () => {
@@ -44,7 +46,7 @@ describe('BrowseFeed pagination', () => {
 
     void feed.fetchPage(true);
     await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
-    feed.loadMore();
+    void feed.loadMore();
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 
     expect(seen[0]?.page).toBeUndefined();
@@ -124,7 +126,7 @@ describe('BrowseFeed pagination', () => {
     resolvers[0]?.(result('2', ['a']));
     await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
 
-    feed.loadMore();
+    void feed.loadMore();
     expect(feed.loadingMore).toBe(true);
     void feed.fetchPage(true);
 
@@ -137,5 +139,57 @@ describe('BrowseFeed pagination', () => {
     expect(feed.assets.map((a) => a.id)).toEqual(['b']);
     expect(feed.nextPage).toBeNull();
     expect(feed.loadingMore).toBe(false);
+  });
+});
+
+describe('BrowseFeed as the browsing pager', () => {
+  function pagedFeed(): { feed: BrowseFeed; fetcher: ReturnType<typeof vi.fn> } {
+    const fetcher = vi.fn(async (body: SearchQuery) =>
+      body.page === 2 ? result(null, ['c', 'd']) : result('2', ['a', 'b'])
+    );
+    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    return { feed, fetcher };
+  }
+
+  it('loads the next page once for concurrent requests and keeps the feed array', async () => {
+    const { feed, fetcher } = pagedFeed();
+    await feed.fetchPage(true);
+
+    const first = browsing.requestMore();
+    const second = browsing.requestMore();
+    expect(await first).toBe(true);
+    expect(await second).toBe(true);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(browsing.assets).toBe(feed.assets);
+    expect(browsing.assets.map((a) => a.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(browsing.hasMore).toBe(false);
+    expect(await browsing.requestMore()).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('prefetches only near the end of the loaded set', async () => {
+    const { feed, fetcher } = pagedFeed();
+    await feed.fetchPage(true);
+    browsing.set(
+      Array.from({ length: 30 }, (_, i) => asset(`p${i}`)),
+      feed
+    );
+
+    browsing.prefetchNear('p5');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    browsing.prefetchNear('p20');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('forgets the pager when a list without paging replaces it', async () => {
+    const { feed, fetcher } = pagedFeed();
+    await feed.fetchPage(true);
+
+    browsing.set([asset('folder')]);
+
+    expect(browsing.hasMore).toBe(false);
+    expect(await browsing.requestMore()).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

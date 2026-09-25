@@ -75,6 +75,22 @@ export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;
 };
 
+export function numberedAssets(
+  count: number,
+  fields: Partial<MockAssetSummary> = {}
+): MockAssetSummary[] {
+  return Array.from({ length: count }, (_, index) => {
+    const suffix = String(index + 1).padStart(12, '0');
+    return {
+      ...ASSET_SUMMARY,
+      id: `00000000-0000-0000-0000-${suffix}`,
+      originalFileName: `IMG_${String(index + 1).padStart(4, '0')}.ARW`,
+      checksum: suffix,
+      ...fields
+    };
+  });
+}
+
 export const ASSET_DETAIL = {
   ...ASSET_SUMMARY,
   originalMimeType: 'image/x-sony-arw',

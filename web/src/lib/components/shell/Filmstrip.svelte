@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { untrack } from 'svelte';
   import { observeSize } from '$lib/actions/observeSize';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
@@ -61,17 +62,27 @@
 
   const visibleAssets = $derived(assets.slice(view.startIdx, view.endIdx));
 
+  $effect(() => {
+    const last = containerWidth > 0 ? assets[view.endIdx - 1] : undefined;
+    if (last) untrack(() => browsing.prefetchNear(last.id));
+  });
+
   function measure(): void {
     if (!scrollContainer) return;
     containerWidth = scrollContainer.clientWidth;
     scrollLeft = scrollContainer.scrollLeft;
   }
 
+  let revealed: { id: string; container: HTMLDivElement } | null = null;
+
   $effect(() => {
     const container = scrollContainer;
-    if (!container || currentIndex < 0) return;
+    const id = currentId;
+    if (!container || !id || currentIndex < 0) return;
     const box = layout.boxes[currentIndex];
     if (!box) return;
+    if (revealed?.id === id && revealed.container === container) return;
+    revealed = { id, container };
     const viewLeft = container.scrollLeft;
     const viewWidth = container.clientWidth;
     if (box.left >= viewLeft && box.left + box.width <= viewLeft + viewWidth) return;

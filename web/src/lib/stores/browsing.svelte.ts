@@ -1,13 +1,31 @@
 import type { AssetSummary } from '$lib/types/album';
 import type { SearchQuery } from '$lib/types/search';
 
+const PREFETCH_WINDOW = 10;
+
+export interface BrowsePager {
+  readonly hasMore: boolean;
+  readonly loadingMore: boolean;
+  loadMore(): Promise<boolean>;
+}
+
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
   query = $state<SearchQuery | null>(null);
   total = $state<number | undefined>(undefined);
+  private pager = $state.raw<BrowsePager | null>(null);
 
-  set(assets: AssetSummary[]): void {
+  get hasMore(): boolean {
+    return this.pager?.hasMore ?? false;
+  }
+
+  get loadingMore(): boolean {
+    return this.pager?.loadingMore ?? false;
+  }
+
+  set(assets: AssetSummary[], pager: BrowsePager | null = null): void {
     this.assets = assets;
+    this.pager = pager;
   }
 
   setContext(query: SearchQuery | null, total: number | undefined): void {
@@ -19,6 +37,16 @@ class BrowsingStore {
     this.assets = [];
     this.query = null;
     this.total = undefined;
+    this.pager = null;
+  }
+
+  requestMore(): Promise<boolean> {
+    return this.pager?.loadMore() ?? Promise.resolve(false);
+  }
+
+  prefetchNear(id: string): void {
+    const idx = this.assets.findIndex((a) => a.id === id);
+    if (idx >= 0 && this.assets.length - idx <= PREFETCH_WINDOW) void this.requestMore();
   }
 
   patch(id: string, fields: Partial<AssetSummary>): void {

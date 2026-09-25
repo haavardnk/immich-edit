@@ -133,7 +133,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Before and after view | ✓ Yes | Split view and hold-original control |
 | Per-section bypass and reset | ✓ Yes | Hold a modified section header to see the image without that section; a panel's modified dot resets the whole panel |
 | True 1:1 viewing | ✓ Yes | Source-resolution tiles, rendered in the browser when browser previews are active and on the server otherwise |
-| Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads; a bookmarked or pasted editor link gets its timeline neighbours |
+| Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads; navigation keeps loading the view past its first page; a bookmarked or pasted editor link gets its timeline neighbours |
 | Editor inspector layout | ✓ Yes | Width and collapsed state are remembered across reloads |
 | Histogram | ✓ Yes | Distinguishes loading from files without histogram data |
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |

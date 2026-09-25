@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
@@ -107,10 +107,24 @@
     }
   });
 
+  $effect(() => {
+    const id = focusedId;
+    if (id) untrack(() => browsing.prefetchNear(id));
+  });
+
   function go(delta: number): void {
-    if (!currentId) return;
-    const next = delta > 0 ? browsing.nextOf(currentId) : browsing.prevOf(currentId);
-    if (next) browseView.openLoupe(next.id);
+    const from = currentId;
+    if (!from) return;
+    const next = delta > 0 ? browsing.nextOf(from) : browsing.prevOf(from);
+    if (next) {
+      browseView.openLoupe(next.id);
+      return;
+    }
+    if (delta < 0) return;
+    void browsing.requestMore().then((loaded) => {
+      const after = loaded && browseView.loupeId === from ? browsing.nextOf(from) : null;
+      if (after) browseView.openLoupe(after.id);
+    });
   }
 
   function advanceFocused(delta: number): void {
@@ -429,7 +443,8 @@
   }
 
   const hasPrev = $derived(!multi && currentId ? browsing.prevOf(currentId) !== null : false);
-  const hasNext = $derived(!multi && currentId ? browsing.nextOf(currentId) !== null : false);
+  const atLoadedEnd = $derived(currentId ? browsing.nextOf(currentId) === null : false);
+  const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -504,6 +519,7 @@
           icon={mdiChevronRight}
           title="Next"
           aria-label="Next"
+          loading={atLoadedEnd && browsing.loadingMore}
           onclick={() => go(1)}
         />
       {/if}

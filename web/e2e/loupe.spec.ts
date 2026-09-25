@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks, type InstallOpts } from './helpers';
+import {
+  ASSET_EXIF,
+  ASSET_ID,
+  ASSET_SUMMARY,
+  installMocks,
+  numberedAssets,
+  type InstallOpts
+} from './helpers';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 const ASSETS = [
@@ -36,6 +43,45 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
 
   await page.keyboard.press(' ');
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+});
+
+test('loupe walks past the last loaded page', async ({ page }) => {
+  const assets = numberedAssets(80);
+  const pages: unknown[] = [];
+  await openLoupe(page, {
+    assets,
+    searchPages: [assets.slice(0, 40), assets.slice(40)],
+    onMetadata: (body) => void pages.push(body.page),
+    onSmart: (body) => void pages.push(body.page)
+  });
+  expect(pages).toEqual([undefined]);
+
+  for (let step = 0; step < 41; step += 1) await page.keyboard.press('ArrowRight');
+
+  await expect(page.getByRole('img', { name: 'IMG_0042.ARW' })).toBeVisible();
+  expect(pages).toEqual([undefined, 2]);
+});
+
+test('a filmstrip scrolled away stays put when the next page loads', async ({ page }) => {
+  const assets = numberedAssets(80);
+  const pages: unknown[] = [];
+  await openLoupe(page, {
+    assets,
+    searchPages: [assets.slice(0, 40), assets.slice(40)],
+    onMetadata: (body) => void pages.push(body.page),
+    onSmart: (body) => void pages.push(body.page)
+  });
+  const strip = page.getByTestId('filmstrip-scroll');
+  const width = (): Promise<number> => strip.evaluate((el) => el.scrollWidth);
+  const loadedWidth = await width();
+
+  await strip.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await expect.poll(() => pages).toEqual([undefined, 2]);
+  await expect.poll(width).toBeGreaterThan(loadedWidth);
+  await page.waitForTimeout(600);
+
+  const left = await strip.evaluate((el) => el.scrollLeft);
+  expect(left).toBeGreaterThan(loadedWidth / 2);
 });
 
 test('z toggles loupe zoom', async ({ page }) => {

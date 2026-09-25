@@ -1,6 +1,6 @@
 import { searchMetadata, searchStatistics } from '$lib/api/search';
 import type { SearchQuery, SearchResult } from '$lib/types/search';
-import { browsing } from './browsing.svelte';
+import { browsing, type BrowsePager } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import { rejected } from './rejected.svelte';
 import { selection } from './selection.svelte';
@@ -15,7 +15,7 @@ export interface BrowseFeedOptions {
   onFetchError?: (initial: boolean, error: unknown) => void;
 }
 
-export class BrowseFeed {
+export class BrowseFeed implements BrowsePager {
   assets = $state<AssetSummary[]>([]);
   loading = $state(false);
   loadedOnce = $state(false);
@@ -25,10 +25,15 @@ export class BrowseFeed {
   private prevKey = '';
   private reqId = 0;
   private loadingAll = false;
+  private pendingMore: Promise<boolean> | null = null;
   private opts: BrowseFeedOptions;
 
   constructor(opts: BrowseFeedOptions) {
     this.opts = opts;
+  }
+
+  get hasMore(): boolean {
+    return this.nextPage !== null;
   }
 
   reset(): void {
@@ -40,6 +45,7 @@ export class BrowseFeed {
     this.nextPage = null;
     this.totalCount = undefined;
     this.prevKey = '';
+    this.pendingMore = null;
   }
 
   fetchPage(initial: boolean): Promise<boolean> {
@@ -70,7 +76,7 @@ export class BrowseFeed {
         if (req !== this.reqId) return false;
         const items = rejected.stamp(result.items);
         this.assets = initial ? items : [...this.assets, ...items];
-        browsing.set(this.assets);
+        browsing.set(this.assets, this);
         this.nextPage = result.nextPage;
         if (this.totalCount === undefined) {
           this.totalCount = result.total;
@@ -92,10 +98,15 @@ export class BrowseFeed {
       });
   }
 
-  loadMore(): void {
-    if (this.loadingMore || !this.nextPage) return;
+  loadMore(): Promise<boolean> {
+    if (this.pendingMore) return this.pendingMore;
+    if (this.loadingMore || !this.nextPage) return Promise.resolve(false);
     this.loadingMore = true;
-    void this.fetchPage(false);
+    const pending = this.fetchPage(false).finally(() => {
+      if (this.pendingMore === pending) this.pendingMore = null;
+    });
+    this.pendingMore = pending;
+    return pending;
   }
 
   async loadAll(): Promise<boolean> {
