@@ -250,6 +250,12 @@ export function updateDraftCrop(ctx: GeometryCtx, crop: CropRect): void {
   sess.userEditedCrop = true;
 }
 
+export function flipAspect(ctx: GeometryCtx): void {
+  const aspect = ctx.geometrySession?.draftAspect;
+  if (aspect?.kind !== 'ratio' || aspect.num === aspect.den) return;
+  updateDraftAspect(ctx, { kind: 'ratio', num: aspect.den, den: aspect.num });
+}
+
 export function updateDraftAspect(ctx: GeometryCtx, aspect: AspectLock): void {
   const sess = ctx.geometrySession;
   if (!sess) return;

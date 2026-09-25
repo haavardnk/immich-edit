@@ -2,26 +2,23 @@
   import { untrack } from 'svelte';
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
-  import { ui, CROP_GRIDS } from '$lib/stores/ui.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { type AspectLock } from '$lib/types/edits';
+  import CropSection from './geometry/CropSection.svelte';
   import {
     neutralPerspective,
     perspectiveIsIdentity,
     type PerspectiveEdits
   } from '$lib/utils/perspective';
-  import { Button, Field, IconButton, Select } from '@immich/ui';
+  import { Button, IconButton } from '@immich/ui';
   import {
     mdiRotateLeft,
     mdiRotateRight,
     mdiFlipHorizontal,
     mdiFlipVertical,
-    mdiCropLandscape,
-    mdiCropPortrait,
     mdiVectorSquare,
-    mdiAngleAcute,
-    mdiGrid
+    mdiAngleAcute
   } from '@mdi/js';
 
   $effect(() => {
@@ -48,80 +45,11 @@
     editor.flipStep('v');
   }
 
-  function resetCrop(): void {
-    editor.updateGeometryDraftAspect({ kind: 'original' });
-  }
-
-  const aspectOptions: Array<{ label: string; value: AspectLock }> = [
-    { label: 'Original', value: { kind: 'original' } },
-    { label: 'Free', value: { kind: 'free' } },
-    { label: '1:1', value: { kind: 'ratio', num: 1, den: 1 } },
-    { label: '3:2', value: { kind: 'ratio', num: 3, den: 2 } },
-    { label: '4:3', value: { kind: 'ratio', num: 4, den: 3 } },
-    { label: '16:9', value: { kind: 'ratio', num: 16, den: 9 } }
-  ];
-
-  function aspectKey(a: AspectLock): string {
-    if (a.kind === 'ratio') {
-      const lo = Math.min(a.num, a.den);
-      const hi = Math.max(a.num, a.den);
-      return `r-${hi}-${lo}`;
-    }
-    return a.kind;
-  }
-
-  const aspectSelectOptions = aspectOptions.map((o) => ({
-    value: aspectKey(o.value),
-    label: o.label
-  }));
-
-  function onAspectChange(key: string): void {
-    const sess = editor.geometrySession;
-    if (!sess) return;
-    const opt = aspectOptions.find((o) => aspectKey(o.value) === key);
-    if (!opt) return;
-    if (opt.value.kind === 'ratio') {
-      const cur = sess.draftAspect;
-      const wantPortrait = cur.kind === 'ratio' && cur.num < cur.den;
-      const next: AspectLock = wantPortrait
-        ? { kind: 'ratio', num: opt.value.den, den: opt.value.num }
-        : opt.value;
-      editor.updateGeometryDraftAspect(next);
-    } else {
-      editor.updateGeometryDraftAspect(opt.value);
-    }
-  }
-
-  const isPortrait = $derived(
-    editor.geometrySession?.draftAspect.kind === 'ratio' &&
-      editor.geometrySession.draftAspect.num < editor.geometrySession.draftAspect.den
-  );
-  const orientationAvailable = $derived(
-    editor.geometrySession?.draftAspect.kind === 'ratio' &&
-      editor.geometrySession.draftAspect.num !== editor.geometrySession.draftAspect.den
-  );
-  const cropModified = $derived(
-    !!editor.geometrySession &&
-      (editor.geometrySession.userEditedCrop ||
-        editor.geometrySession.draftAspect.kind !== 'original')
-  );
   const transformModified = $derived(
     !!editor.geometrySession &&
       (Math.abs(editor.geometrySession.draftAngle) > 1e-4 ||
         !perspectiveIsIdentity(editor.geometrySession.draftPerspective))
   );
-
-  const cropGridLabel = $derived(CROP_GRIDS.find((g) => g.id === ui.cropGrid)?.label ?? '');
-
-  function toggleOrientation(): void {
-    const sess = editor.geometrySession;
-    if (!sess || sess.draftAspect.kind !== 'ratio') return;
-    editor.updateGeometryDraftAspect({
-      kind: 'ratio',
-      num: sess.draftAspect.den,
-      den: sess.draftAspect.num
-    });
-  }
 
   const perspectiveSliders: Array<{
     key: keyof PerspectiveEdits & ('vertical' | 'horizontal' | 'aspect');
@@ -156,43 +84,7 @@
 
 <div class="flex flex-col divide-y divide-dark/10">
   {#if editor.geometrySession}
-    <div class="flex flex-col gap-1 pb-1.5">
-      <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop}>
-        {#snippet actions()}
-          <IconButton
-            size="tiny"
-            variant="ghost"
-            color="secondary"
-            icon={mdiGrid}
-            title={hint(`Crop guide: ${cropGridLabel}`, 'cropGrid')}
-            aria-label={`Crop guide: ${cropGridLabel}`}
-            onclick={ui.cycleCropGrid}
-          />
-        {/snippet}
-      </SectionHeader>
-      <div class="flex items-center gap-1.5">
-        <Field label="Aspect Ratio" size="tiny" class="min-w-0 flex-1">
-          <Select
-            size="tiny"
-            class="editor-compact-select editor-compact-field"
-            options={aspectSelectOptions}
-            value={aspectKey(editor.geometrySession.draftAspect)}
-            onChange={onAspectChange}
-          />
-        </Field>
-        <IconButton
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="size-7 bg-neutral-800 not-disabled:hover:bg-neutral-700"
-          icon={isPortrait ? mdiCropPortrait : mdiCropLandscape}
-          title={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
-          aria-label={isPortrait ? 'Switch to landscape' : 'Switch to portrait'}
-          disabled={!orientationAvailable}
-          onclick={toggleOrientation}
-        />
-      </div>
-    </div>
+    <CropSection sess={editor.geometrySession} />
 
     <div class="flex flex-col gap-1 py-1.5">
       <SectionHeader title="Transform" modified={transformModified} onReset={resetTransform}>

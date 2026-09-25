@@ -146,8 +146,10 @@ for the next stroke. `H` and `C` switch between heal and clone.
 **Geometry** shows the whole photo while you work, and applies the result when you switch to
 another tool.
 
-- **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1** or
-  **3:2**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
+- **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1**,
+  **3:2**, **5:4** or **7:5**; **Custom…** takes any whole-number width and height. The button beside
+  it, or `Shift+X`, swaps landscape and portrait, so **5:4** becomes **4:5**. The size the crop keeps,
+  in pixels of the original, shows beside **Crop**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
   shape of a free crop. `Ctrl` or `Cmd` with the mouse wheel scales the crop, and with a drag inside
   it moves the photo under the crop. **Crop guide**, or `O`, cycles the overlay between rule of
   thirds, golden ratio, diagonals, a grid and none, and remembers your choice.

@@ -185,6 +185,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'cropGrid':
       ui.cycleCropGrid();
       return;
+    case 'flipAspect':
+      editor.flipGeometryAspect();
+      return;
     case 'autoAdjust':
       if (!editor.autoBusy) void editor.onAutoAdjust();
       return;

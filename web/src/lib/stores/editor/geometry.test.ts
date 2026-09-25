@@ -8,9 +8,11 @@ vi.mock('$lib/api/preview', () => ({
 import {
   cancelSession,
   finishSession,
+  flipAspect,
   sessionDirty,
   startSession,
   updateDraftAngle,
+  updateDraftAspect,
   type GeometryCtx
 } from './geometry.svelte';
 
@@ -75,5 +77,21 @@ describe('geometry session', () => {
     startSession(c);
     updateDraftAngle(c, angle);
     expect(c.geometrySession?.draftAngle).toBe(want);
+  });
+
+  it('flips a ratio crop between landscape and portrait and ignores square and free', () => {
+    const c = ctx();
+    startSession(c);
+    const sess = c.geometrySession;
+    if (!sess) throw new Error('no session');
+    sess.srcW = 600;
+    sess.srcH = 400;
+    updateDraftAspect(c, { kind: 'ratio', num: 5, den: 4 });
+    flipAspect(c);
+    expect(sess.draftAspect).toEqual({ kind: 'ratio', num: 4, den: 5 });
+    expect(sess.draftCrop.w * 600).toBeLessThan(sess.draftCrop.h * 400);
+    updateDraftAspect(c, { kind: 'free' });
+    flipAspect(c);
+    expect(sess.draftAspect).toEqual({ kind: 'free' });
   });
 });

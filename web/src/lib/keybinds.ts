@@ -538,6 +538,13 @@ export const KEYBINDS = [
     label: 'Cycle the crop guide: thirds, golden ratio, diagonals, grid, none'
   },
   {
+    id: 'flipAspect',
+    keys: ['Shift+x'],
+    contexts: ['geometry'],
+    group: 'Geometry',
+    label: 'Swap the crop between landscape and portrait'
+  },
+  {
     id: 'cropFromCentre',
     keys: [],
     contexts: ['geometry'],

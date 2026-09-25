@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gotoAsset, installMocks, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
+import { gotoAsset, installMocks, makePng, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
 
 function exposureSlider(page: import('@playwright/test').Page) {
   return page
@@ -873,6 +873,44 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await page.keyboard.press('r');
   await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
   await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();
+});
+
+async function cropRatio(page: import('@playwright/test').Page): Promise<number> {
+  const text = (await page.getByTestId('crop-output-size').textContent()) ?? '';
+  const [w, h] = text.replace(' px', '').split(' × ').map(Number);
+  return (w ?? 0) / (h ?? 1);
+}
+
+test('aspect presets, Shift+X and a custom ratio drive the output size', async ({ page }) => {
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+  await page.keyboard.press('r');
+  await expect(page.getByTestId('crop-output-size')).toHaveText('6000 × 4000 px');
+
+  await page.getByRole('button', { name: 'Aspect Ratio' }).click();
+  await page.getByRole('option', { name: '5:4', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(5 / 4, 2);
+
+  await page.locator('.cursor-move').click();
+  await page.keyboard.press('Shift+X');
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
+  await expect(page.getByRole('button', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
+
+  await page.getByRole('button', { name: 'Aspect Ratio' }).click();
+  await page.getByRole('option', { name: 'Custom…', exact: true }).click();
+  const widthBox = await page.getByRole('textbox', { name: 'Width' }).boundingBox();
+  const heightBox = await page.getByRole('textbox', { name: 'Height' }).boundingBox();
+  const rowEnd = await page
+    .getByRole('button', { name: /Switch to (landscape|portrait)/ })
+    .boundingBox();
+  if (!widthBox || !heightBox || !rowEnd) throw new Error('custom ratio row not laid out');
+  expect(Math.abs(widthBox.y - heightBox.y)).toBeLessThan(1);
+  expect(heightBox.x + heightBox.width).toBeLessThanOrEqual(rowEnd.x + rowEnd.width + 1);
+  await page.getByRole('textbox', { name: 'Width' }).fill('7');
+  await page.getByRole('textbox', { name: 'Width' }).press('Tab');
+  await page.getByRole('textbox', { name: 'Height' }).fill('3');
+  await page.getByRole('textbox', { name: 'Height' }).press('Tab');
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(7 / 3, 2);
 });
 
 for (const how of ['tool', 'shift'] as const) {

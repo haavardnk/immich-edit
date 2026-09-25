@@ -758,6 +758,8 @@ class EditorStore {
 
   updateGeometryDraftAspect = (aspect: AspectLock): void =>
     geometry.updateDraftAspect(this, aspect);
+
+  flipGeometryAspect = (): void => geometry.flipAspect(this);
 }
 
 export const editor = new EditorStore();
