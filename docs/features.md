@@ -77,7 +77,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Creative 3D LUTs | ✓ Yes | `.cube` import with amount control; importing is admin-only |
 | 3D LUT export | ✗ No | No `.cube` download or baking from current color edits |
 | Automatic RAW lens profiles | ✓ Yes | Distortion and vignette; chromatic aberration remains opt-in |
-| Crop, rotate, and flip | ✓ Yes | Geometry controls |
+| Crop, rotate, and flip | ✓ Yes | Geometry controls; straighten by drawing a line along the horizon |
 | Manual perspective correction | ✓ Yes | Keystone, aspect, and corner controls |
 | Automatic or guided upright | ✗ No | — |
 

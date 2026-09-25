@@ -65,6 +65,9 @@ function onEscape(e: KeyboardEvent): void {
   if (ui.keybindsHelpOpen) {
     e.preventDefault();
     ui.closeKeybindsHelp();
+  } else if (ui.editorTab === 'geometry' && ui.straightening) {
+    e.preventDefault();
+    ui.straightening = false;
   } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
     e.preventDefault();
     ui.perspectiveCorners = false;
@@ -175,6 +178,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'geometryDone':
       void editor.finishGeometrySession();
       ui.openTab('develop');
+      return;
+    case 'straighten':
+      ui.toggleStraighten();
       return;
     case 'autoAdjust':
       if (!editor.autoBusy) void editor.onAutoAdjust();

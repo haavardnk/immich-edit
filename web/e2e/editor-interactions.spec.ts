@@ -855,6 +855,38 @@ async function dragCropCorner(page: import('@playwright/test').Page): Promise<vo
   await page.mouse.up();
 }
 
+for (const how of ['tool', 'shift'] as const) {
+  test(`a line drawn with the straighten ${how} levels the photo`, async ({ page }) => {
+    await installMocks(page);
+    await gotoAsset(page);
+    await page.keyboard.press('r');
+    await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
+
+    const straighten = page.getByRole('button', { name: 'Straighten' });
+    if (how === 'tool') {
+      await page.keyboard.press('Shift+A');
+      await expect(straighten).toHaveAttribute('aria-pressed', 'true');
+    }
+    const surface =
+      how === 'tool' ? page.getByTestId('straighten-surface') : page.locator('.cursor-move');
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('no straighten surface');
+    const x = box.x + box.width * 0.25;
+    const y = box.y + box.height * 0.5;
+    if (how === 'shift') await page.keyboard.down('Shift');
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 200, y + 200 * Math.tan((10 * Math.PI) / 180), { steps: 6 });
+    await page.mouse.up();
+    if (how === 'shift') await page.keyboard.up('Shift');
+
+    await expect
+      .poll(async () => Number(await geometrySlider(page, 'Angle').inputValue()))
+      .toBeCloseTo(-10, 0);
+    await expect(straighten).toHaveAttribute('aria-pressed', 'false');
+  });
+}
+
 test('R opens Geometry and Escape drops the crop', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { onSave: (body) => saves.push(body) });

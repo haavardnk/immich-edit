@@ -19,7 +19,8 @@
     mdiFlipVertical,
     mdiCropLandscape,
     mdiCropPortrait,
-    mdiVectorSquare
+    mdiVectorSquare,
+    mdiAngleAcute
   } from '@mdi/js';
 
   $effect(() => {
@@ -28,6 +29,7 @@
     if (!assetId || !initialised) return;
     untrack(() => editor.startGeometrySession());
     return () => {
+      ui.straightening = false;
       untrack(() => void editor.finishGeometrySession());
     };
   });
@@ -180,6 +182,16 @@
     <div class="flex flex-col gap-1 py-1.5">
       <SectionHeader title="Transform" modified={transformModified} onReset={resetTransform}>
         {#snippet actions()}
+          <IconButton
+            size="tiny"
+            variant="ghost"
+            color={ui.straightening ? 'primary' : 'secondary'}
+            icon={mdiAngleAcute}
+            title={hint('Straighten', 'straighten')}
+            aria-label="Straighten"
+            aria-pressed={ui.straightening}
+            onclick={ui.toggleStraighten}
+          />
           <IconButton
             size="tiny"
             variant="ghost"

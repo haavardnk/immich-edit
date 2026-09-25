@@ -134,9 +134,11 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Geometry
 
-| Keys    | Action                                             | Available in |
-| ------- | -------------------------------------------------- | ------------ |
-| `Enter` | Apply the crop and transform and return to Develop | Geometry     |
+| Keys                           | Action                                             | Available in |
+| ------------------------------ | -------------------------------------------------- | ------------ |
+| `Enter`                        | Apply the crop and transform and return to Develop | Geometry     |
+| `Shift+A`                      | Draw a line along the horizon to level the photo   | Geometry     |
+| `Shift + drag inside the crop` | Draw a straighten line without arming the tool     | Geometry     |
 
 ## Masks
 
