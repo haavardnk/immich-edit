@@ -1,14 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
 
-const GRID_ASSETS = Array.from({ length: 10 }, (_, index) => {
-  const number = index + 1;
-  return {
-    ...ASSET_SUMMARY,
-    id: `00000000-0000-0000-0000-${String(number).padStart(12, '0')}`,
-    originalFileName: `IMG_${String(number).padStart(4, '0')}.ARW`,
-    exifInfo: { exifImageWidth: 6000, exifImageHeight: 4000 }
-  };
+const GRID_ASSETS = numberedAssets(10, {
+  exifInfo: { exifImageWidth: 6000, exifImageHeight: 4000 }
 });
 
 test('grid tiles and counts are readable by assistive tech', async ({ page }) => {

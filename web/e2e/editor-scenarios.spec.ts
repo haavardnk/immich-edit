@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, NEUTRAL_RECORD, installMocks, json, gotoAsset } from './helpers';
+import {
+  ASSET_ID,
+  ASSET_SUMMARY,
+  NEUTRAL_RECORD,
+  installMocks,
+  json,
+  gotoAsset,
+  numberedAssets
+} from './helpers';
 import { neutralEdits } from '../src/lib/types/edits';
 
 async function openPresets(page: Page): Promise<void> {
@@ -120,15 +128,7 @@ test('editor and loupe keep independent filmstrip visibility', async ({ page }) 
 });
 
 test('the filmstrip keeps a manual scroll away from the current photo', async ({ page }) => {
-  const assets = Array.from({ length: 80 }, (_, index) => {
-    const suffix = String(index + 1).padStart(12, '0');
-    return {
-      ...ASSET_SUMMARY,
-      id: `00000000-0000-0000-0000-${suffix}`,
-      originalFileName: `IMG_${String(index + 1).padStart(4, '0')}.ARW`,
-      checksum: suffix
-    };
-  });
+  const assets = numberedAssets(80);
   await installMocks(page, { assets });
 
   await page.goto(`/assets/${ASSET_ID}?from=%2Fphotos`);
