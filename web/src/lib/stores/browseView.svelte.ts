@@ -2,6 +2,9 @@ import { compare } from './compare.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
+export type TileInfo = 'none' | 'badges' | 'full';
+
+const TILE_INFO_ORDER: TileInfo[] = ['none', 'badges', 'full'];
 
 const GRID_MIN: Record<GridSize, number> = {
   sm: 110,
@@ -18,6 +21,7 @@ type Persisted = {
   gridSize: GridSize;
   loupeAutoAdvance: boolean;
   loupeInfoOpen: boolean;
+  tileInfo: TileInfo;
 };
 
 class BrowseViewStore {
@@ -27,6 +31,7 @@ class BrowseViewStore {
   loupeInfoOpen = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
+  tileInfo = $state<TileInfo>('badges');
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
   private gridScroll = new Map<string, number>();
@@ -37,13 +42,16 @@ class BrowseViewStore {
     if (typeof stored?.loupeAutoAdvance === 'boolean')
       this.loupeAutoAdvance = stored.loupeAutoAdvance;
     if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
+    if (stored?.tileInfo && TILE_INFO_ORDER.includes(stored.tileInfo))
+      this.tileInfo = stored.tileInfo;
   }
 
   private persist(): void {
     writeStored(STORAGE_KEY, {
       gridSize: this.gridSize,
       loupeAutoAdvance: this.loupeAutoAdvance,
-      loupeInfoOpen: this.loupeInfoOpen
+      loupeInfoOpen: this.loupeInfoOpen,
+      tileInfo: this.tileInfo
     } satisfies Persisted);
   }
 
@@ -70,6 +78,13 @@ class BrowseViewStore {
 
   toggleLoupeInfo(): void {
     this.loupeInfoOpen = !this.loupeInfoOpen;
+    this.persist();
+  }
+
+  cycleTileInfo(): void {
+    const next =
+      TILE_INFO_ORDER[(TILE_INFO_ORDER.indexOf(this.tileInfo) + 1) % TILE_INFO_ORDER.length];
+    if (next) this.tileInfo = next;
     this.persist();
   }
 

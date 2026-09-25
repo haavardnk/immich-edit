@@ -89,6 +89,13 @@ export const KEYBINDS = [
     display: '− / +'
   },
   {
+    id: 'gridTileInfo',
+    keys: ['Shift+i'],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Cycle thumbnail info: hover only, badges, name and date'
+  },
+  {
     id: 'gridSelectAll',
     keys: ['Mod+a'],
     contexts: ['grid'],

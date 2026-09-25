@@ -42,6 +42,12 @@ export function fmtDate(s: string | null): string | null {
   }
 }
 
+export function fmtDay(s: string | null): string | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString();
+}
+
 export function fmtCamera(make: string | null, model: string | null): string | null {
   const v = [make, model].filter(Boolean).join(' ').trim();
   return v.length > 0 ? v : null;

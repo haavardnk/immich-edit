@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installMocks, json, numberedAssets } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
@@ -20,6 +20,37 @@ test('a cold album link opens the albums section at the current album', async ({
   const link = sidebar.getByRole('link', { name: /Review album/ });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('aria-current', 'page');
+});
+
+test('each thumbnail info mode shows more than the last', async ({ page }) => {
+  await installMocks(page, {
+    assets: [{ ...ASSET_SUMMARY, isFavorite: true, exifInfo: { rating: 3 } }]
+  });
+  await page.goto('/photos');
+  const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+  const heart = tile.getByRole('img', { name: 'Favorite' });
+  const row = tile.getByTestId('tile-info');
+  const name = tile.getByTestId('tile-name');
+  await page.mouse.move(0, 0);
+
+  await expect(page.getByRole('button', { name: 'Thumbnail info: badges' })).toBeVisible();
+  await expect(heart).toHaveCSS('opacity', '1');
+  await expect(row).toHaveCSS('opacity', '1');
+  await expect(name).toHaveCSS('opacity', '0');
+
+  await page.keyboard.press('Shift+i');
+  await expect(page.getByRole('button', { name: 'Thumbnail info: name and date' })).toBeVisible();
+  await expect(name).toHaveCSS('opacity', '1');
+  await expect(name).toContainText(new Date('2024-01-01T00:00:00Z').toLocaleDateString());
+
+  await page.keyboard.press('Shift+i');
+  await expect(page.getByRole('button', { name: 'Thumbnail info: hover only' })).toBeVisible();
+  await expect(heart).toHaveCSS('opacity', '0');
+  await expect(row).toHaveCSS('opacity', '0');
+
+  await tile.hover();
+  await expect(heart).toHaveCSS('opacity', '1');
+  await expect(name).toHaveCSS('opacity', '1');
 });
 
 test('grid shows total count without loaded progress', async ({ page }) => {

@@ -7,6 +7,8 @@
   import { copyIndex, isCopy } from '$lib/assetKey';
   import { isRejected } from '$lib/reject';
   import { editorHref } from '$lib/editorNavigation';
+  import { fmtDay } from '$lib/utils/exif';
+  import type { TileInfo } from '$lib/stores/browseView.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,
@@ -19,6 +21,7 @@
 
   let {
     asset,
+    info = 'badges',
     active = false,
     selected = false,
     rangePreview = false,
@@ -32,6 +35,7 @@
     onDeleteCopy
   }: {
     asset: AssetSummary;
+    info?: TileInfo;
     active?: boolean;
     selected?: boolean;
     rangePreview?: boolean;
@@ -53,6 +57,15 @@
   const marked = $derived(selected || rangePreview);
   const copyBadge = $derived(
     isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
+  );
+  const rowPinned = $derived(
+    info === 'full' || (info === 'badges' && (copyBadge !== null || rating > 0))
+  );
+  const hoverOnly = 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100';
+  const markClass = $derived(info === 'none' ? hoverOnly : '');
+  const nameClass = $derived(info === 'full' ? '' : hoverOnly);
+  const taken = $derived(
+    info === 'full' ? fmtDay(asset.exifInfo?.dateTimeOriginal ?? asset.fileCreatedAt) : null
   );
 
   function onClick(e: MouseEvent): void {
@@ -148,7 +161,7 @@
     <div
       role="img"
       aria-label="Favorite"
-      class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
+      class="pointer-events-none absolute top-1 right-1 text-white drop-shadow-md transition-opacity {markClass}"
     >
       <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
     </div>
@@ -157,7 +170,7 @@
     <div
       role="img"
       aria-label="Rejected"
-      class="absolute right-1 text-white drop-shadow-md pointer-events-none"
+      class="pointer-events-none absolute right-1 text-white drop-shadow-md transition-opacity {markClass}"
       class:top-1={!asset.isFavorite}
       class:top-7={asset.isFavorite}
     >
@@ -194,13 +207,19 @@
     {/if}
   </div>
   <div
-    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 items-end gap-2 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {copyBadge ||
-    rating > 0
+    data-testid="tile-info"
+    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 items-end gap-2 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {rowPinned
       ? 'opacity-100'
       : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}"
   >
-    <span class="min-w-0 flex-1 truncate text-[10px] font-medium drop-shadow-md">
-      {asset.originalFileName}
+    <span
+      data-testid="tile-name"
+      class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
+    >
+      <span class="truncate text-[10px] font-medium">{asset.originalFileName}</span>
+      {#if taken}
+        <span class="truncate text-[9px] text-white/70">{taken}</span>
+      {/if}
     </span>
     {#if copyBadge}
       <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">

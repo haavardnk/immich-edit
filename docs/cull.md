@@ -27,7 +27,9 @@ and oldest first, and each view remembers its own order. **Reset filters and sor
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
 ones **Exclude rejected** is hiding.
-The **S**, **M**, **L** and **XL** buttons set the thumbnail size.
+The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
+beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
+favorite, reject, rating and copy badges, or those plus the filename and capture date.
 
 ## Look at photos
 
