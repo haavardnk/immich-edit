@@ -738,6 +738,16 @@ test('dense panel fields and selects share package sizing and states', async ({ 
   expect(labelText[0].fontSize).toBe('11px');
   expect(labelText[0].fontWeight).toBe('500');
 
+  for (const [name, placeholder] of [
+    ['Albums', 'Add album…'],
+    ['Tags', 'Add tag…']
+  ]) {
+    const label = await panel.getByText(name, { exact: true }).boundingBox();
+    const field = await containerOf(page.getByLabel(placeholder)).boundingBox();
+    if (!label || !field) throw new Error(`${name} row is not laid out`);
+    expect(Math.abs(label.y + label.height / 2 - (field.y + field.height / 2))).toBeLessThan(1);
+  }
+
   for (const label of ['Add album…', 'Add tag…']) {
     const field = containerOf(page.getByLabel(label));
     const metrics = await metricsOf(field);
