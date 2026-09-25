@@ -25,6 +25,15 @@
   let drawPts = $state<[number, number][]>([]);
   let drawing = $state(false);
   let dragSourceId = $state<string | null>(null);
+  let dragStroke = $state<{
+    id: string;
+    from: [number, number];
+    points: Vec2f[];
+    source: Vec2f;
+    reach: { left: number; right: number; top: number; bottom: number };
+    moved: boolean;
+  } | null>(null);
+  let hoverMovable = $state(false);
   let hover = $state<[number, number] | null>(null);
   let hoverAlt = $state(false);
   let strokeOffset: [number, number] | null = null;
@@ -137,6 +146,23 @@
       return;
     }
     const hit = hitStroke(nx, ny);
+    if (hit && hit.id === editor.activeRetouchId) {
+      const all = [...hit.points, hit.source];
+      dragStroke = {
+        id: hit.id,
+        from: displayUvToSceneUv(view, nx, ny),
+        points: hit.points.map((p) => ({ ...p })),
+        source: { ...hit.source },
+        reach: {
+          left: Math.min(...all.map((p) => p.x)),
+          right: 1 - Math.max(...all.map((p) => p.x)),
+          top: Math.min(...all.map((p) => p.y)),
+          bottom: 1 - Math.max(...all.map((p) => p.y))
+        },
+        moved: false
+      };
+      return;
+    }
     if (hit) {
       editor.activeRetouchId = hit.id;
       return;
@@ -161,7 +187,29 @@
       void editor.setRetouchStroke(dragSourceId, { source: { x: s[0], y: s[1] } }, false);
       return;
     }
-    if (!drawing) return;
+    if (dragStroke) {
+      const [sx, sy] = displayUvToSceneUv(view, nx, ny);
+      const { reach } = dragStroke;
+      const dx = Math.min(reach.right, Math.max(-reach.left, sx - dragStroke.from[0]));
+      const dy = Math.min(reach.bottom, Math.max(-reach.top, sy - dragStroke.from[1]));
+      dragStroke.moved = true;
+      void editor.setRetouchStroke(
+        dragStroke.id,
+        {
+          points: dragStroke.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+          source: { x: dragStroke.source.x + dx, y: dragStroke.source.y + dy }
+        },
+        false
+      );
+      return;
+    }
+    if (!drawing) {
+      hoverMovable =
+        !!editor.activeRetouchId &&
+        !hitSourceHandle(nx, ny) &&
+        hitStroke(nx, ny)?.id === editor.activeRetouchId;
+      return;
+    }
     if (drawPts.length >= MAX_RETOUCH_POINTS) return;
     const last = drawPts[drawPts.length - 1];
     if (!last) return;
@@ -179,6 +227,12 @@
       dragSourceId = null;
       editor.activeRetouchId = id;
       void editor.commitRetouch();
+      return;
+    }
+    if (dragStroke) {
+      const moved = dragStroke.moved;
+      dragStroke = null;
+      if (moved) void editor.commitRetouch();
       return;
     }
     if (drawing) void finishStroke();
@@ -397,9 +451,13 @@
     bind:this={canvasEl}
     aria-label="retouch canvas"
     class="absolute"
-    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: {canPick
-      ? 'crosshair'
-      : 'not-allowed'};"
+    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: {dragStroke
+      ? 'grabbing'
+      : hoverMovable
+        ? 'move'
+        : canPick
+          ? 'crosshair'
+          : 'not-allowed'};"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
