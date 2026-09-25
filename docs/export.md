@@ -34,7 +34,7 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
 | **Lossless** | WebP | Forced on while **Include EXIF metadata** is checked |
 | **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
-| **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out |
+| **Include EXIF metadata** | Always | Copies camera, lens, date and location. Embedded previews are left out. In a JPEG, EXIF over 64 KB loses maker notes and user comments first, then everything but capture, copyright and location; other formats keep it all |
 
 [Features](features.md#export-color-and-interoperability) lists what is and is not supported.
 [Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
