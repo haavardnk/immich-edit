@@ -37,6 +37,24 @@ function isControlTarget(e: KeyboardEvent): boolean {
   return !!el?.closest('button:not([role="tab"]), a, [role="button"], [role="combobox"]');
 }
 
+function openInEditor(id: string): void {
+  void goto(editorHref(id, page.url.searchParams.get('from')), { replaceState: true });
+}
+
+function navigate(id: string, delta: number): void {
+  const target = delta < 0 ? browsing.prevOf(id) : browsing.nextOf(id);
+  if (target) {
+    browsing.prefetchNear(target.id);
+    openInEditor(target.id);
+    return;
+  }
+  if (delta < 0) return;
+  void browsing.requestMore().then((loaded) => {
+    const after = loaded && page.params.id === id ? browsing.nextOf(id) : null;
+    if (after) openInEditor(after.id);
+  });
+}
+
 function onEscape(e: KeyboardEvent): void {
   if (ui.closeMetadataPopovers()) {
     e.preventDefault();
@@ -89,12 +107,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
   e.preventDefault();
 
   switch (bind) {
-    case 'editorNav': {
-      const target = e.key === 'ArrowLeft' ? browsing.prevOf(id) : browsing.nextOf(id);
-      if (target)
-        void goto(editorHref(target.id, page.url.searchParams.get('from')), { replaceState: true });
+    case 'editorNav':
+      navigate(id, e.key === 'ArrowLeft' ? -1 : 1);
       return;
-    }
     case 'backToGrid':
       void backToGrid(id, page.url.searchParams.get('from'));
       return;

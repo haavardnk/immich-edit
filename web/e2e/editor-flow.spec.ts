@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_ID, ASSET_SUMMARY, installMocks, numberedAssets } from './helpers';
 
 test('photos → asset → export tab', async ({ page }) => {
   await installMocks(page);
@@ -19,16 +19,7 @@ test('photos → asset → export tab', async ({ page }) => {
 });
 
 test('photos grid restores scroll after editor back', async ({ page }) => {
-  const assets = Array.from({ length: 80 }, (_, index) => {
-    const assetNumber = index + 1;
-    const suffix = String(assetNumber).padStart(12, '0');
-    return {
-      ...ASSET_SUMMARY,
-      id: `00000000-0000-0000-0000-${suffix}`,
-      originalFileName: `IMG_${String(assetNumber).padStart(4, '0')}.ARW`,
-      checksum: suffix
-    };
-  });
+  const assets = numberedAssets(80);
   await installMocks(page, { assets });
 
   await page.goto('/photos');
@@ -52,6 +43,32 @@ test('photos grid restores scroll after editor back', async ({ page }) => {
 
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBeCloseTo(before, 0);
   await expect(link).toBeVisible();
+});
+
+test('editor navigation walks past the last loaded page', async ({ page }) => {
+  const assets = numberedAssets(80);
+  const pages: unknown[] = [];
+  await installMocks(page, {
+    assets,
+    searchPages: [assets.slice(0, 40), assets.slice(40)],
+    onMetadata: (body) => void pages.push(body.page)
+  });
+
+  await page.goto('/photos');
+  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  await expect(tile).toBeVisible();
+  await tile.evaluate((el) => (el as HTMLAnchorElement).click());
+  await page.waitForURL(new RegExp(`/assets/${ASSET_ID}\\?`));
+  expect(pages).toEqual([undefined]);
+
+  const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
+  for (let step = 0; step < 41; step += 1) {
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      toolbar.getByText(`IMG_${String(step + 2).padStart(4, '0')}.ARW`, { exact: true })
+    ).toBeVisible();
+  }
+  expect(pages).toEqual([undefined, 2]);
 });
 
 test('back returns to the grid and selects the photo left open', async ({ page }) => {
