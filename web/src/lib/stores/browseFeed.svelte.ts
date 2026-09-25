@@ -2,7 +2,7 @@ import { searchMetadata, searchStatistics } from '$lib/api/search';
 import type { SearchQuery, SearchResult } from '$lib/types/search';
 import { browsing, type BrowsePager } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
-import { rejected } from './rejected.svelte';
+import { loadCullTags, stampCullTags } from './cullTags';
 import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
 import type { AssetSummary } from '$lib/types/album';
@@ -71,10 +71,10 @@ export class BrowseFeed implements BrowsePager {
     const body = (this.opts.buildBody ?? browseControls.searchBody.bind(browseControls))(base);
     if (!initial && this.nextPage) body.page = Number(this.nextPage);
     const fetcher = this.opts.fetcher ?? searchMetadata;
-    return Promise.all([fetcher(body), rejected.load().catch(() => undefined)])
+    return Promise.all([fetcher(body), loadCullTags().catch(() => undefined)])
       .then(([result]) => {
         if (req !== this.reqId) return false;
-        const items = rejected.stamp(result.items);
+        const items = stampCullTags(result.items);
         this.assets = initial ? items : [...this.assets, ...items];
         browsing.set(this.assets, this);
         this.nextPage = result.nextPage;

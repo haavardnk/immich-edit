@@ -46,6 +46,7 @@ import { type ColorSpaceOpt, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
 import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
 import { isRejected } from '$lib/reject';
+import type { LabelColor } from '$lib/labels';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui, type BrushTool, type RetouchTool } from '$lib/stores/ui.svelte';
@@ -716,6 +717,8 @@ class EditorStore {
   removeTag = (tagId: string): Promise<void> => metadata.removeTag(this, tagId);
 
   toggleReject = (): Promise<void> => metadata.toggleReject(this);
+
+  setLabel = (color: LabelColor | null): Promise<void> => metadata.setLabel(this, color);
 
   createAndAddTag = (value: string): Promise<TagRef | null> =>
     metadata.createAndAddTag(this, value);

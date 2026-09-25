@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from '@playwright/test';
+import { expect, type Locator, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import type { EditRecord } from '../src/lib/types/edits';
 import type { ExifInfo } from '../src/lib/types/asset';
@@ -71,8 +71,11 @@ export const ASSET_SUMMARY = {
 
 export const ASSET_EXIF = { exifImageWidth: 6000, exifImageHeight: 4000 };
 
+export type MockTag = { id: string; name: string; value: string };
+
 export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;
+  tags?: MockTag[];
 };
 
 export function numberedAssets(
@@ -184,6 +187,8 @@ export interface InstallOpts {
   previewMeta?: Record<string, unknown>;
   faces?: Array<Record<string, number>>;
   renderer?: 'auto' | 'server';
+  tags?: MockTag[];
+  onTagAsset?: (change: { tagId: string; assetId: string; added: boolean }) => void;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -195,6 +200,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const copies: CopyRecord[] = [];
+  const tagList: MockTag[] = [...(opts.tags ?? [])];
+  const assetTags = new Map<string, MockTag[]>();
+  const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
+    assetTags.get(id) ?? fallback ?? [];
   const ordered = (order: unknown, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (order !== 'asc' && order !== 'desc') return items;
     const sign = order === 'asc' ? 1 : -1;
@@ -221,7 +230,12 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const searchResult = (body: Record<string, unknown>) => {
     const pageNumber = typeof body.page === 'number' ? body.page : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const items = expanded(ordered(body.order, pageAssets));
+    const tagIds = Array.isArray(body.tagIds)
+      ? body.tagIds.filter((id) => tagList.some((t) => t.id === id))
+      : [];
+    const items = expanded(ordered(body.order, pageAssets))
+      .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
+      .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)));
     const total = opts.total ?? opts.searchPages?.flat().length ?? items.length;
     const nextPage =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
@@ -271,7 +285,39 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));
-    if (p === '/api/tags') return route.fulfill(json([]));
+    if (p === '/api/tags') {
+      if (method === 'PUT') {
+        const values = (req.postDataJSON() as { tags: string[] }).tags;
+        const upserted = values.map((value) => {
+          const existing = tagList.find((t) => t.value === value);
+          if (existing) return existing;
+          const tag = {
+            id: `mock-tag-${tagList.length + 1}`,
+            name: value.split('/').at(-1) ?? value,
+            value
+          };
+          tagList.push(tag);
+          return tag;
+        });
+        return route.fulfill(json(upserted.map((t) => ({ ...t, createdAt: null }))));
+      }
+      return route.fulfill(json(tagList.map((t) => ({ ...t, createdAt: null }))));
+    }
+    const tagAssetMatch = p.match(/^\/api\/tags\/([^/]+)\/assets\/([^/]+)$/);
+    if (tagAssetMatch) {
+      const [, tagId, assetId] = tagAssetMatch;
+      const tag = tagList.find((t) => t.id === tagId);
+      const current = tagsOf(assetId, assets.find((a) => a.id === assetId)?.tags);
+      const added = method === 'PUT';
+      assetTags.set(
+        assetId,
+        added && tag
+          ? [...current.filter((t) => t.id !== tagId), tag]
+          : current.filter((t) => t.id !== tagId)
+      );
+      opts.onTagAsset?.({ tagId, assetId, added });
+      return route.fulfill(json({}));
+    }
     if (p === '/api/people') return route.fulfill(json([]));
     if (p === '/api/presets') {
       if (method === 'POST') {
@@ -314,7 +360,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           ...ASSET_DETAIL,
           ...asset,
           originalMimeType: 'image/x-sony-arw',
-          tags: []
+          tags: tagsOf(asset.id, 'tags' in asset ? asset.tags : undefined)
         })
       );
     }
@@ -455,4 +501,29 @@ export async function gotoAsset(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
   await expect(toolbar.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
+}
+
+export async function focusRingClipped(target: Locator): Promise<string> {
+  await target.focus();
+  return target.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const spreads = [...style.boxShadow.matchAll(/0px 0px 0px (\d+(?:\.\d+)?)px/g)].map((m) =>
+      Number(m[1])
+    );
+    const reach =
+      style.outlineStyle !== 'none'
+        ? parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset)
+        : Math.max(0, ...spreads);
+    let clip = el.parentElement;
+    while (clip && getComputedStyle(clip).overflowX === 'visible') clip = clip.parentElement;
+    if (!clip || reach <= 0) return `no ring or clip (${reach})`;
+    const ring = el.getBoundingClientRect();
+    const box = clip.getBoundingClientRect();
+    return ring.left - reach < box.left ||
+      ring.right + reach > box.right ||
+      ring.top - reach < box.top ||
+      ring.bottom + reach > box.bottom
+      ? 'clipped'
+      : '';
+  });
 }

@@ -20,16 +20,16 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 `red car at night` works. When Immich's machine learning is down, it falls back to searching
 filenames.
 
-**Filters** narrows the current view by **Visibility**, **Rating**, **Favorites only**,
+**Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Favorites only**,
 **Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. The sort button next to it flips between newest
 and oldest first, and each view remembers its own order. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
-ones **Exclude rejected** is hiding.
+ones **Label** and **Exclude rejected** are hiding.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
-favorite, reject, rating and copy badges, or those plus the filename and capture date.
+favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
 
 ## Look at photos
 
@@ -49,7 +49,7 @@ faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 
 it. Zoom percentages are percentages of the original, so 100% shows one camera pixel on one screen
 pixel.
 
-## Rate and reject
+## Rate, reject and label
 
 These keys work in the grid, the loupe, compare, survey and the editor:
 
@@ -60,12 +60,19 @@ These keys work in the grid, the loupe, compare, survey and the editor:
 | `P` or `F` | Toggle favorite |
 | `X` | Toggle reject |
 | `U` | Clear favorite and reject |
+| `6` to `9` | Set the red, yellow, green or blue label; the same key again clears it |
 
-The first time you rate, favorite, tag or reject in a browser, immich-edit asks before it writes to
-Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in Immich, so
-they show up there too. Reject adds the Immich tag `immich-edit/reject`. immich-edit never deletes
-a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or delete them in
-Immich later.
+A photo has at most one color label: red, yellow, green, blue or purple. Purple has no key; pick
+it, or any other label, with the label button beside reject in the loupe, the editor and the
+selection bar. Tiles and filmstrip thumbnails show the label as a colored dot, and the **Label**
+filter shows one color, or only photos without a label.
+
+The first time you rate, favorite, tag, reject or label in a browser, immich-edit asks before it
+writes to Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in
+Immich, so they show up there too. Reject adds the Immich tag `immich-edit/reject`, and a label
+adds `immich-edit/label/red` and so on, so Immich searches and workflows can use them. immich-edit
+never deletes a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or
+delete them in Immich later.
 
 ## Choose between similar shots
 

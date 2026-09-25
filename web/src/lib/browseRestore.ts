@@ -7,7 +7,7 @@ import { browseControls, type SortFamily } from '$lib/stores/browseControls.svel
 import { recallBrowseFilters } from '$lib/stores/browseContext';
 import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
 import { browsing } from '$lib/stores/browsing.svelte';
-import { rejected } from '$lib/stores/rejected.svelte';
+import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
 import type { AssetSummary } from '$lib/types/album';
 
 const WINDOW_RADIUS = 250;
@@ -125,7 +125,7 @@ export async function restoreBrowse(from: string | null, assetId: string): Promi
     if (returnPath) await new BrowseFeed(route.feed).fetchPage(true);
     return;
   }
-  await rejected.load().catch(() => undefined);
+  await loadCullTags().catch(() => undefined);
   const assets = await route.load();
   browsing.set(sortAssets(assets, route.sortAt, browseControls.sortDir));
 }
@@ -134,9 +134,9 @@ async function restoreWindow(feed: BrowseFeedOptions, assetId: string): Promise<
   const query = browseControls.searchBody(feed.baseBody());
   const [result] = await Promise.all([
     searchWindow(assetId, query, WINDOW_RADIUS).catch(() => null),
-    rejected.load().catch(() => undefined)
+    loadCullTags().catch(() => undefined)
   ]);
   if (!result?.items.length) return false;
-  browsing.set(rejected.stamp(result.items));
+  browsing.set(stampCullTags(result.items));
   return true;
 }

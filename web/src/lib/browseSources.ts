@@ -1,7 +1,7 @@
 import { listEditedAssets } from '$lib/api/edits';
 import { folderAssets } from '$lib/api/folders';
 import { searchMetadata, searchSmart } from '$lib/api/search';
-import { rejected } from '$lib/stores/rejected.svelte';
+import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
 import { toasts } from '$lib/stores/toasts.svelte';
 import type { SearchMode } from '$lib/searchMode';
 import type { AssetSummary } from '$lib/types/album';
@@ -26,9 +26,9 @@ export async function runSearch(
 export async function loadEditedAssets(): Promise<AssetSummary[]> {
   const [entries] = await Promise.all([
     listEditedAssets(true),
-    rejected.load().catch(() => undefined)
+    loadCullTags().catch(() => undefined)
   ]);
-  return rejected.stamp(
+  return stampCullTags(
     entries.map<AssetSummary>((entry) =>
       entry.asset
         ? { ...entry.asset, updatedAt: entry.updated_at }

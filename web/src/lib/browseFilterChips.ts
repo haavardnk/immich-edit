@@ -1,10 +1,12 @@
 import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import { LABEL_NAMES, type LabelColor } from '$lib/labels';
 
 export type FilterKey = keyof BrowseFilters;
 
 export interface FilterChip {
   key: FilterKey;
   label: string;
+  color?: LabelColor;
 }
 
 const VISIBILITY_LABELS: Record<BrowseFilters['visibility'], string> = {
@@ -26,6 +28,13 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
     chips.push({ key: 'rating', label: ratingLabel(filters.rating) });
   if (filters.favoriteOnly) chips.push({ key: 'favoriteOnly', label: 'Favorites' });
   if (filters.excludeRejected) chips.push({ key: 'excludeRejected', label: 'No rejected' });
+  if (filters.label === 'none') chips.push({ key: 'label', label: 'No label' });
+  else if (filters.label !== 'any')
+    chips.push({
+      key: 'label',
+      label: `${LABEL_NAMES[filters.label]} label`,
+      color: filters.label
+    });
   if (filters.filename) chips.push({ key: 'filename', label: `Name: ${filters.filename}` });
   if (filters.takenAfter) chips.push({ key: 'takenAfter', label: `After ${filters.takenAfter}` });
   if (filters.takenBefore)

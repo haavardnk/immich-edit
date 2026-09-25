@@ -15,8 +15,8 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { deleteCopy } from '$lib/api/copies';
   import { isCopy } from '$lib/assetKey';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
-  import { isRejected } from '$lib/reject';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
+  import { labelOf, nextLabelFromKey } from '$lib/labels';
   import { nextRatingFromKey } from '$lib/ratingShortcuts';
   import { editorHref } from '$lib/editorNavigation';
   import { matchKeybind, type KeybindContext } from '$lib/keybinds';
@@ -59,9 +59,7 @@
   let selectingAll = $state(false);
   let bulkBar: BulkActionBar | undefined = $state();
 
-  const items = $derived(
-    browseControls.excludeRejected ? assets.filter((a) => !isRejected(a)) : assets
-  );
+  const items = $derived(assets.filter((a) => !browseControls.hides(a)));
 
   const layout = $derived.by(() => {
     const inner = Math.max(0, gridWidth - PAD * 2);
@@ -205,6 +203,18 @@
     targets().forEach((id) => void clearFlags(id));
   }
 
+  function applyLabelKey(key: string): boolean {
+    const ids = targets();
+    if (ids.length === 0) return false;
+    const idSet = new Set(ids);
+    const labels = items.filter((a) => idSet.has(a.id)).map((a) => labelOf(a));
+    const common = labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
+    const next = nextLabelFromKey(key, common);
+    if (next === undefined) return false;
+    ids.forEach((id) => void setLabel(id, next));
+    return true;
+  }
+
   function moveAndShow(e: KeyboardEvent, index: number): void {
     e.preventDefault();
     const target = items[Math.min(items.length - 1, Math.max(0, index))];
@@ -319,6 +329,9 @@
       case 'unflag':
         e.preventDefault();
         return applyUnflag();
+      case 'label':
+        if (applyLabelKey(e.key)) e.preventDefault();
+        return;
       case 'enterCompare':
         e.preventDefault();
         return openMulti('compare');

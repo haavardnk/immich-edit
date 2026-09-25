@@ -15,17 +15,25 @@ describe('browse filter chips', () => {
       visibility: 'archive',
       takenAfter: '2024-01-01',
       takenBefore: '2024-12-31',
-      excludeRejected: true
+      excludeRejected: true,
+      label: 'green'
     });
     expect(chips.map((c) => c.label)).toEqual([
       'Archived',
       '3 stars',
       'Favorites',
       'No rejected',
+      'Green label',
       'Name: DSC',
       'After 2024-01-01',
       'Before 2024-12-31'
     ]);
+  });
+
+  it('names the no-label filter', () => {
+    expect(activeFilterChips({ ...FILTER_DEFAULTS, label: 'none' })[0]?.label).toBe('No label');
+    expect(activeFilterChips({ ...FILTER_DEFAULTS, label: 'none' })[0]?.color).toBeUndefined();
+    expect(activeFilterChips({ ...FILTER_DEFAULTS, label: 'blue' })[0]?.color).toBe('blue');
   });
 
   it.each([

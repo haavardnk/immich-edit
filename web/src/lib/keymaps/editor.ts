@@ -6,6 +6,7 @@ import { browsing } from '$lib/stores/browsing.svelte';
 import { backToGrid } from '$lib/backToGrid';
 import { createVirtualCopy } from '$lib/copies';
 import { nextRatingFromKey } from '$lib/ratingShortcuts';
+import { labelOf, nextLabelFromKey } from '$lib/labels';
 import { isKeybind, isRadioGroupTarget, isTypingTarget, matchKeybind } from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
 import { editorHref } from '$lib/editorNavigation';
@@ -196,6 +197,11 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'unflag':
       void editor.clearFlags();
       return;
+    case 'label': {
+      const next = nextLabelFromKey(e.key, editor.asset ? labelOf(editor.asset) : null);
+      if (next !== undefined) void editor.setLabel(next);
+      return;
+    }
     case 'rate': {
       const next = nextRatingFromKey(e.key, editor.asset?.exifInfo?.rating ?? null);
       if (next !== undefined) void editor.setRating(next);

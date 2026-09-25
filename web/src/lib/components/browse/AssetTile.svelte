@@ -6,12 +6,14 @@
   import { assetThumbUrl } from '$lib/api/assets';
   import { copyIndex, isCopy } from '$lib/assetKey';
   import { isRejected } from '$lib/reject';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/labels';
   import { editorHref } from '$lib/editorNavigation';
   import { fmtDay } from '$lib/utils/exif';
   import type { TileInfo } from '$lib/stores/browseView.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,
+    mdiCircle,
     mdiStar,
     mdiCheck,
     mdiEyeOutline,
@@ -53,6 +55,7 @@
 
   const rating = $derived(asset.exifInfo?.rating ?? 0);
   const rejected = $derived(isRejected(asset));
+  const label = $derived(labelOf(asset));
   const src = $derived(assetThumbUrl(asset.id));
   const marked = $derived(selected || rangePreview);
   const copyBadge = $derived(
@@ -157,24 +160,29 @@
       <Icon icon={mdiCheck} size="16px" aria-hidden="true" />
     {/if}
   </button>
-  {#if asset.isFavorite}
+  {#if asset.isFavorite || rejected || label}
     <div
-      role="img"
-      aria-label="Favorite"
-      class="pointer-events-none absolute top-1 right-1 text-white drop-shadow-md transition-opacity {markClass}"
+      class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-1 text-white drop-shadow-md"
     >
-      <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
-    </div>
-  {/if}
-  {#if rejected}
-    <div
-      role="img"
-      aria-label="Rejected"
-      class="pointer-events-none absolute right-1 text-white drop-shadow-md transition-opacity {markClass}"
-      class:top-1={!asset.isFavorite}
-      class:top-7={asset.isFavorite}
-    >
-      <Icon icon={mdiCloseCircle} size="16px" aria-hidden="true" />
+      {#if asset.isFavorite}
+        <div role="img" aria-label="Favorite" class="transition-opacity {markClass}">
+          <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
+        </div>
+      {/if}
+      {#if rejected}
+        <div role="img" aria-label="Rejected" class="transition-opacity {markClass}">
+          <Icon icon={mdiCloseCircle} size="16px" aria-hidden="true" />
+        </div>
+      {/if}
+      {#if label}
+        <div
+          role="img"
+          aria-label="{LABEL_NAMES[label]} label"
+          class="transition-opacity {LABEL_TEXT[label]} {markClass}"
+        >
+          <Icon icon={mdiCircle} size="14px" aria-hidden="true" />
+        </div>
+      {/if}
     </div>
   {/if}
   <div

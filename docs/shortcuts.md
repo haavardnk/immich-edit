@@ -24,12 +24,13 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Culling
 
-| Keys                              | Action                          | Available in                         |
-| --------------------------------- | ------------------------------- | ------------------------------------ |
-| `0` / `1` / `2` / `3` / `4` / `5` | Set, toggle or clear the rating | Grid, Loupe, Compare, Survey, Editor |
-| `P` / `F`                         | Toggle favorite                 | Grid, Loupe, Compare, Survey, Editor |
-| `X`                               | Toggle reject                   | Grid, Loupe, Compare, Survey, Editor |
-| `U`                               | Clear favorite and reject       | Grid, Loupe, Compare, Survey, Editor |
+| Keys                              | Action                                            | Available in                         |
+| --------------------------------- | ------------------------------------------------- | ------------------------------------ |
+| `0` / `1` / `2` / `3` / `4` / `5` | Set, toggle or clear the rating                   | Grid, Loupe, Compare, Survey, Editor |
+| `P` / `F`                         | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
+| `X`                               | Toggle reject                                     | Grid, Loupe, Compare, Survey, Editor |
+| `U`                               | Clear favorite and reject                         | Grid, Loupe, Compare, Survey, Editor |
+| `6` / `7` / `8` / `9`             | Set or clear the red, yellow, green or blue label | Grid, Loupe, Compare, Survey, Editor |
 
 ## Grid
 

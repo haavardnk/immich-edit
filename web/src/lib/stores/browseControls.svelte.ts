@@ -1,8 +1,12 @@
 import type { SearchQuery, SortDir, Visibility } from '$lib/types/search';
+import type { AssetSummary } from '$lib/types/album';
+import { labelOf, type LabelColor } from '$lib/labels';
+import { isRejected } from '$lib/reject';
 import { readStored, writeStored } from '$lib/utils/storage';
 
 export type { SortDir, Visibility };
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
+export type LabelFilter = 'any' | 'none' | LabelColor;
 export type SortFamily = 'timeline' | 'collection' | 'edited';
 
 export interface BrowseFilters {
@@ -13,6 +17,7 @@ export interface BrowseFilters {
   takenAfter: string;
   takenBefore: string;
   excludeRejected: boolean;
+  label: LabelFilter;
 }
 
 const SORT_KEY = 'immich-edit:browseSort';
@@ -30,7 +35,8 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   visibility: 'timeline',
   takenAfter: '',
   takenBefore: '',
-  excludeRejected: false
+  excludeRejected: false,
+  label: 'any'
 };
 
 export class BrowseControlsStore {
@@ -41,6 +47,7 @@ export class BrowseControlsStore {
   takenAfter = $state('');
   takenBefore = $state('');
   excludeRejected = $state(false);
+  label = $state<LabelFilter>('any');
   private sortByFamily = $state<Record<SortFamily, SortDir>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
 
@@ -79,7 +86,8 @@ export class BrowseControlsStore {
       this.visibility === 'timeline' &&
       this.takenAfter === '' &&
       this.takenBefore === '' &&
-      !this.excludeRejected
+      !this.excludeRejected &&
+      this.label === 'any'
     );
   }
 
@@ -91,8 +99,15 @@ export class BrowseControlsStore {
       this.visibility !== 'timeline' ||
       this.takenAfter !== '' ||
       this.takenBefore !== '' ||
-      this.excludeRejected
+      this.excludeRejected ||
+      this.label !== 'any'
     );
+  }
+
+  hides(asset: AssetSummary): boolean {
+    if (this.excludeRejected && isRejected(asset)) return true;
+    if (this.label === 'any') return false;
+    return labelOf(asset) !== (this.label === 'none' ? null : this.label);
   }
 
   private context: string | null = null;
@@ -117,7 +132,8 @@ export class BrowseControlsStore {
       visibility: this.visibility,
       takenAfter: this.takenAfter,
       takenBefore: this.takenBefore,
-      excludeRejected: this.excludeRejected
+      excludeRejected: this.excludeRejected,
+      label: this.label
     };
   }
 
@@ -129,6 +145,7 @@ export class BrowseControlsStore {
     this.takenAfter = filters.takenAfter;
     this.takenBefore = filters.takenBefore;
     this.excludeRejected = filters.excludeRejected;
+    this.label = filters.label;
   }
 
   private resetFilters(): void {

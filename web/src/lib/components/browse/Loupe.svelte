@@ -7,7 +7,8 @@
   import { compare, CENTERED, type CompareMode } from '$lib/stores/compare.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags } from '$lib/cull';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
+  import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/labels';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { isRejected } from '$lib/reject';
@@ -52,6 +53,7 @@
   );
   const rating = $derived(asset?.exifInfo?.rating ?? 0);
   const rejected = $derived(asset ? isRejected(asset) : false);
+  const label = $derived(asset ? labelOf(asset) : null);
   const copyBadge = $derived(
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
@@ -339,6 +341,14 @@
     });
   }
 
+  function applyLabel(color: LabelColor | null): void {
+    const id = focusedId;
+    if (!id) return;
+    void setLabel(id, color).then((ok) => {
+      if (ok) autoAdvance(id);
+    });
+  }
+
   function onKeydown(e: KeyboardEvent): void {
     if (!currentId) return;
     if (e.key === 'Escape' && ui.fullscreen) {
@@ -419,6 +429,12 @@
       case 'unflag':
         e.preventDefault();
         return unflag();
+      case 'label': {
+        const next = nextLabelFromKey(e.key, label);
+        if (next === undefined) return;
+        e.preventDefault();
+        return applyLabel(next);
+      }
       case 'toggleSelect':
         e.preventDefault();
         return toggleSelect();
@@ -581,6 +597,7 @@
         {rating}
         isFavorite={asset.isFavorite}
         {rejected}
+        {label}
         tags={currentTags}
         {multi}
         {position}
@@ -591,6 +608,7 @@
         onRate={rate}
         onFavorite={favorite}
         onReject={reject}
+        onLabel={applyLabel}
         onAddTag={addTag}
         onRemoveTag={removeTag}
         onCreateTag={createAndAddTag}

@@ -5,6 +5,15 @@ import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
+import {
+  isLabelTag,
+  labelOf,
+  labelTagFor,
+  withLabel,
+  writeLabel,
+  type LabelColor
+} from '$lib/labels';
+import { assignLabel } from '$lib/stores/labels.svelte';
 import type { AssetSummary } from '$lib/types/album';
 import type { ExifInfo } from '$lib/types/asset';
 
@@ -64,6 +73,30 @@ export async function clearFlags(id: string): Promise<boolean> {
   if (asset.isFavorite) changed = (await toggleFavorite(id)) || changed;
   if (isRejected(asset)) changed = (await toggleReject(id)) || changed;
   return changed;
+}
+
+export async function setLabel(id: string, color: LabelColor | null): Promise<boolean> {
+  const asset = browsing.assets.find((a) => a.id === id);
+  if (!asset) return false;
+  if (!(await metadataConsent.gate())) return false;
+  const tag = await labelTagFor(color);
+  if (tag === undefined) {
+    toasts.push('error', 'label: could not create tag');
+    return false;
+  }
+  const prev = asset.tags;
+  const prevColor = labelOf(asset);
+  const prevTag = prev.find(isLabelTag) ?? null;
+  browsing.patch(id, { tags: withLabel(prev, tag) });
+  assignLabel(id, color, tag);
+  try {
+    await writeLabel(id, prev, tag);
+  } catch (e) {
+    browsing.patch(id, { tags: prev });
+    assignLabel(id, prevColor, prevTag);
+    toasts.fail('label', e);
+  }
+  return true;
 }
 
 export async function toggleReject(id: string): Promise<boolean> {

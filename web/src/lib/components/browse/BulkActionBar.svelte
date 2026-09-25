@@ -9,6 +9,16 @@
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
   import { ensureRejectTag, setRejectedTags } from '$lib/reject';
+  import {
+    LABEL_NAMES,
+    labelOf,
+    labelTagFor,
+    withLabel,
+    writeLabel,
+    type LabelColor
+  } from '$lib/labels';
+  import { assignLabel } from '$lib/stores/labels.svelte';
+  import LabelPicker from '$lib/components/LabelPicker.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
@@ -72,6 +82,11 @@
   let targetCount = $derived(selectingAll ? assets.length : count);
   let canCompare = $derived(!selectingAll && count === 2);
   let canSurvey = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
+  let commonLabel = $derived.by(() => {
+    const picked = new Set(selectedIds);
+    const labels = assets.filter((a) => picked.has(a.id)).map((a) => labelOf(a));
+    return labels.length > 0 && labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
+  });
   let showSelectAll = $derived.by(() => {
     if (hasMore) return true;
     const picked = new Set(selectedIds);
@@ -196,6 +211,40 @@
         `${value ? 'Rejected' : 'Unrejected'} ${ids.length} asset${ids.length === 1 ? '' : 's'}`,
         4000
       );
+    }
+  }
+  async function applyLabel(color: LabelColor | null): Promise<void> {
+    if (busy || selectingAll) return;
+    if (!(await metadataConsent.gate())) return;
+    const tag = await labelTagFor(color);
+    if (tag === undefined) {
+      toasts.push('error', 'label: could not create tag', 6000);
+      return;
+    }
+    busy = true;
+    const ids = [...selectedIds];
+    const byId = new Map(assets.map((a) => [a.id, a]));
+    let failed = 0;
+    await runPool(ids, 6, async (id) => {
+      const a = byId.get(id);
+      try {
+        await writeLabel(id, a?.tags ?? [], tag);
+        if (a) {
+          const tags = withLabel(a.tags, tag);
+          a.tags = tags;
+          browsing.patch(id, { tags });
+        }
+        assignLabel(id, color, tag);
+      } catch {
+        failed += 1;
+      }
+    });
+    busy = false;
+    if (failed > 0) {
+      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
+    } else {
+      const what = color ? `${LABEL_NAMES[color]} label on` : 'Cleared the label of';
+      toasts.push('success', `${what} ${ids.length} photo${ids.length === 1 ? '' : 's'}`, 4000);
     }
   }
 </script>
@@ -325,6 +374,12 @@
             aria-label="Unreject"
             disabled={metaBusy}
             onclick={() => void applyReject(false)}
+          />
+          <LabelPicker
+            size="medium"
+            label={commonLabel}
+            disabled={metaBusy}
+            onchange={(color) => void applyLabel(color)}
           />
           <IconButton
             size="medium"

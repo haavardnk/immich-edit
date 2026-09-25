@@ -7,10 +7,11 @@
   import { assetThumbUrl } from '$lib/api/assets';
   import { createFilmstripLayout, visibleFilmstripRange } from '$lib/filmstripLayout';
   import { isRejected } from '$lib/reject';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/labels';
   import { editorHref } from '$lib/editorNavigation';
   import ResizeHandle from './ResizeHandle.svelte';
   import { Icon } from '@immich/ui';
-  import { mdiCheckCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { mdiCheckCircle, mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
@@ -98,6 +99,22 @@
   });
 </script>
 
+{#snippet badges(favorite: boolean, rejected: boolean, label: LabelColor | null)}
+  {#if favorite || rejected || label}
+    <div
+      class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-0.5 text-white drop-shadow-md"
+    >
+      {#if favorite}<Icon icon={mdiHeart} size="13px" aria-hidden="true" />{/if}
+      {#if rejected}<Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />{/if}
+      {#if label}
+        <div role="img" aria-label="{LABEL_NAMES[label]} label" class={LABEL_TEXT[label]}>
+          <Icon icon={mdiCircle} size="11px" aria-hidden="true" />
+        </div>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
 {#if assets.length > 0}
   <div class="relative flex-none border-t border-white/12 bg-editor-chrome shadow-filmstrip">
     {#if resizable && !collapsed}
@@ -177,22 +194,11 @@
                         <Icon icon={mdiCheckCircle} size="14px" />
                       </div>
                     {/if}
-                    {#if showBadges && asset.isFavorite}
-                      <div
-                        class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
-                      >
-                        <Icon icon={mdiHeart} size="13px" aria-hidden="true" />
-                      </div>
-                    {/if}
-                    {#if showBadges && rejected}
-                      <div
-                        class="absolute right-1 text-white drop-shadow-md pointer-events-none"
-                        class:top-1={!asset.isFavorite}
-                        class:top-6={asset.isFavorite}
-                      >
-                        <Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />
-                      </div>
-                    {/if}
+                    {@render badges(
+                      showBadges && asset.isFavorite,
+                      showBadges && rejected,
+                      labelOf(asset)
+                    )}
                     {#if showBadges && rating > 0}
                       <div
                         class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
@@ -231,22 +237,11 @@
                         : 'opacity-65 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
                       class:grayscale={rejected}
                     />
-                    {#if showBadges && asset.isFavorite}
-                      <div
-                        class="absolute top-1 right-1 text-white drop-shadow-md pointer-events-none"
-                      >
-                        <Icon icon={mdiHeart} size="13px" aria-hidden="true" />
-                      </div>
-                    {/if}
-                    {#if showBadges && rejected}
-                      <div
-                        class="absolute right-1 text-white drop-shadow-md pointer-events-none"
-                        class:top-1={!asset.isFavorite}
-                        class:top-6={asset.isFavorite}
-                      >
-                        <Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />
-                      </div>
-                    {/if}
+                    {@render badges(
+                      showBadges && asset.isFavorite,
+                      showBadges && rejected,
+                      labelOf(asset)
+                    )}
                     {#if showBadges && rating > 0}
                       <div
                         class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
