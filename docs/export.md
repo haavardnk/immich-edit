@@ -58,6 +58,27 @@ already smaller than the size you ask for keeps its own size. Turn it off to sca
 the enlarged photo is resampled once, at the end, after every edit. The **Size** line above shows
 the size the export will have. The largest export is 65,535 pixels on the long edge.
 
+## Output sharpening
+
+Resizing and printing both soften a photo. Output sharpening, the **Sharpen** option, puts back
+what the output loses. It runs once, on the finished pixels, after the resize, so it matches the
+export's final size. It never touches the editor preview or the saved edit.
+
+| Choice | Use it for |
+| --- | --- |
+| **None** | No extra sharpening (the default) |
+| **Screen** | Web, social media and phone or monitor viewing |
+| **Matte paper** | Matte and fine-art paper, which spreads ink the most |
+| **Glossy paper** | Glossy, lustre and other coated paper |
+
+**Amount** is **Low**, **Standard** or **High**. For the two paper choices, enter the
+**Print PPI** (print resolution) your print will have, from 72 to 1200 (300 by default). A higher
+resolution sharpens with a wider radius, because the same ink spread on paper covers more of the
+smaller printed pixels. Sharpening works on brightness only, so it does not add color fringes,
+and it never pushes a pixel past its neighbors, so edges do not get bright or dark halos. The
+Detail panel's Sharpen is still the place to sharpen the photo itself; output sharpening is for
+the output.
+
 ## Name the file
 
 **Filename** takes a template that names every export, whether it downloads, goes into a ZIP or

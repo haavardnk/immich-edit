@@ -2,15 +2,23 @@ import { library } from '$lib/stores/library.svelte';
 import { listAlbums } from '$lib/api/albums';
 import { listTags } from '$lib/api/tags';
 import { toasts } from '$lib/stores/toasts.svelte';
-import { DEFAULT_FILENAME_TEMPLATE } from '$lib/filenameTemplate';
+import { DEFAULT_FILENAME_TEMPLATE, templateError } from '$lib/filenameTemplate';
 import {
   DEFAULT_RESIZE_BOX,
   DEFAULT_RESIZE_MEGAPIXELS,
   DEFAULT_RESIZE_PERCENT,
   EXPORT_MAX_EDGE,
+  resizeError,
   type ExportResize,
   type ResizeMode
 } from './resize';
+import {
+  SHARPEN_PPI,
+  sharpenError,
+  type ExportSharpen,
+  type SharpenAmount,
+  type SharpenMedia
+} from './sharpen';
 import type {
   BitDepthOpt,
   ColorSpaceOpt,
@@ -45,6 +53,9 @@ export interface ExportForm {
   resizeMegapixels: number;
   resizePercent: number;
   resizeEnlarge: boolean;
+  sharpenMedia: SharpenMedia | 'none';
+  sharpenAmount: SharpenAmount;
+  sharpenPpi: number;
 }
 
 interface Option<T extends string> {
@@ -89,6 +100,19 @@ export const RESIZE_MODES: Option<ResizeMode | 'none'>[] = [
   { value: 'dimensions', label: 'Dimensions' },
   { value: 'megapixels', label: 'Megapixels' },
   { value: 'percent', label: 'Percentage' }
+];
+
+export const SHARPEN_MEDIA: Option<SharpenMedia | 'none'>[] = [
+  { value: 'none', label: 'None' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'matte', label: 'Matte paper' },
+  { value: 'glossy', label: 'Glossy paper' }
+];
+
+export const SHARPEN_AMOUNTS: Option<SharpenAmount>[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'standard', label: 'Standard' },
+  { value: 'high', label: 'High' }
 ];
 
 const STACK_PRIMARIES: StackPrimary[] = ['edited', 'original'];
@@ -147,7 +171,10 @@ export function defaultExportForm(): ExportForm {
     resizeHeight: DEFAULT_RESIZE_BOX,
     resizeMegapixels: DEFAULT_RESIZE_MEGAPIXELS,
     resizePercent: DEFAULT_RESIZE_PERCENT,
-    resizeEnlarge: false
+    resizeEnlarge: false,
+    sharpenMedia: 'none',
+    sharpenAmount: 'standard',
+    sharpenPpi: SHARPEN_PPI.default
   };
 }
 
@@ -157,6 +184,7 @@ export function restoreExportForm(
   const form = defaultExportForm();
   if (!stored) return form;
   const quality = stored.quality;
+  const sharpenPpi = stored.sharpenPpi;
   return {
     format: pickOption(stored.format, FORMATS, form.format),
     quality:
@@ -180,7 +208,13 @@ export function restoreExportForm(
     resizeHeight: pickEdge(stored.resizeHeight, form.resizeHeight),
     resizeMegapixels: pickPositive(stored.resizeMegapixels, form.resizeMegapixels),
     resizePercent: pickPositive(stored.resizePercent, form.resizePercent),
-    resizeEnlarge: pickBoolean(stored.resizeEnlarge, form.resizeEnlarge)
+    resizeEnlarge: pickBoolean(stored.resizeEnlarge, form.resizeEnlarge),
+    sharpenMedia: pickOption(stored.sharpenMedia, SHARPEN_MEDIA, form.sharpenMedia),
+    sharpenAmount: pickOption(stored.sharpenAmount, SHARPEN_AMOUNTS, form.sharpenAmount),
+    sharpenPpi:
+      typeof sharpenPpi === 'number' && Number.isInteger(sharpenPpi) && sharpenPpi > 0
+        ? sharpenPpi
+        : form.sharpenPpi
   };
 }
 
@@ -202,6 +236,19 @@ export function formResize(f: ExportForm): ExportResize | null {
   };
 }
 
+export function formSharpen(f: ExportForm): ExportSharpen | null {
+  if (f.sharpenMedia === 'none') return null;
+  return { media: f.sharpenMedia, amount: f.sharpenAmount, ppi: f.sharpenPpi };
+}
+
+export function formInvalid(f: ExportForm): boolean {
+  return (
+    templateError(f.filenameTemplate) !== null ||
+    resizeError(formResize(f)) !== null ||
+    sharpenError(formSharpen(f)) !== null
+  );
+}
+
 export function baseOptions(f: ExportForm): ExportOptions {
   return {
     format: f.format,
@@ -213,7 +260,8 @@ export function baseOptions(f: ExportForm): ExportOptions {
     lossless: f.format === 'webp' ? f.lossless || f.includeExif : f.lossless,
     colorSpace: f.colorSpace,
     filenameTemplate: f.filenameTemplate,
-    resize: formResize(f)
+    resize: formResize(f),
+    sharpen: formSharpen(f)
   };
 }
 

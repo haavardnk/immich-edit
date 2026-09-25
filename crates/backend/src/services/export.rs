@@ -22,6 +22,7 @@ pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
 mod archive;
 mod batch;
 mod naming;
+mod output_sharpen;
 mod params;
 mod resize;
 
@@ -92,6 +93,7 @@ pub async fn render_export(
     priority: RenderPriority,
 ) -> Result<(Bytes, OutputFormat), AppError> {
     let resize = params.resize()?;
+    let output_sharpen = params.output_sharpen()?;
     let work = async {
         let frame = state
             .render
@@ -108,6 +110,7 @@ pub async fn render_export(
         let opts = raw_pipeline::frame::RenderOptions {
             max_edge: edge.map_or(EXPORT_MAX_EDGE, |e| e.max_edge),
             enlarge: edge.is_some_and(|e| e.enlarge),
+            output_sharpen,
             quality: true,
             output,
             output_color_space: params.output_color_space(),
@@ -289,6 +292,9 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "resize_megapixels": body.params.resize_megapixels,
         "resize_percent": body.params.resize_percent,
         "resize_enlarge": body.params.resize_enlarge,
+        "output_sharpen_media": body.params.output_sharpen_media.map(|m| format!("{m:?}")),
+        "output_sharpen_amount": format!("{:?}", body.params.output_sharpen_amount),
+        "output_sharpen_ppi": body.params.output_sharpen_ppi,
     });
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();

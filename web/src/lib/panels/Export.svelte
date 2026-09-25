@@ -4,14 +4,15 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
   import { EXTENSION_BY_FORMAT } from '$lib/api/export';
-  import { captureDate, templateError } from '$lib/filenameTemplate';
+  import { captureDate } from '$lib/filenameTemplate';
   import { croppedOutputSize } from '$lib/utils/geom';
   import { fmtDim } from '$lib/utils/exif';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
   import ResizeOptions from './export/ResizeOptions.svelte';
-  import { resizeError, resizedSize } from './export/resize';
+  import SharpenOptions from './export/SharpenOptions.svelte';
+  import { resizedSize } from './export/resize';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import {
@@ -19,6 +20,7 @@
     COLOR_SPACES,
     ensureLibraryLoaded,
     formatLabel,
+    formInvalid,
     formResize,
     immichOptions
   } from './export/settings';
@@ -63,9 +65,7 @@
         }
       : null
   );
-  let formInvalid = $derived(
-    templateError(form.filenameTemplate) !== null || resizeError(formResize(form)) !== null
-  );
+  let invalid = $derived(formInvalid(form));
 </script>
 
 <div class="flex flex-col gap-1">
@@ -73,6 +73,7 @@
 
   <FormatOptions bind:form={exportSettings.form} {outputSize} />
   <ResizeOptions bind:form={exportSettings.form} {crop} />
+  <SharpenOptions bind:form={exportSettings.form} />
 
   {#if proofMismatch}
     <Notice
@@ -148,7 +149,7 @@
       fullWidth
       loading={isLoading}
       leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
-      disabled={isLoading || !editor.assetId || formInvalid}
+      disabled={isLoading || !editor.assetId || invalid}
       onclick={() => {
         if (destination === 'download') void editor.onExport(baseOptions(form));
         else void editor.onUploadToImmich(immichOptions(form));

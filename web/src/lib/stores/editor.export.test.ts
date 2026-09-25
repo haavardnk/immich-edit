@@ -24,7 +24,8 @@ const JPEG: ExportOptions = {
   lossless: false,
   colorSpace: 'srgb',
   filenameTemplate: '{name}_warm',
-  resize: null
+  resize: null,
+  sharpen: null
 };
 
 describe('editor export results', () => {

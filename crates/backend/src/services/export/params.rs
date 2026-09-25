@@ -1,9 +1,11 @@
 use raw_pipeline::frame::{
-    BitDepth, JpegSubsampling, OutputColorSpace, OutputFormat, PngCompression, TiffCompression,
+    BitDepth, JpegSubsampling, OutputColorSpace, OutputFormat, OutputSharpen, PngCompression,
+    TiffCompression,
 };
 use serde::Deserialize;
 
 use super::DEFAULT_QUALITY;
+use super::output_sharpen::{SharpenAmountOpt, SharpenMediaOpt, output_sharpen};
 use super::resize::{Resize, ResizeMode};
 use crate::error::AppError;
 
@@ -96,6 +98,12 @@ pub struct ExportParams {
     pub resize_percent: Option<f64>,
     #[serde(default)]
     pub resize_enlarge: bool,
+    #[serde(default)]
+    pub output_sharpen_media: Option<SharpenMediaOpt>,
+    #[serde(default)]
+    pub output_sharpen_amount: SharpenAmountOpt,
+    #[serde(default)]
+    pub output_sharpen_ppi: Option<u32>,
 }
 
 impl Default for ExportParams {
@@ -116,6 +124,9 @@ impl Default for ExportParams {
             resize_megapixels: None,
             resize_percent: None,
             resize_enlarge: false,
+            output_sharpen_media: None,
+            output_sharpen_amount: SharpenAmountOpt::default(),
+            output_sharpen_ppi: None,
         }
     }
 }
@@ -133,6 +144,14 @@ impl ExportParams {
                 ResizeMode::Percent => Resize::percent(self.resize_percent),
             })
             .transpose()
+    }
+
+    pub fn output_sharpen(&self) -> Result<Option<OutputSharpen>, AppError> {
+        output_sharpen(
+            self.output_sharpen_media,
+            self.output_sharpen_amount,
+            self.output_sharpen_ppi,
+        )
     }
 
     pub fn output_color_space(&self) -> OutputColorSpace {

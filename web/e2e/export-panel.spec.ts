@@ -135,6 +135,94 @@ test('a download carries the resize settings', async ({ page }) => {
   await expect(page.getByText('3000 × 2000 px')).toBeVisible();
 });
 
+test('a download carries the output sharpening settings', async ({ page }) => {
+  const sent: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    onExport: (route) => {
+      const request = route.request();
+      const query = Object.fromEntries(new URL(request.url()).searchParams);
+      sent.push(
+        request.method() === 'POST' ? (request.postDataJSON() as Record<string, unknown>) : query
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"' },
+        body: JPEG_BLOB
+      });
+    }
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('option', { name: 'Matte paper' }).click();
+  await page.getByRole('button', { name: 'Amount', exact: true }).click();
+  await page.getByRole('option', { name: 'High' }).click();
+  const ppi = page.getByLabel('Print PPI');
+  await expect(ppi).toHaveValue('300');
+  const exportButton = page.getByRole('button', { name: /Export JPEG/ });
+
+  await ppi.fill('40');
+  await expect(page.getByText('Enter a whole number from 72 to 1200')).toBeVisible();
+  await expect(exportButton).toBeDisabled();
+
+  await ppi.fill('240');
+  const downloadPromise = page.waitForEvent('download');
+  await exportButton.click();
+  await downloadPromise;
+  expect(
+    ['output_sharpen_media', 'output_sharpen_amount', 'output_sharpen_ppi'].map((key) =>
+      String(sent[0]?.[key])
+    )
+  ).toEqual(['matte', 'high', '240']);
+
+  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('option', { name: 'Screen' }).click();
+  await expect(ppi).toBeHidden();
+  const second = page.waitForEvent('download');
+  await exportButton.click();
+  await second;
+  expect(sent[1]?.output_sharpen_media).toBe('screen');
+  expect(sent[1]).not.toHaveProperty('output_sharpen_ppi');
+});
+
+test('every export option label fits on one line', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await page.getByRole('radio', { name: 'To Immich' }).click();
+  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('option', { name: 'Dimensions' }).click();
+  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('option', { name: 'Matte paper' }).click();
+  await expect(page.getByLabel('Print PPI')).toBeVisible();
+
+  const labels = page.getByRole('tabpanel').locator('label, .editor-compact-label');
+  const lines = await labels.evaluateAll((nodes) =>
+    nodes
+      .filter((node) => node.getClientRects().length > 0)
+      .map((node) => {
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        const tops: number[] = [];
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+          if (!text.textContent?.trim()) continue;
+          range.selectNodeContents(text);
+          tops.push(...[...range.getClientRects()].map((rect) => rect.top));
+        }
+        tops.sort((a, b) => a - b);
+        const count = tops.filter((top, i) => i === 0 || top - (tops[i - 1] ?? top) > 4).length;
+        return [node.textContent?.trim(), count] as const;
+      })
+  );
+  expect(lines.length).toBeGreaterThan(8);
+  expect(lines.filter(([, count]) => count > 1)).toEqual([]);
+});
+
 test('export warns when it will not match the soft proof', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

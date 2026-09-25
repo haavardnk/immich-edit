@@ -12,7 +12,8 @@ const base: ExportOptions = {
   lossless: false,
   colorSpace: 'displayp3',
   filenameTemplate: '{date}_{seq}',
-  resize: { mode: 'dimensions', width: 2048, height: 2048, enlarge: false }
+  resize: { mode: 'dimensions', width: 2048, height: 2048, enlarge: false },
+  sharpen: { media: 'glossy', amount: 'high', ppi: 360 }
 };
 
 const immich: ImmichExportOptions = {
@@ -54,7 +55,10 @@ describe('export jobs', () => {
       resize_mode: 'dimensions',
       resize_width: 2048,
       resize_height: 2048,
-      resize_enlarge: false
+      resize_enlarge: false,
+      output_sharpen_media: 'glossy',
+      output_sharpen_amount: 'high',
+      output_sharpen_ppi: 360
     });
     expect(params).not.toHaveProperty('filename_suffix');
   });

@@ -4,6 +4,8 @@ use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::RenderOptions;
 
+mod sharpen;
+
 pub enum FinalPixels {
     Rgb8(Vec<u8>),
     Rgb16(Vec<u16>),
@@ -27,7 +29,7 @@ fn enlarged_dims(w: u32, h: u32, opts: &RenderOptions) -> Option<(u32, u32)> {
 }
 
 pub fn has_final_stage(w: u32, h: u32, opts: &RenderOptions) -> bool {
-    enlarged_dims(w, h, opts).is_some()
+    enlarged_dims(w, h, opts).is_some() || opts.output_sharpen.is_some()
 }
 
 fn resize(src: Vec<u8>, w: u32, h: u32, dims: (u32, u32), pixel: PixelType) -> Option<Vec<u8>> {
@@ -69,10 +71,14 @@ fn enlarge(image: FinalImage, dims: (u32, u32)) -> crate::PipelineResult<FinalIm
 }
 
 pub fn final_stage(image: FinalImage, opts: &RenderOptions) -> crate::PipelineResult<FinalImage> {
-    match enlarged_dims(image.width, image.height, opts) {
-        Some(dims) => enlarge(image, dims),
-        None => Ok(image),
+    let mut image = match enlarged_dims(image.width, image.height, opts) {
+        Some(dims) => enlarge(image, dims)?,
+        None => image,
+    };
+    if let Some(output_sharpen) = opts.output_sharpen {
+        sharpen::sharpen(&mut image, output_sharpen);
     }
+    Ok(image)
 }
 
 pub fn encode(image: &FinalImage, opts: &RenderOptions) -> crate::PipelineResult<Vec<u8>> {
