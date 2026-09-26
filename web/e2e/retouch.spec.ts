@@ -77,6 +77,29 @@ test('painting without a sampled source asks for one', async ({ page }) => {
   await expect(panel.getByRole('status')).toHaveText('Set a source before painting');
 });
 
+test('Alt and the wheel resize the retouch brush without setting a source', async ({ page }) => {
+  await installMocks(page, { previewBody: PNG_64 });
+  await gotoAsset(page);
+
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  const panel = page.getByRole('tabpanel');
+  const size = panel.getByRole('button', { name: 'Edit Size value' });
+  const px = async (): Promise<number> => Number.parseInt((await size.textContent()) ?? '', 10);
+  const before = await px();
+
+  const canvas = page.getByLabel('retouch canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('retouch canvas has no bounding box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.keyboard.down('Alt');
+  await page.mouse.wheel(0, -300);
+  await page.keyboard.up('Alt');
+
+  await expect.poll(px).toBeGreaterThan(before);
+  await expect(panel.getByText('Not set', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom', exact: true })).toHaveText('Fit');
+});
+
 test('Sample arms a one-shot source pick', async ({ page }) => {
   await installMocks(page, { previewBody: PNG_64 });
   await gotoAsset(page);

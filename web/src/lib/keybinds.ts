@@ -737,6 +737,22 @@ export const KEYBINDS = [
     group: 'Masks',
     label: 'Softer / harder brush'
   },
+  {
+    id: 'brushSizeWheel',
+    keys: [],
+    contexts: ['masks', 'retouch'],
+    group: 'Masks',
+    label: 'Resize the brush over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + scroll`
+  },
+  {
+    id: 'brushHardnessWheel',
+    keys: [],
+    contexts: ['masks', 'retouch'],
+    group: 'Masks',
+    label: 'Change the brush hardness over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
+  },
 
   {
     id: 'retouchHeal',
