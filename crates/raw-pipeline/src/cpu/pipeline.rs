@@ -161,16 +161,15 @@ fn oriented_sensor(
         frame.meta.orientation,
     );
 
-    let full = oriented_frame_dims(frame);
-    let oriented = match prep.edits.geometry.rotate {
-        90 | 270 => (full.1, full.0),
-        _ => full,
-    };
     let block_scale = prep.block.unwrap_or(1) as f32;
     let preview_dims = prep
         .preview_ratio
         .and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio / block_scale));
-    Ok((LinearImage::new(rgb, w, h), oriented, preview_dims))
+    Ok((
+        LinearImage::new(rgb, w, h),
+        oriented_frame_dims(frame),
+        preview_dims,
+    ))
 }
 
 pub(super) fn oriented_frame_dims(frame: &RawFrame) -> (usize, usize) {

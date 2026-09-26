@@ -149,6 +149,37 @@ fn gpu_reports_sensor_source_dims_at_small_max_edge() {
 }
 
 #[test]
+fn source_dims_stay_in_the_mask_frame_through_a_quarter_turn() {
+    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let gpu = try_renderer();
+    for rotate in [0, 90, 180, 270] {
+        let edits = Edits {
+            geometry: GeometryEdits {
+                rotate,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        if (cpu.source_w, cpu.source_h) != (96, 64) {
+            panic!(
+                "cpu rotate {rotate}: source {}x{}",
+                cpu.source_w, cpu.source_h
+            );
+        }
+        let Some(renderer) = &gpu else { continue };
+        let out = renderer.render(&frame, &edits, &opts).unwrap();
+        if (out.source_w, out.source_h) != (96, 64) {
+            panic!(
+                "gpu rotate {rotate}: source {}x{}",
+                out.source_w, out.source_h
+            );
+        }
+    }
+}
+
+#[test]
 fn gpu_matches_cpu_within_tolerance() {
     let Some(renderer) = try_renderer() else {
         return;
