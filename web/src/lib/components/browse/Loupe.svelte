@@ -37,7 +37,13 @@
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
-  import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
+  import {
+    mdiArrowCollapseLeft,
+    mdiChevronLeft,
+    mdiChevronRight,
+    mdiClose,
+    mdiFullscreenExit
+  } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -552,27 +558,62 @@
     >
       {#each panes as id, index (id)}
         {@const paneAsset = browsing.assets.find((item) => item.id === id)}
-        <LoupePane
-          bind:this={paneRefs[id]}
-          assetId={id}
-          alt={paneAsset?.originalFileName ?? ''}
-          view={compare.viewOf(id)}
-          focused={id === focusedId}
-          showFocus={multi}
-          badge={multi ? index + 1 : undefined}
-          onFocus={() => (compare.focusIndex = index)}
-          onView={(next, solo) => {
-            targetIndex = null;
-            compare.applyView(id, next, solo);
-          }}
-          onSize={(size) => (paneMaxEdge = size)}
-          sourceLong={Math.max(
-            paneAsset?.exifInfo?.exifImageWidth ?? 0,
-            paneAsset?.exifInfo?.exifImageHeight ?? 0
-          )}
-          onFitZoom={(value) => setFitZoom(id, value)}
-          onImage={(element) => setPaneImage(id, element)}
-        />
+        <div class="group relative flex min-h-0 min-w-0 flex-1">
+          <LoupePane
+            bind:this={paneRefs[id]}
+            assetId={id}
+            alt={paneAsset?.originalFileName ?? ''}
+            view={compare.viewOf(id)}
+            focused={id === focusedId}
+            showFocus={multi}
+            badge={compare.mode === 'compare'
+              ? index === 0
+                ? 'Select'
+                : 'Candidate'
+              : multi
+                ? String(index + 1)
+                : undefined}
+            onFocus={() => (compare.focusIndex = index)}
+            onView={(next, solo) => {
+              targetIndex = null;
+              compare.applyView(id, next, solo);
+            }}
+            onSize={(size) => (paneMaxEdge = size)}
+            sourceLong={Math.max(
+              paneAsset?.exifInfo?.exifImageWidth ?? 0,
+              paneAsset?.exifInfo?.exifImageHeight ?? 0
+            )}
+            onFitZoom={(value) => setFitZoom(id, value)}
+            onImage={(element) => setPaneImage(id, element)}
+          />
+          {#if compare.mode === 'compare' && index > 0 && id === focusedId}
+            <IconButton
+              type="button"
+              size="small"
+              variant="ghost"
+              color="secondary"
+              shape="round"
+              class="absolute top-2 right-2 z-10 bg-black/50 text-white hover:bg-black/75"
+              icon={mdiArrowCollapseLeft}
+              title={hint('Make select', 'panePromote')}
+              aria-label="Make select"
+              onclick={() => compare.promote(index)}
+            />
+          {:else if compare.mode === 'survey' && canDrop}
+            <IconButton
+              type="button"
+              size="small"
+              variant="ghost"
+              color="secondary"
+              shape="round"
+              class="absolute top-2 right-2 z-10 bg-black/50 text-white opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-black/75 focus-visible:opacity-100"
+              icon={mdiClose}
+              title={hint('Drop this photo', 'paneDrop')}
+              aria-label="Drop from survey"
+              onclick={() => compare.drop(index)}
+            />
+          {/if}
+        </div>
       {/each}
 
       {#if hasPrev && !ui.fullscreen}

@@ -75,7 +75,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Y`                 | Toggle synced zoom and pan              | Compare, Survey |
 | `D`                 | Open the focused photo in the editor    | Compare, Survey |
 | `Backspace` / `Del` | Drop the focused photo                  | Compare, Survey |
-| `Enter`             | Promote the focused pane to the left    | Compare         |
+| `Enter`             | Make the focused photo the select       | Compare         |
 | `E` / `Esc`         | Back to the loupe on the focused photo  | Compare         |
 
 ## Survey

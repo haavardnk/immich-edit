@@ -98,14 +98,17 @@ With two photos selected, press `C` or **Compare selected**. The two sit side by
 pan move together until you press `Y`. `Alt+←` or `Alt+→` (`⌥←` or `⌥→` on a Mac) swaps the focused
 side for the previous or next photo, which is the quickest way to hold a winner and step through the
 rest, even while zoomed in.
+The left photo is labelled **Select** and the other **Candidate**. When the candidate is focused,
+its **Make select** button, or `Enter`, moves it to the left.
 
 With up to nine selected, press `N` or **Survey selected** to see them all at once. Drop the weaker
-ones with `Backspace` until the keepers are left, or press `Enter` to keep only the focused photo.
+ones with `Backspace`, or the **Drop from survey** button that shows when you hover a photo, until
+the keepers are left, or press `Enter` to keep only the focused photo.
 `Esc` goes back to the loupe with the survivors selected.
 
 The loupe's **View mode** button switches between **Single photo**, **Compare** and **Survey** as
 well. In compare and survey, the bar under the photos has buttons for the same pane actions:
-**Sync zoom and pan**, **Promote to the left** in compare or **Keep only this photo** in survey,
+**Sync zoom and pan**, **Make select** in compare or **Keep only this photo** in survey,
 and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 
 ## A culling pass

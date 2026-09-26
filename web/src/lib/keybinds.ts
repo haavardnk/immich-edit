@@ -297,7 +297,7 @@ export const KEYBINDS = [
     keys: ['Enter'],
     contexts: ['compare'],
     group: 'Compare',
-    label: 'Promote the focused pane to the left'
+    label: 'Make the focused photo the select'
   },
   {
     id: 'compareExit',

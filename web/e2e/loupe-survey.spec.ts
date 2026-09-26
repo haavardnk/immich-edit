@@ -141,3 +141,18 @@ test('c opens a compare of the grid selection', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeHidden();
 });
+
+test('hovering a survey pane offers a drop button for that photo', async ({ page }) => {
+  await openSurvey(page);
+  const pane = page.locator('div.group', { has: page.getByRole('img', { name: 'IMG_0002.ARW' }) });
+  const drop = pane.getByRole('button', { name: 'Drop from survey' });
+
+  await expect(drop).toHaveCSS('opacity', '0');
+  await pane.hover();
+  await expect(drop).toHaveCSS('opacity', '1');
+  await drop.click();
+
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toHaveCount(0);
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
+});

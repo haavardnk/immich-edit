@@ -31,7 +31,7 @@
     view: PaneView;
     focused?: boolean;
     showFocus?: boolean;
-    badge?: number;
+    badge?: string;
     onView: (view: PaneView, solo?: boolean) => void;
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
