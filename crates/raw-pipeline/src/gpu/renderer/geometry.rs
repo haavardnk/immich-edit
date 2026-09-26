@@ -27,14 +27,10 @@ pub(super) fn process_geom(meta: &FrameMeta, edits: &Edits, work_dims: (u32, u32
         _ => display,
     };
 
-    let full_display = if meta.orientation.0 {
+    let source = if meta.orientation.0 {
         (meta.height as u32, meta.width as u32)
     } else {
         (meta.width as u32, meta.height as u32)
-    };
-    let source = match edits.geometry.rotate {
-        90 | 270 => (full_display.1, full_display.0),
-        _ => full_display,
     };
 
     let crop = edits.geometry.crop.unwrap_or(CropRect::full());
