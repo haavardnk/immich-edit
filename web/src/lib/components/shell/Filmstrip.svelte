@@ -10,8 +10,11 @@
   import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/labels';
   import { editorHref } from '$lib/editorNavigation';
   import ResizeHandle from './ResizeHandle.svelte';
+  import ContextMenu from '$lib/components/ContextMenu.svelte';
+  import { mergeProps } from '$lib/utils/mergeProps';
+  import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
-  import { mdiCheckCircle, mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
@@ -20,8 +23,8 @@
     resizable = false,
     showBadges = false,
     highlightIds,
-    selectedIds,
-    collapsed = false
+    collapsed = false,
+    menu
   }: {
     currentId?: string | null;
     onSelect?: (id: string, additive: boolean) => void;
@@ -29,8 +32,8 @@
     resizable?: boolean;
     showBadges?: boolean;
     highlightIds?: string[];
-    selectedIds?: Set<string>;
     collapsed?: boolean;
+    menu?: Snippet<[string]>;
   } = $props();
 
   const GAP = 4;
@@ -150,72 +153,70 @@
                 {@const isMember = !isCurrent && paneNumber > 0}
                 {@const rating = asset.exifInfo?.rating ?? 0}
                 {@const rejected = isRejected(asset)}
-                {@const picked = selectedIds?.has(asset.id) ?? false}
                 {#if onSelect}
-                  <button
-                    type="button"
-                    onclick={(e) => onSelect(asset.id, e.metaKey || e.ctrlKey || e.shiftKey)}
-                    aria-pressed={isCurrent || isMember}
-                    class="group relative flex-none overflow-hidden rounded-sm border-2 bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
-                      ? 'border-primary ring-2 ring-primary/60'
-                      : isMember
-                        ? 'border-primary/75 ring-1 ring-primary/40'
-                        : 'border-transparent hover:border-white/25'}"
-                    style:width="{box.width}px"
-                    style:height="{thumbnailHeight}px"
-                    title={asset.originalFileName}
-                    aria-label={asset.originalFileName}
-                  >
-                    <img
-                      src={assetThumbUrl(asset.id)}
-                      alt=""
-                      loading="lazy"
-                      class="w-full h-full object-cover transition-[opacity,filter] {isCurrent ||
-                      isMember
-                        ? 'opacity-100'
-                        : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
-                      class:grayscale={rejected}
-                    />
-                    {#if paneNumber > 0}
-                      <span
-                        class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
-                          ? 'border-primary bg-primary text-neutral-950'
-                          : 'border-primary/70 bg-neutral-950/90 text-primary'}"
+                  <ContextMenu disabled={!menu}>
+                    {#snippet trigger(props)}
+                      <button
+                        {...mergeProps(props, {
+                          onclick: (e: MouseEvent) =>
+                            onSelect(asset.id, e.metaKey || e.ctrlKey || e.shiftKey)
+                        })}
+                        type="button"
+                        aria-pressed={isCurrent || isMember}
+                        class="group relative flex-none overflow-hidden rounded-sm border-2 bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                          ? 'border-primary ring-2 ring-primary/60'
+                          : isMember
+                            ? 'border-primary/75 ring-1 ring-primary/40'
+                            : 'border-transparent hover:border-white/25'}"
+                        style:width="{box.width}px"
+                        style:height="{thumbnailHeight}px"
+                        title={asset.originalFileName}
+                        aria-label={asset.originalFileName}
                       >
-                        {paneNumber}
-                      </span>
-                    {/if}
-                    {#if picked}
-                      <div
-                        class="pointer-events-none absolute bottom-1 left-1 text-primary drop-shadow-md"
-                        role="img"
-                        aria-label="Selected"
-                      >
-                        <Icon icon={mdiCheckCircle} size="14px" />
-                      </div>
-                    {/if}
-                    {@render badges(
-                      showBadges && asset.isFavorite,
-                      showBadges && rejected,
-                      labelOf(asset)
-                    )}
-                    {#if showBadges && rating > 0}
-                      <div
-                        class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
-                      >
-                        <div class="flex items-center gap-0.5">
-                          {#each [1, 2, 3, 4, 5] as n (n)}
-                            <Icon
-                              icon={mdiStar}
-                              size="9px"
-                              class={n <= rating ? 'opacity-100' : 'opacity-30'}
-                              aria-hidden="true"
-                            />
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
-                  </button>
+                        <img
+                          src={assetThumbUrl(asset.id)}
+                          alt=""
+                          loading="lazy"
+                          class="w-full h-full object-cover transition-[opacity,filter] {isCurrent ||
+                          isMember
+                            ? 'opacity-100'
+                            : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
+                          class:grayscale={rejected}
+                        />
+                        {#if paneNumber > 0}
+                          <span
+                            class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
+                              ? 'border-primary bg-primary text-neutral-950'
+                              : 'border-primary/70 bg-neutral-950/90 text-primary'}"
+                          >
+                            {paneNumber}
+                          </span>
+                        {/if}
+                        {@render badges(
+                          showBadges && asset.isFavorite,
+                          showBadges && rejected,
+                          labelOf(asset)
+                        )}
+                        {#if showBadges && rating > 0}
+                          <div
+                            class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
+                          >
+                            <div class="flex items-center gap-0.5">
+                              {#each [1, 2, 3, 4, 5] as n (n)}
+                                <Icon
+                                  icon={mdiStar}
+                                  size="9px"
+                                  class={n <= rating ? 'opacity-100' : 'opacity-30'}
+                                  aria-hidden="true"
+                                />
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                      </button>
+                    {/snippet}
+                    {@render menu?.(asset.id)}
+                  </ContextMenu>
                 {:else}
                   <a
                     href={editorHref(asset.id, page.url.searchParams.get('from'))}
