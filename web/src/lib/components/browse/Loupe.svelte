@@ -31,7 +31,7 @@
   import LoupePane from '$lib/components/browse/LoupePane.svelte';
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import ExifRows from '$lib/components/ExifRows.svelte';
-  import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
   import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { IconButton } from '@immich/ui';
@@ -466,6 +466,18 @@
         if (next === undefined) return;
         e.preventDefault();
         return rate(next);
+      }
+      case 'rateAdvance': {
+        const next = ratingFromCode(e.code);
+        const id = focusedId;
+        if (next === undefined || !id) return;
+        e.preventDefault();
+        void rateAsset(id, next).then((ok) => {
+          if (!ok) return;
+          if (!multi) go(1);
+          else if (compare.focusedId === id) advanceFocused(1);
+        });
+        return;
       }
     }
   }

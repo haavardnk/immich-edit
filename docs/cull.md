@@ -34,7 +34,7 @@ favorite, reject, color label, rating and copy badges, or those plus the filenam
 ## Look at photos
 
 Clicking a photo opens it in the [editor](edit.md). To look without editing, hover it and press
-**Quick review**, or press `E`. That opens the loupe: one photo at full size, with the filmstrip
+**Quick review**, or select it and press `E`. That opens the loupe: one photo at full size, with the filmstrip
 below. Arrow keys move through the photos, `Z` zooms, and `I` opens the info panel, which stays
 open until you close it, reloads included. The loupe, the editor and their filmstrips load the rest
 of the view as you reach the end of what is loaded, so the arrow keys walk the whole album or search
@@ -51,12 +51,14 @@ pixel.
 
 ## Rate, reject and label
 
-These keys work in the grid, the loupe, compare, survey and the editor:
+These keys work in the grid, the loupe, compare, survey and the editor. In the grid they act on
+the selected photos; the arrow keys select one:
 
 | Key | Does |
 | --- | --- |
 | `1` to `5` | Set the rating; the same key again clears it |
 | `0` | Clear the rating |
+| `Shift` + `0` to `5` | Set the rating and move to the next photo, whatever **Auto-advance** says. In the grid, one selected photo hands its selection to the next one; with several selected, all get the rating and the selection stays |
 | `P` or `F` | Toggle favorite |
 | `X` | Toggle reject |
 | `U` | Clear favorite and reject |
@@ -76,8 +78,11 @@ delete them in Immich later.
 
 ## Choose between similar shots
 
-Select photos first:
+In the grid, keys act on the selected photos, so select photos first:
 
+- The arrow keys, `Home`, `End`, `Page Up` and `Page Down` select one photo. The first press
+  selects the photo you last had open.
+- `Shift` with those keys grows or shrinks the selection.
 - `Ctrl`-click, or `Cmd`-click on macOS, adds or removes one photo.
 - `Shift`-click selects everything between the last selected photo and this one.
 - The circle in a thumbnail's corner also toggles it. Once anything is selected, a plain click

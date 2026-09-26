@@ -41,6 +41,7 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
 
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press(' ');
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
@@ -190,6 +191,17 @@ test('number keys rate the loupe asset', async ({ page }) => {
 
   await page.keyboard.press('3');
   await expect(page.getByRole('radio', { name: '3 stars' })).toBeChecked();
+});
+
+test('Shift+digit rates and advances with auto-advance off', async ({ page }) => {
+  await openLoupe(page);
+  const update = page.waitForRequest(
+    (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_ID}`)
+  );
+
+  await page.keyboard.press('Shift+Digit3');
+  expect((await update).postDataJSON()).toMatchObject({ rating: 3 });
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
 });
 
 test('j toggles the clipping overlay', async ({ page }) => {

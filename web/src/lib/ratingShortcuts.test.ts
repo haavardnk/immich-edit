@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextRatingFromKey } from './ratingShortcuts';
+import { nextRatingFromKey, ratingFromCode } from './ratingShortcuts';
 
 describe('nextRatingFromKey', () => {
   it.each([
@@ -17,5 +17,17 @@ describe('nextRatingFromKey', () => {
     ['1', undefined, 1]
   ])('key %s with current %s -> %s', (key, current, expected) => {
     expect(nextRatingFromKey(key, current as number | null | undefined)).toBe(expected);
+  });
+});
+
+describe('ratingFromCode', () => {
+  it.each([
+    ['Digit0', null],
+    ['Digit3', 3],
+    ['Digit5', 5],
+    ['Digit6', undefined],
+    ['KeyA', undefined]
+  ])('%s -> %s', (code, expected) => {
+    expect(ratingFromCode(code)).toBe(expected);
   });
 });

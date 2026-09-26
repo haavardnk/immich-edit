@@ -16,6 +16,13 @@ vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/albums/a1'), params: {} }
 }));
 
+const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
+
+vi.mock('$lib/cull', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/cull')>()),
+  rateAsset
+}));
+
 type GridProps = ComponentProps<typeof AssetGrid>;
 
 const Host: Component<{ component: Component<GridProps>; props: GridProps }> = ComponentHost;
@@ -63,12 +70,14 @@ function click(element: HTMLElement, init: MouseEventInit = {}): void {
   flushSync();
 }
 
-function press(key: string): void {
-  document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+function press(key: string, init: KeyboardEventInit = {}): void {
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
   flushSync();
 }
 
 beforeEach(() => {
+  rateAsset.mockClear();
+  rateAsset.mockResolvedValue(true);
   selection.clear();
   browseView.setActive(null);
   browseControls.excludeRejected = false;
@@ -115,11 +124,81 @@ describe('AssetGrid', () => {
     expect(document.body.textContent).not.toContain('1 selected');
   });
 
-  it('moves the active asset with the arrow keys', () => {
+  it('arrow keys move a single selection', () => {
     render();
     press('ArrowRight');
-    expect(browseView.activeId).toBe('a');
+    expect([...selection.selected]).toEqual(['a']);
     press('ArrowRight');
+    expect([...selection.selected]).toEqual(['b']);
+    expect(tiles()[1]?.dataset.selected).toBe('true');
+  });
+
+  it('the first arrow press selects the photo you left', () => {
+    browseView.setActive('b');
+    render();
+    press('ArrowRight');
+    expect([...selection.selected]).toEqual(['b']);
+  });
+
+  it('Shift+arrows grow and shrink the selection from its anchor', () => {
+    render();
+    press('ArrowRight');
+    press('ArrowRight', { shiftKey: true });
+    press('ArrowRight', { shiftKey: true });
+    expect([...selection.selected].sort()).toEqual(['a', 'b', 'c']);
+    press('ArrowLeft', { shiftKey: true });
+    expect([...selection.selected].sort()).toEqual(['a', 'b']);
+  });
+
+  it('rating keys leave an unselected photo alone', () => {
+    browseView.setActive('a');
+    render();
+    press('3');
+    expect(rateAsset).not.toHaveBeenCalled();
+  });
+
+  it('makes a ticked photo the active one', () => {
+    render();
+    click(selectButton(1));
     expect(browseView.activeId).toBe('b');
+  });
+
+  it.each([
+    ['first', 0, ['c']],
+    ['second', 1, ['b']]
+  ])('arrows move from a photo still ticked after unticking the %s', (_name, untick, selected) => {
+    render();
+    click(selectButton(0));
+    click(selectButton(1));
+    click(selectButton(untick));
+    press('ArrowRight');
+    expect([...selection.selected]).toEqual(selected);
+  });
+
+  it.each([
+    ['moves the tick to the next photo', true, ['b'], 'b'],
+    ['stays when the rating fails to save', false, ['a'], 'a']
+  ])('Shift+3 on one ticked photo %s', async (_name, ok, selected, active) => {
+    rateAsset.mockResolvedValue(ok);
+    render();
+    click(selectButton(0));
+    press('#', { code: 'Digit3', shiftKey: true });
+    await vi.waitFor(() => expect(rateAsset).toHaveBeenCalledWith('a', 3));
+    await Promise.resolve();
+    flushSync();
+    expect([...selection.selected]).toEqual(selected);
+    expect(browseView.activeId).toBe(active);
+  });
+
+  it('Shift+3 rates every ticked photo and keeps the selection', () => {
+    render();
+    click(selectButton(0));
+    click(selectButton(1));
+    press('#', { code: 'Digit3', shiftKey: true });
+    expect(rateAsset.mock.calls).toEqual([
+      ['a', 3],
+      ['b', 3]
+    ]);
+    expect([...selection.selected].sort()).toEqual(['a', 'b']);
   });
 });
