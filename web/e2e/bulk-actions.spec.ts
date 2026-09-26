@@ -63,6 +63,58 @@ test('the bulk bar rates and then clears the rating of a selection', async ({ pa
   expect(updates.slice(2).every((update) => update.rating === 0)).toBe(true);
 });
 
+const ALBUM = {
+  id: 'album-1',
+  albumName: 'Review album',
+  assetCount: 2,
+  updatedAt: '2024-01-01T00:00:00Z'
+};
+
+async function installAlbumMocks(page: Page): Promise<Array<{ method: string; ids: string[] }>> {
+  const calls: Array<{ method: string; ids: string[] }> = [];
+  await installBulkMocks(page);
+  await page.route('**/api/albums', (route) => route.fulfill(json([ALBUM])));
+  await page.route('**/api/albums/album-1', (route) => route.fulfill(json(ALBUM)));
+  await page.route('**/api/albums/album-1/assets', (route) => {
+    const request = route.request();
+    const ids = (request.postDataJSON() as { ids: string[] }).ids;
+    calls.push({ method: request.method(), ids });
+    return route.fulfill(json(ids.map((id) => ({ id, success: true }))));
+  });
+  return calls;
+}
+
+test('the bulk bar adds a selection to an album', async ({ page }) => {
+  const calls = await installAlbumMocks(page);
+  await page.goto('/photos');
+  await selectBoth(page);
+
+  await page.getByRole('button', { name: 'Albums', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Remove from/ })).toHaveCount(0);
+  await page.getByLabel('Choose albums…').fill('Review');
+  await page.getByRole('option', { name: 'Review album' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Review album' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to albums' }).click();
+
+  await expect(page.getByText('Added 2 selected photos to the album')).toBeVisible();
+  expect(calls).toEqual([{ method: 'PUT', ids: ASSETS.map((a) => a.id) }]);
+});
+
+test('removing a selection from the open album drops its tiles', async ({ page }) => {
+  const calls = await installAlbumMocks(page);
+  await page.goto('/albums/album-1');
+  await selectBoth(page);
+
+  await page.getByRole('button', { name: 'Albums', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove from Review album' }).click();
+
+  await expect(page.getByText('Removed 2 from Review album')).toBeVisible();
+  expect(calls).toEqual([{ method: 'DELETE', ids: ASSETS.map((a) => a.id) }]);
+  for (const asset of ASSETS) {
+    await expect(page.locator(`div[title="${asset.originalFileName}"]`)).toHaveCount(0);
+  }
+});
+
 test('the preset picker opens above the bulk dialog', async ({ page }) => {
   await installMocks(page, {
     assets: ASSETS,

@@ -16,7 +16,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Browse timeline, archive, hidden assets, albums, favorites, folders, people, and tags | ✓ Yes | Uses the connected Immich library |
-| Read-only album browsing | ✓ Yes | Albums and their assets come from Immich |
+| Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them from the open album |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search |
 | Filename search | ✓ Yes | Searches Immich metadata |
 | Rating, favorite, date, filename, visibility, label, and reject filters | ✓ Yes | Available in browse and search views; label and reject filter the loaded photos; active filters show as removable chips; changing a filter clears the current selection |
@@ -33,7 +33,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
-| Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive exported edits |
+| Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
 | Archive, trash, restore, or delete assets | ✗ No | Reject uses an `immich-edit/reject` tag and never deletes |
