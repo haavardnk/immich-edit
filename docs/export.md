@@ -164,6 +164,10 @@ The **Edit** tab of the same dialog works on the whole selection too:
 
 These also run as jobs.
 
+## Export presets
+
+**Export presets** at the top of both export panels saves the current format, metadata, resize, sharpening, watermark, filename and Immich settings under a name. Choosing a preset brings all of those settings back. Saving under an existing name replaces that preset. Albums or tags that no longer exist are dropped when a preset is applied. Presets belong to your account and are separate from Develop presets.
+
 ## Large files and slow servers
 
 A full-resolution export decodes, renders and encodes the original in one request. On a server

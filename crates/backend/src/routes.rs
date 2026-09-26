@@ -8,6 +8,7 @@ pub mod debug;
 pub mod edited_thumb;
 pub mod edits;
 pub mod export;
+pub mod export_presets;
 pub mod faces;
 pub mod folders;
 pub mod health;

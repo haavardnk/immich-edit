@@ -583,3 +583,71 @@ async fn mock_original(server: &MockServer, id: uuid::Uuid) {
         .mount(server)
         .await;
 }
+
+#[tokio::test]
+async fn export_presets_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+
+    let preset = json_body(
+        expect_status(
+            &admin,
+            json_req(
+                "POST",
+                "/api/export-presets",
+                serde_json::json!({ "name": "Web JPEG", "form": { "format": "jpeg" } }),
+            ),
+            StatusCode::OK,
+            "owner create export preset",
+        )
+        .await,
+    )
+    .await;
+    let preset_id = preset["id"].as_str().expect("export preset id").to_string();
+
+    let listed = json_body(
+        expect_status(
+            &member,
+            get("/api/export-presets"),
+            StatusCode::OK,
+            "member list",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's export presets: {listed}");
+    }
+    expect_status(
+        &member,
+        json_req(
+            "PUT",
+            &format!("/api/export-presets/{preset_id}"),
+            serde_json::json!({ "name": "stolen", "form": {} }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update export preset",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_req("DELETE", &format!("/api/export-presets/{preset_id}")),
+        StatusCode::NOT_FOUND,
+        "member delete export preset",
+    )
+    .await;
+
+    let owned = json_body(
+        expect_status(
+            &admin,
+            get("/api/export-presets"),
+            StatusCode::OK,
+            "owner list",
+        )
+        .await,
+    )
+    .await;
+    if owned[0]["name"] != "Web JPEG" || owned[0]["form"]["format"] != "jpeg" {
+        panic!("owner export preset after member calls: {owned}");
+    }
+}
