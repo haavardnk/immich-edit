@@ -30,6 +30,8 @@ ones **Label** and **Exclude rejected** are hiding.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
+Hovering a thumbnail shows five stars above its filename; click one to rate that photo, or the
+lit star again to clear it. With filename and date showing, the stars stay visible.
 
 ## Look at photos
 
