@@ -48,22 +48,21 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+B`                                                                                                | Focus the selection actions                                      | Grid         |
 | `E` / `Space`                                                                                            | Open the loupe                                                   | Grid         |
 | `D` / `Enter`                                                                                            | Open the editor                                                  | Grid, Loupe  |
-| `C`                                                                                                      | Compare the selected photos                                      | Grid, Loupe  |
-| `N`                                                                                                      | Survey the selected photos                                       | Grid, Loupe  |
+| `C`                                                                                                      | Compare the selection, or this photo and the next                | Grid, Loupe  |
+| `N`                                                                                                      | Survey the selection, or this photo and the next five            | Grid, Loupe  |
 
 ## Loupe
 
-| Keys                                          | Action                               | Available in                   |
-| --------------------------------------------- | ------------------------------------ | ------------------------------ |
-| `←` / `→`                                     | Previous / next photo                | Loupe                          |
-| `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` | Nudge a zoomed photo                 | Loupe, Compare, Survey, Editor |
-| `Home` / `End`                                | First / last photo                   | Loupe                          |
-| `Z` / `Space`                                 | Toggle zoom                          | Loupe, Compare, Survey, Editor |
-| `I`                                           | Toggle the info panel                | Loupe, Compare, Survey, Editor |
-| `T`                                           | Toggle the tags panel                | Loupe, Editor                  |
-| `J`                                           | Toggle the clipping indicators       | Loupe, Compare, Survey, Editor |
-| `Esc`                                         | Close the loupe                      | Loupe                          |
-| `S`                                           | Select or deselect the focused photo | Loupe, Compare, Survey         |
+| Keys                                          | Action                         | Available in                   |
+| --------------------------------------------- | ------------------------------ | ------------------------------ |
+| `←` / `→`                                     | Previous / next photo          | Loupe                          |
+| `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` | Nudge a zoomed photo           | Loupe, Compare, Survey, Editor |
+| `Home` / `End`                                | First / last photo             | Loupe                          |
+| `Z` / `Space`                                 | Toggle zoom                    | Loupe, Compare, Survey, Editor |
+| `I`                                           | Toggle the info panel          | Loupe, Compare, Survey, Editor |
+| `T`                                           | Toggle the tags panel          | Loupe, Editor                  |
+| `J`                                           | Toggle the clipping indicators | Loupe, Compare, Survey, Editor |
+| `Esc`                                         | Close the loupe                | Loupe                          |
 
 ## Compare
 
@@ -80,11 +79,11 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Survey
 
-| Keys                  | Action                                                        | Available in |
-| --------------------- | ------------------------------------------------------------- | ------------ |
-| `←` / `→` / `↑` / `↓` | Move focus between panes                                      | Survey       |
-| `Enter`               | Keep only the focused photo                                   | Survey       |
-| `E` / `Esc`           | Back to the loupe, selecting the survivors if you dropped any | Survey       |
+| Keys                  | Action                                                                    | Available in |
+| --------------------- | ------------------------------------------------------------------------- | ------------ |
+| `←` / `→` / `↑` / `↓` | Move focus between panes                                                  | Survey       |
+| `Enter`               | Keep only the focused photo                                               | Survey       |
+| `E` / `Esc`           | Back to the loupe, selecting the survivors in the grid if you dropped any | Survey       |
 
 ## View
 

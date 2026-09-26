@@ -12,6 +12,14 @@ export function multiMembers(
 ): string[] {
   const picked = orderedIds.filter((id) => selected.has(id));
   if (picked.length >= 2) return picked.slice(0, mode === 'compare' ? 2 : MAX_PANES);
+  return neighbourMembers(mode, orderedIds, currentId);
+}
+
+export function neighbourMembers(
+  mode: MultiMode,
+  orderedIds: string[],
+  currentId: string | null
+): string[] {
   if (!currentId) return [];
   const start = orderedIds.indexOf(currentId);
   if (start < 0) return [currentId];

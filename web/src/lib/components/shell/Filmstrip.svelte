@@ -14,7 +14,7 @@
   import { mergeProps } from '$lib/utils/mergeProps';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
-  import { mdiCheckCircle, mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {
     currentId: currentIdProp = null,
@@ -23,7 +23,6 @@
     resizable = false,
     showBadges = false,
     highlightIds,
-    selectedIds,
     collapsed = false,
     menu
   }: {
@@ -33,7 +32,6 @@
     resizable?: boolean;
     showBadges?: boolean;
     highlightIds?: string[];
-    selectedIds?: Set<string>;
     collapsed?: boolean;
     menu?: Snippet<[string]>;
   } = $props();
@@ -155,7 +153,6 @@
                 {@const isMember = !isCurrent && paneNumber > 0}
                 {@const rating = asset.exifInfo?.rating ?? 0}
                 {@const rejected = isRejected(asset)}
-                {@const picked = selectedIds?.has(asset.id) ?? false}
                 {#if onSelect}
                   <ContextMenu disabled={!menu}>
                     {#snippet trigger(props)}
@@ -194,15 +191,6 @@
                           >
                             {paneNumber}
                           </span>
-                        {/if}
-                        {#if picked}
-                          <div
-                            class="pointer-events-none absolute bottom-1 left-1 text-primary drop-shadow-md"
-                            role="img"
-                            aria-label="Selected"
-                          >
-                            <Icon icon={mdiCheckCircle} size="14px" />
-                          </div>
                         {/if}
                         {@render badges(
                           showBadges && asset.isFavorite,
