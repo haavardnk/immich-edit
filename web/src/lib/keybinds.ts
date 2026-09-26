@@ -481,14 +481,14 @@ export const KEYBINDS = [
   {
     id: 'copyEdits',
     keys: ['Mod+Shift+c'],
-    contexts: ['editor'],
+    contexts: ['editor', 'grid', 'loupe'],
     group: 'Editor',
     label: 'Copy edits'
   },
   {
     id: 'pasteEdits',
     keys: ['Mod+Shift+v'],
-    contexts: ['editor'],
+    contexts: ['editor', 'grid', 'loupe'],
     group: 'Editor',
     label: 'Paste edits'
   },

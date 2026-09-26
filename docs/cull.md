@@ -120,6 +120,11 @@ With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a r
 photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
 focus from the grid into the selection bar.
 
+`Ctrl+Shift+C` (`⌘⇧C` on a Mac) copies the edits of the selected photo in the grid, or of the photo
+on screen in the loupe, and asks which settings to take, remembering your last choice.
+`Ctrl+Shift+V` pastes them onto every selected photo as a background job; in the loupe it pastes
+onto the photo on screen when nothing is selected.
+
 ## Virtual copies
 
 A virtual copy is a second, independent set of edits on the same original, such as a black and

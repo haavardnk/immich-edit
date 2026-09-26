@@ -18,6 +18,7 @@
   import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
   import { labelOf, nextLabelFromKey } from '$lib/labels';
   import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
   import { editorHref } from '$lib/editorNavigation';
   import { matchKeybind, type KeybindContext } from '$lib/keybinds';
   import {
@@ -357,6 +358,20 @@
         if (!id) return;
         e.preventDefault();
         browseView.openLoupe(id);
+        return;
+      }
+      case 'copyEdits': {
+        const ids = targets();
+        if (ids.length !== 1 || !ids[0]) return;
+        e.preventDefault();
+        void copyEditsFrom(ids[0]);
+        return;
+      }
+      case 'pasteEdits': {
+        const ids = targets();
+        if (ids.length === 0) return;
+        e.preventDefault();
+        void pasteEditsTo(ids);
         return;
       }
       case 'rate': {

@@ -80,3 +80,35 @@ test('the preset picker opens above the bulk dialog', async ({ page }) => {
 
   await expect(dialog.getByRole('button', { name: 'Apply Warm to 2' })).toBeEnabled();
 });
+
+test('grid shortcuts copy edits from one photo and paste them onto a selection', async ({
+  page
+}) => {
+  const [source, second, third] = numberedAssets(3);
+  if (!source || !second || !third) throw new Error('missing assets');
+  await installMocks(page, {
+    assets: [source, second, third],
+    edits: [{ id: source.id, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' }]
+  });
+  await page.goto('/photos');
+  const tile = (name: string) => page.locator(`div[title="${name}"]`);
+  await expect(tile(source.originalFileName)).toBeVisible();
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ControlOrMeta+Shift+c');
+  const dialog = page.getByRole('dialog', { name: 'Copy settings' });
+  await dialog.getByRole('button', { name: 'Copy', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('1 selected')).toBeHidden();
+
+  await tile(second.originalFileName).getByRole('button', { name: 'Select' }).click();
+  await tile(third.originalFileName).getByRole('button', { name: 'Select' }).click();
+  await expect(page.getByText('2 selected')).toBeVisible();
+
+  const job = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/api/jobs'));
+  await page.keyboard.press('ControlOrMeta+Shift+v');
+  const body = (await job).postDataJSON() as { kind: string; asset_ids: string[] };
+  expect(body.kind).toBe('paste_edits');
+  expect(body.asset_ids.sort()).toEqual([second.id, third.id].sort());
+});
