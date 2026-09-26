@@ -1,4 +1,5 @@
 import { isMac } from './platform';
+import { CONTROL, isPointerFocused } from './utils/pointerFocus';
 
 export type KeybindContext =
   'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'geometry' | 'masks' | 'retouch';
@@ -836,7 +837,13 @@ export function isTypingTarget(e: KeyboardEvent): boolean {
 
 export function isRadioGroupTarget(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
-  return !!el?.closest('[role="radiogroup"]');
+  return !!el?.closest('[role="radiogroup"]') && !isPointerFocused(el);
+}
+
+export function yieldsToControl(e: KeyboardEvent): boolean {
+  if (e.key !== 'Enter' && e.key !== ' ') return false;
+  const el = e.target as HTMLElement | null;
+  return !!el?.matches(CONTROL) && !isPointerFocused(el);
 }
 
 export function matchKeybind(

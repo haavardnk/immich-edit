@@ -20,7 +20,7 @@
   import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
   import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
   import { editorHref } from '$lib/editorNavigation';
-  import { matchKeybind, type KeybindContext } from '$lib/keybinds';
+  import { matchKeybind, yieldsToControl, type KeybindContext } from '$lib/keybinds';
   import {
     createAssetGridLayout,
     verticalAssetIndex,
@@ -292,7 +292,7 @@
 
   function onKeydown(e: KeyboardEvent): void {
     shiftPressed = e.shiftKey;
-    if (browseView.loupeId || isTyping()) return;
+    if (browseView.loupeId || isTyping() || yieldsToControl(e)) return;
 
     const bind = matchKeybind(e, GRID_CONTEXTS);
     if (!bind) return;

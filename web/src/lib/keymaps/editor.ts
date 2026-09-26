@@ -7,7 +7,13 @@ import { backToGrid } from '$lib/backToGrid';
 import { createVirtualCopy } from '$lib/copies';
 import { nextRatingFromKey } from '$lib/ratingShortcuts';
 import { labelOf, nextLabelFromKey } from '$lib/labels';
-import { isKeybind, isRadioGroupTarget, isTypingTarget, matchKeybind } from '$lib/keybinds';
+import {
+  isKeybind,
+  isRadioGroupTarget,
+  isTypingTarget,
+  matchKeybind,
+  yieldsToControl
+} from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
 import { editorHref } from '$lib/editorNavigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
@@ -32,11 +38,6 @@ function selectedShapeNudges(): boolean {
   const layer = editor.edits.masks.find((l) => l.id === editor.activeLayerId);
   const comp = layer?.components.find((c) => c.id === editor.activeMaskComponentId);
   return !!comp && nudgeable(comp.kind);
-}
-
-function isControlTarget(e: KeyboardEvent): boolean {
-  const el = e.target as HTMLElement | null;
-  return !!el?.closest('button:not([role="tab"]), a, [role="button"], [role="combobox"]');
 }
 
 function openInEditor(id: string): void {
@@ -103,12 +104,11 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     return;
   }
   if (ui.keybindsHelpOpen) return;
-  if (isRadioGroupTarget(e)) return;
+  if (isRadioGroupTarget(e) || yieldsToControl(e)) return;
 
   const bind = matchKeybind(e, activeContexts());
   if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon' || bind === 'maskNudge') return;
   if ((bind === 'editorNav' || bind === 'zoomPan') && selectedShapeNudges()) return;
-  if (bind === 'geometryDone' && isControlTarget(e)) return;
   e.preventDefault();
 
   switch (bind) {

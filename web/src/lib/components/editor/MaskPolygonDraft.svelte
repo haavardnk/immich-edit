@@ -1,7 +1,7 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind, keyLabel } from '$lib/keybinds';
+  import { isKeybind, keyLabel, yieldsToControl } from '$lib/keybinds';
   import type { Vec2f } from '$lib/types/edits';
   import { MAX_POLYGON_POINTS } from '$lib/types/masks';
 
@@ -48,6 +48,7 @@
   }
 
   function onKey(e: KeyboardEvent): void {
+    if (yieldsToControl(e)) return;
     if (isKeybind(e, 'maskCancelDraw')) {
       e.preventDefault();
       editor.cancelPolygon();

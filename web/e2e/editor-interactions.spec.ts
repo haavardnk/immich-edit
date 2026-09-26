@@ -1044,6 +1044,50 @@ for (const [open, apply] of [
   });
 }
 
+test('Enter applies the crop after a mouse click on a panel button', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.keyboard.press('r');
+  await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
+  await dragCropCorner(page);
+
+  const guide = page.getByRole('button', { name: /^Crop guide: / });
+  const before = await guide.getAttribute('aria-label');
+  await guide.click();
+  const after = await guide.getAttribute('aria-label');
+  expect(after).not.toBe(before);
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
+  const body = (await saved).postDataJSON() as {
+    manifest: { ops: { transform?: { crop?: { w: number } } } };
+  };
+  expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
+  await page.keyboard.press('r');
+  await expect(guide).toHaveAttribute('aria-label', after ?? '');
+});
+
+test('Enter still activates a button reached with Tab', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.keyboard.press('r');
+  const guide = page.getByRole('button', { name: /^Crop guide: / });
+  await expect(guide).toBeVisible();
+  const before = await guide.getAttribute('aria-label');
+  await guide.focus();
+  await expect(guide).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await expect(guide).not.toHaveAttribute('aria-label', before ?? '');
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+});
+
 test('lens reset clears all profile edits', async ({ page }) => {
   await installMocks(page, {
     editRecord: {
