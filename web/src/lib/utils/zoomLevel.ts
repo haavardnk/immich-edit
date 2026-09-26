@@ -5,6 +5,7 @@ export const ZOOM_STOPS = [25, 33, 50, 66, 100, 200, 300, 400, MAX_ZOOM];
 export const SLIDER_STEPS = 1000;
 
 const STOP_EPSILON = 0.5;
+const BELOW_FIT = 0.5;
 const ZOOM_LEVEL_KEY = 'immich-edit:zoomLevel';
 const DEFAULT_ZOOM_LEVEL = 100;
 
@@ -12,7 +13,7 @@ type PersistedZoomLevel = { zoom?: number };
 
 function floorZoom(fitZoom: number): number {
   if (!Number.isFinite(fitZoom) || fitZoom <= 0) return 1;
-  return Math.min(fitZoom, 100);
+  return Math.min(fitZoom * BELOW_FIT, 100);
 }
 
 function ceilingZoom(fitZoom: number): number {
@@ -26,10 +27,16 @@ export function clampZoom(zoom: number, fitZoom: number): number {
   return Math.min(ceilingZoom(fitZoom), Math.max(floor, zoom));
 }
 
+export function isFitZoom(zoom: number, fitZoom: number): boolean {
+  return Math.abs(zoom - fitZoom) <= STOP_EPSILON;
+}
+
 export function zoomStops(fitZoom: number): number[] {
   const floor = floorZoom(fitZoom);
   const ceiling = ceilingZoom(fitZoom);
-  const inner = ZOOM_STOPS.filter((stop) => stop > floor + STOP_EPSILON && stop < ceiling);
+  const inner = [...ZOOM_STOPS.filter((stop) => !isFitZoom(stop, fitZoom)), fitZoom]
+    .filter((stop) => stop > floor + STOP_EPSILON && stop < ceiling)
+    .sort((a, b) => a - b);
   return [floor, ...inner, ceiling];
 }
 

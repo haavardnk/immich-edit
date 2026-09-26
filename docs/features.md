@@ -28,7 +28,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
 | Face-aware zoom | ✓ Yes | Steps through the faces Immich detected, then the sharpest region when there are none; see [look at photos](cull.md#look-at-photos) |
-| Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen |
+| Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen, and zooming out goes down to half of that with the photo centred |
 | Fullscreen viewing | ✓ Yes | `Shift+F` or the loupe's **Fullscreen** button hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
