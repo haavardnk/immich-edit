@@ -33,7 +33,13 @@
   import ExifRows from '$lib/components/ExifRows.svelte';
   import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
   import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
-  import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
+  import {
+    hint,
+    matchKeybind,
+    isRadioGroupTarget,
+    yieldsToControl,
+    type KeybindContext
+  } from '$lib/keybinds';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
@@ -372,7 +378,7 @@
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
       return;
     }
-    if (isRadioGroupTarget(e)) return;
+    if (isRadioGroupTarget(e) || yieldsToControl(e)) return;
 
     const bind = matchKeybind(e, contexts);
     if (!bind) return;
