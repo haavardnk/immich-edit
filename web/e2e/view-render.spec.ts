@@ -113,6 +113,34 @@ test.describe('view rendering', () => {
     await expectDeviceExact(page);
   });
 
+  test('zooms out below fit with the photo centred', async ({ page }) => {
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H }
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+
+    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    await expect(zoom).toHaveText('Fit');
+    const image = page.getByTestId('preview-image');
+    const fitWidth = (await image.boundingBox())?.width ?? 0;
+
+    await zoom.click();
+    await page.getByRole('button', { name: 'Zoom Out', exact: true }).click();
+    await expect(zoom).toHaveText(/^\s*\d+%\s*$/);
+    await expect.poll(async () => (await image.boundingBox())?.width ?? 0).toBeLessThan(fitWidth);
+
+    const stage = await page.locator('.editor-stage').boundingBox();
+    const box = await image.boundingBox();
+    if (!stage || !box) throw new Error('missing layout');
+    expect(Math.abs(box.x + box.width / 2 - (stage.x + stage.width / 2))).toBeLessThan(2);
+    expect(Math.abs(box.y + box.height / 2 - (stage.y + stage.height / 2))).toBeLessThan(2);
+
+    await page.getByRole('button', { name: 'Zoom In', exact: true }).click();
+    await expect(zoom).toHaveText('Fit');
+  });
+
   test('zoom returns to the level the photographer last picked', async ({ page }) => {
     await installMocks(page, {
       previewRender: renderFor,

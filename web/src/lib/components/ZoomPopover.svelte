@@ -1,6 +1,12 @@
 <script lang="ts">
   import { hint } from '$lib/keybinds';
-  import { nextStop, sliderToZoom, SLIDER_STEPS, zoomToSlider } from '$lib/utils/zoomLevel';
+  import {
+    isFitZoom,
+    nextStop,
+    sliderToZoom,
+    SLIDER_STEPS,
+    zoomToSlider
+  } from '$lib/utils/zoomLevel';
   import { Button, IconButton } from '@immich/ui';
   import { mdiFitToScreenOutline, mdiMagnifyMinusOutline, mdiMagnifyPlusOutline } from '@mdi/js';
   import Popover from './Popover.svelte';
@@ -26,6 +32,12 @@
 
   const percent = $derived(`${Math.round(zoom)}%`);
   const atNative = $derived(!fitMode && Math.round(zoom) === 100);
+
+  function step(direction: 1 | -1): void {
+    const next = nextStop(zoom, direction, fitZoom);
+    if (isFitZoom(next, fitZoom)) onFit();
+    else onZoom(next);
+  }
 </script>
 
 <Popover {open} anchor="top" align="end" {onOpenChange} appearance="control">
@@ -47,7 +59,7 @@
     icon={mdiMagnifyMinusOutline}
     title="Zoom Out"
     aria-label="Zoom Out"
-    onclick={() => onZoom(nextStop(zoom, -1, fitZoom))}
+    onclick={() => step(-1)}
   />
   <RangeSlider
     min={0}
@@ -67,7 +79,7 @@
     icon={mdiMagnifyPlusOutline}
     title="Zoom In"
     aria-label="Zoom In"
-    onclick={() => onZoom(nextStop(zoom, 1, fitZoom))}
+    onclick={() => step(1)}
   />
   <Button
     size="tiny"

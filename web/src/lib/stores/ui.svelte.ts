@@ -1,5 +1,11 @@
 import { readStored, writeStored } from '$lib/utils/storage';
-import { clampZoom, nextStop, readZoomLevel, writeZoomLevel } from '$lib/utils/zoomLevel';
+import {
+  clampZoom,
+  isFitZoom,
+  nextStop,
+  readZoomLevel,
+  writeZoomLevel
+} from '$lib/utils/zoomLevel';
 import type { RetouchMode } from '$lib/types/edits';
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
@@ -240,12 +246,18 @@ class UiStore {
   };
 
   zoomIn = (): void => {
-    this.userZoom(nextStop(this.zoom, 1, this.fitZoom));
+    this.zoomStep(1);
   };
 
   zoomOut = (): void => {
-    this.userZoom(nextStop(this.zoom, -1, this.fitZoom));
+    this.zoomStep(-1);
   };
+
+  private zoomStep(direction: 1 | -1): void {
+    const next = nextStop(this.zoom, direction, this.fitZoom);
+    if (isFitZoom(next, this.fitZoom)) this.zoomFit();
+    else this.userZoom(next);
+  }
 
   zoomFit = (): void => {
     this.fitMode = true;
