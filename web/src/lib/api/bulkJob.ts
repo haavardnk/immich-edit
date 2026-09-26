@@ -5,11 +5,11 @@ import { toasts } from '$lib/stores/toasts.svelte';
 
 export async function runBulkJob(
   create: (assetIds: string[]) => Promise<Job>,
-  opts: { success: (count: number) => string; error: string }
+  opts: { success: (count: number) => string; error: string },
+  assetIds: string[] = [...selection.selected]
 ): Promise<boolean> {
-  const count = selection.count;
+  const count = assetIds.length;
   if (count === 0) return false;
-  const assetIds = [...selection.selected];
   try {
     await create(assetIds);
     toasts.push('success', opts.success(count), 4000);

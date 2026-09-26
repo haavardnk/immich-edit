@@ -32,6 +32,7 @@
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import ExifRows from '$lib/components/ExifRows.svelte';
   import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
   import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { IconButton } from '@immich/ui';
@@ -461,6 +462,18 @@
         e.preventDefault();
         ui.toggleLoupeFilmstrip();
         return;
+      case 'copyEdits':
+        if (!focusedId) return;
+        e.preventDefault();
+        void copyEditsFrom(focusedId);
+        return;
+      case 'pasteEdits': {
+        const ids = selection.active ? [...selection.selected] : focusedId ? [focusedId] : [];
+        if (ids.length === 0) return;
+        e.preventDefault();
+        void pasteEditsTo(ids);
+        return;
+      }
       case 'rate': {
         const next = nextRatingFromKey(e.key, rating);
         if (next === undefined) return;

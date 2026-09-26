@@ -1,13 +1,10 @@
 <script lang="ts">
   import { selection } from '$lib/stores/selection.svelte';
   import { clipboard } from '$lib/stores/clipboard.svelte';
-  import { copyDialog } from '$lib/stores/copyDialog.svelte';
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { getEdits } from '$lib/api/edits';
-  import { createPasteEditsJob, createResetEditsJob } from '$lib/api/jobs';
+  import { createResetEditsJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import { manifestToEdits, editsToManifest } from '$lib/edits/manifest';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
   import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 
@@ -22,30 +19,14 @@
   async function copy(): Promise<void> {
     if (busy || !canCopy || !copyId) return;
     busy = true;
-    try {
-      const record = await getEdits(copyId);
-      copyDialog.show(manifestToEdits(record.manifest), () =>
-        toasts.push('success', 'Copied settings', 3000)
-      );
-    } catch (e) {
-      toasts.fail('Failed to copy edits', e, 6000);
-    } finally {
-      busy = false;
-    }
+    await copyEditsFrom(copyId);
+    busy = false;
   }
 
   async function paste(): Promise<void> {
-    if (busy) return;
-    const snap = clipboard.snapshot();
-    if (!snap) return;
+    if (busy || !clipboard.has) return;
     busy = true;
-    await runBulkJob(
-      (target) => createPasteEditsJob(target, editsToManifest(snap.edits), snap.sections),
-      {
-        success: (count) => `Queued paste on ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue paste'
-      }
-    );
+    await pasteEditsTo([...selection.selected]);
     busy = false;
   }
 

@@ -120,8 +120,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+Tab`    | Hide or show every panel                         | Editor              |
 | `Ctrl+U`       | Auto adjust tone                                 | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings                           | Editor              |
-| `Ctrl+Shift+C` | Copy edits                                       | Editor              |
-| `Ctrl+Shift+V` | Paste edits                                      | Editor              |
+| `Ctrl+Shift+C` | Copy edits                                       | Editor, Grid, Loupe |
+| `Ctrl+Shift+V` | Paste edits                                      | Editor, Grid, Loupe |
 | `Ctrl+Shift+E` | Open Export                                      | Editor              |
 | `Esc`          | Step out of the active tool, panel or fullscreen | Editor              |
 
