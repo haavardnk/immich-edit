@@ -7,8 +7,6 @@
   import { Button, Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,
-    mdiCheckCircle,
-    mdiCheckCircleOutline,
     mdiCompare,
     mdiContentDuplicate,
     mdiFullscreen,
@@ -28,26 +26,11 @@
     copyBadge: string | null;
     multi: boolean;
     moreActive: boolean;
-    selected: boolean;
-    selectionCount: number;
-    onToggleSelect: () => void;
-    onClearSelection: () => void;
     onSelectViewMode: (mode: CompareMode) => void;
     onOpenEditor: () => void;
   };
 
-  let {
-    filename,
-    copyBadge,
-    multi,
-    moreActive,
-    selected,
-    selectionCount,
-    onToggleSelect,
-    onClearSelection,
-    onSelectViewMode,
-    onOpenEditor
-  }: Props = $props();
+  let { filename, copyBadge, multi, moreActive, onSelectViewMode, onOpenEditor }: Props = $props();
 
   let viewModeOpen = $state(false);
   let moreOpen = $state(false);
@@ -90,29 +73,6 @@
   </div>
 
   <div class="flex min-w-0 items-center justify-end gap-0.5">
-    {#if selectionCount > 0}
-      <Button
-        size="tiny"
-        variant="ghost"
-        color="secondary"
-        class="shrink-0"
-        title="Clear selection"
-        onclick={onClearSelection}
-      >
-        <span aria-live="polite">{selectionCount} selected</span>
-      </Button>
-    {/if}
-    <IconButton
-      size="small"
-      variant="ghost"
-      color={selected ? 'primary' : 'secondary'}
-      icon={selected ? mdiCheckCircle : mdiCheckCircleOutline}
-      title={hint(selected ? 'Deselect photo' : 'Select photo', 'toggleSelect')}
-      aria-label={hint(selected ? 'Deselect photo' : 'Select photo', 'toggleSelect')}
-      aria-pressed={selected}
-      onclick={onToggleSelect}
-    />
-    <div class="mx-1 hidden h-5 w-px shrink-0 bg-hairline sm:block"></div>
     <Popover
       open={viewModeOpen}
       anchor="bottom"

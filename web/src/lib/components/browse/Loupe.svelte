@@ -13,7 +13,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import { isRejected } from '$lib/reject';
   import { copyIndex, isCopy } from '$lib/assetKey';
-  import { multiMembers, type MultiMode } from '$lib/compareEntry';
+  import { neighbourMembers, type MultiMode } from '$lib/compareEntry';
   import { paneColumns, paneGridStyle, switchMembers } from '$lib/loupeLayout';
   import { loupeTags } from '$lib/stores/loupeTags.svelte';
   import { putBounded } from '$lib/utils/boundedRecord';
@@ -68,7 +68,6 @@
   );
   const exif = $derived(asset?.exifInfo ?? null);
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
-  const selected = $derived(focusedId ? selection.has(focusedId) : false);
   const cols = $derived(paneColumns(panes.length));
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
@@ -177,10 +176,9 @@
       leaveMulti();
       return;
     }
-    const members = multiMembers(
+    const members = neighbourMembers(
       mode,
       browsing.assets.map((a) => a.id),
-      selection.selected,
       currentId
     );
     if (members.length < 2) {
@@ -203,7 +201,6 @@
     const members = switchMembers(
       mode,
       browsing.assets.map((asset) => asset.id),
-      selection.selected,
       compare.focusedId,
       compare.members
     );
@@ -229,10 +226,6 @@
   function dropFocused(): void {
     if (!canDrop) return;
     compare.drop(compare.focusIndex);
-  }
-
-  function toggleSelect(): void {
-    if (focusedId) selection.toggle(focusedId);
   }
 
   function pickFromStrip(id: string, additive: boolean): void {
@@ -469,9 +462,6 @@
         e.preventDefault();
         return applyLabel(next);
       }
-      case 'toggleSelect':
-        e.preventDefault();
-        return toggleSelect();
       case 'zoomToggle':
         e.preventDefault();
         return toggleZoom();
@@ -500,13 +490,11 @@
         e.preventDefault();
         void copyEditsFrom(focusedId);
         return;
-      case 'pasteEdits': {
-        const ids = selection.active ? [...selection.selected] : focusedId ? [focusedId] : [];
-        if (ids.length === 0) return;
+      case 'pasteEdits':
+        if (!focusedId) return;
         e.preventDefault();
-        void pasteEditsTo(ids);
+        void pasteEditsTo([focusedId]);
         return;
-      }
       case 'rate': {
         const next = nextRatingFromKey(e.key, rating);
         if (next === undefined) return;
@@ -554,10 +542,6 @@
         {copyBadge}
         {multi}
         {moreActive}
-        {selected}
-        selectionCount={selection.count}
-        onToggleSelect={toggleSelect}
-        onClearSelection={selection.clear}
         onSelectViewMode={selectViewMode}
         onOpenEditor={() => openEditor()}
       />
@@ -726,7 +710,6 @@
       <Filmstrip
         currentId={focusedId}
         highlightIds={compare.members}
-        selectedIds={selection.selected}
         onSelect={pickFromStrip}
         resizable
         size={72}

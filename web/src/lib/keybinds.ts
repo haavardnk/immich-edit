@@ -176,14 +176,14 @@ export const KEYBINDS = [
     keys: ['c'],
     contexts: ['grid', 'loupe'],
     group: 'Grid',
-    label: 'Compare the selected photos'
+    label: 'Compare the selection, or this photo and the next'
   },
   {
     id: 'enterSurvey',
     keys: ['n'],
     contexts: ['grid', 'loupe'],
     group: 'Grid',
-    label: 'Survey the selected photos'
+    label: 'Survey the selection, or this photo and the next five'
   },
 
   {
@@ -241,13 +241,6 @@ export const KEYBINDS = [
     contexts: ['loupe'],
     group: 'Loupe',
     label: 'Close the loupe'
-  },
-  {
-    id: 'toggleSelect',
-    keys: ['s'],
-    contexts: ['loupe', 'compare', 'survey'],
-    group: 'Loupe',
-    label: 'Select or deselect the focused photo'
   },
 
   {
@@ -326,7 +319,7 @@ export const KEYBINDS = [
     keys: ['e', 'Escape'],
     contexts: ['survey'],
     group: 'Survey',
-    label: 'Back to the loupe, selecting the survivors if you dropped any'
+    label: 'Back to the loupe, selecting the survivors in the grid if you dropped any'
   },
 
   {

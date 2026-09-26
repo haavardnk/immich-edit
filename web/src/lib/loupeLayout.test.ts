@@ -28,18 +28,14 @@ describe('paneGridStyle', () => {
 
 describe('switchMembers', () => {
   it('keeps the focused pane first when narrowing to compare', () => {
-    expect(switchMembers('compare', IDS, new Set(), 'd', ['b', 'c', 'd'])).toEqual(['d', 'b']);
+    expect(switchMembers('compare', IDS, 'd', ['b', 'c', 'd'])).toEqual(['d', 'b']);
   });
 
-  it('rebuilds survey panes from the selection', () => {
-    expect(switchMembers('survey', IDS, new Set(['b', 'e', 'g']), 'b', ['b', 'e'])).toEqual([
-      'b',
-      'e',
-      'g'
-    ]);
+  it('rebuilds survey panes from the focused photo onwards', () => {
+    expect(switchMembers('survey', IDS, 'b', ['b', 'e'])).toEqual(['b', 'c', 'd', 'e', 'f', 'g']);
   });
 
   it('returns nothing when fewer than two panes remain', () => {
-    expect(switchMembers('compare', IDS, new Set(), 'd', ['d'])).toEqual([]);
+    expect(switchMembers('compare', IDS, 'd', ['d'])).toEqual([]);
   });
 });
