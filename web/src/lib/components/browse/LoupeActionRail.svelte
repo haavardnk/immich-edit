@@ -133,8 +133,8 @@
           variant="ghost"
           color="secondary"
           icon={mdiArrowCollapseLeft}
-          title={hint('Promote to the left', 'panePromote')}
-          aria-label="Promote to the left"
+          title={hint('Make select', 'panePromote')}
+          aria-label="Make select"
           disabled={compare.focusIndex === 0}
           onclick={() => compare.promote(compare.focusIndex)}
         />

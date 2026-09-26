@@ -38,7 +38,7 @@ test('the compare rail toggles sync and keeps two panes', async ({ page }) => {
   await sync.click();
   await expect(sync).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Drop this photo' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Promote to the left' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Make select' })).toBeDisabled();
 });
 
 test('i shows the focused pane in the info panel', async ({ page }) => {
@@ -207,4 +207,20 @@ test('modifier-clicking the filmstrip adds a pane', async ({ page }) => {
   for (const name of ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW']) {
     await expect(page.getByRole('img', { name })).toBeVisible();
   }
+});
+
+test('compare labels the select and a candidate can be made the select', async ({ page }) => {
+  await openCompare(page);
+  const pane = (name: string) =>
+    page.locator('div.group', { has: page.getByRole('img', { name }) });
+
+  await expect(pane('IMG_0001.ARW').getByText('Select', { exact: true })).toBeVisible();
+  await expect(pane('IMG_0002.ARW').getByText('Candidate', { exact: true })).toBeVisible();
+  await expect(pane('IMG_0002.ARW').getByRole('button', { name: 'Make select' })).toHaveCount(0);
+
+  await page.keyboard.press('ArrowRight');
+  await pane('IMG_0002.ARW').getByRole('button', { name: 'Make select' }).click();
+
+  await expect(pane('IMG_0002.ARW').getByText('Select', { exact: true })).toBeVisible();
+  await expect(pane('IMG_0001.ARW').getByText('Candidate', { exact: true })).toBeVisible();
 });
