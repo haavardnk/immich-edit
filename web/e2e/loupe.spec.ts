@@ -190,7 +190,9 @@ test('number keys rate the loupe asset', async ({ page }) => {
   await openLoupe(page);
 
   await page.keyboard.press('3');
-  await expect(page.getByRole('radio', { name: '3 stars' })).toBeChecked();
+  await expect(
+    page.getByRole('navigation', { name: 'Photo actions' }).getByRole('radio', { name: '3 stars' })
+  ).toBeChecked();
 });
 
 test('Shift+digit rates and advances with auto-advance off', async ({ page }) => {

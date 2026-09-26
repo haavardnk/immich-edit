@@ -481,6 +481,7 @@
         }}
         onActivate={() => browseView.setActive(item.asset.id)}
         onLoupe={() => browseView.openLoupe(item.asset.id)}
+        onRate={(rating) => void rateAsset(item.asset.id, rating)}
         onDeleteCopy={isCopy(item.asset.id) ? () => void removeCopy(item.asset.id) : undefined}
       />
     </div>

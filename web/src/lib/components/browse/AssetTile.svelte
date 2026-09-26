@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
+  import StarRating from '$lib/components/StarRating.svelte';
   import type { AssetSummary } from '$lib/types/album';
   import { hint } from '$lib/keybinds';
   import { assetThumbUrl } from '$lib/api/assets';
@@ -33,7 +34,8 @@
     onPreviewEnd,
     onActivate,
     onLoupe,
-    onDeleteCopy
+    onDeleteCopy,
+    onRate
   }: {
     asset: AssetSummary;
     info?: TileInfo;
@@ -47,6 +49,7 @@
     onActivate?: () => void;
     onLoupe?: () => void;
     onDeleteCopy?: () => void;
+    onRate?: (rating: number | null) => void;
   } = $props();
 
   let pendingDelete = $state(false);
@@ -62,7 +65,7 @@
   const rowPinned = $derived(
     info === 'full' || (info === 'badges' && (copyBadge !== null || rating > 0))
   );
-  const hoverOnly = 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100';
+  const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
   const markClass = $derived(info === 'none' ? hoverOnly : '');
   const nameClass = $derived(info === 'full' ? '' : hoverOnly);
   const taken = $derived(
@@ -211,34 +214,50 @@
   </div>
   <div
     data-testid="tile-info"
-    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 items-end gap-2 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {rowPinned
+    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 flex-col justify-end gap-0.5 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {rowPinned
       ? 'opacity-100'
-      : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}"
+      : 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100'}"
   >
-    <span
-      data-testid="tile-name"
-      class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
-    >
-      <span class="truncate text-[10px] font-medium">{asset.originalFileName}</span>
-      {#if taken}
-        <span class="truncate text-[9px] text-white/70">{taken}</span>
-      {/if}
-    </span>
-    {#if copyBadge}
-      <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
-        <Icon icon={mdiContentDuplicate} size="11px" aria-hidden="true" />
-        <span class="truncate">{copyBadge}</span>
-      </span>
-    {/if}
-    {#if rating > 0}
+    {#if onRate}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <span
-        role="img"
-        aria-label="{rating} star{rating === 1 ? '' : 's'}"
-        class="flex shrink-0 items-center gap-0.5 text-[10px]"
+        class="pointer-events-auto -ml-1 self-start drop-shadow-md {info === 'full'
+          ? 'flex'
+          : 'hidden group-hover:flex group-has-[:focus-visible]:flex'}"
+        onkeydown={(e) => e.stopPropagation()}
+        onmousedown={(e) => e.preventDefault()}
       >
-        <Icon icon={mdiStar} size="11px" aria-hidden="true" />
-        {rating}
+        <StarRating {rating} size={12} onchange={onRate} />
       </span>
     {/if}
+    <div class="flex items-end gap-2">
+      <span
+        data-testid="tile-name"
+        class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
+      >
+        <span class="truncate text-[10px] font-medium">{asset.originalFileName}</span>
+        {#if taken}
+          <span class="truncate text-[9px] text-white/70">{taken}</span>
+        {/if}
+      </span>
+      {#if copyBadge}
+        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
+          <Icon icon={mdiContentDuplicate} size="11px" aria-hidden="true" />
+          <span class="truncate">{copyBadge}</span>
+        </span>
+      {/if}
+      {#if rating > 0 && (!onRate || info !== 'full')}
+        <span
+          role="img"
+          aria-label="{rating} star{rating === 1 ? '' : 's'}"
+          class="shrink-0 items-center gap-0.5 text-[10px] {onRate
+            ? 'flex group-hover:hidden group-has-[:focus-visible]:hidden'
+            : 'flex'}"
+        >
+          <Icon icon={mdiStar} size="11px" aria-hidden="true" />
+          {rating}
+        </span>
+      {/if}
+    </div>
   </div>
 </div>
