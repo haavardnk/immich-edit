@@ -37,6 +37,7 @@
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
+  import ContextMenuItem from '$lib/components/ContextMenuItem.svelte';
   import {
     mdiArrowCollapseLeft,
     mdiChevronLeft,
@@ -343,8 +344,7 @@
     });
   }
 
-  function openEditor(): void {
-    const id = focusedId;
+  function openEditor(id: string | null = focusedId): void {
     if (!id) return;
     browseView.leaveLoupeForEditor(id);
     void goto(editorHref(id, `${page.url.pathname}${page.url.search}`));
@@ -533,6 +533,17 @@
   const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
 </script>
 
+{#snippet stripMenu(id: string)}
+  {@const paneAction = multi && compare.members.includes(id) ? 'Remove from' : 'Add to'}
+  {@const paneLabel = `${paneAction} ${compare.mode === 'survey' ? 'survey' : 'compare'}`}
+  <ContextMenuItem title={hint('Open in editor', 'openEditor')} onSelect={() => openEditor(id)}>
+    Open in editor
+  </ContextMenuItem>
+  <ContextMenuItem disabled={!multi && id === currentId} onSelect={() => pickFromStrip(id, true)}>
+    {paneLabel}
+  </ContextMenuItem>
+{/snippet}
+
 <svelte:window onkeydown={onKeydown} />
 
 {#if asset}
@@ -548,7 +559,7 @@
         onToggleSelect={toggleSelect}
         onClearSelection={selection.clear}
         onSelectViewMode={selectViewMode}
-        onOpenEditor={openEditor}
+        onOpenEditor={() => openEditor()}
       />
     {/if}
 
@@ -721,6 +732,7 @@
         size={72}
         showBadges
         collapsed={ui.loupeFilmstripCollapsed}
+        menu={stripMenu}
       />
     {/if}
   </div>

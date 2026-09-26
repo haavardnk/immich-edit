@@ -156,3 +156,17 @@ test('hovering a survey pane offers a drop button for that photo', async ({ page
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
 });
+
+test('the filmstrip menu removes a photo from the survey', async ({ page }) => {
+  await openSurvey(page);
+  const thumb = page
+    .getByTestId('filmstrip-scroll')
+    .getByRole('button', { name: 'IMG_0002.ARW', exact: true });
+
+  await thumb.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Remove from survey' }).click();
+
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toHaveCount(0);
+  await thumb.click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Add to survey' })).toBeVisible();
+});
