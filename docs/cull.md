@@ -110,6 +110,8 @@ The loupe's **View mode** button switches between **Single photo**, **Compare** 
 well. In compare and survey, the bar under the photos has buttons for the same pane actions:
 **Sync zoom and pan**, **Make select** in compare or **Keep only this photo** in survey,
 and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
+Right-click a filmstrip thumbnail for **Open in editor** and **Add to compare**, which adds or
+removes a pane in compare and survey.
 
 ## A culling pass
 

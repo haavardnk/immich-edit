@@ -225,6 +225,16 @@ test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ p
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 
+test('the filmstrip context menu opens a photo in the editor', async ({ page }) => {
+  await openLoupe(page);
+  const strip = page.getByTestId('filmstrip-scroll');
+  const thumb = strip.getByRole('button', { name: NEXT_IMAGE, exact: true });
+
+  await thumb.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open in editor' }).click();
+  await expect(page).toHaveURL(new RegExp(`/assets/${SECOND_ID}`));
+});
+
 test('j toggles the clipping overlay', async ({ page }) => {
   await openLoupe(page);
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
