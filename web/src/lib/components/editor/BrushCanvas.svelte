@@ -16,6 +16,13 @@
     viewTransform
   } from '$lib/utils/canvasCoords';
   import { imageRect } from '$lib/utils/imageRect.svelte';
+  import {
+    BRUSH_SIZE,
+    HARDNESS,
+    wheelHardness,
+    wheelNotches,
+    wheelSize
+  } from '$lib/utils/brushSize';
 
   let {
     img
@@ -26,6 +33,7 @@
   const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let strokeActive = $state(false);
+  let hover = $state<{ x: number; y: number } | null>(null);
   let lastPx: number | null = null;
   let lastPy: number | null = null;
 
@@ -44,6 +52,7 @@
       : null
   );
   const isBrush = $derived(!!activeComp && activeComp.kind.kind === 'brush');
+  const ringRadius = $derived(editor.brushTool.size * 0.5 * Math.min(rect.w, rect.h));
   const show = $derived(
     editor.maskOverlayVisible &&
       isBrush &&
@@ -205,8 +214,24 @@
   }
 
   function onPointerMove(e: PointerEvent): void {
+    const bounds = (e.currentTarget as Element).getBoundingClientRect();
+    hover = { x: e.clientX - bounds.left, y: e.clientY - bounds.top };
     if (!strokeActive) return;
     stampAt(e);
+  }
+
+  function onWheel(e: WheelEvent): void {
+    if (!e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const notches = wheelNotches(e);
+    if (e.shiftKey) {
+      editor.setBrushTool({
+        hardness: wheelHardness(editor.brushTool.hardness, notches, HARDNESS)
+      });
+      return;
+    }
+    editor.setBrushTool({ size: wheelSize(editor.brushTool.size, notches, BRUSH_SIZE) });
   }
 
   async function onPointerUp(e: PointerEvent): Promise<void> {
@@ -232,5 +257,17 @@
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
+    onpointerleave={() => (hover = null)}
+    onwheel={onWheel}
   ></canvas>
+  {#if hover}
+    <div
+      class="pointer-events-none absolute rounded-full border border-white/90 shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
+      style="left: {rect.x + hover.x - ringRadius}px; top: {rect.y +
+        hover.y -
+        ringRadius}px; width: {ringRadius * 2}px; height: {ringRadius * 2}px;"
+      data-testid="brush-cursor"
+      aria-hidden="true"
+    ></div>
+  {/if}
 {/if}

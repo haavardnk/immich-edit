@@ -115,7 +115,8 @@ set of adjustments.
      tilted face or horizon. Hold `Shift` while dragging to keep a radial round, snap a linear
      gradient to 45° steps, or move a polygon corner straight across or straight up and down.
    - **Brush** paints the area by hand. `[` and `]` change the size, `{` and `}` the hardness, and
-     **Erase** takes paint away.
+     **Erase** takes paint away. Over the photo, `Alt` and scroll resize the brush and `Alt+Shift`
+     and scroll change its hardness.
    - **Polygon** follows straight edges. Click to place corners and click the first one, or press
      `Enter`, to close it.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
@@ -143,7 +144,7 @@ ones above them, and **Duplicate layer** starts a new mask from an existing one.
 Drag a stroke's green circle to move its source. Click a stroke to select it, then drag it to move
 the stroke and its source together, so a stroke that landed a little off does not need repainting.
 The move stops where the stroke or its source would leave the photo.
-Set **Size**, **Hardness** and **Opacity** for the next stroke. `H` and `C` switch between heal and clone.
+Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll over the photo resize the brush too. `H` and `C` switch between heal and clone.
 
 ## Crop and straighten
 

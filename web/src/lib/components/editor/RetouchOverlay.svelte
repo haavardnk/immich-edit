@@ -11,6 +11,13 @@
     viewTransform
   } from '$lib/utils/canvasCoords';
   import { imageRect } from '$lib/utils/imageRect.svelte';
+  import {
+    HARDNESS,
+    RETOUCH_SIZE,
+    wheelHardness,
+    wheelNotches,
+    wheelSize
+  } from '$lib/utils/brushSize';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -242,6 +249,20 @@
     hover = null;
   }
 
+  function onWheel(e: WheelEvent): void {
+    if (!e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const notches = wheelNotches(e);
+    if (e.shiftKey) {
+      editor.setRetouchTool({
+        hardness: wheelHardness(editor.retouchTool.hardness, notches, HARDNESS)
+      });
+      return;
+    }
+    editor.setRetouchTool({ size: wheelSize(editor.retouchTool.size, notches, RETOUCH_SIZE) });
+  }
+
   function ring(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -463,5 +484,6 @@
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
     onpointerleave={onPointerLeave}
+    onwheel={onWheel}
   ></canvas>
 {/if}

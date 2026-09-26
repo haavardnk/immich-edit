@@ -13,19 +13,7 @@ import { editorHref } from '$lib/editorNavigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
 import { nudgeable } from '$lib/utils/maskDrag';
 import { panStep } from '$lib/utils/imageViewport';
-
-const RETOUCH_SIZE = { step: 0.005, min: 0.005, max: 0.3 };
-const BRUSH_SIZE = { step: 0.01, min: 0.005, max: 0.5 };
-const HARDNESS = { step: 0.1, min: 0, max: 1 };
-
-export function stepBrush(
-  current: number,
-  key: string,
-  { step, min, max }: { step: number; min: number; max: number }
-): number {
-  const delta = key === '[' || key === '{' ? -step : step;
-  return Math.min(max, Math.max(min, current + delta));
-}
+import { BRUSH_SIZE, HARDNESS, RETOUCH_SIZE, stepBrush } from '$lib/utils/brushSize';
 
 function selectedShapeNudges(): boolean {
   if (ui.editorTab !== 'masks' || !editor.activeMaskComponentId) return false;

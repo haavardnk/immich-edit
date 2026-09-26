@@ -51,6 +51,32 @@ test('the radial feather handle stays grabbable at full feather', async ({ page 
   await expect.poll(() => lastRadial(saves)?.feather ?? 1).toBeLessThan(0.9);
 });
 
+test('Alt and the wheel resize the mask brush with a live cursor ring', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Brush', exact: true }).click();
+
+  const image = await page.getByTestId('preview-image').boundingBox();
+  if (!image) throw new Error('preview has no box');
+  await page.mouse.move(image.x + image.width / 2, image.y + image.height / 2);
+  const ring = page.getByTestId('brush-cursor');
+  await expect(ring).toBeVisible();
+  const ringWidth = async (): Promise<number> => (await ring.boundingBox())?.width ?? 0;
+  const size = page.getByRole('button', { name: 'Edit Size value' });
+  const before = await size.textContent();
+  const startWidth = await ringWidth();
+
+  await page.keyboard.down('Alt');
+  await page.mouse.wheel(0, -300);
+  await page.keyboard.up('Alt');
+
+  await expect.poll(ringWidth).toBeGreaterThan(startWidth);
+  await expect(size).not.toHaveText(before ?? '');
+  await expect(page.getByRole('button', { name: 'Zoom', exact: true })).toHaveText('Fit');
+});
+
 test('arrow keys nudge the selected radial', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { onSave: (body) => saves.push(body) });
