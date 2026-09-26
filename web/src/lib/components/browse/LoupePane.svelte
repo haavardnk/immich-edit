@@ -124,6 +124,17 @@
     onView(clampCenter({ zoom, cx, cy }), solo);
   }
 
+  export function panBy(fx: number, fy: number): void {
+    if (!zoomed || !zoomBox) return;
+    onView(
+      clampCenter({
+        zoom: view.zoom,
+        cx: boundedView.cx + (fx * box.w) / zoomBox.w,
+        cy: boundedView.cy + (fy * box.h) / zoomBox.h
+      })
+    );
+  }
+
   function onPointerDown(e: PointerEvent): void {
     e.preventDefault();
     wasFocused = focused || !showFocus;

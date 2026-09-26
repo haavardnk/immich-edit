@@ -65,6 +65,7 @@ import {
   sharpestPoint,
   type ZoomTarget
 } from '$lib/utils/zoomTarget';
+import { nudgePan, type PanStep } from '$lib/utils/imageViewport';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
 import type { PreviewSurface } from '$lib/utils/preview-surface';
 
@@ -198,6 +199,20 @@ class EditorStore {
       return;
     }
     this.stepZoomTarget(id);
+  };
+
+  panBy = (step: PanStep): void => {
+    const snap = this.previews.snapshot;
+    if (!ui.zoomed || !snap) return;
+    const pan = nudgePan(
+      { panX: ui.panX, panY: ui.panY },
+      step,
+      snap.frame,
+      snap.viewW,
+      snap.viewH
+    );
+    ui.panX = pan.panX;
+    ui.panY = pan.panY;
   };
 
   private zoomTargets(id: string): ZoomTarget[] {

@@ -35,6 +35,7 @@
   import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
   import { hint, matchKeybind, isRadioGroupTarget, type KeybindContext } from '$lib/keybinds';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
+  import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
   import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
 
@@ -122,6 +123,17 @@
     const id = focusedId;
     if (id) untrack(() => browsing.prefetchNear(id));
   });
+
+  let paneRefs = $state<Record<string, ReturnType<typeof LoupePane>>>({});
+
+  async function goLast(): Promise<void> {
+    const from = currentId;
+    while (browsing.hasMore && (await browsing.requestMore())) {
+      if (browseView.loupeId !== from) return;
+    }
+    const last = browsing.assets.at(-1);
+    if (last && browseView.loupeId === from) browseView.openLoupe(last.id);
+  }
 
   function go(delta: number): void {
     const from = currentId;
@@ -384,6 +396,21 @@
       case 'loupeNav':
         e.preventDefault();
         return go(e.key === 'ArrowRight' ? 1 : -1);
+      case 'zoomPan': {
+        e.preventDefault();
+        const step = panStep(e.key);
+        if (step && focusedId) paneRefs[focusedId]?.panBy(step[0], step[1]);
+        return;
+      }
+      case 'loupeEdge':
+        e.preventDefault();
+        if (e.key === 'Home') {
+          const first = browsing.assets[0];
+          if (first) browseView.openLoupe(first.id);
+          return;
+        }
+        void goLast();
+        return;
       case 'compareFocus':
         e.preventDefault();
         return compare.focusDelta(e.key === 'ArrowRight' ? 1 : -1);
@@ -526,6 +553,7 @@
       {#each panes as id, index (id)}
         {@const paneAsset = browsing.assets.find((item) => item.id === id)}
         <LoupePane
+          bind:this={paneRefs[id]}
           assetId={id}
           alt={paneAsset?.originalFileName ?? ''}
           view={compare.viewOf(id)}

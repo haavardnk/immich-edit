@@ -45,6 +45,9 @@ on if it is off screen.
 
 `Ctrl` or `Cmd` with the mouse wheel zooms at the pointer in the loupe, compare and survey, the
 wheel alone pans a zoomed photo, and a plain wheel over a filmstrip scrolls it.
+In the loupe, compare, survey and the editor, `Shift` with an arrow key nudges a zoomed photo by a
+tenth of the view. In the loupe, `Home` and `End` jump to the first and last photo, loading the
+rest of the view first when needed.
 
 `Z` zooms to the faces Immich found, largest first, and back to fit after the last one. Without
 faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 until you change
@@ -92,8 +95,9 @@ In the grid, keys act on the selected photos, so select photos first:
 - **Select all**, or `Ctrl+A`, loads and selects every photo in the view.
 
 With two photos selected, press `C` or **Compare selected**. The two sit side by side, and zoom and
-pan move together until you press `Y`. `Shift+←` or `Shift+→` swaps the focused side for the
-previous or next photo, which is the quickest way to hold a winner and step through the rest.
+pan move together until you press `Y`. `Alt+←` or `Alt+→` (`⌥←` or `⌥→` on a Mac) swaps the focused
+side for the previous or next photo, which is the quickest way to hold a winner and step through the
+rest, even while zoomed in.
 
 With up to nine selected, press `N` or **Survey selected** to see them all at once. Drop the weaker
 ones with `Backspace` until the keepers are left, or press `Enter` to keep only the focused photo.

@@ -142,6 +142,36 @@ test.describe('view rendering', () => {
     await expect(zoom).toHaveText('200%');
   });
 
+  test('shift and an arrow nudge the zoomed view but not a focused split handle', async ({
+    page
+  }) => {
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H }
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+    await setZoom(page, 4);
+
+    const image = page.getByRole('img', { name: 'IMG_0001.ARW' }).first();
+    const left = async (): Promise<number> => (await image.boundingBox())?.x ?? Number.NaN;
+    const start = await left();
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect.poll(left).toBeLessThan(start);
+    const moved = await left();
+    await page.keyboard.press('Shift+ArrowLeft');
+    await expect.poll(left).toBeGreaterThan(moved);
+    await expect(page).toHaveURL(/\/assets\//);
+
+    await page.keyboard.press('y');
+    const split = page.getByRole('slider', { name: 'Before/after split' });
+    await split.focus();
+    const before = await left();
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect(split).toHaveAttribute('aria-valuenow', '60');
+    expect(await left()).toBe(before);
+  });
+
   test('a held section bypass is not replaced by the view render', async ({ page }) => {
     const requests: PreviewRequest[] = [];
     await installMocks(page, {

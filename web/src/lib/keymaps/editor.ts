@@ -12,6 +12,7 @@ import { activeContexts } from '$lib/keybindContext';
 import { editorHref } from '$lib/editorNavigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
 import { nudgeable } from '$lib/utils/maskDrag';
+import { panStep } from '$lib/utils/imageViewport';
 
 const RETOUCH_SIZE = { step: 0.005, min: 0.005, max: 0.3 };
 const BRUSH_SIZE = { step: 0.01, min: 0.005, max: 0.5 };
@@ -95,7 +96,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     onEscape(e);
     return;
   }
-  if (isTypingTarget(e)) return;
+  if (isTypingTarget(e) || e.defaultPrevented) return;
   if (isKeybind(e, 'help')) {
     e.preventDefault();
     ui.toggleKeybindsHelp();
@@ -106,7 +107,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
 
   const bind = matchKeybind(e, activeContexts());
   if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon' || bind === 'maskNudge') return;
-  if (bind === 'editorNav' && selectedShapeNudges()) return;
+  if ((bind === 'editorNav' || bind === 'zoomPan') && selectedShapeNudges()) return;
   if (bind === 'geometryDone' && isControlTarget(e)) return;
   e.preventDefault();
 
@@ -114,6 +115,11 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'editorNav':
       navigate(id, e.key === 'ArrowLeft' ? -1 : 1);
       return;
+    case 'zoomPan': {
+      const step = panStep(e.key);
+      if (step) editor.panBy(step);
+      return;
+    }
     case 'backToGrid':
       void backToGrid(id, page.url.searchParams.get('from'));
       return;

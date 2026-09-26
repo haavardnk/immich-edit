@@ -4,6 +4,7 @@ import {
   ASSET_ID,
   ASSET_SUMMARY,
   installMocks,
+  makePng,
   numberedAssets,
   type InstallOpts
 } from './helpers';
@@ -204,6 +205,24 @@ test('Shift+digit rates and advances with auto-advance off', async ({ page }) =>
   await page.keyboard.press('Shift+Digit3');
   expect((await update).postDataJSON()).toMatchObject({ rating: 3 });
   await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+});
+
+test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ page }) => {
+  await openLoupe(page, { previewBody: makePng(60, 40) });
+  const image = page.getByRole('img', { name: LOUPE_IMAGE });
+  await expect(image).toBeVisible();
+
+  await image.click();
+  await expect(image).toHaveAttribute('style', /scale\([\d.]+\) translate\(/);
+  const before = await image.getAttribute('style');
+  await page.keyboard.press('Shift+ArrowRight');
+  await expect.poll(() => image.getAttribute('style')).not.toBe(before);
+  await expect(image).toBeVisible();
+
+  await page.keyboard.press('End');
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await page.keyboard.press('Home');
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 
 test('j toggles the clipping overlay', async ({ page }) => {
