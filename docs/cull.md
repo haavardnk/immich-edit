@@ -104,7 +104,10 @@ its **Make select** button, or `Enter`, moves it to the left.
 With up to nine selected, press `N` or **Survey selected** to see them all at once. Drop the weaker
 ones with `Backspace`, or the **Drop from survey** button that shows when you hover a photo, until
 the keepers are left, or press `Enter` to keep only the focused photo.
-`Esc` goes back to the loupe with the survivors selected.
+`Esc` goes back to the loupe, and the survivors are selected when you return to the grid.
+
+Selecting belongs to the grid. In the loupe, `C` compares the photo on screen with the next one
+and `N` surveys it with the next five.
 
 The loupe's **View mode** button switches between **Single photo**, **Compare** and **Survey** as
 well. In compare and survey, the bar under the photos has buttons for the same pane actions:
@@ -141,7 +144,7 @@ selected**. **Select all** next to the count loads and selects every photo in th
 `Ctrl+Shift+C` (`⌘⇧C` on a Mac) copies the edits of the selected photo in the grid, or of the photo
 on screen in the loupe, and asks which settings to take, remembering your last choice.
 `Ctrl+Shift+V` pastes them onto every selected photo as a background job; in the loupe it pastes
-onto the photo on screen when nothing is selected.
+onto the photo on screen.
 
 ## Virtual copies
 

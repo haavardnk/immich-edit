@@ -82,31 +82,13 @@ describe('Loupe', () => {
     expect(query('nav[aria-label="Loupe toolbar"] h2')?.textContent).toBe('b.jpg');
   });
 
-  it('toggles selection of the focused photo with the keyboard', () => {
+  it('compares the photo and the next one, ignoring the grid selection', () => {
+    selection.selectLoaded(['a', 'c']);
     render();
+    press('c');
+    expect(compare.members).toEqual(['b', 'c']);
     press('s');
-    expect([...selection.selected]).toEqual(['b']);
-    expect(query('[aria-label^="Deselect photo"]')).not.toBeNull();
-    press('s');
-    expect(selection.count).toBe(0);
-    expect(query('[aria-label^="Select photo"]')).not.toBeNull();
-  });
-
-  it('shows the selection count and clears it from the toolbar', () => {
-    render();
-    press('s');
-    const counter = query('nav[aria-label="Loupe toolbar"] [aria-live="polite"]');
-    expect(counter?.textContent?.trim()).toBe('1 selected');
-    counter?.closest('button')?.click();
-    flushSync();
-    expect(selection.count).toBe(0);
-    expect(query('nav[aria-label="Loupe toolbar"] [aria-live="polite"]')).toBeNull();
-  });
-
-  it('marks selected thumbnails in the filmstrip', () => {
-    render();
-    press('s');
-    expect(query('[data-testid="filmstrip-scroll"] [aria-label="Selected"]')).not.toBeNull();
+    expect([...selection.selected]).toEqual(['a', 'c']);
   });
 
   it('moves to the next photo with the arrow keys', () => {
