@@ -169,6 +169,14 @@ pub fn router(state: AppState) -> Router {
                 .delete(routes::presets::delete),
         )
         .route(
+            "/export-presets",
+            get(routes::export_presets::list).post(routes::export_presets::create),
+        )
+        .route(
+            "/export-presets/{id}",
+            put(routes::export_presets::update).delete(routes::export_presets::delete),
+        )
+        .route(
             "/jobs",
             get(routes::jobs::list)
                 .post(routes::jobs::create)
