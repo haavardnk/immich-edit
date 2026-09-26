@@ -14,6 +14,7 @@ import {
 function key(init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {
   return {
     key: init.key,
+    code: init.code ?? '',
     metaKey: init.metaKey ?? false,
     ctrlKey: init.ctrlKey ?? false,
     shiftKey: init.shiftKey ?? false,
@@ -152,5 +153,21 @@ describe('registry integrity', () => {
       expect(bind.display, bind.id).toBeTruthy();
       expect(matchKeybind(key({ key: 'Shift' }), bind.contexts)).not.toBe(bind.id);
     }
+  });
+});
+
+describe('code chords', () => {
+  it.each<[string, Partial<KeyboardEvent> & { key: string }, KeybindId | null]>([
+    ['Norwegian Shift+0', { key: '=', code: 'Digit0', shiftKey: true }, 'rateAdvance'],
+    ['US Shift+3', { key: '#', code: 'Digit3', shiftKey: true }, 'rateAdvance'],
+    ['plain 3', { key: '3', code: 'Digit3' }, 'rate'],
+    ['Norwegian = without Shift', { key: '=', code: 'Minus' }, 'gridSize'],
+    ['Shift+6', { key: '&', code: 'Digit6', shiftKey: true }, null]
+  ])('%s', (_name, init, expected) => {
+    expect(matchKeybind(key(init), ['grid'])).toBe(expected);
+  });
+
+  it('labels a code chord by its digit', () => {
+    expect(formatChord('Shift+Digit3', false)).toBe('Shift+3');
   });
 });

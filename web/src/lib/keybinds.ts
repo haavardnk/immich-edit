@@ -38,6 +38,21 @@ export const KEYBINDS = [
     display: '0 – 5'
   },
   {
+    id: 'rateAdvance',
+    keys: [
+      'Shift+Digit0',
+      'Shift+Digit1',
+      'Shift+Digit2',
+      'Shift+Digit3',
+      'Shift+Digit4',
+      'Shift+Digit5'
+    ],
+    contexts: ['grid', 'loupe', 'compare', 'survey'],
+    group: 'Culling',
+    label: 'Set the rating and move to the next photo',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} 0 – 5`
+  },
+  {
     id: 'favorite',
     keys: ['p', 'f'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
@@ -72,14 +87,32 @@ export const KEYBINDS = [
     keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'],
     contexts: ['grid'],
     group: 'Grid',
-    label: 'Move the active photo'
+    label: 'Select the next photo in that direction'
+  },
+  {
+    id: 'gridExtend',
+    keys: [
+      'Shift+ArrowLeft',
+      'Shift+ArrowRight',
+      'Shift+ArrowUp',
+      'Shift+ArrowDown',
+      'Shift+Home',
+      'Shift+End',
+      'Shift+PageUp',
+      'Shift+PageDown'
+    ],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Extend the selection, also with Home, End, Page Up and Page Down',
+    display: (mac: boolean) =>
+      `${keyLabel('Shift', mac)} ${keyLabel('ArrowLeft', mac)} ${keyLabel('ArrowRight', mac)} ${keyLabel('ArrowUp', mac)} ${keyLabel('ArrowDown', mac)}`
   },
   {
     id: 'gridEdge',
     keys: ['Home', 'End'],
     contexts: ['grid'],
     group: 'Grid',
-    label: 'First / last photo'
+    label: 'Select the first or last photo'
   },
   {
     id: 'gridPage',
@@ -747,17 +780,19 @@ export type KeybindId = (typeof KEYBINDS)[number]['id'];
 
 interface Chord {
   key: string;
+  code: boolean;
   mod: boolean;
   shift: boolean;
   alt: boolean;
 }
 
 function parseChord(spec: string): Chord {
-  if (spec.length === 1) return { key: spec, mod: false, shift: false, alt: false };
+  if (spec.length === 1) return { key: spec, code: false, mod: false, shift: false, alt: false };
   const parts = spec.split('+');
   const key = parts.pop() ?? '';
   return {
     key: key.length === 1 ? key.toLowerCase() : key,
+    code: /^Digit\d$/.test(key),
     mod: parts.includes('Mod'),
     shift: parts.includes('Shift'),
     alt: parts.includes('Alt')
@@ -774,7 +809,7 @@ function normalizeKey(key: string): string {
 function chordMatches(e: KeyboardEvent, chord: Chord): boolean {
   if (chord.mod !== (e.metaKey || e.ctrlKey)) return false;
   if (chord.alt !== e.altKey) return false;
-  if (normalizeKey(e.key) !== chord.key) return false;
+  if ((chord.code ? e.code : normalizeKey(e.key)) !== chord.key) return false;
   if (chord.shift) return e.shiftKey;
   const shiftSensitive = chord.key.length > 1 || (chord.key >= 'a' && chord.key <= 'z');
   return shiftSensitive ? !e.shiftKey : true;
@@ -843,6 +878,8 @@ const SHARED_KEYS: Record<string, string> = {
 };
 
 export function keyLabel(key: string, mac: boolean = isMac): string {
+  const digit = /^Digit(\d)$/.exec(key);
+  if (digit?.[1]) return digit[1];
   const shared = SHARED_KEYS[key];
   if (shared) return shared;
   const named = (mac ? MAC_KEYS : PC_KEYS)[key];

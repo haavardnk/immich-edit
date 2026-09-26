@@ -24,30 +24,32 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Culling
 
-| Keys                              | Action                                            | Available in                         |
-| --------------------------------- | ------------------------------------------------- | ------------------------------------ |
-| `0` / `1` / `2` / `3` / `4` / `5` | Set, toggle or clear the rating                   | Grid, Loupe, Compare, Survey, Editor |
-| `P` / `F`                         | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
-| `X`                               | Toggle reject                                     | Grid, Loupe, Compare, Survey, Editor |
-| `U`                               | Clear favorite and reject                         | Grid, Loupe, Compare, Survey, Editor |
-| `6` / `7` / `8` / `9`             | Set or clear the red, yellow, green or blue label | Grid, Loupe, Compare, Survey, Editor |
+| Keys                                                                  | Action                                            | Available in                         |
+| --------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------ |
+| `0` / `1` / `2` / `3` / `4` / `5`                                     | Set, toggle or clear the rating                   | Grid, Loupe, Compare, Survey, Editor |
+| `Shift+0` / `Shift+1` / `Shift+2` / `Shift+3` / `Shift+4` / `Shift+5` | Set the rating and move to the next photo         | Grid, Loupe, Compare, Survey         |
+| `P` / `F`                                                             | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
+| `X`                                                                   | Toggle reject                                     | Grid, Loupe, Compare, Survey, Editor |
+| `U`                                                                   | Clear favorite and reject                         | Grid, Loupe, Compare, Survey, Editor |
+| `6` / `7` / `8` / `9`                                                 | Set or clear the red, yellow, green or blue label | Grid, Loupe, Compare, Survey, Editor |
 
 ## Grid
 
-| Keys                  | Action                                                  | Available in |
-| --------------------- | ------------------------------------------------------- | ------------ |
-| `←` / `→` / `↑` / `↓` | Move the active photo                                   | Grid         |
-| `Home` / `End`        | First / last photo                                      | Grid         |
-| `PgUp` / `PgDn`       | Jump a page                                             | Grid         |
-| `-` / `_` / `=` / `+` | Thumbnail size                                          | Grid         |
-| `Shift+I`             | Cycle thumbnail info: hover only, badges, name and date | Grid         |
-| `Ctrl+A`              | Load and select every photo                             | Grid         |
-| `Esc`                 | Clear the selection                                     | Grid         |
-| `Shift+B`             | Focus the selection actions                             | Grid         |
-| `E` / `Space`         | Open the loupe                                          | Grid         |
-| `D` / `Enter`         | Open the editor                                         | Grid, Loupe  |
-| `C`                   | Compare the selected photos                             | Grid, Loupe  |
-| `N`                   | Survey the selected photos                              | Grid, Loupe  |
+| Keys                                                                                                     | Action                                                           | Available in |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------ |
+| `←` / `→` / `↑` / `↓`                                                                                    | Select the next photo in that direction                          | Grid         |
+| `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` / `Shift+Home` / `Shift+End` / `Shift+PgUp` / `Shift+PgDn` | Extend the selection, also with Home, End, Page Up and Page Down | Grid         |
+| `Home` / `End`                                                                                           | Select the first or last photo                                   | Grid         |
+| `PgUp` / `PgDn`                                                                                          | Jump a page                                                      | Grid         |
+| `-` / `_` / `=` / `+`                                                                                    | Thumbnail size                                                   | Grid         |
+| `Shift+I`                                                                                                | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
+| `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
+| `Esc`                                                                                                    | Clear the selection                                              | Grid         |
+| `Shift+B`                                                                                                | Focus the selection actions                                      | Grid         |
+| `E` / `Space`                                                                                            | Open the loupe                                                   | Grid         |
+| `D` / `Enter`                                                                                            | Open the editor                                                  | Grid, Loupe  |
+| `C`                                                                                                      | Compare the selected photos                                      | Grid, Loupe  |
+| `N`                                                                                                      | Survey the selected photos                                       | Grid, Loupe  |
 
 ## Loupe
 

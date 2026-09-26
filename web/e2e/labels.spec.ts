@@ -27,7 +27,7 @@ async function openGrid(page: Page, opts: InstallOpts = {}): Promise<TagChange[]
 
 const firstTile = (page: Page) => page.locator('div[title="IMG_0001.ARW"]');
 
-test('number keys set, swap and clear a label on the active photo', async ({ page }) => {
+test('number keys set, swap and clear a label on the selected photo', async ({ page }) => {
   const changes = await openGrid(page);
   await page.keyboard.press('ArrowRight');
 

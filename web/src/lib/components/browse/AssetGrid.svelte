@@ -17,7 +17,7 @@
   import { isCopy } from '$lib/assetKey';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
   import { labelOf, nextLabelFromKey } from '$lib/labels';
-  import { nextRatingFromKey } from '$lib/ratingShortcuts';
+  import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
   import { editorHref } from '$lib/editorNavigation';
   import { matchKeybind, type KeybindContext } from '$lib/keybinds';
   import {
@@ -181,8 +181,13 @@
   }
 
   function targets(): string[] {
-    if (selection.active) return [...selection.selected];
-    return browseView.activeId ? [browseView.activeId] : [];
+    return [...selection.selected];
+  }
+
+  function current(): string | null {
+    const id = browseView.activeId;
+    if (id && selection.has(id)) return id;
+    return items.find((asset) => selection.has(asset.id))?.id ?? null;
   }
 
   function applyRating(rating: number | null): void {
@@ -215,17 +220,32 @@
     return true;
   }
 
-  function moveAndShow(e: KeyboardEvent, index: number): void {
-    e.preventDefault();
-    const target = items[Math.min(items.length - 1, Math.max(0, index))];
-    if (!target) return;
-    const id = target.id;
-    browseView.setActive(id);
-    if (id) ensureVisible(id);
+  function moveIndex(key: string): number {
+    if (key === 'Home') return 0;
+    if (key === 'End') return items.length - 1;
+    const cursor = selection.active ? current() : browseView.activeId;
+    const index = cursor ? items.findIndex((asset) => asset.id === cursor) : -1;
+    if (index < 0 || !selection.active) return Math.max(0, index);
+    if (key === 'ArrowRight') return index + 1;
+    if (key === 'ArrowLeft') return index - 1;
+    const rows = key.startsWith('Page')
+      ? Math.max(1, Math.floor(parentHeight / browseView.minTile))
+      : 1;
+    return verticalAssetIndex(layout, index, key === 'ArrowUp' || key === 'PageUp' ? -rows : rows);
   }
 
-  function activeIndex(): number {
-    return browseView.activeId ? items.findIndex((asset) => asset.id === browseView.activeId) : -1;
+  function selectMove(e: KeyboardEvent): void {
+    e.preventDefault();
+    const target = items[Math.min(items.length - 1, Math.max(0, moveIndex(e.key)))];
+    if (!target) return;
+    if (e.shiftKey && selection.active)
+      selection.range(
+        items.map((asset) => asset.id),
+        target.id
+      );
+    else selection.selectLoaded([target.id]);
+    browseView.setActive(target.id);
+    ensureVisible(target.id);
   }
 
   function openMulti(mode: MultiMode): void {
@@ -233,7 +253,7 @@
       mode,
       items.map((a) => a.id),
       selection.selected,
-      browseView.activeId
+      current()
     );
     const first = members[0];
     if (members.length < 2 || !first) {
@@ -296,24 +316,11 @@
         e.preventDefault();
         void selectAll();
         return;
-      case 'gridMove': {
-        const current = activeIndex();
-        if (current < 0) return moveAndShow(e, 0);
-        if (e.key === 'ArrowRight') return moveAndShow(e, current + 1);
-        if (e.key === 'ArrowLeft') return moveAndShow(e, current - 1);
-        return moveAndShow(e, verticalAssetIndex(layout, current, e.key === 'ArrowDown' ? 1 : -1));
-      }
+      case 'gridMove':
       case 'gridEdge':
-        return moveAndShow(e, e.key === 'Home' ? 0 : items.length - 1);
-      case 'gridPage': {
-        const current = activeIndex();
-        if (current < 0) return moveAndShow(e, 0);
-        const rows = Math.max(1, Math.floor(parentHeight / browseView.minTile));
-        return moveAndShow(
-          e,
-          verticalAssetIndex(layout, current, e.key === 'PageUp' ? -rows : rows)
-        );
-      }
+      case 'gridPage':
+      case 'gridExtend':
+        return selectMove(e);
       case 'gridSize':
         e.preventDefault();
         return browseView.stepGridSize(e.key === '-' || e.key === '_' ? -1 : 1);
@@ -338,18 +345,20 @@
       case 'enterSurvey':
         e.preventDefault();
         return openMulti('survey');
-      case 'openEditor':
-        if (!browseView.activeId) return;
+      case 'openEditor': {
+        const id = current();
+        if (!id) return;
         e.preventDefault();
-        void goto(
-          editorHref(browseView.activeId, `${window.location.pathname}${window.location.search}`)
-        );
+        void goto(editorHref(id, `${window.location.pathname}${window.location.search}`));
         return;
-      case 'openLoupe':
-        if (!browseView.activeId) return;
+      }
+      case 'openLoupe': {
+        const id = current();
+        if (!id) return;
         e.preventDefault();
-        browseView.openLoupe(browseView.activeId);
+        browseView.openLoupe(id);
         return;
+      }
       case 'rate': {
         const ids = targets();
         if (ids.length === 0) return;
@@ -359,6 +368,22 @@
         const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
         const next = nextRatingFromKey(e.key, current);
         if (next !== undefined) applyRating(next);
+        return;
+      }
+      case 'rateAdvance': {
+        const next = ratingFromCode(e.code);
+        const ids = targets();
+        if (next === undefined || ids.length === 0) return;
+        e.preventDefault();
+        const [only] = ids;
+        if (ids.length > 1 || !only) return applyRating(next);
+        const following = items[items.findIndex((asset) => asset.id === only) + 1];
+        void rateAsset(only, next).then((ok) => {
+          if (!ok || !following) return;
+          selection.selectLoaded([following.id]);
+          browseView.setActive(following.id);
+          ensureVisible(following.id);
+        });
         return;
       }
     }
@@ -435,12 +460,13 @@
       <AssetTile
         asset={item.asset}
         info={browseView.tileInfo}
-        active={item.asset.id === browseView.activeId}
         selected={selectingAll || selection.has(item.asset.id)}
         rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
         selectionActive={selection.active || selectingAll}
         onToggle={() => {
-          if (!selectingAll) selection.toggle(item.asset.id);
+          if (selectingAll) return;
+          selection.toggle(item.asset.id);
+          if (selection.has(item.asset.id)) browseView.setActive(item.asset.id);
         }}
         onPreview={() => (hoveredId = item.asset.id)}
         onPreviewEnd={() => {

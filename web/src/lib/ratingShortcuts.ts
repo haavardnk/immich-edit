@@ -8,3 +8,10 @@ export function nextRatingFromKey(
   if (n === currentRating) return null;
   return n;
 }
+
+export function ratingFromCode(code: string): number | null | undefined {
+  const digit = /^Digit([0-5])$/.exec(code);
+  if (!digit) return undefined;
+  const n = Number(digit[1]);
+  return n === 0 ? null : n;
+}

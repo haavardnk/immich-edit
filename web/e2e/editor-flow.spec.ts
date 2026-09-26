@@ -71,10 +71,9 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
   expect(pages).toEqual([undefined, 2]);
 });
 
-async function expectActiveTileInView(page: Page, name: string): Promise<void> {
+async function expectTileRevealed(page: Page, name: string): Promise<void> {
   const scroller = page.getByRole('main').locator('.overflow-y-auto').first();
-  const tile = page.locator('[role="group"].ring-primary');
-  await expect(tile).toHaveAttribute('title', name);
+  const tile = page.locator(`[role="group"][title="${name}"]`);
   await expect
     .poll(async () => {
       const [outer, inner] = await Promise.all([scroller.boundingBox(), tile.boundingBox()]);
@@ -82,6 +81,8 @@ async function expectActiveTileInView(page: Page, name: string): Promise<void> {
       return inner.y >= outer.y && inner.y + inner.height <= outer.y + outer.height;
     })
     .toBe(true);
+  await page.keyboard.press('ArrowRight');
+  await expect(tile).toHaveAttribute('data-selected', 'true');
 }
 
 test('closing the loupe reveals the photo it ended on', async ({ page }) => {
@@ -94,7 +95,7 @@ test('closing the loupe reveals the photo it ended on', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0060.ARW' })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await expectActiveTileInView(page, 'IMG_0060.ARW');
+  await expectTileRevealed(page, 'IMG_0060.ARW');
 });
 
 test('editor back reveals the photo reached with the arrow keys', async ({ page }) => {
@@ -114,10 +115,12 @@ test('editor back reveals the photo reached with the arrow keys', async ({ page 
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
 
-  await expectActiveTileInView(page, 'IMG_0060.ARW');
+  await expectTileRevealed(page, 'IMG_0060.ARW');
 });
 
-test('back returns to the grid and selects the photo left open', async ({ page }) => {
+test('back returns to the grid and the first arrow picks up the photo left open', async ({
+  page
+}) => {
   const second = '00000000-0000-0000-0000-000000000002';
   await installMocks(page, {
     assets: [
@@ -137,9 +140,11 @@ test('back returns to the grid and selects the photo left open', async ({ page }
 
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/search?q=IMG');
-  await expect(
-    page.getByRole('main').locator(`div:has(> a[href^="/assets/${second}?"])`)
-  ).toHaveClass(/ring-primary/);
+  const tile = page.getByRole('main').locator(`div:has(> a[href^="/assets/${second}?"])`);
+  await expect(tile).toBeVisible();
+  await expect(page.getByRole('main').locator('[data-selected]')).toHaveCount(0);
+  await page.keyboard.press('ArrowRight');
+  await expect(tile).toHaveAttribute('data-selected', 'true');
 });
 
 test('back from a photo outside the timeline lands on a clean grid', async ({ page }) => {
@@ -150,19 +155,20 @@ test('back from a photo outside the timeline lands on a clean grid', async ({ pa
   await page.goto(`/assets/${ASSET_ID}`);
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
-  await expect(page.getByRole('main').locator('.ring-primary')).toHaveCount(0);
+  await expect(page.getByRole('main').locator('[data-selected]')).toHaveCount(0);
 });
 
-test('back from a deep-linked timeline photo marks it on the grid', async ({ page }) => {
+test('back from a deep-linked timeline photo picks it up on the grid', async ({ page }) => {
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
   await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
-  await expect(
-    page.getByRole('main').locator(`div:has(> a[href^="/assets/${ASSET_ID}?"])`)
-  ).toHaveClass(/ring-primary/);
+  const tile = page.getByRole('main').locator(`div:has(> a[href^="/assets/${ASSET_ID}?"])`);
+  await expect(tile).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(tile).toHaveAttribute('data-selected', 'true');
 });
 
 test('the grid keeps its selection across an editor round trip', async ({ page }) => {
@@ -179,7 +185,6 @@ test('the grid keeps its selection across an editor round trip', async ({ page }
   await page.getByRole('button', { name: 'Select', exact: true }).nth(0).click();
   await expect(page.getByText('2 selected')).toBeVisible();
 
-  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('d');
   await page.waitForURL('**/assets/**');
   await page.getByRole('button', { name: /^Back/ }).click();

@@ -24,7 +24,6 @@
   let {
     asset,
     info = 'badges',
-    active = false,
     selected = false,
     rangePreview = false,
     selectionActive = false,
@@ -38,7 +37,6 @@
   }: {
     asset: AssetSummary;
     info?: TileInfo;
-    active?: boolean;
     selected?: boolean;
     rangePreview?: boolean;
     selectionActive?: boolean;
@@ -116,9 +114,6 @@
   class:bg-neutral-900={!selected}
   class:bg-neutral-600={selected}
   class:rounded-md={selected}
-  class:ring-2={active}
-  class:ring-inset={active}
-  class:ring-primary={active}
   data-selected={selected || undefined}
   data-range-preview={rangePreview || undefined}
   title={asset.originalFileName}
