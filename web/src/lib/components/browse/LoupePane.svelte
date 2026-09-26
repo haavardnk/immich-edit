@@ -11,6 +11,9 @@
   const WHEEL_STEP = 1.1;
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
+  const SWIPE_MIN = 60;
+  const DOUBLE_TAP_MS = 300;
+  const DOUBLE_TAP_SLOP = 30;
 
   let {
     assetId,
@@ -24,7 +27,8 @@
     onSize,
     sourceLong,
     onFitZoom,
-    onImage
+    onImage,
+    onSwipe
   }: {
     assetId: string;
     alt: string;
@@ -38,6 +42,7 @@
     sourceLong?: number | null;
     onFitZoom?: (zoom: number) => void;
     onImage?: (element: HTMLImageElement) => void;
+    onSwipe?: (delta: 1 | -1) => void;
   } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
@@ -50,6 +55,17 @@
   let lastY = 0;
   let totalDrag = 0;
   let wasFocused = false;
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch: {
+    dist: number;
+    zoom: number;
+    view: PaneView;
+    box: { w: number; h: number };
+    mx: number;
+    my: number;
+  } | null = null;
+  let swipeStart: { x: number; y: number } | null = null;
+  let lastTap: { t: number; x: number; y: number } | null = null;
 
   const dpr = typeof window === 'undefined' ? 1 : Math.min(2, window.devicePixelRatio || 1);
   const fit = $derived(fitScale(box.w, box.h, natural.w, natural.h));
@@ -124,7 +140,123 @@
     onView(clampCenter({ zoom, cx, cy }), solo);
   }
 
+  function paneCenter(): { x: number; y: number } | null {
+    if (!container) return null;
+    const rect = container.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }
+
+  function touchPair(): [{ x: number; y: number }, { x: number; y: number }] | null {
+    const [a, b] = [...touches.values()];
+    return a && b ? [a, b] : null;
+  }
+
+  function startPinch(): void {
+    const pair = touchPair();
+    const zoom = view.zoom ?? fitZoom;
+    const startBox = imageBoxAt(zoom);
+    if (!pair || !startBox) return;
+    const [a, b] = pair;
+    dragging = false;
+    swipeStart = null;
+    pinch = {
+      dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      zoom,
+      view: boundedView,
+      box: startBox,
+      mx: (a.x + b.x) / 2,
+      my: (a.y + b.y) / 2
+    };
+  }
+
+  function pinchTo(): void {
+    const pair = touchPair();
+    const center = paneCenter();
+    if (!pair || !pinch || !center) return;
+    const [a, b] = pair;
+    const next = clampZoom((pinch.zoom * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.dist, fitZoom);
+    const nextBox = imageBoxAt(next);
+    if (next <= fitZoom || !nextBox) {
+      onView(CENTERED);
+      return;
+    }
+    const u = pinch.view.cx + (pinch.mx - center.x) / pinch.box.w;
+    const v = pinch.view.cy + (pinch.my - center.y) / pinch.box.h;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    onView(
+      clampCenter({
+        zoom: next,
+        cx: u - (mx - center.x) / nextBox.w,
+        cy: v - (my - center.y) / nextBox.h
+      })
+    );
+  }
+
+  function onTouchDown(e: PointerEvent): void {
+    e.preventDefault();
+    onFocus?.();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) {
+      startPinch();
+      return;
+    }
+    if (touches.size > 2) return;
+    swipeStart = { x: e.clientX, y: e.clientY };
+    lastX = e.clientX;
+    lastY = e.clientY;
+    totalDrag = 0;
+    dragging = zoomed;
+  }
+
+  function onTouchMove(e: PointerEvent): void {
+    if (!touches.has(e.pointerId)) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch) pinchTo();
+    else onPointerMove(e);
+  }
+
+  function onTouchUp(e: PointerEvent): void {
+    touches.delete(e.pointerId);
+    const start = swipeStart;
+    const wasDragging = dragging;
+    swipeStart = null;
+    dragging = false;
+    if (pinch) {
+      if (touches.size < 2) pinch = null;
+      lastTap = null;
+      return;
+    }
+    if (!start || e.type === 'pointercancel') return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (!zoomed && Math.abs(dx) > SWIPE_MIN && Math.abs(dx) > 2 * Math.abs(dy)) {
+      lastTap = null;
+      onSwipe?.(dx < 0 ? 1 : -1);
+      return;
+    }
+    if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
+    if (Math.hypot(dx, dy) > DOUBLE_TAP_SLOP) return;
+    const tap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+    const previous = lastTap;
+    lastTap = tap;
+    if (
+      !previous ||
+      tap.t - previous.t > DOUBLE_TAP_MS ||
+      Math.hypot(tap.x - previous.x, tap.y - previous.y) > DOUBLE_TAP_SLOP
+    )
+      return;
+    lastTap = null;
+    if (zoomed) onView(CENTERED);
+    else zoomInAt(tap.x, tap.y, false);
+  }
+
   function onPointerDown(e: PointerEvent): void {
+    if (e.pointerType === 'touch') {
+      onTouchDown(e);
+      return;
+    }
     e.preventDefault();
     wasFocused = focused || !showFocus;
     onFocus?.();
@@ -188,6 +320,10 @@
   }
 
   function onPointerUp(e: PointerEvent): void {
+    if (e.pointerType === 'touch') {
+      onTouchUp(e);
+      return;
+    }
     const wasDragging = dragging;
     dragging = false;
     if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
@@ -212,7 +348,7 @@
   tabindex="0"
   aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
   aria-busy={loading}
-  class="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
+  class="relative flex min-h-0 min-w-0 flex-1 touch-none items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
     ? dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'
@@ -222,7 +358,7 @@
       : 'border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
     : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
   onpointerdown={onPointerDown}
-  onpointermove={onPointerMove}
+  onpointermove={(e) => (e.pointerType === 'touch' ? onTouchMove(e) : onPointerMove(e))}
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
   onwheel={onWheel}

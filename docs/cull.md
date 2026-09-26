@@ -44,6 +44,9 @@ on if it is off screen.
 `Ctrl` or `Cmd` with the mouse wheel zooms at the pointer in the loupe, compare and survey, the
 wheel alone pans a zoomed photo, and a plain wheel over a filmstrip scrolls it.
 
+On a touch screen, pinch to zoom about your fingers, drag to pan a zoomed photo, double-tap to zoom
+in or back to fit, and swipe left or right on a fitted photo to move to the next or previous one.
+
 `Z` zooms to the faces Immich found, largest first, and back to fit after the last one. Without
 faces it zooms to the sharpest area. It zooms to the level you last picked, 1:1 until you change
 it. Zoom percentages are percentages of the original, so 100% shows one camera pixel on one screen

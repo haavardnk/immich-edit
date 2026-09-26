@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
+import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
 
 const SIZES = [
   { width: 1600, height: 832 },
@@ -404,4 +404,32 @@ test('the editor fits at the desktop breakpoint', async ({ page }) => {
     await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
   }
   expect(await sidewaysScrollers(page)).toEqual([]);
+});
+
+test.describe('touch loupe', () => {
+  test.use({ hasTouch: true });
+
+  test('a double tap zooms the loupe and a second one fits it again', async ({ page }) => {
+    await installMocks(page, {
+      assets: [{ ...ASSET_SUMMARY, exifInfo: ASSET_EXIF }],
+      previewBody: makePng(60, 40)
+    });
+    await page.goto('/search?q=IMG');
+    await page.getByLabel('Quick review').first().click();
+    const image = page.getByRole('img', { name: ASSET_SUMMARY.originalFileName });
+    await expect(image).toBeVisible();
+    const box = await image.boundingBox();
+    if (!box) throw new Error('no loupe image');
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+
+    await page.touchscreen.tap(x, y);
+    await expect(image).not.toHaveAttribute('style', /scale\(/);
+    await page.touchscreen.tap(x, y);
+    await expect(image).toHaveAttribute('style', /scale\([\d.]+\)/);
+
+    await page.touchscreen.tap(x, y);
+    await page.touchscreen.tap(x, y);
+    await expect(image).not.toHaveAttribute('style', /scale\(/);
+  });
 });

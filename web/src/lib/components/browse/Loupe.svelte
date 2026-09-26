@@ -513,6 +513,7 @@
             compare.applyView(id, next, solo);
           }}
           onSize={(size) => (paneMaxEdge = size)}
+          onSwipe={multi ? undefined : go}
           sourceLong={Math.max(
             paneAsset?.exifInfo?.exifImageWidth ?? 0,
             paneAsset?.exifInfo?.exifImageHeight ?? 0
