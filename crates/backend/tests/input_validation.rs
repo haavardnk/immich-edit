@@ -135,6 +135,71 @@ async fn a_member_cannot_import_a_lut() {
     assert_eq!(res.status(), StatusCode::FORBIDDEN);
 }
 
+fn bundled_dcp() -> Vec<u8> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/dcp/Canon EOS 5D.dcp");
+    std::fs::read(path).unwrap()
+}
+
+fn dcp_request(query: &str, body: Vec<u8>) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(format!("/api/dcp?{query}"))
+        .body(Body::from(body))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_dcp_import_round_trips_and_rejects_a_duplicate() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let res = app
+        .clone()
+        .oneshot(dcp_request("name=Probe&camera=ILCE-7M4", bundled_dcp()))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::CREATED);
+    let created = body_json(res.into_body()).await;
+    assert_eq!(created["name"], "Probe");
+
+    let res = app
+        .oneshot(dcp_request("name=Again", bundled_dcp()))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::CONFLICT);
+    let body = body_json(res.into_body()).await;
+    assert!(
+        body["message"]
+            .as_str()
+            .unwrap()
+            .contains(created["id"].as_str().unwrap()),
+        "{body}"
+    );
+}
+
+#[tokio::test]
+async fn a_dcp_import_rejects_bytes_that_are_not_a_profile() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let res = app
+        .oneshot(dcp_request("name=Broken", b"not a dcp".to_vec()))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn a_member_cannot_import_a_dcp() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let token = seed_member_session(&server, &state).await;
+    let app = wrap_auth(common::router(state), token);
+    let res = app
+        .oneshot(dcp_request("name=Probe", bundled_dcp()))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+}
+
 #[cfg(feature = "ml")]
 fn rebake_request(body: Value) -> Request<Body> {
     Request::builder()
@@ -201,5 +266,48 @@ async fn mask_generation_is_rejected_when_segmentation_is_off() {
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
     let body = body_json(res.into_body()).await;
+    assert_eq!(body["message"], "segmentation is disabled on this server");
+}
+
+#[cfg(feature = "ml")]
+async fn click_error(bbox: Value) -> Value {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let id = Uuid::new_v4();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{id}/masks/click"))
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::json!({ "bbox": bbox }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    body_json(res.into_body()).await
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn a_click_box_outside_the_frame_is_rejected() {
+    let body =
+        click_error(serde_json::json!({ "x0": -0.1, "y0": 0.2, "x1": 0.6, "y1": 0.8 })).await;
+    assert_eq!(body["message"], "box coordinates must be within 0..1");
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn a_click_box_thinner_than_the_minimum_is_rejected() {
+    let body =
+        click_error(serde_json::json!({ "x0": 0.5, "y0": 0.2, "x1": 0.502, "y1": 0.8 })).await;
+    assert_eq!(body["message"], "box is too small");
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn a_valid_click_box_reaches_the_segmentation_check() {
+    let body = click_error(serde_json::json!({ "x0": 0.8, "y0": 0.8, "x1": 0.2, "y1": 0.2 })).await;
     assert_eq!(body["message"], "segmentation is disabled on this server");
 }

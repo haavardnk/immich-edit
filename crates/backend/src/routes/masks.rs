@@ -212,16 +212,16 @@ pub async fn generate(
     Path(asset_id): Path<AssetKey>,
     Json(req): Json<GenerateRequest>,
 ) -> Result<Json<GenerateResponse>, AppError> {
-    if !state.segment.enabled() {
-        return Err(AppError::BadRequest(
-            "segmentation is disabled on this server".into(),
-        ));
-    }
     let kind = parse_kind(&req.kind)?;
     if kind == ModelKind::Semantic && req.class.is_none() {
         return Err(AppError::BadRequest("semantic masks need a class".into()));
     }
     let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
+    if !state.segment.enabled() {
+        return Err(AppError::BadRequest(
+            "segmentation is disabled on this server".into(),
+        ));
+    }
 
     let SceneImage {
         rgb8,
@@ -300,11 +300,6 @@ pub async fn click(
     Path(asset_id): Path<AssetKey>,
     Json(req): Json<ClickRequest>,
 ) -> Result<Json<GenerateResponse>, AppError> {
-    if !state.segment.enabled() {
-        return Err(AppError::BadRequest(
-            "segmentation is disabled on this server".into(),
-        ));
-    }
     if req.points.is_empty() && req.bbox.is_none() {
         return Err(AppError::BadRequest("no points given".into()));
     }
@@ -328,6 +323,11 @@ pub async fn click(
         Some(b) => Some(scene_box(&b)?),
         None => None,
     };
+    if !state.segment.enabled() {
+        return Err(AppError::BadRequest(
+            "segmentation is disabled on this server".into(),
+        ));
+    }
 
     let SceneImage {
         rgb8,
