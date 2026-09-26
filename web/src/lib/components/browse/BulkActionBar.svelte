@@ -1,14 +1,16 @@
 <script lang="ts">
   import type { AssetSummary } from '$lib/types/album';
   import type { AssetDetail } from '$lib/types/asset';
+  import { page } from '$app/state';
   import { hint } from '$lib/keybinds';
+  import { editorHref } from '$lib/editorNavigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
   import { createVirtualCopy } from '$lib/copies';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
-  import { ensureRejectTag, setRejectedTags } from '$lib/reject';
+  import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
   import {
     LABEL_NAMES,
     labelOf,
@@ -19,6 +21,10 @@
   } from '$lib/labels';
   import { assignLabel } from '$lib/stores/labels.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
+  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
+  import RejectButton from '$lib/components/RejectButton.svelte';
+  import StarRating from '$lib/components/StarRating.svelte';
+  import { commonValue, coverage } from '$lib/utils/selectionState';
   import { toasts } from '$lib/stores/toasts.svelte';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
@@ -36,15 +42,9 @@
   import {
     mdiClose,
     mdiImageAlbum,
-    mdiCloseCircle,
-    mdiCloseCircleOutline,
     mdiCompare,
     mdiContentDuplicate,
-    mdiHeart,
-    mdiHeartOutline,
-    mdiStar,
-    mdiStarOutline,
-    mdiSelectAll,
+    mdiImageEditOutline,
     mdiTagOutline,
     mdiTuneVariant,
     mdiViewGridOutline
@@ -82,13 +82,24 @@
   let metaBusy = $derived(busy || selectingAll);
   let count = $derived(selectedIds.length);
   let targetCount = $derived(selectingAll ? assets.length : count);
-  let canCompare = $derived(!selectingAll && count === 2);
-  let canSurvey = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
-  let commonLabel = $derived.by(() => {
-    const picked = new Set(selectedIds);
-    const labels = assets.filter((a) => picked.has(a.id)).map((a) => labelOf(a));
-    return labels.length > 0 && labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
+  let picked = $derived.by(() => {
+    const ids = new Set(selectedIds);
+    return assets.filter((a) => ids.has(a.id));
   });
+  let single = $derived(!selectingAll && count === 1 ? (picked[0] ?? null) : null);
+  let multiMode = $derived<MultiMode>(count === 2 ? 'compare' : 'survey');
+  let canMulti = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
+  let multiLabel = $derived(multiMode === 'compare' ? 'Compare selected' : 'Survey selected');
+  let multiTitle = $derived(
+    canMulti
+      ? hint(multiLabel, multiMode === 'compare' ? 'enterCompare' : 'enterSurvey')
+      : `Survey takes up to ${MAX_PANES} photos`
+  );
+  let photos = $derived(targetCount === 1 ? 'this photo' : 'selected photos');
+  let favoriteState = $derived(coverage(picked, count, (a) => a.isFavorite));
+  let rejectState = $derived(coverage(picked, count, (a) => isRejected(a)));
+  let commonRating = $derived(commonValue(picked, count, (a) => a.exifInfo?.rating ?? 0));
+  let commonLabel = $derived(commonValue(picked, count, (a) => labelOf(a)));
   let showSelectAll = $derived.by(() => {
     if (hasMore) return true;
     const picked = new Set(selectedIds);
@@ -173,7 +184,7 @@
     }
   }
 
-  function setRating(value: number): void {
+  function setRating(value: number | null): void {
     void applyMeta((id) => updateAsset(id, { rating: value }));
   }
 
@@ -259,123 +270,81 @@
     class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
     <ControlBar static shape="rectangle" class="min-w-0 px-3">
-      <ControlBarHeader class="pe-2">
-        <span class="whitespace-nowrap text-sm font-medium" aria-live="polite"
-          >{targetCount} selected</span
-        >
+      <ControlBarHeader class="flex items-center gap-2 p-1">
+        <span class="min-w-0 whitespace-nowrap text-sm font-medium" aria-live="polite">
+          {#if single}
+            <span class="sr-only">1 selected</span>
+            <span class="block max-w-64 truncate" aria-hidden="true" title={single.originalFileName}
+              >{single.originalFileName}</span
+            >
+          {:else}
+            {targetCount} selected
+          {/if}
+        </span>
+        {#if showSelectAll}
+          <Button
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            title="Load and select all photos"
+            loading={selectingAll}
+            disabled={busy || loadingMore}
+            onclick={selectAll}
+          >
+            Select all
+          </Button>
+        {/if}
       </ControlBarHeader>
 
       <ControlBarContent
         class="-my-1 min-w-0 gap-1 overflow-x-auto overscroll-contain p-1 scrollbar-hidden"
       >
-        {#if showSelectAll}
-          <div class="flex shrink-0 items-center gap-1">
-            <Button
-              size="small"
-              variant="ghost"
-              color="secondary"
-              leadingIcon={mdiSelectAll}
-              title="Load and select all photos"
-              loading={selectingAll}
-              disabled={busy || loadingMore}
-              onclick={selectAll}
-            >
-              Select all
-            </Button>
-          </div>
+        <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
+        {#if single}
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiImageEditOutline}
+            title={hint('Open in editor', 'openEditor')}
+            aria-label="Open in editor"
+            href={editorHref(single.id, `${page.url.pathname}${page.url.search}`)}
+          />
+        {:else}
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={multiMode === 'compare' ? mdiCompare : mdiViewGridOutline}
+            title={multiTitle}
+            aria-label={multiLabel}
+            disabled={!canMulti}
+            onclick={() => onMulti(multiMode)}
+          />
         {/if}
+        <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
 
-        <div class="ms-2 flex shrink-0 items-center gap-1">
-          <IconButton
+        <div class="flex shrink-0 items-center gap-1">
+          <FavoriteButton
             size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiCompare}
-            title={hint('Compare selected', 'enterCompare')}
-            aria-label="Compare selected"
-            disabled={!canCompare}
-            onclick={() => onMulti('compare')}
-          />
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiViewGridOutline}
-            title={hint('Survey selected', 'enterSurvey')}
-            aria-label="Survey selected"
-            disabled={!canSurvey}
-            onclick={() => onMulti('survey')}
-          />
-        </div>
-
-        <div class="ms-2 flex shrink-0 items-center gap-1">
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiHeart}
-            title={hint('Favorite', 'favorite')}
-            aria-label="Favorite"
+            isFavorite={favoriteState === 'all'}
+            mixed={favoriteState === 'some'}
             disabled={metaBusy}
-            onclick={() => setFavorite(true)}
+            ontoggle={() => setFavorite(favoriteState !== 'all')}
           />
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiHeartOutline}
-            title={hint('Unfavorite', 'favorite')}
-            aria-label="Unfavorite"
+          <StarRating
+            size={20}
+            rating={commonRating ?? 0}
+            mixed={commonRating === null}
             disabled={metaBusy}
-            onclick={() => setFavorite(false)}
+            onchange={setRating}
           />
-        </div>
-
-        <div class="ms-2 flex shrink-0 items-center gap-0.5" role="group" aria-label="Set rating">
-          {#each [1, 2, 3, 4, 5] as n (n)}
-            <IconButton
-              size="medium"
-              variant="ghost"
-              color="secondary"
-              icon={mdiStar}
-              title={hint(`Rate ${n}`, 'rate')}
-              aria-label={`Rate ${n}`}
-              disabled={metaBusy}
-              onclick={() => setRating(n)}
-            />
-          {/each}
-          <IconButton
+          <RejectButton
             size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiStarOutline}
-            title="Clear rating"
-            aria-label="Clear rating"
+            isRejected={rejectState === 'all'}
+            mixed={rejectState === 'some'}
             disabled={metaBusy}
-            onclick={() => setRating(0)}
-          />
-        </div>
-
-        <div class="ms-2 flex shrink-0 items-center gap-1">
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiCloseCircle}
-            title={hint('Reject', 'reject')}
-            aria-label="Reject"
-            disabled={metaBusy}
-            onclick={() => void applyReject(true)}
-          />
-          <IconButton
-            size="medium"
-            variant="ghost"
-            color="secondary"
-            icon={mdiCloseCircleOutline}
-            title={hint('Unreject', 'reject')}
-            aria-label="Unreject"
-            disabled={metaBusy}
-            onclick={() => void applyReject(false)}
+            ontoggle={() => void applyReject(rejectState !== 'all')}
           />
           <LabelPicker
             size="medium"
@@ -383,12 +352,18 @@
             disabled={metaBusy}
             onchange={(color) => void applyLabel(color)}
           />
+        </div>
+        <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
+        <div class="flex shrink-0 items-center gap-1">
           <IconButton
             size="medium"
             variant="ghost"
             color="secondary"
             icon={mdiContentDuplicate}
-            title={hint('Create a virtual copy', 'createVirtualCopy')}
+            title={hint(
+              targetCount === 1 ? 'Create a virtual copy' : 'Create a virtual copy of each',
+              'createVirtualCopy'
+            )}
             aria-label="Create virtual copy"
             disabled={metaBusy}
             onclick={() => void createCopies()}
@@ -398,7 +373,7 @@
             variant="ghost"
             color="secondary"
             icon={mdiTuneVariant}
-            title="Edit and export selected"
+            title={`Paste edits, apply a preset or export ${photos}`}
             aria-label="Edit and export selected"
             disabled={selectingAll}
             onclick={() => (bulkActionsOpen = true)}

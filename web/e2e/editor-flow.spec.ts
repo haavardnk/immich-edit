@@ -140,7 +140,9 @@ test('back returns to the grid and the first arrow picks up the photo left open'
 
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/search?q=IMG');
-  const tile = page.getByRole('main').locator(`div:has(> a[href^="/assets/${second}?"])`);
+  const tile = page
+    .getByRole('main')
+    .locator(`[role="group"]:has(> a[href^="/assets/${second}?"])`);
   await expect(tile).toBeVisible();
   await expect(page.getByRole('main').locator('[data-selected]')).toHaveCount(0);
   await page.keyboard.press('ArrowRight');
@@ -165,7 +167,9 @@ test('back from a deep-linked timeline photo picks it up on the grid', async ({ 
   await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
   await page.getByRole('button', { name: /^Back/ }).click();
   await page.waitForURL('**/photos');
-  const tile = page.getByRole('main').locator(`div:has(> a[href^="/assets/${ASSET_ID}?"])`);
+  const tile = page
+    .getByRole('main')
+    .locator(`[role="group"]:has(> a[href^="/assets/${ASSET_ID}?"])`);
   await expect(tile).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(tile).toHaveAttribute('data-selected', 'true');
