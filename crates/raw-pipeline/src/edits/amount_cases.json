@@ -180,5 +180,29 @@
     "amount": 50,
     "preset": { "color": { "lut_3d": { "lut_id": null, "amount": 60 } } },
     "expect": { "/color/lut_3d": { "lut_id": null, "amount": 60 } }
+  },
+  {
+    "name": "black and white keeps its switch and scales mix and toning",
+    "amount": 50,
+    "preset": {
+      "color": {
+        "bw": {
+          "enabled": true,
+          "mix": { "red": 40, "yellow": 0, "green": -20, "aqua": 0, "blue": 10, "magenta": 0 },
+          "shadows": { "hue": 210, "sat": 30 },
+          "highlights": { "hue": 40, "sat": 20 },
+          "balance": -30
+        }
+      }
+    },
+    "expect": {
+      "/color/bw": {
+        "enabled": true,
+        "mix": { "red": 20, "yellow": 0, "green": -10, "aqua": 0, "blue": 5, "magenta": 0 },
+        "shadows": { "hue": 210, "sat": 15 },
+        "highlights": { "hue": 40, "sat": 10 },
+        "balance": -15
+      }
+    }
   }
 ]

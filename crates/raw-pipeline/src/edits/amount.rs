@@ -1,6 +1,7 @@
 use super::{
-    BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint, CurvePoints,
-    CurvesEdits, DetailEdits, Edits, EffectsEdits, HslBand, HslEdits, Lut3dEdits, ToneEdits,
+    BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint,
+    CurvePoints, CurvesEdits, DetailEdits, Edits, EffectsEdits, HslBand, HslEdits, Lut3dEdits,
+    ToneEdits,
 };
 
 pub const LOOK_AMOUNT_FULL: f64 = 100.0;
@@ -70,6 +71,31 @@ fn scale_region(p: &ColorGradeRegion, n: &ColorGradeRegion, t: f64) -> ColorGrad
     }
 }
 
+fn scale_tint(p: &BwTint, t: f64) -> BwTint {
+    BwTint {
+        hue: p.hue,
+        sat: unsigned(0.0, p.sat, t),
+    }
+}
+
+fn scale_bw(p: &BwEdits, t: f64) -> BwEdits {
+    let [red, yellow, green, aqua, blue, magenta] = p.mix.channels().map(|v| signed(0.0, v, t));
+    BwEdits {
+        enabled: p.enabled,
+        mix: BwMix {
+            red,
+            yellow,
+            green,
+            aqua,
+            blue,
+            magenta,
+        },
+        shadows: scale_tint(&p.shadows, t),
+        highlights: scale_tint(&p.highlights, t),
+        balance: signed(0.0, p.balance, t),
+    }
+}
+
 fn scale_color(p: &ColorEdits, n: &ColorEdits, t: f64) -> ColorEdits {
     let grade = &p.color_grade;
     let neutral_grade = &n.color_grade;
@@ -99,6 +125,7 @@ fn scale_color(p: &ColorEdits, n: &ColorEdits, t: f64) -> ColorEdits {
             },
         },
         dcp: p.dcp.clone(),
+        bw: scale_bw(&p.bw, t),
     }
 }
 

@@ -167,9 +167,10 @@ it. The **Geometry & crop** and **Masks** checkboxes decide whether those come a
 **Amount** sets how strongly the preset applies, from 0% to 200%. At 100% you get the preset as
 saved. Lower values move each slider part of the way from its default toward the preset, and
 higher values push it further in the same direction, up to the slider's limit. Curves scale the
-same way, starting from a straight line, and a LUT's own amount scales too. Choices rather
-than amounts, such as the camera profile, the LUT file, sharpening and lens corrections, come
-from the preset as saved. At 0% the look returns to defaults. Geometry and masks are never
+same way, starting from a straight line, and a LUT's own amount scales too. Black & white mix,
+toning and balance scale while the conversion itself stays on. Choices rather than amounts, such
+as the camera profile, the LUT file, sharpening and lens corrections, come from the preset as
+saved. At 0% the look returns to defaults. Geometry and masks are never
 scaled. Double-click the slider to go back to 100%.
 
 **Export all** downloads every preset as one `.json` file, and the download button beside
