@@ -372,6 +372,15 @@ export function immichOptions(f: ExportForm): ImmichExportOptions {
 
 let albumsRequested = false;
 let tagsRequested = false;
+let albumsLoaded = false;
+let tagsLoaded = false;
+
+export function pruneLibraryIds(form: ExportForm): void {
+  if (albumsLoaded)
+    form.albumIds = form.albumIds.filter((id) => library.albums.some((album) => album.id === id));
+  if (tagsLoaded)
+    form.tagIds = form.tagIds.filter((id) => library.tags.some((tag) => tag.id === id));
+}
 
 export function ensureLibraryLoaded(form: ExportForm): void {
   if (!albumsRequested) {
@@ -379,7 +388,8 @@ export function ensureLibraryLoaded(form: ExportForm): void {
     void listAlbums()
       .then((a) => {
         library.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
-        form.albumIds = form.albumIds.filter((id) => a.some((album) => album.id === id));
+        albumsLoaded = true;
+        pruneLibraryIds(form);
       })
       .catch((e: unknown) => {
         albumsRequested = false;
@@ -391,7 +401,8 @@ export function ensureLibraryLoaded(form: ExportForm): void {
     void listTags()
       .then((t) => {
         library.tags = t;
-        form.tagIds = form.tagIds.filter((id) => t.some((tag) => tag.id === id));
+        tagsLoaded = true;
+        pruneLibraryIds(form);
       })
       .catch((e: unknown) => {
         tagsRequested = false;
