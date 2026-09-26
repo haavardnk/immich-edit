@@ -7,6 +7,7 @@
   import { captureDate } from '$lib/filenameTemplate';
   import { croppedOutputSize } from '$lib/utils/geom';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import ExportPresetMenu from './export/ExportPresetMenu.svelte';
   import ExportSection from './export/ExportSection.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
@@ -63,6 +64,7 @@
 </script>
 
 <div class="flex flex-col gap-1">
+  <ExportPresetMenu />
   <DestinationToggle bind:value={exportSettings.destination} />
 
   <ExportSection title="File">

@@ -379,3 +379,29 @@ test('export options sit in the same sections in the editor and the bulk dialog'
   await dialog.getByRole('tab', { name: 'Export' }).click();
   await expect(dialog.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
 });
+
+test('an export preset saves and restores the export settings', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Format' }).click();
+  await page.getByRole('option', { name: 'AVIF' }).click();
+  await page.getByRole('button', { name: 'Export presets' }).click();
+  await page.getByRole('textbox', { name: 'Export preset name' }).fill('Web AVIF');
+  await page.getByRole('button', { name: 'Save export preset' }).click();
+  await expect(page.getByRole('button', { name: 'Web AVIF', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Format' }).click();
+  await page.getByRole('option', { name: 'PNG' }).click();
+  await expect(page.getByRole('button', { name: /Export PNG/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Export presets' }).click();
+  await page.getByRole('button', { name: 'Web AVIF', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Export AVIF/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Export presets' }).click();
+  await page.getByRole('button', { name: 'Delete export preset Web AVIF' }).click();
+  await expect(page.getByText('No saved presets')).toBeVisible();
+});

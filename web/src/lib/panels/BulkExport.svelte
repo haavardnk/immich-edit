@@ -8,6 +8,7 @@
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
   import DestinationToggle from './export/DestinationToggle.svelte';
+  import ExportPresetMenu from './export/ExportPresetMenu.svelte';
   import ExportSection from './export/ExportSection.svelte';
   import FilenameTemplateField from './export/FilenameTemplateField.svelte';
   import FormatOptions from './export/FormatOptions.svelte';
@@ -69,6 +70,7 @@
     {selection.count} asset{selection.count === 1 ? '' : 's'} selected
   </div>
 
+  <ExportPresetMenu />
   <DestinationToggle bind:value={exportSettings.destination} downloadLabel="Download ZIP" />
 
   <ExportSection title="File">

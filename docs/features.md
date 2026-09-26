@@ -164,7 +164,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
 | Output sharpening for screen or print | ✓ Yes | Screen, matte or glossy paper at low, standard or high, applied after the resize; paper uses the print resolution |
 | Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
-| Export presets or recipes | ✗ No | Edit presets do not store export settings |
+| Export presets or recipes | ✓ Yes | Named, per-user export settings in both export panels; see [export](export.md#export-presets) |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |
 | Export watermark | ✓ Yes | PNG from a shared library, with size, opacity, inset and one of nine positions |
 | Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original |

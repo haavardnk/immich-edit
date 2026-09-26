@@ -201,6 +201,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
+  const exportPresets: Array<Record<string, unknown>> = [];
   const copies: CopyRecord[] = [];
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
@@ -335,6 +336,33 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         return route.fulfill({ ...json(created), status: 201 });
       }
       return route.fulfill(json(presets));
+    }
+    if (p === '/api/export-presets') {
+      if (method === 'POST') {
+        const created = {
+          ...((req.postDataJSON() as Record<string, unknown>) ?? {}),
+          id: `export-preset-${exportPresets.length + 1}`,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z'
+        };
+        exportPresets.push(created);
+        return route.fulfill(json(created));
+      }
+      return route.fulfill(json(exportPresets));
+    }
+    const exportPresetMatch = p.match(/^\/api\/export-presets\/([^/]+)$/);
+    if (exportPresetMatch) {
+      const idx = exportPresets.findIndex((e) => e.id === exportPresetMatch[1]);
+      if (method === 'DELETE') {
+        if (idx >= 0) exportPresets.splice(idx, 1);
+        return route.fulfill({ status: 204, body: '' });
+      }
+      const updated = {
+        ...exportPresets[idx],
+        ...((req.postDataJSON() as Record<string, unknown>) ?? {})
+      };
+      exportPresets[idx] = updated;
+      return route.fulfill(json(updated));
     }
     if (p === '/api/luts') return route.fulfill(json([]));
     if (p === '/api/watermarks') {
