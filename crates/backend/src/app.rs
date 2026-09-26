@@ -144,6 +144,10 @@ pub fn router(state: AppState) -> Router {
         .route("/debug/timings", get(routes::debug::timings))
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
+        .route(
+            "/albums/{id}/assets",
+            put(routes::albums::add_assets).delete(routes::albums::remove_assets),
+        )
         .route("/people", get(routes::people::list))
         .route("/people/{id}/thumb", get(routes::people::thumbnail))
         .route("/tags", get(routes::tags::list).put(routes::tags::upsert))

@@ -264,6 +264,16 @@ impl ImmichClient {
             .await
     }
 
+    pub async fn remove_assets_from_album(
+        &self,
+        album_id: Uuid,
+        asset_ids: &[Uuid],
+    ) -> ImmichResult<Vec<BulkIdResponse>> {
+        let body = serde_json::json!({ "ids": asset_ids });
+        self.delete_json(&format!("api/albums/{album_id}/assets"), &body)
+            .await
+    }
+
     pub async fn get_stack(&self, id: Uuid) -> ImmichResult<StackDetail> {
         self.get_json(&format!("api/stacks/{id}")).await
     }

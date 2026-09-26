@@ -22,6 +22,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
+  import BulkAlbumBand from './BulkAlbumBand.svelte';
   import {
     Button,
     ControlBar,
@@ -34,6 +35,7 @@
   import { MAX_PANES } from '$lib/stores/compare.svelte';
   import {
     mdiClose,
+    mdiImageAlbum,
     mdiCloseCircle,
     mdiCloseCircleOutline,
     mdiCompare,
@@ -69,7 +71,7 @@
   } = $props();
 
   let busy = $state(false);
-  let showTags = $state(false);
+  let band = $state<'tags' | 'albums' | null>(null);
   let bulkActionsOpen = $state(false);
   let bar = $state<HTMLDivElement | null>(null);
 
@@ -95,7 +97,7 @@
 
   async function selectAll(): Promise<void> {
     if (busy || loadingMore || selectingAll) return;
-    showTags = false;
+    band = null;
     bulkActionsOpen = false;
     await onSelectAll();
   }
@@ -403,14 +405,25 @@
           />
           <IconButton
             size="medium"
-            variant={showTags ? 'filled' : 'ghost'}
-            color={showTags ? 'primary' : 'secondary'}
+            variant={band === 'tags' ? 'filled' : 'ghost'}
+            color={band === 'tags' ? 'primary' : 'secondary'}
             icon={mdiTagOutline}
             title="Tags"
             aria-label="Tags"
-            aria-pressed={showTags}
+            aria-pressed={band === 'tags'}
             disabled={metaBusy}
-            onclick={() => (showTags = !showTags)}
+            onclick={() => (band = band === 'tags' ? null : 'tags')}
+          />
+          <IconButton
+            size="medium"
+            variant={band === 'albums' ? 'filled' : 'ghost'}
+            color={band === 'albums' ? 'primary' : 'secondary'}
+            icon={mdiImageAlbum}
+            title="Albums"
+            aria-label="Albums"
+            aria-pressed={band === 'albums'}
+            disabled={metaBusy}
+            onclick={() => (band = band === 'albums' ? null : 'albums')}
           />
         </div>
       </ControlBarContent>
@@ -429,8 +442,10 @@
       </ControlBarOverflow>
     </ControlBar>
 
-    {#if showTags}
+    {#if band === 'tags'}
       <BulkTagBand ids={selectedIds} {runPool} bind:busy />
+    {:else if band === 'albums'}
+      <BulkAlbumBand ids={selectedIds} bind:busy />
     {/if}
   </div>
 {/if}

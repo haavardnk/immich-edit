@@ -115,8 +115,10 @@ and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 ## Act on a selection
 
 With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a rating,
-**Clear rating**, **Reject**, **Unreject**, **Tags**, **Create virtual copy**, and
-**Edit and export selected**. The last one pastes edits, applies a preset or exports every selected
+**Clear rating**, **Reject**, **Unreject**, **Tags**, **Albums**, **Create virtual copy**, and
+**Edit and export selected**. **Albums** adds the selection to existing Immich albums; inside an
+album it also offers **Remove from** that album, which drops the photos from the grid while they
+stay in Immich. **Edit and export selected** pastes edits, applies a preset or exports every selected
 photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
 focus from the grid into the selection bar.
 
