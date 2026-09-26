@@ -32,10 +32,10 @@
     const id = presetId;
     const options = $state.snapshot(applyOptions);
     busy = true;
-    await runBulkJob((target) => createApplyPresetJob(target, id, options), {
-      success: (count) => `Queued preset on ${count} asset${count === 1 ? '' : 's'}`,
-      error: 'Failed to queue preset'
-    });
+    await runBulkJob(
+      (target) => createApplyPresetJob(target, id, options),
+      'Failed to queue preset'
+    );
     busy = false;
   }
 </script>

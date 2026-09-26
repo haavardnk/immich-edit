@@ -30,10 +30,7 @@ export async function pasteEditsTo(assetIds: string[]): Promise<void> {
   }
   await runBulkJob(
     (target) => createPasteEditsJob(target, editsToManifest(snap.edits), snap.sections),
-    {
-      success: (count) => `Queued paste on ${count} asset${count === 1 ? '' : 's'}`,
-      error: 'Failed to queue paste'
-    },
+    'Failed to queue paste',
     assetIds
   );
 }

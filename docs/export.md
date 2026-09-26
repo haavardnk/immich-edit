@@ -150,10 +150,12 @@ file; the earlier upload stays in Immich until you delete it there.
    single photo.
 1. Press **Download** *count* **as** *format* **ZIP** or **Export** *count* **to Immich**.
 
-The export runs on the server as a job, so you can keep working or close the tab. **Jobs**, in the
-top bar, shows progress with a count of running jobs. Expand a job to see each photo and the reason
-any failed. The cancel button stops a running job. A finished ZIP job has a **Download ZIP** button.
-**Clear finished** tidies the list.
+The export runs on the server as a job, so you can keep working or close the tab. A small card in
+the corner shows its progress and goes away a few seconds after a clean finish. If any photo fails,
+the card stays with a **Details** button, and **Jobs** in the top bar gets a red dot until you open
+it. **Jobs** lists every job with a count of running ones. Expand a job to see each photo and the
+reason any failed. The cancel button stops a running job. A finished ZIP job has a **Download ZIP**
+button, and its card a **Download** button. **Clear finished** tidies the list.
 
 The **Edit** tab of the same dialog works on the whole selection too:
 

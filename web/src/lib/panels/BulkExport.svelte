@@ -36,16 +36,12 @@
   async function submit(): Promise<void> {
     if (busy) return;
     busy = true;
-    const verb = destination === 'immich' ? 'export to Immich' : 'zip download';
     await runBulkJob(
       (assetIds) =>
         destination === 'immich'
           ? createImmichExportJob(assetIds, immichOptions(form))
           : createZipExportJob(assetIds, baseOptions(form)),
-      {
-        success: (count) => `Queued ${verb} of ${count} asset${count === 1 ? '' : 's'}`,
-        error: 'Failed to queue export'
-      }
+      'Failed to queue export'
     );
     busy = false;
   }

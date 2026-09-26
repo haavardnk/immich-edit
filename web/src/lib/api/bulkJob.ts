@@ -5,22 +5,15 @@ import { toasts } from '$lib/stores/toasts.svelte';
 
 export async function runBulkJob(
   create: (assetIds: string[]) => Promise<Job>,
-  opts: { success: (count: number) => string; error: string },
+  error: string,
   assetIds: string[] = [...selection.selected]
 ): Promise<boolean> {
-  const count = assetIds.length;
-  if (count === 0) return false;
+  if (assetIds.length === 0) return false;
   try {
-    await create(assetIds);
-    toasts.push('success', opts.success(count), 4000);
-    if (jobs.open) {
-      void jobs.load();
-    } else {
-      jobs.toggle();
-    }
+    jobs.track(await create(assetIds));
     return true;
   } catch (e) {
-    toasts.fail(opts.error, e, 6000);
+    toasts.fail(error, e, 6000);
     return false;
   }
 }
