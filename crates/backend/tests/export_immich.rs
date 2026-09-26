@@ -218,11 +218,11 @@ async fn upload_asset_sends_only_supported_multipart_fields() {
 }
 
 #[tokio::test]
-async fn stack_primary_update_uses_put() {
+async fn stack_primary_update_uses_patch() {
     let server = MockServer::start().await;
     let stack = Uuid::new_v4();
     let primary = asset_id();
-    Mock::given(method("PUT"))
+    Mock::given(method("PATCH"))
         .and(path(format!("/api/stacks/{stack}")))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": stack,

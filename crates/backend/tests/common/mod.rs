@@ -406,7 +406,7 @@ pub async fn mock_asset_detail(server: &MockServer) {
 }
 
 pub async fn mock_asset_update(server: &MockServer) {
-    Mock::given(method("PUT"))
+    Mock::given(method("PATCH"))
         .and(path(format!("/api/assets/{}", asset_id())))
         .and(header("x-api-key", "test-key"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({

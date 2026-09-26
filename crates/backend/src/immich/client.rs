@@ -216,7 +216,7 @@ impl ImmichClient {
         id: Uuid,
         body: &serde_json::Value,
     ) -> ImmichResult<AssetDetail> {
-        self.put_json(&format!("api/assets/{id}"), body).await
+        self.patch_json(&format!("api/assets/{id}"), body).await
     }
 
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
@@ -291,7 +291,7 @@ impl ImmichClient {
         primary_asset_id: Uuid,
     ) -> ImmichResult<StackDetail> {
         let body = serde_json::json!({ "primaryAssetId": primary_asset_id });
-        self.put_json(&format!("api/stacks/{stack_id}"), &body)
+        self.patch_json(&format!("api/stacks/{stack_id}"), &body)
             .await
     }
 
@@ -336,6 +336,16 @@ impl ImmichClient {
     ) -> ImmichResult<T> {
         let url = self.url(path)?;
         let bytes = send(self.authed(self.http.put(url).json(body))).await?;
+        parse_json(&bytes)
+    }
+
+    async fn patch_json<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> ImmichResult<T> {
+        let url = self.url(path)?;
+        let bytes = send(self.authed(self.http.patch(url).json(body))).await?;
         parse_json(&bytes)
     }
 
