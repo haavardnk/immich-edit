@@ -1,6 +1,13 @@
 <script lang="ts">
   import { jobs } from '$lib/stores/jobs.svelte';
-  import { jobDownloadUrl, type Job, type JobItem, type JobItemStatus } from '$lib/api/jobs';
+  import {
+    isJobActive,
+    jobDownloadUrl,
+    type Job,
+    type JobItem,
+    type JobItemStatus
+  } from '$lib/api/jobs';
+  import { jobKindLabel, jobProgress } from './jobFormat';
   import Notice from '$lib/components/Notice.svelte';
   import {
     mdiClose,
@@ -12,33 +19,6 @@
   } from '@mdi/js';
   import { Dialog } from 'bits-ui';
   import { Badge, Button, IconButton, ProgressBar, Text, type Color } from '@immich/ui';
-
-  let expanded = $state<string | null>(null);
-
-  const KIND_LABELS: Record<string, string> = {
-    export_immich: 'Export to Immich',
-    download_zip: 'Download ZIP',
-    apply_preset: 'Apply Preset',
-    reset_edits: 'Reset Edits'
-  };
-
-  function kindLabel(kind: string): string {
-    return KIND_LABELS[kind] ?? kind;
-  }
-
-  function toggleExpand(id: string): void {
-    if (expanded === id) {
-      expanded = null;
-    } else {
-      expanded = id;
-      void jobs.loadItems(id);
-    }
-  }
-
-  function progress(job: Job): number {
-    if (job.total === 0) return 0;
-    return Math.round(((job.completed + job.failed) / job.total) * 100);
-  }
 
   function statusColor(status: Job['status']): Color {
     switch (status) {
@@ -53,10 +33,6 @@
       default:
         return 'info';
     }
-  }
-
-  function isActive(status: Job['status']): boolean {
-    return status === 'pending' || status === 'running';
   }
 
   function itemColor(status: JobItemStatus): string {
@@ -120,24 +96,24 @@
                   variant="ghost"
                   color="secondary"
                   class="flex-none"
-                  icon={expanded === job.id ? mdiChevronDown : mdiChevronRight}
-                  onclick={() => toggleExpand(job.id)}
+                  icon={jobs.expanded === job.id ? mdiChevronDown : mdiChevronRight}
+                  onclick={() => jobs.toggleExpanded(job.id)}
                   aria-label="Toggle details"
                 />
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium truncate">{kindLabel(job.kind)}</span>
+                    <span class="text-xs font-medium truncate">{jobKindLabel(job.kind)}</span>
                     <Badge size="tiny" color={statusColor(job.status)}>{job.status}</Badge>
                   </div>
                   <ProgressBar
-                    progress={progress(job)}
+                    progress={jobProgress(job)}
                     max={100}
                     size="tiny"
                     shape="round"
                     color="primary"
                     class="mt-1"
                     stop={false}
-                    aria-label={`${kindLabel(job.kind)} progress`}
+                    aria-label={`${jobKindLabel(job.kind)} progress`}
                   />
                   <div class="mt-1 text-[10px] text-dark/65">
                     {job.completed + job.failed} / {job.total}
@@ -146,7 +122,7 @@
                     {/if}
                   </div>
                 </div>
-                {#if isActive(job.status)}
+                {#if isJobActive(job.status)}
                   <IconButton
                     size="small"
                     variant="ghost"
@@ -173,7 +149,7 @@
                 {/if}
               </div>
 
-              {#if expanded === job.id}
+              {#if jobs.expanded === job.id}
                 <div class="border-t border-hairline bg-black/15 px-3 py-2.5">
                   {#if jobs.items[job.id] === undefined}
                     <p class="text-[11px] text-dark/65">Loading…</p>

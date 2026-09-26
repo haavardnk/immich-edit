@@ -132,7 +132,7 @@
         color="secondary"
         shape="rectangle"
         icon={mdiFormatListChecks}
-        title="Jobs"
+        title={jobs.attention ? 'Jobs: a job finished with failures' : 'Jobs'}
         aria-label="Jobs"
         onclick={jobs.toggle}
       />
@@ -142,6 +142,12 @@
         >
           {jobs.activeCount}
         </span>
+      {:else if jobs.attention}
+        <span
+          class="pointer-events-none absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-danger"
+          data-testid="jobs-attention"
+          aria-hidden="true"
+        ></span>
       {/if}
     </div>
 

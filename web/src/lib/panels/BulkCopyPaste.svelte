@@ -33,10 +33,7 @@
   async function reset(): Promise<void> {
     if (busy || selection.count === 0) return;
     busy = true;
-    await runBulkJob((target) => createResetEditsJob(target), {
-      success: (count) => `Queued reset on ${count} asset${count === 1 ? '' : 's'}`,
-      error: 'Failed to queue reset'
-    });
+    await runBulkJob((target) => createResetEditsJob(target), 'Failed to queue reset');
     busy = false;
   }
 </script>

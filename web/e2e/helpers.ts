@@ -387,6 +387,27 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill({ status: 204, body: '' });
     }
     if (p === '/api/dcp') return route.fulfill(json([]));
+    if (p === '/api/jobs' && method === 'POST') {
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        kind?: string;
+        asset_ids?: string[];
+      };
+      return route.fulfill(
+        json({
+          id: 'job-queued',
+          kind: body.kind ?? 'paste_edits',
+          status: 'pending',
+          target: {},
+          params: {},
+          total: body.asset_ids?.length ?? 0,
+          completed: 0,
+          failed: 0,
+          cancelled_at: null,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z'
+        })
+      );
+    }
     if (p === '/api/jobs') return route.fulfill(json([]));
 
     const presetMatch = p.match(/^\/api\/presets\/([^/]+)$/);

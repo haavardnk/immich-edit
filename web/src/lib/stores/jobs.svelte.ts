@@ -1,21 +1,31 @@
-import { cancelJob, clearJobs, getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
+import {
+  cancelJob,
+  clearJobs,
+  getJob,
+  isJobActive,
+  jobNeedsAttention,
+  listJobs,
+  type Job,
+  type JobItem
+} from '$lib/api/jobs';
 import { url } from '$lib/api/client';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 
-function isActive(status: Job['status']): boolean {
-  return status === 'pending' || status === 'running';
-}
-
 const POLL_BASE_MS = 4000;
 const MAX_BACKOFF_STEPS = 4;
 const MAX_STREAM_ERRORS = 5;
+const DONE_TOAST_MS = 6000;
+const REFRESHES_THUMBS = new Set(['apply_preset', 'paste_edits', 'reset_edits']);
 
 class JobsStore {
   jobs = $state<Job[]>([]);
   open = $state(false);
   loading = $state(false);
   items = $state<Record<string, JobItem[]>>({});
+  watched = $state<string[]>([]);
+  attention = $state(false);
+  expanded = $state<string | null>(null);
 
   private sources = new Map<string, EventSource>();
   private streamErrors = new Map<string, number>();
@@ -23,8 +33,8 @@ class JobsStore {
   private polling = false;
   private failures = 0;
 
-  activeCount = $derived(this.jobs.filter((j) => isActive(j.status)).length);
-  clearableCount = $derived(this.jobs.filter((j) => !isActive(j.status)).length);
+  activeCount = $derived(this.jobs.filter((j) => isJobActive(j.status)).length);
+  clearableCount = $derived(this.jobs.filter((j) => !isJobActive(j.status)).length);
 
   load = async (): Promise<void> => {
     if (this.loading) return;
@@ -46,10 +56,57 @@ class JobsStore {
       this.close();
     } else {
       this.open = true;
+      this.attention = false;
       this.failures = 0;
       this.startPolling();
     }
   };
+
+  showJob = (id: string): void => {
+    this.unwatch(id);
+    this.expanded = id;
+    void this.loadItems(id);
+    if (!this.open) this.toggle();
+  };
+
+  toggleExpanded = (id: string): void => {
+    if (this.expanded === id) {
+      this.expanded = null;
+      return;
+    }
+    this.expanded = id;
+    void this.loadItems(id);
+  };
+
+  track = (job: Job): void => {
+    this.patch(job);
+    if (!this.watched.includes(job.id)) this.watched = [job.id, ...this.watched];
+    if (isJobActive(job.status)) this.connect(job.id);
+    else this.settle(job);
+  };
+
+  unwatch = (id: string): void => {
+    this.watched = this.watched.filter((w) => w !== id);
+  };
+
+  receive = (job: Job): void => {
+    this.patch(job);
+    if (isJobActive(job.status)) return;
+    if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
+      void editedThumbs.refresh();
+    }
+    this.disconnect(job.id);
+    this.settle(job);
+  };
+
+  private settle(job: Job): void {
+    if (!this.watched.includes(job.id)) return;
+    if (jobNeedsAttention(job)) {
+      if (!this.open) this.attention = true;
+      return;
+    }
+    setTimeout(() => this.unwatch(job.id), DONE_TOAST_MS);
+  }
 
   close = (): void => {
     this.open = false;
@@ -67,12 +124,13 @@ class JobsStore {
   clear = async (): Promise<void> => {
     try {
       await clearJobs();
-      const removed = new Set(this.jobs.filter((j) => !isActive(j.status)).map((j) => j.id));
+      const removed = new Set(this.jobs.filter((j) => !isJobActive(j.status)).map((j) => j.id));
       for (const id of removed) {
         this.disconnect(id);
         this.streamErrors.delete(id);
       }
-      this.jobs = this.jobs.filter((j) => isActive(j.status));
+      this.jobs = this.jobs.filter((j) => isJobActive(j.status));
+      this.watched = this.watched.filter((id) => !removed.has(id));
       const items = { ...this.items };
       for (const id of removed) delete items[id];
       this.items = items;
@@ -104,7 +162,7 @@ class JobsStore {
 
   private syncStreams(): void {
     for (const job of this.jobs) {
-      if (isActive(job.status)) {
+      if (isJobActive(job.status)) {
         this.connect(job.id);
       } else {
         this.disconnect(job.id);
@@ -117,24 +175,14 @@ class JobsStore {
     if ((this.streamErrors.get(id) ?? 0) >= MAX_STREAM_ERRORS) return;
     const source = new EventSource(url`/api/jobs/${id}/events`);
     source.addEventListener('job', (ev) => {
+      let job: Job;
       try {
-        const job = JSON.parse((ev as MessageEvent).data) as Job;
-        this.streamErrors.delete(id);
-        this.patch(job);
-        if (!isActive(job.status)) {
-          if (
-            (job.kind === 'apply_preset' ||
-              job.kind === 'paste_edits' ||
-              job.kind === 'reset_edits') &&
-            job.status === 'completed'
-          ) {
-            void editedThumbs.refresh();
-          }
-          this.disconnect(job.id);
-        }
+        job = JSON.parse((ev as MessageEvent).data) as Job;
       } catch {
-        /* ignore malformed event */
+        return;
       }
+      this.streamErrors.delete(id);
+      this.receive(job);
     });
     source.onerror = () => {
       const errors = (this.streamErrors.get(id) ?? 0) + 1;

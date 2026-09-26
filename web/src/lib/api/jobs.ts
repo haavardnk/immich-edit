@@ -53,6 +53,14 @@ export interface JobDetail {
   items: JobItem[];
 }
 
+export function isJobActive(status: JobStatus): boolean {
+  return status === 'pending' || status === 'running';
+}
+
+export function jobNeedsAttention(job: Job): boolean {
+  return !isJobActive(job.status) && (job.failed > 0 || job.status === 'failed');
+}
+
 export function listJobs(): Promise<Job[]> {
   return getJson('/api/jobs');
 }
