@@ -1,6 +1,9 @@
 import {
+  BW_CHANNELS,
   neutralEdits,
   type BasicEdits,
+  type BwEdits,
+  type BwTint,
   type ColorEdits,
   type ColorGradeRegion,
   type CurvePoint,
@@ -64,6 +67,22 @@ function scaleRegion(p: ColorGradeRegion, n: ColorGradeRegion, t: number): Color
   return { hue: p.hue, sat: unsigned(n.sat, p.sat, t), lum: lerp(n.lum, p.lum, t, -50, 50) };
 }
 
+function scaleTint(p: BwTint, t: number): BwTint {
+  return { hue: p.hue, sat: unsigned(0, p.sat, t) };
+}
+
+function scaleBw(p: BwEdits, t: number): BwEdits {
+  return {
+    enabled: p.enabled,
+    mix: Object.fromEntries(
+      BW_CHANNELS.map((channel) => [channel, signed(0, p.mix[channel], t)])
+    ) as BwEdits['mix'],
+    shadows: scaleTint(p.shadows, t),
+    highlights: scaleTint(p.highlights, t),
+    balance: signed(0, p.balance, t)
+  };
+}
+
 function scaleColor(p: ColorEdits, n: ColorEdits, t: number): ColorEdits {
   const grade = p.color_grade;
   const neutralGrade = n.color_grade;
@@ -87,7 +106,8 @@ function scaleColor(p: ColorEdits, n: ColorEdits, t: number): ColorEdits {
       lut_id: p.lut_3d.lut_id,
       amount: p.lut_3d.lut_id ? unsigned(0, p.lut_3d.amount, t) : p.lut_3d.amount
     },
-    dcp: p.dcp
+    dcp: p.dcp,
+    bw: scaleBw(p.bw, t)
   };
 }
 
