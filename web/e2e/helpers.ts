@@ -171,6 +171,7 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  minRatingFilter?: boolean;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -252,6 +253,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+    if (p === '/api/immich/capabilities') {
+      const minRatingFilter = opts.minRatingFilter ?? true;
+      return route.fulfill(
+        json({
+          immich_version: minRatingFilter ? '3.2.2' : '3.1.0',
+          min_rating_filter: minRatingFilter
+        })
+      );
+    }
 
     if (p === '/api/search/smart') {
       const body = (req.postDataJSON() as Record<string, unknown>) ?? {};

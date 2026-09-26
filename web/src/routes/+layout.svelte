@@ -6,6 +6,7 @@
   import { setupStatus } from '$lib/api/auth';
   import { isBackendDown } from '$lib/api/client';
   import { session } from '$lib/stores/session.svelte';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { rememberBrowseContext } from '$lib/stores/browseContext';
   import { matchBrowseRoute } from '$lib/browseRestore';
@@ -26,7 +27,7 @@
     try {
       const st = await setupStatus();
       configured = st.configured;
-      if (configured) await session.load();
+      if (configured && (await session.load())) await immichCapabilities.load();
       bootState = 'ready';
     } catch (err: unknown) {
       bootState = isBackendDown(err) ? 'unreachable' : 'ready';

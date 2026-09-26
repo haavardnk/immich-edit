@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 
 use crate::host::{HostInfo, host_info};
 use crate::immich::ImmichConnectionStatus;
+use crate::immich::dto::ServerVersion;
 use crate::routes::auth::AuthCtx;
 use crate::state::AppState;
 
@@ -47,5 +48,31 @@ pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health>
         db_ready,
         db_migration_version,
         config: state.config.redacted(),
+    })
+}
+
+const MIN_RATING_FILTER: ServerVersion = ServerVersion {
+    major: 3,
+    minor: 2,
+    patch: 0,
+};
+
+#[derive(Debug, Serialize)]
+pub struct ImmichCapabilities {
+    pub immich_version: Option<String>,
+    pub min_rating_filter: bool,
+}
+
+pub async fn immich_capabilities(ctx: AuthCtx) -> Json<ImmichCapabilities> {
+    let version = match ctx.immich.server_version().await {
+        Ok(version) => Some(version),
+        Err(e) => {
+            tracing::warn!(error = %e, "immich server version unavailable");
+            None
+        }
+    };
+    Json(ImmichCapabilities {
+        immich_version: version.map(|v| format!("{}.{}.{}", v.major, v.minor, v.patch)),
+        min_rating_filter: version.is_some_and(|v| v >= MIN_RATING_FILTER),
     })
 }

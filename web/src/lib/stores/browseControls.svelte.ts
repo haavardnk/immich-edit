@@ -5,7 +5,28 @@ import { isRejected } from '$lib/reject';
 import { readStored, writeStored } from '$lib/utils/storage';
 
 export type { SortDir, Visibility };
-export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
+export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5 | MinRating;
+export type RejectedFilter = 'any' | 'hide' | 'only';
+
+export type MinRating = '1+' | '2+' | '3+' | '4+';
+
+export function isMinRating(rating: RatingFilter): rating is MinRating {
+  return typeof rating === 'string' && rating.endsWith('+');
+}
+
+export const RATING_VALUES: RatingFilter[] = [
+  'any',
+  'unrated',
+  1,
+  2,
+  3,
+  4,
+  5,
+  '1+',
+  '2+',
+  '3+',
+  '4+'
+];
 export type LabelFilter = 'any' | 'none' | LabelColor;
 export type SortFamily = 'timeline' | 'collection' | 'edited';
 
@@ -16,7 +37,7 @@ export interface BrowseFilters {
   visibility: Visibility;
   takenAfter: string;
   takenBefore: string;
-  excludeRejected: boolean;
+  rejected: RejectedFilter;
   label: LabelFilter;
 }
 
@@ -35,7 +56,7 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   visibility: 'timeline',
   takenAfter: '',
   takenBefore: '',
-  excludeRejected: false,
+  rejected: 'any',
   label: 'any'
 };
 
@@ -46,7 +67,7 @@ export class BrowseControlsStore {
   visibility = $state<Visibility>('timeline');
   takenAfter = $state('');
   takenBefore = $state('');
-  excludeRejected = $state(false);
+  rejected = $state<RejectedFilter>('any');
   label = $state<LabelFilter>('any');
   private sortByFamily = $state<Record<SortFamily, SortDir>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
@@ -86,7 +107,7 @@ export class BrowseControlsStore {
       this.visibility === 'timeline' &&
       this.takenAfter === '' &&
       this.takenBefore === '' &&
-      !this.excludeRejected &&
+      this.rejected === 'any' &&
       this.label === 'any'
     );
   }
@@ -99,13 +120,13 @@ export class BrowseControlsStore {
       this.visibility !== 'timeline' ||
       this.takenAfter !== '' ||
       this.takenBefore !== '' ||
-      this.excludeRejected ||
+      this.rejected !== 'any' ||
       this.label !== 'any'
     );
   }
 
   hides(asset: AssetSummary): boolean {
-    if (this.excludeRejected && isRejected(asset)) return true;
+    if (this.rejected !== 'any' && isRejected(asset) !== (this.rejected === 'only')) return true;
     if (this.label === 'any') return false;
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
   }
@@ -132,7 +153,7 @@ export class BrowseControlsStore {
       visibility: this.visibility,
       takenAfter: this.takenAfter,
       takenBefore: this.takenBefore,
-      excludeRejected: this.excludeRejected,
+      rejected: this.rejected,
       label: this.label
     };
   }
@@ -144,12 +165,22 @@ export class BrowseControlsStore {
     this.visibility = filters.visibility;
     this.takenAfter = filters.takenAfter;
     this.takenBefore = filters.takenBefore;
-    this.excludeRejected = filters.excludeRejected;
+    this.rejected = filters.rejected;
     this.label = filters.label;
   }
 
   private resetFilters(): void {
     this.applyFilters(FILTER_DEFAULTS);
+  }
+
+  private applyRating(body: SearchQuery): void {
+    if (typeof this.rating === 'number') {
+      body.rating = this.rating;
+    } else if (this.rating === 'unrated') {
+      body.rating = null;
+    } else if (isMinRating(this.rating)) {
+      body.filter = { rating: { gte: Number(this.rating[0]) } };
+    }
   }
 
   searchBody(base: SearchQuery): SearchQuery {
@@ -164,11 +195,7 @@ export class BrowseControlsStore {
     if (this.favoriteOnly && base.isFavorite === undefined) {
       body.isFavorite = true;
     }
-    if (typeof this.rating === 'number') {
-      body.rating = this.rating;
-    } else if (this.rating === 'unrated') {
-      body.rating = null;
-    }
+    this.applyRating(body);
     if (this.filename) {
       body.originalFileName = this.filename;
     }
@@ -201,11 +228,7 @@ export class BrowseControlsStore {
     if (this.favoriteOnly && base.isFavorite === undefined) {
       body.isFavorite = true;
     }
-    if (typeof this.rating === 'number') {
-      body.rating = this.rating;
-    } else if (this.rating === 'unrated') {
-      body.rating = null;
-    }
+    this.applyRating(body);
     if (this.takenAfter) {
       body.takenAfter = new Date(this.takenAfter).toISOString();
     }

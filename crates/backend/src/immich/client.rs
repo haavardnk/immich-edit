@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use super::dto::{
     AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
-    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary,
-    UploadResponse,
+    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
+    TagSummary, UploadResponse,
 };
 use super::{ImmichError, ImmichResult};
 
@@ -88,6 +88,10 @@ impl ImmichClient {
     pub async fn ping(&self) -> ImmichResult<()> {
         let url = self.url("api/server/ping")?;
         send(self.authed(self.http.get(url))).await.map(|_| ())
+    }
+
+    pub async fn server_version(&self) -> ImmichResult<ServerVersion> {
+        self.get_json("api/server/version").await
     }
 
     pub async fn login_password(&self, email: &str, password: &str) -> ImmichResult<ImmichLogin> {

@@ -11,6 +11,7 @@ export interface SearchQuery {
   originalFileName?: string;
   isFavorite?: boolean;
   rating?: number | null;
+  filter?: { rating: { gte: number } };
   visibility?: Visibility;
   order?: SortDir;
   type?: 'IMAGE';

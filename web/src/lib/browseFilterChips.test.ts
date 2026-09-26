@@ -15,7 +15,7 @@ describe('browse filter chips', () => {
       visibility: 'archive',
       takenAfter: '2024-01-01',
       takenBefore: '2024-12-31',
-      excludeRejected: true,
+      rejected: 'hide',
       label: 'green'
     });
     expect(chips.map((c) => c.label)).toEqual([
@@ -38,14 +38,16 @@ describe('browse filter chips', () => {
 
   it.each([
     [1, '1 star'],
+    ['3+', '3+ stars'],
     ['unrated', 'Unrated']
   ] as const)('labels rating %s as %s', (rating, label) => {
     expect(activeFilterChips({ ...FILTER_DEFAULTS, rating })[0]?.label).toBe(label);
   });
 
   it('removes one filter and keeps the rest', () => {
-    const filters = { ...FILTER_DEFAULTS, rating: 4 as const, excludeRejected: true };
-    expect(withoutFilter(filters, 'rating')).toEqual({ ...FILTER_DEFAULTS, excludeRejected: true });
+    const filters = { ...FILTER_DEFAULTS, rating: 4 as const, rejected: 'only' as const };
+    expect(withoutFilter(filters, 'rating')).toEqual({ ...FILTER_DEFAULTS, rejected: 'only' });
+    expect(activeFilterChips(filters).map((c) => c.label)).toContain('Rejected only');
   });
 
   it.each([

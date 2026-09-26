@@ -261,3 +261,10 @@ mod tests {
         assert_eq!(asset.tags[0].value, "Reject");
     }
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ServerVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}

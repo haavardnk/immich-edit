@@ -4,10 +4,16 @@
   import Popover from '$lib/components/Popover.svelte';
   import {
     browseControls,
+    FILTER_DEFAULTS,
+    RATING_VALUES,
+    isMinRating,
+    type RatingFilter,
     type LabelFilter,
+    type RejectedFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/labels';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { mergeProps } from '$lib/utils/mergeProps';
   import { hint } from '$lib/keybinds';
@@ -88,14 +94,29 @@
 
   const hasFilter = $derived(browseControls.isFiltered);
 
-  const ratingOptions: { value: string; label: string }[] = [
+  const allRatingOptions: { value: RatingFilter; label: string }[] = [
     { value: 'any', label: 'Any' },
     { value: 'unrated', label: 'Unrated' },
-    { value: '1', label: '1 ★' },
-    { value: '2', label: '2 ★' },
-    { value: '3', label: '3 ★' },
-    { value: '4', label: '4 ★' },
-    { value: '5', label: '5 ★' }
+    { value: 1, label: '1 ★' },
+    { value: 2, label: '2 ★' },
+    { value: 3, label: '3 ★' },
+    { value: 4, label: '4 ★' },
+    { value: 5, label: '5 ★' },
+    { value: '1+', label: '1 ★ and up' },
+    { value: '2+', label: '2 ★ and up' },
+    { value: '3+', label: '3 ★ and up' },
+    { value: '4+', label: '4 ★ and up' }
+  ];
+  const ratingOptions = $derived(
+    allRatingOptions
+      .filter((o) => immichCapabilities.minRatingFilter || !isMinRating(o.value))
+      .map((o) => ({ value: String(o.value), label: o.label }))
+  );
+
+  const rejectedOptions: { value: RejectedFilter; label: string }[] = [
+    { value: 'any', label: 'Show' },
+    { value: 'hide', label: 'Hide' },
+    { value: 'only', label: 'Only' }
   ];
 
   const visibilityOptions: { value: Visibility; label: string }[] = [
@@ -106,7 +127,7 @@
 
   function setRating(value: string): void {
     browseControls.rating =
-      value === 'any' || value === 'unrated' ? value : (Number(value) as 1 | 2 | 3 | 4 | 5);
+      RATING_VALUES.find((r) => String(r) === value) ?? FILTER_DEFAULTS.rating;
   }
 
   function toggleDir(): void {
@@ -277,11 +298,14 @@
         />
       {/if}
 
-      <CheckboxRow
-        label="Exclude rejected"
-        checked={browseControls.excludeRejected}
-        onChange={(checked) => (browseControls.excludeRejected = checked)}
-      />
+      <Field label="Rejected" size="small">
+        <Select
+          size="small"
+          options={rejectedOptions}
+          value={browseControls.rejected}
+          onChange={(v) => (browseControls.rejected = v)}
+        />
+      </Field>
 
       {#if !hideFilenameFilter}
         <Field label="Filename" size="small">

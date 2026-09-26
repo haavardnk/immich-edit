@@ -108,6 +108,10 @@ pub fn router(state: AppState) -> Router {
 
     let api = Router::new()
         .route("/health", get(routes::health::health))
+        .route(
+            "/immich/capabilities",
+            get(routes::health::immich_capabilities),
+        )
         .route("/health/live", get(routes::health::live))
         .route("/auth/login/password", post(routes::auth::login_password))
         .route("/auth/login/api-key", post(routes::auth::login_api_key))

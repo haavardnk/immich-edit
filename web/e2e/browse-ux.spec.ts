@@ -95,9 +95,36 @@ test('the count names photos hidden by the reject filter', async ({ page }) => {
   await page.goto('/photos');
 
   await page.getByRole('button', { name: 'Filters' }).click();
-  await page.getByRole('checkbox', { name: 'Exclude rejected' }).click();
+  await page.getByRole('button', { name: 'Rejected' }).click();
+  await page.getByRole('option', { name: 'Hide' }).click();
 
   await expect(page.getByText('2 photos, 1 hidden', { exact: true })).toBeVisible();
+});
+
+test('a minimum rating filter asks Immich for that rating and up', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('button', { name: 'Rating' }).click();
+  await page.getByRole('option', { name: '3 ★ and up' }).click();
+
+  await expect.poll(() => bodies.at(-1)?.filter).toEqual({ rating: { gte: 3 } });
+  expect(bodies.at(-1)).not.toHaveProperty('rating');
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    ['3+ stars']
+  );
+});
+
+test('an Immich older than 3.2 offers only exact ratings', async ({ page }) => {
+  await installMocks(page, { minRatingFilter: false });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('button', { name: 'Rating' }).click();
+  await expect(page.getByRole('option', { name: '3 ★', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: /and up/ })).toHaveCount(0);
 });
 
 test('select all loads every page and enables local actions', async ({ page }) => {

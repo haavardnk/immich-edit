@@ -21,12 +21,14 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 filenames.
 
 **Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Favorites only**,
-**Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
-between **Timeline**, **Archived** and **Hidden**. The sort button next to it flips between newest
+**Rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
+between **Timeline**, **Archived** and **Hidden**. **Rating** picks unrated photos, one exact rating,
+or a rating and up such as **3 ★ and up**; the "and up" choices appear when the Immich server is 3.2 or newer, and older servers get exact ratings only.
+**Rejected** shows rejected photos, hides them, or shows only them. The sort button next to it flips between newest
 and oldest first, and each view remembers its own order. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
-ones **Label** and **Exclude rejected** are hiding.
+ones **Label** and **Rejected** are hiding.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
@@ -71,7 +73,7 @@ The first time you rate, favorite, tag, reject or label in a browser, immich-edi
 writes to Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in
 Immich, so they show up there too. Reject adds the Immich tag `immich-edit/reject`, and a label
 adds `immich-edit/label/red` and so on, so Immich searches and workflows can use them. immich-edit
-never deletes a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or
+never deletes a photo or moves it to the trash; hide rejects with **Rejected: Hide**, review them with **Rejected: Only**, or
 delete them in Immich later.
 
 ## Choose between similar shots
@@ -99,11 +101,12 @@ and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 
 ## A culling pass
 
-1. Open the album, folder or day, and turn on **Exclude rejected**.
+1. Open the album, folder or day, and set **Rejected** to **Hide**.
 1. Press `E` on the first photo. Step through with `→`, pressing `X` on misses and a rating on
    keepers.
 1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.
-1. Set **Rating** to the lowest rating you want to edit. What is left is your edit list.
+1. Set **Rating** to the lowest rating you want to edit, such as **3 ★ and up**. What is left is your
+   edit list.
 
 ## Act on a selection
 

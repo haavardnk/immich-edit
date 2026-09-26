@@ -71,7 +71,7 @@ function press(key: string): void {
 beforeEach(() => {
   selection.clear();
   browseView.setActive(null);
-  browseControls.excludeRejected = false;
+  browseControls.rejected = 'any';
   scroller = document.createElement('div');
   scroller.style.overflowY = 'auto';
   target = document.createElement('div');
