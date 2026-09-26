@@ -83,17 +83,19 @@ test('compare and survey enforce their selection limits', async ({ page }) => {
     page.locator(`div[title="${name}"]`).getByRole('button', { name: 'Select', exact: true });
 
   await select('IMG_0001.ARW').click();
+  await expect(compare).toHaveCount(0);
+  await expect(survey).toHaveCount(0);
+
   await select('IMG_0002.ARW').click();
   await expect(compare).toBeEnabled();
-  await expect(survey).toBeEnabled();
+  await expect(survey).toHaveCount(0);
 
   await select('IMG_0003.ARW').click();
-  await expect(compare).toBeDisabled();
+  await expect(compare).toHaveCount(0);
   await expect(survey).toBeEnabled();
 
   await page.keyboard.press('ControlOrMeta+a');
   await expect(page.getByText('10 selected')).toBeVisible();
-  await expect(compare).toBeDisabled();
   await expect(survey).toBeDisabled();
 });
 

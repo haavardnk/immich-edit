@@ -119,16 +119,15 @@ test('modifier-clicking a survey member drops its pane', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
 });
 
-test('the bulk bar opens a survey of the grid selection', async ({ page }) => {
+test('the bulk bar opens a survey of three selected photos', async ({ page }) => {
   await openGrid(page);
-  await selectTile(page, 'IMG_0002.ARW');
-  await selectTile(page, 'IMG_0003.ARW');
+  for (const name of PANES) await selectTile(page, name);
 
   await page.getByLabel('Survey selected').click();
 
-  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
+  for (const name of PANES) {
+    await expect(page.getByRole('img', { name })).toBeVisible();
+  }
 });
 
 test('c opens a compare of the grid selection', async ({ page }) => {

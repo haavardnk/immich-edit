@@ -9,19 +9,31 @@ interface AssetUpdate {
   rating?: number | null;
 }
 
-async function installBulkMocks(page: Page): Promise<AssetUpdate[]> {
+async function installBulkMocks(page: Page, assets = ASSETS): Promise<AssetUpdate[]> {
   const updates: AssetUpdate[] = [];
-  const favorites = new Map<string, boolean>();
-  await installMocks(page, { assets: ASSETS });
+  const favorites = new Map(assets.map((a) => [a.id, a.isFavorite]));
+  const ratings = new Map<string, number | null | undefined>(
+    assets.map((a) => [a.id, a.exifInfo?.rating])
+  );
+  await installMocks(page, { assets });
   await page.route('**/api/assets/*', async (route) => {
     const request = route.request();
     const id = new URL(request.url()).pathname.split('/').pop() ?? '';
     if (request.method() !== 'PUT') return route.fallback();
     const body = (request.postDataJSON() as Omit<AssetUpdate, 'id'>) ?? {};
+    if (body.rating === 0) return route.fulfill({ status: 400, body: '{}' });
     updates.push({ id, ...body });
     if (body.isFavorite !== undefined) favorites.set(id, body.isFavorite);
-    const asset = ASSETS.find((a) => a.id === id) ?? ASSETS[0];
-    return route.fulfill(json({ ...asset, isFavorite: favorites.get(id) ?? false, tags: [] }));
+    if (body.rating !== undefined) ratings.set(id, body.rating);
+    const asset = assets.find((a) => a.id === id) ?? assets[0];
+    return route.fulfill(
+      json({
+        ...asset,
+        isFavorite: favorites.get(id) ?? false,
+        exifInfo: { ...asset?.exifInfo, rating: ratings.get(id) ?? null },
+        tags: []
+      })
+    );
   });
   await page.addInitScript(() => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
@@ -41,12 +53,45 @@ test('the bulk bar favorites every selected asset', async ({ page }) => {
 
   await page.goto('/photos');
   await selectBoth(page);
-  await page.getByRole('button', { name: 'Favorite', exact: true }).click();
+  const heart = page.getByRole('toolbar', { name: 'Selection actions' }).getByRole('button', {
+    name: /^Favorite \(/
+  });
+  await expect(heart).toHaveAttribute('aria-pressed', 'false');
+  await heart.click();
 
   await expect(page.getByText('Updated 2 assets')).toBeVisible();
   expect(updates.map((update) => update.id).sort()).toEqual(ASSETS.map((a) => a.id).sort());
   expect(updates.every((update) => update.isFavorite === true)).toBe(true);
   await expect(page.getByRole('img', { name: 'Favorite' })).toHaveCount(2);
+  await expect(
+    page.getByRole('toolbar', { name: 'Selection actions' }).getByRole('button', {
+      name: /^Unfavorite \(/
+    })
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a mixed selection shows mixed state and sets every asset the same way', async ({ page }) => {
+  const assets = numberedAssets(2).map((asset, index) =>
+    index === 0
+      ? { ...asset, isFavorite: true, exifInfo: { rating: 2 } }
+      : { ...asset, exifInfo: { rating: 0 } }
+  );
+  const updates = await installBulkMocks(page, assets);
+
+  await page.goto('/photos');
+  await selectBoth(page);
+  const bar = page.getByRole('toolbar', { name: 'Selection actions' });
+  const heart = bar.getByRole('button', { name: /^Favorite \(/ });
+  await expect(heart).toHaveAttribute('aria-pressed', 'mixed');
+  await expect(bar.getByRole('radiogroup', { name: 'Rating, mixed' })).toBeVisible();
+
+  await heart.click();
+  await expect(page.getByText('Updated 2 assets')).toBeVisible();
+  expect(updates.map((update) => update.isFavorite)).toEqual([true, true]);
+  await expect(bar.getByRole('button', { name: /^Unfavorite \(/ })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
 });
 
 test('the bulk bar rates and then clears the rating of a selection', async ({ page }) => {
@@ -54,13 +99,16 @@ test('the bulk bar rates and then clears the rating of a selection', async ({ pa
 
   await page.goto('/photos');
   await selectBoth(page);
-  await page.getByRole('button', { name: 'Rate 3', exact: true }).click();
+  const bar = page.getByRole('toolbar', { name: 'Selection actions' });
+  await bar.getByRole('radio', { name: '3 stars', exact: true }).click();
   await expect(page.getByText('Updated 2 assets')).toBeVisible();
+  await expect(bar.getByRole('radio', { name: '3 stars', exact: true })).toBeChecked();
 
-  await page.getByRole('button', { name: 'Clear rating', exact: true }).click();
+  await bar.getByRole('radio', { name: '3 stars', exact: true }).click();
   await expect.poll(() => updates.length).toBe(4);
   expect(updates.slice(0, 2).every((update) => update.rating === 3)).toBe(true);
-  expect(updates.slice(2).every((update) => update.rating === 0)).toBe(true);
+  expect(updates.slice(2).every((update) => update.rating === null)).toBe(true);
+  await expect(bar.getByRole('radio', { name: '3 stars', exact: true })).not.toBeChecked();
 });
 
 const ALBUM = {
@@ -163,4 +211,21 @@ test('grid shortcuts copy edits from one photo and paste them onto a selection',
   const body = (await job).postDataJSON() as { kind: string; asset_ids: string[] };
   expect(body.kind).toBe('paste_edits');
   expect(body.asset_ids.sort()).toEqual([second.id, third.id].sort());
+});
+
+test('one selected photo gets its name and an editor link instead of compare', async ({ page }) => {
+  await installBulkMocks(page);
+  await page.goto('/photos');
+  const [first] = ASSETS;
+  if (!first) throw new Error('missing asset');
+  await page
+    .locator(`div[title="${first.originalFileName}"]`)
+    .getByRole('button', { name: 'Select' })
+    .click();
+
+  const bar = page.getByRole('toolbar', { name: 'Selection actions' });
+  await expect(bar.getByText(first.originalFileName)).toBeVisible();
+  await expect(bar.getByRole('button', { name: /^(Compare|Survey) selected$/ })).toHaveCount(0);
+  await bar.getByRole('link', { name: 'Open in editor' }).click();
+  await expect(page).toHaveURL(new RegExp(`/assets/${first.id}`));
 });

@@ -114,13 +114,20 @@ and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
 
 ## Act on a selection
 
-With photos selected, the selection bar offers **Favorite**, **Unfavorite**, a rating,
-**Clear rating**, **Reject**, **Unreject**, **Tags**, **Albums**, **Create virtual copy**, and
+With photos selected, the selection bar shows one heart, one star row, one reject button and the
+color label. Each shows what the selection already is: filled when every photo has it, faded when
+only some do. A click sets every photo the same way, so **Favorite** on a mixed selection favorites
+all of them instead of flipping each one, and a star sets that rating on all. Click the lit star
+again to clear the rating. The bar also has **Tags**, **Albums**, **Create virtual copy**, and
 **Edit and export selected**. **Albums** adds the selection to existing Immich albums; inside an
 album it also offers **Remove from** that album, which drops the photos from the grid while they
 stay in Immich. **Edit and export selected** pastes edits, applies a preset or exports every selected
 photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
 focus from the grid into the selection bar.
+
+With one photo selected, the bar shows its filename in place of the count and an **Open in
+editor** button. With two it offers **Compare selected**, and with three or more **Survey
+selected**. **Select all** next to the count loads and selects every photo in the view.
 
 `Ctrl+Shift+C` (`⌘⇧C` on a Mac) copies the edits of the selected photo in the grid, or of the photo
 on screen in the loupe, and asks which settings to take, remembering your last choice.

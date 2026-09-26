@@ -378,6 +378,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (assetMatch) {
       const id = assetMatch[1];
       const asset = assets.find((a) => a.id === id) ?? ASSET_SUMMARY;
+      if (method === 'PUT' && (req.postDataJSON() as { rating?: unknown } | null)?.rating === 0) {
+        return route.fulfill({ status: 400, body: '{}' });
+      }
       return route.fulfill(
         json({
           ...ASSET_DETAIL,
