@@ -194,6 +194,20 @@ export const KEYBINDS = [
     label: 'Previous / next photo'
   },
   {
+    id: 'zoomPan',
+    keys: ['Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'],
+    contexts: ['loupe', 'compare', 'survey', 'editor'],
+    group: 'Loupe',
+    label: 'Nudge a zoomed photo'
+  },
+  {
+    id: 'loupeEdge',
+    keys: ['Home', 'End'],
+    contexts: ['loupe'],
+    group: 'Loupe',
+    label: 'First / last photo'
+  },
+  {
     id: 'zoomToggle',
     keys: ['z', 'Space'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
@@ -252,7 +266,7 @@ export const KEYBINDS = [
   },
   {
     id: 'paneSwap',
-    keys: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
+    keys: ['Alt+ArrowLeft', 'Alt+ArrowRight'],
     contexts: ['compare', 'survey'],
     group: 'Compare',
     label: 'Swap the focused pane for another photo'

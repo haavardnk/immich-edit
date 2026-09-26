@@ -54,10 +54,10 @@ test('i shows the focused pane in the info panel', async ({ page }) => {
   await expect(info).toBeHidden();
 });
 
-test('shift+arrow swaps only the focused compare pane', async ({ page }) => {
+test('alt+arrow swaps only the focused compare pane', async ({ page }) => {
   await openCompare(page);
 
-  await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Alt+ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
@@ -167,9 +167,25 @@ test('a swapped pane keeps the zoom of the photo it replaced', async ({ page }) 
   await openCompare(page);
 
   await page.keyboard.press('z');
-  await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Alt+ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toHaveAttribute('style', /scale\(/);
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toHaveAttribute('style', /scale\(/);
+});
+
+test('shift+arrow pans the zoomed compare panes without swapping', async ({ page }) => {
+  await openCompare(page);
+  const first = page.getByRole('img', { name: 'IMG_0001.ARW' });
+  const second = page.getByRole('img', { name: 'IMG_0002.ARW' });
+
+  await page.keyboard.press('z');
+  await expect(first).toHaveAttribute('style', /scale\(/);
+  const firstBefore = await first.getAttribute('style');
+  const secondBefore = await second.getAttribute('style');
+  await page.keyboard.press('Shift+ArrowRight');
+
+  await expect.poll(() => first.getAttribute('style')).not.toBe(firstBefore);
+  await expect.poll(() => second.getAttribute('style')).not.toBe(secondBefore);
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeHidden();
 });
 
 test('clicking an unfocused pane selects it without zooming', async ({ page }) => {

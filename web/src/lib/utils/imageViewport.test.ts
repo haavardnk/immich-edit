@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { splitPosition, viewportTransform, zoomAtAnchor } from './imageViewport';
+import { nudgePan, panStep, splitPosition, viewportTransform, zoomAtAnchor } from './imageViewport';
 import type { Rect } from './view-geometry';
 
 describe('zoomAtAnchor', () => {
@@ -32,5 +32,26 @@ describe('viewportTransform', () => {
     [2, 20, -10, 'transform: scale(2) translate(10px, -5px); transform-origin: center;']
   ])('formats fit ratio %s and pan (%s, %s)', (fitRatio, panX, panY, expected) => {
     expect(viewportTransform(fitRatio, panX, panY)).toBe(expected);
+  });
+});
+
+describe('nudgePan', () => {
+  const frame = { width: 2000, height: 1000 };
+
+  it.each<[string, number, number, number, number]>([
+    ['ArrowRight', 0, 0, -80, 0],
+    ['ArrowLeft', 0, 0, 80, 0],
+    ['ArrowDown', 0, 0, 0, -60],
+    ['ArrowUp', 0, 0, 0, 60],
+    ['ArrowRight', -560, 0, -600, 0],
+    ['ArrowUp', 0, 180, 0, 200]
+  ])('%s from (%s, %s) moves to (%s, %s) within the frame', (key, x, y, panX, panY) => {
+    const step = panStep(key);
+    if (!step) throw new Error('no step');
+    expect(nudgePan({ panX: x, panY: y }, step, frame, 800, 600)).toEqual({ panX, panY });
+  });
+
+  it('has no step for other keys', () => {
+    expect(panStep('Home')).toBeNull();
   });
 });
