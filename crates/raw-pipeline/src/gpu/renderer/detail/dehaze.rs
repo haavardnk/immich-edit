@@ -4,7 +4,8 @@ use crate::PipelineResult;
 use crate::edits::Edits;
 use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
 use crate::gpu::passes::dehaze::{
-    DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams, MOMENT_FORMAT,
+    DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams,
+    DehazeSizeParams, MOMENT_FORMAT,
 };
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
@@ -80,8 +81,13 @@ impl GpuRenderer {
         let box_h_buf = make_filter_u(r_gf, 0, "dehaze-box-h-u");
         let box_v_buf = make_filter_u(r_gf, 1, "dehaze-box-v-u");
 
-        let pack_buf = make_filter_u(0, 0, "dehaze-pack-u");
-        let ab_uni = make_filter_u(0, 0, "dehaze-ab-u");
+        let lo_size_buf = self.uniform(
+            &DehazeSizeParams {
+                size: [lw, lh],
+                _pad: [0; 2],
+            },
+            "dehaze-lo-size-u",
+        );
 
         let apply_buf = self.uniform(
             &DehazeApplyParams {
@@ -156,7 +162,7 @@ impl GpuRenderer {
             "dehaze-pack-bg",
             &p.pack_layout,
             &[
-                pack_buf.as_entire_binding(),
+                lo_size_buf.as_entire_binding(),
                 tex(&lo_src_view),
                 tex(&dn_min_view),
                 tex(&packed_view),
@@ -187,7 +193,7 @@ impl GpuRenderer {
             "dehaze-ab-bg",
             &p.ab_layout,
             &[
-                ab_uni.as_entire_binding(),
+                lo_size_buf.as_entire_binding(),
                 tex(&packed_v_view),
                 tex(&ab_view),
             ],

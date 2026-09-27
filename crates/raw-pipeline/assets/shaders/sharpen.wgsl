@@ -1,7 +1,12 @@
 struct SharpenParams {
-    sharpen: vec4<f32>,
-    dims_flags: vec4<u32>,
-    masked: vec4<u32>,
+    amount: f32,
+    detail_weight: f32,
+    masking_thresh: f32,
+    masking_softness: f32,
+    size: vec2<u32>,
+    use_mask: u32,
+    preview_mode: u32,
+    masked_sharpen: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: SharpenParams;
@@ -21,20 +26,20 @@ fn smoothstep_f(edge0: f32, edge1: f32, x: f32) -> f32 {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    let width = p.dims_flags.x;
-    let height = p.dims_flags.y;
-    let use_mask = p.dims_flags.z;
-    let preview_mode = p.dims_flags.w;
+    let width = p.size.x;
+    let height = p.size.y;
+    let use_mask = p.use_mask;
+    let preview_mode = p.preview_mode;
     if (gid.x >= width || gid.y >= height) { return; }
     let x = i32(gid.x);
     let y = i32(gid.y);
     let max_x = i32(width) - 1;
     let max_y = i32(height) - 1;
 
-    let amount = p.sharpen.x;
-    let detail_weight = p.sharpen.y;
-    let masking_thresh = p.sharpen.z;
-    let masking_softness = p.sharpen.w;
+    let amount = p.amount;
+    let detail_weight = p.detail_weight;
+    let masking_thresh = p.masking_thresh;
+    let masking_softness = p.masking_softness;
 
     let orig = textureLoad(src_lin, vec2<i32>(x, y), 0).rgb;
     let blur = textureLoad(src_blur, vec2<i32>(x, y), 0).rgb;
@@ -72,7 +77,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     let strength = (amount / 25.0) * detail_weight * mask;
     var lin = clamp(orig + hp * strength, lo, hi);
-    if (p.masked.x == 1u) {
+    if (p.masked_sharpen == 1u) {
         let amt = clamp(amount + textureLoad(mask_sharpen, vec2<i32>(x, y), 0).r, -150.0, 150.0);
         lin = clamp(orig + hp * ((amt / 25.0) * detail_weight * mask), lo, hi);
     }

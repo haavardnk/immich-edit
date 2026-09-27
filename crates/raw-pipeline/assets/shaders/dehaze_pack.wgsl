@@ -1,6 +1,5 @@
 struct Params {
     size: vec2<u32>,
-    _pad: vec2<u32>,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;

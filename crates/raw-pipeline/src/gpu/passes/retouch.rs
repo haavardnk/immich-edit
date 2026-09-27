@@ -10,6 +10,9 @@ use super::common::{
 };
 
 pub const RETOUCH_UNIFORM_SIZE: u64 = size_of::<RetouchParams>() as u64;
+pub const RETOUCH_PREP_WGSL: &str = include_str!("../../../assets/shaders/retouch_prep.wgsl");
+pub const RETOUCH_BLUR_WGSL: &str = include_str!("../../../assets/shaders/retouch_blur.wgsl");
+pub const RETOUCH_APPLY_WGSL: &str = include_str!("../../../assets/shaders/retouch_apply.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -49,12 +52,8 @@ impl RetouchPasses {
                 storage_entry(3, ctx.linear_format),
             ],
         );
-        let prep_pipeline = make_pipeline(
-            ctx,
-            &prep_layout,
-            "retouch_prep.wgsl",
-            include_str!("../../../assets/shaders/retouch_prep.wgsl"),
-        );
+        let prep_pipeline =
+            make_pipeline(ctx, &prep_layout, "retouch_prep.wgsl", RETOUCH_PREP_WGSL);
 
         let blur_layout = make_layout(
             ctx,
@@ -65,12 +64,8 @@ impl RetouchPasses {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let blur_pipeline = make_pipeline(
-            ctx,
-            &blur_layout,
-            "retouch_blur.wgsl",
-            include_str!("../../../assets/shaders/retouch_blur.wgsl"),
-        );
+        let blur_pipeline =
+            make_pipeline(ctx, &blur_layout, "retouch_blur.wgsl", RETOUCH_BLUR_WGSL);
 
         let apply_layout = make_layout(
             ctx,
@@ -84,12 +79,8 @@ impl RetouchPasses {
                 storage_entry(5, ctx.linear_format),
             ],
         );
-        let apply_pipeline = make_pipeline(
-            ctx,
-            &apply_layout,
-            "retouch_apply.wgsl",
-            include_str!("../../../assets/shaders/retouch_apply.wgsl"),
-        );
+        let apply_pipeline =
+            make_pipeline(ctx, &apply_layout, "retouch_apply.wgsl", RETOUCH_APPLY_WGSL);
 
         Self {
             prep_layout,

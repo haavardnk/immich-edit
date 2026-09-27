@@ -1,7 +1,6 @@
 struct Params {
-    size_lo: vec2<u32>,
+    size: vec2<u32>,
     scale: u32,
-    _pad: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -11,7 +10,7 @@ struct Params {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.size_lo.x || gid.y >= p.size_lo.y) { return; }
+    if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
     let pos = vec2<i32>(i32(gid.x), i32(gid.y));
     let dims = vec2<f32>(textureDimensions(src, 0));
     let uv = (vec2<f32>(pos) + vec2<f32>(0.5)) * f32(p.scale) / dims;

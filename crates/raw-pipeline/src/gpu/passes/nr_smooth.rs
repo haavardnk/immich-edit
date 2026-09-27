@@ -8,15 +8,14 @@ use crate::gpu::context::GpuContext;
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
 pub const NR_SMOOTH_UNIFORM_SIZE: u64 = size_of::<NrSmoothParams>() as u64;
+pub const NR_SMOOTH_WGSL: &str = include_str!("../../../assets/shaders/nr_smooth.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct NrSmoothParams {
     pub size: [u32; 2],
-    pub _pad0: [u32; 2],
     pub smoothness: f32,
     pub alpha_chroma: f32,
-    pub _pad1: [f32; 6],
 }
 
 pub struct NrSmoothPass {
@@ -36,12 +35,7 @@ impl NrSmoothPass {
                 storage_entry(3, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "nr_smooth.wgsl",
-            include_str!("../../../assets/shaders/nr_smooth.wgsl"),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "nr_smooth.wgsl", NR_SMOOTH_WGSL);
         Self { layout, pipeline }
     }
 }

@@ -8,6 +8,19 @@ pub const MAX_OPS: u32 = 128;
 
 pub const GEOMETRY_WGSL: &str = include_str!("../../assets/shaders/geometry.wgsl");
 
+const PROCESS_HEADER_FIELDS: &str = "    src_size: vec2<u32>,
+    out_size: vec2<u32>,
+    crop: vec4<f32>,
+    flags: vec4<u32>,
+    geom_extra: vec4<f32>,
+    active_mask: vec4<u32>,
+    geom_extra2: vec4<f32>,
+    geom_extra3: vec4<f32>,
+    output: vec4<u32>,
+    perspective: array<vec4<f32>, 3>,
+    src_window: vec4<f32>,
+";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StageMask(u8);
 
@@ -128,20 +141,7 @@ pub fn build_for(
 
     let wgsl = format!(
         r#"struct ProcessParams {{
-    src_size: vec2<u32>,
-    out_size: vec2<u32>,
-    crop: vec4<f32>,
-    flags: vec4<u32>,
-    geom_extra: vec4<f32>,
-    active_mask: vec4<u32>,
-    geom_extra2: vec4<f32>,
-    geom_extra3: vec4<f32>,
-    output: vec4<u32>,
-    persp0: vec4<f32>,
-    persp1: vec4<f32>,
-    persp2: vec4<f32>,
-    src_window: vec4<f32>,
-{struct_fields}}};
+{PROCESS_HEADER_FIELDS}{struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
@@ -245,9 +245,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
         p.crop,
         p.geom_extra2,
         p.geom_extra3,
-        p.persp0,
-        p.persp1,
-        p.persp2,
+        p.perspective[0],
+        p.perspective[1],
+        p.perspective[2],
         disp_uv,
     );
     let src_uv = geom_ortho_inverse(p.flags, oriented_uv);
@@ -336,20 +336,7 @@ pub fn build_prepare_wb(registry: &OpRegistry) -> BuiltProcessShader {
 
     let wgsl = format!(
         r#"struct ProcessParams {{
-    src_size: vec2<u32>,
-    out_size: vec2<u32>,
-    crop: vec4<f32>,
-    flags: vec4<u32>,
-    geom_extra: vec4<f32>,
-    active_mask: vec4<u32>,
-    geom_extra2: vec4<f32>,
-    geom_extra3: vec4<f32>,
-    output: vec4<u32>,
-    persp0: vec4<f32>,
-    persp1: vec4<f32>,
-    persp2: vec4<f32>,
-    src_window: vec4<f32>,
-{struct_fields}}};
+{PROCESS_HEADER_FIELDS}{struct_fields}}};
 
 @group(0) @binding(0) var<uniform> p: ProcessParams;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;

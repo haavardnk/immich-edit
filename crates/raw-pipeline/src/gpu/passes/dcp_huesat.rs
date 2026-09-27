@@ -6,7 +6,26 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline_raw, storage_entry, tex_entry_with, uniform_entry};
 
-pub const DCP_HUESAT_UNIFORM_SIZE: u64 = 1152;
+pub const DCP_HUESAT_UNIFORM_SIZE: u64 = size_of::<DcpHueSatParams>() as u64;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DcpHueSatParams {
+    pub dims: [u32; 4],
+    pub to_pp: [[f32; 4]; 3],
+    pub from_pp: [[f32; 4]; 3],
+    pub flags: [u32; 4],
+    pub tone_lut: [[f32; 4]; 64],
+}
+
+pub fn dcp_huesat_wgsl(out_format: wgpu::TextureFormat) -> String {
+    include_str!("../../../assets/shaders/dcp_huesat.wgsl")
+        .replace(
+            crate::gpu::display_depth::DISPLAY_STORE_INJECT,
+            &crate::gpu::display_depth::store_wgsl(out_format, 3),
+        )
+        .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
+}
 
 pub struct DcpHueSatPass {
     pub layout: BindGroupLayout,
@@ -33,12 +52,7 @@ impl DcpHueSatPass {
                 storage_entry(3, out_format),
             ],
         );
-        let src = include_str!("../../../assets/shaders/dcp_huesat.wgsl")
-            .replace(
-                crate::gpu::display_depth::DISPLAY_STORE_INJECT,
-                &crate::gpu::display_depth::store_wgsl(out_format, 3),
-            )
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
+        let src = dcp_huesat_wgsl(out_format);
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label}-cp"), &src);
 
         Self { layout, pipeline }

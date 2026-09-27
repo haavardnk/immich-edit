@@ -9,6 +9,9 @@ use super::common::{
     make_layout, make_pipeline, storage_buffer_entry, storage_entry, uniform_entry_unsized,
 };
 
+pub const DEMOSAIC_WGSL: &str = include_str!("../../../assets/shaders/demosaic.wgsl");
+pub const SUPERPIXEL_WGSL: &str = include_str!("../../../assets/shaders/superpixel.wgsl");
+
 pub struct DemosaicPass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
@@ -26,18 +29,8 @@ impl DemosaicPass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "demosaic.wgsl",
-            include_str!("../../../assets/shaders/demosaic.wgsl"),
-        );
-        let superpixel = make_pipeline(
-            ctx,
-            &layout,
-            "superpixel.wgsl",
-            include_str!("../../../assets/shaders/superpixel.wgsl"),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "demosaic.wgsl", DEMOSAIC_WGSL);
+        let superpixel = make_pipeline(ctx, &layout, "superpixel.wgsl", SUPERPIXEL_WGSL);
         Self {
             layout,
             pipeline,

@@ -1,11 +1,7 @@
 struct Params {
     dims: vec4<u32>,
-    to_pp0: vec4<f32>,
-    to_pp1: vec4<f32>,
-    to_pp2: vec4<f32>,
-    from_pp0: vec4<f32>,
-    from_pp1: vec4<f32>,
-    from_pp2: vec4<f32>,
+    to_pp: array<vec4<f32>, 3>,
+    from_pp: array<vec4<f32>, 3>,
     flags: vec4<u32>,
     tone_lut: array<vec4<f32>, 64>,
 };
@@ -19,17 +15,17 @@ struct Params {
 
 fn to_pp(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(
-        dot(p.to_pp0.xyz, c),
-        dot(p.to_pp1.xyz, c),
-        dot(p.to_pp2.xyz, c),
+        dot(p.to_pp[0].xyz, c),
+        dot(p.to_pp[1].xyz, c),
+        dot(p.to_pp[2].xyz, c),
     );
 }
 
 fn from_pp(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(
-        dot(p.from_pp0.xyz, c),
-        dot(p.from_pp1.xyz, c),
-        dot(p.from_pp2.xyz, c),
+        dot(p.from_pp[0].xyz, c),
+        dot(p.from_pp[1].xyz, c),
+        dot(p.from_pp[2].xyz, c),
     );
 }
 

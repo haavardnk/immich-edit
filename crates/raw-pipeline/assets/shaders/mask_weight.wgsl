@@ -7,13 +7,14 @@ struct MaskParams {
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
     lens: vec4<f32>,
-    persp0: vec4<f32>,
-    persp1: vec4<f32>,
-    persp2: vec4<f32>,
+    perspective: array<vec4<f32>, 3>,
 };
 
 struct Component {
-    kind_mode_invert_pad: vec4<u32>,
+    kind: u32,
+    mode: u32,
+    invert: u32,
+    slot: u32,
     geom_a: vec4<f32>,
     geom_b: vec4<f32>,
 };
@@ -115,9 +116,9 @@ fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
         p.crop,
         p.geom_extra2,
         p.geom_extra3,
-        p.persp0,
-        p.persp1,
-        p.persp2,
+        p.perspective[0],
+        p.perspective[1],
+        p.perspective[2],
         vec2<f32>(disp_u, disp_v),
     );
     let m = geom_ortho_inverse(p.flags, oriented);
@@ -145,7 +146,7 @@ fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
 
 fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32 {
     var raw: f32 = 0.0;
-    let kind = c.kind_mode_invert_pad.x;
+    let kind = c.kind;
     if (kind == 0u) {
         let p0x = c.geom_a.x;
         let p0y = c.geom_a.y;
@@ -165,7 +166,7 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
         let d = sqrt(ddx * ddx + ddy * ddy);
         raw = 1.0 - smoothstep_calc(1.0 - max(feather, 1e-3), 1.0, d);
     } else if (kind == 2u) {
-        let slot = i32(c.kind_mode_invert_pad.w);
+        let slot = i32(c.slot);
         raw = textureSampleLevel(atlas, samp, vec2<f32>(u, v), slot, 0.0).x;
     } else if (kind == 3u) {
         let luma = 0.2126 * display_rgb.x + 0.7152 * display_rgb.y + 0.0722 * display_rgb.z;
@@ -180,7 +181,7 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
             c.geom_a.z,
         );
     }
-    let inverted = c.kind_mode_invert_pad.z;
+    let inverted = c.invert;
     var r = raw;
     if (inverted == 1u) { r = 1.0 - r; }
     return clamp(r, 0.0, 1.0);
@@ -202,7 +203,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     for (var i: u32 = 0u; i < n; i = i + 1u) {
         let c = comps[i];
         let cw = component_weight(c, u, v, display_rgb);
-        let mode = c.kind_mode_invert_pad.y;
+        let mode = c.mode;
         if (mode == 0u) {
             w = 1.0 - (1.0 - w) * (1.0 - cw);
         } else if (mode == 1u) {

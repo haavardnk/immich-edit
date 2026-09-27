@@ -11,6 +11,8 @@ use super::common::{
 
 pub const SHARPEN_BLUR_UNIFORM_SIZE: u64 = size_of::<SharpenBlurParams>() as u64;
 pub const SHARPEN_UNIFORM_SIZE: u64 = size_of::<SharpenParams>() as u64;
+pub const SHARPEN_BLUR_WGSL: &str = include_str!("../../../assets/shaders/sharpen_blur.wgsl");
+pub const SHARPEN_WGSL: &str = include_str!("../../../assets/shaders/sharpen.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -54,12 +56,8 @@ impl OutputSharpenPass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let blur_pipeline = make_pipeline(
-            ctx,
-            &blur_layout,
-            "sharpen_blur.wgsl",
-            include_str!("../../../assets/shaders/sharpen_blur.wgsl"),
-        );
+        let blur_pipeline =
+            make_pipeline(ctx, &blur_layout, "sharpen_blur.wgsl", SHARPEN_BLUR_WGSL);
 
         let sharpen_layout = make_layout(
             ctx,
@@ -72,12 +70,7 @@ impl OutputSharpenPass {
                 tex_entry_with(5, false, TextureViewDimension::D2),
             ],
         );
-        let sharpen_pipeline = make_pipeline(
-            ctx,
-            &sharpen_layout,
-            "sharpen.wgsl",
-            include_str!("../../../assets/shaders/sharpen.wgsl"),
-        );
+        let sharpen_pipeline = make_pipeline(ctx, &sharpen_layout, "sharpen.wgsl", SHARPEN_WGSL);
 
         Self {
             blur_layout,

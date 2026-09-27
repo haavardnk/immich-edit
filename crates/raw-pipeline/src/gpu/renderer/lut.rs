@@ -127,7 +127,8 @@ impl GpuRenderer {
         let dmin = lut.domain_min();
         let dmax = lut.domain_max();
         let params = LutParams {
-            size: [w, h, lut.size() as u32],
+            size: [w, h],
+            lut_size: lut.size() as u32,
             domain_min: dmin,
             domain_max: dmax,
             amount,

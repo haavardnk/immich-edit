@@ -1,8 +1,9 @@
 struct LutParams {
-    dims: vec4<u32>,
-    domain_min: vec4<f32>,
-    domain_max: vec4<f32>,
-    misc: vec4<f32>,
+    size: vec2<u32>,
+    lut_size: u32,
+    domain_min: vec3<f32>,
+    domain_max: vec3<f32>,
+    amount: f32,
 };
 
 @group(0) @binding(0) var<uniform> p: LutParams;
@@ -17,10 +18,10 @@ fn lut_at(coord: vec3<i32>) -> vec3<f32> {
 }
 
 fn lut_sample(rgb: vec3<f32>) -> vec3<f32> {
-    let n = i32(p.dims.z);
+    let n = i32(p.lut_size);
     let last = f32(n - 1);
-    let span = p.domain_max.xyz - p.domain_min.xyz;
-    let normalized = clamp((rgb - p.domain_min.xyz) / span, vec3<f32>(0.0), vec3<f32>(1.0));
+    let span = p.domain_max - p.domain_min;
+    let normalized = clamp((rgb - p.domain_min) / span, vec3<f32>(0.0), vec3<f32>(1.0));
     let coordf = normalized * last;
     let basef = floor(coordf);
     let base = vec3<i32>(
@@ -68,12 +69,12 @@ fn lut_sample(rgb: vec3<f32>) -> vec3<f32> {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    let width = p.dims.x;
-    let height = p.dims.y;
+    let width = p.size.x;
+    let height = p.size.y;
     if (gid.x >= width || gid.y >= height) { return; }
     let coord = vec2<i32>(i32(gid.x), i32(gid.y));
     let src = load_display(coord);
-    let amount = p.misc.x;
+    let amount = p.amount;
     let sampled = lut_sample(src.rgb);
     let blended = clamp(src.rgb + amount * (sampled - src.rgb), vec3<f32>(0.0), vec3<f32>(1.0));
     var alpha = src.a;

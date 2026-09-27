@@ -10,6 +10,9 @@ use super::common::{
     uniform_entry_unsized,
 };
 
+pub const XTRANS_GREEN_WGSL: &str = include_str!("../../../assets/shaders/xtrans_green.wgsl");
+pub const XTRANS_RGB_WGSL: &str = include_str!("../../../assets/shaders/xtrans_rgb.wgsl");
+
 pub struct XtransPass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
@@ -31,12 +34,8 @@ impl XtransPasses {
                 storage_buffer_entry_rw(2),
             ],
         );
-        let green_pipeline = make_pipeline(
-            ctx,
-            &green_layout,
-            "xtrans_green.wgsl",
-            include_str!("../../../assets/shaders/xtrans_green.wgsl"),
-        );
+        let green_pipeline =
+            make_pipeline(ctx, &green_layout, "xtrans_green.wgsl", XTRANS_GREEN_WGSL);
 
         let rgb_layout = make_layout(
             ctx,
@@ -48,12 +47,7 @@ impl XtransPasses {
                 storage_entry(3, ctx.linear_format),
             ],
         );
-        let rgb_pipeline = make_pipeline(
-            ctx,
-            &rgb_layout,
-            "xtrans_rgb.wgsl",
-            include_str!("../../../assets/shaders/xtrans_rgb.wgsl"),
-        );
+        let rgb_pipeline = make_pipeline(ctx, &rgb_layout, "xtrans_rgb.wgsl", XTRANS_RGB_WGSL);
 
         Self {
             green: XtransPass {

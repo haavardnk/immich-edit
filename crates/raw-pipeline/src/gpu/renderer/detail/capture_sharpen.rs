@@ -32,7 +32,7 @@ impl GpuRenderer {
         let (w, h) = dims;
         let p = &self.passes.sensor_stage.capture_sharpen;
         let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
-        let radius = (kernel.len() / 2) as u32;
+        let radius = (kernel.len() / 2) as i32;
 
         let luma_buf = self.uniform(
             &CaptureLumaParams {
@@ -42,7 +42,7 @@ impl GpuRenderer {
             "capture-luma-u",
         );
 
-        let make_blur_u = |axis: u32, mode: u32, label: &'static str| {
+        let make_blur_u = |axis: i32, mode: u32, label: &'static str| {
             let mut params = CaptureBlurParams {
                 size: [w, h],
                 radius,

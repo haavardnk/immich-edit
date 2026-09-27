@@ -9,7 +9,7 @@ use wgpu::{
 use crate::dcp::{HsvEncoding, HueSatMap, ToneCurve};
 use crate::gpu::dispatch::{bind_group, buf, copy_texture, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
-use crate::gpu::passes::dcp_huesat::DcpHueSatPass;
+use crate::gpu::passes::dcp_huesat::{DcpHueSatParams, DcpHueSatPass};
 use crate::gpu::texture::full_view;
 use crate::ops::ResolvedDcp;
 
@@ -17,17 +17,7 @@ use super::GpuRenderer;
 use super::display::DisplayTarget;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct DcpHueSatUniform {
-    dims: [u32; 4],
-    to_pp: [[f32; 4]; 3],
-    from_pp: [[f32; 4]; 3],
-    flags: [u32; 4],
-    tone_lut: [[f32; 4]; 64],
-}
-
-impl DcpHueSatUniform {
+impl DcpHueSatParams {
     fn new(
         map: &HueSatMap,
         resolved: &ResolvedDcp,
@@ -77,7 +67,7 @@ struct HueSatJob<'a> {
     map: &'a HueSatMap,
     dst: &'a Texture,
     dims: (u32, u32),
-    uniform: DcpHueSatUniform,
+    uniform: DcpHueSatParams,
 }
 
 pub(super) fn identity_huesat_map() -> &'static HueSatMap {
@@ -108,7 +98,7 @@ impl GpuRenderer {
             map,
             dst: linear_texture,
             dims,
-            uniform: DcpHueSatUniform::new(map, resolved, false, true, None, 0),
+            uniform: DcpHueSatParams::new(map, resolved, false, true, None, 0),
         };
         Some(self.apply_huesat(encoder, job))
     }
@@ -142,7 +132,7 @@ impl GpuRenderer {
             map,
             dst: dst.texture,
             dims: dst.dims,
-            uniform: DcpHueSatUniform::new(map, resolved, true, apply_table, tone, warn_flags),
+            uniform: DcpHueSatParams::new(map, resolved, true, apply_table, tone, warn_flags),
         };
         Some(self.apply_huesat(encoder, job))
     }

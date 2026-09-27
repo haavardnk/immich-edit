@@ -24,6 +24,16 @@ pub struct BinParams {
     pub _pad: u32,
 }
 
+pub fn histogram_wgsl(depth: DisplayDepth) -> String {
+    include_str!("../../../assets/shaders/histogram.wgsl")
+        .replace(DISPLAY_LOAD_INJECT, &depth.load_u8_wgsl(1))
+}
+
+pub fn scopes_wgsl(depth: DisplayDepth) -> String {
+    include_str!("../../../assets/shaders/scopes.wgsl")
+        .replace(DISPLAY_LOAD_INJECT, &depth.load_u8_wgsl(1))
+}
+
 pub struct MetaBinsPasses {
     pub histogram_layout: BindGroupLayout,
     pub histogram: ComputePipeline,
@@ -48,8 +58,7 @@ impl MetaBinsPasses {
             ctx,
             &histogram_layout,
             "histogram.wgsl",
-            &include_str!("../../../assets/shaders/histogram.wgsl")
-                .replace(DISPLAY_LOAD_INJECT, &depth.load_u8_wgsl(1)),
+            &histogram_wgsl(depth),
         );
         let scopes_layout = make_layout(
             ctx,
@@ -60,13 +69,7 @@ impl MetaBinsPasses {
                 storage_buffer_entry_rw(2),
             ],
         );
-        let scopes = make_pipeline_raw(
-            ctx,
-            &scopes_layout,
-            "scopes.wgsl",
-            &include_str!("../../../assets/shaders/scopes.wgsl")
-                .replace(DISPLAY_LOAD_INJECT, &depth.load_u8_wgsl(1)),
-        );
+        let scopes = make_pipeline_raw(ctx, &scopes_layout, "scopes.wgsl", &scopes_wgsl(depth));
         Self {
             histogram_layout,
             histogram,

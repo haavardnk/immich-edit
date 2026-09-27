@@ -14,14 +14,20 @@ pub const LUT_UNIFORM_SIZE: u64 = size_of::<LutParams>() as u64;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct LutParams {
-    pub size: [u32; 3],
+    pub size: [u32; 2],
+    pub lut_size: u32,
     pub _pad0: u32,
     pub domain_min: [f32; 3],
     pub _pad1: f32,
     pub domain_max: [f32; 3],
-    pub _pad2: f32,
     pub amount: f32,
-    pub _pad3: [f32; 3],
+}
+
+pub fn lut_wgsl(depth: DisplayDepth) -> String {
+    include_str!("../../../assets/shaders/lut.wgsl")
+        .replace(DISPLAY_LOAD_INJECT, &depth.load_wgsl(1))
+        .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(3))
+        .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
 }
 
 pub struct LutPass {
@@ -41,15 +47,7 @@ impl LutPass {
                 storage_entry(3, depth.format()),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "lut.wgsl",
-            &include_str!("../../../assets/shaders/lut.wgsl")
-                .replace(DISPLAY_LOAD_INJECT, &depth.load_wgsl(1))
-                .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(3))
-                .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl()),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "lut.wgsl", &lut_wgsl(depth));
 
         Self { layout, pipeline }
     }

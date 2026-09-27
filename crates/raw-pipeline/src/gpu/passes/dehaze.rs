@@ -12,12 +12,20 @@ use super::common::{
 
 pub const MOMENT_FORMAT: TextureFormat = TextureFormat::Rgba32Float;
 
+pub const DOWNSAMPLE_WGSL: &str = include_str!("../../../assets/shaders/dehaze_downsample.wgsl");
+pub const NORM_WGSL: &str = include_str!("../../../assets/shaders/dehaze_norm.wgsl");
+pub const MIN_WGSL: &str = include_str!("../../../assets/shaders/dehaze_min.wgsl");
+pub const PACK_WGSL: &str = include_str!("../../../assets/shaders/dehaze_pack.wgsl");
+pub const BOX_WGSL: &str = include_str!("../../../assets/shaders/dehaze_box.wgsl");
+pub const AB_WGSL: &str = include_str!("../../../assets/shaders/dehaze_ab.wgsl");
+pub const APPLY_WGSL: &str = include_str!("../../../assets/shaders/dehaze_apply.wgsl");
+
 pub const DOWNSAMPLE_UNIFORM_SIZE: u64 = size_of::<DehazeDownsampleParams>() as u64;
 pub const NORM_UNIFORM_SIZE: u64 = size_of::<DehazeNormParams>() as u64;
 pub const MIN_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
-pub const PACK_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const PACK_UNIFORM_SIZE: u64 = size_of::<DehazeSizeParams>() as u64;
 pub const BOX_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
-pub const AB_UNIFORM_SIZE: u64 = size_of::<DehazeFilterParams>() as u64;
+pub const AB_UNIFORM_SIZE: u64 = size_of::<DehazeSizeParams>() as u64;
 pub const APPLY_UNIFORM_SIZE: u64 = size_of::<DehazeApplyParams>() as u64;
 
 #[repr(C)]
@@ -34,6 +42,13 @@ pub struct DehazeNormParams {
     pub size: [u32; 2],
     pub _pad: [u32; 2],
     pub atmosphere: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct DehazeSizeParams {
+    pub size: [u32; 2],
+    pub _pad: [u32; 2],
 }
 
 #[repr(C)]
@@ -136,56 +151,26 @@ impl DehazePasses {
             ctx,
             &downsample_layout,
             "dehaze_downsample.wgsl",
-            include_str!("../../../assets/shaders/dehaze_downsample.wgsl"),
+            DOWNSAMPLE_WGSL,
         );
 
         let norm_layout = make_layout_3(ctx, "dehaze-norm-bgl", NORM_UNIFORM_SIZE, true);
-        let norm_pipeline = make_pipeline(
-            ctx,
-            &norm_layout,
-            "dehaze_norm.wgsl",
-            include_str!("../../../assets/shaders/dehaze_norm.wgsl"),
-        );
+        let norm_pipeline = make_pipeline(ctx, &norm_layout, "dehaze_norm.wgsl", NORM_WGSL);
 
         let min_layout = make_layout_3(ctx, "dehaze-min-bgl", MIN_UNIFORM_SIZE, false);
-        let min_pipeline = make_pipeline(
-            ctx,
-            &min_layout,
-            "dehaze_min.wgsl",
-            include_str!("../../../assets/shaders/dehaze_min.wgsl"),
-        );
+        let min_pipeline = make_pipeline(ctx, &min_layout, "dehaze_min.wgsl", MIN_WGSL);
 
         let pack_layout = make_layout_4(ctx, "dehaze-pack-bgl", PACK_UNIFORM_SIZE);
-        let pack_pipeline = make_pipeline(
-            ctx,
-            &pack_layout,
-            "dehaze_pack.wgsl",
-            include_str!("../../../assets/shaders/dehaze_pack.wgsl"),
-        );
+        let pack_pipeline = make_pipeline(ctx, &pack_layout, "dehaze_pack.wgsl", PACK_WGSL);
 
         let box_layout = make_layout_3(ctx, "dehaze-box-bgl", BOX_UNIFORM_SIZE, false);
-        let box_pipeline = make_pipeline(
-            ctx,
-            &box_layout,
-            "dehaze_box.wgsl",
-            include_str!("../../../assets/shaders/dehaze_box.wgsl"),
-        );
+        let box_pipeline = make_pipeline(ctx, &box_layout, "dehaze_box.wgsl", BOX_WGSL);
 
         let ab_layout = make_layout_3(ctx, "dehaze-ab-bgl", AB_UNIFORM_SIZE, false);
-        let ab_pipeline = make_pipeline(
-            ctx,
-            &ab_layout,
-            "dehaze_ab.wgsl",
-            include_str!("../../../assets/shaders/dehaze_ab.wgsl"),
-        );
+        let ab_pipeline = make_pipeline(ctx, &ab_layout, "dehaze_ab.wgsl", AB_WGSL);
 
         let apply_layout = make_layout_apply(ctx, "dehaze-apply-bgl");
-        let apply_pipeline = make_pipeline(
-            ctx,
-            &apply_layout,
-            "dehaze_apply.wgsl",
-            include_str!("../../../assets/shaders/dehaze_apply.wgsl"),
-        );
+        let apply_pipeline = make_pipeline(ctx, &apply_layout, "dehaze_apply.wgsl", APPLY_WGSL);
 
         let linear_sampler = ctx.device.create_sampler(&SamplerDescriptor {
             label: Some("dehaze-linear-sampler"),

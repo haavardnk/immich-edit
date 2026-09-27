@@ -140,10 +140,8 @@ impl GpuRenderer {
         let sbuf = self.uniform(
             &NrSmoothParams {
                 size: [w, h],
-                _pad0: [0; 2],
                 smoothness,
                 alpha_chroma,
-                _pad1: [0.0; 6],
             },
             "nr-smooth-uniform",
         );

@@ -4,7 +4,6 @@ struct Params {
     scale: f32,
     inv_filter_scale: f32,
     axis: u32,
-    pad: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;

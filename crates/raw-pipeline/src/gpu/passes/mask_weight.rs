@@ -48,7 +48,14 @@ pub struct MaskWeightParams {
     pub perspective: [f32; 12],
 }
 
-const SHADER: &str = include_str!("../../../assets/shaders/mask_weight.wgsl");
+pub fn mask_weight_wgsl() -> String {
+    format!(
+        "{}\n{}",
+        crate::gpu::shader_builder::GEOMETRY_WGSL,
+        include_str!("../../../assets/shaders/mask_weight.wgsl")
+    )
+    .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
+}
 
 pub struct MaskWeightPass {
     pub layout: BindGroupLayout,
@@ -70,9 +77,7 @@ impl MaskWeightPass {
                 storage_buffer_entry(6),
             ],
         );
-        let source = format!("{}\n{}", crate::gpu::shader_builder::GEOMETRY_WGSL, SHADER)
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
-        let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", &source);
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-weight-cp", &mask_weight_wgsl());
         Self { layout, pipeline }
     }
 }
