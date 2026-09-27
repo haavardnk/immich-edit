@@ -12,7 +12,7 @@ import {
   zoomAnchor,
   type Rect,
   type Roi
-} from './view-geometry';
+} from './viewGeometry';
 
 const SERVER_MAX = 8192;
 const FIT = 0.25;

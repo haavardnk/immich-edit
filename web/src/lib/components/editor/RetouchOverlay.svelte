@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewSurface } from '$lib/utils/preview-surface';
+  import type { PreviewSurface } from '$lib/utils/previewSurface';
   import { ui } from '$lib/stores/ui.svelte';
   import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '$lib/types/edits';
   import {

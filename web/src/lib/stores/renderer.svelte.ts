@@ -1,4 +1,4 @@
-import { ClientRenderer } from '$lib/render/client-renderer';
+import { ClientRenderer } from '$lib/render/clientRenderer';
 import { errorMessage } from '$lib/utils/errors';
 import { readStored, writeStored } from '$lib/utils/storage';
 

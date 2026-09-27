@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewSurface } from '$lib/utils/preview-surface';
+  import type { PreviewSurface } from '$lib/utils/previewSurface';
   import { isKeybind, keyLabel } from '$lib/keybinds';
   import type { MaskComponent, MaskLayer } from '$lib/types/edits';
   import { lensWarpFromEdits, maskUvToSceneUv, type LensWarpParams } from '$lib/utils/lensWarp';

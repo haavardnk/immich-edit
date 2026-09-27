@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { PreviewFrame } from '$lib/stores/editor/preview.svelte';
-  import type { PreviewSurface } from '$lib/utils/preview-surface';
+  import type { PreviewSurface } from '$lib/utils/previewSurface';
 
   let {
     url,

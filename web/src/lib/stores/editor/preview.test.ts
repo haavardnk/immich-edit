@@ -8,7 +8,7 @@ import {
   type Edits
 } from '$lib/types/edits';
 import { makeLayer, defaultLinear } from '$lib/types/masks';
-import type { Roi } from '$lib/utils/view-geometry';
+import type { Roi } from '$lib/utils/viewGeometry';
 
 type Render = {
   lane: RenderLane;
@@ -56,7 +56,7 @@ vi.mock('$lib/api/preview', async (original) => ({
       })
   )
 }));
-vi.mock('$lib/utils/object-url', () => ({ makeObjectUrl: () => 'blob:render', revoke: () => {} }));
+vi.mock('$lib/utils/objectUrl', () => ({ makeObjectUrl: () => 'blob:render', revoke: () => {} }));
 
 const browser = vi.hoisted(() => ({
   current: null as ClientRenderer | null,
@@ -75,7 +75,7 @@ vi.mock('$lib/stores/renderer.svelte', () => ({
   }
 }));
 
-import type { ClientRenderer } from '$lib/render/client-renderer';
+import type { ClientRenderer } from '$lib/render/clientRenderer';
 import { PreviewEngine, type PreviewCtx, type ViewSnapshot } from './preview.svelte';
 
 const SNAP: ViewSnapshot = {

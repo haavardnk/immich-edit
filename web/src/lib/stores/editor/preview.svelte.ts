@@ -19,10 +19,10 @@ import {
   type Edits
 } from '$lib/types/edits';
 import type { PreviewMeta } from '$lib/types/preview';
-import { displayGamutIsWide, previewColorSpace } from '$lib/utils/color-gamut';
+import { displayGamutIsWide, previewColorSpace } from '$lib/utils/colorGamut';
 import { errorMessage } from '$lib/utils/errors';
-import { makeObjectUrl, revoke } from '$lib/utils/object-url';
-import { SingleFlight } from '$lib/utils/single-flight';
+import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
+import { SingleFlight } from '$lib/utils/singleFlight';
 import {
   isFullFrame,
   renderRequest,
@@ -30,9 +30,9 @@ import {
   type Rect,
   type RenderRequest,
   type Roi
-} from '$lib/utils/view-geometry';
+} from '$lib/utils/viewGeometry';
 import type { GeometrySession } from './geometry.svelte';
-import { ClientPreview } from './client-preview';
+import { ClientPreview } from './clientPreview';
 
 const LIVE_EDGE = 1600;
 const MAX_EDGE = 4096;

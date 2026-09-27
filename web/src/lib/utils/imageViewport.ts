@@ -1,4 +1,4 @@
-import { zoomAnchor, type Rect } from './view-geometry';
+import { zoomAnchor, type Rect } from './viewGeometry';
 
 export type Pan = { panX: number; panY: number };
 export type PanStep = [number, number];

@@ -7,7 +7,7 @@ import {
 } from '$lib/types/edits';
 import { livePreview } from '$lib/api/preview';
 import { errorMessage } from '$lib/utils/errors';
-import { makeObjectUrl, revoke } from '$lib/utils/object-url';
+import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
 import {
   aspectRatioFor,
   constrainCropRect,

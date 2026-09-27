@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nudgePan, panStep, splitPosition, viewportTransform, zoomAtAnchor } from './imageViewport';
-import type { Rect } from './view-geometry';
+import type { Rect } from './viewGeometry';
 
 describe('zoomAtAnchor', () => {
   const frame: Rect = { left: 100, top: 50, width: 400, height: 300 };

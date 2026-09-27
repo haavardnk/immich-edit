@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SingleFlight } from './single-flight';
+import { SingleFlight } from './singleFlight';
 import { errorMessage } from './errors';
 
 function deferred<T>() {

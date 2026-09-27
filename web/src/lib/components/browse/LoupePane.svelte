@@ -4,7 +4,7 @@
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { ui } from '$lib/stores/ui.svelte';
   import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
-  import { fitScale, nativeScale } from '$lib/utils/view-geometry';
+  import { fitScale, nativeScale } from '$lib/utils/viewGeometry';
   import { clampZoom } from '$lib/utils/zoomLevel';
 
   const DRAG_THRESHOLD = 5;
