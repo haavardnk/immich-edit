@@ -52,6 +52,9 @@
       ? `position: absolute; left: ${frame.left}px; top: ${frame.top}px; width: ${frame.width}px; height: ${frame.height}px;`
       : 'max-width: 100%; max-height: 100%;'
   );
+  const imageEdge = $derived(
+    ui.greyCanvas ? 'ring-1 ring-white/10' : 'shadow-image ring-1 ring-white/10'
+  );
 
   function onPointerDown(e: PointerEvent): void {
     if (!ui.zoomed) return;
@@ -198,7 +201,7 @@
     {#if editor.splitMode && editor.originalUrl}
       <div
         bind:this={splitWrap}
-        class="relative overflow-hidden shadow-image ring-1 ring-white/10"
+        class="relative overflow-hidden {imageEdge}"
         style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
           1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; {viewTransform}"
       >
@@ -258,7 +261,7 @@
         url={editor.previewUrl}
         frame={editor.previewFrame}
         alt={editor.asset?.originalFileName ?? ''}
-        class="max-h-none max-w-none select-none object-contain shadow-image ring-1 ring-white/10"
+        class="max-h-none max-w-none select-none object-contain {imageEdge}"
         style={baseStyle}
         testid="preview-image"
         onsize={(size) => {

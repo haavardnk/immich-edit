@@ -345,10 +345,14 @@ test('the grey background preference survives a reload', async ({ page }) => {
   await gotoAsset(page);
 
   const stage = page.locator('.editor-stage');
+  const preview = page.getByTestId('preview-image');
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(preview).toHaveCSS('box-shadow', /56px/);
   await page.getByRole('button', { name: 'More editor actions' }).click();
   await page.getByRole('button', { name: 'Grey background' }).click();
   await expect(stage).toHaveCSS('background-color', 'rgb(118, 118, 118)');
+  await expect(preview).not.toHaveCSS('box-shadow', /56px/);
+  await expect(preview).toHaveCSS('box-shadow', /0px 0px 0px 1px/);
 
   await page.reload();
   await expect(page.locator('.editor-stage')).toHaveCSS('background-color', 'rgb(118, 118, 118)');
