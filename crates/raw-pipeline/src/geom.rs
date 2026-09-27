@@ -1,6 +1,8 @@
+pub mod perspective;
+
 use crate::edits::{AspectLock, CropRect};
 use crate::frame::{OrientFlips, PreviewMode, RawFrame, RenderOptions};
-use crate::perspective::{IDENTITY, Mat3, mat3_apply};
+use perspective::{IDENTITY, Mat3, mat3_apply};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Size {

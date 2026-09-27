@@ -1,15 +1,11 @@
 pub mod auto;
 pub mod cancel;
 pub mod capture_sigma;
-#[cfg(feature = "native")]
-pub mod codecs;
 pub mod color;
 pub mod cpu;
 pub mod dcp;
-mod dcp_pipeline;
 #[cfg(feature = "native")]
 pub mod decode;
-pub mod dehaze;
 pub mod edit_manifest;
 pub mod edits;
 #[cfg(feature = "native")]
@@ -26,16 +22,12 @@ pub mod lut;
 pub mod mask_raster;
 pub mod math;
 pub mod ops;
-pub mod perspective;
-pub mod presence;
 pub mod scopes;
 mod sensor_sample;
 pub mod source;
 pub mod timing;
 pub mod tone;
-mod vmath;
 pub mod warn;
-pub mod wgsl;
 pub mod white_balance;
 
 use thiserror::Error;

@@ -1,7 +1,7 @@
 use multiversion::multiversion;
 use rayon::prelude::*;
 
-use crate::vmath;
+use crate::math::fast;
 
 #[derive(Clone, Copy)]
 pub(crate) struct Bilateral {
@@ -83,7 +83,7 @@ fn filter_row<const C: usize>(
                 let d = tap[c][i] - mid[c][i];
                 dr2 += d * d;
             }
-            let wgt = vmath::exp(spatial - dr2 * p.inv_2sr);
+            let wgt = fast::exp(spatial - dr2 * p.inv_2sr);
             wsum[i] += wgt;
             for c in 0..C {
                 acc[c][i] += wgt * tap[c][i];
@@ -130,7 +130,7 @@ fn filter_edge_pixel<const C: usize>(
             let d = src[c][yy * w + xx] - center[c];
             dr2 += d * d;
         }
-        let wgt = vmath::exp(-(dx * dx + dy * dy) * p.inv_2ss - dr2 * p.inv_2sr);
+        let wgt = fast::exp(-(dx * dx + dy * dy) * p.inv_2ss - dr2 * p.inv_2sr);
         wsum += wgt;
         for c in 0..C {
             acc[c] += wgt * src[c][yy * w + xx];

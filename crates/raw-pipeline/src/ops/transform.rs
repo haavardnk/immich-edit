@@ -6,7 +6,7 @@ use crate::PipelineResult;
 use crate::cpu::transform;
 use crate::edits::{AspectLock, CropRect, Edits};
 use crate::geom;
-use crate::perspective::PerspectiveEdits;
+use crate::geom::perspective::PerspectiveEdits;
 
 pub struct TransformOp;
 
@@ -144,7 +144,7 @@ impl Op for TransformOp {
         let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
         let angle_active = g.rotate_angle.abs() > 1e-4;
         let persp_inv = g.perspective_inverse();
-        let persp_active = persp_inv != crate::perspective::IDENTITY;
+        let persp_active = persp_inv != crate::geom::perspective::IDENTITY;
         if !crop_active && !angle_active && !persp_active {
             return Ok(());
         }

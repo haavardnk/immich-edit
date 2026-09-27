@@ -23,7 +23,7 @@ use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::gpu::uniforms::FULL_WINDOW;
 use crate::ops::GpuRoute;
-use crate::presence::{presence_mips, presence_radii};
+use crate::ops::presence::{presence_mips, presence_radii};
 use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};

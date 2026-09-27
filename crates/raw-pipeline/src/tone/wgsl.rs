@@ -4,7 +4,7 @@ use super::shared::{
     LUMA_B, LUMA_G, LUMA_R, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE,
     SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
 };
-use crate::wgsl::f32_lit;
+use crate::ops::wgsl::f32_lit;
 
 static TONE_WGSL_STR: LazyLock<String> = LazyLock::new(|| {
     format!(

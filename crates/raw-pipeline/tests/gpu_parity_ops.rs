@@ -294,7 +294,7 @@ fn gpu_matches_cpu_within_tolerance() {
                         w: 0.7,
                         h: 0.7,
                     }),
-                    perspective: Some(raw_pipeline::perspective::PerspectiveEdits {
+                    perspective: Some(raw_pipeline::geom::perspective::PerspectiveEdits {
                         vertical: 45.0,
                         horizontal: -20.0,
                         aspect: 15.0,

@@ -115,7 +115,7 @@ fn roundtrip_preserves_fields() {
             flip_v: false,
             crop: None,
             aspect: Default::default(),
-            perspective: Some(crate::perspective::PerspectiveEdits {
+            perspective: Some(crate::geom::perspective::PerspectiveEdits {
                 vertical: 25.0,
                 horizontal: -10.0,
                 ..Default::default()

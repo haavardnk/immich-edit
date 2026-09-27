@@ -50,11 +50,11 @@ impl ProcessGeom {
             sin_a: a_rad.sin(),
             bw: bbox.w,
             bh: bbox.h,
-            persp_rows: crate::perspective::mat3_rows(&perspective_inverse),
+            persp_rows: crate::geom::perspective::mat3_rows(&perspective_inverse),
             orient_packed: (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2),
             geom_warps: !crop.is_full()
                 || angle.abs() > 1e-4
-                || perspective_inverse != crate::perspective::IDENTITY,
+                || perspective_inverse != crate::geom::perspective::IDENTITY,
         }
     }
 }

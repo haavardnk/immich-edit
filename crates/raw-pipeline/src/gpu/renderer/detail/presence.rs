@@ -12,7 +12,9 @@ use crate::gpu::passes::presence::PresenceParams;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
-use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
+use crate::ops::presence::{
+    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
+};
 
 struct PyramidLabels {
     extract_bind: &'static str,

@@ -38,7 +38,7 @@ pub fn render_with_cancel(
 pub(super) struct Prepared {
     pub edits: Edits,
     pub ctx: OpContext,
-    setup: crate::dcp_pipeline::DcpSetup,
+    setup: crate::dcp::setup::DcpSetup,
     out_dims: (u32, u32),
     preview_ratio: Option<f32>,
     block: Option<usize>,
@@ -78,7 +78,7 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
     let block = crate::geom::superpixel_block(frame, options, preview_ratio);
     let block_scale = block.unwrap_or(1) as f32;
 
-    let setup = crate::dcp_pipeline::resolve(&frame.meta, &edits, options.dcp.as_deref());
+    let setup = crate::dcp::setup::resolve(&frame.meta, &edits, options.dcp.as_deref());
     let ctx = OpContext {
         render: RenderContext {
             wb_coeffs: frame.meta.wb_coeffs,

@@ -1,8 +1,8 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
+use crate::math::fast;
 use crate::math::{luma, smoothstep};
-use crate::vmath;
 
 pub struct ToneRegionsOp;
 
@@ -39,16 +39,16 @@ pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
     let mask = smoothstep(
         TONE_REGIONS_HL_MASK_LO,
         TONE_REGIONS_HL_MASK_HI,
-        vmath::tanh(x * TONE_REGIONS_HL_MASK_TANH),
+        fast::tanh(x * TONE_REGIONS_HL_MASK_TANH),
     );
     let new = if hl < 0.0 {
         let gamma = 1.0 - hl * TONE_REGIONS_HL_STRENGTH;
-        let base = vmath::pow(x.clamp(0.0, 1.0), gamma);
+        let base = fast::pow(x.clamp(0.0, 1.0), gamma);
         let excess = (x - 1.0).max(0.0);
         let blend = (1.0 + hl).max(0.0);
         base + excess * blend
     } else {
-        x * vmath::exp2(hl * TONE_REGIONS_HL_STRENGTH)
+        x * fast::exp2(hl * TONE_REGIONS_HL_STRENGTH)
     };
     x * (1.0 - mask) + new * mask
 }
@@ -62,7 +62,7 @@ pub(crate) fn shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
     mask *= mask;
     let edge = (luma.max(0.0).sqrt() - blur_l.max(0.0).sqrt()).abs();
     let halo = 1.0 - smoothstep(TONE_REGIONS_SH_HALO_LO, TONE_REGIONS_SH_HALO_HI, edge);
-    let mult = vmath::exp2(sh * TONE_REGIONS_SH_STRENGTH * halo)
+    let mult = fast::exp2(sh * TONE_REGIONS_SH_STRENGTH * halo)
         .clamp(TONE_REGIONS_SH_MULT_MIN, TONE_REGIONS_SH_MULT_MAX);
     1.0 + (mult - 1.0) * mask
 }
@@ -72,7 +72,7 @@ fn blacks_scalar(x: f32, bk: f32) -> f32 {
     let xc = x.clamp(0.0, TONE_REGIONS_BK_CEILING);
     let mut mask_bk = (1.0 - xc / TONE_REGIONS_BK_MASK_RANGE).clamp(0.0, 1.0);
     mask_bk *= mask_bk;
-    let mult_bk = vmath::exp2(bk * TONE_REGIONS_BK_STRENGTH).clamp(0.0, TONE_REGIONS_BK_MULT_MAX);
+    let mult_bk = fast::exp2(bk * TONE_REGIONS_BK_STRENGTH).clamp(0.0, TONE_REGIONS_BK_MULT_MAX);
     xc + xc * (mult_bk - 1.0) * mask_bk
 }
 

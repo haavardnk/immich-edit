@@ -2,10 +2,12 @@ use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
 use crate::math::{luma, smoothstep};
 use crate::ops::LinearImage;
-use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
+use crate::ops::presence::{
+    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
+};
 use rayon::prelude::*;
 
-pub use crate::presence::has_presence;
+pub use crate::ops::presence::has_presence;
 
 pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
     let amounts = presence_amounts(edits);

@@ -1,3 +1,5 @@
+pub(crate) mod fast;
+
 use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
 
 #[inline(always)]

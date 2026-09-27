@@ -28,7 +28,6 @@ use super::vibrance::{
     VIBRANCE_SKIN_SPREAD_HI_DEG, VIBRANCE_SKIN_SPREAD_LO_DEG,
 };
 use crate::edits::HSL_BANDS;
-use crate::wgsl::f32_lit;
 
 const HUE_DIST: &str = r#"fn op_hue_dist(a: f32, b: f32) -> f32 {
     let raw = a - b;
@@ -36,6 +35,15 @@ const HUE_DIST: &str = r#"fn op_hue_dist(a: f32, b: f32) -> f32 {
     return min(wrapped, 360.0 - wrapped);
 }
 "#;
+
+pub fn f32_lit(v: f32) -> String {
+    let s = format!("{v:?}");
+    if s.contains('.') || s.contains('e') || s.contains('E') {
+        s
+    } else {
+        format!("{s}.0")
+    }
+}
 
 fn scalars(out: &mut String, entries: &[(&str, f32)]) {
     for (name, value) in entries {
