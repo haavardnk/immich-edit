@@ -7,8 +7,8 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { TagRef } from '$lib/types/asset';
   import { isManagedTag } from '$lib/managedTags';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { Icon, IconButton } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
 
   type Anchor = 'top' | 'bottom';

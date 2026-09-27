@@ -22,8 +22,8 @@
     type MaskLayer
   } from '$lib/types/edits';
   import { generatedLabel, kindLabel, numberRepeats } from '$lib/types/masks';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import {
     mdiPlus,
     mdiMinus,
