@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import {
     isFitZoom,
     nextStop,

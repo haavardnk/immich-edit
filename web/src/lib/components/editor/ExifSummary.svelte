@@ -4,7 +4,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { mdiInformationOutline } from '@mdi/js';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { IconButton } from '@immich/ui';
 
   const hasExif = $derived((editor.asset?.exifInfo ?? null) != null);

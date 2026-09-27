@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { library } from '$lib/stores/library.svelte';

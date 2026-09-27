@@ -3,7 +3,9 @@
   import { surfaceSize, type PreviewSurface } from '$lib/utils/previewSurface';
   import { ui } from '$lib/stores/ui.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind, isRadioGroupTarget, isTypingTarget, keysFor } from '$lib/keybinds';
+  import { isKeybind } from '$lib/shortcuts/match';
+  import { isRadioGroupTarget, isTypingTarget } from '$lib/shortcuts/targets';
+  import { keysFor } from '$lib/shortcuts/labels';
   import { type Vec2f } from '$lib/types/edits';
   import { displayUvToSceneUv, sceneUvToDisplayUv, viewTransform } from '$lib/utils/canvasCoords';
   import { clamp01 } from '$lib/utils/geom';

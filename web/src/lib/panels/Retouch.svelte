@@ -4,7 +4,7 @@
     segmentedControlClass,
     segmentedRadioItemClass
   } from '$lib/components/editor/controls/segmentedControl';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '$lib/types/edits';

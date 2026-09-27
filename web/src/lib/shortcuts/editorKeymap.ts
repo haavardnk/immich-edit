@@ -7,14 +7,9 @@ import { backToGrid } from '$lib/browse/backToGrid';
 import { createVirtualCopy } from '$lib/editor/copies';
 import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
 import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
-import {
-  isKeybind,
-  isRadioGroupTarget,
-  isTypingTarget,
-  matchKeybind,
-  yieldsToControl
-} from '$lib/keybinds';
-import { activeContexts } from '$lib/keybindContext';
+import { isKeybind, matchKeybind } from './match';
+import { isRadioGroupTarget, isTypingTarget, yieldsToControl } from './targets';
+import { activeContexts } from './context';
 import { editorHref } from '$lib/editor/navigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
 import { nudgeable } from '$lib/utils/maskDrag';

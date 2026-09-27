@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import type { MaskKind } from '$lib/api/masks';
-import { keyLabel } from '$lib/keybinds';
+import { keyLabel } from '$lib/shortcuts/chord';
 import { editor } from '$lib/stores/editor.svelte';
 import { maskModels } from '$lib/stores/maskModels.svelte';
 import { session } from '$lib/stores/session.svelte';

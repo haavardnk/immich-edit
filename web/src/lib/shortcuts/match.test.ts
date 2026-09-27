@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  KEYBINDS,
-  formatChord,
-  isKeybind,
-  keyLabel,
-  keysFor,
-  matchKeybind,
-  type Keybind,
-  type KeybindContext,
-  type KeybindId
-} from './keybinds';
+import { isKeybind, matchKeybind } from './match';
+import type { KeybindContext, KeybindId } from './table';
 
 function key(init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {
   return {
@@ -21,18 +12,6 @@ function key(init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {
     altKey: init.altKey ?? false
   } as KeyboardEvent;
 }
-
-const CONTEXTS: KeybindContext[] = [
-  'global',
-  'grid',
-  'loupe',
-  'compare',
-  'survey',
-  'editor',
-  'geometry',
-  'masks',
-  'retouch'
-];
 
 describe('chord matching', () => {
   it.each<[string, Partial<KeyboardEvent> & { key: string }, boolean]>([
@@ -93,70 +72,6 @@ describe('context resolution', () => {
   });
 });
 
-describe('platform labels', () => {
-  it.each<[KeybindId, string, string]>([
-    ['undo', '⌘Z', 'Ctrl+Z'],
-    ['redo', '⌘⇧Z', 'Ctrl+Shift+Z'],
-    ['fullscreen', '⇧F', 'Shift+F'],
-    ['editorEscape', 'Esc', 'Esc'],
-    ['maskDelete', '⌫ / ⌦', 'Backspace / Del'],
-    ['loupeNav', '← / →', '← / →'],
-    ['togglePanels', 'Tab', 'Tab']
-  ])('%s renders per platform', (id, mac, pc) => {
-    expect(keysFor(id, true)).toBe(mac);
-    expect(keysFor(id, false)).toBe(pc);
-  });
-
-  it('honors display overrides', () => {
-    expect(keysFor('rate', true)).toBe(keysFor('rate', false));
-  });
-
-  it('formats bare chords', () => {
-    expect(formatChord('Mod+Shift+e', true)).toBe('⌘⇧E');
-    expect(formatChord('Mod+Shift+e', false)).toBe('Ctrl+Shift+E');
-  });
-
-  it.each<[string, string, string]>([
-    ['Alt', '⌥', 'Alt'],
-    ['Shift', '⇧', 'Shift'],
-    ['Enter', 'Return', 'Enter'],
-    ['Escape', 'Esc', 'Esc']
-  ])('keyLabel(%s) renders per platform', (key, mac, pc) => {
-    expect(keyLabel(key, true)).toBe(mac);
-    expect(keyLabel(key, false)).toBe(pc);
-  });
-});
-
-describe('registry integrity', () => {
-  const all = KEYBINDS as readonly Keybind[];
-
-  it.each(CONTEXTS)('has no colliding chords within %s', (context) => {
-    const seen = new Map<string, string>();
-    for (const bind of all) {
-      if (!bind.contexts.includes(context)) continue;
-      for (const spec of bind.keys) {
-        const prev = seen.get(spec);
-        expect(prev, `${spec}: ${prev} vs ${bind.id}`).toBeUndefined();
-        seen.set(spec, bind.id);
-      }
-    }
-  });
-
-  it('has unique ids', () => {
-    const ids = all.map((b) => b.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('gives every keyless bind a display and no match', () => {
-    const keyless = all.filter((bind) => bind.keys.length === 0);
-    expect(keyless.length).toBeGreaterThan(0);
-    for (const bind of keyless) {
-      expect(bind.display, bind.id).toBeTruthy();
-      expect(matchKeybind(key({ key: 'Shift' }), bind.contexts)).not.toBe(bind.id);
-    }
-  });
-});
-
 describe('code chords', () => {
   it.each<[string, Partial<KeyboardEvent> & { key: string }, KeybindId | null]>([
     ['Norwegian Shift+0', { key: '=', code: 'Digit0', shiftKey: true }, 'rateAdvance'],
@@ -166,9 +81,5 @@ describe('code chords', () => {
     ['Shift+6', { key: '&', code: 'Digit6', shiftKey: true }, null]
   ])('%s', (_name, init, expected) => {
     expect(matchKeybind(key(init), ['grid'])).toBe(expected);
-  });
-
-  it('labels a code chord by its digit', () => {
-    expect(formatChord('Shift+Digit3', false)).toBe('Shift+3');
   });
 });

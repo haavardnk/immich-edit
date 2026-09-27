@@ -1,4 +1,5 @@
-import { KEYBINDS, formatChord, type Keybind, type KeybindContext } from './keybinds';
+import { formatChord } from './chord';
+import { KEYBINDS, type Keybind, type KeybindContext } from './table';
 
 const CONTEXT_LABELS: Record<KeybindContext, string> = {
   global: 'Anywhere',
@@ -20,7 +21,7 @@ nav_order: 4
 permalink: /shortcuts/
 ---
 
-<!-- Generated from web/src/lib/keybinds.ts. Run \`npm run docs:shortcuts\` in web/ to update. -->
+<!-- Generated from web/src/lib/shortcuts/table.ts. Run \`npm run docs:shortcuts\` in web/ to update. -->
 
 # Keyboard shortcuts
 

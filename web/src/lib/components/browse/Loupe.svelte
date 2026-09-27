@@ -33,13 +33,10 @@
   import ExifRows from '$lib/components/ExifRows.svelte';
   import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
   import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
-  import {
-    hint,
-    matchKeybind,
-    isRadioGroupTarget,
-    yieldsToControl,
-    type KeybindContext
-  } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
+  import { matchKeybind } from '$lib/shortcuts/match';
+  import { isRadioGroupTarget, yieldsToControl } from '$lib/shortcuts/targets';
+  import type { KeybindContext } from '$lib/shortcuts/table';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';

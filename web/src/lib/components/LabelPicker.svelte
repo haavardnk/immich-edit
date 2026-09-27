@@ -7,7 +7,7 @@
     labelKey,
     type LabelColor
   } from '$lib/stores/labels';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { IconButton } from '@immich/ui';
   import { mdiCircle, mdiCircleOffOutline, mdiCircleOutline } from '@mdi/js';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import ZoomPopover from '$lib/components/ZoomPopover.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import RatingControl from './RatingControl.svelte';

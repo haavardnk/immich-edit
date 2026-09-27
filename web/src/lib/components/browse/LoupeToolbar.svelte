@@ -3,7 +3,7 @@
   import { compare, type CompareMode } from '$lib/stores/compare.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { Button, Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,

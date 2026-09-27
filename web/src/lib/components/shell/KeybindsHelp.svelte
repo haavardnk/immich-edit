@@ -1,8 +1,10 @@
 <script lang="ts">
   import TextInput from '$lib/components/TextInput.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { KEYBINDS, isKeybind, keysFor, type KeybindContext } from '$lib/keybinds';
-  import { activeContexts } from '$lib/keybindContext';
+  import { KEYBINDS, type KeybindContext } from '$lib/shortcuts/table';
+  import { isKeybind } from '$lib/shortcuts/match';
+  import { keysFor } from '$lib/shortcuts/labels';
+  import { activeContexts } from '$lib/shortcuts/context';
   import Dialog from '$lib/components/Dialog.svelte';
   import { Icon } from '@immich/ui';
   import { mdiMagnify } from '@mdi/js';

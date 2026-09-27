@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { IconButton } from '@immich/ui';
   import { mdiCloseCircle, mdiCloseCircleOutline } from '@mdi/js';
 

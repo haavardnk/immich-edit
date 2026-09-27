@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import GlobalSearch from '$lib/components/GlobalSearch.svelte';
   import Wordmark from '$lib/components/Wordmark.svelte';
   import {

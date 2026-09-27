@@ -5,7 +5,7 @@
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
   import { backToGrid } from '$lib/browse/backToGrid';
   import { createVirtualCopy } from '$lib/editor/copies';

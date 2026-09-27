@@ -5,7 +5,7 @@
   import { isDevelopIdentity } from '$lib/types/edits';
   import { modifiedDevelopPanels } from '$lib/editor/modified';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { Button, IconButton } from '@immich/ui';
   import {
     mdiAutoFix,
