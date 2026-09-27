@@ -30,6 +30,7 @@ vi.mock('$lib/api/preview', async (original) => ({
 }));
 
 import { editor } from './editor.svelte';
+import { toasts } from './toasts.svelte';
 
 function asset(): AssetDetail {
   return {
@@ -95,14 +96,16 @@ describe('white balance picker', () => {
     expect(editor.wbBusy).toBe(false);
   });
 
-  it('keeps edits unchanged and surfaces an error when no colour is usable', async () => {
-    mocks.sampleWhiteBalance.mockRejectedValue(new Error('no usable colour at that point'));
+  it('toasts a rejected sample and keeps the picker open for another try', async () => {
+    mocks.sampleWhiteBalance.mockRejectedValue(new Error('No usable colour here'));
     editor.toggleWbPicker();
 
     await editor.pickWhiteBalance(0.5, 0.5);
 
     expect(editor.edits.basic.wb_temp).toBe(0);
-    expect(editor.error).toBe('no usable colour at that point');
+    expect(editor.error).toBeNull();
+    expect(toasts.items.map((t) => t.message)).toContain('No usable colour here');
+    expect(editor.wbPicking).toBe(true);
     expect(editor.wbBusy).toBe(false);
     expect(mocks.putEdits).not.toHaveBeenCalled();
   });

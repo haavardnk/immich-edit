@@ -33,23 +33,30 @@ pub struct WhiteBalance {
 }
 
 pub async fn sample(frame: Arc<RawFrame>, point: SamplePoint) -> Result<WhiteBalance, AppError> {
-    solve(move || sample_white_balance(&frame, &point.edits, point.u, point.v)).await
+    solve(
+        move || sample_white_balance(&frame, &point.edits, point.u, point.v),
+        "No usable colour here",
+    )
+    .await
 }
 
 pub async fn auto(frame: Arc<RawFrame>, edits: Edits) -> Result<WhiteBalance, AppError> {
-    solve(move || auto_white_balance(&frame, &edits)).await
+    solve(
+        move || auto_white_balance(&frame, &edits),
+        "No neutral colour found",
+    )
+    .await
 }
 
 async fn solve(
     solver: impl FnOnce() -> Option<(f64, f64)> + Send + 'static,
+    unsolved: &str,
 ) -> Result<WhiteBalance, AppError> {
     let solved = tokio::task::spawn_blocking(solver)
         .await
         .map_err(|_| AppError::Internal)?;
     let Some((wb_temp, wb_tint)) = solved else {
-        return Err(AppError::Unprocessable(
-            "no usable colour at that point".to_string(),
-        ));
+        return Err(AppError::Unprocessable(unsolved.to_string()));
     };
     Ok(WhiteBalance { wb_temp, wb_tint })
 }
