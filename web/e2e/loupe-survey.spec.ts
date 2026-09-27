@@ -69,6 +69,22 @@ test('enter keeps only the focused survey pane', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeHidden();
 });
 
+test('enter keeps the focused pane after opening the loupe from the keyboard', async ({ page }) => {
+  await openGrid(page);
+  await page.getByLabel('Quick review').first().focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('n');
+  for (const name of PANES) {
+    await expect(page.getByRole('img', { name })).toBeVisible();
+  }
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeHidden();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeHidden();
+});
+
 test('leaving survey selects the survivors', async ({ page }) => {
   await openSurvey(page);
 
