@@ -4,6 +4,7 @@ use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::routes::export::{
     ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
 };
+use immich_edit_backend::services::edits_store::ExportJobKey;
 
 #[test]
 fn hash_request_differs_by_color_space() {
@@ -116,24 +117,17 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         stack_primary: StackPrimary::default(),
     };
     let hash = hash_request(asset, &body);
+    let job = ExportJobKey {
+        owner: test_user_id(),
+        asset_id: asset,
+        key: "key-1",
+    };
     state
         .edits
-        .put_export_job_uploaded(
-            test_user_id(),
-            asset,
-            "key-1",
-            &hash,
-            uploaded,
-            "x_edit.jpg",
-            "created",
-        )
+        .put_export_job_uploaded(job, &hash, uploaded, "x_edit.jpg", "created")
         .await
         .unwrap();
-    state
-        .edits
-        .complete_export_job(test_user_id(), asset, "key-1", &[])
-        .await
-        .unwrap();
+    state.edits.complete_export_job(job, &[]).await.unwrap();
 
     let app = seed_and_wrap(&server, state).await;
     let req_body = serde_json::json!({});

@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
-use crate::services::edits_store::{ExportJobRecord, ExportJobStatus};
+use crate::services::edits_store::{ExportJobKey, ExportJobRecord, ExportJobStatus};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
 use crate::services::watermark_store::WatermarkStoreError;
@@ -174,13 +174,21 @@ pub async fn export_to_immich(
 ) -> Result<ExportToImmichResult, AppError> {
     let id = req.asset_id;
     let body = req.body;
-    let idem_key = req.idempotency_key;
-    let request_hash = idem_key.as_ref().map(|_| hash_request(id, body));
+    let identity = RenderIdentity {
+        owner,
+        server_epoch: req.server_epoch,
+    };
+    let job = req.idempotency_key.as_deref().map(|key| ExportJobKey {
+        owner,
+        asset_id: id,
+        key,
+    });
+    let request_hash = job.map(|_| hash_request(id, body));
     let mut reserved = false;
 
-    if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
-        reserved = state.edits.reserve_export_job(owner, id, key, hash).await?;
-        if !reserved && let Some(existing) = state.edits.get_export_job(owner, id, key).await? {
+    if let (Some(job), Some(hash)) = (job, request_hash.as_deref()) {
+        reserved = state.edits.reserve_export_job(job, hash).await?;
+        if !reserved && let Some(existing) = state.edits.get_export_job(job).await? {
             if existing.request_hash != hash {
                 return Err(AppError::BadRequest(
                     "idempotency key reused with different request".into(),
@@ -191,17 +199,7 @@ pub async fn export_to_immich(
                     Err(AppError::Conflict("export already in progress".into()))
                 }
                 ExportJobStatus::Uploaded => {
-                    resume_export_job(
-                        state,
-                        immich,
-                        owner,
-                        req.server_epoch,
-                        id,
-                        key,
-                        body,
-                        existing,
-                    )
-                    .await
+                    resume_export_job(state, immich, identity, job, body, existing).await
                 }
                 ExportJobStatus::Completed => Ok(record_to_result(&existing)),
             };
@@ -215,10 +213,7 @@ pub async fn export_to_immich(
 
         let (bytes, output) = render_export(
             state,
-            RenderIdentity {
-                owner,
-                server_epoch: req.server_epoch,
-            },
+            identity,
             immich,
             id,
             body.edits.clamped(),
@@ -247,30 +242,18 @@ pub async fn export_to_immich(
         let new_id = upload.id;
         let status = upload.status.clone();
 
-        if let (Some(key), Some(hash)) = (idem_key.as_deref(), request_hash.as_deref()) {
+        if let (Some(job), Some(hash)) = (job, request_hash.as_deref()) {
             state
                 .edits
-                .put_export_job_uploaded(owner, id, key, hash, new_id, &filename, &status)
+                .put_export_job_uploaded(job, hash, new_id, &filename, &status)
                 .await?;
         }
 
-        let warnings = run_post_upload(
-            state,
-            owner,
-            req.server_epoch,
-            immich,
-            &original,
-            body,
-            new_id,
-            &status,
-        )
-        .await;
+        let warnings =
+            run_post_upload(state, identity, immich, &original, body, new_id, &status).await;
 
-        if let Some(key) = idem_key.as_deref() {
-            state
-                .edits
-                .complete_export_job(owner, id, key, &warnings)
-                .await?;
+        if let Some(job) = job {
+            state.edits.complete_export_job(job, &warnings).await?;
         }
 
         Ok(ExportToImmichResult {
@@ -284,9 +267,9 @@ pub async fn export_to_immich(
 
     if result.is_err()
         && reserved
-        && let Some(key) = idem_key.as_deref()
+        && let Some(job) = job
     {
-        let _ = state.edits.delete_pending_export_job(owner, id, key).await;
+        let _ = state.edits.delete_pending_export_job(job).await;
     }
     result
 }
@@ -343,26 +326,22 @@ fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn resume_export_job(
     state: &AppState,
     immich: &crate::immich::ImmichClient,
-    owner: Uuid,
-    server_epoch: i64,
-    asset_id: AssetKey,
-    key: &str,
+    identity: RenderIdentity,
+    job: ExportJobKey<'_>,
     body: &ExportToImmichBody,
     existing: ExportJobRecord,
 ) -> Result<ExportToImmichResult, AppError> {
     let Some(new_id) = existing.immich_asset_id else {
         return Err(AppError::Internal);
     };
-    let original = immich.asset(asset_id.source()).await?;
+    let original = immich.asset(job.asset_id.source()).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
     let warnings = run_post_upload(
         state,
-        owner,
-        server_epoch,
+        identity,
         immich,
         &original,
         body,
@@ -370,10 +349,7 @@ async fn resume_export_job(
         &upload_status,
     )
     .await;
-    state
-        .edits
-        .complete_export_job(owner, asset_id, key, &warnings)
-        .await?;
+    state.edits.complete_export_job(job, &warnings).await?;
     Ok(ExportToImmichResult {
         asset_id: new_id,
         filename: existing.filename.unwrap_or_default(),
@@ -382,11 +358,9 @@ async fn resume_export_job(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn run_post_upload(
     state: &AppState,
-    owner: Uuid,
-    server_epoch: i64,
+    identity: RenderIdentity,
     immich: &crate::immich::ImmichClient,
     original: &AssetDetail,
     body: &ExportToImmichBody,
@@ -426,7 +400,7 @@ async fn run_post_upload(
             Ok(items) => {
                 state
                     .tag_counts
-                    .invalidate(owner, server_epoch, *tag_id)
+                    .invalidate(identity.owner, identity.server_epoch, *tag_id)
                     .await;
                 for item in items {
                     if !item.success {

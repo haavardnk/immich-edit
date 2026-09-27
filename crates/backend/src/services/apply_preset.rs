@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::services::edit_merge::{MergeSections, merge_edits};
+use crate::services::edits_store::EditWrite;
 use crate::services::job_runner::{ItemOutcome, JobItemError};
 use crate::services::job_store::JobRecord;
 use crate::state::AppState;
@@ -69,10 +70,12 @@ pub async fn run_apply_preset_item(
         .put(
             job.user_id,
             asset_id,
-            manifest,
-            asset.updated_at,
-            asset.checksum,
-            Some(&action),
+            EditWrite {
+                manifest,
+                immich_updated_at: asset.updated_at,
+                immich_checksum: asset.checksum,
+                action: Some(&action),
+            },
         )
         .await?;
     Ok(serde_json::json!({

@@ -4,7 +4,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use immich_edit_backend::asset_key::AssetKey;
-use raw_pipeline::edit_manifest::EditManifest;
+use immich_edit_backend::services::edits_store::EditWrite;
 use serde_json::Value;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -59,14 +59,7 @@ async fn a_thumb_hash_that_does_not_match_the_edits_is_not_found() {
     let id = AssetKey::master(Uuid::new_v4());
     state
         .edits
-        .put(
-            common::test_user_id(),
-            id,
-            EditManifest::default(),
-            None,
-            None,
-            None,
-        )
+        .put(common::test_user_id(), id, EditWrite::default())
         .await
         .unwrap();
     let app = wrap_auth(common::router(state), token);

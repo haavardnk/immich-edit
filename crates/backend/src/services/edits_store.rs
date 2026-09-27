@@ -59,6 +59,14 @@ impl EditRecord {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct EditWrite<'a> {
+    pub manifest: EditManifest,
+    pub immich_updated_at: Option<String>,
+    pub immich_checksum: Option<String>,
+    pub action: Option<&'a str>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EditedAssetEntry {
     pub id: AssetKey,
@@ -172,65 +180,41 @@ impl EditsStore {
         &self,
         owner: Uuid,
         asset_id: AssetKey,
-        manifest: EditManifest,
-        immich_updated_at: Option<String>,
-        immich_checksum: Option<String>,
-        action: Option<&str>,
+        write: EditWrite<'_>,
     ) -> Result<EditRecord, EditsStoreError> {
         let tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
-        self.write_put(
-            tx,
-            owner,
-            asset_id,
-            manifest,
-            immich_updated_at,
-            immich_checksum,
-            action,
-        )
-        .await
+        self.write_put(tx, owner, asset_id, write).await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn put_if_match(
         &self,
         owner: Uuid,
         asset_id: AssetKey,
         expected: &str,
-        manifest: EditManifest,
-        immich_updated_at: Option<String>,
-        immich_checksum: Option<String>,
-        action: Option<&str>,
+        write: EditWrite<'_>,
     ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
         if let Some(conflict) = conflict_with(current, expected, asset_id) {
             return Ok(WriteOutcome::Conflict(conflict));
         }
-        let saved = self
-            .write_put(
-                tx,
-                owner,
-                asset_id,
-                manifest,
-                immich_updated_at,
-                immich_checksum,
-                action,
-            )
-            .await?;
+        let saved = self.write_put(tx, owner, asset_id, write).await?;
         Ok(WriteOutcome::Written(saved))
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn write_put(
         &self,
         mut tx: Transaction<'static, Sqlite>,
         owner: Uuid,
         asset_id: AssetKey,
-        manifest: EditManifest,
-        immich_updated_at: Option<String>,
-        immich_checksum: Option<String>,
-        action: Option<&str>,
+        write: EditWrite<'_>,
     ) -> Result<EditRecord, EditsStoreError> {
+        let EditWrite {
+            manifest,
+            immich_updated_at,
+            immich_checksum,
+            action,
+        } = write;
         let now = Utc::now().to_rfc3339();
         let edits = manifest.to_edits().clamped();
         let edits_json = serde_json::to_string(&edits)?;
@@ -416,6 +400,13 @@ pub enum ExportJobStatus {
     Completed,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ExportJobKey<'a> {
+    pub owner: Uuid,
+    pub asset_id: AssetKey,
+    pub key: &'a str,
+}
+
 #[derive(Debug, Clone)]
 pub struct ExportJobRecord {
     pub request_hash: String,
@@ -470,6 +461,13 @@ mod tests {
         })
     }
 
+    fn write(manifest: EditManifest) -> EditWrite<'static> {
+        EditWrite {
+            manifest,
+            ..Default::default()
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn concurrent_if_match_writers_leave_one_winner() {
         let dir = tempfile::tempdir().unwrap();
@@ -487,10 +485,7 @@ mod tests {
                         O,
                         id,
                         &expected,
-                        manifest_with_exposure(i as f64 * 0.1),
-                        None,
-                        None,
-                        None,
+                        write(manifest_with_exposure(i as f64 * 0.1)),
                     )
                     .await
                     .unwrap()
@@ -510,7 +505,7 @@ mod tests {
     async fn delete_if_match_rejects_a_stale_hash() {
         let s = store().await;
         let id = key();
-        s.put(O, id, manifest_with_exposure(1.0), None, None, None)
+        s.put(O, id, write(manifest_with_exposure(1.0)))
             .await
             .unwrap();
         let stale = Edits::default().stable_hash();
@@ -553,10 +548,12 @@ mod tests {
             .put(
                 O,
                 id,
-                manifest,
-                Some("2026-01-01T00:00:00Z".into()),
-                Some("abc".into()),
-                None,
+                EditWrite {
+                    manifest,
+                    immich_updated_at: Some("2026-01-01T00:00:00Z".into()),
+                    immich_checksum: Some("abc".into()),
+                    action: None,
+                },
             )
             .await
             .unwrap();
@@ -588,7 +585,7 @@ mod tests {
             },
             ..Default::default()
         });
-        let saved = s.put(O, id, manifest, None, None, None).await.unwrap();
+        let saved = s.put(O, id, write(manifest)).await.unwrap();
         let edits = saved.manifest.to_edits();
         if edits.basic.exposure_ev > 5.0 {
             panic!("not clamped: {}", edits.basic.exposure_ev);
@@ -602,9 +599,7 @@ mod tests {
     async fn delete_removes() {
         let s = store().await;
         let id = key();
-        s.put(O, id, EditManifest::default(), None, None, None)
-            .await
-            .unwrap();
+        s.put(O, id, EditWrite::default()).await.unwrap();
         if !s.delete(O, id, None).await.unwrap() {
             panic!("first delete");
         }
@@ -620,38 +615,12 @@ mod tests {
     async fn put_overwrites() {
         let s = store().await;
         let id = key();
-        s.put(
-            O,
-            id,
-            manifest_with(Edits {
-                basic: raw_pipeline::edits::BasicEdits {
-                    exposure_ev: 1.0,
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        s.put(
-            O,
-            id,
-            manifest_with(Edits {
-                basic: raw_pipeline::edits::BasicEdits {
-                    exposure_ev: 2.0,
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        s.put(O, id, write(manifest_with_exposure(1.0)))
+            .await
+            .unwrap();
+        s.put(O, id, write(manifest_with_exposure(2.0)))
+            .await
+            .unwrap();
         let loaded = s.get(O, id).await.unwrap().unwrap();
         if loaded.manifest.to_edits().basic.exposure_ev != 2.0 {
             panic!("overwrite");
@@ -665,16 +634,11 @@ mod tests {
         s.put(
             O,
             id,
-            manifest_with(Edits {
-                basic: raw_pipeline::edits::BasicEdits {
-                    exposure_ev: 0.5,
-                    ..Default::default()
-                },
+            EditWrite {
+                manifest: manifest_with_exposure(0.5),
+                action: Some("Exposure"),
                 ..Default::default()
-            }),
-            None,
-            None,
-            Some("Exposure"),
+            },
         )
         .await
         .unwrap();
@@ -682,9 +646,7 @@ mod tests {
         if hist.len() != 1 || hist[0].action.as_deref() != Some("Exposure") {
             panic!("action not stored: {hist:?}");
         }
-        s.put(O, id, EditManifest::default(), None, None, None)
-            .await
-            .unwrap();
+        s.put(O, id, EditWrite::default()).await.unwrap();
         let hist = s.list_history(O, id).await.unwrap();
         if hist.len() != 2 || hist[0].action.is_some() {
             panic!("missing null-action row: {hist:?}");
@@ -695,9 +657,16 @@ mod tests {
     async fn delete_history_roundtrips_action() {
         let s = store().await;
         let id = key();
-        s.put(O, id, EditManifest::default(), None, None, Some("Auto"))
-            .await
-            .unwrap();
+        s.put(
+            O,
+            id,
+            EditWrite {
+                action: Some("Auto"),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
         s.delete(O, id, Some("Brightness")).await.unwrap();
         let hist = s.list_history(O, id).await.unwrap();
         if !hist[0].deleted || hist[0].action.as_deref() != Some("Brightness") {
@@ -748,20 +717,23 @@ mod tests {
         let s = store().await;
         let asset = key();
         let new_id = uid();
-        s.put_export_job_uploaded(O, asset, "k1", "h1", new_id, "f.jpg", "created")
+        let job = ExportJobKey {
+            owner: O,
+            asset_id: asset,
+            key: "k1",
+        };
+        s.put_export_job_uploaded(job, "h1", new_id, "f.jpg", "created")
             .await
             .unwrap();
-        let r = s.get_export_job(O, asset, "k1").await.unwrap().unwrap();
+        let r = s.get_export_job(job).await.unwrap().unwrap();
         if r.status != ExportJobStatus::Uploaded
             || r.immich_asset_id != Some(new_id)
             || r.request_hash != "h1"
         {
             panic!("uploaded mismatch: {r:?}");
         }
-        s.complete_export_job(O, asset, "k1", &["w1".into()])
-            .await
-            .unwrap();
-        let r = s.get_export_job(O, asset, "k1").await.unwrap().unwrap();
+        s.complete_export_job(job, &["w1".into()]).await.unwrap();
+        let r = s.get_export_job(job).await.unwrap().unwrap();
         if r.status != ExportJobStatus::Completed || r.warnings != vec!["w1".to_string()] {
             panic!("completed mismatch: {r:?}");
         }
@@ -770,7 +742,12 @@ mod tests {
     #[tokio::test]
     async fn export_job_missing_returns_none() {
         let s = store().await;
-        if s.get_export_job(O, key(), "x").await.unwrap().is_some() {
+        let job = ExportJobKey {
+            owner: O,
+            asset_id: key(),
+            key: "x",
+        };
+        if s.get_export_job(job).await.unwrap().is_some() {
             panic!("expected none");
         }
     }
@@ -887,9 +864,7 @@ mod tests {
         let s = store().await;
         let source = uid();
         let copy = s.create_copy(O, source, None).await.unwrap();
-        s.put(O, copy.id, EditManifest::default(), None, None, None)
-            .await
-            .unwrap();
+        s.put(O, copy.id, EditWrite::default()).await.unwrap();
         if !s.delete_copy(O, copy.id).await.unwrap() {
             panic!("delete returned false");
         }

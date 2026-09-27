@@ -8,6 +8,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
+use crate::services::edited_thumb::ThumbRequest;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -36,10 +37,12 @@ pub async fn get(
             &state.render,
             RenderIdentity::from(&ctx),
             ctx.immich.clone(),
-            id,
-            edits,
-            &q.h,
-            size,
+            ThumbRequest {
+                asset_id: id,
+                edits,
+                expected_hash: &q.h,
+                size,
+            },
         )
         .await
         .map_err(AppError::from)?;
