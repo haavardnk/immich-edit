@@ -5,8 +5,8 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { runSearch } from '$lib/browseSources';
-  import { resolveSearchMode, type SearchMode } from '$lib/searchMode';
+  import { runSearch } from '$lib/browse/sources';
+  import { resolveSearchMode, type SearchMode } from '$lib/browse/searchMode';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import { Button, LoadingSpinner } from '@immich/ui';

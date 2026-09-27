@@ -6,7 +6,7 @@ import {
   type RatingFilter
 } from './browseControls.svelte';
 import type { Visibility } from '$lib/types/search';
-import { LABEL_COLORS } from '$lib/labels';
+import { LABEL_COLORS } from '$lib/stores/labels';
 
 const KEY = 'immich-edit:browseContext';
 

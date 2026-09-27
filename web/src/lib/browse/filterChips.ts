@@ -1,5 +1,5 @@
 import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
-import { LABEL_NAMES, type LabelColor } from '$lib/labels';
+import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
 
 export type FilterKey = keyof BrowseFilters;
 

@@ -1,7 +1,7 @@
 import type { SearchQuery, SortDir, Visibility } from '$lib/types/search';
 import type { AssetSummary } from '$lib/types/album';
-import { labelOf, type LabelColor } from '$lib/labels';
-import { isRejected } from '$lib/reject';
+import { labelOf, type LabelColor } from '$lib/stores/labels';
+import { isRejected } from '$lib/browse/reject';
 import { readStored, writeStored } from '$lib/utils/storage';
 
 export type { SortDir, Visibility };

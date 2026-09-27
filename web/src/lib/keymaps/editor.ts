@@ -3,10 +3,10 @@ import { page } from '$app/state';
 import { editor } from '$lib/stores/editor.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 import { browsing } from '$lib/stores/browsing.svelte';
-import { backToGrid } from '$lib/backToGrid';
-import { createVirtualCopy } from '$lib/copies';
-import { nextRatingFromKey } from '$lib/ratingShortcuts';
-import { labelOf, nextLabelFromKey } from '$lib/labels';
+import { backToGrid } from '$lib/browse/backToGrid';
+import { createVirtualCopy } from '$lib/editor/copies';
+import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
+import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
 import {
   isKeybind,
   isRadioGroupTarget,
@@ -15,7 +15,7 @@ import {
   yieldsToControl
 } from '$lib/keybinds';
 import { activeContexts } from '$lib/keybindContext';
-import { editorHref } from '$lib/editorNavigation';
+import { editorHref } from '$lib/editor/navigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
 import { nudgeable } from '$lib/utils/maskDrag';
 import { panStep } from '$lib/utils/imageViewport';

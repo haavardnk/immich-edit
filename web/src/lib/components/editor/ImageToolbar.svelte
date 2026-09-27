@@ -6,9 +6,9 @@
   import SoftProofControl from './SoftProofControl.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { hint } from '$lib/keybinds';
-  import { copyIndex, isCopy } from '$lib/assetKey';
-  import { backToGrid } from '$lib/backToGrid';
-  import { createVirtualCopy } from '$lib/copies';
+  import { copyIndex, isCopy } from '$lib/browse/assetKey';
+  import { backToGrid } from '$lib/browse/backToGrid';
+  import { createVirtualCopy } from '$lib/editor/copies';
   import { Button, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,

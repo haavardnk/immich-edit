@@ -4,7 +4,7 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
   import { EXTENSION_BY_FORMAT } from '$lib/api/export';
-  import { captureDate } from '$lib/filenameTemplate';
+  import { captureDate } from '$lib/editor/filenameTemplate';
   import { croppedOutputSize } from '$lib/utils/geom';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import ExportPresetMenu from './export/ExportPresetMenu.svelte';

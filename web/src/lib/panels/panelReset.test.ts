@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { modifiedDevelopPanels } from '$lib/editorModified';
+import { modifiedDevelopPanels } from '$lib/editor/modified';
 import { neutralEdits, type Edits } from '$lib/types/edits';
 import { resetDevelopPanel } from './panelReset';
 

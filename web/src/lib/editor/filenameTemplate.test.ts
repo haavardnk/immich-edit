@@ -15,7 +15,7 @@ interface NamingCase {
 }
 
 const CASES_PATH = fileURLToPath(
-  new URL('../../../crates/backend/src/services/export/naming_cases.json', import.meta.url)
+  new URL('../../../../crates/backend/src/services/export/naming_cases.json', import.meta.url)
 );
 const CASES: NamingCase[] = JSON.parse(readFileSync(CASES_PATH, 'utf8'));
 

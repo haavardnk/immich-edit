@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { createCopy } from '$lib/api/copies';
-import { sourceId } from '$lib/assetKey';
-import { editorHref } from '$lib/editorNavigation';
+import { sourceId } from '$lib/browse/assetKey';
+import { editorHref } from './navigation';
 import { browsing } from '$lib/stores/browsing.svelte';
 
 export async function createVirtualCopy(

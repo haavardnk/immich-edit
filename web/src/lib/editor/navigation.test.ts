@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editorHref, validReturnPath } from './editorNavigation';
+import { editorHref, validReturnPath } from './navigation';
 
 describe('editor navigation context', () => {
   it('preserves route query state in the editor URL', () => {

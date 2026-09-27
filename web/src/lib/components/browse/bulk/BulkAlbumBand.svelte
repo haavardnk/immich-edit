@@ -5,7 +5,7 @@
   import { addAssetsToAlbum, listAlbums, removeAssetsFromAlbum } from '$lib/api/albums';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
-  import { sourceId } from '$lib/assetKey';
+  import { sourceId } from '$lib/browse/assetKey';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { selection } from '$lib/stores/selection.svelte';

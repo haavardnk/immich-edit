@@ -7,7 +7,7 @@ import {
   setRejectedTags,
   REJECT_TAG_VALUE
 } from './reject';
-import type { TagRef } from './types/asset';
+import type { TagRef } from '$lib/types/asset';
 
 const reject: TagRef = { id: 'r', name: 'reject', value: 'immich-edit/reject' };
 const keep: TagRef = { id: 'k', name: 'Keep', value: 'Keep' };

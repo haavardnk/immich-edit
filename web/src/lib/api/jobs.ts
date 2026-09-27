@@ -12,7 +12,7 @@ import {
   type TiffCompressionOpt
 } from './export';
 import type { EditManifest } from '$lib/types/edits';
-import type { CopySections } from '$lib/copyPaste';
+import type { CopySections } from '$lib/editor/copyPaste';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobItemStatus = 'pending' | 'running' | 'completed' | 'failed';

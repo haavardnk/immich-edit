@@ -1,5 +1,5 @@
 import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
-import { ensureManagedTag, MANAGED_TAG_PREFIX } from '$lib/managedTags';
+import { ensureManagedTag, MANAGED_TAG_PREFIX } from '$lib/browse/managedTags';
 import type { TagRef } from '$lib/types/asset';
 
 export const LABEL_COLORS = ['red', 'yellow', 'green', 'blue', 'purple'] as const;

@@ -13,7 +13,7 @@ import {
   parsePresetFile,
   presetFileJson,
   presetFileName
-} from '$lib/presetFile';
+} from '$lib/editor/presetFile';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { downloadBlob } from '$lib/utils/download';
 import { errorMessage } from '$lib/utils/errors';

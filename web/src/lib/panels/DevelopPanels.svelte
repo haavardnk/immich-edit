@@ -10,7 +10,7 @@
   } from '$lib/panels/registry';
   import { setDevelopPanel } from '$lib/panels/developPanels';
   import { resetDevelopPanel } from '$lib/panels/panelReset';
-  import { modifiedDevelopPanels } from '$lib/editorModified';
+  import { modifiedDevelopPanels } from '$lib/editor/modified';
   import Disclosure from '$lib/components/Disclosure.svelte';
   import ScopesSection from './scopes/ScopesSection.svelte';
 

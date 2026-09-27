@@ -5,9 +5,9 @@
   import { mdiCheck, mdiClose, mdiContentDuplicate, mdiDelete, mdiPencil } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { deleteCopy, listCopies, renameCopy, type CopyRecord } from '$lib/api/copies';
-  import { isCopy, sourceId } from '$lib/assetKey';
-  import { createVirtualCopy } from '$lib/copies';
-  import { editorHref } from '$lib/editorNavigation';
+  import { isCopy, sourceId } from '$lib/browse/assetKey';
+  import { createVirtualCopy } from '$lib/editor/copies';
+  import { editorHref } from '$lib/editor/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { Button, IconButton } from '@immich/ui';
 

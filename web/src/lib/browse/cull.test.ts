@@ -21,11 +21,11 @@ vi.mock('$lib/api/assets', () => ({ updateAsset: h.updateAsset }));
 vi.mock('$lib/stores/metadataConsent.svelte', () => ({
   metadataConsent: { gate: () => Promise.resolve(h.consent.value) }
 }));
-vi.mock('$lib/reject', async (orig) => {
+vi.mock('$lib/browse/reject', async (orig) => {
   const actual = await orig<typeof import('./reject')>();
   return { ...actual, ensureRejectTag: () => Promise.resolve(h.rejectTag) };
 });
-vi.mock('$lib/managedTags', async (orig) => {
+vi.mock('$lib/browse/managedTags', async (orig) => {
   const actual = await orig<typeof import('./managedTags')>();
   return {
     ...actual,
@@ -35,10 +35,10 @@ vi.mock('$lib/managedTags', async (orig) => {
 });
 
 import { setLabel, toggleReject } from './cull';
-import { browsing } from './stores/browsing.svelte';
+import { browsing } from '$lib/stores/browsing.svelte';
 import { isRejected } from './reject';
-import { labelOf } from './labels';
-import { labelMembers } from './stores/labels.svelte';
+import { labelOf } from '$lib/stores/labels';
+import { labelMembers } from '$lib/stores/labels.svelte';
 
 function asset(id: string, tags: TagRef[] = []): AssetSummary {
   return {

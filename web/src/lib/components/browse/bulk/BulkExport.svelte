@@ -4,7 +4,7 @@
   import { EXTENSION_BY_FORMAT } from '$lib/api/export';
   import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import { captureDate } from '$lib/filenameTemplate';
+  import { captureDate } from '$lib/editor/filenameTemplate';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
   import DestinationToggle from '$lib/panels/export/DestinationToggle.svelte';

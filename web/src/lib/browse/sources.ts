@@ -3,7 +3,7 @@ import { folderAssets } from '$lib/api/folders';
 import { searchMetadata, searchSmart } from '$lib/api/search';
 import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
 import { toasts } from '$lib/stores/toasts.svelte';
-import type { SearchMode } from '$lib/searchMode';
+import type { SearchMode } from './searchMode';
 import type { AssetSummary } from '$lib/types/album';
 import type { SearchQuery, SearchResult } from '$lib/types/search';
 

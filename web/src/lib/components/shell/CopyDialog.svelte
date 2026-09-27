@@ -10,7 +10,7 @@
     allSelected,
     hasSelectedSections,
     type SectionKey
-  } from '$lib/copyPaste';
+  } from '$lib/editor/copyPaste';
 
   function set(key: SectionKey, value: boolean): void {
     copyDialog.sections = { ...copyDialog.sections, [key]: value };

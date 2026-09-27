@@ -6,7 +6,7 @@
     renderTemplate,
     templateError,
     type NameContext
-  } from '$lib/filenameTemplate';
+  } from '$lib/editor/filenameTemplate';
 
   let {
     value = $bindable(),

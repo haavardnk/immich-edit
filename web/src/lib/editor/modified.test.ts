@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { modifiedDevelopPanels, modifiedTabCount } from './editorModified';
+import { modifiedDevelopPanels, modifiedTabCount } from './modified';
 import { neutralEdits } from '$lib/types/edits';
 
 describe('editor modified state', () => {

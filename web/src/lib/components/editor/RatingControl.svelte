@@ -3,8 +3,8 @@
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
-  import { isRejected } from '$lib/reject';
-  import { labelOf } from '$lib/labels';
+  import { isRejected } from '$lib/browse/reject';
+  import { labelOf } from '$lib/stores/labels';
   import { editor } from '$lib/stores/editor.svelte';
 
   const rating = $derived(editor.asset?.exifInfo?.rating ?? 0);

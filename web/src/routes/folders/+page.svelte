@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { onMount, untrack } from 'svelte';
-  import { loadFolderAssets } from '$lib/browseSources';
+  import { loadFolderAssets } from '$lib/browse/sources';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { sortAssets } from '$lib/sortAssets';
+  import { sortAssets } from '$lib/browse/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 

@@ -5,10 +5,10 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
-  import { createFilmstripLayout, visibleFilmstripRange } from '$lib/filmstripLayout';
-  import { isRejected } from '$lib/reject';
-  import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/labels';
-  import { editorHref } from '$lib/editorNavigation';
+  import { createFilmstripLayout, visibleFilmstripRange } from '$lib/browse/filmstripLayout';
+  import { isRejected } from '$lib/browse/reject';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/stores/labels';
+  import { editorHref } from '$lib/editor/navigation';
   import ResizeHandle from './ResizeHandle.svelte';
   import ContextMenu from '$lib/components/ContextMenu.svelte';
   import type { Snippet } from 'svelte';

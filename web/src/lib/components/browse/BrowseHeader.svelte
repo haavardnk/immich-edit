@@ -7,7 +7,7 @@
     type LabelFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
-  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/labels';
+  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/keybinds';
   import {
@@ -15,7 +15,7 @@
     photoCountLabel,
     withoutFilter,
     type FilterKey
-  } from '$lib/browseFilterChips';
+  } from '$lib/browse/filterChips';
   import { Button, Field, Icon, IconButton, Select } from '@immich/ui';
   import { mergeProps, RadioGroup } from 'bits-ui';
   import {
