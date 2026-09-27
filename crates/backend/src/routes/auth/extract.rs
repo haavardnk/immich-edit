@@ -1,6 +1,7 @@
 use axum::extract::FromRequestParts;
-use axum::http::header::{AUTHORIZATION, COOKIE, HeaderMap};
+use axum::http::header::{AUTHORIZATION, HeaderMap};
 use axum::http::request::Parts;
+use axum_extra::extract::cookie::CookieJar;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
@@ -101,17 +102,9 @@ pub fn extract_token(headers: &HeaderMap) -> Option<String> {
             return Some(rest.to_string());
         }
     }
-    let cookies = headers.get(COOKIE).and_then(|v| v.to_str().ok())?;
-    for pair in cookies.split(';') {
-        let trimmed = pair.trim();
-        if let Some(rest) = trimmed
-            .strip_prefix(AUTH_COOKIE)
-            .and_then(|r| r.strip_prefix('='))
-        {
-            return Some(rest.to_string());
-        }
-    }
-    None
+    CookieJar::from_headers(headers)
+        .get(AUTH_COOKIE)
+        .map(|c| c.value().to_string())
 }
 
 pub async fn require_session(

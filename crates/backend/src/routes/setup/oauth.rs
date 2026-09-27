@@ -3,6 +3,7 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::http::header::HeaderMap;
 use axum::response::{IntoResponse, Response};
+use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 use serde_json::json;
 use url::Url;
@@ -13,7 +14,7 @@ use crate::routes::auth::oauth;
 use crate::services::auth_store::AuthKind;
 use crate::services::login_limiter::LoginKey;
 use crate::services::login_session::{ClientMeta, finish_setup};
-use crate::services::oauth_flow::{FlowPurpose, OAuthFlow};
+use crate::services::oauth_flow::{self, FlowPurpose, OAuthFlow};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -119,7 +120,7 @@ async fn exchange(
     if !user.is_admin {
         return Err(AppError::AdminRequired);
     }
-    let mut resp = finish_setup(
+    let resp = finish_setup(
         state,
         base.as_str(),
         &user,
@@ -129,6 +130,5 @@ async fn exchange(
         client,
     )
     .await?;
-    oauth::clear_flow_cookie(&mut resp);
-    Ok(resp)
+    Ok((CookieJar::new().add(oauth_flow::clear_cookie()), resp).into_response())
 }

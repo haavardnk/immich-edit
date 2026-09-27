@@ -1,8 +1,10 @@
 use axum::Json;
-use axum::http::header::{HeaderMap, SET_COOKIE};
-use axum::http::{HeaderValue, StatusCode};
+use axum::http::StatusCode;
+use axum::http::header::HeaderMap;
 use axum::response::{IntoResponse, Response};
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde_json::json;
+use time::Duration;
 
 use crate::error::AppError;
 use crate::immich::client::ImmichUser;
@@ -10,6 +12,7 @@ use crate::services::auth_store::{AuthKind, UserRecord};
 use crate::state::AppState;
 
 pub const AUTH_COOKIE: &str = "immich_edit_auth";
+const SESSION_MAX_AGE: Duration = Duration::days(30);
 
 #[derive(Clone)]
 pub struct ClientMeta {
@@ -26,17 +29,23 @@ impl Default for ClientMeta {
     }
 }
 
-pub fn session_cookie(token: &str, secure: bool) -> String {
-    let base = format!("{AUTH_COOKIE}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000");
-    if secure {
-        format!("{base}; Secure")
-    } else {
-        base
-    }
+pub fn session_cookie(token: &str, secure: bool) -> Cookie<'static> {
+    Cookie::build((AUTH_COOKIE, token.to_string()))
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .max_age(SESSION_MAX_AGE)
+        .secure(secure)
+        .build()
 }
 
-pub fn cleared_session_cookie() -> String {
-    format!("{AUTH_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")
+pub fn cleared_session_cookie() -> Cookie<'static> {
+    Cookie::build((AUTH_COOKIE, ""))
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .max_age(Duration::ZERO)
+        .build()
 }
 
 pub fn user_json(user: &UserRecord, kind: AuthKind) -> serde_json::Value {
@@ -57,12 +66,8 @@ fn user_agent(headers: &HeaderMap) -> Option<String> {
 }
 
 fn login_response(user: &UserRecord, kind: AuthKind, token: &str, secure: bool) -> Response {
-    let cookie = session_cookie(token, secure);
-    let mut response = (StatusCode::OK, Json(user_json(user, kind))).into_response();
-    if let Ok(value) = HeaderValue::from_str(&cookie) {
-        response.headers_mut().insert(SET_COOKIE, value);
-    }
-    response
+    let jar = CookieJar::new().add(session_cookie(token, secure));
+    (StatusCode::OK, jar, Json(user_json(user, kind))).into_response()
 }
 
 pub async fn start_session(
@@ -156,4 +161,29 @@ pub async fn finish_rebind(
         )
         .await?;
     Ok(login_response(&stored, kind, &token, client.secure))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_session_cookie_is_strict_and_secure_only_behind_tls() {
+        assert_eq!(
+            session_cookie("tok", true).to_string(),
+            "immich_edit_auth=tok; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=2592000"
+        );
+        assert_eq!(
+            session_cookie("tok", false).to_string(),
+            "immich_edit_auth=tok; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000"
+        );
+    }
+
+    #[test]
+    fn the_cleared_cookie_expires_the_session_path() {
+        assert_eq!(
+            cleared_session_cookie().to_string(),
+            "immich_edit_auth=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"
+        );
+    }
 }

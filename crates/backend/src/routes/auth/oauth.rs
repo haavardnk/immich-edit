@@ -1,8 +1,9 @@
 use axum::Json;
 use axum::extract::State;
-use axum::http::header::{COOKIE, HeaderMap, ORIGIN, SET_COOKIE};
-use axum::http::{HeaderValue, StatusCode};
+use axum::http::StatusCode;
+use axum::http::header::{HeaderMap, ORIGIN};
 use axum::response::{IntoResponse, Response};
+use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 use serde_json::json;
 use std::time::Duration;
@@ -100,17 +101,8 @@ pub async fn begin_flow(
         .oauth_authorize(&flow.redirect_uri, &flow.state, &flow.challenge())
         .await?;
     let sealed = flow.seal(crypto)?;
-    let mut resp = (StatusCode::OK, Json(json!({ "url": url }))).into_response();
-    if let Ok(v) = HeaderValue::from_str(&oauth_flow::set_cookie(&sealed, secure)) {
-        resp.headers_mut().append(SET_COOKIE, v);
-    }
-    Ok(resp)
-}
-
-pub fn clear_flow_cookie(resp: &mut Response) {
-    if let Ok(v) = HeaderValue::from_str(&oauth_flow::clear_cookie()) {
-        resp.headers_mut().append(SET_COOKIE, v);
-    }
+    let jar = CookieJar::new().add(oauth_flow::set_cookie(&sealed, secure));
+    Ok((StatusCode::OK, jar, Json(json!({ "url": url }))).into_response())
 }
 
 pub fn open_flow(
@@ -118,8 +110,7 @@ pub fn open_flow(
     headers: &HeaderMap,
     purpose: FlowPurpose,
 ) -> Result<OAuthFlow, AppError> {
-    let raw = headers.get(COOKIE).and_then(|v| v.to_str().ok());
-    let sealed = oauth_flow::read_cookie(raw)
+    let sealed = oauth_flow::read_cookie(headers)
         .ok_or_else(|| AppError::BadRequest("oauth flow expired; start again".into()))?;
     let flow = OAuthFlow::open(&state.crypto, &sealed)?;
     if flow.purpose != purpose {
@@ -253,12 +244,10 @@ async fn finish_callback(
     {
         obj.insert("next".into(), json!(next));
     }
-    let mut resp = (StatusCode::OK, Json(payload)).into_response();
-    if let Ok(v) = HeaderValue::from_str(&session_cookie(&token, client.secure)) {
-        resp.headers_mut().append(SET_COOKIE, v);
-    }
-    clear_flow_cookie(&mut resp);
-    Ok(resp)
+    let jar = CookieJar::new()
+        .add(session_cookie(&token, client.secure))
+        .add(oauth_flow::clear_cookie());
+    Ok((StatusCode::OK, jar, Json(payload)).into_response())
 }
 
 #[cfg(test)]

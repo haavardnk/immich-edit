@@ -1,8 +1,9 @@
 use axum::Json;
 use axum::extract::{Path, State};
-use axum::http::header::{HeaderMap, SET_COOKIE};
-use axum::http::{HeaderValue, StatusCode};
+use axum::http::StatusCode;
+use axum::http::header::HeaderMap;
 use axum::response::{IntoResponse, Response};
+use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
@@ -111,11 +112,8 @@ pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -
             tracing::warn!(%request_id, session = %ctx.session_id, error = %e, "session revoke on logout failed");
         }
     }
-    let mut resp = (StatusCode::OK, Json(json!({"ok": true}))).into_response();
-    if let Ok(v) = HeaderValue::from_str(&cleared_session_cookie()) {
-        resp.headers_mut().insert(SET_COOKIE, v);
-    }
-    resp
+    let jar = CookieJar::new().add(cleared_session_cookie());
+    (StatusCode::OK, jar, Json(json!({"ok": true}))).into_response()
 }
 
 pub async fn list_sessions(

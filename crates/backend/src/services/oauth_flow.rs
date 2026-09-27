@@ -1,10 +1,13 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use axum::http::HeaderMap;
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use time::Duration;
 use url::Url;
 
 use crate::error::AppError;
@@ -93,33 +96,29 @@ impl OAuthFlow {
     }
 }
 
-pub fn set_cookie(sealed: &str, secure: bool) -> String {
-    let base = format!(
-        "{FLOW_COOKIE}={sealed}; HttpOnly; SameSite=Lax; Path=/api; Max-Age={FLOW_TTL_SECS}"
-    );
-    if secure {
-        format!("{base}; Secure")
-    } else {
-        base
-    }
+pub fn set_cookie(sealed: &str, secure: bool) -> Cookie<'static> {
+    Cookie::build((FLOW_COOKIE, sealed.to_string()))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/api")
+        .max_age(Duration::seconds(FLOW_TTL_SECS))
+        .secure(secure)
+        .build()
 }
 
-pub fn clear_cookie() -> String {
-    format!("{FLOW_COOKIE}=; HttpOnly; SameSite=Lax; Path=/api; Max-Age=0")
+pub fn clear_cookie() -> Cookie<'static> {
+    Cookie::build((FLOW_COOKIE, ""))
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .path("/api")
+        .max_age(Duration::ZERO)
+        .build()
 }
 
-pub fn read_cookie(raw: Option<&str>) -> Option<String> {
-    let cookies = raw?;
-    for pair in cookies.split(';') {
-        if let Some(rest) = pair
-            .trim()
-            .strip_prefix(FLOW_COOKIE)
-            .and_then(|r| r.strip_prefix('='))
-        {
-            return Some(rest.to_string());
-        }
-    }
-    None
+pub fn read_cookie(headers: &HeaderMap) -> Option<String> {
+    CookieJar::from_headers(headers)
+        .get(FLOW_COOKIE)
+        .map(|c| c.value().to_string())
 }
 
 fn random_token(len: usize) -> String {
@@ -209,19 +208,29 @@ mod tests {
 
     #[test]
     fn the_cookie_is_lax_scoped_to_api() {
-        let set = set_cookie("abc", true);
-        assert!(set.contains("SameSite=Lax"));
-        assert!(set.contains("Path=/api"));
-        assert!(set.contains("HttpOnly"));
-        assert!(set.contains("; Secure"));
-        assert!(!set_cookie("abc", false).contains("Secure"));
+        assert_eq!(
+            set_cookie("abc", true).to_string(),
+            "immich_edit_oauth=abc; HttpOnly; SameSite=Lax; Secure; Path=/api; Max-Age=600"
+        );
+        assert!(!set_cookie("abc", false).to_string().contains("Secure"));
+        assert_eq!(
+            clear_cookie().to_string(),
+            "immich_edit_oauth=; HttpOnly; SameSite=Lax; Path=/api; Max-Age=0"
+        );
     }
 
     #[test]
     fn read_cookie_finds_the_flow_among_others() {
-        let header = "immich_edit_auth=session; immich_edit_oauth=sealed-value";
-        assert_eq!(read_cookie(Some(header)).as_deref(), Some("sealed-value"));
-        assert_eq!(read_cookie(Some("other=1")), None);
-        assert_eq!(read_cookie(None), None);
+        let with = |raw: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(axum::http::header::COOKIE, raw.parse().unwrap());
+            read_cookie(&headers)
+        };
+        assert_eq!(
+            with("immich_edit_auth=session; immich_edit_oauth=sealed-value").as_deref(),
+            Some("sealed-value")
+        );
+        assert_eq!(with("other=1"), None);
+        assert_eq!(read_cookie(&HeaderMap::new()), None);
     }
 }
