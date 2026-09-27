@@ -27,6 +27,7 @@ impl GpuRenderer {
             scale,
             patch: r_patch,
             guided: r_gf,
+            ..
         } = DehazeGrid::for_dims(extent.full);
         let lw = (w / scale).max(1);
         let lh = (h / scale).max(1);
