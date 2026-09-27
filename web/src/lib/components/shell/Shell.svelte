@@ -56,42 +56,44 @@
   });
 </script>
 
-{#if editorRoute}
-  <div class="flex h-screen w-screen overflow-hidden bg-black text-dark">
-    <div class="relative flex min-h-0 min-w-0 flex-1">
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <main class="flex-1 min-h-0 flex flex-col bg-light">
-          {@render children()}
-        </main>
-        {#if editor.assetId && !ui.fullscreen}
-          <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
+<div class="contents" inert={browseView.loupeId !== null}>
+  {#if editorRoute}
+    <div class="flex h-screen w-screen overflow-hidden bg-black text-dark">
+      <div class="relative flex min-h-0 min-w-0 flex-1">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+          <main class="flex-1 min-h-0 flex flex-col bg-light">
+            {@render children()}
+          </main>
+          {#if editor.assetId && !ui.fullscreen}
+            <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
+          {/if}
+        </div>
+        {#if !ui.fullscreen}
+          <RightSidebar />
+          <EditorToolRail />
         {/if}
       </div>
-      {#if !ui.fullscreen}
-        <RightSidebar />
-        <EditorToolRail />
-      {/if}
     </div>
-  </div>
-{:else}
-  <AppShell class="h-screen w-screen bg-light text-dark">
-    <AppShellBar class="min-h-18 border-b border-hairline bg-neutral-950 py-1">
-      <TopBar onToggleSidebar={toggleSidebar} />
-    </AppShellBar>
-    <AppShellSidebar bind:open={sidebarOpen} border={false} class="bg-neutral-950">
-      {#if sidebarOpen}
-        {#if settingsRoute}
-          <SettingsSidebar />
-        {:else}
-          <LeftSidebar />
+  {:else}
+    <AppShell class="h-screen w-screen bg-light text-dark">
+      <AppShellBar class="min-h-18 border-b border-hairline bg-neutral-950 py-1">
+        <TopBar onToggleSidebar={toggleSidebar} />
+      </AppShellBar>
+      <AppShellSidebar bind:open={sidebarOpen} border={false} class="bg-neutral-950">
+        {#if sidebarOpen}
+          {#if settingsRoute}
+            <SettingsSidebar />
+          {:else}
+            <LeftSidebar />
+          {/if}
         {/if}
-      {/if}
-    </AppShellSidebar>
-    <main class="flex h-full min-w-0 flex-col bg-light">
-      {@render children()}
-    </main>
-  </AppShell>
-{/if}
+      </AppShellSidebar>
+      <main class="flex h-full min-w-0 flex-col bg-light">
+        {@render children()}
+      </main>
+    </AppShell>
+  {/if}
+</div>
 
 <KeybindsHelp />
 <CopyDialog />
