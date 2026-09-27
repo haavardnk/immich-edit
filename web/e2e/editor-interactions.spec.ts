@@ -554,6 +554,45 @@ test('white balance eyedropper applies the sampled neutral to both sliders', asy
   await expect.poll(() => saves.length).toBeGreaterThan(0);
 });
 
+test('a rejected white balance sample toasts and keeps the picker open', async ({ page }) => {
+  let calls = 0;
+  await installMocks(page, {
+    onWhiteBalance: (route) => {
+      calls++;
+      if (calls === 1) {
+        return route.fulfill({
+          status: 422,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'invalid',
+            message: 'No usable colour here'
+          })
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ wb_temp: -7, wb_tint: 2 })
+      });
+    }
+  });
+  await gotoAsset(page);
+
+  const button = page.getByRole('button', { name: 'Pick white balance' });
+  await button.click();
+  const surface = page.getByTestId('wb-picker-surface');
+  await surface.click();
+
+  await expect(page.getByRole('status').filter({ hasText: 'No usable colour here' })).toBeVisible();
+  await expect(surface).toBeVisible();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+
+  await surface.click();
+
+  await expect(surface).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('-7');
+});
+
 test('auto white balance solves without touching exposure', async ({ page }) => {
   await installMocks(page, {
     onWhiteBalance: (route) =>

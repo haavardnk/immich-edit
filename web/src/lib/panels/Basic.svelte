@@ -62,8 +62,10 @@
         <IconButton
           size="small"
           variant="ghost"
-          color="secondary"
-          class="size-6 rounded p-0 text-dark/55 hover:bg-hairline hover:text-dark"
+          color={editor.wbPicking ? 'primary' : 'secondary'}
+          class="size-6 rounded p-0 {editor.wbPicking
+            ? 'bg-white/10'
+            : 'text-dark/55 hover:bg-hairline hover:text-dark'}"
           icon={mdiEyedropperVariant}
           title="Pick a neutral area in the image"
           aria-label="Pick white balance"

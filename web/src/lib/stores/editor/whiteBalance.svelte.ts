@@ -1,4 +1,5 @@
 import { autoWhiteBalance, sampleWhiteBalance } from '$lib/api/edits';
+import { toasts } from '$lib/stores/toasts.svelte';
 import { errorMessage } from '$lib/utils/errors';
 import type { Edits } from '$lib/types/edits';
 
@@ -8,7 +9,6 @@ export interface WhiteBalanceCtx {
   edits: Edits;
   wbPicking: boolean;
   wbBusy: boolean;
-  error: string | null;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
 }
@@ -31,7 +31,7 @@ export async function pickWhiteBalance(ctx: WhiteBalanceCtx, u: number, v: numbe
     ctx.wbPicking = false;
     await ctx.onCommit('White Balance');
   } catch (e) {
-    ctx.error = errorMessage(e);
+    toasts.push('warn', errorMessage(e));
   } finally {
     ctx.wbBusy = false;
   }
@@ -45,7 +45,7 @@ export async function autoWb(ctx: WhiteBalanceCtx): Promise<void> {
     applySolved(ctx, solved.wb_temp, solved.wb_tint);
     await ctx.onCommit('Auto White Balance');
   } catch (e) {
-    ctx.error = errorMessage(e);
+    toasts.push('warn', errorMessage(e));
   } finally {
     ctx.wbBusy = false;
   }
