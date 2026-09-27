@@ -13,6 +13,8 @@ const MIN_SIGNAL: f32 = 1e-4;
 const NEUTRAL_EPS: f64 = 1e-4;
 const SOLVER_STEPS: usize = 40;
 const GREY_WORLD_CLIP: f64 = 0.02;
+const CLIP_LEVEL: f32 = 0.95;
+const MAX_CHROMA_SPREAD: f64 = 0.2;
 
 pub fn sample_white_balance(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> Option<(f64, f64)> {
     let decimated = decimate_mosaic(frame);
@@ -20,24 +22,45 @@ pub fn sample_white_balance(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> 
     let (wb, m) = display_color(frame);
     let (px, py) = display_uv_to_sensor_px(frame, edits, u, v)?;
 
-    let mut acc = [0.0f64; 3];
-    let mut count = 0u32;
-    for (dy, dx) in (-SAMPLE_RADIUS..=SAMPLE_RADIUS)
+    let raws: Vec<[f32; 3]> = (-SAMPLE_RADIUS..=SAMPLE_RADIUS)
         .flat_map(|dy| (-SAMPLE_RADIUS..=SAMPLE_RADIUS).map(move |dx| (dy, dx)))
-    {
-        let Some(raw) = sample_raw_bilinear(frame, px + dx as f32, py + dy as f32) else {
-            continue;
-        };
-        let rgb = display_rgb(raw, wb, m);
-        acc[0] += rgb[0] as f64;
-        acc[1] += rgb[1] as f64;
-        acc[2] += rgb[2] as f64;
-        count += 1;
-    }
-    if count == 0 {
+        .filter_map(|(dy, dx)| sample_raw_bilinear(frame, px + dx as f32, py + dy as f32))
+        .collect();
+    if raws.is_empty() || raws.iter().flatten().any(|c| *c >= CLIP_LEVEL) {
         return None;
     }
-    solve_neutral(mean_rgb(acc, count))
+    let samples: Vec<[f32; 3]> = raws.iter().map(|raw| display_rgb(*raw, wb, m)).collect();
+    if chroma_spread(&samples)? > MAX_CHROMA_SPREAD {
+        return None;
+    }
+    let mut acc = [0.0f64; 3];
+    for s in &samples {
+        acc[0] += s[0] as f64;
+        acc[1] += s[1] as f64;
+        acc[2] += s[2] as f64;
+    }
+    solve_neutral(mean_rgb(acc, samples.len() as u32))
+}
+
+fn chroma_spread(samples: &[[f32; 3]]) -> Option<f64> {
+    let ratios: Vec<[f64; 2]> = samples
+        .iter()
+        .map(|s| {
+            if s.iter().any(|c| *c <= MIN_SIGNAL) {
+                return None;
+            }
+            Some([
+                (s[0] as f64 / s[1] as f64).ln(),
+                (s[2] as f64 / s[1] as f64).ln(),
+            ])
+        })
+        .collect::<Option<_>>()?;
+    let n = ratios.len() as f64;
+    let spread = |axis: usize| {
+        let mean = ratios.iter().map(|r| r[axis]).sum::<f64>() / n;
+        (ratios.iter().map(|r| (r[axis] - mean).powi(2)).sum::<f64>() / n).sqrt()
+    };
+    Some(spread(0).max(spread(1)))
 }
 
 pub fn auto_white_balance(frame: &RawFrame, edits: &Edits) -> Option<(f64, f64)> {
