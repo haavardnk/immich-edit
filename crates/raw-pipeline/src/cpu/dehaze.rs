@@ -2,6 +2,7 @@ use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::box_filter::{box_mean, min_filter};
+use crate::ops::dehaze::DehazeGrid;
 use rayon::prelude::*;
 
 fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
@@ -13,15 +14,6 @@ fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
         *v = r.min(g).min(b);
     });
     out
-}
-
-pub fn patch_radius(w: usize, h: usize) -> usize {
-    let min_dim = w.min(h);
-    (min_dim / 200).max(8).min((min_dim / 2).max(1))
-}
-
-pub fn guided_scale(w: usize, h: usize) -> usize {
-    if w.min(h) >= 512 { 4 } else { 1 }
 }
 
 fn mip_halve(rgb: &[f32], w: usize, h: usize) -> (Vec<f32>, usize, usize) {
@@ -116,7 +108,8 @@ pub fn atmosphere_for_render(rgb: &[f32], w: usize, h: usize) -> [f32; 3] {
 
 pub fn atmosphere_from_rgb(rgb: &[f32], w: usize, h: usize) -> [f32; 3] {
     let d0 = dark_channel_per_pixel(rgb, w, h);
-    let dp = min_filter(&d0, w, h, patch_radius(w, h));
+    let patch = DehazeGrid::for_dims((w as u32, h as u32)).patch_full as usize;
+    let dp = min_filter(&d0, w, h, patch);
     estimate_atmosphere(rgb, &dp, w, h)
 }
 
@@ -238,13 +231,12 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     if w < 8 || h < 8 {
         return;
     }
-    let min_dim = w.min(h);
-    let half_min = (min_dim / 2).max(1);
-    let scale = guided_scale(w, h);
+    let grid = DehazeGrid::for_dims((w as u32, h as u32));
+    let scale = grid.scale as usize;
     let lw = (w / scale).max(1);
     let lh = (h / scale).max(1);
-    let r_patch = (patch_radius(w, h) / scale).max(2);
-    let r_gf = (((min_dim / 50).max(16).min(half_min)) / scale).max(4);
+    let r_patch = grid.patch as usize;
+    let r_gf = grid.guided as usize;
     let atm = atmosphere_for_render(&image.rgb, w, h);
     let lo = if scale == 1 {
         image.rgb.clone()

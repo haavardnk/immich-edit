@@ -48,6 +48,7 @@ impl Op for DehazeOp {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DehazeGrid {
     pub scale: u32,
+    pub patch_full: u32,
     pub patch: u32,
     pub guided: u32,
 }
@@ -61,6 +62,7 @@ impl DehazeGrid {
         let scale = if min_dim >= 512 { 4 } else { 1 };
         Self {
             scale,
+            patch_full,
             patch: (patch_full / scale).max(2),
             guided: (guided_full / scale).max(4),
         }
