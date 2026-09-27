@@ -17,6 +17,8 @@ raw-pipeline = { path = "../raw-pipeline" }
 ml = { path = "../ml", optional = true }
 anyhow = "1"
 axum = "0.8"
+axum-extra = { version = "0.12", default-features = false, features = ["cookie"] }
+time = { version = "0.3", default-features = false }
 tokio = { workspace = true }
 futures-util = { version = "0.3", default-features = false }
 tokio-stream = { version = "0.1", features = ["sync"] }
