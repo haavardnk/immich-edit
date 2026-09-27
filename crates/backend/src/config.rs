@@ -1,49 +1,23 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 mod cidr;
 mod env;
 
 pub use cidr::{Cidr, default_trusted_proxies};
 use env::{
-    ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_or, pick,
+    ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_or, pick, pick_mode,
     reject_removed_keys,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RendererMode {
+    #[default]
     Auto,
     Cpu,
     Gpu,
-}
-
-impl FromStr for RendererMode {
-    type Err = ConfigError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "auto" => Ok(Self::Auto),
-            "cpu" => Ok(Self::Cpu),
-            "gpu" => Ok(Self::Gpu),
-            other => Err(ConfigError::InvalidValue {
-                key: "IMMICH_EDIT_RENDERER".into(),
-                value: other.to_string(),
-            }),
-        }
-    }
-}
-
-impl RendererMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::Cpu => "cpu",
-            Self::Gpu => "gpu",
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -75,41 +49,15 @@ pub struct Config {
     pub ml_idle_secs: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MlRuntimeMode {
     #[default]
     Auto,
     Gpu,
     Cpu,
+    #[serde(alias = "disabled")]
     Off,
-}
-
-impl MlRuntimeMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::Gpu => "gpu",
-            Self::Cpu => "cpu",
-            Self::Off => "off",
-        }
-    }
-}
-
-impl std::str::FromStr for MlRuntimeMode {
-    type Err = ConfigError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "auto" => Ok(Self::Auto),
-            "gpu" => Ok(Self::Gpu),
-            "cpu" => Ok(Self::Cpu),
-            "off" | "disabled" => Ok(Self::Off),
-            other => Err(ConfigError::InvalidValue {
-                key: "ML_RUNTIME".into(),
-                value: other.into(),
-            }),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -277,10 +225,7 @@ impl Config {
             });
         }
 
-        let renderer = match pick("IMMICH_EDIT_RENDERER", file.renderer) {
-            Some(s) => s.parse()?,
-            None => RendererMode::Auto,
-        };
+        let renderer = pick_mode("IMMICH_EDIT_RENDERER", file.renderer)?;
         let gpu_timestamps = parse_or("GPU_TIMESTAMPS", file.gpu_timestamps, false)?;
 
         let database_url = pick("DATABASE_URL", file.database_url).unwrap_or_else(|| {
@@ -312,10 +257,7 @@ impl Config {
         let export_timeout_secs =
             parse_or("EXPORT_TIMEOUT_SECS", file.export_timeout_secs, 300u64)?;
 
-        let ml_runtime = match pick("ML_RUNTIME", file.ml_runtime) {
-            Some(s) => s.parse()?,
-            None => MlRuntimeMode::Auto,
-        };
+        let ml_runtime = pick_mode("ML_RUNTIME", file.ml_runtime)?;
         let ml_max_edge = parse_or("ML_MAX_EDGE", file.ml_max_edge, 2048u32)?;
         if !(256..=8192).contains(&ml_max_edge) {
             return Err(ConfigError::InvalidValue {
@@ -392,7 +334,7 @@ impl Config {
             raw_frame_cache_mb: self.raw_frame_cache_mb,
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
-            renderer: self.renderer.as_str(),
+            renderer: self.renderer,
             gpu_timestamps: self.gpu_timestamps,
             allowed_origins: self.allowed_origins.clone(),
             trusted_proxies: self.trusted_proxies.iter().map(Cidr::to_string).collect(),
@@ -400,7 +342,7 @@ impl Config {
             request_timeout_secs: self.request_timeout_secs,
             original_timeout_secs: self.original_timeout_secs,
             export_timeout_secs: self.export_timeout_secs,
-            ml_runtime: self.ml_runtime.as_str(),
+            ml_runtime: self.ml_runtime,
             ml_max_edge: self.ml_max_edge,
             ml_max_concurrency: self.ml_max_concurrency,
             ml_idle_secs: self.ml_idle_secs,
@@ -421,7 +363,7 @@ pub struct RedactedConfig {
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
-    pub renderer: &'static str,
+    pub renderer: RendererMode,
     pub gpu_timestamps: bool,
     pub allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<String>,
@@ -429,7 +371,7 @@ pub struct RedactedConfig {
     pub request_timeout_secs: u64,
     pub original_timeout_secs: u64,
     pub export_timeout_secs: u64,
-    pub ml_runtime: &'static str,
+    pub ml_runtime: MlRuntimeMode,
     pub ml_max_edge: u32,
     pub ml_max_concurrency: usize,
     pub ml_idle_secs: u64,
@@ -540,6 +482,45 @@ mod tests {
         let cfg = Config::load().unwrap();
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
+        }
+    }
+
+    #[test]
+    fn modes_parse_case_insensitively_and_serialize_lowercase() {
+        let renderers = [
+            ("auto", RendererMode::Auto),
+            ("CPU", RendererMode::Cpu),
+            ("Gpu", RendererMode::Gpu),
+        ];
+        for (raw, mode) in renderers {
+            let parsed: RendererMode =
+                pick_mode("IMMICH_EDIT_TEST_MODE", Some(raw.into())).unwrap();
+            if parsed != mode || serde_json::to_value(mode).unwrap() != raw.to_ascii_lowercase() {
+                panic!("{raw} -> {parsed:?}");
+            }
+        }
+        let runtimes = [
+            ("auto", MlRuntimeMode::Auto, "auto"),
+            ("gpu", MlRuntimeMode::Gpu, "gpu"),
+            ("cpu", MlRuntimeMode::Cpu, "cpu"),
+            ("OFF", MlRuntimeMode::Off, "off"),
+            ("disabled", MlRuntimeMode::Off, "off"),
+        ];
+        for (raw, mode, name) in runtimes {
+            let parsed: MlRuntimeMode =
+                pick_mode("IMMICH_EDIT_TEST_MODE", Some(raw.into())).unwrap();
+            if parsed != mode || serde_json::to_value(mode).unwrap() != name {
+                panic!("{raw} -> {parsed:?}");
+            }
+        }
+        let unset: MlRuntimeMode = pick_mode("IMMICH_EDIT_TEST_MODE", None).unwrap();
+        if unset != MlRuntimeMode::Auto {
+            panic!("default: {unset:?}");
+        }
+        match pick_mode::<RendererMode>("IMMICH_EDIT_TEST_MODE", Some("Vulkan".into())) {
+            Err(ConfigError::InvalidValue { key, value })
+                if key == "IMMICH_EDIT_TEST_MODE" && value == "Vulkan" => {}
+            other => panic!("expected invalid value: {other:?}"),
         }
     }
 

@@ -147,33 +147,39 @@ async fn album_detail_returns_metadata_without_assets() {
 
 #[tokio::test]
 async fn asset_thumb_proxies_bytes_and_content_type() {
-    let server = MockServer::start().await;
-    mock_thumb(&server).await;
-    let app = test_app(&server).await;
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/assets/{}/thumb?size=preview", asset_id()))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    if resp.status() != StatusCode::OK {
-        panic!("status {}", resp.status());
-    }
-    let ct = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("")
-        .to_string();
-    if !ct.starts_with("image/jpeg") {
-        panic!("content-type: {ct}");
-    }
-    let bytes = body_bytes(resp).await;
-    if &bytes[..2] != b"\xff\xd8" {
-        panic!("not jpeg soi");
+    for (query, upstream) in [
+        ("?size=preview", "preview"),
+        ("?size=thumbnail", "thumbnail"),
+        ("", "preview"),
+    ] {
+        let server = MockServer::start().await;
+        mock_thumb(&server, upstream).await;
+        let app = test_app(&server).await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/assets/{}/thumb{query}", asset_id()))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("{query}: status {}", resp.status());
+        }
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        if !ct.starts_with("image/jpeg") {
+            panic!("{query}: content-type: {ct}");
+        }
+        let bytes = body_bytes(resp).await;
+        if &bytes[..2] != b"\xff\xd8" {
+            panic!("{query}: not jpeg soi");
+        }
     }
 }
 

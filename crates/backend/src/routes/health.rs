@@ -3,17 +3,19 @@ use axum::extract::State;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+use crate::config::{RedactedConfig, RendererMode};
 use crate::host::{HostInfo, host_info};
 use crate::immich::ImmichConnectionStatus;
 use crate::routes::auth::AuthCtx;
+use crate::services::render::RendererKind;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
 pub struct Health {
     pub status: &'static str,
     pub version: &'static str,
-    pub renderer_mode: &'static str,
-    pub renderer_active: &'static str,
+    pub renderer_mode: RendererMode,
+    pub renderer_active: RendererKind,
     pub gpu_adapter: Option<String>,
     pub gpu_software: bool,
     pub host: &'static HostInfo,
@@ -22,7 +24,7 @@ pub struct Health {
     pub immich_status: ImmichConnectionStatus,
     pub db_ready: bool,
     pub db_migration_version: Option<i64>,
-    pub config: crate::config::RedactedConfig,
+    pub config: RedactedConfig,
 }
 
 pub async fn live() -> Json<Value> {
@@ -36,8 +38,8 @@ pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health>
     Json(Health {
         status: "ok",
         version: env!("CARGO_PKG_VERSION"),
-        renderer_mode: state.config.renderer.as_str(),
-        renderer_active: state.render.active().as_str(),
+        renderer_mode: state.config.renderer,
+        renderer_active: state.render.active(),
         gpu_adapter: state.render.gpu_label().map(|s| s.to_string()),
         gpu_software: state.render.software_gpu(),
         host: host_info(),

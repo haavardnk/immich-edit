@@ -165,7 +165,7 @@ impl ImmichClient {
 
     pub async fn thumbnail(&self, id: Uuid, size: ThumbSize) -> ImmichResult<(Bytes, String)> {
         let url = self.url(&format!("api/assets/{id}/thumbnail"))?;
-        let req = self.authed(self.http.get(url).query(&[("size", size.as_str())]));
+        let req = self.authed(self.http.get(url).query(&[("size", size)]));
         self.bytes_with_content_type(req).await
     }
 
@@ -436,27 +436,12 @@ struct OAuthAuthorize {
     url: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ThumbSize {
     Thumbnail,
+    #[default]
     Preview,
-}
-
-impl ThumbSize {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Thumbnail => "thumbnail",
-            Self::Preview => "preview",
-        }
-    }
-
-    pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "thumbnail" => Some(Self::Thumbnail),
-            "preview" => Some(Self::Preview),
-            _ => None,
-        }
-    }
 }
 
 async fn send(req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {

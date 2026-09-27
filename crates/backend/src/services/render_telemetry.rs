@@ -5,6 +5,8 @@ use std::time::Duration;
 
 use raw_pipeline::timing::StageTiming;
 
+use crate::services::render::RendererKind;
+
 const SAMPLE_CAP: usize = 256;
 
 #[derive(Clone, Default)]
@@ -46,25 +48,6 @@ struct StageSamples {
     stage: &'static str,
     wall: Samples,
     gpu: Samples,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RendererKind {
-    Cpu,
-    Gpu,
-}
-
-impl RendererKind {
-    pub fn from_label(label: &str) -> Self {
-        if label == "gpu" { Self::Gpu } else { Self::Cpu }
-    }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Cpu => "cpu",
-            Self::Gpu => "gpu",
-        }
-    }
 }
 
 impl RenderTelemetry {
@@ -128,7 +111,7 @@ impl RenderTelemetry {
             .unwrap()
             .iter()
             .map(|s| StageStats {
-                renderer: s.kind.as_str(),
+                renderer: s.kind,
                 stage: s.stage,
                 wall: s.wall.stats(),
                 gpu: (!s.gpu.0.is_empty()).then(|| s.gpu.stats()),
@@ -168,7 +151,7 @@ pub struct RenderLatency {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct StageStats {
-    pub renderer: &'static str,
+    pub renderer: RendererKind,
     pub stage: &'static str,
     pub wall: LatencyStats,
     pub gpu: Option<LatencyStats>,
@@ -249,17 +232,32 @@ mod tests {
         );
 
         let snap = t.snapshot();
-        let order: Vec<(&str, &str)> = snap.stages.iter().map(|s| (s.renderer, s.stage)).collect();
-        if order != [("gpu", "demosaic"), ("gpu", "encode"), ("cpu", "demosaic")] {
+        let order: Vec<(RendererKind, &str)> =
+            snap.stages.iter().map(|s| (s.renderer, s.stage)).collect();
+        if order
+            != [
+                (RendererKind::Gpu, "demosaic"),
+                (RendererKind::Gpu, "encode"),
+                (RendererKind::Cpu, "demosaic"),
+            ]
+        {
             panic!("stages should keep pipeline order, got {order:?}");
         }
-        let find = |renderer: &str, name: &str| {
+        let names: Vec<serde_json::Value> = snap
+            .stages
+            .iter()
+            .map(|s| serde_json::to_value(s).unwrap()["renderer"].clone())
+            .collect();
+        if names != ["gpu", "gpu", "cpu"] {
+            panic!("renderer names changed: {names:?}");
+        }
+        let find = |renderer: RendererKind, name: &str| {
             snap.stages
                 .iter()
                 .find(|s| s.renderer == renderer && s.stage == name)
                 .cloned()
         };
-        let Some(gpu_demosaic) = find("gpu", "demosaic") else {
+        let Some(gpu_demosaic) = find(RendererKind::Gpu, "demosaic") else {
             panic!("missing gpu demosaic in {:?}", snap.stages);
         };
         if gpu_demosaic.wall.count != 20
@@ -271,11 +269,11 @@ mod tests {
         if gpu_demosaic.gpu.map(|g| g.p95_us) != Some(9_000) {
             panic!("gpu demosaic device time wrong: {:?}", gpu_demosaic.gpu);
         }
-        match find("gpu", "encode") {
+        match find(RendererKind::Gpu, "encode") {
             Some(s) if s.gpu.is_none() && s.wall.p50_us == 3_000 => {}
             other => panic!("wall-only encode stage wrong: {other:?}"),
         }
-        match find("cpu", "demosaic") {
+        match find(RendererKind::Cpu, "demosaic") {
             Some(s) if s.wall.count == 1 && s.wall.max_us == 60_000 => {}
             other => panic!("cpu demosaic mixed with gpu samples: {other:?}"),
         }

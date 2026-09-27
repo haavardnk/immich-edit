@@ -4,6 +4,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
 use immich_edit_backend::config::Config;
+use immich_edit_backend::services::render::RendererKind;
 use immich_edit_backend::services::render_queue::RenderQueue;
 use immich_edit_backend::state::AppState;
 use std::sync::Arc;
@@ -157,7 +158,7 @@ async fn a_timed_out_preview_keeps_the_decoded_frame() {
     let stages: Vec<&str> = snap
         .stages
         .iter()
-        .filter(|s| s.renderer == "cpu")
+        .filter(|s| s.renderer == RendererKind::Cpu)
         .map(|s| s.stage)
         .collect();
     if !stages.contains(&"demosaic") || !stages.contains(&"encode") {

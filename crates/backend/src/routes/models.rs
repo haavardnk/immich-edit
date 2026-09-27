@@ -5,6 +5,7 @@ use ml::catalog;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::config::MlRuntimeMode;
 use crate::error::AppError;
 use crate::routes::auth::{AdminCtx, AuthCtx};
 use crate::services::model_store::ModelStoreError;
@@ -39,7 +40,7 @@ pub struct SemanticClassView {
 
 #[derive(Serialize)]
 pub struct ModelsResponse {
-    pub runtime: &'static str,
+    pub runtime: MlRuntimeMode,
     pub enabled: bool,
     pub models: Vec<CatalogView>,
     pub active: BTreeMap<&'static str, String>,
@@ -101,7 +102,7 @@ pub async fn list(
         }
     }
     Ok(Json(ModelsResponse {
-        runtime: state.config.ml_runtime.as_str(),
+        runtime: state.config.ml_runtime,
         enabled: state.segment.enabled(),
         models,
         active,

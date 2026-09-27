@@ -12,18 +12,16 @@ use crate::config::RendererMode;
 
 const GPU_REBUILD_MIN_INTERVAL: Duration = Duration::from_secs(30);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ActiveRenderer {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RendererKind {
     Cpu,
     Gpu,
 }
 
-impl ActiveRenderer {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Cpu => "cpu",
-            Self::Gpu => "gpu",
-        }
+impl RendererKind {
+    pub fn from_label(label: &str) -> Self {
+        if label == "gpu" { Self::Gpu } else { Self::Cpu }
     }
 }
 
@@ -34,7 +32,7 @@ pub struct RenderDevice {
     mode: RendererMode,
     texture_cache_bytes: u64,
     timestamps: bool,
-    active: Arc<RwLock<ActiveRenderer>>,
+    active: Arc<RwLock<RendererKind>>,
     label: Arc<RwLock<Option<String>>>,
     software_gpu: Arc<RwLock<bool>>,
     last_rebuild: Arc<RwLock<Option<Instant>>>,
@@ -56,7 +54,7 @@ impl RenderDevice {
         }
     }
 
-    pub fn active(&self) -> ActiveRenderer {
+    pub fn active(&self) -> RendererKind {
         *self.active.read().unwrap()
     }
 
@@ -162,7 +160,7 @@ impl RenderDevice {
                 *self.gpu.write().unwrap() = Some(arc.clone());
                 *self.label.write().unwrap() = Some(label);
                 *self.software_gpu.write().unwrap() = software;
-                *self.active.write().unwrap() = ActiveRenderer::Gpu;
+                *self.active.write().unwrap() = RendererKind::Gpu;
                 Some(arc)
             }
             Err(e) => {
@@ -177,14 +175,14 @@ impl RenderDevice {
         *self.gpu.write().unwrap() = None;
         *self.label.write().unwrap() = None;
         *self.software_gpu.write().unwrap() = false;
-        *self.active.write().unwrap() = ActiveRenderer::Cpu;
+        *self.active.write().unwrap() = RendererKind::Cpu;
         *self.last_rebuild.write().unwrap() = Some(Instant::now());
     }
 }
 
 struct GpuInit {
     renderer: Option<Arc<GpuRenderer>>,
-    active: ActiveRenderer,
+    active: RendererKind,
     label: Option<String>,
     software: bool,
 }
@@ -199,7 +197,7 @@ fn gpu_options(texture_cache_max_bytes: u64, timestamps: bool) -> GpuRendererOpt
 fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
     let cpu_only = GpuInit {
         renderer: None,
-        active: ActiveRenderer::Cpu,
+        active: RendererKind::Cpu,
         label: None,
         software: false,
     };
@@ -220,7 +218,7 @@ fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
             }
             GpuInit {
                 renderer: Some(Arc::new(r)),
-                active: ActiveRenderer::Gpu,
+                active: RendererKind::Gpu,
                 label: Some(label),
                 software,
             }
