@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::immich::dto::PersonSummary;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 use crate::state::AppState;
 
 pub async fn list(
@@ -29,13 +30,11 @@ pub async fn list(
 pub async fn thumbnail(ctx: AuthCtx, Path(id): Path<Uuid>) -> Result<Response, AppError> {
     let (bytes, ct) = ctx.immich.person_thumb(id).await?;
     let mut resp = Response::new(Body::from(bytes));
-    resp.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(&ct).unwrap_or(HeaderValue::from_static("image/jpeg")),
-    );
+    resp.headers_mut()
+        .insert(header::CONTENT_TYPE, headers::header_value(&ct)?);
     resp.headers_mut().insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=86400"),
+        HeaderValue::from_static(headers::CACHE_DAY),
     );
     Ok(resp)
 }
