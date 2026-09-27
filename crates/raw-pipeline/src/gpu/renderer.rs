@@ -270,8 +270,8 @@ impl GpuRenderer {
                 self.display_chain(linear, &edits, options, timings, cancel)?
             }
         };
-        let image = self.readback_image(display, cancel)?;
-        output::finish_image(image, options, source.meta().is_raw, cancel)
+        self.read_display(display, cancel)?
+            .into_rendered(options, source.meta().is_raw, cancel)
     }
 }
 

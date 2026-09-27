@@ -17,7 +17,7 @@ use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn run_wb_prepare(
+    pub(in crate::gpu::renderer) fn submit_wb_prepare(
         &self,
         cached: &CachedFrame,
         meta: &FrameMeta,
@@ -29,8 +29,9 @@ impl GpuRenderer {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);
         }
-        let _span = tracing::debug_span!("gpu.run_wb_prepare", w = cached.width, h = cached.height)
-            .entered();
+        let _span =
+            tracing::debug_span!("gpu.submit_wb_prepare", w = cached.width, h = cached.height)
+                .entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = cached.width;

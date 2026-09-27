@@ -17,7 +17,7 @@ use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::texture_pool::TextureKey;
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn run_capture_sharpen(
+    pub(in crate::gpu::renderer) fn submit_capture_sharpen(
         &self,
         src: &Texture,
         dims: (u32, u32),
@@ -29,7 +29,7 @@ impl GpuRenderer {
             return Ok(t);
         }
         let _span =
-            tracing::debug_span!("gpu.run_capture_sharpen", w = dims.0, h = dims.1).entered();
+            tracing::debug_span!("gpu.submit_capture_sharpen", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
