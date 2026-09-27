@@ -3,7 +3,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{Duration, Utc};
 use rand::Rng;
 use sha2::{Digest, Sha256};
-use sqlx::{Row, Sqlite, Transaction};
+use sqlx::{Sqlite, Transaction};
 
 use super::*;
 use crate::services::crypto::Encrypted;
@@ -11,6 +11,20 @@ use crate::services::crypto::Encrypted;
 const IDLE_DAYS: i64 = 30;
 const ABSOLUTE_DAYS: i64 = 90;
 const LAST_SEEN_THROTTLE_SECS: i64 = 300;
+
+#[derive(sqlx::FromRow)]
+struct AuthRow {
+    #[sqlx(flatten)]
+    user: UserRecord,
+    #[sqlx(try_from = "Hyphenated")]
+    sid: Uuid,
+    auth_kind: AuthKind,
+    server_epoch: i64,
+    enc: Vec<u8>,
+    nonce: Vec<u8>,
+    key_version: i64,
+    last_seen_at: String,
+}
 
 pub(super) struct PreparedSession {
     pub(super) token: String,
@@ -91,7 +105,7 @@ impl AuthStore {
         .bind(Uuid::new_v4().to_string())
         .bind(user_id.to_string())
         .bind(&prepared.token_hash)
-        .bind(auth_kind.as_str())
+        .bind(auth_kind)
         .bind(&prepared.encrypted.ciphertext)
         .bind(&prepared.encrypted.nonce)
         .bind(prepared.encrypted.key_version)
@@ -110,11 +124,12 @@ impl AuthStore {
         let token_hash = hash_token(token);
         let now = Utc::now();
         let now_str = now.to_rfc3339();
-        let row = sqlx::query(
-            "SELECT s.id AS sid, s.user_id AS uid, s.auth_kind AS auth_kind, \
+        let row = sqlx::query_as::<_, AuthRow>(
+            "SELECT s.id AS sid, s.auth_kind AS auth_kind, \
              s.server_epoch AS server_epoch, s.immich_cred_enc AS enc, s.immich_cred_nonce AS nonce, \
              s.key_version AS key_version, s.last_seen_at AS last_seen_at, \
-             u.email AS email, u.name AS name, u.is_admin AS is_admin, u.access_enabled AS access_enabled \
+             u.id AS id, u.email AS email, u.name AS name, u.is_admin AS is_admin, \
+             u.access_enabled AS access_enabled \
              FROM sessions s JOIN users u ON u.id = s.user_id \
              JOIN instance_config i ON i.id = 1 AND i.server_epoch = s.server_epoch \
              WHERE s.token_hash = ?1 AND s.expires_at > ?2 AND s.absolute_expires_at > ?2",
@@ -126,32 +141,20 @@ impl AuthStore {
         let Some(row) = row else {
             return Ok(None);
         };
-        let access_enabled: i64 = row.try_get("access_enabled")?;
-        if access_enabled == 0 {
+        if !row.user.access_enabled {
             return Ok(None);
         }
-        let session_id = parse_uuid(row.try_get::<String, _>("sid")?)?;
-        let user_id = parse_uuid(row.try_get::<String, _>("uid")?)?;
-        let enc = Encrypted {
-            ciphertext: row.try_get("enc")?,
-            nonce: row.try_get("nonce")?,
-            key_version: row.try_get("key_version")?,
-        };
-        let immich_cred = self.crypto.decrypt(&enc)?;
-        let last_seen: String = row.try_get("last_seen_at")?;
-        self.touch_session(session_id, &last_seen, now).await?;
-        let user = UserRecord {
-            id: user_id,
-            email: row.try_get("email")?,
-            name: row.try_get("name")?,
-            is_admin: row.try_get::<i64, _>("is_admin")? != 0,
-            access_enabled: true,
-        };
+        let immich_cred = self.crypto.decrypt(&Encrypted {
+            ciphertext: row.enc,
+            nonce: row.nonce,
+            key_version: row.key_version,
+        })?;
+        self.touch_session(row.sid, &row.last_seen_at, now).await?;
         Ok(Some(AuthContext {
-            user,
-            session_id,
-            server_epoch: row.try_get("server_epoch")?,
-            auth_kind: AuthKind::from_wire(&row.try_get::<String, _>("auth_kind")?),
+            user: row.user,
+            session_id: row.sid,
+            server_epoch: row.server_epoch,
+            auth_kind: row.auth_kind,
             immich_cred,
         }))
     }
@@ -211,14 +214,13 @@ impl AuthStore {
     }
 
     pub async fn list_sessions(&self, user_id: Uuid) -> Result<Vec<SessionRecord>, AuthStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, SessionRecord>(
             "SELECT id, user_id, auth_kind, server_epoch, created_at, expires_at, last_seen_at, \
              user_agent, ip FROM sessions WHERE user_id = ?1 ORDER BY last_seen_at DESC",
         )
         .bind(user_id.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(session_from_row).collect()
+        .await?)
     }
 
     pub async fn cleanup_expired(&self) -> Result<(), AuthStoreError> {
@@ -229,18 +231,4 @@ impl AuthStore {
             .await?;
         Ok(())
     }
-}
-
-fn session_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<SessionRecord, AuthStoreError> {
-    Ok(SessionRecord {
-        id: parse_uuid(row.try_get::<String, _>("id")?)?,
-        user_id: parse_uuid(row.try_get::<String, _>("user_id")?)?,
-        auth_kind: AuthKind::from_wire(&row.try_get::<String, _>("auth_kind")?),
-        server_epoch: row.try_get("server_epoch")?,
-        created_at: row.try_get("created_at")?,
-        expires_at: row.try_get("expires_at")?,
-        last_seen_at: row.try_get("last_seen_at")?,
-        user_agent: row.try_get("user_agent")?,
-        ip: row.try_get("ip")?,
-    })
 }

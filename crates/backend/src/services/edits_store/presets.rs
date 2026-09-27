@@ -1,24 +1,18 @@
 use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
-use sqlx::Row;
 use uuid::Uuid;
 
 use super::*;
 
 impl EditsStore {
     pub async fn list_presets(&self, owner: Uuid) -> Result<Vec<PresetRecord>, EditsStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, PresetRecord>(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
              FROM presets WHERE user_id = ?1 ORDER BY group_name IS NULL, group_name, name",
         )
         .bind(owner.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for row in rows {
-            out.push(preset_from_row(&row)?);
-        }
-        Ok(out)
+        .await?)
     }
 
     pub async fn get_preset(
@@ -26,18 +20,14 @@ impl EditsStore {
         owner: Uuid,
         id: Uuid,
     ) -> Result<Option<PresetRecord>, EditsStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, PresetRecord>(
             "SELECT id, name, group_name, manifest_json, created_at, updated_at \
              FROM presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
         .bind(owner.to_string())
         .fetch_optional(&self.pool)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        Ok(Some(preset_from_row(&row)?))
+        .await?)
     }
 
     pub async fn create_preset(
@@ -110,19 +100,4 @@ impl EditsStore {
             .await?;
         Ok(res.rows_affected() > 0)
     }
-}
-
-fn preset_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<PresetRecord, EditsStoreError> {
-    let id_str: String = row.try_get("id")?;
-    let id = Uuid::parse_str(&id_str).map_err(|_| EditsStoreError::Db(sqlx::Error::RowNotFound))?;
-    let manifest_json: String = row.try_get("manifest_json")?;
-    let manifest: EditManifest = serde_json::from_str(&manifest_json)?;
-    Ok(PresetRecord {
-        id,
-        name: row.try_get("name")?,
-        group_name: row.try_get("group_name")?,
-        manifest,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
 }

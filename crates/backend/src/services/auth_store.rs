@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use serde::Serialize;
 use sqlx::SqlitePool;
 use uuid::Uuid;
+use uuid::fmt::Hyphenated;
 
 use crate::immich::client::{ImmichAuth, ImmichUser};
 use crate::services::crypto::{InstanceCrypto, SecretBytes};
@@ -22,7 +24,9 @@ pub enum AuthStoreError {
     AlreadyConfigured,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, sqlx::Type)]
+#[serde(rename_all = "lowercase")]
+#[sqlx(rename_all = "lowercase")]
 pub enum AuthKind {
     Password,
     ApiKey,
@@ -30,22 +34,6 @@ pub enum AuthKind {
 }
 
 impl AuthKind {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Password => "password",
-            Self::ApiKey => "apikey",
-            Self::OAuth => "oauth",
-        }
-    }
-
-    pub fn from_wire(s: &str) -> Self {
-        match s {
-            "apikey" => Self::ApiKey,
-            "oauth" => Self::OAuth,
-            _ => Self::Password,
-        }
-    }
-
     pub fn immich_auth(self, cred: String) -> ImmichAuth {
         match self {
             Self::Password | Self::OAuth => ImmichAuth::Bearer(cred),
@@ -58,8 +46,9 @@ impl AuthKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct UserRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
     pub email: String,
     pub name: String,
@@ -67,9 +56,11 @@ pub struct UserRecord {
     pub access_enabled: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
+    #[sqlx(try_from = "Hyphenated")]
     pub user_id: Uuid,
     pub auth_kind: AuthKind,
     pub server_epoch: i64,
@@ -98,8 +89,4 @@ impl AuthStore {
     pub fn new(pool: SqlitePool, crypto: Arc<InstanceCrypto>) -> Self {
         Self { pool, crypto }
     }
-}
-
-fn parse_uuid(s: String) -> Result<Uuid, AuthStoreError> {
-    Uuid::parse_str(&s).map_err(|_| AuthStoreError::Db(sqlx::Error::RowNotFound))
 }

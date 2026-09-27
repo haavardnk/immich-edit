@@ -7,7 +7,7 @@ use lru::LruCache;
 use raw_pipeline::finish::decode_watermark;
 use raw_pipeline::frame::WatermarkImage;
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -29,7 +29,7 @@ pub enum WatermarkStoreError {
     NotFound,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct WatermarkMeta {
     pub id: String,
     pub name: String,
@@ -68,17 +68,6 @@ impl WatermarkStore {
 
     fn blob_path(&self, content_hash: &str) -> PathBuf {
         self.dir.join(format!("{content_hash}.png"))
-    }
-
-    fn row_to_meta(row: &sqlx::sqlite::SqliteRow) -> WatermarkMeta {
-        WatermarkMeta {
-            id: row.get("id"),
-            name: row.get("name"),
-            width: row.get::<i64, _>("width") as u32,
-            height: row.get::<i64, _>("height") as u32,
-            size: row.get::<i64, _>("size") as u64,
-            created_at: row.get("created_at"),
-        }
     }
 
     fn cache_put(&self, content_hash: String, image: Arc<WatermarkImage>) {
@@ -146,22 +135,20 @@ impl WatermarkStore {
         &self,
         content_hash: &str,
     ) -> Result<Option<WatermarkMeta>, WatermarkStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, WatermarkMeta>(
             "SELECT id, name, width, height, size, created_at FROM watermarks WHERE content_hash = ? AND deleted = 0",
         )
         .bind(content_hash)
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(Self::row_to_meta))
+        .await?)
     }
 
     pub async fn list(&self) -> Result<Vec<WatermarkMeta>, WatermarkStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, WatermarkMeta>(
             "SELECT id, name, width, height, size, created_at FROM watermarks WHERE deleted = 0 ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
-        .await?;
-        Ok(rows.iter().map(Self::row_to_meta).collect())
+        .await?)
     }
 
     pub async fn soft_delete(&self, id: &str) -> Result<(), WatermarkStoreError> {
@@ -199,11 +186,10 @@ impl WatermarkStore {
     }
 
     async fn content_hash(&self, id: &str) -> Result<String, WatermarkStoreError> {
-        let row = sqlx::query("SELECT content_hash FROM watermarks WHERE id = ?")
+        sqlx::query_scalar("SELECT content_hash FROM watermarks WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
-            .ok_or(WatermarkStoreError::NotFound)?;
-        Ok(row.get("content_hash"))
+            .ok_or(WatermarkStoreError::NotFound)
     }
 }

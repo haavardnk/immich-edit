@@ -4,6 +4,7 @@ use raw_pipeline::edits::Edits;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, Sqlite, SqliteExecutor, SqlitePool, Transaction};
 use uuid::Uuid;
+use uuid::fmt::Hyphenated;
 
 use crate::asset_key::AssetKey;
 
@@ -29,8 +30,6 @@ pub enum EditsStoreError {
     Migrate(#[from] sqlx::migrate::MigrateError),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
-    #[error("corrupt row: {0}")]
-    Corrupt(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -409,7 +408,8 @@ impl EditsStore {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
 pub enum ExportJobStatus {
     Pending,
     Uploaded,
@@ -426,11 +426,13 @@ pub struct ExportJobRecord {
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct PresetRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
     pub name: String,
     pub group_name: Option<String>,
+    #[sqlx(rename = "manifest_json", json)]
     pub manifest: EditManifest,
     pub created_at: String,
     pub updated_at: String,
@@ -770,6 +772,26 @@ mod tests {
         let s = store().await;
         if s.get_export_job(O, key(), "x").await.unwrap().is_some() {
             panic!("expected none");
+        }
+    }
+
+    #[tokio::test]
+    async fn export_job_statuses_decode_from_stored_names() {
+        let s = store().await;
+        let cases = [
+            ("pending", ExportJobStatus::Pending),
+            ("uploaded", ExportJobStatus::Uploaded),
+            ("completed", ExportJobStatus::Completed),
+        ];
+        for (name, status) in cases {
+            let decoded: ExportJobStatus = sqlx::query_scalar("SELECT ?")
+                .bind(name)
+                .fetch_one(&s.pool)
+                .await
+                .unwrap();
+            if decoded != status {
+                panic!("{name} decoded as {decoded:?}");
+            }
         }
     }
 

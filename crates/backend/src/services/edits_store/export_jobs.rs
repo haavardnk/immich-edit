@@ -1,5 +1,6 @@
 use chrono::Utc;
 use sqlx::Row;
+use sqlx::types::Json;
 use uuid::Uuid;
 
 use super::*;
@@ -23,32 +24,15 @@ impl EditsStore {
         let Some(row) = row else {
             return Ok(None);
         };
-        let warnings_json: String = row.try_get("warnings_json")?;
-        let warnings: Vec<String> = serde_json::from_str(&warnings_json)?;
-        let immich_str: Option<String> = row.try_get("immich_asset_id")?;
-        let immich_asset_id = immich_str
-            .as_deref()
-            .map(Uuid::parse_str)
-            .transpose()
-            .map_err(|_| EditsStoreError::Corrupt("export job immich asset id".into()))?;
-        let status_str: String = row.try_get("status")?;
-        let status = match status_str.as_str() {
-            "pending" => ExportJobStatus::Pending,
-            "uploaded" => ExportJobStatus::Uploaded,
-            "completed" => ExportJobStatus::Completed,
-            other => {
-                return Err(EditsStoreError::Corrupt(format!(
-                    "export job status {other}"
-                )));
-            }
-        };
         Ok(Some(ExportJobRecord {
             request_hash: row.try_get("request_hash")?,
-            status,
-            immich_asset_id,
+            status: row.try_get("status")?,
+            immich_asset_id: row
+                .try_get::<Option<Hyphenated>, _>("immich_asset_id")?
+                .map(Uuid::from),
             filename: row.try_get("filename")?,
             upload_status: row.try_get("upload_status")?,
-            warnings,
+            warnings: row.try_get::<Json<Vec<String>>, _>("warnings_json")?.0,
         }))
     }
 

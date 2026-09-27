@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
-use sqlx::Row;
 use uuid::Uuid;
 
 use super::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct CopyRecord {
+    #[sqlx(try_from = "String")]
     pub id: AssetKey,
+    #[sqlx(try_from = "Hyphenated")]
     pub source_asset_id: Uuid,
     pub name: Option<String>,
     pub created_at: String,
@@ -23,7 +24,7 @@ impl EditsStore {
     ) -> Result<CopyRecord, EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         let source_str = source.to_string();
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, CopyRecord>(
             "INSERT INTO asset_copies (user_id, id, source_asset_id, idx, name, created_at) \
              SELECT ?1, printf('%s_%d', ?2, n.idx), ?2, n.idx, ?3, ?4 FROM \
              (SELECT COALESCE(MAX(idx), 0) + 1 AS idx FROM asset_copies \
@@ -35,8 +36,7 @@ impl EditsStore {
         .bind(name)
         .bind(&now)
         .fetch_one(&self.pool)
-        .await?;
-        copy_from_row(&row)
+        .await?)
     }
 
     pub async fn list_copies(
@@ -44,15 +44,14 @@ impl EditsStore {
         owner: Uuid,
         source: Uuid,
     ) -> Result<Vec<CopyRecord>, EditsStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, CopyRecord>(
             "SELECT id, source_asset_id, name, created_at FROM asset_copies \
              WHERE user_id = ?1 AND source_asset_id = ?2 AND deleted = 0 ORDER BY idx",
         )
         .bind(owner.to_string())
         .bind(source.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(copy_from_row).collect()
+        .await?)
     }
 
     pub async fn expand_copies(
@@ -65,7 +64,7 @@ impl EditsStore {
             return Ok(out);
         }
         let ids: Vec<String> = sources.iter().map(Uuid::to_string).collect();
-        let rows = sqlx::query(
+        let records = sqlx::query_as::<_, CopyRecord>(
             "SELECT id, source_asset_id, name, created_at FROM asset_copies \
              WHERE user_id = ?1 AND deleted = 0 \
              AND source_asset_id IN (SELECT value FROM json_each(?2)) ORDER BY idx",
@@ -74,8 +73,7 @@ impl EditsStore {
         .bind(serde_json::to_string(&ids)?)
         .fetch_all(&self.pool)
         .await?;
-        for row in rows {
-            let record = copy_from_row(&row)?;
+        for record in records {
             out.entry(record.source_asset_id).or_default().push(record);
         }
         Ok(out)
@@ -87,7 +85,7 @@ impl EditsStore {
         id: AssetKey,
         name: Option<&str>,
     ) -> Result<Option<CopyRecord>, EditsStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, CopyRecord>(
             "UPDATE asset_copies SET name = ?3 WHERE user_id = ?1 AND id = ?2 AND deleted = 0 \
              RETURNING id, source_asset_id, name, created_at",
         )
@@ -95,11 +93,7 @@ impl EditsStore {
         .bind(id.to_string())
         .bind(name)
         .fetch_optional(&self.pool)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        Ok(Some(copy_from_row(&row)?))
+        .await?)
     }
 
     pub async fn delete_copy(&self, owner: Uuid, id: AssetKey) -> Result<bool, EditsStoreError> {
@@ -140,17 +134,4 @@ impl EditsStore {
         tx.commit().await?;
         Ok(true)
     }
-}
-
-fn copy_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<CopyRecord, EditsStoreError> {
-    let id: String = row.try_get("id")?;
-    let source_asset_id: String = row.try_get("source_asset_id")?;
-    Ok(CopyRecord {
-        id: id.parse().map_err(|_| sqlx::Error::RowNotFound)?,
-        source_asset_id: source_asset_id
-            .parse()
-            .map_err(|_| sqlx::Error::RowNotFound)?,
-        name: row.try_get("name")?,
-        created_at: row.try_get("created_at")?,
-    })
 }

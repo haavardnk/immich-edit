@@ -43,14 +43,25 @@ async fn auth_kind_survives_the_session_row() {
         .execute(&s.pool)
         .await
         .unwrap();
-    for kind in [AuthKind::Password, AuthKind::ApiKey, AuthKind::OAuth] {
+    for (kind, stored) in [
+        (AuthKind::Password, "password"),
+        (AuthKind::ApiKey, "apikey"),
+        (AuthKind::OAuth, "oauth"),
+    ] {
         let user = s.upsert_user(&immich_user(true)).await.unwrap();
         let token = s
             .create_session(user.id, kind, b"cred", 1, None, None)
             .await
             .unwrap();
         let ctx = s.authenticate(&token).await.unwrap().unwrap();
-        assert_eq!(ctx.auth_kind, kind, "{}", kind.as_str());
+        assert_eq!(ctx.auth_kind, kind, "{stored}");
+        let raw: String = sqlx::query_scalar("SELECT auth_kind FROM sessions WHERE id = ?1")
+            .bind(ctx.session_id.to_string())
+            .fetch_one(&s.pool)
+            .await
+            .unwrap();
+        assert_eq!(raw, stored);
+        assert_eq!(serde_json::to_value(kind).unwrap(), stored);
     }
 }
 

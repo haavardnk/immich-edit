@@ -6,7 +6,7 @@ use chrono::Utc;
 use lru::LruCache;
 use raw_pipeline::lut::{LUT_MAX_SOURCE_BYTES, Lut3d};
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -28,7 +28,7 @@ pub enum LutStoreError {
     NotFound,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct LutMeta {
     pub id: String,
     pub name: String,
@@ -59,16 +59,6 @@ impl LutStore {
 
     fn blob_path(&self, content_hash: &str) -> PathBuf {
         self.dir.join(format!("{content_hash}.cube"))
-    }
-
-    fn row_to_meta(row: &sqlx::sqlite::SqliteRow) -> LutMeta {
-        LutMeta {
-            id: row.get("id"),
-            name: row.get("name"),
-            lut_size: row.get::<i64, _>("lut_size") as u32,
-            size: row.get::<i64, _>("size") as u64,
-            created_at: row.get("created_at"),
-        }
     }
 
     pub async fn import(&self, name: &str, bytes: &[u8]) -> Result<LutMeta, LutStoreError> {
@@ -126,22 +116,20 @@ impl LutStore {
     }
 
     async fn find_active_hash(&self, content_hash: &str) -> Result<Option<LutMeta>, LutStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, LutMeta>(
             "SELECT id, name, lut_size, size, created_at FROM luts WHERE content_hash = ? AND deleted = 0",
         )
         .bind(content_hash)
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(Self::row_to_meta))
+        .await?)
     }
 
     pub async fn list(&self) -> Result<Vec<LutMeta>, LutStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, LutMeta>(
             "SELECT id, name, lut_size, size, created_at FROM luts WHERE deleted = 0 ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
-        .await?;
-        Ok(rows.iter().map(Self::row_to_meta).collect())
+        .await?)
     }
 
     pub async fn soft_delete(&self, id: &str) -> Result<(), LutStoreError> {
@@ -182,11 +170,10 @@ impl LutStore {
     }
 
     async fn content_hash(&self, id: &str) -> Result<String, LutStoreError> {
-        let row = sqlx::query("SELECT content_hash FROM luts WHERE id = ?")
+        sqlx::query_scalar("SELECT content_hash FROM luts WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
-            .ok_or(LutStoreError::NotFound)?;
-        Ok(row.get("content_hash"))
+            .ok_or(LutStoreError::NotFound)
     }
 }

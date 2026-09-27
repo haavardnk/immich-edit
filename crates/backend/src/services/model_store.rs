@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use ml::CatalogEntry;
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -30,7 +30,7 @@ pub enum ModelStoreError {
     NotFound,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ModelMeta {
     pub id: String,
     pub catalog_id: Option<String>,
@@ -64,21 +64,6 @@ impl ModelStore {
 
     pub fn dir(&self) -> &Path {
         &self.dir
-    }
-
-    fn row_to_meta(row: &sqlx::sqlite::SqliteRow) -> ModelMeta {
-        ModelMeta {
-            id: row.get("id"),
-            catalog_id: row.get("catalog_id"),
-            name: row.get("name"),
-            kind: row.get("kind"),
-            content_hash: row.get("content_hash"),
-            aux_hash: row.get("aux_hash"),
-            size: row.get::<i64, _>("size") as u64,
-            license: row.get("license"),
-            source_url: row.get("source_url"),
-            created_at: row.get("created_at"),
-        }
     }
 
     pub async fn install_downloaded(
@@ -174,13 +159,12 @@ impl ModelStore {
         &self,
         catalog_id: &str,
     ) -> Result<Option<ModelMeta>, ModelStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, ModelMeta>(
             "SELECT id, catalog_id, name, kind, content_hash, aux_hash, size, license, source_url, created_at FROM models WHERE catalog_id = ? AND deleted = 0",
         )
         .bind(catalog_id)
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(Self::row_to_meta))
+        .await?)
     }
 
     pub async fn resolve_path(&self, catalog_id: &str) -> Result<PathBuf, ModelStoreError> {
@@ -233,11 +217,12 @@ impl ModelStore {
     }
 
     pub async fn preferred(&self, kind: &str) -> Result<Option<String>, ModelStoreError> {
-        let row = sqlx::query("SELECT catalog_id FROM model_prefs WHERE kind = ?")
-            .bind(kind)
-            .fetch_optional(&self.pool)
-            .await?;
-        Ok(row.map(|r| r.get("catalog_id")))
+        Ok(
+            sqlx::query_scalar("SELECT catalog_id FROM model_prefs WHERE kind = ?")
+                .bind(kind)
+                .fetch_optional(&self.pool)
+                .await?,
+        )
     }
 
     pub async fn set_preferred(&self, kind: &str, catalog_id: &str) -> Result<(), ModelStoreError> {
