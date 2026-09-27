@@ -17,7 +17,7 @@ vi.mock('$lib/stores/metadataConsent.svelte', () => ({
   metadataConsent: { gate: () => Promise.resolve(true) }
 }));
 
-import { editor } from './editor.svelte';
+import { editor } from '$lib/stores/editor.svelte';
 
 function baseAsset(): AssetDetail {
   return {

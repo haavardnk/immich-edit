@@ -29,8 +29,8 @@ vi.mock('$lib/api/preview', async (original) => ({
   livePreview: mocks.livePreview
 }));
 
-import { editor } from './editor.svelte';
-import { toasts } from './toasts.svelte';
+import { editor } from '$lib/stores/editor.svelte';
+import { toasts } from '$lib/stores/toasts.svelte';
 
 function asset(): AssetDetail {
   return {
