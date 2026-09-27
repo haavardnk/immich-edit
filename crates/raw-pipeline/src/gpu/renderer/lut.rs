@@ -14,18 +14,15 @@ use crate::gpu::passes::lut::LutParams;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 use super::GpuRenderer;
+use super::display::DisplayTarget;
 
 impl GpuRenderer {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn maybe_encode_lut(
         &self,
         encoder: &mut CommandEncoder,
         edits: &Edits,
         opts: &RenderOptions,
-        src: &Texture,
-        depth: DisplayDepth,
-        w: u32,
-        h: u32,
+        src: DisplayTarget<'_>,
     ) -> Option<PooledTexture> {
         let l = &edits.color.lut_3d;
         if !l.is_active() {
@@ -34,10 +31,11 @@ impl GpuRenderer {
         let id = l.lut_id.as_ref()?;
         let lut = opts.luts.get(id)?;
         let lut_tex = self.get_or_upload_lut_texture(id, lut);
+        let (w, h) = src.dims;
         let target = self.texture_pool.acquire(
             &self.ctx.device,
             TextureKey::new(
-                depth.format(),
+                src.depth.format(),
                 w,
                 h,
                 1,
@@ -48,7 +46,7 @@ impl GpuRenderer {
             "lut-target",
         );
         let amount = (l.amount / 100.0) as f32;
-        self.encode_lut(encoder, src, &lut_tex, &target, lut, amount, depth, w, h);
+        self.encode_lut(encoder, src, &lut_tex, &target, lut, amount);
         Some(target)
     }
 
@@ -105,25 +103,22 @@ impl GpuRenderer {
         tex
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn encode_lut(
         &self,
         encoder: &mut CommandEncoder,
-        src: &Texture,
+        src: DisplayTarget<'_>,
         lut_tex: &Texture,
         dst: &Texture,
         lut: &crate::lut::Lut3d,
         amount: f32,
-        depth: DisplayDepth,
-        w: u32,
-        h: u32,
     ) {
         let device = &self.ctx.device;
-        let pass = match depth {
+        let (w, h) = src.dims;
+        let pass = match src.depth {
             DisplayDepth::Eight => &self.passes.lut,
             DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).lut,
         };
-        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let src_view = src.texture.create_view(&TextureViewDescriptor::default());
         let lut_view = lut_tex.create_view(&TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D3),
             ..Default::default()

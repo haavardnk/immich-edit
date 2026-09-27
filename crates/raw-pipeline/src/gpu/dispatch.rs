@@ -1,7 +1,7 @@
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindingResource, Buffer,
-    CommandEncoder, ComputePass, ComputePassDescriptor, ComputePipeline, Device, Sampler,
-    TextureView,
+    CommandEncoder, ComputePass, ComputePassDescriptor, ComputePipeline, Device, Extent3d,
+    Origin3d, Sampler, TexelCopyTextureInfo, Texture, TextureAspect, TextureView,
 };
 
 use super::timer::with_pass_timestamps;
@@ -69,4 +69,31 @@ pub(super) fn dispatch_2d(
     cp.set_pipeline(pipeline);
     cp.set_bind_group(0, bind, &[]);
     cp.dispatch_workgroups(gx, gy, 1);
+}
+
+pub(super) fn copy_texture(
+    encoder: &mut CommandEncoder,
+    src: &Texture,
+    dst: &Texture,
+    (width, height): (u32, u32),
+) {
+    encoder.copy_texture_to_texture(
+        TexelCopyTextureInfo {
+            texture: src,
+            mip_level: 0,
+            origin: Origin3d::ZERO,
+            aspect: TextureAspect::All,
+        },
+        TexelCopyTextureInfo {
+            texture: dst,
+            mip_level: 0,
+            origin: Origin3d::ZERO,
+            aspect: TextureAspect::All,
+        },
+        Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+    );
 }

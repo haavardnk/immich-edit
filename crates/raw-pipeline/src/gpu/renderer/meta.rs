@@ -23,6 +23,13 @@ pub(super) struct MetaRequest {
     pub scopes: bool,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct MetaSources<'t> {
+    pub display: &'t Texture,
+    pub linear: &'t Texture,
+    pub dims: (u32, u32),
+}
+
 #[derive(Default)]
 pub(super) struct MetaCounts {
     histogram: Option<Vec<u32>>,
@@ -51,30 +58,32 @@ impl MetaCounts {
 }
 
 impl GpuRenderer {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn encode_meta_bins(
         &self,
         encoder: &mut CommandEncoder,
         p: &OutputTargets,
-        display_src: &Texture,
-        linear_src: &Texture,
+        sources: MetaSources<'_>,
         request: MetaRequest,
-        out_dims: (u32, u32),
         t: &RenderTimings,
     ) {
-        let passes = match display_src.format() {
+        let MetaSources {
+            display,
+            linear,
+            dims,
+        } = sources;
+        let passes = match display.format() {
             TextureFormat::Rgba16Uint => &self.passes.depth16(&self.ctx).meta_bins,
             _ => &self.passes.meta_bins,
         };
-        let display_view = display_src.create_view(&TextureViewDescriptor::default());
+        let display_view = display.create_view(&TextureViewDescriptor::default());
         if request.histogram {
             t.stage(timing::HISTOGRAM, || {
-                self.encode_histogram(encoder, p, passes, &display_view, linear_src, out_dims)
+                self.encode_histogram(encoder, p, passes, &display_view, linear, dims)
             });
         }
         if request.scopes {
             t.stage(timing::SCOPES, || {
-                self.encode_scopes(encoder, p, passes, &display_view, out_dims)
+                self.encode_scopes(encoder, p, passes, &display_view, dims)
             });
         }
     }

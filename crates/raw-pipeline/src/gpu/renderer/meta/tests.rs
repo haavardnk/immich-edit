@@ -131,15 +131,12 @@ fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: b
         .ctx
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-    renderer.encode_meta_bins(
-        &mut encoder,
-        p,
-        display_src,
-        &p.linear_texture,
-        request,
+    let sources = MetaSources {
+        display: display_src,
+        linear: &p.linear_texture,
         dims,
-        &t,
-    );
+    };
+    renderer.encode_meta_bins(&mut encoder, p, sources, request, &t);
     renderer.ctx.queue.submit(Some(encoder.finish()));
     match renderer.read_meta_counts(p, request, None) {
         Ok(counts) => counts,
