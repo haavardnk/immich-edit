@@ -22,7 +22,7 @@ impl GpuRenderer {
         sh: &SharpenTargets,
         (w, h): (u32, u32),
         preview: &PreviewMode,
-    ) {
+    ) -> [PooledUniform; 3] {
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
         let d = &edits.detail;
@@ -153,6 +153,7 @@ impl GpuRenderer {
             ],
         );
         dispatch_2d(encoder, "sharpen", &pass_h.sharpen_pipeline, &bg_c, gx, gy);
+        [ub_h, ub_v, ub_c]
     }
 
     pub(super) fn encode_effects_tone(
@@ -163,7 +164,7 @@ impl GpuRenderer {
         src: &Texture,
         sh: &SharpenTargets,
         display: DisplayTarget<'_>,
-    ) {
+    ) -> PooledUniform {
         let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -217,5 +218,6 @@ impl GpuRenderer {
             w.div_ceil(16),
             h.div_ceil(16),
         );
+        ub
     }
 }

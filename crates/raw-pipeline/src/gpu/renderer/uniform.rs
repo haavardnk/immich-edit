@@ -6,6 +6,9 @@ use crate::gpu::uniform_pool::PooledUniform;
 use crate::gpu::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::ops::{OpContext, OpRegistry};
 
+#[cfg(test)]
+mod tests;
+
 impl GpuRenderer {
     pub(super) fn uniform<T: bytemuck::Pod>(
         &self,

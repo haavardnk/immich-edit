@@ -278,7 +278,7 @@ impl GpuRenderer {
             dcp: plan.ctx_op.render.dcp.as_deref(),
             has_masks: masks.has_masks,
         };
-        let sharpen = self.encode_finish(&mut encoder, finish, &mut scratch)?;
+        let sharpen = self.encode_finish(&mut encoder, finish, &mut scratch, &mut retained)?;
         let lut = self.maybe_encode_lut(&mut encoder, &edits, opts, display);
         let graded = lut.as_deref().unwrap_or(display.texture);
         if masks.preview_active {

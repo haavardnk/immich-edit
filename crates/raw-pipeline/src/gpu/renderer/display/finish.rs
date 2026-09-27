@@ -5,6 +5,7 @@ use super::DisplayTarget;
 use crate::PipelineResult;
 use crate::edits::Edits;
 use crate::frame::{OutputColorSpace, PreviewMode, RenderOptions};
+use crate::gpu::renderer::masks::Retained;
 use crate::gpu::renderer::{GpuRenderer, pools};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::texture_pool::PooledTexture;
@@ -25,6 +26,7 @@ impl GpuRenderer {
         encoder: &mut CommandEncoder,
         stage: FinishStage<'_>,
         scratch: &mut Vec<PooledTexture>,
+        retained: &mut Retained,
     ) -> PipelineResult<Option<MutexGuard<'a, Vec<SharpenTargets>>>> {
         let FinishStage {
             edits,
@@ -58,14 +60,17 @@ impl GpuRenderer {
         };
         let run_sharpen = sharpen_active || edits.masked_sharpen_active() || sharpen_preview;
         if run_sharpen {
-            self.encode_sharpen(encoder, edits, p, s, display.dims, &opts.preview_mode);
+            let uniforms =
+                self.encode_sharpen(encoder, edits, p, s, display.dims, &opts.preview_mode);
+            retained.uniforms.extend(uniforms);
         }
         let effects_src = if run_sharpen {
             &s.sharpened_lin
         } else {
             &p.linear_texture
         };
-        self.encode_effects_tone(encoder, edits, opts, effects_src, s, display);
+        let uniform = self.encode_effects_tone(encoder, edits, opts, effects_src, s, display);
+        retained.uniforms.push(uniform);
         let warn_flags =
             opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1) | ((p3_active as u32) << 2);
         scratch.extend(self.encode_dcp_finish(encoder, dcp, &s.post_lin, display, warn_flags));
