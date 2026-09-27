@@ -3,36 +3,21 @@ use raw_pipeline::{
     edits::{BasicEdits, DetailEdits, Edits, ToneEdits},
     frame::RenderOptions,
 };
-use serde::{Deserialize, Serialize};
+use raw_pipeline_testkit::baseline::{RenderStats, Tolerance};
+use raw_pipeline_testkit::fixtures::{baseline_path, fixture_path};
+use raw_pipeline_testkit::render::decode_jpeg_rgb;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
-
-mod common;
 
 const FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
+const BASELINE: &str = "multi_feature.json";
 const MAX_EDGE: u32 = 512;
-const GRID: usize = 8;
-const MEAN_RGB_TOL: f64 = 1.5;
-const GRID_CELL_TOL: f64 = 4.0;
-const GRID_MEAN_TOL: f64 = 1.5;
+const TOLERANCE: Tolerance = Tolerance {
+    mean_rgb: 1.5,
+    grid_cell: 4.0,
+    grid_mean: 1.5,
+};
 
-#[derive(Serialize, Deserialize, PartialEq)]
-struct StackBaseline {
-    width: u32,
-    height: u32,
-    mean_rgb: [f64; 3],
-    luma_grid: Vec<f64>,
-}
-
-type BaselineMap = BTreeMap<String, StackBaseline>;
-
-fn baseline_path() -> PathBuf {
-    common::baseline_path("multi_feature.json")
-}
-
-fn fixture_path() -> PathBuf {
-    common::fixture_path(FIXTURE)
-}
+type BaselineMap = BTreeMap<String, RenderStats>;
 
 fn stack_tone_lift() -> Edits {
     Edits {
@@ -123,56 +108,21 @@ fn stack_noise_reduction() -> Edits {
     }
 }
 
-fn compute_metrics(rgb: &[u8], width: usize, height: usize) -> StackBaseline {
-    let n = (width * height) as f64;
-    let mut sum: [f64; 3] = [0.0, 0.0, 0.0];
-    for px in rgb.chunks_exact(3) {
-        sum[0] += px[0] as f64;
-        sum[1] += px[1] as f64;
-        sum[2] += px[2] as f64;
-    }
-    let mean_rgb = [sum[0] / n, sum[1] / n, sum[2] / n];
-    let mut grid = vec![0.0_f64; GRID * GRID];
-    let mut counts = vec![0u32; GRID * GRID];
-    for y in 0..height {
-        for x in 0..width {
-            let gx = (x * GRID / width).min(GRID - 1);
-            let gy = (y * GRID / height).min(GRID - 1);
-            let i = (y * width + x) * 3;
-            let l =
-                0.2126 * rgb[i] as f64 + 0.7152 * rgb[i + 1] as f64 + 0.0722 * rgb[i + 2] as f64;
-            grid[gy * GRID + gx] += l;
-            counts[gy * GRID + gx] += 1;
-        }
-    }
-    for (g, c) in grid.iter_mut().zip(counts.iter()) {
-        if *c > 0 {
-            *g /= *c as f64;
-        }
-    }
-    StackBaseline {
-        width: width as u32,
-        height: height as u32,
-        mean_rgb,
-        luma_grid: grid,
-    }
-}
-
-fn render_stack(edits: &Edits) -> StackBaseline {
-    let bytes = std::fs::read(fixture_path()).expect("fixture missing");
+fn render_stack(edits: &Edits) -> RenderStats {
+    let bytes = std::fs::read(fixture_path(FIXTURE)).expect("fixture missing");
     let frame = decode::decode(&bytes).unwrap();
     let opts = RenderOptions {
         max_edge: MAX_EDGE,
         ..Default::default()
     };
     let out = cpu::render(&frame, edits, &opts).unwrap();
-    let (rgb, w, h) = common::decode_jpeg_rgb(&out.bytes);
-    compute_metrics(&rgb, w, h)
+    let (rgb, w, h) = decode_jpeg_rgb(&out.bytes);
+    RenderStats::measure(&rgb, w, h)
 }
 
 #[test]
 fn multi_feature_stacks() {
-    if !fixture_path().exists() {
+    if !fixture_path(FIXTURE).exists() {
         eprintln!("skip: {FIXTURE} missing");
         return;
     }
@@ -188,58 +138,25 @@ fn multi_feature_stacks() {
 
     if std::env::var_os("BAKE_MULTI_FEATURE").is_some() {
         let json = serde_json::to_string_pretty(&measured).unwrap();
-        std::fs::write(baseline_path(), json).unwrap();
+        std::fs::write(baseline_path(BASELINE), json).unwrap();
         eprintln!("baked multi-feature baseline ({} stacks)", measured.len());
         return;
     }
 
-    let raw = std::fs::read_to_string(baseline_path())
+    let raw = std::fs::read_to_string(baseline_path(BASELINE))
         .expect("multi_feature.json missing — run BAKE_MULTI_FEATURE=1");
     let baseline: BaselineMap = serde_json::from_str(&raw).unwrap();
-    let mut failures: Vec<String> = Vec::new();
-    for (name, got) in &measured {
-        let want = baseline
-            .get(name)
-            .unwrap_or_else(|| panic!("baseline missing stack {name}"));
-        if (got.width, got.height) != (want.width, want.height) {
-            failures.push(format!(
-                "{name}: dims ({}x{}) vs baseline ({}x{})",
-                got.width, got.height, want.width, want.height
-            ));
-            continue;
-        }
-        let drgb: [f64; 3] = [
-            (got.mean_rgb[0] - want.mean_rgb[0]).abs(),
-            (got.mean_rgb[1] - want.mean_rgb[1]).abs(),
-            (got.mean_rgb[2] - want.mean_rgb[2]).abs(),
-        ];
-        if drgb.iter().any(|d| *d > MEAN_RGB_TOL) {
-            failures.push(format!(
-                "{name}: mean_rgb drift {:?} > tol {MEAN_RGB_TOL}",
-                drgb
-            ));
-        }
-        let cell_diffs: Vec<f64> = got
-            .luma_grid
-            .iter()
-            .zip(want.luma_grid.iter())
-            .map(|(a, b)| (a - b).abs())
-            .collect();
-        let max_cell = cell_diffs.iter().cloned().fold(0.0_f64, f64::max);
-        let mean_cell = cell_diffs.iter().sum::<f64>() / cell_diffs.len() as f64;
-        if max_cell > GRID_CELL_TOL {
-            failures.push(format!(
-                "{name}: grid cell drift {:.2} > tol {GRID_CELL_TOL}",
-                max_cell
-            ));
-        }
-        if mean_cell > GRID_MEAN_TOL {
-            failures.push(format!(
-                "{name}: grid mean drift {:.2} > tol {GRID_MEAN_TOL}",
-                mean_cell
-            ));
-        }
-    }
+    let failures: Vec<String> = measured
+        .iter()
+        .flat_map(|(name, got)| {
+            let want = baseline
+                .get(name)
+                .unwrap_or_else(|| panic!("baseline missing stack {name}"));
+            got.drift(want, &TOLERANCE)
+                .into_iter()
+                .map(move |e| format!("{name}: {e}"))
+        })
+        .collect();
     if !failures.is_empty() {
         panic!("multi-feature regressions:\n  {}", failures.join("\n  "));
     }

@@ -1,15 +1,13 @@
-mod common;
-
-use common::{
-    ParityLedger, detail_frame, mean_abs_delta, require_same_dims, rgb8_opts, step_edge_frame,
-    synthetic_frame, try_renderer,
-};
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
     BasicEdits, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
     MaskedEdits, Vec2f,
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
+use raw_pipeline_testkit::frames::{detail_frame, step_edge_frame, synthetic_frame};
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
+use raw_pipeline_testkit::render::rgb8_opts;
 
 const PRESENCE_DEHAZE: f64 = 0.3;
 

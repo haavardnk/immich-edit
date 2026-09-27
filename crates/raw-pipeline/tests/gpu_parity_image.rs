@@ -1,15 +1,41 @@
-mod common;
-
-use common::{
-    ParityLedger, any_fixture, mean_abs_laplacian, require_same_dims, rgb_frame, rgb8_opts,
-    synthetic_bayer_frame, synthetic_frame, try_renderer, warn_pixels,
-};
 use raw_pipeline::decode;
 use raw_pipeline::edits::{BasicEdits, CropRect, Edits, GeometryEdits};
 use raw_pipeline::frame::{
     Align, BitDepth, OutputFormat, OutputSharpen, PngCompression, RenderOptions, SharpenLevel,
     SharpenMedia, Watermark, WatermarkAnchor, WatermarkImage,
 };
+use raw_pipeline_testkit::color::luma;
+use raw_pipeline_testkit::fixtures::{any_fixture, fixture_path};
+use raw_pipeline_testkit::frames::{ramp_frame, synthetic_bayer_frame, synthetic_frame};
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::lut::{TINT_LUT_ID, tint_luts};
+use raw_pipeline_testkit::parity::{ParityLedger, require_same_dims};
+use raw_pipeline_testkit::render::rgb8_opts;
+
+fn mean_abs_laplacian(rgb: &[u8], w: usize, h: usize) -> f64 {
+    if w < 3 || h < 3 {
+        panic!("image too small for laplacian: {w}x{h}");
+    }
+    let at = |x: usize, y: usize| {
+        let i = (y * w + x) * 3;
+        luma(&rgb[i..i + 3])
+    };
+    let sum: f64 = (1..h - 1)
+        .flat_map(|y| (1..w - 1).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            (4.0 * at(x, y) - at(x - 1, y) - at(x + 1, y) - at(x, y - 1) - at(x, y + 1)).abs()
+        })
+        .sum();
+    sum / ((w - 2) * (h - 2)) as f64
+}
+
+fn warn_pixels(rgb: &[u8], color: [u8; 3]) -> Vec<usize> {
+    rgb.chunks_exact(3)
+        .enumerate()
+        .filter(|(_, p)| p[0] == color[0] && p[1] == color[1] && p[2] == color[2])
+        .map(|(i, _)| i)
+        .collect()
+}
 
 fn ramp_red_u16(png: &[u8]) -> Vec<u16> {
     let frame = decode::decode(png).unwrap();
@@ -25,19 +51,7 @@ fn gpu_16bit_output_keeps_more_than_8_bit_levels() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let w = 512;
-    let h = 8;
-    let mut data = vec![0.0f32; w * h * 3];
-    for y in 0..h {
-        for x in 0..w {
-            let u = x as f32 / (w - 1) as f32;
-            let i = (y * w + x) * 3;
-            data[i] = u;
-            data[i + 1] = u;
-            data[i + 2] = u;
-        }
-    }
-    let frame = rgb_frame(w, h, data);
+    let frame = ramp_frame(512, 8);
     let opts = RenderOptions {
         max_edge: 1024,
         output: OutputFormat::Png {
@@ -75,33 +89,18 @@ fn gpu_16bit_lut_pass_reads_and_writes_16_bit() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let w = 512;
-    let h = 8;
-    let mut data = vec![0.0f32; w * h * 3];
-    for y in 0..h {
-        for x in 0..w {
-            let u = x as f32 / (w - 1) as f32;
-            let i = (y * w + x) * 3;
-            data[i] = u;
-            data[i + 1] = u;
-            data[i + 2] = u;
-        }
-    }
-    let frame = rgb_frame(w, h, data);
-    let lut = raw_pipeline::Lut3d::parse_cube(tint_lut_cube(16).as_bytes()).unwrap();
-    let mut luts: raw_pipeline::LutMap = std::collections::HashMap::new();
-    luts.insert("test".to_string(), std::sync::Arc::new(lut));
+    let frame = ramp_frame(512, 8);
     let opts = RenderOptions {
         max_edge: 1024,
         output: OutputFormat::Png {
             bit_depth: BitDepth::Sixteen,
             compression: PngCompression::Fast,
         },
-        luts,
+        luts: tint_luts(),
         ..Default::default()
     };
     let mut edits = Edits::default();
-    edits.color.lut_3d.lut_id = Some("test".to_string());
+    edits.color.lut_3d.lut_id = Some(TINT_LUT_ID.to_string());
     edits.color.lut_3d.amount = 100.0;
 
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
@@ -117,24 +116,6 @@ fn gpu_16bit_lut_pass_reads_and_writes_16_bit() {
             distinct.len()
         );
     }
-}
-
-fn tint_lut_cube(size: usize) -> String {
-    let last = (size - 1) as f32;
-    let mut s = format!("LUT_3D_SIZE {size}\n");
-    for b in 0..size {
-        for g in 0..size {
-            for r in 0..size {
-                s.push_str(&format!(
-                    "{} {} {}\n",
-                    (r as f32 / last * 1.1).clamp(0.0, 1.0),
-                    g as f32 / last,
-                    (b as f32 / last * 0.85).clamp(0.0, 1.0)
-                ));
-            }
-        }
-    }
-    s
 }
 
 #[test]
@@ -226,8 +207,7 @@ fn gpu_xtrans_fixture_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
+    let path = fixture_path("Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
     let Ok(bytes) = std::fs::read(&path) else {
         eprintln!("no X-Trans fixture; skipping");
         return;

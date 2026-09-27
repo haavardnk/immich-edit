@@ -1,14 +1,13 @@
-mod common;
-
-use common::{
-    ParityLedger, any_fixture, require_same_dims, rgb_frame, rgb8_opts, synthetic_frame,
-    try_renderer,
-};
 use raw_pipeline::edits::{
     BasicEdits, CropRect, CurvePoint, CurvePoints, CurvesEdits, GeometryEdits, LensEdits, ToneEdits,
 };
 use raw_pipeline::frame::RenderOptions;
 use raw_pipeline::{decode, edits::Edits};
+use raw_pipeline_testkit::fixtures::any_fixture;
+use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::parity::{ParityLedger, require_same_dims};
+use raw_pipeline_testkit::render::rgb8_opts;
 
 #[test]
 fn gpu_identity_render_jpeg() {

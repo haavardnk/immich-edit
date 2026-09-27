@@ -1,11 +1,12 @@
-mod common;
-
-use common::{
-    ParityLedger, detail_frame, fine_texture_frame, haze_frame, mean_abs_delta, require_same_dims,
-    rgb8_opts, split_tone_frame, step_edge_frame, stripe_frame, synthetic_frame, try_renderer,
-};
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
 use raw_pipeline::frame::{OutputFormat, PreviewMode, RenderOptions};
+use raw_pipeline_testkit::frames::{
+    detail_frame, fine_texture_frame, haze_frame, split_tone_frame, step_edge_frame, stripe_frame,
+    synthetic_frame,
+};
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
+use raw_pipeline_testkit::render::rgb8_opts;
 
 #[test]
 fn gpu_presence_sliders_match_cpu_via_fallback() {

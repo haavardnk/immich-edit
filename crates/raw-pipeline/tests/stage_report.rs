@@ -4,8 +4,7 @@ use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions, RenderedImage};
 use raw_pipeline::gpu::RenderPlan;
 use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, decode};
-
-mod common;
+use raw_pipeline_testkit::fixtures::fixture_path;
 
 const FIXTURES: [(&str, &str); 3] = [
     ("X-T2", "Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf"),
@@ -126,7 +125,7 @@ fn stage_report() {
         eprintln!("no gpu adapter, cpu only: {e}");
     }
     for (camera, fixture) in FIXTURES {
-        let path = common::fixture_path(fixture);
+        let path = fixture_path(fixture);
         let frame = decode::decode(&std::fs::read(&path).unwrap()).unwrap();
         println!(
             "\n### {fixture}: {}x{}",

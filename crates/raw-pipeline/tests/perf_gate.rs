@@ -3,12 +3,10 @@ use raw_pipeline::edits::{
     BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
 };
 use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
+use raw_pipeline_testkit::fixtures::{baseline_path, fixture_path};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::time::Instant;
-
-mod common;
 
 const W: usize = 512;
 const H: usize = 512;
@@ -18,10 +16,6 @@ const REGRESSION_FACTOR: f64 = 2.0;
 #[derive(Serialize, Deserialize, PartialEq)]
 struct PerfBaseline {
     median_ns: BTreeMap<String, u64>,
-}
-
-fn baseline_path() -> PathBuf {
-    common::baseline_path("perf_gate.json")
 }
 
 fn make_image(w: usize, h: usize) -> LinearImage {
@@ -182,17 +176,18 @@ fn perf_gate_pipeline_profiles() {
         .map(|(name, e, sigma)| ((*name).to_string(), measure(name, e, &base, *sigma)))
         .collect();
 
+    let baseline_file = baseline_path("perf_gate.json");
     if std::env::var_os("BAKE_PERF_GATE").is_some() {
         let bl = PerfBaseline {
             median_ns: measured,
         };
         let json = serde_json::to_string_pretty(&bl).unwrap();
-        std::fs::write(baseline_path(), json).unwrap();
-        eprintln!("baked perf baseline to {}", baseline_path().display());
+        std::fs::write(&baseline_file, json).unwrap();
+        eprintln!("baked perf baseline to {}", baseline_file.display());
         return;
     }
 
-    let raw = std::fs::read_to_string(baseline_path())
+    let raw = std::fs::read_to_string(&baseline_file)
         .expect("perf_gate.json missing — run BAKE_PERF_GATE=1");
     let baseline: PerfBaseline = serde_json::from_str(&raw).unwrap();
     let mut failures: Vec<String> = Vec::new();
@@ -221,10 +216,6 @@ fn perf_gate_pipeline_profiles() {
 
 const RENDER_FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
 const RENDER_ITERS: usize = 3;
-
-fn render_baseline_path() -> PathBuf {
-    common::baseline_path("perf_gate_render.json")
-}
 
 fn render_options(max_edge: u32, quality: bool) -> raw_pipeline::frame::RenderOptions {
     raw_pipeline::frame::RenderOptions {
@@ -260,7 +251,7 @@ fn perf_gate_full_render() {
         eprintln!("skip: set PERF_GATE=1 to enforce, BAKE_PERF_GATE=1 to regenerate baseline");
         return;
     }
-    let path = common::fixture_path(RENDER_FIXTURE);
+    let path = fixture_path(RENDER_FIXTURE);
     if !path.exists() {
         eprintln!("skip: {RENDER_FIXTURE} missing");
         return;
@@ -288,20 +279,17 @@ fn perf_gate_full_render() {
         })
         .collect();
 
+    let baseline_file = baseline_path("perf_gate_render.json");
     if std::env::var_os("BAKE_PERF_GATE").is_some() {
         let bl = PerfBaseline {
             median_ns: measured,
         };
-        std::fs::write(
-            render_baseline_path(),
-            serde_json::to_string_pretty(&bl).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(&baseline_file, serde_json::to_string_pretty(&bl).unwrap()).unwrap();
         eprintln!("baked render perf baseline");
         return;
     }
 
-    let raw = std::fs::read_to_string(render_baseline_path())
+    let raw = std::fs::read_to_string(&baseline_file)
         .expect("perf_gate_render.json missing — run BAKE_PERF_GATE=1");
     let baseline: PerfBaseline = serde_json::from_str(&raw).unwrap();
     let mut failures: Vec<String> = Vec::new();

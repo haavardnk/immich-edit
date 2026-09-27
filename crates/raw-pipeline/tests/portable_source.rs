@@ -1,8 +1,3 @@
-mod common;
-
-use common::{
-    first_fixture_frame, haze_frame, mean_abs_delta, rgb8_opts, split_tone_frame, try_renderer,
-};
 use raw_pipeline::CpuRenderer;
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
@@ -11,6 +6,11 @@ use raw_pipeline::edits::{
 };
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::source::{self, LinearKind, SourceImage};
+use raw_pipeline_testkit::fixtures::first_fixture_frame;
+use raw_pipeline_testkit::frames::{haze_frame, split_tone_frame};
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::parity::mean_abs_delta;
+use raw_pipeline_testkit::render::rgb8_opts;
 
 fn layer() -> MaskLayer {
     MaskLayer {

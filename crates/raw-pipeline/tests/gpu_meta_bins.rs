@@ -2,24 +2,26 @@ use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::PreviewMode;
 use raw_pipeline::histogram::Histogram;
 use raw_pipeline::scopes::ScopeGrids;
-
-mod common;
+use raw_pipeline_testkit::fixtures::each_fixture_frame;
+use raw_pipeline_testkit::frames::synthetic_frame;
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::render::rgb8_opts;
 
 #[test]
 fn gpu_display_bins_match_the_cpu_counters_on_every_fixture() {
-    let Some(renderer) = common::try_renderer() else {
+    let Some(renderer) = try_renderer() else {
         return;
     };
     let mut edits = Edits::default();
     edits.basic.exposure_ev = 0.4;
     edits.basic.contrast = 20.0;
     edits.effects.vignette_amount = -30.0;
-    common::each_fixture_frame(|name, frame| {
+    each_fixture_frame(|name, frame| {
         for max_edge in [600, 1600] {
             let options = raw_pipeline::frame::RenderOptions {
                 histogram: true,
                 scopes: true,
-                ..common::rgb8_opts(max_edge)
+                ..rgb8_opts(max_edge)
             };
             let image = match renderer.render(frame, &edits, &options) {
                 Ok(image) => image,
@@ -42,7 +44,7 @@ fn gpu_display_bins_match_the_cpu_counters_on_every_fixture() {
 
 #[test]
 fn a_lut_graded_frame_feeds_the_bins_and_the_mask_overlay() {
-    let Some(renderer) = common::try_renderer() else {
+    let Some(renderer) = try_renderer() else {
         return;
     };
     let cube =
@@ -64,7 +66,7 @@ fn a_lut_graded_frame_feeds_the_bins_and_the_mask_overlay() {
         std::sync::Arc::new(raw_pipeline::lut::Lut3d::parse_cube(cube.as_bytes()).unwrap()),
     )]
     .into();
-    let frame = common::synthetic_frame(96, 64);
+    let frame = synthetic_frame(96, 64);
     for preview_mode in [
         PreviewMode::None,
         PreviewMode::MaskWeight {
@@ -76,7 +78,7 @@ fn a_lut_graded_frame_feeds_the_bins_and_the_mask_overlay() {
             scopes: true,
             preview_mode: preview_mode.clone(),
             luts: luts.clone(),
-            ..common::rgb8_opts(96)
+            ..rgb8_opts(96)
         };
         let image = match renderer.render(&frame, &edits, &options) {
             Ok(image) => image,
