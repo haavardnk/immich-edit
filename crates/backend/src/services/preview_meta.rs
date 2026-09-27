@@ -59,6 +59,17 @@ impl PreviewMetaStore {
         self.inner.lock().await.get(&id).cloned()
     }
 
+    pub async fn get_owned(
+        &self,
+        id: Uuid,
+        owner: Uuid,
+        asset_id: AssetKey,
+    ) -> Option<PreviewMeta> {
+        self.get(id)
+            .await
+            .filter(|meta| meta.owner == owner && meta.asset_id == asset_id)
+    }
+
     pub async fn clear(&self) {
         self.inner.lock().await.clear();
     }

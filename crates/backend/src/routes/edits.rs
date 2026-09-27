@@ -16,6 +16,7 @@ use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
 use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry, WriteOutcome};
 use crate::services::render::RenderIdentity;
+use crate::services::white_balance::{self, SamplePoint, WhiteBalance};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -226,17 +227,11 @@ pub async fn auto(
     Path(id): Path<AssetKey>,
     body: axum::body::Bytes,
 ) -> Result<Json<Edits>, AppError> {
-    let context = if body.is_empty() {
-        Edits::default()
-    } else {
-        serde_json::from_slice::<Edits>(&body)
-            .map_err(|e| AppError::BadRequest(format!("invalid edits body: {e}")))?
-    };
+    let context = context_edits(&body)?;
     let frame = state
         .render
         .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
-        .await
-        .map_err(AppError::from)?;
+        .await?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
             .await
@@ -244,42 +239,18 @@ pub async fn auto(
     Ok(Json(edits))
 }
 
-#[derive(Debug, Deserialize)]
-pub struct WhiteBalanceBody {
-    pub u: f32,
-    pub v: f32,
-    #[serde(default)]
-    pub edits: Edits,
-}
-
-#[derive(Debug, Serialize)]
-pub struct WhiteBalanceResponse {
-    pub wb_temp: f64,
-    pub wb_tint: f64,
-}
-
 pub async fn white_balance_sample(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-    Json(body): Json<WhiteBalanceBody>,
-) -> Result<Json<WhiteBalanceResponse>, AppError> {
-    if !(0.0..=1.0).contains(&body.u) || !(0.0..=1.0).contains(&body.v) {
-        return Err(AppError::BadRequest(
-            "sample point must be inside 0..1".to_string(),
-        ));
-    }
+    Json(point): Json<SamplePoint>,
+) -> Result<Json<WhiteBalance>, AppError> {
+    point.validate()?;
     let frame = state
         .render
         .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
-        .await
-        .map_err(AppError::from)?;
-    let solved = tokio::task::spawn_blocking(move || {
-        raw_pipeline::white_balance::sample_white_balance(&frame, &body.edits, body.u, body.v)
-    })
-    .await
-    .map_err(|_| AppError::Internal)?;
-    solved_response(solved)
+        .await?;
+    Ok(Json(white_balance::sample(frame, point).await?))
 }
 
 pub async fn white_balance_auto(
@@ -287,33 +258,21 @@ pub async fn white_balance_auto(
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
     body: axum::body::Bytes,
-) -> Result<Json<WhiteBalanceResponse>, AppError> {
-    let context = if body.is_empty() {
-        Edits::default()
-    } else {
-        serde_json::from_slice::<Edits>(&body)
-            .map_err(|e| AppError::BadRequest(format!("invalid edits body: {e}")))?
-    };
+) -> Result<Json<WhiteBalance>, AppError> {
+    let context = context_edits(&body)?;
     let frame = state
         .render
         .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
-        .await
-        .map_err(AppError::from)?;
-    let solved = tokio::task::spawn_blocking(move || {
-        raw_pipeline::white_balance::auto_white_balance(&frame, &context)
-    })
-    .await
-    .map_err(|_| AppError::Internal)?;
-    solved_response(solved)
+        .await?;
+    Ok(Json(white_balance::auto(frame, context).await?))
 }
 
-fn solved_response(solved: Option<(f64, f64)>) -> Result<Json<WhiteBalanceResponse>, AppError> {
-    let Some((wb_temp, wb_tint)) = solved else {
-        return Err(AppError::Unprocessable(
-            "no usable colour at that point".to_string(),
-        ));
-    };
-    Ok(Json(WhiteBalanceResponse { wb_temp, wb_tint }))
+fn context_edits(body: &[u8]) -> Result<Edits, AppError> {
+    if body.is_empty() {
+        return Ok(Edits::default());
+    }
+    serde_json::from_slice(body)
+        .map_err(|e| AppError::BadRequest(format!("invalid edits body: {e}")))
 }
 
 pub async fn history(

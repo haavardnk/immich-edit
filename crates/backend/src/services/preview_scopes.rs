@@ -7,6 +7,9 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::asset_key::AssetKey;
+use crate::services::preview_meta::PreviewMetaStore;
+
 const DEFAULT_CAP: usize = 24;
 const MAGIC: [u8; 4] = *b"SCOP";
 const VERSION: u8 = 1;
@@ -83,6 +86,19 @@ impl PreviewScopeStore {
 
     pub async fn get(&self, id: Uuid) -> Option<Arc<ScopeGrids>> {
         self.inner.lock().await.get(&id).cloned()
+    }
+
+    pub async fn encode_owned(
+        &self,
+        metas: &PreviewMetaStore,
+        owner: Uuid,
+        asset_id: AssetKey,
+        meta_id: Uuid,
+        kind: ScopeKind,
+    ) -> Option<Vec<u8>> {
+        metas.get_owned(meta_id, owner, asset_id).await?;
+        let grids = self.get(meta_id).await?;
+        Some(encode(&grids, kind))
     }
 
     pub async fn clear(&self) {

@@ -1,7 +1,57 @@
+use raw_pipeline::histogram::Histogram;
+
 use super::*;
+use crate::services::preview_meta::PreviewMeta;
 
 fn grids() -> ScopeGrids {
     ScopeGrids::from_rgb_u8(&[10, 20, 30, 40, 50, 60], 2, 1)
+}
+
+fn meta(owner: Uuid, asset_id: AssetKey) -> PreviewMeta {
+    PreviewMeta {
+        owner,
+        asset_id,
+        width: 2,
+        height: 1,
+        source_w: 2,
+        source_h: 1,
+        renderer: "cpu".into(),
+        is_raw: true,
+        histogram: Histogram::from_rgb_u8(&[0, 0, 0], 1, 1),
+        linear_histogram: None,
+        has_scopes: true,
+    }
+}
+
+#[tokio::test]
+async fn encode_owned_serves_only_the_owner_of_that_asset() {
+    let metas = PreviewMetaStore::new();
+    let scopes = PreviewScopeStore::new();
+    let owner = Uuid::new_v4();
+    let asset = AssetKey::master(Uuid::new_v4());
+    let with_grids = Uuid::new_v4();
+    let without_grids = Uuid::new_v4();
+    metas.put(with_grids, meta(owner, asset)).await;
+    metas.put(without_grids, meta(owner, asset)).await;
+    scopes.put(with_grids, grids()).await;
+    let other_asset = AssetKey::master(Uuid::new_v4());
+    let cases = [
+        (owner, asset, with_grids, true),
+        (Uuid::new_v4(), asset, with_grids, false),
+        (owner, other_asset, with_grids, false),
+        (owner, asset, without_grids, false),
+        (owner, asset, Uuid::new_v4(), false),
+    ];
+    for (who, asset_id, meta_id, served) in cases {
+        let encoded = scopes
+            .encode_owned(&metas, who, asset_id, meta_id, ScopeKind::Parade)
+            .await;
+        assert_eq!(encoded.is_some(), served, "{who} {asset_id:?} {meta_id}");
+    }
+    let encoded = scopes
+        .encode_owned(&metas, owner, asset, with_grids, ScopeKind::Parade)
+        .await;
+    assert_eq!(encoded, Some(encode(&grids(), ScopeKind::Parade)));
 }
 
 #[tokio::test]

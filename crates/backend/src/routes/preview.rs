@@ -12,7 +12,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::services::preview_meta::PreviewMeta;
-use crate::services::preview_scopes::{ScopeKind, encode as encode_scope};
+use crate::services::preview_scopes::ScopeKind;
 use crate::services::render::{RenderError, RenderIdentity};
 use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
@@ -148,11 +148,12 @@ pub async fn get_meta(
     ctx: AuthCtx,
     Path((asset_id, meta_id)): Path<(AssetKey, Uuid)>,
 ) -> Result<Json<PreviewMeta>, AppError> {
-    match state.preview_meta.get(meta_id).await {
-        Some(meta) if meta.owner == ctx.owner && meta.asset_id == asset_id => Ok(Json(meta)),
-        None => Err(AppError::NotFound),
-        Some(_) => Err(AppError::NotFound),
-    }
+    state
+        .preview_meta
+        .get_owned(meta_id, ctx.owner, asset_id)
+        .await
+        .map(Json)
+        .ok_or(AppError::NotFound)
 }
 
 pub async fn get_scope(
@@ -160,20 +161,12 @@ pub async fn get_scope(
     ctx: AuthCtx,
     Path((asset_id, meta_id, kind)): Path<(AssetKey, Uuid, ScopeKind)>,
 ) -> Result<Response, AppError> {
-    let owned = state
-        .preview_meta
-        .get(meta_id)
-        .await
-        .is_some_and(|meta| meta.owner == ctx.owner && meta.asset_id == asset_id);
-    if !owned {
-        return Err(AppError::NotFound);
-    }
-    let grids = state
+    let encoded = state
         .preview_scopes
-        .get(meta_id)
+        .encode_owned(&state.preview_meta, ctx.owner, asset_id, meta_id, kind)
         .await
         .ok_or(AppError::NotFound)?;
-    let mut resp = Response::new(Body::from(encode_scope(&grids, kind)));
+    let mut resp = Response::new(Body::from(encoded));
     resp.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/octet-stream"),
