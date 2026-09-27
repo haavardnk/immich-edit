@@ -54,7 +54,7 @@ pub fn user_json(user: &UserRecord, kind: AuthKind) -> serde_json::Value {
         "email": user.email,
         "name": user.name,
         "is_admin": user.is_admin,
-        "auth_kind": kind.as_str(),
+        "auth_kind": kind,
     })
 }
 

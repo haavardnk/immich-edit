@@ -9,7 +9,7 @@ use raw_pipeline::dcp::{DCP_MAX_SOURCE_BYTES, DcpProfile};
 use raw_pipeline::parse_dcp;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Row, SqlitePool};
+use sqlx::SqlitePool;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -32,7 +32,7 @@ pub enum DcpStoreError {
     NotFound,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct DcpMeta {
     pub id: String,
     pub name: String,
@@ -51,8 +51,9 @@ pub struct DcpStore {
     matches: Arc<Mutex<LruCache<String, Option<DcpRecord>>>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, sqlx::FromRow)]
 struct DcpRecord {
+    #[sqlx(flatten)]
     meta: DcpMeta,
     content_hash: String,
 }
@@ -103,18 +104,6 @@ impl DcpStore {
 
     fn blob_path(&self, content_hash: &str) -> PathBuf {
         self.dir.join(format!("{content_hash}.dcp"))
-    }
-
-    fn row_to_meta(row: &sqlx::sqlite::SqliteRow) -> DcpMeta {
-        DcpMeta {
-            id: row.get("id"),
-            name: row.get("name"),
-            camera_model: row.get("camera_model"),
-            copyright: row.get("copyright"),
-            bundled: row.get::<i64, _>("bundled") != 0,
-            size: row.get::<i64, _>("size") as u64,
-            created_at: row.get("created_at"),
-        }
     }
 
     pub async fn import(
@@ -225,41 +214,36 @@ impl DcpStore {
     }
 
     pub async fn list(&self) -> Result<Vec<DcpMeta>, DcpStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, DcpMeta>(
             "SELECT id, name, camera_model, copyright, bundled, size, created_at FROM dcp_profiles WHERE deleted = 0 ORDER BY bundled ASC, name ASC",
         )
         .fetch_all(&self.pool)
-        .await?;
-        Ok(rows.iter().map(Self::row_to_meta).collect())
+        .await?)
     }
 
     pub async fn revision(&self) -> Result<String, DcpStoreError> {
-        let rows = sqlx::query(
+        let rows = sqlx::query_as::<_, (String, String, Option<String>, i64)>(
             "SELECT id, content_hash, camera_model, bundled FROM dcp_profiles WHERE deleted = 0 ORDER BY id ASC",
         )
         .fetch_all(&self.pool)
         .await?;
         let mut digest = Sha256::new();
-        for row in rows {
-            digest.update(row.get::<String, _>("id"));
-            digest.update(row.get::<String, _>("content_hash"));
-            digest.update(
-                row.get::<Option<String>, _>("camera_model")
-                    .unwrap_or_default(),
-            );
-            digest.update(row.get::<i64, _>("bundled").to_le_bytes());
+        for (id, content_hash, camera_model, bundled) in rows {
+            digest.update(id);
+            digest.update(content_hash);
+            digest.update(camera_model.unwrap_or_default());
+            digest.update(bundled.to_le_bytes());
         }
         Ok(hex::encode(digest.finalize()))
     }
 
     async fn find_active_hash(&self, content_hash: &str) -> Result<Option<DcpMeta>, DcpStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, DcpMeta>(
             "SELECT id, name, camera_model, copyright, bundled, size, created_at FROM dcp_profiles WHERE content_hash = ? AND deleted = 0",
         )
         .bind(content_hash)
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(Self::row_to_meta))
+        .await?)
     }
 
     pub async fn soft_delete(&self, id: &str) -> Result<(), DcpStoreError> {
@@ -290,12 +274,11 @@ impl DcpStore {
     }
 
     async fn active_hash(&self, id: &str) -> Result<String, DcpStoreError> {
-        let row = sqlx::query("SELECT content_hash FROM dcp_profiles WHERE id = ? AND deleted = 0")
+        sqlx::query_scalar("SELECT content_hash FROM dcp_profiles WHERE id = ? AND deleted = 0")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
-            .ok_or(DcpStoreError::NotFound)?;
-        Ok(row.get("content_hash"))
+            .ok_or(DcpStoreError::NotFound)
     }
 
     pub async fn match_camera(
@@ -331,17 +314,18 @@ impl DcpStore {
         {
             return Ok(hit.clone());
         }
-        let rows = sqlx::query(
+        let found = sqlx::query_as::<_, DcpRecord>(
             "SELECT id, name, camera_model, copyright, content_hash, bundled, size, created_at FROM dcp_profiles WHERE camera_model IS NOT NULL AND deleted = 0 ORDER BY bundled ASC, created_at DESC, name ASC, id ASC",
         )
         .fetch_all(&self.pool)
-        .await?;
-        let found = rows.iter().find_map(|row| {
-            let camera: String = row.get("camera_model");
-            models_match(&camera, &needle).then(|| DcpRecord {
-                meta: Self::row_to_meta(row),
-                content_hash: row.get("content_hash"),
-            })
+        .await?
+        .into_iter()
+        .find(|record| {
+            record
+                .meta
+                .camera_model
+                .as_deref()
+                .is_some_and(|camera| models_match(camera, &needle))
         });
         self.matches
             .lock()

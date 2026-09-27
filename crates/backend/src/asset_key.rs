@@ -69,6 +69,14 @@ impl FromStr for AssetKey {
     }
 }
 
+impl TryFrom<String> for AssetKey {
+    type Error = AssetKeyError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
 impl From<Uuid> for AssetKey {
     fn from(source: Uuid) -> Self {
         Self::master(source)

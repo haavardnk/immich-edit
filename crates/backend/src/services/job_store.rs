@@ -4,13 +4,11 @@ use sqlx::{Row, SqlitePool};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use uuid::Uuid;
+use uuid::fmt::Hyphenated;
 
 mod cancel;
 mod credentials;
 mod finalize;
-mod rows;
-
-use rows::{item_from_row, job_from_row, parse_uuid};
 
 use crate::services::auth_store::AuthKind;
 use crate::services::crypto::{InstanceCrypto, SecretBytes};
@@ -23,12 +21,11 @@ pub enum JobStoreError {
     Parse(#[from] serde_json::Error),
     #[error("crypto: {0}")]
     Crypto(#[from] crate::services::crypto::CryptoError),
-    #[error("corrupt row: {0}")]
-    Corrupt(String),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[serde(rename_all = "lowercase")]
+#[sqlx(rename_all = "lowercase")]
 pub enum JobStatus {
     Pending,
     Running,
@@ -37,31 +34,9 @@ pub enum JobStatus {
     Cancelled,
 }
 
-impl JobStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Running => "running",
-            Self::Completed => "completed",
-            Self::Failed => "failed",
-            Self::Cancelled => "cancelled",
-        }
-    }
-
-    fn from_str(s: &str) -> Result<Self, JobStoreError> {
-        match s {
-            "pending" => Ok(Self::Pending),
-            "running" => Ok(Self::Running),
-            "completed" => Ok(Self::Completed),
-            "failed" => Ok(Self::Failed),
-            "cancelled" => Ok(Self::Cancelled),
-            other => Err(JobStoreError::Corrupt(format!("job status {other}"))),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[serde(rename_all = "lowercase")]
+#[sqlx(rename_all = "lowercase")]
 pub enum JobItemStatus {
     Pending,
     Running,
@@ -69,30 +44,20 @@ pub enum JobItemStatus {
     Failed,
 }
 
-impl JobItemStatus {
-    fn from_str(s: &str) -> Result<Self, JobStoreError> {
-        match s {
-            "pending" => Ok(Self::Pending),
-            "running" => Ok(Self::Running),
-            "completed" => Ok(Self::Completed),
-            "failed" => Ok(Self::Failed),
-            other => Err(JobStoreError::Corrupt(format!("job item status {other}"))),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct JobRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
     #[serde(skip)]
+    #[sqlx(try_from = "Hyphenated")]
     pub user_id: Uuid,
     #[serde(skip)]
     pub server_epoch: i64,
-    #[serde(skip)]
-    pub auth_session_id: Option<Uuid>,
     pub kind: String,
     pub status: JobStatus,
+    #[sqlx(rename = "target_json", json)]
     pub target: serde_json::Value,
+    #[sqlx(rename = "params_json", json)]
     pub params: serde_json::Value,
     pub total: i64,
     pub completed: i64,
@@ -102,13 +67,16 @@ pub struct JobRecord {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct JobItemRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
+    #[sqlx(try_from = "Hyphenated")]
     pub job_id: Uuid,
     pub asset_id: String,
     pub status: JobItemStatus,
     pub error: Option<String>,
+    #[sqlx(rename = "result_json", json(nullable))]
     pub result: Option<serde_json::Value>,
     pub idempotency_key: Option<String>,
     pub attempts: i64,
@@ -221,14 +189,13 @@ impl JobStore {
     }
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
-        let row = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch, auth_session_id \
+        Ok(sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
              FROM jobs WHERE id = ?1",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
-        .await?;
-        row.as_ref().map(job_from_row).transpose()
+        .await?)
     }
 
     pub async fn list_jobs(
@@ -236,31 +203,29 @@ impl JobStore {
         owner: Uuid,
         limit: i64,
     ) -> Result<Vec<JobRecord>, JobStoreError> {
-        let rows = sqlx::query(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch, auth_session_id \
+        Ok(sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
              FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
         .bind(owner.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(job_from_row).collect()
+        .await?)
     }
 
     pub async fn list_items(&self, job_id: Uuid) -> Result<Vec<JobItemRecord>, JobStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, JobItemRecord>(
             "SELECT id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, created_at, updated_at \
              FROM job_items WHERE job_id = ? ORDER BY position ASC, created_at ASC",
         )
         .bind(job_id.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(item_from_row).collect()
+        .await?)
     }
 
     pub async fn claim_next_item(&self) -> Result<Option<JobItemRecord>, JobStoreError> {
         let now = Utc::now().to_rfc3339();
-        let row = sqlx::query(
+        let item = sqlx::query_as::<_, JobItemRecord>(
             "UPDATE job_items \
              SET status = 'running', attempts = attempts + 1, updated_at = ? \
              WHERE id = ( \
@@ -277,7 +242,6 @@ impl JobStore {
         .fetch_optional(&self.pool)
         .await?;
 
-        let item = row.as_ref().map(item_from_row).transpose()?;
         if let Some(item) = &item {
             let changed = sqlx::query(
                 "UPDATE jobs SET status = 'running', updated_at = ? WHERE id = ? AND status = 'pending'",
@@ -297,16 +261,15 @@ impl JobStore {
 
     pub async fn clear_finished(&self, owner: Uuid) -> Result<Vec<(Uuid, String)>, JobStoreError> {
         let owner_str = owner.to_string();
-        let rows = sqlx::query(
+        let cleared: Vec<(Uuid, String)> = sqlx::query_as::<_, (Hyphenated, String)>(
             "SELECT id, kind FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running')",
         )
         .bind(&owner_str)
         .fetch_all(&self.pool)
-        .await?;
-        let cleared: Vec<(Uuid, String)> = rows
-            .iter()
-            .map(|r| Ok((parse_uuid(r.get("id"))?, r.get::<String, _>("kind"))))
-            .collect::<Result<_, JobStoreError>>()?;
+        .await?
+        .into_iter()
+        .map(|(id, kind)| (id.into_uuid(), kind))
+        .collect();
         let mut tx = self.pool.begin().await?;
         sqlx::query(
             "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running'))",
@@ -528,11 +491,12 @@ mod tests {
         let cases = [
             (
                 "UPDATE jobs SET user_id = 'not-a-uuid' WHERE id = ?",
-                "uuid",
+                "user_id",
             ),
+            ("UPDATE jobs SET status = 'weird' WHERE id = ?", "status"),
             (
-                "UPDATE jobs SET status = 'weird' WHERE id = ?",
-                "job status",
+                "UPDATE jobs SET target_json = '{' WHERE id = ?",
+                "target_json",
             ),
         ];
         for (sql, expected) in cases {
@@ -553,9 +517,51 @@ mod tests {
                 .unwrap();
             let err = store.get_job(job.id).await.unwrap_err();
             match err {
-                JobStoreError::Corrupt(msg) => assert!(msg.contains(expected), "{msg}"),
-                other => panic!("expected corrupt error, got {other}"),
+                JobStoreError::Db(sqlx::Error::ColumnDecode { index, .. }) => {
+                    assert!(index.contains(expected), "{index}")
+                }
+                other => panic!("expected column decode error, got {other}"),
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn statuses_are_stored_as_lowercase_names() {
+        let store = store().await;
+        let jobs = [
+            (JobStatus::Pending, "pending"),
+            (JobStatus::Running, "running"),
+            (JobStatus::Completed, "completed"),
+            (JobStatus::Failed, "failed"),
+            (JobStatus::Cancelled, "cancelled"),
+        ];
+        for (status, name) in jobs {
+            let raw: String = sqlx::query_scalar("SELECT ?")
+                .bind(status)
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+            assert_eq!(raw, name);
+            let back: JobStatus = sqlx::query_scalar("SELECT ?")
+                .bind(name)
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+            assert_eq!(back, status);
+        }
+        let items = [
+            (JobItemStatus::Pending, "pending"),
+            (JobItemStatus::Running, "running"),
+            (JobItemStatus::Completed, "completed"),
+            (JobItemStatus::Failed, "failed"),
+        ];
+        for (status, name) in items {
+            let raw: String = sqlx::query_scalar("SELECT ?")
+                .bind(status)
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+            assert_eq!(raw, name);
         }
     }
 }

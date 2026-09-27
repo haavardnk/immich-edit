@@ -1,14 +1,15 @@
 use chrono::Utc;
 use serde::Serialize;
-use sqlx::Row;
 use uuid::Uuid;
 
 use super::*;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct ExportPresetRecord {
+    #[sqlx(try_from = "Hyphenated")]
     pub id: Uuid,
     pub name: String,
+    #[sqlx(rename = "form_json", json)]
     pub form: serde_json::Value,
     pub created_at: String,
     pub updated_at: String,
@@ -19,14 +20,13 @@ impl EditsStore {
         &self,
         owner: Uuid,
     ) -> Result<Vec<ExportPresetRecord>, EditsStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, ExportPresetRecord>(
             "SELECT id, name, form_json, created_at, updated_at \
              FROM export_presets WHERE user_id = ?1 ORDER BY name COLLATE NOCASE, created_at",
         )
         .bind(owner.to_string())
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(export_preset_from_row).collect()
+        .await?)
     }
 
     pub async fn get_export_preset(
@@ -34,15 +34,14 @@ impl EditsStore {
         owner: Uuid,
         id: Uuid,
     ) -> Result<Option<ExportPresetRecord>, EditsStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, ExportPresetRecord>(
             "SELECT id, name, form_json, created_at, updated_at \
              FROM export_presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
         .bind(owner.to_string())
         .fetch_optional(&self.pool)
-        .await?;
-        row.as_ref().map(export_preset_from_row).transpose()
+        .await?)
     }
 
     pub async fn create_export_preset(
@@ -109,19 +108,4 @@ impl EditsStore {
             .await?;
         Ok(res.rows_affected() > 0)
     }
-}
-
-fn export_preset_from_row(
-    row: &sqlx::sqlite::SqliteRow,
-) -> Result<ExportPresetRecord, EditsStoreError> {
-    let id: String = row.try_get("id")?;
-    let form_json: String = row.try_get("form_json")?;
-    Ok(ExportPresetRecord {
-        id: Uuid::parse_str(&id)
-            .map_err(|_| EditsStoreError::Corrupt(format!("export preset id {id}")))?,
-        name: row.try_get("name")?,
-        form: serde_json::from_str(&form_json)?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
 }

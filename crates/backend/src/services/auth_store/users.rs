@@ -1,5 +1,5 @@
 use chrono::Utc;
-use sqlx::{Row, Sqlite, Transaction};
+use sqlx::{Sqlite, Transaction};
 
 use super::*;
 
@@ -28,22 +28,20 @@ impl AuthStore {
     }
 
     pub async fn get_user(&self, id: Uuid) -> Result<Option<UserRecord>, AuthStoreError> {
-        let row = sqlx::query(
+        Ok(sqlx::query_as::<_, UserRecord>(
             "SELECT id, email, name, is_admin, access_enabled FROM users WHERE id = ?1",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
-        .await?;
-        row.as_ref().map(user_from_row).transpose()
+        .await?)
     }
 
     pub async fn list_users(&self) -> Result<Vec<UserRecord>, AuthStoreError> {
-        let rows = sqlx::query(
+        Ok(sqlx::query_as::<_, UserRecord>(
             "SELECT id, email, name, is_admin, access_enabled FROM users ORDER BY email",
         )
         .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(user_from_row).collect()
+        .await?)
     }
 
     pub async fn set_access(&self, id: Uuid, enabled: bool) -> Result<(), AuthStoreError> {
@@ -89,14 +87,4 @@ impl AuthStore {
         tx.commit().await?;
         Ok(())
     }
-}
-
-fn user_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<UserRecord, AuthStoreError> {
-    Ok(UserRecord {
-        id: parse_uuid(row.try_get::<String, _>("id")?)?,
-        email: row.try_get("email")?,
-        name: row.try_get("name")?,
-        is_admin: row.try_get::<i64, _>("is_admin")? != 0,
-        access_enabled: row.try_get::<i64, _>("access_enabled")? != 0,
-    })
 }

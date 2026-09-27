@@ -20,7 +20,7 @@ impl JobStore {
         .bind(enc.ciphertext)
         .bind(enc.nonce)
         .bind(enc.key_version)
-        .bind(auth_kind.as_str())
+        .bind(auth_kind)
         .execute(conn)
         .await?;
         Ok(())
@@ -40,13 +40,12 @@ impl JobStore {
             return Ok(None);
         };
         let enc = crate::services::crypto::Encrypted {
-            ciphertext: row.get::<Vec<u8>, _>("ciphertext"),
-            nonce: row.get::<Vec<u8>, _>("nonce"),
-            key_version: row.get::<i64, _>("key_version"),
+            ciphertext: row.try_get("ciphertext")?,
+            nonce: row.try_get("nonce")?,
+            key_version: row.try_get("key_version")?,
         };
         let cred = self.crypto.decrypt(&enc)?;
-        let auth_kind = AuthKind::from_wire(&row.get::<String, _>("auth_kind"));
-        Ok(Some((cred, auth_kind)))
+        Ok(Some((cred, row.try_get("auth_kind")?)))
     }
 }
 

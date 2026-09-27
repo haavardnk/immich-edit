@@ -37,15 +37,15 @@ impl JobStore {
     }
 
     async fn finalize_for_item(&self, item_id: Uuid) -> Result<(), JobStoreError> {
-        let row = sqlx::query("SELECT job_id FROM job_items WHERE id = ?")
-            .bind(item_id.to_string())
-            .fetch_optional(&self.pool)
-            .await?;
-        let Some(row) = row else {
+        let job_id: Option<Hyphenated> =
+            sqlx::query_scalar("SELECT job_id FROM job_items WHERE id = ?")
+                .bind(item_id.to_string())
+                .fetch_optional(&self.pool)
+                .await?;
+        let Some(job_id) = job_id else {
             return Ok(());
         };
-        let job_id = parse_uuid(row.get::<String, _>("job_id"))?;
-        self.recompute_and_finalize(job_id).await
+        self.recompute_and_finalize(job_id.into_uuid()).await
     }
 
     async fn recompute_and_finalize(&self, job_id: Uuid) -> Result<(), JobStoreError> {
@@ -72,9 +72,9 @@ impl JobStore {
         .bind(job_id.to_string())
         .fetch_one(&mut *tx)
         .await?;
-        let pending: i64 = row.get("pending");
-        let completed: i64 = row.get("completed");
-        let status = JobStatus::from_str(&row.get::<String, _>("status"))?;
+        let pending: i64 = row.try_get("pending")?;
+        let completed: i64 = row.try_get("completed")?;
+        let status: JobStatus = row.try_get("status")?;
 
         if pending == 0 && matches!(status, JobStatus::Pending | JobStatus::Running) {
             let final_status = if completed > 0 {
@@ -84,7 +84,7 @@ impl JobStore {
             };
             delete_credential(&mut tx, job_id).await?;
             sqlx::query("UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?")
-                .bind(final_status.as_str())
+                .bind(final_status)
                 .bind(&now)
                 .bind(job_id.to_string())
                 .execute(&mut *tx)
