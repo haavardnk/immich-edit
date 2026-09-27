@@ -17,7 +17,7 @@ pub(super) enum DisplayBuf {
 }
 
 impl GpuRenderer {
-    pub(super) fn readback_image<'a>(
+    pub(super) fn read_display<'a>(
         &'a self,
         frame: DisplayFrame<'a>,
         cancel: Option<&crate::cancel::CancelToken>,
@@ -81,76 +81,86 @@ pub(super) struct ReadbackImage<'a> {
     timings: RenderTimings<'a>,
 }
 
-pub(super) fn finish_image(
-    image: ReadbackImage<'_>,
-    opts: &RenderOptions,
-    is_raw: bool,
-    cancel: Option<&crate::cancel::CancelToken>,
-) -> PipelineResult<RenderedImage> {
-    let ReadbackImage {
-        display,
-        counts,
-        dims: (out_w, out_h),
-        source_dims,
-        timings,
-    } = image;
-    let clock = timings.clock();
-    let display = match display {
-        DisplayBuf::Rgba8(mut rgba) if opts.gamut_warn || opts.clip_warn => {
-            crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
-            DisplayBuf::Rgba8(rgba)
-        }
-        other => other,
-    };
-    let (histogram, linear_histogram) = counts.histograms();
-    let (scopes, encoded) = if has_final_stage(out_w, out_h, opts) {
-        let pixels = match display {
-            DisplayBuf::Rgb16(rgb) => FinalPixels::Rgb16(rgb),
-            DisplayBuf::Rgba8(rgba) => FinalPixels::Rgb8(
-                rgba.chunks_exact(4)
-                    .flat_map(|px| [px[0], px[1], px[2]])
-                    .collect(),
-            ),
+impl ReadbackImage<'_> {
+    pub(super) fn into_rendered(
+        self,
+        opts: &RenderOptions,
+        is_raw: bool,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<RenderedImage> {
+        let ReadbackImage {
+            display,
+            counts,
+            dims: (out_w, out_h),
+            source_dims,
+            timings,
+        } = self;
+        let clock = timings.clock();
+        let display = match display {
+            DisplayBuf::Rgba8(mut rgba) if opts.gamut_warn || opts.clip_warn => {
+                crate::warn::paint_rgba8(&mut rgba, opts.gamut_warn, opts.clip_warn);
+                DisplayBuf::Rgba8(rgba)
+            }
+            other => other,
         };
-        let rendered = FinalImage {
-            pixels,
-            width: out_w,
-            height: out_h,
+        let (histogram, linear_histogram) = counts.histograms();
+        let (scopes, encoded) = if has_final_stage(out_w, out_h, opts) {
+            let pixels = match display {
+                DisplayBuf::Rgb16(rgb) => FinalPixels::Rgb16(rgb),
+                DisplayBuf::Rgba8(rgba) => FinalPixels::Rgb8(
+                    rgba.chunks_exact(4)
+                        .flat_map(|px| [px[0], px[1], px[2]])
+                        .collect(),
+                ),
+            };
+            let rendered = FinalImage {
+                pixels,
+                width: out_w,
+                height: out_h,
+            };
+            let finished = clock.time(timing::EXPORT_FINISH, || final_stage(rendered, opts))?;
+            let bytes = clock.time(timing::ENCODE, || encode(&finished, opts));
+            (
+                counts.scopes(clock),
+                bytes.map(|b| (b, finished.width, finished.height)),
+            )
+        } else {
+            let (scopes, bytes) = rayon::join(
+                || counts.scopes(clock),
+                || {
+                    clock.time(timing::ENCODE, || match &display {
+                        DisplayBuf::Rgb16(rgb) => encode_from_rgb16(
+                            rgb,
+                            out_w,
+                            out_h,
+                            &opts.output,
+                            opts.output_color_space,
+                        ),
+                        DisplayBuf::Rgba8(rgba) => encode_from_rgba8(
+                            rgba,
+                            out_w,
+                            out_h,
+                            &opts.output,
+                            opts.output_color_space,
+                        ),
+                    })
+                },
+            );
+            (scopes, bytes.map(|b| (b, out_w, out_h)))
         };
-        let finished = clock.time(timing::EXPORT_FINISH, || final_stage(rendered, opts))?;
-        let bytes = clock.time(timing::ENCODE, || encode(&finished, opts));
-        (
-            counts.scopes(clock),
-            bytes.map(|b| (b, finished.width, finished.height)),
-        )
-    } else {
-        let (scopes, bytes) = rayon::join(
-            || counts.scopes(clock),
-            || {
-                clock.time(timing::ENCODE, || match &display {
-                    DisplayBuf::Rgb16(rgb) => {
-                        encode_from_rgb16(rgb, out_w, out_h, &opts.output, opts.output_color_space)
-                    }
-                    DisplayBuf::Rgba8(rgba) => {
-                        encode_from_rgba8(rgba, out_w, out_h, &opts.output, opts.output_color_space)
-                    }
-                })
-            },
-        );
-        (scopes, bytes.map(|b| (b, out_w, out_h)))
-    };
-    let (bytes, width, height) = encoded?;
-    Ok(RenderedImage {
-        bytes,
-        histogram,
-        linear_histogram,
-        scopes,
-        width,
-        height,
-        source_w: source_dims.0,
-        source_h: source_dims.1,
-        renderer: "gpu".into(),
-        is_raw,
-        timings: timings.finish(cancel),
-    })
+        let (bytes, width, height) = encoded?;
+        Ok(RenderedImage {
+            bytes,
+            histogram,
+            linear_histogram,
+            scopes,
+            width,
+            height,
+            source_w: source_dims.0,
+            source_h: source_dims.1,
+            renderer: "gpu".into(),
+            is_raw,
+            timings: timings.finish(cancel),
+        })
+    }
 }

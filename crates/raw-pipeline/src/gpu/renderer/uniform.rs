@@ -4,7 +4,7 @@ use crate::gpu::shader_builder::BuiltProcessShader;
 use crate::gpu::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::ops::{OpContext, OpRegistry};
 
-pub(super) fn process_header(
+pub(super) fn header_uniform(
     edits: &Edits,
     geom: &ProcessGeom,
     sensor: (u32, u32),

@@ -13,12 +13,13 @@ use crate::gpu::passes::sensor::SensorParams;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn run_sensor(
+    pub(in crate::gpu::renderer) fn submit_sensor(
         &self,
         src: &Arc<CachedFrame>,
         edits: &Edits,
     ) -> PipelineResult<Arc<CachedFrame>> {
-        let _span = tracing::debug_span!("gpu.run_sensor", w = src.width, h = src.height).entered();
+        let _span =
+            tracing::debug_span!("gpu.submit_sensor", w = src.width, h = src.height).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let w = src.width;

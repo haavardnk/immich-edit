@@ -12,7 +12,7 @@ use crate::gpu::source::SourceExtent;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn run_dehaze(
+    pub(in crate::gpu::renderer) fn submit_dehaze(
         &self,
         src: &Texture,
         extent: SourceExtent,

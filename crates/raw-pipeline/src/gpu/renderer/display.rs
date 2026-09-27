@@ -10,7 +10,7 @@ use wgpu::{CommandEncoder, CommandEncoderDescriptor, Texture, TextureUsages};
 use super::GpuRenderer;
 use super::masks::{MaskAtlas, MaskStage, Retained};
 use super::meta::{MetaRequest, MetaSources};
-use super::process::ProcessPlan;
+use super::process::{ProcessPlan, ProcessViews};
 use super::{display_depth, pools};
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
@@ -245,7 +245,7 @@ impl GpuRenderer {
             depth,
             dims: out_dims,
         };
-        let views = self.process_views(&state, p, display.texture);
+        let views = ProcessViews::new(&state, p, display.texture, &self.dummy_luma);
 
         let mut encoder = self
             .ctx

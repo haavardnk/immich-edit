@@ -2,9 +2,9 @@ use wgpu::{CommandEncoder, Texture, TextureView, TextureViewDescriptor};
 
 use super::GpuRenderer;
 use super::display::StageState;
-use super::geometry::{ProcessGeom, process_geom};
+use super::geometry::ProcessGeom;
 use super::masks::Retained;
-use super::uniform::{build_process_uniform, process_header};
+use super::uniform::{build_process_uniform, header_uniform};
 use crate::edits::Edits;
 use crate::frame::{FrameMeta, RenderOptions};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
@@ -29,7 +29,7 @@ impl ProcessPlan {
         state: &StageState,
         out_dims: (u32, u32),
     ) -> Self {
-        let geom = process_geom(meta, edits, state.extent.full);
+        let geom = ProcessGeom::new(meta, edits, state.extent.full);
         let setup = crate::dcp_pipeline::resolve(meta, edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
@@ -44,7 +44,7 @@ impl ProcessPlan {
             scratch: OpScratch::default(),
         };
         let header = |warp: bool| {
-            process_header(
+            header_uniform(
                 edits,
                 &geom,
                 state.extent.dims,
@@ -71,22 +71,24 @@ pub(super) struct ProcessViews {
     pub shadows: TextureView,
 }
 
-impl GpuRenderer {
-    pub(super) fn process_views(
-        &self,
+impl ProcessViews {
+    pub fn new(
         state: &StageState,
         target: &OutputTargets,
         display: &Texture,
-    ) -> ProcessViews {
+        dummy_luma: &Texture,
+    ) -> Self {
         let view = |texture: &Texture| texture.create_view(&TextureViewDescriptor::default());
-        ProcessViews {
+        Self {
             src: view(&state.texture),
             out: view(display),
             linear: view(&target.linear_texture),
-            shadows: view(state.shadows.as_deref().unwrap_or(&self.dummy_luma)),
+            shadows: view(state.shadows.as_deref().unwrap_or(dummy_luma)),
         }
     }
+}
 
+impl GpuRenderer {
     pub(super) fn encode_process(
         &self,
         encoder: &mut CommandEncoder,

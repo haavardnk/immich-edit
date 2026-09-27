@@ -220,7 +220,7 @@ async fn draw(
         .acquire(ctx, frame.dims(), view.canvas_color_space())
         .map_err(|e| JsError::new(&e))?;
     frame.record(|encoder, texture| presenter.borrow().blit(ctx, encoder, texture, &target.view));
-    let meta = inner.gpu.finish_display(frame).await?;
+    let meta = inner.gpu.read_display_meta(frame).await?;
     target.present(ctx);
     let bitmap = presenter.borrow().bitmap().map_err(|e| JsError::new(&e))?;
     Ok(js::frame(&meta, bitmap))

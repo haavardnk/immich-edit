@@ -103,14 +103,14 @@ impl GpuRenderer {
         retained
     }
 
-    pub(in crate::gpu::renderer) fn run_presence(
+    pub(in crate::gpu::renderer) fn submit_presence(
         &self,
         src: &Texture,
         extent: SourceExtent,
         edits: &Edits,
     ) -> PipelineResult<PooledTexture> {
         let dims = extent.dims;
-        let _span = tracing::debug_span!("gpu.run_presence", w = dims.0, h = dims.1).entered();
+        let _span = tracing::debug_span!("gpu.submit_presence", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;
@@ -191,7 +191,7 @@ impl GpuRenderer {
         Ok(adjusted)
     }
 
-    pub(in crate::gpu::renderer) fn build_luma_pyramid(
+    pub(in crate::gpu::renderer) fn submit_luma_pyramid(
         &self,
         src: &Texture,
         extent: SourceExtent,

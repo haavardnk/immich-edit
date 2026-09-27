@@ -43,7 +43,7 @@ fn retouch_params(
 }
 
 impl GpuRenderer {
-    pub(super) fn run_retouch(
+    pub(super) fn submit_retouch(
         &self,
         src: Arc<Texture>,
         dims: (u32, u32),

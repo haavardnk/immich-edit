@@ -52,7 +52,7 @@ impl GpuRenderer {
         let sharpen = final_pass_active
             .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h))
             .transpose()?;
-        scratch.extend(self.run_dcp_base_table(encoder, dcp, &p.linear_texture, display.dims));
+        scratch.extend(self.encode_dcp_base_table(encoder, dcp, &p.linear_texture, display.dims));
         let Some(s) = sharpen.as_ref().map(|guard| &guard[0]) else {
             return Ok(sharpen);
         };
@@ -68,7 +68,7 @@ impl GpuRenderer {
         self.encode_effects_tone(encoder, edits, opts, effects_src, s, display);
         let warn_flags =
             opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1) | ((p3_active as u32) << 2);
-        scratch.extend(self.run_dcp_finish(encoder, dcp, &s.post_lin, display, warn_flags));
+        scratch.extend(self.encode_dcp_finish(encoder, dcp, &s.post_lin, display, warn_flags));
         Ok(sharpen)
     }
 }

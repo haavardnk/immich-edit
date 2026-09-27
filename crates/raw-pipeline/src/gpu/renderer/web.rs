@@ -19,7 +19,7 @@ impl GpuRenderer {
         clippy::await_holding_lock,
         reason = "the frame owns its pooled targets until the bins are read, and the web pool refuses a second frame"
     )]
-    pub async fn finish_display(&self, frame: DisplayFrame<'_>) -> PipelineResult<DisplayMeta> {
+    pub async fn read_display_meta(&self, frame: DisplayFrame<'_>) -> PipelineResult<DisplayMeta> {
         let DisplayFrame {
             encoder,
             targets,

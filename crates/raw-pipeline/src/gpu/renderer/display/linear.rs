@@ -30,7 +30,7 @@ impl GpuRenderer {
         let dims = state.extent.dims;
         let tex = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-            self.run_dehaze(&state.texture, state.extent, edits, atmosphere)
+            self.submit_dehaze(&state.texture, state.extent, edits, atmosphere)
         })?;
         crate::cancel::check(cancel)?;
         state.texture = state.hold(tex);
@@ -48,7 +48,7 @@ impl GpuRenderer {
             return Ok(());
         }
         let tex = t.stage(timing::PRESENCE, || {
-            self.run_presence(&state.texture, state.extent, edits)
+            self.submit_presence(&state.texture, state.extent, edits)
         })?;
         crate::cancel::check(cancel)?;
         state.texture = state.hold(tex);
@@ -77,8 +77,9 @@ impl GpuRenderer {
                 Some(tex) => tex.clone(),
                 None if amts.texture == 0.0 && amts.clarity == 0.0 => base.clone(),
                 None => {
-                    let tex =
-                        t.stage(timing::PRESENCE, || self.run_presence(base, extent, &eff))?;
+                    let tex = t.stage(timing::PRESENCE, || {
+                        self.submit_presence(base, extent, &eff)
+                    })?;
                     crate::cancel::check(cancel)?;
                     state.hold(tex)
                 }
@@ -99,7 +100,7 @@ impl GpuRenderer {
             return Ok(());
         }
         let pyramid = t.stage(timing::SHADOWS, || {
-            self.build_luma_pyramid(&state.texture, state.extent)
+            self.submit_luma_pyramid(&state.texture, state.extent)
         })?;
         state.shadows = Some(state.hold(pyramid));
         Ok(())

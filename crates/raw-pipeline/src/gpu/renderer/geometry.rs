@@ -15,44 +15,46 @@ pub(super) struct ProcessGeom {
     pub geom_warps: bool,
 }
 
-pub(super) fn process_geom(meta: &FrameMeta, edits: &Edits, work_dims: (u32, u32)) -> ProcessGeom {
-    let (sensor_w, sensor_h) = work_dims;
-    let display = if meta.orientation.0 {
-        (sensor_h, sensor_w)
-    } else {
-        (sensor_w, sensor_h)
-    };
-    let oriented = match edits.geometry.rotate {
-        90 | 270 => (display.1, display.0),
-        _ => display,
-    };
+impl ProcessGeom {
+    pub(super) fn new(meta: &FrameMeta, edits: &Edits, work_dims: (u32, u32)) -> Self {
+        let (sensor_w, sensor_h) = work_dims;
+        let display = if meta.orientation.0 {
+            (sensor_h, sensor_w)
+        } else {
+            (sensor_w, sensor_h)
+        };
+        let oriented = match edits.geometry.rotate {
+            90 | 270 => (display.1, display.0),
+            _ => display,
+        };
 
-    let source = if meta.orientation.0 {
-        (meta.height as u32, meta.width as u32)
-    } else {
-        (meta.width as u32, meta.height as u32)
-    };
+        let source = if meta.orientation.0 {
+            (meta.height as u32, meta.width as u32)
+        } else {
+            (meta.width as u32, meta.height as u32)
+        };
 
-    let crop = edits.geometry.crop.unwrap_or(CropRect::full());
-    let angle = edits.geometry.rotate_angle;
-    let bbox = crate::geom::rotated_bbox(oriented.0 as f32, oriented.1 as f32, angle);
-    let a_rad = crate::geom::deg_to_rad(angle);
-    let perspective_inverse = edits.geometry.perspective_inverse();
+        let crop = edits.geometry.crop.unwrap_or(CropRect::full());
+        let angle = edits.geometry.rotate_angle;
+        let bbox = crate::geom::rotated_bbox(oriented.0 as f32, oriented.1 as f32, angle);
+        let a_rad = crate::geom::deg_to_rad(angle);
+        let perspective_inverse = edits.geometry.perspective_inverse();
 
-    let (ot, oh_h, oh_v) = meta.orientation;
-    ProcessGeom {
-        display,
-        oriented,
-        source,
-        crop,
-        cos_a: a_rad.cos(),
-        sin_a: a_rad.sin(),
-        bw: bbox.w,
-        bh: bbox.h,
-        persp_rows: crate::perspective::mat3_rows(&perspective_inverse),
-        orient_packed: (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2),
-        geom_warps: !crop.is_full()
-            || angle.abs() > 1e-4
-            || perspective_inverse != crate::perspective::IDENTITY,
+        let (ot, oh_h, oh_v) = meta.orientation;
+        Self {
+            display,
+            oriented,
+            source,
+            crop,
+            cos_a: a_rad.cos(),
+            sin_a: a_rad.sin(),
+            bw: bbox.w,
+            bh: bbox.h,
+            persp_rows: crate::perspective::mat3_rows(&perspective_inverse),
+            orient_packed: (oh_h as u32) | ((oh_v as u32) << 1) | ((ot as u32) << 2),
+            geom_warps: !crop.is_full()
+                || angle.abs() > 1e-4
+                || perspective_inverse != crate::perspective::IDENTITY,
+        }
     }
 }

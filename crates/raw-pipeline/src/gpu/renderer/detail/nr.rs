@@ -15,7 +15,7 @@ use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::stage_cache::Stage;
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn run_nr(
+    pub(in crate::gpu::renderer) fn submit_nr(
         &self,
         src: &Texture,
         dims: (u32, u32),
@@ -26,7 +26,7 @@ impl GpuRenderer {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
         }
-        let _span = tracing::debug_span!("gpu.run_nr", w = dims.0, h = dims.1).entered();
+        let _span = tracing::debug_span!("gpu.submit_nr", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (w, h) = dims;

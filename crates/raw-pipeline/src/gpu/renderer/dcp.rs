@@ -91,7 +91,7 @@ pub(super) fn identity_huesat_map() -> &'static HueSatMap {
 }
 
 impl GpuRenderer {
-    pub(super) fn run_dcp_base_table(
+    pub(super) fn encode_dcp_base_table(
         &self,
         encoder: &mut CommandEncoder,
         resolved: Option<&ResolvedDcp>,
@@ -112,7 +112,7 @@ impl GpuRenderer {
         Some(self.apply_huesat(encoder, job))
     }
 
-    pub(super) fn run_dcp_finish(
+    pub(super) fn encode_dcp_finish(
         &self,
         encoder: &mut CommandEncoder,
         resolved: Option<&ResolvedDcp>,

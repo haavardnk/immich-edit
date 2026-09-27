@@ -150,7 +150,7 @@ impl GpuRenderer {
         crate::cancel::check(cancel)?;
         let edits = edits.clamped();
         let cached = if edits.lens.any_active() {
-            let corrected = t.stage(timing::LENS, || self.run_sensor(&cached, &edits))?;
+            let corrected = t.stage(timing::LENS, || self.submit_sensor(&cached, &edits))?;
             crate::cancel::check(cancel)?;
             corrected
         } else {
@@ -192,12 +192,12 @@ impl GpuRenderer {
         let dims = (cached.width, cached.height);
         let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
         let wb_base = t.stage(timing::WB_PREPARE, || {
-            self.run_wb_prepare(cached, &frame.meta, edits, &setup, keys.wb)
+            self.submit_wb_prepare(cached, &frame.meta, edits, &setup, keys.wb)
         })?;
         crate::cancel::check(cancel)?;
         let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
             let tex = t.stage(timing::RETOUCH, || {
-                self.run_retouch(wb_base, dims, frame, edits)
+                self.submit_retouch(wb_base, dims, frame, edits)
             })?;
             crate::cancel::check(cancel)?;
             tex
@@ -207,7 +207,7 @@ impl GpuRenderer {
         let full_src: Arc<Texture> =
             if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
                 let tex = t.stage(timing::NOISE_REDUCTION, || {
-                    self.run_nr(&wb_base, dims, edits, keys.nr)
+                    self.submit_nr(&wb_base, dims, edits, keys.nr)
                 })?;
                 crate::cancel::check(cancel)?;
                 tex
@@ -219,7 +219,7 @@ impl GpuRenderer {
         let full_src: Arc<Texture> = match sigma {
             Some(sigma) => {
                 let tex = t.stage(timing::CAPTURE_SHARPEN, || {
-                    self.run_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))
+                    self.submit_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))
                 })?;
                 crate::cancel::check(cancel)?;
                 tex
