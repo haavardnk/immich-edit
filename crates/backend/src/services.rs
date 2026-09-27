@@ -18,6 +18,7 @@ pub mod job_store;
 pub mod login_limiter;
 pub mod login_session;
 pub mod lut_store;
+#[cfg(feature = "ml")]
 pub mod mask_scene;
 #[cfg(feature = "ml")]
 pub mod model_download;

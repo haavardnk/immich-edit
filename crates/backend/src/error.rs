@@ -233,6 +233,7 @@ store_from!(
     "watermark",
     dup
 );
+#[cfg(feature = "ml")]
 store_from!(crate::services::model_store::ModelStoreError, "model store");
 store_from!(
     crate::services::raster_store::RasterStoreError,
@@ -296,6 +297,7 @@ mod tests {
     use crate::services::auth_store::AuthStoreError;
     use crate::services::edited_thumb::EditedThumbError;
     use crate::services::instance_store::InstanceStoreError;
+    #[cfg(feature = "ml")]
     use crate::services::model_store::ModelStoreError;
 
     fn status_of(err: AppError) -> StatusCode {
@@ -324,12 +326,9 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "ml")]
     #[test]
-    fn store_errors_map_to_status() {
-        assert_eq!(
-            status_of(EditedThumbError::HashMismatch.into()),
-            StatusCode::NOT_FOUND
-        );
+    fn model_store_errors_map_to_status() {
         assert_eq!(
             status_of(ModelStoreError::NotFound.into()),
             StatusCode::NOT_FOUND
@@ -337,6 +336,14 @@ mod tests {
         assert_eq!(
             status_of(ModelStoreError::Invalid("nope".into()).into()),
             StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[test]
+    fn store_errors_map_to_status() {
+        assert_eq!(
+            status_of(EditedThumbError::HashMismatch.into()),
+            StatusCode::NOT_FOUND
         );
         assert_eq!(
             status_of(AuthStoreError::AlreadyConfigured.into()),
