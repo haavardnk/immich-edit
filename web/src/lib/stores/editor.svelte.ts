@@ -53,7 +53,7 @@ import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui, type BrushTool, type RetouchTool } from '$lib/stores/ui.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
-import type { Roi } from '$lib/utils/view-geometry';
+import type { Roi } from '$lib/utils/viewGeometry';
 import { applyCopySections } from '$lib/copyPaste';
 import { errorMessage } from '$lib/utils/errors';
 import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
@@ -67,7 +67,7 @@ import {
 } from '$lib/utils/zoomTarget';
 import { nudgePan, type PanStep } from '$lib/utils/imageViewport';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
-import type { PreviewSurface } from '$lib/utils/preview-surface';
+import type { PreviewSurface } from '$lib/utils/previewSurface';
 
 class EditorStore {
   assetId = $state<string | null>(null);

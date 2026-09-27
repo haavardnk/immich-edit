@@ -1,14 +1,14 @@
 import { ApiError, NetworkError } from '$lib/api/client';
 import { previewModeIsNone, type ProofOptions } from '$lib/api/preview';
-import type { ClientRenderer } from '$lib/render/client-renderer';
-import { frameMeta } from '$lib/render/frame-meta';
+import type { ClientRenderer } from '$lib/render/clientRenderer';
+import { frameMeta } from '$lib/render/frameMeta';
 import type { RenderView, RenderedFrame, SourceInfo } from '$lib/render/protocol';
 import { renderer } from '$lib/stores/renderer.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import type { Edits } from '$lib/types/edits';
-import { revoke } from '$lib/utils/object-url';
-import type { RenderRequest } from '$lib/utils/view-geometry';
-import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob, type SourceSlot } from './client-lane';
+import { revoke } from '$lib/utils/objectUrl';
+import type { RenderRequest } from '$lib/utils/viewGeometry';
+import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob, type SourceSlot } from './clientLane';
 import type { BaseArgs, PreviewCtx, PreviewFrame } from './preview.svelte';
 
 export interface ClientPreviewHooks {

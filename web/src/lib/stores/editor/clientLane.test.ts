@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClientRenderer } from '$lib/render/client-renderer';
+import type { ClientRenderer } from '$lib/render/clientRenderer';
 import type { RenderView, RenderedFrame } from '$lib/render/protocol';
 import { neutralEdits, type Edits } from '$lib/types/edits';
-import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob } from './client-lane';
+import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob } from './clientLane';
 
 const SOURCE = { width: 8, height: 4, frame_width: 8, frame_height: 4, is_raw: false, model: '' };
 

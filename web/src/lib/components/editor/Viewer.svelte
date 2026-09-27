@@ -12,9 +12,9 @@
   import Notice from '$lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
-  import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/view-geometry';
+  import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/viewGeometry';
   import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
-  import type { PreviewSurface } from '$lib/utils/preview-surface';
+  import type { PreviewSurface } from '$lib/utils/previewSurface';
 
   const WHEEL_STEP = 1.1;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { surfaceSize, type PreviewSurface } from '$lib/utils/preview-surface';
+  import { surfaceSize, type PreviewSurface } from '$lib/utils/previewSurface';
   import { ui } from '$lib/stores/ui.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { isKeybind, isRadioGroupTarget, isTypingTarget, keysFor } from '$lib/keybinds';

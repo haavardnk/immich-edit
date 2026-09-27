@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ClientRenderer } from './client-renderer';
+import { ClientRenderer } from './clientRenderer';
 
 afterEach(() => {
   vi.unstubAllGlobals();

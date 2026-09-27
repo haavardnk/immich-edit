@@ -1,7 +1,7 @@
 import type { FaceBox } from '$lib/api/faces';
 import { sceneUvToDisplayUv, type ViewTransform } from '$lib/utils/canvasCoords';
 import type { Pan } from '$lib/utils/imageViewport';
-import { surfaceSize, type PreviewSurface } from '$lib/utils/preview-surface';
+import { surfaceSize, type PreviewSurface } from '$lib/utils/previewSurface';
 
 export interface ZoomTarget {
   u: number;
