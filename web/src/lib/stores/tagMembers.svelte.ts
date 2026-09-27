@@ -1,5 +1,5 @@
 import { searchMetadata } from '$lib/api/search';
-import { findManagedTag, libraryTagsReady, tagHasValue } from '$lib/managedTags';
+import { findManagedTag, libraryTagsReady, tagHasValue } from '$lib/browse/managedTags';
 import type { AssetSummary } from '$lib/types/album';
 import type { TagRef } from '$lib/types/asset';
 import type { SearchQuery } from '$lib/types/search';

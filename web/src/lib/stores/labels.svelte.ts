@@ -1,4 +1,4 @@
-import { labelTagValue, type LabelColor } from '$lib/labels';
+import { labelTagValue, type LabelColor } from './labels';
 import type { TagRef } from '$lib/types/asset';
 import { TagMembers } from './tagMembers.svelte';
 

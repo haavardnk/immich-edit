@@ -1,8 +1,8 @@
 import { searchWindow } from '$lib/api/search';
-import { loadEditedAssets, loadFolderAssets, runSearch } from '$lib/browseSources';
-import { validReturnPath } from '$lib/editorNavigation';
-import { resolveSearchMode } from '$lib/searchMode';
-import { sortAssets } from '$lib/sortAssets';
+import { loadEditedAssets, loadFolderAssets, runSearch } from './sources';
+import { validReturnPath } from '$lib/editor/navigation';
+import { resolveSearchMode } from './searchMode';
+import { sortAssets } from './sortAssets';
 import { browseControls, type SortFamily } from '$lib/stores/browseControls.svelte';
 import { recallBrowseFilters } from '$lib/stores/browseContext';
 import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';

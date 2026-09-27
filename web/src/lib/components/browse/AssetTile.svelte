@@ -5,10 +5,10 @@
   import type { AssetSummary } from '$lib/types/album';
   import { hint } from '$lib/keybinds';
   import { assetThumbUrl } from '$lib/api/assets';
-  import { copyIndex, isCopy } from '$lib/assetKey';
-  import { isRejected } from '$lib/reject';
-  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/labels';
-  import { editorHref } from '$lib/editorNavigation';
+  import { copyIndex, isCopy } from '$lib/browse/assetKey';
+  import { isRejected } from '$lib/browse/reject';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/stores/labels';
+  import { editorHref } from '$lib/editor/navigation';
   import { fmtDay } from '$lib/utils/exif';
   import type { TileInfo } from '$lib/stores/browseView.svelte';
   import { Icon, IconButton } from '@immich/ui';

@@ -1,5 +1,5 @@
 import type { Edits } from '$lib/types/edits';
-import { ALL_COPY_SECTIONS, type CopySections } from '$lib/copyPaste';
+import { ALL_COPY_SECTIONS, type CopySections } from '$lib/editor/copyPaste';
 
 export interface ClipboardPayload {
   edits: Edits;

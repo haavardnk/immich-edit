@@ -3,7 +3,7 @@ import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
 import { browsing } from '$lib/stores/browsing.svelte';
 import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
-import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
+import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
 import {
   isLabelTag,
   labelOf,
@@ -11,7 +11,7 @@ import {
   withLabel,
   writeLabel,
   type LabelColor
-} from '$lib/labels';
+} from '$lib/stores/labels';
 import { assignLabel } from '$lib/stores/labels.svelte';
 import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
 import { errorMessage } from '$lib/utils/errors';

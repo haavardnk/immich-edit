@@ -1,4 +1,4 @@
-import { neighbourMembers, type MultiMode } from '$lib/compareEntry';
+import { neighbourMembers, type MultiMode } from './compareEntry';
 
 export function paneColumns(count: number): number {
   return count <= 4 ? 2 : 3;

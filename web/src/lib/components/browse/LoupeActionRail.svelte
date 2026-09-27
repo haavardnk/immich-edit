@@ -9,7 +9,7 @@
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
-  import type { LabelColor } from '$lib/labels';
+  import type { LabelColor } from '$lib/stores/labels';
   import { hint } from '$lib/keybinds';
   import { Icon, IconButton } from '@immich/ui';
   import {

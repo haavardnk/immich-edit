@@ -4,7 +4,7 @@
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { createResetEditsJob } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
   import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 

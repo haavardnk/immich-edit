@@ -5,8 +5,8 @@ const h = vi.hoisted(() => ({ goto: vi.fn(() => Promise.resolve()) }));
 vi.mock('$app/navigation', () => ({ goto: h.goto }));
 
 import { backToGrid } from './backToGrid';
-import { browseView } from './stores/browseView.svelte';
-import { browsing } from './stores/browsing.svelte';
+import { browseView } from '$lib/stores/browseView.svelte';
+import { browsing } from '$lib/stores/browsing.svelte';
 
 function summary(id: string): AssetSummary {
   return { id, originalFileName: `${id}.arw` } as AssetSummary;

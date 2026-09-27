@@ -2,7 +2,7 @@ import { library } from '$lib/stores/library.svelte';
 import { listAlbums } from '$lib/api/albums';
 import { listTags } from '$lib/api/tags';
 import { toasts } from '$lib/stores/toasts.svelte';
-import { DEFAULT_FILENAME_TEMPLATE, templateError } from '$lib/filenameTemplate';
+import { DEFAULT_FILENAME_TEMPLATE, templateError } from '$lib/editor/filenameTemplate';
 import {
   DEFAULT_RESIZE_BOX,
   DEFAULT_RESIZE_MEGAPIXELS,

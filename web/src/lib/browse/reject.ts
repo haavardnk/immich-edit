@@ -1,4 +1,4 @@
-import { ensureManagedTag, tagHasValue } from '$lib/managedTags';
+import { ensureManagedTag, tagHasValue } from './managedTags';
 import type { TagRef } from '$lib/types/asset';
 
 export const REJECT_TAG_VALUE = 'immich-edit/reject';

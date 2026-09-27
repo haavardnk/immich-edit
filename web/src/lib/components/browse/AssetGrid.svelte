@@ -10,23 +10,23 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { compare } from '$lib/stores/compare.svelte';
-  import { multiMembers, type MultiMode } from '$lib/compareEntry';
+  import { multiMembers, type MultiMode } from '$lib/browse/compareEntry';
   import { toasts } from '$lib/stores/toasts.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { deleteCopy } from '$lib/api/copies';
-  import { isCopy } from '$lib/assetKey';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
-  import { labelOf, nextLabelFromKey } from '$lib/labels';
-  import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
-  import { editorHref } from '$lib/editorNavigation';
+  import { isCopy } from '$lib/browse/assetKey';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
+  import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
+  import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
+  import { editorHref } from '$lib/editor/navigation';
   import { matchKeybind, yieldsToControl, type KeybindContext } from '$lib/keybinds';
   import {
     createAssetGridLayout,
     verticalAssetIndex,
     visibleAssetRange,
     type AssetGridBox
-  } from '$lib/assetGridLayout';
+  } from '$lib/browse/assetGridLayout';
 
   const GRID_CONTEXTS: KeybindContext[] = ['grid', 'global'];
 

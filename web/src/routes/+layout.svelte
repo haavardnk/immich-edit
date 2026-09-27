@@ -8,7 +8,7 @@
   import { session } from '$lib/stores/session.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { rememberBrowseContext } from '$lib/stores/browseContext';
-  import { matchBrowseRoute } from '$lib/browseRestore';
+  import { matchBrowseRoute } from '$lib/browse/restore';
   import { installFocusPolicy } from '$lib/utils/pointerFocus';
   import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
   import Shell from '$lib/components/shell/Shell.svelte';

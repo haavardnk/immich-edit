@@ -8,7 +8,7 @@
   } from '$lib/components/editor/controls/segmentedControl';
   import type { AlbumSummary } from '$lib/types/album';
   import type { TagSummary } from '$lib/api/tags';
-  import { isManagedTag, toTagRef } from '$lib/managedTags';
+  import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
   import type { ExportForm } from './settings';
   import type { StackPrimary } from '$lib/api/export';
   import { IconButton } from '@immich/ui';

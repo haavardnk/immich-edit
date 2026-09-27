@@ -3,8 +3,8 @@
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { loadEditedAssets } from '$lib/browseSources';
-  import { sortAssets } from '$lib/sortAssets';
+  import { loadEditedAssets } from '$lib/browse/sources';
+  import { sortAssets } from '$lib/browse/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 

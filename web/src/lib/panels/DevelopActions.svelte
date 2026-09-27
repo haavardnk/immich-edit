@@ -3,7 +3,7 @@
   import { ui } from '$lib/stores/ui.svelte';
   import { openDevelopPanels } from '$lib/panels/registry';
   import { isDevelopIdentity } from '$lib/types/edits';
-  import { modifiedDevelopPanels } from '$lib/editorModified';
+  import { modifiedDevelopPanels } from '$lib/editor/modified';
   import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
   import { hint } from '$lib/keybinds';
   import { Button, IconButton } from '@immich/ui';

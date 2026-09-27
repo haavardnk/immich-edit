@@ -4,7 +4,7 @@
   import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
-  import { isManagedTag, toTagRef } from '$lib/managedTags';
+  import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
 

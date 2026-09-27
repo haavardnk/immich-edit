@@ -7,14 +7,14 @@
   import { compare, CENTERED, type CompareMode } from '$lib/stores/compare.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/cull';
-  import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/labels';
+  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
+  import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/stores/labels';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { isRejected } from '$lib/reject';
-  import { copyIndex, isCopy } from '$lib/assetKey';
-  import { neighbourMembers, type MultiMode } from '$lib/compareEntry';
-  import { paneColumns, paneGridStyle, switchMembers } from '$lib/loupeLayout';
+  import { isRejected } from '$lib/browse/reject';
+  import { copyIndex, isCopy } from '$lib/browse/assetKey';
+  import { neighbourMembers, type MultiMode } from '$lib/browse/compareEntry';
+  import { paneColumns, paneGridStyle, switchMembers } from '$lib/browse/loupeLayout';
   import { loupeTags } from '$lib/stores/loupeTags.svelte';
   import { putBounded } from '$lib/utils/boundedRecord';
   import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
@@ -24,15 +24,15 @@
     sharpestPoint,
     type ZoomTarget
   } from '$lib/utils/zoomTarget';
-  import { editorHref } from '$lib/editorNavigation';
+  import { editorHref } from '$lib/editor/navigation';
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import LoupeActionRail from '$lib/components/browse/LoupeActionRail.svelte';
   import LoupePane from '$lib/components/browse/LoupePane.svelte';
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import ExifRows from '$lib/components/ExifRows.svelte';
-  import { nextRatingFromKey, ratingFromCode } from '$lib/ratingShortcuts';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browseCopyPaste';
+  import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
+  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
   import {
     hint,
     matchKeybind,

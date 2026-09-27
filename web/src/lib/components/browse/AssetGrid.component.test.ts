@@ -18,8 +18,8 @@ vi.mock('$app/state', () => ({
 
 const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
 
-vi.mock('$lib/cull', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/cull')>()),
+vi.mock('$lib/browse/cull', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/browse/cull')>()),
   rateAsset
 }));
 

@@ -3,14 +3,14 @@
   import type { AssetDetail } from '$lib/types/asset';
   import { page } from '$app/state';
   import { hint } from '$lib/keybinds';
-  import { editorHref } from '$lib/editorNavigation';
+  import { editorHref } from '$lib/editor/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
   import { updateAsset } from '$lib/api/assets';
-  import { createVirtualCopy } from '$lib/copies';
+  import { createVirtualCopy } from '$lib/editor/copies';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
-  import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/reject';
+  import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
   import {
     LABEL_NAMES,
     labelOf,
@@ -18,7 +18,7 @@
     withLabel,
     writeLabel,
     type LabelColor
-  } from '$lib/labels';
+  } from '$lib/stores/labels';
   import { assignLabel } from '$lib/stores/labels.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
@@ -37,7 +37,7 @@
     ControlBarOverflow,
     IconButton
   } from '@immich/ui';
-  import type { MultiMode } from '$lib/compareEntry';
+  import type { MultiMode } from '$lib/browse/compareEntry';
   import { MAX_PANES } from '$lib/stores/compare.svelte';
   import {
     mdiClose,

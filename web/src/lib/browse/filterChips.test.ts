@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeFilterChips, photoCountLabel, withoutFilter } from './browseFilterChips';
+import { activeFilterChips, photoCountLabel, withoutFilter } from './filterChips';
 import { FILTER_DEFAULTS } from '$lib/stores/browseControls.svelte';
 
 describe('browse filter chips', () => {

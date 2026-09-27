@@ -1,4 +1,4 @@
-import { isMac } from './platform';
+import { isMac } from './utils/platform';
 import { CONTROL, isPointerFocused } from './utils/pointerFocus';
 
 export type KeybindContext =
