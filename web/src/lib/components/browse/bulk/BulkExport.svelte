@@ -7,23 +7,23 @@
   import { captureDate } from '$lib/filenameTemplate';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
-  import DestinationToggle from './export/DestinationToggle.svelte';
-  import ExportPresetMenu from './export/ExportPresetMenu.svelte';
-  import ExportSection from './export/ExportSection.svelte';
-  import FilenameTemplateField from './export/FilenameTemplateField.svelte';
-  import FormatOptions from './export/FormatOptions.svelte';
-  import ResizeOptions from './export/ResizeOptions.svelte';
-  import SharpenOptions from './export/SharpenOptions.svelte';
-  import WatermarkOptions from './export/WatermarkOptions.svelte';
-  import ImmichOptions from './export/ImmichOptions.svelte';
-  import { exportSettings } from './export/exportSettings.svelte';
+  import DestinationToggle from '$lib/panels/export/DestinationToggle.svelte';
+  import ExportPresetMenu from '$lib/panels/export/ExportPresetMenu.svelte';
+  import ExportSection from '$lib/panels/export/ExportSection.svelte';
+  import FilenameTemplateField from '$lib/panels/export/FilenameTemplateField.svelte';
+  import FormatOptions from '$lib/panels/export/FormatOptions.svelte';
+  import ResizeOptions from '$lib/panels/export/ResizeOptions.svelte';
+  import SharpenOptions from '$lib/panels/export/SharpenOptions.svelte';
+  import WatermarkOptions from '$lib/panels/export/WatermarkOptions.svelte';
+  import ImmichOptions from '$lib/panels/export/ImmichOptions.svelte';
+  import { exportSettings } from '$lib/panels/export/exportSettings.svelte';
   import {
     baseOptions,
     ensureLibraryLoaded,
     formatLabel,
     formInvalid,
     immichOptions
-  } from './export/settings';
+  } from '$lib/panels/export/settings';
 
   const form = $derived(exportSettings.form);
   const destination = $derived(exportSettings.destination);

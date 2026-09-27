@@ -4,7 +4,7 @@
   import { observeSize } from '$lib/actions/observeSize';
   import type { AssetSummary } from '$lib/types/album';
   import AssetTile from './AssetTile.svelte';
-  import BulkActionBar from './BulkActionBar.svelte';
+  import BulkActionBar from './bulk/BulkActionBar.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
