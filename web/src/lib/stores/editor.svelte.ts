@@ -1,6 +1,5 @@
 import {
   neutralEdits,
-  resetDevelopEdits,
   isIdentity,
   effectiveLens,
   MAX_RETOUCH_STROKES,
@@ -20,11 +19,11 @@ import {
   type Vec2f
 } from '$lib/types/edits';
 import { manifestToEdits } from '$lib/edits/manifest';
-import { LOOK_AMOUNT_FULL, withLookAmount } from '$lib/edits/lookAmount';
 import type { ApplyPresetOptions } from '$lib/api/jobs';
 import { defaultLinear, maskCapacity } from '$lib/types/masks';
 import type { BrushBuffer } from '$lib/utils/brush';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '$lib/api/masks';
+import * as develop from '$lib/stores/editor/develop.svelte';
 import * as exportActions from '$lib/stores/editor/export.svelte';
 import * as maskLayers from '$lib/stores/editor/maskLayers.svelte';
 import * as maskGen from '$lib/stores/editor/maskGen';
@@ -34,38 +33,26 @@ import * as geometry from '$lib/stores/editor/geometry.svelte';
 import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
+import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
 import { SaveQueue } from '$lib/stores/editor/save.svelte';
-import {
-  PreviewEngine,
-  type PreviewFrame,
-  type ViewSnapshot
-} from '$lib/stores/editor/preview.svelte';
+import { PreviewEngine, type PreviewFrame } from '$lib/stores/editor/preview.svelte';
+import type { ViewSnapshot } from '$lib/stores/editor/previewEdge';
+import { ViewportNav } from '$lib/stores/editor/viewport';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
-import { getEdits, autoEdits } from '$lib/api/edits';
+import { getEdits } from '$lib/api/edits';
 import { type PreviewMode } from '$lib/api/preview';
 import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
-import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
-import { isRejected } from '$lib/browse/reject';
+import type { LensProfileMatch } from '$lib/api/lensProfile';
 import type { LabelColor } from '$lib/stores/labels';
 import { clipboard } from '$lib/stores/clipboard.svelte';
-import { copyDialog } from '$lib/stores/copyDialog.svelte';
 import { ui, type BrushTool, type RetouchTool } from '$lib/stores/ui.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import type { Roi } from '$lib/utils/viewGeometry';
-import { applyCopySections } from '$lib/editor/copyPaste';
 import { errorMessage } from '$lib/utils/errors';
-import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
-import { viewTransform } from '$lib/utils/canvasCoords';
-import {
-  faceTargets,
-  nextTargetIndex,
-  panForTarget,
-  sharpestPoint,
-  type ZoomTarget
-} from '$lib/utils/zoomTarget';
-import { nudgePan, type PanStep } from '$lib/utils/imageViewport';
+import { loadFaceData } from '$lib/stores/zoomTargets';
+import type { PanStep } from '$lib/utils/imageViewport';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
 import type { PreviewSurface } from '$lib/utils/previewSurface';
 
@@ -168,11 +155,9 @@ class EditorStore {
   private history = new EditHistory(this);
   private saves = new SaveQueue(this);
   private previews = new PreviewEngine(this);
+  private viewport = new ViewportNav(this, () => this.previews.snapshot);
 
   initialised = $state(false);
-  private baseImage: PreviewSurface | null = null;
-  private zoomTargetIndex: number | null = null;
-  private zoomTargetView: string | null = null;
 
   get sourceLong(): number {
     return this.previews.sourceLong;
@@ -190,65 +175,11 @@ class EditorStore {
     this.previews.onViewChange(snap);
   };
 
-  setBaseImage = (element: PreviewSurface | null): void => {
-    this.baseImage = element;
-  };
+  setBaseImage = (element: PreviewSurface | null): void => this.viewport.setBaseImage(element);
 
-  zoomCycle = (): void => {
-    const id = this.assetId;
-    if (!id) return;
-    if (cachedFaceData(id) === null) {
-      void loadFaceData(id).then(() => this.stepZoomTarget(id));
-      return;
-    }
-    this.stepZoomTarget(id);
-  };
+  zoomCycle = (): void => this.viewport.zoomCycle();
 
-  panBy = (step: PanStep): void => {
-    const snap = this.previews.snapshot;
-    if (!ui.zoomed || !snap) return;
-    const pan = nudgePan(
-      { panX: ui.panX, panY: ui.panY },
-      step,
-      snap.frame,
-      snap.viewW,
-      snap.viewH
-    );
-    ui.panX = pan.panX;
-    ui.panY = pan.panY;
-  };
-
-  private zoomTargets(id: string): ZoomTarget[] {
-    const data = cachedFaceData(id);
-    const faces = data ? faceTargets(data.faces, viewTransform(this.edits, this.meta)) : [];
-    if (faces.length > 0) return faces;
-    const sharp = this.baseImage ? sharpestPoint(this.baseImage) : null;
-    return [sharp ?? { u: 0.5, v: 0.5 }];
-  }
-
-  private stepZoomTarget(id: string): void {
-    if (this.assetId !== id) return;
-    const targets = this.zoomTargets(id);
-    const from = this.viewKeyOf() === this.zoomTargetView ? this.zoomTargetIndex : null;
-    const next = nextTargetIndex(from, targets.length);
-    this.zoomTargetIndex = next;
-    const target = next === null ? null : targets[next];
-    const snap = this.previews.snapshot;
-    if (!target) {
-      ui.zoomFit();
-    } else if (!snap || snap.frame.width <= 0 || ui.zoom <= 0) {
-      ui.setZoom(ui.zoomLevel);
-    } else {
-      const zoom = ui.zoomLevel;
-      const pan = panForTarget(target, snap.frame, snap.viewW, snap.viewH, zoom / ui.zoom);
-      ui.setView(zoom, pan.panX, pan.panY);
-    }
-    this.zoomTargetView = this.viewKeyOf();
-  }
-
-  private viewKeyOf(): string {
-    return `${ui.zoom}:${Math.round(ui.panX)}:${Math.round(ui.panY)}`;
-  }
+  panBy = (step: PanStep): void => this.viewport.panBy(step);
 
   toggleSplit = (): void => {
     if (this.geometrySession) return;
@@ -289,7 +220,7 @@ class EditorStore {
       this.saves.begin(id, s.hash);
       this.initialised = true;
       this.history.push($state.snapshot(this.edits) as Edits);
-      this.fetchLensProfile(id);
+      fetchLensProfile(this, id);
       void loadFaceData(id);
       this.previews.live();
     } catch (e) {
@@ -297,23 +228,8 @@ class EditorStore {
     }
   }
 
-  private fetchLensProfile(id: string): void {
-    this.lensProfile = null;
-    this.lensProfileError = null;
-    getLensProfile(id)
-      .then((p) => {
-        if (this.assetId === id) this.lensProfile = p;
-      })
-      .catch((e: unknown) => {
-        if (this.assetId === id) {
-          this.lensProfileError = errorMessage(e);
-        }
-      });
-  }
-
   retryLensProfile = (): void => {
-    if (!this.assetId) return;
-    this.fetchLensProfile(this.assetId);
+    if (this.assetId) fetchLensProfile(this, this.assetId);
   };
 
   retryPreview = (): void => {
@@ -324,8 +240,7 @@ class EditorStore {
 
   unload(): void {
     this.previews.reset();
-    this.zoomTargetIndex = null;
-    this.zoomTargetView = null;
+    this.viewport.reset();
     geometry.cancelSession(this);
     this.asset = null;
     this.meta = null;
@@ -422,74 +337,18 @@ class EditorStore {
 
   retrySave = (): Promise<void> => this.saves.retry();
 
-  onReset = async (): Promise<void> => {
-    if (!this.assetId) return;
-    this.edits = resetDevelopEdits(this.edits);
-    await this.onCommit('Reset Develop');
-  };
+  onReset = (): Promise<void> => develop.resetDevelop(this);
 
-  copyEdits = (): void => {
-    if (isIdentity(this.edits)) return;
-    copyDialog.show($state.snapshot(this.edits) as Edits);
-  };
+  copyEdits = (): void => develop.copyEdits(this);
 
-  pasteEdits = async (): Promise<void> => {
-    const snap = clipboard.snapshot();
-    if (!snap || !this.initialised) return;
-    this.edits = applyCopySections(this.edits, snap.edits, snap.sections);
-    this.onLive();
-    await this.onCommit('Paste');
-  };
+  pasteEdits = (): Promise<void> => develop.pasteEdits(this);
 
   hasClipboard = $derived(clipboard.has);
 
-  applyPreset = async (
-    manifest: EditManifest,
-    opts: ApplyPresetOptions,
-    name?: string
-  ): Promise<void> => {
-    if (!this.initialised) return;
-    const incoming = withLookAmount(manifestToEdits(manifest), opts.amount);
-    this.edits = {
-      basic: incoming.basic,
-      tone: incoming.tone,
-      color: incoming.color,
-      detail: incoming.detail,
-      effects: incoming.effects,
-      lens: incoming.lens,
-      geometry: opts.includeGeometry ? incoming.geometry : this.edits.geometry,
-      masks: opts.includeMasks ? incoming.masks : this.edits.masks,
-      retouch: this.edits.retouch
-    };
-    this.onLive();
-    const action = name ? `Preset: ${name}` : 'Preset';
-    await this.onCommit(opts.amount === LOOK_AMOUNT_FULL ? action : `${action} (${opts.amount}%)`);
-  };
+  applyPreset = (manifest: EditManifest, opts: ApplyPresetOptions, name?: string): Promise<void> =>
+    develop.applyPreset(this, manifest, opts, name);
 
-  onAutoAdjust = async (): Promise<void> => {
-    if (!this.assetId || !this.initialised) return;
-    this.autoBusy = true;
-    try {
-      const suggested = await autoEdits(this.assetId, $state.snapshot(this.edits));
-      this.edits = {
-        ...this.edits,
-        basic: {
-          ...this.edits.basic,
-          exposure_ev: suggested.basic.exposure_ev,
-          brightness: suggested.basic.brightness,
-          contrast: suggested.basic.contrast,
-          vibrance: suggested.basic.vibrance
-        },
-        tone: { ...suggested.tone }
-      };
-      this.onLive();
-      await this.onCommit('Auto');
-    } catch (e) {
-      this.error = errorMessage(e);
-    } finally {
-      this.autoBusy = false;
-    }
-  };
+  onAutoAdjust = (): Promise<void> => develop.autoAdjust(this);
 
   toggleWbPicker = (): void => whiteBalance.toggleWbPicker(this);
 
@@ -715,18 +574,9 @@ class EditorStore {
 
   removeClickPoint = (index: number): Promise<void> => maskGen.removeClickPoint(this, index);
 
-  retryMask = async (): Promise<void> => {
-    const retry = this.maskRetry;
-    if (!retry) return;
-    this.maskError = null;
-    this.maskRetry = null;
-    await retry();
-  };
+  retryMask = (): Promise<void> => maskGen.retryMask(this);
 
-  dismissMaskError = (): void => {
-    this.maskError = null;
-    this.maskRetry = null;
-  };
+  dismissMaskError = (): void => maskGen.dismissMaskError(this);
 
   toggleFavorite = (): Promise<void> => metadata.toggleFavorite(this);
 
@@ -743,11 +593,7 @@ class EditorStore {
   createAndAddTag = (value: string): Promise<TagRef | null> =>
     metadata.createAndAddTag(this, value);
 
-  clearFlags = async (): Promise<void> => {
-    if (!this.asset) return;
-    if (this.asset.isFavorite) await this.toggleFavorite();
-    if (this.asset && isRejected(this.asset)) await this.toggleReject();
-  };
+  clearFlags = (): Promise<void> => metadata.clearFlags(this);
 
   refreshScopes = (): void => {
     this.previews.refreshBase();

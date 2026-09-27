@@ -24,6 +24,7 @@ import {
   type Mat3,
   type PerspectiveEdits
 } from '$lib/utils/perspective';
+import { LIVE_EDGE } from './previewEdge';
 
 export interface GeometrySession {
   id: number;
@@ -52,7 +53,6 @@ export interface GeometryCtx {
   onCommit(action?: string): Promise<void>;
 }
 
-const LIVE_EDGE = 1600;
 let nextSessionId = 0;
 let liveSessionId = 0;
 

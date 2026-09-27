@@ -76,7 +76,8 @@ vi.mock('$lib/stores/renderer.svelte', () => ({
 }));
 
 import type { ClientRenderer } from '$lib/render/clientRenderer';
-import { PreviewEngine, type PreviewCtx, type ViewSnapshot } from './preview.svelte';
+import { PreviewEngine, type PreviewCtx } from './preview.svelte';
+import type { ViewSnapshot } from './previewEdge';
 
 const SNAP: ViewSnapshot = {
   frame: { left: 40, top: 50, width: 1200, height: 800 },
