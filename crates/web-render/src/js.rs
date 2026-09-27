@@ -5,6 +5,8 @@ use raw_pipeline::scopes::ScopeGrid;
 use raw_pipeline::source::SourceHeader;
 use wasm_bindgen::JsValue;
 
+use crate::view::EditInputs;
+
 pub fn source(header: &SourceHeader) -> JsValue {
     let meta = &header.meta;
     object(&[
@@ -17,18 +19,25 @@ pub fn source(header: &SourceHeader) -> JsValue {
     ])
 }
 
-pub fn inputs(sensor_key: &str, rasters: &[String], lut: Option<&str>) -> JsValue {
+pub fn inputs(inputs: &EditInputs) -> JsValue {
     object(&[
-        ("sensor_key", sensor_key.into()),
+        ("sensor_key", inputs.sensor_key.as_str().into()),
         (
             "rasters",
-            rasters
+            inputs
+                .rasters
                 .iter()
                 .map(|id| JsValue::from_str(id))
                 .collect::<Array>()
                 .into(),
         ),
-        ("lut", lut.map_or(JsValue::NULL, JsValue::from_str)),
+        (
+            "lut",
+            inputs
+                .lut
+                .as_deref()
+                .map_or(JsValue::NULL, JsValue::from_str),
+        ),
     ])
 }
 
