@@ -4,17 +4,23 @@
   import { goto } from '$app/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
-  import { compare, CENTERED, type CompareMode } from '$lib/stores/compare.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
+  import { compare, CENTERED, type PaneView } from '$lib/stores/compare.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
   import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/stores/labels';
   import { persistedPreviewUrl } from '$lib/api/preview';
-  import { toasts } from '$lib/stores/toasts.svelte';
   import { isRejected } from '$lib/browse/reject';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
-  import { neighbourMembers, type MultiMode } from '$lib/browse/compareEntry';
-  import { paneColumns, paneGridStyle, switchMembers } from '$lib/browse/loupeLayout';
+  import { paneColumns, paneGridStyle } from '$lib/browse/loupeLayout';
+  import {
+    advanceFocused,
+    enterMulti,
+    leaveMulti,
+    openLastLoupe,
+    pickFromStrip,
+    selectViewMode,
+    stepLoupe
+  } from '$lib/browse/loupeNav';
   import { loupeTags } from '$lib/stores/loupeTags.svelte';
   import { putBounded } from '$lib/utils/boundedRecord';
   import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
@@ -28,7 +34,7 @@
   import type { TagRef } from '$lib/types/asset';
   import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
   import LoupeActionRail from '$lib/components/browse/LoupeActionRail.svelte';
-  import LoupePane from '$lib/components/browse/LoupePane.svelte';
+  import LoupePaneGrid from '$lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
   import ExifRows from '$lib/components/ExifRows.svelte';
   import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
@@ -41,13 +47,7 @@
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
   import ContextMenuItem from '$lib/components/ContextMenuItem.svelte';
-  import {
-    mdiArrowCollapseLeft,
-    mdiChevronLeft,
-    mdiChevronRight,
-    mdiClose,
-    mdiFullscreenExit
-  } from '@mdi/js';
+  import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -133,112 +133,11 @@
     if (id) untrack(() => browsing.prefetchNear(id));
   });
 
-  let paneRefs = $state<Record<string, ReturnType<typeof LoupePane>>>({});
-
-  async function goLast(): Promise<void> {
-    const from = currentId;
-    while (browsing.hasMore && (await browsing.requestMore())) {
-      if (browseView.loupeId !== from) return;
-    }
-    const last = browsing.assets.at(-1);
-    if (last && browseView.loupeId === from) browseView.openLoupe(last.id);
-  }
-
-  function go(delta: number): void {
-    const from = currentId;
-    if (!from) return;
-    const next = delta > 0 ? browsing.nextOf(from) : browsing.prevOf(from);
-    if (next) {
-      browseView.openLoupe(next.id);
-      return;
-    }
-    if (delta < 0) return;
-    void browsing.requestMore().then((loaded) => {
-      const after = loaded && browseView.loupeId === from ? browsing.nextOf(from) : null;
-      if (after) browseView.openLoupe(after.id);
-    });
-  }
-
-  function advanceFocused(delta: number): void {
-    const id = compare.focusedId;
-    if (!id) return;
-    let cursor = id;
-    for (;;) {
-      const next = delta > 0 ? browsing.nextOf(cursor) : browsing.prevOf(cursor);
-      if (!next) return;
-      if (!compare.members.includes(next.id)) {
-        compare.setMember(compare.focusIndex, next.id);
-        return;
-      }
-      cursor = next.id;
-    }
-  }
-
-  function enterMulti(mode: MultiMode): void {
-    if (multi) {
-      leaveMulti();
-      return;
-    }
-    const members = neighbourMembers(
-      mode,
-      browsing.assets.map((a) => a.id),
-      currentId
-    );
-    if (members.length < 2) {
-      toasts.push('info', `${mode} needs two photos`);
-      return;
-    }
-    compare.enter(mode, members);
-  }
-
-  function selectViewMode(mode: CompareMode): void {
-    if (mode === compare.mode) return;
-    if (mode === 'single') {
-      leaveMulti();
-      return;
-    }
-    if (!multi) {
-      enterMulti(mode);
-      return;
-    }
-    const members = switchMembers(
-      mode,
-      browsing.assets.map((asset) => asset.id),
-      compare.focusedId,
-      compare.members
-    );
-    if (members.length < 2) return;
-    compare.enter(mode, members);
-  }
-
-  function leaveMulti(): void {
-    const id = compare.focusedId;
-    const survivors = compare.mode === 'survey' && compare.pruned ? [...compare.members] : [];
-    compare.exit();
-    if (survivors.length > 0) selection.selectLoaded(survivors);
-    if (id) browseView.openLoupe(id);
-  }
-
-  function togglePane(id: string): void {
-    const at = compare.members.indexOf(id);
-    if (at < 0) return compare.addMember(id);
-    if (compare.members.length > 2) return compare.drop(at);
-    browseView.openLoupe(compare.members.find((member) => member !== id) ?? id);
-  }
+  let paneGrid = $state<ReturnType<typeof LoupePaneGrid>>();
 
   function dropFocused(): void {
     if (!canDrop) return;
     compare.drop(compare.focusIndex);
-  }
-
-  function pickFromStrip(id: string, additive: boolean): void {
-    if (!additive) {
-      if (multi) compare.setMember(compare.focusIndex, id);
-      else browseView.openLoupe(id);
-      return;
-    }
-    if (multi) return togglePane(id);
-    if (currentId && id !== currentId) compare.enter('compare', [currentId, id], 1);
   }
 
   function toggleZoom(): void {
@@ -292,6 +191,11 @@
     compare.applyView(id, CENTERED);
   }
 
+  function applyPaneView(id: string, view: PaneView, solo?: boolean): void {
+    targetIndex = null;
+    compare.applyView(id, view, solo);
+  }
+
   function setFitZoom(id: string, value: number): void {
     if (fitZooms[id] === value) return;
     fitZooms = { ...fitZooms, [id]: value };
@@ -307,7 +211,7 @@
   function autoAdvance(id: string): void {
     if (!browseView.loupeAutoAdvance) return;
     if (!multi) {
-      go(1);
+      stepLoupe(1);
       return;
     }
     if (compare.focusedId === id) advanceFocused(1);
@@ -397,11 +301,11 @@
         return browseView.closeLoupe();
       case 'loupeNav':
         e.preventDefault();
-        return go(e.key === 'ArrowRight' ? 1 : -1);
+        return stepLoupe(e.key === 'ArrowRight' ? 1 : -1);
       case 'zoomPan': {
         e.preventDefault();
         const step = panStep(e.key);
-        if (step && focusedId) paneRefs[focusedId]?.panBy(step[0], step[1]);
+        if (step && focusedId) paneGrid?.panBy(focusedId, step[0], step[1]);
         return;
       }
       case 'loupeEdge':
@@ -411,7 +315,7 @@
           if (first) browseView.openLoupe(first.id);
           return;
         }
-        void goLast();
+        void openLastLoupe();
         return;
       case 'compareFocus':
         e.preventDefault();
@@ -511,7 +415,7 @@
         e.preventDefault();
         void rateAsset(id, next).then((ok) => {
           if (!ok) return;
-          if (!multi) go(1);
+          if (!multi) stepLoupe(1);
           else if (compare.focusedId === id) advanceFocused(1);
         });
         return;
@@ -554,65 +458,17 @@
       class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
       style={gridStyle}
     >
-      {#each panes as id, index (id)}
-        {@const paneAsset = browsing.assets.find((item) => item.id === id)}
-        <div class="group relative flex min-h-0 min-w-0 flex-1">
-          <LoupePane
-            bind:this={paneRefs[id]}
-            assetId={id}
-            alt={paneAsset?.originalFileName ?? ''}
-            view={compare.viewOf(id)}
-            focused={id === focusedId}
-            showFocus={multi}
-            badge={compare.mode === 'compare'
-              ? index === 0
-                ? 'Select'
-                : 'Candidate'
-              : multi
-                ? String(index + 1)
-                : undefined}
-            onFocus={() => (compare.focusIndex = index)}
-            onView={(next, solo) => {
-              targetIndex = null;
-              compare.applyView(id, next, solo);
-            }}
-            onSize={(size) => (paneMaxEdge = size)}
-            sourceLong={Math.max(
-              paneAsset?.exifInfo?.exifImageWidth ?? 0,
-              paneAsset?.exifInfo?.exifImageHeight ?? 0
-            )}
-            onFitZoom={(value) => setFitZoom(id, value)}
-            onImage={(element) => setPaneImage(id, element)}
-          />
-          {#if compare.mode === 'compare' && index > 0 && id === focusedId}
-            <IconButton
-              type="button"
-              size="small"
-              variant="ghost"
-              color="secondary"
-              shape="round"
-              class="absolute top-2 right-2 z-10 bg-black/50 text-white hover:bg-black/75"
-              icon={mdiArrowCollapseLeft}
-              title={hint('Make select', 'panePromote')}
-              aria-label="Make select"
-              onclick={() => compare.promote(index)}
-            />
-          {:else if compare.mode === 'survey' && canDrop}
-            <IconButton
-              type="button"
-              size="small"
-              variant="ghost"
-              color="secondary"
-              shape="round"
-              class="absolute top-2 right-2 z-10 bg-black/50 text-white opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-black/75 focus-visible:opacity-100"
-              icon={mdiClose}
-              title={hint('Drop this photo', 'paneDrop')}
-              aria-label="Drop from survey"
-              onclick={() => compare.drop(index)}
-            />
-          {/if}
-        </div>
-      {/each}
+      <LoupePaneGrid
+        bind:this={paneGrid}
+        {panes}
+        {focusedId}
+        {multi}
+        {canDrop}
+        onView={applyPaneView}
+        onSize={(size) => (paneMaxEdge = size)}
+        onFitZoom={setFitZoom}
+        onImage={setPaneImage}
+      />
 
       {#if hasPrev && !ui.fullscreen}
         <IconButton
@@ -625,7 +481,7 @@
           icon={mdiChevronLeft}
           title={hint('Previous', 'loupeNav')}
           aria-label="Previous"
-          onclick={() => go(-1)}
+          onclick={() => stepLoupe(-1)}
         />
       {/if}
       {#if hasNext && !ui.fullscreen}
@@ -640,7 +496,7 @@
           title={hint('Next', 'loupeNav')}
           aria-label="Next"
           loading={atLoadedEnd && browsing.loadingMore}
-          onclick={() => go(1)}
+          onclick={() => stepLoupe(1)}
         />
       {/if}
 
