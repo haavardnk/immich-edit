@@ -175,6 +175,64 @@ async fn a_rebind_needs_a_matching_confirmation_hostname() {
 }
 
 #[tokio::test]
+async fn render_defaults_opt_out_persists_and_reaches_lens_profiles() {
+    let server = MockServer::start().await;
+    mock_me(&server, test_user_id(), true).await;
+    let asset = Uuid::new_v4();
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{asset}")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": asset,
+            "exifInfo": { "make": "SONY", "model": "ILCE-7M3", "lensModel": "FE 35mm F1.8" },
+        })))
+        .mount(&server)
+        .await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = wrap_auth(router(state.clone()), token);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/admin/render-defaults")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"lens_auto":false}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert!(!state.instance.get().await.unwrap().lens_auto);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/admin/render-defaults")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(body_json(res).await["lens_auto"], false);
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/assets/{asset}/lens-profile"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let profile = body_json(res).await;
+    assert_eq!(profile["auto"], false);
+    assert_eq!(profile["matched"], true);
+}
+
+#[tokio::test]
 async fn a_rebind_to_a_blocked_url_is_rejected() {
     let server = MockServer::start().await;
     mock_me(&server, test_user_id(), true).await;

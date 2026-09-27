@@ -73,7 +73,16 @@ pub struct RenderService {
 
 impl RenderService {
     pub async fn render_revision(&self) -> Result<String, RenderError> {
-        self.inputs.dcp_revision().await
+        let dcp = self.inputs.dcp_revision().await?;
+        Ok(format!("{dcp}-l{}", u8::from(self.lens.auto())))
+    }
+
+    pub fn lens_auto(&self) -> bool {
+        self.lens.auto()
+    }
+
+    pub fn set_lens_auto(&self, enabled: bool) {
+        self.lens.set_auto(enabled);
     }
 
     pub fn new(

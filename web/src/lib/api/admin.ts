@@ -42,3 +42,15 @@ export async function getInstance(): Promise<InstanceInfo> {
 export async function rebindInstance(body: RebindBody): Promise<void> {
   await sendJson<{ ok: boolean }>('POST', '/api/admin/instance/rebind', body);
 }
+
+export interface RenderDefaults {
+  lens_auto: boolean;
+}
+
+export function getRenderDefaults(): Promise<RenderDefaults> {
+  return getJson<RenderDefaults>('/api/admin/render-defaults');
+}
+
+export function setRenderDefaults(body: RenderDefaults): Promise<RenderDefaults> {
+  return sendJson<RenderDefaults>('PUT', '/api/admin/render-defaults', body);
+}
