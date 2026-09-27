@@ -2,7 +2,7 @@
   import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import { compactSegmentedSwatchItemClass } from '$lib/components/editor/controls/segmentedControl';
   import { editor } from '$lib/stores/editor.svelte';
-  import { keyLabel } from '$lib/keybinds';
+  import { keyLabel } from '$lib/shortcuts/chord';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {

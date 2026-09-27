@@ -1,7 +1,9 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind, keyLabel, yieldsToControl } from '$lib/keybinds';
+  import { isKeybind } from '$lib/shortcuts/match';
+  import { keyLabel } from '$lib/shortcuts/chord';
+  import { yieldsToControl } from '$lib/shortcuts/targets';
   import type { Vec2f } from '$lib/types/edits';
   import { MAX_POLYGON_POINTS } from '$lib/types/masks';
 

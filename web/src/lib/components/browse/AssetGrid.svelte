@@ -20,7 +20,9 @@
   import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
   import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
   import { editorHref } from '$lib/editor/navigation';
-  import { matchKeybind, yieldsToControl, type KeybindContext } from '$lib/keybinds';
+  import { matchKeybind } from '$lib/shortcuts/match';
+  import { yieldsToControl } from '$lib/shortcuts/targets';
+  import type { KeybindContext } from '$lib/shortcuts/table';
   import {
     createAssetGridLayout,
     verticalAssetIndex,

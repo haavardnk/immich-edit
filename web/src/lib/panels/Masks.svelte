@@ -11,7 +11,7 @@
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { maskModels } from '$lib/stores/maskModels.svelte';
   import {
     N_MAX_MASK_LAYERS,

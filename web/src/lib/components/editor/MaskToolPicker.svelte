@@ -17,7 +17,8 @@
   } from '@mdi/js';
   import type { MaskKind, SemanticClass } from '$lib/api/masks';
   import { generatedLabel, visibleSceneClasses, type ManualTool } from '$lib/types/masks';
-  import { keysFor, type KeybindId } from '$lib/keybinds';
+  import { keysFor } from '$lib/shortcuts/labels';
+  import type { KeybindId } from '$lib/shortcuts/table';
 
   let {
     aiKinds,

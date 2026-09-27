@@ -3,7 +3,7 @@
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
   import type { AssetSummary } from '$lib/types/album';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { assetThumbUrl } from '$lib/api/assets';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
   import { isRejected } from '$lib/browse/reject';

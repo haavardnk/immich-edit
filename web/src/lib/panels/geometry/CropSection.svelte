@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui, CROP_GRIDS } from '$lib/stores/ui.svelte';
   import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';

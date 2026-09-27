@@ -2,7 +2,7 @@ import { page } from '$app/state';
 import { ui } from '$lib/stores/ui.svelte';
 import { compare } from '$lib/stores/compare.svelte';
 import { browseView } from '$lib/stores/browseView.svelte';
-import type { KeybindContext } from '$lib/keybinds';
+import type { KeybindContext } from './table';
 
 export function activeContexts(): KeybindContext[] {
   if (page.url.pathname.startsWith('/assets/')) {

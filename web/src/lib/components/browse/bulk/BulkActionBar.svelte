@@ -2,7 +2,7 @@
   import type { AssetSummary } from '$lib/types/album';
   import type { AssetDetail } from '$lib/types/asset';
   import { page } from '$app/state';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { editorHref } from '$lib/editor/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';

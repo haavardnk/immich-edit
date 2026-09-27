@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
   import { Icon } from '@immich/ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';

@@ -9,7 +9,7 @@
   } from '$lib/stores/browseControls.svelte';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import {
     activeFilterChips,
     photoCountLabel,

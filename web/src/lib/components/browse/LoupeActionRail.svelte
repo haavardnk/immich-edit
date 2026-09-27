@@ -10,7 +10,7 @@
   import RejectButton from '$lib/components/RejectButton.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
   import type { LabelColor } from '$lib/stores/labels';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowCollapseLeft,

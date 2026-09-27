@@ -9,7 +9,7 @@
     mdiTuneVariant
   } from '@mdi/js';
   import { modifiedTabCount } from '$lib/editor/modified';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui, type EditorTab } from '$lib/stores/ui.svelte';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import TextInput from '$lib/components/TextInput.svelte';
-  import { keysFor } from '$lib/keybinds';
+  import { keysFor } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';

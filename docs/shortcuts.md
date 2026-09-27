@@ -6,7 +6,7 @@ nav_order: 4
 permalink: /shortcuts/
 ---
 
-<!-- Generated from web/src/lib/keybinds.ts. Run `npm run docs:shortcuts` in web/ to update. -->
+<!-- Generated from web/src/lib/shortcuts/table.ts. Run `npm run docs:shortcuts` in web/ to update. -->
 
 # Keyboard shortcuts
 

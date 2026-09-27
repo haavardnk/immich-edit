@@ -4,13 +4,13 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { restoreBrowse } from '$lib/browse/restore';
-  import { editorKeydown, editorKeyup } from '$lib/keymaps/editor';
+  import { editorKeydown, editorKeyup } from '$lib/shortcuts/editorKeymap';
   import Viewer from '$lib/components/editor/Viewer.svelte';
   import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
   import BottomBar from '$lib/components/editor/BottomBar.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/keybinds';
+  import { hint } from '$lib/shortcuts/labels';
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
 
