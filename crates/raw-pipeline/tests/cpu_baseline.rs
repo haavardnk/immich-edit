@@ -1,65 +1,20 @@
 use raw_pipeline::{cpu, decode, edits::Edits, frame::RenderOptions};
-use serde::{Deserialize, Serialize};
+use raw_pipeline_testkit::baseline::{RenderStats, Tolerance};
+use raw_pipeline_testkit::fixtures::{baseline_path, fixtures};
+use raw_pipeline_testkit::render::decode_jpeg_rgb;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-mod common;
-
 const MAX_EDGE: u32 = 512;
-const GRID: usize = 8;
+const TOLERANCE: Tolerance = Tolerance {
+    mean_rgb: 1.0,
+    grid_cell: 3.0,
+    grid_mean: 1.0,
+};
 
-const MEAN_RGB_TOL: f64 = 1.0;
-const GRID_CELL_TOL: f64 = 3.0;
-const GRID_MEAN_TOL: f64 = 1.0;
+type BaselineMap = BTreeMap<String, RenderStats>;
 
-#[derive(Serialize, Deserialize, PartialEq)]
-struct Baseline {
-    width: u32,
-    height: u32,
-    mean_rgb: [f64; 3],
-    luma_grid: Vec<f64>,
-}
-
-type BaselineMap = BTreeMap<String, Baseline>;
-
-fn compute_metrics(rgb: &[u8], width: usize, height: usize) -> Baseline {
-    let n = (width * height) as f64;
-    let mut sum = [0.0f64; 3];
-    for px in rgb.chunks_exact(3) {
-        sum[0] += px[0] as f64;
-        sum[1] += px[1] as f64;
-        sum[2] += px[2] as f64;
-    }
-    let mean_rgb: [f64; 3] = [sum[0] / n, sum[1] / n, sum[2] / n];
-
-    let mut grid_sum = vec![0.0f64; GRID * GRID];
-    let mut grid_count = vec![0u32; GRID * GRID];
-    for y in 0..height {
-        let gy = (y * GRID / height).min(GRID - 1);
-        for x in 0..width {
-            let gx = (x * GRID / width).min(GRID - 1);
-            let i = (y * width + x) * 3;
-            let l =
-                0.2126 * rgb[i] as f64 + 0.7152 * rgb[i + 1] as f64 + 0.0722 * rgb[i + 2] as f64;
-            grid_sum[gy * GRID + gx] += l;
-            grid_count[gy * GRID + gx] += 1;
-        }
-    }
-    let luma_grid: Vec<f64> = grid_sum
-        .iter()
-        .zip(grid_count.iter())
-        .map(|(s, c)| if *c == 0 { 0.0 } else { s / *c as f64 })
-        .collect();
-
-    Baseline {
-        width: width as u32,
-        height: height as u32,
-        mean_rgb,
-        luma_grid,
-    }
-}
-
-fn render_metrics(path: &Path) -> Option<Baseline> {
+fn render_metrics(path: &Path) -> Option<RenderStats> {
     let bytes = std::fs::read(path).ok()?;
     let frame = decode::decode(&bytes).ok()?;
     let opts = RenderOptions {
@@ -67,61 +22,19 @@ fn render_metrics(path: &Path) -> Option<Baseline> {
         ..Default::default()
     };
     let out = cpu::render(&frame, &Edits::default(), &opts).ok()?;
-    let (rgb, w, h) = common::decode_jpeg_rgb(&out.bytes);
-    Some(compute_metrics(&rgb, w, h))
-}
-
-fn diff(current: &Baseline, base: &Baseline) -> Vec<String> {
-    let mut errs: Vec<String> = Vec::new();
-    if current.width != base.width || current.height != base.height {
-        errs.push(format!(
-            "dims {}x{} != baseline {}x{}",
-            current.width, current.height, base.width, base.height
-        ));
-        return errs;
-    }
-    for c in 0..3 {
-        let d = (current.mean_rgb[c] - base.mean_rgb[c]).abs();
-        if d > MEAN_RGB_TOL {
-            errs.push(format!("mean ch{c} diff {d:.3} > {MEAN_RGB_TOL}"));
-        }
-    }
-    if current.luma_grid.len() != base.luma_grid.len() {
-        errs.push("grid length mismatch".into());
-        return errs;
-    }
-    let mut max_cell = 0.0f64;
-    let mut sum_cell = 0.0f64;
-    for (a, b) in current.luma_grid.iter().zip(base.luma_grid.iter()) {
-        let d = (a - b).abs();
-        if d > max_cell {
-            max_cell = d;
-        }
-        sum_cell += d;
-    }
-    let mean_cell = sum_cell / current.luma_grid.len() as f64;
-    if max_cell > GRID_CELL_TOL {
-        errs.push(format!(
-            "luma grid max cell diff {max_cell:.3} > {GRID_CELL_TOL}"
-        ));
-    }
-    if mean_cell > GRID_MEAN_TOL {
-        errs.push(format!(
-            "luma grid mean diff {mean_cell:.3} > {GRID_MEAN_TOL}"
-        ));
-    }
-    errs
+    let (rgb, w, h) = decode_jpeg_rgb(&out.bytes);
+    Some(RenderStats::measure(&rgb, w, h))
 }
 
 #[test]
 fn cpu_baseline_per_fixture() {
-    let paths = common::fixtures();
+    let paths = fixtures();
     if paths.is_empty() {
         eprintln!("no fixtures; skipping");
         return;
     }
     let bake = std::env::var("BAKE_BASELINE").ok().as_deref() == Some("1");
-    let baseline_file = common::baseline_path("cpu_baseline.json");
+    let baseline_file = baseline_path("cpu_baseline.json");
     let existing: BaselineMap = if baseline_file.exists() {
         let bytes = std::fs::read(&baseline_file).expect("read baseline");
         serde_json::from_slice(&bytes).expect("parse baseline")
@@ -138,7 +51,7 @@ fn cpu_baseline_per_fixture() {
             continue;
         };
         if !bake && let Some(base) = existing.get(&name) {
-            let errs = diff(&m, base);
+            let errs = m.drift(base, &TOLERANCE);
             if !errs.is_empty() {
                 failed.push(format!("{name}: {}", errs.join("; ")));
             }

@@ -1,12 +1,12 @@
-mod common;
-
-use common::{haze_frame, rgb8_opts, try_renderer};
 use raw_pipeline::PipelineError;
 use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
     Vec2f,
 };
 use raw_pipeline::source::LinearKind;
+use raw_pipeline_testkit::frames::haze_frame;
+use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::render::rgb8_opts;
 
 fn wb_layer() -> MaskLayer {
     MaskLayer {

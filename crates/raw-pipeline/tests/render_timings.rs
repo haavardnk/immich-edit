@@ -2,10 +2,7 @@ use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RenderOptions, RenderedImage};
 use raw_pipeline::timing::{DEMOSAIC, DISPLAY, ENCODE, FINISH, READBACK};
 use raw_pipeline::{GpuRenderer, GpuRendererOptions, cpu};
-
-mod common;
-
-use common::synthetic_bayer_frame;
+use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 
 fn opts() -> RenderOptions {
     RenderOptions {

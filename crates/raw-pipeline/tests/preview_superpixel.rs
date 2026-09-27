@@ -1,10 +1,9 @@
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RenderOptions, RenderedImage};
 use raw_pipeline::{CpuRenderer, GpuRenderer};
-
-mod common;
-
-use common::{mean_abs_delta, rgb8_opts, synthetic_bayer_frame};
+use raw_pipeline_testkit::frames::synthetic_bayer_frame;
+use raw_pipeline_testkit::parity::mean_abs_delta;
+use raw_pipeline_testkit::render::rgb8_opts;
 
 const W: usize = 512;
 const H: usize = 384;

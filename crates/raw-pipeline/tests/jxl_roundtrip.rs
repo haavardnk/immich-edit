@@ -1,27 +1,15 @@
 use raw_pipeline::decode::decode;
 use raw_pipeline::encode::{ImageRgb8, encode_jxl8, encode_jxl16};
-use raw_pipeline::frame::{OutputColorSpace, RawFrame};
-
-const WIDTH: u32 = 64;
-const HEIGHT: u32 = 64;
-
-fn split_tone_rgb() -> Vec<u8> {
-    (0..HEIGHT)
-        .flat_map(|_| 0..WIDTH)
-        .flat_map(|x| {
-            let v = if x < WIDTH / 2 { 0u8 } else { 255u8 };
-            [v, v, v]
-        })
-        .collect()
-}
+use raw_pipeline::frame::OutputColorSpace;
+use raw_pipeline_testkit::roundtrip::{SPLIT_TONE_SIZE, assert_split_tone, split_tone_rgb};
 
 fn encode8(cs: OutputColorSpace) -> Vec<u8> {
     let rgb = split_tone_rgb();
     encode_jxl8(
         ImageRgb8 {
             rgb: &rgb,
-            width: WIDTH,
-            height: HEIGHT,
+            width: SPLIT_TONE_SIZE,
+            height: SPLIT_TONE_SIZE,
         },
         cs,
     )
@@ -33,29 +21,11 @@ fn encode16(cs: OutputColorSpace) -> Vec<u8> {
         .into_iter()
         .map(|v| u16::from(v) * 257)
         .collect();
-    encode_jxl16(&rgb16, WIDTH, HEIGHT, cs).expect("jxl 16-bit encode failed")
-}
-
-fn region_mean(frame: &RawFrame, x0: usize, x1: usize) -> f32 {
-    let samples: Vec<f32> = (0..frame.meta.height)
-        .flat_map(|y| (x0..x1).map(move |x| (y * frame.meta.width + x) * 3))
-        .flat_map(|i| frame.data[i..i + 3].iter().copied())
-        .collect();
-    samples.iter().sum::<f32>() / samples.len() as f32
+    encode_jxl16(&rgb16, SPLIT_TONE_SIZE, SPLIT_TONE_SIZE, cs).expect("jxl 16-bit encode failed")
 }
 
 fn assert_tones_survive(encoded: &[u8]) {
-    let frame = decode(encoded).expect("jxl decode failed");
-
-    assert_eq!(frame.meta.width, WIDTH as usize);
-    assert_eq!(frame.meta.height, HEIGHT as usize);
-    assert_eq!(frame.cpp, 3);
-    assert!(!frame.meta.is_raw);
-
-    let dark = region_mean(&frame, 4, 28);
-    let bright = region_mean(&frame, 36, 60);
-    assert!(dark < 0.05, "dark half not preserved: {dark}");
-    assert!(bright > 0.85, "bright half not preserved: {bright}");
+    assert_split_tone(&decode(encoded).expect("jxl decode failed"));
 }
 
 #[test]

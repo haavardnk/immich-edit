@@ -1,12 +1,11 @@
-mod common;
-
 use std::path::Path;
 use std::sync::Arc;
 
-use common::{fixture_path, try_renderer};
 use raw_pipeline::edits::{CropRect, Edits};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use raw_pipeline::lut::Lut3d;
+use raw_pipeline_testkit::fixtures::fixture_path;
+use raw_pipeline_testkit::gpu::try_renderer;
 
 const FIXTURE: &str = "Canon_EOS_5D_3-2.cr2";
 const DCP: &str = "Canon EOS 5D.dcp";

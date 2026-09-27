@@ -3,14 +3,13 @@ use raw_pipeline::{
     edits::Edits,
     frame::{FrameMeta, RawFrame, RenderOptions},
 };
-
-mod common;
-
-use common::each_fixture_frame as each_fixture;
+use raw_pipeline_testkit::color::luma;
+use raw_pipeline_testkit::fixtures::{each_fixture_frame, first_fixture_frame, fixture_path};
+use raw_pipeline_testkit::render::decode_jpeg_rgb;
 
 #[test]
 fn decode_metadata() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         if frame.meta.width == 0 || frame.meta.height == 0 {
             panic!("{name}: zero dim");
         }
@@ -34,7 +33,7 @@ fn decode_metadata() {
 
 #[test]
 fn capture_sigma_is_estimated_for_mosaic_fixtures() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         if frame.cpp != 1 {
             if frame.meta.capture_sigma.is_some() {
                 panic!("{name}: demosaiced frame reported a capture sigma");
@@ -53,7 +52,7 @@ fn capture_sigma_is_estimated_for_mosaic_fixtures() {
 
 #[test]
 fn auto_adjust_reads_every_fixture() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let e = raw_pipeline::auto::auto_adjust(frame, &Edits::default());
         if e == Edits::default() {
             panic!("{name}: auto produced no edits (cpp {})", frame.cpp);
@@ -63,7 +62,7 @@ fn auto_adjust_reads_every_fixture() {
 
 #[test]
 fn xtrans_renders_neutral_greys() {
-    let path = common::fixture_path("Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
+    let path = fixture_path("Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf");
     let Ok(bytes) = std::fs::read(&path) else {
         eprintln!("no X-Trans fixture; skipping");
         return;
@@ -96,15 +95,8 @@ const GREY_PATCHES: [(usize, usize); 3] = [(190, 95), (170, 140), (215, 130)];
 const GREY_SPREAD_CEIL: f64 = 25.0;
 
 fn mean_luma(jpeg: &[u8]) -> f64 {
-    let img: turbojpeg::Image<Vec<u8>> =
-        turbojpeg::decompress(jpeg, turbojpeg::PixelFormat::RGB).expect("decompress");
-    let n = img.pixels.len() as f64 / 3.0;
-    let sum: f64 = img
-        .pixels
-        .chunks_exact(3)
-        .map(|p| 0.2126 * p[0] as f64 + 0.7152 * p[1] as f64 + 0.0722 * p[2] as f64)
-        .sum();
-    sum / n
+    let (rgb, w, h) = decode_jpeg_rgb(jpeg);
+    rgb.chunks_exact(3).map(luma).sum::<f64>() / (w * h) as f64
 }
 
 fn with_dcp_mode(mode: raw_pipeline::edits::DcpMode) -> Edits {
@@ -134,7 +126,7 @@ fn patch_mean(img: &turbojpeg::Image<Vec<u8>>, cx: usize, cy: usize) -> [f64; 3]
 
 #[test]
 fn identity_render_jpeg() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let opts = RenderOptions {
             max_edge: 512,
             histogram: true,
@@ -159,10 +151,7 @@ fn identity_render_jpeg() {
 
 #[test]
 fn default_sharpening_is_raw_only() {
-    let Some(frame) = common::fixtures()
-        .iter()
-        .find_map(|p| std::fs::read(p).ok().and_then(|b| decode::decode(&b).ok()))
-    else {
+    let Some(frame) = first_fixture_frame() else {
         eprintln!("no fixtures found; skipping");
         return;
     };
@@ -201,7 +190,7 @@ fn default_sharpening_is_raw_only() {
 
 #[test]
 fn sensor_scaling_darkens_the_render() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         if !frame.meta.is_raw {
             return;
         }
@@ -231,7 +220,7 @@ fn sensor_scaling_darkens_the_render() {
 #[test]
 fn default_color_differs_from_flat_on_raw() {
     use raw_pipeline::edits::DcpMode;
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         if !frame.meta.is_raw {
             return;
         }
@@ -250,7 +239,7 @@ fn default_color_differs_from_flat_on_raw() {
 #[test]
 fn non_raw_ignores_the_profile_mode() {
     use raw_pipeline::edits::DcpMode;
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let opts = RenderOptions {
             max_edge: 256,
             ..Default::default()
@@ -277,7 +266,7 @@ fn non_raw_ignores_the_profile_mode() {
 
 #[test]
 fn rotate_swaps_dims() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let opts = RenderOptions {
             max_edge: 256,
             ..Default::default()
@@ -305,7 +294,7 @@ fn rotate_swaps_dims() {
 
 #[test]
 fn exposure_raises_mean() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let opts = RenderOptions {
             max_edge: 256,
             histogram: true,
@@ -335,7 +324,7 @@ fn exposure_raises_mean() {
 
 #[test]
 fn orientation_swaps_display_dims_when_transposed() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let opts = RenderOptions {
             max_edge: 256,
             ..Default::default()
@@ -373,7 +362,7 @@ fn histogram_mean(bins: &[u32]) -> f64 {
 
 #[test]
 fn exif_roundtrip_preserves_camera() {
-    each_fixture(|name, frame| {
+    each_fixture_frame(|name, frame| {
         let Some(exif) = frame.exif.as_ref() else {
             eprintln!("{name}: no exif parsed, skipping");
             return;

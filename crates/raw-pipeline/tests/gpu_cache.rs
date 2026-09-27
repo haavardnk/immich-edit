@@ -5,10 +5,9 @@ use raw_pipeline::edits::{
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-
-mod common;
-
-use common::{haze_frame, rgb8_opts, synthetic_frame, try_renderer, try_renderer_with_budget};
+use raw_pipeline_testkit::frames::{haze_frame, synthetic_frame};
+use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with_budget};
+use raw_pipeline_testkit::render::rgb8_opts;
 
 fn nr_edits() -> Edits {
     let mut edits = Edits::default();

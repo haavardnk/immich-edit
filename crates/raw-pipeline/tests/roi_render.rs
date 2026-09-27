@@ -3,8 +3,9 @@ use raw_pipeline::{
     edits::{CropRect, Edits},
     frame::{OutputFormat, RawFrame, RenderOptions},
 };
-
-mod common;
+use raw_pipeline_testkit::color::luma;
+use raw_pipeline_testkit::fixtures::first_decodable_fixture;
+use raw_pipeline_testkit::frames::rgb_frame;
 
 fn checker_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
@@ -22,7 +23,7 @@ fn checker_frame(w: usize, h: usize) -> RawFrame {
             data[i + 2] = (0.9 - base + checker).clamp(0.02, 0.98);
         }
     }
-    common::rgb_frame(w, h, data)
+    rgb_frame(w, h, data)
 }
 
 fn render_rgb(
@@ -45,11 +46,7 @@ fn mean_abs_luma_delta(a: &[u8], b: &[u8]) -> f64 {
     let n = (a.len() / 3) as f64;
     a.chunks_exact(3)
         .zip(b.chunks_exact(3))
-        .map(|(p, q)| {
-            let pl = 0.2126 * p[0] as f64 + 0.7152 * p[1] as f64 + 0.0722 * p[2] as f64;
-            let ql = 0.2126 * q[0] as f64 + 0.7152 * q[1] as f64 + 0.0722 * q[2] as f64;
-            (pl - ql).abs()
-        })
+        .map(|(p, q)| (luma(p) - luma(q)).abs())
         .sum::<f64>()
         / n
 }
@@ -150,7 +147,7 @@ fn gpu_roi_tile_matches_full_render_crop() {
 
 #[test]
 fn capture_sharpen_is_visible_at_one_to_one() {
-    let Some(path) = common::first_decodable_fixture() else {
+    let Some(path) = first_decodable_fixture() else {
         eprintln!("no raw fixture; skipping");
         return;
     };

@@ -1,25 +1,10 @@
 use raw_pipeline::{encode, exif};
+use raw_pipeline_testkit::fixtures::fixtures;
 
 #[test]
 fn injected_jpeg_is_valid() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        eprintln!("no fixtures");
-        return;
-    };
-    let exts: &[&str] = &[
-        "arw", "cr2", "cr3", "dng", "nef", "raf", "orf", "rw2", "pef",
-    ];
     let mut tested = 0;
-    for e in entries.filter_map(|e| e.ok()) {
-        let p = e.path();
-        let ext = p
-            .extension()
-            .and_then(|x| x.to_str())
-            .map(|x| x.to_ascii_lowercase());
-        if !ext.as_deref().map(|x| exts.contains(&x)).unwrap_or(false) {
-            continue;
-        }
+    for p in fixtures() {
         let bytes = std::fs::read(&p).unwrap();
         let Some(meta) = exif::parse(&bytes) else {
             continue;

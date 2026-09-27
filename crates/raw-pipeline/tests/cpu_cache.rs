@@ -6,8 +6,7 @@ use raw_pipeline::{
     },
     frame::{OutputFormat, RenderOptions},
 };
-
-mod common;
+use raw_pipeline_testkit::fixtures::first_fixture_frame;
 
 fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     let preview = || RenderOptions {
@@ -102,7 +101,7 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
 
 #[test]
 fn cpu_cache_matches_uncached() {
-    let Some(frame) = common::first_fixture_frame() else {
+    let Some(frame) = first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
     };
@@ -131,7 +130,7 @@ fn cpu_cache_matches_uncached() {
 
 #[test]
 fn cpu_cache_hits_on_every_display_tick() {
-    let Some(frame) = common::first_fixture_frame() else {
+    let Some(frame) = first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
     };
@@ -173,7 +172,7 @@ fn cpu_cache_hits_on_every_display_tick() {
 
 #[test]
 fn cpu_cache_reuse_across_tone_edits() {
-    let Some(frame) = common::first_fixture_frame() else {
+    let Some(frame) = first_fixture_frame() else {
         eprintln!("no fixtures decoded; skipping");
         return;
     };
