@@ -550,3 +550,16 @@ export async function commitBrushStroke(
     ctx.error = errorMessage(e);
   }
 }
+
+export async function retryMask(ctx: MaskGenCtx): Promise<void> {
+  const retry = ctx.maskRetry;
+  if (!retry) return;
+  ctx.maskError = null;
+  ctx.maskRetry = null;
+  await retry();
+}
+
+export function dismissMaskError(ctx: MaskGenCtx): void {
+  ctx.maskError = null;
+  ctx.maskRetry = null;
+}

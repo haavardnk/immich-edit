@@ -191,3 +191,9 @@ export async function createAndAddTag(ctx: MetadataCtx, value: string): Promise<
     return null;
   }
 }
+
+export async function clearFlags(ctx: MetadataCtx): Promise<void> {
+  if (!ctx.asset) return;
+  if (ctx.asset.isFavorite) await toggleFavorite(ctx);
+  if (ctx.asset && isRejected(ctx.asset)) await toggleReject(ctx);
+}
