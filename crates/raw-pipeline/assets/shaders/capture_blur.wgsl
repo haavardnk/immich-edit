@@ -3,8 +3,7 @@ struct Params {
     radius: i32,
     axis: i32,
     mode: u32,
-    _pad: u32,
-    k: array<vec4<f32>, 4>,
+    kernel: array<vec4<f32>, 4>,
 }
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -30,7 +29,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         } else {
             sy = clamp(y + i - p.radius, 0, last_y);
         }
-        acc = acc + p.k[i / 4][i % 4] * textureLoad(src, vec2<i32>(sx, sy), 0).r;
+        acc = acc + p.kernel[i / 4][i % 4] * textureLoad(src, vec2<i32>(sx, sy), 0).r;
     }
     let c = vec2<i32>(x, y);
     var out = acc;

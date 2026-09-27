@@ -17,10 +17,16 @@ pub struct EffectsToneParams {
     pub _pad0: [u32; 2],
     pub vignette: [f32; 4],
     pub grain: [f32; 3],
-    pub _pad1: [f32; 3],
     pub display_p3: u32,
     pub warn_flags: u32,
+    pub _pad1: [u32; 3],
     pub roi: [f32; 4],
+}
+
+pub fn effects_tone_wgsl(depth: DisplayDepth) -> String {
+    include_str!("../../../assets/shaders/effects_tone.wgsl")
+        .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(2))
+        .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
 }
 
 pub struct EffectsTonePass {
@@ -40,10 +46,7 @@ impl EffectsTonePass {
                 storage_entry(3, ctx.linear_format),
             ],
         );
-        let src = include_str!("../../../assets/shaders/effects_tone.wgsl")
-            .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(2))
-            .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl());
-        let pipeline = make_pipeline(ctx, &layout, "effects_tone.wgsl", &src);
+        let pipeline = make_pipeline(ctx, &layout, "effects_tone.wgsl", &effects_tone_wgsl(depth));
 
         Self { layout, pipeline }
     }

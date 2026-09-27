@@ -3448,6 +3448,7 @@ dependencies = [
  "little_exif",
  "lru",
  "multiversion 0.9.0",
+ "naga",
  "parking_lot",
  "png",
  "pollster",

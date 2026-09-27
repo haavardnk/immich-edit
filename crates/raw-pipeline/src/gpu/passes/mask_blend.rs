@@ -22,7 +22,7 @@ pub struct MaskBlendParams {
     pub sharpen_flags: u32,
 }
 
-const SHADER: &str = r#"
+pub const MASK_BLEND_WGSL: &str = r#"
 struct BlendParams {
     out_size: vec2<u32>,
     sharpen_delta: f32,
@@ -73,7 +73,7 @@ impl MaskBlendPass {
                 storage_entry_with(5, TextureFormat::R32Float, StorageTextureAccess::ReadWrite),
             ],
         );
-        let pipeline = make_pipeline_raw(ctx, &layout, "mask-blend-cp", SHADER);
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-blend-cp", MASK_BLEND_WGSL);
         Self { layout, pipeline }
     }
 }

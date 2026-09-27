@@ -64,6 +64,7 @@ turbojpeg = { version = "1", default-features = false, features = ["cmake"], opt
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+naga = { version = "30", features = ["wgsl-in"] }
 raw-pipeline-testkit = { path = "../raw-pipeline-testkit" }
 
 [[bench]]

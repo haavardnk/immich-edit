@@ -1,8 +1,9 @@
 struct EffectsToneParams {
-    dims_flags: vec4<u32>,
+    size: vec2<u32>,
     vignette: vec4<f32>,
-    grain: vec4<f32>,
-    output: vec4<u32>,
+    grain: vec3<f32>,
+    display_p3: u32,
+    warn_flags: u32,
     roi: vec4<f32>,
 };
 
@@ -53,8 +54,8 @@ fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    let width = p.dims_flags.x;
-    let height = p.dims_flags.y;
+    let width = p.size.x;
+    let height = p.size.y;
     if (gid.x >= width || gid.y >= height) { return; }
     let x = i32(gid.x);
     let y = i32(gid.y);
@@ -115,12 +116,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
-    let outc = tone_rgb_cs(lin, p.output.z);
+    let outc = tone_rgb_cs(lin, p.display_p3);
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
     var alpha = 1.0;
-    if ((p.output.w & 1u) != 0u && tone_is_out_of_gamut(lin, p.output.z)) {
+    if ((p.warn_flags & 1u) != 0u && tone_is_out_of_gamut(lin, p.display_p3)) {
         alpha = 0.0;
-    } else if ((p.output.w & 2u) != 0u) {
+    } else if ((p.warn_flags & 2u) != 0u) {
         alpha = warn_clip_alpha(outc);
     }
     store_display(vec2<i32>(x, y), vec4<f32>(outc_d, alpha));

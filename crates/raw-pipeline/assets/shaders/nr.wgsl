@@ -8,7 +8,6 @@ struct NrParams {
     alpha_luma: f32,
     alpha_chroma: f32,
     contrast: f32,
-    _pad2: vec2<f32>,
 }
 
 @group(0) @binding(0) var<uniform> p: NrParams;

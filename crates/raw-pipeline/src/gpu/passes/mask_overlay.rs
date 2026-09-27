@@ -20,11 +20,10 @@ pub struct MaskOverlayParams {
     pub _pad: u32,
 }
 
-const SHADER: &str = r#"
+pub const MASK_OVERLAY_WGSL: &str = r#"
 struct OverlayParams {
     out_size: vec2<u32>,
     strength: f32,
-    pad: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: OverlayParams;
@@ -65,7 +64,7 @@ impl MaskOverlayPass {
                 storage_entry(3, TextureFormat::Rgba8Unorm),
             ],
         );
-        let pipeline = make_pipeline_raw(ctx, &layout, "mask-overlay.wgsl", SHADER);
+        let pipeline = make_pipeline_raw(ctx, &layout, "mask-overlay.wgsl", MASK_OVERLAY_WGSL);
         Self { layout, pipeline }
     }
 }

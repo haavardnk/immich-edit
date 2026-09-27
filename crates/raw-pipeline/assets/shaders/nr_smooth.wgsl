@@ -1,9 +1,7 @@
 struct SmoothParams {
     size: vec2<u32>,
-    _pad: vec2<u32>,
-    s: f32,
-    alpha: f32,
-    _pad2: vec2<f32>,
+    smoothness: f32,
+    alpha_chroma: f32,
 }
 
 @group(0) @binding(0) var<uniform> p: SmoothParams;
@@ -31,7 +29,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     var pb_den = den.x;
     var pr_den = den.y;
 
-    if (p.s > 0.0) {
+    if (p.smoothness > 0.0) {
         let y0 = max(cy - 1, 0);
         let y1 = min(cy + 1, i32(p.size.y) - 1);
         let x0 = max(cx - 1, 0);
@@ -47,12 +45,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
                 cnt = cnt + 1.0;
             }
         }
-        pb_den = pb_den + (sum_pb / cnt - pb_den) * p.s;
-        pr_den = pr_den + (sum_pr / cnt - pr_den) * p.s;
+        pb_den = pb_den + (sum_pb / cnt - pb_den) * p.smoothness;
+        pr_den = pr_den + (sum_pr / cnt - pr_den) * p.smoothness;
     }
 
-    let pb_new = pb_orig + (pb_den - pb_orig) * p.alpha;
-    let pr_new = pr_orig + (pr_den - pr_orig) * p.alpha;
+    let pb_new = pb_orig + (pb_den - pb_orig) * p.alpha_chroma;
+    let pr_new = pr_orig + (pr_den - pr_orig) * p.alpha_chroma;
     let r_out = y_c + PR_DEN * pr_new;
     let b_out = y_c + PB_DEN * pb_new;
     let g_out = (y_c - KR * r_out - KB * b_out) / KG;

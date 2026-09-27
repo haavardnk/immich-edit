@@ -8,6 +8,7 @@ use crate::gpu::context::GpuContext;
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
 pub const NR_UNIFORM_SIZE: u64 = size_of::<NrParams>() as u64;
+pub const NR_WGSL: &str = include_str!("../../../assets/shaders/nr.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -40,12 +41,7 @@ impl NrPass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "nr.wgsl",
-            include_str!("../../../assets/shaders/nr.wgsl"),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "nr.wgsl", NR_WGSL);
         Self { layout, pipeline }
     }
 }

@@ -1,10 +1,9 @@
 struct Params {
     size: vec2<u32>,
-    size_lo: vec2<u32>,
-    atm: vec4<f32>,
+    lo_size: vec2<u32>,
+    atmosphere: vec4<f32>,
     amount: f32,
     scale: f32,
-    _pad: vec2<f32>,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -15,7 +14,7 @@ struct Params {
 fn sample_ab(sp: vec2<f32>) -> vec2<f32> {
     let base = floor(sp);
     let f = sp - base;
-    let hi = vec2<i32>(p.size_lo) - vec2<i32>(1);
+    let hi = vec2<i32>(p.lo_size) - vec2<i32>(1);
     let x0 = clamp(i32(base.x), 0, hi.x);
     let y0 = clamp(i32(base.y), 0, hi.y);
     let x1 = clamp(i32(base.x) + 1, 0, hi.x);
@@ -36,7 +35,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let cc = clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
     let g = 0.2126 * cc.r + 0.7152 * cc.g + 0.0722 * cc.b;
     let t = clamp(ab.x * g + ab.y, 0.0, 1.0);
-    let atm = p.atm.rgb;
+    let atm = p.atmosphere.rgb;
     let amt = p.amount;
     var outc: vec3<f32>;
     if (amt > 0.0) {

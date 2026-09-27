@@ -12,6 +12,8 @@ pub mod source;
 mod texture;
 mod texture_pool;
 mod timer;
+#[cfg(test)]
+mod uniform_layout;
 mod uniform_pool;
 mod uniforms;
 

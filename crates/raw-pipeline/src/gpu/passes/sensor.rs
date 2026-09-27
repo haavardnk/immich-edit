@@ -7,6 +7,8 @@ use crate::gpu::context::GpuContext;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry_unsized};
 
+pub const SENSOR_WGSL: &str = include_str!("../../../assets/shaders/sensor.wgsl");
+
 pub struct SensorPass {
     pub layout: BindGroupLayout,
     pub pipeline: ComputePipeline,
@@ -23,12 +25,7 @@ impl SensorPass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "sensor.wgsl",
-            include_str!("../../../assets/shaders/sensor.wgsl"),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "sensor.wgsl", SENSOR_WGSL);
         Self { layout, pipeline }
     }
 }

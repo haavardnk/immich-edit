@@ -8,6 +8,7 @@ use crate::gpu::context::GpuContext;
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
 pub const PRESENCE_UNIFORM_SIZE: u64 = size_of::<PresenceParams>() as u64;
+pub const PRESENCE_ADJUST_WGSL: &str = include_str!("../../../assets/shaders/presence_adjust.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -39,7 +40,7 @@ impl PresencePass {
             ctx,
             &adjust_layout,
             "presence_adjust.wgsl",
-            include_str!("../../../assets/shaders/presence_adjust.wgsl"),
+            PRESENCE_ADJUST_WGSL,
         );
         Self {
             adjust_layout,

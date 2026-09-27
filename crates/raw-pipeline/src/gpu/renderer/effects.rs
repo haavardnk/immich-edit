@@ -192,9 +192,9 @@ impl GpuRenderer {
                 (e.grain_size / 100.0) as f32,
                 (e.grain_roughness / 100.0) as f32,
             ],
-            _pad1: [0.0; 3],
             display_p3: matches!(opts.output_color_space, OutputColorSpace::DisplayP3) as u32,
             warn_flags: opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1),
+            _pad1: [0; 3],
             roi: [r.x, r.y, r.w, r.h],
         };
         let ub = self.uniform(&params, "effects-tone-uniform");

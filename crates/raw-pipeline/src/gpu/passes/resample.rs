@@ -7,6 +7,7 @@ use crate::gpu::context::GpuContext;
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
 pub const PARAMS_BYTES: usize = size_of::<ResampleParams>();
+pub const RESAMPLE_WGSL: &str = include_str!("../../../assets/shaders/resample.wgsl");
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -35,12 +36,7 @@ impl ResamplePass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(
-            ctx,
-            &layout,
-            "resample.wgsl",
-            include_str!("../../../assets/shaders/resample.wgsl"),
-        );
+        let pipeline = make_pipeline(ctx, &layout, "resample.wgsl", RESAMPLE_WGSL);
         Self { layout, pipeline }
     }
 }

@@ -3,7 +3,6 @@
 struct BinParams {
     size: vec2<u32>,
     step: u32,
-    pad: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: BinParams;
