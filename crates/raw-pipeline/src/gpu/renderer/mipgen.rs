@@ -1,8 +1,9 @@
-use wgpu::{Texture, TextureViewDescriptor};
+use wgpu::Texture;
 
 use super::GpuRenderer;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
+use crate::gpu::texture::mip_view;
 
 impl GpuRenderer {
     pub(super) fn encode_mipgen(
@@ -21,18 +22,10 @@ impl GpuRenderer {
         let mut mip_w = w;
         let mut mip_h = h;
         for level in 1..levels {
-            let src_view = texture.create_view(&TextureViewDescriptor {
-                base_mip_level: level - 1,
-                mip_level_count: Some(1),
-                ..Default::default()
-            });
+            let src_view = mip_view(texture, level - 1);
             let dst_w = (mip_w / 2).max(1);
             let dst_h = (mip_h / 2).max(1);
-            let dst_view = texture.create_view(&TextureViewDescriptor {
-                base_mip_level: level,
-                mip_level_count: Some(1),
-                ..Default::default()
-            });
+            let dst_view = mip_view(texture, level);
             let bind = bind_group(
                 device,
                 "mipgen-bg",

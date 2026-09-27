@@ -1,12 +1,10 @@
-use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureUsages,
-};
+use wgpu::{Buffer, BufferDescriptor, BufferUsages, Texture, TextureFormat, TextureUsages};
 
 use super::context::GpuContext;
 use super::helpers::round_up_256;
 use super::passes::meta_bins::HISTOGRAM_COUNTS;
 use super::readback::make_readback_buffer;
+use super::texture::{STORAGE_SAMPLED, texture_2d};
 use crate::scopes::SCOPE_CELLS;
 
 pub(super) const HISTOGRAM_BYTES: u64 = (HISTOGRAM_COUNTS * size_of::<u32>()) as u64;
@@ -38,59 +36,22 @@ impl OutputTargets {
         let device = &ctx.device;
         let need_w = round_up_256(out_w);
         let need_h = round_up_256(out_h);
-        let linear_extra_usage = TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-        let make_linear = |label: &'static str, usage: TextureUsages| -> Texture {
-            device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba16Float,
-                usage,
-                view_formats: &[],
-            })
+        let make = |label: &str, format: TextureFormat, usage: TextureUsages| -> Texture {
+            texture_2d(device, label, format, (need_w, need_h), 1, usage)
         };
+        let copy_both = TextureUsages::COPY_SRC | TextureUsages::COPY_DST;
         Self {
-            texture: device.create_texture(&TextureDescriptor {
-                label: Some("output"),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC
-                    | TextureUsages::COPY_DST,
-                view_formats: &[],
-            }),
+            texture: make(
+                "output",
+                TextureFormat::Rgba8Unorm,
+                STORAGE_SAMPLED | copy_both,
+            ),
             readback: make_readback_buffer(device, need_w, need_h),
-            linear_texture: device.create_texture(&TextureDescriptor {
-                label: Some("linear-output"),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba16Float,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC
-                    | TextureUsages::COPY_DST,
-                view_formats: &[],
-            }),
+            linear_texture: make(
+                "linear-output",
+                TextureFormat::Rgba16Float,
+                STORAGE_SAMPLED | copy_both,
+            ),
             histogram_counts: make_counts_buffer(device, "histogram-counts", HISTOGRAM_BYTES),
             scope_counts: make_counts_buffer(device, "scope-counts", SCOPE_BYTES),
             meta_readback: device.create_buffer(&BufferDescriptor {
@@ -99,61 +60,32 @@ impl OutputTargets {
                 usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             }),
-            mask_accum_alt: make_linear(
+            mask_accum_alt: make(
                 "mask-accum-alt",
-                linear_extra_usage | TextureUsages::COPY_SRC,
+                TextureFormat::Rgba16Float,
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
             ),
-            mask_base_linear: make_linear(
+            mask_base_linear: make(
                 "mask-base-linear",
-                linear_extra_usage | TextureUsages::COPY_DST,
+                TextureFormat::Rgba16Float,
+                STORAGE_SAMPLED | TextureUsages::COPY_DST,
             ),
-            mask_scratch_linear: make_linear("mask-scratch-linear", linear_extra_usage),
-            mask_scratch_tone: device.create_texture(&TextureDescriptor {
-                label: Some("mask-scratch-tone"),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::Rgba8Unorm,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
-                view_formats: &[],
-            }),
-            mask_weight: device.create_texture(&TextureDescriptor {
-                label: Some("mask-weight"),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::R32Float,
-                usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            }),
-            mask_sharpen: device.create_texture(&TextureDescriptor {
-                label: Some("mask-sharpen"),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: TextureFormat::R32Float,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_DST,
-                view_formats: &[],
-            }),
+            mask_scratch_linear: make(
+                "mask-scratch-linear",
+                TextureFormat::Rgba16Float,
+                STORAGE_SAMPLED,
+            ),
+            mask_scratch_tone: make(
+                "mask-scratch-tone",
+                TextureFormat::Rgba8Unorm,
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+            ),
+            mask_weight: make("mask-weight", TextureFormat::R32Float, STORAGE_SAMPLED),
+            mask_sharpen: make(
+                "mask-sharpen",
+                TextureFormat::R32Float,
+                STORAGE_SAMPLED | TextureUsages::COPY_DST,
+            ),
             alloc_w: need_w,
             alloc_h: need_h,
         }
@@ -187,28 +119,14 @@ impl SharpenTargets {
         let device = &ctx.device;
         let need_w = round_up_256(out_w);
         let need_h = round_up_256(out_h);
-        let make = |label: &'static str, usage: TextureUsages| -> Texture {
-            device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: need_w,
-                    height: need_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: ctx.linear_format,
-                usage,
-                view_formats: &[],
-            })
+        let make = |label: &str, usage: TextureUsages| -> Texture {
+            texture_2d(device, label, ctx.linear_format, (need_w, need_h), 1, usage)
         };
-        let base = TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
         Self {
-            blur_h: make("sharpen-blur-h", base),
-            blur_full: make("sharpen-blur-full", base),
-            sharpened_lin: make("sharpened-lin", base),
-            post_lin: make("output-post-lin", base | TextureUsages::COPY_SRC),
+            blur_h: make("sharpen-blur-h", STORAGE_SAMPLED),
+            blur_full: make("sharpen-blur-full", STORAGE_SAMPLED),
+            sharpened_lin: make("sharpened-lin", STORAGE_SAMPLED),
+            post_lin: make("output-post-lin", STORAGE_SAMPLED | TextureUsages::COPY_SRC),
             alloc_w: need_w,
             alloc_h: need_h,
         }

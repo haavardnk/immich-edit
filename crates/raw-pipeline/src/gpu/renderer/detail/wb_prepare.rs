@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::edits::Edits;
@@ -13,6 +10,7 @@ use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
@@ -75,31 +73,17 @@ impl GpuRenderer {
             self.uniform_pool
                 .acquire(device, queue, &uniform_bytes, "wb-prepare-uniform");
 
-        let wb_base = device.create_texture(&TextureDescriptor {
-            label: Some("wb-base"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        let wb_base = texture_2d(
+            device,
+            "wb-base",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+        );
 
-        let src_view = cached
-            .texture
-            .create_view(&TextureViewDescriptor::default());
-        let dst_view = wb_base.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let src_view = full_view(&cached.texture);
+        let dst_view = mip_view(&wb_base, 0);
         let bind = bind_group(
             device,
             "wb-prepare-bg",

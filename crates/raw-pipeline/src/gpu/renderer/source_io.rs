@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use half::f16;
-use wgpu::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
+use wgpu::{TextureFormat, TextureUsages};
 
 use super::GpuRenderer;
 use crate::gpu::source::LinearSource;
+#[cfg(feature = "native")]
+use crate::gpu::texture::extent_2d;
+use crate::gpu::texture::{texture_2d, write_texture_2d};
 use crate::source::SourceImage;
 #[cfg(feature = "native")]
 use crate::source::{SourceHeader, SourceWindow, WindowRect};
@@ -27,35 +30,20 @@ impl GpuRenderer {
         }
         let format = self.ctx.linear_format;
         let texels = texel_bytes(&image.rgb_f16, format);
-        let texture = self.ctx.device.create_texture(&TextureDescriptor {
-            label: Some("linear-source-upload"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
+        let texture = texture_2d(
+            &self.ctx.device,
+            "linear-source-upload",
             format,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        self.ctx.queue.write_texture(
-            texture.as_image_copy(),
+            (w, h),
+            1,
+            TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::COPY_SRC,
+        );
+        write_texture_2d(
+            &self.ctx.queue,
+            &texture,
             &texels,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(w * texel_size(format)),
-                rows_per_image: Some(h),
-            },
-            Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
+            w * texel_size(format),
+            (w, h),
         );
         Ok(LinearSource {
             meta: image.header.meta.clone(),
@@ -110,11 +98,7 @@ impl GpuRenderer {
                     rows_per_image: Some(h),
                 },
             },
-            Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
+            extent_2d((w, h)),
         );
         self.ctx.queue.submit(Some(encoder.finish()));
         crate::gpu::readback::map_buffer_cancellable(&self.ctx, &buffer, cancel)?;

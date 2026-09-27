@@ -10,6 +10,7 @@ use crate::dcp::{HsvEncoding, HueSatMap, ToneCurve};
 use crate::gpu::dispatch::{bind_group, buf, copy_texture, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::dcp_huesat::DcpHueSatPass;
+use crate::gpu::texture::full_view;
 use crate::ops::ResolvedDcp;
 
 use super::GpuRenderer;
@@ -161,12 +162,12 @@ impl GpuRenderer {
             ),
             job.label,
         );
-        let src_view = job.src.create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(job.src);
         let table_view = table_tex.create_view(&TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D3),
             ..Default::default()
         });
-        let dst_view = scratch.create_view(&TextureViewDescriptor::default());
+        let dst_view = full_view(&scratch);
         let ub = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("dcp-huesat-uniform"),
             contents: bytemuck::bytes_of(&job.uniform),

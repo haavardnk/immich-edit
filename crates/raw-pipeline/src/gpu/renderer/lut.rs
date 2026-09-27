@@ -11,6 +11,7 @@ use crate::frame::RenderOptions;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::lut::LutParams;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 
 use super::GpuRenderer;
@@ -39,9 +40,7 @@ impl GpuRenderer {
                 w,
                 h,
                 1,
-                TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
             ),
             "lut-target",
         );
@@ -118,12 +117,12 @@ impl GpuRenderer {
             DisplayDepth::Eight => &self.passes.lut,
             DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).lut,
         };
-        let src_view = src.texture.create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(src.texture);
         let lut_view = lut_tex.create_view(&TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D3),
             ..Default::default()
         });
-        let dst_view = dst.create_view(&TextureViewDescriptor::default());
+        let dst_view = full_view(dst);
 
         let dmin = lut.domain_min();
         let dmax = lut.domain_max();

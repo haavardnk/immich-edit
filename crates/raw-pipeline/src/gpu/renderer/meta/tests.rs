@@ -1,10 +1,8 @@
-use wgpu::{
-    Extent3d, Origin3d, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-};
+use wgpu::{Texture, TextureFormat, TextureUsages};
 
 use super::super::pools;
 use super::*;
+use crate::gpu::texture::{texture_2d, write_texture_2d};
 use crate::histogram::Bins;
 
 struct Pixels {
@@ -34,49 +32,15 @@ fn synthetic(width: u32, height: u32) -> Pixels {
     Pixels { display, linear }
 }
 
-fn upload(
-    renderer: &GpuRenderer,
-    texture: &Texture,
-    bytes: &[u8],
-    bytes_per_pixel: u32,
-    (width, height): (u32, u32),
-) {
-    renderer.ctx.queue.write_texture(
-        TexelCopyTextureInfo {
-            texture,
-            mip_level: 0,
-            origin: Origin3d::ZERO,
-            aspect: TextureAspect::All,
-        },
-        bytes,
-        TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(width * bytes_per_pixel),
-            rows_per_image: Some(height),
-        },
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-    );
-}
-
-fn display_16(renderer: &GpuRenderer, width: u32, height: u32) -> Texture {
-    renderer.ctx.device.create_texture(&TextureDescriptor {
-        label: Some("meta-test-display-16"),
-        size: Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::Rgba16Uint,
-        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-        view_formats: &[],
-    })
+fn display_16(renderer: &GpuRenderer, dims: (u32, u32)) -> Texture {
+    texture_2d(
+        &renderer.ctx.device,
+        "meta-test-display-16",
+        TextureFormat::Rgba16Uint,
+        dims,
+        1,
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+    )
 }
 
 fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: bool) -> MetaCounts {
@@ -91,14 +55,15 @@ fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: b
             [bits(px[0]), bits(px[1]), bits(px[2]), bits(1.0)]
         })
         .collect();
-    upload(
-        renderer,
+    let queue = &renderer.ctx.queue;
+    write_texture_2d(
+        queue,
         &p.linear_texture,
         bytemuck::cast_slice(&linear),
-        8,
+        width * 8,
         dims,
     );
-    let wide_display = wide.then(|| display_16(renderer, width, height));
+    let wide_display = wide.then(|| display_16(renderer, dims));
     match &wide_display {
         Some(texture) => {
             let words: Vec<u16> = pixels
@@ -110,7 +75,13 @@ fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: b
                     [px[0], px[1], px[2], 255].map(|v| (v as u16) << 8 | low)
                 })
                 .collect();
-            upload(renderer, texture, bytemuck::cast_slice(&words), 8, dims);
+            write_texture_2d(
+                queue,
+                texture,
+                bytemuck::cast_slice(&words),
+                width * 8,
+                dims,
+            );
         }
         None => {
             let bytes: Vec<u8> = pixels
@@ -118,7 +89,7 @@ fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: b
                 .iter()
                 .flat_map(|px| [px[0], px[1], px[2], 255])
                 .collect();
-            upload(renderer, &p.texture, &bytes, 4, dims);
+            write_texture_2d(queue, &p.texture, &bytes, width * 4, dims);
         }
     }
     let display_src = wide_display.as_ref().unwrap_or(&p.texture);

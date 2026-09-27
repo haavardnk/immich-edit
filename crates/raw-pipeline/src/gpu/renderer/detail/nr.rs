@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::edits::Edits;
@@ -13,6 +10,7 @@ use crate::gpu::passes::nr::NrParams;
 use crate::gpu::passes::nr_smooth::NrSmoothParams;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::stage_cache::Stage;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_nr(
@@ -69,27 +67,18 @@ impl GpuRenderer {
                 contrast,
                 _pad: [0.0; 2],
             };
-            self.uniform_pool
-                .acquire(device, queue, bytemuck::bytes_of(&params), "nr-uniform")
+            self.uniform(&params, "nr-uniform")
         };
 
         let make_tex = |label: &'static str, mips: bool| -> Texture {
-            device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: w,
-                    height: h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: if mips { mip_count(w, h) } else { 1 },
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: self.ctx.linear_format,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
-                view_formats: &[],
-            })
+            texture_2d(
+                device,
+                label,
+                self.ctx.linear_format,
+                (w, h),
+                if mips { mip_count(w, h) } else { 1 },
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+            )
         };
 
         let chroma_active = color_amount > 0.0;
@@ -117,18 +106,13 @@ impl GpuRenderer {
             );
         };
 
-        let src_view = src.create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(src);
         let luma_tex = (luma_amount > 0.0).then(|| make_tex("nr-luma", !chroma_active));
         let luma_uniform = luma_tex
             .as_ref()
             .map(|_| nr_uniform(0, radius_for(luma_amount)));
         if let (Some(t), Some(u)) = (luma_tex.as_ref(), luma_uniform.as_ref()) {
-            let view = t.create_view(&TextureViewDescriptor {
-                base_mip_level: 0,
-                mip_level_count: Some(1),
-                ..Default::default()
-            });
-            dispatch(&mut encoder, "nr-luma-pass", u, &src_view, &view);
+            dispatch(&mut encoder, "nr-luma-pass", u, &src_view, &mip_view(t, 0));
         }
 
         if !chroma_active {
@@ -144,33 +128,23 @@ impl GpuRenderer {
             return Ok(out);
         }
 
-        let base_view = match luma_tex.as_ref() {
-            Some(t) => t.create_view(&TextureViewDescriptor::default()),
-            None => src.create_view(&TextureViewDescriptor::default()),
-        };
+        let base_view = full_view(luma_tex.as_ref().unwrap_or(src));
         let chroma_tex = make_tex("nr-chroma", false);
-        let chroma_view = chroma_tex.create_view(&TextureViewDescriptor::default());
+        let chroma_view = full_view(&chroma_tex);
         let u = nr_uniform(1, radius_for(color_amount));
         dispatch(&mut encoder, "nr-chroma-pass", &u, &base_view, &chroma_view);
 
         let dst = make_tex("nr-out", true);
-        let dst_mip0 = dst.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let dst_mip0 = mip_view(&dst, 0);
         let smoothness = (d.color_nr_smoothness as f32) / 100.0;
-        let smooth_params = NrSmoothParams {
-            size: [w, h],
-            _pad0: [0; 2],
-            smoothness,
-            alpha_chroma,
-            _pad1: [0.0; 6],
-        };
-        let sbuf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&smooth_params),
+        let sbuf = self.uniform(
+            &NrSmoothParams {
+                size: [w, h],
+                _pad0: [0; 2],
+                smoothness,
+                alpha_chroma,
+                _pad1: [0.0; 6],
+            },
             "nr-smooth-uniform",
         );
         let sbind = bind_group(

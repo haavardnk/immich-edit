@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{
-    BufferUsages, CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{BufferUsages, CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::edits::{Edits, RetouchMode, RetouchStroke};
@@ -12,6 +9,7 @@ use crate::frame::RawFrame;
 use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::retouch::RetouchParams;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::ops::retouch::{StrokeGeom, stroke_geometry};
 
 use super::GpuRenderer;
@@ -74,69 +72,38 @@ impl GpuRenderer {
             });
 
             let make_patch = |label: &'static str| {
-                device.create_texture(&TextureDescriptor {
-                    label: Some(label),
-                    size: Extent3d {
-                        width: bw,
-                        height: bh,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: TextureDimension::D2,
-                    format: self.ctx.linear_format,
-                    usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                })
+                texture_2d(
+                    device,
+                    label,
+                    self.ctx.linear_format,
+                    (bw, bh),
+                    1,
+                    STORAGE_SAMPLED,
+                )
             };
             let patch_src = make_patch("retouch-patch-src");
             let patch_res = make_patch("retouch-patch-res");
             let patch_tmp = make_patch("retouch-patch-tmp");
-            let patch_src_view = patch_src.create_view(&TextureViewDescriptor::default());
-            let patch_res_view = patch_res.create_view(&TextureViewDescriptor::default());
-            let patch_tmp_view = patch_tmp.create_view(&TextureViewDescriptor::default());
+            let patch_src_view = full_view(&patch_src);
+            let patch_res_view = full_view(&patch_res);
+            let patch_tmp_view = full_view(&patch_tmp);
 
-            let dst = device.create_texture(&TextureDescriptor {
-                label: Some("retouch-out"),
-                size: Extent3d {
-                    width: w,
-                    height: h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: mip_count(w, h),
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: self.ctx.linear_format,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
-                view_formats: &[],
-            });
-            let src_view = current.create_view(&TextureViewDescriptor::default());
-            let dst_mip0 = dst.create_view(&TextureViewDescriptor {
-                base_mip_level: 0,
-                mip_level_count: Some(1),
-                ..Default::default()
-            });
+            let dst = texture_2d(
+                device,
+                "retouch-out",
+                self.ctx.linear_format,
+                (w, h),
+                mip_count(w, h),
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+            );
+            let src_view = full_view(&current);
+            let dst_mip0 = mip_view(&dst, 0);
 
-            let prep_u = self.uniform_pool.acquire(
-                device,
-                queue,
-                bytemuck::bytes_of(&retouch_params(&geom, stroke, dims, 0)),
-                "retouch-prep-u",
-            );
-            let blur_h_u = self.uniform_pool.acquire(
-                device,
-                queue,
-                bytemuck::bytes_of(&retouch_params(&geom, stroke, dims, 0)),
-                "retouch-blur-h-u",
-            );
-            let blur_v_u = self.uniform_pool.acquire(
-                device,
-                queue,
-                bytemuck::bytes_of(&retouch_params(&geom, stroke, dims, 1)),
-                "retouch-blur-v-u",
-            );
+            let prep_u = self.uniform(&retouch_params(&geom, stroke, dims, 0), "retouch-prep-u");
+            let blur_h_u =
+                self.uniform(&retouch_params(&geom, stroke, dims, 0), "retouch-blur-h-u");
+            let blur_v_u =
+                self.uniform(&retouch_params(&geom, stroke, dims, 1), "retouch-blur-v-u");
 
             let prep_bind = bind_group(
                 device,

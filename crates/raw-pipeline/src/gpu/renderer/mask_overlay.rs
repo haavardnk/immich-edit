@@ -1,10 +1,11 @@
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoder, Texture, TextureViewDescriptor};
+use wgpu::{BufferUsages, CommandEncoder, Texture};
 
 use super::GpuRenderer;
 use super::masks::Retained;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::resources::OutputTargets;
+use crate::gpu::texture::full_view;
 
 impl GpuRenderer {
     pub(super) fn encode_mask_overlay(
@@ -26,11 +27,9 @@ impl GpuRenderer {
             contents: bytemuck::bytes_of(&params),
             usage: BufferUsages::UNIFORM,
         });
-        let src_view = display_src.create_view(&TextureViewDescriptor::default());
-        let weight_view = p.mask_weight.create_view(&TextureViewDescriptor::default());
-        let dst_view = p
-            .mask_scratch_tone
-            .create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(display_src);
+        let weight_view = full_view(&p.mask_weight);
+        let dst_view = full_view(&p.mask_scratch_tone);
         let bind = bind_group(
             device,
             "mask-overlay-bg",

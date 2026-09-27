@@ -1,4 +1,4 @@
-use wgpu::{BindGroupEntry, CommandEncoder, Texture, TextureViewDescriptor};
+use wgpu::{BindGroupEntry, CommandEncoder, Texture};
 
 use crate::edits::Edits;
 use crate::frame::{OutputColorSpace, PreviewMode, RenderOptions};
@@ -7,6 +7,7 @@ use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::effects_tone::EffectsToneParams;
 use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
+use crate::gpu::texture::full_view;
 use crate::gpu::uniform_pool::PooledUniform;
 
 use super::GpuRenderer;
@@ -24,7 +25,6 @@ impl GpuRenderer {
     ) {
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
         let d = &edits.detail;
         let masked_sharpen = edits.masked_sharpen_active();
         let sigma = (d.sharpen_radius as f32).max(0.01);
@@ -53,17 +53,11 @@ impl GpuRenderer {
         let masking_thresh = masking * 0.15;
         let masking_softness = 0.15f32;
 
-        let linear_view = out
-            .linear_texture
-            .create_view(&TextureViewDescriptor::default());
-        let blur_h_view = sh.blur_h.create_view(&TextureViewDescriptor::default());
-        let blur_full_view = sh.blur_full.create_view(&TextureViewDescriptor::default());
-        let sharpened_lin_view = sh
-            .sharpened_lin
-            .create_view(&TextureViewDescriptor::default());
-        let mask_sharpen_view = out
-            .mask_sharpen
-            .create_view(&TextureViewDescriptor::default());
+        let linear_view = full_view(&out.linear_texture);
+        let blur_h_view = full_view(&sh.blur_h);
+        let blur_full_view = full_view(&sh.blur_full);
+        let sharpened_lin_view = full_view(&sh.sharpened_lin);
+        let mask_sharpen_view = full_view(&out.mask_sharpen);
 
         let pass_h = &self.passes.output_sharpen;
 
@@ -78,12 +72,7 @@ impl GpuRenderer {
                 axis,
                 _pad: [0; 3],
             };
-            self.uniform_pool.acquire(
-                device,
-                queue,
-                bytemuck::bytes_of(&params),
-                "sharpen-blur-uniform",
-            )
+            self.uniform(&params, "sharpen-blur-uniform")
         };
         let ub_h = blur_uniform(0);
         let bg_h = bind_group(
@@ -135,12 +124,7 @@ impl GpuRenderer {
             masked_sharpen: u32::from(masked_sharpen),
             _pad: [0; 3],
         };
-        let ub_c = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&sharpen_params),
-            "sharpen-uniform",
-        );
+        let ub_c = self.uniform(&sharpen_params, "sharpen-uniform");
         let bg_c = bind_group_indexed(
             device,
             "sharpen-bg",
@@ -183,18 +167,15 @@ impl GpuRenderer {
         let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
         let e = &edits.effects;
         let pass = match display.depth {
             DisplayDepth::Eight => &self.passes.effects_tone,
             DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).effects_tone,
         };
 
-        let src_view = src.create_view(&TextureViewDescriptor::default());
-        let post_lin_view = sh.post_lin.create_view(&TextureViewDescriptor::default());
-        let out_view = display
-            .texture
-            .create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(src);
+        let post_lin_view = full_view(&sh.post_lin);
+        let out_view = full_view(display.texture);
 
         let r = opts.roi.unwrap_or(crate::edits::CropRect::full());
         let params = EffectsToneParams {
@@ -216,12 +197,7 @@ impl GpuRenderer {
             warn_flags: opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1),
             roi: [r.x, r.y, r.w, r.h],
         };
-        let ub = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&params),
-            "effects-tone-uniform",
-        );
+        let ub = self.uniform(&params, "effects-tone-uniform");
         let bg = bind_group(
             device,
             "effects-tone-bg",

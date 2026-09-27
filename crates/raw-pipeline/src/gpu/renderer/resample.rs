@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::passes::resample;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, texture_2d};
 
 use super::GpuRenderer;
 
@@ -33,22 +31,14 @@ impl GpuRenderer {
         let (dw, dh) = dst_dims;
 
         let make_texture = |w: u32, h: u32, label: &str| {
-            device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: w,
-                    height: h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: self.ctx.linear_format,
-                usage: TextureUsages::STORAGE_BINDING
-                    | TextureUsages::TEXTURE_BINDING
-                    | TextureUsages::COPY_SRC,
-                view_formats: &[],
-            })
+            texture_2d(
+                device,
+                label,
+                self.ctx.linear_format,
+                (w, h),
+                1,
+                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+            )
         };
 
         let tmp = make_texture(dw, sh, "resample-tmp");
@@ -65,15 +55,12 @@ impl GpuRenderer {
         let mut binds = Vec::with_capacity(steps.len());
         let mut uniforms = Vec::with_capacity(steps.len());
         for (out_dims, in_dims, scale, axis, input, output) in steps {
-            let params = resample::pack_params(out_dims, in_dims, scale, axis);
-            let uniform = self.uniform_pool.acquire(
-                device,
-                queue,
-                bytemuck::bytes_of(&params),
+            let uniform = self.uniform(
+                &resample::pack_params(out_dims, in_dims, scale, axis),
                 "resample-uniform",
             );
-            let in_view = input.create_view(&TextureViewDescriptor::default());
-            let out_view = output.create_view(&TextureViewDescriptor::default());
+            let in_view = full_view(input);
+            let out_view = full_view(output);
             let bind = bind_group(
                 device,
                 "resample-bg",

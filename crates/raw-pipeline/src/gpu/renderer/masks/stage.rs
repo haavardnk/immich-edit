@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoder, Texture, TextureView, TextureViewDescriptor};
+use wgpu::{BufferUsages, CommandEncoder, Texture, TextureView};
 
 use super::{
     LAYER_LABELS, MaskAtlas, MaskWeightJob, PREVIEW_LABELS, Retained, atlas_view, mask_aspect,
@@ -16,6 +16,7 @@ use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::process::{ProcessPlan, ProcessViews};
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::resources::OutputTargets;
+use crate::gpu::texture::full_view;
 
 pub(in crate::gpu::renderer) struct MaskStage<'a> {
     pub pass: &'a ProcessFastPass,
@@ -48,15 +49,14 @@ struct MaskViews {
 
 impl MaskViews {
     fn new(p: &OutputTargets, atlas: &MaskAtlas) -> Self {
-        let view = |texture: &Texture| texture.create_view(&TextureViewDescriptor::default());
         Self {
-            scratch_linear: view(&p.mask_scratch_linear),
-            scratch_tone: view(&p.mask_scratch_tone),
-            weight: view(&p.mask_weight),
-            sharpen: view(&p.mask_sharpen),
-            accum_alt: view(&p.mask_accum_alt),
-            linear: view(&p.linear_texture),
-            base_linear: view(&p.mask_base_linear),
+            scratch_linear: full_view(&p.mask_scratch_linear),
+            scratch_tone: full_view(&p.mask_scratch_tone),
+            weight: full_view(&p.mask_weight),
+            sharpen: full_view(&p.mask_sharpen),
+            accum_alt: full_view(&p.mask_accum_alt),
+            linear: full_view(&p.linear_texture),
+            base_linear: full_view(&p.mask_base_linear),
             atlas: atlas_view(&atlas.texture),
         }
     }
@@ -138,10 +138,7 @@ impl GpuRenderer {
         let (atlas, slot_map) =
             self.prepare_mask_atlas(std::iter::once(layer), &stage.opts.rasters);
         let atlas_view = atlas_view(&atlas.texture);
-        let weight_view = stage
-            .target
-            .mask_weight
-            .create_view(&TextureViewDescriptor::default());
+        let weight_view = full_view(&stage.target.mask_weight);
         let eval = build_layer_eval(layer, &stage.opts.rasters, mask_aspect(&stage.plan.geom));
         let job = MaskWeightJob {
             labels: &PREVIEW_LABELS,
@@ -206,10 +203,7 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let (out_w, out_h) = stage.plan.out_dims;
         let eff = effective_edits_for_layer(stage.edits, layer);
-        let layer_src = stage
-            .layers
-            .get(&layer.id)
-            .map(|t| t.create_view(&TextureViewDescriptor::default()));
+        let layer_src = stage.layers.get(&layer.id).map(|t| full_view(t));
         let bytes = build_process_uniform(
             &stage.pass.built,
             &self.passes.registry,

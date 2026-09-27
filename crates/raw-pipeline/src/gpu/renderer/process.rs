@@ -1,4 +1,4 @@
-use wgpu::{CommandEncoder, Texture, TextureView, TextureViewDescriptor};
+use wgpu::{CommandEncoder, Texture, TextureView};
 
 use super::GpuRenderer;
 use super::display::StageState;
@@ -10,6 +10,7 @@ use crate::frame::{FrameMeta, RenderOptions};
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::OutputTargets;
+use crate::gpu::texture::full_view;
 use crate::gpu::uniforms::ProcessHeader;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
@@ -78,12 +79,11 @@ impl ProcessViews {
         display: &Texture,
         dummy_luma: &Texture,
     ) -> Self {
-        let view = |texture: &Texture| texture.create_view(&TextureViewDescriptor::default());
         Self {
-            src: view(&state.texture),
-            out: view(display),
-            linear: view(&target.linear_texture),
-            shadows: view(state.shadows.as_deref().unwrap_or(dummy_luma)),
+            src: full_view(&state.texture),
+            out: full_view(display),
+            linear: full_view(&target.linear_texture),
+            shadows: full_view(state.shadows.as_deref().unwrap_or(dummy_luma)),
         }
     }
 }

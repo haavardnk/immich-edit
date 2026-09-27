@@ -1,9 +1,10 @@
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindingResource, Buffer,
-    CommandEncoder, ComputePass, ComputePassDescriptor, ComputePipeline, Device, Extent3d,
-    Origin3d, Sampler, TexelCopyTextureInfo, Texture, TextureAspect, TextureView,
+    CommandEncoder, ComputePass, ComputePassDescriptor, ComputePipeline, Device, Origin3d, Sampler,
+    TexelCopyTextureInfo, Texture, TextureAspect, TextureView,
 };
 
+use super::texture::extent_2d;
 use super::timer::with_pass_timestamps;
 
 pub(super) fn tex(view: &TextureView) -> BindingResource<'_> {
@@ -90,10 +91,6 @@ pub(super) fn copy_texture(
             origin: Origin3d::ZERO,
             aspect: TextureAspect::All,
         },
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
+        extent_2d((width, height)),
     );
 }
