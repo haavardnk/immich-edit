@@ -109,7 +109,7 @@ async fn edits_and_history_are_scoped_to_the_owner() {
     let owner_list =
         json_body(expect_status(&admin, get("/api/edits"), StatusCode::OK, "owner list").await)
             .await;
-    if owner_list.as_array().map(Vec::len) != Some(1) {
+    if owner_list["items"].as_array().map(Vec::len) != Some(1) {
         panic!("owner edit list: {owner_list}");
     }
 
@@ -144,7 +144,7 @@ async fn edits_and_history_are_scoped_to_the_owner() {
     let member_list =
         json_body(expect_status(&member, get("/api/edits"), StatusCode::OK, "member list").await)
             .await;
-    if member_list.as_array().map(Vec::len) != Some(0) {
+    if member_list["items"].as_array().map(Vec::len) != Some(0) {
         panic!("member list: {member_list}");
     }
 }

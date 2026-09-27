@@ -37,7 +37,7 @@ pub async fn post_source(
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
     let roi = parse_roi(body.roi)?;
     let edits = body.edits.clamped().sensor_stage();
-    let dcp_revision = state.render.dcp_revision().await?;
+    let render_revision = state.render.render_revision().await?;
     let region = roi.map_or(String::new(), |r| {
         format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
     });
@@ -46,7 +46,7 @@ pub async fn post_source(
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
-        dcp_revision,
+        render_revision,
         region
     );
     if etag_matches(&headers, &etag) {

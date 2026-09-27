@@ -2,6 +2,7 @@ import { listEditedAssets, type EditedAssetEntry } from '$lib/api/edits';
 
 class EditedThumbsStore {
   entries = $state<EditedAssetEntry[]>([]);
+  revision = $state('');
   private map = $state(new Map<string, string>());
   private hydrated = false;
   private hydrating: Promise<void> | null = null;
@@ -27,10 +28,11 @@ class EditedThumbsStore {
   }
 
   async refresh(): Promise<void> {
-    const entries = await listEditedAssets();
-    this.entries = entries;
+    const { render_revision, items } = await listEditedAssets();
+    this.entries = items;
+    this.revision = render_revision;
     const next = new Map<string, string>();
-    for (const e of entries) next.set(e.id, e.hash);
+    for (const e of items) next.set(e.id, e.hash);
     this.map = next;
   }
 

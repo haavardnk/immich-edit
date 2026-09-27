@@ -342,6 +342,13 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
 
     let resp = app.clone().oneshot(req_get("/api/edits")).await.unwrap();
     let lean: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    if !lean["render_revision"]
+        .as_str()
+        .is_some_and(|r| !r.is_empty())
+    {
+        panic!("list lost its render revision: {lean}");
+    }
+    let lean = &lean["items"];
     let entry = lean[0].as_object().expect("entry object");
     let mut keys: Vec<&str> = entry.keys().map(String::as_str).collect();
     keys.sort_unstable();
@@ -354,6 +361,7 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
         .await
         .unwrap();
     let rich: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let rich = &rich["items"];
     if rich[0]["asset"]["originalFileName"] != "beach.arw" {
         panic!("enriched list: {rich}");
     }

@@ -20,8 +20,8 @@ export function thumbUrl(id: string, size: 'thumbnail' | 'preview' = 'thumbnail'
   return url`/api/assets/${id}/thumb?size=${size}`;
 }
 
-export function editedThumbUrl(id: string, hash: string, size = 400): string {
-  return url`/api/assets/${id}/edited-thumb?h=${hash}&size=${size}`;
+export function editedThumbUrl(id: string, hash: string, revision: string, size = 400): string {
+  return url`/api/assets/${id}/edited-thumb?h=${hash}&r=${revision}&size=${size}`;
 }
 
 export function assetThumbUrl(
@@ -30,5 +30,7 @@ export function assetThumbUrl(
   editedSize = 400
 ): string {
   const hash = editedThumbs.getHash(id);
-  return hash ? editedThumbUrl(id, hash, editedSize) : thumbUrl(sourceId(id), immichSize);
+  return hash
+    ? editedThumbUrl(id, hash, editedThumbs.revision, editedSize)
+    : thumbUrl(sourceId(id), immichSize);
 }

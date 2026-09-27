@@ -58,20 +58,30 @@ pub struct EditedAssetItem {
     pub asset: Option<AssetDetail>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct EditedAssetList {
+    pub render_revision: String,
+    pub items: Vec<EditedAssetItem>,
+}
+
 const ASSET_FANOUT: usize = 8;
 
 pub async fn list(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Query(query): Query<ListQuery>,
-) -> Result<Json<Vec<EditedAssetItem>>, AppError> {
+) -> Result<Json<EditedAssetList>, AppError> {
+    let render_revision = state.render.render_revision().await?;
     let entries = state.edits.list_edited_assets(ctx.owner).await?;
     if !query.with_assets {
         let items = entries
             .into_iter()
             .map(|entry| EditedAssetItem { entry, asset: None })
             .collect();
-        return Ok(Json(items));
+        return Ok(Json(EditedAssetList {
+            render_revision,
+            items,
+        }));
     }
 
     let sources: Vec<Uuid> = entries
@@ -114,7 +124,10 @@ pub async fn list(
             EditedAssetItem { entry, asset }
         })
         .collect();
-    Ok(Json(items))
+    Ok(Json(EditedAssetList {
+        render_revision,
+        items,
+    }))
 }
 
 pub async fn get(
