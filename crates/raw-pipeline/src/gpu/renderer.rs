@@ -39,6 +39,7 @@ mod mipgen;
 #[cfg(feature = "native")]
 mod output;
 mod pools;
+mod process;
 mod resample;
 #[cfg(feature = "native")]
 mod retouch;

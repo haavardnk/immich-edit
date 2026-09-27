@@ -1,6 +1,7 @@
-use wgpu::{BindGroupEntry, CommandEncoder, TextureViewDescriptor};
+use wgpu::{BindGroupEntry, CommandEncoder, Texture, TextureViewDescriptor};
 
 use crate::edits::Edits;
+use crate::frame::{OutputColorSpace, PreviewMode, RenderOptions};
 use crate::gpu::dispatch::{bind_group, bind_group_indexed, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::effects_tone::EffectsToneParams;
@@ -9,24 +10,23 @@ use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::uniform_pool::PooledUniform;
 
 use super::GpuRenderer;
+use super::display::DisplayTarget;
 
 impl GpuRenderer {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn encode_sharpen(
         &self,
         encoder: &mut CommandEncoder,
         edits: &Edits,
         out: &OutputTargets,
         sh: &SharpenTargets,
-        w: u32,
-        h: u32,
-        preview: &crate::frame::PreviewMode,
-        masked_sharpen: bool,
+        (w, h): (u32, u32),
+        preview: &PreviewMode,
     ) {
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let d = &edits.detail;
+        let masked_sharpen = edits.masked_sharpen_active();
         let sigma = (d.sharpen_radius as f32).max(0.01);
         let radius = (sigma * 3.0).ceil();
         let sharpen_active = d.sharpen_active();
@@ -38,11 +38,11 @@ impl GpuRenderer {
         let detail_weight = 0.5 + 0.5 * (d.sharpen_detail as f32 / 100.0);
         let masking = (d.sharpen_masking as f32 / 100.0).clamp(0.0, 1.0);
         let preview_mode_u: u32 = match preview {
-            crate::frame::PreviewMode::None => 0,
-            crate::frame::PreviewMode::SharpenMask => 1,
-            crate::frame::PreviewMode::SharpenRadius => 2,
-            crate::frame::PreviewMode::SharpenDetail => 3,
-            crate::frame::PreviewMode::MaskWeight { .. } => 0,
+            PreviewMode::None => 0,
+            PreviewMode::SharpenMask => 1,
+            PreviewMode::SharpenRadius => 2,
+            PreviewMode::SharpenDetail => 3,
+            PreviewMode::MaskWeight { .. } => 0,
         };
         let use_mask =
             if ((sharpen_active || masked_sharpen) && masking > 0.0) || preview_mode_u == 1 {
@@ -171,41 +171,32 @@ impl GpuRenderer {
         dispatch_2d(encoder, "sharpen", &pass_h.sharpen_pipeline, &bg_c, gx, gy);
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn encode_effects_tone(
         &self,
         encoder: &mut CommandEncoder,
         edits: &Edits,
-        out: &OutputTargets,
+        opts: &RenderOptions,
+        src: &Texture,
         sh: &SharpenTargets,
-        display: &wgpu::Texture,
-        depth: DisplayDepth,
-        w: u32,
-        h: u32,
-        sharpen_ran: bool,
-        color_space: crate::frame::OutputColorSpace,
-        warn_flags: u32,
-        roi: Option<crate::edits::CropRect>,
+        display: DisplayTarget<'_>,
     ) {
+        let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let e = &edits.effects;
-        let pass = match depth {
+        let pass = match display.depth {
             DisplayDepth::Eight => &self.passes.effects_tone,
             DisplayDepth::Sixteen => &self.passes.depth16(&self.ctx).effects_tone,
         };
 
-        let linear_view = out
-            .linear_texture
-            .create_view(&TextureViewDescriptor::default());
-        let sharpened_lin_view = sh
-            .sharpened_lin
-            .create_view(&TextureViewDescriptor::default());
+        let src_view = src.create_view(&TextureViewDescriptor::default());
         let post_lin_view = sh.post_lin.create_view(&TextureViewDescriptor::default());
-        let out_view = display.create_view(&TextureViewDescriptor::default());
+        let out_view = display
+            .texture
+            .create_view(&TextureViewDescriptor::default());
 
-        let r = roi.unwrap_or(crate::edits::CropRect::full());
+        let r = opts.roi.unwrap_or(crate::edits::CropRect::full());
         let params = EffectsToneParams {
             size: [w, h],
             _pad0: [0; 2],
@@ -221,8 +212,8 @@ impl GpuRenderer {
                 (e.grain_roughness / 100.0) as f32,
             ],
             _pad1: [0.0; 3],
-            display_p3: matches!(color_space, crate::frame::OutputColorSpace::DisplayP3) as u32,
-            warn_flags,
+            display_p3: matches!(opts.output_color_space, OutputColorSpace::DisplayP3) as u32,
+            warn_flags: opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1),
             roi: [r.x, r.y, r.w, r.h],
         };
         let ub = self.uniform_pool.acquire(
@@ -231,18 +222,13 @@ impl GpuRenderer {
             bytemuck::bytes_of(&params),
             "effects-tone-uniform",
         );
-        let src_binding = if sharpen_ran {
-            tex(&sharpened_lin_view)
-        } else {
-            tex(&linear_view)
-        };
         let bg = bind_group(
             device,
             "effects-tone-bg",
             &pass.layout,
             &[
                 ub.as_entire_binding(),
-                src_binding,
+                tex(&src_view),
                 tex(&out_view),
                 tex(&post_lin_view),
             ],

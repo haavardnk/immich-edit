@@ -48,6 +48,12 @@ pub(super) struct CachedFrame {
     pub block: usize,
 }
 
+struct SensorRequest<'a> {
+    frame: &'a RawFrame,
+    edits: &'a Edits,
+    options: &'a RenderOptions,
+}
+
 pub(super) struct SensorCaches {
     pub frames: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     pub superpixels: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
@@ -161,20 +167,27 @@ impl GpuRenderer {
                 window: None,
             });
         }
-        self.spatial_base(&cached, frame, &edits, options, plan.atmosphere, t, cancel)
+        let request = SensorRequest {
+            frame,
+            edits: &edits,
+            options,
+        };
+        self.spatial_base(&cached, request, plan.atmosphere, t, cancel)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn spatial_base(
         &self,
         cached: &CachedFrame,
-        frame: &RawFrame,
-        edits: &Edits,
-        options: &RenderOptions,
+        request: SensorRequest<'_>,
         with_atmosphere: bool,
         t: &RenderTimings,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<LinearSource> {
+        let SensorRequest {
+            frame,
+            edits,
+            options,
+        } = request;
         let setup = crate::dcp_pipeline::resolve(&frame.meta, edits, options.dcp.as_deref());
         let dims = (cached.width, cached.height);
         let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
