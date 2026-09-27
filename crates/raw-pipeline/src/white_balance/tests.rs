@@ -46,6 +46,11 @@ fn spread(rgb: [f32; 3]) -> f32 {
     (max - min) / max.max(1e-6)
 }
 
+fn noise(x: usize, y: usize, channel: usize) -> f32 {
+    let h = (x * 73_856_093) ^ (y * 19_349_663) ^ (channel * 83_492_791);
+    (h % 1000) as f32 / 1000.0 - 0.5
+}
+
 #[test]
 fn neutral_sample_solves_to_no_correction() {
     let (temp, tint) = solve_neutral([0.4, 0.4, 0.4]).expect("neutral grey solves");
@@ -103,6 +108,29 @@ fn sampling_a_patch_neutralises_that_patch() {
 fn sampling_outside_the_frame_returns_none() {
     let frame = make_frame(16, 16, [0.4, 0.4, 0.4]);
     assert!(sample_white_balance(&frame, &Edits::default(), 1.4, 0.5).is_none());
+}
+
+#[test]
+fn noisy_shadows_and_clipped_highlights_do_not_solve() {
+    let noisy_shadow = make_frame_with(64, 64, |x, y| {
+        [0, 1, 2].map(|ch| 0.004 + 0.007 * noise(x, y, ch))
+    });
+    let clipped_red = make_frame(64, 64, [0.96, 0.7, 0.5]);
+    for frame in [noisy_shadow, clipped_red] {
+        assert!(sample_white_balance(&frame, &Edits::default(), 0.25, 0.25).is_none());
+    }
+}
+
+#[test]
+fn textured_patch_with_steady_colour_still_solves() {
+    let cast = [0.5, 0.4, 0.3];
+    let frame = make_frame_with(64, 64, |x, y| {
+        let scale = 0.4 + 0.6 * ((x * 3 + y * 5) % 7) as f32 / 7.0;
+        cast.map(|c| c * scale)
+    });
+    let (temp, tint) =
+        sample_white_balance(&frame, &Edits::default(), 0.25, 0.25).expect("texture solves");
+    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
 #[test]
