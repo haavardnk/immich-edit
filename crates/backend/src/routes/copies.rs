@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::edits_store::CopyRecord;
+use crate::services::edits_store::{CopyRecord, EditWrite};
 use crate::state::AppState;
 
 const MAX_COPY_NAME_LEN: usize = 64;
@@ -62,10 +62,12 @@ pub async fn create(
             .put(
                 ctx.owner,
                 copy.id,
-                source_edits.manifest,
-                asset.updated_at,
-                asset.checksum,
-                Some("Create virtual copy"),
+                EditWrite {
+                    manifest: source_edits.manifest,
+                    immich_updated_at: asset.updated_at,
+                    immich_checksum: asset.checksum,
+                    action: Some("Create virtual copy"),
+                },
             )
             .await?;
     }

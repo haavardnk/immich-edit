@@ -26,6 +26,13 @@ pub enum EditedThumbError {
     Render(#[from] RenderError),
 }
 
+pub struct ThumbRequest<'a> {
+    pub asset_id: AssetKey,
+    pub edits: Edits,
+    pub expected_hash: &'a str,
+    pub size: u32,
+}
+
 #[derive(Clone)]
 pub struct EditedThumbService {
     dir: Arc<PathBuf>,
@@ -89,17 +96,19 @@ impl EditedThumbService {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn get_or_render(
         &self,
         render: &RenderService,
         identity: RenderIdentity,
         immich: crate::immich::ImmichClient,
-        asset_id: AssetKey,
-        edits: Edits,
-        expected_hash: &str,
-        size: u32,
+        req: ThumbRequest<'_>,
     ) -> Result<Vec<u8>, EditedThumbError> {
+        let ThumbRequest {
+            asset_id,
+            edits,
+            expected_hash,
+            size,
+        } = req;
         let actual = edits.stable_hash();
         if actual != expected_hash {
             return Err(EditedThumbError::HashMismatch);

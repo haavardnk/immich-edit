@@ -14,7 +14,9 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
-use crate::services::edits_store::{EditHistoryEntry, EditRecord, EditedAssetEntry, WriteOutcome};
+use crate::services::edits_store::{
+    EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
+};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -153,31 +155,19 @@ pub async fn put(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.trim_matches('"').to_string());
     let asset = ctx.immich.asset(id.source()).await?;
+    let write = EditWrite {
+        manifest,
+        immich_updated_at: asset.updated_at,
+        immich_checksum: asset.checksum,
+        action: action.as_deref(),
+    };
     let Some(expected) = if_match.as_deref() else {
-        let saved = state
-            .edits
-            .put(
-                ctx.owner,
-                id,
-                manifest,
-                asset.updated_at,
-                asset.checksum,
-                action.as_deref(),
-            )
-            .await?;
+        let saved = state.edits.put(ctx.owner, id, write).await?;
         return Ok(Json(saved).into_response());
     };
     let outcome = state
         .edits
-        .put_if_match(
-            ctx.owner,
-            id,
-            expected,
-            manifest,
-            asset.updated_at,
-            asset.checksum,
-            action.as_deref(),
-        )
+        .put_if_match(ctx.owner, id, expected, write)
         .await?;
     match outcome {
         WriteOutcome::Written(saved) => Ok(Json(saved).into_response()),
