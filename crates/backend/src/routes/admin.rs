@@ -7,7 +7,10 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::routes::auth::{self, AdminCtx};
+use crate::immich::url::validate_candidate_url;
+use crate::routes::auth::AdminCtx;
+use crate::services::credentials::validate_credentials;
+use crate::services::login_session::{ClientMeta, finish_rebind};
 use crate::services::purge;
 use crate::state::AppState;
 
@@ -122,12 +125,12 @@ pub struct RebindBody {
 pub async fn rebind(
     State(state): State<AppState>,
     admin: AdminCtx,
-    client: auth::ClientMeta,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<RebindBody>,
 ) -> Result<Response, AppError> {
     require_fresh_admin(&admin).await?;
-    let base = auth::validate_candidate_url(&body.immich_url)?;
+    let base = validate_candidate_url(&body.immich_url)?;
     let host = base.host_str().unwrap_or_default();
     if !host.eq_ignore_ascii_case(body.confirm_hostname.trim()) {
         return Err(AppError::BadRequest(
@@ -135,7 +138,7 @@ pub async fn rebind(
         ));
     }
 
-    let (user, kind, cred) = auth::validate_credentials(
+    let (user, kind, cred) = validate_credentials(
         &base,
         body.email.as_deref(),
         body.password.as_deref(),
@@ -148,7 +151,7 @@ pub async fn rebind(
     }
 
     let response =
-        auth::finish_rebind(&state, base.as_str(), &user, kind, &cred, &headers, &client).await?;
+        finish_rebind(&state, base.as_str(), &user, kind, &cred, &headers, &client).await?;
     purge::purge_instance(&state).await;
     Ok(response)
 }

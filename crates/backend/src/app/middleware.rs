@@ -2,6 +2,7 @@ use super::REQUEST_ID_HEADER;
 use crate::config::Cidr;
 use crate::error::{AppError, REQUEST_ID};
 use crate::routes;
+use crate::services::login_session::ClientMeta;
 use crate::state::AppState;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request, State};
@@ -16,7 +17,7 @@ pub async fn inject_auth_context(
     next: Next,
 ) -> Response {
     let headers = req.headers().clone();
-    if let Some(ctx) = routes::auth::build_auth_ctx(&state, &headers).await {
+    if let Some(ctx) = routes::auth::extract::build_auth_ctx(&state, &headers).await {
         req.extensions_mut().insert(ctx);
     }
     next.run(req).await
@@ -95,7 +96,7 @@ pub async fn resolve_client_meta(
     } else {
         (peer.map(|p| p.to_string()), false)
     };
-    req.extensions_mut().insert(routes::auth::ClientMeta {
+    req.extensions_mut().insert(ClientMeta {
         ip: ip.unwrap_or_else(|| "unknown".into()),
         secure,
     });
