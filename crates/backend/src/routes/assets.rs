@@ -35,12 +35,8 @@ fn patch_copy(mut asset: AssetDetail, id: AssetKey) -> AssetDetail {
 
 #[derive(Debug, Deserialize)]
 pub struct ThumbQuery {
-    #[serde(default = "default_thumb_size")]
-    pub size: String,
-}
-
-fn default_thumb_size() -> String {
-    "preview".into()
+    #[serde(default)]
+    pub size: ThumbSize,
 }
 
 pub async fn thumbnail(
@@ -48,9 +44,7 @@ pub async fn thumbnail(
     Path(id): Path<AssetKey>,
     Query(q): Query<ThumbQuery>,
 ) -> Result<Response, AppError> {
-    let size = ThumbSize::parse(&q.size)
-        .ok_or_else(|| AppError::BadRequest(format!("invalid size: {}", q.size)))?;
-    let (bytes, content_type) = ctx.immich.thumbnail(id.source(), size).await?;
+    let (bytes, content_type) = ctx.immich.thumbnail(id.source(), q.size).await?;
     let mut resp = Response::new(Body::from(bytes));
     *resp.status_mut() = StatusCode::OK;
     resp.headers_mut().insert(

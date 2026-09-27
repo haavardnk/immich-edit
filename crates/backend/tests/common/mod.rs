@@ -341,10 +341,10 @@ pub async fn mock_search_metadata(server: &MockServer) {
         .await;
 }
 
-pub async fn mock_thumb(server: &MockServer) {
+pub async fn mock_thumb(server: &MockServer, size: &str) {
     Mock::given(method("GET"))
         .and(path(format!("/api/assets/{}/thumbnail", asset_id())))
-        .and(query_param("size", "preview"))
+        .and(query_param("size", size))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "image/jpeg")

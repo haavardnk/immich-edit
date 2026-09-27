@@ -12,14 +12,14 @@ use uuid::Uuid;
 use crate::config::RendererMode;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
-use crate::services::render_telemetry::{RenderTelemetry, RendererKind};
+use crate::services::render_telemetry::RenderTelemetry;
 
 mod device;
 mod frames;
 mod inputs;
 mod lens;
 
-pub use device::ActiveRenderer;
+pub use device::RendererKind;
 
 use device::RenderDevice;
 use frames::FrameStore;
@@ -105,7 +105,7 @@ impl RenderService {
         }
     }
 
-    pub fn active(&self) -> ActiveRenderer {
+    pub fn active(&self) -> RendererKind {
         self.device.active()
     }
 

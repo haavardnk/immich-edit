@@ -3,6 +3,7 @@ use axum::extract::State;
 use serde::Serialize;
 
 use crate::routes::auth::AdminCtx;
+use crate::services::render::RendererKind;
 use crate::services::render_telemetry::TelemetrySnapshot;
 use crate::state::AppState;
 
@@ -30,7 +31,7 @@ pub struct CacheBytes {
 
 #[derive(Serialize)]
 pub struct Timings {
-    pub renderer_active: &'static str,
+    pub renderer_active: RendererKind,
     pub gpu_timestamps: bool,
     #[serde(flatten)]
     pub telemetry: TelemetrySnapshot,
@@ -59,7 +60,7 @@ pub async fn timings(State(state): State<AppState>, _admin: AdminCtx) -> Json<Ti
     let frames = state.render.frame_cache_bytes().await;
     let (rasters_used, rasters_cap) = state.rasters.disk_bytes();
     Json(Timings {
-        renderer_active: state.render.active().as_str(),
+        renderer_active: state.render.active(),
         gpu_timestamps: state.render.gpu_timestamps(),
         telemetry: snapshot,
         gpu_pool_bytes,

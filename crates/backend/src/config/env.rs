@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use serde::de::{DeserializeOwned, IntoDeserializer, value};
 use url::Url;
 
 use super::ConfigError;
@@ -32,6 +33,21 @@ pub fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {
         }
     }
     file_value.filter(|s| !s.is_empty())
+}
+
+pub fn pick_mode<T>(env_key: &str, file_value: Option<String>) -> Result<T, ConfigError>
+where
+    T: DeserializeOwned + Default,
+{
+    let Some(raw) = pick(env_key, file_value) else {
+        return Ok(T::default());
+    };
+    T::deserialize(raw.to_ascii_lowercase().into_deserializer()).map_err(|_: value::Error| {
+        ConfigError::InvalidValue {
+            key: env_key.into(),
+            value: raw,
+        }
+    })
 }
 
 pub fn parse_or<T>(env_key: &str, file_value: Option<T>, default: T) -> Result<T, ConfigError>
