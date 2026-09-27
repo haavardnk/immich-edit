@@ -83,7 +83,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use bytes::Bytes;
 use common::*;
-use http_body_util::BodyExt;
 use immich_edit_backend::immich::ImmichClient;
 use immich_edit_backend::immich::client::{ImmichAuth, UploadRequest};
 use std::time::Duration;
@@ -91,15 +90,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
-    resp.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes()
-        .to_vec()
-}
 
 #[tokio::test]
 async fn export_immich_idempotency_returns_cached_without_reupload() {
@@ -146,7 +136,7 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     if resp.status() != StatusCode::OK {
         panic!("status {}", resp.status());
     }
-    let json: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
+    let json = body_json(resp).await;
     if json["asset_id"].as_str() != Some(&uploaded.to_string()) {
         panic!("expected cached asset id: {json}");
     }

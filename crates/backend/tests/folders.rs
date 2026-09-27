@@ -3,18 +3,9 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use serde_json::Value;
 use tower::ServiceExt;
 use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn body_json(res: axum::response::Response) -> Value {
-    let bytes = http_body_util::BodyExt::collect(res.into_body())
-        .await
-        .unwrap()
-        .to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
-}
 
 #[tokio::test]
 async fn folder_paths_come_from_the_upstream_view() {

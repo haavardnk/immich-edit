@@ -3,18 +3,8 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use http_body_util::BodyExt;
 use tower::ServiceExt;
 use wiremock::MockServer;
-
-async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
-    resp.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes()
-        .to_vec()
-}
 
 #[tokio::test]
 async fn health_returns_ok_with_redacted_config() {

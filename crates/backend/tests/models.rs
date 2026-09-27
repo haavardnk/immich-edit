@@ -5,14 +5,8 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use http_body_util::BodyExt;
 use tower::ServiceExt;
 use wiremock::MockServer;
-
-async fn body_json(resp: axum::response::Response) -> serde_json::Value {
-    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
-}
 
 #[tokio::test]
 async fn models_list_requires_auth() {

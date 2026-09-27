@@ -3,10 +3,9 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::matchers::{body_json, header, method, path};
+use wiremock::matchers::{self, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn album_assets_req(verb: &str, ids: Value) -> Request<Body> {
@@ -23,7 +22,7 @@ async fn mock_album_assets(server: &MockServer, verb: &str, key: &str, status: u
     Mock::given(method(verb))
         .and(path(format!("/api/albums/{}/assets", album_id())))
         .and(header("x-api-key", key))
-        .and(body_json(json!({ "ids": [asset] })))
+        .and(matchers::body_json(json!({ "ids": [asset] })))
         .respond_with(
             ResponseTemplate::new(status).set_body_json(json!([{ "id": asset, "success": true }])),
         )
@@ -47,8 +46,7 @@ async fn album_membership_forwards_source_ids_once() {
         if resp.status() != StatusCode::OK {
             panic!("{verb} album assets returned {}", resp.status());
         }
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: Value = serde_json::from_slice(&bytes).unwrap();
+        let body = body_json(resp).await;
         if body[0]["success"] != true {
             panic!("{verb} album assets body: {body}");
         }
