@@ -9,11 +9,7 @@
   async function signOut(): Promise<void> {
     if (signingOut) return;
     signingOut = true;
-    try {
-      await logout();
-    } catch {
-      /* ignore */
-    }
+    await logout().catch(() => undefined);
     session.clear();
     window.location.replace('/login');
   }

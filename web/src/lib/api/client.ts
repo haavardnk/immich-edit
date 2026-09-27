@@ -43,19 +43,11 @@ function redirectToLogin(): void {
 }
 
 async function parseError(resp: Response): Promise<ApiError> {
-  let code = 'unknown';
-  let message = resp.statusText || 'request failed';
-  let requestId: string | undefined;
-  let body: unknown;
-  try {
-    body = await resp.json();
-    const b = body as { code?: unknown; message?: unknown; request_id?: unknown } | null;
-    if (b && typeof b.code === 'string') code = b.code;
-    if (b && typeof b.message === 'string') message = b.message;
-    if (b && typeof b.request_id === 'string') requestId = b.request_id;
-  } catch {
-    /* ignore */
-  }
+  const body: unknown = await resp.json().catch(() => undefined);
+  const b = body as { code?: unknown; message?: unknown; request_id?: unknown } | null | undefined;
+  const code = typeof b?.code === 'string' ? b.code : 'unknown';
+  const message = typeof b?.message === 'string' ? b.message : resp.statusText || 'request failed';
+  const requestId = typeof b?.request_id === 'string' ? b.request_id : undefined;
   return new ApiError(resp.status, code, message, requestId, body);
 }
 
