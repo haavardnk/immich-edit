@@ -1,9 +1,9 @@
 <script lang="ts">
   import Dialog from '$lib/components/Dialog.svelte';
   import Disclosure from '$lib/components/Disclosure.svelte';
-  import BulkApplyPresetPanel from '$lib/panels/BulkApplyPreset.svelte';
-  import BulkCopyPastePanel from '$lib/panels/BulkCopyPaste.svelte';
-  import BulkExportPanel from '$lib/panels/BulkExport.svelte';
+  import BulkApplyPresetPanel from './BulkApplyPreset.svelte';
+  import BulkCopyPastePanel from './BulkCopyPaste.svelte';
+  import BulkExportPanel from './BulkExport.svelte';
   import { Tabs } from 'bits-ui';
 
   let { onClose }: { onClose: () => void } = $props();
