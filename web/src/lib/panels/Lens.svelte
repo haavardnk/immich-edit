@@ -18,7 +18,7 @@
       (profile.edits.ca_red_scale_x10000 !== 0 || profile.edits.ca_blue_scale_x10000 !== 0)
   );
   const isRaw = $derived(editor.meta?.is_raw ?? false);
-  const autoOn = $derived(isRaw && hasProfile);
+  const autoOn = $derived(isRaw && hasProfile && !!profile?.auto);
   const profileEnabled = $derived(editor.edits.lens.profile_enabled ?? autoOn);
   const isAuto = $derived(editor.edits.lens.profile_enabled === null && autoOn);
   const modified = $derived('lens_profile' in editsToManifest(editor.edits).ops);

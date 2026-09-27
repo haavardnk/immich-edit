@@ -133,6 +133,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/admin/instance", get(routes::admin::instance_info))
         .route("/admin/instance/rebind", post(routes::admin::rebind))
+        .route(
+            "/admin/render-defaults",
+            get(routes::admin::render_defaults).put(routes::admin::set_render_defaults),
+        )
         .route("/setup/status", get(routes::setup::status))
         .route("/setup/complete", post(routes::setup::complete))
         .route("/setup/providers", get(routes::setup::oauth::providers))

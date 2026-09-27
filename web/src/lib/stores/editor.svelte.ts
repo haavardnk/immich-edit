@@ -88,7 +88,10 @@ class EditorStore {
   lastDownload = $state<exportActions.ExportResult | null>(null);
   hasEdits = $derived(!isIdentity(this.edits));
   lensView: LensEdits = $derived(
-    effectiveLens(this.edits.lens, this.meta?.is_raw ? (this.lensProfile?.edits ?? null) : null)
+    effectiveLens(
+      this.edits.lens,
+      this.meta?.is_raw && this.lensProfile?.auto ? this.lensProfile.edits : null
+    )
   );
   lastWarnings = $state<string[]>([]);
   lastImmichOpts: ImmichExportOptions | null = null;

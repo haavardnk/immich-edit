@@ -1,0 +1,1 @@
+ALTER TABLE instance_config ADD COLUMN lens_auto INTEGER NOT NULL DEFAULT 1;

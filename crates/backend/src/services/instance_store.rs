@@ -14,6 +14,7 @@ pub struct InstanceConfig {
     pub server_epoch: i64,
     pub immich_url: Option<String>,
     pub configured_at: Option<String>,
+    pub lens_auto: bool,
 }
 
 impl InstanceConfig {
@@ -34,7 +35,8 @@ impl InstanceStore {
 
     pub async fn get(&self) -> Result<InstanceConfig, InstanceStoreError> {
         let row = sqlx::query(
-            "SELECT server_epoch, immich_url, configured_at FROM instance_config WHERE id = 1",
+            "SELECT server_epoch, immich_url, configured_at, lens_auto FROM instance_config \
+             WHERE id = 1",
         )
         .fetch_one(&self.pool)
         .await?;
@@ -42,7 +44,16 @@ impl InstanceStore {
             server_epoch: row.get("server_epoch"),
             immich_url: row.get("immich_url"),
             configured_at: row.get("configured_at"),
+            lens_auto: row.get::<i64, _>("lens_auto") != 0,
         })
+    }
+
+    pub async fn set_lens_auto(&self, enabled: bool) -> Result<(), InstanceStoreError> {
+        sqlx::query("UPDATE instance_config SET lens_auto = ?1 WHERE id = 1")
+            .bind(enabled)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn claim(&self, immich_url: &str) -> Result<i64, InstanceStoreError> {
@@ -103,6 +114,16 @@ mod tests {
         assert!(!cfg.is_configured());
         assert_eq!(cfg.server_epoch, 0);
         assert!(cfg.immich_url.is_none());
+        assert!(cfg.lens_auto);
+    }
+
+    #[tokio::test]
+    async fn lens_auto_round_trips() {
+        let s = store().await;
+        s.set_lens_auto(false).await.unwrap();
+        assert!(!s.get().await.unwrap().lens_auto);
+        s.set_lens_auto(true).await.unwrap();
+        assert!(s.get().await.unwrap().lens_auto);
     }
 
     #[tokio::test]

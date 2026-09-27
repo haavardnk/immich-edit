@@ -10,7 +10,8 @@ permalink: /administration/
 
 Open **Settings** from the gear in the top bar. Every user sees **Account**, with
 **Signed-in devices** inside it, and **Preview rendering**, plus **Diagnostics** in the sidebar.
-Administrators also get **App settings** with **Users**, **Mask models** and **Immich instance**.
+Administrators also get **App settings** with **Users**, **Mask models**, **Editing defaults** and
+**Immich instance**.
 Sections stay collapsed until you open them.
 
 ## Users
@@ -35,6 +36,17 @@ Under **App settings** > **Users**, an administrator can:
 address and when it was last seen. The browser you are using has a `this session` badge.
 **Revoke session** signs one device out, and **Revoke all other sessions** signs out every device
 but this one. Signing out of a password or OAuth session also revokes the Immich token behind it.
+
+## Editing defaults
+
+**App settings** > **Editing defaults** holds instance-wide defaults for settings an edit leaves
+unset. They apply to every user.
+
+**Automatic lens corrections** is on by default: a RAW file with a matching lens profile gets
+distortion and vignetting correction until someone turns **Enable Profile Corrections** off for
+that photo. Turn the setting off to leave those photos uncorrected until someone turns
+**Enable Profile Corrections** on. Photos where a user already made that choice keep it either way.
+Previews, exports, and edited thumbnails pick up the change on their next render.
 
 ## Immich instance
 

@@ -17,6 +17,7 @@ export interface LensProfileMatch {
   focal_length: number | null;
   aperture: number | null;
   edits: ProfileLensEdits | null;
+  auto: boolean;
 }
 
 export function getLensProfile(assetId: string): Promise<LensProfileMatch> {

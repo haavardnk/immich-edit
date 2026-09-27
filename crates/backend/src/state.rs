@@ -122,6 +122,11 @@ impl AppState {
             luts.clone(),
             dcp.clone(),
         );
+        let instance_cfg = instance
+            .get()
+            .await
+            .map_err(|e| anyhow::anyhow!("instance config: {e}"))?;
+        render.set_lens_auto(instance_cfg.lens_auto);
         let queue = RenderQueue::new(config.render_max_concurrency, config.thumb_max_concurrency);
         let edited_thumb = EditedThumbService::new(&config.cache_dir, queue.clone())
             .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;

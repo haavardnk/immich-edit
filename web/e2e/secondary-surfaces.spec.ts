@@ -175,6 +175,30 @@ test('settings deep links and close returns to the previous page', async ({ page
   expect(await page.evaluate(() => history.state.settingsReturnMarker)).toBe('favorites');
 });
 
+test('admins can turn off automatic lens corrections', async ({ page }) => {
+  const puts: unknown[] = [];
+  let lensAuto = true;
+  await installSecondaryMocks(page);
+  await page.route('**/api/admin/render-defaults', (route) => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON() as { lens_auto: boolean };
+      puts.push(body);
+      lensAuto = body.lens_auto;
+    }
+    return route.fulfill(json({ lens_auto: lensAuto }));
+  });
+  await page.goto('/settings#defaults');
+
+  const toggle = page.getByRole('switch', { name: 'Automatic lens corrections' });
+  await expect(toggle).toBeChecked();
+  const listed = page.waitForRequest((req) => new URL(req.url()).pathname === '/api/edits');
+  await toggle.click();
+
+  await expect(toggle).not.toBeChecked();
+  expect(puts).toEqual([{ lens_auto: false }]);
+  await listed;
+});
+
 test('jobs drawer stays bounded and restores focus', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installSecondaryMocks(page);

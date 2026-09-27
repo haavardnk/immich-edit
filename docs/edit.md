@@ -47,6 +47,8 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
 1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
+   An administrator can turn the automatic correction off under
+   [**Editing defaults**](administration.md#editing-defaults).
    **Remove Chromatic Aberration** is off until you turn it on.
 1. **Effects** adds a vignette and grain.
 

@@ -8,10 +8,11 @@
   import UsersSection from '$lib/components/settings/UsersSection.svelte';
   import MaskModelsSection from '$lib/components/settings/MaskModelsSection.svelte';
   import InstanceSection from '$lib/components/settings/InstanceSection.svelte';
+  import RenderDefaultsSection from '$lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '$lib/components/settings/PreviewRenderingSection.svelte';
   import { mdiAccountCircleOutline, mdiCogOutline, mdiMonitorShimmer } from '@mdi/js';
 
-  type AdminSection = 'users' | 'models' | 'instance';
+  type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
   let appOpen = $state(false);
   let accountOpen = $state(false);
@@ -24,6 +25,7 @@
   function adminSectionFromHash(hash: string): AdminSection | null {
     if (hash === '#users') return 'users';
     if (hash === '#models') return 'models';
+    if (hash === '#defaults') return 'defaults';
     if (hash === '#instance') return 'instance';
     return null;
   }
@@ -64,7 +66,7 @@
     {#if session.isAdmin}
       <SettingsGroup
         title="App settings"
-        description="Manage access, local models, and the connected Immich server."
+        description="Manage access, local models, editing defaults, and the connected Immich server."
         icon={mdiCogOutline}
         open={appOpen}
         onOpenChange={(open) => (appOpen = open)}
@@ -85,6 +87,14 @@
             onOpenChange={(open) => setAdminSection('models', open)}
           >
             <MaskModelsSection />
+          </SettingsGroup>
+          <SettingsGroup
+            title="Editing defaults"
+            description="Choose instance-wide defaults for settings an edit leaves unset."
+            open={adminSection === 'defaults'}
+            onOpenChange={(open) => setAdminSection('defaults', open)}
+          >
+            <RenderDefaultsSection />
           </SettingsGroup>
           <SettingsGroup
             title="Immich instance"

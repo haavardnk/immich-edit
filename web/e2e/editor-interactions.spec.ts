@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { gotoAsset, installMocks, makePng, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
 
 function exposureSlider(page: import('@playwright/test').Page) {
@@ -1147,13 +1147,7 @@ test('lens reset clears all profile edits', async ({ page }) => {
   ).toHaveValue('100');
 });
 
-test('a matched profile corrects a raw file until the user says otherwise', async ({ page }) => {
-  const saves: Array<Record<string, unknown>> = [];
-  await installMocks(page, {
-    previewMeta: { is_raw: true },
-    editRecord: { ...NEUTRAL_RECORD, manifest: { schema_version: 4, ops: {} } },
-    onSave: (body) => saves.push(body)
-  });
+async function mockSonyProfile(page: Page, auto: boolean): Promise<void> {
   await page.route('**/api/assets/*/lens-profile', (route) =>
     route.fulfill({
       status: 200,
@@ -1163,6 +1157,7 @@ test('a matched profile corrects a raw file until the user says otherwise', asyn
         lens: 'Sony FE 35mm f/1.8',
         focal_length: 35,
         aperture: 1.8,
+        auto,
         edits: {
           k1: -0.1,
           k2: 0,
@@ -1176,6 +1171,16 @@ test('a matched profile corrects a raw file until the user says otherwise', asyn
       })
     })
   );
+}
+
+test('a matched profile corrects a raw file until the user says otherwise', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    previewMeta: { is_raw: true },
+    editRecord: { ...NEUTRAL_RECORD, manifest: { schema_version: 4, ops: {} } },
+    onSave: (body) => saves.push(body)
+  });
+  await mockSonyProfile(page, true);
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Lens Corrections', exact: true }).click();
@@ -1186,5 +1191,26 @@ test('a matched profile corrects a raw file until the user says otherwise', asyn
   await toggle.uncheck();
   await expect
     .poll(() => saves.some((s) => JSON.stringify(s).includes('"profile_enabled":false')))
+    .toBe(true);
+});
+
+test('an instance opt-out leaves a matched profile off until enabled', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    previewMeta: { is_raw: true },
+    editRecord: { ...NEUTRAL_RECORD, manifest: { schema_version: 4, ops: {} } },
+    onSave: (body) => saves.push(body)
+  });
+  await mockSonyProfile(page, false);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Lens Corrections', exact: true }).click();
+  const toggle = page.getByLabel('Enable Profile Corrections');
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByText('· Auto')).toHaveCount(0);
+
+  await toggle.check();
+  await expect
+    .poll(() => saves.some((s) => JSON.stringify(s).includes('"profile_enabled":true')))
     .toBe(true);
 });

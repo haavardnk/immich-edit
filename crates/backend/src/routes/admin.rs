@@ -2,7 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -83,6 +83,31 @@ pub async fn instance_info(
         })),
     )
         .into_response())
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RenderDefaults {
+    pub lens_auto: bool,
+}
+
+pub async fn render_defaults(
+    State(state): State<AppState>,
+    _admin: AdminCtx,
+) -> Json<RenderDefaults> {
+    Json(RenderDefaults {
+        lens_auto: state.render.lens_auto(),
+    })
+}
+
+pub async fn set_render_defaults(
+    State(state): State<AppState>,
+    admin: AdminCtx,
+    Json(body): Json<RenderDefaults>,
+) -> Result<Json<RenderDefaults>, AppError> {
+    require_fresh_admin(&admin).await?;
+    state.instance.set_lens_auto(body.lens_auto).await?;
+    state.render.set_lens_auto(body.lens_auto);
+    Ok(Json(body))
 }
 
 #[derive(Deserialize)]
