@@ -3,6 +3,7 @@ use std::path::Path;
 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
 use ort::session::Session;
 use ort::session::builder::SessionBuilder;
+use ort::value::Outlet;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SegmentError {
@@ -10,6 +11,8 @@ pub enum SegmentError {
     Ort(String),
     #[error("invalid input: {0}")]
     Input(String),
+    #[error("unusable model: {0}")]
+    Model(String),
 }
 
 pub fn ort_err<R>(e: ort::Error<R>) -> SegmentError {
@@ -82,6 +85,20 @@ impl SegmentRuntime {
             backend: Backend::Cpu,
         })
     }
+
+    pub fn first_input(&self) -> Result<&Outlet, SegmentError> {
+        self.session
+            .inputs()
+            .first()
+            .ok_or_else(|| SegmentError::Model("declares no inputs".into()))
+    }
+
+    pub fn first_output(&self) -> Result<&Outlet, SegmentError> {
+        self.session
+            .outputs()
+            .first()
+            .ok_or_else(|| SegmentError::Model("declares no outputs".into()))
+    }
 }
 
 fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, SegmentError> {
@@ -127,4 +144,84 @@ fn build_webgpu(_path: &Path, _config: &SessionConfig) -> Result<Session, Segmen
     Err(SegmentError::Ort(
         "onnxruntime ships no webgpu build for aarch64 linux".into(),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn varint(mut v: u64) -> Vec<u8> {
+        let mut out = Vec::new();
+        while v >= 0x80 {
+            out.push((v as u8) | 0x80);
+            v >>= 7;
+        }
+        out.push(v as u8);
+        out
+    }
+
+    fn int_field(field: u64, v: u64) -> Vec<u8> {
+        [varint(field << 3), varint(v)].concat()
+    }
+
+    fn bytes_field(field: u64, bytes: &[u8]) -> Vec<u8> {
+        [
+            varint((field << 3) | 2),
+            varint(bytes.len() as u64),
+            bytes.to_vec(),
+        ]
+        .concat()
+    }
+
+    fn constant_only_model() -> Vec<u8> {
+        let tensor = [
+            int_field(1, 1),
+            int_field(2, 1),
+            bytes_field(4, &0f32.to_le_bytes()),
+        ]
+        .concat();
+        let attribute = [
+            bytes_field(1, b"value"),
+            bytes_field(5, &tensor),
+            int_field(20, 4),
+        ]
+        .concat();
+        let node = [
+            bytes_field(2, b"y"),
+            bytes_field(4, b"Constant"),
+            bytes_field(5, &attribute),
+        ]
+        .concat();
+        let shape = bytes_field(1, &int_field(1, 1));
+        let tensor_type = [int_field(1, 1), bytes_field(2, &shape)].concat();
+        let value_info = [
+            bytes_field(1, b"y"),
+            bytes_field(2, &bytes_field(1, &tensor_type)),
+        ]
+        .concat();
+        let graph = [
+            bytes_field(1, &node),
+            bytes_field(2, b"g"),
+            bytes_field(12, &value_info),
+        ]
+        .concat();
+        [
+            int_field(1, 7),
+            bytes_field(7, &graph),
+            bytes_field(8, &int_field(2, 13)),
+        ]
+        .concat()
+    }
+
+    #[test]
+    fn a_model_without_inputs_is_an_error_not_a_panic() {
+        let path = std::env::temp_dir().join(format!("ml-no-inputs-{}.onnx", std::process::id()));
+        std::fs::write(&path, constant_only_model()).unwrap();
+        let runtime = SegmentRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
+        std::fs::remove_file(&path).unwrap();
+        let runtime = runtime.unwrap();
+
+        assert!(matches!(runtime.first_input(), Err(SegmentError::Model(_))));
+        assert_eq!(runtime.first_output().unwrap().name(), "y");
+    }
 }

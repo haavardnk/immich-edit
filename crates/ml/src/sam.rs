@@ -88,7 +88,7 @@ impl SamEncoder {
         let (chw, _) = to_tensor(rgb8, width, height, &ModelSpec::SAM);
         let scale = Placement::contain_scale(SAM_EDGE, width, height);
 
-        let input = self.runtime.session.inputs()[0].name().to_string();
+        let input = self.runtime.first_input()?.name().to_string();
         let names: Vec<String> = self
             .runtime
             .session
@@ -186,7 +186,7 @@ impl SamDecoder {
             .map(|i| i.name().to_string())
             .collect();
         let slots = embedding_slots(&names, &embedding.tensors)?;
-        let mask_name = self.runtime.session.outputs()[0].name().to_string();
+        let mask_name = self.runtime.first_output()?.name().to_string();
 
         let mut feeds: Vec<(&str, SessionInputValue)> = Vec::with_capacity(names.len());
         for name in &names {
