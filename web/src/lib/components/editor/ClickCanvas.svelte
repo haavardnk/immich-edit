@@ -34,11 +34,6 @@
     editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
   }
 
-  $effect(() => {
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
   const geomT = $derived.by<GeometryTransform>(() =>
     geometryTransformFrom(editor.edits.geometry, editor.meta)
   );
@@ -164,6 +159,8 @@
     await editor.addClickBox(bbox);
   }
 </script>
+
+<svelte:window onkeydown={onKeyDown} />
 
 {#if show}
   <div

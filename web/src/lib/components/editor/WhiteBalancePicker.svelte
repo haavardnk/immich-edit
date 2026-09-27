@@ -19,11 +19,6 @@
     editor.cancelWbPicker();
   }
 
-  $effect(() => {
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
   function pick(e: PointerEvent): void {
     e.preventDefault();
     e.stopPropagation();
@@ -34,6 +29,8 @@
     void editor.pickWhiteBalance(u, v);
   }
 </script>
+
+<svelte:window onkeydown={onKeyDown} />
 
 {#if active}
   <button

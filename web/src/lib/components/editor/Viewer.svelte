@@ -15,13 +15,14 @@
   import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/viewGeometry';
   import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
   import type { PreviewSurface } from '$lib/utils/previewSurface';
+  import { devicePixelRatio } from 'svelte/reactivity/window';
 
   const WHEEL_STEP = 1.1;
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
   let viewBox = $state({ w: 0, h: 0 });
-  let dpr = $state(1);
+  const dpr = $derived(devicePixelRatio.current || 1);
   let baseNat = $state<{ w: number; h: number } | null>(null);
   let splitWrap = $state<HTMLDivElement | null>(null);
   let splitNatW = $state(0);
@@ -155,15 +156,6 @@
     if (!container) return;
     viewBox = { w: container.clientWidth, h: container.clientHeight };
   }
-
-  $effect(() => {
-    const update = (): void => {
-      dpr = window.devicePixelRatio || 1;
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  });
 
   $effect(() => {
     const box = frame;

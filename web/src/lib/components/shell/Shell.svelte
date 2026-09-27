@@ -19,13 +19,14 @@
   import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
   import { AppShell, AppShellBar, AppShellSidebar } from '@immich/ui';
+  import { MediaQuery } from 'svelte/reactivity';
 
   let { children }: { children: Snippet } = $props();
 
   const editorRoute = $derived(page.url.pathname.startsWith('/assets/'));
   const settingsRoute = $derived(page.url.pathname.startsWith('/settings'));
-  let sidebarOpen = $state(true);
-  let narrowViewport = $state(false);
+  const narrowViewport = new MediaQuery('max-width: 1023px');
+  let sidebarOpen = $derived(!narrowViewport.current);
 
   function toggleSidebar(): void {
     sidebarOpen = !sidebarOpen;
@@ -36,19 +37,8 @@
     void jobs.load();
   });
 
-  onMount(() => {
-    const mobile = window.matchMedia('(max-width: 1023px)');
-    const updateSidebar = (): void => {
-      narrowViewport = mobile.matches;
-      sidebarOpen = !narrowViewport;
-    };
-    updateSidebar();
-    mobile.addEventListener('change', updateSidebar);
-    return () => mobile.removeEventListener('change', updateSidebar);
-  });
-
   $effect(() => {
-    if (page.url.pathname && narrowViewport) sidebarOpen = false;
+    if (page.url.pathname && narrowViewport.current) sidebarOpen = false;
   });
 
   $effect(() => {
