@@ -59,9 +59,10 @@ impl Segmenter {
             Layout::Nhwc => vec![1usize, edge, edge, 3],
         };
 
-        let input_name = self.runtime.session.inputs()[0].name().to_string();
-        let output_name = self.runtime.session.outputs()[0].name().to_string();
-        let declared: Vec<i64> = self.runtime.session.outputs()[0]
+        let input_name = self.runtime.first_input()?.name().to_string();
+        let output = self.runtime.first_output()?;
+        let output_name = output.name().to_string();
+        let declared: Vec<i64> = output
             .dtype()
             .tensor_shape()
             .map(|s| s.to_vec())
