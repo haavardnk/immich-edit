@@ -30,7 +30,7 @@ impl ProcessPlan {
         out_dims: (u32, u32),
     ) -> Self {
         let geom = ProcessGeom::new(meta, edits, state.extent.full);
-        let setup = crate::dcp_pipeline::resolve(meta, edits, opts.dcp.as_deref());
+        let setup = crate::dcp::setup::resolve(meta, edits, opts.dcp.as_deref());
         let ctx_op = OpContext {
             render: RenderContext {
                 wb_coeffs: meta.wb_coeffs,

@@ -1,7 +1,6 @@
 use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages, TextureViewDescriptor};
 
 use crate::PipelineResult;
-use crate::dehaze::DehazeGrid;
 use crate::edits::Edits;
 use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
 use crate::gpu::passes::dehaze::{
@@ -10,6 +9,7 @@ use crate::gpu::passes::dehaze::{
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
+use crate::ops::dehaze::DehazeGrid;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_dehaze(

@@ -1,4 +1,5 @@
 mod parse;
+pub(crate) mod setup;
 mod tone_curve;
 
 #[cfg(test)]

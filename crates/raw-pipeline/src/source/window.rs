@@ -1,8 +1,8 @@
-use crate::dehaze::DehazeGrid;
 use crate::edits::Edits;
 use crate::frame::FrameMeta;
 use crate::geom::display_uv_to_mask_uv;
-use crate::presence::{presence_pyramid_levels, presence_radii};
+use crate::ops::dehaze::DehazeGrid;
+use crate::ops::presence::{presence_pyramid_levels, presence_radii};
 use crate::sensor_sample::geometry_transform;
 
 const CUBIC_SUPPORT: u32 = 2;

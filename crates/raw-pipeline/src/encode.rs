@@ -1,3 +1,4 @@
+pub mod codecs;
 pub mod icc;
 
 use crate::PipelineError;

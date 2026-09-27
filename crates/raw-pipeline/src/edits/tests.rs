@@ -447,7 +447,7 @@ fn populated_edits() -> Edits {
                 h: 0.6,
             }),
             aspect: AspectLock::Ratio { num: 16, den: 9 },
-            perspective: Some(crate::perspective::PerspectiveEdits {
+            perspective: Some(crate::geom::perspective::PerspectiveEdits {
                 vertical: 18.0,
                 horizontal: -6.0,
                 aspect: 12.0,

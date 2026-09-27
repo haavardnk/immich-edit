@@ -6,7 +6,7 @@ use lru::LruCache;
 use parking_lot::Mutex;
 
 use crate::cancel::CancelToken;
-use crate::dcp_pipeline::DcpSetup;
+use crate::dcp::setup::DcpSetup;
 use crate::edits::Edits;
 use crate::frame::{PreviewMode, RawFrame, RenderOptions, RenderedImage};
 

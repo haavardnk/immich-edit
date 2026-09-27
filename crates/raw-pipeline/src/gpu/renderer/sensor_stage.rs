@@ -188,7 +188,7 @@ impl GpuRenderer {
             edits,
             options,
         } = request;
-        let setup = crate::dcp_pipeline::resolve(&frame.meta, edits, options.dcp.as_deref());
+        let setup = crate::dcp::setup::resolve(&frame.meta, edits, options.dcp.as_deref());
         let dims = (cached.width, cached.height);
         let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
         let wb_base = t.stage(timing::WB_PREPARE, || {

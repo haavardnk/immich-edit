@@ -22,7 +22,7 @@ impl GpuRenderer {
         cached: &CachedFrame,
         meta: &FrameMeta,
         edits: &Edits,
-        setup: &crate::dcp_pipeline::DcpSetup,
+        setup: &crate::dcp::setup::DcpSetup,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
         if let Some(t) = self.sensor.stages.get(Stage::Wb, key) {
@@ -66,7 +66,7 @@ impl GpuRenderer {
                 geom_extra2: [0.0; 4],
                 geom_extra3: [0.0; 4],
                 output: [0, 0, 0, 0],
-                perspective: crate::perspective::IDENTITY_ROWS,
+                perspective: crate::geom::perspective::IDENTITY_ROWS,
                 src_window: FULL_WINDOW,
             },
         );

@@ -22,6 +22,7 @@ pub mod lens_vignette;
 pub mod luma_nr;
 pub mod lut;
 pub mod masks;
+pub mod presence;
 pub mod retouch;
 pub mod sample;
 pub mod saturation;

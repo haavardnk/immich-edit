@@ -7,8 +7,10 @@ use crate::cpu::transform;
 use crate::edits::Edits;
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
+use crate::ops::presence::{
+    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
+};
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
-use crate::presence::{presence_amounts, presence_mips, presence_pyramid_levels, presence_radii};
 use crate::timing::{self, StageClock};
 use std::sync::Arc;
 
@@ -143,7 +145,7 @@ pub(super) fn run_pipeline_ops_inner(
     let shadows_active =
         edits.tone.shadows != 0.0 || layer_edits.iter().any(|e| e.tone.shadows != 0.0);
     let mut pyramid_cache: Option<LumaPyramid> = None;
-    let mut pyramid_mips: Option<crate::presence::PresenceMips> = None;
+    let mut pyramid_mips: Option<crate::ops::presence::PresenceMips> = None;
     let ctx_outer = ctx;
     let mut ctx_local: Option<OpContext> = None;
     let mut presence_done = false;
@@ -249,7 +251,7 @@ pub(super) fn run_pipeline_ops_inner(
             if !presence_done && presence_active {
                 flush(image, &mut layer_images, &mut segment, &mut layer_segments);
                 let amounts = presence_amounts(edits);
-                let layer_amounts: Vec<crate::presence::PresenceAmounts> =
+                let layer_amounts: Vec<crate::ops::presence::PresenceAmounts> =
                     layer_edits.iter().map(presence_amounts).collect();
                 let w = image.width as u32;
                 let h = image.height as u32;
@@ -257,7 +259,7 @@ pub(super) fn run_pipeline_ops_inner(
                 let mips = pyramid_mips.unwrap_or_else(|| presence_mips(w, h, radii));
                 let iw = image.width;
                 let ih = image.height;
-                let needs = |pick: fn(&crate::presence::PresenceAmounts) -> f32| {
+                let needs = |pick: fn(&crate::ops::presence::PresenceAmounts) -> f32| {
                     pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
                 let (texture_blur, clarity_blur) = clock.time(timing::PRESENCE, || {
@@ -275,7 +277,7 @@ pub(super) fn run_pipeline_ops_inner(
                             .then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih))),
                     )
                 });
-                let make_op = |a: &crate::presence::PresenceAmounts| CpuFusedOp::Presence {
+                let make_op = |a: &crate::ops::presence::PresenceAmounts| CpuFusedOp::Presence {
                     texture: a.texture,
                     clarity: a.clarity,
                     texture_blur: texture_blur.clone(),

@@ -163,7 +163,7 @@ fn inscribed_inside_rotated_source() {
 
 #[test]
 fn inscribed_inside_warped_source() {
-    let p = crate::perspective::PerspectiveEdits {
+    let p = perspective::PerspectiveEdits {
         vertical: 40.0,
         horizontal: -20.0,
         ..Default::default()
@@ -273,7 +273,7 @@ fn geom_round_trip() {
 
 #[test]
 fn geom_round_trip_with_perspective() {
-    let p = crate::perspective::PerspectiveEdits {
+    let p = perspective::PerspectiveEdits {
         vertical: 55.0,
         horizontal: -30.0,
         aspect: 20.0,

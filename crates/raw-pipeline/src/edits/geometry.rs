@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-use crate::perspective::PerspectiveEdits;
+use crate::geom::perspective::{IDENTITY, Mat3, PerspectiveEdits};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct CropRect {
@@ -89,15 +89,11 @@ impl GeometryEdits {
         }
     }
 
-    pub fn perspective_forward(&self) -> crate::perspective::Mat3 {
-        self.perspective
-            .map(|p| p.forward())
-            .unwrap_or(crate::perspective::IDENTITY)
+    pub fn perspective_forward(&self) -> Mat3 {
+        self.perspective.map(|p| p.forward()).unwrap_or(IDENTITY)
     }
 
-    pub fn perspective_inverse(&self) -> crate::perspective::Mat3 {
-        self.perspective
-            .map(|p| p.inverse())
-            .unwrap_or(crate::perspective::IDENTITY)
+    pub fn perspective_inverse(&self) -> Mat3 {
+        self.perspective.map(|p| p.inverse()).unwrap_or(IDENTITY)
     }
 }
