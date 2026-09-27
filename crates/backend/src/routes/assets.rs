@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
@@ -10,6 +10,7 @@ use crate::error::AppError;
 use crate::immich::client::ThumbSize;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 
 pub async fn detail(ctx: AuthCtx, Path(id): Path<AssetKey>) -> Result<Json<AssetDetail>, AppError> {
     let asset = ctx.immich.asset(id.source()).await?;
@@ -53,9 +54,7 @@ pub async fn thumbnail(
     let (bytes, content_type) = ctx.immich.thumbnail(id.source(), size).await?;
     let mut resp = Response::new(Body::from(bytes));
     *resp.status_mut() = StatusCode::OK;
-    resp.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(&content_type).unwrap_or(HeaderValue::from_static("image/jpeg")),
-    );
+    resp.headers_mut()
+        .insert(header::CONTENT_TYPE, headers::header_value(&content_type)?);
     Ok(resp.into_response())
 }

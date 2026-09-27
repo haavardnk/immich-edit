@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
     DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
@@ -163,8 +164,7 @@ pub async fn download(
     );
     resp.headers_mut().insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!("attachment; filename=\"immich-edit-{short}.zip\""))
-            .unwrap_or(HeaderValue::from_static("attachment")),
+        headers::attachment(&format!("immich-edit-{short}.zip"))?,
     );
     Ok(resp)
 }

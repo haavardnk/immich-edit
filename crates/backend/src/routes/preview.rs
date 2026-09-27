@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::preview_scopes::{ScopeKind, encode as encode_scope};
 use crate::services::render::{RenderError, RenderIdentity};
@@ -56,23 +57,23 @@ pub async fn get_preview(
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
     Query(q): Query<PreviewQuery>,
-    headers: HeaderMap,
+    request_headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
     let render_revision = state.render.render_revision().await?;
-    let etag = format!(
-        "\"{}-{}-{}-{}-{}\"",
+    let etag = headers::etag(&format!(
+        "{}-{}-{}-{}-{}",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
         render_revision,
         q.clip as u8
-    );
-    let unchanged = etag_matches(&headers, &etag);
+    ))?;
+    let unchanged = etag_matches(&request_headers, &etag);
     if unchanged {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
-        attach_validators(&mut resp, &etag);
+        attach_validators(&mut resp, etag);
         return Ok(resp);
     }
     let mut resp = render_to_response(
@@ -93,25 +94,8 @@ pub async fn get_preview(
         },
     )
     .await?;
-    attach_validators(&mut resp, &etag);
+    attach_validators(&mut resp, etag);
     Ok(resp)
-}
-
-pub(super) fn etag_matches(headers: &HeaderMap, etag: &str) -> bool {
-    headers
-        .get(header::IF_NONE_MATCH)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == etag))
-}
-
-pub(super) fn attach_validators(resp: &mut Response, etag: &str) {
-    if let Ok(value) = HeaderValue::from_str(etag) {
-        resp.headers_mut().insert(header::ETAG, value);
-    }
-    resp.headers_mut().insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=0, must-revalidate"),
-    );
 }
 
 pub async fn post_preview(
@@ -180,7 +164,7 @@ pub async fn get_scope(
     );
     resp.headers_mut().insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=60"),
+        HeaderValue::from_static(headers::CACHE_MINUTE),
     );
     Ok(resp)
 }
@@ -295,7 +279,7 @@ async fn render_to_response(
         state.preview_meta.put(meta_id, meta).await;
         resp.headers_mut().insert(
             HeaderName::from_static(META_HEADER),
-            HeaderValue::from_str(&meta_id.to_string()).expect("uuid is valid header value"),
+            headers::header_value(&meta_id.to_string())?,
         );
     }
     Ok(resp.into_response())

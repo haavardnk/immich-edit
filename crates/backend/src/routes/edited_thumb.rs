@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
@@ -47,10 +48,9 @@ pub async fn get(
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
     resp.headers_mut().insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=31536000, immutable"),
+        HeaderValue::from_static(headers::CACHE_IMMUTABLE),
     );
-    if let Ok(etag) = HeaderValue::from_str(&format!("\"{}-{}\"", q.h, size)) {
-        resp.headers_mut().insert(header::ETAG, etag);
-    }
+    resp.headers_mut()
+        .insert(header::ETAG, headers::etag(&format!("{}-{}", q.h, size))?);
     Ok(resp.into_response())
 }

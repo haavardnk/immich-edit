@@ -11,6 +11,7 @@ pub mod export;
 pub mod export_presets;
 pub mod faces;
 pub mod folders;
+pub mod headers;
 pub mod health;
 pub mod jobs;
 pub mod lens_profile;
@@ -39,7 +40,7 @@ pub(crate) fn immutable_bytes(bytes: Vec<u8>, content_type: &'static str) -> Res
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=31536000, immutable"),
+        HeaderValue::from_static(headers::CACHE_IMMUTABLE),
     );
     resp
 }

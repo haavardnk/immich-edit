@@ -10,7 +10,8 @@ use serde::Deserialize;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::routes::preview::{attach_validators, clamp_max, etag_matches, parse_roi};
+use crate::routes::headers::{self, attach_validators, etag_matches};
+use crate::routes::preview::{clamp_max, parse_roi};
 use crate::services::render::{RenderError, RenderIdentity};
 use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
@@ -31,7 +32,7 @@ pub async fn post_source(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-    headers: HeaderMap,
+    request_headers: HeaderMap,
     Json(body): Json<SourceBody>,
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
@@ -41,17 +42,17 @@ pub async fn post_source(
     let region = roi.map_or(String::new(), |r| {
         format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
     });
-    let etag = format!(
-        "\"{}-{}-{}-{}{}\"",
+    let etag = headers::etag(&format!(
+        "{}-{}-{}-{}{}",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
         render_revision,
         region
-    );
-    if etag_matches(&headers, &etag) {
+    ))?;
+    if etag_matches(&request_headers, &etag) {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
-        attach_validators(&mut resp, &etag);
+        attach_validators(&mut resp, etag);
         return Ok(resp);
     }
     let key = RenderKey {
@@ -91,10 +92,12 @@ pub async fn post_source(
         header::CONTENT_TYPE,
         HeaderValue::from_static(SOURCE_CONTENT_TYPE),
     );
-    if let Some(value) = source.dcp_id.and_then(|id| HeaderValue::from_str(&id).ok()) {
-        resp.headers_mut()
-            .insert(HeaderName::from_static(DCP_HEADER), value);
+    if let Some(dcp_id) = source.dcp_id {
+        resp.headers_mut().insert(
+            HeaderName::from_static(DCP_HEADER),
+            headers::header_value(&dcp_id)?,
+        );
     }
-    attach_validators(&mut resp, &etag);
+    attach_validators(&mut resp, etag);
     Ok(resp)
 }

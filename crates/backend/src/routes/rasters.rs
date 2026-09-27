@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 use crate::services::raster_store::RasterMeta;
 use crate::state::AppState;
 
@@ -44,18 +45,18 @@ pub async fn get(
         .rasters
         .load(ctx.server_epoch, ctx.owner, &raster_id)
         .await?;
-    let mut headers = HeaderMap::new();
-    headers.insert(
+    let mut response_headers = HeaderMap::new();
+    response_headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/octet-stream"),
     );
-    headers.insert("x-raster-width", HeaderValue::from(meta.width));
-    headers.insert("x-raster-height", HeaderValue::from(meta.height));
-    headers.insert(
+    response_headers.insert("x-raster-width", HeaderValue::from(meta.width));
+    response_headers.insert("x-raster-height", HeaderValue::from(meta.height));
+    response_headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("private, max-age=31536000, immutable"),
+        HeaderValue::from_static(headers::CACHE_IMMUTABLE),
     );
-    Ok((StatusCode::OK, headers, bytes))
+    Ok((StatusCode::OK, response_headers, bytes))
 }
 
 pub async fn meta(

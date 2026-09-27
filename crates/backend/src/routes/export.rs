@@ -7,6 +7,7 @@ use axum::response::{IntoResponse, Response};
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
+use crate::routes::headers;
 use crate::services::export::{
     self, ExportBody, ExportImmichRequest, ExportToImmichResult, NameContext, NameTemplate, Seq,
     capture_date,
@@ -66,49 +67,22 @@ async fn download(
         seq: Seq::SINGLE,
     });
     let filename = format!("{stem}.{}", output.extension());
-    Ok(download_response(&filename, bytes, output))
-}
-
-fn content_disposition(filename: &str) -> HeaderValue {
-    let ascii: String = filename
-        .chars()
-        .map(|c| {
-            if (c.is_ascii_graphic() && c != '"' && c != '\\') || c == ' ' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    let encoded: String = filename
-        .bytes()
-        .map(|b| {
-            if b.is_ascii_alphanumeric() || b"!#$&+-.^_`|~".contains(&b) {
-                char::from(b).to_string()
-            } else {
-                format!("%{b:02X}")
-            }
-        })
-        .collect();
-    HeaderValue::from_str(&format!(
-        "attachment; filename=\"{ascii}\"; filename*=UTF-8''{encoded}"
-    ))
-    .unwrap_or(HeaderValue::from_static("attachment"))
+    download_response(&filename, bytes, output)
 }
 
 fn download_response(
     filename: &str,
     bytes: bytes::Bytes,
     output: raw_pipeline::frame::OutputFormat,
-) -> Response {
+) -> Result<Response, AppError> {
     let mut resp = Response::new(Body::from(bytes));
     resp.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static(output.content_type()),
     );
     resp.headers_mut()
-        .insert(header::CONTENT_DISPOSITION, content_disposition(filename));
-    resp.into_response()
+        .insert(header::CONTENT_DISPOSITION, headers::attachment(filename)?);
+    Ok(resp.into_response())
 }
 
 pub async fn post_export_immich(
