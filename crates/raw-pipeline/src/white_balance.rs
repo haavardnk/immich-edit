@@ -2,7 +2,7 @@ use crate::color::user_wb_matrix;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::geom::{GeometryTransform, display_uv_to_mask_uv, mask_uv_to_display_uv};
-use crate::ops::lens_distortion::{distortion_coeffs, distortion_zoom, output_px_to_source_px};
+use crate::ops::lens_distortion::LensWarpParams;
 use crate::sensor_sample::{
     SAMPLE_TARGET, decimate_mosaic, display_color, display_rgb, geometry_transform,
     sample_raw_bilinear, sensor_to_oriented_uv,
@@ -218,18 +218,12 @@ fn display_uv_to_sensor_px(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> O
     if !edits.lens.distortion_active() {
         return Some((px, py));
     }
-    let (k1, k2, k3) = distortion_coeffs(&edits.lens);
-    let zoom = distortion_zoom(&edits.lens);
-    let (sx, sy) = output_px_to_source_px(
-        k1,
-        k2,
-        k3,
-        zoom,
+    let warp = LensWarpParams::from_edits(
+        &edits.lens,
         frame.meta.width as u32,
         frame.meta.height as u32,
-        px,
-        py,
     );
+    let (sx, sy) = warp.output_px_to_source_px(px, py);
     (sx >= 0.0 && sy >= 0.0 && sx <= w - 1.0 && sy <= h - 1.0).then_some((sx, sy))
 }
 

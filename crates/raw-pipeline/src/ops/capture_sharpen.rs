@@ -42,7 +42,7 @@ impl Op for CaptureSharpenOp {
         }
         Some(serde_json::json!({ "enabled": false }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("enabled").and_then(|v| v.as_bool()) {
             edits.detail.capture_sharpen = v;
         }
@@ -404,7 +404,7 @@ mod tests {
         edits.detail.capture_sharpen = false;
         let doc = op.to_doc(&edits).expect("doc");
         let mut restored = Edits::default();
-        op.from_doc(&doc, &mut restored);
+        op.apply_doc(&doc, &mut restored);
         assert!(!restored.detail.capture_sharpen);
     }
 }

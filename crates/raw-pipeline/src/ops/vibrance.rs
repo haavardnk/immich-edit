@@ -81,7 +81,7 @@ impl Op for VibranceOp {
         }
         Some(serde_json::json!({ "amount": edits.basic.vibrance }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             edits.basic.vibrance = v;
         }

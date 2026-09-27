@@ -2,7 +2,7 @@ use super::{HIST_BINS, MIN_VALID_SAMPLES};
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::geom::mask_uv_to_display_uv;
-use crate::ops::lens_distortion::{distortion_coeffs, distortion_zoom, output_px_to_source_px};
+use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::lens_vignette::{vignette_coeffs, vignette_correction};
 use crate::sensor_sample::{
     SAMPLE_TARGET, develop_luma, display_rgb, geometry_transform, sample_raw_bilinear,
@@ -124,8 +124,7 @@ pub(super) fn collect_stats_output(
     let geom = geometry_transform(edits, oriented_w as u32, oriented_h as u32);
 
     let lens = &edits.lens;
-    let (k1, k2, k3) = distortion_coeffs(lens);
-    let zoom = distortion_zoom(lens);
+    let warp = LensWarpParams::from_edits(lens, w as u32, h as u32);
     let distortion_on = lens.distortion_active();
     let (vk1, vk2, vk3, vig_amount) = vignette_coeffs(lens);
     let vignette_on = lens.vignette_active();
@@ -149,7 +148,7 @@ pub(super) fn collect_stats_output(
         let py = (i / w) as f32;
 
         let (sx, sy) = if distortion_on {
-            output_px_to_source_px(k1, k2, k3, zoom, w as u32, h as u32, px, py)
+            warp.output_px_to_source_px(px, py)
         } else {
             (px, py)
         };

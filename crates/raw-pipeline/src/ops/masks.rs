@@ -26,7 +26,7 @@ impl Op for MasksOp {
         }
         Some(serde_json::json!({ "layers": edits.masks }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let Some(arr) = value.get("layers").and_then(|v| v.as_array()) else {
             return;
         };

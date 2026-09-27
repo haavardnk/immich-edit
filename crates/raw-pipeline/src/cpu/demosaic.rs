@@ -209,50 +209,96 @@ fn xtrans_channel(pattern: &[u8; XTRANS_LEN], x: usize, y: usize) -> usize {
     }
 }
 
-fn xtrans_green(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> Vec<f32> {
-    let taps = XtransTaps::new(pattern, w);
-    let mut green = vec![0.0f32; w * h];
-    green
-        .par_chunks_mut(w)
-        .enumerate()
-        .for_each(|(y, row)| xtrans_green_row(data, w, h, pattern, &taps, y, row));
-    green
-}
-
-fn xtrans_green_row(
-    data: &[f32],
+struct XtransMosaic<'a> {
+    data: &'a [f32],
     w: usize,
     h: usize,
-    pattern: &[u8; XTRANS_LEN],
-    taps: &XtransTaps,
-    y: usize,
-    row: &mut [f32],
-) {
-    let interior_y = y >= 1 && y + 1 < h;
-    for (x, slot) in row.iter_mut().enumerate() {
-        let i = y * w + x;
-        if xtrans_channel(pattern, x, y) == 1 {
-            *slot = data[i];
-            continue;
+    pattern: &'a [u8; XTRANS_LEN],
+    taps: XtransTaps,
+}
+
+impl XtransMosaic<'_> {
+    fn green(&self) -> Vec<f32> {
+        let mut green = vec![0.0f32; self.w * self.h];
+        green
+            .par_chunks_mut(self.w)
+            .enumerate()
+            .for_each(|(y, row)| self.green_row(y, row));
+        green
+    }
+
+    fn green_row(&self, y: usize, row: &mut [f32]) {
+        let &Self {
+            data,
+            w,
+            h,
+            pattern,
+            ..
+        } = self;
+        let interior_y = y >= 1 && y + 1 < h;
+        for (x, slot) in row.iter_mut().enumerate() {
+            let i = y * w + x;
+            if xtrans_channel(pattern, x, y) == 1 {
+                *slot = data[i];
+                continue;
+            }
+            let (sum, weight) = if interior_y && x >= 1 && x + 1 < w {
+                self.taps.green[xtrans_phase(x, y)].iter().fold(
+                    (0.0f32, 0.0f32),
+                    |(sum, weight), &(offset, wgt)| {
+                        (
+                            sum + data[i.wrapping_add_signed(offset)] * wgt,
+                            weight + wgt,
+                        )
+                    },
+                )
+            } else {
+                xtrans_green_edge(data, w, h, pattern, x, y)
+            };
+            *slot = if weight > 0.0 {
+                (sum / weight).clamp(0.0, RAW_LINEAR_CEILING)
+            } else {
+                data[i]
+            };
         }
-        let (sum, weight) = if interior_y && x >= 1 && x + 1 < w {
-            taps.green[xtrans_phase(x, y)].iter().fold(
-                (0.0f32, 0.0f32),
-                |(sum, weight), &(offset, wgt)| {
-                    (
-                        sum + data[i.wrapping_add_signed(offset)] * wgt,
-                        weight + wgt,
-                    )
-                },
-            )
-        } else {
-            xtrans_green_edge(data, w, h, pattern, x, y)
-        };
-        *slot = if weight > 0.0 {
-            (sum / weight).clamp(0.0, RAW_LINEAR_CEILING)
-        } else {
-            data[i]
-        };
+    }
+
+    fn rgb_row(&self, green: &[f32], y: usize, row: &mut [f32]) {
+        let &Self {
+            data,
+            w,
+            h,
+            pattern,
+            ..
+        } = self;
+        let interior_y = y >= 2 && y + 2 < h;
+        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            let i = y * w + x;
+            let own = xtrans_channel(pattern, x, y);
+            px[1] = green[i];
+            if own != 1 {
+                px[own] = data[i];
+            }
+            let interior = interior_y && x >= 2 && x + 2 < w;
+            for (slot, ch) in [(0usize, 0usize), (1, 2)] {
+                if ch == own {
+                    continue;
+                }
+                let chroma = if interior {
+                    let (sum, weight) = self.taps.chroma[xtrans_phase(x, y)][slot].iter().fold(
+                        (0.0f32, 0.0f32),
+                        |(sum, weight), &(offset, wgt)| {
+                            let n = i.wrapping_add_signed(offset);
+                            (sum + (data[n] - green[n]) * wgt, weight + wgt)
+                        },
+                    );
+                    if weight > 0.0 { sum / weight } else { 0.0 }
+                } else {
+                    xtrans_chroma(data, green, (w, h), pattern, (x, y), ch)
+                };
+                px[ch] = (green[i] + chroma).clamp(0.0, RAW_LINEAR_CEILING);
+            }
+        }
     }
 }
 
@@ -359,54 +405,19 @@ fn xtrans_chroma(
 }
 
 pub fn xtrans(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> Vec<f32> {
-    let green = xtrans_green(data, w, h, pattern);
-    let taps = XtransTaps::new(pattern, w);
+    let mosaic = XtransMosaic {
+        data,
+        w,
+        h,
+        pattern,
+        taps: XtransTaps::new(pattern, w),
+    };
+    let green = mosaic.green();
     let mut out = vec![0.0f32; w * h * 3];
     out.par_chunks_mut(w * 3)
         .enumerate()
-        .for_each(|(y, row)| xtrans_rgb_row(data, &green, w, h, pattern, &taps, y, row));
+        .for_each(|(y, row)| mosaic.rgb_row(&green, y, row));
     out
-}
-
-#[allow(clippy::too_many_arguments)]
-fn xtrans_rgb_row(
-    data: &[f32],
-    green: &[f32],
-    w: usize,
-    h: usize,
-    pattern: &[u8; XTRANS_LEN],
-    taps: &XtransTaps,
-    y: usize,
-    row: &mut [f32],
-) {
-    let interior_y = y >= 2 && y + 2 < h;
-    for (x, px) in row.chunks_exact_mut(3).enumerate() {
-        let i = y * w + x;
-        let own = xtrans_channel(pattern, x, y);
-        px[1] = green[i];
-        if own != 1 {
-            px[own] = data[i];
-        }
-        let interior = interior_y && x >= 2 && x + 2 < w;
-        for (slot, ch) in [(0usize, 0usize), (1, 2)] {
-            if ch == own {
-                continue;
-            }
-            let chroma = if interior {
-                let (sum, weight) = taps.chroma[xtrans_phase(x, y)][slot].iter().fold(
-                    (0.0f32, 0.0f32),
-                    |(sum, weight), &(offset, wgt)| {
-                        let n = i.wrapping_add_signed(offset);
-                        (sum + (data[n] - green[n]) * wgt, weight + wgt)
-                    },
-                );
-                if weight > 0.0 { sum / weight } else { 0.0 }
-            } else {
-                xtrans_chroma(data, green, (w, h), pattern, (x, y), ch)
-            };
-            px[ch] = (green[i] + chroma).clamp(0.0, RAW_LINEAR_CEILING);
-        }
-    }
 }
 
 pub fn superpixel(data: &[f32], w: usize, h: usize, cfa_pattern: &str, block: usize) -> Vec<f32> {

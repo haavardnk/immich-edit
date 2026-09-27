@@ -241,8 +241,7 @@ pub trait Op: Send + Sync {
     fn to_doc(&self, _edits: &Edits) -> Option<serde_json::Value> {
         None
     }
-    #[allow(clippy::wrong_self_convention)]
-    fn from_doc(&self, _value: &serde_json::Value, _edits: &mut Edits) {}
+    fn apply_doc(&self, _value: &serde_json::Value, _edits: &mut Edits) {}
     fn cpu_fused(&self, _edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
         None
     }

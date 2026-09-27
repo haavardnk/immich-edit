@@ -1,20 +1,18 @@
 use super::*;
 use crate::tone::{srgb_oetf, srgb_oetf_scalar};
 
+fn finish_px(linear: [f32; 3], opts: FinishOptions) -> Vec<u8> {
+    finish_output(linear.to_vec(), 1, 1, opts).0
+}
+
 #[test]
 fn display_ready_output_skips_tone_mapping() {
-    let (rgb, _, _) = finish_output(
-        vec![0.5, 0.5, 0.5],
-        1,
-        1,
-        false,
-        true,
-        None,
-        None,
-        OutputColorSpace::SRgb,
-        false,
-        false,
-        false,
+    let rgb = finish_px(
+        [0.5, 0.5, 0.5],
+        FinishOptions {
+            display_ready: true,
+            ..Default::default()
+        },
     );
     if rgb.iter().any(|value| !(126..=129).contains(value)) {
         panic!("expected display-ready midpoint, got {rgb:?}");
@@ -23,18 +21,12 @@ fn display_ready_output_skips_tone_mapping() {
 
 #[test]
 fn gamut_warn_paints_out_of_gamut_pixels() {
-    let (rgb, _, _) = finish_output(
-        vec![0.9, -0.1, 0.2],
-        1,
-        1,
-        false,
-        false,
-        None,
-        None,
-        OutputColorSpace::SRgb,
-        true,
-        false,
-        false,
+    let rgb = finish_px(
+        [0.9, -0.1, 0.2],
+        FinishOptions {
+            gamut_warn: true,
+            ..Default::default()
+        },
     );
     if rgb != vec![255, 0, 255] {
         panic!("expected magenta gamut warning, got {rgb:?}");
@@ -43,18 +35,12 @@ fn gamut_warn_paints_out_of_gamut_pixels() {
 
 #[test]
 fn gamut_warn_ignores_bright_in_gamut_pixels() {
-    let (rgb, _, _) = finish_output(
-        vec![4.0, 0.0, 0.0],
-        1,
-        1,
-        false,
-        false,
-        None,
-        None,
-        OutputColorSpace::SRgb,
-        true,
-        false,
-        false,
+    let rgb = finish_px(
+        [4.0, 0.0, 0.0],
+        FinishOptions {
+            gamut_warn: true,
+            ..Default::default()
+        },
     );
     if rgb == vec![255, 0, 255] {
         panic!("bright in-gamut red must not be flagged out of gamut");
@@ -68,14 +54,10 @@ fn histograms_are_computed_only_when_requested() {
             vec![0.5, 0.5, 0.5],
             1,
             1,
-            false,
-            false,
-            None,
-            None,
-            OutputColorSpace::SRgb,
-            false,
-            false,
-            histogram,
+            FinishOptions {
+                histogram,
+                ..Default::default()
+            },
         )
         .2
     };
@@ -92,18 +74,12 @@ fn histograms_are_computed_only_when_requested() {
 
 #[test]
 fn gamut_warn_leaves_in_gamut_pixels() {
-    let (rgb, _, _) = finish_output(
-        vec![0.5, 0.5, 0.5],
-        1,
-        1,
-        false,
-        false,
-        None,
-        None,
-        OutputColorSpace::SRgb,
-        true,
-        false,
-        false,
+    let rgb = finish_px(
+        [0.5, 0.5, 0.5],
+        FinishOptions {
+            gamut_warn: true,
+            ..Default::default()
+        },
     );
     if rgb == vec![255, 0, 255] {
         panic!("neutral gray must not be flagged out of gamut");
@@ -120,18 +96,12 @@ fn clip_warn_paints_blown_and_crushed_pixels() {
         ([0.2, 0.25, 0.22], None),
     ];
     for (linear, want) in cases {
-        let (rgb, _, _) = finish_output(
-            linear.to_vec(),
-            1,
-            1,
-            false,
-            false,
-            None,
-            None,
-            OutputColorSpace::SRgb,
-            false,
-            true,
-            false,
+        let rgb = finish_px(
+            linear,
+            FinishOptions {
+                clip_warn: true,
+                ..Default::default()
+            },
         );
         match want {
             Some(paint) => {
@@ -152,19 +122,7 @@ fn clip_warn_paints_blown_and_crushed_pixels() {
 
 #[test]
 fn clip_warn_off_leaves_blown_pixels_alone() {
-    let (rgb, _, _) = finish_output(
-        vec![4.0, 4.0, 4.0],
-        1,
-        1,
-        false,
-        false,
-        None,
-        None,
-        OutputColorSpace::SRgb,
-        false,
-        false,
-        false,
-    );
+    let rgb = finish_px([4.0, 4.0, 4.0], FinishOptions::default());
     if rgb != vec![255, 255, 255] {
         panic!("expected untouched white, got {rgb:?}");
     }

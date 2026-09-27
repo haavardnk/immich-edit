@@ -173,7 +173,7 @@ impl Op for CurvesOp {
         put(&mut obj, "luma", &c.luma);
         Some(serde_json::Value::Object(obj))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(arr) = value.get("points").and_then(|v| v.as_array()) {
             if let Some(pts) = decode_points(arr) {
                 edits.basic.curves.composite = CurvePoints { points: pts };
@@ -377,7 +377,7 @@ mod tests {
     fn manifest_legacy_points_decodes_into_composite() {
         let mut edits = Edits::default();
         let v = serde_json::json!({ "points": [[0.0, 0.1], [1.0, 0.9]] });
-        CurvesOp.from_doc(&v, &mut edits);
+        CurvesOp.apply_doc(&v, &mut edits);
         if edits.basic.curves.composite.is_identity() {
             panic!("legacy points did not populate composite");
         }
@@ -411,7 +411,7 @@ mod tests {
             panic!("missing r/luma in doc: {obj:?}");
         }
         let mut back = Edits::default();
-        CurvesOp.from_doc(&doc, &mut back);
+        CurvesOp.apply_doc(&doc, &mut back);
         if back.basic.curves != edits.basic.curves {
             panic!(
                 "roundtrip mismatch: {:?} vs {:?}",

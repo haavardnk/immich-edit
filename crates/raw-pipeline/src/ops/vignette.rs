@@ -35,7 +35,7 @@ impl Op for VignetteOp {
             "roundness": e.vignette_roundness,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let e: &mut EffectsEdits = &mut edits.effects;
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             e.vignette_amount = v;

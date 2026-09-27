@@ -40,7 +40,7 @@ impl Op for ColorNrOp {
             "smoothness": d.color_nr_smoothness,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let d: &mut DetailEdits = &mut edits.detail;
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             d.color_nr_amount = v;

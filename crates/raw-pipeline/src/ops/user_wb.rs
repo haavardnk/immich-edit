@@ -29,7 +29,7 @@ impl Op for UserWbOp {
             "tint": edits.basic.wb_tint,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
             edits.basic.wb_temp = v;
         }

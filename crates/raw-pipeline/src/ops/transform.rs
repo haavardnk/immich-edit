@@ -87,7 +87,7 @@ impl Op for TransformOp {
         }
         Some(serde_json::Value::Object(obj))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("rotate").and_then(|v| v.as_u64()) {
             edits.geometry.rotate = v as u16;
         }
