@@ -27,7 +27,7 @@ impl Op for Lut3dOp {
         obj.insert("amount".into(), lut.amount.into());
         Some(serde_json::Value::Object(obj))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(id) = value.get("lut_id").and_then(|v| v.as_str())
             && !id.is_empty()
         {

@@ -36,7 +36,7 @@ impl Op for LumaNrOp {
             "contrast": d.luma_nr_contrast,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let d: &mut DetailEdits = &mut edits.detail;
         if let Some(v) = value.get("amount").and_then(|v| v.as_f64()) {
             d.luma_nr_amount = v;

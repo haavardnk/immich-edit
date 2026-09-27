@@ -44,7 +44,7 @@ impl Op for HslOp {
             .collect();
         Some(serde_json::json!({ "bands": arr }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let Some(arr) = value.get("bands").and_then(|v| v.as_array()) else {
             return;
         };

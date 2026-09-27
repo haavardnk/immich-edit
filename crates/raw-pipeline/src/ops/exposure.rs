@@ -26,7 +26,7 @@ impl Op for ExposureOp {
         }
         Some(serde_json::json!({ "ev": edits.basic.exposure_ev }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("ev").and_then(|v| v.as_f64()) {
             edits.basic.exposure_ev = v;
         }

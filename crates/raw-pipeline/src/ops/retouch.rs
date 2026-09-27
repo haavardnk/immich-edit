@@ -30,7 +30,7 @@ impl Op for RetouchOp {
         }
         Some(serde_json::json!({ "strokes": edits.retouch }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let Some(arr) = value.get("strokes").and_then(|v| v.as_array()) else {
             return;
         };

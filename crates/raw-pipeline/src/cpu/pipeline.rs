@@ -11,8 +11,8 @@ use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::ops::LinearImage;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 use crate::timing::{self, StageClock};
-use ops::{OpRange, run_pipeline_ops_inner};
-use output::{finish_output, resolve_lut};
+use ops::{OpInputs, OpRange, run_pipeline_ops_inner};
+use output::{FinishOptions, finish_output, resolve_lut};
 use std::sync::Arc;
 
 pub use ops::{run_output_ops, run_pipeline_ops, run_sensor_ops};
@@ -42,6 +42,22 @@ pub(super) struct Prepared {
     out_dims: (u32, u32),
     preview_ratio: Option<f32>,
     block: Option<usize>,
+}
+
+impl Prepared {
+    fn op_inputs<'a>(&'a self, options: &'a RenderOptions) -> OpInputs<'a> {
+        OpInputs {
+            ctx: &self.ctx,
+            edits: &self.edits,
+            rasters: &options.rasters,
+        }
+    }
+}
+
+struct SceneOutput {
+    image: LinearImage,
+    sharpen_delta: Option<LinearImage>,
+    oriented: (usize, usize),
 }
 
 pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) -> Prepared {
@@ -107,9 +123,7 @@ pub(super) fn cached_sensor_stage(
     let (mut image, oriented, preview_dims) = oriented_sensor(frame, prep, clock, cancel)?;
     run_pipeline_ops_inner(
         &mut image,
-        &prep.ctx,
-        &prep.edits,
-        &options.rasters,
+        prep.op_inputs(options),
         OpRange::BelowBoundary,
         preview_dims,
         clock,
@@ -193,47 +207,35 @@ pub(crate) fn render_cached(
         let (mut image, oriented, preview_dims) = oriented_sensor(frame, &prep, &clock, cancel)?;
         let sharpen_delta = run_pipeline_ops_inner(
             &mut image,
-            &prep.ctx,
-            &prep.edits,
-            &options.rasters,
+            prep.op_inputs(options),
             OpRange::All,
             preview_dims,
             &clock,
             cancel,
         )?;
-        return finish_render(
-            frame,
-            &prep,
-            options,
+        let scene = SceneOutput {
             image,
             sharpen_delta,
             oriented,
-            clock,
-            cancel,
-        );
+        };
+        return finish_render(frame, &prep, options, scene, clock, cancel);
     };
     let stage = cached_sensor_stage(frame, &prep, options, renderer, &clock, cancel)?;
     let mut image = LinearImage::new(stage.rgb.clone(), stage.width, stage.height);
     let sharpen_delta = run_pipeline_ops_inner(
         &mut image,
-        &prep.ctx,
-        &prep.edits,
-        &options.rasters,
+        prep.op_inputs(options),
         OpRange::FromBoundary,
         None,
         &clock,
         cancel,
     )?;
-    finish_render(
-        frame,
-        &prep,
-        options,
+    let scene = SceneOutput {
         image,
         sharpen_delta,
-        (stage.oriented_w, stage.oriented_h),
-        clock,
-        cancel,
-    )
+        oriented: (stage.oriented_w, stage.oriented_h),
+    };
+    finish_render(frame, &prep, options, scene, clock, cancel)
 }
 
 fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
@@ -253,18 +255,19 @@ fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn finish_render(
     frame: &RawFrame,
     prep: &Prepared,
     options: &RenderOptions,
-    image: LinearImage,
-    sharpen_delta: Option<LinearImage>,
-    oriented: (usize, usize),
+    scene: SceneOutput,
     clock: StageClock,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<RenderedImage> {
-    let (oriented_w, oriented_h) = oriented;
+    let SceneOutput {
+        image,
+        sharpen_delta,
+        oriented: (oriented_w, oriented_h),
+    } = scene;
     let edits = &prep.edits;
     let ctx = &prep.ctx;
     let out_dims = prep.out_dims;
@@ -323,14 +326,16 @@ fn finish_render(
             rgb,
             w,
             h,
-            want_16bit,
-            display_ready,
-            lut_ref,
-            dcp_finish,
-            options.output_color_space,
-            options.gamut_warn,
-            options.clip_warn,
-            options.histogram,
+            FinishOptions {
+                want_16bit,
+                display_ready,
+                lut: lut_ref,
+                dcp_finish,
+                color_space: options.output_color_space,
+                gamut_warn: options.gamut_warn,
+                clip_warn: options.clip_warn,
+                histogram: options.histogram,
+            },
         )
     });
     cancel::check(cancel)?;

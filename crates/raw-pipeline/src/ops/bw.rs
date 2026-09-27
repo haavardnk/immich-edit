@@ -45,7 +45,7 @@ impl Op for BwOp {
         }
         serde_json::to_value(bw).ok()
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Ok(bw) = serde_json::from_value(value.clone()) {
             edits.color.bw = bw;
         }

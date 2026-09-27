@@ -125,7 +125,7 @@ impl Op for ToneRegionsOp {
             "whites": edits.tone.whites,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Some(v) = value.get("highlights").and_then(|v| v.as_f64()) {
             edits.tone.highlights = v;
         }

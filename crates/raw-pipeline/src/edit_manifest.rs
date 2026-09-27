@@ -80,7 +80,7 @@ impl EditManifest {
         for op in registry.ops() {
             known.push(op.id());
             if let Some(value) = ops.get(op.id()) {
-                op.from_doc(value, &mut edits);
+                op.apply_doc(value, &mut edits);
             }
         }
         for (key, value) in ops {

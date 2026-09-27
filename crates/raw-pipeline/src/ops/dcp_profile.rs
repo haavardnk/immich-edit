@@ -29,7 +29,7 @@ impl Op for DcpProfileOp {
         }
         serde_json::to_value(dcp).ok()
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         if let Ok(dcp) = serde_json::from_value::<crate::edits::DcpEdits>(value.clone()) {
             edits.color.dcp = dcp;
         }

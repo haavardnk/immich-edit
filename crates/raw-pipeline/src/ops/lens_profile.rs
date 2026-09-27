@@ -58,7 +58,7 @@ impl Op for LensProfileOp {
         }
         Some(doc)
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let l = &mut edits.lens;
         l.profile_enabled = value.get("profile_enabled").and_then(|v| v.as_bool());
         if let Some(v) = value.get("ca_enabled").and_then(|v| v.as_bool()) {

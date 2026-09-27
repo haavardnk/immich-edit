@@ -17,6 +17,18 @@ pub(super) struct Histograms {
     pub linear: Histogram,
 }
 
+#[derive(Clone, Copy, Default)]
+pub(super) struct FinishOptions<'a> {
+    pub want_16bit: bool,
+    pub display_ready: bool,
+    pub lut: Option<(&'a crate::lut::Lut3d, f32)>,
+    pub dcp_finish: Option<DcpFinish<'a>>,
+    pub color_space: OutputColorSpace,
+    pub gamut_warn: bool,
+    pub clip_warn: bool,
+    pub histogram: bool,
+}
+
 #[inline(always)]
 fn dither_hash(x: u32, y: u32, c: u32) -> f32 {
     let mut h =
@@ -73,21 +85,14 @@ pub(super) fn resolve_lut(
     )))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn finish_output(
     linear: Vec<f32>,
     w: usize,
     h: usize,
-    want_16bit: bool,
-    display_ready: bool,
-    lut: Option<(&crate::lut::Lut3d, f32)>,
-    dcp_finish: Option<DcpFinish>,
-    color_space: OutputColorSpace,
-    gamut_warn: bool,
-    clip_warn: bool,
-    histogram: bool,
+    opts: FinishOptions,
 ) -> (Vec<u8>, Option<Vec<u16>>, Option<Histograms>) {
     let _span = tracing::debug_span!("cpu.finish_output_histogram", w = w, h = h).entered();
+    let want_16bit = opts.want_16bit;
     let pixel_count = w * h;
     let n = linear.len();
     let mut rgb_u8 = vec![0u8; n];
@@ -99,17 +104,7 @@ pub(super) fn finish_output(
     let step = histogram::sample_step(pixel_count);
     let chunk_px = histogram::chunk_pixels(pixel_count);
     let chunk = chunk_px * 3;
-    let finish = Finish {
-        w,
-        step,
-        display_ready,
-        lut,
-        dcp_finish,
-        color_space,
-        gamut_warn,
-        clip_warn,
-        histogram,
-    };
+    let finish = Finish { w, step, opts };
 
     let zero_bins = || (Bins::zero(), Bins::zero());
     let merge_bins = |a: (Bins, Bins), b: (Bins, Bins)| (a.0.merge(b.0), a.1.merge(b.1));
@@ -137,7 +132,7 @@ pub(super) fn finish_output(
     };
 
     let rgb_u16 = if want_16bit { Some(rgb_u16) } else { None };
-    let histograms = histogram.then(|| Histograms {
+    let histograms = opts.histogram.then(|| Histograms {
         display: dis_bins.into_histogram(),
         linear: lin_bins.into_histogram(),
     });
@@ -147,30 +142,25 @@ pub(super) fn finish_output(
 struct Finish<'a> {
     w: usize,
     step: usize,
-    display_ready: bool,
-    lut: Option<(&'a crate::lut::Lut3d, f32)>,
-    dcp_finish: Option<DcpFinish<'a>>,
-    color_space: OutputColorSpace,
-    gamut_warn: bool,
-    clip_warn: bool,
-    histogram: bool,
+    opts: FinishOptions<'a>,
 }
 
 impl Finish<'_> {
     #[inline(always)]
     fn finalize(&self, lr: f32, lg: f32, lb: f32) -> ([f32; 3], bool) {
-        if self.display_ready {
+        let opts = &self.opts;
+        if opts.display_ready {
             return ([lr, lg, lb], false);
         }
-        let finished = match self.dcp_finish {
+        let finished = match opts.dcp_finish {
             Some((look, curve, to_pp, from_pp)) => {
                 crate::color::apply_dcp_finish(look, curve, to_pp, from_pp, [lr, lg, lb])
             }
             None => [lr, lg, lb],
         };
-        let clip = self.gamut_warn && crate::tone::is_out_of_gamut(finished, self.color_space);
-        let display = crate::tone::apply_rgb_cs(finished, self.color_space);
-        (apply_display_lut(display, self.lut), clip)
+        let clip = opts.gamut_warn && crate::tone::is_out_of_gamut(finished, opts.color_space);
+        let display = crate::tone::apply_rgb_cs(finished, opts.color_space);
+        (apply_display_lut(display, opts.lut), clip)
     }
 }
 
@@ -203,11 +193,11 @@ fn finish_chunk(
             dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
             dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
         }
-        if f.histogram && abs_px % f.step == 0 {
+        if f.opts.histogram && abs_px % f.step == 0 {
             acc.0.add_linear(lr, lg, lb);
             acc.1.add_display(ru, gu, bu);
         }
-        if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, f.clip_warn) {
+        if let Some(paint) = crate::warn::classify([tr, tg, tb], clip, f.opts.clip_warn) {
             px_out.copy_from_slice(&paint);
         }
     }

@@ -32,6 +32,12 @@ impl OpRange {
     }
 }
 
+pub(super) struct OpInputs<'a> {
+    pub ctx: &'a OpContext,
+    pub edits: &'a Edits,
+    pub rasters: &'a crate::mask_raster::RasterMap,
+}
+
 fn downsample(image: &mut LinearImage, new_w: u32, new_h: u32) {
     let (rgb, w, h) = transform::resize_owned_to(
         std::mem::take(&mut image.rgb),
@@ -52,9 +58,11 @@ pub fn run_pipeline_ops(
 ) -> crate::PipelineResult<()> {
     run_pipeline_ops_inner(
         image,
-        ctx,
-        edits,
-        rasters,
+        OpInputs {
+            ctx,
+            edits,
+            rasters,
+        },
         OpRange::All,
         None,
         &StageClock::default(),
@@ -67,17 +75,19 @@ fn image_aspect(image: &LinearImage) -> f32 {
     image.width as f32 / image.height.max(1) as f32
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn run_pipeline_ops_inner(
     image: &mut LinearImage,
-    ctx: &OpContext,
-    edits: &Edits,
-    rasters: &crate::mask_raster::RasterMap,
+    inputs: OpInputs,
     range: OpRange,
     preview_dims: Option<(u32, u32)>,
     clock: &StageClock,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<Option<LinearImage>> {
+    let OpInputs {
+        ctx,
+        edits,
+        rasters,
+    } = inputs;
     if let crate::frame::PreviewMode::MaskWeight { layer_id } = &ctx.render.preview_mode {
         let layer = edits.masks.iter().find(|l| &l.id == layer_id);
         let eval = match layer {

@@ -62,7 +62,7 @@ impl Op for ColorGradeOp {
             "blend": cg.blend,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let cg = &mut edits.color.color_grade;
         let read = |v: &serde_json::Value, out: &mut ColorGradeRegion| {
             if let Some(x) = v.get("hue").and_then(|v| v.as_f64()) {

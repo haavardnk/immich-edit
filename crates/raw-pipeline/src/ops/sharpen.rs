@@ -37,7 +37,7 @@ impl Op for SharpenOp {
             "masking": d.sharpen_masking,
         }))
     }
-    fn from_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
+    fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
         let d: &mut DetailEdits = &mut edits.detail;
         d.sharpen_amount = value.get("amount").and_then(|v| v.as_f64());
         if let Some(v) = value.get("radius").and_then(|v| v.as_f64()) {
