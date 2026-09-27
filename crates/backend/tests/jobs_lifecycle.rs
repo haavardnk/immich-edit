@@ -9,18 +9,10 @@ use immich_edit_backend::services::job_store::{
     JobItemStatus, JobRecord, JobStatus, NewJob, NewJobItem,
 };
 use immich_edit_backend::state::AppState;
-use serde_json::{Value, json};
+use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::MockServer;
-
-async fn body_json(res: axum::response::Response) -> Value {
-    let bytes = http_body_util::BodyExt::collect(res.into_body())
-        .await
-        .unwrap()
-        .to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
-}
 
 async fn seed_job(state: &AppState, owner: Uuid, token: &str, kind: &str) -> JobRecord {
     let ctx = state.auth.authenticate(token).await.unwrap().unwrap();

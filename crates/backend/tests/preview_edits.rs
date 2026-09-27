@@ -3,23 +3,9 @@ mod common;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use http_body_util::BodyExt;
 use tower::ServiceExt;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
-    resp.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes()
-        .to_vec()
-}
-
-fn req_get(uri: &str) -> Request<Body> {
-    Request::builder().uri(uri).body(Body::empty()).unwrap()
-}
 
 #[tokio::test]
 async fn get_edits_returns_default_when_missing() {
@@ -27,7 +13,7 @@ async fn get_edits_returns_default_when_missing() {
     let app = test_app(&server).await;
     let id = asset_id();
     let resp = app
-        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .oneshot(get(&format!("/api/assets/{id}/edits")))
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -97,7 +83,7 @@ async fn put_then_get_then_delete_edits() {
 
     let resp = app
         .clone()
-        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .oneshot(get(&format!("/api/assets/{id}/edits")))
         .await
         .unwrap();
     let got: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -121,7 +107,7 @@ async fn put_then_get_then_delete_edits() {
     }
 
     let resp = app
-        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .oneshot(get(&format!("/api/assets/{id}/edits")))
         .await
         .unwrap();
     let after: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -278,7 +264,7 @@ async fn delete_with_if_match_conflict_returns_current() {
 
     let resp = app
         .clone()
-        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .oneshot(get(&format!("/api/assets/{id}/edits")))
         .await
         .unwrap();
     let kept: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -340,7 +326,7 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
         panic!("put: {}", resp.status());
     }
 
-    let resp = app.clone().oneshot(req_get("/api/edits")).await.unwrap();
+    let resp = app.clone().oneshot(get("/api/edits")).await.unwrap();
     let lean: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
     if !lean["render_revision"]
         .as_str()
@@ -357,7 +343,7 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
     }
 
     let resp = app
-        .oneshot(req_get("/api/edits?with_assets=true"))
+        .oneshot(get("/api/edits?with_assets=true"))
         .await
         .unwrap();
     let rich: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -370,30 +356,11 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
     }
 }
 
-fn arw_fixture() -> Vec<u8> {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
-    std::fs::read(&path).expect("committed Sony ARW fixture")
-}
-
-async fn mock_arw_original(server: &MockServer, id: uuid::Uuid) {
-    Mock::given(method("GET"))
-        .and(path(format!("/api/assets/{id}/original")))
-        .and(header("x-api-key", "test-key"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "image/x-sony-arw")
-                .set_body_bytes(arw_fixture()),
-        )
-        .mount(server)
-        .await;
-}
-
 #[tokio::test]
 async fn live_preview_renders_jpeg_and_returns_meta_id() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     let app = test_app(&server).await;
 
     let body = serde_json::json!({"max_edge": 512, "edits": {"basic": {"exposure_ev": 1.0}}});
@@ -436,7 +403,7 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
     }
 
     let resp = app
-        .oneshot(req_get(&format!("/api/assets/{id}/preview/meta/{meta_id}")))
+        .oneshot(get(&format!("/api/assets/{id}/preview/meta/{meta_id}")))
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -464,12 +431,12 @@ fn luma_dc_quantizer(jpeg: &[u8]) -> u8 {
 async fn live_previews_encode_lighter_than_persisted_ones() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     let app = test_app(&server).await;
 
     let persisted = app
         .clone()
-        .oneshot(req_get(&format!("/api/assets/{id}/preview?max=512")))
+        .oneshot(get(&format!("/api/assets/{id}/preview?max=512")))
         .await
         .unwrap();
     let persisted = body_bytes(persisted).await;
@@ -518,7 +485,7 @@ async fn live_preview_rejects_bad_max_edge() {
 async fn live_preview_with_clip_warn_skips_meta() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     let app = test_app(&server).await;
 
     let body = serde_json::json!({"max_edge": 512, "clip_warn": true});
@@ -545,13 +512,13 @@ async fn live_preview_with_clip_warn_skips_meta() {
 async fn persisted_preview_etag_varies_with_clip_flag() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     let app = test_app(&server).await;
 
     let etag_for = async |clip: bool| {
         let resp = app
             .clone()
-            .oneshot(req_get(&format!(
+            .oneshot(get(&format!(
                 "/api/assets/{id}/preview?max=512&clip={clip}"
             )))
             .await
@@ -590,7 +557,7 @@ async fn persisted_preview_etag_varies_with_clip_flag() {
 async fn export_returns_full_res_jpeg() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     mock_asset_detail(&server).await;
     let app = test_app(&server).await;
 
@@ -632,7 +599,7 @@ async fn export_returns_full_res_jpeg() {
 async fn export_frame(body: serde_json::Value) -> raw_pipeline::frame::RawFrame {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     mock_asset_detail(&server).await;
     let app = test_app(&server).await;
     let resp = app
@@ -855,7 +822,7 @@ async fn put_writes_history_revision() {
     .await;
 
     let resp = app
-        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .oneshot(get(&format!("/api/assets/{id}/edits/history")))
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -897,7 +864,7 @@ async fn restore_returns_previous_edits() {
 
     let resp = app
         .clone()
-        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .oneshot(get(&format!("/api/assets/{id}/edits/history")))
         .await
         .unwrap();
     let history: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -933,7 +900,7 @@ async fn restore_returns_previous_edits() {
     }
 
     let resp = app
-        .oneshot(req_get(&format!("/api/assets/{id}/edits")))
+        .oneshot(get(&format!("/api/assets/{id}/edits")))
         .await
         .unwrap();
     let current: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -974,7 +941,7 @@ async fn restore_after_reset_refreshes_upstream_meta() {
 
     let resp = app
         .clone()
-        .oneshot(req_get(&format!("/api/assets/{id}/edits/history")))
+        .oneshot(get(&format!("/api/assets/{id}/edits/history")))
         .await
         .unwrap();
     let history: serde_json::Value = serde_json::from_slice(&body_bytes(resp).await).unwrap();
@@ -1013,12 +980,12 @@ async fn restore_after_reset_refreshes_upstream_meta() {
 async fn persisted_preview_revalidates_with_etag() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_arw_original(&server, id).await;
+    mock_original(&server, id).await;
     mock_asset_metadata(&server, id, "abc").await;
     let app = test_app(&server).await;
 
     let uri = format!("/api/assets/{id}/preview?max=512");
-    let resp = app.clone().oneshot(req_get(&uri)).await.unwrap();
+    let resp = app.clone().oneshot(get(&uri)).await.unwrap();
     if resp.status() != StatusCode::OK {
         panic!("first status {}", resp.status());
     }

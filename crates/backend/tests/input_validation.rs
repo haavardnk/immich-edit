@@ -2,20 +2,18 @@ mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use http_body_util::BodyExt;
 use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::services::edits_store::EditWrite;
-use serde_json::Value;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::MockServer;
 
-use common::{seed_member_session, test_app, test_state, wrap_auth};
+use common::{body_json, seed_member_session, test_app, test_state, wrap_auth};
 
-async fn body_json(body: Body) -> Value {
-    let bytes = body.collect().await.unwrap().to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
-}
+#[cfg(feature = "ml")]
+use common::json_request;
+#[cfg(feature = "ml")]
+use serde_json::Value;
 
 fn cube(color: f32) -> Vec<u8> {
     let mut src = String::from("LUT_3D_SIZE 2\n");
@@ -85,13 +83,13 @@ async fn a_lut_import_round_trips_and_rejects_a_duplicate() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::CREATED);
-    let created = body_json(res.into_body()).await;
+    let created = body_json(res).await;
     assert_eq!(created["name"], "Warm");
     assert_eq!(created["lut_size"], 2);
 
     let res = app.oneshot(lut_request("Other", cube(1.0))).await.unwrap();
     assert_eq!(res.status(), StatusCode::CONFLICT);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert_eq!(
         body["message"],
         format!("lut already exists: {}", created["id"].as_str().unwrap())
@@ -108,7 +106,7 @@ async fn a_lut_import_rejects_a_blank_name_and_a_broken_cube() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert_eq!(body["message"], "name is empty");
 
     let res = app
@@ -151,7 +149,7 @@ async fn a_dcp_import_round_trips_and_rejects_a_duplicate() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::CREATED);
-    let created = body_json(res.into_body()).await;
+    let created = body_json(res).await;
     assert_eq!(created["name"], "Probe");
 
     let res = app
@@ -159,7 +157,7 @@ async fn a_dcp_import_round_trips_and_rejects_a_duplicate() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::CONFLICT);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert!(
         body["message"]
             .as_str()
@@ -194,31 +192,25 @@ async fn a_member_cannot_import_a_dcp() {
 }
 
 #[cfg(feature = "ml")]
-fn rebake_request(body: Value) -> Request<Body> {
-    Request::builder()
-        .method("POST")
-        .uri("/api/masks/rebake")
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap()
-}
-
-#[cfg(feature = "ml")]
 #[tokio::test]
 async fn bake_parameters_outside_their_range_are_rejected() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
     let res = app
         .clone()
-        .oneshot(rebake_request(serde_json::json!({
-            "asset_id": Uuid::new_v4(),
-            "prob_raster_id": "missing",
-            "grow": 1.0e9,
-        })))
+        .oneshot(json_request(
+            "POST",
+            "/api/masks/rebake",
+            serde_json::json!({
+                "asset_id": Uuid::new_v4(),
+                "prob_raster_id": "missing",
+                "grow": 1.0e9,
+            }),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert!(
         body["message"]
             .as_str()
@@ -228,15 +220,19 @@ async fn bake_parameters_outside_their_range_are_rejected() {
     );
 
     let res = app
-        .oneshot(rebake_request(serde_json::json!({
-            "asset_id": Uuid::new_v4(),
-            "prob_raster_id": "missing",
-            "range": { "min": -1.0, "max": 2.0 },
-        })))
+        .oneshot(json_request(
+            "POST",
+            "/api/masks/rebake",
+            serde_json::json!({
+                "asset_id": Uuid::new_v4(),
+                "prob_raster_id": "missing",
+                "range": { "min": -1.0, "max": 2.0 },
+            }),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert_eq!(body["message"], "range must be within 0..1");
 }
 
@@ -247,18 +243,15 @@ async fn mask_generation_is_rejected_when_segmentation_is_off() {
     let app = test_app(&server).await;
     let id = Uuid::new_v4();
     let res = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/assets/{id}/masks/generate"))
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::json!({ "kind": "sky" }).to_string()))
-                .unwrap(),
-        )
+        .oneshot(json_request(
+            "POST",
+            &format!("/api/assets/{id}/masks/generate"),
+            serde_json::json!({ "kind": "sky" }),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    let body = body_json(res.into_body()).await;
+    let body = body_json(res).await;
     assert_eq!(body["message"], "segmentation is disabled on this server");
 }
 
@@ -268,18 +261,15 @@ async fn click_error(bbox: Value) -> Value {
     let app = test_app(&server).await;
     let id = Uuid::new_v4();
     let res = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/assets/{id}/masks/click"))
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::json!({ "bbox": bbox }).to_string()))
-                .unwrap(),
-        )
+        .oneshot(json_request(
+            "POST",
+            &format!("/api/assets/{id}/masks/click"),
+            serde_json::json!({ "bbox": bbox }),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    body_json(res.into_body()).await
+    body_json(res).await
 }
 
 #[cfg(feature = "ml")]

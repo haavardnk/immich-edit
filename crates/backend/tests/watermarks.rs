@@ -4,20 +4,9 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::*;
-use http_body_util::BodyExt;
 use raw_pipeline::frame::{BitDepth, OutputColorSpace, OutputFormat, PngCompression, RawFrame};
 use tower::ServiceExt;
-use wiremock::matchers::{header, method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
-    resp.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes()
-        .to_vec()
-}
+use wiremock::MockServer;
 
 fn magenta_png() -> Vec<u8> {
     raw_pipeline::encode::encode_from_rgb8(
@@ -31,21 +20,6 @@ fn magenta_png() -> Vec<u8> {
         OutputColorSpace::SRgb,
     )
     .unwrap()
-}
-
-async fn mock_arw_original(server: &MockServer, id: uuid::Uuid) {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
-    Mock::given(method("GET"))
-        .and(path(format!("/api/assets/{id}/original")))
-        .and(header("x-api-key", "test-key"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "image/x-sony-arw")
-                .set_body_bytes(std::fs::read(fixture).expect("committed Sony ARW fixture")),
-        )
-        .mount(server)
-        .await;
 }
 
 async fn send(app: &Router, method: &str, uri: &str, body: Body) -> axum::response::Response {
@@ -64,10 +38,6 @@ async fn send(app: &Router, method: &str, uri: &str, body: Body) -> axum::respon
 
 async fn import(app: &Router, bytes: Vec<u8>) -> axum::response::Response {
     send(app, "POST", "/api/watermarks?name=logo", Body::from(bytes)).await
-}
-
-async fn json(resp: axum::response::Response) -> serde_json::Value {
-    serde_json::from_slice(&body_bytes(resp).await).unwrap()
 }
 
 async fn export(app: &Router, body: serde_json::Value) -> axum::response::Response {
@@ -90,13 +60,13 @@ async fn the_watermark_library_round_trips_the_png() {
     if created.status() != StatusCode::CREATED {
         panic!("import: {}", created.status());
     }
-    let meta = json(created).await;
+    let meta = body_json(created).await;
     if (meta["width"].as_u64(), meta["height"].as_u64()) != (Some(10), Some(10)) {
         panic!("meta: {meta}");
     }
     let id = meta["id"].as_str().unwrap().to_string();
 
-    let listed = json(send(&app, "GET", "/api/watermarks", Body::empty()).await).await;
+    let listed = body_json(send(&app, "GET", "/api/watermarks", Body::empty()).await).await;
     if listed[0]["id"] != id.as_str() {
         panic!("list: {listed}");
     }
@@ -141,7 +111,7 @@ async fn the_watermark_library_round_trips_the_png() {
     if deleted.status() != StatusCode::NO_CONTENT {
         panic!("delete: {}", deleted.status());
     }
-    let listed = json(send(&app, "GET", "/api/watermarks", Body::empty()).await).await;
+    let listed = body_json(send(&app, "GET", "/api/watermarks", Body::empty()).await).await;
     if listed.as_array().is_none_or(|a| !a.is_empty()) {
         panic!("list after delete: {listed}");
     }
@@ -163,10 +133,10 @@ async fn the_watermark_library_round_trips_the_png() {
 #[tokio::test]
 async fn export_composites_the_watermark_in_its_corner() {
     let server = MockServer::start().await;
-    mock_arw_original(&server, asset_id()).await;
+    mock_original(&server, asset_id()).await;
     mock_asset_detail(&server).await;
     let app = test_app(&server).await;
-    let id = json(import(&app, magenta_png()).await).await["id"].clone();
+    let id = body_json(import(&app, magenta_png()).await).await["id"].clone();
 
     let base = serde_json::json!({
         "edits": {},

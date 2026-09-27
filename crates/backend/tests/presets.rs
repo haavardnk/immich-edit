@@ -1,39 +1,21 @@
 mod common;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use common::*;
-use http_body_util::BodyExt;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::MockServer;
 
-const MANIFEST: &str = r#"{"schema_version":2,"ops":{"exposure":{"ev":1.5}}}"#;
-
-async fn body_json(resp: axum::response::Response) -> serde_json::Value {
-    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-fn preset_body(name: &str, group: Option<&str>) -> String {
-    let group = match group {
-        Some(g) => format!(r#","group_name":"{g}""#),
-        None => String::new(),
-    };
-    format!(r#"{{"name":"{name}"{group},"manifest":{MANIFEST}}}"#)
-}
-
-fn json_request(method: &str, uri: String, body: String) -> Request<Body> {
-    Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("content-type", "application/json")
-        .body(Body::from(body))
-        .unwrap()
-}
-
-fn get_request(uri: String) -> Request<Body> {
-    Request::builder().uri(uri).body(Body::empty()).unwrap()
+fn preset_body(name: &str, group: Option<&str>) -> Value {
+    let mut body = json!({
+        "name": name,
+        "manifest": { "schema_version": 2, "ops": { "exposure": { "ev": 1.5 } } },
+    });
+    if let Some(group) = group {
+        body["group_name"] = json!(group);
+    }
+    body
 }
 
 #[tokio::test]
@@ -45,7 +27,7 @@ async fn a_preset_survives_create_read_update_and_delete() {
         .clone()
         .oneshot(json_request(
             "POST",
-            "/api/presets".into(),
+            "/api/presets",
             preset_body("Portrait", Some(" Studio ")),
         ))
         .await
@@ -55,13 +37,13 @@ async fn a_preset_survives_create_read_update_and_delete() {
     }
     let created = body_json(resp).await;
     let id = created["id"].as_str().unwrap().to_string();
-    if created["group_name"] != serde_json::json!("Studio") {
+    if created["group_name"] != json!("Studio") {
         panic!("the group name must be trimmed: {created}");
     }
 
     let resp = app
         .clone()
-        .oneshot(get_request(format!("/api/presets/{id}")))
+        .oneshot(get(&format!("/api/presets/{id}")))
         .await
         .unwrap();
     if resp.status() != StatusCode::OK {
@@ -72,7 +54,7 @@ async fn a_preset_survives_create_read_update_and_delete() {
         .clone()
         .oneshot(json_request(
             "PUT",
-            format!("/api/presets/{id}"),
+            &format!("/api/presets/{id}"),
             preset_body("Landscape", None),
         ))
         .await
@@ -81,17 +63,11 @@ async fn a_preset_survives_create_read_update_and_delete() {
         panic!("update status {}", resp.status());
     }
     let updated = body_json(resp).await;
-    if updated["name"] != serde_json::json!("Landscape")
-        || updated["group_name"] != serde_json::Value::Null
-    {
+    if updated["name"] != json!("Landscape") || updated["group_name"] != Value::Null {
         panic!("the update must replace both fields: {updated}");
     }
 
-    let resp = app
-        .clone()
-        .oneshot(get_request("/api/presets".into()))
-        .await
-        .unwrap();
+    let resp = app.clone().oneshot(get("/api/presets")).await.unwrap();
     let listed = body_json(resp).await;
     if listed.as_array().map(|a| a.len()) != Some(1) {
         panic!("the update must not add a second preset: {listed}");
@@ -99,13 +75,7 @@ async fn a_preset_survives_create_read_update_and_delete() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("DELETE")
-                .uri(format!("/api/presets/{id}"))
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(empty_request("DELETE", &format!("/api/presets/{id}")))
         .await
         .unwrap();
     if resp.status() != StatusCode::NO_CONTENT {
@@ -113,7 +83,7 @@ async fn a_preset_survives_create_read_update_and_delete() {
     }
 
     let resp = app
-        .oneshot(get_request(format!("/api/presets/{id}")))
+        .oneshot(get(&format!("/api/presets/{id}")))
         .await
         .unwrap();
     if resp.status() != StatusCode::NOT_FOUND {
@@ -136,7 +106,7 @@ async fn a_preset_name_or_group_outside_the_limits_is_rejected() {
     ] {
         let resp = app
             .clone()
-            .oneshot(json_request("POST", "/api/presets".into(), body.clone()))
+            .oneshot(json_request("POST", "/api/presets", body.clone()))
             .await
             .unwrap();
         if resp.status() != StatusCode::BAD_REQUEST {
@@ -148,7 +118,7 @@ async fn a_preset_name_or_group_outside_the_limits_is_rejected() {
         .clone()
         .oneshot(json_request(
             "POST",
-            "/api/presets".into(),
+            "/api/presets",
             preset_body(&"n".repeat(80), Some(&"g".repeat(60))),
         ))
         .await
@@ -166,7 +136,7 @@ async fn another_members_preset_id_is_not_found() {
     let resp = owner
         .oneshot(json_request(
             "POST",
-            "/api/presets".into(),
+            "/api/presets",
             preset_body("Portrait", None),
         ))
         .await
@@ -174,17 +144,13 @@ async fn another_members_preset_id_is_not_found() {
     let id = body_json(resp).await["id"].as_str().unwrap().to_string();
 
     for request in [
-        get_request(format!("/api/presets/{id}")),
+        get(&format!("/api/presets/{id}")),
         json_request(
             "PUT",
-            format!("/api/presets/{id}"),
+            &format!("/api/presets/{id}"),
             preset_body("Stolen", None),
         ),
-        Request::builder()
-            .method("DELETE")
-            .uri(format!("/api/presets/{id}"))
-            .body(Body::empty())
-            .unwrap(),
+        empty_request("DELETE", &format!("/api/presets/{id}")),
     ] {
         let method = request.method().clone();
         let resp = member.clone().oneshot(request).await.unwrap();
@@ -195,7 +161,7 @@ async fn another_members_preset_id_is_not_found() {
 
     let unknown = Uuid::new_v4();
     let resp = member
-        .oneshot(get_request(format!("/api/presets/{unknown}")))
+        .oneshot(get(&format!("/api/presets/{unknown}")))
         .await
         .unwrap();
     if resp.status() != StatusCode::NOT_FOUND {

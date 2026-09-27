@@ -10,28 +10,7 @@ use immich_edit_backend::state::AppState;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tower::ServiceExt;
-use wiremock::matchers::{header, method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-fn arw_fixture() -> Vec<u8> {
-    let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
-    std::fs::read(&file).expect("committed Sony ARW fixture")
-}
-
-async fn mock_original(server: &MockServer, id: uuid::Uuid, delay: Duration) {
-    Mock::given(method("GET"))
-        .and(path(format!("/api/assets/{id}/original")))
-        .and(header("x-api-key", TEST_API_KEY))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "image/x-sony-arw")
-                .set_body_bytes(arw_fixture())
-                .set_delay(delay),
-        )
-        .mount(server)
-        .await;
-}
+use wiremock::MockServer;
 
 async fn impatient_state(server: &MockServer) -> AppState {
     let mut state = test_state(server).await;
@@ -49,14 +28,11 @@ async fn parallel_state(server: &MockServer) -> AppState {
 }
 
 fn preview_lane(id: uuid::Uuid, lane: &str) -> Request<Body> {
-    Request::builder()
-        .method("POST")
-        .uri(format!("/api/assets/{id}/preview"))
-        .header("content-type", "application/json")
-        .body(Body::from(
-            serde_json::json!({"max_edge": 512, "edits": {}, "lane": lane}).to_string(),
-        ))
-        .unwrap()
+    json_request(
+        "POST",
+        &format!("/api/assets/{id}/preview"),
+        serde_json::json!({"max_edge": 512, "edits": {}, "lane": lane}),
+    )
 }
 
 fn preview(id: uuid::Uuid) -> Request<Body> {
@@ -78,7 +54,12 @@ async fn originals_fetched(server: &MockServer, id: uuid::Uuid) -> usize {
 async fn concurrent_previews_download_the_original_once() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_original(&server, id, Duration::from_millis(200)).await;
+    mock_original_with(
+        &server,
+        id,
+        arw_response().set_delay(Duration::from_millis(200)),
+    )
+    .await;
     let app = seed_and_wrap(&server, parallel_state(&server).await).await;
 
     let first = app.clone().oneshot(preview_lane(id, "base"));
@@ -100,7 +81,12 @@ async fn concurrent_previews_download_the_original_once() {
 async fn a_timed_out_preview_keeps_the_decoded_frame() {
     let server = MockServer::start().await;
     let id = asset_id();
-    mock_original(&server, id, Duration::from_millis(1500)).await;
+    mock_original_with(
+        &server,
+        id,
+        arw_response().set_delay(Duration::from_millis(1500)),
+    )
+    .await;
     let state = impatient_state(&server).await;
     let token = seed_session(&server, &state).await;
     let app = wrap_auth(router(state.clone()), token.clone());

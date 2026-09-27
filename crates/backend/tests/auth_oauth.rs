@@ -2,7 +2,7 @@ mod common;
 
 use axum::body::Body;
 use axum::extract::ConnectInfo;
-use axum::http::{Request, Response, StatusCode};
+use axum::http::{Request, StatusCode};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use common::*;
@@ -83,23 +83,6 @@ fn post(uri: &str, body: Value, cookie: Option<&str>, ip: &str) -> Request<Body>
         builder = builder.header("cookie", cookie);
     }
     builder.body(Body::from(body.to_string())).unwrap()
-}
-
-async fn body_json(resp: Response<Body>) -> Value {
-    let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-fn flow_cookie(resp: &Response<Body>) -> String {
-    resp.headers()
-        .get_all("set-cookie")
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .find(|v| v.starts_with("immich_edit_oauth="))
-        .map(|v| v.split(';').next().unwrap().to_string())
-        .expect("no oauth flow cookie")
 }
 
 async fn sent_body(server: &MockServer, route: &str) -> Option<Value> {
