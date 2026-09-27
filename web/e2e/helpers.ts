@@ -282,9 +282,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     }
     if (p === '/api/edits') {
       const entries = opts.edits ?? [];
-      if (url.searchParams.get('with_assets') !== 'true') return route.fulfill(json(entries));
+      const list = (items: unknown[]) => json({ render_revision: 'mock-l1', items });
+      if (url.searchParams.get('with_assets') !== 'true') return route.fulfill(list(entries));
       const byId = new Map(expanded().map((a) => [a.id, a]));
-      return route.fulfill(json(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
+      return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums') return route.fulfill(json([]));

@@ -104,8 +104,8 @@ impl EditedThumbService {
         if actual != expected_hash {
             return Err(EditedThumbError::HashMismatch);
         }
-        let dcp_revision = render.dcp_revision().await?;
-        let render_hash = format!("{actual}-{dcp_revision}");
+        let render_revision = render.render_revision().await?;
+        let render_hash = format!("{actual}-{render_revision}");
         let path = self.cache_path(identity, asset_id, &render_hash, size)?;
         if let Ok(bytes) = fs::read(&path).await {
             return Ok(bytes);

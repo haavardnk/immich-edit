@@ -60,13 +60,13 @@ pub async fn get_preview(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
-    let dcp_revision = state.render.dcp_revision().await?;
+    let render_revision = state.render.render_revision().await?;
     let etag = format!(
         "\"{}-{}-{}-{}-{}\"",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
-        dcp_revision,
+        render_revision,
         q.clip as u8
     );
     let unchanged = etag_matches(&headers, &etag);

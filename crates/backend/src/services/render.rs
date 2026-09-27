@@ -72,7 +72,7 @@ pub struct RenderService {
 }
 
 impl RenderService {
-    pub async fn dcp_revision(&self) -> Result<String, RenderError> {
+    pub async fn render_revision(&self) -> Result<String, RenderError> {
         self.inputs.dcp_revision().await
     }
 

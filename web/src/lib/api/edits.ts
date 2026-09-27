@@ -10,7 +10,12 @@ export interface EditedAssetEntry {
   asset?: AssetDetail;
 }
 
-export function listEditedAssets(withAssets = false): Promise<EditedAssetEntry[]> {
+export interface EditedAssetList {
+  render_revision: string;
+  items: EditedAssetEntry[];
+}
+
+export function listEditedAssets(withAssets = false): Promise<EditedAssetList> {
   return getJson(withAssets ? '/api/edits?with_assets=true' : '/api/edits');
 }
 

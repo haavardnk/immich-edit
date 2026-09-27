@@ -24,12 +24,9 @@ export async function runSearch(
 }
 
 export async function loadEditedAssets(): Promise<AssetSummary[]> {
-  const [entries] = await Promise.all([
-    listEditedAssets(true),
-    loadCullTags().catch(() => undefined)
-  ]);
+  const [list] = await Promise.all([listEditedAssets(true), loadCullTags().catch(() => undefined)]);
   return stampCullTags(
-    entries.map<AssetSummary>((entry) =>
+    list.items.map<AssetSummary>((entry) =>
       entry.asset
         ? { ...entry.asset, updatedAt: entry.updated_at }
         : {
