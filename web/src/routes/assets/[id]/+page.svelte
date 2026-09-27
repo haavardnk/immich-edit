@@ -13,6 +13,7 @@
   import { hint } from '$lib/shortcuts/labels';
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
+  import { innerWidth } from 'svelte/reactivity/window';
 
   const id = $derived(page.params.id as string);
 
@@ -36,15 +37,13 @@
     event.returnValue = '';
   }
 
-  let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1920);
-  const tooNarrow = $derived(viewportWidth < 768);
+  const tooNarrow = $derived((innerWidth.current ?? 1920) < 768);
 </script>
 
 <svelte:window
   onbeforeunload={guardPendingSave}
   onkeydown={(e) => editorKeydown(e, id)}
   onkeyup={editorKeyup}
-  onresize={() => (viewportWidth = window.innerWidth)}
 />
 
 {#if tooNarrow}

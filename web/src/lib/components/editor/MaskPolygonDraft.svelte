@@ -64,12 +64,9 @@
       editor.undoPolygonPoint();
     }
   }
-
-  $effect(() => {
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 <svg
   class="absolute inset-0"

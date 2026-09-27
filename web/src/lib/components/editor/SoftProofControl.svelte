@@ -3,12 +3,11 @@
   import { editor } from '$lib/stores/editor.svelte';
   import type { ColorSpaceOpt } from '$lib/api/export';
   import { Field, Select, Text } from '@immich/ui';
-  const wideGamut = $derived(
-    typeof window !== 'undefined' && window.matchMedia('(color-gamut: p3)').matches
-  );
+  import { MediaQuery } from 'svelte/reactivity';
+  const wideGamut = new MediaQuery('color-gamut: p3');
   const spaces = $derived([
     { value: 'srgb', label: 'sRGB' },
-    { value: 'displayp3', label: 'Display P3', disabled: !wideGamut }
+    { value: 'displayp3', label: 'Display P3', disabled: !wideGamut.current }
   ]);
 </script>
 
@@ -22,7 +21,7 @@
         value={editor.proofSpace}
         onChange={(v) => editor.setProofSpace(v as ColorSpaceOpt)}
       />
-      {#if !wideGamut}
+      {#if !wideGamut.current}
         <span class="text-[10px] leading-tight text-dark/65">
           Display is not wide-gamut; P3 proof unavailable.
         </span>

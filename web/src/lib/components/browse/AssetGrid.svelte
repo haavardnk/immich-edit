@@ -430,17 +430,11 @@
     pendingRestore = savedTop > 0 ? savedTop : null;
     scrollParent = findScrollParent(root);
     const parentResize = scrollParent ? observeSize(scrollParent, onResize) : undefined;
-    window.addEventListener('keydown', onKeydown);
-    window.addEventListener('keyup', onKeyup);
-    window.addEventListener('blur', clearShiftPreview);
     if (scrollParent) {
       scrollParent.addEventListener('scroll', onScroll, { passive: true });
     }
     return () => {
       parentResize?.destroy?.();
-      window.removeEventListener('keydown', onKeydown);
-      window.removeEventListener('keyup', onKeyup);
-      window.removeEventListener('blur', clearShiftPreview);
       scrollParent?.removeEventListener('scroll', onScroll);
     };
   });
@@ -459,6 +453,8 @@
     loupeWasOpen = open;
   });
 </script>
+
+<svelte:window onkeydown={onKeydown} onkeyup={onKeyup} onblur={clearShiftPreview} />
 
 <div
   bind:this={root}

@@ -105,11 +105,6 @@
     toasts.push('info', `Shape deleted. Undo with ${keysFor('undo')}.`);
   }
 
-  $effect(() => {
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
-
   function onPointerMove(e: PointerEvent): void {
     if (!drag || !active) return;
     const current = drag;
@@ -165,6 +160,8 @@
   const drafting = $derived(!!draft && rect.w > 0 && rect.h > 0);
   const activeCompId = $derived(editor.activeMaskComponentId);
 </script>
+
+<svelte:window onkeydown={onKeyDown} />
 
 {#if showColorPicker}
   <button

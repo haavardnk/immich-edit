@@ -6,6 +6,7 @@
   import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
   import { fitScale, nativeScale } from '$lib/utils/viewGeometry';
   import { clampZoom } from '$lib/utils/zoomLevel';
+  import { devicePixelRatio } from 'svelte/reactivity/window';
 
   const DRAG_THRESHOLD = 5;
   const WHEEL_STEP = 1.1;
@@ -51,7 +52,7 @@
   let totalDrag = 0;
   let wasFocused = false;
 
-  const dpr = typeof window === 'undefined' ? 1 : Math.min(2, window.devicePixelRatio || 1);
+  const dpr = $derived(Math.min(2, devicePixelRatio.current || 1));
   const fit = $derived(fitScale(box.w, box.h, natural.w, natural.h));
   const unit = $derived(nativeScale(Math.max(natural.w, natural.h), sourceLong ?? 0, dpr) || fit);
   const fitZoom = $derived(unit > 0 ? (100 * fit) / unit : 100);
