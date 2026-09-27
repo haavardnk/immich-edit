@@ -12,7 +12,7 @@ vi.mock('$lib/api/export', async (original) => ({
 }));
 vi.mock('$lib/utils/download', () => ({ downloadBlob: mocks.downloadBlob }));
 
-import { editor } from './editor.svelte';
+import { editor } from '$lib/stores/editor.svelte';
 
 const JPEG: ExportOptions = {
   format: 'jpeg',
