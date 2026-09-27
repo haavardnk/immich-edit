@@ -1,7 +1,7 @@
 <script lang="ts">
   import Popover from '$lib/components/Popover.svelte';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { Button, IconButton, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiHistory, mdiClose, mdiChevronDown, mdiChevronRight } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { listEditHistory, type EditHistoryEntry } from '$lib/api/edits';

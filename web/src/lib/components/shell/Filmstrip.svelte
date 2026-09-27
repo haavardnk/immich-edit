@@ -11,9 +11,9 @@
   import { editorHref } from '$lib/editorNavigation';
   import ResizeHandle from './ResizeHandle.svelte';
   import ContextMenu from '$lib/components/ContextMenu.svelte';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
 
   let {

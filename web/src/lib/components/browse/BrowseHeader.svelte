@@ -9,7 +9,6 @@
   } from '$lib/stores/browseControls.svelte';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { hint } from '$lib/keybinds';
   import {
     activeFilterChips,
@@ -18,7 +17,7 @@
     type FilterKey
   } from '$lib/browseFilterChips';
   import { Button, Field, Icon, IconButton, Select } from '@immich/ui';
-  import { RadioGroup } from 'bits-ui';
+  import { mergeProps, RadioGroup } from 'bits-ui';
   import {
     mdiSortAscending,
     mdiSortDescending,

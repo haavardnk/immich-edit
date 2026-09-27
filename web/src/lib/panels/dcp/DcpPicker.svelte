@@ -3,8 +3,8 @@
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import type { DcpMeta } from '$lib/api/dcp';
   import type { DcpMode } from '$lib/types/edits';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { Button, Icon, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiCheck, mdiChevronDown } from '@mdi/js';
 
   let {

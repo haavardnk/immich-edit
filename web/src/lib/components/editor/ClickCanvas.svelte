@@ -10,8 +10,8 @@
     type GeometryTransform
   } from '$lib/utils/geomTransform';
   import { imageRect } from '$lib/utils/imageRect.svelte';
-  import { mergeProps } from '$lib/utils/mergeProps';
   import { Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
 
   let {
     img

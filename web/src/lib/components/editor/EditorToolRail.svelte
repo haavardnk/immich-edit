@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Icon, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import {
     mdiBandage,
     mdiCropRotate,
@@ -11,7 +12,6 @@
   import { hint } from '$lib/keybinds';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui, type EditorTab } from '$lib/stores/ui.svelte';
-  import { mergeProps } from '$lib/utils/mergeProps';
 
   const tools: { id: EditorTab; label: string; icon: string; title: string }[] = [
     {
