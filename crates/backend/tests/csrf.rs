@@ -145,3 +145,29 @@ async fn safe_methods_skip_the_guard() {
         panic!("a cross-origin GET must still be served, got {status}");
     }
 }
+
+#[tokio::test]
+async fn a_foreign_origin_api_key_mutation_is_forbidden() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let mut req = json_request(
+        "POST",
+        "/api/jobs",
+        serde_json::json!({
+            "kind": "reset_edits",
+            "asset_ids": [uuid::Uuid::new_v4()],
+            "params": {}
+        }),
+    );
+    req.headers_mut().insert(
+        "origin",
+        axum::http::HeaderValue::from_static("http://evil.example.com"),
+    );
+    let resp = app.oneshot(req).await.unwrap();
+    if resp.status() != StatusCode::FORBIDDEN {
+        panic!(
+            "a foreign origin mutation must be rejected, got {}",
+            resp.status()
+        );
+    }
+}

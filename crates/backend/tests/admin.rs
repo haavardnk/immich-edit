@@ -250,3 +250,63 @@ async fn a_rebind_to_a_blocked_url_is_rejected() {
 
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn admin_users_lists_current_admin() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app.oneshot(get("/api/admin/users")).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json = body_json(resp).await;
+    assert_eq!(json["users"].as_array().unwrap().len(), 1);
+    assert_eq!(json["users"][0]["is_admin"], true);
+}
+
+#[tokio::test]
+async fn admin_instance_reports_epoch() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app.oneshot(get("/api/admin/instance")).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json = body_json(resp).await;
+    assert!(json["server_epoch"].is_number());
+}
+
+#[tokio::test]
+async fn shared_profile_writes_require_admin() {
+    let cases = [
+        ("POST", "/api/luts?name=x"),
+        ("DELETE", "/api/luts/some-id"),
+        ("POST", "/api/dcp?name=x"),
+        ("DELETE", "/api/dcp/some-id"),
+        ("POST", "/api/watermarks?name=x"),
+        ("DELETE", "/api/watermarks/some-id"),
+    ];
+    for (method, uri) in cases {
+        let server = MockServer::start().await;
+        let app = member_app(&server).await;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .body(Body::from("payload"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN, "{method} {uri}");
+        let json = body_json(resp).await;
+        assert_eq!(json["code"], "admin_required", "{method} {uri}");
+    }
+}
+
+#[tokio::test]
+async fn shared_profile_reads_allow_members() {
+    for uri in ["/api/luts", "/api/dcp", "/api/watermarks"] {
+        let server = MockServer::start().await;
+        let app = member_app(&server).await;
+        let resp = app.oneshot(get(uri)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "{uri}");
+    }
+}

@@ -79,3 +79,29 @@ async fn a_failed_upstream_logout_is_logged() {
         panic!("a failed upstream logout must be logged, got {logged:?}");
     }
 }
+
+#[tokio::test]
+async fn logout_revokes_upstream_password_session_only() {
+    for (password, calls) in [(true, 1), (false, 0)] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/auth/logout"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .expect(calls)
+            .mount(&server)
+            .await;
+        let app = if password {
+            password_app(&server).await
+        } else {
+            test_app(&server).await
+        };
+        let resp = app
+            .oneshot(empty_request("POST", "/api/auth/logout"))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("logout status {} (password {password})", resp.status());
+        }
+        server.verify().await;
+    }
+}
