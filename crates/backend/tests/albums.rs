@@ -79,3 +79,39 @@ async fn another_users_album_is_refused() {
         panic!("member add to a foreign album returned {}", resp.status());
     }
 }
+
+#[tokio::test]
+async fn lists_albums() {
+    let server = MockServer::start().await;
+    mock_albums(&server).await;
+    let app = test_app(&server).await;
+    let resp = app.oneshot(get("/api/albums")).await.unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json[0]["albumName"] != "Test Album" {
+        panic!("body: {json}");
+    }
+}
+
+#[tokio::test]
+async fn album_detail_returns_metadata_without_assets() {
+    let server = MockServer::start().await;
+    mock_album_detail(&server).await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(get(&format!("/api/albums/{}", album_id())))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json["albumName"] != "Test Album" || json["assetCount"] != 1 {
+        panic!("album: {json}");
+    }
+    if json.get("assets").is_some() {
+        panic!("album still carries assets: {json}");
+    }
+}
