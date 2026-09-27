@@ -1,4 +1,4 @@
-use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages, TextureViewDescriptor};
+use wgpu::{CommandEncoderDescriptor, Texture};
 
 use crate::PipelineResult;
 use crate::edits::Edits;
@@ -8,6 +8,7 @@ use crate::gpu::passes::dehaze::{
 };
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::ops::dehaze::DehazeGrid;
 
@@ -20,7 +21,6 @@ impl GpuRenderer {
         atm: [f32; 3],
     ) -> PipelineResult<PooledTexture> {
         let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
         let (w, h) = extent.dims;
         let DehazeGrid {
             scale,
@@ -31,20 +31,8 @@ impl GpuRenderer {
         let lh = (h / scale).max(1);
         let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
 
-        let scratch_key = TextureKey::new(
-            self.ctx.linear_format,
-            lw,
-            lh,
-            1,
-            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-        );
-        let moment_key = TextureKey::new(
-            MOMENT_FORMAT,
-            lw,
-            lh,
-            1,
-            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-        );
+        let scratch_key = TextureKey::new(self.ctx.linear_format, lw, lh, 1, STORAGE_SAMPLED);
+        let moment_key = TextureKey::new(MOMENT_FORMAT, lw, lh, 1, STORAGE_SAMPLED);
         let make_scratch_lo =
             |label: &'static str| self.texture_pool.acquire(device, scratch_key, label);
         let make_moment_lo =
@@ -59,36 +47,23 @@ impl GpuRenderer {
         let ab = make_moment_lo("dehaze-ab");
         let ab_h = make_moment_lo("dehaze-ab-h");
         let ab_v = make_moment_lo("dehaze-ab-v");
-        let out_key = TextureKey::new(
-            self.ctx.linear_format,
-            w,
-            h,
-            1,
-            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-        );
+        let out_key = TextureKey::new(self.ctx.linear_format, w, h, 1, STORAGE_SAMPLED);
         let out = self.texture_pool.acquire(device, out_key, "dehaze-out");
 
-        let downsample_params = DehazeDownsampleParams {
-            size: [lw, lh],
-            scale,
-            _pad: 0,
-        };
-        let downsample_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&downsample_params),
+        let downsample_buf = self.uniform(
+            &DehazeDownsampleParams {
+                size: [lw, lh],
+                scale,
+                _pad: 0,
+            },
             "dehaze-downsample-u",
         );
-
-        let norm_params = DehazeNormParams {
-            size: [lw, lh],
-            _pad: [0; 2],
-            atmosphere: [atm[0], atm[1], atm[2], 1.0],
-        };
-        let norm_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&norm_params),
+        let norm_buf = self.uniform(
+            &DehazeNormParams {
+                size: [lw, lh],
+                _pad: [0; 2],
+                atmosphere: [atm[0], atm[1], atm[2], 1.0],
+            },
             "dehaze-norm-u",
         );
 
@@ -98,8 +73,7 @@ impl GpuRenderer {
                 radius,
                 axis,
             };
-            self.uniform_pool
-                .acquire(device, queue, bytemuck::bytes_of(&params), label)
+            self.uniform(&params, label)
         };
         let min_h_buf = make_filter_u(r_patch, 0, "dehaze-min-h-u");
         let min_v_buf = make_filter_u(r_patch, 1, "dehaze-min-v-u");
@@ -109,38 +83,31 @@ impl GpuRenderer {
         let pack_buf = make_filter_u(0, 0, "dehaze-pack-u");
         let ab_uni = make_filter_u(0, 0, "dehaze-ab-u");
 
-        let apply_params = DehazeApplyParams {
-            size: [w, h],
-            lo_size: [lw, lh],
-            atmosphere: [atm[0], atm[1], atm[2], 1.0],
-            amount,
-            scale: scale as f32,
-            _pad: [0.0; 2],
-        };
-        let apply_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&apply_params),
+        let apply_buf = self.uniform(
+            &DehazeApplyParams {
+                size: [w, h],
+                lo_size: [lw, lh],
+                atmosphere: [atm[0], atm[1], atm[2], 1.0],
+                amount,
+                scale: scale as f32,
+                _pad: [0.0; 2],
+            },
             "dehaze-apply-u",
         );
 
-        let src_view = src.create_view(&TextureViewDescriptor::default());
-        let lo_src_view = lo_src.create_view(&TextureViewDescriptor::default());
-        let lo_src_store_view = lo_src.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
-        let dn_view = dn.create_view(&TextureViewDescriptor::default());
-        let dn_h_view = dn_h.create_view(&TextureViewDescriptor::default());
-        let dn_min_view = dn_min.create_view(&TextureViewDescriptor::default());
-        let packed_view = packed.create_view(&TextureViewDescriptor::default());
-        let packed_h_view = packed_h.create_view(&TextureViewDescriptor::default());
-        let packed_v_view = packed_v.create_view(&TextureViewDescriptor::default());
-        let ab_view = ab.create_view(&TextureViewDescriptor::default());
-        let ab_h_view = ab_h.create_view(&TextureViewDescriptor::default());
-        let ab_v_view = ab_v.create_view(&TextureViewDescriptor::default());
-        let out_view = out.create_view(&TextureViewDescriptor::default());
+        let src_view = full_view(src);
+        let lo_src_view = full_view(&lo_src);
+        let lo_src_store_view = mip_view(&lo_src, 0);
+        let dn_view = full_view(&dn);
+        let dn_h_view = full_view(&dn_h);
+        let dn_min_view = full_view(&dn_min);
+        let packed_view = full_view(&packed);
+        let packed_h_view = full_view(&packed_h);
+        let packed_v_view = full_view(&packed_v);
+        let ab_view = full_view(&ab);
+        let ab_h_view = full_view(&ab_h);
+        let ab_v_view = full_view(&ab_v);
+        let out_view = full_view(&out);
 
         let p = &self.passes.dehaze;
         let bg_downsample = bind_group(
@@ -297,7 +264,7 @@ impl GpuRenderer {
             c.set_bind_group(0, &bg_apply, &[]);
             c.dispatch_workgroups(gx, gy, 1);
         }
-        queue.submit(Some(encoder.finish()));
+        self.ctx.queue.submit(Some(encoder.finish()));
         Ok(out)
     }
 }

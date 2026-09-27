@@ -2,16 +2,14 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{
-    BufferUsages, CommandEncoderDescriptor, Extent3d, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{BufferUsages, CommandEncoderDescriptor, TextureUsages};
 
 use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::helpers::{
     DemosaicParams, SuperpixelParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
 };
+use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d, write_texture_2d};
 use crate::{PipelineError, PipelineResult};
 
 use super::{CachedFrame, GpuRenderer};
@@ -68,36 +66,21 @@ impl GpuRenderer {
         };
         let w = (frame.meta.width / block) as u32;
         let h = (frame.meta.height / block) as u32;
-        let uniform_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&params),
-            "superpixel-uniform",
-        );
+        let uniform_buf = self.uniform(&params, "superpixel-uniform");
         let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("superpixel-raw-storage"),
             contents: bytemuck::cast_slice(&frame.data),
             usage: BufferUsages::STORAGE,
         });
-        let texture = device.create_texture(&TextureDescriptor {
-            label: Some("linear-superpixel"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let view = texture.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let texture = texture_2d(
+            device,
+            "linear-superpixel",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED,
+        );
+        let view = mip_view(&texture, 0);
         let bind = bind_group(
             device,
             "superpixel-bg",
@@ -150,36 +133,20 @@ impl GpuRenderer {
             })
             .collect();
 
-        let texture = device.create_texture(&TextureDescriptor {
-            label: Some("linear-uploaded"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        queue.write_texture(
-            texture.as_image_copy(),
+        let texture = texture_2d(
+            device,
+            "linear-uploaded",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED | TextureUsages::COPY_DST,
+        );
+        write_texture_2d(
+            queue,
+            &texture,
             bytemuck::cast_slice(&rgba_f16),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(w * 8),
-                rows_per_image: Some(h),
-            },
-            Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
+            w * 8,
+            (w, h),
         );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
@@ -222,17 +189,12 @@ impl GpuRenderer {
         let w = frame.meta.width as u32;
         let h = frame.meta.height as u32;
 
-        let cfa = cfa_to_indices(&frame.cfa_pattern);
-        let params = DemosaicParams {
-            size: [w, h],
-            _pad: [0, 0],
-            cfa,
-        };
-
-        let uniform_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&params),
+        let uniform_buf = self.uniform(
+            &DemosaicParams {
+                size: [w, h],
+                _pad: [0, 0],
+                cfa: cfa_to_indices(&frame.cfa_pattern),
+            },
             "demosaic-uniform",
         );
 
@@ -242,25 +204,15 @@ impl GpuRenderer {
             usage: BufferUsages::STORAGE,
         });
 
-        let texture = device.create_texture(&TextureDescriptor {
-            label: Some("linear-cached"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let view = texture.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let texture = texture_2d(
+            device,
+            "linear-cached",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED,
+        );
+        let view = mip_view(&texture, 0);
 
         let bind = bind_group(
             device,
@@ -307,14 +259,14 @@ impl GpuRenderer {
         let w = frame.meta.width as u32;
         let h = frame.meta.height as u32;
 
-        let params = XtransParams {
-            size: [w, h],
-            _pad: [0, 0],
-            pattern: xtrans_to_indices(pattern),
-        };
-        let uniform_buf =
-            self.uniform_pool
-                .acquire(device, queue, bytemuck::bytes_of(&params), "xtrans-uniform");
+        let uniform_buf = self.uniform(
+            &XtransParams {
+                size: [w, h],
+                _pad: [0, 0],
+                pattern: xtrans_to_indices(pattern),
+            },
+            "xtrans-uniform",
+        );
 
         let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("xtrans-raw-storage"),
@@ -328,25 +280,15 @@ impl GpuRenderer {
             mapped_at_creation: false,
         });
 
-        let texture = device.create_texture(&TextureDescriptor {
-            label: Some("linear-cached"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let view = texture.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let texture = texture_2d(
+            device,
+            "linear-cached",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED,
+        );
+        let view = mip_view(&texture, 0);
 
         let green_bind = bind_group(
             device,

@@ -2,7 +2,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use wgpu::{Extent3d, Texture, TextureDescriptor, TextureDimension, TextureUsages};
+use wgpu::{Texture, TextureUsages};
 
 use crate::PipelineError;
 use crate::PipelineResult;
@@ -18,6 +18,7 @@ use super::passes::GpuPasses;
 use super::resources::{OutputTargets, SharpenTargets};
 #[cfg(feature = "native")]
 use super::source::RenderSource;
+use super::texture::{texture_2d, write_texture_2d};
 use super::texture_pool::TexturePool;
 #[cfg(feature = "native")]
 use super::timer::RenderTimings;
@@ -277,38 +278,20 @@ impl GpuRenderer {
 
 fn make_dummy_luma(ctx: &GpuContext) -> Texture {
     let bytes_per_texel = ctx.linear_format.block_copy_size(None).unwrap_or(8);
-    let tex = ctx.device.create_texture(&TextureDescriptor {
-        label: Some("shadows-blur-dummy"),
-        size: Extent3d {
-            width: 1,
-            height: 1,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: ctx.linear_format,
-        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
-    ctx.queue.write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture: &tex,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
+    let tex = texture_2d(
+        &ctx.device,
+        "shadows-blur-dummy",
+        ctx.linear_format,
+        (1, 1),
+        1,
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+    );
+    write_texture_2d(
+        &ctx.queue,
+        &tex,
         &vec![0u8; bytes_per_texel as usize],
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(bytes_per_texel),
-            rows_per_image: Some(1),
-        },
-        Extent3d {
-            width: 1,
-            height: 1,
-            depth_or_array_layers: 1,
-        },
+        bytes_per_texel,
+        (1, 1),
     );
     tex
 }

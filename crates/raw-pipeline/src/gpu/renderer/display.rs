@@ -19,6 +19,7 @@ use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::process::ProcessFastPass;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::source::{LinearSource, SourceExtent};
+use crate::gpu::texture::STORAGE_SAMPLED;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::gpu::uniforms::FULL_WINDOW;
@@ -341,10 +342,7 @@ impl GpuRenderer {
         if depth != DisplayDepth::Sixteen {
             return None;
         }
-        let usage = TextureUsages::STORAGE_BINDING
-            | TextureUsages::TEXTURE_BINDING
-            | TextureUsages::COPY_SRC
-            | TextureUsages::COPY_DST;
+        let usage = STORAGE_SAMPLED | TextureUsages::COPY_SRC | TextureUsages::COPY_DST;
         Some(self.texture_pool.acquire(
             &self.ctx.device,
             TextureKey::new(depth.format(), w, h, 1, usage),

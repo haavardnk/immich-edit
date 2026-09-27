@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoder, Texture, TextureFormat, TextureViewDescriptor};
+use wgpu::{BufferUsages, CommandEncoder, Texture, TextureFormat};
 
 use super::GpuRenderer;
 use crate::PipelineResult;
@@ -12,6 +12,7 @@ use crate::gpu::readback::read_u32_ranges;
 #[cfg(feature = "web")]
 use crate::gpu::readback::read_u32_ranges_async;
 use crate::gpu::resources::{HISTOGRAM_BYTES, OutputTargets, SCOPE_BYTES};
+use crate::gpu::texture::full_view;
 use crate::gpu::timer::RenderTimings;
 use crate::histogram::{BINS, Histogram, sample_step};
 use crate::scopes::{ScopeGrids, row_step};
@@ -75,7 +76,7 @@ impl GpuRenderer {
             TextureFormat::Rgba16Uint => &self.passes.depth16(&self.ctx).meta_bins,
             _ => &self.passes.meta_bins,
         };
-        let display_view = display.create_view(&TextureViewDescriptor::default());
+        let display_view = full_view(display);
         if request.histogram {
             t.stage(timing::HISTOGRAM, || {
                 self.encode_histogram(encoder, p, passes, &display_view, linear, dims)
@@ -99,7 +100,7 @@ impl GpuRenderer {
     ) {
         let step = sample_step(out_w as usize * out_h as usize) as u32;
         let params = self.bin_params(out_w, out_h, step);
-        let linear_view = linear_src.create_view(&TextureViewDescriptor::default());
+        let linear_view = full_view(linear_src);
         let bind = bind_group(
             &self.ctx.device,
             "histogram-bg",

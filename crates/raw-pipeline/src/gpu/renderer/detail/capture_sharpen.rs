@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Texture, TextureDescriptor, TextureDimension,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::gpu::dispatch::{begin_pass, bind_group, tex};
@@ -14,6 +11,7 @@ use crate::gpu::passes::capture_sharpen::{
 };
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::stage_cache::Stage;
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::texture_pool::TextureKey;
 
 impl GpuRenderer {
@@ -31,20 +29,16 @@ impl GpuRenderer {
         let _span =
             tracing::debug_span!("gpu.submit_capture_sharpen", w = dims.0, h = dims.1).entered();
         let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
         let (w, h) = dims;
         let p = &self.passes.sensor_stage.capture_sharpen;
         let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
         let radius = (kernel.len() / 2) as u32;
 
-        let luma_params = CaptureLumaParams {
-            size: [w, h],
-            _pad: [0; 2],
-        };
-        let luma_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&luma_params),
+        let luma_buf = self.uniform(
+            &CaptureLumaParams {
+                size: [w, h],
+                _pad: [0; 2],
+            },
             "capture-luma-u",
         );
 
@@ -58,32 +52,22 @@ impl GpuRenderer {
                 kernel: [0.0; CAPTURE_KERNEL_MAX],
             };
             params.kernel[..kernel.len()].copy_from_slice(&kernel);
-            self.uniform_pool
-                .acquire(device, queue, bytemuck::bytes_of(&params), label)
+            self.uniform(&params, label)
         };
         let blur_h_buf = make_blur_u(0, 0, "capture-blur-h-u");
         let blur_ratio_buf = make_blur_u(1, 1, "capture-blur-ratio-u");
         let blur_mul_buf = make_blur_u(1, 2, "capture-blur-mul-u");
 
-        let apply_params = CaptureApplyParams {
-            size: [w, h],
-            radius,
-            _pad: 0,
-        };
-        let apply_buf = self.uniform_pool.acquire(
-            device,
-            queue,
-            bytemuck::bytes_of(&apply_params),
+        let apply_buf = self.uniform(
+            &CaptureApplyParams {
+                size: [w, h],
+                radius,
+                _pad: 0,
+            },
             "capture-apply-u",
         );
 
-        let scratch_key = TextureKey::new(
-            CAPTURE_SCRATCH_FORMAT,
-            w,
-            h,
-            1,
-            TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-        );
+        let scratch_key = TextureKey::new(CAPTURE_SCRATCH_FORMAT, w, h, 1, STORAGE_SAMPLED);
         let luma = self
             .texture_pool
             .acquire(device, scratch_key, "capture-luma");
@@ -97,33 +81,21 @@ impl GpuRenderer {
             .texture_pool
             .acquire(device, scratch_key, "capture-tmp");
 
-        let out = device.create_texture(&TextureDescriptor {
-            label: Some("capture-sharpen-out"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
+        let out = texture_2d(
+            device,
+            "capture-sharpen-out",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+        );
 
-        let src_view = src.create_view(&TextureViewDescriptor::default());
-        let luma_view = luma.create_view(&TextureViewDescriptor::default());
-        let est_a_view = est_a.create_view(&TextureViewDescriptor::default());
-        let est_b_view = est_b.create_view(&TextureViewDescriptor::default());
-        let tmp_view = tmp.create_view(&TextureViewDescriptor::default());
-        let out_view = out.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let src_view = full_view(src);
+        let luma_view = full_view(&luma);
+        let est_a_view = full_view(&est_a);
+        let est_b_view = full_view(&est_b);
+        let tmp_view = full_view(&tmp);
+        let out_view = mip_view(&out, 0);
 
         let bg_luma = bind_group(
             device,
@@ -194,7 +166,7 @@ impl GpuRenderer {
             cpass.dispatch_workgroups(gx, gy, 1);
         }
         self.encode_mipgen(&mut encoder, &out, w, h);
-        queue.submit(Some(encoder.finish()));
+        self.ctx.queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(out);
         self.sensor.stages.put(Stage::Capture, key, out.clone());

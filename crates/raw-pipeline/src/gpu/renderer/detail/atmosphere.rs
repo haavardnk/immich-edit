@@ -1,7 +1,8 @@
-use wgpu::{BufferUsages, CommandEncoderDescriptor, Extent3d, Texture};
+use wgpu::{BufferUsages, CommandEncoderDescriptor, Texture};
 
 use crate::PipelineResult;
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::texture::extent_2d;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn atmosphere_for(
@@ -77,11 +78,7 @@ impl GpuRenderer {
                     rows_per_image: Some(hl),
                 },
             },
-            Extent3d {
-                width: wl,
-                height: hl,
-                depth_or_array_layers: 1,
-            },
+            extent_2d((wl, hl)),
         );
         self.ctx.queue.submit(Some(encoder.finish()));
 

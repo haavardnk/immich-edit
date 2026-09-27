@@ -5,12 +5,13 @@ use std::sync::mpsc::TryRecvError;
 use std::time::Duration;
 
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d, MapMode, Origin3d,
+    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, MapMode, Origin3d,
     TexelCopyBufferInfo, TexelCopyBufferLayout, Texture, TextureAspect,
 };
 
 #[cfg(feature = "native")]
 use super::context::GpuContext;
+use super::texture::extent_2d;
 #[cfg(feature = "native")]
 use crate::cancel::CancelToken;
 use crate::{PipelineError, PipelineResult};
@@ -89,11 +90,7 @@ pub fn copy_texture_to_buffer(
                 rows_per_image: Some(height),
             },
         },
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
+        extent_2d((width, height)),
     );
 }
 

@@ -3,11 +3,10 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use wgpu::{
-    Device, Extent3d, Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-};
+use wgpu::{Device, Texture, TextureFormat, TextureUsages};
 
 use super::budget::GpuBudget;
+use super::texture::texture_2d;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct TextureKey {
@@ -81,20 +80,14 @@ impl TexturePool {
             popped
         };
         let tex = from_pool.unwrap_or_else(|| {
-            Arc::new(device.create_texture(&TextureDescriptor {
-                label: Some(label),
-                size: Extent3d {
-                    width: key.width,
-                    height: key.height,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: key.mip_level_count,
-                sample_count: 1,
-                dimension: TextureDimension::D2,
-                format: key.format,
-                usage: TextureUsages::from_bits_truncate(key.usage_bits),
-                view_formats: &[],
-            }))
+            Arc::new(texture_2d(
+                device,
+                label,
+                key.format,
+                (key.width, key.height),
+                key.mip_level_count,
+                TextureUsages::from_bits_truncate(key.usage_bits),
+            ))
         });
         PooledTexture {
             texture: Some(tex),

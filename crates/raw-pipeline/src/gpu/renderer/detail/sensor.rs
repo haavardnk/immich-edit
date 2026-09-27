@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, TextureDescriptor, TextureDimension, TextureUsages,
-    TextureViewDescriptor,
-};
+use wgpu::CommandEncoderDescriptor;
 
 use crate::PipelineResult;
 use crate::edits::Edits;
@@ -11,6 +8,7 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::sensor::SensorParams;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
+use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d};
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_sensor(
@@ -24,34 +22,20 @@ impl GpuRenderer {
         let queue = &self.ctx.queue;
         let w = src.width;
         let h = src.height;
-        let params = SensorParams::from_edits(&edits.lens, w, h);
-        let uniform_buf =
-            self.uniform_pool
-                .acquire(device, queue, bytemuck::bytes_of(&params), "sensor-uniform");
-        let dst = device.create_texture(&TextureDescriptor {
-            label: Some("sensor-out"),
-            size: Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: mip_count(w, h),
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: self.ctx.linear_format,
-            usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let src_view = src.texture.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
-        let dst_view = dst.create_view(&TextureViewDescriptor {
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            ..Default::default()
-        });
+        let uniform_buf = self.uniform(
+            &SensorParams::from_edits(&edits.lens, w, h),
+            "sensor-uniform",
+        );
+        let dst = texture_2d(
+            device,
+            "sensor-out",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED,
+        );
+        let src_view = mip_view(&src.texture, 0);
+        let dst_view = mip_view(&dst, 0);
         let pass = &self.passes.sensor_stage.sensor;
         let bind = bind_group(
             device,

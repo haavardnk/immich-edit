@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use wgpu::{
     Adapter, AdapterInfo, Backends, Device, DeviceDescriptor, DeviceType, Features, Instance,
     InstanceDescriptor, Limits, MemoryHints, Queue, TextureFormat, TextureFormatFeatureFlags,
-    TextureUsages,
 };
 
+use super::texture::STORAGE_SAMPLED;
 use super::timer::TimerSlots;
 use crate::{PipelineError, PipelineResult};
 
@@ -145,9 +145,8 @@ fn adapter_rank(device_type: DeviceType) -> u8 {
 fn pick_linear_format(adapter: &Adapter) -> TextureFormat {
     let prefer = TextureFormat::Rgba16Float;
     let feats = adapter.get_texture_format_features(prefer);
-    let needs_usage = TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let needs_flags = TextureFormatFeatureFlags::FILTERABLE;
-    if feats.allowed_usages.contains(needs_usage) && feats.flags.contains(needs_flags) {
+    if feats.allowed_usages.contains(STORAGE_SAMPLED) && feats.flags.contains(needs_flags) {
         return prefer;
     }
     TextureFormat::Rgba32Float

@@ -9,6 +9,7 @@ mod renderer;
 mod resources;
 pub mod shader_builder;
 pub mod source;
+mod texture;
 mod texture_pool;
 mod timer;
 mod uniform_pool;

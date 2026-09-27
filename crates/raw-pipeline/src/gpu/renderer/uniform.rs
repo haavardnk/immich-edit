@@ -1,8 +1,25 @@
+use super::GpuRenderer;
 use super::geometry::ProcessGeom;
 use crate::edits::Edits;
 use crate::gpu::shader_builder::BuiltProcessShader;
+use crate::gpu::uniform_pool::PooledUniform;
 use crate::gpu::uniforms::{ProcessHeader, write_active_mask, write_header};
 use crate::ops::{OpContext, OpRegistry};
+
+impl GpuRenderer {
+    pub(super) fn uniform<T: bytemuck::Pod>(
+        &self,
+        value: &T,
+        label: &'static str,
+    ) -> PooledUniform {
+        self.uniform_pool.acquire(
+            &self.ctx.device,
+            &self.ctx.queue,
+            bytemuck::bytes_of(value),
+            label,
+        )
+    }
+}
 
 pub(super) fn header_uniform(
     edits: &Edits,
