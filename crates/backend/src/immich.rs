@@ -1,5 +1,6 @@
 pub mod client;
 pub mod dto;
+pub mod url;
 
 pub use client::ImmichClient;
 

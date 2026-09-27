@@ -8,10 +8,11 @@ use serde_json::json;
 use url::Url;
 
 use crate::error::AppError;
-use crate::routes::auth;
+use crate::immich::url::validate_candidate_url;
 use crate::routes::auth::oauth;
 use crate::services::auth_store::AuthKind;
 use crate::services::login_limiter::LoginKey;
+use crate::services::login_session::{ClientMeta, finish_setup};
 use crate::services::oauth_flow::{FlowPurpose, OAuthFlow};
 use crate::state::AppState;
 
@@ -44,7 +45,7 @@ pub async fn providers(
     Query(query): Query<ProvidersQuery>,
 ) -> Result<Response, AppError> {
     require_unconfigured(&state).await?;
-    let base = auth::validate_candidate_url(&query.immich_url)?;
+    let base = validate_candidate_url(&query.immich_url)?;
     let p = state.providers.get(&base).await;
     Ok((
         StatusCode::OK,
@@ -61,12 +62,12 @@ pub async fn providers(
 
 pub async fn start(
     State(state): State<AppState>,
-    client: auth::ClientMeta,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<StartBody>,
 ) -> Result<Response, AppError> {
     require_unconfigured(&state).await?;
-    let base = auth::validate_candidate_url(&body.immich_url)?;
+    let base = validate_candidate_url(&body.immich_url)?;
     let redirect = oauth::validate_redirect_uri(&body.redirect_uri, &headers)?;
     let flow = OAuthFlow::begin(
         FlowPurpose::Setup,
@@ -79,7 +80,7 @@ pub async fn start(
 
 pub async fn complete(
     State(state): State<AppState>,
-    client: auth::ClientMeta,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<CompleteBody>,
 ) -> Result<Response, AppError> {
@@ -102,7 +103,7 @@ pub async fn complete(
 
 async fn exchange(
     state: &AppState,
-    client: &auth::ClientMeta,
+    client: &ClientMeta,
     headers: &HeaderMap,
     body: &CompleteBody,
 ) -> Result<Response, AppError> {
@@ -118,7 +119,7 @@ async fn exchange(
     if !user.is_admin {
         return Err(AppError::AdminRequired);
     }
-    let mut resp = auth::finish_setup(
+    let mut resp = finish_setup(
         state,
         base.as_str(),
         &user,

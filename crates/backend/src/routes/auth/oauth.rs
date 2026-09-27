@@ -8,13 +8,14 @@ use serde_json::json;
 use std::time::Duration;
 use url::Url;
 
-use super::{ClientMeta, resolve_immich_base, start_session, user_json};
 use crate::error::AppError;
 use crate::immich::ImmichError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichLogin, ImmichUser};
+use crate::immich::url::resolve_immich_base;
 use crate::services::auth_store::AuthKind;
 use crate::services::crypto::InstanceCrypto;
 use crate::services::login_limiter::LoginKey;
+use crate::services::login_session::{ClientMeta, session_cookie, start_session, user_json};
 use crate::services::oauth_flow::{self, FlowPurpose, OAuthFlow};
 use crate::state::AppState;
 
@@ -177,7 +178,7 @@ pub fn login_user(login: &ImmichLogin) -> ImmichUser {
 }
 
 pub async fn providers(State(state): State<AppState>) -> Result<Response, AppError> {
-    let base = resolve_immich_base(&state).await?;
+    let base = resolve_immich_base(&state.instance).await?;
     let p = state.providers.get(&base).await;
     Ok((
         StatusCode::OK,
@@ -198,7 +199,7 @@ pub async fn start(
     headers: HeaderMap,
     Json(body): Json<StartBody>,
 ) -> Result<Response, AppError> {
-    let base = resolve_immich_base(&state).await?;
+    let base = resolve_immich_base(&state.instance).await?;
     let redirect = validate_redirect_uri(&body.redirect_uri, &headers)?;
     let flow = OAuthFlow::begin(FlowPurpose::Login, &redirect, safe_next(body.next), None);
     begin_flow(&base, &flow, &state.crypto, client.secure).await
@@ -234,7 +235,7 @@ async fn finish_callback(
 ) -> Result<Response, AppError> {
     let flow = open_flow(state, headers, FlowPurpose::Login)?;
     let callback_url = validate_callback_url(&body.url, &flow)?;
-    let base = resolve_immich_base(state).await?;
+    let base = resolve_immich_base(&state.instance).await?;
     let login = exchange_code(&base, &flow, &callback_url).await?;
     let user = login_user(&login);
     let (stored, token) = start_session(
@@ -253,7 +254,7 @@ async fn finish_callback(
         obj.insert("next".into(), json!(next));
     }
     let mut resp = (StatusCode::OK, Json(payload)).into_response();
-    if let Ok(v) = HeaderValue::from_str(&super::session_cookie(&token, client.secure)) {
+    if let Ok(v) = HeaderValue::from_str(&session_cookie(&token, client.secure)) {
         resp.headers_mut().append(SET_COOKIE, v);
     }
     clear_flow_cookie(&mut resp);

@@ -6,8 +6,10 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::error::AppError;
-use crate::routes::auth;
+use crate::immich::url::validate_candidate_url;
+use crate::services::credentials::validate_credentials;
 use crate::services::login_limiter::LoginKey;
+use crate::services::login_session::{ClientMeta, finish_setup};
 use crate::state::AppState;
 
 pub mod oauth;
@@ -27,7 +29,7 @@ pub struct SetupBody {
 
 pub async fn complete(
     State(state): State<AppState>,
-    client: auth::ClientMeta,
+    client: ClientMeta,
     headers: HeaderMap,
     Json(body): Json<SetupBody>,
 ) -> Result<Response, AppError> {
@@ -42,9 +44,9 @@ pub async fn complete(
     if let Some(duration) = state.login_limiter.retry_after(&key) {
         return Err(AppError::RateLimited(Some(duration.as_secs())));
     }
-    let base = auth::validate_candidate_url(&body.immich_url)?;
+    let base = validate_candidate_url(&body.immich_url)?;
 
-    let validated = auth::validate_credentials(
+    let validated = validate_credentials(
         &base,
         body.email.as_deref(),
         body.password.as_deref(),
@@ -65,5 +67,5 @@ pub async fn complete(
     }
     state.login_limiter.record_success(&key);
 
-    auth::finish_setup(&state, base.as_str(), &user, kind, &cred, &headers, &client).await
+    finish_setup(&state, base.as_str(), &user, kind, &cred, &headers, &client).await
 }

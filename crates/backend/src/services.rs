@@ -3,6 +3,7 @@ pub mod asset_counts;
 pub mod auth_store;
 pub mod blob_store;
 pub mod copy_expand;
+pub mod credentials;
 pub mod crypto;
 pub mod dcp_store;
 pub mod edit_merge;
@@ -15,6 +16,7 @@ pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;
 pub mod login_limiter;
+pub mod login_session;
 pub mod lut_store;
 pub mod mask_scene;
 #[cfg(feature = "ml")]
