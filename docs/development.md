@@ -159,9 +159,9 @@ specs pin the server renderer through `installMocks`; pass `renderer: 'auto'` to
 
 CI fails when `web_render_bg.wasm` grows past 600 KiB gzipped.
 
-Raw-pipeline integration tests share `crates/raw-pipeline/tests/common/mod.rs` for fixture discovery,
-synthetic frames, JPEG decoding, and parity metrics. Declare `mod common;` and add a helper there
-instead of copying one into a test binary.
+Raw-pipeline integration tests share the `raw-pipeline-testkit` crate for fixture discovery,
+synthetic frames, JPEG decoding, and parity metrics. Add a helper to its modules instead of copying
+one into a test binary.
 
 Local scratch files under `crates/ml/examples` and `crates/raw-pipeline/examples` are ignored and can
 break `--all-targets`. Do not add dependencies only to compile a scratch file.
