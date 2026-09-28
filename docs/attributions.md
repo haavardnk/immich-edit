@@ -28,7 +28,7 @@ immich-edit builds on these projects:
 
 Bundled DNG camera profiles come from
 [RawTherapee](https://github.com/Beep6581/RawTherapee), revision
-`039b9b89d43315be6b42e8fbb33b8cfb39edd4bf`. They are distributed under
+`94c3096e706d89a2325415d56af188ca0228ce34`. They are distributed under
 GPL-3.0-or-later. Some profiles are CC0 or public domain; each profile's copyright remains in the
 bundled manifest.
 

@@ -368,6 +368,8 @@ const KNOWN_MAKES: &[&str] = &[
     "RICOHIMAGINGCOMPANYLTD",
     "EASTMANKODAKCOMPANY",
     "LEICACAMERAAG",
+    "KONICAMINOLTA",
+    "YITECHNOLOGY",
     "PANASONIC",
     "HASSELBLAD",
     "FUJIFILM",
@@ -381,9 +383,10 @@ const KNOWN_MAKES: &[&str] = &[
     "SIGMA",
     "RICOH",
     "SONY",
+    "LEAF",
 ];
 
-const MODEL_ALIASES: &[(&str, &str)] = &[("Z62", "Z6II"), ("Z72", "Z7II")];
+const MODEL_ALIASES: &[(&str, &str)] = &[("Z62", "Z6II"), ("Z72", "Z7II"), ("MAXXUM7D", "DYNAX7D")];
 
 fn strip_make(normalized: &str) -> &str {
     KNOWN_MAKES
@@ -609,6 +612,28 @@ mod tests {
         assert!(unmatched.is_empty(), "no auto match for: {unmatched:#?}");
     }
 
+    #[tokio::test]
+    async fn bundled_profiles_match_decoder_model_names() {
+        let (store, _dir) = store().await;
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/dcp");
+        store.import_bundled(&assets).await.unwrap();
+        for (model, camera) in [
+            ("Aptus 75", "Leaf Aptus 75"),
+            ("DYNAX 7D", "Konica Minolta Maxxum 7D"),
+            ("MAXXUM 7D", "Konica Minolta Maxxum 7D"),
+            ("SM-G930V", "samsung SM-G930V"),
+            ("LG-H815", "LG-H815"),
+            ("M1", "YI TECHNOLOGY M1"),
+        ] {
+            let meta = store.match_camera_meta(model).await.unwrap();
+            assert_eq!(
+                meta.and_then(|meta| meta.camera_model).as_deref(),
+                Some(camera),
+                "{model}"
+            );
+        }
+    }
+
     #[test]
     fn bundled_manifest_matches_profile_files() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/dcp");
@@ -632,7 +657,7 @@ mod tests {
         assert_eq!(listed, files);
         assert_eq!(
             manifest["source_revision"].as_str(),
-            Some("039b9b89d43315be6b42e8fbb33b8cfb39edd4bf")
+            Some("94c3096e706d89a2325415d56af188ca0228ce34")
         );
     }
 }

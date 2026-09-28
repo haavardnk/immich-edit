@@ -1,10 +1,10 @@
 {
   "source": "RawTherapee (rtdata/dcpprofiles)",
   "source_url": "https://github.com/Beep6581/RawTherapee",
-  "source_revision": "039b9b89d43315be6b42e8fbb33b8cfb39edd4bf",
+  "source_revision": "94c3096e706d89a2325415d56af188ca0228ce34",
   "license": "GPL-3.0-or-later (project license); individual profiles marked CC0/public domain where noted in the copyright field",
   "note": "Bundled from the RawTherapee project, distributed under GPLv3. Per-profile copyright is preserved in the copyright field.",
-  "count": 156,
+  "count": 161,
   "profiles": [
     {
       "file": "Canon EOS 100D.dcp",
@@ -320,6 +320,21 @@
       "file": "FUJIFILM X100T.dcp",
       "camera_model": "Fujifilm X100T",
       "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "Leaf Aptus 75.dcp",
+      "camera_model": "Leaf Aptus 75",
+      "copyright": null
+    },
+    {
+      "file": "LG Mobile LG-H815.dcp",
+      "camera_model": "LG-H815",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "MINOLTA DYNAX 7D.dcp",
+      "camera_model": "Konica Minolta Maxxum 7D",
+      "copyright": "Copyright Dr Slony"
     },
     {
       "file": "NIKON COOLPIX P7800.dcp",
@@ -682,6 +697,11 @@
       "copyright": "Copyright Maciej Dworak"
     },
     {
+      "file": "samsung SM-G930V.dcp",
+      "camera_model": "samsung SM-G930V",
+      "copyright": "RawTherapee CC0"
+    },
+    {
       "file": "SONY DSC-RX100M6.dcp",
       "camera_model": "SONY DSC-RX100M6",
       "copyright": "public domain"
@@ -784,6 +804,11 @@
     {
       "file": "SONY SLT-A99V.dcp",
       "camera_model": "Sony SLT-A99V",
+      "copyright": "Copyright Maciej Dworak"
+    },
+    {
+      "file": "YI TECHNOLOGY M1.dcp",
+      "camera_model": "YI TECHNOLOGY M1",
       "copyright": "Copyright Maciej Dworak"
     }
   ]

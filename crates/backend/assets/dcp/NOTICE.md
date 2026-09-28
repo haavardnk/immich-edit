@@ -7,7 +7,7 @@ with immich-edit for camera-model auto-matching.
 
 Source: [RawTherapee](https://github.com/Beep6581/RawTherapee)
 Path: `rtdata/dcpprofiles/`
-Revision: `039b9b89d43315be6b42e8fbb33b8cfb39edd4bf`
+Revision: `94c3096e706d89a2325415d56af188ca0228ce34`
 
 ## License
 
