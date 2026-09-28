@@ -20,10 +20,6 @@
   import { Button, Field, Icon, IconButton, Select } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import {
     mdiSortAscending,
     mdiSortDescending,
     mdiFilterOutline,
@@ -52,6 +48,9 @@
   } = $props();
 
   const chips = $derived(activeFilterChips(browseControls.filters));
+
+  const labelItemClass =
+    'flex h-full flex-1 items-center justify-center rounded-md text-xs font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark aria-checked:bg-primary aria-checked:text-light';
 
   function removeFilter(key: FilterKey): void {
     browseControls.applyFilters(withoutFilter(browseControls.filters, key));
@@ -245,43 +244,45 @@
           bind:value={() => browseControls.label, (v) => (browseControls.label = v as LabelFilter)}
           orientation="horizontal"
           aria-label="Label"
-          class={segmentedControlClass}
+          class="flex h-10 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800"
         >
-          <RadioGroup.Item value="any" class="{segmentedRadioItemClass} px-2">Any</RadioGroup.Item>
+          <RadioGroup.Item value="any" class={labelItemClass}>Any</RadioGroup.Item>
           {#each LABEL_COLORS as color (color)}
             <RadioGroup.Item
               value={color}
               aria-label={`${LABEL_NAMES[color]} label`}
               title={`${LABEL_NAMES[color]} label`}
-              class="{segmentedRadioItemClass} w-6"
+              class={labelItemClass}
             >
-              <Icon icon={mdiCircle} size="12px" class={LABEL_TEXT[color]} aria-hidden="true" />
+              <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
             </RadioGroup.Item>
           {/each}
           <RadioGroup.Item
             value="none"
             aria-label="No label"
             title="No label"
-            class="{segmentedRadioItemClass} w-6"
+            class={labelItemClass}
           >
-            <Icon icon={mdiCircleOffOutline} size="12px" aria-hidden="true" />
+            <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
           </RadioGroup.Item>
         </RadioGroup.Root>
       </Field>
 
-      {#if !favoriteLocked}
-        <CheckboxRow
-          label="Favorites only"
-          checked={browseControls.favoriteOnly}
-          onChange={(checked) => (browseControls.favoriteOnly = checked)}
-        />
-      {/if}
+      <div class="grid grid-cols-2 gap-2">
+        {#if !favoriteLocked}
+          <CheckboxRow
+            label="Favorites only"
+            checked={browseControls.favoriteOnly}
+            onChange={(checked) => (browseControls.favoriteOnly = checked)}
+          />
+        {/if}
 
-      <CheckboxRow
-        label="Exclude rejected"
-        checked={browseControls.excludeRejected}
-        onChange={(checked) => (browseControls.excludeRejected = checked)}
-      />
+        <CheckboxRow
+          label="Exclude rejected"
+          checked={browseControls.excludeRejected}
+          onChange={(checked) => (browseControls.excludeRejected = checked)}
+        />
+      </div>
 
       {#if !hideFilenameFilter}
         <Field label="Filename" size="small">
