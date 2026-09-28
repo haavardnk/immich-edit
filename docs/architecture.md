@@ -19,6 +19,7 @@ original assets and shared metadata.
 | `crates/raw-pipeline` | Decode, process, histogram, and encode; no HTTP, Immich, SQLite, or disk paths |
 | `crates/web-render` | The GPU display chain compiled to wasm for the browser, drawing to a canvas |
 | `crates/ml` | ONNX model definitions, runtime, tensor preparation, segmentation, and refinement |
+| `crates/raw-pipeline-testkit` | Test-only fixtures, synthetic frames, parity metrics, and GPU setup shared by raw-pipeline tests |
 | `web` | Static SvelteKit SPA; all product data comes from `/api/*` |
 
 The backend serves `web/build` in production.
