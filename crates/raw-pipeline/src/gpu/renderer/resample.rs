@@ -4,8 +4,9 @@ use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
 
 use crate::PipelineResult;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
+use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::resample;
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view, texture_2d};
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 
 use super::GpuRenderer;
 
@@ -16,6 +17,7 @@ impl GpuRenderer {
         src_dims: (u32, u32),
         dst_dims: (u32, u32),
         label: &str,
+        mips: bool,
     ) -> PipelineResult<Arc<Texture>> {
         let _span = tracing::debug_span!(
             "gpu.resample_lanczos",
@@ -30,19 +32,20 @@ impl GpuRenderer {
         let (sw, sh) = src_dims;
         let (dw, dh) = dst_dims;
 
-        let make_texture = |w: u32, h: u32, label: &str| {
+        let make_texture = |w: u32, h: u32, label: &str, levels: u32| {
             texture_2d(
                 device,
                 label,
                 self.ctx.linear_format,
                 (w, h),
-                1,
+                levels,
                 STORAGE_SAMPLED | TextureUsages::COPY_SRC,
             )
         };
 
-        let tmp = make_texture(dw, sh, "resample-tmp");
-        let dst = Arc::new(make_texture(dw, dh, label));
+        let tmp = make_texture(dw, sh, "resample-tmp", 1);
+        let levels = if mips { mip_count(dw, dh) } else { 1 };
+        let dst = Arc::new(make_texture(dw, dh, label, levels));
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("resample-enc"),
@@ -60,7 +63,7 @@ impl GpuRenderer {
                 "resample-uniform",
             );
             let in_view = full_view(input);
-            let out_view = full_view(output);
+            let out_view = mip_view(output, 0);
             let bind = bind_group(
                 device,
                 "resample-bg",
@@ -79,6 +82,9 @@ impl GpuRenderer {
                 w.div_ceil(16),
                 h.div_ceil(16),
             );
+        }
+        if mips {
+            self.encode_mipgen(&mut encoder, &dst, dw, dh);
         }
         queue.submit(Some(encoder.finish()));
         Ok(dst)
