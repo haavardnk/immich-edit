@@ -223,6 +223,44 @@ fn a_cpu_source_renders_like_the_gpu_frame() {
     }
 }
 
+fn speckled_haze(w: usize, h: usize) -> RawFrame {
+    let mut frame = haze_frame(w, h);
+    for (i, v) in frame.data.iter_mut().enumerate() {
+        let hash = (i as u32).wrapping_mul(2_654_435_761).rotate_left(13) ^ 0x9e37_79b9;
+        let noise = (hash.wrapping_mul(1_103_515_245) >> 8) as f32 / (1u32 << 24) as f32;
+        *v = (*v * 0.6 * (0.6 + 0.8 * noise)).min(1.0);
+    }
+    frame
+}
+
+#[test]
+fn a_preview_source_estimates_the_cpu_atmosphere() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let cpu = CpuRenderer::new();
+    let frame = speckled_haze(1600, 1200);
+    let mut edits = Edits::default();
+    edits.basic.dehaze = 40.0;
+    for max_edge in [800, 1600] {
+        let opts = rgb8_opts(max_edge);
+        let gpu = renderer.render_source(&frame, &edits, &opts, None).unwrap();
+        let cpu = cpu.render_source(&frame, &edits, &opts, None).unwrap();
+        let (Some(gpu_atm), Some(cpu_atm)) =
+            (gpu.image.header.atmosphere, cpu.image.header.atmosphere)
+        else {
+            panic!("{max_edge}: a source must carry an atmosphere");
+        };
+        if gpu_atm
+            .iter()
+            .zip(cpu_atm)
+            .any(|(g, c)| (g - c).abs() > 0.01)
+        {
+            panic!("{max_edge}: gpu atmosphere {gpu_atm:?} differs from cpu {cpu_atm:?}");
+        }
+    }
+}
+
 fn tile_opts(max_edge: u32, roi: CropRect) -> RenderOptions {
     RenderOptions {
         roi: Some(roi),

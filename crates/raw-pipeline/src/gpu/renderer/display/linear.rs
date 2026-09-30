@@ -123,12 +123,12 @@ impl GpuRenderer {
             };
             let work_dims = scaled_dims(dims, full, target);
             let texture =
-                self.resample_lanczos(&state.texture, dims, work_dims, "process-downscale")?;
+                self.resample_lanczos(&state.texture, dims, work_dims, "process-downscale", false)?;
             let layers = state
                 .layers
                 .iter()
                 .map(|(id, tex)| {
-                    self.resample_lanczos(tex, dims, work_dims, "layer-downscale")
+                    self.resample_lanczos(tex, dims, work_dims, "layer-downscale", false)
                         .map(|t| (id.clone(), t))
                 })
                 .collect::<PipelineResult<HashMap<String, Arc<Texture>>>>()?;

@@ -237,7 +237,13 @@ impl GpuRenderer {
         let (spatial_dims, texture) = match preview_dims {
             Some(preview_dims) => {
                 let downsampled = t.stage(timing::PREVIEW_RESAMPLE, || {
-                    self.resample_lanczos(&full_src, dims, preview_dims, "preview-spatial-src")
+                    self.resample_lanczos(
+                        &full_src,
+                        dims,
+                        preview_dims,
+                        "preview-spatial-src",
+                        with_atmosphere,
+                    )
                 })?;
                 crate::cancel::check(cancel)?;
                 (preview_dims, downsampled)
