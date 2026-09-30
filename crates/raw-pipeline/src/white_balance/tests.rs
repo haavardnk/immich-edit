@@ -31,6 +31,30 @@ fn make_frame_with<F: Fn(usize, usize) -> [f32; 3]>(w: usize, h: usize, f: F) ->
     }
 }
 
+const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
+fn make_mosaic_with<F: Fn(usize, usize) -> [f32; 3]>(
+    w: usize,
+    h: usize,
+    cfa: &str,
+    f: F,
+) -> RawFrame {
+    let dim = if cfa.len() == 4 { 2 } else { 6 };
+    let channel = |x: usize, y: usize| match cfa.as_bytes()[(y % dim) * dim + x % dim] {
+        b'R' => 0,
+        b'B' => 2,
+        _ => 1,
+    };
+    let mut frame = make_frame(w, h, [0.0; 3]);
+    frame.data = (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .map(|(x, y)| f(x, y)[channel(x, y)])
+        .collect();
+    frame.cpp = 1;
+    frame.cfa_pattern = cfa.to_string();
+    frame
+}
+
 fn neutralised(rgb: [f32; 3], temp: f64, tint: f64) -> [f32; 3] {
     let m = user_wb_matrix(temp, tint);
     [
@@ -152,6 +176,43 @@ fn sample_uses_display_coordinates_after_crop() {
     let (temp, tint) =
         sample_white_balance(&frame, &edits, 0.5, 0.5).expect("cropped patch solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+}
+
+#[test]
+fn sampling_a_mosaic_patch_neutralises_that_patch() {
+    let cast = [0.55, 0.40, 0.28];
+    for cfa in ["RGGB", "GBRG", XTRANS] {
+        let frame = make_mosaic_with(
+            96,
+            96,
+            cfa,
+            |x, _| {
+                if x < 48 { cast } else { [0.1, 0.4, 0.1] }
+            },
+        );
+        for (u, v) in [(0.2, 0.5), (0.0, 1.0), (0.3, 0.0)] {
+            let (temp, tint) = sample_white_balance(&frame, &Edits::default(), u, v)
+                .unwrap_or_else(|| panic!("{cfa} patch at ({u}, {v}) solves"));
+            let left = spread(neutralised(cast, temp, tint));
+            assert!(left < 0.03, "{cfa} at ({u}, {v}) left spread {left}");
+        }
+    }
+}
+
+#[test]
+fn clipped_or_mixed_mosaic_samples_do_not_solve() {
+    for cfa in ["RGGB", XTRANS] {
+        let clipped = make_mosaic_with(96, 96, cfa, |_, _| [0.96, 0.7, 0.5]);
+        let edge = make_mosaic_with(96, 96, cfa, |x, _| {
+            if x < 48 {
+                [0.55, 0.40, 0.28]
+            } else {
+                [0.1, 0.4, 0.1]
+            }
+        });
+        assert!(sample_white_balance(&clipped, &Edits::default(), 0.25, 0.25).is_none());
+        assert!(sample_white_balance(&edge, &Edits::default(), 0.5, 0.5).is_none());
+    }
 }
 
 #[test]

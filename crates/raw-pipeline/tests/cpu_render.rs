@@ -4,7 +4,9 @@ use raw_pipeline::{
     frame::{FrameMeta, RawFrame, RenderOptions},
 };
 use raw_pipeline_testkit::color::luma;
-use raw_pipeline_testkit::fixtures::{each_fixture_frame, first_fixture_frame, fixture_path};
+use raw_pipeline_testkit::fixtures::{
+    each_fixture_frame, first_fixture_frame, fixture_path, fixtures,
+};
 use raw_pipeline_testkit::render::decode_jpeg_rgb;
 
 #[test]
@@ -58,6 +60,37 @@ fn auto_adjust_reads_every_fixture() {
             panic!("{name}: auto produced no edits (cpp {})", frame.cpp);
         }
     });
+}
+
+#[test]
+fn auto_tools_agree_on_fast_and_quality_frames() {
+    for path in fixtures() {
+        let name = path.file_name().unwrap().to_string_lossy();
+        let bytes = std::fs::read(&path).unwrap();
+        let (Ok(fast), Ok(quality)) = (decode::decode(&bytes), decode::decode_quality(&bytes))
+        else {
+            continue;
+        };
+        let edits = Edits::default();
+        let fast_ev = raw_pipeline::auto::auto_adjust(&fast, &edits)
+            .basic
+            .exposure_ev;
+        let quality_ev = raw_pipeline::auto::auto_adjust(&quality, &edits)
+            .basic
+            .exposure_ev;
+        let fast_wb = raw_pipeline::white_balance::auto_white_balance(&fast, &edits);
+        let quality_wb = raw_pipeline::white_balance::auto_white_balance(&quality, &edits);
+        if (fast_ev - quality_ev).abs() > 0.05 {
+            panic!("{name}: auto exposure {fast_ev} on fast frame vs {quality_ev} on quality");
+        }
+        let wb_close = match (fast_wb, quality_wb) {
+            (Some(a), Some(b)) => (a.0 - b.0).abs() <= 3.0 && (a.1 - b.1).abs() <= 3.0,
+            (a, b) => a.is_none() && b.is_none(),
+        };
+        if !wb_close {
+            panic!("{name}: auto wb {fast_wb:?} on fast frame vs {quality_wb:?} on quality");
+        }
+    }
 }
 
 #[test]
