@@ -1,13 +1,37 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use raw_pipeline::edits::{CropRect, Edits};
+use raw_pipeline::edits::{CropRect, Edits, LensEdits};
 use raw_pipeline::frame::{JpegSubsampling, OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::timing::StageTiming;
 use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, decode};
 use raw_pipeline_testkit::fixtures::fixture_path;
 
-const VIEW_EDGE: u32 = 2560;
+fn view_edge() -> u32 {
+    std::env::var("JOURNEY_EDGE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2560)
+}
+
+fn base_edits() -> Edits {
+    if std::env::var("JOURNEY_LENS").as_deref() != Ok("1") {
+        return Edits::default();
+    }
+    Edits {
+        lens: LensEdits {
+            profile_enabled: Some(true),
+            ca_enabled: true,
+            k1: -0.04,
+            k2: 0.01,
+            vk1: -0.3,
+            ca_red_scale_x10000: 2.0,
+            ca_blue_scale_x10000: -2.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
 
 enum Renderer {
     Gpu(Box<GpuRenderer>),
@@ -83,9 +107,9 @@ fn journey(renderer: &Renderer, bytes: &[u8]) {
     let (_, quality_ms) = timed(|| decode::decode_quality(bytes).unwrap());
     row("decode quality", quality_ms, &[]);
 
-    let edits = Edits::default();
+    let edits = base_edits();
     let long = frame.meta.width.max(frame.meta.height) as u32;
-    let fit = view_opts(VIEW_EDGE);
+    let fit = view_opts(view_edge());
 
     let (timings, total) = timed(|| renderer.preview(&frame, &edits, &fit));
     row("open preview", total, &timings);
