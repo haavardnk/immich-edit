@@ -62,6 +62,52 @@ async fn source_returns_a_decodable_linear_source() {
 }
 
 #[tokio::test]
+async fn a_zstd_client_gets_the_source_as_zstd_content() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    let app = test_app(&server).await;
+    let body = serde_json::json!({"max_edge": 256});
+
+    let framed = app
+        .clone()
+        .oneshot(post_source(id, body.clone(), None))
+        .await
+        .unwrap();
+    let framed_etag = header_str(&framed, "etag").expect("etag");
+    let framed = source::decode(&body_bytes(framed).await).unwrap();
+    let req = Request::builder()
+        .method("POST")
+        .uri(format!("/api/assets/{id}/source"))
+        .header("content-type", "application/json")
+        .header("accept-encoding", "gzip, deflate, br, zstd")
+        .header("if-none-match", &framed_etag)
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!(
+            "a framed etag must not satisfy a zstd request: {}",
+            resp.status()
+        );
+    }
+    if header_str(&resp, "content-encoding").as_deref() != Some("zstd")
+        || header_str(&resp, "vary").as_deref() != Some("accept-encoding")
+    {
+        panic!(
+            "content-encoding {:?}, vary {:?}",
+            header_str(&resp, "content-encoding"),
+            header_str(&resp, "vary")
+        );
+    }
+    let plain = zstd::decode_all(body_bytes(resp).await.as_slice()).unwrap();
+    let image = source::decode(&plain).unwrap();
+    if image.header.dims != framed.header.dims || image.rgb_f16 != framed.rgb_f16 {
+        panic!("zstd content decoded to a different source");
+    }
+}
+
+#[tokio::test]
 async fn a_source_roi_windows_the_region() {
     let server = MockServer::start().await;
     let id = asset_id();

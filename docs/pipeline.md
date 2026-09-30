@@ -120,6 +120,12 @@ bit, then the half-float samples as per-channel planes of high and low bytes, ea
 coded against its left neighbour, compressed with zstd level 1. `source::decode` reads it on the
 server and in the browser with a pure Rust decoder.
 
+When the request's `Accept-Encoding` lists `zstd`, the source endpoint sends the same planes
+uncompressed inside an `IESP` stream, compresses the whole body as one zstd frame, and sets
+`Content-Encoding: zstd`. The browser then decompresses natively while the body downloads, and
+the wasm decoder skips its own zstd pass. Browsers that do not advertise `zstd` get the `IESR`
+stream.
+
 ## Resolution and geometry
 
 Both renderers use `geom::preview_ratio` and `geom::resample_target`. A non-quality preview whose

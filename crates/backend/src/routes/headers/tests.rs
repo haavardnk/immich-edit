@@ -35,6 +35,25 @@ fn etags_are_quoted_and_matched_against_if_none_match() {
 }
 
 #[test]
+fn zstd_is_accepted_only_when_listed_with_a_positive_quality() {
+    for (accept, expected) in [
+        ("gzip, deflate, br, zstd", true),
+        ("ZSTD;q=0.5", true),
+        ("zstd ; Q=1", true),
+        ("gzip, zstd;q=0", false),
+        ("zstd;q=0.000", false),
+        ("gzip, br", false),
+        ("*", false),
+        ("zstdx", false),
+    ] {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::ACCEPT_ENCODING, HeaderValue::from_static(accept));
+        assert_eq!(accepts_zstd(&headers), expected, "{accept:?}");
+    }
+    assert!(!accepts_zstd(&HeaderMap::new()));
+}
+
+#[test]
 fn control_characters_are_rejected() {
     assert!(matches!(etag("a\rb"), Err(AppError::Internal)));
     assert!(matches!(

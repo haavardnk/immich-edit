@@ -2042,6 +2042,7 @@ dependencies = [
  "wiremock",
  "zeroize",
  "zip",
+ "zstd",
 ]
 
 [[package]]

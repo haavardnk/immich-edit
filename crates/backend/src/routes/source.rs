@@ -5,6 +5,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RenderOptions;
+use raw_pipeline::source::SourceCoding;
 use serde::Deserialize;
 
 use crate::asset_key::AssetKey;
@@ -12,7 +13,7 @@ use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::routes::preview::{clamp_max, parse_roi};
-use crate::services::render::{RenderError, RenderIdentity};
+use crate::services::render::{RenderError, RenderIdentity, SourceRequest};
 use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
 
@@ -42,8 +43,13 @@ pub async fn post_source(
     let region = roi.map_or(String::new(), |r| {
         format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
     });
+    let coding = if headers::accepts_zstd(&request_headers) {
+        SourceCoding::ZstdContent
+    } else {
+        SourceCoding::Framed
+    };
     let etag = headers::etag(&format!(
-        "{}-{}-{}-{}{}",
+        "{}-{}-{}-{}{}-{coding:?}",
         edits.stable_hash(),
         max_edge,
         ctx.server_epoch,
@@ -53,6 +59,8 @@ pub async fn post_source(
     if etag_matches(&request_headers, &etag) {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
         attach_validators(&mut resp, etag);
+        resp.headers_mut()
+            .insert(header::VARY, HeaderValue::from_static("accept-encoding"));
         return Ok(resp);
     }
     let key = RenderKey {
@@ -66,17 +74,20 @@ pub async fn post_source(
         },
     };
     let token = state.queue.tracker(key).await.next();
-    let opts = RenderOptions {
-        max_edge,
-        roi,
-        ..Default::default()
+    let request = SourceRequest {
+        edits,
+        options: RenderOptions {
+            max_edge,
+            roi,
+            ..Default::default()
+        },
+        coding,
     };
     let work = state.render.source(
         RenderIdentity::from(&ctx),
         ctx.immich.clone(),
         id.source(),
-        edits,
-        opts,
+        request,
         Some(token.clone()),
     );
     let guard = CancelOnDrop::new(token);
@@ -92,6 +103,12 @@ pub async fn post_source(
         header::CONTENT_TYPE,
         HeaderValue::from_static(SOURCE_CONTENT_TYPE),
     );
+    resp.headers_mut()
+        .insert(header::VARY, HeaderValue::from_static("accept-encoding"));
+    if coding == SourceCoding::ZstdContent {
+        resp.headers_mut()
+            .insert(header::CONTENT_ENCODING, HeaderValue::from_static("zstd"));
+    }
     if let Some(dcp_id) = source.dcp_id {
         resp.headers_mut().insert(
             HeaderName::from_static(DCP_HEADER),

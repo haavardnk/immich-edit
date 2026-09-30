@@ -58,5 +58,6 @@ wiremock = "0.6"
 reqwest = { version = "0.13", features = ["json", "query"] }
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+zstd = "0.14"
 url = { workspace = true }
 tempfile = "3"

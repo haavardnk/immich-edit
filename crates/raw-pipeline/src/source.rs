@@ -11,6 +11,13 @@ pub use wire::decode;
 #[cfg(feature = "native")]
 pub use wire::encode;
 
+#[cfg(feature = "native")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceCoding {
+    Framed,
+    ZstdContent,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinearKind {
     PreWb,

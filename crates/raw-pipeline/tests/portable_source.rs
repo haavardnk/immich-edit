@@ -96,7 +96,7 @@ fn frames() -> Vec<(&'static str, RawFrame)> {
 }
 
 fn wire(image: &SourceImage) -> Vec<u8> {
-    source::encode(image).unwrap()
+    source::encode(image, source::SourceCoding::Framed).unwrap()
 }
 
 fn gpu_source(
