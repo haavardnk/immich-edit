@@ -5,6 +5,7 @@ use bytes::Bytes;
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::source::SourceCoding;
 use raw_pipeline::timing::StageTiming;
 use raw_pipeline::{PipelineError, RenderedImage};
 use uuid::Uuid;
@@ -241,12 +242,15 @@ impl RenderService {
         identity: RenderIdentity,
         immich: ImmichClient,
         source: Uuid,
-        edits: Edits,
-        mut options: RenderOptions,
+        request: SourceRequest,
         cancel: Option<CancelToken>,
     ) -> Result<EncodedSource, RenderError> {
+        let SourceRequest {
+            mut edits,
+            mut options,
+            coding,
+        } = request;
         let frame = self.frame(identity, &immich, source).await?;
-        let mut edits = edits;
         if frame.meta.is_raw {
             edits.lens = self
                 .lens
@@ -261,7 +265,7 @@ impl RenderService {
         let (bytes, renderer, timings) = tokio::task::spawn_blocking(move || {
             let rendered = device.source_blocking(&frame, &edits, &options, cancel.as_ref())?;
             let encode_start = Instant::now();
-            let bytes = raw_pipeline::source::encode(&rendered.image)?;
+            let bytes = raw_pipeline::source::encode(&rendered.image, coding)?;
             let mut timings = rendered.timings;
             timings.push(StageTiming {
                 stage: raw_pipeline::timing::ENCODE,
@@ -279,6 +283,12 @@ impl RenderService {
         );
         Ok(EncodedSource { bytes, dcp_id })
     }
+}
+
+pub struct SourceRequest {
+    pub edits: Edits,
+    pub options: RenderOptions,
+    pub coding: SourceCoding,
 }
 
 pub struct EncodedSource {

@@ -120,7 +120,8 @@ fn bake_web_parity_fixture() {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("source.iesr"),
-            raw_pipeline::source::encode(&image).unwrap(),
+            raw_pipeline::source::encode(&image, raw_pipeline::source::SourceCoding::Framed)
+                .unwrap(),
         )
         .unwrap();
         std::fs::write(dir.join("expected.rgb"), &rendered.bytes).unwrap();

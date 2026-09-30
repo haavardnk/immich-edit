@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io::Read;
 #[cfg(feature = "native")]
 use std::io::Write;
@@ -5,10 +6,13 @@ use std::io::Write;
 #[cfg(feature = "native")]
 use rayon::prelude::*;
 
+#[cfg(feature = "native")]
+use super::SourceCoding;
 use super::{SourceImage, header};
 use crate::{PipelineError, PipelineResult};
 
 const MAGIC: &[u8; 4] = b"IESR";
+const PLAIN_MAGIC: &[u8; 4] = b"IESP";
 const VERSION: u32 = 2;
 const PREFIX_BYTES: usize = 12;
 const MAX_HEADER_BYTES: usize = 4096;
@@ -17,7 +21,7 @@ const MAX_PIXELS: u64 = 64 * 1024 * 1024;
 const ZSTD_LEVEL: i32 = 1;
 
 #[cfg(feature = "native")]
-pub fn encode(image: &SourceImage) -> PipelineResult<Vec<u8>> {
+pub fn encode(image: &SourceImage, coding: SourceCoding) -> PipelineResult<Vec<u8>> {
     let (w, h) = image.header.dims;
     if image.rgb_f16.len() as u64 != w as u64 * h as u64 * 3 {
         return Err(PipelineError::Encode(format!(
@@ -28,22 +32,38 @@ pub fn encode(image: &SourceImage) -> PipelineResult<Vec<u8>> {
     let mut head = Vec::new();
     header::write(&image.header, &mut head)?;
     let planes = to_planes(&image.rgb_f16, w as usize, h as usize);
+    match coding {
+        SourceCoding::Framed => Ok(assemble(MAGIC, &head, &compress(&[&planes])?)),
+        SourceCoding::ZstdContent => compress(&[&prefix(PLAIN_MAGIC, head.len()), &head, &planes]),
+    }
+}
+
+#[cfg(feature = "native")]
+fn compress(parts: &[&[u8]]) -> PipelineResult<Vec<u8>> {
     let encode_err = |e: std::io::Error| PipelineError::Encode(format!("source payload: {e}"));
     let mut encoder = zstd::stream::Encoder::new(Vec::new(), ZSTD_LEVEL).map_err(encode_err)?;
     encoder
         .multithread(rayon::current_num_threads() as u32)
         .map_err(encode_err)?;
-    encoder.write_all(&planes).map_err(encode_err)?;
-    let payload = encoder.finish().map_err(encode_err)?;
-    Ok(assemble(&head, &payload))
+    for part in parts {
+        encoder.write_all(part).map_err(encode_err)?;
+    }
+    encoder.finish().map_err(encode_err)
 }
 
 #[cfg(feature = "native")]
-fn assemble(head: &[u8], payload: &[u8]) -> Vec<u8> {
+fn prefix(magic: &[u8; 4], head_len: usize) -> [u8; PREFIX_BYTES] {
+    let mut out = [0u8; PREFIX_BYTES];
+    out[..4].copy_from_slice(magic);
+    out[4..8].copy_from_slice(&VERSION.to_le_bytes());
+    out[8..].copy_from_slice(&(head_len as u32).to_le_bytes());
+    out
+}
+
+#[cfg(feature = "native")]
+fn assemble(magic: &[u8; 4], head: &[u8], payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(PREFIX_BYTES + head.len() + payload.len());
-    out.extend_from_slice(MAGIC);
-    out.extend_from_slice(&VERSION.to_le_bytes());
-    out.extend_from_slice(&(head.len() as u32).to_le_bytes());
+    out.extend_from_slice(&prefix(magic, head.len()));
     out.extend_from_slice(head);
     out.extend_from_slice(payload);
     out
@@ -51,9 +71,14 @@ fn assemble(head: &[u8], payload: &[u8]) -> Vec<u8> {
 
 pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
     let invalid = |why: &str| PipelineError::Decode(format!("source: {why}"));
-    if bytes.len() < PREFIX_BYTES || &bytes[..4] != MAGIC {
+    if bytes.len() < PREFIX_BYTES {
         return Err(invalid("not a source stream"));
     }
+    let compressed = match &bytes[..4] {
+        magic if magic == MAGIC => true,
+        magic if magic == PLAIN_MAGIC => false,
+        _ => return Err(invalid("not a source stream")),
+    };
     let version = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
     if version != VERSION {
         return Err(invalid(&format!("unsupported version {version}")));
@@ -70,12 +95,17 @@ pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
         return Err(invalid(&format!("dims {w}x{h} out of range")));
     }
     let expected = pixels as usize * 6;
-    let mut planes = Vec::with_capacity(expected);
-    ruzstd::decoding::StreamingDecoder::new(payload)
-        .map_err(|e| invalid(&format!("payload: {e}")))?
-        .take(expected as u64 + 1)
-        .read_to_end(&mut planes)
-        .map_err(|e| invalid(&format!("payload: {e}")))?;
+    let planes = if compressed {
+        let mut planes = Vec::with_capacity(expected);
+        ruzstd::decoding::StreamingDecoder::new(payload)
+            .map_err(|e| invalid(&format!("payload: {e}")))?
+            .take(expected as u64 + 1)
+            .read_to_end(&mut planes)
+            .map_err(|e| invalid(&format!("payload: {e}")))?;
+        Cow::Owned(planes)
+    } else {
+        Cow::Borrowed(payload)
+    };
     if planes.len() != expected {
         return Err(invalid("payload size does not match dims"));
     }
@@ -163,9 +193,11 @@ mod tests {
     #[test]
     fn a_source_round_trips_bit_for_bit() {
         let original = image(37, 11);
-        let bytes = encode(&original).unwrap();
+        let bytes = encode(&original, SourceCoding::Framed).unwrap();
         let decoded = decode(&bytes).unwrap();
-        if decoded.rgb_f16 != original.rgb_f16 || encode(&decoded).unwrap() != bytes {
+        if decoded.rgb_f16 != original.rgb_f16
+            || encode(&decoded, SourceCoding::Framed).unwrap() != bytes
+        {
             panic!("source changed across the wire");
         }
         if !decoded.header.meta.xyz_to_cam[3][0].is_nan() {
@@ -174,9 +206,37 @@ mod tests {
     }
 
     #[test]
+    fn zstd_content_decodes_to_the_same_source_within_the_http_window() {
+        let original = image(256, 128);
+        let body = encode(&original, SourceCoding::ZstdContent).unwrap();
+        let descriptor = body[4];
+        if descriptor & 0x20 != 0 {
+            panic!("single-segment frame: the window equals the content size");
+        }
+        let exponent = u32::from(body[5] >> 3);
+        let base = 1u64 << (10 + exponent);
+        let window = base + base / 8 * u64::from(body[5] & 7);
+        if window > 8 << 20 {
+            panic!("{window} byte window exceeds the 8 MiB HTTP zstd limit (RFC 9659)");
+        }
+        let mut plain = Vec::new();
+        ruzstd::decoding::StreamingDecoder::new(body.as_slice())
+            .unwrap()
+            .read_to_end(&mut plain)
+            .unwrap();
+        let decoded = decode(&plain).unwrap();
+        if decoded.rgb_f16 != original.rgb_f16 || decoded.header.dims != original.header.dims {
+            panic!("zstd content changed the source");
+        }
+        if decode(&plain[..plain.len() - 1]).is_ok() {
+            panic!("a truncated plain payload decoded");
+        }
+    }
+
+    #[test]
     fn malformed_streams_are_rejected() {
         let source = image(8, 4);
-        let good = encode(&source).unwrap();
+        let good = encode(&source, SourceCoding::Framed).unwrap();
         let head_len = u32::from_le_bytes([good[8], good[9], good[10], good[11]]) as usize;
         let payload = &good[PREFIX_BYTES + head_len..];
         let restamp = |dims: (u32, u32)| {
@@ -184,7 +244,7 @@ mod tests {
             header.dims = dims;
             let mut head = Vec::new();
             header::write(&header, &mut head).unwrap();
-            assemble(&head, payload)
+            assemble(MAGIC, &head, payload)
         };
         let outside = {
             let mut header = source.header.clone();
@@ -194,7 +254,7 @@ mod tests {
             });
             let mut head = Vec::new();
             header::write(&header, &mut head).unwrap();
-            assemble(&head, payload)
+            assemble(MAGIC, &head, payload)
         };
         let mut bad_magic = good.clone();
         bad_magic[0] = b'X';

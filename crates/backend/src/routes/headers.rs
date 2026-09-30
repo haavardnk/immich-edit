@@ -57,6 +57,25 @@ pub fn attach_validators(resp: &mut Response, etag: HeaderValue) {
     );
 }
 
+pub fn accepts_zstd(headers: &HeaderMap) -> bool {
+    headers
+        .get_all(header::ACCEPT_ENCODING)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .any(|item| {
+            let mut params = item.split(';');
+            let coding = params.next().unwrap_or_default().trim();
+            coding.eq_ignore_ascii_case("zstd")
+                && params
+                    .find_map(|param| {
+                        let (name, value) = param.split_once('=')?;
+                        name.trim().eq_ignore_ascii_case("q").then_some(value)
+                    })
+                    .is_none_or(|q| q.trim().parse::<f32>().is_ok_and(|q| q > 0.0))
+        })
+}
+
 pub fn header_value(value: &str) -> Result<HeaderValue, AppError> {
     HeaderValue::from_str(value).map_err(|e| {
         tracing::error!(error = %e, "invalid response header value");
