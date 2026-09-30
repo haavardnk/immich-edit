@@ -37,17 +37,6 @@ fn preview(id: uuid::Uuid) -> Request<Body> {
     preview_lane(id, "base")
 }
 
-async fn originals_fetched(server: &MockServer, id: uuid::Uuid) -> usize {
-    let wanted = format!("/api/assets/{id}/original");
-    server
-        .received_requests()
-        .await
-        .unwrap_or_default()
-        .iter()
-        .filter(|r| r.url.path() == wanted)
-        .count()
-}
-
 #[tokio::test]
 async fn auto_and_white_balance_reuse_the_preview_frame() {
     let server = MockServer::start().await;

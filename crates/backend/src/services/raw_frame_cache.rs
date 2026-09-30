@@ -66,6 +66,14 @@ impl RawFrameCache {
         self.max_bytes
     }
 
+    pub fn holds_frames_like_largest(&self, count: u64) -> bool {
+        self.map
+            .iter()
+            .map(|(_, frame)| frame_bytes(frame))
+            .max()
+            .is_some_and(|largest| largest.saturating_mul(count) <= self.max_bytes)
+    }
+
     pub fn clear(&mut self) {
         self.map.clear();
         self.current_bytes = 0;
@@ -142,6 +150,26 @@ mod tests {
         }
         if cache.get(&a).is_none() {
             panic!("owner a should still hit");
+        }
+    }
+
+    #[test]
+    fn sizes_room_against_the_largest_cached_frame() {
+        let slot = mb(1) + FRAME_OVERHEAD_BYTES;
+        let mut cache = RawFrameCache::new(slot * 3);
+        if cache.holds_frames_like_largest(1) {
+            panic!("an empty cache has no frame size to plan with");
+        }
+        cache.put(key(Uuid::new_v4(), Uuid::new_v4()), frame_with_floats(16));
+        cache.put(
+            key(Uuid::new_v4(), Uuid::new_v4()),
+            frame_with_floats((mb(1) / 4) as usize),
+        );
+        let room: Vec<bool> = (2..=4)
+            .map(|count| cache.holds_frames_like_largest(count))
+            .collect();
+        if room != [true, true, false] {
+            panic!("room for 2, 3, 4 frames of the largest size was {room:?}");
         }
     }
 

@@ -41,6 +41,10 @@ impl FrameStore {
         self.cache.lock().await.max_bytes()
     }
 
+    pub async fn holds_frames_like_largest(&self, count: u64) -> bool {
+        self.cache.lock().await.holds_frames_like_largest(count)
+    }
+
     pub async fn clear(&self) {
         self.cache.lock().await.clear();
     }

@@ -33,6 +33,17 @@ pub async fn mock_original(server: &MockServer, id: Uuid) {
     mock_original_with(server, id, arw_response()).await;
 }
 
+pub async fn originals_fetched(server: &MockServer, id: Uuid) -> usize {
+    let wanted = format!("/api/assets/{id}/original");
+    server
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| r.url.path() == wanted)
+        .count()
+}
+
 pub async fn mock_original_owned_by_admin(server: &MockServer, id: Uuid) {
     mock_original(server, id).await;
     Mock::given(method("GET"))

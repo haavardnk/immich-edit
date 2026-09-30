@@ -18,6 +18,7 @@ mod faces;
 mod folders;
 mod frame_cache_isolation;
 mod frame_single_flight;
+mod frame_warm;
 mod health;
 mod input_validation;
 mod jobs;

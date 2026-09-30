@@ -18,13 +18,16 @@ mod device;
 mod frames;
 mod inputs;
 mod lens;
+mod warm;
 
 pub use device::RendererKind;
+pub use warm::WARM_NEIGHBOURS;
 
 use device::RenderDevice;
 use frames::FrameStore;
 use inputs::RenderInputs;
 use lens::LensProfiles;
+use warm::{FrameWarmer, WarmJob};
 
 const MB: u64 = 1024 * 1024;
 
@@ -65,6 +68,7 @@ pub enum RenderError {
 pub struct RenderService {
     frames: FrameStore,
     quality_frames: FrameStore,
+    warmer: FrameWarmer,
     device: RenderDevice,
     inputs: RenderInputs,
     lens: LensProfiles,
@@ -103,6 +107,7 @@ impl RenderService {
                 cache.quality_frame_cache_mb.saturating_mul(MB),
                 telemetry.clone(),
             ),
+            warmer: FrameWarmer::default(),
             device: RenderDevice::new(
                 mode,
                 cache.gpu_texture_cache_mb.saturating_mul(MB),
@@ -161,6 +166,20 @@ impl RenderService {
         self.frames
             .get_or_load(identity, immich, source, decode_blocking)
             .await
+    }
+
+    pub async fn warm(
+        &self,
+        identity: RenderIdentity,
+        immich: ImmichClient,
+        sources: Vec<Uuid>,
+    ) -> bool {
+        let job = WarmJob {
+            identity,
+            immich,
+            sources,
+        };
+        self.warmer.submit(&self.frames, job).await
     }
 
     pub async fn quality_frame(
