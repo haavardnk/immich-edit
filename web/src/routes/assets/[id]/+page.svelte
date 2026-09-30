@@ -5,6 +5,7 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { restoreBrowse } from '$lib/browse/restore';
   import { editorKeydown, editorKeyup } from '$lib/shortcuts/editorKeymap';
+  import { warmNeighbours } from '$lib/editor/neighbours';
   import Viewer from '$lib/components/editor/Viewer.svelte';
   import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
   import BottomBar from '$lib/components/editor/BottomBar.svelte';
@@ -20,6 +21,15 @@
   $effect(() => {
     const current = id;
     void untrack(() => editor.load(current));
+  });
+
+  let warmedFor: string | null = null;
+
+  $effect(() => {
+    const current = editor.assetId;
+    const shown = editor.previewUrl !== null || editor.previewFrame !== null;
+    if (!current || !shown || current === warmedFor) return;
+    if (warmNeighbours(current)) warmedFor = current;
   });
 
   onMount(() => {

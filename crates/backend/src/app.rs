@@ -243,6 +243,7 @@ pub fn router(state: AppState) -> Router {
             get(routes::preview::get_scope),
         )
         .route("/assets/{id}/source", post(routes::source::post_source))
+        .route("/frames/warm", post(routes::frames::warm))
         .route("/rasters", post(routes::rasters::upload))
         .route("/rasters/{raster_id}", get(routes::rasters::get))
         .route("/rasters/{raster_id}/meta", get(routes::rasters::meta))

@@ -1,4 +1,4 @@
-import { getJson, sendJson, url } from './client';
+import { getJson, request, sendJson, url } from './client';
 import type { AssetDetail } from '$lib/types/asset';
 import { sourceId } from '$lib/browse/assetKey';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
@@ -14,6 +14,18 @@ export interface AssetUpdate {
 
 export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail> {
   return sendJson('PUT', url`/api/assets/${id}`, body);
+}
+
+export async function warmFrames(ids: string[]): Promise<void> {
+  await request(
+    '/api/frames/warm',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids })
+    },
+    { silent: true }
+  );
 }
 
 export function thumbUrl(id: string, size: 'thumbnail' | 'preview' = 'thumbnail'): string {

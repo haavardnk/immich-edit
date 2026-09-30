@@ -11,6 +11,7 @@ pub mod export;
 pub mod export_presets;
 pub mod faces;
 pub mod folders;
+pub mod frames;
 pub mod headers;
 pub mod health;
 pub mod jobs;
