@@ -31,9 +31,8 @@ fn dehaze_runs_after_nr_and_before_presence() {
     let reg = default_registry();
     let ids: Vec<&str> = reg.ops().iter().map(|o| o.id()).collect();
     let pos = |id: &str| ids.iter().position(|s| *s == id).unwrap();
-    assert!(pos("luma_nr") < pos("dehaze"));
-    assert!(pos("color_nr") < pos("dehaze"));
-    assert!(pos("color_nr") < pos("capture_sharpen"));
+    assert!(pos("color_nr") < pos("luma_nr"));
+    assert!(pos("luma_nr") < pos("capture_sharpen"));
     assert!(pos("capture_sharpen") < pos("dehaze"));
     assert!(pos("dehaze") < pos("texture"));
     assert!(pos("dehaze") < pos("clarity"));

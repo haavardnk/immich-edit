@@ -5,7 +5,7 @@ use raw_pipeline::edits::{
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use raw_pipeline_testkit::frames::{haze_frame, synthetic_frame};
+use raw_pipeline_testkit::frames::{haze_frame, noisy_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with_budget};
 use raw_pipeline_testkit::render::rgb8_opts;
 
@@ -98,6 +98,42 @@ fn atmosphere_is_reused_across_display_edits() {
     let after_nr = renderer.atmosphere_estimates();
     if after_nr == after_rest {
         panic!("a noise reduction change reused a stale atmosphere: {after_nr}");
+    }
+}
+
+#[test]
+fn noise_profile_is_reused_across_nr_sliders() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = noisy_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let render = |luma_nr_amount: f64, color_nr_amount: f64, luma_nr_detail: f64| {
+        let mut edits = Edits::default();
+        edits.detail.luma_nr_amount = luma_nr_amount;
+        edits.detail.color_nr_amount = color_nr_amount;
+        edits.detail.luma_nr_detail = luma_nr_detail;
+        renderer.render(&frame, &edits, &opts).unwrap()
+    };
+
+    let first = render(40.0, 30.0, 50.0);
+    let estimates = renderer.noise_estimates();
+    let renders = [
+        render(80.0, 30.0, 50.0),
+        render(40.0, 0.0, 50.0),
+        render(0.0, 60.0, 50.0),
+        render(40.0, 30.0, 10.0),
+    ];
+    let after = renderer.noise_estimates();
+
+    if estimates != 1 {
+        panic!("the first render ran {estimates} noise estimates");
+    }
+    if after != estimates {
+        panic!("noise reduction slider changes re-estimated the noise: {estimates} -> {after}");
+    }
+    if let Some(i) = renders.iter().position(|r| r.bytes == first.bytes) {
+        panic!("slider change {i} had no effect");
     }
 }
 

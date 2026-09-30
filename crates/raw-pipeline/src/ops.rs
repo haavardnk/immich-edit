@@ -1,4 +1,3 @@
-pub(crate) mod bilateral;
 pub mod blur;
 pub mod box_filter;
 pub mod brightness;
@@ -12,6 +11,7 @@ pub mod contrast;
 pub mod curves;
 pub mod dcp_profile;
 pub mod dehaze;
+pub(crate) mod denoise;
 pub mod exposure;
 pub mod grain;
 pub mod hsl;
@@ -296,8 +296,8 @@ pub fn default_registry() -> OpRegistry {
         Box::new(color_matrix::ColorMatrixOp),
         Box::new(user_wb::UserWbOp),
         Box::new(retouch::RetouchOp),
-        Box::new(luma_nr::LumaNrOp),
         Box::new(color_nr::ColorNrOp),
+        Box::new(luma_nr::LumaNrOp),
         Box::new(capture_sharpen::CaptureSharpenOp),
         Box::new(texture::TextureOp),
         Box::new(clarity::ClarityOp),

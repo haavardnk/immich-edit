@@ -10,3 +10,6 @@ mod presence;
 mod sensor;
 #[cfg(feature = "native")]
 mod wb_prepare;
+
+#[cfg(feature = "native")]
+pub(super) use nr::NoiseProfile;

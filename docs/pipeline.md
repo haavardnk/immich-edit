@@ -82,7 +82,7 @@ balance, and a white balance change reuses all of them.
 | 2 | Sensor | Lens vignette and sensor-space corrections |
 | 3 | White-balance preparation | As-shot white balance and camera-to-sRGB base |
 | 4 | Retouch | Heal and clone strokes when active |
-| 5 | Noise reduction | Luma, then color bilateral stages |
+| 5 | Noise reduction | Color, then luma wavelet shrinkage against a measured noise profile |
 | 6 | Capture sharpening | RAW-only deconvolution before preview reduction |
 | 7 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
 | 8 | Dehaze | Bounded atmosphere estimate and guided filter |
