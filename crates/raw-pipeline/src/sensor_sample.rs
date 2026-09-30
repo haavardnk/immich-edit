@@ -235,7 +235,10 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
     if bw == 0 || bh == 0 {
         return None;
     }
-    let stride = ((bw * bh) / SAMPLE_TARGET).isqrt().clamp(1, bw.min(bh));
+    let stride = (bw * bh)
+        .div_ceil(SAMPLE_TARGET)
+        .isqrt()
+        .clamp(1, bw.min(bh));
     let out_w = bw / stride;
     let out_h = bh / stride;
     let mut data = Vec::with_capacity(out_w * out_h * 3);
