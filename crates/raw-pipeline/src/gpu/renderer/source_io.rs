@@ -132,25 +132,28 @@ fn texel_size(format: TextureFormat) -> u32 {
 
 fn texel_bytes(rgb_f16: &[u16], format: TextureFormat) -> Vec<u8> {
     let one = f16::ONE.to_bits();
+    let texel = texel_size(format) as usize;
+    let mut out = vec![0u8; rgb_f16.len() / 3 * texel];
+    let pixels = rgb_f16.chunks_exact(3).zip(out.chunks_exact_mut(texel));
     match format {
-        TextureFormat::Rgba32Float => rgb_f16
-            .chunks_exact(3)
-            .flat_map(|px| {
-                [px[0], px[1], px[2], one]
-                    .map(|bits| f16::from_bits(bits).to_f32())
-                    .into_iter()
-                    .flat_map(f32::to_le_bytes)
-            })
-            .collect(),
-        _ => rgb_f16
-            .chunks_exact(3)
-            .flat_map(|px| {
-                [px[0], px[1], px[2], one]
-                    .into_iter()
-                    .flat_map(u16::to_le_bytes)
-            })
-            .collect(),
+        TextureFormat::Rgba32Float => pixels.for_each(|(px, dst)| {
+            for (bits, d) in [px[0], px[1], px[2], one]
+                .into_iter()
+                .zip(dst.chunks_exact_mut(4))
+            {
+                d.copy_from_slice(&f16::from_bits(bits).to_f32().to_le_bytes());
+            }
+        }),
+        _ => pixels.for_each(|(px, dst)| {
+            for (bits, d) in [px[0], px[1], px[2], one]
+                .into_iter()
+                .zip(dst.chunks_exact_mut(2))
+            {
+                d.copy_from_slice(&bits.to_le_bytes());
+            }
+        }),
     }
+    out
 }
 
 #[cfg(feature = "native")]
@@ -170,5 +173,37 @@ fn extend_rgb(out: &mut Vec<u16>, row: &[u8], format: TextureFormat) {
                 u16::from_le_bytes([px[4], px[5]]),
             ]
         })),
+    }
+}
+
+#[cfg(all(test, feature = "native"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn texels_round_trip_through_readback() {
+        let (w, h) = (5usize, 3usize);
+        let rgb: Vec<u16> = (0..w * h * 3).map(|i| (i * 997 % 0x7c00) as u16).collect();
+        for (format, alpha) in [
+            (
+                TextureFormat::Rgba16Float,
+                f16::ONE.to_bits().to_le_bytes().to_vec(),
+            ),
+            (TextureFormat::Rgba32Float, 1f32.to_le_bytes().to_vec()),
+        ] {
+            let texels = texel_bytes(&rgb, format);
+            let texel = texel_size(format) as usize;
+            let mut back = Vec::new();
+            for row in texels.chunks_exact(w * texel) {
+                extend_rgb(&mut back, row, format);
+            }
+            assert_eq!(back, rgb, "{format:?}");
+            assert!(
+                texels
+                    .chunks_exact(texel)
+                    .all(|px| px[texel * 3 / 4..] == alpha[..]),
+                "{format:?}"
+            );
+        }
     }
 }
