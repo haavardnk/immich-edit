@@ -165,7 +165,7 @@ fn oriented_sensor(
 
     let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
     clock.time(timing::LENS, || {
-        run_sensor_ops(&mut sensor_image, &prep.ctx, &prep.edits, cancel)
+        run_sensor_ops(&mut sensor_image, &prep.edits, cancel)
     })?;
     cancel::check(cancel)?;
     let (rgb, w, h) = transform::apply_orientation(

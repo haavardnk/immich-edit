@@ -1,9 +1,8 @@
 use super::LinearImage;
-use super::sample::sample_channel_bicubic;
+use super::lens_correction::{LensCorrection, apply_lens_correction};
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
-use rayon::prelude::*;
 
 pub struct LensCaOp;
 
@@ -32,7 +31,12 @@ impl Op for LensCaOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_lens_ca(image, &edits.lens);
+        let (red, blue) = ca_scales(&edits.lens);
+        let part = LensCorrection {
+            ca: [red, blue],
+            ..Default::default()
+        };
+        apply_lens_correction(image, &part);
         Ok(())
     }
 }
@@ -43,35 +47,6 @@ pub fn ca_scales(lens: &LensEdits) -> (f32, f32) {
     }
     let (r, b) = lens.ca_scales();
     (r as f32, b as f32)
-}
-
-pub fn apply_lens_ca(image: &mut LinearImage, lens: &LensEdits) {
-    let w = image.width;
-    let h = image.height;
-    if w == 0 || h == 0 {
-        return;
-    }
-    let (red_scale, blue_scale) = ca_scales(lens);
-    let cx = w as f32 * 0.5;
-    let cy = h as f32 * 0.5;
-    let src = image.rgb.clone();
-    image
-        .rgb
-        .par_chunks_mut(w * 3)
-        .enumerate()
-        .for_each(|(y, row)| {
-            let dy = y as f32 + 0.5 - cy;
-            for x in 0..w {
-                let dx = x as f32 + 0.5 - cx;
-                let rx = cx + dx * red_scale - 0.5;
-                let ry = cy + dy * red_scale - 0.5;
-                let bx = cx + dx * blue_scale - 0.5;
-                let by = cy + dy * blue_scale - 0.5;
-                let i = x * 3;
-                row[i] = sample_channel_bicubic(&src, w, h, rx, ry, 0);
-                row[i + 2] = sample_channel_bicubic(&src, w, h, bx, by, 2);
-            }
-        });
 }
 
 #[cfg(test)]

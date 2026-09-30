@@ -1,8 +1,8 @@
 use super::LinearImage;
+use super::lens_correction::{LensCorrection, apply_lens_correction};
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
-use rayon::prelude::*;
 
 pub struct LensVignetteOp;
 
@@ -31,7 +31,12 @@ impl Op for LensVignetteOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_lens_vignette(image, &edits.lens);
+        let (vk1, vk2, vk3, amount) = vignette_coeffs(&edits.lens);
+        let part = LensCorrection {
+            vignette: [vk1, vk2, vk3, amount],
+            ..Default::default()
+        };
+        apply_lens_correction(image, &part);
         Ok(())
     }
 }
@@ -58,36 +63,6 @@ pub fn vignette_correction(vk1: f32, vk2: f32, vk3: f32, amount: f32, r_norm: f3
     let full_gain = 1.0 / poly;
     let gain = 1.0 + (full_gain - 1.0) * amount;
     gain.clamp(VIGNETTE_GAIN_MIN, VIGNETTE_GAIN_MAX)
-}
-
-pub fn apply_lens_vignette(image: &mut LinearImage, lens: &LensEdits) {
-    let w = image.width;
-    let h = image.height;
-    if w == 0 || h == 0 {
-        return;
-    }
-    let (vk1, vk2, vk3, amount) = vignette_coeffs(lens);
-    let cx = w as f32 * 0.5;
-    let cy = h as f32 * 0.5;
-    let half_diag = 0.5 * ((w as f32).powi(2) + (h as f32).powi(2)).sqrt();
-    let inv_diag = 1.0 / half_diag;
-
-    image
-        .rgb
-        .par_chunks_mut(w * 3)
-        .enumerate()
-        .for_each(|(y, row)| {
-            let dy = y as f32 + 0.5 - cy;
-            for x in 0..w {
-                let dx = x as f32 + 0.5 - cx;
-                let r = (dx * dx + dy * dy).sqrt() * inv_diag;
-                let correction = vignette_correction(vk1, vk2, vk3, amount, r);
-                let i = x * 3;
-                row[i] *= correction;
-                row[i + 1] *= correction;
-                row[i + 2] *= correction;
-            }
-        });
 }
 
 #[cfg(test)]

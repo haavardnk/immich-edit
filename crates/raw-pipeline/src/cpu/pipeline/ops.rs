@@ -379,20 +379,16 @@ pub fn run_output_ops(
 
 pub fn run_sensor_ops(
     image: &mut LinearImage,
-    ctx: &OpContext,
     edits: &Edits,
     cancel: Option<&CancelToken>,
 ) -> crate::PipelineResult<()> {
     if !edits.lens.any_active() {
         return Ok(());
     }
-    let registry = default_registry();
-    for op in registry.active(edits) {
-        if op.stage() != crate::ops::Stage::Sensor {
-            continue;
-        }
-        cancel::check(cancel)?;
-        op.apply_cpu(image, ctx, edits)?;
-    }
+    cancel::check(cancel)?;
+    crate::ops::lens_correction::apply_lens_correction(
+        image,
+        &crate::ops::lens_correction::LensCorrection::from_edits(&edits.lens),
+    );
     Ok(())
 }

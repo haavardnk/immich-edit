@@ -16,6 +16,7 @@ pub mod exposure;
 pub mod grain;
 pub mod hsl;
 pub mod lens_ca;
+pub mod lens_correction;
 pub mod lens_distortion;
 pub mod lens_profile;
 pub mod lens_vignette;
