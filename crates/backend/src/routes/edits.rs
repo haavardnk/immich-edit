@@ -220,7 +220,7 @@ pub async fn auto(
     let context = context_edits(&body)?;
     let frame = state
         .render
-        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
@@ -238,7 +238,7 @@ pub async fn white_balance_sample(
     point.validate()?;
     let frame = state
         .render
-        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
     Ok(Json(white_balance::sample(frame, point).await?))
 }
@@ -252,7 +252,7 @@ pub async fn white_balance_auto(
     let context = context_edits(&body)?;
     let frame = state
         .render
-        .quality_frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
     Ok(Json(white_balance::auto(frame, context).await?))
 }

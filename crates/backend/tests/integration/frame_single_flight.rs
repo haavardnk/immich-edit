@@ -49,6 +49,48 @@ async fn originals_fetched(server: &MockServer, id: uuid::Uuid) -> usize {
 }
 
 #[tokio::test]
+async fn auto_and_white_balance_reuse_the_preview_frame() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = wrap_auth(router(state.clone()), token);
+
+    let requests = [
+        preview(id),
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/auto"),
+            serde_json::json!({}),
+        ),
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/white-balance"),
+            serde_json::json!({"u": 0.5, "v": 0.5}),
+        ),
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/white-balance/auto"),
+            serde_json::json!({}),
+        ),
+    ];
+    for request in requests {
+        let uri = request.uri().to_string();
+        let resp = app.clone().oneshot(request).await.unwrap();
+        if resp.status().is_server_error() || resp.status() == StatusCode::NOT_FOUND {
+            panic!("{uri} status {}", resp.status());
+        }
+    }
+
+    let fetched = originals_fetched(&server, id).await;
+    let bytes = state.render.frame_cache_bytes().await;
+    if fetched != 1 || bytes.quality_used != 0 {
+        panic!("auto tools decoded again: {fetched} downloads, {bytes:?}");
+    }
+}
+
+#[tokio::test]
 async fn concurrent_previews_download_the_original_once() {
     let server = MockServer::start().await;
     let id = asset_id();

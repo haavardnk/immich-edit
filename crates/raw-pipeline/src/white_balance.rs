@@ -4,7 +4,7 @@ use crate::frame::RawFrame;
 use crate::geom::{GeometryTransform, display_uv_to_mask_uv, mask_uv_to_display_uv};
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::sensor_sample::{
-    SAMPLE_TARGET, decimate_mosaic, display_color, display_rgb, geometry_transform,
+    SAMPLE_TARGET, decimate_mosaic, demosaic_patch, display_color, display_rgb, geometry_transform,
     sample_raw_bilinear, sensor_to_oriented_uv,
 };
 
@@ -17,14 +17,17 @@ const CLIP_LEVEL: f32 = 0.95;
 const MAX_CHROMA_SPREAD: f64 = 0.2;
 
 pub fn sample_white_balance(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> Option<(f64, f64)> {
-    let decimated = decimate_mosaic(frame);
-    let frame = decimated.as_ref().unwrap_or(frame);
     let (wb, m) = display_color(frame);
     let (px, py) = display_uv_to_sensor_px(frame, edits, u, v)?;
+    let patch = demosaic_patch(frame, px, py, SAMPLE_RADIUS as usize);
+    let (source, px, py) = match &patch {
+        Some((patch, x, y)) => (patch, *x, *y),
+        None => (frame, px, py),
+    };
 
     let raws: Vec<[f32; 3]> = (-SAMPLE_RADIUS..=SAMPLE_RADIUS)
         .flat_map(|dy| (-SAMPLE_RADIUS..=SAMPLE_RADIUS).map(move |dx| (dy, dx)))
-        .filter_map(|(dy, dx)| sample_raw_bilinear(frame, px + dx as f32, py + dy as f32))
+        .filter_map(|(dy, dx)| sample_raw_bilinear(source, px + dx as f32, py + dy as f32))
         .collect();
     if raws.is_empty() || raws.iter().flatten().any(|c| *c >= CLIP_LEVEL) {
         return None;

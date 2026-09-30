@@ -3,6 +3,7 @@ use crate::frame::{FrameMeta, OrientFlips, RawFrame};
 use crate::geom::GeometryTransform;
 
 pub(crate) const SAMPLE_TARGET: usize = 200_000;
+const PATCH_MARGIN: usize = 8;
 
 fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
     if raw[0] == 0.0 && raw[1] == 0.0 && raw[2] == 0.0 {
@@ -173,6 +174,57 @@ pub(crate) fn geometry_transform(
     };
     if t.is_identity() { None } else { Some(t) }
 }
+
+pub(crate) fn demosaic_patch(
+    frame: &RawFrame,
+    x: f32,
+    y: f32,
+    radius: usize,
+) -> Option<(RawFrame, f32, f32)> {
+    if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
+        return None;
+    }
+    let xtrans = crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern);
+    let dim = if xtrans.is_some() { 6 } else { 2 };
+    let reach = radius + PATCH_MARGIN;
+    let width = frame.meta.width;
+    let x0 = (x as usize).saturating_sub(reach) / dim * dim;
+    let y0 = (y as usize).saturating_sub(reach) / dim * dim;
+    let x1 = (x as usize + reach + 1).min(width);
+    let y1 = (y as usize + reach + 1).min(frame.meta.height);
+    if x1 <= x0 || y1 <= y0 {
+        return None;
+    }
+    let w = x1 - x0;
+    let h = y1 - y0;
+    let mosaic: Vec<f32> = (y0..y1)
+        .flat_map(|row| {
+            frame.data[row * width + x0..row * width + x1]
+                .iter()
+                .copied()
+        })
+        .collect();
+    let data = match xtrans {
+        Some(pattern) => crate::cpu::demosaic::xtrans(&mosaic, w, h, &pattern),
+        None => crate::cpu::demosaic::malvar_he_cutler(&mosaic, w, h, &frame.cfa_pattern),
+    };
+    let patch = RawFrame {
+        meta: FrameMeta {
+            width: w,
+            height: h,
+            capture_sigma: None,
+            ..frame.meta.clone()
+        },
+        cfa_pattern: String::new(),
+        bps: frame.bps,
+        data,
+        cpp: 3,
+        #[cfg(feature = "native")]
+        exif: None,
+    };
+    Some((patch, x - x0 as f32, y - y0 as f32))
+}
+
 pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
     if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
         return None;
