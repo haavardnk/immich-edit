@@ -110,12 +110,17 @@ fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
     let samples = w * h * 3;
     let (hi, lo) = planes.split_at(samples);
     let mut rgb = vec![0u16; samples];
-    for (i, (c, y)) in (0..3).flat_map(|c| (0..h).map(move |y| (c, y))).enumerate() {
-        let row = &mut rgb[y * w * 3..(y + 1) * w * 3];
-        let mut prev = 0u16;
+    for (y, row) in rgb.chunks_exact_mut(w * 3).enumerate() {
+        let rows: [(&[u8], &[u8]); 3] = std::array::from_fn(|c| {
+            let start = (c * h + y) * w;
+            (&hi[start..start + w], &lo[start..start + w])
+        });
+        let mut prev = [0u16; 3];
         for (x, px) in row.chunks_exact_mut(3).enumerate() {
-            prev = prev.wrapping_add(u16::from_be_bytes([hi[i * w + x], lo[i * w + x]]));
-            px[c] = prev;
+            prev = std::array::from_fn(|c| {
+                prev[c].wrapping_add(u16::from_be_bytes([rows[c].0[x], rows[c].1[x]]))
+            });
+            px.copy_from_slice(&prev);
         }
     }
     rgb
