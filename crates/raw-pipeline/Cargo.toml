@@ -20,6 +20,7 @@ native = [
     "dep:flate2",
     "dep:pollster",
     "dep:zstd",
+    "fast_image_resize/rayon",
     "wgpu/dx12",
     "wgpu/metal",
     "wgpu/vulkan",

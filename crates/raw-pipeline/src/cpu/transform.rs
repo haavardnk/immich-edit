@@ -117,17 +117,54 @@ fn resize_f32x3(pixels: &mut [f32], w: u32, h: u32, new_w: u32, new_h: u32) -> O
         fast_image_resize::PixelType::F32x3,
     )
     .ok()?;
-    let mut dst_image =
-        fast_image_resize::images::Image::new(new_w, new_h, fast_image_resize::PixelType::F32x3);
-    let mut resizer = fast_image_resize::Resizer::new();
-    resizer
-        .resize(
-            &src_image,
-            &mut dst_image,
-            Some(&fast_image_resize::ResizeOptions::new().resize_alg(
-                fast_image_resize::ResizeAlg::Convolution(fast_image_resize::FilterType::Lanczos3),
-            )),
+    let mut out = vec![0.0f32; new_w as usize * new_h as usize * 3];
+    {
+        let mut dst_image = fast_image_resize::images::Image::from_slice_u8(
+            new_w,
+            new_h,
+            bytemuck::cast_slice_mut(&mut out),
+            fast_image_resize::PixelType::F32x3,
         )
         .ok()?;
-    Some(bytemuck::cast_slice(dst_image.buffer()).to_vec())
+        fast_image_resize::Resizer::new()
+            .resize(
+                &src_image,
+                &mut dst_image,
+                Some(&fast_image_resize::ResizeOptions::new().resize_alg(
+                    fast_image_resize::ResizeAlg::Convolution(
+                        fast_image_resize::FilterType::Lanczos3,
+                    ),
+                )),
+            )
+            .ok()?;
+    }
+    Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resize_matches_across_thread_counts() {
+        let (w, h) = (640usize, 480usize);
+        let src: Vec<f32> = (0..w * h * 3)
+            .map(|i| ((i * 7919) % 1024) as f32 / 1023.0)
+            .collect();
+        let run = |threads: usize| {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(threads)
+                .build()
+                .unwrap()
+                .install(|| resize_owned_to(src.clone(), w, h, 301, 227))
+        };
+        let serial = run(1);
+        let parallel = run(8);
+        if (serial.1, serial.2) != (301, 227) {
+            panic!("resize returned {}x{}", serial.1, serial.2);
+        }
+        if serial != parallel {
+            panic!("parallel resize differs from serial");
+        }
+    }
 }
