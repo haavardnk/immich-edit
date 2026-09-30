@@ -1,5 +1,5 @@
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
-use raw_pipeline::frame::{OutputFormat, PreviewMode, RenderOptions};
+use raw_pipeline::frame::{OutputFormat, PreviewMode, RawFrame, RenderOptions};
 use raw_pipeline_testkit::frames::{
     detail_frame, fine_texture_frame, haze_frame, split_tone_frame, step_edge_frame, stripe_frame,
     synthetic_frame,
@@ -290,15 +290,6 @@ fn gpu_capture_sharpen_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = RenderOptions {
-        max_edge: 256,
-        quality: true,
-        output: OutputFormat::Rgb8,
-        ..Default::default()
-    };
-    let mut frame = detail_frame(256, 192);
-    frame.meta.is_raw = true;
-    frame.meta.capture_sigma = Some(0.7);
     let flat = ColorEdits {
         dcp: DcpEdits {
             mode: DcpMode::Flat,
@@ -318,17 +309,31 @@ fn gpu_capture_sharpen_matches_cpu() {
         },
         ..Default::default()
     };
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    let gpu_off = renderer.render(&frame, &off, &opts).unwrap();
-    require_same_dims("capture-sharpen", &cpu, &gpu);
-    let effect = mean_abs_delta(&gpu.bytes, &gpu_off.bytes);
-    eprintln!("capture sharpen effect = {effect:.3}");
-    if effect < 0.3 {
-        panic!("capture sharpen had no visible effect: {effect:.3}");
-    }
     let mut ledger = ParityLedger::new("capture-sharpen");
-    ledger.check("sigma0.7", &cpu.bytes, &gpu.bytes, 0.12);
+    let cases: [(&str, RawFrame, f32); 2] = [
+        ("sigma0.7", detail_frame(256, 192), 0.7),
+        ("sigma2-ragged", step_edge_frame(250, 190), 2.0),
+    ];
+    for (label, mut frame, sigma) in cases {
+        let opts = RenderOptions {
+            max_edge: frame.meta.width.max(frame.meta.height) as u32,
+            quality: true,
+            output: OutputFormat::Rgb8,
+            ..Default::default()
+        };
+        frame.meta.is_raw = true;
+        frame.meta.capture_sigma = Some(sigma);
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let gpu_off = renderer.render(&frame, &off, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        let effect = mean_abs_delta(&gpu.bytes, &gpu_off.bytes);
+        eprintln!("{label}: capture sharpen effect = {effect:.3}");
+        if effect < 0.3 {
+            panic!("{label}: capture sharpen had no visible effect: {effect:.3}");
+        }
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.12);
+    }
     ledger.finish();
 }
 
