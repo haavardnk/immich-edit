@@ -1,4 +1,9 @@
 use std::io::Read;
+#[cfg(feature = "native")]
+use std::io::Write;
+
+#[cfg(feature = "native")]
+use rayon::prelude::*;
 
 use super::{SourceImage, header};
 use crate::{PipelineError, PipelineResult};
@@ -23,8 +28,13 @@ pub fn encode(image: &SourceImage) -> PipelineResult<Vec<u8>> {
     let mut head = Vec::new();
     header::write(&image.header, &mut head)?;
     let planes = to_planes(&image.rgb_f16, w as usize, h as usize);
-    let payload = zstd::encode_all(planes.as_slice(), ZSTD_LEVEL)
-        .map_err(|e| PipelineError::Encode(format!("source payload: {e}")))?;
+    let encode_err = |e: std::io::Error| PipelineError::Encode(format!("source payload: {e}"));
+    let mut encoder = zstd::stream::Encoder::new(Vec::new(), ZSTD_LEVEL).map_err(encode_err)?;
+    encoder
+        .multithread(rayon::current_num_threads() as u32)
+        .map_err(encode_err)?;
+    encoder.write_all(&planes).map_err(encode_err)?;
+    let payload = encoder.finish().map_err(encode_err)?;
     Ok(assemble(&head, &payload))
 }
 
@@ -80,16 +90,19 @@ fn to_planes(rgb: &[u16], w: usize, h: usize) -> Vec<u8> {
     let samples = w * h * 3;
     let mut planes = vec![0u8; samples * 2];
     let (hi, lo) = planes.split_at_mut(samples);
-    for (i, (c, y)) in (0..3).flat_map(|c| (0..h).map(move |y| (c, y))).enumerate() {
-        let row = &rgb[y * w * 3..(y + 1) * w * 3];
-        let mut prev = 0u16;
-        for (x, px) in row.chunks_exact(3).enumerate() {
-            let [high, low] = px[c].wrapping_sub(prev).to_be_bytes();
-            prev = px[c];
-            hi[i * w + x] = high;
-            lo[i * w + x] = low;
-        }
-    }
+    hi.par_chunks_mut(w.max(1))
+        .zip(lo.par_chunks_mut(w.max(1)))
+        .enumerate()
+        .for_each(|(i, (hi_row, lo_row))| {
+            let c = i / h;
+            let y = i % h;
+            let row = &rgb[y * w * 3..(y + 1) * w * 3];
+            let mut prev = 0u16;
+            for ((px, high), low) in row.chunks_exact(3).zip(hi_row).zip(lo_row) {
+                [*high, *low] = px[c].wrapping_sub(prev).to_be_bytes();
+                prev = px[c];
+            }
+        });
     planes
 }
 

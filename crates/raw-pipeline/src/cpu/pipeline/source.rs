@@ -1,4 +1,5 @@
 use half::f16;
+use rayon::prelude::*;
 
 use super::{cached_sensor_stage, oriented_frame_dims, prepare};
 use crate::cancel::{self, CancelToken};
@@ -36,10 +37,10 @@ pub(crate) fn render_source(
     let to_f16 = |v: &f32| f16::from_f32(*v).to_bits();
     let rgb_f16 = match window {
         Some(rect) => crate::source::crop_rgb(&stage.rgb, full.0, rect)
-            .iter()
+            .par_iter()
             .map(to_f16)
             .collect(),
-        None => stage.rgb.iter().map(to_f16).collect(),
+        None => stage.rgb.par_iter().map(to_f16).collect(),
     };
     Ok(RenderedSource {
         image: SourceImage {
