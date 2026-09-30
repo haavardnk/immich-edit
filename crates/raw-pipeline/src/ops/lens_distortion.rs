@@ -1,9 +1,8 @@
 use super::LinearImage;
-use super::sample::sample_rgb_bicubic;
+use super::lens_correction::{LensCorrection, apply_lens_correction};
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{Edits, LensEdits};
-use rayon::prelude::*;
 
 pub struct LensDistortionOp;
 
@@ -32,7 +31,13 @@ impl Op for LensDistortionOp {
         _ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_lens_distortion(image, &edits.lens);
+        let full = LensCorrection::from_edits(&edits.lens);
+        let part = LensCorrection {
+            k: full.k,
+            zoom: full.zoom,
+            ..Default::default()
+        };
+        apply_lens_correction(image, &part);
         Ok(())
     }
 }
@@ -183,42 +188,6 @@ pub fn scene_uv_to_mask_uv(p: &LensWarpParams, uv: [f32; 2]) -> [f32; 2] {
     let mx = sx / len_scene * mask_len;
     let my = sy / len_scene * mask_len;
     [0.5 + mx / w, 0.5 + my / h]
-}
-
-pub fn apply_lens_distortion(image: &mut LinearImage, lens: &LensEdits) {
-    let w = image.width;
-    let h = image.height;
-    if w == 0 || h == 0 {
-        return;
-    }
-    let (k1, k2, k3) = distortion_coeffs(lens);
-    let zoom = distortion_zoom(lens);
-    let cx = w as f32 * 0.5;
-    let cy = h as f32 * 0.5;
-    let r_norm = 0.5 * ((w as f32).powi(2) + (h as f32).powi(2)).sqrt();
-    let inv_norm = zoom / r_norm;
-    let src = image.rgb.clone();
-    image
-        .rgb
-        .par_chunks_mut(w * 3)
-        .enumerate()
-        .for_each(|(y, row)| {
-            let dy = (y as f32 + 0.5 - cy) * inv_norm;
-            for x in 0..w {
-                let dx = (x as f32 + 0.5 - cx) * inv_norm;
-                let r2 = dx * dx + dy * dy;
-                let r4 = r2 * r2;
-                let r6 = r4 * r2;
-                let s = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
-                let sx = dx * s * r_norm + cx - 0.5;
-                let sy = dy * s * r_norm + cy - 0.5;
-                let sample = sample_rgb_bicubic(&src, w, h, sx, sy);
-                let i = x * 3;
-                row[i] = sample[0];
-                row[i + 1] = sample[1];
-                row[i + 2] = sample[2];
-            }
-        });
 }
 
 #[cfg(test)]
