@@ -6,7 +6,8 @@ use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
 use rawler::imgop::matrix::transform_1d;
 use rawler::imgop::sensor::SensorType;
 use rawler::imgop::xyz::Illuminant;
-use rawler::rawimage::RawPhotometricInterpretation;
+use rawler::rawimage::{RawImageData, RawPhotometricInterpretation};
+use rayon::prelude::*;
 
 const MATRIX_ILLUMINANTS: [Illuminant; 9] = [
     Illuminant::D65,
@@ -137,28 +138,10 @@ pub(super) fn decode_raw_fast(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let develop = RawDevelop {
-        steps: vec![ProcessingStep::Rescale],
-    };
-    let intermediate = develop
-        .develop_intermediate(&raw_image)
-        .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
-
-    let pixels = match intermediate {
-        Intermediate::Monochrome(p) => p,
-        _ => return decode_raw_quality(raw_image, exif),
-    };
-
-    let (data, width, height, cfa_pattern) = if let Some(area) = raw_image.active_area {
-        let cropped = pixels.crop(area);
-        let shifted = cfa.shift(area.p.x, area.p.y).name;
-        let w = cropped.width;
-        let h = cropped.height;
-        (cropped.into_inner(), w, h, shifted)
-    } else {
-        let w = pixels.width;
-        let h = pixels.height;
-        (pixels.into_inner(), w, h, cfa.name)
+    let (data, width, height) = scaled_mosaic(&raw_image);
+    let cfa_pattern = match raw_image.active_area {
+        Some(area) => cfa.shift(area.p.x, area.p.y).name,
+        None => cfa.name,
     };
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
@@ -181,6 +164,49 @@ pub(super) fn decode_raw_fast(
         cpp: 1,
         exif,
     })
+}
+
+pub(super) fn scaled_mosaic(raw_image: &rawler::RawImage) -> (Vec<f32>, usize, usize) {
+    let (x0, y0, width, height) = match raw_image.active_area {
+        Some(area) => (area.p.x, area.p.y, area.d.w, area.d.h),
+        None => (0, 0, raw_image.width, raw_image.height),
+    };
+    let data = match &raw_image.data {
+        RawImageData::Integer(src) => scale_rows(src, raw_image, (x0, y0), (width, height)),
+        RawImageData::Float(src) => scale_rows(src, raw_image, (x0, y0), (width, height)),
+    };
+    (data, width, height)
+}
+
+fn scale_rows<T: Copy + Into<f32> + Sync>(
+    src: &[T],
+    raw_image: &rawler::RawImage,
+    (x0, y0): (usize, usize),
+    (width, height): (usize, usize),
+) -> Vec<f32> {
+    let black = raw_image.blacklevel.as_bayer_array();
+    let white = raw_image.whitelevel.as_bayer_array();
+    let range: [f32; 4] = std::array::from_fn(|i| white[i] - black[i]);
+    let stride = raw_image.width;
+    let mut out = vec![0.0f32; width * height];
+    out.par_chunks_exact_mut(width.max(1))
+        .enumerate()
+        .for_each(|(y, row)| {
+            let sy = y0 + y;
+            let start = sy * stride + x0;
+            let parity = (sy & 1) * 2;
+            for (x, (dst, &v)) in row.iter_mut().zip(&src[start..start + width]).enumerate() {
+                let i = parity + ((x0 + x) & 1);
+                let shifted = v.into() - black[i];
+                let clipped = if shifted.is_sign_negative() {
+                    0.0
+                } else {
+                    shifted
+                };
+                *dst = clipped / range[i];
+            }
+        });
+    out
 }
 
 pub(super) fn decode_raw_quality(
@@ -290,29 +316,10 @@ fn decode_raw_xtrans(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let develop = RawDevelop {
-        steps: vec![ProcessingStep::Rescale],
-    };
-    let intermediate = develop
-        .develop_intermediate(&raw_image)
-        .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
-
-    let Intermediate::Monochrome(pixels) = intermediate else {
-        return Err(PipelineError::Decode(
-            "X-Trans develop did not yield a mosaic".into(),
-        ));
-    };
-
-    let (data, width, height, cfa_pattern) = if let Some(area) = raw_image.active_area {
-        let shifted = cfa.shift(area.p.x, area.p.y).name;
-        let cropped = pixels.crop(area);
-        let w = cropped.width;
-        let h = cropped.height;
-        (cropped.into_inner(), w, h, shifted)
-    } else {
-        let w = pixels.width;
-        let h = pixels.height;
-        (pixels.into_inner(), w, h, cfa.name)
+    let (data, width, height) = scaled_mosaic(&raw_image);
+    let cfa_pattern = match raw_image.active_area {
+        Some(area) => cfa.shift(area.p.x, area.p.y).name,
+        None => cfa.name,
     };
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);

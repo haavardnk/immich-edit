@@ -1,6 +1,8 @@
 use super::bitmap::{InputFormat, frame_from_rgb8, sniff_format};
+use super::raw::scaled_mosaic;
 use crate::math::srgb_to_linear;
 use rawler::cfa::CFA;
+use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
 
 const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
@@ -35,6 +37,53 @@ fn sniff_known_magics() {
 fn sniff_unknown_returns_none() {
     if sniff_format(b"not-an-image").is_some() {
         panic!("unknown bytes should not sniff");
+    }
+}
+
+#[test]
+fn scaled_mosaic_matches_rawler_rescale_and_crop() {
+    let params = rawler::decoders::RawDecodeParams::default();
+    let mut checked = 0;
+    for file in raw_pipeline_testkit::fixtures::fixtures() {
+        let Ok(bytes) = std::fs::read(&file) else {
+            continue;
+        };
+        let source = rawler::rawsource::RawSource::new_from_slice(&bytes);
+        let Ok(raw) = rawler::decode(&source, &params) else {
+            continue;
+        };
+        if raw.cpp != 1 {
+            continue;
+        }
+        let develop = RawDevelop {
+            steps: vec![ProcessingStep::Rescale],
+        };
+        let Ok(Intermediate::Monochrome(pixels)) = develop.develop_intermediate(&raw) else {
+            panic!("{} did not develop to a mosaic", file.display());
+        };
+        let expected = match raw.active_area {
+            Some(area) => pixels.crop(area),
+            None => pixels,
+        };
+        let (data, width, height) = scaled_mosaic(&raw);
+        if (width, height) != (expected.width, expected.height) {
+            panic!("{} dims differ", file.display());
+        }
+        let (x0, y0) = raw.active_area.map_or((0, 0), |area| (area.p.x, area.p.y));
+        let rawler_scaled =
+            |i: usize| x0 + i % width < raw.width & !1 && y0 + i / width < raw.height & !1;
+        let mismatch = data
+            .iter()
+            .zip(expected.into_inner())
+            .enumerate()
+            .any(|(i, (ours, theirs))| rawler_scaled(i) && *ours != theirs);
+        if mismatch {
+            panic!("{} pixels differ from rawler", file.display());
+        }
+        checked += 1;
+    }
+    if checked < 5 {
+        panic!("only {checked} CFA fixtures checked");
     }
 }
 
