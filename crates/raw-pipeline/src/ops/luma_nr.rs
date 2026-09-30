@@ -1,11 +1,8 @@
 use super::LinearImage;
-use super::bilateral::{self, Bilateral};
+use super::denoise;
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
-use crate::math::luma;
-use rayon::prelude::*;
 
 pub struct LumaNrOp;
 
@@ -20,7 +17,7 @@ impl Op for LumaNrOp {
         Stage::Tone
     }
     fn order(&self) -> i32 {
-        -50
+        -40
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.detail.luma_nr_active()
@@ -58,71 +55,16 @@ impl Op for LumaNrOp {
         if !d.luma_nr_active() {
             return Ok(());
         }
-        apply_luma_nr(
+        denoise::luma::denoise(
             image,
-            d.luma_nr_amount as f32,
-            d.luma_nr_detail as f32,
-            d.luma_nr_contrast as f32,
+            denoise::luma::level_params(
+                d.luma_nr_amount as f32,
+                d.luma_nr_detail as f32,
+                d.luma_nr_contrast as f32,
+            ),
         );
         Ok(())
     }
-}
-
-fn apply_luma_nr(image: &mut LinearImage, amount: f32, detail: f32, contrast: f32) {
-    let w = image.width;
-    let h = image.height;
-    if w < 3 || h < 3 {
-        return;
-    }
-    let n = w * h;
-    let mut lum = Scratch::zeroed(n);
-    lum.par_chunks_mut(w)
-        .zip(image.rgb.par_chunks(w * 3))
-        .for_each(|(lrow, prow)| {
-            for x in 0..w {
-                let r = prow[x * 3];
-                let g = prow[x * 3 + 1];
-                let b = prow[x * 3 + 2];
-                lrow[x] = luma(r, g, b);
-            }
-        });
-    let radius: usize = if amount >= 66.0 {
-        4
-    } else if amount >= 33.0 {
-        3
-    } else {
-        2
-    };
-    let sigma_s = radius as f32;
-    let sigma_r = 0.005 + (1.0 - detail / 100.0) * 0.20;
-    let alpha = (amount / 100.0) * (1.0 - contrast / 100.0);
-    let mut denoised = Scratch::zeroed(n);
-    bilateral::filter(
-        [&*lum],
-        [&mut *denoised],
-        w,
-        h,
-        Bilateral {
-            radius,
-            inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
-            inv_2sr: 1.0 / (2.0 * sigma_r * sigma_r),
-        },
-    );
-    image
-        .rgb
-        .par_chunks_mut(w * 3)
-        .enumerate()
-        .for_each(|(y, prow)| {
-            for x in 0..w {
-                let y_orig = lum[y * w + x];
-                let y_den = denoised[y * w + x];
-                let y_new = y_orig + (y_den - y_orig) * alpha;
-                let scale = if y_orig > 1e-6 { y_new / y_orig } else { 1.0 };
-                prow[x * 3] *= scale;
-                prow[x * 3 + 1] *= scale;
-                prow[x * 3 + 2] *= scale;
-            }
-        });
 }
 
 #[cfg(test)]

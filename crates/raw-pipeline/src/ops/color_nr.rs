@@ -1,15 +1,8 @@
 use super::LinearImage;
-use super::bilateral::{self, Bilateral};
+use super::denoise;
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
-use crate::math::luma;
-use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
-use rayon::prelude::*;
-
-const PB_DEN: f32 = 1.8556;
-const PR_DEN: f32 = 1.5748;
 
 pub struct ColorNrOp;
 
@@ -24,7 +17,7 @@ impl Op for ColorNrOp {
         Stage::Tone
     }
     fn order(&self) -> i32 {
-        -40
+        -50
     }
     fn is_active(&self, edits: &Edits) -> bool {
         edits.detail.color_nr_active()
@@ -62,121 +55,16 @@ impl Op for ColorNrOp {
         if !d.color_nr_active() {
             return Ok(());
         }
-        apply_color_nr(
+        denoise::chroma::denoise(
             image,
-            d.color_nr_amount as f32,
-            d.color_nr_detail as f32,
-            d.color_nr_smoothness as f32,
+            denoise::chroma::level_params(
+                d.color_nr_amount as f32,
+                d.color_nr_detail as f32,
+                d.color_nr_smoothness as f32,
+            ),
         );
         Ok(())
     }
-}
-
-fn apply_color_nr(image: &mut LinearImage, amount: f32, detail: f32, smoothness: f32) {
-    let w = image.width;
-    let h = image.height;
-    if w < 3 || h < 3 {
-        return;
-    }
-    let n = w * h;
-    let mut y_buf = Scratch::zeroed(n);
-    let mut pb_buf = Scratch::zeroed(n);
-    let mut pr_buf = Scratch::zeroed(n);
-    (
-        y_buf.par_chunks_mut(w),
-        pb_buf.par_chunks_mut(w),
-        pr_buf.par_chunks_mut(w),
-    )
-        .into_par_iter()
-        .zip(image.rgb.par_chunks(w * 3))
-        .for_each(|((yrow, pbrow, prrow), prow)| {
-            for x in 0..w {
-                let r = prow[x * 3];
-                let g = prow[x * 3 + 1];
-                let b = prow[x * 3 + 2];
-                let yv = luma(r, g, b);
-                yrow[x] = yv;
-                pbrow[x] = (b - yv) / PB_DEN;
-                prrow[x] = (r - yv) / PR_DEN;
-            }
-        });
-    let radius: usize = if amount >= 66.0 {
-        4
-    } else if amount >= 33.0 {
-        3
-    } else {
-        2
-    };
-    let sigma_s = radius as f32;
-    let sigma_r = 0.005 + (1.0 - detail / 100.0) * 0.30;
-    let alpha = amount / 100.0;
-    let mut pb_out = Scratch::zeroed(n);
-    let mut pr_out = Scratch::zeroed(n);
-    bilateral::filter(
-        [&*pb_buf, &*pr_buf],
-        [&mut *pb_out, &mut *pr_out],
-        w,
-        h,
-        Bilateral {
-            radius,
-            inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
-            inv_2sr: 1.0 / (2.0 * sigma_r * sigma_r),
-        },
-    );
-    let s = smoothness / 100.0;
-    if s > 0.0 {
-        let mut pb_s = Scratch::zeroed(n);
-        let mut pr_s = Scratch::zeroed(n);
-        box_blur_3x3(&pb_out, &mut pb_s, w, h);
-        box_blur_3x3(&pr_out, &mut pr_s, w, h);
-        pb_out
-            .par_iter_mut()
-            .zip(pb_s.par_iter())
-            .for_each(|(a, b)| *a = *a + (*b - *a) * s);
-        pr_out
-            .par_iter_mut()
-            .zip(pr_s.par_iter())
-            .for_each(|(a, b)| *a = *a + (*b - *a) * s);
-    }
-    image
-        .rgb
-        .par_chunks_mut(w * 3)
-        .enumerate()
-        .for_each(|(y, prow)| {
-            for x in 0..w {
-                let yv = y_buf[y * w + x];
-                let pb_orig = pb_buf[y * w + x];
-                let pr_orig = pr_buf[y * w + x];
-                let pb_new = pb_orig + (pb_out[y * w + x] - pb_orig) * alpha;
-                let pr_new = pr_orig + (pr_out[y * w + x] - pr_orig) * alpha;
-                let r = yv + PR_DEN * pr_new;
-                let b = yv + PB_DEN * pb_new;
-                let g = (yv - LUMA_R * r - LUMA_B * b) / LUMA_G;
-                prow[x * 3] = r;
-                prow[x * 3 + 1] = g;
-                prow[x * 3 + 2] = b;
-            }
-        });
-}
-
-fn box_blur_3x3(src: &[f32], dst: &mut [f32], w: usize, h: usize) {
-    dst.par_chunks_mut(w).enumerate().for_each(|(y, drow)| {
-        let y0 = if y == 0 { 0 } else { y - 1 };
-        let y1 = if y + 1 >= h { h - 1 } else { y + 1 };
-        for (x, slot) in drow.iter_mut().enumerate() {
-            let x0 = if x == 0 { 0 } else { x - 1 };
-            let x1 = if x + 1 >= w { w - 1 } else { x + 1 };
-            let mut sum = 0.0f32;
-            let mut cnt = 0.0f32;
-            for yy in y0..=y1 {
-                for xx in x0..=x1 {
-                    sum += src[yy * w + xx];
-                    cnt += 1.0;
-                }
-            }
-            *slot = sum / cnt;
-        }
-    });
 }
 
 #[cfg(test)]
@@ -184,7 +72,10 @@ mod tests {
     use super::*;
     use crate::edits::Edits;
     use crate::frame::PreviewMode;
+    use crate::math::luma;
+    use crate::ops::denoise::{PB_DEN, PR_DEN};
     use crate::ops::{OpContext, OpScratch, RenderContext};
+    use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
 
     fn ctx() -> OpContext {
         OpContext {

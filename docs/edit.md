@@ -59,6 +59,13 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    **Capture Sharpening** restores the fine detail a RAW sensor blurs away, working only on
    visible edges so smooth areas and noise stay untouched. **Corner Boost** sharpens harder towards
    the corners for lenses that are softer there.
+   Noise reduction measures the noise in each photo, so the same settings suit a clean ISO 100
+   shot and a grainy ISO 12800 one.
+   - **Luminance** sets how much grain to remove. Its **Detail** keeps fine texture that stands
+     above the noise, and **Contrast** keeps more of the coarse grain so smooth areas don't look
+     plastic.
+   - **Color** removes color speckles. Its **Detail** keeps small colored edges, and
+     **Smoothness** also cleans up larger color blotches.
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).

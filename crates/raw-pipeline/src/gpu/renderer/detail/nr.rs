@@ -1,173 +1,83 @@
+mod chroma;
+mod estimate;
+mod luma;
+mod profile;
+mod sweep;
+
 use std::sync::Arc;
 
-use wgpu::{CommandEncoderDescriptor, Texture, TextureUsages};
+use wgpu::{Texture, TextureUsages};
 
 use crate::PipelineResult;
+use crate::cancel::CancelToken;
 use crate::edits::Edits;
-use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
-use crate::gpu::passes::nr::NrParams;
-use crate::gpu::passes::nr_smooth::NrSmoothParams;
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::renderer::cache_keys::StageKeys;
 use crate::gpu::renderer::stage_cache::Stage;
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
+use crate::gpu::texture::{STORAGE_SAMPLED, texture_2d};
+use crate::ops::denoise;
+pub(in crate::gpu::renderer) use profile::NoiseProfile;
+use sweep::NrSweep;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_nr(
         &self,
-        src: &Texture,
+        src: &Arc<Texture>,
         dims: (u32, u32),
         edits: &Edits,
-        key: u64,
+        keys: &StageKeys,
+        cancel: Option<&CancelToken>,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.sensor.stages.get(Stage::Nr, key) {
+        if let Some(t) = self.sensor.stages.get(Stage::Nr, keys.nr) {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
         }
-        let _span = tracing::debug_span!("gpu.submit_nr", w = dims.0, h = dims.1).entered();
-        let device = &self.ctx.device;
-        let queue = &self.ctx.queue;
         let (w, h) = dims;
+        if w < 3 || h < 3 {
+            return Ok(src.clone());
+        }
+        let profile = self.noise_profile_for(keys.nr_source, src, dims, cancel)?;
+        let _span = tracing::debug_span!("gpu.submit_nr", w, h).entered();
         let d = &edits.detail;
-
-        let luma_amount = d.luma_nr_amount as f32;
-        let luma_detail = d.luma_nr_detail as f32;
-        let luma_contrast = d.luma_nr_contrast as f32;
-        let color_amount = d.color_nr_amount as f32;
-        let color_detail = d.color_nr_detail as f32;
-
-        let radius_for = |amount: f32| -> u32 {
-            if amount >= 66.0 {
-                4
-            } else if amount >= 33.0 {
-                3
-            } else {
-                2
-            }
-        };
-        let sigma_r_luma = 0.005 + (1.0 - luma_detail / 100.0) * 0.20;
-        let sigma_r_chroma = 0.005 + (1.0 - color_detail / 100.0) * 0.30;
-        let inv_2sr_luma = 1.0 / (2.0 * sigma_r_luma * sigma_r_luma);
-        let inv_2sr_chroma = 1.0 / (2.0 * sigma_r_chroma * sigma_r_chroma);
-        let alpha_luma = luma_amount / 100.0;
-        let alpha_chroma = color_amount / 100.0;
-        let contrast = luma_contrast / 100.0;
-
-        let nr_uniform = |stage: u32, radius: u32| {
-            let sigma_s = radius as f32;
-            let params = NrParams {
-                size: [w, h],
-                radius,
-                stage,
-                inv_2ss: 1.0 / (2.0 * sigma_s * sigma_s),
-                inv_2sr_luma,
-                inv_2sr_chroma,
-                alpha_luma,
-                alpha_chroma,
-                contrast,
-                _pad: [0.0; 2],
-            };
-            self.uniform(&params, "nr-uniform")
-        };
-
-        let make_tex = |label: &'static str, mips: bool| -> Texture {
-            texture_2d(
-                device,
-                label,
-                self.ctx.linear_format,
-                (w, h),
-                if mips { mip_count(w, h) } else { 1 },
-                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+        let chroma_levels = d.color_nr_active().then(|| {
+            denoise::chroma::level_params(
+                d.color_nr_amount as f32,
+                d.color_nr_detail as f32,
+                d.color_nr_smoothness as f32,
             )
-        };
-
-        let chroma_active = color_amount > 0.0;
-        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("nr-enc"),
         });
-        let dispatch = |encoder: &mut wgpu::CommandEncoder,
-                        label: &'static str,
-                        uniform: &crate::gpu::uniform_pool::PooledUniform,
-                        src: &wgpu::TextureView,
-                        dst: &wgpu::TextureView| {
-            let bind = bind_group(
-                device,
-                label,
-                &self.passes.sensor_stage.nr.layout,
-                &[uniform.as_entire_binding(), tex(src), tex(dst)],
-            );
-            dispatch_2d(
-                encoder,
-                label,
-                &self.passes.sensor_stage.nr.pipeline,
-                &bind,
-                w.div_ceil(16),
-                h.div_ceil(16),
-            );
-        };
-
-        let src_view = full_view(src);
-        let luma_tex = (luma_amount > 0.0).then(|| make_tex("nr-luma", !chroma_active));
-        let luma_uniform = luma_tex
-            .as_ref()
-            .map(|_| nr_uniform(0, radius_for(luma_amount)));
-        if let (Some(t), Some(u)) = (luma_tex.as_ref(), luma_uniform.as_ref()) {
-            dispatch(&mut encoder, "nr-luma-pass", u, &src_view, &mip_view(t, 0));
+        let luma_levels = d.luma_nr_active().then(|| {
+            denoise::luma::level_params(
+                d.luma_nr_amount as f32,
+                d.luma_nr_detail as f32,
+                d.luma_nr_contrast as f32,
+            )
+        });
+        let out = texture_2d(
+            &self.ctx.device,
+            "nr-out",
+            self.ctx.linear_format,
+            dims,
+            mip_count(w, h),
+            STORAGE_SAMPLED | TextureUsages::COPY_SRC,
+        );
+        let p = &self.passes.sensor_stage.nr;
+        let mut sweep = NrSweep::new(self, "nr-enc");
+        let between = (chroma_levels.is_some() && luma_levels.is_some())
+            .then(|| sweep.scratch(self.ctx.linear_format, dims, "nr-chroma-out"));
+        if let Some(levels) = chroma_levels {
+            let dst: &Texture = between.as_deref().unwrap_or(&out);
+            chroma::render(&mut sweep, p, [src, dst], dims, &profile, levels);
         }
-
-        if !chroma_active {
-            let Some(dst) = luma_tex else {
-                queue.submit(Some(encoder.finish()));
-                let out = Arc::new(make_tex("nr-out", true));
-                return Ok(out);
-            };
-            self.encode_mipgen(&mut encoder, &dst, w, h);
-            queue.submit(Some(encoder.finish()));
-            let out = Arc::new(dst);
-            self.sensor.stages.put(Stage::Nr, key, out.clone());
-            return Ok(out);
+        if let Some(levels) = luma_levels {
+            let input: &Texture = between.as_deref().unwrap_or(src);
+            luma::render(&mut sweep, p, [input, &out], dims, &profile.luma, levels);
         }
-
-        let base_view = full_view(luma_tex.as_ref().unwrap_or(src));
-        let chroma_tex = make_tex("nr-chroma", false);
-        let chroma_view = full_view(&chroma_tex);
-        let u = nr_uniform(1, radius_for(color_amount));
-        dispatch(&mut encoder, "nr-chroma-pass", &u, &base_view, &chroma_view);
-
-        let dst = make_tex("nr-out", true);
-        let dst_mip0 = mip_view(&dst, 0);
-        let smoothness = (d.color_nr_smoothness as f32) / 100.0;
-        let sbuf = self.uniform(
-            &NrSmoothParams {
-                size: [w, h],
-                smoothness,
-                alpha_chroma,
-            },
-            "nr-smooth-uniform",
-        );
-        let sbind = bind_group(
-            device,
-            "nr-smooth-bg",
-            &self.passes.sensor_stage.nr_smooth.layout,
-            &[
-                sbuf.as_entire_binding(),
-                tex(&base_view),
-                tex(&chroma_view),
-                tex(&dst_mip0),
-            ],
-        );
-        dispatch_2d(
-            &mut encoder,
-            "nr-chroma-finish",
-            &self.passes.sensor_stage.nr_smooth.pipeline,
-            &sbind,
-            w.div_ceil(16),
-            h.div_ceil(16),
-        );
-        self.encode_mipgen(&mut encoder, &dst, w, h);
-        queue.submit(Some(encoder.finish()));
-        let out = Arc::new(dst);
-        self.sensor.stages.put(Stage::Nr, key, out.clone());
+        self.encode_mipgen(sweep.encoder(), &out, w, h);
+        sweep.submit();
+        let out = Arc::new(out);
+        self.sensor.stages.put(Stage::Nr, keys.nr, out.clone());
         Ok(out)
     }
 }

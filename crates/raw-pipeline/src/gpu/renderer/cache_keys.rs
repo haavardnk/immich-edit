@@ -6,6 +6,7 @@ use crate::ops::capture_sharpen::CaptureSigma;
 
 pub(super) struct StageKeys {
     pub wb: u64,
+    pub nr_source: u64,
     pub nr: u64,
 }
 
@@ -31,8 +32,16 @@ impl StageKeys {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         wb.hash(&mut h);
         hash_strokes(&edits.retouch, &mut h);
+        let nr_source = h.finish();
+
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        nr_source.hash(&mut h);
         edits.detail.hash_nr(&mut h);
-        Self { wb, nr: h.finish() }
+        Self {
+            wb,
+            nr_source,
+            nr: h.finish(),
+        }
     }
 
     pub fn capture(&self, sigma: CaptureSigma) -> u64 {
