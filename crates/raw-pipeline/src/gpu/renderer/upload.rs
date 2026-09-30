@@ -1,8 +1,10 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoderDescriptor, TextureUsages};
+use rayon::prelude::*;
+use wgpu::{
+    BufferDescriptor, BufferSize, BufferUsages, CommandEncoderDescriptor, TextureUsages, WriteOnly,
+};
 
 use crate::frame::RawFrame;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
@@ -13,6 +15,38 @@ use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d, write_texture_2
 use crate::{PipelineError, PipelineResult};
 
 use super::{CachedFrame, GpuRenderer};
+
+const UPLOAD_CHUNK: usize = 1 << 20;
+
+fn mosaic_buffer(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    label: &str,
+    data: &[f32],
+) -> PipelineResult<wgpu::Buffer> {
+    let bytes: &[u8] = bytemuck::cast_slice(data);
+    let size = BufferSize::new(bytes.len() as u64)
+        .ok_or_else(|| PipelineError::Render(format!("{label}: empty mosaic")))?;
+    let buffer = device.create_buffer(&BufferDescriptor {
+        label: Some(label),
+        size: size.get(),
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let mut view = queue
+        .write_buffer_with(&buffer, 0, size)
+        .ok_or_else(|| PipelineError::Render(format!("{label}: staging write failed")))?;
+    let (chunks, mut tail) = view.slice(..).into_chunks::<UPLOAD_CHUNK>();
+    let (head, rest) = bytes.split_at(chunks.len() * UPLOAD_CHUNK);
+    chunks
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .zip(head.par_chunks_exact(UPLOAD_CHUNK))
+        .for_each(|(dst, src)| WriteOnly::<[u8]>::from(dst).copy_from_slice(src));
+    tail.copy_from_slice(rest);
+    Ok(buffer)
+}
 
 impl GpuRenderer {
     pub(super) fn get_or_demosaic(
@@ -67,11 +101,7 @@ impl GpuRenderer {
         let w = (frame.meta.width / block) as u32;
         let h = (frame.meta.height / block) as u32;
         let uniform_buf = self.uniform(&params, "superpixel-uniform");
-        let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("superpixel-raw-storage"),
-            contents: bytemuck::cast_slice(&frame.data),
-            usage: BufferUsages::STORAGE,
-        });
+        let raw_buf = mosaic_buffer(device, queue, "superpixel-raw-storage", &frame.data)?;
         let texture = texture_2d(
             device,
             "linear-superpixel",
@@ -120,18 +150,16 @@ impl GpuRenderer {
         let w = frame.meta.width as u32;
         let h = frame.meta.height as u32;
 
-        let rgba_f16: Vec<u16> = frame
-            .data
-            .chunks_exact(3)
-            .flat_map(|rgb| {
-                [
-                    half::f16::from_f32(rgb[0]).to_bits(),
-                    half::f16::from_f32(rgb[1]).to_bits(),
-                    half::f16::from_f32(rgb[2]).to_bits(),
-                    half::f16::from_f32(1.0).to_bits(),
-                ]
-            })
-            .collect();
+        let one = half::f16::from_f32(1.0).to_bits();
+        let mut rgba_f16 = vec![one; frame.data.len() / 3 * 4];
+        rgba_f16
+            .par_chunks_exact_mut(4)
+            .zip(frame.data.par_chunks_exact(3))
+            .for_each(|(dst, rgb)| {
+                for (d, s) in dst.iter_mut().zip(rgb) {
+                    *d = half::f16::from_f32(*s).to_bits();
+                }
+            });
 
         let texture = texture_2d(
             device,
@@ -198,11 +226,7 @@ impl GpuRenderer {
             "demosaic-uniform",
         );
 
-        let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("raw-storage"),
-            contents: bytemuck::cast_slice(&frame.data),
-            usage: BufferUsages::STORAGE,
-        });
+        let raw_buf = mosaic_buffer(device, queue, "raw-storage", &frame.data)?;
 
         let texture = texture_2d(
             device,
@@ -268,11 +292,7 @@ impl GpuRenderer {
             "xtrans-uniform",
         );
 
-        let raw_buf = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("xtrans-raw-storage"),
-            contents: bytemuck::cast_slice(&frame.data),
-            usage: BufferUsages::STORAGE,
-        });
+        let raw_buf = mosaic_buffer(device, queue, "xtrans-raw-storage", &frame.data)?;
         let green_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("xtrans-green-storage"),
             size: (frame.meta.width as u64) * (frame.meta.height as u64) * 4,
