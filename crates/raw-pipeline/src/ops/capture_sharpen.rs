@@ -17,6 +17,7 @@ const SHADOW_FLOOR: f32 = 0.002;
 const SHADOW_KNEE: f32 = 0.02;
 const CONTRAST_FLOOR: f32 = 0.010;
 const CONTRAST_KNEE: f32 = 0.045;
+const BAND: usize = 64;
 
 pub struct CaptureSharpenOp;
 
@@ -98,63 +99,94 @@ pub fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     kernel
 }
 
-fn convolve(src: &[f32], dst: &mut [f32], tmp: &mut [f32], w: usize, h: usize, kernel: &[f32]) {
+fn blur_row(src_row: &[f32], row: &mut [f32], kernel: &[f32]) {
+    let w = src_row.len();
     let radius = kernel.len() / 2;
     let left_end = radius.min(w);
     let right_start = w.saturating_sub(radius).max(left_end);
-    tmp.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        let src_row = &src[y * w..y * w + w];
-        for x in (0..left_end).chain(right_start..w) {
-            let mut acc = 0.0f32;
-            for (i, k) in kernel.iter().enumerate() {
-                let sx = (x + i).saturating_sub(radius).min(w - 1);
-                acc += k * src_row[sx];
-            }
-            row[x] = acc;
-        }
-        if right_start <= left_end {
-            return;
-        }
-        let inner = &mut row[left_end..right_start];
-        inner.fill(0.0);
+    for x in (0..left_end).chain(right_start..w) {
+        let mut acc = 0.0f32;
         for (i, k) in kernel.iter().enumerate() {
-            let taps = &src_row[i..i + inner.len()];
-            for (out, v) in inner.iter_mut().zip(taps) {
-                *out += k * v;
-            }
+            let sx = (x + i).saturating_sub(radius).min(w - 1);
+            acc += k * src_row[sx];
         }
-    });
-    dst.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        row.fill(0.0);
-        for (i, k) in kernel.iter().enumerate() {
-            let sy = (y + i).saturating_sub(radius).min(h - 1);
-            let src_row = &tmp[sy * w..sy * w + w];
-            for (out, v) in row.iter_mut().zip(src_row) {
-                *out += k * v;
-            }
+        row[x] = acc;
+    }
+    if right_start <= left_end {
+        return;
+    }
+    let inner = &mut row[left_end..right_start];
+    inner.fill(0.0);
+    for (i, k) in kernel.iter().enumerate() {
+        let taps = &src_row[i..i + inner.len()];
+        for (out, v) in inner.iter_mut().zip(taps) {
+            *out += k * v;
         }
-    });
+    }
 }
 
-fn separable_extreme(
+fn convolve_with<F>(src: &[f32], dst: &mut [f32], w: usize, h: usize, kernel: &[f32], finish: F)
+where
+    F: Fn(usize, &[f32], &mut [f32]) + Sync,
+{
+    let radius = kernel.len() / 2;
+    dst.par_chunks_mut(w * BAND).enumerate().for_each_init(
+        || (Vec::new(), vec![0.0f32; w]),
+        |(tmp, acc), (band, out)| {
+            let y0 = band * BAND;
+            let top = y0.saturating_sub(radius);
+            let bottom = (y0 + out.len() / w + radius).min(h);
+            tmp.resize((bottom - top) * w, 0.0);
+            for (sy, row) in (top..bottom).zip(tmp.chunks_exact_mut(w)) {
+                blur_row(&src[sy * w..sy * w + w], row, kernel);
+            }
+            for (y, row) in (y0..).zip(out.chunks_exact_mut(w)) {
+                acc.fill(0.0);
+                for (i, k) in kernel.iter().enumerate() {
+                    let sy = (y + i).saturating_sub(radius).min(h - 1) - top;
+                    for (a, v) in acc.iter_mut().zip(&tmp[sy * w..sy * w + w]) {
+                        *a += k * v;
+                    }
+                }
+                finish(y, acc, row);
+            }
+        },
+    );
+}
+
+fn extreme_row<P: Fn(f32, f32) -> f32>(src_row: &[f32], row: &mut [f32], radius: usize, pick: P) {
+    let w = src_row.len();
+    row.copy_from_slice(src_row);
+    let left_end = radius.min(w);
+    let right_start = w.saturating_sub(radius).max(left_end);
+    for x in (0..left_end).chain(right_start..w) {
+        for d in 1..=radius {
+            let lo = x.saturating_sub(d);
+            let hi = (x + d).min(w - 1);
+            row[x] = pick(pick(row[x], src_row[lo]), src_row[hi]);
+        }
+    }
+    let n = right_start - left_end;
+    for d in 1..=radius.min(left_end) {
+        let before = &src_row[left_end - d..left_end - d + n];
+        let after = &src_row[left_end + d..left_end + d + n];
+        for ((out, a), b) in row[left_end..right_start].iter_mut().zip(before).zip(after) {
+            *out = pick(pick(*out, *a), *b);
+        }
+    }
+}
+
+fn separable_extreme<P: Fn(f32, f32) -> f32 + Sync + Copy>(
     src: &[f32],
     dst: &mut [f32],
     tmp: &mut [f32],
     w: usize,
     h: usize,
     radius: usize,
-    pick: fn(f32, f32) -> f32,
+    pick: P,
 ) {
     tmp.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-        let src_row = &src[y * w..y * w + w];
-        row.copy_from_slice(src_row);
-        for d in 1..=radius {
-            for (x, out) in row.iter_mut().enumerate() {
-                let lo = x.saturating_sub(d);
-                let hi = (x + d).min(w - 1);
-                *out = pick(pick(*out, src_row[lo]), src_row[hi]);
-            }
-        }
+        extreme_row(&src[y * w..y * w + w], row, radius, pick);
     });
     dst.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let y0 = y.saturating_sub(radius);
@@ -219,14 +251,16 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: f32) {
     let mut corr = Scratch::zeroed(n);
     let mut tmp = Scratch::zeroed(n);
     for _ in 0..ITERATIONS {
-        convolve(&est, &mut conv, &mut tmp, w, h, &kernel);
-        conv.par_iter_mut().zip(lum.par_iter()).for_each(|(c, l)| {
-            *c = l / c.max(EPS);
+        convolve_with(&est, &mut conv, w, h, &kernel, |y, acc, row| {
+            for ((c, a), l) in row.iter_mut().zip(acc).zip(&lum[y * w..y * w + w]) {
+                *c = l / a.max(EPS);
+            }
         });
-        convolve(&conv, &mut corr, &mut tmp, w, h, &kernel);
-        est.par_iter_mut()
-            .zip(corr.par_iter())
-            .for_each(|(e, c)| *e *= c);
+        convolve_with(&conv, &mut est, w, h, &kernel, |_, acc, row| {
+            for (e, a) in row.iter_mut().zip(acc) {
+                *e *= a;
+            }
+        });
     }
     let radius = kernel.len() / 2;
     separable_extreme(&lum, &mut conv, &mut tmp, w, h, radius, f32::min);
@@ -302,8 +336,9 @@ mod tests {
         for c in 0..3 {
             let plane: Vec<f32> = (0..w * h).map(|i| rgb[i * 3 + c]).collect();
             let mut dst = vec![0.0f32; w * h];
-            let mut tmp = vec![0.0f32; w * h];
-            convolve(&plane, &mut dst, &mut tmp, w, h, &kernel);
+            convolve_with(&plane, &mut dst, w, h, &kernel, |_, acc, row| {
+                row.copy_from_slice(acc)
+            });
             for i in 0..w * h {
                 out[i * 3 + c] = dst[i];
             }
@@ -314,6 +349,43 @@ mod tests {
     fn rmse(a: &[f32], b: &[f32]) -> f32 {
         let sum: f32 = a.iter().zip(b).map(|(x, y)| (x - y) * (x - y)).sum();
         (sum / a.len() as f32).sqrt()
+    }
+
+    #[test]
+    fn banded_convolution_matches_direct_blur() {
+        let w = 37;
+        let h = BAND * 2 + 13;
+        let src: Vec<f32> = (0..w * h)
+            .map(|i| ((i * 7919) % 101) as f32 / 101.0)
+            .collect();
+        let kernel = gaussian_kernel(1.3);
+        let r = kernel.len() / 2;
+        let mut banded = vec![0.0f32; w * h];
+        convolve_with(&src, &mut banded, w, h, &kernel, |_, acc, row| {
+            row.copy_from_slice(acc)
+        });
+        let clamp = |v: usize, n: usize| v.saturating_sub(r).min(n - 1);
+        let worst = (0..w * h)
+            .map(|p| {
+                let (x, y) = (p % w, p / w);
+                let direct: f32 = kernel
+                    .iter()
+                    .enumerate()
+                    .map(|(j, ky)| {
+                        let sy = clamp(y + j, h);
+                        ky * kernel
+                            .iter()
+                            .enumerate()
+                            .map(|(i, kx)| kx * src[sy * w + clamp(x + i, w)])
+                            .sum::<f32>()
+                    })
+                    .sum();
+                (direct - banded[p]).abs()
+            })
+            .fold(0.0f32, f32::max);
+        if worst > 1e-5 {
+            panic!("banded blur drifted {worst} from the direct blur");
+        }
     }
 
     #[test]
