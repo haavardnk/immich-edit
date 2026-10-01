@@ -16,6 +16,7 @@ use crate::timing::{self, StageClock};
 use std::sync::Arc;
 
 const SPATIAL_BOUNDARY: (crate::ops::Stage, i32) = (crate::ops::Stage::Tone, -35);
+const SHADOWS_BOUNDARY: (crate::ops::Stage, i32) = (crate::ops::Stage::Tone, -10);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum OpRange {
@@ -146,12 +147,11 @@ pub(super) fn run_pipeline_ops_inner(
     let n_layers = layer_evals.len();
     let presence_active = has_presence(edits) || layer_edits.iter().any(has_presence);
     let shadows_active = has_shadows(edits);
-    let mut pyramid_cache: Option<LumaPyramid> = None;
-    let mut pyramid_mips: Option<crate::ops::presence::PresenceMips> = None;
     let ctx_outer = ctx;
     let mut ctx_local: Option<OpContext> = None;
     let mut presence_done = false;
     let mut spatial_ready = false;
+    let mut shadows_ready = false;
     let mut sharpen_delta: Option<LinearImage> = None;
     let sharpen_deltas: Vec<f32> = edits
         .masks
@@ -226,30 +226,29 @@ pub(super) fn run_pipeline_ops_inner(
                     image.height as u32,
                 );
             }
-            if shadows_active {
-                let w = image.width as u32;
-                let h = image.height as u32;
-                let radii = presence_radii(w, h);
-                let mips = presence_mips(w, h, radii);
-                let levels = presence_pyramid_levels(w, h, radii) as usize;
-                let (pyr, shadows) = clock.time(timing::SHADOWS, || {
-                    let pyr = LumaPyramid::build(image, levels);
-                    let guide = Arc::new(ShadowsGuide {
-                        blur: pyr.upsample(mips.shadows, image.width, image.height),
-                        source: pyr.levels[0].to_vec(),
-                    });
-                    (pyr, guide)
-                });
-                pyramid_cache = Some(pyr);
-                pyramid_mips = Some(mips);
-                ctx_local = Some(OpContext {
-                    render: ctx_outer.render.clone(),
-                    scratch: OpScratch {
-                        shadows: Some(shadows),
-                        sharpen_delta: None,
-                    },
-                });
-            }
+        }
+        if !shadows_ready && shadows_active && (op.stage(), op.order()) >= SHADOWS_BOUNDARY {
+            shadows_ready = true;
+            flush(image, &mut layer_images, &mut segment, &mut layer_segments);
+            let w = image.width as u32;
+            let h = image.height as u32;
+            let radii = presence_radii(w, h);
+            let mips = presence_mips(w, h, radii);
+            let levels = presence_pyramid_levels(w, h, radii) as usize;
+            let shadows = clock.time(timing::SHADOWS, || {
+                let pyr = LumaPyramid::build(image, levels);
+                Arc::new(ShadowsGuide {
+                    blur: pyr.upsample(mips.shadows, image.width, image.height),
+                    source: pyr.levels[0].to_vec(),
+                })
+            });
+            ctx_local = Some(OpContext {
+                render: ctx_outer.render.clone(),
+                scratch: OpScratch {
+                    shadows: Some(shadows),
+                    sharpen_delta: None,
+                },
+            });
         }
         let ctx: &OpContext = ctx_local.as_ref().unwrap_or(ctx_outer);
         if op.gpu_route() == GpuRoute::Presence {
@@ -261,20 +260,15 @@ pub(super) fn run_pipeline_ops_inner(
                 let w = image.width as u32;
                 let h = image.height as u32;
                 let radii = presence_radii(w, h);
-                let mips = pyramid_mips.unwrap_or_else(|| presence_mips(w, h, radii));
+                let mips = presence_mips(w, h, radii);
                 let iw = image.width;
                 let ih = image.height;
                 let needs = |pick: fn(&crate::ops::presence::PresenceAmounts) -> f32| {
                     pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
                 let (texture_blur, clarity_blur) = clock.time(timing::PRESENCE, || {
-                    let pyramid = match pyramid_cache.take() {
-                        Some(p) => p,
-                        None => {
-                            let levels = presence_pyramid_levels(w, h, radii) as usize;
-                            LumaPyramid::build(image, levels)
-                        }
-                    };
+                    let levels = presence_pyramid_levels(w, h, radii) as usize;
+                    let pyramid = LumaPyramid::build(image, levels);
                     (
                         needs(|a| a.texture)
                             .then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih))),
