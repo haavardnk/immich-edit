@@ -63,7 +63,7 @@ fn a_lut_graded_frame_feeds_the_bins_and_the_mask_overlay() {
     .unwrap();
     let luts: raw_pipeline::lut::LutMap = [(
         "warm".to_string(),
-        std::sync::Arc::new(raw_pipeline::lut::Lut3d::parse_cube(cube.as_bytes()).unwrap()),
+        std::sync::Arc::new(raw_pipeline::lut::CubeLut::parse(cube.as_bytes()).unwrap()),
     )]
     .into();
     let frame = synthetic_frame(96, 64);

@@ -4,6 +4,7 @@ export interface LutMeta {
   id: string;
   name: string;
   lut_size: number;
+  shaper_size: number;
   size: number;
   created_at: string;
 }

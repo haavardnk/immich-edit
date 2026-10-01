@@ -124,7 +124,7 @@ pub struct GpuRenderer {
     passes: Arc<GpuPasses>,
     #[cfg(feature = "native")]
     sensor: SensorCaches,
-    lut_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
+    lut_tex_cache: Mutex<lru::LruCache<u64, Arc<lut::LutTextures>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
     atlas_pool: Mutex<Vec<masks::MaskAtlas>>,

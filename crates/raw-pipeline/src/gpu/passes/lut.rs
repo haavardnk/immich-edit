@@ -10,17 +10,22 @@ use super::common::{
 };
 
 pub const LUT_UNIFORM_SIZE: u64 = size_of::<LutParams>() as u64;
+pub const SHAPER_ROW: u32 = 4096;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct LutParams {
     pub size: [u32; 2],
-    pub lut_size: u32,
-    pub _pad0: u32,
-    pub domain_min: [f32; 3],
-    pub _pad1: f32,
-    pub domain_max: [f32; 3],
+    pub cube_size: u32,
+    pub shaper_size: u32,
+    pub cube_min: [f32; 3],
+    pub shaper_width: u32,
+    pub cube_max: [f32; 3],
     pub amount: f32,
+    pub shaper_min: [f32; 3],
+    pub display_p3: u32,
+    pub shaper_max: [f32; 3],
+    pub _pad0: u32,
 }
 
 pub fn lut_wgsl(depth: DisplayDepth) -> String {
@@ -45,6 +50,7 @@ impl LutPass {
                 display_src_entry(1, depth),
                 tex_entry_with(2, false, TextureViewDimension::D3),
                 storage_entry(3, depth.format()),
+                tex_entry_with(4, false, TextureViewDimension::D2),
             ],
         );
         let pipeline = make_pipeline(ctx, &layout, "lut.wgsl", &lut_wgsl(depth));

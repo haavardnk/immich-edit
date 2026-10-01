@@ -233,7 +233,18 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "lut",
-            layout!(LutParams { size, lut_size, domain_min, domain_max, amount } pad { _pad0, _pad1 }),
+            layout!(LutParams {
+                size,
+                cube_size,
+                shaper_size,
+                cube_min,
+                shaper_width,
+                cube_max,
+                amount,
+                shaper_min,
+                display_p3,
+                shaper_max,
+            } pad { _pad0 }),
             uniform_struct(&lut_wgsl(depth)),
         ),
         (
