@@ -11,7 +11,7 @@ use super::color_grade::{
 };
 use super::contrast::{CONTRAST_GAMMA, CONTRAST_ROLLOFF_HI, CONTRAST_ROLLOFF_LO};
 use super::hsl::{
-    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_HUE_SHIFT_DEG, HSL_LUM_SHIFT_SCALE, HSL_MIN_SAT,
+    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_HUE_SHIFT_DEG, HSL_LUM_EV, HSL_MIN_SAT,
     HSL_PARAM_FULL_SCALE, HSL_SAT_GATE_HI, HSL_SAT_GATE_LO,
 };
 use super::tone_regions::{
@@ -70,7 +70,7 @@ static OP_PRELUDE_WGSL: LazyLock<String> = LazyLock::new(|| {
             ("HSL_BAND_SIGMA_DEG", HSL_BAND_SIGMA_DEG),
             ("HSL_PARAM_FULL_SCALE", HSL_PARAM_FULL_SCALE),
             ("HSL_HUE_SHIFT_DEG", HSL_HUE_SHIFT_DEG),
-            ("HSL_LUM_SHIFT_SCALE", HSL_LUM_SHIFT_SCALE),
+            ("HSL_LUM_EV", HSL_LUM_EV),
             ("HSL_SAT_GATE_LO", HSL_SAT_GATE_LO),
             ("HSL_SAT_GATE_HI", HSL_SAT_GATE_HI),
             ("HSL_MIN_SAT", HSL_MIN_SAT),
