@@ -47,8 +47,10 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    values you see, after the camera profile, so a point placed at the middle of the graph moves
    middle gray on screen. **HSL** works on one color range at a time: **Hue** turns it,
    **Saturation** mutes or boosts it without changing how bright it looks, and **Luminance**
-   brightens or darkens it by up to 1.5 stops. **LUT** applies a creative look from a `.cube`
-   file, with an **Amount**.
+   brightens or darkens it by up to 1.5 stops. **Color Grading** tints shadows, midtones and
+   highlights, split by how bright each pixel looks. Its tints keep brightness and leave pure
+   black untouched, and each **Luminance** slider moves its range by up to 1.5 stops. **LUT**
+   applies a creative look from a `.cube` file, with an **Amount**.
 1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.

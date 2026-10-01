@@ -1,10 +1,12 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::{ColorGradeRegion, Edits};
+use crate::math::linear_srgb_to_oklab;
 
 pub struct ColorGradeOp;
 
-pub const COLOR_GRADE_STRENGTH: f32 = 0.5;
+pub const COLOR_GRADE_CHROMA: f32 = 0.4;
+pub const COLOR_GRADE_LUM_EV: f32 = 1.5;
 pub const COLOR_GRADE_PIVOT_BASE: f32 = 0.5;
 pub const COLOR_GRADE_PIVOT_RANGE: f32 = 0.3;
 pub const COLOR_GRADE_FEATHER_BASE: f32 = 0.15;
@@ -24,11 +26,19 @@ pub(crate) fn hue_dir(hue_deg: f32) -> [f32; 3] {
     [r - 0.5, g - 0.5, b - 0.5]
 }
 
-fn region_offset(region: &ColorGradeRegion) -> ([f32; 3], f32) {
-    let s = (region.sat as f32) / 100.0;
-    let l = (region.lum as f32) / 100.0;
-    let dir = hue_dir(region.hue as f32);
-    ([dir[0] * s, dir[1] * s, dir[2] * s], l)
+fn region_offset(region: &ColorGradeRegion) -> [f32; 3] {
+    let [_, a, b] = linear_srgb_to_oklab(hue_dir(region.hue as f32).map(|c| c + 0.5));
+    let gain = COLOR_GRADE_CHROMA * region.sat as f32 / 100.0 / a.hypot(b);
+    [
+        a * gain,
+        b * gain,
+        COLOR_GRADE_LUM_EV * region.lum as f32 / 100.0,
+    ]
+}
+
+fn regions(edits: &Edits) -> [[f32; 3]; 4] {
+    let cg = &edits.color.color_grade;
+    [&cg.shadows, &cg.midtones, &cg.highlights, &cg.global].map(region_offset)
 }
 
 impl Op for ColorGradeOp {
@@ -107,30 +117,16 @@ impl Op for ColorGradeOp {
             return None;
         }
         let cg = &edits.color.color_grade;
-        let (s_off, s_lum) = region_offset(&cg.shadows);
-        let (m_off, m_lum) = region_offset(&cg.midtones);
-        let (h_off, h_lum) = region_offset(&cg.highlights);
-        let (g_off, g_lum) = region_offset(&cg.global);
         Some(CpuFusedOp::ColorGrade {
-            s_off,
-            s_lum,
-            m_off,
-            m_lum,
-            h_off,
-            h_lum,
-            g_off,
-            g_lum,
+            regions: regions(edits),
             balance: (cg.balance as f32) / 100.0,
             blend: (cg.blend as f32) / 100.0,
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
         let cg = &edits.color.color_grade;
-        let regions = [&cg.shadows, &cg.midtones, &cg.highlights, &cg.global];
-        for (i, r) in regions.iter().enumerate() {
-            dst[i * 4] = r.hue as f32;
-            dst[i * 4 + 1] = (r.sat as f32) / 100.0;
-            dst[i * 4 + 2] = (r.lum as f32) / 100.0;
+        for (i, r) in regions(edits).iter().enumerate() {
+            dst[i * 4..i * 4 + 3].copy_from_slice(r);
             dst[i * 4 + 3] = 0.0;
         }
         dst[16] = (cg.balance as f32) / 100.0;

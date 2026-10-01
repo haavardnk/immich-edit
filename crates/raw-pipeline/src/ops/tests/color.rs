@@ -446,31 +446,103 @@ fn color_grade_shadows_affect_dark_more_than_bright() {
     assert!(dark_shift > bright_shift);
 }
 
-#[test]
-fn color_grade_global_lum_brightens() {
-    let mut img = solid_image(1, 1, [0.4, 0.4, 0.4]);
-    let edits = Edits {
-        color: ColorEdits {
-            hsl: HslEdits::default(),
-            color_grade: ColorGradeEdits {
-                global: ColorGradeRegion {
-                    hue: 0.0,
-                    sat: 0.0,
-                    lum: 50.0,
-                },
-                ..Default::default()
-            },
-            lut_3d: Default::default(),
-            dcp: Default::default(),
-            bw: Default::default(),
-        },
-        ..Default::default()
-    };
+fn color_grade_pixel(rgb: [f32; 3], color_grade: ColorGradeEdits) -> [f32; 3] {
+    let mut img = solid_image(1, 1, rgb);
+    let mut edits = Edits::default();
+    edits.color.color_grade = color_grade;
     color_grade::ColorGradeOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    assert!(img.rgb[0] > 0.4);
-    assert!((img.rgb[0] - img.rgb[1]).abs() < 1e-5);
+    [img.rgb[0], img.rgb[1], img.rgb[2]]
+}
+
+#[test]
+fn color_grade_global_lum_scales_exposure() {
+    for src in [[0.4, 0.4, 0.4], [0.5, 0.2, 0.1], [0.02, 0.05, 0.3]] {
+        let grade = ColorGradeEdits {
+            global: ColorGradeRegion {
+                hue: 0.0,
+                sat: 0.0,
+                lum: 50.0,
+            },
+            ..Default::default()
+        };
+        let out = color_grade_pixel(src, grade);
+        let gain = 0.75f32.exp2();
+        if out
+            .iter()
+            .zip(src)
+            .any(|(o, s)| (o - s * gain).abs() > 1e-4)
+        {
+            panic!("lum +50 on {src:?} gave {out:?}, want x{gain}");
+        }
+    }
+}
+
+#[test]
+fn color_grade_tint_keeps_oklab_lightness_and_hue() {
+    let sources = [
+        [0.18, 0.18, 0.18],
+        [0.4, 0.2, 0.1],
+        [0.03, 0.03, 0.03],
+        [0.8, 0.8, 0.8],
+    ];
+    let cases = sources
+        .into_iter()
+        .flat_map(|src| [0.0, 120.0, 220.0, 300.0].map(|hue| (src, hue)));
+    for (src, hue) in cases {
+        let grade = ColorGradeEdits {
+            global: ColorGradeRegion {
+                hue,
+                sat: 40.0,
+                lum: 0.0,
+            },
+            ..Default::default()
+        };
+        let [l0, a0, b0] = crate::math::linear_srgb_to_oklab(src);
+        let [l1, a1, b1] = crate::math::linear_srgb_to_oklab(color_grade_pixel(src, grade));
+        let tint = color_grade::hue_dir(hue as f32).map(|c| c + 0.5);
+        let [_, ta, tb] = crate::math::linear_srgb_to_oklab(tint);
+        let shift = (b1 - b0).atan2(a1 - a0) - tb.atan2(ta);
+        let shift = shift.sin().atan2(shift.cos()).to_degrees();
+        if (l1 - l0).abs() > 1e-4 || shift.abs() > 0.5 {
+            panic!("hue {hue} on {src:?}: L {l0} -> {l1}, tint off by {shift} deg");
+        }
+    }
+}
+
+#[test]
+fn color_grade_keeps_black_and_regions_follow_lightness() {
+    let region = ColorGradeRegion {
+        hue: 30.0,
+        sat: 100.0,
+        lum: 0.0,
+    };
+    let black = color_grade_pixel(
+        [0.0; 3],
+        ColorGradeEdits {
+            shadows: region,
+            ..Default::default()
+        },
+    );
+    if black.iter().any(|v| v.abs() > 1e-6) {
+        panic!("shadow tint lifted black to {black:?}");
+    }
+    let chroma = |grade: ColorGradeEdits| {
+        let [_, a, b] = crate::math::linear_srgb_to_oklab(color_grade_pixel([0.18; 3], grade));
+        a.hypot(b)
+    };
+    let shadows = chroma(ColorGradeEdits {
+        shadows: region,
+        ..Default::default()
+    });
+    let midtones = chroma(ColorGradeEdits {
+        midtones: region,
+        ..Default::default()
+    });
+    if shadows >= midtones {
+        panic!("mid grey took shadow chroma {shadows} >= midtone chroma {midtones}");
+    }
 }
 
 #[test]
