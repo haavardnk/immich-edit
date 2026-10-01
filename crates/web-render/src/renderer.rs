@@ -6,7 +6,7 @@ use raw_pipeline::dcp::DcpProfile;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RenderOptions;
 use raw_pipeline::gpu::{GpuRenderer, GpuRendererOptions, LinearSource};
-use raw_pipeline::lut::{Lut3d, LutMap};
+use raw_pipeline::lut::{CubeLut, LutMap};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -130,7 +130,7 @@ impl WebRenderer {
     }
 
     pub fn set_lut(&self, id: String, bytes: &[u8]) -> Result<(), JsError> {
-        let lut = Lut3d::parse_cube(bytes).map_err(|e| JsError::new(&format!("lut {id}: {e}")))?;
+        let lut = CubeLut::parse(bytes).map_err(|e| JsError::new(&format!("lut {id}: {e}")))?;
         self.inner
             .inputs
             .borrow_mut()

@@ -1,14 +1,14 @@
 use raw_pipeline::decode;
 use raw_pipeline::edits::{BasicEdits, CropRect, Edits, GeometryEdits};
 use raw_pipeline::frame::{
-    Align, BitDepth, OutputFormat, OutputSharpen, PngCompression, RenderOptions, SharpenLevel,
-    SharpenMedia, Watermark, WatermarkAnchor, WatermarkImage,
+    Align, BitDepth, OutputColorSpace, OutputFormat, OutputSharpen, PngCompression, RenderOptions,
+    SharpenLevel, SharpenMedia, Watermark, WatermarkAnchor, WatermarkImage,
 };
 use raw_pipeline_testkit::color::luma;
 use raw_pipeline_testkit::fixtures::{any_fixture, fixture_path};
 use raw_pipeline_testkit::frames::{ramp_frame, synthetic_bayer_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
-use raw_pipeline_testkit::lut::{TINT_LUT_ID, tint_luts};
+use raw_pipeline_testkit::lut::{SHAPED_LUT_ID, TINT_LUT_ID, tint_luts};
 use raw_pipeline_testkit::parity::{ParityLedger, require_same_dims};
 use raw_pipeline_testkit::render::rgb8_opts;
 
@@ -115,6 +115,46 @@ fn gpu_16bit_lut_pass_reads_and_writes_16_bit() {
             "gpu 16-bit lut ramp has only {} distinct levels",
             distinct.len()
         );
+    }
+}
+
+#[test]
+fn gpu_lut_matches_cpu_across_a_ramp() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = ramp_frame(512, 8);
+    for (lut_id, output_color_space) in [
+        (TINT_LUT_ID, OutputColorSpace::SRgb),
+        (SHAPED_LUT_ID, OutputColorSpace::SRgb),
+        (TINT_LUT_ID, OutputColorSpace::DisplayP3),
+    ] {
+        let opts = RenderOptions {
+            max_edge: 1024,
+            output: OutputFormat::Png {
+                bit_depth: BitDepth::Sixteen,
+                compression: PngCompression::Fast,
+            },
+            output_color_space,
+            luts: tint_luts(),
+            ..Default::default()
+        };
+        let mut edits = Edits::default();
+        edits.color.lut_3d.lut_id = Some(lut_id.to_string());
+        edits.color.lut_3d.amount = 100.0;
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        require_same_dims(lut_id, &cpu, &gpu);
+        let g = decode::decode(&gpu.bytes).unwrap().data;
+        let c = decode::decode(&cpu.bytes).unwrap().data;
+        let delta = g
+            .iter()
+            .zip(&c)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        if delta > 0.02 {
+            panic!("{lut_id} {output_color_space:?}: gpu vs cpu lut ramp differs by {delta}");
+        }
     }
 }
 

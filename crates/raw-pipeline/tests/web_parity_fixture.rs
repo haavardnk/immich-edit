@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use raw_pipeline::edits::{CropRect, Edits};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
-use raw_pipeline::lut::Lut3d;
+use raw_pipeline::lut::CubeLut;
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::gpu::try_renderer;
 
@@ -103,7 +103,7 @@ fn bake_web_parity_fixture() {
             dcp: Some(Arc::new(raw_pipeline::parse_dcp(&dcp_bytes).unwrap())),
             luts: [(
                 LUT_ID.to_string(),
-                Arc::new(Lut3d::parse_cube(CUBE.as_bytes()).unwrap()),
+                Arc::new(CubeLut::parse(CUBE.as_bytes()).unwrap()),
             )]
             .into(),
             ..Default::default()

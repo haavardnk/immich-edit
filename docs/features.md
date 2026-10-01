@@ -74,7 +74,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Channel mixer or calibration-primary controls | ✗ No | — |
 | DCP camera profiles | ✓ Yes | Auto, Default Color, Flat, bundled profiles, admin imports, and retry for failed automatic lens lookup |
 | Custom camera ICC input profiles | ✗ No | Camera profiles use DCP only |
-| Creative 3D LUTs | ✓ Yes | `.cube` import with amount control; importing is admin-only |
+| Creative 3D LUTs | ✓ Yes | `.cube` import with amount control, including 1D shaper tables and input ranges; importing is admin-only |
 | 3D LUT export | ✗ No | No `.cube` download or baking from current color edits |
 | Automatic RAW lens profiles | ✓ Yes | Distortion and vignette, with an instance-wide opt-out; chromatic aberration remains opt-in |
 | Crop, rotate, and flip | ✓ Yes | Geometry controls; straighten by drawing a line along the horizon |

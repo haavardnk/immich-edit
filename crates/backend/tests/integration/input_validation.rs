@@ -87,6 +87,7 @@ async fn a_lut_import_round_trips_and_rejects_a_duplicate() {
     let created = body_json(res).await;
     assert_eq!(created["name"], "Warm");
     assert_eq!(created["lut_size"], 2);
+    assert_eq!(created["shaper_size"], 0);
 
     let res = app.oneshot(lut_request("Other", cube(1.0))).await.unwrap();
     assert_eq!(res.status(), StatusCode::CONFLICT);
@@ -95,6 +96,32 @@ async fn a_lut_import_round_trips_and_rejects_a_duplicate() {
         body["message"],
         format!("lut already exists: {}", created["id"].as_str().unwrap())
     );
+}
+
+#[tokio::test]
+async fn a_lut_import_reports_its_shaper_and_cube_sizes() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let shaped = [
+        b"LUT_1D_SIZE 3\n".as_slice(),
+        &cube(1.0),
+        b"0 0 0\n0.5 0.5 0.5\n1 1 1\n",
+    ]
+    .concat();
+    for (body, lut_size, shaper_size) in [
+        (b"LUT_1D_SIZE 2\n1 1 1\n0 0 0\n".to_vec(), 0, 2),
+        (shaped, 2, 3),
+    ] {
+        let res = app
+            .clone()
+            .oneshot(lut_request("Shaped", body))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::CREATED);
+        let created = body_json(res).await;
+        assert_eq!(created["lut_size"], lut_size);
+        assert_eq!(created["shaper_size"], shaper_size);
+    }
 }
 
 #[tokio::test]

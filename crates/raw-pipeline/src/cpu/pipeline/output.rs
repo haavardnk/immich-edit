@@ -22,7 +22,7 @@ pub(super) struct Histograms {
 pub(super) struct FinishOptions<'a> {
     pub want_16bit: bool,
     pub display_ready: bool,
-    pub lut: Option<(&'a crate::lut::Lut3d, f32)>,
+    pub lut: Option<(&'a crate::lut::CubeLut, f32)>,
     pub curves: Option<&'a CurveLuts>,
     pub dcp_finish: Option<DcpFinish<'a>>,
     pub color_space: OutputColorSpace,
@@ -49,25 +49,10 @@ fn quantize_u8_dithered(v: f32, x: u32, y: u32, c: u32) -> u8 {
     ((v.clamp(0.0, 1.0) * 255.0 + tpdf).round()).clamp(0.0, 255.0) as u8
 }
 
-#[inline]
-fn apply_display_lut(rgb: [f32; 3], lut: Option<(&crate::lut::Lut3d, f32)>) -> [f32; 3] {
-    match lut {
-        Some((l, amount)) => {
-            let sampled = l.sample(rgb);
-            [
-                rgb[0] + amount * (sampled[0] - rgb[0]),
-                rgb[1] + amount * (sampled[1] - rgb[1]),
-                rgb[2] + amount * (sampled[2] - rgb[2]),
-            ]
-        }
-        None => rgb,
-    }
-}
-
 pub(super) fn resolve_lut(
     edits: &Edits,
     options: &RenderOptions,
-) -> crate::PipelineResult<Option<(std::sync::Arc<crate::lut::Lut3d>, f32)>> {
+) -> crate::PipelineResult<Option<(std::sync::Arc<crate::lut::CubeLut>, f32)>> {
     if !edits.color.lut_3d.is_active() {
         return Ok(None);
     }
@@ -166,7 +151,10 @@ impl Finish<'_> {
             Some(luts) => apply_display_curves(luts, display),
             None => display,
         };
-        (apply_display_lut(display, opts.lut), clip)
+        let graded = opts.lut.map_or(display, |(lut, amount)| {
+            lut.apply(display, amount, opts.color_space)
+        });
+        (graded, clip)
     }
 }
 

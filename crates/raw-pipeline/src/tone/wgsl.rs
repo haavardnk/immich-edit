@@ -98,6 +98,11 @@ fn tone_to_output_space(c: vec3<f32>, p3: u32) -> vec3<f32> {{
     return {srgb_to_p3};
 }}
 
+fn tone_from_output_space(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    if (p3 == 0u) {{ return c; }}
+    return {p3_to_srgb};
+}}
+
 fn tone_rgb_cs(c: vec3<f32>, p3: u32) -> vec3<f32> {{
     let mapped = tone_map_to_gamut(tone_to_output_space(c, p3), p3);
     return vec3<f32>(
@@ -135,6 +140,7 @@ fn warn_clip_alpha(c: vec3<f32>) -> f32 {{
         srgb_gamma = SRGB_OETF_GAMMA,
         srgb_offset = SRGB_OETF_GAMMA_OFFSET,
         srgb_to_p3 = mat_apply(&crate::color::SRGB_LINEAR_TO_DISPLAY_P3, "c"),
+        p3_to_srgb = mat_apply(&crate::color::DISPLAY_P3_TO_SRGB_LINEAR, "c"),
         srgb_to_lms = mat_apply(&srgb.to_lms, "c"),
         p3_to_lms = mat_apply(&p3.to_lms, "c"),
         srgb_from_lms = mat_apply(&srgb.from_lms, "c"),

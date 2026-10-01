@@ -97,7 +97,10 @@
         selected={selectedId ? [selectedId] : []}
         getId={(lut) => lut.id}
         getLabel={(lut) => lut.name}
-        getDescription={(lut) => `${lut.lut_size}³`}
+        getDescription={(lut) =>
+          [lut.shaper_size && `1D ${lut.shaper_size}`, lut.lut_size && `${lut.lut_size}³`]
+            .filter(Boolean)
+            .join(' + ')}
         placeholder="Select LUT…"
         hideSelected={false}
         onSelectedChange={(ids) => select(ids.at(-1) ?? null)}

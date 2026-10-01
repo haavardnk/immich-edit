@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use lru::LruCache;
-use raw_pipeline::lut::{LUT_MAX_SOURCE_BYTES, Lut3d};
+use raw_pipeline::lut::{CubeLut, LUT_MAX_SOURCE_BYTES};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tokio::fs;
@@ -33,6 +33,7 @@ pub struct LutMeta {
     pub id: String,
     pub name: String,
     pub lut_size: u32,
+    pub shaper_size: u32,
     pub size: u64,
     pub created_at: String,
 }
@@ -41,7 +42,7 @@ pub struct LutMeta {
 pub struct LutStore {
     pool: SqlitePool,
     dir: PathBuf,
-    cache: Arc<Mutex<LruCache<String, Arc<Lut3d>>>>,
+    cache: Arc<Mutex<LruCache<String, Arc<CubeLut>>>>,
 }
 
 impl LutStore {
@@ -65,7 +66,7 @@ impl LutStore {
         if bytes.len() > LUT_MAX_SOURCE_BYTES {
             return Err(LutStoreError::Invalid("cube source too large".into()));
         }
-        let lut = Lut3d::parse_cube(bytes).map_err(|e| LutStoreError::Invalid(e.to_string()))?;
+        let lut = CubeLut::parse(bytes).map_err(|e| LutStoreError::Invalid(e.to_string()))?;
         let name = name.trim();
         if name.is_empty() {
             return Err(LutStoreError::Invalid("name is empty".into()));
@@ -84,16 +85,18 @@ impl LutStore {
 
         let id = Uuid::new_v4().to_string();
         let created_at = Utc::now().to_rfc3339();
-        let lut_size = lut.size() as i64;
+        let lut_size = lut.cube().map_or(0, |c| c.size() as u32);
+        let shaper_size = lut.shaper().map_or(0, |s| s.size() as u32);
         let size = bytes.len() as i64;
         if let Err(e) = sqlx::query(
-            "INSERT INTO luts (id, name, content_hash, size, lut_size, deleted, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+            "INSERT INTO luts (id, name, content_hash, size, lut_size, shaper_size, deleted, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
         )
         .bind(&id)
         .bind(name)
         .bind(&content_hash)
         .bind(size)
         .bind(lut_size)
+        .bind(shaper_size)
         .bind(&created_at)
         .execute(&self.pool)
         .await
@@ -109,7 +112,8 @@ impl LutStore {
         Ok(LutMeta {
             id,
             name: name.to_string(),
-            lut_size: lut.size() as u32,
+            lut_size,
+            shaper_size,
             size: bytes.len() as u64,
             created_at,
         })
@@ -117,7 +121,7 @@ impl LutStore {
 
     async fn find_active_hash(&self, content_hash: &str) -> Result<Option<LutMeta>, LutStoreError> {
         Ok(sqlx::query_as::<_, LutMeta>(
-            "SELECT id, name, lut_size, size, created_at FROM luts WHERE content_hash = ? AND deleted = 0",
+            "SELECT id, name, lut_size, shaper_size, size, created_at FROM luts WHERE content_hash = ? AND deleted = 0",
         )
         .bind(content_hash)
         .fetch_optional(&self.pool)
@@ -126,7 +130,7 @@ impl LutStore {
 
     pub async fn list(&self) -> Result<Vec<LutMeta>, LutStoreError> {
         Ok(sqlx::query_as::<_, LutMeta>(
-            "SELECT id, name, lut_size, size, created_at FROM luts WHERE deleted = 0 ORDER BY created_at DESC",
+            "SELECT id, name, lut_size, shaper_size, size, created_at FROM luts WHERE deleted = 0 ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?)
@@ -144,7 +148,7 @@ impl LutStore {
         Ok(())
     }
 
-    pub async fn load(&self, id: &str) -> Result<Arc<Lut3d>, LutStoreError> {
+    pub async fn load(&self, id: &str) -> Result<Arc<CubeLut>, LutStoreError> {
         let content_hash = self.content_hash(id).await?;
         if let Some(lut) = self
             .cache
@@ -155,7 +159,7 @@ impl LutStore {
             return Ok(lut.clone());
         }
         let bytes = fs::read(self.blob_path(&content_hash)).await?;
-        let lut = Lut3d::parse_cube(&bytes).map_err(|e| LutStoreError::Invalid(e.to_string()))?;
+        let lut = CubeLut::parse(&bytes).map_err(|e| LutStoreError::Invalid(e.to_string()))?;
         let lut = Arc::new(lut);
         self.cache
             .lock()
