@@ -11,6 +11,7 @@ use super::dto::{
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary,
     UploadResponse,
 };
+use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
 
 const API_KEY_HEADER: &str = "x-api-key";
@@ -171,7 +172,7 @@ impl ImmichClient {
 
     pub async fn original(&self, id: Uuid) -> ImmichResult<Bytes> {
         let url = self.url(&format!("api/assets/{id}/original"))?;
-        send(self.authed(self.http.get(url))).await
+        original::download(|| self.authed(self.http.get(url.clone())), Split::DEFAULT).await
     }
 
     pub async fn list_people(&self, named_only: bool) -> ImmichResult<Vec<PersonSummary>> {
@@ -476,7 +477,9 @@ async fn run(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
     })
 }
 
-async fn run_idempotent(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
+pub(super) async fn run_idempotent(
+    req: reqwest::RequestBuilder,
+) -> ImmichResult<reqwest::Response> {
     const ATTEMPTS: u32 = 3;
     let mut last: Option<ImmichError> = None;
     for attempt in 0..ATTEMPTS {

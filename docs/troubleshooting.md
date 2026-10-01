@@ -183,6 +183,10 @@ while a decode is running wait for that same decode instead of starting another 
 outlives its request still finishes and still lands in the cache, so a retry after a
 `408 Request Timeout` is served from memory.
 
+Originals larger than 8 MiB are downloaded as up to four byte ranges at once, which reads a cold
+file from Immich's disk faster than one stream. If a proxy in front of Immich does not pass `Range`
+requests, the download falls back to a single stream.
+
 If the first preview times out, press **Retry** in the viewer. If every preview times out:
 
 - Check **GPU adapter** and **GPU type** in Diagnostics. A software rasterizer or the CPU renderer
