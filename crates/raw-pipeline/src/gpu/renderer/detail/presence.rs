@@ -6,13 +6,20 @@ use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
 use crate::gpu::passes::presence::PresenceParams;
+use crate::gpu::passes::sharpen::{SHARPEN_KERNEL_HALF, SharpenBlurParams};
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
-use crate::ops::presence::{
-    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
-};
+use crate::gpu::uniform_pool::PooledUniform;
+use crate::ops::blur::gaussian_kernel;
+use crate::ops::presence::{PresenceBlur, presence_amounts, presence_blurs};
+
+struct LevelBlur {
+    _scratch: PooledTexture,
+    _uniforms: [PooledUniform; 2],
+    _binds: [wgpu::BindGroup; 2],
+}
 
 struct PyramidLabels {
     extract_bind: &'static str,
@@ -96,6 +103,78 @@ impl GpuRenderer {
         retained
     }
 
+    fn encode_level_blur(
+        &self,
+        encoder: &mut CommandEncoder,
+        pyramid: &Texture,
+        dims: (u32, u32),
+        level: u32,
+        blur: PresenceBlur,
+    ) -> LevelBlur {
+        let device = &self.ctx.device;
+        let pass = &self.passes.output_sharpen;
+        let size = [(dims.0 >> level).max(1), (dims.1 >> level).max(1)];
+        let scratch = self.texture_pool.acquire(
+            device,
+            TextureKey::new(self.ctx.linear_format, size[0], size[1], 1, STORAGE_SAMPLED),
+            "presence-blur-scratch",
+        );
+        let level_view = mip_view(pyramid, level);
+        let scratch_view = full_view(&scratch);
+        let kernel = gaussian_kernel(blur.sigma);
+        let radius = (kernel.len() / 2).min(SHARPEN_KERNEL_HALF - 1);
+        let mut weights = [0.0f32; SHARPEN_KERNEL_HALF];
+        for (slot, weight) in weights.iter_mut().zip(&kernel[kernel.len() / 2..]) {
+            *slot = *weight;
+        }
+        let uniforms = [0, 1].map(|axis| {
+            self.uniform(
+                &SharpenBlurParams {
+                    size,
+                    radius: radius as u32,
+                    axis,
+                    weights,
+                },
+                "presence-blur-u",
+            )
+        });
+        let binds = [
+            bind_group(
+                device,
+                "presence-blur-h-bg",
+                &pass.blur_layout,
+                &[
+                    uniforms[0].as_entire_binding(),
+                    tex(&level_view),
+                    tex(&scratch_view),
+                ],
+            ),
+            bind_group(
+                device,
+                "presence-blur-v-bg",
+                &pass.blur_layout,
+                &[
+                    uniforms[1].as_entire_binding(),
+                    tex(&scratch_view),
+                    tex(&level_view),
+                ],
+            ),
+        ];
+        {
+            let mut cpass = begin_pass(encoder, "presence-blur-pass");
+            cpass.set_pipeline(&pass.blur_pipeline);
+            for bg in &binds {
+                cpass.set_bind_group(0, bg, &[]);
+                cpass.dispatch_workgroups(size[0].div_ceil(16), size[1].div_ceil(16), 1);
+            }
+        }
+        LevelBlur {
+            _scratch: scratch,
+            _uniforms: uniforms,
+            _binds: binds,
+        }
+    }
+
     pub(in crate::gpu::renderer) fn submit_presence(
         &self,
         src: &Texture,
@@ -110,8 +189,10 @@ impl GpuRenderer {
         let (fw, fh) = extent.full;
         let edits = edits.clamped();
 
-        let radii = presence_radii(fw, fh);
-        let pyramid_levels = presence_pyramid_levels(fw, fh, radii).min(mip_count(w, h));
+        let blurs = presence_blurs(fw, fh);
+        let pyramid_levels = blurs.levels().min(mip_count(w, h));
+        let texture_level = blurs.texture.level.min(pyramid_levels - 1);
+        let clarity_level = blurs.clarity.level.min(pyramid_levels - 1);
 
         let pyramid = self.texture_pool.acquire(
             device,
@@ -125,13 +206,12 @@ impl GpuRenderer {
         );
 
         let amts = presence_amounts(&edits);
-        let mip_sel = presence_mips(fw, fh, radii);
         let uniform_buf = self.uniform(
             &PresenceParams {
                 size: [w, h],
                 _pad0: [0; 2],
                 amounts: [amts.texture, amts.clarity, amts.exposure, 0.0],
-                mips: [mip_sel.texture, mip_sel.clarity, 0, 0],
+                mips: [texture_level, clarity_level, 0, 0],
             },
             "presence-uniform",
         );
@@ -162,6 +242,14 @@ impl GpuRenderer {
             dims,
             &PRESENCE_PYRAMID,
         );
+        let _blurs: Vec<LevelBlur> = [
+            (amts.texture, texture_level, blurs.texture),
+            (amts.clarity, clarity_level, blurs.clarity),
+        ]
+        .into_iter()
+        .filter(|(amount, _, _)| *amount != 0.0)
+        .map(|(_, level, blur)| self.encode_level_blur(&mut encoder, &pyramid, dims, level, blur))
+        .collect();
         dispatch_2d(
             &mut encoder,
             "presence-adjust-pass",
@@ -184,9 +272,8 @@ impl GpuRenderer {
         let queue = &self.ctx.queue;
         let dims = extent.dims;
         let (w, h) = dims;
-        let radii = presence_radii(extent.full.0, extent.full.1);
-        let pyramid_levels =
-            presence_pyramid_levels(extent.full.0, extent.full.1, radii).min(mip_count(w, h));
+        let blurs = presence_blurs(extent.full.0, extent.full.1);
+        let pyramid_levels = blurs.levels().min(mip_count(w, h));
         let pyramid = self.texture_pool.acquire(
             device,
             LumaPyramidPass::pyramid_key(&self.ctx, w, h, pyramid_levels),
@@ -203,6 +290,13 @@ impl GpuRenderer {
             pyramid_levels,
             dims,
             &SHADOWS_PYRAMID,
+        );
+        let _blur = self.encode_level_blur(
+            &mut encoder,
+            &pyramid,
+            dims,
+            blurs.shadows.level.min(pyramid_levels - 1),
+            blurs.shadows,
         );
         queue.submit(Some(encoder.finish()));
         Ok(pyramid)

@@ -2,7 +2,7 @@ use crate::edits::Edits;
 use crate::frame::FrameMeta;
 use crate::geom::display_uv_to_mask_uv;
 use crate::ops::dehaze::DehazeGrid;
-use crate::ops::presence::{presence_pyramid_levels, presence_radii};
+use crate::ops::presence::presence_blurs;
 use crate::sensor_sample::geometry_transform;
 
 const CUBIC_SUPPORT: u32 = 2;
@@ -75,12 +75,10 @@ fn bounds(values: [f32; 4]) -> (f32, f32) {
 }
 
 fn spatial_support(full: (u32, u32)) -> (u32, u32) {
-    let radii = presence_radii(full.0, full.1);
-    let top = presence_pyramid_levels(full.0, full.1, radii) - 1;
-    let presence = 2u32 << top;
+    let blurs = presence_blurs(full.0, full.1);
     let dehaze = DehazeGrid::for_dims(full);
-    let align = (1u32 << top).max(dehaze.scale);
-    (align, dehaze.support() + 2 * presence + CUBIC_SUPPORT)
+    let align = (1u32 << (blurs.levels() - 1)).max(dehaze.scale);
+    (align, dehaze.support() + 2 * blurs.reach() + CUBIC_SUPPORT)
 }
 
 #[cfg(test)]

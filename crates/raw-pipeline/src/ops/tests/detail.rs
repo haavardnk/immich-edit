@@ -208,6 +208,87 @@ fn clarity_follows_exposure_into_display_midtones() {
 }
 
 #[test]
+fn presence_radius_follows_image_size() {
+    let scene = |w: usize, h: usize| -> LinearImage {
+        let buf = (0..w * h)
+            .flat_map(|i| {
+                let u = ((i % w) as f32 + 0.5) / w as f32;
+                let v = ((i / w) as f32 + 0.5) / h as f32;
+                let tau = std::f32::consts::TAU;
+                let e = 1.2 * (tau * 9.0 * u).sin() * (tau * 7.0 * v).cos()
+                    + 0.6 * (tau * 23.0 * (u + v)).sin()
+                    + 0.4 * (tau * 97.0 * u).sin();
+                let y = 0.18 * e.exp2();
+                [y, y, y]
+            })
+            .collect();
+        LinearImage::new(buf, w, h)
+    };
+    let effect = |w: usize, h: usize, basic: &BasicEdits| -> Vec<f32> {
+        let mut img = scene(w, h);
+        let before = img.rgb.clone();
+        let edits = Edits {
+            basic: basic.clone(),
+            ..Default::default()
+        };
+        crate::cpu::run_pipeline_ops(
+            &mut img,
+            &ctx(),
+            &edits,
+            &crate::mask_raster::empty_rasters(),
+            None,
+        )
+        .unwrap();
+        img.rgb
+            .iter()
+            .zip(&before)
+            .step_by(3)
+            .map(|(a, b)| a - b)
+            .collect()
+    };
+    let w = 720;
+    let h = 540;
+    for (label, basic) in [
+        (
+            "texture",
+            BasicEdits {
+                texture: 100.0,
+                ..Default::default()
+            },
+        ),
+        (
+            "clarity",
+            BasicEdits {
+                clarity: 100.0,
+                ..Default::default()
+            },
+        ),
+    ] {
+        let preview = effect(w, h, &basic);
+        let export = effect(w * 3, h * 3, &basic);
+        let binned = (0..w * h).map(|i| {
+            let x = i % w;
+            let y = i / w;
+            (0..9)
+                .map(|k| export[(y * 3 + k / 3) * w * 3 + x * 3 + k % 3])
+                .sum::<f32>()
+                / 9.0
+        });
+        let gap = preview
+            .iter()
+            .zip(binned)
+            .map(|(p, e)| (p - e).abs())
+            .sum::<f32>();
+        let size = preview.iter().map(|p| p.abs()).sum::<f32>();
+        let rel = gap / size;
+        eprintln!("{label} preview/export effect gap {rel:.4}");
+        if rel > 0.15 {
+            panic!("{label} changes with image size: {rel}");
+        }
+    }
+}
+
+#[test]
 fn clarity_protects_clipped_highlights_and_crushed_shadows() {
     let mk = |v: f32| LinearImage::new(vec![v; 256 * 256 * 3], 256, 256);
     let edits = Edits {

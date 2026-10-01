@@ -7,9 +7,7 @@ use crate::cpu::transform;
 use crate::edits::Edits;
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
-use crate::ops::presence::{
-    has_shadows, presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
-};
+use crate::ops::presence::{has_shadows, presence_amounts, presence_blurs};
 use crate::ops::tone_regions::ShadowsGuide;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::timing::{self, StageClock};
@@ -230,15 +228,11 @@ pub(super) fn run_pipeline_ops_inner(
         if !shadows_ready && shadows_active && (op.stage(), op.order()) >= SHADOWS_BOUNDARY {
             shadows_ready = true;
             flush(image, &mut layer_images, &mut segment, &mut layer_segments);
-            let w = image.width as u32;
-            let h = image.height as u32;
-            let radii = presence_radii(w, h);
-            let mips = presence_mips(w, h, radii);
-            let levels = presence_pyramid_levels(w, h, radii) as usize;
+            let blurs = presence_blurs(image.width as u32, image.height as u32);
             let shadows = clock.time(timing::SHADOWS, || {
-                let pyr = LumaPyramid::build(image, levels);
+                let pyr = LumaPyramid::build(image, blurs.levels() as usize);
                 Arc::new(ShadowsGuide {
-                    blur: pyr.upsample(mips.shadows, image.width, image.height),
+                    blur: pyr.base(blurs.shadows).upsample(image.width, image.height),
                     source: pyr.levels[0].to_vec(),
                 })
             });
@@ -257,23 +251,19 @@ pub(super) fn run_pipeline_ops_inner(
                 let amounts = presence_amounts(edits);
                 let layer_amounts: Vec<crate::ops::presence::PresenceAmounts> =
                     layer_edits.iter().map(presence_amounts).collect();
-                let w = image.width as u32;
-                let h = image.height as u32;
-                let radii = presence_radii(w, h);
-                let mips = presence_mips(w, h, radii);
+                let blurs = presence_blurs(image.width as u32, image.height as u32);
                 let iw = image.width;
                 let ih = image.height;
                 let needs = |pick: fn(&crate::ops::presence::PresenceAmounts) -> f32| {
                     pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
                 let (texture_blur, clarity_blur) = clock.time(timing::PRESENCE, || {
-                    let levels = presence_pyramid_levels(w, h, radii) as usize;
-                    let pyramid = LumaPyramid::build(image, levels);
+                    let pyramid = LumaPyramid::build(image, blurs.levels() as usize);
                     (
                         needs(|a| a.texture)
-                            .then(|| Arc::new(pyramid.upsample(mips.texture, iw, ih))),
+                            .then(|| Arc::new(pyramid.base(blurs.texture).upsample(iw, ih))),
                         needs(|a| a.clarity)
-                            .then(|| Arc::new(pyramid.upsample(mips.clarity, iw, ih))),
+                            .then(|| Arc::new(pyramid.base(blurs.clarity).upsample(iw, ih))),
                     )
                 });
                 let make_op = |a: &crate::ops::presence::PresenceAmounts| CpuFusedOp::Presence {
