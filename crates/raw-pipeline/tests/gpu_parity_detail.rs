@@ -1,4 +1,6 @@
-use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
+use raw_pipeline::edits::{
+    BasicEdits, ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits,
+};
 use raw_pipeline::frame::{OutputFormat, PreviewMode, RawFrame, RenderOptions};
 use raw_pipeline_testkit::frames::{
     detail_frame, fine_texture_frame, haze_frame, split_tone_frame, step_edge_frame, stripe_frame,
@@ -356,6 +358,23 @@ fn gpu_effects_match_cpu() {
                     vignette_midpoint: 40.0,
                     vignette_feather: 60.0,
                     vignette_roundness: 0.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ),
+        (
+            "vignette-100",
+            0.04,
+            Edits {
+                basic: BasicEdits {
+                    exposure_ev: 1.5,
+                    ..Default::default()
+                },
+                effects: EffectsEdits {
+                    vignette_amount: -100.0,
+                    vignette_midpoint: 10.0,
+                    vignette_feather: 20.0,
                     ..Default::default()
                 },
                 ..Default::default()
