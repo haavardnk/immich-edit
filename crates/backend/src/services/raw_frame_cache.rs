@@ -83,7 +83,7 @@ impl RawFrameCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use raw_pipeline::frame::FrameMeta;
+    use raw_pipeline::frame::{FrameId, FrameMeta};
 
     fn frame_with_floats(n: usize) -> Arc<RawFrame> {
         Arc::new(RawFrame {
@@ -103,6 +103,7 @@ mod tests {
             data: vec![0.0f32; n],
             cpp: 1,
             exif: None,
+            id: FrameId::fresh(),
         })
     }
 

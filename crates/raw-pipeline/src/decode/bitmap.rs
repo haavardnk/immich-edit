@@ -2,7 +2,7 @@ use rayon::prelude::*;
 
 use super::format_hint;
 use crate::PipelineError;
-use crate::frame::{FrameMeta, RawFrame};
+use crate::frame::{FrameId, FrameMeta, RawFrame};
 use crate::math::srgb_to_linear;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +119,7 @@ pub(super) fn frame_from_rgb8(
         data: linear,
         cpp: 3,
         exif,
+        id: FrameId::fresh(),
     }
 }
 
@@ -153,6 +154,7 @@ fn frame_from_rgb16(
         data: linear,
         cpp: 3,
         exif,
+        id: FrameId::fresh(),
     }
 }
 

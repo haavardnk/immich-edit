@@ -60,7 +60,7 @@ impl GpuRenderer {
         };
         let key = {
             let mut h = std::collections::hash_map::DefaultHasher::new();
-            frame.cache_key().hash(&mut h);
+            frame.id.hash(&mut h);
             block.hash(&mut h);
             h.finish()
         };

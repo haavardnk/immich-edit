@@ -1,5 +1,5 @@
 use crate::edits::{CropRect, Edits};
-use crate::frame::{FrameMeta, OrientFlips, RawFrame};
+use crate::frame::{FrameId, FrameMeta, OrientFlips, RawFrame};
 use crate::geom::GeometryTransform;
 
 pub(crate) const SAMPLE_TARGET: usize = 200_000;
@@ -221,6 +221,7 @@ pub(crate) fn demosaic_patch(
         cpp: 3,
         #[cfg(feature = "native")]
         exif: None,
+        id: FrameId::fresh(),
     };
     Some((patch, x - x0 as f32, y - y0 as f32))
 }
@@ -266,5 +267,6 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         cpp: 3,
         #[cfg(feature = "native")]
         exif: None,
+        id: FrameId::fresh(),
     })
 }

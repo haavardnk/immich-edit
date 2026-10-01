@@ -1,4 +1,4 @@
-use raw_pipeline::frame::{FrameMeta, RawFrame};
+use raw_pipeline::frame::{FrameId, FrameMeta, RawFrame};
 
 pub fn rgb_frame(w: usize, h: usize, data: Vec<f32>) -> RawFrame {
     RawFrame {
@@ -18,6 +18,7 @@ pub fn rgb_frame(w: usize, h: usize, data: Vec<f32>) -> RawFrame {
         data,
         cpp: 3,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 

@@ -5,7 +5,7 @@ use raw_pipeline::edits::{
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use raw_pipeline_testkit::frames::{haze_frame, synthetic_frame};
+use raw_pipeline_testkit::frames::{haze_frame, rgb_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with_budget};
 use raw_pipeline_testkit::render::rgb8_opts;
 
@@ -98,6 +98,27 @@ fn atmosphere_is_reused_across_display_edits() {
     let after_nr = renderer.atmosphere_estimates();
     if after_nr == after_rest {
         panic!("a noise reduction change reused a stale atmosphere: {after_nr}");
+    }
+}
+
+#[test]
+fn a_frame_in_a_reused_allocation_is_not_served_from_cache() {
+    let (Some(renderer), Some(cold)) = (try_renderer(), try_renderer()) else {
+        return;
+    };
+    let edits = nr_edits();
+    let opts = rgb8_opts(96);
+    let first = synthetic_frame(96, 64);
+    renderer.render(&first, &edits, &opts).unwrap();
+    let mut data = first.data;
+    data.reverse();
+    let second = rgb_frame(96, 64, data);
+
+    let got = renderer.render(&second, &edits, &opts).unwrap();
+    let expected = cold.render(&second, &edits, &opts).unwrap();
+
+    if got.bytes != expected.bytes {
+        panic!("a frame in a freed frame's allocation rendered from the old frame's cache");
     }
 }
 
