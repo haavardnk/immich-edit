@@ -55,7 +55,6 @@ impl GpuRenderer {
         let sharpen = final_pass_active
             .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h))
             .transpose()?;
-        scratch.extend(self.encode_dcp_base_table(encoder, dcp, &p.linear_texture, display.dims));
         let Some(s) = sharpen.as_ref().map(|guard| &guard[0]) else {
             return Ok(sharpen);
         };

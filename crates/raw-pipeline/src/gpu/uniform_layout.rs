@@ -182,7 +182,7 @@ fn uniform_structs_mirror_wgsl() {
         (
             "dcp_huesat",
             layout!(DcpHueSatParams { dims, to_pp, from_pp, flags, tone_lut } pad {}),
-            uniform_struct(&dcp_huesat_wgsl(wgpu::TextureFormat::Rgba16Float, true)),
+            uniform_struct(&dcp_huesat_wgsl(wgpu::TextureFormat::Rgba16Float)),
         ),
         (
             "dehaze_downsample",
@@ -339,7 +339,7 @@ fn display_curves_uniform_mirrors_wgsl() {
     let bytes = display_curves_uniform(&CurvesEdits::default()).len() * 4;
     let shaders = [
         effects_tone_wgsl(DisplayDepth::Eight),
-        dcp_huesat_wgsl(wgpu::TextureFormat::Rgba8Unorm, true),
+        dcp_huesat_wgsl(wgpu::TextureFormat::Rgba8Unorm),
     ];
     for src in &shaders {
         let size = named_struct(src, "DisplayCurves").size as u64;

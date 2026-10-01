@@ -73,7 +73,6 @@ pub enum GpuPass {
     Lens,
     Retouch,
     Dehaze,
-    Dcp,
     Effects,
 }
 
@@ -105,6 +104,7 @@ pub struct ResolvedDcp {
     pub tone_curve: Option<std::sync::Arc<crate::dcp::ToneCurve>>,
     pub to_pp: [[f32; 3]; 3],
     pub from_pp: [[f32; 3]; 3],
+    pub baseline_gain: f32,
 }
 
 impl ResolvedDcp {
@@ -124,6 +124,7 @@ impl ResolvedDcp {
             tone_curve: Some(tone_curve),
             to_pp: crate::color::srgb_lin_to_prophoto_matrix(),
             from_pp: crate::color::prophoto_to_srgb_lin_matrix(),
+            baseline_gain: 1.0,
         }
     }
 }
@@ -181,6 +182,11 @@ pub fn resolve_dcp(
         tone_curve,
         to_pp: crate::color::srgb_lin_to_prophoto_matrix(),
         from_pp: crate::color::prophoto_to_srgb_lin_matrix(),
+        baseline_gain: if edits.use_baseline_exposure {
+            2f32.powf(profile.baseline_exposure_offset)
+        } else {
+            1.0
+        },
     };
     (cam_to_srgb, resolved)
 }

@@ -335,6 +335,61 @@ fn gpu_vs_cpu_parity_with_dcp_presence() {
     });
 }
 
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_huesat_under_range_mask() {
+    use raw_pipeline::dcp::{HsvEncoding, HueSatMap};
+    use raw_pipeline::edits::{
+        MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+    };
+    let mut profile = make_huesat_profile();
+    let hue = 6u32;
+    let sat = 4u32;
+    let val = 3u32;
+    profile.huesatmap1 = Some(std::sync::Arc::new(HueSatMap {
+        hue_div: hue,
+        sat_div: sat,
+        val_div: val,
+        encoding: HsvEncoding::Linear,
+        data: (0..hue * sat * val)
+            .map(|i| {
+                [
+                    (i % 7) as f32 * 9.0 - 27.0,
+                    0.7 + (i % 5) as f32 * 0.15,
+                    0.8 + (i % 3) as f32 * 0.15,
+                ]
+            })
+            .collect(),
+    }));
+    let range = MaskComponent {
+        id: "color".into(),
+        enabled: true,
+        mode: MaskComponentMode::Add,
+        invert: false,
+        kind: MaskComponentKind::ColorRange {
+            sample_rgb: [0.55, 0.4, 0.3],
+            tolerance: 0.2,
+            softness: 0.1,
+        },
+        source: MaskSource::Manual,
+        generated: None,
+    };
+    let layer = MaskLayer {
+        id: "L1".into(),
+        name: String::new(),
+        enabled: true,
+        color: "#ff3b30".into(),
+        amount: 1.0,
+        invert: false,
+        components: vec![range],
+        edits: MaskedEdits {
+            exposure_ev: Some(0.8),
+            saturation: Some(60.0),
+            ..Default::default()
+        },
+    };
+    run_dcp_parity(profile, |e| e.masks = vec![layer]);
+}
+
 fn run_dcp_parity(profile: raw_pipeline::DcpProfile, tweak: impl FnOnce(&mut Edits)) {
     use raw_pipeline::edits::DcpMode;
     use std::sync::Arc;
