@@ -9,6 +9,7 @@ use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::texture::full_view;
 use crate::gpu::uniform_pool::PooledUniform;
+use crate::ops::curves::display_curves_uniform;
 
 use super::GpuRenderer;
 use super::display::DisplayTarget;
@@ -164,7 +165,7 @@ impl GpuRenderer {
         src: &Texture,
         sh: &SharpenTargets,
         display: DisplayTarget<'_>,
-    ) -> PooledUniform {
+    ) -> [PooledUniform; 2] {
         let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_effects_tone", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -199,6 +200,12 @@ impl GpuRenderer {
             roi: [r.x, r.y, r.w, r.h],
         };
         let ub = self.uniform(&params, "effects-tone-uniform");
+        let curves = self.uniform_pool.acquire(
+            device,
+            &self.ctx.queue,
+            bytemuck::cast_slice(&display_curves_uniform(&edits.basic.curves)),
+            "display-curves-uniform",
+        );
         let bg = bind_group(
             device,
             "effects-tone-bg",
@@ -208,6 +215,7 @@ impl GpuRenderer {
                 tex(&src_view),
                 tex(&out_view),
                 tex(&post_lin_view),
+                curves.as_entire_binding(),
             ],
         );
         dispatch_2d(
@@ -218,6 +226,6 @@ impl GpuRenderer {
             w.div_ceil(16),
             h.div_ceil(16),
         );
-        ub
+        [ub, curves]
     }
 }

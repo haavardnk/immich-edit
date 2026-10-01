@@ -32,6 +32,8 @@ use super::passes::sharpen::{SHARPEN_BLUR_WGSL, SHARPEN_WGSL, SharpenBlurParams,
 use super::passes::xtrans::{XTRANS_GREEN_WGSL, XTRANS_RGB_WGSL};
 use super::shader_builder::{self, BuiltProcessShader, StageMask};
 use super::uniforms::ProcessHeader;
+use crate::edits::CurvesEdits;
+use crate::ops::curves::{DISPLAY_CURVES_UNIFORM_SIZE, display_curves_uniform};
 use crate::ops::default_registry;
 
 #[derive(Debug, PartialEq)]
@@ -184,7 +186,7 @@ fn uniform_structs_mirror_wgsl() {
         (
             "dcp_huesat",
             layout!(DcpHueSatParams { dims, to_pp, from_pp, flags, tone_lut } pad {}),
-            uniform_struct(&dcp_huesat_wgsl(wgpu::TextureFormat::Rgba16Float)),
+            uniform_struct(&dcp_huesat_wgsl(wgpu::TextureFormat::Rgba16Float, true)),
         ),
         (
             "dehaze_downsample",
@@ -334,6 +336,21 @@ fn uniform_structs_mirror_wgsl() {
         .map(|(name, rust, wgsl)| format!("{name}\nrust: {rust:#?}\nwgsl: {wgsl:#?}"))
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn display_curves_uniform_mirrors_wgsl() {
+    let bytes = display_curves_uniform(&CurvesEdits::default()).len() * 4;
+    let shaders = [
+        effects_tone_wgsl(DisplayDepth::Eight),
+        dcp_huesat_wgsl(wgpu::TextureFormat::Rgba8Unorm, true),
+    ];
+    for src in &shaders {
+        let size = named_struct(src, "DisplayCurves").size as u64;
+        if size != DISPLAY_CURVES_UNIFORM_SIZE || size != bytes as u64 {
+            panic!("DisplayCurves is {size} bytes, rust writes {bytes}");
+        }
+    }
 }
 
 #[test]

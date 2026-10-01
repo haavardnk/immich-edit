@@ -1,13 +1,14 @@
 use raw_pipeline::{
     cpu, decode,
-    edits::Edits,
+    edits::{CurvePoint, CurvePoints, Edits},
     frame::{FrameId, FrameMeta, RawFrame, RenderOptions},
 };
 use raw_pipeline_testkit::color::luma;
 use raw_pipeline_testkit::fixtures::{
     each_fixture_frame, first_fixture_frame, fixture_path, fixtures,
 };
-use raw_pipeline_testkit::render::decode_jpeg_rgb;
+use raw_pipeline_testkit::frames::rgb_frame;
+use raw_pipeline_testkit::render::{decode_jpeg_rgb, rgb8_opts};
 
 #[test]
 fn decode_metadata() {
@@ -428,4 +429,53 @@ fn exif_roundtrip_preserves_camera() {
             panic!("{name}: Make tag lost after roundtrip");
         }
     });
+}
+
+fn flat_display(rgb: [f32; 3], edits: &Edits) -> [f64; 3] {
+    let frame = rgb_frame(16, 16, rgb.repeat(256));
+    let out = cpu::render(&frame, edits, &rgb8_opts(64)).unwrap();
+    let px = out.bytes.len() / 3;
+    let sum = out.bytes.chunks_exact(3).fold([0.0f64; 3], |acc, p| {
+        [
+            acc[0] + p[0] as f64,
+            acc[1] + p[1] as f64,
+            acc[2] + p[2] as f64,
+        ]
+    });
+    sum.map(|v| v / px as f64 / 255.0)
+}
+
+fn composite_curve(x: f64, y: f64) -> Edits {
+    let mut edits = Edits::default();
+    edits.basic.curves.composite = CurvePoints {
+        points: vec![
+            CurvePoint { x: 0.0, y: 0.0 },
+            CurvePoint { x, y },
+            CurvePoint { x: 1.0, y: 1.0 },
+        ],
+    };
+    edits
+}
+
+#[test]
+fn curve_points_address_display_values() {
+    let mid_grey = [0.214f32; 3];
+    let plain = flat_display(mid_grey, &Edits::default());
+    let curved = flat_display(mid_grey, &composite_curve(0.5, 0.7));
+    if (plain[1] - 0.5).abs() > 0.01 || (curved[1] - 0.7).abs() > 0.01 {
+        panic!("display 0.5 should map to 0.7, plain {plain:?} curved {curved:?}");
+    }
+}
+
+#[test]
+fn shadow_curve_leaves_bright_colors_to_gamut_mapping() {
+    let bright = [2.0f32, 0.48, 0.2];
+    let plain = flat_display(bright, &Edits::default());
+    let curved = flat_display(bright, &composite_curve(0.25, 0.3));
+    let drift = (0..3)
+        .map(|c| (curved[c] - plain[c]).abs())
+        .fold(0.0, f64::max);
+    if drift > 0.03 {
+        panic!("shadow curve moved a highlight by {drift}: plain {plain:?} curved {curved:?}");
+    }
 }

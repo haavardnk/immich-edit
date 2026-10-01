@@ -4,8 +4,8 @@ use wgpu::util::DeviceExt;
 
 use super::{GpuRoute, LinearImage, Op, OpContext, OpScratch, RenderContext, default_registry};
 use crate::edits::{
-    BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint,
-    CurvePoints, CurvesEdits, Edits, HslBand, HslEdits, ToneEdits,
+    BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, Edits,
+    HslBand, HslEdits, ToneEdits,
 };
 use crate::gpu::context::GpuContext;
 
@@ -46,13 +46,6 @@ fn probe_ctx() -> OpContext {
 }
 
 fn probe_edits() -> Edits {
-    let bump = CurvePoints {
-        points: vec![
-            CurvePoint { x: 0.0, y: 0.0 },
-            CurvePoint { x: 0.45, y: 0.58 },
-            CurvePoint { x: 1.0, y: 1.0 },
-        ],
-    };
     let mut bands = [HslBand::default(); crate::edits::HSL_BANDS];
     for (i, band) in bands.iter_mut().enumerate() {
         let step = i as f64 * 7.0;
@@ -69,13 +62,6 @@ fn probe_edits() -> Edits {
             vibrance: -37.0,
             wb_temp: 1800.0,
             wb_tint: -22.0,
-            curves: CurvesEdits {
-                composite: bump.clone(),
-                r: bump.clone(),
-                g: bump.clone(),
-                b: bump.clone(),
-                luma: bump,
-            },
             ..Default::default()
         },
         tone: ToneEdits {
