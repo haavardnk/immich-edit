@@ -9,6 +9,7 @@ use crate::edits::Edits;
 use crate::finish::{FinalImage, FinalPixels, encode, final_stage, has_final_stage};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::ops::LinearImage;
+use crate::ops::curves::CurveLuts;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 use crate::timing::{self, StageClock};
 use ops::{OpInputs, OpRange, run_pipeline_ops_inner};
@@ -319,6 +320,8 @@ fn finish_render(
     cancel::check(cancel)?;
     let lut_resolved = resolve_lut(edits, options)?;
     let lut_ref = lut_resolved.as_ref().map(|(l, a)| (l.as_ref(), *a));
+    let curves =
+        (!edits.basic.curves.is_identity()).then(|| CurveLuts::from_edits(&edits.basic.curves));
     let dcp_finish = ctx.render.dcp.as_ref().map(|d| {
         (
             d.look_table.as_deref(),
@@ -336,6 +339,7 @@ fn finish_render(
                 want_16bit,
                 display_ready,
                 lut: lut_ref,
+                curves: curves.as_ref(),
                 dcp_finish,
                 color_space: options.output_color_space,
                 gamut_warn: options.gamut_warn,

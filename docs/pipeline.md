@@ -47,7 +47,7 @@ relative tolerance of `1e-4`. This also checks uniform packing.
 1. Applies EXIF orientation.
 1. Runs WhiteBalance, Tone, Color, and Geometry operators.
 1. Runs Output operators.
-1. Applies the DCP LookTable and tone curve, destination gamut, and creative 3D LUT.
+1. Applies the DCP LookTable and tone curve, destination gamut, curves, and creative 3D LUT.
 1. Computes preview metadata and encodes the result.
 
 CPU operators do not skip `Detail` routes. Noise reduction, capture sharpening, creative sharpening,
@@ -91,8 +91,8 @@ balance, and a white balance change reuses all of them.
 | 11 | DCP base table | Camera HueSatMap in linear ProPhoto |
 | 12 | Masks | Component weight and local adjustment blend |
 | 13 | Sharpen | Global and per-pixel masked amount |
-| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve |
-| 15 | DCP finish | LookTable and profile tone curve |
+| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
+| 15 | DCP finish | LookTable, profile tone curve, curves |
 | 16 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
 | 17 | Mask overlay | Optional red coverage overlay |
 | 18 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
@@ -180,8 +180,10 @@ Non-RAW input is always Flat. Neutral RAW rendering carries no hidden content-de
 Matched DCP baseline exposure applies only through its explicit profile control.
 
 Working textures use linear scene-referred sRGB primaries except while DCP tables operate in linear
-ProPhoto. The profile tone curve precedes output gamut conversion. The creative 3D LUT runs last in
-display-referred sRGB.
+ProPhoto. The profile tone curve precedes output gamut conversion. Curves then act on the
+display-encoded values, so curve coordinates match what the screen shows. A luma lift that would
+push a channel past white desaturates toward its target luminance instead of clipping. The creative
+3D LUT runs last in display-referred sRGB.
 
 ## Output color and warnings
 

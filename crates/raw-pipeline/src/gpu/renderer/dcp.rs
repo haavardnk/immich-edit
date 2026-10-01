@@ -11,6 +11,7 @@ use crate::gpu::dispatch::{bind_group, buf, copy_texture, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::dcp_huesat::{DcpHueSatParams, DcpHueSatPass};
 use crate::gpu::texture::full_view;
+use crate::gpu::uniform_pool::PooledUniform;
 use crate::ops::ResolvedDcp;
 
 use super::GpuRenderer;
@@ -68,6 +69,7 @@ struct HueSatJob<'a> {
     dst: &'a Texture,
     dims: (u32, u32),
     uniform: DcpHueSatParams,
+    curves: Option<&'a PooledUniform>,
 }
 
 pub(super) fn identity_huesat_map() -> &'static HueSatMap {
@@ -99,6 +101,7 @@ impl GpuRenderer {
             dst: linear_texture,
             dims,
             uniform: DcpHueSatParams::new(map, resolved, false, true, None, 0),
+            curves: None,
         };
         Some(self.apply_huesat(encoder, job))
     }
@@ -110,6 +113,7 @@ impl GpuRenderer {
         post_lin: &Texture,
         dst: DisplayTarget<'_>,
         warn_flags: u32,
+        curves: &PooledUniform,
     ) -> Option<PooledTexture> {
         let resolved = resolved?;
         let tone = resolved.tone_curve.as_deref();
@@ -133,6 +137,7 @@ impl GpuRenderer {
             dst: dst.texture,
             dims: dst.dims,
             uniform: DcpHueSatParams::new(map, resolved, true, apply_table, tone, warn_flags),
+            curves: Some(curves),
         };
         Some(self.apply_huesat(encoder, job))
     }
@@ -163,12 +168,9 @@ impl GpuRenderer {
             contents: bytemuck::bytes_of(&job.uniform),
             usage: BufferUsages::UNIFORM,
         });
-        let bg = bind_group(
-            device,
-            "dcp-huesat-bg",
-            &job.pass.layout,
-            &[buf(&ub), tex(&src_view), tex(&table_view), tex(&dst_view)],
-        );
+        let mut resources = vec![buf(&ub), tex(&src_view), tex(&table_view), tex(&dst_view)];
+        resources.extend(job.curves.map(PooledUniform::as_entire_binding));
+        let bg = bind_group(device, "dcp-huesat-bg", &job.pass.layout, &resources);
         dispatch_2d(
             encoder,
             "dcp-huesat",

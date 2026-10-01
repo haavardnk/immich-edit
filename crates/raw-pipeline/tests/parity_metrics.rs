@@ -269,11 +269,10 @@ fn make_huesat_profile() -> raw_pipeline::DcpProfile {
 
 #[test]
 fn gpu_vs_cpu_parity_with_dcp_huesat() {
-    run_dcp_parity(make_huesat_profile(), false);
+    run_dcp_parity(make_huesat_profile(), |_| {});
 }
 
-#[test]
-fn gpu_vs_cpu_parity_with_dcp_tone() {
+fn tone_profile() -> raw_pipeline::DcpProfile {
     let mut profile = make_huesat_profile();
     profile.tone_curve = Some(std::sync::Arc::new(raw_pipeline::dcp::ToneCurve::new(
         vec![
@@ -284,7 +283,29 @@ fn gpu_vs_cpu_parity_with_dcp_tone() {
             [1.0, 1.0],
         ],
     )));
-    run_dcp_parity(profile, false);
+    profile
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_tone() {
+    run_dcp_parity(tone_profile(), |_| {});
+}
+
+#[test]
+fn gpu_vs_cpu_parity_with_dcp_tone_and_curves() {
+    use raw_pipeline::edits::{CurvePoint, CurvePoints};
+    let pts = |mid: f64| CurvePoints {
+        points: vec![
+            CurvePoint { x: 0.0, y: 0.0 },
+            CurvePoint { x: 0.5, y: mid },
+            CurvePoint { x: 1.0, y: 1.0 },
+        ],
+    };
+    run_dcp_parity(tone_profile(), |e| {
+        e.basic.curves.composite = pts(0.6);
+        e.basic.curves.b = pts(0.42);
+        e.basic.curves.luma = pts(0.7);
+    });
 }
 
 #[test]
@@ -301,15 +322,20 @@ fn gpu_vs_cpu_parity_with_dcp_look() {
         encoding: HsvEncoding::Srgb,
         data: vec![[-8.0, 1.1, 0.97]; (hue * sat * val) as usize],
     }));
-    run_dcp_parity(profile, false);
+    run_dcp_parity(profile, |_| {});
 }
 
 #[test]
 fn gpu_vs_cpu_parity_with_dcp_presence() {
-    run_dcp_parity(make_huesat_profile(), true);
+    run_dcp_parity(make_huesat_profile(), |e| {
+        e.detail.luma_nr_amount = 55.0;
+        e.detail.luma_nr_detail = 40.0;
+        e.detail.color_nr_amount = 60.0;
+        e.detail.color_nr_smoothness = 60.0;
+    });
 }
 
-fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
+fn run_dcp_parity(profile: raw_pipeline::DcpProfile, tweak: impl FnOnce(&mut Edits)) {
     use raw_pipeline::edits::DcpMode;
     use std::sync::Arc;
 
@@ -322,12 +348,7 @@ fn run_dcp_parity(profile: raw_pipeline::DcpProfile, presence: bool) {
     let mut edits = Edits::default();
     edits.color.dcp.mode = DcpMode::Profile;
     edits.color.dcp.profile_id = Some("test".to_string());
-    if presence {
-        edits.detail.luma_nr_amount = 55.0;
-        edits.detail.luma_nr_detail = 40.0;
-        edits.detail.color_nr_amount = 60.0;
-        edits.detail.color_nr_smoothness = 60.0;
-    }
+    tweak(&mut edits);
     check_parity("dcp", &variant_fixtures(), &edits, &opts);
 }
 
