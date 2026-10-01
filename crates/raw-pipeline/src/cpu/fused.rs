@@ -34,7 +34,7 @@ pub enum CpuFusedOp {
         hl: f32,
         sh: f32,
         bk: f32,
-        wh_gain: f32,
+        wh: f32,
         shadows: Option<Arc<ShadowsGuide>>,
     },
     Hsl {
@@ -111,10 +111,11 @@ fn rgb<'a>(
 }
 
 #[inline(always)]
-fn tone_gain(r: &mut f32, g: &mut f32, b: &mut f32, wh_gain: f32) {
-    *r *= wh_gain;
-    *g *= wh_gain;
-    *b *= wh_gain;
+fn tone_whites(r: &mut f32, g: &mut f32, b: &mut f32, wh: f32) {
+    let mult = crate::ops::tone_regions::whites_mult(luma(*r, *g, *b), wh);
+    *r *= mult;
+    *g *= mult;
+    *b *= mult;
 }
 
 #[inline(always)]
@@ -197,7 +198,7 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
             hl,
             sh,
             bk,
-            wh_gain,
+            wh,
             shadows,
         } => {
             let guide = shadows.as_ref().filter(|_| *sh != 0.0).map(|g| {
@@ -207,21 +208,21 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
             match guide {
                 Some((blur, source)) => {
                     for ((((r, g), b), &blur_l), &source_l) in rgb(r, g, b).zip(blur).zip(source) {
-                        tone_gain(r, g, b, *wh_gain);
+                        tone_whites(r, g, b, *wh);
                         tone_shadows(r, g, b, blur_l, source_l, *sh);
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }
                 None if *sh != 0.0 => {
                     for ((r, g), b) in rgb(r, g, b) {
-                        tone_gain(r, g, b, *wh_gain);
+                        tone_whites(r, g, b, *wh);
                         tone_shadows(r, g, b, 1.0, 1.0, *sh);
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }
                 None => {
                     for ((r, g), b) in rgb(r, g, b) {
-                        tone_gain(r, g, b, *wh_gain);
+                        tone_whites(r, g, b, *wh);
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }

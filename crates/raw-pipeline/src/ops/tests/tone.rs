@@ -203,19 +203,44 @@ fn whites_lift_very_bright_pixels() {
 }
 
 #[test]
-fn whites_global_gain_affects_midtones() {
-    let mut img = solid_image(1, 1, [0.5, 0.5, 0.5]);
-    let edits = Edits {
-        tone: ToneEdits {
-            whites: 100.0,
+fn whites_move_highlights_not_blacks() {
+    let levels: Vec<f32> = (0..=16).map(|i| i as f32 / 16.0).collect();
+    for whites in [100.0, -100.0] {
+        let mut pixels: Vec<[f32; 3]> = levels.iter().map(|&v| [v, v, v]).collect();
+        pixels.push([0.6, 0.3, 0.1]);
+        let width = pixels.len();
+        let mut img = LinearImage::new(pixels.iter().flatten().copied().collect(), width, 1);
+        let edits = Edits {
+            tone: ToneEdits {
+                whites,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    };
-    tone_regions::ToneRegionsOp
-        .apply_cpu(&mut img, &ctx(), &edits)
-        .unwrap();
-    assert!((img.rgb[0] - 1.0).abs() < 0.01);
+        };
+        tone_regions::ToneRegionsOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        let out: Vec<f32> = img.rgb.chunks(3).map(|p| p[1]).collect();
+        let stops = |v: f32| {
+            (out[levels.iter().position(|&l| l == v).unwrap()] / v)
+                .log2()
+                .abs()
+        };
+        let colour = &img.rgb[img.rgb.len() - 3..];
+        if stops(0.125) > 0.35 || stops(1.0) < 0.95 || stops(1.0) <= stops(0.5) {
+            panic!(
+                "whites {whites}: shadow {} highlight {} stops",
+                stops(0.125),
+                stops(1.0)
+            );
+        }
+        if out[0] != 0.0 || out.windows(2).take(levels.len() - 1).any(|w| w[1] <= w[0]) {
+            panic!("whites {whites}: not monotonic from black: {out:?}");
+        }
+        if (colour[0] / colour[2] - 6.0).abs() > 1e-3 {
+            panic!("whites {whites}: hue shifted to {colour:?}");
+        }
+    }
 }
 
 #[test]
