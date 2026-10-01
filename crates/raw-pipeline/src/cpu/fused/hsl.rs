@@ -1,72 +1,35 @@
 use crate::edits::HSL_BANDS;
-use crate::math::{hue_dist, smoothstep};
+use crate::math::{hue_dist, linear_srgb_to_oklab, oklab_to_linear_srgb, smoothstep};
 use crate::ops::hsl::{
-    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_LUM_SHIFT_SCALE, HSL_MIN_SAT, HSL_SAT_GATE_HI,
+    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_LUM_EV, HSL_MIN_SAT, HSL_SAT_GATE_HI,
     HSL_SAT_GATE_LO,
 };
 
 #[inline(always)]
-fn rgb_to_hsl(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+fn hue_and_sat(r: f32, g: f32, b: f32) -> (f32, f32) {
+    let k = r.max(g).max(b).max(1.0);
+    let r = r / k;
+    let g = g / k;
+    let b = b / k;
     let max = r.max(g).max(b);
     let min = r.min(g).min(b);
-    let l = (max + min) * 0.5;
     let d = max - min;
     if d < 1e-6 {
-        return (0.0, 0.0, l);
+        return (0.0, 0.0);
     }
-    let s = if l > 0.5 {
+    let s = if max + min > 1.0 {
         d / (2.0 - max - min)
     } else {
         d / (max + min)
     };
-    let mut h = if max == r {
+    let h = if max == r {
         (g - b) / d + if g < b { 6.0 } else { 0.0 }
     } else if max == g {
         (b - r) / d + 2.0
     } else {
         (r - g) / d + 4.0
     };
-    h *= 60.0;
-    (h, s, l)
-}
-
-#[inline(always)]
-fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
-    if t < 0.0 {
-        t += 1.0;
-    }
-    if t > 1.0 {
-        t -= 1.0;
-    }
-    if t < 1.0 / 6.0 {
-        return p + (q - p) * 6.0 * t;
-    }
-    if t < 0.5 {
-        return q;
-    }
-    if t < 2.0 / 3.0 {
-        return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
-    }
-    p
-}
-
-#[inline(always)]
-fn hsl_to_rgb(h_deg: f32, s: f32, l: f32) -> (f32, f32, f32) {
-    if s <= 0.0 {
-        return (l, l, l);
-    }
-    let h = (h_deg.rem_euclid(360.0)) / 360.0;
-    let q = if l < 0.5 {
-        l * (1.0 + s)
-    } else {
-        l + s - l * s
-    };
-    let p = 2.0 * l - q;
-    (
-        hue_to_rgb(p, q, h + 1.0 / 3.0),
-        hue_to_rgb(p, q, h),
-        hue_to_rgb(p, q, h - 1.0 / 3.0),
-    )
+    (h * 60.0, s)
 }
 
 #[inline(always)]
@@ -95,11 +58,7 @@ pub fn apply_hsl(
     g: &mut f32,
     b: &mut f32,
 ) {
-    let cr = r.max(0.0);
-    let cg = g.max(0.0);
-    let cb = b.max(0.0);
-    let k = cr.max(cg).max(cb).max(1.0);
-    let (h, s, l) = rgb_to_hsl(cr / k, cg / k, cb / k);
+    let (h, s) = hue_and_sat(r.max(0.0), g.max(0.0), b.max(0.0));
     if s < HSL_MIN_SAT {
         return;
     }
@@ -113,14 +72,17 @@ pub fn apply_hsl(
         sat_delta += sat_gains[i] * w[i];
         lum_delta += lum_gains[i] * w[i];
     }
-    hue_delta *= gate;
-    sat_delta *= gate;
-    lum_delta *= gate;
-    let new_h = h + hue_delta;
-    let new_s = (s * (1.0 + sat_delta)).clamp(0.0, 1.0);
-    let new_l = (l + lum_delta * HSL_LUM_SHIFT_SCALE).clamp(0.0, 1.0);
-    let (nr, ng, nb) = hsl_to_rgb(new_h, new_s, new_l);
-    *r = nr * k;
-    *g = ng * k;
-    *b = nb * k;
+    let (sin, cos) = (hue_delta * gate).to_radians().sin_cos();
+    let chroma = (1.0 + sat_delta * gate).max(0.0);
+    let [l, a, bb] = linear_srgb_to_oklab([*r, *g, *b]);
+    let rotated = [
+        l,
+        (a * cos - bb * sin) * chroma,
+        (a * sin + bb * cos) * chroma,
+    ];
+    let gain = crate::math::fast::exp2(lum_delta * gate * HSL_LUM_EV);
+    let [nr, ng, nb] = oklab_to_linear_srgb(rotated);
+    *r = nr * gain;
+    *g = ng * gain;
+    *b = nb * gain;
 }

@@ -488,3 +488,53 @@ fn hsl_bright_pixel_changes_only_under_its_band() {
         }
     }
 }
+
+fn all_hsl_bands(band: HslBand) -> Edits {
+    Edits {
+        color: ColorEdits {
+            hsl: HslEdits { bands: [band; 8] },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[test]
+fn hsl_desaturate_keeps_perceptual_lightness() {
+    let src = [0.05, 0.1, 0.4];
+    let mut img = solid_image(1, 1, src);
+    let edits = all_hsl_bands(HslBand {
+        sat: -100.0,
+        ..Default::default()
+    });
+    hsl::HslOp.apply_cpu(&mut img, &ctx(), &edits).unwrap();
+    let out = [img.rgb[0], img.rgb[1], img.rgb[2]];
+    let spread = out.iter().fold(0.0f32, |m, v| m.max((v - out[0]).abs()));
+    let lightness_in = crate::math::linear_srgb_to_oklab(src)[0];
+    let lightness_out = crate::math::linear_srgb_to_oklab(out)[0];
+    if spread > 1e-3 || (lightness_out - lightness_in).abs() > 1e-3 {
+        panic!("sky desaturated to {out:?}: L {lightness_in} -> {lightness_out}");
+    }
+}
+
+#[test]
+fn hsl_lightness_scales_exposure_and_keeps_ratios() {
+    let cases = [
+        ([0.01, 0.02, 0.08], -50.0, (-0.5 * hsl::HSL_LUM_EV).exp2()),
+        ([1.4, 0.6, 0.3], 100.0, hsl::HSL_LUM_EV.exp2()),
+    ];
+    for (src, lum, gain) in cases {
+        let mut img = solid_image(1, 1, src);
+        let edits = all_hsl_bands(HslBand {
+            lum,
+            ..Default::default()
+        });
+        hsl::HslOp.apply_cpu(&mut img, &ctx(), &edits).unwrap();
+        let off = (0..3)
+            .map(|c| (img.rgb[c] / (src[c] * gain) - 1.0).abs())
+            .fold(0.0f32, f32::max);
+        if off > 2e-3 {
+            panic!("lum {lum}: {src:?} -> {:?}, want x{gain}", img.rgb);
+        }
+    }
+}
