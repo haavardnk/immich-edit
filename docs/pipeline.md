@@ -193,7 +193,9 @@ push a channel past white desaturates toward its target luminance instead of cli
 ## Output color and warnings
 
 `RenderOptions.output_color_space` selects sRGB or Display P3. The working space stays unchanged;
-the primary matrix, gamut projection, transfer curve, and matching ICC profile apply at output.
+the primary matrix, gamut mapping, transfer curve, and matching ICC profile apply at output.
+Gamut mapping keeps Oklab hue and lightness and reduces chroma until the color fits the output
+space. Lightness above white maps to white.
 
 Clipping and gamut classes travel through the GPU display texture's alpha channel until readback.
 Any pass added after tone must preserve or recompute alpha. CPU and GPU classify the undithered,

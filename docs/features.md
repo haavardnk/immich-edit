@@ -156,7 +156,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Lossless WebP export | ✓ Yes | Required automatically when preserving EXIF in WebP |
 | sRGB and Display P3 output | ✓ Yes | ICC profile embedded where the format supports it |
 | Adobe RGB, ProPhoto RGB, Rec.2020, or custom ICC output | ✗ No | — |
-| Automatic output-gamut projection | ✓ Yes | Pulls out-of-gamut colors toward neutral |
+| Automatic output-gamut mapping | ✓ Yes | Reduces chroma at constant Oklab hue and lightness |
 | sRGB and Display P3 soft proof | ✓ Yes | Optional gamut warning overlay |
 | Printer-profile soft proof and rendering intents | ✗ No | Soft proof is limited to sRGB and Display P3 |
 | Safe EXIF preservation | ✓ Yes | Optional; embedded previews and image-strip tags are removed, and JPEG EXIF is trimmed to fit 64 KB |

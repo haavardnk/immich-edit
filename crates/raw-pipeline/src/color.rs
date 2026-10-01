@@ -14,6 +14,7 @@ pub use matrix::{
     interpolate_xyz_to_cam, is_unusable_matrix, prophoto_to_srgb_lin_matrix, resolve_xyz_to_cam,
     srgb_lin_to_display_p3, srgb_lin_to_prophoto_matrix, user_wb_matrix,
 };
+pub(crate) use matrix::{mat3_mul, mat3_vec};
 
 pub const XYZ_TO_SRGB_D65: [[f32; 3]; 3] = [
     [3.240_454, -1.537_138_5, -0.498_531_4],

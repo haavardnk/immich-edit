@@ -1,12 +1,34 @@
 use std::sync::LazyLock;
 
+use super::gamut::{GAMUT_SEARCH_STEPS, OKLAB_L_WEIGHTS, lms_basis};
 use super::shared::{
-    LUMA_B, LUMA_G, LUMA_R, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE,
-    SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
+    SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE, SRGB_OETF_LINEAR_CUTOFF,
+    SRGB_OETF_LINEAR_SLOPE,
 };
+use crate::frame::OutputColorSpace;
 use crate::ops::wgsl::f32_lit;
 
+fn vec3_lit(v: [f32; 3]) -> String {
+    format!(
+        "vec3<f32>({}, {}, {})",
+        f32_lit(v[0]),
+        f32_lit(v[1]),
+        f32_lit(v[2])
+    )
+}
+
+fn mat_apply(m: &[[f32; 3]; 3], v: &str) -> String {
+    format!(
+        "vec3<f32>(dot({}, {v}), dot({}, {v}), dot({}, {v}))",
+        vec3_lit(m[0]),
+        vec3_lit(m[1]),
+        vec3_lit(m[2])
+    )
+}
+
 static TONE_WGSL_STR: LazyLock<String> = LazyLock::new(|| {
+    let srgb = lms_basis(OutputColorSpace::SRgb);
+    let p3 = lms_basis(OutputColorSpace::DisplayP3);
     format!(
         r#"
 fn tone_srgb_oetf(v: f32) -> f32 {{
@@ -17,23 +39,41 @@ fn tone_srgb_oetf(v: f32) -> f32 {{
     return {srgb_scale} * pow(lin, {srgb_gamma}) - {srgb_offset};
 }}
 
-fn tone_luma(c: vec3<f32>) -> f32 {{
-    return {luma_r} * c.x + {luma_g} * c.y + {luma_b} * c.z;
+fn tone_in_unit_cube(c: vec3<f32>) -> bool {{
+    return all(c >= vec3<f32>(0.0)) && all(c <= vec3<f32>(1.0));
 }}
 
-fn tone_project_gamut(c: vec3<f32>, neutral: f32) -> vec3<f32> {{
-    var out = c;
-    let mn = min(out.x, min(out.y, out.z));
-    if (mn < 0.0) {{
-        let t = clamp(-mn / (neutral - mn), 0.0, 1.0);
-        out = out + (vec3<f32>(neutral) - out) * t;
+fn tone_to_lms(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    if (p3 == 0u) {{ return {srgb_to_lms}; }}
+    return {p3_to_lms};
+}}
+
+fn tone_from_lms(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    if (p3 == 0u) {{ return {srgb_from_lms}; }}
+    return {p3_from_lms};
+}}
+
+fn tone_gamut_at(lms: vec3<f32>, l0: f32, t: f32, p3: u32) -> vec3<f32> {{
+    let x = vec3<f32>(l0) + t * (lms - vec3<f32>(l0));
+    return tone_from_lms(x * x * x, p3);
+}}
+
+fn tone_map_to_gamut(c: vec3<f32>, p3: u32) -> vec3<f32> {{
+    if (tone_in_unit_cube(c)) {{ return c; }}
+    let lin_lms = tone_to_lms(c, p3);
+    let lms = sign(lin_lms) * pow(abs(lin_lms), vec3<f32>(1.0 / 3.0));
+    let l0 = clamp(dot({oklab_l}, lms), 0.0, 1.0);
+    var lo = 0.0;
+    var hi = 1.0;
+    for (var i = 0u; i < {gamut_steps}u; i = i + 1u) {{
+        let mid = 0.5 * (lo + hi);
+        if (tone_in_unit_cube(tone_gamut_at(lms, l0, mid, p3))) {{
+            lo = mid;
+        }} else {{
+            hi = mid;
+        }}
     }}
-    let mx = max(out.x, max(out.y, out.z));
-    if (mx > 1.0) {{
-        let t = clamp((mx - 1.0) / (mx - neutral), 0.0, 1.0);
-        out = out + (vec3<f32>(neutral) - out) * t;
-    }}
-    return out;
+    return tone_gamut_at(lms, l0, lo, p3);
 }}
 
 fn tone_dither_hash(x: u32, y: u32, c: u32) -> f32 {{
@@ -55,16 +95,11 @@ fn tone_dither_u8(c: vec3<f32>, x: u32, y: u32) -> vec3<f32> {{
 
 fn tone_to_output_space(c: vec3<f32>, p3: u32) -> vec3<f32> {{
     if (p3 == 0u) {{ return c; }}
-    return vec3<f32>(
-        {m00} * c.x + {m01} * c.y + {m02} * c.z,
-        {m10} * c.x + {m11} * c.y + {m12} * c.z,
-        {m20} * c.x + {m21} * c.y + {m22} * c.z,
-    );
+    return {srgb_to_p3};
 }}
 
 fn tone_rgb_cs(c: vec3<f32>, p3: u32) -> vec3<f32> {{
-    let neutral = clamp(tone_luma(c), 0.0, 1.0);
-    let mapped = tone_project_gamut(tone_to_output_space(c, p3), neutral);
+    let mapped = tone_map_to_gamut(tone_to_output_space(c, p3), p3);
     return vec3<f32>(
         tone_srgb_oetf(clamp(mapped.x, 0.0, 1.0)),
         tone_srgb_oetf(clamp(mapped.y, 0.0, 1.0)),
@@ -99,18 +134,13 @@ fn warn_clip_alpha(c: vec3<f32>) -> f32 {{
         srgb_scale = SRGB_OETF_GAMMA_SCALE,
         srgb_gamma = SRGB_OETF_GAMMA,
         srgb_offset = SRGB_OETF_GAMMA_OFFSET,
-        luma_r = LUMA_R,
-        luma_g = LUMA_G,
-        luma_b = LUMA_B,
-        m00 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][0]),
-        m01 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][1]),
-        m02 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[0][2]),
-        m10 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][0]),
-        m11 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][1]),
-        m12 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[1][2]),
-        m20 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][0]),
-        m21 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][1]),
-        m22 = f32_lit(crate::color::SRGB_LINEAR_TO_DISPLAY_P3[2][2]),
+        srgb_to_p3 = mat_apply(&crate::color::SRGB_LINEAR_TO_DISPLAY_P3, "c"),
+        srgb_to_lms = mat_apply(&srgb.to_lms, "c"),
+        p3_to_lms = mat_apply(&p3.to_lms, "c"),
+        srgb_from_lms = mat_apply(&srgb.from_lms, "c"),
+        p3_from_lms = mat_apply(&p3.from_lms, "c"),
+        oklab_l = vec3_lit(OKLAB_L_WEIGHTS),
+        gamut_steps = GAMUT_SEARCH_STEPS,
     )
 });
 
