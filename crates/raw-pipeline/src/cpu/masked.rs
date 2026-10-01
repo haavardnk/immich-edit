@@ -42,6 +42,7 @@ pub enum ComponentKindEval {
     },
     Polygon {
         points: Vec<(f32, f32)>,
+        aspect: f32,
         feather: f32,
     },
 }
@@ -88,12 +89,13 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap, aspect: f32) -> 
         .map(|c| {
             let kind = match &c.kind {
                 MaskComponentKind::Linear { p0, p1, feather } => {
+                    let a2 = aspect.max(1e-6).powi(2);
                     let dx = p1.x - p0.x;
                     let dy = p1.y - p0.y;
-                    let len2 = (dx * dx + dy * dy).max(1e-12);
+                    let len2 = (dx * dx * a2 + dy * dy).max(1e-12);
                     ComponentKindEval::Linear {
                         p0: (p0.x, p0.y),
-                        dir: (dx, dy),
+                        dir: (dx * a2, dy),
                         len2,
                         feather: feather.clamp(0.0, 1.0),
                     }
@@ -129,10 +131,14 @@ pub fn build_layer_eval(layer: &MaskLayer, rasters: &RasterMap, aspect: f32) -> 
                     tolerance: tolerance.clamp(0.0, 1.0),
                     softness: softness.clamp(0.0, 1.0),
                 },
-                MaskComponentKind::Polygon { points, feather } => ComponentKindEval::Polygon {
-                    points: points.iter().map(|p| (p.x, p.y)).collect(),
-                    feather: feather.clamp(0.0, 1.0),
-                },
+                MaskComponentKind::Polygon { points, feather } => {
+                    let a = aspect.max(1e-6);
+                    ComponentKindEval::Polygon {
+                        points: points.iter().map(|p| (p.x * a, p.y)).collect(),
+                        aspect: a,
+                        feather: feather.clamp(0.0, 1.0),
+                    }
+                }
             };
             ComponentEval {
                 mode: c.mode,

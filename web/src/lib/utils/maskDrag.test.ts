@@ -50,6 +50,16 @@ describe('draggedKind', () => {
     expect(next).toEqual({ ...linear, feather: 0.5 });
   });
 
+  it('projects the linear feather handle in pixels on a wide frame', () => {
+    const diagonal = { ...linear, p0: { x: 0.4, y: 0.4 }, p1: { x: 0.6, y: 0.6 } };
+    const onIsoline = { x: 0.45, y: 0.7 };
+    const next = draggedKind(diagonal, { kind: 'linear-feather' }, onIsoline, {
+      aspect: 2,
+      shift: false
+    });
+    expect((next as Extract<MaskComponentKind, { kind: 'linear' }>).feather).toBeCloseTo(0, 6);
+  });
+
   it('keeps a radial radius above the minimum', () => {
     const next = draggedKind(radial, { kind: 'radial-rx', sign: 1 }, { x: 0.5, y: 0.5 });
     expect(next).toEqual({ ...radial, radius_xy: { x: 0.005, y: 0.4 } });

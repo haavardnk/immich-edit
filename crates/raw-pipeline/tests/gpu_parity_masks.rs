@@ -186,6 +186,55 @@ fn gpu_rotated_radial_matches_cpu_on_a_wide_frame() {
 }
 
 #[test]
+fn gpu_diagonal_and_polygon_masks_match_cpu_on_a_wide_frame() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let diagonal = MaskComponent {
+        kind: MaskComponentKind::Linear {
+            p0: Vec2f { x: 0.2, y: 0.2 },
+            p1: Vec2f { x: 0.8, y: 0.8 },
+            feather: 0.6,
+        },
+        ..linear_component(0.0)
+    };
+    let polygon = MaskComponent {
+        id: "p1".into(),
+        mode: MaskComponentMode::Subtract,
+        kind: MaskComponentKind::Polygon {
+            points: vec![
+                Vec2f { x: 0.55, y: 0.2 },
+                Vec2f { x: 0.9, y: 0.3 },
+                Vec2f { x: 0.8, y: 0.85 },
+                Vec2f { x: 0.6, y: 0.7 },
+            ],
+            feather: 0.15,
+        },
+        ..linear_component(0.0)
+    };
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "diagonal-polygon",
+            frame: &frame,
+            opts: &opts,
+            components: vec![diagonal, polygon],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.2),
+                saturation: Some(30.0),
+                ..Default::default()
+            },
+            invert: false,
+            fast_tolerance: 0.07,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
+}
+
+#[test]
 fn gpu_brush_masks_match_cpu_within_tolerance() {
     use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
     use std::sync::Arc;
