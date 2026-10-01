@@ -288,35 +288,39 @@ fn dehaze_positive_recovers_synthetic_haze() {
 }
 
 #[test]
-fn dehaze_negative_pushes_toward_atmosphere() {
-    let w: usize = 64;
+fn dehaze_negative_fogs_hazy_regions_before_clear_shadows() {
+    let w: usize = 384;
     let h: usize = 64;
-    let mut buf = vec![0.0f32; w * h * 3];
-    for y in 0..h {
-        for x in 0..w {
-            let i = (y * w + x) * 3;
-            buf[i] = 0.4;
-            buf[i + 1] = 0.5;
-            buf[i + 2] = 0.6;
-        }
-    }
-    let mut img = LinearImage::new(buf, w, h);
-    let edits = Edits {
-        basic: BasicEdits {
-            dehaze: -100.0,
+    let bands = [0.03f32, 0.5, 0.9];
+    let buf: Vec<f32> = (0..w * h * 3)
+        .map(|i| bands[(i / 3 % w) * bands.len() / w])
+        .collect();
+    let atm = crate::cpu::dehaze::atmosphere_for_render(&buf, w, h);
+    let probes = [(h / 2 * w + w / 6) * 3, (h / 2 * w + w / 2) * 3];
+    let mut prev = [0.0f32; 2];
+    for amount in [-10.0, -25.0, -50.0, -100.0] {
+        let mut img = LinearImage::new(buf.clone(), w, h);
+        let edits = Edits {
+            basic: BasicEdits {
+                dehaze: amount,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    };
-    dehaze::DehazeOp
-        .apply_cpu(&mut img, &ctx(), &edits)
-        .unwrap();
-    let i = (h / 2 * w + w / 2) * 3;
-    if img.rgb[i] <= 0.4 {
-        panic!(
-            "negative dehaze did not lift toward atmosphere: r={}",
-            img.rgb[i]
-        );
+        };
+        dehaze::DehazeOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        let fog = probes.map(|i| (img.rgb[i] - buf[i]) / (atm[0] - buf[i]));
+        if fog[0] >= fog[1] {
+            panic!("dehaze {amount} fogged clear shadow before haze: {fog:?}");
+        }
+        if fog[0] <= prev[0] || fog[1] <= prev[1] {
+            panic!("dehaze {amount} not monotonic: {prev:?} -> {fog:?}");
+        }
+        prev = fog;
+    }
+    if prev[0] > 0.5 {
+        panic!("dehaze -100 washed out clear shadow: {prev:?}");
     }
 }
 

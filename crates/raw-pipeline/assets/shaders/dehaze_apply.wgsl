@@ -6,6 +6,8 @@ struct Params {
     scale: f32,
 };
 
+const HAZE_EXTINCTION: f32 = 3.0;
+
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var rgb_in: texture_2d<f32>;
 @group(0) @binding(2) var ab_mean: texture_2d<f32>;
@@ -46,9 +48,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let j = max(vec3<f32>(jr, jg, jb), vec3<f32>(0.0));
         outc = c + (j - c) * amt;
     } else {
-        let neg = -amt;
-        let t_add = clamp(1.0 - t * neg * 0.5, 0.0, 1.0);
-        outc = atm * (1.0 - t_add) + c * t_add;
+        let keep = pow(max(t, 0.16), -amt * HAZE_EXTINCTION);
+        outc = atm + (c - atm) * keep;
     }
     textureStore(dst, pos, vec4<f32>(outc, 1.0));
 }

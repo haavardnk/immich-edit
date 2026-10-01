@@ -34,14 +34,15 @@ fn gpu_dehaze_matches_cpu() {
     };
     let opts = rgb8_opts(128);
     let frame = haze_frame(96, 64);
-    let mut edits = Edits::default();
-    edits.basic.dehaze = 60.0;
-
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    require_same_dims("dehaze", &cpu, &gpu);
     let mut ledger = ParityLedger::new("dehaze");
-    ledger.check("dehaze+60", &cpu.bytes, &gpu.bytes, 0.08);
+    for amount in [60.0, -60.0] {
+        let mut edits = Edits::default();
+        edits.basic.dehaze = amount;
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        require_same_dims("dehaze", &cpu, &gpu);
+        ledger.check(&format!("dehaze{amount:+}"), &cpu.bytes, &gpu.bytes, 0.08);
+    }
     ledger.finish();
 }
 

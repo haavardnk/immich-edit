@@ -155,6 +155,10 @@ edge is at least 512 pixels, both solve the guided-filter coefficients at quarte
 upsample those coefficients, and evaluate transmission against the full guide. CPU and GPU sampling
 rules must change together.
 
+Negative dehaze adds haze by raising the transmission to a power that grows with the slider, so a
+pixel moves toward the atmosphere by `1 - t^(3|amount|)`. Distant or already hazy areas fog first,
+while clear, dark foreground keeps its contrast until the slider is near its end.
+
 ## Camera profiles and tone
 
 RAW rendering has three profile outcomes:
