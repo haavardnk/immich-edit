@@ -1,12 +1,13 @@
 use raw_pipeline::edits::{
-    BasicEdits, CropRect, CurvePoint, CurvePoints, CurvesEdits, GeometryEdits, LensEdits, ToneEdits,
+    BasicEdits, CropRect, CurvePoint, CurvePoints, CurvesEdits, GeometryEdits, LensEdits,
+    RetouchMode, RetouchStroke, ToneEdits, Vec2f,
 };
-use raw_pipeline::frame::RenderOptions;
+use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::{decode, edits::Edits};
 use raw_pipeline_testkit::fixtures::any_fixture;
 use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
-use raw_pipeline_testkit::parity::{ParityLedger, require_same_dims};
+use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
 use raw_pipeline_testkit::render::rgb8_opts;
 
 #[test]
@@ -84,6 +85,64 @@ fn gpu_exposure_brightens() {
     if mean_bumped <= mean_base {
         panic!("exposure did not brighten: {mean_base} -> {mean_bumped}");
     }
+}
+
+fn blemish_frame(w: usize, h: usize, blemish_px: f32) -> RawFrame {
+    let data = (0..w * h)
+        .flat_map(|i| {
+            let x = (i % w) as f32 + 0.5;
+            let y = (i / w) as f32 + 0.5;
+            let d2 = (x - 0.3 * w as f32).powi(2) + (y - 0.4 * h as f32).powi(2);
+            let blemish = if blemish_px > 0.0 {
+                0.2 * (-d2 / (2.0 * blemish_px * blemish_px)).exp()
+            } else {
+                0.0
+            };
+            let v = 0.3 + 0.2 * x / w as f32 + 0.1 * (y / h as f32).powi(2) - blemish;
+            [v, v * 0.8, v * 0.6]
+        })
+        .collect();
+    rgb_frame(w, h, data)
+}
+
+#[test]
+fn gpu_heal_removes_the_blemish_like_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = rgb8_opts(160);
+    let heal = Edits {
+        retouch: vec![RetouchStroke {
+            id: "h".into(),
+            mode: RetouchMode::Heal,
+            points: vec![Vec2f { x: 0.3, y: 0.4 }],
+            radius: 0.15,
+            hardness: 1.0,
+            opacity: 1.0,
+            source: Vec2f { x: 0.7, y: 0.6 },
+            enabled: true,
+        }],
+        ..Default::default()
+    };
+    let frame = blemish_frame(160, 120, 6.0);
+    let clean = renderer
+        .render(&blemish_frame(160, 120, 0.0), &Edits::default(), &opts)
+        .unwrap();
+    let blemished = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    let cpu = raw_pipeline::cpu::render(&frame, &heal, &opts).unwrap();
+    let gpu = renderer.render(&frame, &heal, &opts).unwrap();
+    require_same_dims("heal", &cpu, &gpu);
+    let before = mean_abs_delta(&blemished.bytes, &clean.bytes);
+    for (label, out) in [("cpu", &cpu), ("gpu", &gpu)] {
+        let residual = mean_abs_delta(&out.bytes, &clean.bytes) / before;
+        eprintln!("heal {label} residual = {:.1}%", residual * 100.0);
+        if residual > 0.15 {
+            panic!("{label}: {:.0}% of the blemish remains", residual * 100.0);
+        }
+    }
+    let mut ledger = ParityLedger::new("retouch");
+    ledger.check("heal", &cpu.bytes, &gpu.bytes, 0.5);
+    ledger.finish();
 }
 
 #[test]

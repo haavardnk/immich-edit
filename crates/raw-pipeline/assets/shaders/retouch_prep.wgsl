@@ -1,4 +1,4 @@
-// color-space: linear scene-referred Rgba16Float in/out; patch-local source and residual
+// color-space: linear scene-referred Rgba16Float in/out; patch-local source and residual known outside the stroke
 struct Params {
     dims: vec2<u32>,
     bbox_origin: vec2<u32>,
@@ -9,14 +9,34 @@ struct Params {
     radius_px: f32,
     hardness: f32,
     opacity: f32,
-    sigma: f32,
-    dir: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
 @group(0) @binding(2) var patch_src: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(3) var patch_res: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(4) var<storage, read> pts: array<vec2<f32>>;
+
+fn point_seg_dist(pt: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
+    let d = b - a;
+    let len2 = dot(d, d);
+    var t = 0.0;
+    if (len2 > 1e-12) {
+        t = clamp(dot(pt - a, d) / len2, 0.0, 1.0);
+    }
+    return length(pt - (a + t * d));
+}
+
+fn stroke_dist(pt: vec2<f32>) -> f32 {
+    if (p.point_count == 1u) {
+        return length(pt - pts[0]);
+    }
+    var best = 3.4e38;
+    for (var i = 0u; i + 1u < p.point_count; i = i + 1u) {
+        best = min(best, point_seg_dist(pt, pts[i], pts[i + 1u]));
+    }
+    return best;
+}
 
 fn cr_weights(t: f32) -> vec4<f32> {
     let t2 = t * t;
@@ -65,5 +85,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let d = load_clamped(gx, gy);
     let c = vec2<i32>(i32(gid.x), i32(gid.y));
     textureStore(patch_src, c, vec4<f32>(s, 1.0));
-    textureStore(patch_res, c, vec4<f32>(d - s, 1.0));
+    let outside = stroke_dist(vec2<f32>(f32(gx) + 0.5, f32(gy) + 0.5)) >= p.radius_px;
+    if (outside) {
+        textureStore(patch_res, c, vec4<f32>(d - s, 1.0));
+    } else {
+        textureStore(patch_res, c, vec4<f32>(0.0));
+    }
 }

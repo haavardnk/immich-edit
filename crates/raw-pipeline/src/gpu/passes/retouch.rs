@@ -11,7 +11,8 @@ use super::common::{
 
 pub const RETOUCH_UNIFORM_SIZE: u64 = size_of::<RetouchParams>() as u64;
 pub const RETOUCH_PREP_WGSL: &str = include_str!("../../../assets/shaders/retouch_prep.wgsl");
-pub const RETOUCH_BLUR_WGSL: &str = include_str!("../../../assets/shaders/retouch_blur.wgsl");
+pub const RETOUCH_PUSH_WGSL: &str = include_str!("../../../assets/shaders/retouch_push.wgsl");
+pub const RETOUCH_PULL_WGSL: &str = include_str!("../../../assets/shaders/retouch_pull.wgsl");
 pub const RETOUCH_APPLY_WGSL: &str = include_str!("../../../assets/shaders/retouch_apply.wgsl");
 
 #[repr(C)]
@@ -26,16 +27,16 @@ pub struct RetouchParams {
     pub radius_px: f32,
     pub hardness: f32,
     pub opacity: f32,
-    pub sigma: f32,
-    pub dir: u32,
-    pub _pad: f32,
+    pub _pad: [f32; 3],
 }
 
 pub struct RetouchPasses {
     pub prep_layout: BindGroupLayout,
     pub prep_pipeline: ComputePipeline,
-    pub blur_layout: BindGroupLayout,
-    pub blur_pipeline: ComputePipeline,
+    pub push_layout: BindGroupLayout,
+    pub push_pipeline: ComputePipeline,
+    pub pull_layout: BindGroupLayout,
+    pub pull_pipeline: ComputePipeline,
     pub apply_layout: BindGroupLayout,
     pub apply_pipeline: ComputePipeline,
 }
@@ -50,22 +51,31 @@ impl RetouchPasses {
                 tex_entry(1),
                 storage_entry(2, ctx.linear_format),
                 storage_entry(3, ctx.linear_format),
+                storage_buffer_entry(4),
             ],
         );
         let prep_pipeline =
             make_pipeline(ctx, &prep_layout, "retouch_prep.wgsl", RETOUCH_PREP_WGSL);
 
-        let blur_layout = make_layout(
+        let push_layout = make_layout(
             ctx,
-            "retouch-blur-bgl",
+            "retouch-push-bgl",
+            &[tex_entry(0), storage_entry(1, ctx.linear_format)],
+        );
+        let push_pipeline =
+            make_pipeline(ctx, &push_layout, "retouch_push.wgsl", RETOUCH_PUSH_WGSL);
+
+        let pull_layout = make_layout(
+            ctx,
+            "retouch-pull-bgl",
             &[
-                uniform_entry(0, RETOUCH_UNIFORM_SIZE),
+                tex_entry(0),
                 tex_entry(1),
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let blur_pipeline =
-            make_pipeline(ctx, &blur_layout, "retouch_blur.wgsl", RETOUCH_BLUR_WGSL);
+        let pull_pipeline =
+            make_pipeline(ctx, &pull_layout, "retouch_pull.wgsl", RETOUCH_PULL_WGSL);
 
         let apply_layout = make_layout(
             ctx,
@@ -85,8 +95,10 @@ impl RetouchPasses {
         Self {
             prep_layout,
             prep_pipeline,
-            blur_layout,
-            blur_pipeline,
+            push_layout,
+            push_pipeline,
+            pull_layout,
+            pull_pipeline,
             apply_layout,
             apply_pipeline,
         }

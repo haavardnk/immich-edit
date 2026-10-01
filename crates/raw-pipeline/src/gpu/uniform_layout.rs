@@ -24,9 +24,7 @@ use super::passes::nr::{NR_WGSL, NrParams};
 use super::passes::nr_smooth::{NR_SMOOTH_WGSL, NrSmoothParams};
 use super::passes::presence::{PRESENCE_ADJUST_WGSL, PresenceParams};
 use super::passes::resample::{RESAMPLE_WGSL, ResampleParams};
-use super::passes::retouch::{
-    RETOUCH_APPLY_WGSL, RETOUCH_BLUR_WGSL, RETOUCH_PREP_WGSL, RetouchParams,
-};
+use super::passes::retouch::{RETOUCH_APPLY_WGSL, RETOUCH_PREP_WGSL, RetouchParams};
 use super::passes::sensor::{SENSOR_WGSL, SensorParams};
 use super::passes::sharpen::{SHARPEN_BLUR_WGSL, SHARPEN_WGSL, SharpenBlurParams, SharpenParams};
 use super::passes::xtrans::{XTRANS_GREEN_WGSL, XTRANS_RGB_WGSL};
@@ -161,8 +159,6 @@ fn uniform_structs_mirror_wgsl() {
             radius_px,
             hardness,
             opacity,
-            sigma,
-            dir,
         } pad { _pad })
     };
     let cases = [
@@ -297,7 +293,6 @@ fn uniform_structs_mirror_wgsl() {
             uniform_struct(RESAMPLE_WGSL),
         ),
         ("retouch_prep", retouch(), uniform_struct(RETOUCH_PREP_WGSL)),
-        ("retouch_blur", retouch(), uniform_struct(RETOUCH_BLUR_WGSL)),
         (
             "retouch_apply",
             retouch(),
