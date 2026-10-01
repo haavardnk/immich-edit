@@ -5,6 +5,8 @@ use crate::ops::box_filter::{box_mean, min_filter};
 use crate::ops::dehaze::DehazeGrid;
 use rayon::prelude::*;
 
+const HAZE_EXTINCTION: f32 = 3.0;
+
 fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
     let mut out = Scratch::zeroed(w * h);
     out.par_iter_mut().enumerate().for_each(|(i, v)| {
@@ -299,18 +301,17 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
                 }
             });
     } else {
-        let neg = -a;
+        let extinction = -a * HAZE_EXTINCTION;
         image
             .rgb
             .par_chunks_exact_mut(w * 3)
             .enumerate()
             .for_each(|(y, row)| {
                 for (x, px) in row.chunks_exact_mut(3).enumerate() {
-                    let ti = transmission(x, y, px);
-                    let t_add = (1.0 - ti * neg * 0.5).clamp(0.0, 1.0);
-                    px[0] = atm[0] * (1.0 - t_add) + px[0] * t_add;
-                    px[1] = atm[1] * (1.0 - t_add) + px[1] * t_add;
-                    px[2] = atm[2] * (1.0 - t_add) + px[2] * t_add;
+                    let keep = transmission(x, y, px).max(0.16).powf(extinction);
+                    px[0] = atm[0] + (px[0] - atm[0]) * keep;
+                    px[1] = atm[1] + (px[1] - atm[1]) * keep;
+                    px[2] = atm[2] + (px[2] - atm[2]) * keep;
                 }
             });
     }
