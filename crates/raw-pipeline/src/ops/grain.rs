@@ -66,6 +66,9 @@ const GRAIN_SEED: u32 = 0x6A1A_5EED;
 const FINE_SEED: u32 = GRAIN_SEED ^ 0x9E37_79B9;
 const SPREAD_SALT: u32 = 0x85EB_CA6B;
 const EXACT_SPAN: usize = 5;
+const LSTAR_EPSILON: f32 = 216.0 / 24389.0;
+const LSTAR_KAPPA: f32 = 24389.0 / 2700.0;
+const GRAIN_LIGHTNESS: f32 = 0.19;
 
 #[derive(Clone, Copy)]
 struct Window {
@@ -99,6 +102,22 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
 fn tent(t: f32) -> f32 {
     let a = t.abs();
     if a >= 1.0 { 0.0 } else { 1.0 - fade(a) }
+}
+
+fn lightness(y: f32) -> f32 {
+    if y > LSTAR_EPSILON {
+        1.16 * y.cbrt() - 0.16
+    } else {
+        y * LSTAR_KAPPA
+    }
+}
+
+fn luminance(l: f32) -> f32 {
+    if l > LSTAR_EPSILON * LSTAR_KAPPA {
+        ((l + 0.16) / 1.16).powi(3)
+    } else {
+        l / LSTAR_KAPPA
+    }
 }
 
 fn lattice_span(win: Window, cell: f32) -> (i32, usize) {
@@ -146,6 +165,49 @@ fn box_noise(wx: Window, wy: Window, cell: f32, seed: u32) -> f32 {
     0.5 + (u - 0.5) * (ex * ey).sqrt()
 }
 
+struct GrainField {
+    cell: f32,
+    fine_cell: f32,
+    roughness: f32,
+    off_x: f32,
+    off_y: f32,
+    step: f32,
+}
+
+impl GrainField {
+    fn new(
+        e: &EffectsEdits,
+        roi: Option<CropRect>,
+        dims: (usize, usize),
+        output_scale: f32,
+    ) -> Self {
+        let cell = lerp(1.0, 8.0, (e.grain_size / 100.0) as f32);
+        let r = roi.unwrap_or(CropRect::full());
+        Self {
+            cell,
+            fine_cell: (cell * 0.5).max(1.0),
+            roughness: (e.grain_roughness / 100.0) as f32,
+            off_x: r.x * dims.0 as f32 / r.w,
+            off_y: r.y * dims.1 as f32 / r.h,
+            step: 1.0 / output_scale,
+        }
+    }
+
+    fn at(&self, x: usize, y: usize) -> f32 {
+        let wx = Window {
+            start: (self.off_x + x as f32) * self.step,
+            end: (self.off_x + x as f32 + 1.0) * self.step,
+        };
+        let wy = Window {
+            start: (self.off_y + y as f32) * self.step,
+            end: (self.off_y + y as f32 + 1.0) * self.step,
+        };
+        let base = box_noise(wx, wy, self.cell, GRAIN_SEED);
+        let fine = box_noise(wx, wy, self.fine_cell, FINE_SEED);
+        lerp(base, fine, self.roughness) * 2.0 - 1.0
+    }
+}
+
 pub fn apply_grain(
     image: &mut LinearImage,
     e: &EffectsEdits,
@@ -154,44 +216,29 @@ pub fn apply_grain(
 ) {
     let w = image.width;
     let h = image.height;
-    if w == 0 || h == 0 {
+    if w == 0 || h == 0 || e.grain_amount == 0.0 {
         return;
     }
-    let amount = (e.grain_amount / 100.0) as f32;
-    let size = (e.grain_size / 100.0) as f32;
-    let roughness = (e.grain_roughness / 100.0) as f32;
-    let cell = lerp(1.0, 8.0, size);
-    let fine_cell = (cell * 0.5).max(1.0);
-    let r = roi.unwrap_or(CropRect::full());
-    let off_x = r.x * w as f32 / r.w;
-    let off_y = r.y * h as f32 / r.h;
-    let step = 1.0 / output_scale;
-    let strength = amount * 0.15;
+    let field = GrainField::new(e, roi, (w, h), output_scale);
+    let strength = (e.grain_amount / 100.0) as f32 * GRAIN_LIGHTNESS;
 
     image
         .rgb
         .par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            let wy = Window {
-                start: (off_y + y as f32) * step,
-                end: (off_y + y as f32 + 1.0) * step,
-            };
             for x in 0..w {
-                let wx = Window {
-                    start: (off_x + x as f32) * step,
-                    end: (off_x + x as f32 + 1.0) * step,
-                };
-                let base = box_noise(wx, wy, cell, GRAIN_SEED);
-                let fine = box_noise(wx, wy, fine_cell, FINE_SEED);
-                let n = lerp(base, fine, roughness) * 2.0 - 1.0;
-                let delta = n * strength;
                 let i = x * 3;
                 let r = row[i];
                 let g = row[i + 1];
                 let b = row[i + 2];
                 let yv = luma(r, g, b);
-                let scale = if yv > 1e-6 { (yv + delta) / yv } else { 1.0 };
+                if yv <= 0.0 {
+                    continue;
+                }
+                let l = lightness(yv);
+                let midtone = (4.0 * l * (1.0 - l)).max(0.0);
+                let scale = luminance(l + field.at(x, y) * strength * midtone) / yv;
                 row[i] = (r * scale).clamp(0.0, 4.0);
                 row[i + 1] = (g * scale).clamp(0.0, 4.0);
                 row[i + 2] = (b * scale).clamp(0.0, 4.0);
@@ -327,9 +374,10 @@ mod tests {
     }
 
     fn grained(side: usize, e: &EffectsEdits, output_scale: f32) -> Vec<f32> {
-        let mut img = make_image(side, side, 0.5);
-        apply_grain(&mut img, e, None, output_scale);
-        img.rgb.chunks(3).map(|p| p[1]).collect()
+        let field = GrainField::new(e, None, (side, side), output_scale);
+        (0..side * side)
+            .map(|i| field.at(i % side, i / side))
+            .collect()
     }
 
     fn box_downscale(full: &[f32], side: usize, k: usize) -> Vec<f32> {
@@ -368,7 +416,7 @@ mod tests {
                 .zip(&reduced)
                 .map(|(a, b)| (a - b).abs())
                 .fold(0.0_f32, f32::max);
-            if worst > 1e-4 {
+            if worst > 1e-5 {
                 panic!("size {size} roughness {roughness} k {k}: max diff {worst}");
             }
         }
@@ -390,6 +438,42 @@ mod tests {
             let ratio = got / want;
             if !(0.9..=1.1).contains(&ratio) {
                 panic!("k {k}: reduced std {got} vs downscaled {want} (ratio {ratio})");
+            }
+        }
+    }
+
+    fn grey_patch(level: f32) -> Vec<f32> {
+        let mut img = make_image(128, 128, level);
+        let e = EffectsEdits {
+            grain_amount: 50.0,
+            ..defaults()
+        };
+        apply_grain(&mut img, &e, None, 1.0);
+        img.rgb.chunks(3).map(|p| p[1]).collect()
+    }
+
+    #[test]
+    fn grain_leaves_deep_shadows_in_place() {
+        let level = 0.002;
+        let out = grey_patch(level);
+        let mean = out.iter().sum::<f32>() / out.len() as f32;
+        let clipped = out.iter().filter(|v| **v <= 0.0).count();
+        if (mean / level - 1.0).abs() > 0.02 || clipped > 0 {
+            panic!("shadow mean {mean} vs {level}, {clipped} pixels clipped to black");
+        }
+    }
+
+    #[test]
+    fn grain_peaks_in_midtones() {
+        let spread = |level: f32| {
+            let l: Vec<f32> = grey_patch(level).into_iter().map(lightness).collect();
+            std_dev(&l)
+        };
+        let mid = spread(0.18);
+        for level in [0.002, 0.9] {
+            let edge = spread(level);
+            if mid < 2.0 * edge {
+                panic!("midtone grain {mid} should exceed twice the grain at {level} ({edge})");
             }
         }
     }
