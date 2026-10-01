@@ -137,6 +137,10 @@ Creative sharpening measures its radius in source pixels. A reduced preview or a
 scales the radius by its output ratio, so the fitted view sharpens the same image detail as 100%
 zoom instead of much coarser structure.
 
+Grain is defined on the source pixel grid. A reduced render averages the grain each output pixel
+covers, so the fitted view shows what a downscaled full-size export would show: coarse grain keeps
+its pattern and fine grain softens instead of turning into larger, stronger speckles.
+
 The reduction uses separable Lanczos3 in scene-linear space. Geometry samples fractional source
 coordinates with the same Catmull-Rom bicubic kernel on CPU and GPU. The reduction ratio comes from
 the active crop, not the full sensor.

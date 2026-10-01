@@ -426,6 +426,25 @@ fn gpu_effects_match_cpu() {
         require_same_dims(label, &cpu, &gpu);
         ledger.check(label, &cpu.bytes, &gpu.bytes, *limit);
     }
+    let wide = synthetic_frame(384, 256);
+    for (label, size) in [
+        ("grain quarter scale fine", 0.0),
+        ("grain quarter scale coarse", 100.0),
+    ] {
+        let edits = Edits {
+            effects: EffectsEdits {
+                grain_amount: 60.0,
+                grain_size: size,
+                grain_roughness: 50.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&wide, &edits, &opts).unwrap();
+        let gpu = renderer.render(&wide, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.08);
+    }
     ledger.finish();
 }
 

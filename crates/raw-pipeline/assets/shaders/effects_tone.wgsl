@@ -4,8 +4,14 @@ struct EffectsToneParams {
     grain: vec3<f32>,
     display_p3: u32,
     warn_flags: u32,
+    output_scale: f32,
     roi: vec4<f32>,
 };
+
+const GRAIN_SEED: u32 = 0x6A1A5EEDu;
+const FINE_SEED: u32 = 0x6A1A5EEDu ^ 0x9E3779B9u;
+const SPREAD_SALT: u32 = 0x85EBCA6Bu;
+const EXACT_SPAN: i32 = 5;
 
 @group(0) @binding(0) var<uniform> p: EffectsToneParams;
 @group(0) @binding(1) var src_lin: texture_2d<f32>;
@@ -49,18 +55,62 @@ fn hash2(x: i32, y: i32, seed: u32) -> f32 {
     return f32(h) / 4294967295.0;
 }
 
-fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
-    let xi = i32(floor(x));
-    let yi = i32(floor(y));
-    let xf = x - floor(x);
-    let yf = y - floor(y);
-    let u = fade(xf);
-    let v = fade(yf);
-    let a = hash2(xi, yi, seed);
-    let b = hash2(xi + 1, yi, seed);
-    let c = hash2(xi, yi + 1, seed);
-    let d = hash2(xi + 1, yi + 1, seed);
-    return mix(mix(a, b, u), mix(c, d, u), v);
+fn tent(t: f32) -> f32 {
+    let a = abs(t);
+    return select(1.0 - fade(a), 0.0, a >= 1.0);
+}
+
+fn lattice_lo(win: vec2<f32>, cell: f32) -> i32 {
+    return i32(floor(floor(win.x) / cell));
+}
+
+fn lattice_count(win: vec2<f32>, cell: f32) -> i32 {
+    let hi = i32(floor((ceil(win.y) - 1.0) / cell)) + 1;
+    return hi - lattice_lo(win, cell) + 1;
+}
+
+fn lattice_weight(i: i32, win: vec2<f32>, cell: f32) -> f32 {
+    let first = i32(max(floor(win.x), floor(f32(i - 1) * cell)));
+    let last = i32(min(ceil(win.y) - 1.0, ceil(f32(i + 1) * cell)));
+    var acc = 0.0;
+    for (var xs = first; xs <= last; xs = xs + 1) {
+        let cover = min(f32(xs + 1), win.y) - max(f32(xs), win.x);
+        acc = acc + max(cover, 0.0) * tent(f32(xs) / cell - f32(i));
+    }
+    return acc / (win.y - win.x);
+}
+
+fn box_noise(wx: vec2<f32>, wy: vec2<f32>, cell: f32, seed: u32) -> f32 {
+    let x0 = lattice_lo(wx, cell);
+    let y0 = lattice_lo(wy, cell);
+    let nx = lattice_count(wx, cell);
+    let ny = lattice_count(wy, cell);
+    if (nx <= EXACT_SPAN && ny <= EXACT_SPAN) {
+        var ay: array<f32, 5>;
+        for (var ky = 0; ky < ny; ky = ky + 1) {
+            ay[ky] = lattice_weight(y0 + ky, wy, cell);
+        }
+        var sum = 0.0;
+        for (var kx = 0; kx < nx; kx = kx + 1) {
+            let ax = lattice_weight(x0 + kx, wx, cell);
+            for (var ky = 0; ky < ny; ky = ky + 1) {
+                sum = sum + hash2(x0 + kx, y0 + ky, seed) * ax * ay[ky];
+            }
+        }
+        return sum;
+    }
+    var ex = 0.0;
+    for (var kx = 0; kx < nx; kx = kx + 1) {
+        let a = lattice_weight(x0 + kx, wx, cell);
+        ex = ex + a * a;
+    }
+    var ey = 0.0;
+    for (var ky = 0; ky < ny; ky = ky + 1) {
+        let a = lattice_weight(y0 + ky, wy, cell);
+        ey = ey + a * a;
+    }
+    let u = hash2(i32(floor(wx.x)), i32(floor(wy.x)), seed ^ SPREAD_SALT);
+    return 0.5 + (u - 0.5) * sqrt(ex * ey);
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -111,14 +161,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let roughness = p.grain.z;
         let cell = mix(1.0, 8.0, size);
         let fine_cell = max(1.0, cell * 0.5);
-        let sw = u32(round(full_w));
-        let sh = u32(round(full_h));
-        let seed = sw ^ ((sh << 13u) | (sh >> 19u));
-        let seed_fine = seed ^ 0x9E3779B9u;
+        let step = 1.0 / p.output_scale;
         let xf = p.roi.x * full_w + f32(x);
         let yf = p.roi.y * full_h + f32(y);
-        let base = value_noise(xf / cell, yf / cell, seed);
-        let fine = value_noise(xf / fine_cell, yf / fine_cell, seed_fine);
+        let wx = vec2<f32>(xf, xf + 1.0) * step;
+        let wy = vec2<f32>(yf, yf + 1.0) * step;
+        let base = box_noise(wx, wy, cell, GRAIN_SEED);
+        let fine = box_noise(wx, wy, fine_cell, FINE_SEED);
         let n = mix(base, fine, roughness) * 2.0 - 1.0;
         let delta = n * grain_amount * 0.15;
         let yv = luma(lin);
