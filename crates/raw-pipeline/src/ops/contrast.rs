@@ -2,29 +2,36 @@ use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use crate::math::fast;
-use crate::math::smoothstep;
 
 pub struct ContrastOp;
 
 pub const CONTRAST_GAMMA: f32 = 2.2;
-pub const CONTRAST_ROLLOFF_LO: f32 = 1.0;
-pub const CONTRAST_ROLLOFF_HI: f32 = 1.01;
 
 pub(crate) fn contrast_strength(amount: f32) -> f32 {
     (amount.clamp(-1.0, 1.0) * 1.25).exp2()
 }
 
 #[inline(always)]
-pub(crate) fn apply_perceptual_contrast(v: f32, s: f32) -> f32 {
-    let p = fast::pow(v.max(0.0), 1.0 / CONTRAST_GAMMA);
-    let pc = p.clamp(0.0, 1.0);
-    let low = pc < 0.5;
-    let base = if low { 2.0 * pc } else { 2.0 * (1.0 - pc) };
-    let half = 0.5 * fast::pow(base, s);
-    let op = if low { half } else { 1.0 - half };
-    let lin = fast::pow(op, CONTRAST_GAMMA);
-    let m = smoothstep(CONTRAST_ROLLOFF_LO, CONTRAST_ROLLOFF_HI, v);
-    lin * (1.0 - m) + v * m
+fn contrast_bias(x: f32, k: f32) -> f32 {
+    x / (k * (1.0 - x) + 1.0)
+}
+
+#[inline(always)]
+pub(crate) fn contrast_curve(v: f32, s: f32) -> f32 {
+    if v >= 1.0 {
+        return v;
+    }
+    if v <= 0.0 {
+        return v * fast::pow(s, -CONTRAST_GAMMA);
+    }
+    let p = fast::pow(v, 1.0 / CONTRAST_GAMMA);
+    let k = s - 1.0;
+    let out = if p < 0.5 {
+        0.5 * contrast_bias(2.0 * p, k)
+    } else {
+        1.0 - 0.5 * contrast_bias(2.0 - 2.0 * p, k)
+    };
+    fast::pow(out, CONTRAST_GAMMA)
 }
 
 impl Op for ContrastOp {

@@ -14,6 +14,23 @@ pub fn luma(r: f32, g: f32, b: f32) -> f32 {
 }
 
 #[inline(always)]
+pub(crate) fn rgb_tone(r: f32, g: f32, b: f32, curve: impl Fn(f32) -> f32) -> (f32, f32, f32) {
+    let lo = r.min(g).min(b);
+    let hi = r.max(g).max(b);
+    let lo_out = curve(lo);
+    let hi_out = curve(hi);
+    if hi <= lo {
+        return (hi_out, hi_out, hi_out);
+    }
+    let scale = (hi_out - lo_out) / (hi - lo);
+    (
+        lo_out + (r - lo) * scale,
+        lo_out + (g - lo) * scale,
+        lo_out + (b - lo) * scale,
+    )
+}
+
+#[inline(always)]
 pub fn hue_dist(a: f32, b: f32) -> f32 {
     let d = (a - b).rem_euclid(360.0);
     d.min(360.0 - d)

@@ -35,30 +35,29 @@ fn tone_regions_shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
 }
 
 fn tone_regions_blacks(x: f32, bk: f32) -> f32 {
-    let xc = clamp(x, 0.0, TONE_REGIONS_BK_CEILING);
-    var mask_bk = clamp(1.0 - xc / TONE_REGIONS_BK_MASK_RANGE, 0.0, 1.0);
+    var mask_bk = clamp(1.0 - max(x, 0.0) / TONE_REGIONS_BK_MASK_RANGE, 0.0, 1.0);
     mask_bk = mask_bk * mask_bk;
     let mult_bk = clamp(exp2(bk * TONE_REGIONS_BK_STRENGTH), 0.0, TONE_REGIONS_BK_MULT_MAX);
-    return xc + xc * (mult_bk - 1.0) * mask_bk;
+    return x + x * (mult_bk - 1.0) * mask_bk;
 }
 
 fn tone_regions_apply_rgb(c: vec3<f32>, hl: f32, bk: f32) -> vec3<f32> {
     let clip = max(max(max(c.r, c.g), c.b) - 1.0, 0.0);
-    var v = vec3<f32>(
-        tone_regions_highlights(c.r, hl),
-        tone_regions_highlights(c.g, hl),
-        tone_regions_highlights(c.b, hl)
-    );
+    var v = c;
+    if (hl != 0.0) {
+        let lo = min(min(c.x, c.y), c.z);
+        let hi = max(max(c.x, c.y), c.z);
+        v = op_rgb_tone(c, tone_regions_highlights(lo, hl), tone_regions_highlights(hi, hl));
+    }
     let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip) * clamp(-hl, 0.0, 1.0);
     if (desat > 0.0) {
         let luma = 0.2126 * v.x + 0.7152 * v.y + 0.0722 * v.z;
         v = mix(v, vec3<f32>(luma), desat);
     }
-    return vec3<f32>(
-        tone_regions_blacks(v.x, bk),
-        tone_regions_blacks(v.y, bk),
-        tone_regions_blacks(v.z, bk)
-    );
+    if (bk == 0.0) { return v; }
+    let lo = min(min(v.x, v.y), v.z);
+    let hi = max(max(v.x, v.y), v.z);
+    return op_rgb_tone(v, tone_regions_blacks(lo, bk), tone_regions_blacks(hi, bk));
 }
 
 fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>, blur_l: f32, source_l: f32) -> vec3<f32> {

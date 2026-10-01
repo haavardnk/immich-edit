@@ -259,6 +259,47 @@ fn whites_negative_pulls_brights() {
     assert!(img.rgb[0] < 0.95);
 }
 #[test]
+fn tone_curves_keep_hue() {
+    let hue = |c: &[f32]| (c[1] - c[2]) / (c[0] - c[2]);
+    let cases = [
+        (100.0, 0.0, 0.0, [0.3, 0.15, 0.06]),
+        (-100.0, 0.0, 0.0, [0.3, 0.15, 0.06]),
+        (0.0, -100.0, 0.0, [0.9, 0.5, 0.1]),
+        (0.0, 100.0, 0.0, [0.9, 0.5, 0.1]),
+        (0.0, 0.0, 100.0, [0.06, 0.03, 0.01]),
+        (0.0, 0.0, -100.0, [0.06, 0.03, 0.01]),
+        (0.0, 0.0, 100.0, [4.0, 3.0, 2.5]),
+    ];
+    for (contrast, highlights, blacks, rgb) in cases {
+        let mut img = solid_image(1, 1, rgb);
+        let edits = Edits {
+            basic: BasicEdits {
+                contrast,
+                ..Default::default()
+            },
+            tone: ToneEdits {
+                highlights,
+                blacks,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        contrast::ContrastOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        tone_regions::ToneRegionsOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        let out = &img.rgb;
+        if out[0] <= out[1] || out[1] <= out[2] || (hue(out) - hue(&rgb)).abs() > 1e-3 {
+            panic!(
+                "contrast {contrast} highlights {highlights} blacks {blacks}: {rgb:?} -> {out:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn highlights_neg_desaturates_clipped_color() {
     let mut img = solid_image(1, 1, [2.0, 1.5, 1.0]);
     let edits = Edits {

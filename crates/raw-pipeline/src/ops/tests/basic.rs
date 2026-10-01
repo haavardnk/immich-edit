@@ -189,3 +189,26 @@ fn contrast_negative_flattens() {
     let spread_after = high.rgb[0] - low.rgb[0];
     assert!(spread_after < 0.6);
 }
+
+#[test]
+fn contrast_is_linear_near_black() {
+    for contrast in [100.0, -100.0] {
+        let mut img = solid_image(2, 1, [1e-5; 3]);
+        img.rgb[3..].fill(1e-4);
+        let edits = Edits {
+            basic: BasicEdits {
+                contrast,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        contrast::ContrastOp
+            .apply_cpu(&mut img, &ctx(), &edits)
+            .unwrap();
+        let deep = img.rgb[0] / 1e-5;
+        let near = img.rgb[3] / 1e-4;
+        if !(0.1..10.0).contains(&deep) || (deep / near - 1.0).abs() > 0.15 {
+            panic!("contrast {contrast}: black gain {deep} at 1e-5, {near} at 1e-4");
+        }
+    }
+}
