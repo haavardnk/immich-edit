@@ -92,26 +92,6 @@ fn profile_tone(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(t.z, t.x, t.y);
 }
 
-fn luma(c: vec3<f32>) -> f32 {
-    return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-}
-
-fn project_gamut(c: vec3<f32>) -> vec3<f32> {
-    let neutral = clamp(luma(c), 0.0, 1.0);
-    var out = c;
-    let mn = min(out.r, min(out.g, out.b));
-    if (mn < 0.0) {
-        let t = clamp(-mn / (neutral - mn), 0.0, 1.0);
-        out = mix(out, vec3<f32>(neutral), t);
-    }
-    let mx = max(out.r, max(out.g, out.b));
-    if (mx > 1.0) {
-        let t = clamp((mx - 1.0) / (mx - neutral), 0.0, 1.0);
-        out = mix(out, vec3<f32>(neutral), t);
-    }
-    return out;
-}
-
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let size = textureDimensions(out_tex);
@@ -129,16 +109,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         pp = profile_tone(pp);
     }
     let lin = from_pp(pp);
-    let mapped = project_gamut(lin);
-    let display = display_curves_apply(vec3<f32>(
-        huesat_srgb_gamma(clamp(mapped.r, 0.0, 1.0)),
-        huesat_srgb_gamma(clamp(mapped.g, 0.0, 1.0)),
-        huesat_srgb_gamma(clamp(mapped.b, 0.0, 1.0)),
-    ));
+    let p3 = (warn >> 2u) & 1u;
+    let display = display_curves_apply(tone_rgb_cs(lin, p3));
     var alpha = src.a;
     if ((warn & 1u) != 0u) {
-        let p3 = (warn >> 2u) & 1u;
-        alpha = select(1.0, 0.0, tone_below_gamut(tone_to_output_space(lin, p3)));
+        alpha = select(1.0, 0.0, tone_is_out_of_gamut(lin, p3));
     }
     if (alpha != 0.0 && (warn & 2u) != 0u) {
         alpha = warn_clip_alpha(display);
