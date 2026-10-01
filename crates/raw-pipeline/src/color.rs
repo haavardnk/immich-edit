@@ -1,20 +1,21 @@
 mod dcp;
 mod hsv;
 mod matrix;
+mod white;
 
 #[cfg(test)]
 mod tests;
 
 pub use dcp::{
     DCP_FALLBACK_TONE_CURVE, DEFAULT_COLOR_TONE_CURVE, apply_dcp_finish, apply_huesat,
-    dcp_cam_to_srgb, dcp_illuminant_cct, dcp_weight, merge_huesat,
+    dcp_illuminant_cct, merge_huesat,
 };
 pub use matrix::{
-    cam_to_srgb_matrix, display_p3_to_srgb_lin, estimate_scene_cct, identity_3x3,
-    interpolate_xyz_to_cam, is_unusable_matrix, prophoto_to_srgb_lin_matrix, resolve_xyz_to_cam,
-    srgb_lin_to_display_p3, srgb_lin_to_prophoto_matrix, user_wb_matrix,
+    cam_to_srgb_matrix, display_p3_to_srgb_lin, identity_3x3, is_unusable_matrix,
+    prophoto_to_srgb_lin_matrix, srgb_lin_to_display_p3, srgb_lin_to_prophoto_matrix,
 };
 pub(crate) use matrix::{mat3_mul, mat3_vec};
+pub use white::{Calibration, CameraWhite, SceneWhite};
 
 pub const XYZ_TO_SRGB_D65: [[f32; 3]; 3] = [
     [3.240_454, -1.537_138_5, -0.498_531_4],

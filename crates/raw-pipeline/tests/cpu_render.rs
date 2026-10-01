@@ -79,8 +79,8 @@ fn auto_tools_agree_on_fast_and_quality_frames() {
         let quality_ev = raw_pipeline::auto::auto_adjust(&quality, &edits)
             .basic
             .exposure_ev;
-        let fast_wb = raw_pipeline::white_balance::auto_white_balance(&fast, &edits);
-        let quality_wb = raw_pipeline::white_balance::auto_white_balance(&quality, &edits);
+        let fast_wb = raw_pipeline::white_balance::auto_white_balance(&fast, &edits, None);
+        let quality_wb = raw_pipeline::white_balance::auto_white_balance(&quality, &edits, None);
         if (fast_ev - quality_ev).abs() > 0.05 {
             panic!("{name}: auto exposure {fast_ev} on fast frame vs {quality_ev} on quality");
         }

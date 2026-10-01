@@ -88,6 +88,7 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
             capture_sigma: frame.meta.capture_sigma.map(|s| s / block_scale),
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
+            white: setup.white.clone(),
             dcp: setup.resolved.clone(),
             output_scale: crate::geom::output_scale(
                 frame.meta.orientation,

@@ -57,7 +57,7 @@ fn make_mosaic_with<F: Fn(usize, usize) -> [f32; 3]>(
 }
 
 fn neutralised(rgb: [f32; 3], temp: f64, tint: f64) -> [f32; 3] {
-    let m = user_wb_matrix(temp, tint);
+    let m = SceneWhite::Display.user_matrix(temp, tint);
     [
         m[0][0] * rgb[0] + m[0][1] * rgb[1] + m[0][2] * rgb[2],
         m[1][0] * rgb[0] + m[1][1] * rgb[1] + m[1][2] * rgb[2],
@@ -78,7 +78,8 @@ fn noise(x: usize, y: usize, channel: usize) -> f32 {
 
 #[test]
 fn neutral_sample_solves_to_no_correction() {
-    let (temp, tint) = solve_neutral([0.4, 0.4, 0.4]).expect("neutral grey solves");
+    let (temp, tint) =
+        solve_neutral(&SceneWhite::Display, [0.4, 0.4, 0.4]).expect("neutral grey solves");
     assert_eq!((temp, tint), (0.0, 0.0));
 }
 
@@ -90,7 +91,7 @@ fn solved_pair_neutralises_the_sample() {
         [0.35, 0.40, 0.35],
         [0.06, 0.05, 0.04],
     ] {
-        let (temp, tint) = solve_neutral(rgb).expect("cast solves");
+        let (temp, tint) = solve_neutral(&SceneWhite::Display, rgb).expect("cast solves");
         let out = neutralised(rgb, temp, tint);
         assert!(
             spread(out) < 0.03,
@@ -102,8 +103,8 @@ fn solved_pair_neutralises_the_sample() {
 
 #[test]
 fn warm_cast_cools_and_blue_cast_warms() {
-    let (warm, _) = solve_neutral([0.6, 0.45, 0.3]).expect("warm solves");
-    let (cool, _) = solve_neutral([0.3, 0.45, 0.6]).expect("cool solves");
+    let (warm, _) = solve_neutral(&SceneWhite::Display, [0.6, 0.45, 0.3]).expect("warm solves");
+    let (cool, _) = solve_neutral(&SceneWhite::Display, [0.3, 0.45, 0.6]).expect("cool solves");
     assert!(
         warm < 0.0,
         "warm sample should lower temperature, got {warm}"
@@ -116,8 +117,8 @@ fn warm_cast_cools_and_blue_cast_warms() {
 
 #[test]
 fn black_and_non_finite_samples_do_not_solve() {
-    assert!(solve_neutral([0.0, 0.0, 0.0]).is_none());
-    assert!(solve_neutral([0.4, f32::NAN, 0.4]).is_none());
+    assert!(solve_neutral(&SceneWhite::Display, [0.0, 0.0, 0.0]).is_none());
+    assert!(solve_neutral(&SceneWhite::Display, [0.4, f32::NAN, 0.4]).is_none());
 }
 
 #[test]
@@ -125,14 +126,14 @@ fn sampling_a_patch_neutralises_that_patch() {
     let cast = [0.55, 0.40, 0.28];
     let frame = make_frame_with(64, 64, |x, _| if x < 32 { cast } else { [0.1, 0.4, 0.1] });
     let (temp, tint) =
-        sample_white_balance(&frame, &Edits::default(), 0.15, 0.5).expect("patch solves");
+        sample_white_balance(&frame, &Edits::default(), None, 0.15, 0.5).expect("patch solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
 #[test]
 fn sampling_outside_the_frame_returns_none() {
     let frame = make_frame(16, 16, [0.4, 0.4, 0.4]);
-    assert!(sample_white_balance(&frame, &Edits::default(), 1.4, 0.5).is_none());
+    assert!(sample_white_balance(&frame, &Edits::default(), None, 1.4, 0.5).is_none());
 }
 
 #[test]
@@ -142,7 +143,7 @@ fn noisy_shadows_and_clipped_highlights_do_not_solve() {
     });
     let clipped_red = make_frame(64, 64, [0.96, 0.7, 0.5]);
     for frame in [noisy_shadow, clipped_red] {
-        assert!(sample_white_balance(&frame, &Edits::default(), 0.25, 0.25).is_none());
+        assert!(sample_white_balance(&frame, &Edits::default(), None, 0.25, 0.25).is_none());
     }
 }
 
@@ -154,7 +155,7 @@ fn textured_patch_with_steady_colour_still_solves() {
         cast.map(|c| c * scale)
     });
     let (temp, tint) =
-        sample_white_balance(&frame, &Edits::default(), 0.25, 0.25).expect("texture solves");
+        sample_white_balance(&frame, &Edits::default(), None, 0.25, 0.25).expect("texture solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
@@ -175,7 +176,7 @@ fn sample_uses_display_coordinates_after_crop() {
         ..Default::default()
     };
     let (temp, tint) =
-        sample_white_balance(&frame, &edits, 0.5, 0.5).expect("cropped patch solves");
+        sample_white_balance(&frame, &edits, None, 0.5, 0.5).expect("cropped patch solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
@@ -192,7 +193,7 @@ fn sampling_a_mosaic_patch_neutralises_that_patch() {
             },
         );
         for (u, v) in [(0.2, 0.5), (0.0, 1.0), (0.3, 0.0)] {
-            let (temp, tint) = sample_white_balance(&frame, &Edits::default(), u, v)
+            let (temp, tint) = sample_white_balance(&frame, &Edits::default(), None, u, v)
                 .unwrap_or_else(|| panic!("{cfa} patch at ({u}, {v}) solves"));
             let left = spread(neutralised(cast, temp, tint));
             assert!(left < 0.03, "{cfa} at ({u}, {v}) left spread {left}");
@@ -211,8 +212,8 @@ fn clipped_or_mixed_mosaic_samples_do_not_solve() {
                 [0.1, 0.4, 0.1]
             }
         });
-        assert!(sample_white_balance(&clipped, &Edits::default(), 0.25, 0.25).is_none());
-        assert!(sample_white_balance(&edge, &Edits::default(), 0.5, 0.5).is_none());
+        assert!(sample_white_balance(&clipped, &Edits::default(), None, 0.25, 0.25).is_none());
+        assert!(sample_white_balance(&edge, &Edits::default(), None, 0.5, 0.5).is_none());
     }
 }
 
@@ -223,7 +224,8 @@ fn auto_white_balance_neutralises_a_grey_world() {
         let scale = 0.4 + 0.6 * ((x + y) % 8) as f32 / 8.0;
         [cast[0] * scale, cast[1] * scale, cast[2] * scale]
     });
-    let (temp, tint) = auto_white_balance(&frame, &Edits::default()).expect("grey world solves");
+    let (temp, tint) =
+        auto_white_balance(&frame, &Edits::default(), None).expect("grey world solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
@@ -237,12 +239,13 @@ fn auto_white_balance_ignores_a_small_specular_highlight() {
             cast
         }
     });
-    let (temp, tint) = auto_white_balance(&frame, &Edits::default()).expect("clipped world solves");
+    let (temp, tint) =
+        auto_white_balance(&frame, &Edits::default(), None).expect("clipped world solves");
     assert!(spread(neutralised(cast, temp, tint)) < 0.03);
 }
 
 #[test]
 fn auto_white_balance_on_black_frame_returns_none() {
     let frame = make_frame(32, 32, [0.0, 0.0, 0.0]);
-    assert!(auto_white_balance(&frame, &Edits::default()).is_none());
+    assert!(auto_white_balance(&frame, &Edits::default(), None).is_none());
 }

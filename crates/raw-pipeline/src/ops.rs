@@ -95,6 +95,7 @@ pub struct RenderContext {
     pub roi: Option<crate::edits::CropRect>,
     pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
     pub output_scale: f32,
+    pub white: crate::color::SceneWhite,
 }
 
 #[derive(Clone)]
@@ -131,17 +132,15 @@ impl ResolvedDcp {
 
 pub fn resolve_dcp(
     profile: &crate::dcp::DcpProfile,
-    wb_coeffs: [f32; 4],
     edits: &crate::edits::DcpEdits,
-) -> ([[f32; 3]; 3], ResolvedDcp) {
-    let cam_to_srgb = crate::color::dcp_cam_to_srgb(profile, wb_coeffs, edits.illuminant);
-    let g = crate::color::dcp_weight(profile, wb_coeffs, edits.illuminant);
+    weight: f32,
+) -> ResolvedDcp {
     let base_table = if edits.use_base_table {
         match (&profile.huesatmap1, &profile.huesatmap2) {
             (Some(a), Some(b)) => Some(std::sync::Arc::new(crate::color::merge_huesat(
                 a.as_ref(),
                 b.as_ref(),
-                g,
+                weight,
             ))),
             (Some(a), None) => Some(a.clone()),
             (None, Some(b)) => Some(b.clone()),
@@ -176,7 +175,7 @@ pub fn resolve_dcp(
     } else {
         None
     };
-    let resolved = ResolvedDcp {
+    ResolvedDcp {
         base_table,
         look_table,
         tone_curve,
@@ -187,8 +186,7 @@ pub fn resolve_dcp(
         } else {
             1.0
         },
-    };
-    (cam_to_srgb, resolved)
+    }
 }
 
 #[derive(Clone)]

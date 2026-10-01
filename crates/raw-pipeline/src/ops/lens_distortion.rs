@@ -240,6 +240,7 @@ mod tests {
                 capture_sigma: None,
                 preview_mode: PreviewMode::None,
                 roi: None,
+                white: crate::color::SceneWhite::Display,
                 dcp: None,
                 output_scale: 1.0,
             },

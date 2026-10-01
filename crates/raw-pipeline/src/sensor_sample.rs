@@ -5,7 +5,7 @@ use crate::geom::GeometryTransform;
 pub(crate) const SAMPLE_TARGET: usize = 200_000;
 const PATCH_MARGIN: usize = 8;
 
-fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
+pub(crate) fn camera_wb_coeffs(raw: [f32; 4]) -> [f32; 3] {
     if raw[0] == 0.0 && raw[1] == 0.0 && raw[2] == 0.0 {
         return [1.0, 1.0, 1.0];
     }
@@ -65,15 +65,10 @@ fn mosaic_block_rgb(
 }
 pub(crate) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
     let wb = camera_wb_coeffs(frame.meta.wb_coeffs);
-    let xyz_to_cam = crate::color::resolve_xyz_to_cam(
-        &frame.meta.color_matrices,
-        frame.meta.wb_coeffs,
-        frame.meta.xyz_to_cam,
-    );
-    if !frame.meta.is_raw || crate::color::is_unusable_matrix(&xyz_to_cam) {
-        return (wb, crate::color::identity_3x3());
-    }
-    (wb, crate::color::cam_to_srgb_matrix(xyz_to_cam))
+    (
+        wb,
+        crate::dcp::setup::matrix_white(&frame.meta).cam_to_srgb(),
+    )
 }
 
 pub(crate) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {

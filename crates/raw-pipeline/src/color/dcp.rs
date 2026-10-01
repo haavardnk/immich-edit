@@ -1,9 +1,6 @@
 use super::hsv::{hsv_to_rgb, rgb_to_hsv, srgb_degamma, srgb_gamma};
-use super::matrix::{
-    D50_XY, bradford_cat, cam_to_srgb_matrix, estimate_scene_cct, mat3_mul, mat3_vec,
-};
-use super::{D65_XY, XYZ_TO_SRGB_D65};
-use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap, ToneCurve};
+use super::matrix::mat3_vec;
+use crate::dcp::{HsvEncoding, HueSatMap, ToneCurve};
 
 pub fn dcp_illuminant_cct(code: u16) -> f32 {
     match code {
@@ -27,70 +24,6 @@ pub fn dcp_illuminant_cct(code: u16) -> f32 {
         23 => 5003.0,
         24 => 3200.0,
         _ => 6504.0,
-    }
-}
-
-fn pad4(m: [[f32; 3]; 3]) -> [[f32; 3]; 4] {
-    [m[0], m[1], m[2], [0.0; 3]]
-}
-
-fn interp_matrix3(a: &[[f32; 3]; 3], b: &[[f32; 3]; 3], g: f32) -> [[f32; 3]; 3] {
-    let mut r = [[0.0f32; 3]; 3];
-    for i in 0..3 {
-        for j in 0..3 {
-            r[i][j] = a[i][j] * g + b[i][j] * (1.0 - g);
-        }
-    }
-    r
-}
-
-fn dcp_interp_g(profile: &DcpProfile, wb_coeffs: [f32; 4]) -> f32 {
-    let Some(illum2) = profile.calibration_illuminant2 else {
-        return 1.0;
-    };
-    let cct1 = dcp_illuminant_cct(profile.calibration_illuminant1);
-    let cct2 = dcp_illuminant_cct(illum2);
-    if (cct1 - cct2).abs() < 1.0 {
-        return 1.0;
-    }
-    let scene = estimate_scene_cct(wb_coeffs, &pad4(profile.color_matrix1));
-    let lo = cct1.min(cct2);
-    let hi = cct1.max(cct2);
-    let inv1 = 1.0 / cct1;
-    let inv2 = 1.0 / cct2;
-    let inv_scene = 1.0 / scene.clamp(lo, hi);
-    ((inv_scene - inv2) / (inv1 - inv2)).clamp(0.0, 1.0)
-}
-
-pub fn dcp_weight(profile: &DcpProfile, wb_coeffs: [f32; 4], illuminant: DcpIlluminant) -> f32 {
-    match illuminant {
-        DcpIlluminant::First => 1.0,
-        DcpIlluminant::Second if profile.is_dual_illuminant() => 0.0,
-        DcpIlluminant::Second => 1.0,
-        DcpIlluminant::Interpolated => dcp_interp_g(profile, wb_coeffs),
-    }
-}
-
-pub fn dcp_cam_to_srgb(
-    profile: &DcpProfile,
-    wb_coeffs: [f32; 4],
-    illuminant: DcpIlluminant,
-) -> [[f32; 3]; 3] {
-    let g = dcp_weight(profile, wb_coeffs, illuminant);
-    if let Some(fm1) = profile.forward_matrix1 {
-        let fm = match profile.forward_matrix2 {
-            Some(fm2) => interp_matrix3(&fm1, &fm2, g),
-            None => fm1,
-        };
-        let cat = bradford_cat(D50_XY, D65_XY);
-        let cam_to_xyz65 = mat3_mul(&cat, &fm);
-        mat3_mul(&XYZ_TO_SRGB_D65, &cam_to_xyz65)
-    } else {
-        let cm = match profile.color_matrix2 {
-            Some(cm2) => interp_matrix3(&profile.color_matrix1, &cm2, g),
-            None => profile.color_matrix1,
-        };
-        cam_to_srgb_matrix(pad4(cm))
     }
 }
 

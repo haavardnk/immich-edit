@@ -1,11 +1,12 @@
-use crate::color::user_wb_matrix;
+use crate::color::SceneWhite;
+use crate::dcp::DcpProfile;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::geom::{GeometryTransform, display_uv_to_mask_uv, mask_uv_to_display_uv};
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::sensor_sample::{
-    SAMPLE_TARGET, decimate_mosaic, demosaic_patch, display_color, display_rgb, geometry_transform,
-    sample_raw_bilinear, sensor_to_oriented_uv,
+    SAMPLE_TARGET, camera_wb_coeffs, decimate_mosaic, demosaic_patch, display_rgb,
+    geometry_transform, sample_raw_bilinear, sensor_to_oriented_uv,
 };
 
 const SAMPLE_RADIUS: i32 = 2;
@@ -16,8 +17,14 @@ const GREY_WORLD_CLIP: f64 = 0.02;
 const CLIP_LEVEL: f32 = 0.95;
 const MAX_CHROMA_SPREAD: f64 = 0.2;
 
-pub fn sample_white_balance(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> Option<(f64, f64)> {
-    let (wb, m) = display_color(frame);
+pub fn sample_white_balance(
+    frame: &RawFrame,
+    edits: &Edits,
+    profile: Option<&DcpProfile>,
+    u: f32,
+    v: f32,
+) -> Option<(f64, f64)> {
+    let (wb, m, white) = scene_color(frame, edits, profile);
     let (px, py) = display_uv_to_sensor_px(frame, edits, u, v)?;
     let patch = demosaic_patch(frame, px, py, SAMPLE_RADIUS as usize);
     let (source, px, py) = match &patch {
@@ -42,7 +49,20 @@ pub fn sample_white_balance(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> 
         acc[1] += s[1] as f64;
         acc[2] += s[2] as f64;
     }
-    solve_neutral(mean_rgb(acc, samples.len() as u32))
+    solve_neutral(&white, mean_rgb(acc, samples.len() as u32))
+}
+
+fn scene_color(
+    frame: &RawFrame,
+    edits: &Edits,
+    profile: Option<&DcpProfile>,
+) -> ([f32; 3], [[f32; 3]; 3], SceneWhite) {
+    let setup = crate::dcp::setup::resolve(&frame.meta, edits, profile);
+    (
+        camera_wb_coeffs(frame.meta.wb_coeffs),
+        setup.cam_to_srgb,
+        setup.white,
+    )
 }
 
 fn chroma_spread(samples: &[[f32; 3]]) -> Option<f64> {
@@ -66,10 +86,14 @@ fn chroma_spread(samples: &[[f32; 3]]) -> Option<f64> {
     Some(spread(0).max(spread(1)))
 }
 
-pub fn auto_white_balance(frame: &RawFrame, edits: &Edits) -> Option<(f64, f64)> {
+pub fn auto_white_balance(
+    frame: &RawFrame,
+    edits: &Edits,
+    profile: Option<&DcpProfile>,
+) -> Option<(f64, f64)> {
     let decimated = decimate_mosaic(frame);
     let frame = decimated.as_ref().unwrap_or(frame);
-    let (wb, m) = display_color(frame);
+    let (wb, m, white) = scene_color(frame, edits, profile);
     let geom = oriented_geometry(frame, edits);
     let total = frame.meta.width * frame.meta.height;
     let step = (total / SAMPLE_TARGET).max(1);
@@ -121,7 +145,7 @@ pub fn auto_white_balance(frame: &RawFrame, edits: &Edits) -> Option<(f64, f64)>
     if count == 0 {
         return None;
     }
-    solve_neutral(mean_rgb(acc, count))
+    solve_neutral(&white, mean_rgb(acc, count))
 }
 
 fn mean_rgb(acc: [f64; 3], count: u32) -> [f32; 3] {
@@ -133,20 +157,20 @@ fn mean_rgb(acc: [f64; 3], count: u32) -> [f32; 3] {
     ]
 }
 
-fn solve_neutral(rgb: [f32; 3]) -> Option<(f64, f64)> {
+fn solve_neutral(white: &SceneWhite, rgb: [f32; 3]) -> Option<(f64, f64)> {
     if rgb.iter().any(|c| !c.is_finite()) || rgb[1] <= MIN_SIGNAL {
         return None;
     }
     let mut temp = 0.0f64;
     let mut tint = 0.0f64;
     for _ in 0..SOLVER_STEPS {
-        let f = residual(rgb, temp, tint)?;
+        let f = residual(white, rgb, temp, tint)?;
         if f[0].abs() < NEUTRAL_EPS && f[1].abs() < NEUTRAL_EPS {
             break;
         }
         let h = 0.5;
-        let ft = residual(rgb, temp + h, tint)?;
-        let fi = residual(rgb, temp, tint + h)?;
+        let ft = residual(white, rgb, temp + h, tint)?;
+        let fi = residual(white, rgb, temp, tint + h)?;
         let j = [
             [(ft[0] - f[0]) / h, (fi[0] - f[0]) / h],
             [(ft[1] - f[1]) / h, (fi[1] - f[1]) / h],
@@ -163,8 +187,8 @@ fn solve_neutral(rgb: [f32; 3]) -> Option<(f64, f64)> {
     Some((temp.round(), tint.round()))
 }
 
-fn residual(rgb: [f32; 3], temp: f64, tint: f64) -> Option<[f64; 2]> {
-    let m = user_wb_matrix(temp, tint);
+fn residual(white: &SceneWhite, rgb: [f32; 3], temp: f64, tint: f64) -> Option<[f64; 2]> {
+    let m = white.user_matrix(temp, tint);
     let out = [
         m[0][0] * rgb[0] + m[0][1] * rgb[1] + m[0][2] * rgb[2],
         m[1][0] * rgb[0] + m[1][1] * rgb[1] + m[1][2] * rgb[2],

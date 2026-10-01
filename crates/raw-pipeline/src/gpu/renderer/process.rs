@@ -40,6 +40,7 @@ impl ProcessPlan {
                 capture_sigma: meta.capture_sigma,
                 preview_mode: opts.preview_mode.clone(),
                 roi: opts.roi,
+                white: setup.white,
                 dcp: setup.resolved,
                 output_scale: crate::geom::output_scale(
                     meta.orientation,
