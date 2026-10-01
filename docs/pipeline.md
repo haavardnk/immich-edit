@@ -87,15 +87,14 @@ balance, and a white balance change reuses all of them.
 | 7 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
 | 8 | Dehaze | Bounded atmosphere estimate and guided filter |
 | 9 | Presence | Texture, clarity, and shadows pyramid |
-| 10 | Process | User white balance, fused operators, and geometry sampling |
-| 11 | DCP base table | Camera HueSatMap in linear ProPhoto |
-| 12 | Masks | Component weight and local adjustment blend |
-| 13 | Sharpen | Global and per-pixel masked amount |
-| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
-| 15 | DCP finish | LookTable, profile tone curve, curves |
-| 16 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
-| 17 | Mask overlay | Optional red coverage overlay |
-| 18 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
+| 10 | Process | User white balance, DCP HueSatMap, fused operators, and geometry sampling |
+| 11 | Masks | Component weight and local adjustment blend |
+| 12 | Sharpen | Global and per-pixel masked amount |
+| 13 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
+| 14 | DCP finish | LookTable, profile tone curve, curves |
+| 15 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
+| 16 | Mask overlay | Optional red coverage overlay |
+| 17 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
 
 The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
 the contract.
@@ -170,6 +169,12 @@ RAW rendering has three profile outcomes:
 
 Non-RAW input is always Flat. Neutral RAW rendering carries no hidden content-dependent exposure.
 Matched DCP baseline exposure applies only through its explicit profile control.
+
+The DCP HueSatMap runs in the `Tone` stage right after user white balance and before exposure and
+every user tone and color operator, matching the DNG order. Sliders therefore act on the
+profile-rendered color. The table looks up values from before the baseline exposure gain, so that
+gain does not shift which slice of a value-dependent table a pixel reads. Mask layers apply the
+table to each layer before blending, and range masks sample color after it.
 
 Working textures use linear scene-referred sRGB primaries except while DCP tables operate in linear
 ProPhoto. The profile tone curve precedes output gamut conversion. Curves then act on the

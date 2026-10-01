@@ -148,6 +148,7 @@ pub fn build_for(
 {display_store}
 @group(0) @binding(3) var linear_tex: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(4) var shadows_blur_tex: texture_2d<f32>;
+@group(0) @binding(5) var dcp_base_tex: texture_3d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
 

@@ -246,7 +246,8 @@ impl GpuRenderer {
             depth,
             dims: out_dims,
         };
-        let views = ProcessViews::new(&state, p, display.texture, &self.dummy_luma);
+        let dcp_base = self.dcp_base_table_view(plan.ctx_op.render.dcp.as_deref());
+        let views = ProcessViews::new(&state, p, display.texture, &self.dummy_luma, dcp_base);
 
         let mut encoder = self
             .ctx

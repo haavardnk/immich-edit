@@ -14,13 +14,8 @@ pub fn resolve(meta: &FrameMeta, edits: &Edits, profile: Option<&DcpProfile>) ->
     let dcp_active = meta.is_raw && edits.color.dcp.is_active() && profile.is_some();
     if let Some(profile) = profile.filter(|_| dcp_active) {
         let (matrix, resolved) = crate::ops::resolve_dcp(profile, meta.wb_coeffs, &edits.color.dcp);
-        let exposure = if edits.color.dcp.use_baseline_exposure {
-            2f32.powf(profile.baseline_exposure_offset)
-        } else {
-            1.0
-        };
         return DcpSetup {
-            cam_to_srgb: crate::auto::scale_matrix(matrix, exposure),
+            cam_to_srgb: crate::auto::scale_matrix(matrix, resolved.baseline_gain),
             resolved: Some(Arc::new(resolved)),
         };
     }

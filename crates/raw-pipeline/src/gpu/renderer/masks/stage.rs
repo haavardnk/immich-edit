@@ -224,6 +224,7 @@ impl GpuRenderer {
                 tex(&views.scratch_tone),
                 tex(&views.scratch_linear),
                 tex(&stage.views.shadows),
+                tex(&stage.views.dcp_base),
             ],
         );
         dispatch_2d(

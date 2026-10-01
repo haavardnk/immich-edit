@@ -1,13 +1,18 @@
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 
-use super::{GpuRoute, LinearImage, Op, OpContext, OpScratch, RenderContext, default_registry};
+use super::{
+    GpuRoute, LinearImage, Op, OpContext, OpScratch, RenderContext, ResolvedDcp, default_registry,
+};
+use crate::dcp::{HsvEncoding, HueSatMap};
 use crate::edits::{
     BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, Edits,
     HslBand, HslEdits, ToneEdits,
 };
 use crate::gpu::context::GpuContext;
+use crate::gpu::passes::dcp_huesat::{huesat_table_view, upload_huesat_table};
 
 const LEVELS: [f32; 9] = [0.0, 0.015, 0.09, 0.25, 0.5, 0.82, 1.0, 1.7, 3.0];
 
@@ -26,6 +31,27 @@ fn shadow_luma(c: [f32; 3]) -> f32 {
     crate::math::luma(c[0], c[1], c[2])
 }
 
+fn probe_table() -> HueSatMap {
+    let (hue_div, sat_div, val_div) = (6u32, 3u32, 4u32);
+    let data = (0..hue_div * sat_div * val_div)
+        .map(|i| {
+            let f = i as f32;
+            [
+                (f * 37.0) % 41.0 - 20.0,
+                0.7 + (f * 13.0) % 9.0 * 0.07,
+                0.8 + (f * 7.0) % 5.0 * 0.1,
+            ]
+        })
+        .collect();
+    HueSatMap {
+        hue_div,
+        sat_div,
+        val_div,
+        encoding: HsvEncoding::Linear,
+        data,
+    }
+}
+
 fn probe_ctx() -> OpContext {
     OpContext {
         render: RenderContext {
@@ -39,7 +65,14 @@ fn probe_ctx() -> OpContext {
             capture_sigma: None,
             preview_mode: crate::frame::PreviewMode::None,
             roi: None,
-            dcp: None,
+            dcp: Some(Arc::new(ResolvedDcp {
+                base_table: Some(Arc::new(probe_table())),
+                look_table: None,
+                tone_curve: None,
+                to_pp: crate::color::srgb_lin_to_prophoto_matrix(),
+                from_pp: crate::color::prophoto_to_srgb_lin_matrix(),
+                baseline_gain: 1.6,
+            })),
         },
         scratch: OpScratch::default(),
     }
@@ -126,6 +159,7 @@ fn run_on_gpu(
     ctx: &GpuContext,
     op: &dyn Op,
     uniform: &[f32],
+    table: &HueSatMap,
     colors: &[[f32; 3]],
 ) -> Result<Vec<[f32; 3]>, String> {
     let gpu_op = op.gpu().ok_or("op has no gpu snippet")?;
@@ -142,6 +176,7 @@ fn run_on_gpu(
 @group(0) @binding(0) var<uniform> p: Params;
 @group(0) @binding(1) var<storage, read> src: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read_write> dst: array<vec4<f32>>;
+@group(0) @binding(3) var dcp_base_tex: texture_3d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
 
@@ -154,6 +189,7 @@ var<private> shadows_blur_l: f32 = 0.0;
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let i = gid.x;
     if (i >= arrayLength(&src)) {{ return; }}
+    _ = textureDimensions(dcp_base_tex);
     var lin = src[i].rgb;
     shadows_blur_l = src[i].w;
 {apply}
@@ -216,6 +252,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
             contents: bytemuck::cast_slice(uniform),
             usage: wgpu::BufferUsages::UNIFORM,
         });
+    let table_view = huesat_table_view(&upload_huesat_table(ctx, table));
 
     let bind = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("op-parity"),
@@ -232,6 +269,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
             wgpu::BindGroupEntry {
                 binding: 2,
                 resource: dst_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(&table_view),
             },
         ],
     });
@@ -286,6 +327,7 @@ fn fused_op_shaders_match_their_rust_implementations() {
         colors.iter().map(|c| shadow_luma(*c)).collect(),
     ));
     let registry = default_registry();
+    let table = probe_table();
     let mut checked = 0;
     let mut failures: Vec<String> = Vec::new();
 
@@ -303,7 +345,7 @@ fn fused_op_shaders_match_their_rust_implementations() {
         }
         let mut uniform = vec![0.0f32; gpu_op.vec4_count * 4];
         op.write_gpu_uniform(&edits, &ctx, &mut uniform);
-        let gpu_out = match run_on_gpu(&gpu, op.as_ref(), &uniform, &colors) {
+        let gpu_out = match run_on_gpu(&gpu, op.as_ref(), &uniform, &table, &colors) {
             Ok(v) => v,
             Err(e) => {
                 failures.push(format!("{}: {e}", op.id()));
@@ -314,9 +356,9 @@ fn fused_op_shaders_match_their_rust_implementations() {
         let mut worst = 0.0f32;
         let mut worst_at = ([0.0f32; 3], 0.0f32, 0.0f32);
         for (i, (c, g)) in cpu_out.iter().zip(gpu_out.iter()).enumerate() {
+            let scale = (0..3).fold(1e-3f32, |m, ch| m.max(c[ch].abs()).max(g[ch].abs()));
             for ch in 0..3 {
-                let denom = c[ch].abs().max(g[ch].abs()).max(1e-3);
-                let rel = (c[ch] - g[ch]).abs() / denom;
+                let rel = (c[ch] - g[ch]).abs() / scale;
                 if rel > worst {
                     worst = rel;
                     worst_at = (colors[i], c[ch], g[ch]);

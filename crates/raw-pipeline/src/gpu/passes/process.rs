@@ -1,7 +1,7 @@
 // color-space: linear scene-referred Rgba16Float in; out is linear (full path) or sRGB tone-mapped (fast no-effects path, see process.wgsl)
 use std::sync::Arc;
 
-use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
 use crate::gpu::display_depth::DisplayDepth;
@@ -9,7 +9,7 @@ use crate::gpu::shader_builder::{self, BuiltProcessShader, StageMask};
 use crate::ops::OpRegistry;
 
 use super::common::{
-    make_layout, make_pipeline_raw, storage_entry, tex_entry, uniform_entry_unsized,
+    make_layout, make_pipeline_raw, storage_entry, tex_entry, tex_entry_with, uniform_entry_unsized,
 };
 
 pub struct ProcessFastPass {
@@ -47,6 +47,7 @@ impl ProcessFastPass {
                 storage_entry(2, depth.format()),
                 storage_entry(3, TextureFormat::Rgba16Float),
                 tex_entry(4),
+                tex_entry_with(5, false, TextureViewDimension::D3),
             ],
         );
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label_prefix}-cp"), &built.wgsl);

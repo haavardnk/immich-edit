@@ -417,3 +417,44 @@ fn color_grade_global_lum_brightens() {
     assert!(img.rgb[0] > 0.4);
     assert!((img.rgb[0] - img.rgb[1]).abs() < 1e-5);
 }
+
+#[test]
+fn dcp_base_table_sees_values_before_baseline_exposure() {
+    let map = std::sync::Arc::new(crate::dcp::HueSatMap {
+        hue_div: 6,
+        sat_div: 2,
+        val_div: 4,
+        encoding: crate::dcp::HsvEncoding::Linear,
+        data: (0..48)
+            .map(|i| {
+                [
+                    i as f32 - 24.0,
+                    0.8 + (i % 5) as f32 * 0.1,
+                    0.7 + (i % 3) as f32 * 0.2,
+                ]
+            })
+            .collect(),
+    });
+    let render = |gain: f32, rgb: [f32; 3]| -> [f32; 3] {
+        let mut c = ctx();
+        c.render.dcp = Some(std::sync::Arc::new(ResolvedDcp {
+            base_table: Some(map.clone()),
+            baseline_gain: gain,
+            ..ResolvedDcp::default_color()
+        }));
+        let mut img = solid_image(1, 1, rgb);
+        dcp_profile::DcpProfileOp
+            .apply_cpu(&mut img, &c, &Edits::default())
+            .unwrap();
+        [img.rgb[0], img.rgb[1], img.rgb[2]]
+    };
+    for rgb in [[0.3, 0.2, 0.1], [0.05, 0.4, 0.2], [0.45, 0.4, 0.42]] {
+        let base = render(1.0, rgb);
+        let lifted = render(2.0, rgb.map(|v| v * 2.0));
+        for ch in 0..3 {
+            if (lifted[ch] - 2.0 * base[ch]).abs() > 1e-5 {
+                panic!("{rgb:?} ch{ch}: table saw lifted values {lifted:?} vs 2x{base:?}");
+            }
+        }
+    }
+}
