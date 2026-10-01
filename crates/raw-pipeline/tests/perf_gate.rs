@@ -49,6 +49,7 @@ fn ctx_with_sigma(capture_sigma: Option<f32>) -> OpContext {
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
             dcp: None,
+            output_scale: 1.0,
         },
         scratch: OpScratch::default(),
     }

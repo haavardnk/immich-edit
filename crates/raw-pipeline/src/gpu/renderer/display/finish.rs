@@ -60,8 +60,7 @@ impl GpuRenderer {
         };
         let run_sharpen = sharpen_active || edits.masked_sharpen_active() || sharpen_preview;
         if run_sharpen {
-            let uniforms =
-                self.encode_sharpen(encoder, edits, p, s, display.dims, &opts.preview_mode);
+            let uniforms = self.encode_sharpen(encoder, edits, p, s, display, &opts.preview_mode);
             retained.uniforms.extend(uniforms);
         }
         let effects_src = if run_sharpen {

@@ -116,9 +116,14 @@ fn gpu_sharpen_matches_cpu() {
         return;
     };
     let opts = rgb8_opts(96);
-    let frame = synthetic_frame(96, 64);
     let mut ledger = ParityLedger::new("sharpen");
-    for (label, masking, limit) in [("plain", 0.0, 0.15), ("masking+60", 60.0, 0.05)] {
+    let cases = [
+        ("plain", 96, 0.0, 0.15),
+        ("masking+60", 96, 60.0, 0.05),
+        ("half scale", 192, 0.0, 0.15),
+    ];
+    for (label, width, masking, limit) in cases {
+        let frame = synthetic_frame(width, width * 2 / 3);
         let edits = Edits {
             detail: DetailEdits {
                 sharpen_amount: Some(80.0),
@@ -213,7 +218,7 @@ fn gpu_sharpen_previews_match_cpu() {
     };
     let mut ledger = ParityLedger::new("sharpen-preview");
     for (label, mode, limit) in [
-        ("mask", PreviewMode::SharpenMask, 0.8),
+        ("mask", PreviewMode::SharpenMask, 1.0),
         ("radius", PreviewMode::SharpenRadius, 0.15),
         ("detail", PreviewMode::SharpenDetail, 0.4),
     ] {

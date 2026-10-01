@@ -1,8 +1,8 @@
 struct BlurParams {
-    sigma: f32,
-    radius: f32,
     size: vec2<u32>,
+    radius: u32,
     axis: u32,
+    weights: array<vec4<f32>, 3>,
 };
 
 @group(0) @binding(0) var<uniform> p: BlurParams;
@@ -12,14 +12,13 @@ struct BlurParams {
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
-    let r = i32(ceil(p.radius));
-    let two_s2 = 2.0 * p.sigma * p.sigma;
+    let r = i32(p.radius);
     var acc = vec3<f32>(0.0, 0.0, 0.0);
-    var wsum = 0.0;
     let max_x = i32(p.size.x) - 1;
     let max_y = i32(p.size.y) - 1;
     for (var k: i32 = -r; k <= r; k = k + 1) {
-        let w = exp(-f32(k * k) / two_s2);
+        let i = u32(abs(k));
+        let w = p.weights[i / 4u][i % 4u];
         var sx = i32(gid.x);
         var sy = i32(gid.y);
         if (p.axis == 0u) {
@@ -29,7 +28,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         }
         let s = textureLoad(src, vec2<i32>(sx, sy), 0).rgb;
         acc = acc + s * w;
-        wsum = wsum + w;
     }
-    textureStore(dst, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(acc / wsum, 1.0));
+    textureStore(dst, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(acc, 1.0));
 }

@@ -41,6 +41,12 @@ impl ProcessPlan {
                 preview_mode: opts.preview_mode.clone(),
                 roi: opts.roi,
                 dcp: setup.resolved,
+                output_scale: crate::geom::output_scale(
+                    meta.orientation,
+                    edits,
+                    (meta.width as u32, meta.height as u32),
+                    out_dims,
+                ),
             },
             scratch: OpScratch::default(),
         };

@@ -14,14 +14,15 @@ pub const SHARPEN_UNIFORM_SIZE: u64 = size_of::<SharpenParams>() as u64;
 pub const SHARPEN_BLUR_WGSL: &str = include_str!("../../../assets/shaders/sharpen_blur.wgsl");
 pub const SHARPEN_WGSL: &str = include_str!("../../../assets/shaders/sharpen.wgsl");
 
+pub const SHARPEN_KERNEL_HALF: usize = 12;
+
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SharpenBlurParams {
-    pub sigma: f32,
-    pub radius: f32,
     pub size: [u32; 2],
+    pub radius: u32,
     pub axis: u32,
-    pub _pad: [u32; 3],
+    pub weights: [f32; SHARPEN_KERNEL_HALF],
 }
 
 #[repr(C)]

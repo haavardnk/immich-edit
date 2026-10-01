@@ -95,6 +95,7 @@ pub struct RenderContext {
     pub preview_mode: crate::frame::PreviewMode,
     pub roi: Option<crate::edits::CropRect>,
     pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
+    pub output_scale: f32,
 }
 
 #[derive(Clone)]

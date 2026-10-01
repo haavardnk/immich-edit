@@ -88,6 +88,12 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
             dcp: setup.resolved.clone(),
+            output_scale: crate::geom::output_scale(
+                frame.meta.orientation,
+                &edits,
+                src_dims,
+                out_dims,
+            ),
         },
         scratch: OpScratch::default(),
     };

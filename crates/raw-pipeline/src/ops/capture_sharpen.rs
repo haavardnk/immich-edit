@@ -301,6 +301,7 @@ mod tests {
                 preview_mode: PreviewMode::None,
                 roi: None,
                 dcp: None,
+                output_scale: 1.0,
             },
             scratch: OpScratch::default(),
         }

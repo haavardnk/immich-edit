@@ -112,6 +112,7 @@ pub(super) fn run_pipeline_ops_inner(
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: ctx.render.roi,
                 dcp: ctx.render.dcp.clone(),
+                output_scale: ctx.render.output_scale,
             },
             scratch: OpScratch::default(),
         };
