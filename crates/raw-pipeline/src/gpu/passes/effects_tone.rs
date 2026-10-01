@@ -5,6 +5,7 @@ use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::gpu::context::GpuContext;
 use crate::gpu::display_depth::{DISPLAY_STORE_INJECT, DisplayDepth};
+use crate::ops::curves::{DISPLAY_CURVES_UNIFORM_SIZE, display_curves_wgsl};
 use crate::ops::vignette::{
     VIGNETTE_DARKEN_STOPS, VIGNETTE_HIGHLIGHT_HI, VIGNETTE_HIGHLIGHT_LO,
     VIGNETTE_HIGHLIGHT_PRIORITY,
@@ -43,6 +44,7 @@ pub fn effects_tone_wgsl(depth: DisplayDepth) -> String {
         .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(2))
         .replace("// VIGNETTE_CONST_INJECT", &consts)
         .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
+        .replace("// DISPLAY_CURVES_INJECT", &display_curves_wgsl(4))
 }
 
 pub struct EffectsTonePass {
@@ -60,6 +62,7 @@ impl EffectsTonePass {
                 tex_entry(1),
                 storage_entry(2, depth.format()),
                 storage_entry(3, ctx.linear_format),
+                uniform_entry(4, DISPLAY_CURVES_UNIFORM_SIZE),
             ],
         );
         let pipeline = make_pipeline(ctx, &layout, "effects_tone.wgsl", &effects_tone_wgsl(depth));

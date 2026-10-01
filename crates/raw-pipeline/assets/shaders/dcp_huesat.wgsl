@@ -13,6 +13,8 @@ struct Params {
 
 // TONE_WGSL_INJECT
 
+// DISPLAY_CURVES_INJECT
+
 fn to_pp(c: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(
         dot(p.to_pp[0].xyz, c),
@@ -271,11 +273,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let lin = from_pp(pp);
     if (output) {
         let mapped = project_gamut(lin);
-        let display = vec3<f32>(
+        let display = display_curves_apply(vec3<f32>(
             srgb_gamma(clamp(mapped.r, 0.0, 1.0)),
             srgb_gamma(clamp(mapped.g, 0.0, 1.0)),
             srgb_gamma(clamp(mapped.b, 0.0, 1.0)),
-        );
+        ));
         var alpha = src.a;
         if ((p.flags.w & 1u) != 0u) {
             let p3 = (p.flags.w >> 2u) & 1u;

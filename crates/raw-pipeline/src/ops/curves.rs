@@ -1,17 +1,35 @@
-use super::{GpuOp, Op, OpContext, Stage};
-use crate::cpu::fused::CpuFusedOp;
+use super::{LinearImage, Op, OpContext, Stage};
+use crate::PipelineResult;
 use crate::edits::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits, Edits};
 use crate::math::luma;
-use std::sync::LazyLock;
 
 pub struct CurvesOp;
 
-static CURVES_WGSL: LazyLock<String> = LazyLock::new(|| {
+const DISPLAY_CURVES_FLOATS: usize = 4 + 5 * CURVE_LUT_SIZE;
+pub const DISPLAY_CURVES_UNIFORM_SIZE: u64 = (DISPLAY_CURVES_FLOATS * 4) as u64;
+
+pub fn display_curves_wgsl(binding: u32) -> String {
     format!(
-        include_str!("../../assets/shaders/ops/curves.wgsl"),
+        include_str!("../../assets/shaders/display_curves.wgsl"),
+        binding = binding,
         size = CURVE_LUT_SIZE,
+        vec4s = 5 * CURVE_LUT_SIZE / 4,
     )
-});
+}
+
+pub fn display_curves_uniform(curves: &CurvesEdits) -> Vec<f32> {
+    let mut out = vec![0.0f32; DISPLAY_CURVES_FLOATS];
+    if curves.is_identity() {
+        return out;
+    }
+    out[0] = 1.0;
+    let luts = CurveLuts::from_edits(curves);
+    let blocks = [&luts.composite, &luts.r, &luts.g, &luts.b, &luts.luma];
+    for (block, dst) in blocks.iter().zip(out[4..].chunks_exact_mut(CURVE_LUT_SIZE)) {
+        dst.copy_from_slice(*block);
+    }
+    out
+}
 
 #[derive(Clone, Debug)]
 pub struct CurveLuts {
@@ -111,26 +129,23 @@ pub fn sample_lut(lut: &[f32; CURVE_LUT_SIZE], v: f32) -> f32 {
 }
 
 #[inline(always)]
-pub fn apply_curves_pixel(luts: &CurveLuts, r: &mut f32, g: &mut f32, b: &mut f32) {
-    *r = sample_lut(&luts.composite, *r);
-    *g = sample_lut(&luts.composite, *g);
-    *b = sample_lut(&luts.composite, *b);
-    *r = sample_lut(&luts.r, *r);
-    *g = sample_lut(&luts.g, *g);
-    *b = sample_lut(&luts.b, *b);
-    let y0 = luma(*r, *g, *b);
-    let y0c = y0.clamp(0.0, 1.0);
-    let y1 = sample_lut(&luts.luma, y0c);
+pub fn apply_display_curves(luts: &CurveLuts, rgb: [f32; 3]) -> [f32; 3] {
+    let r = sample_lut(&luts.r, sample_lut(&luts.composite, rgb[0]));
+    let g = sample_lut(&luts.g, sample_lut(&luts.composite, rgb[1]));
+    let b = sample_lut(&luts.b, sample_lut(&luts.composite, rgb[2]));
+    let y0 = luma(r, g, b);
+    let y1 = sample_lut(&luts.luma, y0);
     if y0 < 1e-5 {
-        *r = y1;
-        *g = y1;
-        *b = y1;
-    } else {
-        let scale = y1 / y0;
-        *r *= scale;
-        *g *= scale;
-        *b *= scale;
+        return [y1; 3];
     }
+    let scale = y1 / y0;
+    let out = [r * scale, g * scale, b * scale];
+    let mx = out[0].max(out[1]).max(out[2]);
+    if mx <= 1.0 {
+        return out;
+    }
+    let t = (mx - 1.0) / (mx - y1);
+    out.map(|v| v + (y1 - v) * t)
 }
 
 impl Op for CurvesOp {
@@ -138,13 +153,13 @@ impl Op for CurvesOp {
         "curves"
     }
     fn gpu_route(&self) -> super::GpuRoute {
-        super::GpuRoute::Fused
+        super::GpuRoute::Pass(super::GpuPass::Effects)
     }
     fn stage(&self) -> Stage {
-        Stage::Tone
+        Stage::Output
     }
     fn order(&self) -> i32 {
-        25
+        10
     }
     fn is_active(&self, edits: &Edits) -> bool {
         !edits.basic.curves.is_identity()
@@ -193,27 +208,13 @@ impl Op for CurvesOp {
         read("b", &mut edits.basic.curves.b);
         read("luma", &mut edits.basic.curves.luma);
     }
-    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
-        Some(CpuFusedOp::Curves {
-            luts: Box::new(CurveLuts::from_edits(&edits.basic.curves)),
-        })
-    }
-    fn gpu(&self) -> Option<GpuOp> {
-        Some(GpuOp {
-            field_name: "curves",
-            functions: CURVES_WGSL.as_str(),
-            apply: "lin = curves_apply(lin);",
-            vec4_count: 5 * CURVE_LUT_SIZE / 4,
-        })
-    }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
-        let luts = CurveLuts::from_edits(&edits.basic.curves);
-        let blocks: [&[f32; CURVE_LUT_SIZE]; 5] =
-            [&luts.composite, &luts.r, &luts.g, &luts.b, &luts.luma];
-        for (i, block) in blocks.iter().enumerate() {
-            let base = i * CURVE_LUT_SIZE;
-            dst[base..base + CURVE_LUT_SIZE].copy_from_slice(*block);
-        }
+    fn apply_cpu(
+        &self,
+        _image: &mut LinearImage,
+        _ctx: &OpContext,
+        _edits: &Edits,
+    ) -> PipelineResult<()> {
+        Ok(())
     }
 }
 
@@ -299,8 +300,7 @@ mod tests {
             ..Default::default()
         };
         let luts = luts_with(c);
-        let (mut r, mut g, mut b) = (0.5_f32, 0.5_f32, 0.5_f32);
-        apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
+        let [r, g, b] = apply_display_curves(&luts, [0.5, 0.5, 0.5]);
         if r <= 0.55 || (r - g).abs() > 1e-4 || (g - b).abs() > 1e-4 {
             panic!("composite did not lift uniformly: {r} {g} {b}");
         }
@@ -315,8 +315,7 @@ mod tests {
             ..Default::default()
         };
         let luts = luts_with(c);
-        let (mut r, mut g, mut b) = (0.5_f32, 0.5_f32, 0.5_f32);
-        apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
+        let [r, g, b] = apply_display_curves(&luts, [0.5, 0.5, 0.5]);
         let dr = (r - 0.5).abs();
         let dg = (g - 0.5).abs();
         let db = (b - 0.5).abs();
@@ -334,8 +333,7 @@ mod tests {
             ..Default::default()
         };
         let luts = luts_with(c);
-        let (mut r, mut g, mut b) = (0.5_f32, 0.5_f32, 0.5_f32);
-        apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
+        let [r, g, b] = apply_display_curves(&luts, [0.5, 0.5, 0.5]);
         if (r - g).abs() > 1e-4 || (g - b).abs() > 1e-4 || r <= 0.55 {
             panic!("luma on gray failed: {r} {g} {b}");
         }
@@ -350,9 +348,8 @@ mod tests {
             ..Default::default()
         };
         let luts = luts_with(c);
-        let (r0, g0, b0) = (0.8_f32, 0.2_f32, 0.1_f32);
-        let (mut r, mut g, mut b) = (r0, g0, b0);
-        apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
+        let (r0, g0, b0) = (0.6_f32, 0.2_f32, 0.1_f32);
+        let [r, g, b] = apply_display_curves(&luts, [r0, g0, b0]);
         let s = r / r0;
         if (g / g0 - s).abs() > 1e-3 || (b / b0 - s).abs() > 1e-3 {
             panic!(
@@ -366,10 +363,30 @@ mod tests {
     #[test]
     fn identity_curves_is_noop() {
         let luts = luts_with(CurvesEdits::default());
-        let (mut r, mut g, mut b) = (0.42_f32, 0.18_f32, 0.71_f32);
-        apply_curves_pixel(&luts, &mut r, &mut g, &mut b);
+        let [r, g, b] = apply_display_curves(&luts, [0.42, 0.18, 0.71]);
         if (r - 0.42).abs() > 1e-3 || (g - 0.18).abs() > 1e-3 || (b - 0.71).abs() > 1e-3 {
             panic!("identity curves changed pixel: {r} {g} {b}");
+        }
+    }
+
+    #[test]
+    fn luma_lift_past_white_keeps_luminance_and_hue() {
+        let c = CurvesEdits {
+            luma: CurvePoints {
+                points: vec![pt(0.0, 0.0), pt(0.4, 0.8), pt(1.0, 1.0)],
+            },
+            ..Default::default()
+        };
+        let luts = luts_with(c);
+        let rgb = [0.9_f32, 0.3, 0.1];
+        let target = sample_lut(&luts.luma, luma(rgb[0], rgb[1], rgb[2]));
+        let out = apply_display_curves(&luts, rgb);
+        let y = luma(out[0], out[1], out[2]);
+        if out.iter().any(|v| *v > 1.0 + 1e-6) || (y - target).abs() > 1e-4 {
+            panic!("lift clipped or lost luminance: {out:?}, luma {y} want {target}");
+        }
+        if !(out[0] > out[1] && out[1] > out[2]) {
+            panic!("lift changed the hue order: {out:?}");
         }
     }
 

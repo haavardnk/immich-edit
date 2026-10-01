@@ -1,7 +1,6 @@
 use crate::edits::HSL_BANDS;
 use crate::math::luma;
 use crate::ops::LinearImage;
-use crate::ops::curves::{CurveLuts, apply_curves_pixel};
 use multiversion::multiversion;
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -36,9 +35,6 @@ pub enum CpuFusedOp {
         bk: f32,
         wh_gain: f32,
         shadows_blur: Option<Arc<Vec<f32>>>,
-    },
-    Curves {
-        luts: Box<CurveLuts>,
     },
     Hsl {
         hue_shifts: [f32; HSL_BANDS],
@@ -234,11 +230,6 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }
-            }
-        }
-        CpuFusedOp::Curves { luts } => {
-            for ((r, g), b) in rgb(r, g, b) {
-                apply_curves_pixel(luts.as_ref(), r, g, b);
             }
         }
         CpuFusedOp::Hsl {

@@ -20,6 +20,8 @@ const EXACT_SPAN: i32 = 5;
 
 // TONE_WGSL_INJECT
 
+// DISPLAY_CURVES_INJECT
+
 fn luma(c: vec3<f32>) -> f32 {
     return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 }
@@ -176,7 +178,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
-    let outc = tone_rgb_cs(lin, p.display_p3);
+    let outc = display_curves_apply(tone_rgb_cs(lin, p.display_p3));
     let outc_d = tone_dither_u8(outc, gid.x, gid.y);
     var alpha = 1.0;
     if ((p.warn_flags & 1u) != 0u && tone_is_out_of_gamut(lin, p.display_p3)) {

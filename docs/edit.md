@@ -42,8 +42,9 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
      **Shadows**, and set the end points with **Whites** and **Blacks**.
    - **Presence**: **Texture** and **Clarity** add bite, **Dehaze** cuts haze, and **Vibrance**
      boosts muted colors more gently than **Saturation**.
-1. **Curves**, **HSL** and **Color Grading** shape color and contrast further. **LUT** applies a
-   creative look from a `.cube` file, with an **Amount**.
+1. **Curves**, **HSL** and **Color Grading** shape color and contrast further. Curves work on the
+   values you see, after the camera profile, so a point placed at the middle of the graph moves
+   middle gray on screen. **LUT** applies a creative look from a `.cube` file, with an **Amount**.
 1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.

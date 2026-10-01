@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use crate::edits::Edits;
 use crate::frame::{OutputColorSpace, RenderOptions};
 use crate::histogram::{self, Bins, Histogram};
+use crate::ops::curves::{CurveLuts, apply_display_curves};
 
 pub(super) type DcpFinish<'a> = (
     Option<&'a crate::dcp::HueSatMap>,
@@ -22,6 +23,7 @@ pub(super) struct FinishOptions<'a> {
     pub want_16bit: bool,
     pub display_ready: bool,
     pub lut: Option<(&'a crate::lut::Lut3d, f32)>,
+    pub curves: Option<&'a CurveLuts>,
     pub dcp_finish: Option<DcpFinish<'a>>,
     pub color_space: OutputColorSpace,
     pub gamut_warn: bool,
@@ -160,6 +162,10 @@ impl Finish<'_> {
         };
         let clip = opts.gamut_warn && crate::tone::is_out_of_gamut(finished, opts.color_space);
         let display = crate::tone::apply_rgb_cs(finished, opts.color_space);
+        let display = match opts.curves {
+            Some(luts) => apply_display_curves(luts, display),
+            None => display,
+        };
         (apply_display_lut(display, opts.lut), clip)
     }
 }

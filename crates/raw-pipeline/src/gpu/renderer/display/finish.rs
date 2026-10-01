@@ -46,6 +46,7 @@ impl GpuRenderer {
         let final_pass_active = sharpen_active
             || sharpen_preview
             || edits.effects.any_active()
+            || !edits.basic.curves.is_identity()
             || has_masks
             || dcp.is_some()
             || p3_active
@@ -68,11 +69,19 @@ impl GpuRenderer {
         } else {
             &p.linear_texture
         };
-        let uniform = self.encode_effects_tone(encoder, edits, opts, effects_src, s, display);
-        retained.uniforms.push(uniform);
+        let [uniform, curves] =
+            self.encode_effects_tone(encoder, edits, opts, effects_src, s, display);
         let warn_flags =
             opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1) | ((p3_active as u32) << 2);
-        scratch.extend(self.encode_dcp_finish(encoder, dcp, &s.post_lin, display, warn_flags));
+        scratch.extend(self.encode_dcp_finish(
+            encoder,
+            dcp,
+            &s.post_lin,
+            display,
+            warn_flags,
+            &curves,
+        ));
+        retained.uniforms.extend([uniform, curves]);
         Ok(sharpen)
     }
 }
