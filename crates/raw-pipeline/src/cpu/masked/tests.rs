@@ -635,3 +635,49 @@ fn a_zero_angle_radial_ignores_the_aspect() {
         }
     }
 }
+
+#[test]
+fn a_diagonal_gradient_is_perpendicular_in_pixels() {
+    let layer = MaskLayer {
+        components: vec![linear(
+            "c",
+            Vec2f { x: 0.4, y: 0.4 },
+            Vec2f { x: 0.6, y: 0.6 },
+            1.0,
+        )],
+        ..polygon_layer(Vec::new(), 0.0)
+    };
+    for aspect in [0.6_f32, 1.5] {
+        let eval = build_layer_eval(&layer, &RasterMap::new(), aspect);
+        let along = (-0.2 / aspect, 0.2 * aspect);
+        for s in [-0.5_f32, 0.5] {
+            let w = fold_layer_weight(&eval, 0.5 + s * along.0, 0.5 + s * along.1);
+            if (w - 0.5).abs() > 0.01 {
+                panic!("aspect {aspect}: weight {w} off the midline isoline at step {s}");
+            }
+        }
+        let start = fold_layer_weight(&eval, 0.4, 0.4);
+        let end = fold_layer_weight(&eval, 0.6, 0.6);
+        if start > 0.01 || end < 0.99 {
+            panic!("aspect {aspect}: endpoints moved to {start} and {end}");
+        }
+    }
+}
+
+#[test]
+fn polygon_feather_is_isotropic_in_pixels() {
+    let aspect = 2.0;
+    let square = vec![
+        Vec2f { x: 0.25, y: 0.25 },
+        Vec2f { x: 0.75, y: 0.25 },
+        Vec2f { x: 0.75, y: 0.75 },
+        Vec2f { x: 0.25, y: 0.75 },
+    ];
+    let eval = build_layer_eval(&polygon_layer(square, 0.2), &RasterMap::new(), aspect);
+    let inset = 0.08;
+    let from_left = fold_layer_weight(&eval, 0.25 + inset / aspect, 0.5);
+    let from_top = fold_layer_weight(&eval, 0.5, 0.25 + inset);
+    if (from_left - from_top).abs() > 1e-4 {
+        panic!("same pixel inset weighs {from_left} from the side, {from_top} from the top");
+    }
+}

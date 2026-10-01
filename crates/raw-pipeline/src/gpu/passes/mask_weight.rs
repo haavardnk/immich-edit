@@ -167,7 +167,11 @@ pub fn pack_layer_eval(
                 [sample_lab[0], sample_lab[1], sample_lab[2], 0.0],
                 [*tolerance, *softness, 0.0, 0.0],
             ),
-            crate::cpu::masked::ComponentKindEval::Polygon { points, feather } => {
+            crate::cpu::masked::ComponentKindEval::Polygon {
+                points,
+                aspect,
+                feather,
+            } => {
                 let take = points
                     .len()
                     .min(crate::edits::N_MAX_POLYGON_POINTS)
@@ -183,7 +187,7 @@ pub fn pack_layer_eval(
                 vert_count += take;
                 (
                     5u32,
-                    [offset, take as f32, *feather, 0.0],
+                    [offset, take as f32, *feather, *aspect],
                     [0.0, 0.0, 0.0, 0.0],
                 )
             }

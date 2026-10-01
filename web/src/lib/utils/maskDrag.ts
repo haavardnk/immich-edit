@@ -127,12 +127,13 @@ export function draggedKind(
       };
     }
     if (drag.kind === 'linear-feather') {
+      const a2 = ctx.aspect * ctx.aspect;
       const dx = kind.p1.x - kind.p0.x;
       const dy = kind.p1.y - kind.p0.y;
-      const len2 = Math.max(1e-9, dx * dx + dy * dy);
+      const len2 = Math.max(1e-9, dx * dx * a2 + dy * dy);
       const mx = (kind.p0.x + kind.p1.x) * 0.5;
       const my = (kind.p0.y + kind.p1.y) * 0.5;
-      const t = ((n.x - mx) * dx + (n.y - my) * dy) / len2;
+      const t = ((n.x - mx) * dx * a2 + (n.y - my) * dy) / len2;
       return { ...kind, feather: clamp01(2 * Math.abs(t)) };
     }
     return null;

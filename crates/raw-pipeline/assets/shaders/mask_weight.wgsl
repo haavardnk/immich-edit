@@ -177,7 +177,7 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
         raw = polygon_weight(
             u32(c.geom_a.x),
             u32(c.geom_a.y),
-            vec2<f32>(u, v),
+            vec2<f32>(u * c.geom_a.w, v),
             c.geom_a.z,
         );
     }

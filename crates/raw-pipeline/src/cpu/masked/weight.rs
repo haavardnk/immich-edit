@@ -122,7 +122,11 @@ fn component_weight(c: &ComponentEval, u: f32, v: f32, display_rgb: [f32; 3]) ->
             tolerance,
             softness,
         } => color_range_weight(display_rgb, *sample_lab, *tolerance, *softness),
-        ComponentKindEval::Polygon { points, feather } => polygon_weight(points, u, v, *feather),
+        ComponentKindEval::Polygon {
+            points,
+            aspect,
+            feather,
+        } => polygon_weight(points, u * aspect, v, *feather),
     };
     let r = if c.invert { 1.0 - raw } else { raw };
     r.clamp(0.0, 1.0)

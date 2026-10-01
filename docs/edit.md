@@ -113,14 +113,15 @@ set of adjustments.
 1. Press **New**, or **Create a mask** on a photo without masks.
 1. Pick a shape:
    - **Linear gradient** and **Radial gradient** fade out from a line or an ellipse. Drag the
-     handles on the photo. The small grip past the radial's side handle turns the ellipse, for a
+     handles on the photo. A linear gradient fades at right angles to its line on any crop shape.
+     The small grip past the radial's side handle turns the ellipse, for a
      tilted face or horizon. Hold `Shift` while dragging to keep a radial round, snap a linear
      gradient to 45° steps, or move a polygon corner straight across or straight up and down.
    - **Brush** paints the area by hand. `[` and `]` change the size, `{` and `}` the hardness, and
      **Erase** takes paint away. Over the photo, `Alt` and scroll resize the brush and `Alt+Shift`
      and scroll change its hardness.
    - **Polygon** follows straight edges. Click to place corners and click the first one, or press
-     `Enter`, to close it.
+     `Enter`, to close it. Its feather is the same width along every edge.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
    - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
      the area for you. **Click to select** and **Box select** find an object you click or draw a box
