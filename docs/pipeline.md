@@ -133,6 +133,10 @@ cropped source is larger than its output reduces at the spatial boundary. Noise 
 retouch, and capture sharpening remain at source resolution; dehaze and later work run near preview
 size.
 
+Creative sharpening measures its radius in source pixels. A reduced preview or a resized export
+scales the radius by its output ratio, so the fitted view sharpens the same image detail as 100%
+zoom instead of much coarser structure.
+
 The reduction uses separable Lanczos3 in scene-linear space. Geometry samples fractional source
 coordinates with the same Catmull-Rom bicubic kernel on CPU and GPU. The reduction ratio comes from
 the active crop, not the full sensor.

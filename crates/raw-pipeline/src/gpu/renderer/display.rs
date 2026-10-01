@@ -43,6 +43,7 @@ pub(super) struct DisplayTarget<'t> {
     pub texture: &'t Texture,
     pub depth: DisplayDepth,
     pub dims: (u32, u32),
+    pub scale: f32,
 }
 
 pub(super) struct StageState {
@@ -245,6 +246,7 @@ impl GpuRenderer {
             texture: sixteen.as_deref().unwrap_or(&p.texture),
             depth,
             dims: out_dims,
+            scale: plan.ctx_op.render.output_scale,
         };
         let views = ProcessViews::new(&state, p, display.texture, &self.dummy_luma);
 

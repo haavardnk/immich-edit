@@ -368,6 +368,37 @@ fn sharpen_amplifies_edge_contrast() {
 }
 
 #[test]
+fn sharpen_radius_follows_image_scale() {
+    let expected = (-2.0 * std::f32::consts::PI.powi(2) * 4.0 / (32.0 * 32.0)).exp();
+    for (period, scale) in [(32usize, 1.0f32), (8, 0.25), (4, 0.125)] {
+        let w = period * 4;
+        let h = 4;
+        let wave = |x: usize| 0.5 + 0.2 * (std::f32::consts::TAU * x as f32 / period as f32).cos();
+        let buf: Vec<f32> = (0..w * h).flat_map(|i| [wave(i % w); 3]).collect();
+        let mut img = LinearImage::new(buf, w, h);
+        let mut c = ctx();
+        c.render.output_scale = scale;
+        c.render.preview_mode = crate::frame::PreviewMode::SharpenRadius;
+        let edits = Edits {
+            detail: DetailEdits {
+                sharpen_amount: Some(100.0),
+                sharpen_radius: 2.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        sharpen::SharpenOp.apply_cpu(&mut img, &c, &edits).unwrap();
+        let row: Vec<f32> = (period..3 * period).map(|x| img.rgb[(w + x) * 3]).collect();
+        let lo = row.iter().copied().fold(f32::INFINITY, f32::min);
+        let hi = row.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let response = (hi - lo) / 0.4;
+        if (response - expected).abs() > 0.02 {
+            panic!("period {period} at scale {scale}: blur response {response}, want {expected}");
+        }
+    }
+}
+
+#[test]
 fn sharpen_masking_suppresses_flat_areas() {
     let w: usize = 64;
     let h: usize = 32;

@@ -44,6 +44,7 @@ impl GpuRenderer {
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
                 dcp: setup.resolved.clone(),
+                output_scale: 1.0,
             },
             scratch: OpScratch::default(),
         };

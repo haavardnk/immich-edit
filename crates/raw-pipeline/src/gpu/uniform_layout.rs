@@ -305,7 +305,7 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "sharpen_blur",
-            layout!(SharpenBlurParams { sigma, radius, size, axis } pad { _pad }),
+            layout!(SharpenBlurParams { size, radius, axis, weights } pad {}),
             uniform_struct(SHARPEN_BLUR_WGSL),
         ),
         (

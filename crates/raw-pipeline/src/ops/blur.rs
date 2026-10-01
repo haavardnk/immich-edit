@@ -20,6 +20,32 @@ pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     k
 }
 
+pub(crate) fn discrete_gaussian_kernel(sigma: f32) -> Vec<f32> {
+    let s = sigma.max(0.01);
+    let radius = (s * 3.0).ceil() as usize;
+    let t = f64::from(s * s);
+    let half: Vec<f64> = (0..=radius).map(|n| scaled_bessel_i(n, t)).collect();
+    let sum = half[0] + 2.0 * half[1..].iter().sum::<f64>();
+    (0..=2 * radius)
+        .map(|i| (half[i.abs_diff(radius)] / sum) as f32)
+        .collect()
+}
+
+fn scaled_bessel_i(n: usize, t: f64) -> f64 {
+    let x = t / 2.0;
+    let factorial: f64 = (1..=n).map(|k| k as f64).product();
+    let mut term = (-t).exp() * x.powi(n as i32) / factorial;
+    let mut sum = term;
+    for k in 1..200 {
+        term *= x * x / (k * (k + n)) as f64;
+        sum += term;
+        if term <= sum * 1e-12 {
+            break;
+        }
+    }
+    sum
+}
+
 pub(crate) fn gaussian_blur<const C: usize>(
     src: &[f32],
     w: usize,

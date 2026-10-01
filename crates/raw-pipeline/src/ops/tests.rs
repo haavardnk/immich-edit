@@ -23,6 +23,7 @@ fn ctx() -> OpContext {
             preview_mode: crate::frame::PreviewMode::None,
             roi: None,
             dcp: None,
+            output_scale: 1.0,
         },
         scratch: OpScratch::default(),
     }

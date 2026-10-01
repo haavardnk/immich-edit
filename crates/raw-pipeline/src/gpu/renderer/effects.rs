@@ -5,10 +5,11 @@ use crate::frame::{OutputColorSpace, PreviewMode, RenderOptions};
 use crate::gpu::dispatch::{bind_group, bind_group_indexed, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::effects_tone::EffectsToneParams;
-use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
+use crate::gpu::passes::sharpen::{SHARPEN_KERNEL_HALF, SharpenBlurParams, SharpenParams};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::texture::full_view;
 use crate::gpu::uniform_pool::PooledUniform;
+use crate::ops::blur::discrete_gaussian_kernel;
 
 use super::GpuRenderer;
 use super::display::DisplayTarget;
@@ -20,15 +21,20 @@ impl GpuRenderer {
         edits: &Edits,
         out: &OutputTargets,
         sh: &SharpenTargets,
-        (w, h): (u32, u32),
+        display: DisplayTarget,
         preview: &PreviewMode,
     ) -> [PooledUniform; 3] {
+        let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
         let d = &edits.detail;
         let masked_sharpen = edits.masked_sharpen_active();
-        let sigma = (d.sharpen_radius as f32).max(0.01);
-        let radius = (sigma * 3.0).ceil();
+        let kernel = discrete_gaussian_kernel(d.sharpen_radius as f32 * display.scale);
+        let radius = (kernel.len() / 2).min(SHARPEN_KERNEL_HALF - 1);
+        let mut weights = [0.0f32; SHARPEN_KERNEL_HALF];
+        for (slot, weight) in weights.iter_mut().zip(&kernel[kernel.len() / 2..]) {
+            *slot = *weight;
+        }
         let sharpen_active = d.sharpen_active();
         let amount = if sharpen_active {
             d.sharpen_amount.unwrap_or(0.0) as f32
@@ -66,11 +72,10 @@ impl GpuRenderer {
 
         let blur_uniform = |axis: u32| -> PooledUniform {
             let params = SharpenBlurParams {
-                sigma,
-                radius,
                 size: [w, h],
+                radius: radius as u32,
                 axis,
-                _pad: [0; 3],
+                weights,
             };
             self.uniform(&params, "sharpen-blur-uniform")
         };

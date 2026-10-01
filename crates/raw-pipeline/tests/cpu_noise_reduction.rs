@@ -15,6 +15,7 @@ fn ctx() -> OpContext {
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
             dcp: None,
+            output_scale: 1.0,
         },
         scratch: OpScratch::default(),
     }

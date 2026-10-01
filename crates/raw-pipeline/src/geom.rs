@@ -76,6 +76,16 @@ pub fn display_out_dims(
     scale_to_max(crop_w_px, crop_h_px, max_edge)
 }
 
+pub fn output_scale(
+    orientation: OrientFlips,
+    edits: &crate::edits::Edits,
+    src_dims: (u32, u32),
+    out_dims: (u32, u32),
+) -> f32 {
+    let (crop_w_px, _) = display_crop_px(orientation, edits, src_dims);
+    (out_dims.0 as f32 / crop_w_px as f32).min(1.0)
+}
+
 const RESAMPLE_EPSILON: f32 = 1.01;
 const PREVIEW_MIN_OUT_EDGE: u32 = 256;
 

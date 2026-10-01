@@ -1,5 +1,5 @@
 use super::LinearImage;
-use super::blur::{gaussian_blur, gaussian_kernel};
+use super::blur::{discrete_gaussian_kernel, gaussian_blur};
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::scratch::Scratch;
@@ -59,6 +59,7 @@ impl Op for SharpenOp {
         apply_sharpen(
             image,
             &edits.detail,
+            ctx.render.output_scale,
             &ctx.render.preview_mode,
             ctx.scratch.sharpen_delta.as_ref(),
         );
@@ -69,12 +70,13 @@ impl Op for SharpenOp {
 fn apply_sharpen(
     image: &mut LinearImage,
     d: &DetailEdits,
+    output_scale: f32,
     preview: &crate::frame::PreviewMode,
     delta: Option<&super::SharpenDeltaMap>,
 ) {
     let base_amount = d.sharpen_amount.unwrap_or(0.0) as f32;
     let amount = base_amount / 25.0;
-    let sigma = d.sharpen_radius as f32;
+    let sigma = d.sharpen_radius as f32 * output_scale;
     let detail_weight = 0.5 + 0.5 * (d.sharpen_detail / 100.0) as f32;
     let masking = (d.sharpen_masking / 100.0) as f32;
     let w = image.width;
@@ -82,7 +84,7 @@ fn apply_sharpen(
     if w < 3 || h < 3 {
         return;
     }
-    let kernel = gaussian_kernel(sigma);
+    let kernel = discrete_gaussian_kernel(sigma);
     let blur = gaussian_blur::<3>(&image.rgb, w, h, &kernel);
     let mask = if masking > 0.0 || matches!(preview, crate::frame::PreviewMode::SharpenMask) {
         Some(edge_mask(&blur, w, h, masking))
