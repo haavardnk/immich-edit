@@ -56,6 +56,7 @@ pub enum CpuFusedOp {
     Presence {
         texture: f32,
         clarity: f32,
+        exposure: f32,
         texture_blur: Option<Arc<Vec<f32>>>,
         clarity_blur: Option<Arc<Vec<f32>>>,
     },
@@ -263,6 +264,7 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
         CpuFusedOp::Presence {
             texture,
             clarity,
+            exposure,
             texture_blur,
             clarity_blur,
         } => {
@@ -271,6 +273,7 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
                     presence::PresenceParams {
                         texture: *texture,
                         clarity: *clarity,
+                        exposure: *exposure,
                         texture_blur: texture_blur.as_ref(),
                         clarity_blur: clarity_blur.as_ref(),
                     },

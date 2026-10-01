@@ -3,7 +3,7 @@ use crate::edits::Edits;
 use crate::math::{luma, smoothstep};
 use crate::ops::LinearImage;
 use crate::ops::presence::{
-    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
+    clarity_midtones, presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
 };
 use rayon::prelude::*;
 
@@ -40,9 +40,7 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             }
             if amounts.clarity != 0.0 {
                 let b = pyramid.sample(mips.clarity, fx, fy);
-                let mt = smoothstep(0.0, 0.1, y0)
-                    * (1.0 - smoothstep(0.9, 1.0, y0))
-                    * (1.0 - (2.0 * y0 - 1.0).abs()).max(0.0);
+                let mt = clarity_midtones(y0, amounts.exposure);
                 let ratio = (y0c / b.max(1e-5)).log2();
                 let gate = smoothstep(0.015, 0.12, ratio.abs());
                 log_gain += amounts.clarity * mt * gate * ratio;

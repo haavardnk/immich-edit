@@ -17,15 +17,17 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
     };
     let opts = rgb8_opts(128);
     let frame = stripe_frame(48, 32);
-    let mut edits = Edits::default();
-    edits.basic.texture = 30.0;
-    edits.basic.clarity = 20.0;
-
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    require_same_dims("presence", &cpu, &gpu);
     let mut ledger = ParityLedger::new("presence");
-    ledger.check("texture+clarity", &cpu.bytes, &gpu.bytes, 0.04);
+    for (label, exposure_ev) in [("texture+clarity", 0.0), ("texture+clarity-ev+1.5", 1.5)] {
+        let mut edits = Edits::default();
+        edits.basic.texture = 30.0;
+        edits.basic.clarity = 20.0;
+        edits.basic.exposure_ev = exposure_ev;
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.04);
+    }
     ledger.finish();
 }
 

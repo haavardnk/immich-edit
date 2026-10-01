@@ -65,14 +65,18 @@ impl GpuRenderer {
     ) -> PipelineResult<()> {
         let extent = state.extent;
         let global = crate::ops::presence::presence_amounts(edits);
-        let mut cache: HashMap<(u32, u32), Arc<Texture>> = HashMap::new();
+        let mut cache: HashMap<(u32, u32, u32), Arc<Texture>> = HashMap::new();
         for layer in edits.masks.iter().filter(|l| l.is_effective()) {
             let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
             let amts = crate::ops::presence::presence_amounts(&eff);
-            if amts.texture == global.texture && amts.clarity == global.clarity {
+            if amts == global {
                 continue;
             }
-            let key = (amts.texture.to_bits(), amts.clarity.to_bits());
+            let key = (
+                amts.texture.to_bits(),
+                amts.clarity.to_bits(),
+                amts.exposure.to_bits(),
+            );
             let tex = match cache.get(&key) {
                 Some(tex) => tex.clone(),
                 None if amts.texture == 0.0 && amts.clarity == 0.0 => base.clone(),
