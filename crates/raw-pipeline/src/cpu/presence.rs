@@ -2,9 +2,7 @@ use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
 use crate::math::{luma, smoothstep};
 use crate::ops::LinearImage;
-use crate::ops::presence::{
-    clarity_midtones, presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
-};
+use crate::ops::presence::{clarity_midtones, presence_amounts, presence_blurs};
 use rayon::prelude::*;
 
 pub use crate::ops::presence::has_presence;
@@ -14,12 +12,10 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
     if amounts.is_zero() {
         return;
     }
-    let w = image.width as u32;
-    let h = image.height as u32;
-    let radii = presence_radii(w, h);
-    let mips = presence_mips(w, h, radii);
-    let levels = presence_pyramid_levels(w, h, radii) as usize;
-    let pyramid = LumaPyramid::build(image, levels);
+    let blurs = presence_blurs(image.width as u32, image.height as u32);
+    let pyramid = LumaPyramid::build(image, blurs.levels() as usize);
+    let texture = (amounts.texture != 0.0).then(|| pyramid.base(blurs.texture));
+    let clarity = (amounts.clarity != 0.0).then(|| pyramid.base(blurs.clarity));
     let img_w = image.width;
 
     image
@@ -34,12 +30,12 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             let y0 = luma(px[0], px[1], px[2]);
             let y0c = y0.max(1e-5);
             let mut log_gain = 0.0f32;
-            if amounts.texture != 0.0 {
-                let b = pyramid.sample(mips.texture, fx, fy);
+            if let Some(base) = &texture {
+                let b = base.sample(fx, fy);
                 log_gain += amounts.texture * (y0c / b.max(1e-5)).log2();
             }
-            if amounts.clarity != 0.0 {
-                let b = pyramid.sample(mips.clarity, fx, fy);
+            if let Some(base) = &clarity {
+                let b = base.sample(fx, fy);
                 let mt = clarity_midtones(y0, amounts.exposure);
                 let ratio = (y0c / b.max(1e-5)).log2();
                 let gate = smoothstep(0.015, 0.12, ratio.abs());

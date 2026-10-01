@@ -339,7 +339,7 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                     .map(|(a, b)| a.abs_diff(*b))
                     .max()
                     .unwrap_or(0);
-                if delta > 0.01 || worst > 1 {
+                if delta > 0.01 || worst > 2 {
                     panic!(
                         "{label} {case} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
                     );

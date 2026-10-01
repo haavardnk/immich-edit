@@ -1,6 +1,8 @@
 use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
+use crate::ops::blur::{gaussian_blur, gaussian_kernel};
+use crate::ops::presence::PresenceBlur;
 use rayon::prelude::*;
 
 #[derive(Debug)]
@@ -63,17 +65,38 @@ impl LumaPyramid {
         Self { levels, dims }
     }
 
-    pub fn sample(&self, level: u32, fx: f32, fy: f32) -> f32 {
-        let level = (level as usize).min(self.levels.len() - 1);
-        let scale = 1.0 / (1u32 << level) as f32;
+    pub fn base(&self, blur: PresenceBlur) -> LumaBase {
+        let level = (blur.level as usize).min(self.levels.len() - 1);
+        let (w, h) = self.dims[level];
+        LumaBase {
+            buf: gaussian_blur::<1>(&self.levels[level], w, h, &gaussian_kernel(blur.sigma)),
+            w,
+            h,
+            level,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LumaBase {
+    buf: Scratch,
+    w: usize,
+    h: usize,
+    level: usize,
+}
+
+impl LumaBase {
+    pub fn sample(&self, fx: f32, fy: f32) -> f32 {
+        let scale = 1.0 / (1u32 << self.level) as f32;
         let lx = fx * scale - 0.5;
         let ly = fy * scale - 0.5;
         let x0 = lx.floor() as i32;
         let y0 = ly.floor() as i32;
         let tx = lx - x0 as f32;
         let ty = ly - y0 as f32;
-        let (w, h) = self.dims[level];
-        let buf = &self.levels[level];
+        let w = self.w;
+        let h = self.h;
+        let buf = &self.buf;
         let load = |x: i32, y: i32| -> f32 {
             let cx = x.clamp(0, w as i32 - 1) as usize;
             let cy = y.clamp(0, h as i32 - 1) as usize;
@@ -88,11 +111,11 @@ impl LumaPyramid {
         lx0 + (lx1 - lx0) * ty
     }
 
-    pub fn upsample(&self, level: u32, w: usize, h: usize) -> Vec<f32> {
-        let level = (level as usize).min(self.levels.len() - 1);
-        let scale = 1.0 / (1u32 << level) as f32;
-        let (mw, mh) = self.dims[level];
-        let mip = &self.levels[level];
+    pub fn upsample(&self, w: usize, h: usize) -> Vec<f32> {
+        let scale = 1.0 / (1u32 << self.level) as f32;
+        let mw = self.w;
+        let mh = self.h;
+        let mip = &self.buf;
         let mw_i = mw as i32;
         let mh_i = mh as i32;
         let mut out = Scratch::zeroed(w * h);

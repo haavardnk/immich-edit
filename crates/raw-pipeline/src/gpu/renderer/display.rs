@@ -24,7 +24,7 @@ use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::gpu::uniforms::FULL_WINDOW;
 use crate::ops::GpuRoute;
-use crate::ops::presence::{presence_mips, presence_radii};
+use crate::ops::presence::presence_blurs;
 use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
@@ -61,14 +61,13 @@ impl StageState {
     fn new(source: &LinearSource) -> Self {
         let extent = source.extent();
         let (full_w, full_h) = extent.full;
-        let radii = presence_radii(full_w, full_h);
         Self {
             texture: source.texture.clone(),
             extent,
             window: source
                 .window
                 .map_or(FULL_WINDOW, |w| w.uv_rect(source.dims)),
-            shadows_mip: presence_mips(full_w, full_h, radii).shadows as f32,
+            shadows_mip: presence_blurs(full_w, full_h).shadows.level as f32,
             shadows: None,
             atmosphere: source.atmosphere,
             layers: HashMap::new(),

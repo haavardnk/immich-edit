@@ -3,6 +3,10 @@ use crate::math::smoothstep;
 use crate::tone::srgb_oetf;
 
 const REFERENCE_DIM: f32 = 1080.0;
+const TEXTURE_SIGMA: f32 = 4.0;
+const CLARITY_SIGMA: f32 = 16.0;
+const SHADOWS_SIGMA: f32 = 16.0;
+const LEVEL_SIGMA: f32 = 1.5;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PresenceAmounts {
@@ -17,24 +21,56 @@ impl PresenceAmounts {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct PresenceRadii {
-    pub texture: u32,
-    pub clarity: u32,
-    pub shadows: u32,
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PresenceBlur {
+    pub level: u32,
+    pub sigma: f32,
 }
 
-impl PresenceRadii {
-    pub fn max(&self) -> u32 {
-        self.texture.max(self.clarity).max(self.shadows)
+impl PresenceBlur {
+    fn new(sigma: f32, min_level: u32, top: u32) -> Self {
+        let level = ((sigma / LEVEL_SIGMA).log2().floor().max(0.0) as u32)
+            .max(min_level)
+            .min(top);
+        let scaled = sigma / (1u32 << level) as f32;
+        let carried = (1.0 - 0.25f32.powi(level as i32)) / 12.0 + 1.0 / 6.0;
+        Self {
+            level,
+            sigma: (scaled * scaled - carried).max(0.0).sqrt().max(0.01),
+        }
+    }
+
+    pub fn radius(&self) -> u32 {
+        (3.0 * self.sigma).ceil() as u32
+    }
+
+    fn reach(&self) -> u32 {
+        (self.radius() + 2) << self.level
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct PresenceMips {
-    pub texture: u32,
-    pub clarity: u32,
-    pub shadows: u32,
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PresenceBlurs {
+    pub texture: PresenceBlur,
+    pub clarity: PresenceBlur,
+    pub shadows: PresenceBlur,
+}
+
+impl PresenceBlurs {
+    pub fn levels(&self) -> u32 {
+        self.texture
+            .level
+            .max(self.clarity.level)
+            .max(self.shadows.level)
+            + 1
+    }
+
+    pub fn reach(&self) -> u32 {
+        self.texture
+            .reach()
+            .max(self.clarity.reach())
+            .max(self.shadows.reach())
+    }
 }
 
 pub fn presence_amounts(edits: &Edits) -> PresenceAmounts {
@@ -56,35 +92,14 @@ pub fn clarity_midtones(y: f32, exposure: f32) -> f32 {
     smoothstep(0.0, 0.1, d) * (1.0 - smoothstep(0.9, 1.0, d)) * (1.0 - (2.0 * d - 1.0).abs())
 }
 
-pub fn presence_radii(width: u32, height: u32) -> PresenceRadii {
-    let min_edge = width.min(height) as f32;
-    let scale = (min_edge / REFERENCE_DIM).max(0.5);
-    let texture = ((6.0 * scale).round() as u32).max(3);
-    let clarity = ((30.0 * scale).round() as u32).max(10);
-    let shadows = ((30.0 * scale).round() as u32).max(10);
-    PresenceRadii {
-        texture,
-        clarity,
-        shadows,
+pub fn presence_blurs(width: u32, height: u32) -> PresenceBlurs {
+    let scale = width.min(height) as f32 / REFERENCE_DIM;
+    let top = (width.max(height).max(1) as f32).log2().floor() as u32;
+    PresenceBlurs {
+        texture: PresenceBlur::new(TEXTURE_SIGMA * scale, 1, top),
+        clarity: PresenceBlur::new(CLARITY_SIGMA * scale, 2, top),
+        shadows: PresenceBlur::new(SHADOWS_SIGMA * scale, 1, top),
     }
-}
-
-pub fn presence_mips(width: u32, height: u32, radii: PresenceRadii) -> PresenceMips {
-    let max_edge = width.max(height);
-    PresenceMips {
-        texture: select_mip(max_edge, radii.texture),
-        clarity: select_mip(max_edge, radii.clarity),
-        shadows: select_mip(max_edge, radii.shadows),
-    }
-}
-
-pub fn select_mip(max_edge: u32, radius_px: u32) -> u32 {
-    if radius_px <= 1 {
-        return 0;
-    }
-    let target = (radius_px as f32).log2().round() as i32;
-    let max_levels = (max_edge as f32).log2().floor() as i32 + 1;
-    target.clamp(0, max_levels - 1) as u32
 }
 
 pub fn has_shadows(edits: &Edits) -> bool {
@@ -94,10 +109,6 @@ pub fn has_shadows(edits: &Edits) -> bool {
             .iter()
             .filter(|l| l.is_effective())
             .any(|l| l.edits.shadows.is_some_and(|v| v != 0.0))
-}
-
-pub fn presence_pyramid_levels(width: u32, height: u32, radii: PresenceRadii) -> u32 {
-    select_mip(width.max(height), radii.max()) + 1
 }
 
 pub fn has_presence(edits: &Edits) -> bool {
