@@ -97,7 +97,7 @@ balance, and a white balance change reuses all of them.
 | 12 | Sharpen | Global and per-pixel masked amount |
 | 13 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
 | 14 | DCP finish | LookTable, profile tone curve, curves |
-| 15 | 3D LUT | Display-referred tetrahedral `.cube` sampling |
+| 15 | LUT | `.cube` 1D shaper and tetrahedral 3D sampling in display sRGB |
 | 16 | Mask overlay | Optional red coverage overlay |
 | 17 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
 
@@ -185,7 +185,9 @@ Working textures use linear scene-referred sRGB primaries except while DCP table
 ProPhoto. The profile tone curve precedes output gamut conversion. Curves then act on the
 display-encoded values, so curve coordinates match what the screen shows. A luma lift that would
 push a channel past white desaturates toward its target luminance instead of clipping. The creative
-3D LUT runs last in display-referred sRGB.
+LUT runs last in display-referred sRGB. For Display P3 output, colors are first gamut-mapped into
+sRGB, graded, and then converted back to P3, so a LUT gives the same look in either output space.
+While a LUT is active, P3 colors outside sRGB clip to the sRGB boundary.
 
 ## Output color and warnings
 
