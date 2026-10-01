@@ -48,14 +48,7 @@ pub enum CpuFusedOp {
         balance: f32,
     },
     ColorGrade {
-        s_off: [f32; 3],
-        s_lum: f32,
-        m_off: [f32; 3],
-        m_lum: f32,
-        h_off: [f32; 3],
-        h_lum: f32,
-        g_off: [f32; 3],
-        g_lum: f32,
+        regions: [[f32; 3]; 4],
         balance: f32,
         blend: f32,
     },
@@ -256,35 +249,12 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
             }
         }
         CpuFusedOp::ColorGrade {
-            s_off,
-            s_lum,
-            m_off,
-            m_lum,
-            h_off,
-            h_lum,
-            g_off,
-            g_lum,
+            regions,
             balance,
             blend,
         } => {
             for ((r, g), b) in rgb(r, g, b) {
-                color_grade::apply_color_grade(
-                    color_grade::ColorGradeParams {
-                        s_off,
-                        s_lum: *s_lum,
-                        m_off,
-                        m_lum: *m_lum,
-                        h_off,
-                        h_lum: *h_lum,
-                        g_off,
-                        g_lum: *g_lum,
-                        balance: *balance,
-                        blend: *blend,
-                    },
-                    r,
-                    g,
-                    b,
-                );
+                color_grade::apply_color_grade(regions, *balance, *blend, r, g, b);
             }
         }
         CpuFusedOp::Presence {
