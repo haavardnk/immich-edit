@@ -2,8 +2,13 @@ use super::LinearImage;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::edits::{CropRect, Edits, EffectsEdits};
-use crate::math::smoothstep;
+use crate::math::{luma, smoothstep};
 use rayon::prelude::*;
+
+pub const VIGNETTE_DARKEN_STOPS: f32 = 2.0;
+pub const VIGNETTE_HIGHLIGHT_PRIORITY: f32 = 0.5;
+pub const VIGNETTE_HIGHLIGHT_LO: f32 = 0.5;
+pub const VIGNETTE_HIGHLIGHT_HI: f32 = 2.0;
 
 pub struct VignetteOp;
 
@@ -95,13 +100,23 @@ pub fn apply_vignette(image: &mut LinearImage, e: &EffectsEdits, roi: Option<Cro
                 let qy = lerp(v, cy, roundness);
                 let d = (qx * qx + qy * qy).sqrt();
                 let t = smoothstep(inner, inner + band, d);
-                let gain = (1.0 + amount * t).clamp(0.0, 2.0);
                 let i = x * 3;
-                row[i] = (row[i] * gain).clamp(0.0, 4.0);
-                row[i + 1] = (row[i + 1] * gain).clamp(0.0, 4.0);
-                row[i + 2] = (row[i + 2] * gain).clamp(0.0, 4.0);
+                let px = &mut row[i..i + 3];
+                let gain = vignette_gain(amount * t, luma(px[0], px[1], px[2]));
+                for c in px {
+                    *c = (*c * gain).clamp(0.0, 4.0);
+                }
             }
         });
+}
+
+pub fn vignette_gain(strength: f32, luma: f32) -> f32 {
+    if strength >= 0.0 {
+        return 1.0 + strength;
+    }
+    let highlight = smoothstep(VIGNETTE_HIGHLIGHT_LO, VIGNETTE_HIGHLIGHT_HI, luma);
+    let protect = 1.0 - VIGNETTE_HIGHLIGHT_PRIORITY * highlight;
+    (strength * VIGNETTE_DARKEN_STOPS * protect).exp2()
 }
 
 #[inline]
@@ -156,6 +171,31 @@ mod tests {
         let corner = pixel(&img, 0, 0);
         if corner <= center {
             panic!("corner {corner} should be brighter than center {center}");
+        }
+    }
+
+    #[test]
+    fn gain_keeps_black_and_highlight_detail() {
+        let cases = [
+            (-1.0, 0.1, 0.25),
+            (-1.0, 2.0, 0.5),
+            (-1.0, 3.5, 0.5),
+            (-0.5, 0.4, 0.5),
+            (0.5, 0.1, 1.5),
+            (1.0, 2.0, 2.0),
+        ];
+        for (strength, l, want) in cases {
+            let got = vignette_gain(strength, l);
+            if (got - want).abs() > 1e-5 {
+                panic!("gain({strength}, {l}) = {got}, want {want}");
+            }
+        }
+        let out: Vec<f32> = (0..=400)
+            .map(|i| i as f32 * 0.01)
+            .map(|l| l * vignette_gain(-1.0, l))
+            .collect();
+        if let Some(w) = out.windows(2).find(|w| w[1] < w[0]) {
+            panic!("vignette inverts tones: {} then {}", w[0], w[1]);
         }
     }
 

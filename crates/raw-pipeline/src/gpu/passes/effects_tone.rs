@@ -5,6 +5,11 @@ use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::gpu::context::GpuContext;
 use crate::gpu::display_depth::{DISPLAY_STORE_INJECT, DisplayDepth};
+use crate::ops::vignette::{
+    VIGNETTE_DARKEN_STOPS, VIGNETTE_HIGHLIGHT_HI, VIGNETTE_HIGHLIGHT_LO,
+    VIGNETTE_HIGHLIGHT_PRIORITY,
+};
+use crate::ops::wgsl::f32_lit;
 
 use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry};
 
@@ -24,8 +29,18 @@ pub struct EffectsToneParams {
 }
 
 pub fn effects_tone_wgsl(depth: DisplayDepth) -> String {
+    let mut consts = String::new();
+    for (name, value) in [
+        ("VIGNETTE_DARKEN_STOPS", VIGNETTE_DARKEN_STOPS),
+        ("VIGNETTE_HIGHLIGHT_PRIORITY", VIGNETTE_HIGHLIGHT_PRIORITY),
+        ("VIGNETTE_HIGHLIGHT_LO", VIGNETTE_HIGHLIGHT_LO),
+        ("VIGNETTE_HIGHLIGHT_HI", VIGNETTE_HIGHLIGHT_HI),
+    ] {
+        consts.push_str(&format!("const {name}: f32 = {};\n", f32_lit(value)));
+    }
     include_str!("../../../assets/shaders/effects_tone.wgsl")
         .replace(DISPLAY_STORE_INJECT, &depth.store_wgsl(2))
+        .replace("// VIGNETTE_CONST_INJECT", &consts)
         .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
 }
 

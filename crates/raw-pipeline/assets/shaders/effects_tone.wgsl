@@ -27,6 +27,17 @@ fn fade(t: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
+// VIGNETTE_CONST_INJECT
+
+fn vignette_gain(strength: f32, l: f32) -> f32 {
+    if (strength >= 0.0) {
+        return 1.0 + strength;
+    }
+    let highlight = smoothstep_f(VIGNETTE_HIGHLIGHT_LO, VIGNETTE_HIGHLIGHT_HI, l);
+    let protect = 1.0 - VIGNETTE_HIGHLIGHT_PRIORITY * highlight;
+    return exp2(strength * VIGNETTE_DARKEN_STOPS * protect);
+}
+
 fn pcg_hash(seed: u32) -> u32 {
     var x = seed * 747796405u + 2891336453u;
     let word = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;
@@ -90,7 +101,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let qy = mix(v_p, cy, roundness);
         let d = sqrt(qx * qx + qy * qy);
         let t = smoothstep_f(inner, inner + band, d);
-        let gain = clamp(1.0 + vig_amount * t, 0.0, 2.0);
+        let gain = vignette_gain(vig_amount * t, luma(lin));
         lin = clamp(lin * gain, vec3<f32>(0.0), vec3<f32>(4.0));
     }
 
