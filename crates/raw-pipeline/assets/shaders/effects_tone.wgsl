@@ -12,6 +12,9 @@ const GRAIN_SEED: u32 = 0x6A1A5EEDu;
 const FINE_SEED: u32 = 0x6A1A5EEDu ^ 0x9E3779B9u;
 const SPREAD_SALT: u32 = 0x85EBCA6Bu;
 const EXACT_SPAN: i32 = 5;
+const LSTAR_EPSILON: f32 = 216.0 / 24389.0;
+const LSTAR_KAPPA: f32 = 24389.0 / 2700.0;
+const GRAIN_LIGHTNESS: f32 = 0.19;
 
 @group(0) @binding(0) var<uniform> p: EffectsToneParams;
 @group(0) @binding(1) var src_lin: texture_2d<f32>;
@@ -58,6 +61,15 @@ fn hash2(x: i32, y: i32, seed: u32) -> f32 {
 fn tent(t: f32) -> f32 {
     let a = abs(t);
     return select(1.0 - fade(a), 0.0, a >= 1.0);
+}
+
+fn lightness(y: f32) -> f32 {
+    return select(y * LSTAR_KAPPA, 1.16 * pow(y, 1.0 / 3.0) - 0.16, y > LSTAR_EPSILON);
+}
+
+fn luminance(l: f32) -> f32 {
+    let c = (l + 0.16) / 1.16;
+    return select(l / LSTAR_KAPPA, c * c * c, l > LSTAR_EPSILON * LSTAR_KAPPA);
 }
 
 fn lattice_lo(win: vec2<f32>, cell: f32) -> i32 {
@@ -169,10 +181,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let base = box_noise(wx, wy, cell, GRAIN_SEED);
         let fine = box_noise(wx, wy, fine_cell, FINE_SEED);
         let n = mix(base, fine, roughness) * 2.0 - 1.0;
-        let delta = n * grain_amount * 0.15;
         let yv = luma(lin);
-        let scale = select(1.0, (yv + delta) / yv, yv > 1e-6);
-        lin = clamp(lin * scale, vec3<f32>(0.0), vec3<f32>(4.0));
+        if (yv > 0.0) {
+            let l = lightness(yv);
+            let midtone = max(4.0 * l * (1.0 - l), 0.0);
+            let scale = luminance(l + n * grain_amount * GRAIN_LIGHTNESS * midtone) / yv;
+            lin = clamp(lin * scale, vec3<f32>(0.0), vec3<f32>(4.0));
+        }
     }
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));

@@ -50,7 +50,8 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).
    **Remove Chromatic Aberration** is off until you turn it on.
-1. **Effects** adds a vignette and grain.
+1. **Effects** adds a vignette and grain. Grain is strongest in the midtones and, like film, leaves
+   deep shadows and bright highlights clean.
 
 **Presets** and **Versions** sit in the same stack; see [reuse edits](#reuse-edits) and
 [try variations](#try-variations).
