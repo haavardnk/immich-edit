@@ -10,6 +10,7 @@ use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::presence::{
     has_shadows, presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
 };
+use crate::ops::tone_regions::ShadowsGuide;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::timing::{self, StageClock};
 use std::sync::Arc;
@@ -231,17 +232,20 @@ pub(super) fn run_pipeline_ops_inner(
                 let radii = presence_radii(w, h);
                 let mips = presence_mips(w, h, radii);
                 let levels = presence_pyramid_levels(w, h, radii) as usize;
-                let (pyr, shadows_blur) = clock.time(timing::SHADOWS, || {
+                let (pyr, shadows) = clock.time(timing::SHADOWS, || {
                     let pyr = LumaPyramid::build(image, levels);
-                    let blur = Arc::new(pyr.upsample(mips.shadows, image.width, image.height));
-                    (pyr, blur)
+                    let guide = Arc::new(ShadowsGuide {
+                        blur: pyr.upsample(mips.shadows, image.width, image.height),
+                        source: pyr.levels[0].to_vec(),
+                    });
+                    (pyr, guide)
                 });
                 pyramid_cache = Some(pyr);
                 pyramid_mips = Some(mips);
                 ctx_local = Some(OpContext {
                     render: ctx_outer.render.clone(),
                     scratch: OpScratch {
-                        shadows_blur: Some(shadows_blur),
+                        shadows: Some(shadows),
                         sharpen_delta: None,
                     },
                 });

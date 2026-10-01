@@ -1,6 +1,7 @@
 use crate::edits::HSL_BANDS;
 use crate::math::{linear_srgb_to_oklab, luma, oklab_to_linear_srgb};
 use crate::ops::LinearImage;
+use crate::ops::tone_regions::ShadowsGuide;
 use multiversion::multiversion;
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -34,7 +35,7 @@ pub enum CpuFusedOp {
         sh: f32,
         bk: f32,
         wh_gain: f32,
-        shadows_blur: Option<Arc<Vec<f32>>>,
+        shadows: Option<Arc<ShadowsGuide>>,
     },
     Hsl {
         hue_shifts: [f32; HSL_BANDS],
@@ -116,8 +117,10 @@ fn tone_gain(r: &mut f32, g: &mut f32, b: &mut f32, wh_gain: f32) {
 }
 
 #[inline(always)]
-fn tone_shadows(r: &mut f32, g: &mut f32, b: &mut f32, blur_l: f32, sh: f32) {
-    let mult = crate::ops::tone_regions::shadows_mult(luma(*r, *g, *b), blur_l, sh);
+fn tone_shadows(r: &mut f32, g: &mut f32, b: &mut f32, blur_l: f32, source_l: f32, sh: f32) {
+    let l = luma(*r, *g, *b);
+    let blur = crate::ops::tone_regions::shadows_blur_at(blur_l, source_l, l);
+    let mult = crate::ops::tone_regions::shadows_mult(l, blur, sh);
     *r *= mult;
     *g *= mult;
     *b *= mult;
@@ -194,24 +197,24 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
             sh,
             bk,
             wh_gain,
-            shadows_blur,
+            shadows,
         } => {
-            let blur = shadows_blur
-                .as_ref()
-                .filter(|_| *sh != 0.0)
-                .map(|buf| &buf[base..base + r.len()]);
-            match blur {
-                Some(blur) => {
-                    for (((r, g), b), &blur_l) in rgb(r, g, b).zip(blur) {
+            let guide = shadows.as_ref().filter(|_| *sh != 0.0).map(|g| {
+                let span = base..base + r.len();
+                (&g.blur[span.clone()], &g.source[span])
+            });
+            match guide {
+                Some((blur, source)) => {
+                    for ((((r, g), b), &blur_l), &source_l) in rgb(r, g, b).zip(blur).zip(source) {
                         tone_gain(r, g, b, *wh_gain);
-                        tone_shadows(r, g, b, blur_l, *sh);
+                        tone_shadows(r, g, b, blur_l, source_l, *sh);
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }
                 None if *sh != 0.0 => {
                     for ((r, g), b) in rgb(r, g, b) {
                         tone_gain(r, g, b, *wh_gain);
-                        tone_shadows(r, g, b, luma(*r, *g, *b), *sh);
+                        tone_shadows(r, g, b, 1.0, 1.0, *sh);
                         tone_regions(r, g, b, *hl, *bk);
                     }
                 }

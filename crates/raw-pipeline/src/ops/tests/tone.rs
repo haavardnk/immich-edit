@@ -81,6 +81,63 @@ fn shadows_lift_dark_pixels() {
 }
 
 #[test]
+fn flat_shadows_lift_ignores_tone_gains_before_it() {
+    let render = |basic: &BasicEdits, tone: &ToneEdits| -> f32 {
+        let mut img = solid_image(64, 64, [0.03, 0.03, 0.03]);
+        let edits = Edits {
+            basic: basic.clone(),
+            tone: tone.clone(),
+            ..Default::default()
+        };
+        crate::cpu::run_pipeline_ops(
+            &mut img,
+            &ctx(),
+            &edits,
+            &crate::mask_raster::empty_rasters(),
+            None,
+        )
+        .unwrap();
+        img.rgb[(32 * 64 + 32) * 3 + 1]
+    };
+    let cases = [
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (2.0, 0.0, 0.0),
+        (0.0, 60.0, 0.0),
+        (0.0, 0.0, 80.0),
+    ];
+    for (exposure_ev, brightness, whites) in cases {
+        let basic = BasicEdits {
+            exposure_ev,
+            brightness,
+            ..Default::default()
+        };
+        let plain = render(
+            &basic,
+            &ToneEdits {
+                whites,
+                ..Default::default()
+            },
+        );
+        let lifted = render(
+            &basic,
+            &ToneEdits {
+                whites,
+                shadows: 50.0,
+                ..Default::default()
+            },
+        );
+        let expected = tone_regions::shadows_mult(plain, plain, 0.5);
+        let got = lifted / plain;
+        if (got - expected).abs() > 1e-3 {
+            panic!(
+                "ev {exposure_ev} brightness {brightness} whites {whites}: flat lift {got}, expected {expected}"
+            );
+        }
+    }
+}
+
+#[test]
 fn blacks_lift_very_dark_pixels() {
     let mut img = solid_image(1, 1, [0.01, 0.01, 0.01]);
     let edits = Edits {

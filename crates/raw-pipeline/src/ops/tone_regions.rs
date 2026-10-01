@@ -20,10 +20,17 @@ pub const TONE_REGIONS_SH_HALO_HI: f32 = 0.25;
 pub const TONE_REGIONS_SH_STRENGTH: f32 = 1.5;
 pub const TONE_REGIONS_SH_MULT_MIN: f32 = 0.1;
 pub const TONE_REGIONS_SH_MULT_MAX: f32 = 3.9;
+pub const TONE_REGIONS_SH_SOURCE_FLOOR: f32 = 1e-5;
 pub const TONE_REGIONS_BK_CEILING: f32 = 2.0;
 pub const TONE_REGIONS_BK_MASK_RANGE: f32 = 0.1;
 pub const TONE_REGIONS_BK_STRENGTH: f32 = 1.5;
 pub const TONE_REGIONS_BK_MULT_MAX: f32 = 3.9;
+
+#[derive(Debug)]
+pub struct ShadowsGuide {
+    pub blur: Vec<f32>,
+    pub source: Vec<f32>,
+}
 
 pub(crate) fn whites_gain(wh: f32) -> f32 {
     1.0 / (1.0
@@ -51,6 +58,11 @@ pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
         x * fast::exp2(hl * TONE_REGIONS_HL_STRENGTH)
     };
     x * (1.0 - mask) + new * mask
+}
+
+#[inline(always)]
+pub(crate) fn shadows_blur_at(blur_l: f32, source_l: f32, luma: f32) -> f32 {
+    blur_l * luma / source_l.max(TONE_REGIONS_SH_SOURCE_FLOOR)
 }
 
 #[inline(always)]
@@ -145,14 +157,14 @@ impl Op for ToneRegionsOp {
             sh: edits.tone.shadows as f32 / 100.0,
             bk: edits.tone.blacks as f32 / 100.0,
             wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
-            shadows_blur: ctx.scratch.shadows_blur.clone(),
+            shadows: ctx.scratch.shadows.clone(),
         })
     }
     fn gpu(&self) -> Option<GpuOp> {
         Some(GpuOp::new(
             "tone_regions",
             include_str!("../../assets/shaders/ops/tone_regions.wgsl"),
-            "lin = tone_regions_apply(lin, p.tone_regions, shadows_blur_l);",
+            "lin = tone_regions_apply(lin, p.tone_regions, shadows_blur_l, shadows_source_l);",
         ))
     }
     fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {

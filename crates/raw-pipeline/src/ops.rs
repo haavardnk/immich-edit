@@ -206,7 +206,7 @@ impl SharpenDeltaMap {
 
 #[derive(Clone, Default)]
 pub struct OpScratch {
-    pub shadows_blur: Option<std::sync::Arc<Vec<f32>>>,
+    pub shadows: Option<std::sync::Arc<tone_regions::ShadowsGuide>>,
     pub sharpen_delta: Option<SharpenDeltaMap>,
 }
 
