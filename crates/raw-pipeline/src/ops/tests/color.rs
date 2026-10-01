@@ -458,3 +458,33 @@ fn dcp_base_table_sees_values_before_baseline_exposure() {
         }
     }
 }
+
+#[test]
+fn hsl_bright_pixel_changes_only_under_its_band() {
+    let src = [1.4, 0.6, 0.3];
+    for (band, moved) in [(5, false), (0, true)] {
+        let mut img = solid_image(1, 1, src);
+        let mut bands = [HslBand::default(); 8];
+        bands[band] = HslBand {
+            sat: -100.0,
+            ..Default::default()
+        };
+        let edits = Edits {
+            color: ColorEdits {
+                hsl: HslEdits { bands },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        hsl::HslOp.apply_cpu(&mut img, &ctx(), &edits).unwrap();
+        let delta = img
+            .rgb
+            .iter()
+            .zip(src)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        if (delta > 1e-3) != moved {
+            panic!("band {band}: {src:?} -> {:?}", img.rgb);
+        }
+    }
+}
