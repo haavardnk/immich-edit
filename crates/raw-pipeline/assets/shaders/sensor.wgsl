@@ -18,25 +18,35 @@ fn load_clamped(ix: i32, iy: i32) -> vec3<f32> {
     return textureLoad(src, vec2<i32>(cx, cy), 0).rgb;
 }
 
-fn bilinear_rgb(x: f32, y: f32) -> vec3<f32> {
-    let ix = i32(floor(x));
-    let iy = i32(floor(y));
-    let tx = x - floor(x);
-    let ty = y - floor(y);
-    let c00 = load_clamped(ix, iy);
-    let c10 = load_clamped(ix + 1, iy);
-    let c01 = load_clamped(ix, iy + 1);
-    let c11 = load_clamped(ix + 1, iy + 1);
-    let a = mix(c00, c10, tx);
-    let b = mix(c01, c11, tx);
-    return mix(a, b, ty);
+fn cr_weights(t: f32) -> vec4<f32> {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    return vec4<f32>(
+        -0.5 * t3 + t2 - 0.5 * t,
+        1.5 * t3 - 2.5 * t2 + 1.0,
+        -1.5 * t3 + 2.0 * t2 + 0.5 * t,
+        0.5 * t3 - 0.5 * t2,
+    );
 }
 
-fn bilinear_chan(x: f32, y: f32, ch: i32) -> f32 {
-    let s = bilinear_rgb(x, y);
-    if (ch == 0) { return s.r; }
-    if (ch == 1) { return s.g; }
-    return s.b;
+fn bicubic_row(ix: i32, iy: i32, wx: vec4<f32>) -> vec3<f32> {
+    return load_clamped(ix - 1, iy) * wx.x
+        + load_clamped(ix, iy) * wx.y
+        + load_clamped(ix + 1, iy) * wx.z
+        + load_clamped(ix + 2, iy) * wx.w;
+}
+
+fn bicubic_rgb(x: f32, y: f32) -> vec3<f32> {
+    let fx = floor(x);
+    let fy = floor(y);
+    let ix = i32(fx);
+    let iy = i32(fy);
+    let wx = cr_weights(x - fx);
+    let wy = cr_weights(y - fy);
+    return bicubic_row(ix, iy - 1, wx) * wy.x
+        + bicubic_row(ix, iy, wx) * wy.y
+        + bicubic_row(ix, iy + 1, wx) * wy.z
+        + bicubic_row(ix, iy + 2, wx) * wy.w;
 }
 
 fn distortion_scale(r2: f32) -> f32 {
@@ -78,19 +88,27 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let ca_red = p.ca_vig.x;
     let ca_blue = p.ca_vig.y;
 
+    let rg = sqrt(dx * dx + dy * dy) * inv_norm;
+    let sg = distortion_scale(rg * rg);
+    let sgx = dx * sg + cx - 0.5;
+    let sgy = dy * sg + cy - 0.5;
+    let green = bicubic_rgb(sgx, sgy);
+    let g_gain = vignette_correction(rg);
+    let gid_i = vec2<i32>(i32(gid.x), i32(gid.y));
+
+    if (ca_red == 1.0 && ca_blue == 1.0) {
+        textureStore(dst, gid_i, vec4<f32>(max(green * g_gain, vec3<f32>(0.0)), 1.0));
+        return;
+    }
+
     let dxr = dx * ca_red;
     let dyr = dy * ca_red;
     let rr = sqrt(dxr * dxr + dyr * dyr) * inv_norm;
     let sr = distortion_scale(rr * rr);
     let srx = dxr * sr + cx - 0.5;
     let sry = dyr * sr + cy - 0.5;
-    let r_red = bilinear_chan(srx, sry, 0) * vignette_correction(rr);
-
-    let rg = sqrt(dx * dx + dy * dy) * inv_norm;
-    let sg = distortion_scale(rg * rg);
-    let sgx = dx * sg + cx - 0.5;
-    let sgy = dy * sg + cy - 0.5;
-    let g_green = bilinear_chan(sgx, sgy, 1) * vignette_correction(rg);
+    let r_red = bicubic_rgb(srx, sry).r * vignette_correction(rr);
+    let g_green = green.g * g_gain;
 
     let dxb = dx * ca_blue;
     let dyb = dy * ca_blue;
@@ -98,7 +116,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let sb = distortion_scale(rb * rb);
     let sbx = dxb * sb + cx - 0.5;
     let sby = dyb * sb + cy - 0.5;
-    let b_blue = bilinear_chan(sbx, sby, 2) * vignette_correction(rb);
+    let b_blue = bicubic_rgb(sbx, sby).b * vignette_correction(rb);
 
-    textureStore(dst, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(max(r_red, 0.0), max(g_green, 0.0), max(b_blue, 0.0), 1.0));
+    textureStore(dst, gid_i, vec4<f32>(max(r_red, 0.0), max(g_green, 0.0), max(b_blue, 0.0), 1.0));
 }

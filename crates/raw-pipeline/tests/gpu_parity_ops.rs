@@ -4,7 +4,7 @@ use raw_pipeline::edits::{
 use raw_pipeline::frame::RenderOptions;
 use raw_pipeline::{decode, edits::Edits};
 use raw_pipeline_testkit::fixtures::any_fixture;
-use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
+use raw_pipeline_testkit::frames::{detail_frame, rgb_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
 use raw_pipeline_testkit::parity::{ParityLedger, require_same_dims};
 use raw_pipeline_testkit::render::rgb8_opts;
@@ -416,6 +416,47 @@ fn gpu_matches_cpu_within_tolerance() {
         let gpu = renderer.render(&frame, edits, &opts).unwrap();
         require_same_dims(label, &cpu, &gpu);
         ledger.check(label, &cpu.bytes, &gpu.bytes, *limit);
+    }
+    ledger.finish();
+}
+
+#[test]
+fn gpu_lens_resampling_matches_cpu_on_fine_detail() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = detail_frame(96, 64);
+    let opts = rgb8_opts(96);
+    let cases = [
+        (
+            "lens-distortion-detail",
+            LensEdits {
+                profile_enabled: Some(true),
+                distortion_amount: 100.0,
+                k1: -0.1,
+                ..Default::default()
+            },
+        ),
+        (
+            "lens-ca-detail",
+            LensEdits {
+                ca_enabled: true,
+                ca_red_scale_x10000: 80.0,
+                ca_blue_scale_x10000: -60.0,
+                ..Default::default()
+            },
+        ),
+    ];
+    let mut ledger = ParityLedger::new("lens");
+    for (label, lens) in cases {
+        let edits = Edits {
+            lens,
+            ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.1);
     }
     ledger.finish();
 }
