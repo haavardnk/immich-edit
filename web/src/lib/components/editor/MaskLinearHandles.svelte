@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MaskComponent, MaskComponentKind, Vec2f } from '$lib/types/edits';
   import type { DragKind } from '$lib/utils/maskDrag';
+  import { smoothRamp } from '$lib/utils/maskRamp';
 
   let {
     comp,
@@ -39,6 +40,7 @@
   const emptyOp = $derived(comp.invert ? 0.55 : 0.0);
   const stopLo = $derived(Math.max(0, 0.5 - half));
   const stopHi = $derived(Math.min(1, 0.5 + half));
+  const ramp = $derived(smoothRamp(stopLo, stopHi, emptyOp, fillOp));
 
   const GUIDE_LEN = 60;
 
@@ -59,8 +61,9 @@
   <defs>
     <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={a.x} y1={a.y} x2={b.x} y2={b.y}>
       <stop offset="0" stop-color={color} stop-opacity={emptyOp} />
-      <stop offset={stopLo} stop-color={color} stop-opacity={emptyOp} />
-      <stop offset={stopHi} stop-color={color} stop-opacity={fillOp} />
+      {#each ramp as stop, i (i)}
+        <stop offset={stop.offset} stop-color={color} stop-opacity={stop.opacity} />
+      {/each}
       <stop offset="1" stop-color={color} stop-opacity={fillOp} />
     </linearGradient>
   </defs>
