@@ -37,8 +37,11 @@ impl Op for UserWbOp {
             edits.basic.wb_tint = v;
         }
     }
-    fn cpu_fused(&self, edits: &Edits, _ctx: &OpContext) -> Option<CpuFusedOp> {
-        let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
+    fn cpu_fused(&self, edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
+        let m = ctx
+            .render
+            .white
+            .user_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
         Some(CpuFusedOp::ColorMatrix { m })
     }
     fn gpu(&self) -> Option<GpuOp> {
@@ -60,8 +63,11 @@ impl Op for UserWbOp {
             vec4_count: 3,
         })
     }
-    fn write_gpu_uniform(&self, edits: &Edits, _ctx: &OpContext, dst: &mut [f32]) {
-        let m = crate::color::user_wb_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
+    fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
+        let m = ctx
+            .render
+            .white
+            .user_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
         for (row_idx, row) in m.iter().enumerate() {
             let off = row_idx * 4;
             dst[off] = row[0];

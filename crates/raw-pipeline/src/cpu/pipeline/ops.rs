@@ -111,6 +111,7 @@ pub(super) fn run_pipeline_ops_inner(
                 capture_sigma: ctx.render.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: ctx.render.roi,
+                white: ctx.render.white.clone(),
                 dcp: ctx.render.dcp.clone(),
             },
             scratch: OpScratch::default(),

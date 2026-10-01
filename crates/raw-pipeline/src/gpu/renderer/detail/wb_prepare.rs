@@ -43,6 +43,7 @@ impl GpuRenderer {
                 capture_sigma: meta.capture_sigma,
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
+                white: setup.white.clone(),
                 dcp: setup.resolved.clone(),
             },
             scratch: OpScratch::default(),

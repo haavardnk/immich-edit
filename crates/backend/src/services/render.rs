@@ -169,6 +169,18 @@ impl RenderService {
             .await
     }
 
+    pub async fn dcp_profile(
+        &self,
+        edits: &Edits,
+        frame: &RawFrame,
+    ) -> Result<Option<Arc<raw_pipeline::dcp::DcpProfile>>, RenderError> {
+        Ok(self
+            .inputs
+            .dcp_for(edits, frame)
+            .await?
+            .map(|selection| selection.profile))
+    }
+
     pub async fn warm(
         &self,
         identity: RenderIdentity,

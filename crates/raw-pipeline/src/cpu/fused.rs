@@ -398,6 +398,7 @@ mod tests {
                 capture_sigma: None,
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
+                white: crate::color::SceneWhite::Display,
                 dcp: None,
             },
             scratch: OpScratch::default(),
