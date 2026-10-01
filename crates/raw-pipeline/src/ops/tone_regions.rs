@@ -6,8 +6,8 @@ use crate::math::{luma, smoothstep};
 
 pub struct ToneRegionsOp;
 
-pub const TONE_REGIONS_WHITES_CLAMP: f32 = 0.99;
-pub const TONE_REGIONS_WHITES_SCALE: f32 = 0.5;
+pub const TONE_REGIONS_WHITES_STOPS: f32 = 1.5;
+pub const TONE_REGIONS_WHITES_PIVOT: f32 = 0.5;
 pub const TONE_REGIONS_HL_MASK_LO: f32 = 0.3;
 pub const TONE_REGIONS_HL_MASK_HI: f32 = 0.95;
 pub const TONE_REGIONS_HL_MASK_TANH: f32 = 1.5;
@@ -32,10 +32,13 @@ pub struct ShadowsGuide {
     pub source: Vec<f32>,
 }
 
-pub(crate) fn whites_gain(wh: f32) -> f32 {
-    1.0 / (1.0
-        - wh.clamp(-TONE_REGIONS_WHITES_CLAMP, TONE_REGIONS_WHITES_CLAMP)
-            * TONE_REGIONS_WHITES_SCALE)
+#[inline(always)]
+pub(crate) fn whites_mult(luma: f32, wh: f32) -> f32 {
+    if wh == 0.0 {
+        return 1.0;
+    }
+    let l = luma.max(0.0);
+    fast::exp2(wh * TONE_REGIONS_WHITES_STOPS * l / (l + TONE_REGIONS_WHITES_PIVOT))
 }
 
 #[inline(always)]
@@ -156,7 +159,7 @@ impl Op for ToneRegionsOp {
             hl: edits.tone.highlights as f32 / 100.0,
             sh: edits.tone.shadows as f32 / 100.0,
             bk: edits.tone.blacks as f32 / 100.0,
-            wh_gain: whites_gain(edits.tone.whites as f32 / 100.0),
+            wh: edits.tone.whites as f32 / 100.0,
             shadows: ctx.scratch.shadows.clone(),
         })
     }
