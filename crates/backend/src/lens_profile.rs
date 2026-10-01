@@ -147,42 +147,7 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
         .map(|f| f as f32)
         .unwrap_or(lens.focal_min);
     let aperture_opt = exif.f_number.map(|f| f as f32);
-    let calib_crop = if lens.crop_factor > 0.0 {
-        lens.crop_factor
-    } else {
-        1.0
-    };
-    let image_crop = camera
-        .map(|c| c.crop_factor)
-        .filter(|c| *c > 0.0)
-        .unwrap_or(calib_crop);
-    let crop_ratio = (calib_crop / image_crop) as f64;
-    let mut edits = ProfileLensEdits::default();
-
-    if let Some(cd) = lens.interpolate_distortion(focal)
-        && let Some((k1, k2, k3)) = fit_distortion(&cd)
-    {
-        edits.k1 = k1 as f64;
-        edits.k2 = k2 as f64;
-        edits.k3 = k3 as f64;
-    }
-    if let Some(ct) = lens.interpolate_tca(focal)
-        && let Some((red, blue)) = fit_tca(&ct)
-    {
-        edits.ca_red_scale_x10000 = ((red - 1.0) as f64) * 10000.0;
-        edits.ca_blue_scale_x10000 = ((blue - 1.0) as f64) * 10000.0;
-    }
-    if let Some(aperture) = aperture_opt
-        && let Some(cv) = lens.interpolate_vignetting(focal, aperture, 1000.0)
-        && let Some((vk1, vk2, vk3)) = fit_vignetting(&cv)
-    {
-        let r2 = crop_ratio * crop_ratio;
-        let r4 = r2 * r2;
-        let r6 = r4 * r2;
-        edits.vk1 = (vk1 as f64) * r2;
-        edits.vk2 = (vk2 as f64) * r4;
-        edits.vk3 = (vk3 as f64) * r6;
-    }
+    let edits = profile_edits(&lens, focal, aperture_opt, camera.map(|c| c.crop_factor));
 
     let has_any = edits.k1 != 0.0
         || edits.k2 != 0.0
@@ -200,6 +165,49 @@ pub fn lookup(exif: &ExifInfo) -> LensProfileMatch {
         aperture: aperture_opt,
         edits: has_any.then_some(edits),
     }
+}
+
+fn profile_edits(
+    lens: &Lens,
+    focal: f32,
+    aperture: Option<f32>,
+    camera_crop: Option<f32>,
+) -> ProfileLensEdits {
+    let calib_crop = if lens.crop_factor > 0.0 {
+        lens.crop_factor
+    } else {
+        1.0
+    };
+    let image_crop = camera_crop.filter(|c| *c > 0.0).unwrap_or(calib_crop);
+    let crop_ratio = (calib_crop / image_crop) as f64;
+    let corner = (crop_ratio * (lens.aspect_ratio as f64).hypot(1.0)) as f32;
+    let mut edits = ProfileLensEdits::default();
+
+    if let Some(cd) = lens.interpolate_distortion(focal)
+        && let Some((k1, k2, k3)) = fit_distortion(&cd, corner)
+    {
+        edits.k1 = k1 as f64;
+        edits.k2 = k2 as f64;
+        edits.k3 = k3 as f64;
+    }
+    if let Some(ct) = lens.interpolate_tca(focal)
+        && let Some((red, blue)) = fit_tca(&ct, corner)
+    {
+        edits.ca_red_scale_x10000 = ((red - 1.0) as f64) * 10000.0;
+        edits.ca_blue_scale_x10000 = ((blue - 1.0) as f64) * 10000.0;
+    }
+    if let Some(aperture) = aperture
+        && let Some(cv) = lens.interpolate_vignetting(focal, aperture, 1000.0)
+        && let Some((vk1, vk2, vk3)) = fit_vignetting(&cv)
+    {
+        let r2 = crop_ratio * crop_ratio;
+        let r4 = r2 * r2;
+        let r6 = r4 * r2;
+        edits.vk1 = (vk1 as f64) * r2;
+        edits.vk2 = (vk2 as f64) * r4;
+        edits.vk3 = (vk3 as f64) * r6;
+    }
+    edits
 }
 
 pub fn reproject_lens(lens: LensEdits, exif: Option<&ExifInfo>) -> LensEdits {
@@ -237,51 +245,67 @@ pub fn apply_auto(lens: LensEdits, profile: Option<&ProfileLensEdits>) -> LensEd
     }
 }
 
-const FIT_RADII: [f32; 10] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+fn fit_radii() -> impl Iterator<Item = f64> {
+    (1..=20).map(|i| i as f64 / 20.0)
+}
 
-fn distortion_s_target(model: &DistortionModel, r: f32) -> f32 {
+fn distortion_s_target(model: &DistortionModel, r: f64) -> f64 {
     match *model {
         DistortionModel::None => 1.0,
-        DistortionModel::Poly3 { k1 } => (1.0 - k1) + k1 * r * r,
-        DistortionModel::Poly5 { k1, k2 } => 1.0 + k1 * r * r + k2 * r * r * r * r,
+        DistortionModel::Poly3 { k1 } => {
+            let d = 1.0 - k1 as f64;
+            1.0 + k1 as f64 / d.powi(3) * r * r
+        }
+        DistortionModel::Poly5 { k1, k2 } => 1.0 + k1 as f64 * r * r + k2 as f64 * r.powi(4),
         DistortionModel::Ptlens { a, b, c } => {
-            a * r * r * r + b * r * r + c * r + (1.0 - a - b - c)
+            let d = 1.0 - a as f64 - b as f64 - c as f64;
+            1.0 + a as f64 / d.powi(4) * r.powi(3)
+                + b as f64 / d.powi(3) * r * r
+                + c as f64 / d.powi(2) * r
         }
     }
 }
 
-fn fit_distortion(cd: &CalibDistortion) -> Option<(f32, f32, f32)> {
+fn fit_distortion(cd: &CalibDistortion, corner: f32) -> Option<(f32, f32, f32)> {
     if matches!(cd.model, DistortionModel::None) {
         return None;
     }
     let mut at = [[0.0f64; 3]; 3];
     let mut bt = [0.0f64; 3];
-    for &r in &FIT_RADII {
-        let r2 = (r * r) as f64;
+    for r in fit_radii() {
+        let r2 = r * r;
         let r4 = r2 * r2;
         let r6 = r4 * r2;
         let phi = [r2, r4, r6];
-        let t = (distortion_s_target(&cd.model, r) - 1.0) as f64;
+        let t = distortion_s_target(&cd.model, r * corner as f64) - 1.0;
         for j in 0..3 {
             for k in 0..3 {
-                at[j][k] += phi[j] * phi[k];
+                at[j][k] += r2 * phi[j] * phi[k];
             }
-            bt[j] += phi[j] * t;
+            bt[j] += r2 * phi[j] * t;
         }
     }
     let sol = solve_3x3(at, bt)?;
     Some((sol[0] as f32, sol[1] as f32, sol[2] as f32))
 }
 
-fn fit_tca(ct: &CalibTca) -> Option<(f32, f32)> {
+fn fit_tca(ct: &CalibTca, corner: f32) -> Option<(f32, f32)> {
     match ct.model {
         TcaModel::None => None,
         TcaModel::Linear { kr, kb } => Some((kr, kb)),
         TcaModel::Poly3 { red, blue } => {
-            let r = 0.7f32;
-            let red_scale = red[0] + red[1] * r + red[2] * r * r;
-            let blue_scale = blue[0] + blue[1] * r + blue[2] * r * r;
-            Some((red_scale, blue_scale))
+            let scale = |t: [f32; 3]| -> f32 {
+                let mut num = 0.0f64;
+                let mut den = 0.0f64;
+                for r in fit_radii() {
+                    let rh = r * corner as f64;
+                    let w = r * r;
+                    num += w * (t[0] as f64 + t[1] as f64 * rh + t[2] as f64 * rh * rh);
+                    den += w;
+                }
+                (num / den) as f32
+            };
+            Some((scale(red), scale(blue)))
         }
     }
 }
@@ -315,6 +339,7 @@ fn solve_3x3(a: [[f64; 3]; 3], b: [f64; 3]) -> Option<[f64; 3]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lensfun::Modifier;
 
     #[test]
     fn reproject_without_exif_zeroes_coeffs_keeps_flags() {
@@ -393,7 +418,7 @@ mod tests {
             },
             real_focal: None,
         };
-        let (k1, k2, k3) = fit_distortion(&cd).unwrap();
+        let (k1, k2, k3) = fit_distortion(&cd, 1.0).unwrap();
         if (k1 - 0.02).abs() > 1e-3 {
             panic!("k1 {k1}");
         }
@@ -414,7 +439,7 @@ mod tests {
                 kb: 0.998,
             },
         };
-        let (red, blue) = fit_tca(&ct).unwrap();
+        let (red, blue) = fit_tca(&ct, 1.8).unwrap();
         if (red - 1.002).abs() > 1e-6 {
             panic!("red {red}");
         }
@@ -469,6 +494,125 @@ mod tests {
         };
         if !l.model.contains("FE 35mm") {
             panic!("got wrong lens: {}", l.model);
+        }
+    }
+
+    const W: u32 = 6000;
+    const H: u32 = 4000;
+    const PROBES: [(f32, f32); 4] = [(1.0, 1.0), (1.0, 0.0), (0.0, 1.0), (0.5, 0.5)];
+
+    fn synthetic_lens(distortion: DistortionModel, tca: TcaModel) -> Lens {
+        Lens {
+            model: "synthetic".to_string(),
+            focal_min: 24.0,
+            focal_max: 24.0,
+            crop_factor: 1.0,
+            aspect_ratio: 1.5,
+            calib_distortion: vec![CalibDistortion {
+                focal: 24.0,
+                model: distortion,
+                real_focal: None,
+            }],
+            calib_tca: vec![CalibTca {
+                focal: 24.0,
+                model: tca,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn probe_offsets() -> impl Iterator<Item = (f32, f32, f32)> {
+        let half_diag = 0.5 * (W as f32).hypot(H as f32);
+        PROBES.into_iter().map(move |(fx, fy)| {
+            let dx = fx * (W - 1) as f32 * 0.5;
+            let dy = fy * (H - 1) as f32 * 0.5;
+            (dx, dy, dx.hypot(dy) / half_diag)
+        })
+    }
+
+    #[test]
+    fn distortion_matches_lensfun_modifier() {
+        let cx = (W - 1) as f32 * 0.5;
+        let cy = (H - 1) as f32 * 0.5;
+        for (model, camera_crop, limit_px) in [
+            (DistortionModel::Poly3 { k1: -0.03 }, 1.0, 0.5),
+            (DistortionModel::Poly3 { k1: -0.03 }, 1.5, 0.5),
+            (
+                DistortionModel::Poly5 {
+                    k1: -0.05,
+                    k2: 0.01,
+                },
+                1.0,
+                0.5,
+            ),
+            (
+                DistortionModel::Ptlens {
+                    a: 0.01,
+                    b: -0.03,
+                    c: 0.02,
+                },
+                1.0,
+                3.0,
+            ),
+        ] {
+            let lens = synthetic_lens(model, TcaModel::None);
+            let edits = profile_edits(&lens, 24.0, None, Some(camera_crop));
+            let mut modifier = Modifier::new(&lens, 24.0, camera_crop, W, H, false);
+            if !modifier.enable_distortion_correction(&lens) {
+                panic!("{model:?}: lensfun rejected the profile");
+            }
+            for (dx, dy, r) in probe_offsets() {
+                let r2 = (r * r) as f64;
+                let s = (1.0 + edits.k1 * r2 + edits.k2 * r2 * r2 + edits.k3 * r2 * r2 * r2) as f32;
+                let mut lensfun = [0.0f32; 2];
+                modifier.apply_geometry_distortion(cx + dx, cy + dy, 1, 1, &mut lensfun);
+                let err = (lensfun[0] - cx - dx * s).hypot(lensfun[1] - cy - dy * s);
+                if err > limit_px {
+                    panic!("{model:?} crop {camera_crop} at ({dx}, {dy}): {err} px off lensfun");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn tca_matches_lensfun_modifier() {
+        let cx = (W - 1) as f32 * 0.5;
+        let cy = (H - 1) as f32 * 0.5;
+        for (model, limit_px) in [
+            (
+                TcaModel::Linear {
+                    kr: 1.0004,
+                    kb: 0.9996,
+                },
+                0.05,
+            ),
+            (
+                TcaModel::Poly3 {
+                    red: [1.0002, 0.0, 0.0002],
+                    blue: [0.9998, 0.0001, -0.0002],
+                },
+                1.0,
+            ),
+        ] {
+            let lens = synthetic_lens(DistortionModel::None, model);
+            let edits = profile_edits(&lens, 24.0, None, None);
+            let red = 1.0 + edits.ca_red_scale_x10000 as f32 / 10000.0;
+            let blue = 1.0 + edits.ca_blue_scale_x10000 as f32 / 10000.0;
+            let mut modifier = Modifier::new(&lens, 24.0, 1.0, W, H, false);
+            if !modifier.enable_tca_correction(&lens) {
+                panic!("{model:?}: lensfun rejected the profile");
+            }
+            for (dx, dy, _) in probe_offsets() {
+                let mut lensfun = [0.0f32; 6];
+                modifier.apply_subpixel_distortion(cx + dx, cy + dy, 1, 1, &mut lensfun);
+                let red_err = (lensfun[0] - cx - dx * red).hypot(lensfun[1] - cy - dy * red);
+                let blue_err = (lensfun[4] - cx - dx * blue).hypot(lensfun[5] - cy - dy * blue);
+                if red_err.max(blue_err) > limit_px {
+                    panic!(
+                        "{model:?} at ({dx}, {dy}): red {red_err} px, blue {blue_err} px off lensfun"
+                    );
+                }
+            }
         }
     }
 }
