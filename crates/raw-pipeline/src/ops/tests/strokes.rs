@@ -73,3 +73,63 @@ fn retouch_source_patch_stays_inside_the_frame() {
         }
     }
 }
+
+fn blemish_scene(size: usize, blemish_px: f32) -> LinearImage {
+    let s = size as f32;
+    let buf = (0..size * size)
+        .flat_map(|i| {
+            let x = (i % size) as f32 + 0.5;
+            let y = (i / size) as f32 + 0.5;
+            let d2 = (x - 0.3 * s).powi(2) + (y - 0.4 * s).powi(2);
+            let blemish = if blemish_px > 0.0 {
+                0.2 * (-d2 / (2.0 * blemish_px * blemish_px)).exp()
+            } else {
+                0.0
+            };
+            let v = 0.3 + 0.2 * x / s + 0.1 * (y / s).powi(2) - blemish;
+            [v, v * 0.8, v * 0.6]
+        })
+        .collect();
+    LinearImage::new(buf, size, size)
+}
+
+#[test]
+fn heal_removes_the_blemish_under_the_stroke() {
+    let size = 200;
+    let clean = blemish_scene(size, 0.0);
+    let error = |img: &LinearImage| -> f32 {
+        img.rgb
+            .iter()
+            .zip(&clean.rgb)
+            .map(|(a, b)| (a - b).abs())
+            .sum()
+    };
+    for radius in [0.05f32, 0.1, 0.2] {
+        let blemish_px = 0.35 * radius * size as f32;
+        let blemished = blemish_scene(size, blemish_px);
+        let mut healed = blemish_scene(size, blemish_px);
+        let edits = Edits {
+            retouch: vec![RetouchStroke {
+                id: "h".into(),
+                mode: RetouchMode::Heal,
+                points: vec![Vec2f { x: 0.3, y: 0.4 }],
+                radius,
+                hardness: 1.0,
+                opacity: 1.0,
+                source: Vec2f { x: 0.7, y: 0.6 },
+                enabled: true,
+            }],
+            ..Default::default()
+        };
+        retouch::RetouchOp
+            .apply_cpu(&mut healed, &ctx(), &edits)
+            .unwrap();
+        let residual = error(&healed) / error(&blemished);
+        if residual > 0.1 {
+            panic!(
+                "radius {radius}: {:.0}% of the blemish remains",
+                residual * 100.0
+            );
+        }
+    }
+}

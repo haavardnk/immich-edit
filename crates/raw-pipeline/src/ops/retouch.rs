@@ -1,5 +1,4 @@
 use super::LinearImage;
-use super::blur::{gaussian_blur, gaussian_kernel};
 use super::sample::sample_rgb_bicubic;
 use super::{Op, OpContext, Stage};
 use crate::PipelineResult;
@@ -54,8 +53,8 @@ impl Op for RetouchOp {
     }
 }
 
-const SIGMA_MAX_UV: f32 = 0.02;
 const SAMPLE_MARGIN: f32 = 2.0;
+const TENT: [f32; 4] = [0.125, 0.375, 0.375, 0.125];
 
 pub(crate) struct Bbox {
     pub x0: usize,
@@ -67,7 +66,6 @@ pub(crate) struct Bbox {
 pub(crate) struct StrokeGeom {
     pub points: Vec<(f32, f32)>,
     pub radius_px: f32,
-    pub sigma: f32,
     pub off_x: f32,
     pub off_y: f32,
     pub bbox: Bbox,
@@ -115,7 +113,6 @@ pub(crate) fn stroke_geometry(
     Some(StrokeGeom {
         points,
         radius_px,
-        sigma: (radius_px * 0.5).min(scale * SIGMA_MAX_UV).max(1.0),
         off_x,
         off_y,
         bbox,
@@ -224,22 +221,32 @@ fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
         });
 
     let heal = matches!(stroke.mode, RetouchMode::Heal);
-    let (blur_dst, blur_src) = if heal {
-        let mut dst_patch = vec![0.0f32; pw * ph * 3];
-        dst_patch
-            .par_chunks_mut(pw * 3)
-            .enumerate()
-            .for_each(|(row, out)| {
-                let src_row = (bb.y0 + row) * w * 3 + bb.x0 * 3;
-                out.copy_from_slice(&image.rgb[src_row..src_row + pw * 3]);
-            });
-        let kernel = gaussian_kernel(geom.sigma);
-        let bd = gaussian_blur::<3>(&dst_patch, pw, ph, &kernel);
-        let bs = gaussian_blur::<3>(&src_patch, pw, ph, &kernel);
-        (Some(bd), Some(bs))
-    } else {
-        (None, None)
-    };
+    let residual = heal.then(|| {
+        let mut known = vec![[0.0f32; 4]; pw * ph];
+        known.par_chunks_mut(pw).enumerate().for_each(|(row, out)| {
+            let y = bb.y0 + row;
+            for (x, px) in out.iter_mut().enumerate() {
+                let gx = bb.x0 + x;
+                let d = point_polyline_distance(gx as f32 + 0.5, y as f32 + 0.5, &points);
+                if d < radius_px {
+                    continue;
+                }
+                let i = (y * w + gx) * 3;
+                let p = (row * pw + x) * 3;
+                *px = [
+                    image.rgb[i] - src_patch[p],
+                    image.rgb[i + 1] - src_patch[p + 1],
+                    image.rgb[i + 2] - src_patch[p + 2],
+                    1.0,
+                ];
+            }
+        });
+        membrane_fill(Level {
+            w: pw,
+            h: ph,
+            px: known,
+        })
+    });
 
     let opacity = stroke.opacity;
     let hardness = stroke.hardness;
@@ -262,14 +269,96 @@ fn apply_stroke(image: &mut LinearImage, stroke: &RetouchStroke) {
                 let pi = (prow * pw + (x - bb.x0)) * 3;
                 let i = x * 3;
                 for c in 0..3 {
-                    let source = match (&blur_dst, &blur_src) {
-                        (Some(bd), Some(bs)) => {
-                            (src_patch[pi + c] + bd[pi + c] - bs[pi + c]).max(0.0)
-                        }
-                        _ => src_patch[pi + c],
+                    let source = match &residual {
+                        Some(r) => (src_patch[pi + c] + r[pi / 3][c]).max(0.0),
+                        None => src_patch[pi + c],
                     };
                     row[i + c] = row[i + c] * (1.0 - cov) + source * cov;
                 }
             }
         });
+}
+
+struct Level {
+    w: usize,
+    h: usize,
+    px: Vec<[f32; 4]>,
+}
+
+fn membrane_fill(base: Level) -> Vec<[f32; 4]> {
+    let mut pyramid = vec![base];
+    while let Some(fine) = pyramid.last().filter(|l| l.w > 1 || l.h > 1) {
+        let next = push_level(fine);
+        pyramid.push(next);
+    }
+    let mut fill: Option<Level> = None;
+    for level in pyramid.iter().rev() {
+        let coarse = fill.as_ref().unwrap_or(level);
+        fill = Some(pull_level(level, coarse));
+    }
+    fill.map(|l| l.px).unwrap_or_default()
+}
+
+fn push_level(fine: &Level) -> Level {
+    let w = (fine.w / 2).max(1);
+    let h = (fine.h / 2).max(1);
+    let px = (0..w * h)
+        .into_par_iter()
+        .map(|i| {
+            let cx = (i % w) as isize;
+            let cy = (i / w) as isize;
+            let mut acc = [0.0f32; 4];
+            for (j, wy) in TENT.iter().enumerate() {
+                let fy = (2 * cy - 1 + j as isize).clamp(0, fine.h as isize - 1) as usize;
+                for (k, wx) in TENT.iter().enumerate() {
+                    let fx = (2 * cx - 1 + k as isize).clamp(0, fine.w as isize - 1) as usize;
+                    let p = fine.px[fy * fine.w + fx];
+                    for (a, v) in acc.iter_mut().zip(p) {
+                        *a += wx * wy * v;
+                    }
+                }
+            }
+            acc
+        })
+        .collect();
+    Level { w, h, px }
+}
+
+fn pull_level(fine: &Level, coarse: &Level) -> Level {
+    let at = |x: isize, y: isize| -> [f32; 3] {
+        let x = x.clamp(0, coarse.w as isize - 1) as usize;
+        let y = y.clamp(0, coarse.h as isize - 1) as usize;
+        let p = coarse.px[y * coarse.w + x];
+        let a = p[3].max(1e-8);
+        [p[0] / a, p[1] / a, p[2] / a]
+    };
+    let px = (0..fine.w * fine.h)
+        .into_par_iter()
+        .map(|i| {
+            let u = ((i % fine.w) as f32 + 0.5) * 0.5 - 0.5;
+            let v = ((i / fine.w) as f32 + 0.5) * 0.5 - 0.5;
+            let tx = u - u.floor();
+            let ty = v - v.floor();
+            let x0 = u.floor() as isize;
+            let y0 = v.floor() as isize;
+            let c00 = at(x0, y0);
+            let c10 = at(x0 + 1, y0);
+            let c01 = at(x0, y0 + 1);
+            let c11 = at(x0 + 1, y0 + 1);
+            let f = fine.px[i];
+            let mut out = [0.0f32, 0.0, 0.0, 1.0];
+            for c in 0..3 {
+                let top = c00[c] + (c10[c] - c00[c]) * tx;
+                let bottom = c01[c] + (c11[c] - c01[c]) * tx;
+                let up = top + (bottom - top) * ty;
+                out[c] = f[c] + (1.0 - f[3]) * up;
+            }
+            out
+        })
+        .collect();
+    Level {
+        w: fine.w,
+        h: fine.h,
+        px,
+    }
 }

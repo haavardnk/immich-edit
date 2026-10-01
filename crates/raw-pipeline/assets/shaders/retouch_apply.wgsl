@@ -9,8 +9,6 @@ struct Params {
     radius_px: f32,
     hardness: f32,
     opacity: f32,
-    sigma: f32,
-    dir: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;

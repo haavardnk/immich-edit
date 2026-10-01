@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoderDescriptor, Texture, TextureUsages};
+use wgpu::{
+    BufferUsages, CommandEncoder, CommandEncoderDescriptor, Texture, TextureUsages, TextureView,
+};
 
 use crate::PipelineResult;
 use crate::edits::{Edits, RetouchMode, RetouchStroke};
 use crate::frame::RawFrame;
-use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
+use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::retouch::RetouchParams;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
@@ -14,12 +16,7 @@ use crate::ops::retouch::{StrokeGeom, stroke_geometry};
 
 use super::GpuRenderer;
 
-fn retouch_params(
-    geom: &StrokeGeom,
-    stroke: &RetouchStroke,
-    dims: (u32, u32),
-    dir: u32,
-) -> RetouchParams {
+fn retouch_params(geom: &StrokeGeom, stroke: &RetouchStroke, dims: (u32, u32)) -> RetouchParams {
     let heal = matches!(stroke.mode, RetouchMode::Heal);
     RetouchParams {
         dims: [dims.0, dims.1],
@@ -34,9 +31,7 @@ fn retouch_params(
         radius_px: geom.radius_px,
         hardness: stroke.hardness,
         opacity: stroke.opacity,
-        sigma: geom.sigma,
-        dir,
-        _pad: 0.0,
+        _pad: [0.0; 3],
     }
 }
 
@@ -71,22 +66,24 @@ impl GpuRenderer {
                 usage: BufferUsages::STORAGE,
             });
 
-            let make_patch = |label: &'static str| {
+            let make_patch = |label: &'static str, levels: u32| {
                 texture_2d(
                     device,
                     label,
                     self.ctx.linear_format,
                     (bw, bh),
-                    1,
+                    levels,
                     STORAGE_SAMPLED,
                 )
             };
-            let patch_src = make_patch("retouch-patch-src");
-            let patch_res = make_patch("retouch-patch-res");
-            let patch_tmp = make_patch("retouch-patch-tmp");
+            let levels = if heal { mip_count(bw, bh) } else { 1 };
+            let patch_src = make_patch("retouch-patch-src", 1);
+            let pyramid = make_patch("retouch-heal-pyramid", levels);
+            let fill = make_patch("retouch-heal-fill", levels);
             let patch_src_view = full_view(&patch_src);
-            let patch_res_view = full_view(&patch_res);
-            let patch_tmp_view = full_view(&patch_tmp);
+            let pyramid_views: Vec<TextureView> =
+                (0..levels).map(|l| mip_view(&pyramid, l)).collect();
+            let fill_views: Vec<TextureView> = (0..levels).map(|l| mip_view(&fill, l)).collect();
 
             let dst = texture_2d(
                 device,
@@ -99,41 +96,18 @@ impl GpuRenderer {
             let src_view = full_view(&current);
             let dst_mip0 = mip_view(&dst, 0);
 
-            let prep_u = self.uniform(&retouch_params(&geom, stroke, dims, 0), "retouch-prep-u");
-            let blur_h_u =
-                self.uniform(&retouch_params(&geom, stroke, dims, 0), "retouch-blur-h-u");
-            let blur_v_u =
-                self.uniform(&retouch_params(&geom, stroke, dims, 1), "retouch-blur-v-u");
+            let params = self.uniform(&retouch_params(&geom, stroke, dims), "retouch-u");
 
             let prep_bind = bind_group(
                 device,
                 "retouch-prep-bg",
                 &p.prep_layout,
                 &[
-                    prep_u.as_entire_binding(),
+                    params.as_entire_binding(),
                     tex(&src_view),
                     tex(&patch_src_view),
-                    tex(&patch_res_view),
-                ],
-            );
-            let blur_h_bind = bind_group(
-                device,
-                "retouch-blur-h-bg",
-                &p.blur_layout,
-                &[
-                    blur_h_u.as_entire_binding(),
-                    tex(&patch_res_view),
-                    tex(&patch_tmp_view),
-                ],
-            );
-            let blur_v_bind = bind_group(
-                device,
-                "retouch-blur-v-bg",
-                &p.blur_layout,
-                &[
-                    blur_v_u.as_entire_binding(),
-                    tex(&patch_tmp_view),
-                    tex(&patch_res_view),
+                    tex(&pyramid_views[0]),
+                    pts_buf.as_entire_binding(),
                 ],
             );
             let apply_bind = bind_group(
@@ -141,10 +115,10 @@ impl GpuRenderer {
                 "retouch-apply-bg",
                 &p.apply_layout,
                 &[
-                    prep_u.as_entire_binding(),
+                    params.as_entire_binding(),
                     tex(&src_view),
                     tex(&patch_src_view),
-                    tex(&patch_res_view),
+                    tex(&fill_views[0]),
                     pts_buf.as_entire_binding(),
                     tex(&dst_mip0),
                 ],
@@ -162,12 +136,7 @@ impl GpuRenderer {
                 bh.div_ceil(16),
             );
             if heal {
-                let mut cpass = begin_pass(&mut encoder, "retouch-blur");
-                cpass.set_pipeline(&p.blur_pipeline);
-                cpass.set_bind_group(0, &blur_h_bind, &[]);
-                cpass.dispatch_workgroups(bw.div_ceil(16), bh.div_ceil(16), 1);
-                cpass.set_bind_group(0, &blur_v_bind, &[]);
-                cpass.dispatch_workgroups(bw.div_ceil(16), bh.div_ceil(16), 1);
+                self.encode_heal_fill(&mut encoder, &pyramid_views, &fill_views, (bw, bh));
             }
             dispatch_2d(
                 &mut encoder,
@@ -183,5 +152,48 @@ impl GpuRenderer {
         }
 
         Ok(current)
+    }
+
+    fn encode_heal_fill(
+        &self,
+        encoder: &mut CommandEncoder,
+        pyramid: &[TextureView],
+        fill: &[TextureView],
+        size: (u32, u32),
+    ) {
+        let device = &self.ctx.device;
+        let p = &self.passes.sensor_stage.retouch;
+        let groups = |level: usize| {
+            (
+                (size.0 >> level).max(1).div_ceil(16),
+                (size.1 >> level).max(1).div_ceil(16),
+            )
+        };
+        for level in 1..pyramid.len() {
+            let bind = bind_group(
+                device,
+                "retouch-push-bg",
+                &p.push_layout,
+                &[tex(&pyramid[level - 1]), tex(&pyramid[level])],
+            );
+            let (gx, gy) = groups(level);
+            dispatch_2d(encoder, "retouch-push", &p.push_pipeline, &bind, gx, gy);
+        }
+        let top = pyramid.len() - 1;
+        for level in (0..pyramid.len()).rev() {
+            let coarse = if level == top {
+                &pyramid[top]
+            } else {
+                &fill[level + 1]
+            };
+            let bind = bind_group(
+                device,
+                "retouch-pull-bg",
+                &p.pull_layout,
+                &[tex(&pyramid[level]), tex(coarse), tex(&fill[level])],
+            );
+            let (gx, gy) = groups(level);
+            dispatch_2d(encoder, "retouch-pull", &p.pull_pipeline, &bind, gx, gy);
+        }
     }
 }
