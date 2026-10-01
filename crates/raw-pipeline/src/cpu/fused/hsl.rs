@@ -1,8 +1,8 @@
 use crate::edits::HSL_BANDS;
 use crate::math::{hue_dist, smoothstep};
 use crate::ops::hsl::{
-    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_INPUT_CEILING, HSL_LUM_SHIFT_SCALE, HSL_MIN_SAT,
-    HSL_SAT_GATE_HI, HSL_SAT_GATE_LO,
+    HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_LUM_SHIFT_SCALE, HSL_MIN_SAT, HSL_SAT_GATE_HI,
+    HSL_SAT_GATE_LO,
 };
 
 #[inline(always)]
@@ -95,11 +95,11 @@ pub fn apply_hsl(
     g: &mut f32,
     b: &mut f32,
 ) {
-    let (h, s, l) = rgb_to_hsl(
-        r.clamp(0.0, HSL_INPUT_CEILING),
-        g.clamp(0.0, HSL_INPUT_CEILING),
-        b.clamp(0.0, HSL_INPUT_CEILING),
-    );
+    let cr = r.max(0.0);
+    let cg = g.max(0.0);
+    let cb = b.max(0.0);
+    let k = cr.max(cg).max(cb).max(1.0);
+    let (h, s, l) = rgb_to_hsl(cr / k, cg / k, cb / k);
     if s < HSL_MIN_SAT {
         return;
     }
@@ -120,7 +120,7 @@ pub fn apply_hsl(
     let new_s = (s * (1.0 + sat_delta)).clamp(0.0, 1.0);
     let new_l = (l + lum_delta * HSL_LUM_SHIFT_SCALE).clamp(0.0, 1.0);
     let (nr, ng, nb) = hsl_to_rgb(new_h, new_s, new_l);
-    *r = nr;
-    *g = ng;
-    *b = nb;
+    *r = nr * k;
+    *g = ng * k;
+    *b = nb * k;
 }

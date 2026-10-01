@@ -11,7 +11,6 @@ pub const HSL_LUM_SHIFT_SCALE: f32 = 0.3;
 pub const HSL_SAT_GATE_LO: f32 = 0.05;
 pub const HSL_SAT_GATE_HI: f32 = 0.20;
 pub const HSL_MIN_SAT: f32 = 1e-4;
-pub const HSL_INPUT_CEILING: f32 = 2.0;
 
 pub struct HslOp;
 

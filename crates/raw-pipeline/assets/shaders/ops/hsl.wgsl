@@ -45,8 +45,9 @@ fn hsl_hsl_to_rgb(c: vec3<f32>) -> vec3<f32> {
 }
 
 fn hsl_apply(c_in: vec3<f32>) -> vec3<f32> {
-    let cc = clamp(c_in, vec3<f32>(0.0), vec3<f32>(HSL_INPUT_CEILING));
-    let hsl = hsl_rgb_to_hsl(cc);
+    let cc = max(c_in, vec3<f32>(0.0));
+    let k = max(max(max(cc.r, cc.g), cc.b), 1.0);
+    let hsl = hsl_rgb_to_hsl(cc / k);
     if (hsl.y < HSL_MIN_SAT) { return c_in; }
     var centers: array<f32, HSL_BANDS> = HSL_BAND_CENTERS_DEG;
     let sigma2 = HSL_BAND_SIGMA_DEG * HSL_BAND_SIGMA_DEG;
@@ -77,5 +78,5 @@ fn hsl_apply(c_in: vec3<f32>) -> vec3<f32> {
     let new_h = hsl.x + hue_d;
     let new_s = clamp(hsl.y * (1.0 + sat_d), 0.0, 1.0);
     let new_l = clamp(hsl.z + lum_d * HSL_LUM_SHIFT_SCALE, 0.0, 1.0);
-    return hsl_hsl_to_rgb(vec3<f32>(new_h, new_s, new_l));
+    return hsl_hsl_to_rgb(vec3<f32>(new_h, new_s, new_l)) * k;
 }
