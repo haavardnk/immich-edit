@@ -4,7 +4,7 @@ use raw_pipeline::edits::{
     MaskedEdits, Vec2f,
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
-use raw_pipeline_testkit::frames::{detail_frame, step_edge_frame, synthetic_frame};
+use raw_pipeline_testkit::frames::{detail_frame, rgb_frame, step_edge_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
 use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
 use raw_pipeline_testkit::render::rgb8_opts;
@@ -335,6 +335,39 @@ fn gpu_masked_presence_matches_cpu_and_changes_output() {
     let mut ledger = ParityLedger::new("masks");
     ledger.check("masked-presence", &cpu.bytes, &gpu.bytes, 0.07);
     ledger.finish();
+}
+
+#[test]
+fn gpu_masked_shadows_match_cpu_without_global_shadows() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let data = (0..64)
+        .flat_map(|_| 0..96)
+        .flat_map(|x| {
+            let v = 0.01 + 0.12 * x as f32 / 95.0;
+            [v, v * 0.9, v * 0.8]
+        })
+        .collect();
+    let frame = rgb_frame(96, 64, data);
+    let opts = rgb8_opts(96);
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "shadows",
+            frame: &frame,
+            opts: &opts,
+            components: vec![linear_component(0.4)],
+            edits: MaskedEdits {
+                shadows: Some(80.0),
+                ..Default::default()
+            },
+            invert: false,
+            fast_tolerance: 0.07,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
 }
 
 #[test]

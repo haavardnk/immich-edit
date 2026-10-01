@@ -76,6 +76,11 @@ pub fn select_mip(max_edge: u32, radius_px: u32) -> u32 {
 
 pub fn has_shadows(edits: &Edits) -> bool {
     edits.tone.shadows != 0.0
+        || edits
+            .masks
+            .iter()
+            .filter(|l| l.is_effective())
+            .any(|l| l.edits.shadows.is_some_and(|v| v != 0.0))
 }
 
 pub fn presence_pyramid_levels(width: u32, height: u32, radii: PresenceRadii) -> u32 {
