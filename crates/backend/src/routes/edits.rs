@@ -240,7 +240,8 @@ pub async fn white_balance_sample(
         .render
         .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
-    Ok(Json(white_balance::sample(frame, point).await?))
+    let profile = state.render.dcp_profile(&point.edits, &frame).await?;
+    Ok(Json(white_balance::sample(frame, point, profile).await?))
 }
 
 pub async fn white_balance_auto(
@@ -254,7 +255,8 @@ pub async fn white_balance_auto(
         .render
         .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
-    Ok(Json(white_balance::auto(frame, context).await?))
+    let profile = state.render.dcp_profile(&context, &frame).await?;
+    Ok(Json(white_balance::auto(frame, context, profile).await?))
 }
 
 fn context_edits(body: &[u8]) -> Result<Edits, AppError> {

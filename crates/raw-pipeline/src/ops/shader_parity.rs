@@ -65,6 +65,7 @@ fn probe_ctx() -> OpContext {
             capture_sigma: None,
             preview_mode: crate::frame::PreviewMode::None,
             roi: None,
+            white: crate::color::SceneWhite::Display,
             dcp: Some(Arc::new(ResolvedDcp {
                 base_table: Some(Arc::new(probe_table())),
                 look_table: None,

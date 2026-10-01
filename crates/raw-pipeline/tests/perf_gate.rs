@@ -48,6 +48,7 @@ fn ctx_with_sigma(capture_sigma: Option<f32>) -> OpContext {
             capture_sigma,
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
+            white: raw_pipeline::color::SceneWhite::Display,
             dcp: None,
             output_scale: 1.0,
         },

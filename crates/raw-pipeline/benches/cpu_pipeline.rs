@@ -32,6 +32,7 @@ fn ctx() -> OpContext {
             capture_sigma: Some(0.7),
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
+            white: raw_pipeline::color::SceneWhite::Display,
             dcp: None,
             output_scale: 1.0,
         },

@@ -1,20 +1,7 @@
 use super::dcp::*;
 use super::hsv::*;
 use super::matrix::*;
-use crate::dcp::{DcpIlluminant, DcpProfile, HsvEncoding, HueSatMap, ToneCurve};
-
-const MATRIX_A: [[f32; 3]; 4] = [
-    [0.8, 0.1, 0.1],
-    [0.05, 0.9, 0.05],
-    [0.1, 0.2, 0.7],
-    [0.0, 0.0, 0.0],
-];
-const MATRIX_D65: [[f32; 3]; 4] = [
-    [0.6, 0.3, 0.1],
-    [0.1, 0.8, 0.1],
-    [0.05, 0.1, 0.85],
-    [0.0, 0.0, 0.0],
-];
+use crate::dcp::{HsvEncoding, HueSatMap, ToneCurve};
 
 #[test]
 fn display_p3_roundtrip_is_identity() {
@@ -37,108 +24,6 @@ fn srgb_red_maps_inside_display_p3() {
 fn display_p3_red_is_outside_srgb() {
     let srgb = display_p3_to_srgb_lin([1.0, 0.0, 0.0]);
     assert!(srgb[0] > 1.0 || srgb[1] < 0.0 || srgb[2] < 0.0);
-}
-
-#[test]
-fn interpolate_at_low_cct_returns_warm_matrix() {
-    let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
-    let result = interpolate_xyz_to_cam(&matrices, 2856.0);
-    for i in 0..3 {
-        for j in 0..3 {
-            assert!(
-                (result[i][j] - MATRIX_A[i][j]).abs() < 1e-5,
-                "mismatch at [{i}][{j}]"
-            );
-        }
-    }
-}
-
-#[test]
-fn interpolate_at_high_cct_returns_cool_matrix() {
-    let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
-    let result = interpolate_xyz_to_cam(&matrices, 6504.0);
-    for i in 0..3 {
-        for j in 0..3 {
-            assert!(
-                (result[i][j] - MATRIX_D65[i][j]).abs() < 1e-5,
-                "mismatch at [{i}][{j}]"
-            );
-        }
-    }
-}
-
-#[test]
-fn interpolate_midpoint_blends() {
-    let matrices = vec![(2856.0, MATRIX_A), (6504.0, MATRIX_D65)];
-    let mid_cct = 4000.0;
-    let result = interpolate_xyz_to_cam(&matrices, mid_cct);
-    for i in 0..3 {
-        for j in 0..3 {
-            assert!(
-                result[i][j] > MATRIX_A[i][j].min(MATRIX_D65[i][j]) - 1e-5
-                    && result[i][j] < MATRIX_A[i][j].max(MATRIX_D65[i][j]) + 1e-5,
-                "out of range at [{i}][{j}]: {}",
-                result[i][j]
-            );
-        }
-    }
-}
-
-#[test]
-fn interpolate_single_matrix_returns_it() {
-    let matrices = vec![(6504.0, MATRIX_D65)];
-    let result = interpolate_xyz_to_cam(&matrices, 4000.0);
-    assert_eq!(result, MATRIX_D65);
-}
-
-#[test]
-fn estimate_cct_returns_valid_range() {
-    let matrix: [[f32; 3]; 4] = [
-        [0.8, 0.1, 0.1],
-        [0.05, 0.9, 0.05],
-        [0.1, 0.2, 0.7],
-        [0.0, 0.0, 0.0],
-    ];
-    let wb = [2.0, 1.0, 1.5, 1.0];
-    let cct = estimate_scene_cct(wb, &matrix);
-    assert!((2000.0..=25000.0).contains(&cct), "cct={cct} out of range");
-}
-
-fn make_dcp(fm: Option<[[f32; 3]; 3]>) -> DcpProfile {
-    DcpProfile {
-        name: None,
-        copyright: None,
-        unique_camera_model: None,
-        calibration_illuminant1: 21,
-        calibration_illuminant2: None,
-        color_matrix1: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-        color_matrix2: None,
-        forward_matrix1: fm,
-        forward_matrix2: None,
-        huesatmap1: None,
-        huesatmap2: None,
-        look_table: None,
-        tone_curve: None,
-        baseline_exposure_offset: 0.0,
-        default_black_render: 0,
-        embed_policy: 0,
-    }
-}
-
-#[test]
-fn dcp_forward_matrix_maps_neutral_to_white() {
-    // ForwardMatrix rows sum to D50 whitepoint XYZ, per DNG spec.
-    let fm = [
-        [0.9642 * 0.5, 0.9642 * 0.3, 0.9642 * 0.2],
-        [1.0 * 0.4, 1.0 * 0.35, 1.0 * 0.25],
-        [0.8249 * 0.1, 0.8249 * 0.3, 0.8249 * 0.6],
-    ];
-    let profile = make_dcp(Some(fm));
-    let m = dcp_cam_to_srgb(&profile, [2.0, 1.0, 1.5, 1.0], DcpIlluminant::Interpolated);
-    let out = mat3_vec(&m, [1.0, 1.0, 1.0]);
-    for c in out {
-        assert!((c - 1.0).abs() < 1e-3, "neutral -> {out:?}");
-    }
 }
 
 #[test]

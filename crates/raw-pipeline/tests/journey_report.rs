@@ -147,10 +147,11 @@ fn journey(renderer: &Renderer, bytes: &[u8]) {
 
     let (_, total) = timed(|| raw_pipeline::auto::auto_adjust(&frame, &edits));
     row("auto", total, &[]);
-    let (_, total) = timed(|| raw_pipeline::white_balance::auto_white_balance(&frame, &edits));
+    let (_, total) =
+        timed(|| raw_pipeline::white_balance::auto_white_balance(&frame, &edits, None));
     row("auto wb", total, &[]);
     let (_, total) =
-        timed(|| raw_pipeline::white_balance::sample_white_balance(&frame, &edits, 0.5, 0.5));
+        timed(|| raw_pipeline::white_balance::sample_white_balance(&frame, &edits, None, 0.5, 0.5));
     row("wb picker", total, &[]);
 }
 

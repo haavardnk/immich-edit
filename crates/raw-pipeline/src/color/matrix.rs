@@ -21,19 +21,6 @@ pub(crate) fn mat3_vec(m: &[[f32; 3]; 3], v: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn cct_to_xy(cct: f32) -> (f32, f32) {
-    let t = cct;
-    let t2 = t * t;
-    let t3 = t2 * t;
-    let x = if t <= 7000.0 {
-        -4.607e9 / t3 + 2.9678e6 / t2 + 0.09911e3 / t + 0.244_063
-    } else {
-        -2.0064e9 / t3 + 1.9018e6 / t2 + 0.24748e3 / t + 0.237_040
-    };
-    let y = -3.0 * x * x + 2.87 * x - 0.275;
-    (x, y)
-}
-
 pub(super) fn bradford_cat(src_xy: (f32, f32), dst_xy: (f32, f32)) -> [[f32; 3]; 3] {
     let src_xyz = [
         src_xy.0 / src_xy.1,
@@ -67,75 +54,7 @@ pub(super) fn bradford_cat(src_xy: (f32, f32), dst_xy: (f32, f32)) -> [[f32; 3];
     mat3_mul(&BRADFORD_INV, &diag_brad)
 }
 
-pub fn user_wb_matrix(temp: f64, tint: f64) -> [[f32; 3]; 3] {
-    let target_cct = (6500.0 * 2.0_f64.powf(-temp / 100.0)).clamp(2000.0, 25000.0) as f32;
-    let (dst_x, mut dst_y) = cct_to_xy(target_cct);
-    dst_y += tint as f32 * 0.02 / 100.0;
-    let cat_xyz = bradford_cat(D65_XY, (dst_x, dst_y));
-    let tmp = mat3_mul(&cat_xyz, &SRGB_TO_XYZ_D65);
-    mat3_mul(&XYZ_TO_SRGB_D65, &tmp)
-}
-
-pub fn estimate_scene_cct(wb_coeffs: [f32; 4], xyz_to_cam: &[[f32; 3]; 4]) -> f32 {
-    let neutral = [
-        1.0 / wb_coeffs[0].max(1e-6),
-        1.0 / wb_coeffs[1].max(1e-6),
-        1.0 / wb_coeffs[2].max(1e-6),
-    ];
-    let cam_3x3: [[f32; 3]; 3] = [xyz_to_cam[0], xyz_to_cam[1], xyz_to_cam[2]];
-    if let Some(xyz_from_cam) = inverse_3x3(cam_3x3) {
-        let xyz = mat3_vec(&xyz_from_cam, neutral);
-        let sum = xyz[0] + xyz[1] + xyz[2];
-        if sum > 1e-6 {
-            let x = xyz[0] / sum;
-            let y = xyz[1] / sum;
-            let n = (x - 0.3320) / (0.1858 - y);
-            let cct = 449.0 * n * n * n + 3525.0 * n * n + 6823.3 * n + 5520.33;
-            return cct.clamp(2000.0, 25000.0);
-        }
-    }
-    6504.0
-}
-
-pub fn resolve_xyz_to_cam(
-    matrices: &[(f32, [[f32; 3]; 4])],
-    wb_coeffs: [f32; 4],
-    fallback: [[f32; 3]; 4],
-) -> [[f32; 3]; 4] {
-    let Some(last) = matrices.last() else {
-        return fallback;
-    };
-    if matrices.len() < 2 {
-        return fallback;
-    }
-    let cct = estimate_scene_cct(wb_coeffs, &last.1);
-    interpolate_xyz_to_cam(matrices, cct)
-}
-
-pub fn interpolate_xyz_to_cam(matrices: &[(f32, [[f32; 3]; 4])], scene_cct: f32) -> [[f32; 3]; 4] {
-    if matrices.len() < 2 {
-        return matrices.first().map(|m| m.1).unwrap_or([[0.0; 3]; 4]);
-    }
-    let (cct_lo, m_lo) = matrices[0];
-    let (cct_hi, m_hi) = matrices[matrices.len() - 1];
-    let inv_lo = 1.0 / cct_lo;
-    let inv_hi = 1.0 / cct_hi;
-    let inv_scene = 1.0 / scene_cct.clamp(cct_lo, cct_hi);
-    let t = if (inv_lo - inv_hi).abs() > 1e-9 {
-        (inv_scene - inv_hi) / (inv_lo - inv_hi)
-    } else {
-        0.5
-    };
-    let mut result = [[0.0f32; 3]; 4];
-    for i in 0..4 {
-        for j in 0..3 {
-            result[i][j] = m_lo[i][j] * t + m_hi[i][j] * (1.0 - t);
-        }
-    }
-    result
-}
-
-fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
+pub(super) fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);

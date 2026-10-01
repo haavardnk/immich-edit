@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use raw_pipeline::dcp::DcpProfile;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::white_balance::{auto_white_balance, sample_white_balance};
@@ -32,17 +33,25 @@ pub struct WhiteBalance {
     pub wb_tint: f64,
 }
 
-pub async fn sample(frame: Arc<RawFrame>, point: SamplePoint) -> Result<WhiteBalance, AppError> {
+pub async fn sample(
+    frame: Arc<RawFrame>,
+    point: SamplePoint,
+    profile: Option<Arc<DcpProfile>>,
+) -> Result<WhiteBalance, AppError> {
     solve(
-        move || sample_white_balance(&frame, &point.edits, point.u, point.v),
+        move || sample_white_balance(&frame, &point.edits, profile.as_deref(), point.u, point.v),
         "No usable colour here",
     )
     .await
 }
 
-pub async fn auto(frame: Arc<RawFrame>, edits: Edits) -> Result<WhiteBalance, AppError> {
+pub async fn auto(
+    frame: Arc<RawFrame>,
+    edits: Edits,
+    profile: Option<Arc<DcpProfile>>,
+) -> Result<WhiteBalance, AppError> {
     solve(
-        move || auto_white_balance(&frame, &edits),
+        move || auto_white_balance(&frame, &edits, profile.as_deref()),
         "No neutral colour found",
     )
     .await

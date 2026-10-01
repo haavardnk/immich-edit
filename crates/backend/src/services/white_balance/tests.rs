@@ -54,7 +54,7 @@ fn sample_points_outside_the_unit_square_are_rejected() {
 
 #[tokio::test]
 async fn a_warm_sample_solves_to_a_cooler_temperature() {
-    let solved = sample(uniform_frame([0.6, 0.45, 0.3]), centre())
+    let solved = sample(uniform_frame([0.6, 0.45, 0.3]), centre(), None)
         .await
         .expect("warm sample solves");
     assert!(solved.wb_temp < 0.0, "got {solved:?}");
@@ -62,8 +62,8 @@ async fn a_warm_sample_solves_to_a_cooler_temperature() {
 
 #[tokio::test]
 async fn a_black_frame_has_no_usable_colour() {
-    let sampled = sample(uniform_frame([0.0; 3]), centre()).await;
-    let automatic = auto(uniform_frame([0.0; 3]), Edits::default()).await;
+    let sampled = sample(uniform_frame([0.0; 3]), centre(), None).await;
+    let automatic = auto(uniform_frame([0.0; 3]), Edits::default(), None).await;
     assert!(matches!(sampled, Err(AppError::Unprocessable(_))));
     assert!(matches!(automatic, Err(AppError::Unprocessable(_))));
 }

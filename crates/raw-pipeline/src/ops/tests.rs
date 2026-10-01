@@ -22,6 +22,7 @@ fn ctx() -> OpContext {
             capture_sigma: None,
             preview_mode: crate::frame::PreviewMode::None,
             roi: None,
+            white: crate::color::SceneWhite::Display,
             dcp: None,
             output_scale: 1.0,
         },
