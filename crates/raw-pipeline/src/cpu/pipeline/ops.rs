@@ -8,7 +8,7 @@ use crate::edits::Edits;
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::presence::{
-    presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
+    has_shadows, presence_amounts, presence_mips, presence_pyramid_levels, presence_radii,
 };
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::timing::{self, StageClock};
@@ -144,8 +144,7 @@ pub(super) fn run_pipeline_ops_inner(
         .collect();
     let n_layers = layer_evals.len();
     let presence_active = has_presence(edits) || layer_edits.iter().any(has_presence);
-    let shadows_active =
-        edits.tone.shadows != 0.0 || layer_edits.iter().any(|e| e.tone.shadows != 0.0);
+    let shadows_active = has_shadows(edits);
     let mut pyramid_cache: Option<LumaPyramid> = None;
     let mut pyramid_mips: Option<crate::ops::presence::PresenceMips> = None;
     let ctx_outer = ctx;

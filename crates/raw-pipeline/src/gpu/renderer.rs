@@ -92,7 +92,7 @@ fn presence_display(edits: &Edits) -> bool {
     b.texture != 0.0
         || b.clarity != 0.0
         || b.dehaze != 0.0
-        || edits.tone.shadows != 0.0
+        || crate::ops::presence::has_shadows(edits)
         || masked_presence
 }
 

@@ -96,7 +96,7 @@ impl GpuRenderer {
         edits: &Edits,
         t: &RenderTimings,
     ) -> PipelineResult<()> {
-        if edits.tone.shadows == 0.0 {
+        if !crate::ops::presence::has_shadows(edits) {
             return Ok(());
         }
         let pyramid = t.stage(timing::SHADOWS, || {
