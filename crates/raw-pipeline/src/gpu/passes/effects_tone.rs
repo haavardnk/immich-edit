@@ -24,7 +24,8 @@ pub struct EffectsToneParams {
     pub grain: [f32; 3],
     pub display_p3: u32,
     pub warn_flags: u32,
-    pub _pad1: [u32; 3],
+    pub output_scale: f32,
+    pub _pad1: [u32; 2],
     pub roi: [f32; 4],
 }
 

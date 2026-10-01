@@ -52,9 +52,25 @@ impl Op for GrainOp {
         ctx: &OpContext,
         edits: &Edits,
     ) -> PipelineResult<()> {
-        apply_grain(image, &edits.effects, ctx.render.roi);
+        apply_grain(
+            image,
+            &edits.effects,
+            ctx.render.roi,
+            ctx.render.output_scale,
+        );
         Ok(())
     }
+}
+
+const GRAIN_SEED: u32 = 0x6A1A_5EED;
+const FINE_SEED: u32 = GRAIN_SEED ^ 0x9E37_79B9;
+const SPREAD_SALT: u32 = 0x85EB_CA6B;
+const EXACT_SPAN: usize = 5;
+
+#[derive(Clone, Copy)]
+struct Window {
+    start: f32,
+    end: f32,
 }
 
 #[inline]
@@ -80,21 +96,62 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-fn value_noise(x: f32, y: f32, seed: u32) -> f32 {
-    let xi = x.floor() as i32;
-    let yi = y.floor() as i32;
-    let xf = x - xi as f32;
-    let yf = y - yi as f32;
-    let u = fade(xf);
-    let v = fade(yf);
-    let a = hash2(xi, yi, seed);
-    let b = hash2(xi + 1, yi, seed);
-    let c = hash2(xi, yi + 1, seed);
-    let d = hash2(xi + 1, yi + 1, seed);
-    lerp(lerp(a, b, u), lerp(c, d, u), v)
+fn tent(t: f32) -> f32 {
+    let a = t.abs();
+    if a >= 1.0 { 0.0 } else { 1.0 - fade(a) }
 }
 
-pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRect>) {
+fn lattice_span(win: Window, cell: f32) -> (i32, usize) {
+    let lo = (win.start.floor() / cell).floor() as i32;
+    let hi = ((win.end.ceil() - 1.0) / cell).floor() as i32 + 1;
+    (lo, (hi - lo + 1) as usize)
+}
+
+fn lattice_weight(i: i32, win: Window, cell: f32) -> f32 {
+    let first = win.start.floor().max(((i - 1) as f32 * cell).floor()) as i32;
+    let last = (win.end.ceil() - 1.0).min(((i + 1) as f32 * cell).ceil()) as i32;
+    let acc: f32 = (first..=last)
+        .map(|xs| {
+            let cover = ((xs + 1) as f32).min(win.end) - (xs as f32).max(win.start);
+            cover.max(0.0) * tent(xs as f32 / cell - i as f32)
+        })
+        .sum();
+    acc / (win.end - win.start)
+}
+
+fn box_noise(wx: Window, wy: Window, cell: f32, seed: u32) -> f32 {
+    let (x0, nx) = lattice_span(wx, cell);
+    let (y0, ny) = lattice_span(wy, cell);
+    if nx <= EXACT_SPAN && ny <= EXACT_SPAN {
+        let ax: [f32; EXACT_SPAN] =
+            std::array::from_fn(|k| lattice_weight(x0 + k as i32, wx, cell));
+        let ay: [f32; EXACT_SPAN] =
+            std::array::from_fn(|k| lattice_weight(y0 + k as i32, wy, cell));
+        return (0..nx)
+            .flat_map(|kx| (0..ny).map(move |ky| (kx, ky)))
+            .map(|(kx, ky)| hash2(x0 + kx as i32, y0 + ky as i32, seed) * ax[kx] * ay[ky])
+            .sum();
+    }
+    let ex: f32 = (0..nx)
+        .map(|k| lattice_weight(x0 + k as i32, wx, cell).powi(2))
+        .sum();
+    let ey: f32 = (0..ny)
+        .map(|k| lattice_weight(y0 + k as i32, wy, cell).powi(2))
+        .sum();
+    let u = hash2(
+        wx.start.floor() as i32,
+        wy.start.floor() as i32,
+        seed ^ SPREAD_SALT,
+    );
+    0.5 + (u - 0.5) * (ex * ey).sqrt()
+}
+
+pub fn apply_grain(
+    image: &mut LinearImage,
+    e: &EffectsEdits,
+    roi: Option<CropRect>,
+    output_scale: f32,
+) {
     let w = image.width;
     let h = image.height;
     if w == 0 || h == 0 {
@@ -106,12 +163,9 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRe
     let cell = lerp(1.0, 8.0, size);
     let fine_cell = (cell * 0.5).max(1.0);
     let r = roi.unwrap_or(CropRect::full());
-    let full_w = w as f32 / r.w;
-    let full_h = h as f32 / r.h;
-    let off_x = r.x * full_w;
-    let off_y = r.y * full_h;
-    let seed = (full_w.round() as u32) ^ (full_h.round() as u32).rotate_left(13);
-    let seed_fine = seed ^ 0x9E3779B9;
+    let off_x = r.x * w as f32 / r.w;
+    let off_y = r.y * h as f32 / r.h;
+    let step = 1.0 / output_scale;
     let strength = amount * 0.15;
 
     image
@@ -119,11 +173,17 @@ pub fn apply_grain(image: &mut LinearImage, e: &EffectsEdits, roi: Option<CropRe
         .par_chunks_mut(w * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            let yf = off_y + y as f32;
+            let wy = Window {
+                start: (off_y + y as f32) * step,
+                end: (off_y + y as f32 + 1.0) * step,
+            };
             for x in 0..w {
-                let xf = off_x + x as f32;
-                let base = value_noise(xf / cell, yf / cell, seed);
-                let fine = value_noise(xf / fine_cell, yf / fine_cell, seed_fine);
+                let wx = Window {
+                    start: (off_x + x as f32) * step,
+                    end: (off_x + x as f32 + 1.0) * step,
+                };
+                let base = box_noise(wx, wy, cell, GRAIN_SEED);
+                let fine = box_noise(wx, wy, fine_cell, FINE_SEED);
                 let n = lerp(base, fine, roughness) * 2.0 - 1.0;
                 let delta = n * strength;
                 let i = x * 3;
@@ -186,7 +246,7 @@ mod tests {
     fn amount_zero_identity() {
         let mut img = make_image(32, 32, 0.5);
         let orig = img.rgb.clone();
-        apply_grain(&mut img, &defaults(), None);
+        apply_grain(&mut img, &defaults(), None, 1.0);
         if img.rgb != orig {
             panic!("grain at 0 should be identity");
         }
@@ -198,7 +258,7 @@ mod tests {
         let mut grainy = make_image(64, 64, 0.5);
         let mut e = defaults();
         e.grain_amount = 80.0;
-        apply_grain(&mut grainy, &e, None);
+        apply_grain(&mut grainy, &e, None, 1.0);
         let v0 = variance(&flat);
         let v1 = variance(&grainy);
         if v1 <= v0 + 1e-4 {
@@ -212,8 +272,8 @@ mod tests {
         let mut b = make_image(32, 32, 0.5);
         let mut e = defaults();
         e.grain_amount = 50.0;
-        apply_grain(&mut a, &e, None);
-        apply_grain(&mut b, &e, None);
+        apply_grain(&mut a, &e, None, 1.0);
+        apply_grain(&mut b, &e, None, 1.0);
         if a.rgb != b.rgb {
             panic!("grain should be deterministic");
         }
@@ -225,7 +285,7 @@ mod tests {
         let before = mean_luma(&img);
         let mut e = defaults();
         e.grain_amount = 60.0;
-        apply_grain(&mut img, &e, None);
+        apply_grain(&mut img, &e, None, 1.0);
         let after = mean_luma(&img);
         let drift = (after - before).abs() / before;
         if drift > 0.01 {
@@ -257,12 +317,80 @@ mod tests {
         let mut eb = defaults();
         eb.grain_amount = 60.0;
         eb.grain_size = 100.0;
-        apply_grain(&mut small, &es, None);
-        apply_grain(&mut big, &eb, None);
+        apply_grain(&mut small, &es, None, 1.0);
+        apply_grain(&mut big, &eb, None, 1.0);
         let cs = neighbor_corr(&small);
         let cb = neighbor_corr(&big);
         if cb <= cs {
             panic!("larger grain {cb} should have higher neighbor correlation than small {cs}");
+        }
+    }
+
+    fn grained(side: usize, e: &EffectsEdits, output_scale: f32) -> Vec<f32> {
+        let mut img = make_image(side, side, 0.5);
+        apply_grain(&mut img, e, None, output_scale);
+        img.rgb.chunks(3).map(|p| p[1]).collect()
+    }
+
+    fn box_downscale(full: &[f32], side: usize, k: usize) -> Vec<f32> {
+        let out = side / k;
+        (0..out * out)
+            .map(|i| {
+                let oy = i / out;
+                let ox = i % out;
+                let sum: f32 = (0..k * k)
+                    .map(|j| full[(oy * k + j / k) * side + ox * k + j % k])
+                    .sum();
+                sum / (k * k) as f32
+            })
+            .collect()
+    }
+
+    fn std_dev(v: &[f32]) -> f32 {
+        let m = v.iter().sum::<f32>() / v.len() as f32;
+        (v.iter().map(|x| (x - m).powi(2)).sum::<f32>() / v.len() as f32).sqrt()
+    }
+
+    #[test]
+    fn reduced_render_matches_downscaled_full_render() {
+        let side = 256;
+        for (size, roughness, k) in [(100.0, 0.0, 2), (100.0, 100.0, 4), (50.0, 50.0, 2)] {
+            let e = EffectsEdits {
+                grain_amount: 80.0,
+                grain_size: size,
+                grain_roughness: roughness,
+                ..defaults()
+            };
+            let full = box_downscale(&grained(side, &e, 1.0), side, k);
+            let reduced = grained(side / k, &e, 1.0 / k as f32);
+            let worst = full
+                .iter()
+                .zip(&reduced)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0_f32, f32::max);
+            if worst > 1e-4 {
+                panic!("size {size} roughness {roughness} k {k}: max diff {worst}");
+            }
+        }
+    }
+
+    #[test]
+    fn fine_grain_keeps_downscaled_strength() {
+        let side = 512;
+        let e = EffectsEdits {
+            grain_amount: 80.0,
+            grain_size: 0.0,
+            grain_roughness: 0.0,
+            ..defaults()
+        };
+        let full = grained(side, &e, 1.0);
+        for k in [4, 8] {
+            let want = std_dev(&box_downscale(&full, side, k));
+            let got = std_dev(&grained(side / k, &e, 1.0 / k as f32));
+            let ratio = got / want;
+            if !(0.9..=1.1).contains(&ratio) {
+                panic!("k {k}: reduced std {got} vs downscaled {want} (ratio {ratio})");
+            }
         }
     }
 }

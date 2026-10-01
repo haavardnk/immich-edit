@@ -221,6 +221,7 @@ fn uniform_structs_mirror_wgsl() {
                 grain,
                 display_p3,
                 warn_flags,
+                output_scale,
                 roi,
             } pad { _pad0, _pad1 }),
             uniform_struct(&effects_tone_wgsl(depth)),
