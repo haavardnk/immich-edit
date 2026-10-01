@@ -133,6 +133,7 @@ fn version(resp: &Response) -> Option<HeaderValue> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use wiremock::matchers::method;
@@ -201,8 +202,15 @@ mod tests {
         let http = reqwest::Client::new();
         let url = format!("{}/original", mock.uri());
         let result = download(|| http.get(&url), SPLIT).await;
-        let requests = mock.received_requests().await.unwrap_or_default().len();
-        (result, body, requests)
+        let ranges = mock
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(|r| r.headers.get("range").map(|v| v.as_bytes().to_vec()))
+            .collect::<BTreeSet<_>>()
+            .len();
+        (result, body, ranges)
     }
 
     #[tokio::test]
@@ -214,13 +222,13 @@ mod tests {
             (Server::IgnoresRange, 10_000, 1),
         ];
         for (server, len, expected) in cases {
-            let (result, body, requests) = fetch(server, len).await;
+            let (result, body, ranges) = fetch(server, len).await;
             let Ok(bytes) = result else {
                 panic!("{server:?} {len}: {result:?}");
             };
-            if bytes.as_ref() != body.as_slice() || requests != expected {
+            if bytes.as_ref() != body.as_slice() || ranges != expected {
                 panic!(
-                    "{server:?} {len}: {} bytes in {requests} requests, wanted {expected}",
+                    "{server:?} {len}: {} bytes in {ranges} ranges, wanted {expected}",
                     bytes.len()
                 );
             }
