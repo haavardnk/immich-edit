@@ -12,6 +12,7 @@ use raw_pipeline_testkit::lut::{TINT_LUT_ID, tint_luts};
 use std::path::PathBuf;
 
 const PSNR_FLOOR_DB: f64 = 34.0;
+const P3_PSNR_FLOOR_DB: f64 = 44.0;
 const SSIM_FLOOR: f64 = 0.998;
 const DE2000_MEAN_CEIL: f64 = 2.2;
 const DE2000_P95_CEIL: f64 = 3.4;
@@ -110,6 +111,16 @@ fn render_pair(
 }
 
 fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOptions) {
+    check_parity_above(label, paths, edits, opts, PSNR_FLOOR_DB);
+}
+
+fn check_parity_above(
+    label: &str,
+    paths: &[PathBuf],
+    edits: &Edits,
+    opts: &RenderOptions,
+    psnr_floor: f64,
+) {
     let Some(renderer) = try_renderer() else {
         return;
     };
@@ -139,8 +150,8 @@ fn check_parity(label: &str, paths: &[PathBuf], edits: &Edits, opts: &RenderOpti
         eprintln!(
             "{name} ({label}): PSNR={p_db:.2}dB SSIM={s:.4} ΔE2000 mean={de_mean:.2} p95={de_p95:.2}"
         );
-        if p_db < PSNR_FLOOR_DB {
-            failed.push(format!("{name}: PSNR {p_db:.2} < {PSNR_FLOOR_DB}"));
+        if p_db < psnr_floor {
+            failed.push(format!("{name}: PSNR {p_db:.2} < {psnr_floor}"));
         }
         if s < SSIM_FLOOR {
             failed.push(format!("{name}: SSIM {s:.4} < {SSIM_FLOOR}"));
@@ -179,7 +190,13 @@ fn gpu_vs_cpu_parity_display_p3() {
         output_color_space: OutputColorSpace::DisplayP3,
         ..Default::default()
     };
-    check_parity("p3", &variant_fixtures(), &Edits::default(), &opts);
+    check_parity_above(
+        "p3",
+        &variant_fixtures(),
+        &Edits::default(),
+        &opts,
+        P3_PSNR_FLOOR_DB,
+    );
 }
 
 #[test]
