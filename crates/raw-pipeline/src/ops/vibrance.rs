@@ -1,62 +1,50 @@
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
-use crate::math::{hue_dist, luma, smoothstep};
+use crate::math::{hue_dist, linear_srgb_to_oklab, oklab_to_linear_srgb, smoothstep};
 
 pub struct VibranceOp;
 
 pub const VIBRANCE_GAIN: f32 = 3.0;
-pub const VIBRANCE_CHROMA_LO: f32 = 0.4;
-pub const VIBRANCE_CHROMA_HI: f32 = 0.9;
-pub const VIBRANCE_SKIN_HUE_DEG: f32 = 25.0;
-pub const VIBRANCE_SKIN_SPREAD_LO_DEG: f32 = 10.0;
-pub const VIBRANCE_SKIN_SPREAD_HI_DEG: f32 = 35.0;
-pub const VIBRANCE_SKIN_CHROMA_LO: f32 = 0.05;
-pub const VIBRANCE_SKIN_CHROMA_HI: f32 = 0.20;
+pub const VIBRANCE_SAT_LO: f32 = 0.07;
+pub const VIBRANCE_SAT_HI: f32 = 0.23;
+pub const VIBRANCE_SKIN_HUE_DEG: f32 = 55.0;
+pub const VIBRANCE_SKIN_SPREAD_LO_DEG: f32 = 20.0;
+pub const VIBRANCE_SKIN_SPREAD_HI_DEG: f32 = 50.0;
+pub const VIBRANCE_SKIN_SAT_LO: f32 = 0.01;
+pub const VIBRANCE_SKIN_SAT_HI: f32 = 0.04;
 pub const VIBRANCE_SKIN_FACTOR: f32 = 0.6;
-pub const VIBRANCE_DESAT_LO: f32 = 0.2;
-pub const VIBRANCE_DESAT_HI: f32 = 0.8;
+pub const VIBRANCE_DESAT_LO: f32 = 0.03;
+pub const VIBRANCE_DESAT_HI: f32 = 0.18;
 
 #[inline(always)]
 pub(crate) fn apply_vibrance_rgb(r: f32, g: f32, b: f32, amount: f32) -> (f32, f32, f32) {
-    let mx = r.max(g).max(b);
-    let mn = r.min(g).min(b);
-    let d = mx - mn;
-    let chroma = d.clamp(0.0, 1.0);
-    let hue = if d < 1e-6 {
-        0.0
-    } else if mx == r {
-        ((g - b) / d + if g < b { 6.0 } else { 0.0 }) * 60.0
-    } else if mx == g {
-        ((b - r) / d + 2.0) * 60.0
-    } else {
-        ((r - g) / d + 4.0) * 60.0
-    };
+    let [l, a, bb] = linear_srgb_to_oklab([r, g, b]);
+    let chroma = a.hypot(bb);
+    if l <= 1e-6 || chroma < 1e-6 {
+        return (r, g, b);
+    }
+    let sat = chroma / l;
     let effective = if amount > 0.0 {
-        let base = amount
-            * VIBRANCE_GAIN
-            * (1.0 - smoothstep(VIBRANCE_CHROMA_LO, VIBRANCE_CHROMA_HI, chroma));
+        let base =
+            amount * VIBRANCE_GAIN * (1.0 - smoothstep(VIBRANCE_SAT_LO, VIBRANCE_SAT_HI, sat));
         let mut skin = 1.0
             - smoothstep(
                 VIBRANCE_SKIN_SPREAD_LO_DEG,
                 VIBRANCE_SKIN_SPREAD_HI_DEG,
-                hue_dist(hue, VIBRANCE_SKIN_HUE_DEG),
+                hue_dist(bb.atan2(a).to_degrees(), VIBRANCE_SKIN_HUE_DEG),
             );
-        skin *= smoothstep(VIBRANCE_SKIN_CHROMA_LO, VIBRANCE_SKIN_CHROMA_HI, chroma);
+        skin *= smoothstep(VIBRANCE_SKIN_SAT_LO, VIBRANCE_SKIN_SAT_HI, sat);
         base * (1.0 + (VIBRANCE_SKIN_FACTOR - 1.0) * skin)
     } else {
-        amount * (1.0 - smoothstep(VIBRANCE_DESAT_LO, VIBRANCE_DESAT_HI, chroma))
+        amount * (1.0 - smoothstep(VIBRANCE_DESAT_LO, VIBRANCE_DESAT_HI, sat))
     };
     if effective.abs() < 1e-5 {
         return (r, g, b);
     }
     let factor = 1.0 + effective;
-    let luma = luma(r, g, b);
-    (
-        luma + (r - luma) * factor,
-        luma + (g - luma) * factor,
-        luma + (b - luma) * factor,
-    )
+    let [nr, ng, nb] = oklab_to_linear_srgb([l, a * factor, bb * factor]);
+    (nr, ng, nb)
 }
 
 impl Op for VibranceOp {

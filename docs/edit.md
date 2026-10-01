@@ -41,7 +41,8 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    - **Tone**: set **Exposure** first, recover skies with **Highlights**, open up shadows with
      **Shadows**, and set the end points with **Whites** and **Blacks**.
    - **Presence**: **Texture** and **Clarity** add bite, **Dehaze** cuts haze, and **Vibrance**
-     boosts muted colors more gently than **Saturation**.
+     boosts muted colors more gently than **Saturation** and spares skin tones. Both keep hue and
+     brightness, and **Vibrance** treats a color the same at any exposure.
 1. **Curves**, **HSL** and **Color Grading** shape color and contrast further. Curves work on the
    values you see, after the camera profile, so a point placed at the middle of the graph moves
    middle gray on screen. **HSL** works on one color range at a time: **Hue** turns it,

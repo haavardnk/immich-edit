@@ -1,5 +1,5 @@
 use crate::edits::HSL_BANDS;
-use crate::math::luma;
+use crate::math::{linear_srgb_to_oklab, luma, oklab_to_linear_srgb};
 use crate::ops::LinearImage;
 use multiversion::multiversion;
 use rayon::prelude::*;
@@ -184,10 +184,8 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
         }
         CpuFusedOp::Saturation { factor } => {
             for ((r, g), b) in rgb(r, g, b) {
-                let luma = luma(*r, *g, *b);
-                *r = luma + (*r - luma) * *factor;
-                *g = luma + (*g - luma) * *factor;
-                *b = luma + (*b - luma) * *factor;
+                let [l, a, bb] = linear_srgb_to_oklab([*r, *g, *b]);
+                [*r, *g, *b] = oklab_to_linear_srgb([l, a * *factor, bb * *factor]);
             }
         }
         CpuFusedOp::Vibrance { amount } => {

@@ -19,12 +19,12 @@ fn default_color_curve_shapes_midtones() {
         panic!("default color must lift midtones, got {midtone} at 0.5");
     }
 }
-#[test]
-fn saturation_full_desaturate_yields_luma() {
-    let mut img = solid_image(1, 1, [1.0, 0.0, 0.0]);
+fn saturation_vibrance_pixel(rgb: [f32; 3], saturation: f64, vibrance: f64) -> [f32; 3] {
+    let mut img = solid_image(1, 1, rgb);
     let edits = Edits {
         basic: BasicEdits {
-            saturation: -100.0,
+            saturation,
+            vibrance,
             ..Default::default()
         },
         ..Default::default()
@@ -32,10 +32,65 @@ fn saturation_full_desaturate_yields_luma() {
     saturation::SaturationOp
         .apply_cpu(&mut img, &ctx(), &edits)
         .unwrap();
-    let luma = 0.2126_f32;
-    assert!((img.rgb[0] - luma).abs() < 1e-5);
-    assert!((img.rgb[1] - luma).abs() < 1e-5);
-    assert!((img.rgb[2] - luma).abs() < 1e-5);
+    vibrance::VibranceOp
+        .apply_cpu(&mut img, &ctx(), &edits)
+        .unwrap();
+    [img.rgb[0], img.rgb[1], img.rgb[2]]
+}
+
+#[test]
+fn saturation_full_desaturate_keeps_oklab_lightness() {
+    let rgb = [1.0, 0.0, 0.0];
+    let out = saturation_vibrance_pixel(rgb, -100.0, 0.0);
+    let gray = crate::math::linear_srgb_to_oklab(rgb)[0].powi(3);
+    if out.iter().any(|v| (v - gray).abs() > 1e-4) {
+        panic!("desaturated red gave {out:?}, want {gray}");
+    }
+}
+
+#[test]
+fn saturation_and_vibrance_keep_oklab_hue_and_lightness() {
+    let hue = |lab: [f32; 3]| lab[2].atan2(lab[1]).to_degrees();
+    let chroma = |lab: [f32; 3]| lab[1].hypot(lab[2]);
+    for (saturation, vibrance) in [(50.0, 0.0), (-50.0, 0.0), (0.0, 80.0), (0.0, -60.0)] {
+        for rgb in [
+            [0.05, 0.1, 0.6],
+            [0.6, 0.08, 0.05],
+            [0.1, 0.45, 0.08],
+            [0.5, 0.3, 0.2],
+            [0.02, 0.015, 0.01],
+        ] {
+            let before = crate::math::linear_srgb_to_oklab(rgb);
+            let after = crate::math::linear_srgb_to_oklab(saturation_vibrance_pixel(
+                rgb, saturation, vibrance,
+            ));
+            let dh = crate::math::hue_dist(hue(after), hue(before));
+            if (after[0] - before[0]).abs() > 1e-4 || dh > 0.1 {
+                panic!("sat {saturation} vib {vibrance} {rgb:?}: lab {before:?} -> {after:?}");
+            }
+            let ratio = chroma(after) / chroma(before);
+            if vibrance == 0.0 && (ratio - (1.0 + saturation as f32 / 100.0)).abs() > 1e-3 {
+                panic!("saturation {saturation} on {rgb:?} scaled chroma by {ratio}");
+            }
+        }
+    }
+}
+
+#[test]
+fn vibrance_ignores_exposure() {
+    for rgb in [[0.3, 0.2, 0.12], [0.08, 0.12, 0.3]] {
+        let base = saturation_vibrance_pixel(rgb, 0.0, 70.0);
+        for k in [0.125_f32, 4.0] {
+            let scaled = saturation_vibrance_pixel(rgb.map(|v| v * k), 0.0, 70.0);
+            if scaled
+                .iter()
+                .zip(base)
+                .any(|(s, b)| (s / k - b).abs() > 1e-4)
+            {
+                panic!("{rgb:?} x{k}: {scaled:?} vs {base:?}");
+            }
+        }
+    }
 }
 
 fn bw_edits(bw: crate::edits::BwEdits) -> Edits {
