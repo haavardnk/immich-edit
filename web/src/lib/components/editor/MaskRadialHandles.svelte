@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MaskComponent, MaskComponentKind, Vec2f } from '$lib/types/edits';
   import { radialAxes, type DragKind } from '$lib/utils/maskDrag';
+  import { smoothRamp } from '$lib/utils/maskRamp';
 
   const MIN_FEATHER_HANDLE_SCALE = 0.08;
   const ROTATE_GRIP_GAP = 22;
@@ -42,6 +43,7 @@
   const fillOp = $derived(comp.invert ? 0.0 : 0.55);
   const emptyOp = $derived(comp.invert ? 0.55 : 0.0);
   const rMax = $derived(Math.max(rx, ry, 1));
+  const ramp = $derived(smoothRamp(innerScale, 1, fillOp, emptyOp));
   const grip = $derived({
     x: c.x + (rxDx / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP),
     y: c.y + (rxDy / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP)
@@ -59,8 +61,9 @@
       gradientTransform={`translate(${c.x} ${c.y}) rotate(${tilt}) scale(${rx / rMax} ${ry / rMax}) translate(${-c.x} ${-c.y})`}
     >
       <stop offset="0" stop-color={color} stop-opacity={fillOp} />
-      <stop offset={innerScale} stop-color={color} stop-opacity={fillOp} />
-      <stop offset="1" stop-color={color} stop-opacity={emptyOp} />
+      {#each ramp as stop, i (i)}
+        <stop offset={stop.offset} stop-color={color} stop-opacity={stop.opacity} />
+      {/each}
     </radialGradient>
   </defs>
   <rect
