@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use wgpu::Texture;
 
 use super::cache_keys::StageKeys;
+use super::detail::NoiseProfile;
 use super::stage_cache::StageCache;
 use super::{GpuRenderer, RenderPlan};
 use crate::PipelineResult;
@@ -20,6 +21,7 @@ use crate::timing;
 
 const FRAME_CACHE_ITEMS: usize = 2;
 const ATMOSPHERE_CACHE_ITEMS: usize = 16;
+const NOISE_PROFILE_CACHE_ITEMS: usize = 16;
 
 #[derive(Clone, Copy)]
 pub(super) struct SourcePlan {
@@ -59,6 +61,8 @@ pub(super) struct SensorCaches {
     pub superpixels: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     pub atmospheres: Mutex<lru::LruCache<u64, [f32; 3]>>,
     pub atmosphere_estimates: AtomicU64,
+    pub noise_profiles: Mutex<lru::LruCache<u64, NoiseProfile>>,
+    pub noise_estimates: AtomicU64,
     pub stages: StageCache,
 }
 
@@ -66,11 +70,14 @@ impl SensorCaches {
     pub fn new(budget: Arc<GpuBudget>, texture_pool: Arc<TexturePool>) -> Self {
         let frames = NonZeroUsize::new(FRAME_CACHE_ITEMS).expect("nonzero");
         let atmospheres = NonZeroUsize::new(ATMOSPHERE_CACHE_ITEMS).expect("nonzero");
+        let noise_profiles = NonZeroUsize::new(NOISE_PROFILE_CACHE_ITEMS).expect("nonzero");
         Self {
             frames: Mutex::new(lru::LruCache::new(frames)),
             superpixels: Mutex::new(lru::LruCache::new(frames)),
             atmospheres: Mutex::new(lru::LruCache::new(atmospheres)),
             atmosphere_estimates: AtomicU64::new(0),
+            noise_profiles: Mutex::new(lru::LruCache::new(noise_profiles)),
+            noise_estimates: AtomicU64::new(0),
             stages: StageCache::new(budget, texture_pool),
         }
     }
@@ -79,6 +86,10 @@ impl SensorCaches {
 impl GpuRenderer {
     pub fn atmosphere_estimates(&self) -> u64 {
         self.sensor.atmosphere_estimates.load(Ordering::Relaxed)
+    }
+
+    pub fn noise_estimates(&self) -> u64 {
+        self.sensor.noise_estimates.load(Ordering::Relaxed)
     }
 
     pub fn linear_source(
@@ -207,7 +218,7 @@ impl GpuRenderer {
         let full_src: Arc<Texture> =
             if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
                 let tex = t.stage(timing::NOISE_REDUCTION, || {
-                    self.submit_nr(&wb_base, dims, edits, keys.nr)
+                    self.submit_nr(&wb_base, dims, edits, &keys, cancel)
                 })?;
                 crate::cancel::check(cancel)?;
                 tex

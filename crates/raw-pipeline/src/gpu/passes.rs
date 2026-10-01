@@ -12,7 +12,6 @@ pub mod mask_weight;
 pub mod meta_bins;
 pub mod mipgen;
 pub mod nr;
-pub mod nr_smooth;
 pub mod presence;
 pub mod process;
 pub mod resample;
@@ -46,9 +45,7 @@ use mask_weight::MaskWeightPass;
 use meta_bins::MetaBinsPasses;
 use mipgen::MipgenPass;
 #[cfg(feature = "native")]
-use nr::NrPass;
-#[cfg(feature = "native")]
-use nr_smooth::NrSmoothPass;
+use nr::NrPasses;
 use presence::PresencePass;
 use process::ProcessFastPass;
 use resample::ResamplePass;
@@ -105,8 +102,7 @@ pub struct SensorStagePasses {
     pub sensor: SensorPass,
     pub wb_prepare: WbPreparePass,
     pub retouch: RetouchPasses,
-    pub nr: NrPass,
-    pub nr_smooth: NrSmoothPass,
+    pub nr: NrPasses,
     pub capture_sharpen: CaptureSharpenPasses,
 }
 
@@ -119,8 +115,7 @@ impl SensorStagePasses {
             sensor: SensorPass::new(ctx),
             wb_prepare: WbPreparePass::new(ctx, registry),
             retouch: RetouchPasses::new(ctx),
-            nr: NrPass::new(ctx),
-            nr_smooth: NrSmoothPass::new(ctx),
+            nr: NrPasses::new(ctx),
             capture_sharpen: CaptureSharpenPasses::new(ctx),
         }
         Self {
@@ -130,7 +125,6 @@ impl SensorStagePasses {
             wb_prepare,
             retouch,
             nr,
-            nr_smooth,
             capture_sharpen,
         }
     }

@@ -84,23 +84,33 @@ pub fn step_edge_frame(w: usize, h: usize) -> RawFrame {
     rgb_frame(w, h, data)
 }
 
-pub fn fine_texture_frame(w: usize, h: usize) -> RawFrame {
-    let mut data = vec![0.0f32; w * h * 3];
-    let period = 32.0f32;
-    for y in 0..h {
-        for x in 0..w {
-            let i = (y * w + x) * 3;
+pub fn noisy_frame(w: usize, h: usize) -> RawFrame {
+    let mut seed: u32 = 0x9e37_79b9;
+    let mut gaussian = || {
+        (0..12)
+            .map(|_| {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                seed as f32 / u32::MAX as f32
+            })
+            .sum::<f32>()
+            - 6.0
+    };
+    let data = (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .flat_map(|(x, y)| {
             let u = x as f32 / (w - 1) as f32;
             let v = y as f32 / (h - 1) as f32;
-            let base = 0.2 + 0.5 * u * (1.0 - 0.4 * v);
-            let ripple = (std::f32::consts::TAU * x as f32 / period).sin()
-                * (std::f32::consts::TAU * y as f32 / period).sin();
-            for c in 0..3 {
-                let amp = 0.06 * (1.0 - 0.2 * c as f32);
-                data[i + c] = (base * (1.0 - 0.06 * c as f32) + amp * ripple).clamp(0.02, 0.95);
-            }
-        }
-    }
+            let step = if x < w / 2 { 0.08 } else { 0.35 };
+            [
+                step + 0.2 * u,
+                step * 0.9 + 0.15 * v,
+                step * 0.8 + 0.1 * u * v,
+            ]
+        })
+        .map(|signal: f32| (signal + (0.0004 + 0.004 * signal).sqrt() * gaussian()).clamp(0.0, 1.0))
+        .collect();
     rgb_frame(w, h, data)
 }
 

@@ -1,7 +1,7 @@
 use raw_pipeline::edits::{ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits};
 use raw_pipeline::frame::{OutputFormat, PreviewMode, RawFrame, RenderOptions};
 use raw_pipeline_testkit::frames::{
-    detail_frame, fine_texture_frame, haze_frame, split_tone_frame, step_edge_frame, stripe_frame,
+    detail_frame, haze_frame, noisy_frame, split_tone_frame, step_edge_frame, stripe_frame,
     synthetic_frame,
 };
 use raw_pipeline_testkit::gpu::try_renderer;
@@ -226,13 +226,20 @@ fn gpu_sharpen_previews_match_cpu() {
     ledger.finish();
 }
 
+fn require_nr_effect(label: &str, plain: &[u8], denoised: &[u8]) {
+    let effect = mean_abs_delta(plain, denoised);
+    if effect < 1.0 {
+        panic!("{label}: noise reduction barely changed the image: {effect:.3}");
+    }
+}
+
 #[test]
 fn gpu_nr_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let opts = rgb8_opts(96);
-    let frame = synthetic_frame(96, 64);
+    let opts = rgb8_opts(192);
+    let frame = noisy_frame(192, 128);
     let edits = Edits {
         detail: DetailEdits {
             luma_nr_amount: 50.0,
@@ -245,9 +252,11 @@ fn gpu_nr_matches_cpu() {
         },
         ..Default::default()
     };
+    let plain = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr", &cpu, &gpu);
+    require_nr_effect("nr", &plain.bytes, &cpu.bytes);
     let mut ledger = ParityLedger::new("nr");
     ledger.check("native", &cpu.bytes, &gpu.bytes, 0.09);
     ledger.finish();
@@ -264,7 +273,7 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
         output: OutputFormat::Rgb8,
         ..Default::default()
     };
-    let frame = fine_texture_frame(1024, 768);
+    let frame = noisy_frame(1024, 768);
     let edits = Edits {
         detail: DetailEdits {
             luma_nr_amount: 100.0,
@@ -277,9 +286,11 @@ fn gpu_nr_matches_cpu_with_preview_downsample() {
         },
         ..Default::default()
     };
+    let plain = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
     let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
     let gpu = renderer.render(&frame, &edits, &opts).unwrap();
     require_same_dims("nr-preview", &cpu, &gpu);
+    require_nr_effect("nr-preview", &plain.bytes, &cpu.bytes);
     let mut ledger = ParityLedger::new("nr");
     ledger.check("preview-downsample", &cpu.bytes, &gpu.bytes, 0.15);
     ledger.finish();

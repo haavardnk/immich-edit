@@ -20,8 +20,11 @@ use super::passes::mask_blend::{MASK_BLEND_WGSL, MaskBlendParams};
 use super::passes::mask_overlay::{MASK_OVERLAY_WGSL, MaskOverlayParams};
 use super::passes::mask_weight::{MaskComponent, MaskWeightParams, mask_weight_wgsl};
 use super::passes::meta_bins::{BinParams, histogram_wgsl, scopes_wgsl};
-use super::passes::nr::{NR_WGSL, NrParams};
-use super::passes::nr_smooth::{NR_SMOOTH_WGSL, NrSmoothParams};
+use super::passes::nr::{
+    NR_ATROUS_WGSL, NR_CHROMA_APPLY_WGSL, NR_CHROMA_DOWN_WGSL, NR_HIST_WGSL, NR_LUMA_FINISH_WGSL,
+    NR_LUMA_INIT_WGSL, NR_SHRINK_WGSL, NrApplyParams, NrAtrousParams, NrHistParams, NrShrinkParams,
+    NrSizeParams, nr_wgsl,
+};
 use super::passes::presence::{PRESENCE_ADJUST_WGSL, PresenceParams};
 use super::passes::resample::{RESAMPLE_WGSL, ResampleParams};
 use super::passes::retouch::{
@@ -150,6 +153,7 @@ fn uniform_structs_mirror_wgsl() {
     let size_only = || layout!(DehazeSizeParams { size } pad { _pad });
     let xtrans = || layout!(XtransParams { size, pattern } pad { _pad });
     let bins = || layout!(BinParams { size, step } pad { _pad });
+    let nr_size = || layout!(NrSizeParams { size } pad { _pad });
     let retouch = || {
         layout!(RetouchParams {
             dims,
@@ -267,24 +271,49 @@ fn uniform_structs_mirror_wgsl() {
         ("histogram", bins(), uniform_struct(&histogram_wgsl(depth))),
         ("scopes", bins(), uniform_struct(&scopes_wgsl(depth))),
         (
-            "nr",
-            layout!(NrParams {
-                size,
-                radius,
-                stage,
-                inv_2ss,
-                inv_2sr_luma,
-                inv_2sr_chroma,
-                alpha_luma,
-                alpha_chroma,
-                contrast,
-            } pad { _pad }),
-            uniform_struct(NR_WGSL),
+            "nr_luma_init",
+            nr_size(),
+            uniform_struct(&nr_wgsl(NR_LUMA_INIT_WGSL)),
         ),
         (
-            "nr_smooth",
-            layout!(NrSmoothParams { size, smoothness, alpha_chroma } pad {}),
-            uniform_struct(NR_SMOOTH_WGSL),
+            "nr_luma_finish",
+            nr_size(),
+            uniform_struct(&nr_wgsl(NR_LUMA_FINISH_WGSL)),
+        ),
+        (
+            "nr_chroma_down",
+            nr_size(),
+            uniform_struct(&nr_wgsl(NR_CHROMA_DOWN_WGSL)),
+        ),
+        (
+            "nr_atrous",
+            layout!(NrAtrousParams { size, step, axis } pad {}),
+            uniform_struct(&nr_wgsl(NR_ATROUS_WGSL)),
+        ),
+        (
+            "nr_hist",
+            layout!(NrHistParams { size, lo_size, lo, count, offset, fine } pad {}),
+            uniform_struct(&nr_wgsl(NR_HIST_WGSL)),
+        ),
+        (
+            "nr_shrink",
+            layout!(NrShrinkParams {
+                curves,
+                size,
+                step,
+                lo,
+                count,
+                init,
+                lambda,
+                mu,
+                keep,
+            } pad { _pad }),
+            uniform_struct(&nr_wgsl(NR_SHRINK_WGSL)),
+        ),
+        (
+            "nr_chroma_apply",
+            layout!(NrApplyParams { curves, size, lo_size, lambda, mu, keep } pad { _pad }),
+            uniform_struct(&nr_wgsl(NR_CHROMA_APPLY_WGSL)),
         ),
         (
             "presence_adjust",

@@ -46,6 +46,13 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    creative look from a `.cube` file, with an **Amount**.
 1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
+   Noise reduction measures the noise in each photo, so the same settings suit a clean ISO 100
+   shot and a grainy ISO 12800 one.
+   - **Luminance** sets how much grain to remove. Its **Detail** keeps fine texture that stands
+     above the noise, and **Contrast** keeps more of the coarse grain so smooth areas don't look
+     plastic.
+   - **Color** removes color speckles. Its **Detail** keeps small colored edges, and
+     **Smoothness** also cleans up larger color blotches.
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).
