@@ -22,7 +22,7 @@ use super::passes::mask_weight::{MaskComponent, MaskWeightParams, mask_weight_wg
 use super::passes::meta_bins::{BinParams, histogram_wgsl, scopes_wgsl};
 use super::passes::nr::{NR_WGSL, NrParams};
 use super::passes::nr_smooth::{NR_SMOOTH_WGSL, NrSmoothParams};
-use super::passes::presence::{PRESENCE_ADJUST_WGSL, PresenceParams};
+use super::passes::presence::{PresenceParams, presence_adjust_wgsl};
 use super::passes::resample::{RESAMPLE_WGSL, ResampleParams};
 use super::passes::retouch::{RETOUCH_APPLY_WGSL, RETOUCH_PREP_WGSL, RetouchParams};
 use super::passes::sensor::{SENSOR_WGSL, SensorParams};
@@ -288,7 +288,7 @@ fn uniform_structs_mirror_wgsl() {
         (
             "presence_adjust",
             layout!(PresenceParams { size, amounts, mips } pad { _pad0 }),
-            uniform_struct(PRESENCE_ADJUST_WGSL),
+            uniform_struct(&presence_adjust_wgsl()),
         ),
         (
             "resample",

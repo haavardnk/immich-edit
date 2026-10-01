@@ -42,6 +42,7 @@ impl Op for ClarityOp {
         let only = Edits {
             basic: crate::edits::BasicEdits {
                 clarity: edits.basic.clarity,
+                exposure_ev: edits.basic.exposure_ev,
                 ..Default::default()
             },
             ..Default::default()

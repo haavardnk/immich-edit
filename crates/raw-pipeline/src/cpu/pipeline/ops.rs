@@ -279,6 +279,7 @@ pub(super) fn run_pipeline_ops_inner(
                 let make_op = |a: &crate::ops::presence::PresenceAmounts| CpuFusedOp::Presence {
                     texture: a.texture,
                     clarity: a.clarity,
+                    exposure: a.exposure,
                     texture_blur: texture_blur.clone(),
                     clarity_blur: clarity_blur.clone(),
                 };

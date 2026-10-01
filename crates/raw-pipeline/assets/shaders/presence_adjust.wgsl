@@ -9,6 +9,8 @@ struct PresenceParams {
 @group(0) @binding(2) var pyramid: texture_2d<f32>;
 @group(0) @binding(3) var dst: texture_storage_2d<rgba16float, write>;
 
+// TONE_WGSL_INJECT
+
 fn luma_at(level: u32, x: i32, y: i32) -> f32 {
     let dim = textureDimensions(pyramid, level);
     let ix = clamp(x, 0, i32(dim.x) - 1);
@@ -51,9 +53,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     if (p.amounts.y != 0.0) {
         let b = sampled_luma(p.mips.y, fx, fy);
-        let mt = smoothstep(0.0, 0.1, y0)
-            * (1.0 - smoothstep(0.9, 1.0, y0))
-            * max(1.0 - abs(2.0 * y0 - 1.0), 0.0);
+        let d = tone_srgb_oetf(clamp(y0 * p.amounts.z, 0.0, 1.0));
+        let mt = smoothstep(0.0, 0.1, d)
+            * (1.0 - smoothstep(0.9, 1.0, d))
+            * (1.0 - abs(2.0 * d - 1.0));
         let ratio = log2(y0c / max(b, 1e-5));
         let gate = smoothstep(0.015, 0.12, abs(ratio));
         log_gain = log_gain + p.amounts.y * mt * gate * ratio;

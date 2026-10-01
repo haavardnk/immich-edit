@@ -302,7 +302,7 @@ fn gpu_masked_presence_matches_cpu_and_changes_output() {
     };
     let frame = detail_frame(96, 64);
     let opts = rgb8_opts(96);
-    let edits = Edits {
+    let presence_layer = Edits {
         masks: vec![layer(
             vec![linear_component(0.2)],
             MaskedEdits {
@@ -314,26 +314,41 @@ fn gpu_masked_presence_matches_cpu_and_changes_output() {
         )],
         ..Default::default()
     };
+    let mut exposure_layer = Edits {
+        masks: vec![layer(
+            vec![linear_component(0.2)],
+            MaskedEdits {
+                exposure_ev: Some(1.5),
+                ..Default::default()
+            },
+            false,
+        )],
+        ..Default::default()
+    };
+    exposure_layer.basic.clarity = 60.0;
     let plain = Edits::default();
-
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    let cpu_plain = raw_pipeline::cpu::render(&frame, &plain, &opts).unwrap();
-    let cpu_effect = mean_abs_delta(&cpu.bytes, &cpu_plain.bytes);
-    eprintln!("masked presence cpu effect = {cpu_effect:.3}");
-    if cpu_effect < 0.5 {
-        panic!("masked texture and clarity had no effect on the CPU path: {cpu_effect:.3}");
-    }
-
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    let gpu_plain = renderer.render(&frame, &plain, &opts).unwrap();
-    let gpu_effect = mean_abs_delta(&gpu.bytes, &gpu_plain.bytes);
-    eprintln!("masked presence gpu effect = {gpu_effect:.3}");
-    if gpu_effect < 0.5 {
-        panic!("masked texture and clarity had no effect on the GPU path: {gpu_effect:.3}");
-    }
-
     let mut ledger = ParityLedger::new("masks");
-    ledger.check("masked-presence", &cpu.bytes, &gpu.bytes, 0.07);
+    for (label, edits) in [
+        ("masked-presence", presence_layer),
+        ("masked-exposure-clarity", exposure_layer),
+    ] {
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let cpu_plain = raw_pipeline::cpu::render(&frame, &plain, &opts).unwrap();
+        let cpu_effect = mean_abs_delta(&cpu.bytes, &cpu_plain.bytes);
+        eprintln!("{label} cpu effect = {cpu_effect:.3}");
+        if cpu_effect < 0.5 {
+            panic!("{label} had no effect on the CPU path: {cpu_effect:.3}");
+        }
+
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let gpu_plain = renderer.render(&frame, &plain, &opts).unwrap();
+        let gpu_effect = mean_abs_delta(&gpu.bytes, &gpu_plain.bytes);
+        eprintln!("{label} gpu effect = {gpu_effect:.3}");
+        if gpu_effect < 0.5 {
+            panic!("{label} had no effect on the GPU path: {gpu_effect:.3}");
+        }
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.07);
+    }
     ledger.finish();
 }
 

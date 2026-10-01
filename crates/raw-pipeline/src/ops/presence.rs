@@ -1,11 +1,14 @@
 use crate::edits::Edits;
+use crate::math::smoothstep;
+use crate::tone::srgb_oetf;
 
 const REFERENCE_DIM: f32 = 1080.0;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PresenceAmounts {
     pub texture: f32,
     pub clarity: f32,
+    pub exposure: f32,
 }
 
 impl PresenceAmounts {
@@ -40,7 +43,17 @@ pub fn presence_amounts(edits: &Edits) -> PresenceAmounts {
     PresenceAmounts {
         texture: t * 2.0,
         clarity: c * 1.0,
+        exposure: if c == 0.0 {
+            1.0
+        } else {
+            2f32.powf(edits.basic.exposure_ev as f32)
+        },
     }
+}
+
+pub fn clarity_midtones(y: f32, exposure: f32) -> f32 {
+    let d = srgb_oetf(y * exposure);
+    smoothstep(0.0, 0.1, d) * (1.0 - smoothstep(0.9, 1.0, d)) * (1.0 - (2.0 * d - 1.0).abs())
 }
 
 pub fn presence_radii(width: u32, height: u32) -> PresenceRadii {

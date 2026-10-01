@@ -130,7 +130,7 @@ impl GpuRenderer {
             &PresenceParams {
                 size: [w, h],
                 _pad0: [0; 2],
-                amounts: [amts.texture, amts.clarity, 0.0, 0.0],
+                amounts: [amts.texture, amts.clarity, amts.exposure, 0.0],
                 mips: [mip_sel.texture, mip_sel.clarity, 0, 0],
             },
             "presence-uniform",

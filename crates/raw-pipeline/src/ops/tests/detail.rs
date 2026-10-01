@@ -164,6 +164,50 @@ fn clarity_flat_region_barely_changes() {
 }
 
 #[test]
+fn clarity_follows_exposure_into_display_midtones() {
+    let render = |level: f32, exposure_ev: f64| -> Vec<f32> {
+        let buf = (0..128 * 32)
+            .flat_map(|i| {
+                let v = if (i % 128) < 64 { level } else { level * 1.6 };
+                [v, v, v]
+            })
+            .collect();
+        let mut img = LinearImage::new(buf, 128, 32);
+        let edits = Edits {
+            basic: BasicEdits {
+                clarity: 80.0,
+                exposure_ev,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        crate::cpu::run_pipeline_ops(
+            &mut img,
+            &ctx(),
+            &edits,
+            &crate::mask_raster::empty_rasters(),
+            None,
+        )
+        .unwrap();
+        img.rgb
+    };
+    for (level, exposure_ev) in [(0.02f32, 3.0f64), (0.4, -2.0)] {
+        let shifted = render(level, exposure_ev);
+        let reference = render(level * 2f32.powf(exposure_ev as f32), 0.0);
+        let max_rel = shifted
+            .iter()
+            .zip(&reference)
+            .map(|(a, b)| (a - b).abs() / b.max(1e-4))
+            .fold(0.0f32, f32::max);
+        if max_rel > 1e-3 {
+            panic!(
+                "clarity at {level} {exposure_ev:+} EV differs from the same display tones: {max_rel}"
+            );
+        }
+    }
+}
+
+#[test]
 fn clarity_protects_clipped_highlights_and_crushed_shadows() {
     let mk = |v: f32| LinearImage::new(vec![v; 256 * 256 * 3], 256, 256);
     let edits = Edits {
