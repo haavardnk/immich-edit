@@ -9,19 +9,18 @@ use super::color_grade::{
     COLOR_GRADE_FEATHER_BASE, COLOR_GRADE_FEATHER_RANGE, COLOR_GRADE_PIVOT_BASE,
     COLOR_GRADE_PIVOT_RANGE,
 };
-use super::contrast::{CONTRAST_GAMMA, CONTRAST_ROLLOFF_HI, CONTRAST_ROLLOFF_LO};
+use super::contrast::CONTRAST_GAMMA;
 use super::hsl::{
     HSL_BAND_CENTERS_DEG, HSL_BAND_SIGMA_DEG, HSL_HUE_SHIFT_DEG, HSL_LUM_EV, HSL_MIN_SAT,
     HSL_PARAM_FULL_SCALE, HSL_SAT_GATE_HI, HSL_SAT_GATE_LO,
 };
 use super::tone_regions::{
-    TONE_REGIONS_BK_CEILING, TONE_REGIONS_BK_MASK_RANGE, TONE_REGIONS_BK_MULT_MAX,
-    TONE_REGIONS_BK_STRENGTH, TONE_REGIONS_HL_DESAT_HI, TONE_REGIONS_HL_DESAT_LO,
-    TONE_REGIONS_HL_MASK_HI, TONE_REGIONS_HL_MASK_LO, TONE_REGIONS_HL_MASK_TANH,
-    TONE_REGIONS_HL_STRENGTH, TONE_REGIONS_SH_HALO_HI, TONE_REGIONS_SH_HALO_LO,
-    TONE_REGIONS_SH_MASK_RANGE, TONE_REGIONS_SH_MULT_MAX, TONE_REGIONS_SH_MULT_MIN,
-    TONE_REGIONS_SH_SOURCE_FLOOR, TONE_REGIONS_SH_STRENGTH, TONE_REGIONS_WHITES_PIVOT,
-    TONE_REGIONS_WHITES_STOPS,
+    TONE_REGIONS_BK_MASK_RANGE, TONE_REGIONS_BK_MULT_MAX, TONE_REGIONS_BK_STRENGTH,
+    TONE_REGIONS_HL_DESAT_HI, TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_MASK_HI,
+    TONE_REGIONS_HL_MASK_LO, TONE_REGIONS_HL_MASK_TANH, TONE_REGIONS_HL_STRENGTH,
+    TONE_REGIONS_SH_HALO_HI, TONE_REGIONS_SH_HALO_LO, TONE_REGIONS_SH_MASK_RANGE,
+    TONE_REGIONS_SH_MULT_MAX, TONE_REGIONS_SH_MULT_MIN, TONE_REGIONS_SH_SOURCE_FLOOR,
+    TONE_REGIONS_SH_STRENGTH, TONE_REGIONS_WHITES_PIVOT, TONE_REGIONS_WHITES_STOPS,
 };
 use super::vibrance::{
     VIBRANCE_DESAT_HI, VIBRANCE_DESAT_LO, VIBRANCE_GAIN, VIBRANCE_SAT_HI, VIBRANCE_SAT_LO,
@@ -30,10 +29,18 @@ use super::vibrance::{
 };
 use crate::edits::HSL_BANDS;
 
-const HUE_DIST: &str = r#"fn op_hue_dist(a: f32, b: f32) -> f32 {
+const OP_HELPERS: &str = r#"fn op_hue_dist(a: f32, b: f32) -> f32 {
     let raw = a - b;
     let wrapped = raw - floor(raw / 360.0) * 360.0;
     return min(wrapped, 360.0 - wrapped);
+}
+
+fn op_rgb_tone(c: vec3<f32>, lo_out: f32, hi_out: f32) -> vec3<f32> {
+    let lo = min(min(c.x, c.y), c.z);
+    let hi = max(max(c.x, c.y), c.z);
+    if (hi <= lo) { return vec3<f32>(hi_out); }
+    let scale = (hi_out - lo_out) / (hi - lo);
+    return vec3<f32>(lo_out) + (c - vec3<f32>(lo)) * scale;
 }
 "#;
 
@@ -82,7 +89,7 @@ fn scalars(out: &mut String, entries: &[(&str, f32)]) {
 }
 
 static OP_PRELUDE_WGSL: LazyLock<String> = LazyLock::new(|| {
-    let mut out = String::from(HUE_DIST);
+    let mut out = String::from(OP_HELPERS);
     out.push_str(OKLAB);
     let centers = HSL_BAND_CENTERS_DEG
         .iter()
@@ -110,8 +117,6 @@ static OP_PRELUDE_WGSL: LazyLock<String> = LazyLock::new(|| {
             ("BRIGHTNESS_ROLLOFF_HI", BRIGHTNESS_ROLLOFF_HI),
             ("BRIGHTNESS_MAX_GAIN", BRIGHTNESS_MAX_GAIN),
             ("CONTRAST_GAMMA", CONTRAST_GAMMA),
-            ("CONTRAST_ROLLOFF_LO", CONTRAST_ROLLOFF_LO),
-            ("CONTRAST_ROLLOFF_HI", CONTRAST_ROLLOFF_HI),
             ("VIBRANCE_GAIN", VIBRANCE_GAIN),
             ("VIBRANCE_SAT_LO", VIBRANCE_SAT_LO),
             ("VIBRANCE_SAT_HI", VIBRANCE_SAT_HI),
@@ -138,7 +143,6 @@ static OP_PRELUDE_WGSL: LazyLock<String> = LazyLock::new(|| {
             ("TONE_REGIONS_SH_MULT_MIN", TONE_REGIONS_SH_MULT_MIN),
             ("TONE_REGIONS_SH_MULT_MAX", TONE_REGIONS_SH_MULT_MAX),
             ("TONE_REGIONS_SH_SOURCE_FLOOR", TONE_REGIONS_SH_SOURCE_FLOOR),
-            ("TONE_REGIONS_BK_CEILING", TONE_REGIONS_BK_CEILING),
             ("TONE_REGIONS_BK_MASK_RANGE", TONE_REGIONS_BK_MASK_RANGE),
             ("TONE_REGIONS_BK_STRENGTH", TONE_REGIONS_BK_STRENGTH),
             ("TONE_REGIONS_BK_MULT_MAX", TONE_REGIONS_BK_MULT_MAX),

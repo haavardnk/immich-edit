@@ -2,7 +2,7 @@ use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use crate::math::fast;
-use crate::math::{luma, smoothstep};
+use crate::math::{luma, rgb_tone, smoothstep};
 
 pub struct ToneRegionsOp;
 
@@ -21,7 +21,6 @@ pub const TONE_REGIONS_SH_STRENGTH: f32 = 1.5;
 pub const TONE_REGIONS_SH_MULT_MIN: f32 = 0.1;
 pub const TONE_REGIONS_SH_MULT_MAX: f32 = 3.9;
 pub const TONE_REGIONS_SH_SOURCE_FLOOR: f32 = 1e-5;
-pub const TONE_REGIONS_BK_CEILING: f32 = 2.0;
 pub const TONE_REGIONS_BK_MASK_RANGE: f32 = 0.1;
 pub const TONE_REGIONS_BK_STRENGTH: f32 = 1.5;
 pub const TONE_REGIONS_BK_MULT_MAX: f32 = 3.9;
@@ -84,30 +83,30 @@ pub(crate) fn shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
 
 #[inline(always)]
 fn blacks_scalar(x: f32, bk: f32) -> f32 {
-    let xc = x.clamp(0.0, TONE_REGIONS_BK_CEILING);
-    let mut mask_bk = (1.0 - xc / TONE_REGIONS_BK_MASK_RANGE).clamp(0.0, 1.0);
+    let mut mask_bk = (1.0 - x.max(0.0) / TONE_REGIONS_BK_MASK_RANGE).clamp(0.0, 1.0);
     mask_bk *= mask_bk;
     let mult_bk = fast::exp2(bk * TONE_REGIONS_BK_STRENGTH).clamp(0.0, TONE_REGIONS_BK_MULT_MAX);
-    xc + xc * (mult_bk - 1.0) * mask_bk
+    x + x * (mult_bk - 1.0) * mask_bk
 }
 
 #[inline(always)]
 pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -> (f32, f32, f32) {
     let clip = (r.max(g).max(b) - 1.0).max(0.0);
-    let mut rr = highlights_apply(r, hl);
-    let mut gg = highlights_apply(g, hl);
-    let mut bb = highlights_apply(b, hl);
+    let (mut rr, mut gg, mut bb) = if hl == 0.0 {
+        (r, g, b)
+    } else {
+        rgb_tone(r, g, b, |x| highlights_apply(x, hl))
+    };
     let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip)
         * (-hl).clamp(0.0, 1.0);
     let luma = luma(rr, gg, bb);
     rr = rr + (luma - rr) * desat;
     gg = gg + (luma - gg) * desat;
     bb = bb + (luma - bb) * desat;
-    (
-        blacks_scalar(rr, bk),
-        blacks_scalar(gg, bk),
-        blacks_scalar(bb, bk),
-    )
+    if bk == 0.0 {
+        return (rr, gg, bb);
+    }
+    rgb_tone(rr, gg, bb, |x| blacks_scalar(x, bk))
 }
 
 impl Op for ToneRegionsOp {

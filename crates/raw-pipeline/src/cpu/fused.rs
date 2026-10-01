@@ -1,5 +1,5 @@
 use crate::edits::HSL_BANDS;
-use crate::math::{linear_srgb_to_oklab, luma, oklab_to_linear_srgb};
+use crate::math::{linear_srgb_to_oklab, luma, oklab_to_linear_srgb, rgb_tone};
 use crate::ops::LinearImage;
 use crate::ops::tone_regions::ShadowsGuide;
 use multiversion::multiversion;
@@ -175,9 +175,11 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
         }
         CpuFusedOp::Contrast { s } => {
             for ((r, g), b) in rgb(r, g, b) {
-                *r = crate::ops::contrast::apply_perceptual_contrast(*r, *s);
-                *g = crate::ops::contrast::apply_perceptual_contrast(*g, *s);
-                *b = crate::ops::contrast::apply_perceptual_contrast(*b, *s);
+                let (nr, ng, nb) =
+                    rgb_tone(*r, *g, *b, |v| crate::ops::contrast::contrast_curve(v, *s));
+                *r = nr;
+                *g = ng;
+                *b = nb;
             }
         }
         CpuFusedOp::Saturation { factor } => {
