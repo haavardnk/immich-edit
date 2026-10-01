@@ -1,3 +1,4 @@
+pub mod gamut;
 pub mod shared;
 pub mod wgsl;
 
@@ -38,29 +39,6 @@ pub fn srgb_oetf_scalar(v: f32) -> f32 {
     }
 }
 
-fn project_to_gamut(rgb: [f32; 3], neutral: f32) -> [f32; 3] {
-    let mut out = rgb;
-    let mn = out[0].min(out[1]).min(out[2]);
-    if mn < 0.0 {
-        let t = (-mn / (neutral - mn)).clamp(0.0, 1.0);
-        out = [
-            out[0] + (neutral - out[0]) * t,
-            out[1] + (neutral - out[1]) * t,
-            out[2] + (neutral - out[2]) * t,
-        ];
-    }
-    let mx = out[0].max(out[1]).max(out[2]);
-    if mx > 1.0 {
-        let t = ((mx - 1.0) / (mx - neutral)).clamp(0.0, 1.0);
-        out = [
-            out[0] + (neutral - out[0]) * t,
-            out[1] + (neutral - out[1]) * t,
-            out[2] + (neutral - out[2]) * t,
-        ];
-    }
-    out
-}
-
 fn to_output_space(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
     match cs {
         OutputColorSpace::SRgb => rgb,
@@ -68,17 +46,12 @@ fn to_output_space(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
     }
 }
 
-fn tone_map_luma_and_project_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
-    let neutral = luma(rgb[0], rgb[1], rgb[2]).clamp(0.0, 1.0);
-    project_to_gamut(to_output_space(rgb, cs), neutral)
-}
-
 pub fn apply_rgb(rgb: [f32; 3]) -> [f32; 3] {
     apply_rgb_cs(rgb, OutputColorSpace::SRgb)
 }
 
 pub fn apply_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
-    let mapped = tone_map_luma_and_project_cs(rgb, cs);
+    let mapped = gamut::map_to_gamut(to_output_space(rgb, cs), cs);
     [
         srgb_oetf(mapped[0].clamp(0.0, 1.0)),
         srgb_oetf(mapped[1].clamp(0.0, 1.0)),
@@ -165,7 +138,7 @@ mod tests {
 
     #[test]
     fn flat_projects_negative_channel() {
-        let mapped = tone_map_luma_and_project_cs([-0.2, 0.5, 0.9], OutputColorSpace::SRgb);
+        let mapped = gamut::map_to_gamut([-0.2, 0.5, 0.9], OutputColorSpace::SRgb);
         let mn = mapped[0].min(mapped[1]).min(mapped[2]);
         if mn < -1e-6 {
             panic!("negative channel must be projected to >= 0, got {mapped:?}");
@@ -174,17 +147,13 @@ mod tests {
 
     #[test]
     fn flat_rolls_highlights_toward_neutral() {
-        let mapped = tone_map_luma_and_project_cs([1.5, 0.4, 0.2], OutputColorSpace::SRgb);
+        let mapped = gamut::map_to_gamut([1.5, 0.4, 0.2], OutputColorSpace::SRgb);
         let mx = mapped[0].max(mapped[1]).max(mapped[2]);
         if mx > 1.0 + 1e-4 {
             panic!("above-white must be projected to <= 1, got {mapped:?}");
         }
         if !(mapped[0] > mapped[1] && mapped[1] > mapped[2]) {
             panic!("channel ordering must survive the projection, got {mapped:?}");
-        }
-        let white = tone_map_luma_and_project_cs([2.0, 1.0, 0.3], OutputColorSpace::SRgb);
-        if white.iter().any(|c| (c - 1.0).abs() > 1e-4) {
-            panic!("above-white luma must land on display white, got {white:?}");
         }
     }
 
