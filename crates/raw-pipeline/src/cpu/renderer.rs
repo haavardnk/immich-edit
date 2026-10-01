@@ -90,7 +90,7 @@ pub(crate) fn sensor_cache_key(
     superpixel_block: Option<usize>,
 ) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
-    frame.cache_key().hash(&mut h);
+    frame.id.hash(&mut h);
     frame.meta.orientation.hash(&mut h);
     frame.meta.is_raw.hash(&mut h);
     for v in frame.meta.wb_coeffs {

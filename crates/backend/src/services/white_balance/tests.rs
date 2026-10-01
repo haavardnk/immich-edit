@@ -1,4 +1,4 @@
-use raw_pipeline::frame::FrameMeta;
+use raw_pipeline::frame::{FrameId, FrameMeta};
 
 use super::*;
 
@@ -22,6 +22,7 @@ fn uniform_frame(rgb: [f32; 3]) -> Arc<RawFrame> {
         data: rgb.repeat(SIZE * SIZE),
         cpp: 3,
         exif: None,
+        id: FrameId::fresh(),
     })
 }
 

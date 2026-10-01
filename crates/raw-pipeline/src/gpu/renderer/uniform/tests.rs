@@ -1,7 +1,7 @@
 use super::super::UNIFORM_POOL_CAP_PER_SIZE;
 use super::GpuRenderer;
 use crate::edits::Edits;
-use crate::frame::{FrameMeta, OutputFormat, RawFrame, RenderOptions};
+use crate::frame::{FrameId, FrameMeta, OutputFormat, RawFrame, RenderOptions};
 use crate::gpu::passes::effects_tone::EffectsToneParams;
 use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
 use crate::gpu::uniform_pool::PooledUniform;
@@ -35,6 +35,7 @@ fn frame() -> RawFrame {
         data,
         cpp: 3,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 

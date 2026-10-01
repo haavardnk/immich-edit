@@ -1,7 +1,7 @@
 use raw_pipeline::{
     cpu, decode,
     edits::Edits,
-    frame::{FrameMeta, RawFrame, RenderOptions},
+    frame::{FrameId, FrameMeta, RawFrame, RenderOptions},
 };
 use raw_pipeline_testkit::color::luma;
 use raw_pipeline_testkit::fixtures::{
@@ -212,6 +212,7 @@ fn default_sharpening_is_raw_only() {
         cfa_pattern: frame.cfa_pattern.clone(),
         data: frame.data.clone(),
         exif: None,
+        id: FrameId::fresh(),
         ..frame
     };
     let rendered_default = cpu::render(&rendered, &Edits::default(), &opts).unwrap();
@@ -238,6 +239,7 @@ fn sensor_scaling_darkens_the_render() {
             data: frame.data.iter().map(|v| v * 0.25).collect(),
             cpp: frame.cpp,
             exif: None,
+            id: FrameId::fresh(),
         };
         let bright = mean_luma(&cpu::render(frame, &Edits::default(), &opts).unwrap().bytes);
         let dark = mean_luma(&cpu::render(&dim, &Edits::default(), &opts).unwrap().bytes);
@@ -285,6 +287,7 @@ fn non_raw_ignores_the_profile_mode() {
             cfa_pattern: frame.cfa_pattern.clone(),
             data: frame.data.clone(),
             exif: None,
+            id: FrameId::fresh(),
             ..*frame
         };
         let flat = cpu::render(&rendered, &with_dcp_mode(DcpMode::Flat), &opts).unwrap();

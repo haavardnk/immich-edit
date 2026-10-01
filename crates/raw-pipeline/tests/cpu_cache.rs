@@ -7,6 +7,7 @@ use raw_pipeline::{
     frame::{OutputFormat, RenderOptions},
 };
 use raw_pipeline_testkit::fixtures::first_fixture_frame;
+use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
 
 fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     let preview = || RenderOptions {
@@ -168,6 +169,30 @@ fn cpu_cache_hits_on_every_display_tick() {
             );
         }
     }
+}
+
+#[test]
+fn a_frame_in_a_reused_allocation_is_not_served_from_cache() {
+    let options = RenderOptions {
+        max_edge: 96,
+        output: OutputFormat::Rgb8,
+        ..Default::default()
+    };
+    let edits = Edits::default();
+    let renderer = CpuRenderer::new();
+    let first = synthetic_frame(96, 64);
+    renderer.render(&first, &edits, &options).unwrap();
+    let mut data = first.data;
+    data.reverse();
+    let second = rgb_frame(96, 64, data);
+
+    let got = renderer.render(&second, &edits, &options).unwrap();
+    let expected = cpu::render(&second, &edits, &options).unwrap();
+
+    assert_eq!(
+        got.bytes, expected.bytes,
+        "a frame in a freed frame's allocation rendered from the old frame's cache"
+    );
 }
 
 #[test]

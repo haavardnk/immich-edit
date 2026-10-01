@@ -1,6 +1,6 @@
 use super::*;
 use crate::edits::{CropRect, GeometryEdits};
-use crate::frame::FrameMeta;
+use crate::frame::{FrameId, FrameMeta};
 
 fn make_frame(w: usize, h: usize, rgb: [f32; 3]) -> RawFrame {
     make_frame_with(w, h, |_, _| rgb)
@@ -28,6 +28,7 @@ fn make_frame_with<F: Fn(usize, usize) -> [f32; 3]>(w: usize, h: usize, f: F) ->
         data,
         cpp: 3,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 

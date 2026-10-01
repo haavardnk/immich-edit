@@ -1,4 +1,16 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 pub type OrientFlips = (bool, bool, bool);
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct FrameId(u64);
+
+impl FrameId {
+    pub fn fresh() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        Self(NEXT.fetch_add(1, Ordering::Relaxed))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FrameMeta {
@@ -21,14 +33,7 @@ pub struct RawFrame {
     pub cpp: usize,
     #[cfg(feature = "native")]
     pub exif: Option<little_exif::metadata::Metadata>,
-}
-
-impl RawFrame {
-    pub fn cache_key(&self) -> u64 {
-        let ptr = self.data.as_ptr() as usize as u64;
-        let dims = ((self.meta.width as u64) << 32) | (self.meta.height as u64);
-        ptr ^ dims
-    }
+    pub id: FrameId,
 }
 
 pub struct RenderOptions {

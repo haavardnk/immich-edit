@@ -1,5 +1,5 @@
 use super::*;
-use crate::frame::FrameMeta;
+use crate::frame::{FrameId, FrameMeta};
 
 #[test]
 fn preview_ratio_cases() {
@@ -36,6 +36,7 @@ fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
         data: Vec::new(),
         cpp,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 

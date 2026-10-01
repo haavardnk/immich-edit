@@ -1,5 +1,5 @@
 use crate::PipelineError;
-use crate::frame::{FrameMeta, RawFrame};
+use crate::frame::{FrameId, FrameMeta, RawFrame};
 use rawler::cfa::CFA;
 use rawler::imgop::chromatic_adaption::adapt_bradford;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
@@ -163,6 +163,7 @@ pub(super) fn decode_raw_fast(
         data,
         cpp: 1,
         exif,
+        id: FrameId::fresh(),
     })
 }
 
@@ -298,6 +299,7 @@ pub(super) fn decode_raw_quality(
         data,
         cpp: 3,
         exif,
+        id: FrameId::fresh(),
     })
 }
 
@@ -341,5 +343,6 @@ fn decode_raw_xtrans(
         data,
         cpp: 1,
         exif,
+        id: FrameId::fresh(),
     })
 }

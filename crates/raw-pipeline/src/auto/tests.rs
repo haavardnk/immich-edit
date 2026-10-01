@@ -1,6 +1,6 @@
 use super::*;
 use crate::edits::{CropRect, GeometryEdits, LensEdits};
-use crate::frame::FrameMeta;
+use crate::frame::{FrameId, FrameMeta};
 
 fn make_frame_luma(luma: f32, w: usize, h: usize) -> RawFrame {
     make_frame_with(w, h, |_, _| luma)
@@ -37,6 +37,7 @@ fn make_mosaic_frame_with<F: Fn(usize, usize) -> f32>(
         data,
         cpp: 1,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 
@@ -67,6 +68,7 @@ fn make_frame_with<F: Fn(usize, usize) -> f32>(w: usize, h: usize, f: F) -> RawF
         data,
         cpp: 3,
         exif: None,
+        id: FrameId::fresh(),
     }
 }
 
