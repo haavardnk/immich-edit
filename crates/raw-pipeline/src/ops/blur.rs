@@ -1,6 +1,7 @@
 use crate::cpu::scratch::Scratch;
 use rayon::prelude::*;
 
+#[cfg(feature = "native")]
 pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
     let s = sigma.max(0.01);
     let radius = (s * 3.0).ceil() as usize;
