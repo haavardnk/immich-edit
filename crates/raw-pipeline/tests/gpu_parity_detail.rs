@@ -99,14 +99,21 @@ fn gpu_shadows_match_cpu_via_pyramid() {
     };
     let opts = rgb8_opts(128);
     let frame = split_tone_frame(48, 32);
-    let mut edits = Edits::default();
-    edits.tone.shadows = 50.0;
-
-    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
-    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-    require_same_dims("shadows", &cpu, &gpu);
     let mut ledger = ParityLedger::new("shadows");
-    ledger.check("shadows+50", &cpu.bytes, &gpu.bytes, 0.04);
+    for (label, exposure_ev, brightness) in [
+        ("shadows+50", 0.0, 0.0),
+        ("shadows+50-ev+2", 2.0, 0.0),
+        ("shadows+50-bright+60", 0.0, 60.0),
+    ] {
+        let mut edits = Edits::default();
+        edits.tone.shadows = 50.0;
+        edits.basic.exposure_ev = exposure_ev;
+        edits.basic.brightness = brightness;
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.04);
+    }
     ledger.finish();
 }
 

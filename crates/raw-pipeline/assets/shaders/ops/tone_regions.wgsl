@@ -18,6 +18,10 @@ fn tone_regions_highlights(x: f32, hl: f32) -> f32 {
     return x * (1.0 - mask) + new_v * mask;
 }
 
+fn tone_regions_shadows_blur_at(blur_l: f32, source_l: f32, luma: f32) -> f32 {
+    return blur_l * luma / max(source_l, TONE_REGIONS_SH_SOURCE_FLOOR);
+}
+
 fn tone_regions_shadows_mult(luma: f32, blur_l: f32, sh: f32) -> f32 {
     if (sh == 0.0) { return 1.0; }
     var mask = clamp(1.0 - luma / TONE_REGIONS_SH_MASK_RANGE, 0.0, 1.0);
@@ -55,12 +59,12 @@ fn tone_regions_apply_rgb(c: vec3<f32>, hl: f32, bk: f32) -> vec3<f32> {
     );
 }
 
-fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>, blur_l: f32) -> vec3<f32> {
+fn tone_regions_apply(c: vec3<f32>, p: vec4<f32>, blur_l: f32, source_l: f32) -> vec3<f32> {
     if (p.x == 0.0 && p.y == 0.0 && p.z == 0.0 && p.w == 0.0) { return c; }
     let gain = tone_regions_whites_gain(p.w);
     var v = c * gain;
     let luma = 0.2126 * v.x + 0.7152 * v.y + 0.0722 * v.z;
-    let sm = tone_regions_shadows_mult(luma, blur_l, p.y);
+    let sm = tone_regions_shadows_mult(luma, tone_regions_shadows_blur_at(blur_l, source_l, luma), p.y);
     v = v * sm;
     return tone_regions_apply_rgb(v, p.x, p.z);
 }

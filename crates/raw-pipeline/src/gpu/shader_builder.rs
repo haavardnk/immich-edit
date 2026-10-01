@@ -151,6 +151,7 @@ pub fn build_for(
 @group(0) @binding(5) var dcp_base_tex: texture_3d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
+var<private> shadows_source_l: f32 = 0.0;
 
 fn shadows_luma_at(level: u32, x: i32, y: i32) -> f32 {{
     let dim = vec2<i32>(textureDimensions(shadows_blur_tex, level));
@@ -267,6 +268,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let rgb = sample_src_cubic(vec2<f32>(su, sv));
     shadows_blur_l = sample_shadows_blur(vec2<f32>(su, sv), p.geom_extra.y);
+    shadows_source_l = sample_shadows_blur(vec2<f32>(su, sv), 0.0);
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);
     if (p.geom_extra3.z > 0.5 && (src_px.x < 0.0 || src_px.y < 0.0 || src_px.x > p.geom_extra3.x - 1.0 || src_px.y > p.geom_extra3.y - 1.0)) {{

@@ -31,6 +31,10 @@ fn shadow_luma(c: [f32; 3]) -> f32 {
     crate::math::luma(c[0], c[1], c[2])
 }
 
+fn shadow_source(c: [f32; 3]) -> f32 {
+    shadow_luma(c) * 0.6
+}
+
 fn probe_table() -> HueSatMap {
     let (hue_div, sat_div, val_div) = (6u32, 3u32, 4u32);
     let data = (0..hue_div * sat_div * val_div)
@@ -181,6 +185,7 @@ fn run_on_gpu(
 @group(0) @binding(3) var dcp_base_tex: texture_3d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
+var<private> shadows_source_l: f32 = 0.0;
 
 {tone}
 
@@ -190,10 +195,11 @@ var<private> shadows_blur_l: f32 = 0.0;
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let i = gid.x;
-    if (i >= arrayLength(&src)) {{ return; }}
+    if (i >= arrayLength(&dst)) {{ return; }}
     _ = textureDimensions(dcp_base_tex);
-    var lin = src[i].rgb;
-    shadows_blur_l = src[i].w;
+    var lin = src[2u * i].rgb;
+    shadows_blur_l = src[2u * i].w;
+    shadows_source_l = src[2u * i + 1u].x;
 {apply}
     dst[i] = vec4<f32>(lin, 1.0);
 }}
@@ -225,7 +231,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
 
     let padded: Vec<f32> = colors
         .iter()
-        .flat_map(|c| [c[0], c[1], c[2], shadow_luma(*c)])
+        .flat_map(|c| {
+            [
+                c[0],
+                c[1],
+                c[2],
+                shadow_luma(*c),
+                shadow_source(*c),
+                0.0,
+                0.0,
+                0.0,
+            ]
+        })
         .collect();
     let bytes = colors.len() * 16;
     let src_buf = ctx
@@ -325,8 +342,11 @@ fn fused_op_shaders_match_their_rust_implementations() {
     let edits = probe_edits();
     let colors = probe_colors();
     let mut ctx = probe_ctx();
-    ctx.scratch.shadows_blur = Some(std::sync::Arc::new(
-        colors.iter().map(|c| shadow_luma(*c)).collect(),
+    ctx.scratch.shadows = Some(std::sync::Arc::new(
+        crate::ops::tone_regions::ShadowsGuide {
+            blur: colors.iter().map(|c| shadow_luma(*c)).collect(),
+            source: colors.iter().map(|c| shadow_source(*c)).collect(),
+        },
     ));
     let registry = default_registry();
     let table = probe_table();

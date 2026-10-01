@@ -297,7 +297,7 @@ fn finish_render(
                 out_ctx = OpContext {
                     render: ctx.render.clone(),
                     scratch: OpScratch {
-                        shadows_blur: None,
+                        shadows: None,
                         sharpen_delta: Some(crate::ops::SharpenDeltaMap {
                             width: d.width,
                             height: d.height,
