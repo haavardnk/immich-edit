@@ -73,6 +73,15 @@ impl HueSatMap {
             .checked_mul(self.sat_div as usize)?
             .checked_mul(self.val_div.max(1) as usize)
     }
+
+    pub fn gpu_dims(&self) -> [u32; 4] {
+        [
+            self.hue_div,
+            self.sat_div,
+            self.val_div.max(1),
+            matches!(self.encoding, HsvEncoding::Srgb) as u32,
+        ]
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

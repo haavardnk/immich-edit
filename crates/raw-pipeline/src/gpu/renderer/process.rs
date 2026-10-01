@@ -76,6 +76,7 @@ pub(super) struct ProcessViews {
     pub out: TextureView,
     pub linear: TextureView,
     pub shadows: TextureView,
+    pub dcp_base: TextureView,
 }
 
 impl ProcessViews {
@@ -84,12 +85,14 @@ impl ProcessViews {
         target: &OutputTargets,
         display: &Texture,
         dummy_luma: &Texture,
+        dcp_base: TextureView,
     ) -> Self {
         Self {
             src: full_view(&state.texture),
             out: full_view(display),
             linear: full_view(&target.linear_texture),
             shadows: full_view(state.shadows.as_deref().unwrap_or(dummy_luma)),
+            dcp_base,
         }
     }
 }
@@ -125,6 +128,7 @@ impl GpuRenderer {
                 tex(&views.out),
                 tex(&views.linear),
                 tex(&views.shadows),
+                tex(&views.dcp_base),
             ],
         );
         dispatch_2d(

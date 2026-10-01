@@ -74,8 +74,28 @@ fn black_and_white_runs_after_colour_edits_and_before_grading() {
     for before in ["hsl", "saturation", "vibrance"] {
         assert!(pos(before) < pos("bw"), "{before}");
     }
-    for after in ["color_grade", "dcp_hue_sat", "lut_3d"] {
+    for after in ["color_grade", "lut_3d"] {
         assert!(pos("bw") < pos(after), "{after}");
+    }
+}
+
+#[test]
+fn dcp_base_table_runs_after_white_balance_and_before_user_tone_and_colour() {
+    let reg = default_registry();
+    let ids: Vec<&str> = reg.ops().iter().map(|o| o.id()).collect();
+    let pos = |id: &str| ids.iter().position(|s| *s == id).unwrap();
+    assert!(pos("white_balance") < pos("dcp_hue_sat"));
+    for after in [
+        "exposure",
+        "contrast",
+        "hsl",
+        "saturation",
+        "vibrance",
+        "bw",
+        "color_grade",
+        "lut_3d",
+    ] {
+        assert!(pos("dcp_hue_sat") < pos(after), "{after}");
     }
 }
 #[test]
