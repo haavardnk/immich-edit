@@ -423,7 +423,6 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
 
   const maskPreview = page.getByRole('button', { name: 'Toggle mask preview', exact: true });
-  await maskPreview.click();
   await expect
     .poll(() =>
       previews.some(
@@ -471,6 +470,7 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   expect(kind?.kind).toBe('color_range');
   expect(kind?.sample_rgb).toHaveLength(3);
   expect(kind?.sample_rgb).not.toEqual([0.5, 0.5, 0.5]);
+  await expect(maskPreview).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Pick color from image' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Pick color from image' }).click();
@@ -478,6 +478,24 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
 });
+
+for (const [tool, pressed] of [
+  ['Luminance range', 'true'],
+  ['Color range', 'true'],
+  ['Linear gradient', 'false']
+] as const) {
+  test(`new ${tool} mask sets mask preview pressed=${pressed}`, async ({ page }) => {
+    await installMocks(page);
+    await gotoAsset(page);
+
+    await page.getByRole('tab', { name: 'Masks' }).click();
+    await page.getByRole('button', { name: 'New mask' }).click();
+    await page.getByRole('button', { name: tool, exact: true }).click();
+    await expect(
+      page.getByRole('button', { name: 'Toggle mask preview', exact: true })
+    ).toHaveAttribute('aria-pressed', pressed);
+  });
+}
 
 test('mask preview survives a clipping toggle and a held original', async ({ page }) => {
   const previews: PreviewRequest[] = [];
@@ -487,7 +505,6 @@ test('mask preview survives a clipping toggle and a held original', async ({ pag
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
-  await page.getByRole('button', { name: 'Toggle mask preview', exact: true }).click();
   const isMaskWeight = (request: PreviewRequest | undefined): boolean =>
     typeof request?.preview_mode === 'object' &&
     request.preview_mode !== null &&

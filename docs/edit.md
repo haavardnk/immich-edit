@@ -136,7 +136,8 @@ set of adjustments.
      `Enter`, to close it. Its feather is the same width along every edge.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
      They look past noise and grain, so the selection follows areas and edges instead of
-     speckling pixel by pixel.
+     speckling pixel by pixel. A new range mask opens with the mask preview on, and so does a
+     color range after you sample; press the mask's preview button to see the photo again.
    - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
      the area for you. **Click to select** and **Box select** find an object you click or draw a box
      around. These need a model that an administrator installs; see

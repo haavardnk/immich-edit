@@ -50,6 +50,10 @@ export interface MaskLayersCtx {
   onCommit(action?: string): Promise<void>;
 }
 
+function isRangeKind(kind: MaskComponentKind): boolean {
+  return kind.kind === 'luma_range' || kind.kind === 'color_range';
+}
+
 export function maskCapacityFor(
   ctx: MaskLayersCtx,
   layerId: string | null
@@ -154,6 +158,7 @@ export async function commitColorSample(
     return;
   }
   ctx.colorPicker = null;
+  ctx.maskPreviewLayerId = picker.layerId;
   updateMaskComponentKind(
     ctx,
     picker.layerId,
@@ -174,6 +179,7 @@ export async function addMaskLayer(
   ctx.edits = { ...ctx.edits, masks: [...ctx.edits.masks, layer] };
   ctx.activeLayerId = layer.id;
   ctx.activeMaskComponentId = layer.components[0]?.id ?? null;
+  ctx.maskPreviewLayerId = isRangeKind(kind) ? layer.id : null;
   await ctx.onCommit(`Add ${layer.name}`);
   return layer.id;
 }
@@ -362,6 +368,7 @@ export async function addMaskComponent(
   const component = makeComponent(kind, mode);
   patchMaskLayer(ctx, layerId, { components: [...layer.components, component] }, false);
   ctx.activeMaskComponentId = component.id;
+  if (isRangeKind(kind)) ctx.maskPreviewLayerId = layerId;
   await ctx.onCommit(`Add ${kind.kind.replaceAll('_', ' ')} Shape`);
   return component.id;
 }
