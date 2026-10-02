@@ -18,7 +18,7 @@ pub(super) struct OutputTargets {
     pub scope_counts: Buffer,
     pub meta_readback: Buffer,
     pub mask_accum_alt: Texture,
-    pub mask_base_linear: Texture,
+    pub mask_selector: Texture,
     pub mask_scratch_linear: Texture,
     pub mask_scratch_tone: Texture,
     pub mask_weight: Texture,
@@ -65,11 +65,7 @@ impl OutputTargets {
                 TextureFormat::Rgba16Float,
                 STORAGE_SAMPLED | TextureUsages::COPY_SRC,
             ),
-            mask_base_linear: make(
-                "mask-base-linear",
-                TextureFormat::Rgba16Float,
-                STORAGE_SAMPLED | TextureUsages::COPY_DST,
-            ),
+            mask_selector: make("mask-selector", TextureFormat::Rgba32Float, STORAGE_SAMPLED),
             mask_scratch_linear: make(
                 "mask-scratch-linear",
                 TextureFormat::Rgba16Float,

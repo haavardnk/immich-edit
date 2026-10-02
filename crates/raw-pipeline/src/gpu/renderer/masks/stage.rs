@@ -7,7 +7,7 @@ use wgpu::{BufferUsages, CommandEncoder, Texture, TextureView};
 use super::{
     LAYER_LABELS, MaskAtlas, MaskWeightJob, PREVIEW_LABELS, Retained, atlas_view, mask_aspect,
 };
-use crate::cpu::masked::{build_layer_eval, effective_edits_for_layer};
+use crate::cpu::masked::{LayerEval, build_layer_eval, effective_edits_for_layer};
 use crate::edits::{Edits, MaskLayer};
 use crate::frame::{PreviewMode, RenderOptions};
 use crate::gpu::dispatch::{bind_group, copy_texture, dispatch_2d, tex};
@@ -42,7 +42,7 @@ struct MaskViews {
     sharpen: TextureView,
     accum_alt: TextureView,
     linear: TextureView,
-    base_linear: TextureView,
+    selector: TextureView,
     atlas: TextureView,
 }
 
@@ -54,7 +54,7 @@ impl MaskViews {
             sharpen: full_view(&p.mask_sharpen),
             accum_alt: full_view(&p.mask_accum_alt),
             linear: full_view(&p.linear_texture),
-            base_linear: full_view(&p.mask_base_linear),
+            selector: full_view(&p.mask_selector),
             atlas: atlas_view(&atlas.texture),
         }
     }
@@ -62,6 +62,7 @@ impl MaskViews {
 
 struct MaskLayerJob<'a> {
     layer: &'a MaskLayer,
+    eval: &'a LayerEval,
     slot_map: &'a HashMap<String, u32>,
     sharpen_flags: u32,
     accum_in_alt: bool,
@@ -97,7 +98,14 @@ impl GpuRenderer {
 
         let p = stage.target;
         let out_dims = stage.plan.out_dims;
-        copy_texture(encoder, &p.linear_texture, &p.mask_base_linear, out_dims);
+        let aspect = mask_aspect(&stage.plan.geom);
+        let evals: Vec<LayerEval> = effective_layers
+            .iter()
+            .map(|layer| build_layer_eval(layer, &stage.opts.rasters, aspect))
+            .collect();
+        if evals.iter().any(LayerEval::reads_display) {
+            self.encode_mask_selector(encoder, &stage, retained);
+        }
         let (atlas, slot_map) =
             self.prepare_mask_atlas(effective_layers.iter().copied(), &stage.opts.rasters);
         let views = MaskViews::new(p, &atlas);
@@ -105,7 +113,7 @@ impl GpuRenderer {
 
         let masked_sharpen = edits.masked_sharpen_active();
         let mut accum_in_alt = false;
-        for (layer_index, layer) in effective_layers.iter().enumerate() {
+        for (layer_index, (layer, eval)) in effective_layers.iter().zip(&evals).enumerate() {
             let sharpen_flags = match (masked_sharpen, layer_index) {
                 (false, _) => 0,
                 (true, 0) => 1,
@@ -113,6 +121,7 @@ impl GpuRenderer {
             };
             let job = MaskLayerJob {
                 layer,
+                eval,
                 slot_map: &slot_map,
                 sharpen_flags,
                 accum_in_alt,
@@ -138,13 +147,17 @@ impl GpuRenderer {
         let atlas_view = atlas_view(&atlas.texture);
         let weight_view = full_view(&stage.target.mask_weight);
         let eval = build_layer_eval(layer, &stage.opts.rasters, mask_aspect(&stage.plan.geom));
+        if eval.reads_display() {
+            self.encode_mask_selector(encoder, stage, retained);
+        }
+        let selector_view = full_view(&stage.target.mask_selector);
         let job = MaskWeightJob {
             labels: &PREVIEW_LABELS,
             eval: &eval,
             slot_map: &slot_map,
             weight_view: &weight_view,
             atlas_view: &atlas_view,
-            base_view: &stage.views.linear,
+            selector_view: &selector_view,
         };
         self.encode_mask_weight(
             encoder,
@@ -166,18 +179,13 @@ impl GpuRenderer {
         retained: &mut Retained,
     ) {
         self.encode_layer_process(encoder, stage, views, job.layer, retained);
-        let eval = build_layer_eval(
-            job.layer,
-            &stage.opts.rasters,
-            mask_aspect(&stage.plan.geom),
-        );
         let weight = MaskWeightJob {
             labels: &LAYER_LABELS,
-            eval: &eval,
+            eval: job.eval,
             slot_map: job.slot_map,
             weight_view: &views.weight,
             atlas_view: &views.atlas,
-            base_view: &views.base_linear,
+            selector_view: &views.selector,
         };
         self.encode_mask_weight(
             encoder,

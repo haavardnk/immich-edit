@@ -604,3 +604,42 @@ fn gpu_range_masks_match_cpu_within_tolerance() {
         },
     );
 }
+
+#[test]
+fn gpu_smoothed_luma_range_matches_cpu_on_a_textured_frame() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = step_edge_frame(2048, 96);
+    let opts = rgb8_opts(2048);
+    let luma = MaskComponent {
+        id: "luma".into(),
+        enabled: true,
+        mode: MaskComponentMode::Add,
+        invert: false,
+        kind: MaskComponentKind::LumaRange {
+            min: 0.45,
+            max: 1.0,
+            softness: 0.02,
+        },
+        source: MaskSource::Manual,
+        generated: None,
+    };
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "smoothed-luma-range",
+            frame: &frame,
+            opts: &opts,
+            components: vec![luma],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.0),
+                ..Default::default()
+            },
+            invert: false,
+            fast_tolerance: 0.05,
+            presence_tolerance: 0.2,
+            min_effect: 0.5,
+        },
+    );
+}

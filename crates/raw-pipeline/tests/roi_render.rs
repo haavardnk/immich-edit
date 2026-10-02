@@ -1,6 +1,9 @@
 use raw_pipeline::{
     GpuRenderer, cpu, decode,
-    edits::{CropRect, Edits},
+    edits::{
+        CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer,
+        MaskSource, MaskedEdits,
+    },
     frame::{OutputFormat, RawFrame, RenderOptions},
 };
 use raw_pipeline_testkit::color::luma;
@@ -104,6 +107,37 @@ fn roi_cases() -> Vec<(&'static str, Edits)> {
     ]
 }
 
+fn luma_range_edits() -> Edits {
+    Edits {
+        masks: vec![MaskLayer {
+            id: "L1".into(),
+            name: String::new(),
+            enabled: true,
+            color: "#fff".into(),
+            amount: 1.0,
+            invert: false,
+            components: vec![MaskComponent {
+                id: "luma".into(),
+                enabled: true,
+                mode: MaskComponentMode::Add,
+                invert: false,
+                kind: MaskComponentKind::LumaRange {
+                    min: 0.5,
+                    max: 1.0,
+                    softness: 0.002,
+                },
+                source: MaskSource::Manual,
+                generated: None,
+            }],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.5),
+                ..Default::default()
+            },
+        }],
+        ..Default::default()
+    }
+}
+
 const ROI: CropRect = CropRect {
     x: 0.25,
     y: 0.25,
@@ -143,6 +177,60 @@ fn gpu_roi_tile_matches_full_render_crop() {
         (out.bytes, out.width as usize, out.height as usize)
     };
     tile_matches_full_crop(render, ROI, &roi_cases(), 1.5);
+}
+
+#[test]
+fn gpu_roi_range_mask_matches_full_render_at_tile_edges() {
+    let renderer = match GpuRenderer::new() {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("no gpu adapter, skipping: {e}");
+            return;
+        }
+    };
+    let w = 2048;
+    let h = 1024;
+    let data = (0..h)
+        .flat_map(|y| (0..w).map(move |x| (x, y)))
+        .flat_map(|(x, y)| {
+            let v =
+                0.1 + 0.3 * x as f32 / (w - 1) as f32 + [0.012, -0.006, -0.006][(x + 2 * y) % 3];
+            [v, v, v]
+        })
+        .collect();
+    let frame = rgb_frame(w, h, data);
+    let edits = luma_range_edits();
+    let render = |max_edge: u32, roi: Option<CropRect>| {
+        let opts = RenderOptions {
+            max_edge,
+            roi,
+            output: OutputFormat::Rgb8,
+            ..Default::default()
+        };
+        renderer.render(&frame, &edits, &opts).unwrap()
+    };
+    let full = render(4096, None);
+    let tile = render(w as u32 / 2, Some(ROI));
+    let fw = full.width as usize;
+    let x0 = (ROI.x as f64 * fw as f64).round() as usize;
+    let y0 = (ROI.y as f64 * full.height as f64).round() as usize;
+    let region = crop_region(
+        &full.bytes,
+        fw,
+        x0,
+        y0,
+        tile.width as usize,
+        tile.height as usize,
+    );
+    let worst = tile
+        .bytes
+        .chunks_exact(3)
+        .zip(region.chunks_exact(3))
+        .map(|(p, q)| (luma(p) - luma(q)).abs())
+        .fold(0.0, f64::max);
+    if worst > 3.0 {
+        panic!("range mask tile edge differs from the full render by {worst}");
+    }
 }
 
 #[test]

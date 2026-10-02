@@ -1,6 +1,7 @@
 use rayon::prelude::*;
 
 use super::LayerEval;
+use super::selector::{display_selector, smooth_selector};
 use super::weight::fold_layer_weight_with_display;
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::{LensWarpParams, mask_uv_to_scene_uv};
@@ -19,6 +20,10 @@ pub fn blend_layer_images(
     let inv_h = 1.0 / image.height.max(1) as f32;
     let row_floats = w * 3;
     let warp_active = !lens_warp.is_identity();
+    let selector = layers
+        .iter()
+        .any(LayerEval::reads_display)
+        .then(|| display_selector(image));
 
     image
         .rgb
@@ -35,7 +40,7 @@ pub fn blend_layer_images(
                 } else {
                     (u, v)
                 };
-                let display_rgb = crate::tone::apply_rgb([px[0], px[1], px[2]]);
+                let display_rgb = selector.as_ref().map_or([0.0; 3], |s| s[y * w + x]);
                 let o = row_base + x * 3;
                 for (li, layer) in layers.iter().enumerate() {
                     let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
@@ -62,11 +67,14 @@ pub fn build_sharpen_delta_image(
     let inv_w = 1.0 / w.max(1) as f32;
     let inv_h = 1.0 / h.max(1) as f32;
     let warp_active = !lens_warp.is_identity();
+    let selector = layers
+        .iter()
+        .any(LayerEval::reads_display)
+        .then(|| display_selector(image));
     let mut out = vec![0.0f32; w * h * 3];
     out.par_chunks_exact_mut(w * 3)
-        .zip(image.rgb.par_chunks_exact(w * 3))
         .enumerate()
-        .for_each(|(y, (row, src))| {
+        .for_each(|(y, row)| {
             let v = (y as f32 + 0.5) * inv_h;
             for x in 0..w {
                 let u = (x as f32 + 0.5) * inv_w;
@@ -77,7 +85,7 @@ pub fn build_sharpen_delta_image(
                     (u, v)
                 };
                 let i = x * 3;
-                let display_rgb = crate::tone::apply_rgb([src[i], src[i + 1], src[i + 2]]);
+                let display_rgb = selector.as_ref().map_or([0.0; 3], |s| s[y * w + x]);
                 let mut acc = 0.0;
                 for (li, layer) in layers.iter().enumerate() {
                     if deltas[li] == 0.0 {
@@ -113,6 +121,26 @@ pub fn render_mask_overlay(
             &d.from_pp,
         )
     });
+    let display: Vec<[f32; 3]> = image
+        .rgb
+        .par_chunks_exact(3)
+        .map(|px| {
+            let finished = match finish {
+                Some((look, curve, to_pp, from_pp)) => crate::color::apply_dcp_finish(
+                    look,
+                    curve,
+                    to_pp,
+                    from_pp,
+                    [px[0], px[1], px[2]],
+                ),
+                None => [px[0], px[1], px[2]],
+            };
+            crate::tone::apply_rgb(finished)
+        })
+        .collect();
+    let selector = layer
+        .reads_display()
+        .then(|| smooth_selector(display.clone(), w, h));
     image
         .rgb
         .par_chunks_exact_mut(row_floats)
@@ -127,18 +155,10 @@ pub fn render_mask_overlay(
                 } else {
                     (u, v)
                 };
-                let finished = match finish {
-                    Some((look, curve, to_pp, from_pp)) => crate::color::apply_dcp_finish(
-                        look,
-                        curve,
-                        to_pp,
-                        from_pp,
-                        [px[0], px[1], px[2]],
-                    ),
-                    None => [px[0], px[1], px[2]],
-                };
-                let display_rgb = crate::tone::apply_rgb(finished);
-                let lw = fold_layer_weight_with_display(layer, su, sv, display_rgb);
+                let i = y * w + x;
+                let display_rgb = display[i];
+                let selected = selector.as_ref().map_or(display_rgb, |s| s[i]);
+                let lw = fold_layer_weight_with_display(layer, su, sv, selected);
                 let alpha = lw * 0.55;
                 px[0] = display_rgb[0] + (1.0 - display_rgb[0]) * alpha;
                 px[1] = display_rgb[1] * (1.0 - alpha);

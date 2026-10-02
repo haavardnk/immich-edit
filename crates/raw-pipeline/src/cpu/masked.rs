@@ -1,4 +1,5 @@
 mod blend;
+mod selector;
 mod weight;
 
 #[cfg(test)]
@@ -10,6 +11,7 @@ use std::sync::Arc;
 use weight::display_srgb_to_oklab;
 
 pub use blend::{blend_layer_images, build_sharpen_delta_image, render_mask_overlay};
+pub use selector::{SELECTOR_EPS, SelectorTaps};
 pub use weight::{fold_layer_weight, fold_layer_weight_with_display};
 
 #[derive(Clone, Debug)]
@@ -59,6 +61,17 @@ pub struct LayerEval {
     pub amount: f32,
     pub invert: bool,
     pub components: Vec<ComponentEval>,
+}
+
+impl LayerEval {
+    pub fn reads_display(&self) -> bool {
+        self.components.iter().any(|c| {
+            matches!(
+                c.kind,
+                ComponentKindEval::LumaRange { .. } | ComponentKindEval::ColorRange { .. }
+            )
+        })
+    }
 }
 
 pub fn build_layer_evals(layers: &[MaskLayer], rasters: &RasterMap, aspect: f32) -> Vec<LayerEval> {
