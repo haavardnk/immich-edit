@@ -37,7 +37,7 @@ impl ProcessPlan {
                 wb_coeffs: meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
                 is_raw: meta.is_raw,
-                capture_sigma: meta.capture_sigma,
+                capture_sigma: None,
                 preview_mode: opts.preview_mode.clone(),
                 roi: opts.roi,
                 white: setup.white,

@@ -173,12 +173,12 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "capture_blur",
-            layout!(CaptureBlurParams { size, radius, axis, mode, kernel } pad { _pad }),
+            layout!(CaptureBlurParams { size, axis, mode, levels, half_diag, radius, kernel } pad { _pad }),
             uniform_struct(CAPTURE_BLUR_WGSL),
         ),
         (
             "capture_apply",
-            layout!(CaptureApplyParams { size, radius } pad { _pad }),
+            layout!(CaptureApplyParams { size, levels, half_diag, radius } pad {}),
             uniform_struct(CAPTURE_APPLY_WGSL),
         ),
         (

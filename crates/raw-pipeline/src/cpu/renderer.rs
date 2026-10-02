@@ -107,6 +107,7 @@ pub(crate) fn sensor_cache_key(
     let d = &edits.detail;
     d.hash_nr(&mut h);
     d.capture_sharpen.hash(&mut h);
+    d.capture_corner_boost.to_bits().hash(&mut h);
     preview_ratio.map(f32::to_bits).hash(&mut h);
     superpixel_block.hash(&mut h);
     options.roi.is_some().hash(&mut h);

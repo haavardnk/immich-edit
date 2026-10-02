@@ -117,11 +117,21 @@ describe('manifest codec', () => {
     expect(decoded.effects).toEqual(edits.effects);
   });
 
-  it('only records capture sharpening when it is turned off', () => {
+  it('records capture sharpening when it is turned off or corner boosted', () => {
     const edits = neutralEdits();
     expect(editsToManifest(edits).ops.capture_sharpen).toBeUndefined();
+    edits.detail.capture_corner_boost = 40;
+    expect(editsToManifest(edits).ops.capture_sharpen).toEqual({
+      enabled: true,
+      corner_boost: 40
+    });
+    expect(roundTrip(edits).detail.capture_corner_boost).toBe(40);
     edits.detail.capture_sharpen = false;
-    expect(editsToManifest(edits).ops.capture_sharpen).toEqual({ enabled: false });
+    edits.detail.capture_corner_boost = 0;
+    expect(editsToManifest(edits).ops.capture_sharpen).toEqual({
+      enabled: false,
+      corner_boost: 0
+    });
     expect(roundTrip(edits).detail.capture_sharpen).toBe(false);
   });
 

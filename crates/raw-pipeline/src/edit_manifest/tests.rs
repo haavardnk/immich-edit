@@ -83,6 +83,7 @@ fn roundtrip_preserves_fields() {
             color_nr_detail: 55.0,
             color_nr_smoothness: 60.0,
             capture_sharpen: false,
+            capture_corner_boost: 30.0,
         },
         effects: EffectsEdits {
             vignette_amount: -35.0,

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat, TextureViewDimension};
 
 use crate::gpu::context::GpuContext;
+use crate::ops::capture_sharpen::SIGMA_LEVELS;
 
 use super::common::{
     make_layout, make_pipeline, storage_entry, tex_entry, tex_entry_with, uniform_entry,
@@ -30,21 +31,23 @@ pub struct CaptureLumaParams {
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CaptureBlurParams {
     pub size: [u32; 2],
-    pub radius: i32,
     pub axis: i32,
     pub mode: u32,
-    pub _pad: [u32; 3],
-    pub kernel: [f32; CAPTURE_KERNEL_MAX],
+    pub levels: u32,
+    pub half_diag: f32,
+    pub _pad: [u32; 2],
+    pub radius: [i32; SIGMA_LEVELS],
+    pub kernel: [f32; CAPTURE_KERNEL_MAX * SIGMA_LEVELS],
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CaptureApplyParams {
     pub size: [u32; 2],
-    pub radius: i32,
-    pub _pad: u32,
+    pub levels: u32,
+    pub half_diag: f32,
+    pub radius: [i32; SIGMA_LEVELS],
 }
-pub const CAPTURE_MAX_TAPS: usize = 16;
 pub const CAPTURE_SCRATCH_FORMAT: TextureFormat = TextureFormat::R32Float;
 
 pub struct CaptureSharpenPasses {

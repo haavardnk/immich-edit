@@ -195,6 +195,12 @@ const FIELDS: FieldDef[] = [
     get: (e) => e.detail.capture_sharpen
   },
   {
+    kind: 'number',
+    section: 'detail',
+    label: 'Capture Corner Boost',
+    get: (e) => e.detail.capture_corner_boost
+  },
+  {
     kind: 'tri',
     section: 'lens',
     label: 'Profile Corrections',

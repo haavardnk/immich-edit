@@ -3,6 +3,7 @@ use raw_pipeline::cpu::run_pipeline_ops;
 use raw_pipeline::edits::{
     BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
 };
+use raw_pipeline::ops::capture_sharpen::CaptureSigma;
 use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
 
 fn make_image(w: usize, h: usize) -> LinearImage {
@@ -29,7 +30,7 @@ fn ctx() -> OpContext {
                 [0.02, -0.45, 1.43],
             ],
             is_raw: true,
-            capture_sigma: Some(0.7),
+            capture_sigma: Some(CaptureSigma::uniform(0.7)),
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
             white: raw_pipeline::color::SceneWhite::Display,
@@ -115,6 +116,7 @@ fn edits_detail_heavy() -> Edits {
             color_nr_detail: 50.0,
             color_nr_smoothness: 25.0,
             capture_sharpen: true,
+            capture_corner_boost: 0.0,
         },
         ..Default::default()
     }

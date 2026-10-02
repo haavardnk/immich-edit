@@ -13,13 +13,14 @@ use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::texture_pool::TextureKey;
+use crate::ops::capture_sharpen::{CaptureSigma, SIGMA_LEVELS, half_diagonal};
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_capture_sharpen(
         &self,
         src: &Texture,
         dims: (u32, u32),
-        sigma: f32,
+        sigma: CaptureSigma,
         key: u64,
     ) -> PipelineResult<Arc<Texture>> {
         if let Some(t) = self.sensor.stages.get(Stage::Capture, key) {
@@ -31,8 +32,15 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let (w, h) = dims;
         let p = &self.passes.sensor_stage.capture_sharpen;
-        let kernel = crate::ops::capture_sharpen::gaussian_kernel(sigma);
-        let radius = (kernel.len() / 2) as i32;
+        let kernels = sigma.kernels();
+        let levels = kernels.len() as u32;
+        let half_diag = half_diagonal(w as usize, h as usize);
+        let mut radius = [0i32; SIGMA_LEVELS];
+        let mut kernel_table = [0.0f32; CAPTURE_KERNEL_MAX * SIGMA_LEVELS];
+        for (level, kernel) in kernels.iter().enumerate() {
+            radius[level] = (kernel.len() / 2) as i32;
+            kernel_table[level * CAPTURE_KERNEL_MAX..][..kernel.len()].copy_from_slice(kernel);
+        }
 
         let luma_buf = self.uniform(
             &CaptureLumaParams {
@@ -43,15 +51,16 @@ impl GpuRenderer {
         );
 
         let make_blur_u = |axis: i32, mode: u32, label: &'static str| {
-            let mut params = CaptureBlurParams {
+            let params = CaptureBlurParams {
                 size: [w, h],
-                radius,
                 axis,
                 mode,
-                _pad: [0; 3],
-                kernel: [0.0; CAPTURE_KERNEL_MAX],
+                levels,
+                half_diag,
+                _pad: [0; 2],
+                radius,
+                kernel: kernel_table,
             };
-            params.kernel[..kernel.len()].copy_from_slice(&kernel);
             self.uniform(&params, label)
         };
         let blur_h_buf = make_blur_u(0, 0, "capture-blur-h-u");
@@ -61,8 +70,9 @@ impl GpuRenderer {
         let apply_buf = self.uniform(
             &CaptureApplyParams {
                 size: [w, h],
+                levels,
+                half_diag,
                 radius,
-                _pad: 0,
             },
             "capture-apply-u",
         );
