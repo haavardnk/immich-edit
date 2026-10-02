@@ -1,9 +1,13 @@
 use raw_pipeline::GpuRenderer;
+use raw_pipeline::decode;
 use raw_pipeline::edits::{
     BasicEdits, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
     MaskedEdits, Vec2f,
 };
-use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
+use raw_pipeline::frame::{
+    BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
+};
+use raw_pipeline::tone::srgb_oetf_scalar;
 use raw_pipeline_testkit::frames::{detail_frame, rgb_frame, step_edge_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
 use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
@@ -22,6 +26,18 @@ fn layer(components: Vec<MaskComponent>, edits: MaskedEdits, invert: bool) -> Ma
         components,
         edits,
     }
+}
+
+fn display_rgb8(image: &RenderedImage, opts: &RenderOptions) -> Vec<u8> {
+    if matches!(opts.output, OutputFormat::Rgb8) {
+        return image.bytes.clone();
+    }
+    decode::decode(&image.bytes)
+        .unwrap()
+        .data
+        .iter()
+        .map(|&v| (srgb_oetf_scalar(v).clamp(0.0, 1.0) * 255.0).round() as u8)
+        .collect()
 }
 
 struct PlanCase<'a> {
@@ -66,9 +82,13 @@ fn check_both_plans(renderer: &GpuRenderer, case: PlanCase) {
         let gpu = renderer.render(case.frame, &masked, case.opts).unwrap();
         let gpu_bare = renderer.render(case.frame, &bare, case.opts).unwrap();
         require_same_dims(&label, &cpu, &gpu);
+        let cpu = display_rgb8(&cpu, case.opts);
+        let cpu_bare = display_rgb8(&cpu_bare, case.opts);
+        let gpu = display_rgb8(&gpu, case.opts);
+        let gpu_bare = display_rgb8(&gpu_bare, case.opts);
 
-        let cpu_effect = mean_abs_delta(&cpu.bytes, &cpu_bare.bytes);
-        let gpu_effect = mean_abs_delta(&gpu.bytes, &gpu_bare.bytes);
+        let cpu_effect = mean_abs_delta(&cpu, &cpu_bare);
+        let gpu_effect = mean_abs_delta(&gpu, &gpu_bare);
         eprintln!("{label} cpu effect = {cpu_effect:.3} gpu effect = {gpu_effect:.3}");
         if cpu_effect < case.min_effect {
             panic!("{label}: the mask had no effect on the CPU path: {cpu_effect:.3}");
@@ -76,7 +96,7 @@ fn check_both_plans(renderer: &GpuRenderer, case: PlanCase) {
         if gpu_effect < case.min_effect {
             panic!("{label}: the mask had no effect on the GPU path: {gpu_effect:.3}");
         }
-        ledger.check(&label, &cpu.bytes, &gpu.bytes, tolerance);
+        ledger.check(&label, &cpu, &gpu, tolerance);
     }
     ledger.finish();
 }
@@ -142,6 +162,39 @@ fn gpu_masks_match_cpu_within_tolerance() {
             },
         );
     }
+}
+
+#[test]
+fn gpu_masks_render_on_16bit_output() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = RenderOptions {
+        max_edge: 96,
+        output: OutputFormat::Png {
+            bit_depth: BitDepth::Sixteen,
+            compression: PngCompression::Fast,
+        },
+        ..Default::default()
+    };
+    check_both_plans(
+        &renderer,
+        PlanCase {
+            label: "sixteen",
+            frame: &frame,
+            opts: &opts,
+            components: vec![linear_component(0.4)],
+            edits: MaskedEdits {
+                exposure_ev: Some(1.0),
+                ..Default::default()
+            },
+            invert: false,
+            fast_tolerance: 0.35,
+            presence_tolerance: 0.35,
+            min_effect: 0.5,
+        },
+    );
 }
 
 #[test]
