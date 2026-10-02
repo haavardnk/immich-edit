@@ -8,6 +8,7 @@ struct PresenceParams {
 @group(0) @binding(1) var base: texture_2d<f32>;
 @group(0) @binding(2) var pyramid: texture_2d<f32>;
 @group(0) @binding(3) var dst: texture_storage_2d<rgba16float, write>;
+@group(0) @binding(4) var guide: texture_2d<f32>;
 
 // TONE_WGSL_INJECT
 
@@ -35,6 +36,28 @@ fn sampled_luma(level: u32, fx: f32, fy: f32) -> f32 {
     return mix(lx0, lx1, ty);
 }
 
+fn guide_at(x: i32, y: i32) -> vec2<f32> {
+    let dim = textureDimensions(guide);
+    let ix = clamp(x, 0, i32(dim.x) - 1);
+    let iy = clamp(y, 0, i32(dim.y) - 1);
+    return textureLoad(guide, vec2<i32>(ix, iy), 0).xy;
+}
+
+fn sampled_guide(level: u32, fx: f32, fy: f32) -> vec2<f32> {
+    let scale = 1.0 / f32(1u << level);
+    let lx = fx * scale - 0.5;
+    let ly = fy * scale - 0.5;
+    let x0 = i32(floor(lx));
+    let y0 = i32(floor(ly));
+    let tx = lx - f32(x0);
+    let ty = ly - f32(y0);
+    let g00 = guide_at(x0, y0);
+    let g10 = guide_at(x0 + 1, y0);
+    let g01 = guide_at(x0, y0 + 1);
+    let g11 = guide_at(x0 + 1, y0 + 1);
+    return mix(mix(g00, g10, tx), mix(g01, g11, tx), ty);
+}
+
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
@@ -52,12 +75,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         log_gain = log_gain + p.amounts.x * log2(y0c / max(b, 1e-5));
     }
     if (p.amounts.y != 0.0) {
-        let b = sampled_luma(p.mips.y, fx, fy);
+        let ab = sampled_guide(p.mips.y, fx, fy);
         let d = tone_srgb_oetf(clamp(y0 * p.amounts.z, 0.0, 1.0));
         let mt = smoothstep(0.0, 0.1, d)
             * (1.0 - smoothstep(0.9, 1.0, d))
             * (1.0 - abs(2.0 * d - 1.0));
-        let ratio = log2(y0c / max(b, 1e-5));
+        let ratio = (1.0 - ab.x) * log2(y0c) - ab.y;
         let gate = smoothstep(0.015, 0.12, abs(ratio));
         log_gain = log_gain + p.amounts.y * mt * gate * ratio;
     }

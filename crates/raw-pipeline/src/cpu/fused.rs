@@ -58,7 +58,7 @@ pub enum CpuFusedOp {
         clarity: f32,
         exposure: f32,
         texture_blur: Option<Arc<Vec<f32>>>,
-        clarity_blur: Option<Arc<Vec<f32>>>,
+        clarity_guide: Option<Arc<Vec<f32>>>,
     },
     DcpHueSat {
         map: Arc<crate::dcp::HueSatMap>,
@@ -269,7 +269,7 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
             clarity,
             exposure,
             texture_blur,
-            clarity_blur,
+            clarity_guide,
         } => {
             for (x, ((r, g), b)) in rgb(r, g, b).enumerate() {
                 presence::apply_presence(
@@ -278,7 +278,7 @@ fn apply_op_row(op: &CpuFusedOp, base: usize, r: &mut [f32], g: &mut [f32], b: &
                         clarity: *clarity,
                         exposure: *exposure,
                         texture_blur: texture_blur.as_ref(),
-                        clarity_blur: clarity_blur.as_ref(),
+                        clarity_guide: clarity_guide.as_ref(),
                     },
                     base + x,
                     r,

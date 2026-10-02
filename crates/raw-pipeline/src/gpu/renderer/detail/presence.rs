@@ -5,7 +5,9 @@ use crate::edits::Edits;
 use crate::gpu::dispatch::{begin_pass, bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
-use crate::gpu::passes::presence::PresenceParams;
+use crate::gpu::passes::presence::{
+    CLARITY_GUIDE_FORMAT, CLARITY_GUIDE_KERNEL_HALF, ClarityGuideParams, PresenceParams,
+};
 use crate::gpu::passes::sharpen::{SHARPEN_KERNEL_HALF, SharpenBlurParams};
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::source::SourceExtent;
@@ -13,12 +15,21 @@ use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::uniform_pool::PooledUniform;
 use crate::ops::blur::gaussian_kernel;
-use crate::ops::presence::{PresenceBlur, presence_amounts, presence_blurs};
+use crate::ops::presence::{
+    CLARITY_EDGE_EPS, EdgeAwareBlur, PresenceBlur, presence_amounts, presence_blurs,
+};
 
 struct LevelBlur {
     _scratch: PooledTexture,
     _uniforms: [PooledUniform; 2],
     _binds: [wgpu::BindGroup; 2],
+}
+
+struct ClarityGuide {
+    texture: PooledTexture,
+    _scratch: PooledTexture,
+    _uniforms: [PooledUniform; 6],
+    _binds: [wgpu::BindGroup; 6],
 }
 
 struct PyramidLabels {
@@ -175,6 +186,82 @@ impl GpuRenderer {
         }
     }
 
+    fn encode_clarity_guide(
+        &self,
+        encoder: &mut CommandEncoder,
+        pyramid: &Texture,
+        dims: (u32, u32),
+        level: u32,
+        blur: EdgeAwareBlur,
+    ) -> ClarityGuide {
+        let device = &self.ctx.device;
+        let pass = &self.passes.presence;
+        let size = [(dims.0 >> level).max(1), (dims.1 >> level).max(1)];
+        let key = TextureKey::new(CLARITY_GUIDE_FORMAT, size[0], size[1], 1, STORAGE_SAMPLED);
+        let scratch = self
+            .texture_pool
+            .acquire(device, key, "clarity-guide-scratch");
+        let texture = self.texture_pool.acquire(device, key, "clarity-guide");
+        let level_view = mip_view(pyramid, level);
+        let scratch_view = full_view(&scratch);
+        let guide_view = full_view(&texture);
+        let half_kernel = |sigma: f32| {
+            let kernel = gaussian_kernel(sigma);
+            let radius = (kernel.len() / 2).min(CLARITY_GUIDE_KERNEL_HALF - 1);
+            let mut weights = [0.0f32; CLARITY_GUIDE_KERNEL_HALF];
+            for (slot, weight) in weights.iter_mut().zip(&kernel[kernel.len() / 2..]) {
+                *slot = *weight;
+            }
+            (radius as u32, weights)
+        };
+        let prefilter = half_kernel(blur.prefilter);
+        let window = half_kernel(blur.sigma);
+        let uniforms = [0, 1, 2, 3, 4, 5].map(|mode| {
+            let (radius, weights) = if mode < 2 { prefilter } else { window };
+            self.uniform(
+                &ClarityGuideParams {
+                    size,
+                    radius,
+                    mode,
+                    eps: CLARITY_EDGE_EPS,
+                    _pad: [0; 3],
+                    weights,
+                },
+                "clarity-guide-u",
+            )
+        });
+        let io = [
+            (&level_view, &scratch_view),
+            (&scratch_view, &guide_view),
+            (&guide_view, &scratch_view),
+            (&scratch_view, &guide_view),
+            (&guide_view, &scratch_view),
+            (&scratch_view, &guide_view),
+        ];
+        let binds: [wgpu::BindGroup; 6] = std::array::from_fn(|i| {
+            bind_group(
+                device,
+                "clarity-guide-bg",
+                &pass.guide_layout,
+                &[uniforms[i].as_entire_binding(), tex(io[i].0), tex(io[i].1)],
+            )
+        });
+        {
+            let mut cpass = begin_pass(encoder, "clarity-guide-pass");
+            cpass.set_pipeline(&pass.guide_pipeline);
+            for bg in &binds {
+                cpass.set_bind_group(0, bg, &[]);
+                cpass.dispatch_workgroups(size[0].div_ceil(16), size[1].div_ceil(16), 1);
+            }
+        }
+        ClarityGuide {
+            texture,
+            _scratch: scratch,
+            _uniforms: uniforms,
+            _binds: binds,
+        }
+    }
+
     pub(in crate::gpu::renderer) fn submit_presence(
         &self,
         src: &Texture,
@@ -219,17 +306,6 @@ impl GpuRenderer {
         let src_view_full = full_view(src);
         let pyramid_full_view = full_view(&pyramid);
         let adjusted_view = full_view(&adjusted);
-        let presence_bind = bind_group(
-            device,
-            "presence-bg",
-            &self.passes.presence.adjust_layout,
-            &[
-                uniform_buf.as_entire_binding(),
-                tex(&src_view_full),
-                tex(&pyramid_full_view),
-                tex(&adjusted_view),
-            ],
-        );
 
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("presence-enc"),
@@ -242,14 +318,27 @@ impl GpuRenderer {
             dims,
             &PRESENCE_PYRAMID,
         );
-        let _blurs: Vec<LevelBlur> = [
-            (amts.texture, texture_level, blurs.texture),
-            (amts.clarity, clarity_level, blurs.clarity),
-        ]
-        .into_iter()
-        .filter(|(amount, _, _)| *amount != 0.0)
-        .map(|(_, level, blur)| self.encode_level_blur(&mut encoder, &pyramid, dims, level, blur))
-        .collect();
+        let guide = (amts.clarity != 0.0).then(|| {
+            self.encode_clarity_guide(&mut encoder, &pyramid, dims, clarity_level, blurs.clarity)
+        });
+        let _texture_blur = (amts.texture != 0.0).then(|| {
+            self.encode_level_blur(&mut encoder, &pyramid, dims, texture_level, blurs.texture)
+        });
+        let guide_view = guide
+            .as_ref()
+            .map_or_else(|| full_view(&pyramid), |g| full_view(&g.texture));
+        let presence_bind = bind_group(
+            device,
+            "presence-bg",
+            &self.passes.presence.adjust_layout,
+            &[
+                uniform_buf.as_entire_binding(),
+                tex(&src_view_full),
+                tex(&pyramid_full_view),
+                tex(&adjusted_view),
+                tex(&guide_view),
+            ],
+        );
         dispatch_2d(
             &mut encoder,
             "presence-adjust-pass",

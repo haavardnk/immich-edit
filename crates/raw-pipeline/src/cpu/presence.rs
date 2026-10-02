@@ -2,7 +2,7 @@ use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::edits::Edits;
 use crate::math::{luma, smoothstep};
 use crate::ops::LinearImage;
-use crate::ops::presence::{clarity_midtones, presence_amounts, presence_blurs};
+use crate::ops::presence::{CLARITY_EDGE_EPS, clarity_midtones, presence_amounts, presence_blurs};
 use rayon::prelude::*;
 
 pub use crate::ops::presence::has_presence;
@@ -15,7 +15,8 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
     let blurs = presence_blurs(image.width as u32, image.height as u32);
     let pyramid = LumaPyramid::build(image, blurs.levels() as usize);
     let texture = (amounts.texture != 0.0).then(|| pyramid.base(blurs.texture));
-    let clarity = (amounts.clarity != 0.0).then(|| pyramid.base(blurs.clarity));
+    let clarity =
+        (amounts.clarity != 0.0).then(|| pyramid.edge_aware_base(blurs.clarity, CLARITY_EDGE_EPS));
     let img_w = image.width;
 
     image
@@ -31,13 +32,13 @@ pub fn apply_presence(image: &mut LinearImage, edits: &Edits) {
             let y0c = y0.max(1e-5);
             let mut log_gain = 0.0f32;
             if let Some(base) = &texture {
-                let b = base.sample(fx, fy);
+                let [b] = base.sample(fx, fy);
                 log_gain += amounts.texture * (y0c / b.max(1e-5)).log2();
             }
             if let Some(base) = &clarity {
-                let b = base.sample(fx, fy);
+                let [a, b] = base.sample(fx, fy);
                 let mt = clarity_midtones(y0, amounts.exposure);
-                let ratio = (y0c / b.max(1e-5)).log2();
+                let ratio = (1.0 - a) * y0c.log2() - b;
                 let gate = smoothstep(0.015, 0.12, ratio.abs());
                 log_gain += amounts.clarity * mt * gate * ratio;
             }
