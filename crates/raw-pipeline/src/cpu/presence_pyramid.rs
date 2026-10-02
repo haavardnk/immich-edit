@@ -2,7 +2,7 @@ use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::blur::{gaussian_blur, gaussian_kernel};
-use crate::ops::presence::PresenceBlur;
+use crate::ops::presence::{EdgeAwareBlur, PresenceBlur};
 use rayon::prelude::*;
 
 #[derive(Debug)]
@@ -65,11 +65,43 @@ impl LumaPyramid {
         Self { levels, dims }
     }
 
-    pub fn base(&self, blur: PresenceBlur) -> LumaBase {
+    pub fn base(&self, blur: PresenceBlur) -> LevelBase<1> {
         let level = (blur.level as usize).min(self.levels.len() - 1);
         let (w, h) = self.dims[level];
-        LumaBase {
+        LevelBase {
             buf: gaussian_blur::<1>(&self.levels[level], w, h, &gaussian_kernel(blur.sigma)),
+            w,
+            h,
+            level,
+        }
+    }
+
+    pub fn edge_aware_base(&self, blur: EdgeAwareBlur, eps: f32) -> LevelBase<2> {
+        let level = (blur.level as usize).min(self.levels.len() - 1);
+        let (w, h) = self.dims[level];
+        let kernel = gaussian_kernel(blur.sigma);
+        let mut logs = Scratch::zeroed(w * h);
+        logs.par_iter_mut()
+            .zip(self.levels[level].par_iter())
+            .for_each(|(g, &l)| *g = l.max(1e-5).log2());
+        let smooth = gaussian_blur::<1>(&logs, w, h, &gaussian_kernel(blur.prefilter));
+        let mut moments = Scratch::zeroed(w * h * 2);
+        moments
+            .par_chunks_exact_mut(2)
+            .zip(smooth.par_iter())
+            .for_each(|(m, &g)| {
+                m[0] = g;
+                m[1] = g * g;
+            });
+        let mut coeffs = gaussian_blur::<2>(&moments, w, h, &kernel);
+        coeffs.par_chunks_exact_mut(2).for_each(|m| {
+            let var = (m[1] - m[0] * m[0]).max(0.0);
+            let a = var / (var + eps);
+            m[1] = m[0] * (1.0 - a);
+            m[0] = a;
+        });
+        LevelBase {
+            buf: gaussian_blur::<2>(&coeffs, w, h, &kernel),
             w,
             h,
             level,
@@ -78,15 +110,15 @@ impl LumaPyramid {
 }
 
 #[derive(Debug)]
-pub struct LumaBase {
+pub struct LevelBase<const C: usize> {
     buf: Scratch,
     w: usize,
     h: usize,
     level: usize,
 }
 
-impl LumaBase {
-    pub fn sample(&self, fx: f32, fy: f32) -> f32 {
+impl<const C: usize> LevelBase<C> {
+    pub fn sample(&self, fx: f32, fy: f32) -> [f32; C] {
         let scale = 1.0 / (1u32 << self.level) as f32;
         let lx = fx * scale - 0.5;
         let ly = fy * scale - 0.5;
@@ -97,18 +129,21 @@ impl LumaBase {
         let w = self.w;
         let h = self.h;
         let buf = &self.buf;
-        let load = |x: i32, y: i32| -> f32 {
+        let load = |x: i32, y: i32| -> &[f32] {
             let cx = x.clamp(0, w as i32 - 1) as usize;
             let cy = y.clamp(0, h as i32 - 1) as usize;
-            buf[cy * w + cx]
+            let i = (cy * w + cx) * C;
+            &buf[i..i + C]
         };
         let l00 = load(x0, y0);
         let l10 = load(x0 + 1, y0);
         let l01 = load(x0, y0 + 1);
         let l11 = load(x0 + 1, y0 + 1);
-        let lx0 = l00 + (l10 - l00) * tx;
-        let lx1 = l01 + (l11 - l01) * tx;
-        lx0 + (lx1 - lx0) * ty
+        std::array::from_fn(|c| {
+            let lx0 = l00[c] + (l10[c] - l00[c]) * tx;
+            let lx1 = l01[c] + (l11[c] - l01[c]) * tx;
+            lx0 + (lx1 - lx0) * ty
+        })
     }
 
     pub fn upsample(&self, w: usize, h: usize) -> Vec<f32> {
@@ -118,8 +153,8 @@ impl LumaBase {
         let mip = &self.buf;
         let mw_i = mw as i32;
         let mh_i = mh as i32;
-        let mut out = Scratch::zeroed(w * h);
-        out.par_chunks_exact_mut(w)
+        let mut out = Scratch::zeroed(w * h * C);
+        out.par_chunks_exact_mut(w * C)
             .enumerate()
             .for_each(|(y, row)| {
                 let ly = (y as f32 + 0.5) * scale - 0.5;
@@ -129,19 +164,21 @@ impl LumaBase {
                 let yb = (y0 + 1).clamp(0, mh_i - 1) as usize;
                 let ra = ya * mw;
                 let rb = yb * mw;
-                for (x, slot) in row.iter_mut().enumerate() {
+                for (x, slot) in row.chunks_exact_mut(C).enumerate() {
                     let lx = (x as f32 + 0.5) * scale - 0.5;
                     let x0 = lx.floor() as i32;
                     let tx = lx - x0 as f32;
                     let xa = x0.clamp(0, mw_i - 1) as usize;
                     let xb = (x0 + 1).clamp(0, mw_i - 1) as usize;
-                    let l00 = mip[ra + xa];
-                    let l10 = mip[ra + xb];
-                    let l01 = mip[rb + xa];
-                    let l11 = mip[rb + xb];
-                    let lx0 = l00 + (l10 - l00) * tx;
-                    let lx1 = l01 + (l11 - l01) * tx;
-                    *slot = lx0 + (lx1 - lx0) * ty;
+                    for (c, v) in slot.iter_mut().enumerate() {
+                        let l00 = mip[(ra + xa) * C + c];
+                        let l10 = mip[(ra + xb) * C + c];
+                        let l01 = mip[(rb + xa) * C + c];
+                        let l11 = mip[(rb + xb) * C + c];
+                        let lx0 = l00 + (l10 - l00) * tx;
+                        let lx1 = l01 + (l11 - l01) * tx;
+                        *v = lx0 + (lx1 - lx0) * ty;
+                    }
                 }
             });
         out.into_vec()

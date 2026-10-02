@@ -289,6 +289,82 @@ fn presence_radius_follows_image_size() {
 }
 
 #[test]
+fn clarity_does_not_halo_step_edges() {
+    let size = 512;
+    let edits = Edits {
+        basic: BasicEdits {
+            clarity: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    for (lo, hi) in [(0.25f32, 0.4f32), (0.1, 0.4)] {
+        let buf = (0..size * size)
+            .flat_map(|i| {
+                let v = if i % size < size / 2 { lo } else { hi };
+                [v, v, v]
+            })
+            .collect();
+        let mut img = LinearImage::new(buf, size, size);
+        crate::cpu::run_pipeline_ops(
+            &mut img,
+            &ctx(),
+            &edits,
+            &crate::mask_raster::empty_rasters(),
+            None,
+        )
+        .unwrap();
+        let row = &img.rgb[size / 2 * size * 3..(size / 2 + 1) * size * 3];
+        let (dark, bright) = row.split_at(size / 2 * 3);
+        let under = dark.iter().step_by(3).fold(lo, |m, &v| m.min(v));
+        let over = bright.iter().step_by(3).fold(hi, |m, &v| m.max(v));
+        let halo = ((lo - under).max(over - hi)) / (hi - lo);
+        eprintln!("clarity halo {lo}->{hi}: {halo:.4}");
+        if halo > 0.15 {
+            panic!("clarity haloed the {lo}->{hi} edge by {halo}");
+        }
+    }
+}
+
+#[test]
+fn clarity_edge_guard_keeps_texture_contrast() {
+    let size = 512;
+    let edits = Edits {
+        basic: BasicEdits {
+            clarity: 100.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let buf: Vec<f32> = (0..size * size)
+        .flat_map(|i| {
+            let x = (i % size) as f32;
+            let v = 0.18 * (0.2 * (std::f32::consts::TAU * x / 16.0).sin()).exp2();
+            [v, v, v]
+        })
+        .collect();
+    let spread = |rgb: &[f32]| {
+        let row = &rgb[(size / 2 * size + 100) * 3..(size / 2 * size + 400) * 3];
+        let logs = row.iter().step_by(3).map(|v| v.log2());
+        logs.clone().fold(f32::MIN, f32::max) - logs.fold(f32::MAX, f32::min)
+    };
+    let before = spread(&buf);
+    let mut img = LinearImage::new(buf, size, size);
+    crate::cpu::run_pipeline_ops(
+        &mut img,
+        &ctx(),
+        &edits,
+        &crate::mask_raster::empty_rasters(),
+        None,
+    )
+    .unwrap();
+    let gain = spread(&img.rgb) / before;
+    if gain < 1.7 {
+        panic!("clarity treated texture as edges: contrast gain {gain}");
+    }
+}
+
+#[test]
 fn clarity_protects_clipped_highlights_and_crushed_shadows() {
     let mk = |v: f32| LinearImage::new(vec![v; 256 * 256 * 3], 256, 256);
     let edits = Edits {

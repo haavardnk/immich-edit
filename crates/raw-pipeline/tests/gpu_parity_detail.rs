@@ -32,6 +32,26 @@ fn gpu_presence_sliders_match_cpu_via_fallback() {
 }
 
 #[test]
+fn gpu_clarity_edge_guard_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = rgb8_opts(512);
+    let frame = step_edge_frame(512, 384);
+    let mut ledger = ParityLedger::new("presence");
+    for (clarity, limit) in [(100.0, 0.06), (-60.0, 0.09)] {
+        let mut edits = Edits::default();
+        edits.basic.clarity = clarity;
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let label = format!("clarity{clarity:+}-edge");
+        require_same_dims(&label, &cpu, &gpu);
+        ledger.check(&label, &cpu.bytes, &gpu.bytes, limit);
+    }
+    ledger.finish();
+}
+
+#[test]
 fn gpu_dehaze_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;

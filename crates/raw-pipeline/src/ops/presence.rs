@@ -7,6 +7,9 @@ const TEXTURE_SIGMA: f32 = 4.0;
 const CLARITY_SIGMA: f32 = 16.0;
 const SHADOWS_SIGMA: f32 = 16.0;
 const LEVEL_SIGMA: f32 = 1.5;
+const EDGE_PREFILTER: f32 = 0.5;
+const BILINEAR_VARIANCE: f32 = 1.0 / 6.0;
+pub const CLARITY_EDGE_EPS: f32 = 0.007;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PresenceAmounts {
@@ -21,6 +24,20 @@ impl PresenceAmounts {
     }
 }
 
+fn blur_level(sigma: f32, min_level: u32, top: u32) -> u32 {
+    ((sigma / LEVEL_SIGMA).log2().floor().max(0.0) as u32)
+        .max(min_level)
+        .min(top)
+}
+
+fn box_variance(level: u32) -> f32 {
+    (1.0 - 0.25f32.powi(level as i32)) / 12.0
+}
+
+fn kernel_radius(sigma: f32) -> u32 {
+    (3.0 * sigma).ceil() as u32
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PresenceBlur {
     pub level: u32,
@@ -29,30 +46,51 @@ pub struct PresenceBlur {
 
 impl PresenceBlur {
     fn new(sigma: f32, min_level: u32, top: u32) -> Self {
-        let level = ((sigma / LEVEL_SIGMA).log2().floor().max(0.0) as u32)
-            .max(min_level)
-            .min(top);
+        let level = blur_level(sigma, min_level, top);
         let scaled = sigma / (1u32 << level) as f32;
-        let carried = (1.0 - 0.25f32.powi(level as i32)) / 12.0 + 1.0 / 6.0;
+        let carried = box_variance(level) + BILINEAR_VARIANCE;
         Self {
             level,
             sigma: (scaled * scaled - carried).max(0.0).sqrt().max(0.01),
         }
     }
 
-    pub fn radius(&self) -> u32 {
-        (3.0 * self.sigma).ceil() as u32
+    fn reach(&self) -> u32 {
+        (kernel_radius(self.sigma) + 2) << self.level
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EdgeAwareBlur {
+    pub level: u32,
+    pub prefilter: f32,
+    pub sigma: f32,
+}
+
+impl EdgeAwareBlur {
+    fn new(sigma: f32, min_level: u32, top: u32) -> Self {
+        let level = blur_level(sigma, min_level, top);
+        let scaled = sigma / (1u32 << level) as f32;
+        let total = scaled * scaled;
+        let boxed = box_variance(level);
+        let prefilter = (EDGE_PREFILTER * total - boxed).max(0.0).sqrt().max(0.01);
+        let rest = total - boxed - BILINEAR_VARIANCE - prefilter * prefilter;
+        Self {
+            level,
+            prefilter,
+            sigma: (rest.max(0.0) / 2.0).sqrt().max(0.01),
+        }
     }
 
     fn reach(&self) -> u32 {
-        (self.radius() + 2) << self.level
+        (kernel_radius(self.prefilter) + 2 * kernel_radius(self.sigma) + 2) << self.level
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PresenceBlurs {
     pub texture: PresenceBlur,
-    pub clarity: PresenceBlur,
+    pub clarity: EdgeAwareBlur,
     pub shadows: PresenceBlur,
 }
 
@@ -97,7 +135,7 @@ pub fn presence_blurs(width: u32, height: u32) -> PresenceBlurs {
     let top = (width.max(height).max(1) as f32).log2().floor() as u32;
     PresenceBlurs {
         texture: PresenceBlur::new(TEXTURE_SIGMA * scale, 1, top),
-        clarity: PresenceBlur::new(CLARITY_SIGMA * scale, 2, top),
+        clarity: EdgeAwareBlur::new(CLARITY_SIGMA * scale, 2, top),
         shadows: PresenceBlur::new(SHADOWS_SIGMA * scale, 1, top),
     }
 }

@@ -51,7 +51,7 @@ pub struct PresenceParams<'a> {
     pub clarity: f32,
     pub exposure: f32,
     pub texture_blur: Option<&'a Arc<Vec<f32>>>,
-    pub clarity_blur: Option<&'a Arc<Vec<f32>>>,
+    pub clarity_guide: Option<&'a Arc<Vec<f32>>>,
 }
 
 #[inline(always)]
@@ -62,9 +62,9 @@ pub fn apply_presence(p: PresenceParams<'_>, i: usize, r: &mut f32, g: &mut f32,
     if let Some(buf) = p.texture_blur {
         log_gain += p.texture * fast::log2(y0c / buf[i].max(1e-5));
     }
-    if let Some(buf) = p.clarity_blur {
+    if let Some(buf) = p.clarity_guide {
         let mt = crate::ops::presence::clarity_midtones(y0, p.exposure);
-        let ratio = fast::log2(y0c / buf[i].max(1e-5));
+        let ratio = (1.0 - buf[2 * i]) * fast::log2(y0c) - buf[2 * i + 1];
         let gate = smoothstep(0.015, 0.12, ratio.abs());
         log_gain += p.clarity * mt * gate * ratio;
     }

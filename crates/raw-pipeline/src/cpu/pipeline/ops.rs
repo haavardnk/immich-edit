@@ -7,7 +7,7 @@ use crate::cpu::transform;
 use crate::edits::Edits;
 use crate::ops::LinearImage;
 use crate::ops::lens_distortion::LensWarpParams;
-use crate::ops::presence::{has_shadows, presence_amounts, presence_blurs};
+use crate::ops::presence::{CLARITY_EDGE_EPS, has_shadows, presence_amounts, presence_blurs};
 use crate::ops::tone_regions::ShadowsGuide;
 use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::timing::{self, StageClock};
@@ -257,13 +257,18 @@ pub(super) fn run_pipeline_ops_inner(
                 let needs = |pick: fn(&crate::ops::presence::PresenceAmounts) -> f32| {
                     pick(&amounts) != 0.0 || layer_amounts.iter().any(|a| pick(a) != 0.0)
                 };
-                let (texture_blur, clarity_blur) = clock.time(timing::PRESENCE, || {
+                let (texture_blur, clarity_guide) = clock.time(timing::PRESENCE, || {
                     let pyramid = LumaPyramid::build(image, blurs.levels() as usize);
                     (
                         needs(|a| a.texture)
                             .then(|| Arc::new(pyramid.base(blurs.texture).upsample(iw, ih))),
-                        needs(|a| a.clarity)
-                            .then(|| Arc::new(pyramid.base(blurs.clarity).upsample(iw, ih))),
+                        needs(|a| a.clarity).then(|| {
+                            Arc::new(
+                                pyramid
+                                    .edge_aware_base(blurs.clarity, CLARITY_EDGE_EPS)
+                                    .upsample(iw, ih),
+                            )
+                        }),
                     )
                 });
                 let make_op = |a: &crate::ops::presence::PresenceAmounts| CpuFusedOp::Presence {
@@ -271,7 +276,7 @@ pub(super) fn run_pipeline_ops_inner(
                     clarity: a.clarity,
                     exposure: a.exposure,
                     texture_blur: texture_blur.clone(),
-                    clarity_blur: clarity_blur.clone(),
+                    clarity_guide: clarity_guide.clone(),
                 };
                 if !amounts.is_zero() {
                     segment.push(make_op(&amounts));
