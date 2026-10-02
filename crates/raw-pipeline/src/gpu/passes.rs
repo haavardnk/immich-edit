@@ -8,6 +8,7 @@ pub mod luma_pyramid;
 pub mod lut;
 pub mod mask_blend;
 pub mod mask_overlay;
+pub mod mask_selector;
 pub mod mask_weight;
 pub mod meta_bins;
 pub mod mipgen;
@@ -42,6 +43,7 @@ use luma_pyramid::LumaPyramidPass;
 use lut::LutPass;
 use mask_blend::MaskBlendPass;
 use mask_overlay::MaskOverlayPass;
+use mask_selector::MaskSelectorPass;
 use mask_weight::MaskWeightPass;
 use meta_bins::MetaBinsPasses;
 use mipgen::MipgenPass;
@@ -89,6 +91,7 @@ pub struct GpuPasses {
     pub mask_weight: MaskWeightPass,
     pub mask_blend: MaskBlendPass,
     pub mask_overlay: MaskOverlayPass,
+    pub mask_selector: MaskSelectorPass,
     pub meta_bins: MetaBinsPasses,
     #[cfg(feature = "native")]
     pub sensor_stage: SensorStagePasses,
@@ -168,6 +171,7 @@ impl GpuPasses {
             mask_weight: MaskWeightPass::new(ctx),
             mask_blend: MaskBlendPass::new(ctx),
             mask_overlay: MaskOverlayPass::new(ctx),
+            mask_selector: MaskSelectorPass::new(ctx),
             meta_bins: MetaBinsPasses::new(ctx, DisplayDepth::Eight),
         }
         Self {
@@ -185,6 +189,7 @@ impl GpuPasses {
             mask_weight,
             mask_blend,
             mask_overlay,
+            mask_selector,
             meta_bins,
             #[cfg(feature = "native")]
             sensor_stage: SensorStagePasses::new(ctx, &registry),

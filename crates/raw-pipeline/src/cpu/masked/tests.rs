@@ -681,3 +681,69 @@ fn polygon_feather_is_isotropic_in_pixels() {
         panic!("same pixel inset weighs {from_left} from the side, {from_top} from the top");
     }
 }
+
+fn dithered(base: f32, x: usize) -> f32 {
+    base + [0.04, -0.02, -0.02][x % 3]
+}
+
+#[test]
+fn selector_smooths_noise_and_keeps_edges() {
+    let width = 2048;
+    let display: Vec<[f32; 3]> = (0..width * 4)
+        .map(|i| {
+            let x = i % width;
+            let base = if x < width / 2 { 0.3 } else { 0.7 };
+            [dithered(base, x); 3]
+        })
+        .collect();
+    let smoothed = super::selector::smooth_selector(display.clone(), width, 4);
+    let row = &smoothed[width..2 * width];
+    let spread = row[100..900]
+        .iter()
+        .fold((f32::MAX, f32::MIN), |(lo, hi), p| {
+            (lo.min(p[0]), hi.max(p[0]))
+        });
+    if spread.1 - spread.0 > 0.025 {
+        panic!("flat noise kept a {} spread", spread.1 - spread.0);
+    }
+    let left = row[width / 2 - 4][0];
+    let right = row[width / 2 + 3][0];
+    if (left - 0.3).abs() > 0.03 || (right - 0.7).abs() > 0.03 {
+        panic!("step edge blurred to {left} / {right}");
+    }
+}
+
+#[test]
+fn luma_range_does_not_speckle_on_noise() {
+    let width = 2048;
+    let height = 4;
+    let eotf = |v: f32| ((v + 0.055) / 1.055).powf(2.4);
+    let rgb: Vec<f32> = (0..width * height)
+        .flat_map(|i| [eotf(dithered(0.47, i % width)); 3])
+        .collect();
+    let mut image = LinearImage::new(rgb, width, height);
+    let layer_image = LinearImage::new(vec![1.0; width * height * 3], width, height);
+    let mut component = linear("c", Vec2f { x: 0.0, y: 0.0 }, Vec2f { x: 1.0, y: 0.0 }, 0.0);
+    component.kind = MaskComponentKind::LumaRange {
+        min: 0.5,
+        max: 1.0,
+        softness: 0.0,
+    };
+    let layer = MaskLayer {
+        id: "l".into(),
+        name: String::new(),
+        enabled: true,
+        color: "#fff".into(),
+        amount: 1.0,
+        invert: false,
+        components: vec![component],
+        edits: Default::default(),
+    };
+    let eval = build_layer_eval(&layer, &RasterMap::new(), 1.0);
+    let warp = LensWarpParams::from_edits(&Default::default(), width as u32, height as u32);
+    blend_layer_images(&mut image, &[layer_image], &[eval], &warp);
+    let selected = image.rgb.iter().filter(|v| **v > 0.99).count();
+    if selected > 0 {
+        panic!("{selected} channel values picked up by noise above the luma threshold");
+    }
+}

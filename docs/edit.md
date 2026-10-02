@@ -135,6 +135,8 @@ set of adjustments.
    - **Polygon** follows straight edges. Click to place corners and click the first one, or press
      `Enter`, to close it. Its feather is the same width along every edge.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
+     They look past noise and grain, so the selection follows areas and edges instead of
+     speckling pixel by pixel.
    - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
      the area for you. **Click to select** and **Box select** find an object you click or draw a box
      around. These need a model that an administrator installs; see

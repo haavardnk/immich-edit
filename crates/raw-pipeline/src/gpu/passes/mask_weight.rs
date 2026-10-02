@@ -1,4 +1,4 @@
-// color-space: linear scene-referred Rgba16Float in → R16Float weight out
+// color-space: display sRGB-encoded Rgba32Float selector in → R32Float weight out
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ use crate::gpu::context::GpuContext;
 use crate::mask_raster::MaskRaster;
 
 use super::common::{
-    make_layout, make_pipeline_raw, sampler_entry, storage_buffer_entry, storage_entry, tex_entry,
+    make_layout, make_pipeline_raw, sampler_entry, storage_buffer_entry, storage_entry,
     tex_entry_with, uniform_entry_unsized,
 };
 
@@ -54,7 +54,6 @@ pub fn mask_weight_wgsl() -> String {
         crate::gpu::shader_builder::GEOMETRY_WGSL,
         include_str!("../../../assets/shaders/mask_weight.wgsl")
     )
-    .replace("// TONE_WGSL_INJECT", crate::tone::wgsl::tone_wgsl())
 }
 
 pub struct MaskWeightPass {
@@ -73,7 +72,7 @@ impl MaskWeightPass {
                 storage_entry(2, TextureFormat::R32Float),
                 tex_entry_with(3, true, TextureViewDimension::D2Array),
                 sampler_entry(4),
-                tex_entry(5),
+                tex_entry_with(5, false, TextureViewDimension::D2),
                 storage_buffer_entry(6),
             ],
         );

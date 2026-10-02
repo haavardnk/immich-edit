@@ -187,7 +187,9 @@ The DCP HueSatMap runs in the `Tone` stage right after user white balance and be
 every user tone and color operator, matching the DNG order. Sliders therefore act on the
 profile-rendered color. The table looks up values from before the baseline exposure gain, so that
 gain does not shift which slice of a value-dependent table a pixel reads. Mask layers apply the
-table to each layer before blending, and range masks sample color after it.
+table to each layer before blending, and range masks sample color after it. Range masks read an
+edge-preserving smoothed copy of that display color (a self-guided filter per channel, radius
+1/1024 of the long edge), so noise cannot speckle the selection.
 
 Working textures use linear scene-referred sRGB primaries except while DCP tables operate in linear
 ProPhoto. The profile tone curve precedes output gamut conversion. Curves then act on the

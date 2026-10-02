@@ -18,6 +18,7 @@ use super::passes::effects_tone::{EffectsToneParams, effects_tone_wgsl};
 use super::passes::lut::{LutParams, lut_wgsl};
 use super::passes::mask_blend::{MASK_BLEND_WGSL, MaskBlendParams};
 use super::passes::mask_overlay::{MASK_OVERLAY_WGSL, MaskOverlayParams};
+use super::passes::mask_selector::{MaskSelectorParams, mask_selector_wgsl};
 use super::passes::mask_weight::{MaskComponent, MaskWeightParams, mask_weight_wgsl};
 use super::passes::meta_bins::{BinParams, histogram_wgsl, scopes_wgsl};
 use super::passes::nr::{NR_WGSL, NrParams};
@@ -249,6 +250,11 @@ fn uniform_structs_mirror_wgsl() {
             "mask_overlay",
             layout!(MaskOverlayParams { out_size, strength } pad { _pad }),
             uniform_struct(MASK_OVERLAY_WGSL),
+        ),
+        (
+            "mask_selector",
+            layout!(MaskSelectorParams { size, src_size, offset, mode, whole, frac, eps } pad { _pad }),
+            uniform_struct(&mask_selector_wgsl()),
         ),
         (
             "mask_weight",

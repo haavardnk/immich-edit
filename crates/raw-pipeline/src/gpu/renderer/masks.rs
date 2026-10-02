@@ -15,6 +15,7 @@ use crate::gpu::passes::mask_weight::{
 };
 use crate::mask_raster::RasterMap;
 
+mod selector;
 mod stage;
 
 pub(super) use stage::MaskStage;
@@ -48,6 +49,7 @@ pub(super) struct Retained {
     pub bufs: Vec<wgpu::Buffer>,
     pub uniforms: Vec<crate::gpu::uniform_pool::PooledUniform>,
     pub binds: Vec<wgpu::BindGroup>,
+    pub textures: Vec<crate::gpu::texture_pool::PooledTexture>,
 }
 
 pub(super) struct MaskWeightJob<'a> {
@@ -56,7 +58,7 @@ pub(super) struct MaskWeightJob<'a> {
     pub slot_map: &'a HashMap<String, u32>,
     pub weight_view: &'a TextureView,
     pub atlas_view: &'a TextureView,
-    pub base_view: &'a TextureView,
+    pub selector_view: &'a TextureView,
 }
 
 pub(super) struct MaskAtlas {
@@ -216,7 +218,7 @@ impl GpuRenderer {
                 tex(job.weight_view),
                 tex(job.atlas_view),
                 samp(&self.passes.atlas_sampler),
-                tex(job.base_view),
+                tex(job.selector_view),
                 buf(&poly_buf),
             ],
         );
