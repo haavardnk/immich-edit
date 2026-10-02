@@ -351,11 +351,12 @@ fn gpu_capture_sharpen_matches_cpu() {
         ..Default::default()
     };
     let mut ledger = ParityLedger::new("capture-sharpen");
-    let cases: [(&str, RawFrame, f32); 2] = [
-        ("sigma0.7", detail_frame(256, 192), 0.7),
-        ("sigma2-ragged", step_edge_frame(250, 190), 2.0),
+    let cases: [(&str, RawFrame, f32, f64); 3] = [
+        ("sigma0.7", detail_frame(256, 192), 0.7, 0.0),
+        ("sigma2-ragged", step_edge_frame(250, 190), 2.0, 0.0),
+        ("corner-boost", detail_frame(256, 192), 0.7, 100.0),
     ];
-    for (label, mut frame, sigma) in cases {
+    for (label, mut frame, sigma, boost) in cases {
         let opts = RenderOptions {
             max_edge: frame.meta.width.max(frame.meta.height) as u32,
             quality: true,
@@ -364,8 +365,10 @@ fn gpu_capture_sharpen_matches_cpu() {
         };
         frame.meta.is_raw = true;
         frame.meta.capture_sigma = Some(sigma);
-        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
-        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let mut boosted = edits.clone();
+        boosted.detail.capture_corner_boost = boost;
+        let cpu = raw_pipeline::cpu::render(&frame, &boosted, &opts).unwrap();
+        let gpu = renderer.render(&frame, &boosted, &opts).unwrap();
         let gpu_off = renderer.render(&frame, &off, &opts).unwrap();
         require_same_dims(label, &cpu, &gpu);
         let effect = mean_abs_delta(&gpu.bytes, &gpu_off.bytes);
@@ -373,7 +376,15 @@ fn gpu_capture_sharpen_matches_cpu() {
         if effect < 0.3 {
             panic!("{label}: capture sharpen had no visible effect: {effect:.3}");
         }
-        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.12);
+        if boost > 0.0 {
+            let gpu_plain = renderer.render(&frame, &edits, &opts).unwrap();
+            let boost_effect = mean_abs_delta(&gpu.bytes, &gpu_plain.bytes);
+            eprintln!("{label}: corner boost effect = {boost_effect:.3}");
+            if boost_effect < 0.07 {
+                panic!("{label}: corner boost had no visible effect: {boost_effect:.3}");
+            }
+        }
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.09);
     }
     ledger.finish();
 }

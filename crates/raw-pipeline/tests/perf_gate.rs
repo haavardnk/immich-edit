@@ -2,6 +2,7 @@ use raw_pipeline::cpu::run_pipeline_ops;
 use raw_pipeline::edits::{
     BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
 };
+use raw_pipeline::ops::capture_sharpen::CaptureSigma;
 use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
 use raw_pipeline_testkit::fixtures::{baseline_path, fixture_path};
 use serde::{Deserialize, Serialize};
@@ -45,7 +46,7 @@ fn ctx_with_sigma(capture_sigma: Option<f32>) -> OpContext {
                 [0.02, -0.45, 1.43],
             ],
             is_raw: true,
-            capture_sigma,
+            capture_sigma: capture_sigma.map(CaptureSigma::uniform),
             preview_mode: raw_pipeline::frame::PreviewMode::None,
             roi: None,
             white: raw_pipeline::color::SceneWhite::Display,
@@ -131,6 +132,7 @@ fn edits_detail_heavy() -> Edits {
             color_nr_detail: 50.0,
             color_nr_smoothness: 25.0,
             capture_sharpen: true,
+            capture_corner_boost: 0.0,
         },
         ..Default::default()
     }

@@ -147,7 +147,7 @@ const FLAT_OPS: FlatOp[] = [
   },
   {
     id: 'capture_sharpen',
-    nums: [],
+    nums: [detailField('corner_boost', 'capture_corner_boost')],
     bools: [
       bf(
         'enabled',
@@ -157,7 +157,7 @@ const FLAT_OPS: FlatOp[] = [
         }
       )
     ],
-    active: (e) => !e.detail.capture_sharpen
+    active: (e) => !e.detail.capture_sharpen || e.detail.capture_corner_boost !== 0
   },
   {
     id: 'sharpen',

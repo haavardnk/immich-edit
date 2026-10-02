@@ -14,6 +14,7 @@
   const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
   const sharpenModified = $derived(
     editor.edits.detail.capture_sharpen !== NEUTRAL_DETAIL.capture_sharpen ||
+      editor.edits.detail.capture_corner_boost !== NEUTRAL_DETAIL.capture_corner_boost ||
       editor.edits.detail.sharpen_amount !== NEUTRAL_DETAIL.sharpen_amount ||
       editor.edits.detail.sharpen_radius !== NEUTRAL_DETAIL.sharpen_radius ||
       editor.edits.detail.sharpen_detail !== NEUTRAL_DETAIL.sharpen_detail ||
@@ -28,11 +29,13 @@
 
   function onToggleCaptureSharpen(checked: boolean): void {
     editor.edits.detail.capture_sharpen = checked;
+    if (!checked) editor.edits.detail.capture_corner_boost = NEUTRAL_DETAIL.capture_corner_boost;
     void editor.onCommit('Capture Sharpening');
   }
 
   function resetSharpen(): void {
     editor.edits.detail.capture_sharpen = NEUTRAL_DETAIL.capture_sharpen;
+    editor.edits.detail.capture_corner_boost = NEUTRAL_DETAIL.capture_corner_boost;
     editor.edits.detail.sharpen_amount = NEUTRAL_DETAIL.sharpen_amount;
     editor.edits.detail.sharpen_radius = NEUTRAL_DETAIL.sharpen_radius;
     editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
@@ -74,6 +77,16 @@
         />
       {/snippet}
     </Tooltip>
+    <EditSlider
+      label="Corner Boost"
+      commitAction="Capture Corner Boost"
+      bind:value={editor.edits.detail.capture_corner_boost}
+      min={0}
+      max={100}
+      disabled={!isRaw || !editor.edits.detail.capture_sharpen}
+    />
+  </div>
+  <div class="flex flex-col gap-1 py-1.5">
     <EditSlider
       label="Amount"
       commitAction="Sharpen Amount"

@@ -12,6 +12,7 @@ use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{CachedFrame, GpuRenderer};
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
+use crate::ops::capture_sharpen::CaptureSigma;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
 impl GpuRenderer {
@@ -40,7 +41,9 @@ impl GpuRenderer {
                 wb_coeffs: meta.wb_coeffs,
                 cam_to_srgb: setup.cam_to_srgb,
                 is_raw: meta.is_raw,
-                capture_sigma: meta.capture_sigma,
+                capture_sigma: meta
+                    .capture_sigma
+                    .map(|s| CaptureSigma::on_grid(s, edits, cached.block as f32)),
                 preview_mode: crate::frame::PreviewMode::None,
                 roi: None,
                 white: setup.white.clone(),

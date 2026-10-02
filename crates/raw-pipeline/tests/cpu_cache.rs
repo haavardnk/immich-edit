@@ -35,6 +35,9 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     let mut no_capture = Edits::default();
     no_capture.detail.capture_sharpen = false;
 
+    let mut corner_boost = Edits::default();
+    corner_boost.detail.capture_corner_boost = 80.0;
+
     let mut geometry = Edits::default();
     geometry.geometry.rotate = 90;
     geometry.geometry.crop = Some(CropRect {
@@ -84,6 +87,7 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
         ("wb", wb, preview()),
         ("detail", detail, preview()),
         ("no_capture_sharpen", no_capture, preview()),
+        ("capture_corner_boost", corner_boost, preview()),
         ("geometry", geometry, preview()),
         ("clarity_dehaze", clarity, preview()),
         ("masked_wb", masked_wb, preview()),

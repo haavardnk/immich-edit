@@ -410,6 +410,7 @@ fn populated_edits() -> Edits {
             color_nr_detail: 55.0,
             color_nr_smoothness: 45.0,
             capture_sharpen: false,
+            capture_corner_boost: 30.0,
         },
         effects: EffectsEdits {
             vignette_amount: -30.0,

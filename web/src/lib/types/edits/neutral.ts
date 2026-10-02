@@ -97,6 +97,7 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
         detail: {
           ...edits.detail,
           capture_sharpen: neutral.detail.capture_sharpen,
+          capture_corner_boost: neutral.detail.capture_corner_boost,
           sharpen_amount: neutral.detail.sharpen_amount,
           sharpen_radius: neutral.detail.sharpen_radius,
           sharpen_detail: neutral.detail.sharpen_detail,

@@ -9,6 +9,7 @@ use crate::edits::Edits;
 use crate::finish::{FinalImage, FinalPixels, encode, final_stage, has_final_stage};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
 use crate::ops::LinearImage;
+use crate::ops::capture_sharpen::CaptureSigma;
 use crate::ops::curves::CurveLuts;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 use crate::timing::{self, StageClock};
@@ -85,7 +86,10 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
             wb_coeffs: frame.meta.wb_coeffs,
             cam_to_srgb: setup.cam_to_srgb,
             is_raw: frame.meta.is_raw,
-            capture_sigma: frame.meta.capture_sigma.map(|s| s / block_scale),
+            capture_sigma: frame
+                .meta
+                .capture_sigma
+                .map(|s| CaptureSigma::on_grid(s, &edits, block_scale)),
             preview_mode: options.preview_mode.clone(),
             roi: options.roi,
             white: setup.white.clone(),

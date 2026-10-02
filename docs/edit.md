@@ -54,6 +54,9 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    applies a creative look from a `.cube` file, with an **Amount**.
 1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
 1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
+   **Capture Sharpening** restores the fine detail a RAW sensor blurs away, working only on
+   visible edges so smooth areas and noise stay untouched. **Corner Boost** sharpens harder towards
+   the corners for lenses that are softer there.
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).

@@ -1,5 +1,6 @@
 export interface DetailEdits {
   capture_sharpen: boolean;
+  capture_corner_boost: number;
   sharpen_amount: number | null;
   sharpen_radius: number;
   sharpen_detail: number;
@@ -14,6 +15,7 @@ export interface DetailEdits {
 
 export const NEUTRAL_DETAIL: DetailEdits = {
   capture_sharpen: true,
+  capture_corner_boost: 0,
   sharpen_amount: null,
   sharpen_radius: 1.0,
   sharpen_detail: 25,

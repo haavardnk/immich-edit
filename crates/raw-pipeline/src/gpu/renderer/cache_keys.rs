@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::edits::{Edits, hash_strokes};
 use crate::frame::RawFrame;
+use crate::ops::capture_sharpen::CaptureSigma;
 
 pub(super) struct StageKeys {
     pub wb: u64,
@@ -34,14 +35,14 @@ impl StageKeys {
         Self { wb, nr: h.finish() }
     }
 
-    pub fn capture(&self, sigma: f32) -> u64 {
+    pub fn capture(&self, sigma: CaptureSigma) -> u64 {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         self.nr.hash(&mut h);
-        sigma.to_bits().hash(&mut h);
+        sigma.hash_key(&mut h);
         h.finish()
     }
 
-    pub fn spatial(&self, sigma: Option<f32>, spatial_dims: (u32, u32)) -> u64 {
+    pub fn spatial(&self, sigma: Option<CaptureSigma>, spatial_dims: (u32, u32)) -> u64 {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         match sigma {
             Some(sigma) => self.capture(sigma).hash(&mut h),

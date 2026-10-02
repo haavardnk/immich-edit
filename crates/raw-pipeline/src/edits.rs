@@ -121,6 +121,10 @@ fn capture_sharpen_default() -> bool {
     true
 }
 
+fn is_zero_boost(boost: &f64) -> bool {
+    *boost == 0.0
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct DetailEdits {
     #[serde(default)]
@@ -145,6 +149,8 @@ pub struct DetailEdits {
     pub color_nr_smoothness: f64,
     #[serde(default = "capture_sharpen_default")]
     pub capture_sharpen: bool,
+    #[serde(default, skip_serializing_if = "is_zero_boost")]
+    pub capture_corner_boost: f64,
 }
 
 impl Default for DetailEdits {
@@ -161,6 +167,7 @@ impl Default for DetailEdits {
             color_nr_detail: color_nr_detail_default(),
             color_nr_smoothness: color_nr_smoothness_default(),
             capture_sharpen: capture_sharpen_default(),
+            capture_corner_boost: 0.0,
         }
     }
 }
@@ -212,7 +219,11 @@ impl DetailEdits {
             color_nr_detail: self.color_nr_detail.clamp(0.0, 100.0),
             color_nr_smoothness: self.color_nr_smoothness.clamp(0.0, 100.0),
             capture_sharpen: self.capture_sharpen,
+            capture_corner_boost: self.capture_corner_boost.clamp(0.0, 100.0),
         };
+        if !out.capture_sharpen {
+            out.capture_corner_boost = 0.0;
+        }
         if out.sharpen_amount == Some(0.0) {
             out.sharpen_radius = sharpen_radius_default();
             out.sharpen_detail = sharpen_detail_default();

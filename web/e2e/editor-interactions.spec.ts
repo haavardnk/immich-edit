@@ -122,13 +122,22 @@ test('capture sharpening toggle is enabled only for raw assets', async ({ page }
   await expect(toggle).toBeEnabled();
   await expect(toggle).toBeChecked();
 
+  const boost = page.getByRole('slider', { name: 'Corner Boost' });
+  await expect(boost).toBeEnabled();
+  await boost.fill('60');
+  await expect
+    .poll(() => saves.some((s) => JSON.stringify(s).includes('corner_boost":60')))
+    .toBe(true);
+
   await toggle.uncheck();
   await expect
     .poll(() => saves.some((s) => JSON.stringify(s).includes('"capture_sharpen"')))
     .toBe(true);
+  await expect(boost).toBeDisabled();
 
   await page.getByText('Capture Sharpening').click();
   await expect(toggle).toBeChecked();
+  await expect(boost).toBeEnabled();
 });
 
 test('capture sharpening toggle is disabled for non-raw assets', async ({ page }) => {
@@ -137,6 +146,7 @@ test('capture sharpening toggle is disabled for non-raw assets', async ({ page }
 
   await page.getByRole('button', { name: 'Detail', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Capture Sharpening' })).toBeDisabled();
+  await expect(page.getByRole('slider', { name: 'Corner Boost' })).toBeDisabled();
 });
 
 test('the scopes panel distinguishes loading from absent data', async ({ page }) => {

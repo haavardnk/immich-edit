@@ -143,6 +143,7 @@ const SECTION_FIELDS: Record<DevelopSection, string[]> = {
   ],
   sharpening: [
     'detail.capture_sharpen',
+    'detail.capture_corner_boost',
     'detail.sharpen_amount',
     'detail.sharpen_radius',
     'detail.sharpen_detail',
@@ -191,6 +192,7 @@ function graded(): Edits {
   edits.basic.vibrance = 45;
   edits.basic.saturation = 55;
   edits.detail.capture_sharpen = false;
+  edits.detail.capture_corner_boost = 30;
   edits.detail.sharpen_amount = 80;
   edits.detail.sharpen_radius = 2;
   edits.detail.sharpen_detail = 60;

@@ -90,7 +90,7 @@ pub struct RenderContext {
     pub wb_coeffs: [f32; 4],
     pub cam_to_srgb: [[f32; 3]; 3],
     pub is_raw: bool,
-    pub capture_sigma: Option<f32>,
+    pub capture_sigma: Option<capture_sharpen::CaptureSigma>,
     pub preview_mode: crate::frame::PreviewMode,
     pub roi: Option<crate::edits::CropRect>,
     pub dcp: Option<std::sync::Arc<ResolvedDcp>>,
