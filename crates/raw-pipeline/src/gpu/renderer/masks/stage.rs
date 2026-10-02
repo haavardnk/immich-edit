@@ -38,7 +38,6 @@ pub(in crate::gpu::renderer) struct MaskStageOutput {
 
 struct MaskViews {
     scratch_linear: TextureView,
-    scratch_tone: TextureView,
     weight: TextureView,
     sharpen: TextureView,
     accum_alt: TextureView,
@@ -51,7 +50,6 @@ impl MaskViews {
     fn new(p: &OutputTargets, atlas: &MaskAtlas) -> Self {
         Self {
             scratch_linear: full_view(&p.mask_scratch_linear),
-            scratch_tone: full_view(&p.mask_scratch_tone),
             weight: full_view(&p.mask_weight),
             sharpen: full_view(&p.mask_sharpen),
             accum_alt: full_view(&p.mask_accum_alt),
@@ -221,7 +219,7 @@ impl GpuRenderer {
             &[
                 uniform.as_entire_binding(),
                 tex(layer_src.as_ref().unwrap_or(&stage.views.src)),
-                tex(&views.scratch_tone),
+                tex(&stage.views.out),
                 tex(&views.scratch_linear),
                 tex(&stage.views.shadows),
                 tex(&stage.views.dcp_base),
