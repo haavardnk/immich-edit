@@ -88,6 +88,58 @@ fn scaled_mosaic_matches_rawler_rescale_and_crop() {
 }
 
 #[test]
+fn png_decodes_every_colour_type() {
+    let palette: &[u8] = &[50, 50, 50, 255, 255, 255];
+    let cases: [(png::ColorType, png::BitDepth, &[u8]); 4] = [
+        (
+            png::ColorType::GrayscaleAlpha,
+            png::BitDepth::Eight,
+            &[50, 255, 255, 0],
+        ),
+        (
+            png::ColorType::GrayscaleAlpha,
+            png::BitDepth::Sixteen,
+            &[50, 0, 255, 255, 255, 255, 0, 0],
+        ),
+        (
+            png::ColorType::Grayscale,
+            png::BitDepth::One,
+            &[0b0100_0000],
+        ),
+        (png::ColorType::Indexed, png::BitDepth::Eight, &[0, 1]),
+    ];
+    for (color, depth, pixels) in cases {
+        let mut bytes = Vec::new();
+        let mut encoder = png::Encoder::new(&mut bytes, 2, 1);
+        encoder.set_color(color);
+        encoder.set_depth(depth);
+        if color == png::ColorType::Indexed {
+            encoder.set_palette(palette);
+        }
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(pixels)
+            .unwrap();
+        let frame = match super::decode_image(&bytes, None) {
+            Ok(frame) => frame,
+            Err(e) => panic!("{color:?} {depth:?}: {e}"),
+        };
+        let grey = frame.data.len() == 6
+            && frame
+                .data
+                .chunks_exact(3)
+                .all(|p| (p[0] - p[1]).abs() < 0.01 && (p[0] - p[2]).abs() < 0.01);
+        if !grey || frame.data[3] - frame.data[0] < 0.3 {
+            panic!(
+                "{color:?} {depth:?}: not a dark-to-bright 2x1 grey frame: {:?}",
+                frame.data
+            );
+        }
+    }
+}
+
+#[test]
 fn rgb8_decode_dithers_deterministically() {
     let flat = vec![128u8; 64 * 64 * 3];
     let first = frame_from_rgb8(flat.clone(), 64, 64, None);
