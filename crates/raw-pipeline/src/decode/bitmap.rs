@@ -196,11 +196,13 @@ fn decode_png(
     data: &[u8],
     exif: Option<little_exif::metadata::Metadata>,
 ) -> crate::PipelineResult<RawFrame> {
-    let decoder = png::Decoder::new(std::io::Cursor::new(data));
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(data));
+    decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder
         .read_info()
         .map_err(|e| PipelineError::Decode(format!("png: {e}")))?;
     let info = reader.info().clone();
+    let (color_type, bit_depth) = reader.output_color_type();
     let mut buf = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
     let frame = reader
         .next_frame(&mut buf)
@@ -208,7 +210,7 @@ fn decode_png(
     let width = info.width as usize;
     let height = info.height as usize;
     let bytes = &buf[..frame.buffer_size()];
-    match (info.color_type, info.bit_depth) {
+    match (color_type, bit_depth) {
         (png::ColorType::Rgb, png::BitDepth::Eight) => {
             Ok(frame_from_rgb8(bytes.to_vec(), width, height, exif))
         }
@@ -232,6 +234,21 @@ fn decode_png(
         (png::ColorType::Grayscale, png::BitDepth::Sixteen) => {
             let g = be_bytes_to_u16(bytes);
             let rgb: Vec<u16> = g.iter().flat_map(|&v| [v, v, v]).collect();
+            Ok(frame_from_rgb16(rgb, width, height, exif))
+        }
+        (png::ColorType::GrayscaleAlpha, png::BitDepth::Eight) => {
+            let rgb: Vec<u8> = bytes
+                .chunks_exact(2)
+                .flat_map(|p| [p[0], p[0], p[0]])
+                .collect();
+            Ok(frame_from_rgb8(rgb, width, height, exif))
+        }
+        (png::ColorType::GrayscaleAlpha, png::BitDepth::Sixteen) => {
+            let ga = be_bytes_to_u16(bytes);
+            let rgb: Vec<u16> = ga
+                .chunks_exact(2)
+                .flat_map(|p| [p[0], p[0], p[0]])
+                .collect();
             Ok(frame_from_rgb16(rgb, width, height, exif))
         }
         (ct, bd) => Err(PipelineError::Unsupported(format!(
