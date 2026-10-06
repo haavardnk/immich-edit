@@ -1,3 +1,5 @@
+mod raw_metadata;
+
 use little_exif::endian::Endian;
 use little_exif::exif_tag::ExifTag;
 use little_exif::filetype::FileExtension;
@@ -6,6 +8,8 @@ use little_exif::metadata::Metadata;
 
 use crate::PipelineError;
 use crate::frame::OrientFlips;
+
+pub use raw_metadata::from_raw_metadata;
 
 pub fn orientation(meta: &Metadata) -> Option<OrientFlips> {
     let tag = meta.get_tag(&ExifTag::Orientation(vec![])).next()?;
@@ -34,6 +38,24 @@ pub fn parse(data: &[u8]) -> Option<Metadata> {
     }))
     .ok()
     .flatten()
+}
+
+pub fn merge(primary: Option<Metadata>, fallback: Option<Metadata>) -> Option<Metadata> {
+    let Some(mut primary) = primary else {
+        return fallback;
+    };
+    let Some(fallback) = fallback else {
+        return Some(primary);
+    };
+    let present: Vec<(u16, ExifTagGroup)> = primary
+        .into_iter()
+        .map(|t| (t.as_u16(), t.get_group()))
+        .collect();
+    fallback
+        .into_iter()
+        .filter(|t| !present.contains(&(t.as_u16(), t.get_group())))
+        .for_each(|t| primary.set_tag(t.clone()));
+    Some(primary)
 }
 
 pub fn without_location(meta: &Metadata) -> Metadata {
