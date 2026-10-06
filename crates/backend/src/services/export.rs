@@ -86,6 +86,12 @@ pub struct ExportImmichRequest<'a> {
     pub seq: Seq,
 }
 
+pub struct RenderedExport {
+    pub bytes: Bytes,
+    pub output: OutputFormat,
+    pub metadata_warning: Option<String>,
+}
+
 pub async fn render_export(
     state: &AppState,
     identity: RenderIdentity,
@@ -94,7 +100,7 @@ pub async fn render_export(
     edits: Edits,
     params: &ExportParams,
     priority: RenderPriority,
-) -> Result<(Bytes, OutputFormat), AppError> {
+) -> Result<RenderedExport, AppError> {
     let resize = params.resize()?;
     let output_sharpen = params.output_sharpen()?;
     let watermark = match params.watermark()? {
@@ -143,7 +149,8 @@ pub async fn render_export(
             .map_err(AppError::from)?;
 
         let mut bytes = rendered.bytes;
-        let exif = match params.metadata() {
+        let metadata = params.metadata();
+        let exif = match metadata {
             MetadataOpt::All => frame.exif.as_ref().map(Cow::Borrowed),
             MetadataOpt::NoLocation => frame
                 .exif
@@ -151,13 +158,27 @@ pub async fn render_export(
                 .map(|m| Cow::Owned(raw_pipeline::exif::without_location(m))),
             MetadataOpt::None => None,
         };
-        if let Some(exif) = exif.as_deref()
-            && let Err(e) =
-                raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
-        {
-            tracing::warn!(error = %e, "exif inject failed");
-        }
-        Ok((Bytes::from(bytes), output))
+        let metadata_warning = match exif.as_deref() {
+            None if metadata == MetadataOpt::None => None,
+            None => {
+                tracing::warn!(asset = %id, "export source has no readable exif");
+                Some("Metadata not copied: no readable EXIF in the original".to_string())
+            }
+            Some(exif) => {
+                match raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension()) {
+                    Ok(()) => None,
+                    Err(e) => {
+                        tracing::warn!(asset = %id, error = %e, "exif inject failed");
+                        Some(format!("Metadata not copied: {e}"))
+                    }
+                }
+            }
+        };
+        Ok(RenderedExport {
+            bytes: Bytes::from(bytes),
+            output,
+            metadata_warning,
+        })
     };
     state
         .queue
@@ -211,7 +232,7 @@ pub async fn export_to_immich(
         let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
-        let (bytes, output) = render_export(
+        let rendered = render_export(
             state,
             identity,
             immich,
@@ -226,15 +247,16 @@ pub async fn export_to_immich(
             date: capture_date(&original),
             seq: req.seq,
         });
-        let filename = resolve_filename(&stem, output.extension(), &existing_names);
+        let filename = resolve_filename(&stem, rendered.output.extension(), &existing_names);
         let now = Utc::now().to_rfc3339();
+        let created_at = original.file_created_at.as_deref().unwrap_or(&now);
         let upload = immich
             .upload_asset(crate::immich::client::UploadRequest {
                 filename: &filename,
-                content_type: output.content_type(),
-                bytes,
+                content_type: rendered.output.content_type(),
+                bytes: rendered.bytes,
                 is_favorite: body.favorite,
-                created_at: &now,
+                created_at,
                 modified_at: &now,
             })
             .await?;
@@ -249,8 +271,11 @@ pub async fn export_to_immich(
                 .await?;
         }
 
-        let warnings =
-            run_post_upload(state, identity, immich, &original, body, new_id, &status).await;
+        let warnings: Vec<String> = rendered
+            .metadata_warning
+            .into_iter()
+            .chain(run_post_upload(state, identity, immich, &original, body, new_id, &status).await)
+            .collect();
 
         if let Some(job) = job {
             state.edits.complete_export_job(job, &warnings).await?;

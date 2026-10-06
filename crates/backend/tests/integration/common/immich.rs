@@ -13,11 +13,34 @@ pub fn asset_id() -> Uuid {
 }
 
 pub fn arw_response() -> ResponseTemplate {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../raw-pipeline/tests/fixtures/Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw");
+    raw_response(
+        "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw",
+        "image/x-sony-arw",
+    )
+}
+
+pub fn raw_response(fixture: &str, content_type: &str) -> ResponseTemplate {
+    let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../raw-pipeline/tests/fixtures")
+        .join(fixture);
     ResponseTemplate::new(200)
-        .insert_header("content-type", "image/x-sony-arw")
-        .set_body_bytes(std::fs::read(fixture).expect("committed Sony ARW fixture"))
+        .insert_header("content-type", content_type)
+        .set_body_bytes(std::fs::read(file).expect("committed RAW fixture"))
+}
+
+pub fn plain_jpeg() -> Vec<u8> {
+    let rgb = vec![128u8; 64 * 48 * 3];
+    raw_pipeline::encode::encode_jpeg_rgb(
+        raw_pipeline::encode::ImageRgb8 {
+            rgb: &rgb,
+            width: 64,
+            height: 48,
+        },
+        90,
+        raw_pipeline::frame::JpegSubsampling::Chroma420,
+        raw_pipeline::frame::OutputColorSpace::SRgb,
+    )
+    .unwrap()
 }
 
 pub async fn mock_original_with(server: &MockServer, id: Uuid, response: ResponseTemplate) {

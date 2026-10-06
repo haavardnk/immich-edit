@@ -135,6 +135,11 @@ unmatched brace shows an error under the field and blocks the export until you f
 - **Stack with original** stacks the new photo with the original in Immich. **Edit primary** shows
   the edit on top of the stack, and **Original primary** keeps the original on top.
 
+The new photo lands next to the original in the Immich timeline, dated by the original's capture
+time, even with **Metadata** set to **None**. When **Metadata** keeps anything but the original has
+no EXIF the export can read, the upload still goes through and reports
+`Metadata not copied: no readable EXIF in the original`.
+
 Immich refuses a file it already has. Uploading an identical export again reports
 `Not uploaded: identical asset already exists in Immich (matched by content hash)`.
 Change the edit or a format option to upload another one. A failed upload shows **Retry**.

@@ -183,7 +183,7 @@ async fn run_zip_item(
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let template = NameTemplate::parse(params.params.filename_template.as_deref())?;
     let original = immich.asset(asset_id.source()).await?;
-    let (bytes, output) = render_export(
+    let rendered = render_export(
         state,
         RenderIdentity {
             owner: job.user_id,
@@ -206,10 +206,10 @@ async fn run_zip_item(
         date: capture_date(&original),
         seq: item_seq(job, item),
     });
-    let filename = write_unique(&dir, &stem, output.extension(), &bytes)
+    let filename = write_unique(&dir, &stem, rendered.output.extension(), &rendered.bytes)
         .await
         .map_err(|e| JobItemError::msg(format!("write export file: {e}")))?;
-    Ok(serde_json::json!({ "filename": filename, "bytes": bytes.len() }))
+    Ok(serde_json::json!({ "filename": filename, "bytes": rendered.bytes.len() }))
 }
 
 #[cfg(test)]

@@ -59,15 +59,15 @@ async fn download(
         ),
         ctx.immich.asset(id.source()),
     );
-    let (bytes, output) = rendered?;
+    let rendered = rendered?;
     let asset = asset?;
     let stem = template.render(&NameContext {
         original: &asset.original_file_name,
         date: capture_date(&asset),
         seq: Seq::SINGLE,
     });
-    let filename = format!("{stem}.{}", output.extension());
-    download_response(&filename, bytes, output)
+    let filename = format!("{stem}.{}", rendered.output.extension());
+    download_response(&filename, rendered.bytes, rendered.output)
 }
 
 fn download_response(

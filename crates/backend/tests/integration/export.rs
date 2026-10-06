@@ -45,18 +45,7 @@ fn neighbour_contrast(frame: &RawFrame) -> f64 {
 }
 
 fn jpeg_with_camera_and_gps() -> Vec<u8> {
-    let rgb = vec![128u8; 64 * 48 * 3];
-    let mut jpeg = raw_pipeline::encode::encode_jpeg_rgb(
-        raw_pipeline::encode::ImageRgb8 {
-            rgb: &rgb,
-            width: 64,
-            height: 48,
-        },
-        90,
-        raw_pipeline::frame::JpegSubsampling::Chroma420,
-        raw_pipeline::frame::OutputColorSpace::SRgb,
-    )
-    .unwrap();
+    let mut jpeg = plain_jpeg();
     let mut meta = little_exif::metadata::Metadata::new();
     meta.set_tag(ExifTag::Make("SONY".into()));
     meta.set_tag(ExifTag::GPSLatitudeRef("N".into()));
