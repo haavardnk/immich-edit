@@ -81,6 +81,12 @@ adds `immich-edit/label/red` and so on, so Immich searches and workflows can use
 never deletes a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or
 delete them in Immich later.
 
+Photos another Immich user owns, such as a partner's photos in your timeline or another user's
+photos in a shared album, follow Immich's rules: the rating, favorite, reject, label and tag
+controls stay visible but are disabled, and hovering them says why. The keys above do nothing on
+them. You can still add them to albums, edit them and export the result as a new photo of your
+own. When Immich refuses a change for another reason, the message says what Immich answered.
+
 ## Choose between similar shots
 
 In the grid, keys act on the selected photos, so select photos first:
@@ -134,8 +140,10 @@ again to clear the rating. The bar also has **Tags**, **Albums**, **Create virtu
 **Edit and export selected**. **Albums** adds the selection to existing Immich albums; inside an
 album it also offers **Remove from** that album, which drops the photos from the grid while they
 stay in Immich. **Edit and export selected** pastes edits, applies a preset or exports every selected
-photo in one go; see [export many photos](export.md#export-many-photos). `Shift+B` moves keyboard
-focus from the grid into the selection bar.
+photo in one go; see [export many photos](export.md#export-many-photos). When the selection holds a
+photo another Immich user owns, the favorite, rating, reject, label and **Tags** controls are
+disabled, and hovering them says why. `Shift+B` moves keyboard focus from the grid into the
+selection bar.
 
 With one photo selected, the bar shows its filename in place of the count and an **Open in
 editor** button. With two it offers **Compare selected**, and with three or more **Survey

@@ -22,6 +22,7 @@
     onAdd,
     onRemove,
     onCreate,
+    disabled = false,
     anchor = 'top',
     align = 'start',
     rootClass = 'flex min-w-0 items-center gap-1.5 overflow-hidden',
@@ -34,6 +35,7 @@
     onAdd: (tag: TagRef) => void | Promise<void>;
     onRemove: (tagId: string) => void | Promise<void>;
     onCreate: (value: string) => TagRef | null | Promise<TagRef | null>;
+    disabled?: boolean;
     anchor?: Anchor;
     align?: Align;
     rootClass?: string;
@@ -108,13 +110,14 @@
           icon={mdiClose}
           title="Remove"
           aria-label="Remove"
+          {disabled}
           onclick={() => onRemove(t.id)}
         />
       </span>
     {/each}
   </div>
   <Popover
-    {open}
+    open={open && !disabled}
     {anchor}
     {align}
     onOpenChange={(v) => (v ? onToggle() : onClose())}
@@ -130,6 +133,7 @@
         title={hint('Tags', 'toggleTags')}
         aria-label={hint('Tags', 'toggleTags')}
         {...mergeProps(popoverProps)}
+        {disabled}
       />
     {/snippet}
     <SearchableSelect

@@ -4,6 +4,8 @@
   import { hint } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { browsing } from '$lib/stores/browsing.svelte';
+  import { NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
+  import DisabledReason from '$lib/components/DisabledReason.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';
@@ -11,6 +13,7 @@
   import { mdiFilmstrip, mdiFullscreen, mdiFullscreenExit } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
+  const owned = $derived(editor.asset ? ownsAsset(editor.asset) : false);
   const hasFilmstrip = $derived(browsing.assets.length > 0);
 </script>
 
@@ -20,10 +23,16 @@
 >
   <div class="-my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1">
     {#if hasAsset}
-      <RatingControl />
-      <div class="min-w-0 flex-1 overflow-hidden">
-        <TagsStrip />
-      </div>
+      <DisabledReason
+        locked={!owned}
+        reason={NOT_OWNER}
+        class="-my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1"
+      >
+        <RatingControl />
+        <div class="min-w-0 overflow-hidden">
+          <TagsStrip disabled={!owned} />
+        </div>
+      </DisabledReason>
     {/if}
   </div>
 

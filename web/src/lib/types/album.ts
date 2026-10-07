@@ -19,6 +19,7 @@ export interface AssetSummary {
   id: string;
   originalFileName: string;
   type: AssetType;
+  ownerId?: string;
   localDateTime?: string | null;
   fileCreatedAt: string | null;
   updatedAt: string | null;

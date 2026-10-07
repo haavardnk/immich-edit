@@ -4,6 +4,7 @@ import { browsing } from '$lib/stores/browsing.svelte';
 import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
 import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
+import { ownsAsset } from '$lib/browse/ownership';
 import {
   isLabelTag,
   labelOf,
@@ -25,7 +26,7 @@ export interface MetadataCtx {
 type Loaded = MetadataCtx & { assetId: string; asset: AssetDetail };
 
 async function ready(ctx: MetadataCtx): Promise<Loaded | null> {
-  if (!ctx.assetId || !ctx.asset) return null;
+  if (!ctx.assetId || !ctx.asset || !ownsAsset(ctx.asset)) return null;
   if (!(await metadataConsent.gate())) return null;
   return ctx as Loaded;
 }

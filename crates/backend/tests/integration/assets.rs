@@ -84,6 +84,9 @@ async fn asset_detail_returns_exif_and_favorite() {
     if json["tags"][0]["value"] != "Landscape" {
         panic!("tags: {json}");
     }
+    if json["ownerId"] != test_user_id().to_string() {
+        panic!("owner: {json}");
+    }
 }
 
 #[tokio::test]

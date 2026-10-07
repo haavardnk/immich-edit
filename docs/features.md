@@ -23,7 +23,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the direction you pick |
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
-| Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/` |
+| Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/`. Photos owned by another Immich user are read-only, as in Immich |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
 | Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |

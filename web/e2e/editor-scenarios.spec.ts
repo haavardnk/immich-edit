@@ -398,6 +398,28 @@ test('stack primary is a keyboard radio group', async ({ page }) => {
   await expect(original).toBeChecked();
 });
 
+test("another user's photo is read-only and says why", async ({ page }) => {
+  await installMocks(page, { assets: [{ ...ASSET_SUMMARY, ownerId: 'partner' }] });
+  await gotoAsset(page);
+
+  const status = page.getByRole('navigation', { name: 'Editor status and view controls' });
+  const star = status.getByRole('radio', { name: '3 stars', exact: true });
+  await expect(star).toBeDisabled();
+  await expect(status.getByRole('button', { name: /^Favorite/ })).toBeDisabled();
+  await star.hover({ force: true });
+  await expect(page.getByText('Shared by another Immich user.')).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await page.getByRole('radio', { name: 'To Immich' }).click();
+
+  const stack = page.getByRole('checkbox', { name: 'Stack with original' });
+  await expect(stack).toBeDisabled();
+  await expect(stack).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Mark as favorite' })).toBeEnabled();
+  await stack.hover({ force: true });
+  await expect(page.getByText('Only the owner can stack it.')).toBeVisible();
+});
+
 test('editor toggles report their pressed state', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

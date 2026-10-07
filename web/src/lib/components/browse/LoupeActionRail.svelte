@@ -9,6 +9,8 @@
   import FavoriteButton from '$lib/components/FavoriteButton.svelte';
   import RejectButton from '$lib/components/RejectButton.svelte';
   import LabelPicker from '$lib/components/LabelPicker.svelte';
+  import DisabledReason from '$lib/components/DisabledReason.svelte';
+  import { NOT_OWNER } from '$lib/browse/ownership';
   import type { LabelColor } from '$lib/stores/labels';
   import { hint } from '$lib/shortcuts/labels';
   import { Icon, IconButton } from '@immich/ui';
@@ -29,6 +31,7 @@
     rejected: boolean;
     label: LabelColor | null;
     tags: TagRef[];
+    owned: boolean;
     multi: boolean;
     position: number;
     count: number;
@@ -54,6 +57,7 @@
     rejected,
     label,
     tags,
+    owned,
     multi,
     position,
     count,
@@ -79,16 +83,17 @@
   class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
 >
   <div class="min-w-0 overflow-hidden">
-    <div class="flex min-w-0 items-center gap-2">
+    <DisabledReason locked={!owned} reason={NOT_OWNER} class="flex min-w-0 items-center gap-2">
       <div class="shrink-0">
-        <StarRating {rating} size={16} onchange={onRate} />
+        <StarRating {rating} size={16} disabled={!owned} onchange={onRate} />
       </div>
-      <FavoriteButton {isFavorite} ontoggle={onFavorite} />
-      <RejectButton isRejected={rejected} ontoggle={onReject} />
-      <LabelPicker {label} onchange={onLabel} />
+      <FavoriteButton {isFavorite} disabled={!owned} ontoggle={onFavorite} />
+      <RejectButton isRejected={rejected} disabled={!owned} ontoggle={onReject} />
+      <LabelPicker {label} disabled={!owned} onchange={onLabel} />
       <div class="min-w-0">
         <TagPicker
           {tags}
+          disabled={!owned}
           open={browseView.loupeTagsOpen}
           onToggle={() => (browseView.loupeTagsOpen = !browseView.loupeTagsOpen)}
           onClose={() => (browseView.loupeTagsOpen = false)}
@@ -98,7 +103,7 @@
           anchor="bottom"
         />
       </div>
-    </div>
+    </DisabledReason>
   </div>
   <div class="flex items-center gap-1">
     <div class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-white/65">

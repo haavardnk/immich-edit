@@ -17,6 +17,7 @@
   import WatermarkOptions from '$lib/panels/export/WatermarkOptions.svelte';
   import ImmichOptions from '$lib/panels/export/ImmichOptions.svelte';
   import { exportSettings } from '$lib/panels/export/exportSettings.svelte';
+  import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '$lib/browse/ownership';
   import {
     baseOptions,
     ensureLibraryLoaded,
@@ -39,7 +40,7 @@
     await runBulkJob(
       (assetIds) =>
         destination === 'immich'
-          ? createImmichExportJob(assetIds, immichOptions(form))
+          ? createImmichExportJob(assetIds, immichOptions(form, stackable))
           : createZipExportJob(assetIds, baseOptions(form)),
       'Failed to queue export'
     );
@@ -47,7 +48,9 @@
   }
 
   let label = $derived(formatLabel(form.format));
-  let first = $derived(browsing.assets.find((asset) => selection.selected.has(asset.id)) ?? null);
+  let picked = $derived(browsing.assets.filter((asset) => selection.selected.has(asset.id)));
+  let first = $derived(picked[0] ?? null);
+  let stackable = $derived(picked.length < selection.count || picked.some(ownsAsset));
   let nameExample = $derived(
     first
       ? {
@@ -92,7 +95,11 @@
 
   {#if destination === 'immich'}
     <ExportSection title="Immich">
-      <ImmichOptions bind:form={exportSettings.form} />
+      <ImmichOptions
+        bind:form={exportSettings.form}
+        {stackable}
+        stackReason={selection.count === 1 ? NOT_OWNER_STACK : NONE_OWNED_STACK}
+      />
     </ExportSection>
   {/if}
 

@@ -2,6 +2,8 @@
   import { page } from '$app/state';
   import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
+  import DisabledReason from '$lib/components/DisabledReason.svelte';
+  import { NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
   import type { AssetSummary } from '$lib/types/album';
   import { hint } from '$lib/shortcuts/labels';
   import { assetThumbUrl } from '$lib/api/assets';
@@ -55,6 +57,7 @@
   let pendingDelete = $state(false);
 
   const rating = $derived(asset.exifInfo?.rating ?? 0);
+  const owned = $derived(ownsAsset(asset));
   const rejected = $derived(isRejected(asset));
   const label = $derived(labelOf(asset));
   const src = $derived(assetThumbUrl(asset.id));
@@ -227,7 +230,9 @@
         onkeydown={(e) => e.stopPropagation()}
         onmousedown={(e) => e.preventDefault()}
       >
-        <StarRating {rating} size={12} onchange={onRate} />
+        <DisabledReason locked={!owned} reason={NOT_OWNER}>
+          <StarRating {rating} size={12} disabled={!owned} onchange={onRate} />
+        </DisabledReason>
       </span>
     {/if}
     <div class="flex items-end gap-2">

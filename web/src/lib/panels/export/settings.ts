@@ -359,13 +359,13 @@ export function baseOptions(f: ExportForm): ExportOptions {
   };
 }
 
-export function immichOptions(f: ExportForm): ImmichExportOptions {
+export function immichOptions(f: ExportForm, stackable = true): ImmichExportOptions {
   return {
     ...baseOptions(f),
     albumIds: f.albumIds,
     tagIds: f.tagIds,
     favorite: f.favorite,
-    stackWithOriginal: f.stackWithOriginal,
+    stackWithOriginal: stackable && f.stackWithOriginal,
     stackPrimary: f.stackPrimary
   };
 }

@@ -10,6 +10,7 @@
   import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/stores/labels';
   import { persistedPreviewUrl } from '$lib/api/preview';
   import { isRejected } from '$lib/browse/reject';
+  import { ownsAsset } from '$lib/browse/ownership';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
   import { paneColumns, paneGridStyle } from '$lib/browse/loupeLayout';
   import {
@@ -547,6 +548,7 @@
         {rejected}
         {label}
         tags={currentTags}
+        owned={ownsAsset(asset)}
         {multi}
         {position}
         {count}

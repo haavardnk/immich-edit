@@ -194,6 +194,14 @@ describe('immichOptions', () => {
       filenameTemplate: '{name}_edit'
     });
   });
+
+  it.each([
+    [true, true],
+    [false, false]
+  ])('stacks only when stackable is %s', (stackable, stacked) => {
+    const opts = immichOptions(form({ stackWithOriginal: true }), stackable);
+    expect(opts.stackWithOriginal).toBe(stacked);
+  });
 });
 
 describe('formatLabel', () => {

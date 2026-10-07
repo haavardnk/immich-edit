@@ -220,6 +220,95 @@ async fn export_immich_resume_keeps_render_warnings() {
     }
 }
 
+#[tokio::test]
+async fn export_immich_stacks_only_owned_originals() {
+    for (owner, stacked) in [(test_user_id(), true), (Uuid::new_v4(), false)] {
+        let server = MockServer::start().await;
+        let uploaded = Uuid::new_v4();
+        Mock::given(method("GET"))
+            .and(path(format!("/api/assets/{}", asset_id())))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "id": asset_id(),
+                "originalFileName": "IMG_0001.HEIC",
+                "type": "IMAGE",
+                "ownerId": owner
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/stacks"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+                "id": Uuid::new_v4(),
+                "primaryAssetId": uploaded,
+                "assets": []
+            })))
+            .mount(&server)
+            .await;
+        let state = test_state(&server).await;
+        let asset = AssetKey::master(asset_id());
+        let body = ExportToImmichBody {
+            edits: Default::default(),
+            params: ExportParams::default(),
+            album_ids: Vec::new(),
+            tag_ids: Vec::new(),
+            favorite: false,
+            stack_with_original: true,
+            stack_primary: StackPrimary::default(),
+        };
+        let job = ExportJobKey {
+            owner: test_user_id(),
+            asset_id: asset,
+            key: "key-1",
+        };
+        state
+            .edits
+            .put_export_job_uploaded(
+                job,
+                &hash_request(asset, &body),
+                uploaded,
+                "IMG_0001_edit.jpg",
+                "created",
+                &[],
+            )
+            .await
+            .unwrap();
+
+        let resp = seed_and_wrap(&server, state)
+            .await
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/assets/{asset}/export/immich"))
+                    .header("content-type", "application/json")
+                    .header("idempotency-key", "key-1")
+                    .body(Body::from(r#"{"stack_with_original":true}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("stacked={stacked}: status {}", resp.status());
+        }
+        let json = body_json(resp).await;
+        let skipped = json["warnings"].as_array().is_some_and(|w| {
+            w.iter().any(|w| {
+                w.as_str()
+                    .is_some_and(|w| w.starts_with("Stacking skipped"))
+            })
+        });
+        let requests = server.received_requests().await.unwrap();
+        let posted = requests
+            .iter()
+            .any(|r| r.method.as_str() == "POST" && r.url.path() == "/api/stacks");
+        if posted != stacked || skipped == stacked {
+            panic!(
+                "stacked={stacked}: posted={posted} warnings {}",
+                json["warnings"]
+            );
+        }
+    }
+}
+
 fn multipart_text<'a>(body: &'a str, field: &str) -> Option<&'a str> {
     let marker = format!("name=\"{field}\"\r\n\r\n");
     let start = body.find(&marker)? + marker.len();

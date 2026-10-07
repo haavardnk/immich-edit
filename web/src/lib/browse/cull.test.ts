@@ -34,8 +34,9 @@ vi.mock('$lib/browse/managedTags', async (orig) => {
   };
 });
 
-import { setLabel, toggleReject } from './cull';
+import { rateAsset, setLabel, toggleFavorite, toggleReject } from './cull';
 import { browsing } from '$lib/stores/browsing.svelte';
+import { session } from '$lib/stores/session.svelte';
 import { isRejected } from './reject';
 import { labelOf } from '$lib/stores/labels';
 import { labelMembers } from '$lib/stores/labels.svelte';
@@ -96,6 +97,35 @@ describe('setLabel', () => {
     h.consent.value = false;
     expect(await setLabel('a', 'red')).toBe(false);
     expect(labelOf(browsing.assets[0]!)).toBeNull();
+  });
+});
+
+describe('assets owned by another Immich user', () => {
+  beforeEach(() => {
+    h.consent.value = true;
+    addTagToAsset.mockClear();
+    removeTagFromAsset.mockClear();
+    h.updateAsset.mockClear();
+    session.set({ id: 'me', email: 'me@x', name: 'Me', is_admin: false, auth_kind: 'password' });
+  });
+
+  it.each([
+    ['rating', () => rateAsset('a', 3)],
+    ['favorite', () => toggleFavorite('a')],
+    ['label', () => setLabel('a', 'red')],
+    ['reject', () => toggleReject('a')]
+  ])('leaves %s untouched', async (_, write) => {
+    browsing.set([{ ...asset('a'), ownerId: 'partner' }]);
+    expect(await write()).toBe(false);
+    expect(h.updateAsset).not.toHaveBeenCalled();
+    expect(addTagToAsset).not.toHaveBeenCalled();
+    expect(browsing.assets[0]?.tags).toEqual([]);
+  });
+
+  it('still writes own assets', async () => {
+    browsing.set([{ ...asset('a'), ownerId: 'me' }]);
+    expect(await toggleFavorite('a')).toBe(true);
+    expect(h.updateAsset).toHaveBeenCalledWith('a', { isFavorite: true });
   });
 });
 

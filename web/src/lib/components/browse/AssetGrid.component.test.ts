@@ -5,6 +5,7 @@ import ComponentHost from '$lib/testing/ComponentHost.svelte';
 import { selection } from '$lib/stores/selection.svelte';
 import { browseView } from '$lib/stores/browseView.svelte';
 import { browseControls } from '$lib/stores/browseControls.svelte';
+import { session } from '$lib/stores/session.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
 vi.mock('$app/navigation', () => ({
@@ -200,5 +201,28 @@ describe('AssetGrid', () => {
       ['b', 3]
     ]);
     expect([...selection.selected].sort()).toEqual(['a', 'b']);
+  });
+
+  it('keeps photos owned by another Immich user read-only', () => {
+    session.set({ id: 'me', email: 'me@x', name: 'Me', is_admin: false, auth_kind: 'password' });
+    render({
+      assets: [
+        { ...asset('a'), ownerId: 'me' },
+        { ...asset('b'), ownerId: 'partner' }
+      ]
+    });
+    const starsDisabled = tiles().map(
+      (tile) => tile.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled
+    );
+    expect(starsDisabled).toEqual([false, true]);
+    click(selectButton(0));
+    const bar = document.querySelector('[aria-label="Selection actions"]');
+    const tags = (): HTMLButtonElement | null | undefined =>
+      bar?.querySelector<HTMLButtonElement>('[aria-label="Tags"]');
+    expect(tags()?.disabled).toBe(false);
+    click(selectButton(1));
+    expect(tags()?.disabled).toBe(true);
+    expect(bar?.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled).toBe(true);
+    expect(bar?.querySelector<HTMLButtonElement>('[aria-label="Albums"]')?.disabled).toBe(false);
   });
 });

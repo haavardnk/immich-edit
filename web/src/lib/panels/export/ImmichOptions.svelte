@@ -1,6 +1,7 @@
 <script lang="ts">
   import { library } from '$lib/stores/library.svelte';
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import DisabledReason from '$lib/components/DisabledReason.svelte';
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import {
     segmentedControlClass,
@@ -9,13 +10,18 @@
   import type { AlbumSummary } from '$lib/types/album';
   import type { TagSummary } from '$lib/api/tags';
   import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
+  import { NOT_OWNER_STACK } from '$lib/browse/ownership';
   import type { ExportForm } from './settings';
   import type { StackPrimary } from '$lib/api/export';
   import { IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { RadioGroup } from 'bits-ui';
 
-  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
+  let {
+    form = $bindable<ExportForm>(),
+    stackable = true,
+    stackReason = NOT_OWNER_STACK
+  }: { form: ExportForm; stackable?: boolean; stackReason?: string } = $props();
 
   const availableTags = $derived(library.tags.filter((tag) => !isManagedTag(toTagRef(tag))));
   const selectedAlbums = $derived(
@@ -99,14 +105,17 @@
       checked={form.favorite}
       onChange={(v) => (form.favorite = v)}
     />
-    <CheckboxRow
-      label="Stack with original"
-      checked={form.stackWithOriginal}
-      onChange={(v) => (form.stackWithOriginal = v)}
-    />
+    <DisabledReason locked={!stackable} reason={stackReason} class="w-fit">
+      <CheckboxRow
+        label="Stack with original"
+        checked={stackable && form.stackWithOriginal}
+        disabled={!stackable}
+        onChange={(v) => (form.stackWithOriginal = v)}
+      />
+    </DisabledReason>
   </div>
 
-  {#if form.stackWithOriginal}
+  {#if stackable && form.stackWithOriginal}
     <RadioGroup.Root
       bind:value={() => form.stackPrimary, (v) => (form.stackPrimary = v as StackPrimary)}
       orientation="horizontal"

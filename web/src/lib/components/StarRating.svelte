@@ -1,7 +1,8 @@
 <script lang="ts">
   import { hint } from '$lib/shortcuts/labels';
   import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
-  import { Icon } from '@immich/ui';
+  import { Icon, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';
 
   interface Props {
@@ -15,6 +16,11 @@
   let { rating, onchange, size = 15, mixed = false, disabled = false }: Props = $props();
 
   let hover = $state<number>(0);
+
+  const starName = (n: number): string => `${n} star${n > 1 ? 's' : ''}`;
+  const tooltip = $derived(
+    hint(hover === 0 ? 'Rating' : hover === rating ? 'Clear rating' : starName(hover), 'rate')
+  );
 
   function onStarClick(n: number, e: MouseEvent): void {
     e.preventDefault();
@@ -45,34 +51,39 @@
   }
 </script>
 
-<div
-  role="radiogroup"
-  aria-label={mixed ? 'Rating, mixed' : 'Rating'}
-  tabindex={disabled ? -1 : 0}
-  class="flex items-center px-1 rounded outline-none focus-visible:ring-1 focus-visible:ring-white/20"
-  oncontextmenu={disabled ? undefined : onGroupContext}
-  onkeydown={disabled ? undefined : onGroupKey}
-  onmouseleave={() => (hover = 0)}
->
-  {#each [1, 2, 3, 4, 5] as n (n)}
-    {@const active = hover > 0 ? n <= hover : n <= rating}
-    {@const preview = hover > 0 && n <= hover && n > rating}
-    {@const name = `${n} star${n > 1 ? 's' : ''}`}
-    <button
-      type="button"
-      role="radio"
-      aria-checked={n === rating}
-      tabindex="-1"
-      class="p-0.5 leading-none transition-colors disabled:opacity-40 {active
-        ? 'text-dark'
-        : 'text-dark/45 hover:text-dark/65'} {preview ? 'opacity-70' : ''}"
-      aria-label={name}
-      title={hint(n === rating ? 'Clear rating' : name, 'rate')}
-      {disabled}
-      onmouseenter={() => (hover = n)}
-      onclick={(e) => onStarClick(n, e)}
+<Tooltip text={tooltip}>
+  {#snippet child({ props })}
+    <div
+      {...mergeProps(props, {
+        role: 'radiogroup',
+        'aria-label': mixed ? 'Rating, mixed' : 'Rating',
+        tabindex: disabled ? -1 : 0,
+        class:
+          'flex items-center px-1 rounded outline-none focus-visible:ring-1 focus-visible:ring-white/20',
+        oncontextmenu: disabled ? undefined : onGroupContext,
+        onkeydown: disabled ? undefined : onGroupKey,
+        onmouseleave: () => (hover = 0)
+      })}
     >
-      <Icon icon={active ? mdiStar : mdiStarOutline} size={`${size}px`} aria-hidden="true" />
-    </button>
-  {/each}
-</div>
+      {#each [1, 2, 3, 4, 5] as n (n)}
+        {@const active = hover > 0 ? n <= hover : n <= rating}
+        {@const preview = hover > 0 && n <= hover && n > rating}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={n === rating}
+          tabindex="-1"
+          class="p-0.5 leading-none transition-colors disabled:opacity-50 {active || disabled
+            ? 'text-dark'
+            : 'text-dark/45 hover:text-dark/65'} {preview ? 'opacity-70' : ''}"
+          aria-label={starName(n)}
+          {disabled}
+          onmouseenter={disabled ? undefined : () => (hover = n)}
+          onclick={(e) => onStarClick(n, e)}
+        >
+          <Icon icon={active ? mdiStar : mdiStarOutline} size={`${size}px`} aria-hidden="true" />
+        </button>
+      {/each}
+    </div>
+  {/snippet}
+</Tooltip>

@@ -163,6 +163,29 @@ test('removing a selection from the open album drops its tiles', async ({ page }
   }
 });
 
+for (const [selection, owners, stackable] of [
+  ['only other users’ photos', ['partner', 'partner'], false],
+  ['some of your own photos', [undefined, 'partner'], true]
+] as const) {
+  test(`bulk export to Immich with ${selection} ${stackable ? 'can' : 'cannot'} stack`, async ({
+    page
+  }) => {
+    await installMocks(page, {
+      assets: ASSETS.map((asset, index) => ({ ...asset, ownerId: owners[index] }))
+    });
+    await page.goto('/photos');
+    await selectBoth(page);
+    await page.getByRole('button', { name: 'Edit and export selected' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+    await dialog.getByRole('tab', { name: 'Export' }).click();
+    await dialog.getByRole('radio', { name: 'To Immich' }).click();
+
+    await expect(dialog.getByRole('checkbox', { name: 'Stack with original' })).toBeEnabled({
+      enabled: stackable
+    });
+  });
+}
+
 test('the preset picker opens above the bulk dialog', async ({ page }) => {
   await installMocks(page, {
     assets: ASSETS,
