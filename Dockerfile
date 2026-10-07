@@ -57,6 +57,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     find target/release -maxdepth 1 -name '*.so*' -exec cp -L {} /build/dylibs/ \;
 
 FROM backend AS test
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libimage-exiftool-perl \
+    libio-compress-brotli-perl && \
+    rm -rf /var/lib/apt/lists/*
 RUN cargo test --locked --release --workspace -j "$(nproc)" && \
     touch /build/.tests-passed
 

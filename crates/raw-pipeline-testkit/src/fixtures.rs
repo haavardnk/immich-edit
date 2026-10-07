@@ -6,6 +6,7 @@ const RAW_EXTS: &[&str] = &[
     "arw", "cr2", "cr3", "crw", "dng", "erf", "gpr", "iiq", "mrw", "nef", "nrw", "orf", "pef",
     "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
+const IMAGE_EXTS: &[&str] = &["avif", "heic", "hif", "jpg", "jxl", "png", "tif", "webp"];
 
 fn tests_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../raw-pipeline/tests")
@@ -19,7 +20,7 @@ pub fn baseline_path(name: &str) -> PathBuf {
     tests_dir().join("baselines").join(name)
 }
 
-pub fn fixtures() -> Vec<PathBuf> {
+fn fixtures_with(exts: &[&str]) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(tests_dir().join("fixtures")) else {
         return Vec::new();
     };
@@ -28,12 +29,20 @@ pub fn fixtures() -> Vec<PathBuf> {
         .filter(|p| {
             p.extension()
                 .and_then(|e| e.to_str())
-                .map(|e| RAW_EXTS.contains(&e.to_ascii_lowercase().as_str()))
+                .map(|e| exts.contains(&e.to_ascii_lowercase().as_str()))
                 .unwrap_or(false)
         })
         .collect();
     paths.sort();
     paths
+}
+
+pub fn fixtures() -> Vec<PathBuf> {
+    fixtures_with(RAW_EXTS)
+}
+
+pub fn image_fixtures() -> Vec<PathBuf> {
+    fixtures_with(IMAGE_EXTS)
 }
 
 pub fn any_fixture() -> Option<PathBuf> {

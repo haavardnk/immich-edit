@@ -32,7 +32,8 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             nasm cmake ninja-build pkg-config libclang-dev \
-            libturbojpeg0-dev libheif-dev libheif-plugins-all
+            libturbojpeg0-dev libheif-dev libheif-plugins-all \
+            libimage-exiftool-perl libio-compress-brotli-perl
       - name: Cache Homebrew downloads
         if: runner.os == 'macOS'
         uses: actions/cache@v6
@@ -41,7 +42,7 @@ jobs:
           key: brew-${{ runner.os }}-v1
       - name: Install macOS deps
         if: runner.os == 'macOS'
-        run: brew install nasm ninja jpeg-turbo libheif
+        run: brew install nasm ninja jpeg-turbo libheif exiftool
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo clippy -p immich-edit-backend --no-default-features --all-targets -- -D warnings

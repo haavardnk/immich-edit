@@ -15,15 +15,18 @@ Install Rust from `rust-toolchain.toml`, Node 26, and the native image libraries
 macOS:
 
 ```shell
-brew install nasm ninja jpeg-turbo libheif
+brew install nasm ninja jpeg-turbo libheif exiftool
 ```
 
 Debian or Ubuntu:
 
 ```shell
 sudo apt-get install -y nasm cmake ninja-build pkg-config libclang-dev \
-  libturbojpeg0-dev libheif-dev
+  libturbojpeg0-dev libheif-dev libimage-exiftool-perl libio-compress-brotli-perl
 ```
+
+The `export_metadata` test reads every export back with ExifTool 12.50 or newer. On Linux it also
+needs the Perl Brotli module to read compressed JPEG XL metadata boxes.
 
 The default backend build includes local AI-mask inference and downloads ONNX Runtime artifacts on
 the first build. Use `--no-default-features` to compile the backend without ML routes.
