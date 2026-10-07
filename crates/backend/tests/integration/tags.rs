@@ -2,7 +2,8 @@ use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::json;
 use tower::ServiceExt;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn tags_upsert_proxies_to_immich() {
@@ -64,5 +65,42 @@ async fn tag_asset_add_and_remove_proxy() {
         .unwrap();
     if resp.status() != StatusCode::OK {
         panic!("delete status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn tag_asset_reports_bulk_refusals() {
+    for (verb, error, expected) in [
+        ("PUT", "duplicate", StatusCode::OK),
+        ("PUT", "no_permission", StatusCode::UNPROCESSABLE_ENTITY),
+        ("DELETE", "not_found", StatusCode::OK),
+        ("DELETE", "no_permission", StatusCode::UNPROCESSABLE_ENTITY),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method(verb))
+            .and(path(format!("/api/tags/{}/assets", tag_id())))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+                { "id": asset_id(), "success": false, "error": error }
+            ])))
+            .mount(&server)
+            .await;
+        let uri = format!("/api/tags/{}/assets/{}", tag_id(), asset_id());
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request(verb, &uri, json!({})))
+            .await
+            .unwrap();
+        if resp.status() != expected {
+            panic!("{verb} {error}: status {}", resp.status());
+        }
+        if expected == StatusCode::OK {
+            continue;
+        }
+        let json = body_json(resp).await;
+        if json["code"] != "upstream_rejected"
+            || json["message"] != "Immich refused the request: no permission"
+        {
+            panic!("{verb} {error}: body {json}");
+        }
     }
 }

@@ -15,6 +15,8 @@ pub enum ImmichError {
     Timeout,
     #[error("upstream transport error")]
     Transport(String),
+    #[error("upstream rejected ({status}): {message}")]
+    Rejected { status: u16, message: String },
     #[error("upstream status {0}")]
     Status(u16),
     #[error("upstream decode error: {0}")]
@@ -29,6 +31,7 @@ impl ImmichError {
             Self::Unauthorized => "unauthorized".into(),
             Self::NotFound => "not found".into(),
             Self::Timeout => "timeout".into(),
+            Self::Rejected { message, .. } => message.clone(),
             Self::Status(code) => format!("status {code}"),
             Self::Transport(_) => "transport error".into(),
             Self::Decode(_) => "decode error".into(),
@@ -75,7 +78,7 @@ impl ImmichConnectionStatus {
                 format!("Immich returned {code} after retries"),
                 Some(code),
             ),
-            ImmichError::Status(code) => (
+            ImmichError::Status(code) | ImmichError::Rejected { status: code, .. } => (
                 "http_status",
                 format!("Immich returned HTTP {code}"),
                 Some(code),
