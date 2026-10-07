@@ -480,8 +480,33 @@ async fn run(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
         401 | 403 => ImmichError::Unauthorized,
         404 => ImmichError::NotFound,
         408 => ImmichError::Timeout,
+        code @ 400..=499 => ImmichError::Rejected {
+            status: code,
+            message: rejection_message(resp, code).await,
+        },
         code => ImmichError::Status(code),
     })
+}
+
+async fn rejection_message(resp: reqwest::Response, code: u16) -> String {
+    const MAX_CHARS: usize = 300;
+    let body = resp.bytes().await.unwrap_or_default();
+    let message = serde_json::from_slice::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|json| match json.get("message")? {
+            serde_json::Value::String(text) => Some(text.clone()),
+            serde_json::Value::Array(items) => Some(
+                items
+                    .iter()
+                    .filter_map(serde_json::Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            ),
+            _ => None,
+        })
+        .map(|text| text.trim().chars().take(MAX_CHARS).collect::<String>())
+        .filter(|text| !text.is_empty());
+    message.unwrap_or_else(|| format!("HTTP {code}"))
 }
 
 pub(super) async fn run_idempotent(

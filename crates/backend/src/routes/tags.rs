@@ -46,6 +46,7 @@ pub async fn tag_asset(
         .immich
         .set_asset_tag(tag_id, asset_id.source(), true)
         .await?;
+    ensure_applied(&resp, "duplicate")?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
@@ -62,9 +63,26 @@ pub async fn untag_asset(
         .immich
         .set_asset_tag(tag_id, asset_id.source(), false)
         .await?;
+    ensure_applied(&resp, "not_found")?;
     state
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
         .await;
     Ok(Json(resp))
+}
+
+fn ensure_applied(resp: &[BulkIdResponse], idempotent: &str) -> Result<(), AppError> {
+    let Some(refused) = resp
+        .iter()
+        .find(|r| !r.success && r.error.as_deref() != Some(idempotent))
+    else {
+        return Ok(());
+    };
+    let reason = refused
+        .error
+        .as_deref()
+        .unwrap_or("unknown")
+        .replace('_', " ");
+    tracing::warn!(target: "app::error", asset = %refused.id, %reason, "immich refused the tag change");
+    Err(AppError::UpstreamRejected(reason))
 }

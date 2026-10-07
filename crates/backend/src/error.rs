@@ -25,6 +25,8 @@ pub enum AppError {
     UpstreamAuth,
     #[error("upstream unavailable")]
     UpstreamUnavailable,
+    #[error("upstream rejected: {0}")]
+    UpstreamRejected(String),
     #[error("upstream timeout")]
     UpstreamTimeout,
     #[error("unsupported format: {0}")]
@@ -72,6 +74,11 @@ impl AppError {
                 StatusCode::BAD_GATEWAY,
                 "upstream_unavailable",
                 "upstream unavailable".into(),
+            ),
+            Self::UpstreamRejected(m) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "upstream_rejected",
+                format!("Immich refused the request: {m}"),
             ),
             Self::UpstreamTimeout => (
                 StatusCode::GATEWAY_TIMEOUT,
@@ -132,8 +139,12 @@ impl From<ImmichError> for AppError {
             ImmichError::Unauthorized => Self::UpstreamAuth,
             ImmichError::NotFound => Self::NotFound,
             ImmichError::Timeout => Self::UpstreamTimeout,
+            ImmichError::Rejected { status, message } => {
+                tracing::warn!(target: "app::error", upstream_status = status, %message, "immich rejected the request");
+                Self::UpstreamRejected(message)
+            }
             ImmichError::Status(code) => {
-                tracing::warn!(target: "app::error", upstream_status = code, "immich rejected the request");
+                tracing::warn!(target: "app::error", upstream_status = code, "immich returned a server error");
                 Self::UpstreamUnavailable
             }
             ImmichError::Transport(detail) => {

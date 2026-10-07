@@ -2,7 +2,8 @@ use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::json;
 use tower::ServiceExt;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn asset_thumb_proxies_bytes_and_content_type() {
@@ -104,5 +105,52 @@ async fn asset_update_proxies_to_immich() {
     let json = body_json(resp).await;
     if json["exifInfo"]["rating"] != 5 {
         panic!("rating: {json}");
+    }
+}
+
+#[tokio::test]
+async fn asset_update_reports_immich_refusal() {
+    for (upstream, expected) in [
+        (
+            ResponseTemplate::new(400).set_body_json(json!({
+                "message": "Not found or no asset.update access",
+                "error": "Bad Request",
+                "statusCode": 400
+            })),
+            "Immich refused the request: Not found or no asset.update access",
+        ),
+        (
+            ResponseTemplate::new(400).set_body_json(
+                json!({ "message": ["rating must be <= 5", "rating must be an integer"] }),
+            ),
+            "Immich refused the request: rating must be <= 5; rating must be an integer",
+        ),
+        (
+            ResponseTemplate::new(413).set_body_string("<html>too large</html>"),
+            "Immich refused the request: HTTP 413",
+        ),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("PATCH"))
+            .and(path(format!("/api/assets/{}", asset_id())))
+            .respond_with(upstream)
+            .mount(&server)
+            .await;
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request(
+                "PUT",
+                &format!("/api/assets/{}", asset_id()),
+                json!({"isFavorite": true}),
+            ))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::UNPROCESSABLE_ENTITY {
+            panic!("{expected}: status {}", resp.status());
+        }
+        let json = body_json(resp).await;
+        if json["code"] != "upstream_rejected" || json["message"] != expected {
+            panic!("body: {json}");
+        }
     }
 }

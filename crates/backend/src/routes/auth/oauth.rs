@@ -154,7 +154,9 @@ pub async fn exchange_code(
 
 fn map_exchange_error(err: ImmichError) -> AppError {
     match err {
-        ImmichError::Unauthorized | ImmichError::Status(400) => AppError::Unauthorized,
+        ImmichError::Unauthorized | ImmichError::Rejected { status: 400, .. } => {
+            AppError::Unauthorized
+        }
         other => other.into(),
     }
 }
