@@ -56,6 +56,56 @@ test('cancelling a running job from the drawer reports the new status', async ({
   expect(cancelled).toBe(true);
 });
 
+test('the drawer lists the metadata each photo could not copy', async ({ page }) => {
+  const done = {
+    ...RUNNING_JOB,
+    id: 'job-2',
+    kind: 'download_zip',
+    status: 'completed',
+    total: 1,
+    completed: 1
+  };
+  await installMocks(page);
+  await page.route('**/api/jobs', (route) =>
+    route.request().method() === 'GET' ? route.fulfill(json([done])) : route.fallback()
+  );
+  await page.route('**/api/jobs/job-2', (route) =>
+    route.fulfill(
+      json({
+        job: done,
+        items: [
+          {
+            id: 'item-1',
+            job_id: 'job-2',
+            asset_id: 'asset-1',
+            status: 'completed',
+            error: null,
+            result: {
+              filename: 'IMG_0001_edit.jpg',
+              bytes: 10,
+              warnings: ['Metadata not copied: no readable EXIF in the original']
+            },
+            idempotency_key: null,
+            attempts: 1,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:01Z'
+          }
+        ]
+      })
+    )
+  );
+
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Jobs' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  await drawer.getByRole('button', { name: 'Toggle details' }).click();
+
+  await expect(drawer.getByText('IMG_0001_edit.jpg')).toBeVisible();
+  await expect(
+    drawer.getByText('Metadata not copied: no readable EXIF in the original')
+  ).toBeVisible();
+});
+
 test('a bulk job reports progress in a toast and leaves the drawer closed', async ({ page }) => {
   const queued = {
     ...RUNNING_JOB,

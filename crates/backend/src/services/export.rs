@@ -4,7 +4,6 @@ use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::OutputFormat;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::borrow::Cow;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
@@ -86,6 +85,12 @@ pub struct ExportImmichRequest<'a> {
     pub seq: Seq,
 }
 
+pub struct RenderedExport {
+    pub bytes: Bytes,
+    pub output: OutputFormat,
+    pub metadata_warnings: Vec<String>,
+}
+
 pub async fn render_export(
     state: &AppState,
     identity: RenderIdentity,
@@ -94,7 +99,7 @@ pub async fn render_export(
     edits: Edits,
     params: &ExportParams,
     priority: RenderPriority,
-) -> Result<(Bytes, OutputFormat), AppError> {
+) -> Result<RenderedExport, AppError> {
     let resize = params.resize()?;
     let output_sharpen = params.output_sharpen()?;
     let watermark = match params.watermark()? {
@@ -126,6 +131,15 @@ pub async fn render_export(
             (frame.meta.width as u32, frame.meta.height as u32),
         );
         let edge = resize.map(|r| r.output_edge(crop));
+        let metadata = match params.metadata() {
+            MetadataOpt::All => Some(true),
+            MetadataOpt::NoLocation => Some(false),
+            MetadataOpt::None => None,
+        }
+        .map(|location| raw_pipeline::metadata::ExportMetadata {
+            exif: frame.exif.clone(),
+            location,
+        });
         let opts = raw_pipeline::frame::RenderOptions {
             max_edge: edge.map_or(EXPORT_MAX_EDGE, |e| e.max_edge),
             enlarge: edge.is_some_and(|e| e.enlarge),
@@ -134,6 +148,7 @@ pub async fn render_export(
             quality: true,
             output,
             output_color_space: params.output_color_space(),
+            metadata,
             ..Default::default()
         };
         let rendered = state
@@ -141,23 +156,14 @@ pub async fn render_export(
             .render(identity, immich.clone(), id.source(), edits, opts, None)
             .await
             .map_err(AppError::from)?;
-
-        let mut bytes = rendered.bytes;
-        let exif = match params.metadata() {
-            MetadataOpt::All => frame.exif.as_ref().map(Cow::Borrowed),
-            MetadataOpt::NoLocation => frame
-                .exif
-                .as_ref()
-                .map(|m| Cow::Owned(raw_pipeline::exif::without_location(m))),
-            MetadataOpt::None => None,
-        };
-        if let Some(exif) = exif.as_deref()
-            && let Err(e) =
-                raw_pipeline::exif::inject(&mut bytes, exif, output.exif_file_extension())
-        {
-            tracing::warn!(error = %e, "exif inject failed");
+        for warning in &rendered.metadata_warnings {
+            tracing::warn!(asset = %id, warning = %warning, "export metadata not copied");
         }
-        Ok((Bytes::from(bytes), output))
+        Ok(RenderedExport {
+            bytes: Bytes::from(rendered.bytes),
+            output,
+            metadata_warnings: rendered.metadata_warnings,
+        })
     };
     state
         .queue
@@ -211,7 +217,7 @@ pub async fn export_to_immich(
         let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
-        let (bytes, output) = render_export(
+        let rendered = render_export(
             state,
             identity,
             immich,
@@ -226,15 +232,16 @@ pub async fn export_to_immich(
             date: capture_date(&original),
             seq: req.seq,
         });
-        let filename = resolve_filename(&stem, output.extension(), &existing_names);
+        let filename = resolve_filename(&stem, rendered.output.extension(), &existing_names);
         let now = Utc::now().to_rfc3339();
+        let created_at = original.file_created_at.as_deref().unwrap_or(&now);
         let upload = immich
             .upload_asset(crate::immich::client::UploadRequest {
                 filename: &filename,
-                content_type: output.content_type(),
-                bytes,
+                content_type: rendered.output.content_type(),
+                bytes: rendered.bytes,
                 is_favorite: body.favorite,
-                created_at: &now,
+                created_at,
                 modified_at: &now,
             })
             .await?;
@@ -245,12 +252,22 @@ pub async fn export_to_immich(
         if let (Some(job), Some(hash)) = (job, request_hash.as_deref()) {
             state
                 .edits
-                .put_export_job_uploaded(job, hash, new_id, &filename, &status)
+                .put_export_job_uploaded(
+                    job,
+                    hash,
+                    new_id,
+                    &filename,
+                    &status,
+                    &rendered.metadata_warnings,
+                )
                 .await?;
         }
 
-        let warnings =
-            run_post_upload(state, identity, immich, &original, body, new_id, &status).await;
+        let warnings: Vec<String> = rendered
+            .metadata_warnings
+            .into_iter()
+            .chain(run_post_upload(state, identity, immich, &original, body, new_id, &status).await)
+            .collect();
 
         if let Some(job) = job {
             state.edits.complete_export_job(job, &warnings).await?;
@@ -339,16 +356,22 @@ async fn resume_export_job(
     };
     let original = immich.asset(job.asset_id.source()).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
-    let warnings = run_post_upload(
-        state,
-        identity,
-        immich,
-        &original,
-        body,
-        new_id,
-        &upload_status,
-    )
-    .await;
+    let warnings: Vec<String> = existing
+        .warnings
+        .into_iter()
+        .chain(
+            run_post_upload(
+                state,
+                identity,
+                immich,
+                &original,
+                body,
+                new_id,
+                &upload_status,
+            )
+            .await,
+        )
+        .collect();
     state.edits.complete_export_job(job, &warnings).await?;
     Ok(ExportToImmichResult {
         asset_id: new_id,

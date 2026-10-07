@@ -164,6 +164,9 @@
                           {#if item.status === 'failed' && item.error}
                             <Notice message={item.error} class="mt-1 whitespace-pre-wrap" />
                           {/if}
+                          {#each item.result?.warnings ?? [] as warning, i (i)}
+                            <Notice color="warning" message={warning} class="mt-1" />
+                          {/each}
                         </div>
                       {/each}
                     </div>

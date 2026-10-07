@@ -12,6 +12,7 @@ fn encode8(cs: OutputColorSpace) -> Vec<u8> {
             height: SPLIT_TONE_SIZE,
         },
         cs,
+        None,
     )
     .expect("jxl 8-bit encode failed")
 }
@@ -21,7 +22,8 @@ fn encode16(cs: OutputColorSpace) -> Vec<u8> {
         .into_iter()
         .map(|v| u16::from(v) * 257)
         .collect();
-    encode_jxl16(&rgb16, SPLIT_TONE_SIZE, SPLIT_TONE_SIZE, cs).expect("jxl 16-bit encode failed")
+    encode_jxl16(&rgb16, SPLIT_TONE_SIZE, SPLIT_TONE_SIZE, cs, None)
+        .expect("jxl 16-bit encode failed")
 }
 
 fn assert_tones_survive(encoded: &[u8]) {

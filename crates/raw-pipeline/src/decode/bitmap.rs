@@ -100,7 +100,7 @@ pub(super) fn frame_from_rgb8(
         .collect();
     let orientation = exif
         .as_ref()
-        .and_then(crate::exif::orientation)
+        .and_then(crate::metadata::exif::orientation)
         .unwrap_or((false, false, false));
     RawFrame {
         meta: FrameMeta {
@@ -135,7 +135,7 @@ fn frame_from_rgb16(
         .collect();
     let orientation = exif
         .as_ref()
-        .and_then(crate::exif::orientation)
+        .and_then(crate::metadata::exif::orientation)
         .unwrap_or((false, false, false));
     RawFrame {
         meta: FrameMeta {
@@ -379,7 +379,9 @@ fn decode_jxl(
         .map_err(|e| PipelineError::Decode(format!("jxl decode: {e}")))?;
     let width = meta.width as usize;
     let height = meta.height as usize;
-    Ok(frame_from_rgb8(pixels, width, height, exif))
+    let mut frame = frame_from_rgb8(pixels, width, height, exif);
+    frame.meta.orientation = (false, false, false);
+    Ok(frame)
 }
 
 fn decode_via_image_crate(

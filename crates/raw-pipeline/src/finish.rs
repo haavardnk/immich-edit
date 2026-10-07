@@ -3,6 +3,7 @@ use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer
 
 use crate::encode::{encode_from_rgb8, encode_from_rgb16};
 use crate::frame::RenderOptions;
+use crate::metadata::exif::ExifBlock;
 
 mod sharpen;
 mod watermark;
@@ -87,7 +88,11 @@ pub fn final_stage(image: FinalImage, opts: &RenderOptions) -> crate::PipelineRe
     Ok(image)
 }
 
-pub fn encode(image: &FinalImage, opts: &RenderOptions) -> crate::PipelineResult<Vec<u8>> {
+pub fn encode(
+    image: &FinalImage,
+    opts: &RenderOptions,
+    exif: Option<&ExifBlock>,
+) -> crate::PipelineResult<Vec<u8>> {
     match &image.pixels {
         FinalPixels::Rgb8(rgb) => encode_from_rgb8(
             rgb,
@@ -95,6 +100,7 @@ pub fn encode(image: &FinalImage, opts: &RenderOptions) -> crate::PipelineResult
             image.height,
             &opts.output,
             opts.output_color_space,
+            exif,
         ),
         FinalPixels::Rgb16(rgb) => encode_from_rgb16(
             rgb,
@@ -102,6 +108,7 @@ pub fn encode(image: &FinalImage, opts: &RenderOptions) -> crate::PipelineResult
             image.height,
             &opts.output,
             opts.output_color_space,
+            exif,
         ),
     }
 }

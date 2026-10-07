@@ -19,7 +19,7 @@
     form.format === 'jpeg' ||
       form.format === 'avif' ||
       form.format === 'heic' ||
-      (form.format === 'webp' && !(form.lossless || form.metadata !== 'none'))
+      (form.format === 'webp' && !form.lossless)
   );
   let showBitDepth = $derived(
     form.format === 'png' || form.format === 'tiff' || form.format === 'jxl'
@@ -27,7 +27,6 @@
   let showPngCompression = $derived(form.format === 'png');
   let showTiffCompression = $derived(form.format === 'tiff');
   let showLossless = $derived(form.format === 'webp');
-  let losslessForced = $derived(form.format === 'webp' && form.metadata !== 'none');
 </script>
 
 <Field label="Format" size="tiny">
@@ -96,12 +95,7 @@
 {/if}
 
 {#if showLossless}
-  <CheckboxRow
-    label={`Lossless${losslessForced ? ' (required for metadata)' : ''}`}
-    checked={losslessForced ? true : form.lossless}
-    disabled={losslessForced}
-    onChange={(v) => (form.lossless = v)}
-  />
+  <CheckboxRow label="Lossless" checked={form.lossless} onChange={(v) => (form.lossless = v)} />
 {/if}
 
 <Field label="Color space" size="tiny">

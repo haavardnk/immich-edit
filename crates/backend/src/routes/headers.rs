@@ -1,4 +1,4 @@
-use axum::http::{HeaderMap, HeaderValue, header};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, header};
 use axum::response::Response;
 
 use crate::error::AppError;
@@ -7,6 +7,24 @@ pub const CACHE_IMMUTABLE: &str = "private, max-age=31536000, immutable";
 pub const CACHE_REVALIDATE: &str = "private, max-age=0, must-revalidate";
 pub const CACHE_DAY: &str = "private, max-age=86400";
 pub const CACHE_MINUTE: &str = "private, max-age=60";
+pub const EXPORT_WARNINGS: HeaderName = HeaderName::from_static("x-export-warnings");
+
+pub fn json_list(items: &[String]) -> Result<HeaderValue, AppError> {
+    let json = serde_json::to_string(items).map_err(|_| AppError::Internal)?;
+    let ascii = json
+        .chars()
+        .fold(String::with_capacity(json.len()), |mut out, c| {
+            if c.is_ascii_graphic() || c == ' ' {
+                out.push(c);
+            } else {
+                for unit in c.encode_utf16(&mut [0; 2]) {
+                    out.push_str(&format!("\\u{unit:04x}"));
+                }
+            }
+            out
+        });
+    header_value(&ascii)
+}
 
 pub fn attachment(filename: &str) -> Result<HeaderValue, AppError> {
     let ascii: String = filename

@@ -104,6 +104,14 @@ impl ReadbackImage<'_> {
             other => other,
         };
         let (histogram, linear_histogram) = counts.histograms();
+        let embedded = |size| {
+            crate::encode::embedded(
+                opts.metadata.as_ref(),
+                &opts.output,
+                opts.output_color_space,
+                size,
+            )
+        };
         let (scopes, encoded) = if has_final_stage(out_w, out_h, opts) {
             let pixels = match display {
                 DisplayBuf::Rgb16(rgb) => FinalPixels::Rgb16(rgb),
@@ -119,12 +127,14 @@ impl ReadbackImage<'_> {
                 height: out_h,
             };
             let finished = clock.time(timing::EXPORT_FINISH, || final_stage(rendered, opts))?;
-            let bytes = clock.time(timing::ENCODE, || encode(&finished, opts));
+            let (exif, warnings) = embedded((finished.width, finished.height));
+            let bytes = clock.time(timing::ENCODE, || encode(&finished, opts, exif.as_ref()));
             (
                 counts.scopes(clock),
-                bytes.map(|b| (b, finished.width, finished.height)),
+                bytes.map(|b| (b, finished.width, finished.height, warnings)),
             )
         } else {
+            let (exif, warnings) = embedded((out_w, out_h));
             let (scopes, bytes) = rayon::join(
                 || counts.scopes(clock),
                 || {
@@ -135,6 +145,7 @@ impl ReadbackImage<'_> {
                             out_h,
                             &opts.output,
                             opts.output_color_space,
+                            exif.as_ref(),
                         ),
                         DisplayBuf::Rgba8(rgba) => encode_from_rgba8(
                             rgba,
@@ -142,13 +153,14 @@ impl ReadbackImage<'_> {
                             out_h,
                             &opts.output,
                             opts.output_color_space,
+                            exif.as_ref(),
                         ),
                     })
                 },
             );
-            (scopes, bytes.map(|b| (b, out_w, out_h)))
+            (scopes, bytes.map(|b| (b, out_w, out_h, warnings)))
         };
-        let (bytes, width, height) = encoded?;
+        let (bytes, width, height, metadata_warnings) = encoded?;
         Ok(RenderedImage {
             bytes,
             histogram,
@@ -161,6 +173,7 @@ impl ReadbackImage<'_> {
             renderer: "gpu".into(),
             is_raw,
             timings: timings.finish(cancel),
+            metadata_warnings,
         })
     }
 }

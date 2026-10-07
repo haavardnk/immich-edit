@@ -80,7 +80,6 @@ class EditorStore {
       this.meta?.is_raw && this.lensProfile?.auto ? this.lensProfile.edits : null
     )
   );
-  lastWarnings = $state<string[]>([]);
   lastImmichOpts: ImmichExportOptions | null = null;
   lastDownloadOpts: ExportOptions | null = null;
   autoBusy = $state(false);
@@ -270,7 +269,6 @@ class EditorStore {
     this.brushBufferSource = {};
     this.lastUpload = null;
     this.lastDownload = null;
-    this.lastWarnings = [];
     this.lastImmichOpts = null;
     this.lastDownloadOpts = null;
   }

@@ -16,6 +16,7 @@ fn magenta_png() -> Vec<u8> {
             compression: PngCompression::Fast,
         },
         OutputColorSpace::SRgb,
+        None,
     )
     .unwrap()
 }

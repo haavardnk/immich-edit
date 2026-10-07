@@ -45,25 +45,33 @@ fn neighbour_contrast(frame: &RawFrame) -> f64 {
 }
 
 fn jpeg_with_camera_and_gps() -> Vec<u8> {
-    let rgb = vec![128u8; 64 * 48 * 3];
-    let mut jpeg = raw_pipeline::encode::encode_jpeg_rgb(
-        raw_pipeline::encode::ImageRgb8 {
-            rgb: &rgb,
-            width: 64,
-            height: 48,
-        },
-        90,
-        raw_pipeline::frame::JpegSubsampling::Chroma420,
-        raw_pipeline::frame::OutputColorSpace::SRgb,
-    )
-    .unwrap();
     let mut meta = little_exif::metadata::Metadata::new();
     meta.set_tag(ExifTag::Make("SONY".into()));
     meta.set_tag(ExifTag::GPSLatitudeRef("N".into()));
     meta.set_tag(ExifTag::GPSLatitude(vec![59u32.into(); 3]));
-    raw_pipeline::exif::inject(&mut jpeg, &meta, little_exif::filetype::FileExtension::JPEG)
-        .unwrap();
-    jpeg
+    let format = raw_pipeline::frame::OutputFormat::Jpeg {
+        quality: 90,
+        subsampling: raw_pipeline::frame::JpegSubsampling::Chroma420,
+    };
+    let source = raw_pipeline::metadata::ExportMetadata {
+        exif: Some(meta),
+        location: true,
+    };
+    let (embedded, _) = raw_pipeline::encode::embedded(
+        Some(&source),
+        &format,
+        raw_pipeline::frame::OutputColorSpace::SRgb,
+        (64, 48),
+    );
+    raw_pipeline::encode::encode_from_rgb8(
+        &vec![128u8; 64 * 48 * 3],
+        64,
+        48,
+        &format,
+        raw_pipeline::frame::OutputColorSpace::SRgb,
+        embedded.as_ref(),
+    )
+    .unwrap()
 }
 
 #[tokio::test]
@@ -223,7 +231,7 @@ async fn export_metadata_keeps_or_strips_camera_and_location() {
             panic!("{label}: status {}", resp.status());
         }
         let bytes = body_bytes(resp).await;
-        let parsed = raw_pipeline::exif::parse(&bytes);
+        let parsed = raw_pipeline::metadata::read(&bytes);
         let has_make = parsed.as_ref().is_some_and(|m| {
             m.into_iter()
                 .any(|t| matches!(t, ExifTag::Make(v) if v == "SONY"))
@@ -233,6 +241,44 @@ async fn export_metadata_keeps_or_strips_camera_and_location() {
             .is_some_and(|m| m.into_iter().any(|t| t.get_group() == ExifTagGroup::GPS));
         if has_make != want_make || has_gps != want_gps {
             panic!("{label}: make {has_make}, gps {has_gps}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn export_download_reports_metadata_warnings() {
+    for (label, original, metadata, want) in [
+        (
+            "no exif",
+            plain_jpeg(),
+            "all",
+            Some(json!([
+                "Metadata not copied: no readable EXIF in the original"
+            ])),
+        ),
+        ("no exif, none", plain_jpeg(), "none", None),
+        ("exif", jpeg_with_camera_and_gps(), "all", None),
+    ] {
+        let server = MockServer::start().await;
+        mock_original_with(
+            &server,
+            asset_id(),
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "image/jpeg")
+                .set_body_bytes(original),
+        )
+        .await;
+        mock_asset_detail(&server).await;
+        let resp = export(&server, json!({ "edits": {}, "metadata": metadata })).await;
+        if resp.status() != StatusCode::OK {
+            panic!("{label}: status {}", resp.status());
+        }
+        let got = resp
+            .headers()
+            .get("x-export-warnings")
+            .map(|v| serde_json::from_slice::<Value>(v.as_bytes()).unwrap());
+        if got != want {
+            panic!("{label}: warnings {got:?}");
         }
     }
 }

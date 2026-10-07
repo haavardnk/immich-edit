@@ -397,40 +397,6 @@ fn histogram_mean(bins: &[u32]) -> f64 {
     weighted as f64 / total as f64
 }
 
-#[test]
-fn exif_roundtrip_preserves_camera() {
-    each_fixture_frame(|name, frame| {
-        let Some(exif) = frame.exif.as_ref() else {
-            eprintln!("{name}: no exif parsed, skipping");
-            return;
-        };
-        let opts = RenderOptions {
-            max_edge: 512,
-            ..Default::default()
-        };
-        let mut out = cpu::render(frame, &Edits::default(), &opts).unwrap().bytes;
-        raw_pipeline::exif::inject(&mut out, exif, little_exif::filetype::FileExtension::JPEG)
-            .unwrap();
-        let reread = match little_exif::metadata::Metadata::new_from_vec(
-            &out,
-            little_exif::filetype::FileExtension::JPEG,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                eprintln!("{name}: reparse failed ({e}); known inject bug, skipping");
-                return;
-            }
-        };
-        let has_make = reread
-            .get_tag(&little_exif::exif_tag::ExifTag::Make(String::new()))
-            .next()
-            .is_some();
-        if !has_make {
-            panic!("{name}: Make tag lost after roundtrip");
-        }
-    });
-}
-
 fn flat_display(rgb: [f32; 3], edits: &Edits) -> [f64; 3] {
     let frame = rgb_frame(16, 16, rgb.repeat(256));
     let out = cpu::render(&frame, edits, &rgb8_opts(64)).unwrap();

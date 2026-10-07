@@ -244,7 +244,7 @@ impl ExportParams {
             },
             ExportFormatKind::Webp => OutputFormat::Webp {
                 quality,
-                lossless: self.lossless || self.metadata() != MetadataOpt::None,
+                lossless: self.lossless,
             },
             ExportFormatKind::Avif => OutputFormat::Avif { quality },
             ExportFormatKind::Heic => OutputFormat::Heic { quality },

@@ -153,13 +153,13 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | JPEG, PNG, WebP, AVIF, HEIC, TIFF, and JPEG XL export | ✓ Yes | Format options vary by bit depth and color space |
 | 16-bit export | ✓ Yes | PNG, TIFF, and JPEG XL |
 | Linear 16-bit or floating-point export | ✗ No | 16-bit exports include the display tone curve |
-| Lossless WebP export | ✓ Yes | Required automatically when preserving EXIF in WebP |
+| Lossless WebP export | ✓ Yes | Optional; lossy WebP keeps metadata too |
 | sRGB and Display P3 output | ✓ Yes | ICC profile embedded where the format supports it |
 | Adobe RGB, ProPhoto RGB, Rec.2020, or custom ICC output | ✗ No | — |
 | Automatic output-gamut mapping | ✓ Yes | Reduces chroma at constant Oklab hue and lightness |
 | sRGB and Display P3 soft proof | ✓ Yes | Optional gamut warning overlay |
 | Printer-profile soft proof and rendering intents | ✗ No | Soft proof is limited to sRGB and Display P3 |
-| Safe EXIF preservation | ✓ Yes | Optional; embedded previews and image-strip tags are removed, and JPEG EXIF is trimmed to fit 64 KB |
+| Safe EXIF preservation | ✓ Yes | Optional, in every export format; maker notes, embedded previews and image-strip tags are removed, and JPEG EXIF is trimmed to fit 64 KB |
 | Selective metadata or GPS stripping | ✓ Yes | All, all but location, or none |
 | Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
 | Output sharpening for screen or print | ✓ Yes | Screen, matte or glossy paper at low, standard or high, applied after the resize; paper uses the print resolution |

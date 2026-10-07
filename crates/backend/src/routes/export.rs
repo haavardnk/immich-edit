@@ -9,8 +9,8 @@ use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
 use crate::services::export::{
-    self, ExportBody, ExportImmichRequest, ExportToImmichResult, NameContext, NameTemplate, Seq,
-    capture_date,
+    self, ExportBody, ExportImmichRequest, ExportToImmichResult, NameContext, NameTemplate,
+    RenderedExport, Seq, capture_date,
 };
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
@@ -59,29 +59,31 @@ async fn download(
         ),
         ctx.immich.asset(id.source()),
     );
-    let (bytes, output) = rendered?;
+    let rendered = rendered?;
     let asset = asset?;
     let stem = template.render(&NameContext {
         original: &asset.original_file_name,
         date: capture_date(&asset),
         seq: Seq::SINGLE,
     });
-    let filename = format!("{stem}.{}", output.extension());
-    download_response(&filename, bytes, output)
+    let filename = format!("{stem}.{}", rendered.output.extension());
+    download_response(&filename, rendered)
 }
 
-fn download_response(
-    filename: &str,
-    bytes: bytes::Bytes,
-    output: raw_pipeline::frame::OutputFormat,
-) -> Result<Response, AppError> {
-    let mut resp = Response::new(Body::from(bytes));
+fn download_response(filename: &str, rendered: RenderedExport) -> Result<Response, AppError> {
+    let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut().insert(
         header::CONTENT_TYPE,
-        HeaderValue::from_static(output.content_type()),
+        HeaderValue::from_static(rendered.output.content_type()),
     );
     resp.headers_mut()
         .insert(header::CONTENT_DISPOSITION, headers::attachment(filename)?);
+    if !rendered.metadata_warnings.is_empty() {
+        resp.headers_mut().insert(
+            headers::EXPORT_WARNINGS,
+            headers::json_list(&rendered.metadata_warnings)?,
+        );
+    }
     Ok(resp.into_response())
 }
 

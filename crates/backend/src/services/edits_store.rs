@@ -722,13 +722,14 @@ mod tests {
             asset_id: asset,
             key: "k1",
         };
-        s.put_export_job_uploaded(job, "h1", new_id, "f.jpg", "created")
+        s.put_export_job_uploaded(job, "h1", new_id, "f.jpg", "created", &["m1".into()])
             .await
             .unwrap();
         let r = s.get_export_job(job).await.unwrap().unwrap();
         if r.status != ExportJobStatus::Uploaded
             || r.immich_asset_id != Some(new_id)
             || r.request_hash != "h1"
+            || r.warnings != vec!["m1".to_string()]
         {
             panic!("uploaded mismatch: {r:?}");
         }

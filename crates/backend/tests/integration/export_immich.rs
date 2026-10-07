@@ -112,7 +112,7 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     };
     state
         .edits
-        .put_export_job_uploaded(job, &hash, uploaded, "x_edit.jpg", "created")
+        .put_export_job_uploaded(job, &hash, uploaded, "x_edit.jpg", "created", &[])
         .await
         .unwrap();
     state.edits.complete_export_job(job, &[]).await.unwrap();
@@ -143,6 +143,158 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
     }
     if json["status"] != "created" {
         panic!("expected cached status: {json}");
+    }
+}
+
+#[tokio::test]
+async fn export_immich_resume_keeps_render_warnings() {
+    let server = MockServer::start().await;
+    mock_asset_detail(&server).await;
+    let uploaded = Uuid::new_v4();
+    let state = test_state(&server).await;
+    let asset = AssetKey::master(asset_id());
+    let body = ExportToImmichBody {
+        edits: Default::default(),
+        params: ExportParams::default(),
+        album_ids: Vec::new(),
+        tag_ids: Vec::new(),
+        favorite: false,
+        stack_with_original: false,
+        stack_primary: StackPrimary::default(),
+    };
+    let job = ExportJobKey {
+        owner: test_user_id(),
+        asset_id: asset,
+        key: "key-1",
+    };
+    let rendered = "Metadata not copied: no readable EXIF in the original";
+    state
+        .edits
+        .put_export_job_uploaded(
+            job,
+            &hash_request(asset, &body),
+            uploaded,
+            "x_edit.jpg",
+            "created",
+            &[rendered.into()],
+        )
+        .await
+        .unwrap();
+
+    let resp = seed_and_wrap(&server, state)
+        .await
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/assets/{asset}/export/immich"))
+                .header("content-type", "application/json")
+                .header("idempotency-key", "key-1")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    let warnings: Vec<&str> = json["warnings"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|w| w.as_str())
+        .collect();
+    if warnings != [rendered] {
+        panic!("warnings {warnings:?}");
+    }
+    let requests = server.received_requests().await.unwrap();
+    if requests
+        .iter()
+        .any(|r| r.method.as_str() == "POST" && r.url.path() == "/api/assets")
+    {
+        panic!("resumed job uploaded again");
+    }
+}
+
+fn multipart_text<'a>(body: &'a str, field: &str) -> Option<&'a str> {
+    let marker = format!("name=\"{field}\"\r\n\r\n");
+    let start = body.find(&marker)? + marker.len();
+    body[start..].split("\r\n").next()
+}
+
+#[tokio::test]
+async fn export_immich_keeps_capture_metadata_and_date() {
+    let jpeg = || {
+        ResponseTemplate::new(200)
+            .insert_header("content-type", "image/jpeg")
+            .set_body_bytes(plain_jpeg())
+    };
+    for (label, original, metadata, capture, want_warning) in [
+        (
+            "rw2",
+            raw_response("Panasonic_DMC-LX7_1-1.rw2", "image/x-panasonic-raw"),
+            "all",
+            Some("2023:11:18 09:49:12"),
+            false,
+        ),
+        ("no exif", jpeg(), "all", None, true),
+        ("no exif, none", jpeg(), "none", None, false),
+    ] {
+        let server = MockServer::start().await;
+        mock_original_with(&server, asset_id(), original).await;
+        mock_asset_detail(&server).await;
+        Mock::given(method("POST"))
+            .and(path("/api/assets"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+                "id": Uuid::new_v4(),
+                "status": "created"
+            })))
+            .mount(&server)
+            .await;
+
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request(
+                "POST",
+                &format!("/api/assets/{}/export/immich", asset_id()),
+                serde_json::json!({
+                    "edits": {},
+                    "metadata": metadata,
+                    "resize_mode": "dimensions",
+                    "resize_width": 400
+                }),
+            ))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("{label}: status {}", resp.status());
+        }
+        let json = body_json(resp).await;
+        let warned = json["warnings"].as_array().is_some_and(|w| {
+            w.iter()
+                .any(|w| w.as_str().is_some_and(|w| w.starts_with("Metadata")))
+        });
+        if warned != want_warning {
+            panic!("{label}: warnings {}", json["warnings"]);
+        }
+
+        let requests = server.received_requests().await.unwrap();
+        let Some(upload) = requests
+            .iter()
+            .find(|r| r.method.as_str() == "POST" && r.url.path() == "/api/assets")
+        else {
+            panic!("{label}: nothing uploaded");
+        };
+        let body = String::from_utf8_lossy(&upload.body);
+        let created = multipart_text(&body, "fileCreatedAt");
+        if created != Some("2026-01-01T00:00:00Z") {
+            panic!("{label}: fileCreatedAt {created:?}");
+        }
+        if let Some(capture) = capture
+            && !body.contains(capture)
+        {
+            panic!("{label}: upload lacks DateTimeOriginal {capture}");
+        }
     }
 }
 

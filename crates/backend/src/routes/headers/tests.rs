@@ -22,6 +22,18 @@ fn attachment_names_are_quoted_and_utf8_encoded() {
 }
 
 #[test]
+fn json_lists_are_ascii_and_round_trip() {
+    let items = vec![
+        "Metadata not copied: fjørd 📷".to_string(),
+        "line\r\nbreak \"quoted\"\u{7f}".to_string(),
+    ];
+    let value = json_list(&items).expect("json list header");
+    let text = value.to_str().unwrap();
+    assert!(text.is_ascii(), "{text}");
+    assert_eq!(serde_json::from_str::<Vec<String>>(text).unwrap(), items);
+}
+
+#[test]
 fn etags_are_quoted_and_matched_against_if_none_match() {
     let tag = etag("abc-400").expect("etag");
     assert_eq!(tag.to_str().unwrap(), "\"abc-400\"");

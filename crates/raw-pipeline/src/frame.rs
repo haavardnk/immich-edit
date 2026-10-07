@@ -53,6 +53,8 @@ pub struct RenderOptions {
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
     pub dcp: Option<std::sync::Arc<crate::dcp::DcpProfile>>,
+    #[cfg(feature = "native")]
+    pub metadata: Option<crate::metadata::ExportMetadata>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -230,22 +232,6 @@ impl OutputFormat {
             | Self::Jxl { bit_depth } => *bit_depth,
         }
     }
-
-    #[cfg(feature = "native")]
-    pub fn exif_file_extension(&self) -> little_exif::filetype::FileExtension {
-        use little_exif::filetype::FileExtension;
-        match self {
-            Self::Jpeg { .. } | Self::Rgb8 => FileExtension::JPEG,
-            Self::Png { .. } => FileExtension::PNG {
-                as_zTXt_chunk: true,
-            },
-            Self::Webp { .. } => FileExtension::WEBP,
-            Self::Avif { .. } => FileExtension::HEIF,
-            Self::Heic { .. } => FileExtension::HEIF,
-            Self::Tiff { .. } => FileExtension::TIFF,
-            Self::Jxl { .. } => FileExtension::JXL,
-        }
-    }
 }
 
 impl Default for RenderOptions {
@@ -270,6 +256,8 @@ impl Default for RenderOptions {
             rasters: crate::mask_raster::empty_rasters(),
             luts: crate::lut::empty_luts(),
             dcp: None,
+            #[cfg(feature = "native")]
+            metadata: None,
         }
     }
 }
@@ -286,4 +274,5 @@ pub struct RenderedImage {
     pub renderer: String,
     pub is_raw: bool,
     pub timings: Vec<crate::timing::StageTiming>,
+    pub metadata_warnings: Vec<String>,
 }

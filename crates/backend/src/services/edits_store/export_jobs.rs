@@ -78,17 +78,20 @@ impl EditsStore {
         immich_asset_id: Uuid,
         filename: &str,
         upload_status: &str,
+        warnings: &[String],
     ) -> Result<(), EditsStoreError> {
         let now = Utc::now().to_rfc3339();
+        let warnings_json = serde_json::to_string(warnings)?;
         sqlx::query(
             "INSERT INTO export_jobs (user_id, asset_id, idempotency_key, request_hash, status, \
              immich_asset_id, filename, upload_status, warnings_json, created_at, updated_at) \
-             VALUES (?8, ?1, ?2, ?3, 'uploaded', ?4, ?5, ?6, '[]', ?7, ?7) \
+             VALUES (?8, ?1, ?2, ?3, 'uploaded', ?4, ?5, ?6, ?9, ?7, ?7) \
              ON CONFLICT(user_id, asset_id, idempotency_key) DO UPDATE SET \
                status = excluded.status, \
                immich_asset_id = excluded.immich_asset_id, \
                filename = excluded.filename, \
                upload_status = excluded.upload_status, \
+               warnings_json = excluded.warnings_json, \
                updated_at = excluded.updated_at",
         )
         .bind(job.asset_id.to_string())
@@ -99,6 +102,7 @@ impl EditsStore {
         .bind(upload_status)
         .bind(&now)
         .bind(job.owner.to_string())
+        .bind(&warnings_json)
         .execute(&self.pool)
         .await?;
         Ok(())

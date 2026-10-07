@@ -31,9 +31,12 @@ const JPEG: ExportOptions = {
 
 describe('editor export results', () => {
   it('are cleared when the photo unloads', () => {
-    editor.lastUpload = { kind: 'success', message: 'Uploaded A_edit.jpg to Immich' };
-    editor.lastDownload = { kind: 'error', message: 'Export failed: boom' };
-    editor.lastWarnings = ['EXIF dropped'];
+    editor.lastUpload = {
+      kind: 'success',
+      message: 'Uploaded A_edit.jpg to Immich',
+      warnings: ['EXIF dropped']
+    };
+    editor.lastDownload = { kind: 'error', message: 'Export failed: boom', warnings: [] };
     editor.lastImmichOpts = {
       ...JPEG,
       albumIds: [],
@@ -48,7 +51,6 @@ describe('editor export results', () => {
 
     expect(editor.lastUpload).toBeNull();
     expect(editor.lastDownload).toBeNull();
-    expect(editor.lastWarnings).toEqual([]);
     expect(editor.lastImmichOpts).toBeNull();
     expect(editor.lastDownloadOpts).toBeNull();
   });
@@ -57,20 +59,29 @@ describe('editor export results', () => {
     editor.assetId = 'asset-1';
     mocks.downloadExport.mockRejectedValueOnce(new Error('boom'));
     await editor.onExport(JPEG);
-    expect(editor.lastDownload).toEqual({ kind: 'error', message: 'Export failed: boom' });
+    expect(editor.lastDownload).toEqual({
+      kind: 'error',
+      message: 'Export failed: boom',
+      warnings: []
+    });
     expect(editor.error).toBeNull();
 
     const blob = new Blob();
-    mocks.downloadExport.mockResolvedValueOnce({ blob, filename: 'IMG_0001_warm.jpg' });
+    const warnings = ['Metadata not copied: no readable EXIF in the original'];
+    mocks.downloadExport.mockResolvedValueOnce({ blob, filename: 'IMG_0001_warm.jpg', warnings });
     await editor.retryExport();
     expect(mocks.downloadExport).toHaveBeenLastCalledWith('asset-1', expect.anything(), JPEG);
     expect(mocks.downloadBlob).toHaveBeenLastCalledWith(blob, 'IMG_0001_warm.jpg');
-    expect(editor.lastDownload).toEqual({ kind: 'success', message: 'Saved IMG_0001_warm.jpg' });
+    expect(editor.lastDownload).toEqual({
+      kind: 'success',
+      message: 'Saved IMG_0001_warm.jpg',
+      warnings
+    });
   });
 
   it('falls back to the asset id when the server sends no filename', async () => {
     editor.assetId = 'asset-1';
-    mocks.downloadExport.mockResolvedValueOnce({ blob: new Blob(), filename: null });
+    mocks.downloadExport.mockResolvedValueOnce({ blob: new Blob(), filename: null, warnings: [] });
     await editor.onExport(JPEG);
     expect(mocks.downloadBlob).toHaveBeenLastCalledWith(expect.any(Blob), 'asset-1.jpg');
   });
