@@ -191,7 +191,7 @@
     </div>
 
     <div
-      class="sticky bottom-0 -mx-3 grid grid-cols-2 gap-1 border-t border-hairline bg-light px-3 py-1.5"
+      class="sticky bottom-0 -mx-3 grid grid-cols-2 gap-1 border-t border-hairline bg-editor-panel px-3 py-1.5"
     >
       <Button
         size="small"

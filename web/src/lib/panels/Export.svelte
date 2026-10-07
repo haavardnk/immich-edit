@@ -149,7 +149,7 @@
     </ul>
   {/if}
 
-  <div class="sticky bottom-0 -mx-3 border-t border-hairline bg-light px-3 py-1.5">
+  <div class="sticky bottom-0 -mx-3 border-t border-hairline bg-editor-panel px-3 py-1.5">
     <Button
       size="small"
       color="primary"
