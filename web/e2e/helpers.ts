@@ -76,6 +76,7 @@ export type MockTag = { id: string; name: string; value: string };
 export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;
   tags?: MockTag[];
+  ownerId?: string;
 };
 
 export function numberedAssets(

@@ -11,6 +11,8 @@
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { rejected } from '$lib/stores/rejected.svelte';
   import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
+  import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
+  import DisabledReason from '$lib/components/DisabledReason.svelte';
   import {
     LABEL_NAMES,
     labelOf,
@@ -87,6 +89,8 @@
     return assets.filter((a) => ids.has(a.id));
   });
   let single = $derived(!selectingAll && count === 1 ? (picked[0] ?? null) : null);
+  let allOwned = $derived(picked.every(ownsAsset));
+  let notOwnedReason = $derived(count === 1 ? NOT_OWNER : SOME_NOT_OWNER);
   let multiMode = $derived<MultiMode>(count === 2 ? 'compare' : 'survey');
   let canMulti = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
   let multiLabel = $derived(multiMode === 'compare' ? 'Compare selected' : 'Survey selected');
@@ -324,35 +328,39 @@
         {/if}
         <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
 
-        <div class="flex shrink-0 items-center gap-1">
+        <DisabledReason
+          locked={!allOwned}
+          reason={notOwnedReason}
+          class="flex shrink-0 items-center gap-1"
+        >
           <FavoriteButton
             size="medium"
             isFavorite={favoriteState === 'all'}
             mixed={favoriteState === 'some'}
-            disabled={metaBusy}
+            disabled={metaBusy || !allOwned}
             ontoggle={() => setFavorite(favoriteState !== 'all')}
           />
           <StarRating
             size={20}
             rating={commonRating ?? 0}
             mixed={commonRating === null}
-            disabled={metaBusy}
+            disabled={metaBusy || !allOwned}
             onchange={setRating}
           />
           <RejectButton
             size="medium"
             isRejected={rejectState === 'all'}
             mixed={rejectState === 'some'}
-            disabled={metaBusy}
+            disabled={metaBusy || !allOwned}
             ontoggle={() => void applyReject(rejectState !== 'all')}
           />
           <LabelPicker
             size="medium"
             label={commonLabel}
-            disabled={metaBusy}
+            disabled={metaBusy || !allOwned}
             onchange={(color) => void applyLabel(color)}
           />
-        </div>
+        </DisabledReason>
         <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
         <div class="flex shrink-0 items-center gap-1">
           <IconButton
@@ -378,17 +386,19 @@
             disabled={selectingAll}
             onclick={() => (bulkActionsOpen = true)}
           />
-          <IconButton
-            size="medium"
-            variant={band === 'tags' ? 'filled' : 'ghost'}
-            color={band === 'tags' ? 'primary' : 'secondary'}
-            icon={mdiTagOutline}
-            title="Tags"
-            aria-label="Tags"
-            aria-pressed={band === 'tags'}
-            disabled={metaBusy}
-            onclick={() => (band = band === 'tags' ? null : 'tags')}
-          />
+          <DisabledReason locked={!allOwned} reason={notOwnedReason} class="flex">
+            <IconButton
+              size="medium"
+              variant={band === 'tags' ? 'filled' : 'ghost'}
+              color={band === 'tags' ? 'primary' : 'secondary'}
+              icon={mdiTagOutline}
+              title="Tags"
+              aria-label="Tags"
+              aria-pressed={band === 'tags'}
+              disabled={metaBusy || !allOwned}
+              onclick={() => (band = band === 'tags' ? null : 'tags')}
+            />
+          </DisabledReason>
           <IconButton
             size="medium"
             variant={band === 'albums' ? 'filled' : 'ghost'}
@@ -417,7 +427,7 @@
       </ControlBarOverflow>
     </ControlBar>
 
-    {#if band === 'tags'}
+    {#if band === 'tags' && allOwned}
       <BulkTagBand ids={selectedIds} {runPool} bind:busy />
     {:else if band === 'albums'}
       <BulkAlbumBand ids={selectedIds} bind:busy />

@@ -448,10 +448,17 @@ async fn run_post_upload(
         }
     }
 
-    if body.stack_with_original
-        && let Err(e) = stack_with_original(immich, original, new_id, body.stack_primary).await
-    {
-        warnings.push(format!("Stacking failed: {}", e.short()));
+    if body.stack_with_original {
+        if original
+            .owner_id
+            .is_some_and(|owner| owner != identity.owner)
+        {
+            warnings.push("Stacking skipped: the original belongs to another Immich user".into());
+        } else if let Err(e) =
+            stack_with_original(immich, original, new_id, body.stack_primary).await
+        {
+            warnings.push(format!("Stacking failed: {}", e.short()));
+        }
     }
 
     warnings

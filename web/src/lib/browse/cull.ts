@@ -5,6 +5,7 @@ import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
 import { rejected } from '$lib/stores/rejected.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { ensureRejectTag, isRejected, setRejectedTags } from './reject';
+import { ownsAsset } from './ownership';
 import {
   isLabelTag,
   labelOf,
@@ -38,7 +39,7 @@ function withRating(asset: AssetSummary, rating: number | null): ExifInfo {
 
 export async function rateAsset(id: string, rating: number | null): Promise<boolean> {
   const asset = browsing.assets.find((a) => a.id === id);
-  if (!asset) return false;
+  if (!asset || !ownsAsset(asset)) return false;
   if (!(await metadataConsent.gate())) return false;
   const prev = asset.exifInfo;
   browsing.patch(id, { exifInfo: withRating(asset, rating) });
@@ -53,7 +54,7 @@ export async function rateAsset(id: string, rating: number | null): Promise<bool
 
 export async function toggleFavorite(id: string): Promise<boolean> {
   const asset = browsing.assets.find((a) => a.id === id);
-  if (!asset) return false;
+  if (!asset || !ownsAsset(asset)) return false;
   if (!(await metadataConsent.gate())) return false;
   const next = !asset.isFavorite;
   browsing.patch(id, { isFavorite: next });
@@ -77,7 +78,7 @@ export async function clearFlags(id: string): Promise<boolean> {
 
 export async function setLabel(id: string, color: LabelColor | null): Promise<boolean> {
   const asset = browsing.assets.find((a) => a.id === id);
-  if (!asset) return false;
+  if (!asset || !ownsAsset(asset)) return false;
   if (!(await metadataConsent.gate())) return false;
   const tag = await labelTagFor(color);
   if (tag === undefined) {
@@ -101,7 +102,7 @@ export async function setLabel(id: string, color: LabelColor | null): Promise<bo
 
 export async function toggleReject(id: string): Promise<boolean> {
   const asset = browsing.assets.find((a) => a.id === id);
-  if (!asset) return false;
+  if (!asset || !ownsAsset(asset)) return false;
   if (!(await metadataConsent.gate())) return false;
   const rejectTag = await ensureRejectTag();
   if (!rejectTag) {

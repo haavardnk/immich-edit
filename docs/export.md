@@ -137,7 +137,10 @@ unmatched brace shows an error under the field and blocks the export until you f
 - **Albums** and **Tags** add the new photo to existing Immich albums and tags.
 - **Mark as favorite** favorites the new photo.
 - **Stack with original** stacks the new photo with the original in Immich. **Edit primary** shows
-  the edit on top of the stack, and **Original primary** keeps the original on top.
+  the edit on top of the stack, and **Original primary** keeps the original on top. Immich only
+  stacks your own photos, so the option is off and disabled for a photo another Immich user owns;
+  hovering it says why. In a batch that mixes your photos with someone else's, the upload stacks
+  yours and reports `Stacking skipped` for the others.
 
 The new photo lands next to the original in the Immich timeline, dated by the original's capture
 time, even with **Metadata** set to **None**.

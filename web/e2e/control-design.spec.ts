@@ -848,10 +848,11 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await page.getByRole('button', { name: 'Select', exact: true }).first().click();
   await page.getByRole('button', { name: /^Favorite \(/ }).hover();
   await expect(page.getByText('Favorite (P / F)')).toBeVisible();
-  await expect(page.getByRole('radio', { name: '3 stars', exact: true })).toHaveAttribute(
-    'title',
-    '3 stars (0 – 5)'
-  );
+  await page
+    .getByLabel('Selection actions')
+    .getByRole('radio', { name: '3 stars', exact: true })
+    .hover();
+  await expect(page.getByText('3 stars (0 – 5)')).toBeVisible();
   await page.getByRole('button', { name: /^Reject \(/ }).hover();
   await expect(page.getByText('Reject (X)')).toBeVisible();
   await page.getByRole('button', { name: 'Clear selection' }).click();

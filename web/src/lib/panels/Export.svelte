@@ -16,6 +16,7 @@
   import WatermarkOptions from './export/WatermarkOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
+  import { ownsAsset } from '$lib/browse/ownership';
   import {
     baseOptions,
     COLOR_SPACES,
@@ -61,6 +62,7 @@
       : null
   );
   let invalid = $derived(formInvalid(form));
+  let stackable = $derived(editor.asset ? ownsAsset(editor.asset) : true);
 </script>
 
 <div class="flex flex-col gap-1">
@@ -106,7 +108,7 @@
 
   {#if destination === 'immich'}
     <ExportSection title="Immich">
-      <ImmichOptions bind:form={exportSettings.form} />
+      <ImmichOptions bind:form={exportSettings.form} {stackable} />
     </ExportSection>
   {/if}
 
@@ -159,7 +161,7 @@
       disabled={isLoading || !editor.assetId || invalid}
       onclick={() => {
         if (destination === 'download') void editor.onExport(baseOptions(form));
-        else void editor.onUploadToImmich(immichOptions(form));
+        else void editor.onUploadToImmich(immichOptions(form, stackable));
       }}
     >
       {isLoading ? busyLabel : buttonLabel}

@@ -28,6 +28,7 @@ export interface AssetDetail {
   id: string;
   originalFileName: string;
   type: AssetType;
+  ownerId?: string;
   originalMimeType: string | null;
   localDateTime?: string | null;
   fileCreatedAt: string | null;

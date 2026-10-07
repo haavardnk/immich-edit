@@ -18,6 +18,7 @@ vi.mock('$lib/stores/metadataConsent.svelte', () => ({
 }));
 
 import { editor } from '$lib/stores/editor.svelte';
+import { session } from '$lib/stores/session.svelte';
 
 function baseAsset(): AssetDetail {
   return {
@@ -64,5 +65,18 @@ describe('editor metadata mutations preserve tags', () => {
 
     expect(editor.asset?.exifInfo?.rating).toBe(4);
     expect(editor.asset?.tags).toEqual([tag]);
+  });
+
+  it('leaves photos owned by another Immich user untouched', async () => {
+    session.set({ id: 'me', email: 'me@x', name: 'Me', is_admin: false, auth_kind: 'password' });
+    editor.asset = { ...baseAsset(), ownerId: 'partner' };
+
+    await editor.toggleFavorite();
+    await editor.addTag(tag);
+
+    expect(h.updateAsset).not.toHaveBeenCalled();
+    expect(h.addTagToAsset).not.toHaveBeenCalled();
+    expect(editor.asset?.isFavorite).toBe(false);
+    expect(editor.asset?.tags).toEqual([]);
   });
 });
