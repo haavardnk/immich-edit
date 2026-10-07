@@ -224,7 +224,7 @@ fn sharpen_delta_image_follows_mask_weight() {
 }
 
 #[test]
-fn render_mask_overlay_preserves_context_and_marks_selection_red() {
+fn render_mask_weight_image_writes_the_layer_weight_as_gray() {
     let w = 16;
     let h = 4;
     let mut image = LinearImage::new(vec![4.0f32; w * h * 3], w, h);
@@ -245,22 +245,21 @@ fn render_mask_overlay_preserves_context_and_marks_selection_red() {
     };
     let eval = build_layer_eval(&layer, &crate::mask_raster::empty_rasters(), 1.0);
     let warp = LensWarpParams::from_edits(&Default::default(), w as u32, h as u32);
-    render_mask_overlay(&mut image, &eval, &warp, None);
-    let left = [image.rgb[0], image.rgb[1], image.rgb[2]];
-    let right_index = 3 * (w - 1);
-    let right = [
-        image.rgb[right_index],
-        image.rgb[right_index + 1],
-        image.rgb[right_index + 2],
-    ];
-    if left.iter().any(|value| !(0.0..=1.0).contains(value)) {
-        panic!("expected bounded image context, got {left:?}");
+    render_mask_weight_image(&mut image, &eval, &warp, None);
+    if image
+        .rgb
+        .chunks_exact(3)
+        .any(|px| px[0] != px[1] || px[0] != px[2])
+    {
+        panic!("expected a gray weight image, got {:?}", &image.rgb[..12]);
     }
-    if right[0] <= right[1] || right[0] <= right[2] {
-        panic!("expected selected area shifted toward red, got {right:?}");
+    let left = image.rgb[0];
+    let right = image.rgb[3 * (w - 1)];
+    if left > 0.1 {
+        panic!("expected the unselected edge near 0, got {left}");
     }
-    if right[1] >= left[1] || right[2] >= left[2] {
-        panic!("expected overlay to reduce green and blue, got {left:?} and {right:?}");
+    if right < 0.9 {
+        panic!("expected the selected edge near 1, got {right}");
     }
 }
 
@@ -563,9 +562,9 @@ fn scene_space_mask_anchors_through_lens_warp() {
         panic!("warp should be non-identity for anchoring test");
     }
     let mut img_warp = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-    render_mask_overlay(&mut img_warp, &eval, &warp, None);
+    render_mask_weight_image(&mut img_warp, &eval, &warp, None);
     let mut img_id = LinearImage::new(vec![0.0f32; w * h * 3], w, h);
-    render_mask_overlay(&mut img_id, &eval, &identity, None);
+    render_mask_weight_image(&mut img_id, &eval, &identity, None);
     let samples = [(0.5, 0.5), (0.7, 0.5), (0.5, 0.3), (0.8, 0.7)];
     for (u, v) in samples {
         let mx = ((u * w as f32) as usize).min(w - 1);

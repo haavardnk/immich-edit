@@ -55,9 +55,7 @@
   const points = $derived(
     activeComp?.generated?.kind === 'click' ? (activeComp.generated.points ?? []) : []
   );
-  const show = $derived(
-    editor.clickTool.active && editor.maskPreviewLayerId === null && rect.w > 0 && rect.h > 0
-  );
+  const show = $derived(editor.clickTool.active && rect.w > 0 && rect.h > 0);
   const dragRect = $derived(
     boxStart && boxNow
       ? {

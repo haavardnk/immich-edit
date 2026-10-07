@@ -5,7 +5,7 @@ use raw_pipeline::edits::{
     MaskedEdits, Vec2f,
 };
 use raw_pipeline::frame::{
-    BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
+    BitDepth, OutputFormat, PngCompression, PreviewMode, RawFrame, RenderOptions, RenderedImage,
 };
 use raw_pipeline::tone::srgb_oetf_scalar;
 use raw_pipeline_testkit::frames::{detail_frame, rgb_frame, step_edge_frame, synthetic_frame};
@@ -162,6 +162,51 @@ fn gpu_masks_match_cpu_within_tolerance() {
             },
         );
     }
+}
+
+#[test]
+fn gpu_mask_weight_image_matches_cpu_as_gray_weight() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = RenderOptions {
+        preview_mode: PreviewMode::MaskWeight {
+            layer_id: "L1".into(),
+        },
+        ..rgb8_opts(96)
+    };
+    let mut edits = Edits {
+        masks: vec![layer(
+            vec![linear_component(0.4)],
+            MaskedEdits {
+                exposure_ev: Some(2.0),
+                ..Default::default()
+            },
+            false,
+        )],
+        ..Default::default()
+    };
+    edits.geometry.rotate = 90;
+    let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+    let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+    require_same_dims("weight image", &cpu, &gpu);
+    for (label, bytes) in [("cpu", &cpu.bytes), ("gpu", &gpu.bytes)] {
+        if bytes
+            .chunks_exact(3)
+            .any(|px| px[0].abs_diff(px[1]) > 2 || px[0].abs_diff(px[2]) > 2)
+        {
+            panic!("{label}: the weight image is not gray");
+        }
+        let lo = bytes.iter().min().copied().unwrap_or(0);
+        let hi = bytes.iter().max().copied().unwrap_or(0);
+        if lo > 8 || hi < 247 {
+            panic!("{label}: the weight image does not span the weight range: {lo}..{hi}");
+        }
+    }
+    let mut ledger = ParityLedger::new("masks");
+    ledger.check("weight image", &cpu.bytes, &gpu.bytes, 0.5);
+    ledger.finish();
 }
 
 #[test]

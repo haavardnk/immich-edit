@@ -30,7 +30,7 @@
   let nameDraft = $state('');
 
   const isActive = $derived(editor.activeLayerId === layer.id);
-  const isPreview = $derived(editor.maskPreviewLayerId === layer.id);
+  const overlayShown = $derived(isActive && editor.maskOverlayVisible);
 
   function beginRename(): void {
     nameDraft = layer.name;
@@ -41,11 +41,6 @@
     const next = nameDraft.trim();
     editing = false;
     if (next && next !== layer.name) await editor.renameMaskLayer(layer.id, next);
-  }
-
-  function togglePreview(): void {
-    if (isPreview) editor.endMaskPreview();
-    else editor.previewMaskWeight(layer.id);
   }
 </script>
 
@@ -114,14 +109,14 @@
   <IconButton
     size="tiny"
     variant="ghost"
-    color={isPreview ? 'primary' : 'secondary'}
+    color={overlayShown ? 'primary' : 'secondary'}
     icon={mdiCircleOpacity}
-    title={isPreview ? 'Hide the mask overlay' : 'Show this mask over the photo'}
+    title={overlayShown ? 'Hide the mask overlay' : "Show this mask's overlay"}
     aria-label="Toggle mask preview"
-    aria-pressed={isPreview}
+    aria-pressed={overlayShown}
     onclick={(e: MouseEvent) => {
       e.stopPropagation();
-      togglePreview();
+      editor.toggleLayerOverlay(layer.id);
     }}
   />
   {#if isActive && total > 1}

@@ -35,13 +35,7 @@
       : null
   );
 
-  const showOverlay = $derived(
-    editor.maskOverlayVisible &&
-      !!active &&
-      editor.maskPreviewLayerId === null &&
-      rect.w > 0 &&
-      rect.h > 0
-  );
+  const showOverlay = $derived(!!active && rect.w > 0 && rect.h > 0);
   const showColorPicker = $derived(
     !!editor.colorPicker?.ready && rect.w > 0 && rect.h > 0 && !!img
   );

@@ -27,7 +27,6 @@ export interface MaskLayersCtx {
   activeLayerId: string | null;
   activeMaskComponentId: string | null;
   maskOverlayVisible: boolean;
-  maskPreviewLayerId: string | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
   brushTool: BrushTool;
   brushBuffers: Record<string, BrushBuffer>;
@@ -70,7 +69,6 @@ export function setActiveLayer(ctx: MaskLayersCtx, id: string | null): void {
   if (ctx.colorPicker && ctx.colorPicker.layerId !== id) cancelColorPicker(ctx);
   if (ctx.activeLayerId !== id) ctx.activeMaskComponentId = null;
   ctx.activeLayerId = id;
-  if (ctx.maskPreviewLayerId && ctx.maskPreviewLayerId !== id) endMaskPreview(ctx);
 }
 
 export function activeMaskComponent(ctx: MaskLayersCtx): MaskComponent | null {
@@ -117,16 +115,13 @@ export function toggleMaskOverlay(ctx: MaskLayersCtx): void {
   ctx.maskOverlayVisible = !ctx.maskOverlayVisible;
 }
 
-export function previewMaskWeight(ctx: MaskLayersCtx, layerId: string): void {
-  if (!ctx.initialised) return;
-  ctx.maskPreviewLayerId = layerId;
-  ctx.onLive();
-}
-
-export function endMaskPreview(ctx: MaskLayersCtx): void {
-  if (!ctx.maskPreviewLayerId) return;
-  ctx.maskPreviewLayerId = null;
-  ctx.onLive();
+export function toggleLayerOverlay(ctx: MaskLayersCtx, id: string): void {
+  if (ctx.activeLayerId === id && ctx.maskOverlayVisible) {
+    ctx.maskOverlayVisible = false;
+    return;
+  }
+  setActiveLayer(ctx, id);
+  ctx.maskOverlayVisible = true;
 }
 
 export function beginColorPicker(ctx: MaskLayersCtx, layerId: string, componentId: string): void {
@@ -134,7 +129,6 @@ export function beginColorPicker(ctx: MaskLayersCtx, layerId: string, componentI
   const component = layer?.components.find((item) => item.id === componentId);
   if (!component || component.kind.kind !== 'color_range') return;
   if (ctx.splitMode) ctx.toggleSplit();
-  ctx.maskPreviewLayerId = null;
   ctx.colorPicker = { layerId, componentId, ready: false };
   ctx.onLive();
 }
@@ -158,7 +152,7 @@ export async function commitColorSample(
     return;
   }
   ctx.colorPicker = null;
-  ctx.maskPreviewLayerId = picker.layerId;
+  ctx.maskOverlayVisible = true;
   updateMaskComponentKind(
     ctx,
     picker.layerId,
@@ -179,7 +173,7 @@ export async function addMaskLayer(
   ctx.edits = { ...ctx.edits, masks: [...ctx.edits.masks, layer] };
   ctx.activeLayerId = layer.id;
   ctx.activeMaskComponentId = layer.components[0]?.id ?? null;
-  ctx.maskPreviewLayerId = isRangeKind(kind) ? layer.id : null;
+  if (isRangeKind(kind)) ctx.maskOverlayVisible = true;
   await ctx.onCommit(`Add ${layer.name}`);
   return layer.id;
 }
@@ -195,7 +189,6 @@ export async function removeMaskLayer(ctx: MaskLayersCtx, id: string): Promise<v
     ctx.activeLayerId = masks[index]?.id ?? masks[masks.length - 1]?.id ?? null;
     ctx.activeMaskComponentId = null;
   }
-  if (ctx.maskPreviewLayerId === id) endMaskPreview(ctx);
   await ctx.onCommit(`Delete ${name}`);
 }
 
@@ -368,7 +361,7 @@ export async function addMaskComponent(
   const component = makeComponent(kind, mode);
   patchMaskLayer(ctx, layerId, { components: [...layer.components, component] }, false);
   ctx.activeMaskComponentId = component.id;
-  if (isRangeKind(kind)) ctx.maskPreviewLayerId = layerId;
+  if (isRangeKind(kind)) ctx.maskOverlayVisible = true;
   await ctx.onCommit(`Add ${kind.kind.replaceAll('_', ' ')} Shape`);
   return component.id;
 }

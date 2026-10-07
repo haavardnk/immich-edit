@@ -423,17 +423,18 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
 
   const maskPreview = page.getByRole('button', { name: 'Toggle mask preview', exact: true });
+  await expect(maskPreview).toHaveAttribute('aria-pressed', 'true');
   await expect
     .poll(() =>
       previews.some(
         (request) =>
+          request.lane === 'weight' &&
           typeof request.preview_mode === 'object' &&
           request.preview_mode !== null &&
           'mask_weight' in request.preview_mode
       )
     )
     .toBe(true);
-  await maskPreview.click();
 
   const picker = page.getByRole('button', { name: 'Pick color from image' });
   const resetMask = page.getByRole('button', { name: 'Reset mask adjustments' });
@@ -484,20 +485,30 @@ for (const [tool, pressed] of [
   ['Color range', 'true'],
   ['Linear gradient', 'false']
 ] as const) {
-  test(`new ${tool} mask sets mask preview pressed=${pressed}`, async ({ page }) => {
+  test(`a new ${tool} mask after a hidden overlay sets mask preview pressed=${pressed}`, async ({
+    page
+  }) => {
     await installMocks(page);
     await gotoAsset(page);
 
     await page.getByRole('tab', { name: 'Masks' }).click();
     await page.getByRole('button', { name: 'New mask' }).click();
+    await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
+    const shown = page.locator('button[aria-label="Toggle mask preview"][aria-pressed="true"]');
+    await expect(shown).toHaveCount(1);
+    await shown.click();
+    await expect(shown).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'New mask' }).click();
     await page.getByRole('button', { name: tool, exact: true }).click();
     await expect(
       page.getByRole('button', { name: 'Toggle mask preview', exact: true })
-    ).toHaveAttribute('aria-pressed', pressed);
+    ).toHaveCount(2);
+    await expect(shown).toHaveCount(pressed === 'true' ? 1 : 0);
   });
 }
 
-test('mask preview survives a clipping toggle and a held original', async ({ page }) => {
+test('the mask weight hides for a held original without a new render', async ({ page }) => {
   const previews: PreviewRequest[] = [];
   await installMocks(page, { onPreview: (request) => previews.push(request) });
   await gotoAsset(page);
@@ -505,26 +516,22 @@ test('mask preview survives a clipping toggle and a held original', async ({ pag
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
-  const isMaskWeight = (request: PreviewRequest | undefined): boolean =>
-    typeof request?.preview_mode === 'object' &&
-    request.preview_mode !== null &&
-    'mask_weight' in request.preview_mode;
-  await expect.poll(() => isMaskWeight(previews.at(-1))).toBe(true);
+  const weight = page.getByTestId('mask-weight');
+  await expect(weight).toBeVisible();
+  const weights = (): number => previews.filter((request) => request.lane === 'weight').length;
+  const rendered = weights();
 
   const toggled = previews.length;
   await page.getByRole('button', { name: 'Clipping overlay' }).click();
   await expect.poll(() => previews.length).toBeGreaterThan(toggled);
-  expect(isMaskWeight(previews.at(-1))).toBe(true);
+  expect(previews.at(-1)?.preview_mode).toBe('none');
 
-  const held = previews.length;
   await page.locator('.editor-stage').hover();
   await page.keyboard.down('\\');
-  await expect.poll(() => previews.length).toBeGreaterThan(held);
+  await expect(weight).toHaveCount(0);
   await page.keyboard.up('\\');
-  await expect.poll(() => previews.length).toBeGreaterThan(held + 1);
-  await page.waitForTimeout(500);
-  expect(isMaskWeight(previews.at(-1))).toBe(true);
-  expect(previews.slice(held).filter((request) => request.lane === 'roi')).toEqual([]);
+  await expect(weight).toBeVisible();
+  expect(weights()).toBe(rendered);
 });
 
 test('color range eyedropper keeps the maskless preview through a clipping toggle', async ({

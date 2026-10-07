@@ -10,7 +10,7 @@ use crate::mask_raster::{MaskRaster, RasterMap};
 use std::sync::Arc;
 use weight::display_srgb_to_oklab;
 
-pub use blend::{blend_layer_images, build_sharpen_delta_image, render_mask_overlay};
+pub use blend::{blend_layer_images, build_sharpen_delta_image, render_mask_weight_image};
 pub use selector::{SELECTOR_EPS, SelectorTaps};
 pub use weight::{fold_layer_weight, fold_layer_weight_with_display};
 

@@ -5,7 +5,8 @@ import {
   neutraliseSection,
   neutralEdits,
   originalPreviewEdits,
-  type Edits
+  type Edits,
+  type MaskLayer
 } from '$lib/types/edits';
 import { makeLayer, defaultLinear } from '$lib/types/masks';
 import type { Roi } from '$lib/utils/viewGeometry';
@@ -116,7 +117,8 @@ function context(): PreviewCtx {
     showingOriginal: false,
     bypassedSection: null,
     geometrySession: null,
-    maskPreviewLayerId: null,
+    maskWeight: null,
+    maskStroke: 'idle',
     colorPicker: null,
     proofSpace: 'srgb',
     gamutWarn: false
@@ -242,11 +244,6 @@ describe('preview lanes during a slider drag', () => {
 
   const held: Array<[string, (c: PreviewCtx) => void, (e: Edits) => Partial<Render>]> = [
     [
-      'mask preview',
-      (c) => (c.maskPreviewLayerId = 'layer-1'),
-      (e) => ({ mode: { mask_weight: { layer_id: 'layer-1' } }, edits: e })
-    ],
-    [
       'original',
       (c) => (c.showingOriginal = true),
       (e) => ({ mode: 'none', edits: originalPreviewEdits(e) })
@@ -306,6 +303,75 @@ describe('preview lanes during a slider drag', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(ctx.viewUrl).toBeNull();
   });
+});
+
+describe('mask weight lane', () => {
+  let engine: PreviewEngine;
+  let ctx: PreviewCtx;
+  let layer: MaskLayer;
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('Image', DecodedImage);
+    renders.length = 0;
+    ctx = context();
+    layer = makeLayer('Mask 1', 0, defaultLinear());
+    ctx.edits = { ...neutralEdits(), masks: [layer] };
+    engine = new PreviewEngine(ctx);
+    engine.onViewChange(SNAP);
+    await vi.advanceTimersByTimeAsync(1000);
+    renders.length = 0;
+  });
+
+  afterEach(() => {
+    engine.reset();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function patchLayer(patch: Partial<MaskLayer>): void {
+    ctx.edits = { ...ctx.edits, masks: [{ ...ctx.edits.masks[0]!, ...patch }] };
+  }
+
+  it('renders the bare layer weight and ignores its adjustments', async () => {
+    patchLayer({ edits: { exposure_ev: 1 }, amount: 0.4, enabled: false });
+    engine.syncWeight(layer.id);
+    expect(renders).toHaveLength(1);
+    expect(renders[0]).toMatchObject({
+      lane: 'weight',
+      maxEdge: SETTLED_EDGE,
+      mode: { mask_weight: { layer_id: layer.id } },
+      edits: { masks: [{ ...layer, edits: {}, amount: 1, enabled: true }] }
+    });
+    await landLatest();
+    expect(ctx.maskWeight?.layerId).toBe(layer.id);
+
+    patchLayer({ edits: { exposure_ev: -2 }, amount: 0.8 });
+    engine.syncWeight(layer.id);
+    expect(renders).toHaveLength(1);
+
+    patchLayer({ invert: true });
+    engine.syncWeight(layer.id);
+    expect(renders).toHaveLength(2);
+  });
+
+  it.each([
+    ['shown', true, 'awaiting'],
+    ['hidden', false, 'idle']
+  ] as const)(
+    'releases the stroke tint for a %s overlay once its weight is current',
+    async (_name, shown, afterStroke) => {
+      engine.syncWeight(layer.id);
+      await landLatest();
+      ctx.maskStroke = 'painting';
+      patchLayer({ invert: true });
+      engine.syncWeight(shown ? layer.id : null);
+      engine.endWeightStroke();
+      expect(ctx.maskStroke).toBe(afterStroke);
+      if (shown) await landLatest();
+      expect(ctx.maskStroke).toBe('idle');
+    }
+  );
 });
 
 function browserFrame(): RenderedFrame {
@@ -449,22 +515,5 @@ describe('preview lanes with the browser renderer', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(fake.tiles.length).toBe(2);
     expect(renders).toEqual([]);
-  });
-
-  it('drops the 1:1 tile when a mask preview starts', async () => {
-    const fake = fakeClient(async () => browserFrame());
-    browser.current = fake.client;
-    engine.onViewChange({ ...SNAP, frame: { left: -1500, top: -1000, width: 3000, height: 2000 } });
-    engine.live();
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(ctx.viewFrame).not.toBeNull();
-    const tiles = fake.views.filter((view) => view.roi).length;
-
-    ctx.maskPreviewLayerId = 'layer-1';
-    engine.live();
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(ctx.viewFrame).toBeNull();
-    expect(fake.views.filter((view) => view.roi).length).toBe(tiles);
-    expect(fake.views.at(-1)?.preview_mode).toEqual({ mask_weight: { layer_id: 'layer-1' } });
   });
 });

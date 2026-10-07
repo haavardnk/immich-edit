@@ -284,7 +284,7 @@ impl GpuRenderer {
         let lut = self.maybe_encode_lut(&mut encoder, &edits, opts, display);
         let graded = lut.as_deref().unwrap_or(display.texture);
         if masks.preview_active {
-            self.encode_mask_overlay(&mut encoder, p, graded, out_dims, &mut retained);
+            self.encode_mask_weight_image(&mut encoder, p, out_dims, &mut retained);
         }
         let display_src = if masks.preview_active {
             &p.mask_scratch_tone
