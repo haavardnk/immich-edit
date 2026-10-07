@@ -151,6 +151,7 @@ async fn export_immich_resume_keeps_render_warnings() {
     let server = MockServer::start().await;
     mock_asset_detail(&server).await;
     let uploaded = Uuid::new_v4();
+    mock_upload(&server, uploaded, 400).await;
     let state = test_state(&server).await;
     let asset = AssetKey::master(asset_id());
     let body = ExportToImmichBody {
@@ -204,7 +205,10 @@ async fn export_immich_resume_keeps_render_warnings() {
         .flatten()
         .filter_map(|w| w.as_str())
         .collect();
-    if warnings != [rendered] {
+    if warnings.len() != 2
+        || warnings[0] != rendered
+        || !warnings[1].starts_with("Metadata copy failed")
+    {
         panic!("warnings {warnings:?}");
     }
     let requests = server.received_requests().await.unwrap();
@@ -243,14 +247,7 @@ async fn export_immich_keeps_capture_metadata_and_date() {
         let server = MockServer::start().await;
         mock_original_with(&server, asset_id(), original).await;
         mock_asset_detail(&server).await;
-        Mock::given(method("POST"))
-            .and(path("/api/assets"))
-            .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
-                "id": Uuid::new_v4(),
-                "status": "created"
-            })))
-            .mount(&server)
-            .await;
+        mock_upload(&server, Uuid::new_v4(), 204).await;
 
         let resp = test_app(&server)
             .await
@@ -294,6 +291,134 @@ async fn export_immich_keeps_capture_metadata_and_date() {
             && !body.contains(capture)
         {
             panic!("{label}: upload lacks DateTimeOriginal {capture}");
+        }
+    }
+}
+
+async fn mock_upload(server: &MockServer, new_id: Uuid, update_status: u16) {
+    Mock::given(method("POST"))
+        .and(path("/api/assets"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "id": new_id,
+            "status": "created"
+        })))
+        .mount(server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .respond_with(ResponseTemplate::new(update_status))
+        .mount(server)
+        .await;
+}
+
+async fn mock_extraction(server: &MockServer, new_id: Uuid, pending_polls: u64) {
+    let asset = |width: Option<u32>| {
+        ResponseTemplate::new(200)
+            .set_body_json(serde_json::json!({ "id": new_id, "width": width }))
+    };
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{new_id}")))
+        .respond_with(asset(None))
+        .up_to_n_times(pending_polls)
+        .with_priority(1)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{new_id}")))
+        .respond_with(asset(Some(64)))
+        .with_priority(2)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn export_immich_copies_immich_metadata_to_the_edit() {
+    let new_id = Uuid::new_v4();
+    let everything = serde_json::json!({
+        "ids": [new_id],
+        "dateTimeOriginal": "2026-01-01T00:00:00Z",
+        "timeZone": "Europe/Oslo",
+        "latitude": 59.91,
+        "longitude": 10.75,
+        "description": "Harbour at dawn",
+        "rating": 4
+    });
+    let mut no_location = everything.clone();
+    if let Some(fields) = no_location.as_object_mut() {
+        fields.remove("latitude");
+        fields.remove("longitude");
+    }
+    for (metadata, update_status, expected, want_warning) in [
+        ("all", 204, Some(&everything), false),
+        ("no-location", 204, Some(&no_location), false),
+        ("none", 204, None, false),
+        ("all", 400, Some(&everything), true),
+    ] {
+        let label = format!("{metadata} {update_status}");
+        let server = MockServer::start().await;
+        mock_original_with(
+            &server,
+            asset_id(),
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "image/jpeg")
+                .set_body_bytes(plain_jpeg()),
+        )
+        .await;
+        mock_asset_detail(&server).await;
+        mock_upload(&server, new_id, update_status).await;
+        mock_extraction(&server, new_id, 2).await;
+
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request(
+                "POST",
+                &format!("/api/assets/{}/export/immich", asset_id()),
+                serde_json::json!({ "edits": {}, "metadata": metadata }),
+            ))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("{label}: status {}", resp.status());
+        }
+        let json = body_json(resp).await;
+        let warned = json["warnings"].as_array().is_some_and(|w| {
+            w.iter().any(|w| {
+                w.as_str()
+                    .is_some_and(|w| w.starts_with("Metadata copy failed"))
+            })
+        });
+        if warned != want_warning {
+            panic!("{label}: warnings {}", json["warnings"]);
+        }
+
+        let requests = server.received_requests().await.unwrap();
+        let polls: Vec<usize> = requests
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| {
+                r.method.as_str() == "GET" && r.url.path() == format!("/api/assets/{new_id}")
+            })
+            .map(|(i, _)| i)
+            .collect();
+        let first_update = requests
+            .iter()
+            .position(|r| r.method.as_str() == "PUT" && r.url.path() == "/api/assets");
+        let waited = match (polls.last(), first_update) {
+            (Some(poll), Some(update)) => polls.len() == 3 && *poll < update,
+            (None, None) => true,
+            _ => false,
+        };
+        if !waited {
+            panic!("{label}: polls {polls:?}, update at {first_update:?}");
+        }
+        let updates: Vec<serde_json::Value> = requests
+            .iter()
+            .filter(|r| r.method.as_str() == "PUT" && r.url.path() == "/api/assets")
+            .map(|r| serde_json::from_slice(&r.body).unwrap())
+            .collect();
+        let expected: Vec<serde_json::Value> = expected.into_iter().cloned().collect();
+        if updates != expected {
+            panic!("{label}: updates {updates:?}");
         }
     }
 }

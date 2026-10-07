@@ -22,6 +22,7 @@ pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
 
 mod archive;
 mod batch;
+mod immich_metadata;
 mod naming;
 mod output_sharpen;
 mod params;
@@ -400,6 +401,15 @@ async fn run_post_upload(
             .await
     {
         warnings.push(format!("Favorite failed: {}", e.short()));
+    }
+
+    if let Some(update) =
+        immich_metadata::bulk_update(new_id, original.exif_info.as_ref(), body.params.metadata())
+    {
+        immich_metadata::await_extraction(immich, new_id).await;
+        if let Err(e) = immich.update_assets(&update).await {
+            warnings.push(format!("Metadata copy failed: {}", e.short()));
+        }
     }
 
     for album_id in &body.album_ids {

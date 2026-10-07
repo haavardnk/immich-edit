@@ -181,6 +181,10 @@ pub async fn mock_asset_detail(server: &MockServer) {
                 "exifImageWidth": 4032,
                 "exifImageHeight": 3024,
                 "dateTimeOriginal": "2026-01-01T00:00:00Z",
+                "timeZone": "Europe/Oslo",
+                "latitude": 59.91,
+                "longitude": 10.75,
+                "description": "Harbour at dawn",
                 "rating": 4,
                 "fileSizeInByte": 12345678u64
             },
