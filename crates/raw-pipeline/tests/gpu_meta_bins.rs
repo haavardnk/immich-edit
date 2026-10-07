@@ -43,7 +43,7 @@ fn gpu_display_bins_match_the_cpu_counters_on_every_fixture() {
 }
 
 #[test]
-fn a_lut_graded_frame_feeds_the_bins_and_the_mask_overlay() {
+fn a_lut_graded_frame_feeds_the_bins_and_the_mask_weight_image() {
     let Some(renderer) = try_renderer() else {
         return;
     };

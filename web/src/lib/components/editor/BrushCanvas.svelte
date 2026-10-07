@@ -53,17 +53,15 @@
   );
   const isBrush = $derived(!!activeComp && activeComp.kind.kind === 'brush');
   const ringRadius = $derived(editor.brushTool.size * 0.5 * Math.min(rect.w, rect.h));
-  const show = $derived(
-    editor.maskOverlayVisible &&
-      isBrush &&
-      editor.maskPreviewLayerId === null &&
-      rect.w > 0 &&
-      rect.h > 0
-  );
+  const show = $derived(isBrush && rect.w > 0 && rect.h > 0);
 
   $effect(() => {
     if (!show || !canvasEl || !activeComp || activeComp.kind.kind !== 'brush') return;
     void activeComp.invert;
+    if (editor.maskStroke === 'idle') {
+      canvasEl.getContext('2d')?.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      return;
+    }
     void repaint(activeComp.id, activeComp.kind.raster_id);
   });
 
@@ -78,7 +76,7 @@
   async function repaint(componentId: string, rasterId: string): Promise<void> {
     if (!canvasEl) return;
     const buf = await editor.ensureBrushBuffer(componentId, rasterId);
-    if (!canvasEl) return;
+    if (!canvasEl || editor.maskStroke === 'idle') return;
     const w = Math.max(1, Math.floor(rect.w));
     const h = Math.max(1, Math.floor(rect.h));
     if (canvasEl.width !== w) canvasEl.width = w;
@@ -209,6 +207,7 @@
     strokeActive = true;
     lastPx = null;
     lastPy = null;
+    editor.beginMaskStroke();
     await editor.ensureBrushBuffer(activeComp.id, activeComp.kind.raster_id);
     stampAt(e);
   }
@@ -240,11 +239,12 @@
     lastPx = null;
     lastPy = null;
     (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
-    if (!active || !activeComp) return;
-    await editor.commitBrushStroke(active.id, activeComp.id);
-    if (canvasEl && activeComp.kind.kind === 'brush') {
-      await repaint(activeComp.id, activeComp.kind.raster_id);
+    if (!active || !activeComp) {
+      editor.endMaskStroke();
+      return;
     }
+    await editor.commitBrushStroke(active.id, activeComp.id);
+    editor.endMaskStroke();
   }
 </script>
 
@@ -259,6 +259,7 @@
     onpointercancel={onPointerUp}
     onpointerleave={() => (hover = null)}
     onwheel={onWheel}
+    data-testid="brush-canvas"
   ></canvas>
   {#if hover}
     <div

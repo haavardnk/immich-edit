@@ -15,6 +15,8 @@
     onCommit,
     onPreviewStart,
     onPreviewEnd,
+    onDragStart,
+    onDragEnd,
     format = (v: number): string => v.toFixed(2),
     gradient,
     defaultValue = 0,
@@ -30,6 +32,8 @@
     onCommit: (action?: string) => void;
     onPreviewStart?: () => void;
     onPreviewEnd?: () => void;
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
     format?: (v: number) => string;
     gradient?: string;
     defaultValue?: number;
@@ -114,6 +118,7 @@
     dragging = true;
     altDown = e.altKey;
     editor.beginDrag();
+    onDragStart?.();
     updatePreview();
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
@@ -128,6 +133,7 @@
     window.removeEventListener('keydown', onKeyChange);
     window.removeEventListener('keyup', onKeyChange);
     editor.endDrag();
+    onDragEnd?.();
     if (previewing) {
       previewing = false;
       onPreviewEnd!();

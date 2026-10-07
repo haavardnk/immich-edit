@@ -3,6 +3,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import CropOverlay from './CropOverlay.svelte';
+  import MaskWeight from './MaskWeight.svelte';
   import MaskOverlay from './MaskOverlay.svelte';
   import WhiteBalancePicker from './WhiteBalancePicker.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
@@ -270,6 +271,7 @@
           style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px;"
         />
       {/if}
+      <MaskWeight img={imgEl} />
       <MaskOverlay img={imgEl} />
       <WhiteBalancePicker img={imgEl} />
       <BrushCanvas img={imgEl} />

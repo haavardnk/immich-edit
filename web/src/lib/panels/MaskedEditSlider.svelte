@@ -42,6 +42,8 @@
   {step}
   onLive={live}
   onCommit={commit}
+  onDragStart={editor.holdMaskOverlay}
+  onDragEnd={editor.releaseMaskOverlay}
   format={format ?? ((v: number) => v.toFixed(0))}
   {gradient}
 />

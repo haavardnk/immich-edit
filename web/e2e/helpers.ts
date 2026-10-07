@@ -24,13 +24,14 @@ function pngChunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([len, body, crc]);
 }
 
-export function makePng(width: number, height: number): Buffer {
+export function makePng(width: number, height: number, fill = 0): Buffer {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 2;
-  const raw = Buffer.alloc(height * (1 + width * 3));
+  const row = Buffer.concat([Buffer.alloc(1), Buffer.alloc(width * 3, fill)]);
+  const raw = Buffer.concat(Array.from({ length: height }, () => row));
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     pngChunk('IHDR', ihdr),

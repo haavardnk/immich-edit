@@ -54,6 +54,8 @@
     defaultValue={1}
     onLive={onAmountLive}
     onCommit={commit}
+    onDragStart={editor.holdMaskOverlay}
+    onDragEnd={editor.releaseMaskOverlay}
     format={(v: number) => v.toFixed(2)}
   />
   <div class="border-t border-dark/5"></div>

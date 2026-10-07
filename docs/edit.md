@@ -136,8 +136,8 @@ set of adjustments.
      `Enter`, to close it. Its feather is the same width along every edge.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
      They look past noise and grain, so the selection follows areas and edges instead of
-     speckling pixel by pixel. A new range mask opens with the mask preview on, and so does a
-     color range after you sample; press the mask's preview button to see the photo again.
+     speckling pixel by pixel. A new range mask opens with the mask overlay on, and so does a
+     color range after you sample; press the mask's overlay button to see the photo again.
    - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
      the area for you. **Click to select** and **Box select** find an object you click or draw a box
      around. These need a model that an administrator installs; see
@@ -149,7 +149,9 @@ another shape. For example, a **Sky** mask with a **Linear gradient** intersecte
 top of the sky. **Invert** edits everything outside the shapes instead. An AI click mask also has
 **Click refine**: press **Add** or **Remove** and click the photo to grow or trim it, then **Done**.
 
-`O` shows or hides the colored mask overlay. Masks lower in the list are applied on top of the
+`O`, or the overlay button on a mask, shows or hides the selected mask in its layer color. The
+overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
+shows its paint while you draw. Masks lower in the list are applied on top of the
 ones above them, and **Duplicate layer** starts a new mask from an existing one.
 
 ## Remove spots and distractions

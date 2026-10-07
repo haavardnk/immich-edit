@@ -35,6 +35,7 @@ import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
 import { SaveQueue } from '$lib/stores/editor/save.svelte';
+import type { MaskWeightFrame, MaskStroke } from '$lib/stores/editor/maskWeight.svelte';
 import { PreviewEngine, type PreviewFrame } from '$lib/stores/editor/preview.svelte';
 import type { ViewSnapshot } from '$lib/stores/editor/previewEdge';
 import { ViewportNav } from '$lib/stores/editor/viewport';
@@ -107,8 +108,19 @@ class EditorStore {
   maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
   maskRefineOpen = $state<Record<string, boolean>>({});
-  maskPreviewLayerId = $state<string | null>(null);
   colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
+  maskOverlayHeld = $state(false);
+  maskWeight = $state.raw<MaskWeightFrame | null>(null);
+  maskStroke = $state<MaskStroke>('idle');
+  maskOverlayLayerId = $derived(
+    this.maskOverlayVisible &&
+      !this.maskOverlayHeld &&
+      !this.colorPicker &&
+      !this.showingOriginal &&
+      this.edits.masks.some((layer) => layer.id === this.activeLayerId)
+      ? this.activeLayerId
+      : null
+  );
   brushBuffers = $state<Record<string, BrushBuffer>>({});
   brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
@@ -259,7 +271,7 @@ class EditorStore {
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskRefineOpen = {};
-    this.maskPreviewLayerId = null;
+    this.maskOverlayHeld = false;
     this.activeRetouchId = null;
     this.retouchAnchor = null;
     this.retouchSampling = false;
@@ -382,6 +394,27 @@ class EditorStore {
 
   toggleMaskOverlay = (): void => maskLayers.toggleMaskOverlay(this);
 
+  toggleLayerOverlay = (id: string): void => maskLayers.toggleLayerOverlay(this, id);
+
+  holdMaskOverlay = (): void => {
+    this.maskOverlayHeld = true;
+  };
+
+  releaseMaskOverlay = (): void => {
+    this.maskOverlayHeld = false;
+  };
+
+  syncMaskWeight = (): void => this.previews.syncWeight(this.maskOverlayLayerId);
+
+  beginMaskStroke = (): void => {
+    this.maskStroke = 'painting';
+  };
+
+  endMaskStroke = (): void => {
+    this.syncMaskWeight();
+    this.previews.endWeightStroke();
+  };
+
   setMaskRefineOpen = (layerId: string, open: boolean): void => {
     this.maskRefineOpen = { ...this.maskRefineOpen, [layerId]: open };
   };
@@ -407,10 +440,6 @@ class EditorStore {
   toggleRetouchStroke = (id: string): Promise<void> => retouch.toggleRetouchStroke(this, id);
 
   clearRetouch = (): Promise<void> => retouch.clearRetouch(this);
-
-  previewMaskWeight = (layerId: string): void => maskLayers.previewMaskWeight(this, layerId);
-
-  endMaskPreview = (): void => maskLayers.endMaskPreview(this);
 
   beginColorPicker = (layerId: string, componentId: string): void =>
     maskLayers.beginColorPicker(this, layerId, componentId);

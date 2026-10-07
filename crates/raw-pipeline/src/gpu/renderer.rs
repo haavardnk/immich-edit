@@ -32,7 +32,7 @@ mod display;
 mod effects;
 mod geometry;
 mod lut;
-mod mask_overlay;
+mod mask_weight_image;
 mod masks;
 mod meta;
 mod mipgen;

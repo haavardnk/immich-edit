@@ -101,7 +101,7 @@ pub fn build_sharpen_delta_image(
     LinearImage::new(out, w, h)
 }
 
-pub fn render_mask_overlay(
+pub fn render_mask_weight_image(
     image: &mut LinearImage,
     layer: &LayerEval,
     lens_warp: &LensWarpParams,
@@ -156,13 +156,8 @@ pub fn render_mask_overlay(
                     (u, v)
                 };
                 let i = y * w + x;
-                let display_rgb = display[i];
-                let selected = selector.as_ref().map_or(display_rgb, |s| s[i]);
-                let lw = fold_layer_weight_with_display(layer, su, sv, selected);
-                let alpha = lw * 0.55;
-                px[0] = display_rgb[0] + (1.0 - display_rgb[0]) * alpha;
-                px[1] = display_rgb[1] * (1.0 - alpha);
-                px[2] = display_rgb[2] * (1.0 - alpha);
+                let selected = selector.as_ref().map_or(display[i], |s| s[i]);
+                px.fill(fold_layer_weight_with_display(layer, su, sv, selected));
             }
         });
 }

@@ -2,7 +2,6 @@ import { ApiError } from '$lib/api/client';
 import {
   getPreviewMeta,
   livePreview,
-  maskWeightPreview,
   persistedPreviewUrl,
   previewModeIsNone,
   type PreviewMode,
@@ -26,6 +25,7 @@ import { SingleFlight } from '$lib/utils/singleFlight';
 import type { Roi } from '$lib/utils/viewGeometry';
 import type { GeometrySession } from './geometry.svelte';
 import { ClientPreview } from './clientPreview';
+import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';
 import { OriginalPreview } from './originalPreview.svelte';
 import { baseEdge, dragEdge, fitEdge, LIVE_EDGE, MAX_EDGE, type ViewSnapshot } from './previewEdge';
 import { ViewTiles } from './viewTiles.svelte';
@@ -44,7 +44,7 @@ export type BaseArgs = {
   purpose?: 'color-picker';
 };
 
-export interface PreviewCtx {
+export interface PreviewCtx extends MaskWeightCtx {
   assetId: string | null;
   initialised: boolean;
   edits: Edits;
@@ -62,7 +62,6 @@ export interface PreviewCtx {
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
   geometrySession: GeometrySession | null;
-  maskPreviewLayerId: string | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
   proofSpace: ColorSpaceOpt;
   gamutWarn: boolean;
@@ -81,6 +80,7 @@ export class PreviewEngine {
   private lastBase: BaseArgs | null = null;
   private tiles: ViewTiles;
   private original: OriginalPreview;
+  private weight: MaskWeight;
   private client: ClientPreview;
 
   constructor(ctx: PreviewCtx) {
@@ -94,6 +94,7 @@ export class PreviewEngine {
       proof: () => this.proofOptions(),
       edge: () => baseEdge(this.viewSnap)
     });
+    this.weight = new MaskWeight(ctx, () => baseEdge(this.viewSnap));
     this.client = new ClientPreview(ctx, {
       proof: () => this.proofOptions(),
       baseEdge: () => fitEdge(this.viewSnap),
@@ -158,6 +159,14 @@ export class PreviewEngine {
 
   get viewScale(): number | null {
     return this.tiles.scale(this.viewSnap);
+  }
+
+  syncWeight(layerId: string | null): void {
+    this.weight.sync(layerId);
+  }
+
+  endWeightStroke(): void {
+    this.weight.endStroke();
   }
 
   live(): void {
@@ -275,6 +284,7 @@ export class PreviewEngine {
     this.ctx.previewUrl = null;
     this.dropFrame();
     this.original.drop();
+    this.weight.drop();
     this.ctx.splitMode = false;
   }
 
@@ -285,7 +295,6 @@ export class PreviewEngine {
   private settledArgs(maxEdge: number): BaseArgs {
     const edits = this.snapshotEdits();
     const section = this.ctx.bypassedSection;
-    const layer = this.ctx.maskPreviewLayerId;
     if (this.ctx.colorPicker) {
       return {
         edits: { ...edits, masks: [] },
@@ -298,7 +307,7 @@ export class PreviewEngine {
       return { edits: originalPreviewEdits(edits), maxEdge, previewMode: 'none' };
     }
     if (section) return { edits: neutraliseSection(edits, section), maxEdge, previewMode: 'none' };
-    return { edits, maxEdge, previewMode: layer ? maskWeightPreview(layer) : 'none' };
+    return { edits, maxEdge, previewMode: 'none' };
   }
 
   private submitBase(args: BaseArgs): void {
@@ -360,7 +369,6 @@ export class PreviewEngine {
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
       !!this.ctx.geometrySession ||
-      !!this.ctx.maskPreviewLayerId ||
       this.previewing ||
       !!this.ctx.colorPicker
     );
