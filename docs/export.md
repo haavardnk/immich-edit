@@ -34,7 +34,7 @@ The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and vi
 | **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
 | **Lossless** | WebP | Off by default. Metadata is kept either way |
 | **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
-| **Metadata** | Always | **All** copies camera, lens, date and location. **All but location** drops the GPS position, for sharing without saying where. **None** writes no EXIF. Every format embeds the EXIF its own way, so Immich reads it from any of them. Maker notes, embedded previews, thumbnails and the original's unique image ID are always left out, so Immich never mistakes the edit for the original. Color space, pixel size, orientation and software describe the exported file. In a JPEG, EXIF over 64 KB loses user comments first, then everything but capture, copyright and location; other formats keep it all |
+| **Metadata** | Always | **All** copies camera, lens, date and location. **All but location** drops the GPS position, for sharing without saying where. **None** writes no EXIF. Every format embeds the EXIF its own way, so Immich reads it from any of them. Maker notes, embedded previews, thumbnails and the original's unique image ID are always left out, so Immich never mistakes the edit for the original. Color space, color profile, pixel size, orientation and software describe the exported file. In a JPEG, EXIF over 64 KB loses user comments first, then everything but capture, copyright and location; other formats keep it all |
 
 [Features](features.md#export-color-and-interoperability) lists what is and is not supported.
 [Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
@@ -141,6 +141,14 @@ unmatched brace shows an error under the field and blocks the export until you f
 
 The new photo lands next to the original in the Immich timeline, dated by the original's capture
 time, even with **Metadata** set to **None**.
+
+The edit also gets the date, time zone, map location, description and star rating Immich shows
+for the original, including changes you made there. **All but location** leaves out the map
+location, and **None** copies none of them. The upload waits until Immich has read the new file,
+up to 30 seconds, then copies the values, and Immich keeps them from then on. A download holds
+only what the original file holds, so changes made in Immich reach uploads only. When Immich
+refuses the values, the upload still counts and reports `Metadata copy failed:` with Immich's
+reason.
 
 Immich refuses a file it already has. Uploading an identical export again reports
 `Not uploaded: identical asset already exists in Immich (matched by content hash)`.

@@ -220,6 +220,13 @@ impl ImmichClient {
         self.patch_json(&format!("api/assets/{id}"), body).await
     }
 
+    pub async fn update_assets(&self, body: &serde_json::Value) -> ImmichResult<()> {
+        let url = self.url("api/assets")?;
+        send(self.authed(self.http.put(url).json(body)))
+            .await
+            .map(|_| ())
+    }
+
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
         self.put_json("api/tags", body).await
     }

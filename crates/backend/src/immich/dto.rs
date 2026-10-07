@@ -70,6 +70,8 @@ pub struct AssetDetail {
     #[serde(rename = "updatedAt", default)]
     pub updated_at: Option<String>,
     #[serde(default)]
+    pub width: Option<u32>,
+    #[serde(default)]
     pub checksum: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
@@ -138,6 +140,14 @@ pub struct ExifInfo {
     pub orientation: Option<String>,
     #[serde(rename = "dateTimeOriginal", default)]
     pub date_time_original: Option<String>,
+    #[serde(rename = "timeZone", default)]
+    pub time_zone: Option<String>,
+    #[serde(default)]
+    pub latitude: Option<f64>,
+    #[serde(default)]
+    pub longitude: Option<f64>,
+    #[serde(default)]
+    pub description: Option<String>,
     #[serde(default)]
     pub rating: Option<i32>,
     #[serde(rename = "fileSizeInByte", default)]

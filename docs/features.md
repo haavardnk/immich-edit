@@ -167,7 +167,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Export presets or recipes | ✓ Yes | Named, per-user export settings in both export panels; see [export](export.md#export-presets) |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |
 | Export watermark | ✓ Yes | PNG from a shared library, with size, opacity, inset and one of nine positions |
-| Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original |
+| Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original; copies the original's Immich date, time zone, location, description and rating |
 | DNG export | ✗ No | — |
 | PSD export | ✗ No | — |
 | XMP or Lightroom round trip | ✗ No | — |
