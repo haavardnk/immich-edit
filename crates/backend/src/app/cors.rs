@@ -17,7 +17,8 @@ pub fn build_cors(allowed: &[String]) -> CorsLayer {
             HeaderName::from_static("content-type"),
             HeaderName::from_static("authorization"),
             HeaderName::from_static("x-request-id"),
-        ]);
+        ])
+        .expose_headers([crate::routes::headers::EXPORT_WARNINGS]);
     if allowed.is_empty() {
         return base;
     }

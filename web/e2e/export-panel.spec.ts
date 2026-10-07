@@ -27,6 +27,34 @@ test('a failed download export offers a retry beside the button', async ({ page 
   await expect(panel.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
 });
 
+test('a download lists the metadata it could not copy', async ({ page }) => {
+  await installMocks(page, {
+    onExport: (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: {
+          'content-disposition': 'attachment; filename="IMG_0001_edit.jpg"',
+          'x-export-warnings': JSON.stringify([
+            'Metadata not copied: no readable EXIF in the original'
+          ])
+        },
+        body: JPEG_BLOB
+      })
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /Export JPEG/ }).click();
+  await downloadPromise;
+  const panel = page.getByRole('tabpanel');
+  await expect(panel.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
+  await expect(
+    panel.getByText('Metadata not copied: no readable EXIF in the original')
+  ).toBeVisible();
+});
+
 test('export settings survive a reload', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

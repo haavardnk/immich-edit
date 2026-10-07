@@ -129,6 +129,13 @@ libheif uses separate plugins for each operation:
 The official image installs `libheif-plugins-all`. Native and custom-image deployments must install
 the required plugins themselves.
 
+### `Metadata not copied`
+
+The export could not write the original's EXIF, and the photo was exported without it. The rest
+of the message gives the reason, most often `no readable EXIF in the original`. A single export
+lists this under the result on the **Export** tab, and a batch lists it under each photo in
+**Jobs**.
+
 ### An export returns `408 Request Timeout`
 
 A full-resolution export decodes, renders, encodes, and uploads inside a single request. On CPU-only

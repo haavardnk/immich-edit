@@ -1,14 +1,22 @@
 pub mod codecs;
+mod heif;
 pub mod icc;
+pub mod jpeg;
+mod jxl;
+mod png;
+mod tiff;
+mod webp;
 
-use crate::PipelineError;
-use crate::frame::{
-    BitDepth, JpegSubsampling, OutputColorSpace, OutputFormat, PngCompression, TiffCompression,
-};
-use libheif_rs::{
-    Channel, ColorProfileRaw, ColorSpace, CompressionFormat, EncoderQuality, HeifContext,
-    Image as HeifImage, LibHeif, RgbChroma, color_profile_types,
-};
+use crate::frame::{BitDepth, OutputColorSpace, OutputFormat};
+use crate::metadata::ExportMetadata;
+use crate::metadata::exif::{self, ExifBlock};
+
+pub use self::heif::{encode_avif_rgb, encode_heic_rgb};
+pub use self::jpeg::{encode_jpeg_rgb, encode_jpeg_rgba};
+pub use self::jxl::{encode_jxl8, encode_jxl16};
+pub use self::png::{encode_png8, encode_png16};
+pub use self::tiff::{encode_tiff8, encode_tiff16};
+pub use self::webp::encode_webp_rgb;
 
 pub struct ImageRgb8<'a> {
     pub rgb: &'a [u8],
@@ -22,316 +30,25 @@ pub struct ImageRgba8<'a> {
     pub height: u32,
 }
 
-fn turbo_subsamp(subsampling: JpegSubsampling) -> turbojpeg::Subsamp {
-    match subsampling {
-        JpegSubsampling::Chroma420 => turbojpeg::Subsamp::Sub2x2,
-        JpegSubsampling::Chroma444 => turbojpeg::Subsamp::None,
-    }
-}
-
-pub fn encode_jpeg_rgb(
-    img: ImageRgb8<'_>,
-    quality: i32,
-    subsampling: JpegSubsampling,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let image = turbojpeg::Image {
-        pixels: img.rgb,
-        width: img.width as usize,
-        pitch: img.width as usize * 3,
-        height: img.height as usize,
-        format: turbojpeg::PixelFormat::RGB,
+pub fn embedded(
+    meta: Option<&ExportMetadata>,
+    format: &OutputFormat,
+    color_space: OutputColorSpace,
+    size: (u32, u32),
+) -> (Option<ExifBlock>, Vec<String>) {
+    let Some(meta) = meta else {
+        return (None, Vec::new());
     };
-    turbojpeg::compress(image, quality, turbo_subsamp(subsampling))
-        .map(|buf| icc::embed_jpeg_icc(buf.to_vec(), cs.icc_profile()))
-        .map_err(|e| PipelineError::Encode(format!("{e}")))
-}
-
-pub fn encode_jpeg_rgba(
-    img: ImageRgba8<'_>,
-    quality: i32,
-    subsampling: JpegSubsampling,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let image = turbojpeg::Image {
-        pixels: img.rgba,
-        width: img.width as usize,
-        pitch: img.width as usize * 4,
-        height: img.height as usize,
-        format: turbojpeg::PixelFormat::RGBA,
+    let Some(source) = meta.exif.as_ref() else {
+        return (
+            None,
+            vec!["Metadata not copied: no readable EXIF in the original".into()],
+        );
     };
-    turbojpeg::compress(image, quality, turbo_subsamp(subsampling))
-        .map(|buf| icc::embed_jpeg_icc(buf.to_vec(), cs.icc_profile()))
-        .map_err(|e| PipelineError::Encode(format!("{e}")))
-}
-
-pub fn encode_png8(
-    img: ImageRgb8<'_>,
-    compression: PngCompression,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let mut buf: Vec<u8> = Vec::new();
-    {
-        let mut enc = png::Encoder::new(&mut buf, img.width, img.height);
-        enc.set_color(png::ColorType::Rgb);
-        enc.set_depth(png::BitDepth::Eight);
-        enc.set_compression(map_png_compression(compression));
-        if cs == OutputColorSpace::SRgb {
-            enc.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
-        }
-        let mut writer = enc
-            .write_header()
-            .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-        writer
-            .write_image_data(img.rgb)
-            .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-    }
-    Ok(maybe_embed_png_icc(buf, cs))
-}
-
-pub fn encode_png16(
-    rgb16: &[u16],
-    width: u32,
-    height: u32,
-    compression: PngCompression,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let mut be: Vec<u8> = Vec::with_capacity(rgb16.len() * 2);
-    for &v in rgb16 {
-        be.extend_from_slice(&v.to_be_bytes());
-    }
-    let mut buf: Vec<u8> = Vec::new();
-    {
-        let mut enc = png::Encoder::new(&mut buf, width, height);
-        enc.set_color(png::ColorType::Rgb);
-        enc.set_depth(png::BitDepth::Sixteen);
-        enc.set_compression(map_png_compression(compression));
-        if cs == OutputColorSpace::SRgb {
-            enc.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
-        }
-        let mut writer = enc
-            .write_header()
-            .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-        writer
-            .write_image_data(&be)
-            .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-    }
-    Ok(maybe_embed_png_icc(buf, cs))
-}
-
-fn maybe_embed_png_icc(buf: Vec<u8>, cs: OutputColorSpace) -> Vec<u8> {
-    if cs == OutputColorSpace::SRgb {
-        buf
-    } else {
-        icc::embed_png_icc(buf, cs.icc_profile())
-    }
-}
-
-fn map_png_compression(c: PngCompression) -> png::Compression {
-    match c {
-        PngCompression::Fast => png::Compression::Fast,
-        PngCompression::Default => png::Compression::Balanced,
-        PngCompression::Best => png::Compression::High,
-    }
-}
-
-pub fn encode_webp_rgb(
-    img: ImageRgb8<'_>,
-    quality: u8,
-    lossless: bool,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let encoder = webp::Encoder::from_rgb(img.rgb, img.width, img.height);
-    let mem = if lossless {
-        encoder.encode_lossless()
-    } else {
-        encoder.encode(quality as f32)
-    };
-    Ok(icc::embed_webp_icc(mem.to_vec(), cs.icc_profile()))
-}
-
-fn heif_encoder_hint(format: CompressionFormat) -> &'static str {
-    match format {
-        CompressionFormat::Hevc => "HEVC encoder plugin missing (install libheif-plugin-x265)",
-        CompressionFormat::Av1 => {
-            "AV1 encoder plugin missing (install libheif-plugin-aomenc or libheif-plugin-rav1e)"
-        }
-        _ => "libheif encoder plugin missing for this format",
-    }
-}
-
-fn encode_heif_rgb(
-    img: ImageRgb8<'_>,
-    quality: u8,
-    format: CompressionFormat,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let lib_heif = LibHeif::new();
-    let mut heif_image = HeifImage::new(img.width, img.height, ColorSpace::Rgb(RgbChroma::Rgb))
-        .map_err(|e| PipelineError::Encode(format!("heif image: {e}")))?;
-    heif_image
-        .create_plane(Channel::Interleaved, img.width, img.height, 8)
-        .map_err(|e| PipelineError::Encode(format!("heif plane: {e}")))?;
-    let icc_profile = ColorProfileRaw::new(color_profile_types::PROF, cs.icc_profile().to_vec());
-    heif_image
-        .set_color_profile_raw(&icc_profile)
-        .map_err(|e| PipelineError::Encode(format!("heif icc: {e}")))?;
-    {
-        let planes = heif_image.planes_mut();
-        let plane = planes
-            .interleaved
-            .ok_or_else(|| PipelineError::Encode("heif: no interleaved plane".into()))?;
-        let stride = plane.stride;
-        let row_bytes = img.width as usize * 3;
-        for y in 0..img.height as usize {
-            let dst_off = y * stride;
-            let src_off = y * row_bytes;
-            plane.data[dst_off..dst_off + row_bytes]
-                .copy_from_slice(&img.rgb[src_off..src_off + row_bytes]);
-        }
-    }
-    let mut encoder = lib_heif.encoder_for_format(format).map_err(|e| {
-        PipelineError::Encode(format!("heif encoder: {e}; {}", heif_encoder_hint(format)))
-    })?;
-    encoder
-        .set_quality(EncoderQuality::Lossy(quality))
-        .map_err(|e| PipelineError::Encode(format!("heif quality: {e}")))?;
-    let mut ctx =
-        HeifContext::new().map_err(|e| PipelineError::Encode(format!("heif ctx: {e}")))?;
-    ctx.encode_image(&heif_image, &mut encoder, None)
-        .map_err(|e| PipelineError::Encode(format!("heif encode: {e}")))?;
-    ctx.write_to_bytes()
-        .map_err(|e| PipelineError::Encode(format!("heif write: {e}")))
-}
-
-pub fn encode_avif_rgb(
-    img: ImageRgb8<'_>,
-    quality: u8,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    encode_heif_rgb(img, quality, CompressionFormat::Av1, cs)
-}
-
-pub fn encode_heic_rgb(
-    img: ImageRgb8<'_>,
-    quality: u8,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    encode_heif_rgb(img, quality, CompressionFormat::Hevc, cs)
-}
-
-pub fn encode_tiff8(
-    img: ImageRgb8<'_>,
-    compression: TiffCompression,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    use tiff::encoder::colortype;
-    use tiff::tags::Tag;
-    let mut buf: Vec<u8> = Vec::new();
-    {
-        let cursor = std::io::Cursor::new(&mut buf);
-        let mut enc = build_tiff_encoder(cursor, compression)?;
-        let mut image = enc
-            .new_image::<colortype::RGB8>(img.width, img.height)
-            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
-        image
-            .encoder()
-            .write_tag(Tag::IccProfile, cs.icc_profile())
-            .map_err(|e| PipelineError::Encode(format!("tiff icc: {e}")))?;
-        image
-            .write_data(img.rgb)
-            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
-    }
-    Ok(buf)
-}
-
-pub fn encode_tiff16(
-    rgb16: &[u16],
-    width: u32,
-    height: u32,
-    compression: TiffCompression,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    use tiff::encoder::colortype;
-    use tiff::tags::Tag;
-    let mut buf: Vec<u8> = Vec::new();
-    {
-        let cursor = std::io::Cursor::new(&mut buf);
-        let mut enc = build_tiff_encoder(cursor, compression)?;
-        let mut image = enc
-            .new_image::<colortype::RGB16>(width, height)
-            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
-        image
-            .encoder()
-            .write_tag(Tag::IccProfile, cs.icc_profile())
-            .map_err(|e| PipelineError::Encode(format!("tiff icc: {e}")))?;
-        image
-            .write_data(rgb16)
-            .map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
-    }
-    Ok(buf)
-}
-
-fn build_tiff_encoder<W: std::io::Write + std::io::Seek>(
-    writer: W,
-    compression: TiffCompression,
-) -> crate::PipelineResult<tiff::encoder::TiffEncoder<W>> {
-    use tiff::encoder::{Compression, TiffEncoder};
-    let enc = TiffEncoder::new(writer).map_err(|e| PipelineError::Encode(format!("tiff: {e}")))?;
-    let c = match compression {
-        TiffCompression::None => Compression::Uncompressed,
-        TiffCompression::Lzw => Compression::Lzw,
-        TiffCompression::Deflate => Compression::Deflate(tiff::encoder::DeflateLevel::default()),
-    };
-    Ok(enc.with_compression(c))
-}
-
-pub fn encode_jxl8(img: ImageRgb8<'_>, cs: OutputColorSpace) -> crate::PipelineResult<Vec<u8>> {
-    let mut encoder = jpegxl_rs::encoder_builder()
-        .color_encoding(jxl_color_encoding(cs))
-        .build()
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    let result: jpegxl_rs::encode::EncoderResult<u8> = encoder
-        .encode::<u8, u8>(img.rgb, img.width, img.height)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    Ok(result.data)
-}
-
-pub fn encode_jxl16(
-    rgb16: &[u16],
-    width: u32,
-    height: u32,
-    cs: OutputColorSpace,
-) -> crate::PipelineResult<Vec<u8>> {
-    let mut encoder = jpegxl_rs::encoder_builder()
-        .color_encoding(jxl_color_encoding(cs))
-        .build()
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    let result: jpegxl_rs::encode::EncoderResult<u16> = encoder
-        .encode::<u16, u16>(rgb16, width, height)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    Ok(result.data)
-}
-
-fn jxl_color_encoding(cs: OutputColorSpace) -> jpegxl_rs::encode::ColorEncoding {
-    use jpegxl_sys::color::color_encoding::{
-        JxlColorEncoding, JxlColorSpace, JxlPrimaries, JxlRenderingIntent, JxlTransferFunction,
-        JxlWhitePoint,
-    };
-    match cs {
-        OutputColorSpace::SRgb => jpegxl_rs::encode::ColorEncoding::Srgb,
-        OutputColorSpace::DisplayP3 => jpegxl_rs::encode::ColorEncoding::Custom(JxlColorEncoding {
-            color_space: JxlColorSpace::Rgb,
-            white_point: JxlWhitePoint::D65,
-            white_point_xy: [0.3127, 0.3290],
-            primaries: JxlPrimaries::P3,
-            primaries_red_xy: [0.680, 0.320],
-            primaries_green_xy: [0.265, 0.690],
-            primaries_blue_xy: [0.150, 0.060],
-            transfer_function: JxlTransferFunction::SRGB,
-            gamma: 0.0,
-            rendering_intent: JxlRenderingIntent::Perceptual,
-        }),
+    let budget = matches!(format, OutputFormat::Jpeg { .. }).then_some(jpeg::EXIF_BUDGET);
+    match exif::block(source, meta.location, budget, color_space, size) {
+        Ok(block) => (Some(block), Vec::new()),
+        Err(e) => (None, vec![format!("Metadata not copied: {e}")]),
     }
 }
 
@@ -341,46 +58,49 @@ pub fn encode_from_rgb8(
     height: u32,
     format: &OutputFormat,
     cs: OutputColorSpace,
+    exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
     let img = ImageRgb8 { rgb, width, height };
     match *format {
         OutputFormat::Jpeg {
             quality,
             subsampling,
-        } => encode_jpeg_rgb(img, quality as i32, subsampling, cs),
+        } => encode_jpeg_rgb(img, quality as i32, subsampling, cs, exif),
         OutputFormat::Png {
             bit_depth: BitDepth::Eight,
             compression,
-        } => encode_png8(img, compression, cs),
+        } => encode_png8(img, compression, cs, exif),
         OutputFormat::Png {
             bit_depth: BitDepth::Sixteen,
             compression,
         } => {
             let rgb16: Vec<u16> = rgb.iter().map(|&v| (v as u16) * 257).collect();
-            encode_png16(&rgb16, width, height, compression, cs)
+            encode_png16(&rgb16, width, height, compression, cs, exif)
         }
-        OutputFormat::Webp { quality, lossless } => encode_webp_rgb(img, quality, lossless, cs),
-        OutputFormat::Avif { quality } => encode_avif_rgb(img, quality, cs),
-        OutputFormat::Heic { quality } => encode_heic_rgb(img, quality, cs),
+        OutputFormat::Webp { quality, lossless } => {
+            encode_webp_rgb(img, quality, lossless, cs, exif)
+        }
+        OutputFormat::Avif { quality } => encode_avif_rgb(img, quality, cs, exif),
+        OutputFormat::Heic { quality } => encode_heic_rgb(img, quality, cs, exif),
         OutputFormat::Tiff {
             bit_depth: BitDepth::Eight,
             compression,
-        } => encode_tiff8(img, compression, cs),
+        } => encode_tiff8(img, compression, cs, exif),
         OutputFormat::Tiff {
             bit_depth: BitDepth::Sixteen,
             compression,
         } => {
             let rgb16: Vec<u16> = rgb.iter().map(|&v| (v as u16) * 257).collect();
-            encode_tiff16(&rgb16, width, height, compression, cs)
+            encode_tiff16(&rgb16, width, height, compression, cs, exif)
         }
         OutputFormat::Jxl {
             bit_depth: BitDepth::Eight,
-        } => encode_jxl8(img, cs),
+        } => encode_jxl8(img, cs, exif),
         OutputFormat::Jxl {
             bit_depth: BitDepth::Sixteen,
         } => {
             let rgb16: Vec<u16> = rgb.iter().map(|&v| (v as u16) * 257).collect();
-            encode_jxl16(&rgb16, width, height, cs)
+            encode_jxl16(&rgb16, width, height, cs, exif)
         }
         OutputFormat::Rgb8 => Ok(rgb.to_vec()),
     }
@@ -392,6 +112,7 @@ pub fn encode_from_rgba8(
     height: u32,
     format: &OutputFormat,
     cs: OutputColorSpace,
+    exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
     if let OutputFormat::Jpeg {
         quality,
@@ -407,13 +128,14 @@ pub fn encode_from_rgba8(
             quality as i32,
             subsampling,
             cs,
+            exif,
         );
     }
     let mut rgb: Vec<u8> = Vec::with_capacity((width as usize) * (height as usize) * 3);
     for chunk in rgba.chunks_exact(4) {
         rgb.extend_from_slice(&chunk[..3]);
     }
-    encode_from_rgb8(&rgb, width, height, format, cs)
+    encode_from_rgb8(&rgb, width, height, format, cs, exif)
 }
 
 pub fn encode_from_rgb16(
@@ -422,22 +144,23 @@ pub fn encode_from_rgb16(
     height: u32,
     format: &OutputFormat,
     cs: OutputColorSpace,
+    exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
     match *format {
         OutputFormat::Png {
             bit_depth: BitDepth::Sixteen,
             compression,
-        } => encode_png16(rgb16, width, height, compression, cs),
+        } => encode_png16(rgb16, width, height, compression, cs, exif),
         OutputFormat::Tiff {
             bit_depth: BitDepth::Sixteen,
             compression,
-        } => encode_tiff16(rgb16, width, height, compression, cs),
+        } => encode_tiff16(rgb16, width, height, compression, cs, exif),
         OutputFormat::Jxl {
             bit_depth: BitDepth::Sixteen,
-        } => encode_jxl16(rgb16, width, height, cs),
+        } => encode_jxl16(rgb16, width, height, cs, exif),
         _ => {
             let rgb8: Vec<u8> = rgb16.iter().map(|&v| (v >> 8) as u8).collect();
-            encode_from_rgb8(&rgb8, width, height, format, cs)
+            encode_from_rgb8(&rgb8, width, height, format, cs, exif)
         }
     }
 }

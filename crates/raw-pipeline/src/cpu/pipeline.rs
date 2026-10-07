@@ -380,7 +380,15 @@ fn finish_render(
         rendered
     };
 
-    let bytes = clock.time(timing::ENCODE, || encode(&final_image, options))?;
+    let (exif, metadata_warnings) = crate::encode::embedded(
+        options.metadata.as_ref(),
+        &options.output,
+        options.output_color_space,
+        (final_image.width, final_image.height),
+    );
+    let bytes = clock.time(timing::ENCODE, || {
+        encode(&final_image, options, exif.as_ref())
+    })?;
 
     Ok(RenderedImage {
         bytes,
@@ -394,5 +402,6 @@ fn finish_render(
         renderer: "cpu".into(),
         is_raw: frame.meta.is_raw,
         timings: clock.finish(),
+        metadata_warnings,
     })
 }

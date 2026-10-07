@@ -24,6 +24,7 @@ fn sky_gradient_png() -> Vec<u8> {
         },
         PngCompression::Fast,
         OutputColorSpace::SRgb,
+        None,
     )
     .unwrap()
 }

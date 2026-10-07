@@ -11,8 +11,6 @@ pub mod edits;
 #[cfg(feature = "native")]
 pub mod encode;
 #[cfg(feature = "native")]
-pub mod exif;
-#[cfg(feature = "native")]
 pub mod finish;
 pub mod frame;
 pub mod geom;
@@ -21,6 +19,8 @@ pub mod histogram;
 pub mod lut;
 pub mod mask_raster;
 pub mod math;
+#[cfg(feature = "native")]
+pub mod metadata;
 pub mod ops;
 pub mod scopes;
 mod sensor_sample;

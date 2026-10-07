@@ -108,15 +108,8 @@ describe('restoreExportForm', () => {
 
 describe('baseOptions', () => {
   it.each<[string, Partial<ExportForm>, boolean]>([
-    ['webp keeping metadata', { format: 'webp', metadata: 'all', lossless: false }, true],
-    [
-      'webp keeping all but location',
-      { format: 'webp', metadata: 'no-location', lossless: false },
-      true
-    ],
-    ['webp dropping metadata', { format: 'webp', metadata: 'none', lossless: false }, false],
-    ['webp asked for lossless', { format: 'webp', metadata: 'none', lossless: true }, true],
-    ['jpeg keeping metadata', { format: 'jpeg', metadata: 'all', lossless: false }, false]
+    ['lossy webp keeping metadata', { format: 'webp', metadata: 'all', lossless: false }, false],
+    ['webp asked for lossless', { format: 'webp', metadata: 'none', lossless: true }, true]
   ])('resolves lossless for %s', (_name, patch, expected) => {
     expect(baseOptions(form(patch)).lossless).toBe(expected);
   });
@@ -192,7 +185,7 @@ describe('immichOptions', () => {
     );
     expect(opts).toMatchObject({
       format: 'webp',
-      lossless: true,
+      lossless: false,
       albumIds: ['al'],
       tagIds: ['t'],
       favorite: true,

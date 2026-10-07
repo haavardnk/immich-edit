@@ -16,6 +16,7 @@ fn jpeg_with_orientation(width: usize, height: usize, orientation: u16) -> Vec<u
         90,
         JpegSubsampling::Chroma420,
         OutputColorSpace::SRgb,
+        None,
     )
     .unwrap();
     let mut meta = Metadata::new();

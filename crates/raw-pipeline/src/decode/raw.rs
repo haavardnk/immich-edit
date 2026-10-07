@@ -38,7 +38,7 @@ fn extract_common(
     let xyz_to_cam = raw_image.xyz_to_cam;
     let orientation = exif
         .as_ref()
-        .and_then(crate::exif::orientation)
+        .and_then(crate::metadata::exif::orientation)
         .unwrap_or_else(|| raw_image.orientation.to_flips());
     (wb_coeffs, xyz_to_cam, color_matrices, orientation)
 }

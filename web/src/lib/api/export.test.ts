@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { dispositionFilename, exportUrlPersisted, type ExportOptions } from './export';
+import {
+  dispositionFilename,
+  exportUrlPersisted,
+  headerWarnings,
+  type ExportOptions
+} from './export';
 
 const base: ExportOptions = {
   format: 'jpeg',
@@ -86,5 +91,17 @@ describe('dispositionFilename', () => {
     [null, null]
   ])('reads %s', (header, name) => {
     expect(dispositionFilename(header)).toBe(name);
+  });
+});
+
+describe('headerWarnings', () => {
+  it.each([
+    ['["Metadata not copied: fj\\u00f8rd"]', ['Metadata not copied: fjørd']],
+    ['["a",2]', ['a']],
+    ['{"a":1}', []],
+    ['not json', []],
+    [null, []]
+  ])('reads %s', (header, warnings) => {
+    expect(headerWarnings(header)).toEqual(warnings);
   });
 });

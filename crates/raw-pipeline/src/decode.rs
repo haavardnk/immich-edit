@@ -23,20 +23,31 @@ pub fn decode_quality(data: &[u8]) -> crate::PipelineResult<RawFrame> {
 }
 
 fn decode_with(data: &[u8], develop: DevelopFn) -> crate::PipelineResult<RawFrame> {
-    let exif = crate::exif::parse(data);
+    let exif = crate::metadata::read(data);
     let source = RawSource::new_from_slice(data);
-    if let Err(err) = rawler::get_decoder(&source) {
-        return decode_image(data, exif).map_err(|_| {
-            PipelineError::Unsupported(format!(
-                "RAW format not supported by rawler ({}): {err}",
-                format_hint(data)
-            ))
-        });
-    }
+    let decoder = match rawler::get_decoder(&source) {
+        Ok(decoder) => decoder,
+        Err(err) => {
+            return decode_image(data, exif).map_err(|_| {
+                PipelineError::Unsupported(format!(
+                    "RAW format not supported by rawler ({}): {err}",
+                    format_hint(data)
+                ))
+            });
+        }
+    };
     let params = rawler::decoders::RawDecodeParams::default();
     catch_unwind(AssertUnwindSafe(|| {
-        let raw_image = rawler::decode(&source, &params)
+        let raw_image = decoder
+            .raw_image(&source, &params, false)
             .map_err(|e| PipelineError::Decode(format!("rawler: {e}")))?;
+        let fallback = catch_unwind(AssertUnwindSafe(|| decoder.raw_metadata(&source, &params)))
+            .ok()
+            .and_then(Result::ok)
+            .map(|meta| {
+                crate::metadata::exif::from_raw_metadata(&meta, &raw_image.make, &raw_image.model)
+            });
+        let exif = crate::metadata::exif::merge(exif, fallback);
         develop(raw_image, exif)
     }))
     .unwrap_or_else(|_| {

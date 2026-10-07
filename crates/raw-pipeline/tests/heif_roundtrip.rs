@@ -2,9 +2,11 @@ use raw_pipeline::PipelineResult;
 use raw_pipeline::decode::decode;
 use raw_pipeline::encode::{ImageRgb8, encode_avif_rgb, encode_heic_rgb};
 use raw_pipeline::frame::OutputColorSpace;
+use raw_pipeline::metadata::exif::ExifBlock;
 use raw_pipeline_testkit::roundtrip::{SPLIT_TONE_SIZE, assert_split_tone, split_tone_rgb};
 
-type EncodeFn = fn(ImageRgb8<'_>, u8, OutputColorSpace) -> PipelineResult<Vec<u8>>;
+type EncodeFn =
+    fn(ImageRgb8<'_>, u8, OutputColorSpace, Option<&ExifBlock>) -> PipelineResult<Vec<u8>>;
 
 fn roundtrip(encode_fn: EncodeFn) {
     let rgb = split_tone_rgb();
@@ -16,6 +18,7 @@ fn roundtrip(encode_fn: EncodeFn) {
         },
         90,
         OutputColorSpace::SRgb,
+        None,
     )
     .expect("encode failed; the libheif codec plugin is missing");
 

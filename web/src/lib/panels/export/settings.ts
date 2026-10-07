@@ -350,7 +350,7 @@ export function baseOptions(f: ExportForm): ExportOptions {
     bitDepth: f.bitDepth,
     pngCompression: f.pngCompression,
     tiffCompression: f.tiffCompression,
-    lossless: f.format === 'webp' ? f.lossless || f.metadata !== 'none' : f.lossless,
+    lossless: f.lossless,
     colorSpace: f.colorSpace,
     filenameTemplate: f.filenameTemplate,
     resize: formResize(f),

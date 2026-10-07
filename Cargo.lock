@@ -3752,6 +3752,7 @@ dependencies = [
 name = "raw-pipeline"
 version = "0.0.0"
 dependencies = [
+ "brotli-decompressor",
  "bytemuck",
  "criterion",
  "fast_image_resize",

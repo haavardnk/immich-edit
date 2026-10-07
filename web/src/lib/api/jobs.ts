@@ -33,6 +33,7 @@ export interface Job {
 
 export interface JobItemResult {
   filename?: string;
+  warnings?: string[];
 }
 
 export interface JobItem {

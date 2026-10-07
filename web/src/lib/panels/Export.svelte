@@ -136,11 +136,11 @@
     </Notice>
   {/if}
 
-  {#if destination === 'immich' && editor.lastWarnings.length > 0}
+  {#if result && result.warnings.length > 0}
     <ul
       class="space-y-0.5 rounded-sm border border-warning-500/40 bg-warning-950/40 px-2 py-1.5 text-[10px] leading-snug text-warning-100"
     >
-      {#each editor.lastWarnings as w (w)}
+      {#each result.warnings as w (w)}
         <li class="flex items-start gap-1.5">
           <Icon icon={mdiAlertOutline} size="12px" class="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{w}</span>

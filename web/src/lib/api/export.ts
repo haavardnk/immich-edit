@@ -138,6 +138,17 @@ export function exportUrlPersisted(assetId: string, opts: ExportOptions): string
 export interface ExportDownload {
   blob: Blob;
   filename: string | null;
+  warnings: string[];
+}
+
+export function headerWarnings(header: string | null): string[] {
+  if (!header) return [];
+  try {
+    const parsed: unknown = JSON.parse(header);
+    return Array.isArray(parsed) ? parsed.filter((w): w is string => typeof w === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 export function dispositionFilename(header: string | null): string | null {
@@ -180,7 +191,8 @@ export async function downloadExport(
       });
   return {
     blob: await resp.blob(),
-    filename: dispositionFilename(resp.headers.get('content-disposition'))
+    filename: dispositionFilename(resp.headers.get('content-disposition')),
+    warnings: headerWarnings(resp.headers.get('x-export-warnings'))
   };
 }
 
