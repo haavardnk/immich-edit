@@ -8,6 +8,9 @@ mod raf;
 mod tiff;
 mod webp;
 
+#[cfg(test)]
+mod tests;
+
 use std::io::Read;
 
 use little_exif::metadata::Metadata;
