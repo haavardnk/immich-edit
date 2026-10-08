@@ -1,3 +1,4 @@
+import { reportClientError } from '$lib/api/clientLog';
 import type { Roi } from '$lib/api/preview';
 import { fetchRaster } from '$lib/api/rasters';
 import { fetchDcpBytes, fetchLutCube, fetchSource } from '$lib/api/source';
@@ -21,7 +22,10 @@ export class ClientRenderer {
     if (!isSecureContext) throw new Error('browsers only offer WebGPU over HTTPS or on localhost');
     if (!('gpu' in navigator) || !navigator.gpu) throw new Error('this browser has no WebGPU');
     const started = performance.now();
-    const host = await RenderHost.start();
+    const host = await RenderHost.start().catch((err: unknown) => {
+      reportClientError('gpu', err, 'warn');
+      throw err;
+    });
     return new ClientRenderer(host, performance.now() - started);
   }
 

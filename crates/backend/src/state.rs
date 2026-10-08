@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::services::asset_counts::AssetCountCache;
 use crate::services::auth_store::AuthStore;
+use crate::services::client_log_limiter::ClientLogLimiter;
 use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
 use crate::services::edited_thumb::EditedThumbService;
@@ -34,6 +35,7 @@ pub struct AppState {
     pub instance: InstanceStore,
     pub auth: AuthStore,
     pub login_limiter: Arc<LoginLimiter>,
+    pub client_log_limiter: Arc<ClientLogLimiter>,
     pub providers: ProviderCache,
     pub edits: EditsStore,
     pub jobs: JobStore,
@@ -148,6 +150,7 @@ impl AppState {
             instance,
             auth,
             login_limiter,
+            client_log_limiter: Arc::default(),
             providers: ProviderCache::new(),
             edits,
             jobs,

@@ -1,3 +1,4 @@
+import { reportClientError } from '$lib/api/clientLog';
 import { ClientRenderer } from '$lib/render/clientRenderer';
 import { errorMessage } from '$lib/utils/errors';
 import { readStored, writeStored } from '$lib/utils/storage';
@@ -53,6 +54,7 @@ class RendererStore {
   }
 
   fail(err: unknown): void {
+    reportClientError('render_worker', err);
     this.release();
     this.useServer(`The browser renderer failed: ${errorMessage(err)}`);
   }
