@@ -286,6 +286,5 @@ RUST_LOG=info,immich_edit_backend=debug,http=debug,upstream=debug
 
 For unresolved usage or setup questions, open a
 [GitHub Discussion](https://github.com/haavardnk/immich-edit/discussions). For a reproducible bug,
-open an [issue](https://github.com/haavardnk/immich-edit/issues) with the version, deployment method,
-renderer and adapter from Diagnostics, request ID, relevant logs, camera and file format, and exact
-reproduction steps.
+[open an issue](https://github.com/haavardnk/immich-edit/issues/new/choose) and paste the support
+bundle from **Diagnostics**.

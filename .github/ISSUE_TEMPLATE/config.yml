@@ -1,14 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions and community support
-    url: https://github.com/haavardnk/immich-edit/discussions
-    about: Ask usage, setup, workflow, and contributor questions. Community support is best effort.
-  - name: Deployment and configuration docs
-    url: https://haavardnk.github.io/immich-edit/deploy/
-    about: Docker Compose, env vars, GPU passthrough, reverse proxies, and common setup problems.
-  - name: Releases
-    url: https://github.com/haavardnk/immich-edit/releases
-    about: Check whether a newer release already fixed your issue.
-  - name: Security report
+  - name: Ask a question
+    url: https://github.com/haavardnk/immich-edit/discussions/categories/q-a
+    about: Setup help and usage questions.
+  - name: Troubleshooting
+    url: https://haavardnk.github.io/immich-edit/troubleshooting/
+    about: Fixes for common setup, GPU and connection problems.
+  - name: Security issue
     url: https://github.com/haavardnk/immich-edit/security/advisories/new
     about: Report a security vulnerability privately.

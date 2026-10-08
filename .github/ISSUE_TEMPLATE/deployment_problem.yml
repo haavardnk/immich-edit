@@ -1,72 +1,32 @@
 name: Deployment problem
-description: Report a reproducible Docker, networking, GPU, auth, or storage defect.
-title: "Deploy: "
+description: immich-edit won't start, can't reach Immich, or doesn't use the GPU.
 labels: [deployment]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Check the [deployment docs](https://haavardnk.github.io/immich-edit/deploy/) and [troubleshooting](https://haavardnk.github.io/immich-edit/troubleshooting/) first. Ask setup questions in [GitHub Discussions](https://github.com/haavardnk/immich-edit/discussions). Use this form for a reproducible deployment defect.
-  - type: dropdown
-    id: area
-    attributes:
-      label: Area
-      options:
-        - Container won't start / crash loop
-        - Can't reach Immich (immich_reachable=false)
-        - GPU passthrough / renderer falls back to CPU
-        - Reverse proxy / CORS / TLS
-        - Setup / sign-in / user access
-        - Storage / database / permissions
-        - Other
-    validations:
-      required: true
   - type: textarea
     id: symptom
     attributes:
       label: What is failing?
-      description: Include the exact error text, status code, screenshot, or browser message.
+      description: The exact error, and your host and GPU, for example Unraid 7 with an Intel iGPU.
+    validations:
+      required: true
+  - type: textarea
+    id: compose
+    attributes:
+      label: compose.yaml
+      description: Remove secrets first.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`docker compose logs immich-edit` from startup to the failure."
+      render: shell
     validations:
       required: true
   - type: textarea
     id: support_bundle
     attributes:
       label: Support bundle
-      description: Paste the output from Settings & diagnostics. If the container never starts, paste startup logs instead.
-      render: text
-  - type: textarea
-    id: compose
-    attributes:
-      label: compose.yaml
-      description: Redact tokens and private hostnames if needed.
-      render: yaml
-    validations:
-      required: true
-  - type: textarea
-    id: env
-    attributes:
-      label: Environment / config overrides (redacted)
-      description: Any infrastructure settings you changed (BIND_ADDR, ALLOWED_ORIGINS, cache sizes, etc.). Redact anything sensitive.
-      render: shell
-    validations:
-      required: false
-  - type: input
-    id: host
-    attributes:
-      label: Host
-      placeholder: e.g. Ubuntu 24.04 amd64, Unraid 7.0, Synology DSM 7.2
-    validations:
-      required: true
-  - type: input
-    id: gpu
-    attributes:
-      label: GPU (if relevant)
-      placeholder: e.g. AMD RX 6600, Intel UHD 770, none
-  - type: textarea
-    id: logs
-    attributes:
-      label: Logs
-      description: "`docker compose logs immich-edit` from the failing start or request. Redact tokens."
-      render: shell
-    validations:
-      required: true
+      description: If immich-edit opens, copy it from **Settings & diagnostics** > **Diagnostics** > **Copy support bundle**.
