@@ -144,6 +144,11 @@ pub fn router(state: AppState) -> Router {
             post(routes::setup::oauth::complete),
         )
         .route("/debug/timings", get(routes::debug::timings))
+        .route(
+            "/client-log",
+            post(routes::client_log::post)
+                .layer(DefaultBodyLimit::max(routes::client_log::BODY_LIMIT)),
+        )
         .route("/albums", get(routes::albums::list))
         .route("/albums/{id}", get(routes::albums::detail))
         .route(

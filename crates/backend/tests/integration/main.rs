@@ -6,6 +6,7 @@ mod assets;
 mod auth_logout;
 mod auth_oauth;
 mod auth_setup;
+mod client_log;
 mod copies;
 mod cross_user_isolation;
 mod csrf;

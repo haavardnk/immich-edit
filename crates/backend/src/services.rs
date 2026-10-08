@@ -3,6 +3,7 @@ pub mod asset_counts;
 pub mod auth_store;
 pub mod blob_store;
 pub mod cleanup;
+pub mod client_log_limiter;
 pub mod copy_expand;
 pub mod credentials;
 pub mod crypto;
