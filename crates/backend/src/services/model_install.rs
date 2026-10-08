@@ -12,6 +12,7 @@ use crate::services::model_download::{
     DownloadError, Downloaded, fetch_catalog_aux, fetch_catalog_model,
 };
 use crate::services::model_store::{ModelStore, ModelStoreError};
+use crate::telemetry::ErrorChain;
 
 pub struct InstallProgress {
     pub total: u64,
@@ -140,13 +141,18 @@ impl ModelInstaller {
         }
 
         let result = match fetched {
-            Err(e) => Err(download_message(&e)),
+            Err(e) => {
+                if let DownloadError::Io(io) = &e {
+                    tracing::error!(model = entry.id, error = %ErrorChain(io), "model download could not be written");
+                }
+                Err(download_message(&e))
+            }
             Ok((model, aux)) => self
                 .store
                 .install_downloaded(entry, model, aux)
                 .await
                 .map_err(|e| {
-                    tracing::error!(model = entry.id, error = %e, "model install rejected");
+                    tracing::error!(model = entry.id, error = %ErrorChain(&e), "model install rejected");
                     store_message(&e)
                 }),
         };

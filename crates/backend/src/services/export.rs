@@ -14,6 +14,7 @@ use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
 use crate::services::watermark_store::WatermarkStoreError;
 use crate::state::AppState;
+use crate::telemetry::ErrorChain;
 
 pub const EXPORT_MAX_EDGE: u32 = 65535;
 pub const DEFAULT_QUALITY: u8 = 90;
@@ -286,8 +287,9 @@ pub async fn export_to_immich(
     if result.is_err()
         && reserved
         && let Some(job) = job
+        && let Err(error) = state.edits.delete_pending_export_job(job).await
     {
-        let _ = state.edits.delete_pending_export_job(job).await;
+        tracing::warn!(error = %ErrorChain(&error), "release pending export job");
     }
     result
 }
@@ -353,6 +355,7 @@ async fn resume_export_job(
     existing: ExportJobRecord,
 ) -> Result<ExportToImmichResult, AppError> {
     let Some(new_id) = existing.immich_asset_id else {
+        tracing::error!(asset = %job.asset_id, "export job record has no immich asset id");
         return Err(AppError::Internal);
     };
     let original = immich.asset(job.asset_id.source()).await?;

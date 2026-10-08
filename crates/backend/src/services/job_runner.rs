@@ -4,8 +4,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{Semaphore, watch};
+use tracing::Instrument;
 
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStore};
+use crate::telemetry::ErrorChain;
 
 pub type ItemOutcome = Result<serde_json::Value, JobItemError>;
 
@@ -23,7 +25,7 @@ macro_rules! item_error_from {
     ($($ty:path),+ $(,)?) => {
         $(impl From<$ty> for JobItemError {
             fn from(err: $ty) -> Self {
-                Self(err.to_string())
+                Self(ErrorChain(&err).to_string())
             }
         })+
     };
@@ -108,18 +110,32 @@ impl JobRunner {
                     };
                     let store = self.store.clone();
                     let executor = self.executor.clone();
-                    tokio::spawn(async move {
-                        let item_id = item.id;
-                        let outcome = executor.execute(job, item).await;
-                        let res = match outcome {
-                            Ok(value) => store.complete_item(item_id, &value).await,
-                            Err(error) => store.fail_item(item_id, &error.to_string()).await,
-                        };
-                        if let Err(err) = res {
-                            tracing::error!(error = %err, %item_id, "job runner failed to record item result");
+                    let span = tracing::error_span!(
+                        "job",
+                        job_id = %job.id,
+                        kind = job.kind.as_str(),
+                        item_id = %item.id,
+                        asset = item.asset_id.as_str(),
+                        owner = %job.user_id,
+                    );
+                    tokio::spawn(
+                        async move {
+                            let item_id = item.id;
+                            let outcome = executor.execute(job, item).await;
+                            let res = match outcome {
+                                Ok(value) => store.complete_item(item_id, &value).await,
+                                Err(error) => {
+                                    tracing::warn!(error = %ErrorChain(&error), "job item failed");
+                                    store.fail_item(item_id, &error.to_string()).await
+                                }
+                            };
+                            if let Err(err) = res {
+                                tracing::error!(error = %ErrorChain(&err), "job runner failed to record item result");
+                            }
+                            drop(permit);
                         }
-                        drop(permit);
-                    });
+                        .instrument(span),
+                    );
                 }
                 Ok(None) => {
                     drop(permit);

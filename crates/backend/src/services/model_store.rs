@@ -8,6 +8,7 @@ use tokio::fs;
 use uuid::Uuid;
 
 use crate::services::blob_store;
+use crate::services::cleanup::warn_unless_missing;
 use crate::services::model_download::Downloaded;
 
 pub const MAX_MODEL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -209,9 +210,11 @@ impl ModelStore {
             .bind(catalog_id)
             .execute(&self.pool)
             .await?;
-        let _ = fs::remove_file(self.blob_path(&meta.content_hash)).await;
+        let blob = self.blob_path(&meta.content_hash);
+        warn_unless_missing(fs::remove_file(&blob).await, &blob);
         if let Some(hash) = &meta.aux_hash {
-            let _ = fs::remove_file(self.blob_path(hash)).await;
+            let aux = self.blob_path(hash);
+            warn_unless_missing(fs::remove_file(&aux).await, &aux);
         }
         Ok(())
     }

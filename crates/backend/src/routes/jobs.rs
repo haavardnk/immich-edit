@@ -8,6 +8,7 @@ use axum::response::Response;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use serde::{Deserialize, Serialize};
 use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::{Stream, StreamExt};
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -151,10 +152,9 @@ pub async fn download(
         return Err(AppError::BadRequest("job not complete".into()));
     }
     let archive = build_zip_archive(&state, ctx.server_epoch, ctx.owner, id).await?;
-    let file = tokio::fs::File::open(&archive).await.map_err(|e| {
-        tracing::error!(error = %e, "open zip archive");
-        AppError::Internal
-    })?;
+    let file = tokio::fs::File::open(&archive)
+        .await
+        .map_err(|e| AppError::internal("open zip archive", &e))?;
     let body = Body::from_stream(ReaderStream::new(file));
     let short: String = id.to_string().chars().take(8).collect();
     let mut resp = Response::new(body);
@@ -180,12 +180,19 @@ pub async fn events(
     let owner = ctx.owner;
     let updates = BroadcastStream::new(rx).filter_map(move |res| match res {
         Ok(rec) if rec.id == id && rec.user_id == owner => Some(Ok(job_event(&rec))),
-        _ => None,
+        Ok(_) => None,
+        Err(BroadcastStreamRecvError::Lagged(skipped)) => {
+            tracing::warn!(job_id = %id, skipped, "job event stream lagged");
+            None
+        }
     });
     Ok(Sse::new(snapshot.chain(updates)).keep_alive(KeepAlive::default()))
 }
 
 fn job_event(job: &JobRecord) -> Event {
-    let data = serde_json::to_string(job).unwrap_or_else(|_| "{}".into());
+    let data = serde_json::to_string(job).unwrap_or_else(|error| {
+        tracing::error!(job_id = %job.id, %error, "serialize job event");
+        "{}".into()
+    });
     Event::default().event("job").data(data)
 }
