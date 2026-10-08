@@ -184,10 +184,7 @@ fn map_segment_err(err: SegmentServiceError) -> AppError {
         SegmentServiceError::ModelMissing(kind) => {
             AppError::BadRequest(format!("no model installed for {kind}"))
         }
-        _ => {
-            tracing::error!(error = %err, "segmentation");
-            AppError::Internal
-        }
+        _ => AppError::internal("segmentation", &err),
     }
 }
 
@@ -263,8 +260,7 @@ pub async fn rebake(
     let (meta, prob) = state
         .rasters
         .load(ctx.server_epoch, ctx.owner, &req.prob_raster_id)
-        .await
-        .map_err(|_| AppError::NotFound)?;
+        .await?;
 
     let SceneImage {
         rgb8,
@@ -336,11 +332,7 @@ pub async fn click(
     } = scene_render(&state, &ctx, asset_id).await?;
     let base = match &req.base_raster_id {
         Some(id) => {
-            let (meta, bytes) = state
-                .rasters
-                .load(ctx.server_epoch, ctx.owner, id)
-                .await
-                .map_err(|_| AppError::NotFound)?;
+            let (meta, bytes) = state.rasters.load(ctx.server_epoch, ctx.owner, id).await?;
             if meta.width != width || meta.height != height {
                 return Err(AppError::Conflict(
                     "shape raster does not match the current scene size".into(),

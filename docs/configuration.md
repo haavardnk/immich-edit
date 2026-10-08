@@ -63,6 +63,9 @@ message sent to the client, including why a malformed request body was rejected.
 log at `error`. 400, 408, 409, 413, 422 and 429 log at `warn`. Other 4xx responses log at `info`,
 except 401 and 404, which log at `debug` with successful responses.
 
+A session cookie the server cannot read, for example after `instance.key` changes, logs an error
+and the request continues as signed out.
+
 Other targets:
 
 | Target | Content |

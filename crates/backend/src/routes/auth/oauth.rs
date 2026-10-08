@@ -124,7 +124,8 @@ pub fn open_flow(
 pub fn validate_callback_url(raw: &str, flow: &OAuthFlow) -> Result<Url, AppError> {
     let url =
         Url::parse(raw.trim()).map_err(|_| AppError::BadRequest("invalid callback url".into()))?;
-    let expected = Url::parse(&flow.redirect_uri).map_err(|_| AppError::Internal)?;
+    let expected =
+        Url::parse(&flow.redirect_uri).map_err(|e| AppError::internal("oauth redirect uri", &e))?;
     if url.origin() != expected.origin() || url.path() != expected.path() {
         return Err(AppError::BadRequest(
             "callback url does not match the started flow".into(),

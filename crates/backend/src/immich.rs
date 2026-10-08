@@ -13,7 +13,7 @@ pub enum ImmichError {
     NotFound,
     #[error("upstream timeout")]
     Timeout,
-    #[error("upstream transport error")]
+    #[error("upstream transport error: {0}")]
     Transport(String),
     #[error("upstream rejected ({status}): {message}")]
     Rejected { status: u16, message: String },

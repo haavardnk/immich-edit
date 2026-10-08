@@ -13,6 +13,7 @@ use super::dto::{
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
+use crate::telemetry::ErrorChain;
 
 const API_KEY_HEADER: &str = "x-api-key";
 
@@ -62,7 +63,7 @@ impl ImmichClient {
             .connect_timeout(Duration::from_secs(5))
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .map_err(|e| ImmichError::Transport(e.to_string()))?;
+            .map_err(|e| ImmichError::Transport(ErrorChain(&e).to_string()))?;
         let (auth_name, auth_value) = auth.header()?;
         Ok(Self {
             http,
@@ -388,10 +389,7 @@ impl ImmichClient {
             .and_then(|h| h.to_str().ok())
             .unwrap_or("image/jpeg")
             .to_string();
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| ImmichError::Transport(e.to_string()))?;
+        let bytes = resp.bytes().await.map_err(body_err)?;
         Ok((bytes, content_type))
     }
 }
@@ -454,9 +452,7 @@ pub enum ThumbSize {
 
 async fn send(req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
     let resp = run_idempotent(req).await?;
-    resp.bytes()
-        .await
-        .map_err(|e| ImmichError::Transport(e.to_string()))
+    resp.bytes().await.map_err(body_err)
 }
 
 fn parse_json<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> ImmichResult<T> {
@@ -465,13 +461,45 @@ fn parse_json<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> ImmichResult<T> {
 
 async fn send_post_json(req: reqwest::RequestBuilder) -> ImmichResult<Bytes> {
     let resp = run(req).await?;
-    resp.bytes()
-        .await
-        .map_err(|e| ImmichError::Transport(e.to_string()))
+    resp.bytes().await.map_err(body_err)
+}
+
+fn split(req: reqwest::RequestBuilder) -> ImmichResult<(Client, reqwest::Request)> {
+    let (client, request) = req.build_split();
+    Ok((client, request.map_err(map_send_err)?))
 }
 
 async fn run(req: reqwest::RequestBuilder) -> ImmichResult<reqwest::Response> {
-    let resp = req.send().await.map_err(map_send_err)?;
+    let (client, request) = split(req)?;
+    let method = request.method().clone();
+    let path = request.url().path().to_owned();
+    logged(&method, &path, execute(&client, request).await)
+}
+
+fn logged(
+    method: &reqwest::Method,
+    path: &str,
+    result: ImmichResult<reqwest::Response>,
+) -> ImmichResult<reqwest::Response> {
+    let Err(err) = &result else {
+        return result;
+    };
+    if matches!(err, ImmichError::Unauthorized | ImmichError::NotFound) {
+        tracing::debug!(target: "upstream", %method, path, error = %ErrorChain(err), "immich request failed");
+    } else {
+        tracing::warn!(target: "upstream", %method, path, error = %ErrorChain(err), "immich request failed");
+    }
+    result
+}
+
+pub(super) fn body_err(err: reqwest::Error) -> ImmichError {
+    let detail = ErrorChain(&err.without_url()).to_string();
+    tracing::warn!(target: "upstream", error = %detail, "immich response body failed");
+    ImmichError::Transport(detail)
+}
+
+async fn execute(client: &Client, request: reqwest::Request) -> ImmichResult<reqwest::Response> {
+    let resp = client.execute(request).await.map_err(map_send_err)?;
     let status = resp.status();
     if status.is_success() {
         return Ok(resp);
@@ -513,24 +541,24 @@ pub(super) async fn run_idempotent(
     req: reqwest::RequestBuilder,
 ) -> ImmichResult<reqwest::Response> {
     const ATTEMPTS: u32 = 3;
-    let mut last: Option<ImmichError> = None;
-    for attempt in 0..ATTEMPTS {
-        let try_req = match req.try_clone() {
-            Some(r) => r,
-            None => return run(req).await,
+    let (client, request) = split(req)?;
+    let method = request.method().clone();
+    let path = request.url().path().to_owned();
+    for attempt in 1..ATTEMPTS {
+        let Some(try_req) = request.try_clone() else {
+            break;
         };
-        match run(try_req).await {
-            Ok(resp) => return Ok(resp),
-            Err(err) if is_retryable(&err) && attempt + 1 < ATTEMPTS => {
-                last = Some(err);
-                let base_ms = 100u64 << attempt;
+        match execute(&client, try_req).await {
+            Err(err) if is_retryable(&err) => {
+                tracing::debug!(target: "upstream", %method, path, attempt, error = %ErrorChain(&err), "retrying immich request");
+                let base_ms = 100u64 << (attempt - 1);
                 let jitter_ms = jitter_ms(base_ms);
                 tokio::time::sleep(std::time::Duration::from_millis(base_ms + jitter_ms)).await;
             }
-            Err(err) => return Err(err),
+            result => return logged(&method, &path, result),
         }
     }
-    Err(last.unwrap_or(ImmichError::Transport("retry exhausted".into())))
+    logged(&method, &path, execute(&client, request).await)
 }
 
 fn is_retryable(err: &ImmichError) -> bool {
@@ -553,6 +581,6 @@ fn map_send_err(err: reqwest::Error) -> ImmichError {
     if err.is_timeout() {
         ImmichError::Timeout
     } else {
-        ImmichError::Transport(err.without_url().to_string())
+        ImmichError::Transport(ErrorChain(&err.without_url()).to_string())
     }
 }

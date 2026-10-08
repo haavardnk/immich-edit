@@ -73,19 +73,34 @@ impl<S: Send + Sync> FromRequestParts<S> for ClientMeta {
     }
 }
 
-pub async fn build_auth_ctx(state: &AppState, headers: &HeaderMap) -> Option<AuthCtx> {
-    let token = extract_token(headers)?;
-    let actx = state.auth.authenticate(&token).await.ok()??;
-    let base = resolve_immich_base(&state.instance).await.ok()?;
-    let cred = actx.immich_cred.to_utf8()?;
+pub async fn build_auth_ctx(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<Option<AuthCtx>, AppError> {
+    let Some(token) = extract_token(headers) else {
+        return Ok(None);
+    };
+    let Some(actx) = state
+        .auth
+        .authenticate(&token)
+        .await
+        .map_err(|e| AppError::internal("authenticate session", &e))?
+    else {
+        return Ok(None);
+    };
+    let base = resolve_immich_base(&state.instance).await?;
+    let Some(cred) = actx.immich_cred.to_utf8() else {
+        tracing::error!(session = %actx.session_id, "stored immich credential is not valid utf-8");
+        return Err(AppError::Internal);
+    };
     let auth = actx.auth_kind.immich_auth(cred);
     let immich = ImmichClient::with_auth(
         base,
         auth,
         Duration::from_secs(state.config.original_timeout_secs),
     )
-    .ok()?;
-    Some(AuthCtx {
+    .map_err(|e| AppError::internal("build immich client", &e))?;
+    Ok(Some(AuthCtx {
         owner: actx.user.id,
         session_id: actx.session_id,
         server_epoch: actx.server_epoch,
@@ -93,7 +108,7 @@ pub async fn build_auth_ctx(state: &AppState, headers: &HeaderMap) -> Option<Aut
         immich,
         cred: Arc::new(actx.immich_cred),
         auth_kind: actx.auth_kind,
-    })
+    }))
 }
 
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
@@ -115,6 +130,6 @@ pub async fn require_session(
     match state.auth.authenticate(&token).await {
         Ok(Some(ctx)) => Ok(ctx),
         Ok(None) => Err(AppError::Unauthorized),
-        Err(_) => Err(AppError::Internal),
+        Err(e) => Err(AppError::internal("authenticate session", &e)),
     }
 }

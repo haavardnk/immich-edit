@@ -134,7 +134,7 @@ pub async fn select(
         .await
         .map_err(|e| match e {
             ModelStoreError::NotFound => AppError::BadRequest("model is not installed".into()),
-            _ => AppError::Internal,
+            e => AppError::internal("set preferred model", &e),
         })?;
     Ok(StatusCode::NO_CONTENT)
 }

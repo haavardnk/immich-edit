@@ -18,7 +18,7 @@ pub async fn inject_auth_context(
     next: Next,
 ) -> Response {
     let headers = req.headers().clone();
-    if let Some(ctx) = routes::auth::extract::build_auth_ctx(&state, &headers).await {
+    if let Ok(Some(ctx)) = routes::auth::extract::build_auth_ctx(&state, &headers).await {
         record_identity(ctx.owner, ctx.session_id);
         req.extensions_mut().insert(ctx);
     }
