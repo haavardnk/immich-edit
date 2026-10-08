@@ -147,7 +147,9 @@ pub async fn purge_all_exports(state: &AppState) {
     {
         tracing::warn!(error = %error, "remove all exports");
     }
-    let _ = tokio::fs::create_dir_all(root).await;
+    if let Err(error) = tokio::fs::create_dir_all(&root).await {
+        tracing::warn!(error = %error, "recreate exports dir");
+    }
 }
 
 fn entry_datetime(modified: SystemTime) -> Option<zip::DateTime> {

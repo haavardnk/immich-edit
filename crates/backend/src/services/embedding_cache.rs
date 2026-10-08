@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::safe_path;
+use crate::services::cleanup::warn_unless_missing;
 
 const MEMORY_SLOTS: usize = 3;
 const DISK_SLOTS: usize = 8192;
@@ -98,7 +99,7 @@ impl EmbeddingCache {
                 break;
             };
             state.total_bytes = state.total_bytes.saturating_sub(size);
-            let _ = std::fs::remove_file(&path);
+            warn_unless_missing(std::fs::remove_file(&path), &path);
         }
 
         Ok(Self {
@@ -128,7 +129,7 @@ impl EmbeddingCache {
                     None => return,
                 }
             };
-            let _ = fs::remove_file(&victim).await;
+            warn_unless_missing(fs::remove_file(&victim).await, &victim);
         }
     }
 
@@ -200,7 +201,7 @@ impl EmbeddingCache {
             .dir
             .join(server_epoch.to_string())
             .join(owner.to_string());
-        let _ = fs::remove_dir_all(&dir).await;
+        warn_unless_missing(fs::remove_dir_all(&dir).await, &dir);
         {
             let mut st = self.disk.lock().await;
             let stale: Vec<PathBuf> = st

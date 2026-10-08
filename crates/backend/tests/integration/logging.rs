@@ -1,7 +1,12 @@
 use crate::common::*;
 use immich_edit_backend::immich::client::ImmichUser;
 use immich_edit_backend::services::auth_store::AuthKind;
+use immich_edit_backend::services::job_runner::{JobRunner, UnsupportedExecutor};
+use immich_edit_backend::services::job_store::{NewJob, NewJobItem};
 use serde_json::{Value, json};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::watch;
 use tower::ServiceExt;
 use tracing::Level;
 use wiremock::matchers::{method, path};
@@ -145,5 +150,59 @@ async fn an_unreadable_session_is_logged() {
     };
     if !line.contains("request_id=") || !line.contains("session=") {
         panic!("error line lacks context: {line}");
+    }
+}
+
+#[tokio::test]
+async fn a_failed_job_item_is_logged_with_its_job() {
+    let (capture, _guard) = capture_logs(Level::WARN);
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let ctx = state.auth.authenticate(&token).await.unwrap().unwrap();
+    let job = state
+        .jobs
+        .create_job(NewJob {
+            owner: test_user_id(),
+            server_epoch: ctx.server_epoch,
+            auth_session_id: ctx.session_id,
+            kind: "mystery",
+            target: &json!({}),
+            params: &json!({}),
+            items: &[NewJobItem {
+                asset_id: asset_id().to_string(),
+                idempotency_key: None,
+            }],
+            cred: TEST_API_KEY.as_bytes(),
+            auth_kind: AuthKind::ApiKey,
+        })
+        .await
+        .unwrap();
+
+    let (stop, stopped) = watch::channel(false);
+    let runner = tokio::spawn(
+        JobRunner::new(state.jobs.clone(), Arc::new(UnsupportedExecutor), 1).run(stopped),
+    );
+    for _ in 0..50 {
+        if state.jobs.get_job(job.id).await.unwrap().unwrap().failed == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let _ = stop.send(true);
+    let _ = runner.await;
+
+    let lines = capture.lines_with("job item failed");
+    let [line] = lines.as_slice() else {
+        panic!("expected one failure line, got {}", capture.text());
+    };
+    for needle in [
+        &format!("job_id={}", job.id),
+        "kind=\"mystery\"",
+        "unsupported job kind: mystery",
+    ] {
+        if !line.contains(needle) {
+            panic!("failure line misses {needle:?}: {line}");
+        }
     }
 }

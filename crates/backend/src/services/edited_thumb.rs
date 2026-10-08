@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::safe_path;
+use crate::services::cleanup::warn_unless_missing;
 use crate::services::render::{RenderError, RenderIdentity, RenderService};
 use crate::services::render_queue::{RenderPriority, RenderQueue};
 
@@ -72,7 +73,8 @@ impl EditedThumbService {
                         continue;
                     };
                     if now.duration_since(modified).unwrap_or_default() > TTL {
-                        let _ = std::fs::remove_file(entry.path());
+                        let path = entry.path();
+                        warn_unless_missing(std::fs::remove_file(&path), &path);
                     }
                 }
             }
@@ -164,7 +166,8 @@ impl EditedThumbService {
         };
         while let Ok(Some(entry)) = entries.next_entry().await {
             if entry.file_name().to_string_lossy().starts_with(&prefix) {
-                let _ = fs::remove_file(entry.path()).await;
+                let path = entry.path();
+                warn_unless_missing(fs::remove_file(&path).await, &path);
             }
         }
     }

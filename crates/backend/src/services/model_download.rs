@@ -9,7 +9,9 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use crate::services::cleanup::warn_unless_missing;
 use crate::services::model_store::MAX_MODEL_BYTES;
+use crate::telemetry::ErrorChain;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
@@ -37,7 +39,7 @@ pub struct Downloaded {
 
 impl Drop for Downloaded {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
+        warn_unless_missing(std::fs::remove_file(&self.path), &self.path);
     }
 }
 
@@ -86,11 +88,15 @@ async fn download_to_file(
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(TOTAL_TIMEOUT)
         .build()
-        .map_err(|e| DownloadError::Http(e.to_string()))?;
+        .map_err(|e| {
+            tracing::error!(error = %ErrorChain(&e), "model download client could not be built");
+            DownloadError::Http(ErrorChain(&e).to_string())
+        })?;
 
     let response = client.get(url).send().await.map_err(|e| {
-        tracing::warn!(url, error = %e, "model download failed to connect");
-        DownloadError::Http(e.to_string())
+        let detail = ErrorChain(&e.without_url()).to_string();
+        tracing::warn!(url, error = %detail, "model download failed to connect");
+        DownloadError::Http(detail)
     })?;
     let status = response.status().as_u16();
     if !response.status().is_success() {
@@ -115,8 +121,9 @@ async fn download_to_file(
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| {
-            tracing::warn!(url, received, error = %e, "model download interrupted");
-            DownloadError::Http(e.to_string())
+            let detail = ErrorChain(&e.without_url()).to_string();
+            tracing::warn!(url, received, error = %detail, "model download interrupted");
+            DownloadError::Http(detail)
         })?;
         received += chunk.len() as u64;
         if received > limit {

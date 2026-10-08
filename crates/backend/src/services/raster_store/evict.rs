@@ -4,6 +4,7 @@ use lru::LruCache;
 use uuid::Uuid;
 
 use super::{RasterStore, RasterStoreError};
+use crate::services::cleanup::warn_unless_missing;
 
 pub(super) struct CacheState {
     pub(super) lru: LruCache<(i64, Uuid, String), u64>,
@@ -67,8 +68,8 @@ impl RasterStore {
             if let Some(((server_epoch, owner, id), _)) = victim
                 && let Ok((bin, meta)) = self.paths(server_epoch, owner, &id)
             {
-                let _ = std::fs::remove_file(&bin);
-                let _ = std::fs::remove_file(&meta);
+                warn_unless_missing(std::fs::remove_file(&bin), &bin);
+                warn_unless_missing(std::fs::remove_file(&meta), &meta);
             }
         }
     }
