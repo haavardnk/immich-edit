@@ -31,6 +31,13 @@ jobs:
         with:
           ignore: RUSTSEC-2026-0194,RUSTSEC-2026-0195,RUSTSEC-2024-0436
           createIssues: ${{ github.event_name == 'schedule' }}
+      - name: Label audit issues
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --state open --author app/github-actions --search no:label --json number --jq '.[].number' |
+            xargs -r -n1 gh issue edit --add-label dependencies
 
   npm-audit:
     runs-on: ubuntu-latest
