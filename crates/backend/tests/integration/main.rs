@@ -23,6 +23,7 @@ mod health;
 mod input_validation;
 mod jobs;
 mod jobs_lifecycle;
+mod logging;
 mod login_rate_limit;
 mod middleware;
 #[cfg(feature = "ml")]

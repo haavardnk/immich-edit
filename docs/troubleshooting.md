@@ -278,8 +278,11 @@ the recommended path for large RAW files.
 Set:
 
 ```shell
-RUST_LOG=immich_edit_backend=debug,tower_http=debug
+RUST_LOG=info,immich_edit_backend=debug,http=debug,upstream=debug
 ```
+
+`LOG_FORMAT=json` writes one JSON object per line for log collectors. See
+[logs](configuration.md#logs) for the targets.
 
 For unresolved usage or setup questions, open a
 [GitHub Discussion](https://github.com/haavardnk/immich-edit/discussions). For a reproducible bug,

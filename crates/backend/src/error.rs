@@ -8,6 +8,8 @@ use uuid::Uuid;
 use crate::immich::ImmichError;
 use crate::services::edited_thumb::EditedThumbError;
 use crate::services::render::RenderError;
+use crate::telemetry::ErrorChain;
+use crate::telemetry::http::ErrorReport;
 
 tokio::task_local! {
     pub static REQUEST_ID: String;
@@ -52,6 +54,11 @@ pub enum AppError {
 }
 
 impl AppError {
+    pub fn internal(context: &'static str, err: &(dyn std::error::Error + 'static)) -> Self {
+        tracing::error!(error = %ErrorChain(err), "{context}");
+        Self::Internal
+    }
+
     fn parts(&self) -> (StatusCode, &'static str, String) {
         match self {
             Self::NotFound => (
@@ -139,20 +146,10 @@ impl From<ImmichError> for AppError {
             ImmichError::Unauthorized => Self::UpstreamAuth,
             ImmichError::NotFound => Self::NotFound,
             ImmichError::Timeout => Self::UpstreamTimeout,
-            ImmichError::Rejected { status, message } => {
-                tracing::warn!(target: "app::error", upstream_status = status, %message, "immich rejected the request");
-                Self::UpstreamRejected(message)
-            }
-            ImmichError::Status(code) => {
-                tracing::warn!(target: "app::error", upstream_status = code, "immich returned a server error");
-                Self::UpstreamUnavailable
-            }
-            ImmichError::Transport(detail) => {
-                tracing::warn!(target: "app::error", %detail, "immich transport failed");
-                Self::UpstreamUnavailable
-            }
+            ImmichError::Rejected { message, .. } => Self::UpstreamRejected(message),
+            ImmichError::Status(_) | ImmichError::Transport(_) => Self::UpstreamUnavailable,
             ImmichError::Decode(detail) => {
-                tracing::warn!(target: "app::error", %detail, "immich response could not be decoded");
+                tracing::warn!(target: "upstream", detail = detail.as_str(), "immich response could not be decoded");
                 Self::UpstreamUnavailable
             }
         }
@@ -165,10 +162,7 @@ impl From<RenderError> for AppError {
             RenderError::Upstream(e) => e.into(),
             RenderError::Pipeline(PipelineError::Unsupported(msg)) => Self::UnsupportedFormat(msg),
             RenderError::Pipeline(PipelineError::Cancelled) => Self::Superseded,
-            RenderError::Pipeline(e) => {
-                tracing::error!(error = %e, "render pipeline");
-                Self::Internal
-            }
+            RenderError::Pipeline(e) => Self::internal("render pipeline", &e),
             RenderError::Lut(m) | RenderError::Dcp(m) => Self::BadRequest(m),
         }
     }
@@ -179,10 +173,7 @@ impl From<EditedThumbError> for AppError {
         match err {
             EditedThumbError::NotFound | EditedThumbError::HashMismatch => Self::NotFound,
             EditedThumbError::Render(e) => e.into(),
-            EditedThumbError::Io(e) => {
-                tracing::error!(error = %e, "edited thumb io");
-                Self::Internal
-            }
+            EditedThumbError::Io(e) => Self::internal("edited thumb io", &e),
         }
     }
 }
@@ -191,8 +182,7 @@ macro_rules! internal_from {
     ($ty:path, $ctx:literal) => {
         impl From<$ty> for AppError {
             fn from(err: $ty) -> Self {
-                tracing::error!(error = %err, $ctx);
-                Self::Internal
+                Self::internal($ctx, &err)
             }
         }
     };
@@ -206,10 +196,7 @@ macro_rules! store_from {
                 match err {
                     E::NotFound => Self::NotFound,
                     E::Invalid(m) => Self::BadRequest(m),
-                    e => {
-                        tracing::error!(error = %e, $ctx);
-                        Self::Internal
-                    }
+                    e => Self::internal($ctx, &e),
                 }
             }
         }
@@ -224,10 +211,7 @@ macro_rules! store_from {
                     E::Duplicate(meta) => {
                         Self::Conflict(format!(concat!($ctx, " already exists: {}"), meta.id))
                     }
-                    e => {
-                        tracing::error!(error = %e, $ctx);
-                        Self::Internal
-                    }
+                    e => Self::internal($ctx, &e),
                 }
             }
         }
@@ -258,10 +242,7 @@ macro_rules! configurable_from {
                 use $ty as E;
                 match err {
                     E::AlreadyConfigured => Self::Conflict("instance already configured".into()),
-                    e => {
-                        tracing::error!(error = %e, $ctx);
-                        Self::Internal
-                    }
+                    e => Self::internal($ctx, &e),
                 }
             }
         }
@@ -285,10 +266,11 @@ impl IntoResponse for AppError {
             "message": message,
             "request_id": request_id,
         });
-        if status.is_server_error() || status == StatusCode::BAD_GATEWAY {
-            tracing::warn!(target: "app::error", %request_id, code, message, "request failed");
-        }
         let mut resp = (status, Json(body)).into_response();
+        resp.extensions_mut().insert(ErrorReport {
+            code: Some(code),
+            message,
+        });
         if let Self::RateLimited(Some(secs)) = self
             && let Ok(v) = axum::http::HeaderValue::from_str(&secs.to_string())
         {

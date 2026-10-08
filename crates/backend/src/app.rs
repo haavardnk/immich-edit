@@ -4,7 +4,7 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::http::header::{HeaderName, HeaderValue};
-use axum::middleware::{from_fn, from_fn_with_state};
+use axum::middleware::{from_fn, from_fn_with_state, map_response};
 use axum::routing::{get, patch, post, put};
 use tower::ServiceBuilder;
 use tower_governor::GovernorLayer;
@@ -20,12 +20,12 @@ use tower_http::request_id::{
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
-use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 use crate::error::api_not_found;
 use crate::routes;
 use crate::state::AppState;
+use crate::telemetry::http::{REQUEST_ID_HEADER, report_rejection, trace_layer};
 
 mod cors;
 mod middleware;
@@ -35,8 +35,6 @@ use middleware::{
     auth_middleware, count_timeouts, csrf_guard, inject_auth_context, request_id_scope,
     resolve_client_meta,
 };
-
-const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
 
 #[derive(Clone, Default)]
 struct UuidRequestId;
@@ -279,7 +277,8 @@ pub fn router(state: AppState) -> Router {
         .layer(from_fn_with_state(state.clone(), inject_auth_context))
         .layer(from_fn_with_state(state.clone(), csrf_guard))
         .layer(from_fn_with_state(state.clone(), resolve_client_meta))
-        .layer(from_fn(request_id_scope));
+        .layer(from_fn(request_id_scope))
+        .layer(map_response(report_rejection));
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
     let fallback_file = format!("{web_dir}/200.html");
@@ -301,7 +300,7 @@ pub fn router(state: AppState) -> Router {
                 UuidRequestId,
             ))
             .layer(PropagateRequestIdLayer::new(REQUEST_ID_HEADER.clone()))
-            .layer(TraceLayer::new_for_http())
+            .layer(trace_layer())
             .layer(CatchPanicLayer::new())
             .layer(SetResponseHeaderLayer::if_not_present(
                 HeaderName::from_static("x-content-type-options"),

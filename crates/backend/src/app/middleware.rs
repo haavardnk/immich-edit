@@ -4,6 +4,7 @@ use crate::error::{AppError, REQUEST_ID};
 use crate::routes;
 use crate::services::login_session::ClientMeta;
 use crate::state::AppState;
+use crate::telemetry::http::record_identity;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request, State};
 use axum::http::header::{COOKIE, HOST, ORIGIN};
@@ -18,6 +19,7 @@ pub async fn inject_auth_context(
 ) -> Response {
     let headers = req.headers().clone();
     if let Some(ctx) = routes::auth::extract::build_auth_ctx(&state, &headers).await {
+        record_identity(ctx.owner, ctx.session_id);
         req.extensions_mut().insert(ctx);
     }
     next.run(req).await
