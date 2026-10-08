@@ -32,9 +32,11 @@ use wiremock::MockServer;
 
 mod http;
 mod immich;
+mod logs;
 
 pub use http::*;
 pub use immich::*;
+pub use logs::*;
 
 pub const TEST_API_KEY: &str = "test-key";
 pub const MEMBER_API_KEY: &str = "member-key";

@@ -16,7 +16,7 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 pub async fn run() -> anyhow::Result<()> {
-    telemetry::init();
+    telemetry::init()?;
 
     let config = config::Config::load()?;
     let bind_socket = config.bind_socket;

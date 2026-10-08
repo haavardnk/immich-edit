@@ -52,7 +52,27 @@ These settings do not have TOML equivalents:
 | `WEB_DIR` | `./web` | `/app/web` | Built static frontend |
 | `DCP_DIR` | `./assets/dcp` | `/app/assets/dcp` | Bundled camera profiles imported at startup |
 | `IMMICH_EDIT_CONFIG` | None | None | TOML configuration path |
-| `RUST_LOG` | Application default | Application default | Rust tracing filter |
+| `RUST_LOG` | `info` | `info` | Log filter; see [logs](#logs) |
+| `LOG_FORMAT` | `pretty` | `pretty` | `pretty` for readable lines, `json` for one JSON object per line |
+
+## Logs
+
+Every API response writes one line on the `http` target. It carries the request ID, method, path
+without the query string, user, status and latency. Error responses add the error code and the
+message sent to the client, including why a malformed request body was rejected. Server errors (5xx)
+log at `error`. 400, 408, 409, 413, 422 and 429 log at `warn`. Other 4xx responses log at `info`,
+except 401 and 404, which log at `debug` with successful responses.
+
+Other targets:
+
+| Target | Content |
+| --- | --- |
+| `upstream` | Failed Immich calls with their cause |
+| `client` | Browser errors from signed-in sessions, at most 30 a minute per user |
+| `panic` | Panics with location and backtrace |
+
+The application itself logs under `immich_edit_backend`. For example,
+`RUST_LOG=info,http=debug` adds successful requests.
 
 ## Example TOML
 
