@@ -2,12 +2,23 @@ use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn health_returns_ok_with_redacted_config() {
     let server = MockServer::start().await;
     mock_ping_ok(&server).await;
+    Mock::given(method("GET"))
+        .and(path("/api/server/version"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "major": 3,
+            "minor": 2,
+            "patch": 2,
+            "prerelease": null
+        })))
+        .mount(&server)
+        .await;
     let app = test_app(&server).await;
 
     let resp = app.oneshot(get("/api/health")).await.unwrap();
@@ -30,6 +41,9 @@ async fn health_returns_ok_with_redacted_config() {
     }
     if json["immich_status"]["kind"] != "ok" {
         panic!("immich status: {}", json["immich_status"]);
+    }
+    if json["immich_version"] != "3.2.2" {
+        panic!("immich version: {}", json["immich_version"]);
     }
     if json["host"]["cores"].as_u64().unwrap_or(0) == 0 {
         panic!("host cores: {}", json["host"]);

@@ -260,6 +260,7 @@ test('diagnostics break render time down by stage', async ({ page }) => {
           heif_codecs: { hevc_decode: true, hevc_encode: true, av1_decode: true, av1_encode: true },
           immich_reachable: true,
           immich_status: { ok: true, kind: 'ok', message: 'Connected', status_code: null },
+          immich_version: '3.2.2',
           db_ready: true,
           db_migration_version: 1,
           config: {}
@@ -299,6 +300,7 @@ test('diagnostics break render time down by stage', async ({ page }) => {
   });
   await page.goto('/settings/diagnostics');
 
+  await expect(page.getByText('3.2.2', { exact: true })).toBeVisible();
   const table = page.getByRole('table', { name: 'GPU render stages' });
   await expect(table.getByRole('columnheader', { name: 'GPU p50' })).toBeVisible();
   await expect(

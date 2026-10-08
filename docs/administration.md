@@ -95,7 +95,7 @@ All users can browse and apply them. The files live under `DATA_DIR/luts`, `DATA
 
 | Section | What it shows |
 | --- | --- |
-| **Server** | Version, **Renderer mode**, **Renderer active**, **GPU adapter**, **GPU type** on a software rasterizer, Immich connection state, and database state |
+| **Server** | Version, **Renderer mode**, **Renderer active**, **GPU adapter**, **GPU type** on a software rasterizer, Immich connection state and version, and database state |
 | **Browser renderer** | Whether this browser draws **Previews**, the **Reason** when it does not, its **GPU adapter**, and **Wasm load** and **Last render** times |
 | **Host** | OS, CPU model, cores available to the process, and memory with any container limit |
 | **HEIF codecs** | HEIC and AVIF decode and export support |
@@ -106,7 +106,8 @@ All users can browse and apply them. The files live under `DATA_DIR/luts`, `DATA
 
 [Check that it worked](gpu-passthrough.md#check-that-it-worked) explains the GPU rows, and
 [previews do not render in the browser](troubleshooting.md#previews-do-not-render-in-the-browser)
-lists the browser renderer reasons. Use **Copy support bundle** when opening a Discussion or issue.
+lists the browser renderer reasons. **Copy support bundle** copies these details as one folded
+block to paste into a Discussion or issue.
 
 ## Security
 

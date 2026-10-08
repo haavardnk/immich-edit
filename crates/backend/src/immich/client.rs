@@ -92,6 +92,16 @@ impl ImmichClient {
         send(self.authed(self.http.get(url))).await.map(|_| ())
     }
 
+    pub async fn server_version(&self) -> ImmichResult<String> {
+        let url = self.url("api/server/version")?;
+        let bytes = send(self.http.get(url)).await?;
+        let version: ServerVersion = parse_json(&bytes)?;
+        Ok(format!(
+            "{}.{}.{}",
+            version.major, version.minor, version.patch
+        ))
+    }
+
     pub async fn login_password(&self, email: &str, password: &str) -> ImmichResult<ImmichLogin> {
         let url = self.url("api/auth/login")?;
         let body = serde_json::json!({ "email": email, "password": password });
@@ -428,6 +438,13 @@ pub struct ServerFeatures {
     pub oauth: bool,
     pub oauth_auto_launch: bool,
     pub password_login: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ServerVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

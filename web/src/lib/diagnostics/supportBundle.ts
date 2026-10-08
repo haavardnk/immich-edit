@@ -65,14 +65,21 @@ function timingLines(t: DebugTimings): string[] {
   return lines;
 }
 
+export interface BrowserRenderer {
+  state: string;
+  reason: string | null;
+  adapter: string | null;
+}
+
 export function buildSupportBundle(
   h: HealthInfo,
   t: DebugTimings | null,
+  browser: BrowserRenderer,
   userAgent: string
 ): string {
   const statusCode = h.immich_status.status_code ? ` HTTP ${h.immich_status.status_code}` : '';
   const lines: string[] = [];
-  lines.push('## immich-edit support bundle');
+  lines.push(`<details><summary>immich-edit ${h.version} support bundle</summary>`);
   lines.push('');
   lines.push(`- Version: ${h.version}`);
   lines.push(
@@ -92,8 +99,11 @@ export function buildSupportBundle(
     `- HEIF codecs: hevc decode ${codecLabel(h.heif_codecs.hevc_decode)}, hevc encode ${codecLabel(h.heif_codecs.hevc_encode)}, av1 decode ${codecLabel(h.heif_codecs.av1_decode)}, av1 encode ${codecLabel(h.heif_codecs.av1_encode)}`
   );
   lines.push(`- Immich status: ${h.immich_status.kind}${statusCode} (${h.immich_status.message})`);
+  lines.push(`- Immich version: ${h.immich_version ?? 'unknown'}`);
   lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
   lines.push(`- Cache dir: ${h.config.cache_dir}`);
+  lines.push(`- Browser previews: ${browser.state}${browser.reason ? ` (${browser.reason})` : ''}`);
+  lines.push(`- Browser GPU adapter: ${browser.adapter || 'none'}`);
   lines.push(`- User agent: ${userAgent}`);
   lines.push('');
   if (t) {
@@ -107,5 +117,7 @@ export function buildSupportBundle(
   lines.push('```json');
   lines.push(JSON.stringify(h.config, null, 2));
   lines.push('```');
+  lines.push('');
+  lines.push('</details>');
   return lines.join('\n');
 }

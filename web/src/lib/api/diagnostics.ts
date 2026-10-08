@@ -54,6 +54,7 @@ export interface HealthInfo {
   heif_codecs: HeifCodecs;
   immich_reachable: boolean;
   immich_status: ImmichConnectionStatus;
+  immich_version: string | null;
   db_ready: boolean;
   db_migration_version: number | null;
   config: RedactedConfig;
