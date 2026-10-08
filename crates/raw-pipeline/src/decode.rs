@@ -28,9 +28,9 @@ fn decode_with(data: &[u8], develop: DevelopFn) -> crate::PipelineResult<RawFram
     let decoder = match rawler::get_decoder(&source) {
         Ok(decoder) => decoder,
         Err(err) => {
-            return decode_image(data, exif).map_err(|_| {
+            return decode_image(data, exif).map_err(|image_err| {
                 PipelineError::Unsupported(format!(
-                    "RAW format not supported by rawler ({}): {err}",
+                    "RAW format not supported by rawler ({}): {err}; image decode: {image_err}",
                     format_hint(data)
                 ))
             });

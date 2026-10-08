@@ -237,11 +237,13 @@ impl SamDecoder {
             )));
         }
         let candidates = values.len() / plane;
-        let best = outputs
-            .get("iou_predictions")
-            .and_then(|v| v.try_extract_tensor::<f32>().ok())
-            .map(|(_, iou)| best_candidate(iou, candidates))
-            .unwrap_or(0);
+        let best = match outputs.get("iou_predictions") {
+            Some(iou) => best_candidate(
+                iou.try_extract_tensor::<f32>().map_err(ort_err)?.1,
+                candidates,
+            ),
+            None => 0,
+        };
         let logits = &values[best * plane..best * plane + plane];
         let probs = activate(logits, w, h, Activation::Sigmoid);
         let out_w = embedding.width as usize;

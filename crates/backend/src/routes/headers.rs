@@ -10,7 +10,7 @@ pub const CACHE_MINUTE: &str = "private, max-age=60";
 pub const EXPORT_WARNINGS: HeaderName = HeaderName::from_static("x-export-warnings");
 
 pub fn json_list(items: &[String]) -> Result<HeaderValue, AppError> {
-    let json = serde_json::to_string(items).map_err(|_| AppError::Internal)?;
+    let json = serde_json::to_string(items).map_err(|e| AppError::internal("header json", &e))?;
     let ascii = json
         .chars()
         .fold(String::with_capacity(json.len()), |mut out, c| {
@@ -95,10 +95,8 @@ pub fn accepts_zstd(headers: &HeaderMap) -> bool {
 }
 
 pub fn header_value(value: &str) -> Result<HeaderValue, AppError> {
-    HeaderValue::from_str(value).map_err(|e| {
-        tracing::error!(error = %e, "invalid response header value");
-        AppError::Internal
-    })
+    HeaderValue::from_str(value)
+        .map_err(|e| AppError::internal("invalid response header value", &e))
 }
 
 #[cfg(test)]

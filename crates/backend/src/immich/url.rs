@@ -6,7 +6,7 @@ use crate::services::instance_store::InstanceStore;
 pub async fn resolve_immich_base(instance: &InstanceStore) -> Result<Url, AppError> {
     let cfg = instance.get().await?;
     let url = cfg.immich_url.ok_or(AppError::SetupRequired)?;
-    Url::parse(&url).map_err(|_| AppError::Internal)
+    Url::parse(&url).map_err(|e| AppError::internal("stored immich url", &e))
 }
 
 pub fn validate_candidate_url(raw: &str) -> Result<Url, AppError> {

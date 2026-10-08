@@ -51,3 +51,17 @@ pub fn capture_logs(level: Level) -> (Capture, DefaultGuard) {
     let guard = tracing::subscriber::set_default(subscriber);
     (capture, guard)
 }
+
+pub fn capture_json_logs(level: Level) -> (Capture, DefaultGuard) {
+    let capture = Capture::default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(capture.clone())
+        .with_max_level(level)
+        .json()
+        .flatten_event(true)
+        .with_current_span(true)
+        .with_span_list(false)
+        .finish();
+    let guard = tracing::subscriber::set_default(subscriber);
+    (capture, guard)
+}

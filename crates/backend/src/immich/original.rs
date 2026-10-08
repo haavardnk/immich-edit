@@ -3,7 +3,7 @@ use futures_util::future::try_join_all;
 use reqwest::header::{CONTENT_RANGE, ETAG, HeaderValue, LAST_MODIFIED, RANGE};
 use reqwest::{RequestBuilder, Response, StatusCode};
 
-use super::client::run_idempotent;
+use super::client::{body_err, run_idempotent};
 use super::{ImmichError, ImmichResult};
 
 const MAX_ORIGINAL_BYTES: u64 = 2 << 30;
@@ -71,7 +71,7 @@ async fn tail(
         || content_range(&resp)? != (start, end - 1, total)
         || version(&resp).as_ref() != expected
     {
-        return Err(ImmichError::Transport(
+        return Err(ImmichError::Decode(
             "original changed during a ranged download".into(),
         ));
     }
@@ -79,27 +79,21 @@ async fn tail(
 }
 
 async fn whole(resp: Response) -> ImmichResult<Bytes> {
-    resp.bytes()
-        .await
-        .map_err(|e| ImmichError::Transport(e.to_string()))
+    resp.bytes().await.map_err(body_err)
 }
 
 async fn fill(mut resp: Response, slice: &mut [u8]) -> ImmichResult<()> {
     let mut at = 0;
-    while let Some(chunk) = resp
-        .chunk()
-        .await
-        .map_err(|e| ImmichError::Transport(e.to_string()))?
-    {
+    while let Some(chunk) = resp.chunk().await.map_err(body_err)? {
         let end = at + chunk.len();
         let Some(dst) = slice.get_mut(at..end) else {
-            return Err(ImmichError::Transport("original range ran long".into()));
+            return Err(ImmichError::Decode("original range ran long".into()));
         };
         dst.copy_from_slice(&chunk);
         at = end;
     }
     if at != slice.len() {
-        return Err(ImmichError::Transport("original range ended early".into()));
+        return Err(ImmichError::Decode("original range ended early".into()));
     }
     Ok(())
 }

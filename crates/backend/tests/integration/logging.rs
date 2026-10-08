@@ -1,5 +1,7 @@
 use crate::common::*;
-use serde_json::json;
+use immich_edit_backend::immich::client::ImmichUser;
+use immich_edit_backend::services::auth_store::AuthKind;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use tracing::Level;
 use wiremock::matchers::{method, path};
@@ -76,5 +78,72 @@ async fn a_malformed_body_logs_the_reason() {
     };
     if !line.contains("status=400") || !line.contains(reason) {
         panic!("access line misses the reason: {line}");
+    }
+}
+
+#[tokio::test]
+async fn an_unreachable_immich_logs_the_transport_cause() {
+    let (capture, _guard) = capture_json_logs(Level::WARN);
+    let server = MockServer::builder().start().await;
+    let app = test_app(&server).await;
+    drop(server);
+
+    let resp = app.oneshot(get("/api/albums")).await.unwrap();
+
+    if resp.status() != axum::http::StatusCode::BAD_GATEWAY {
+        panic!("status {}", resp.status());
+    }
+    let text = capture.text();
+    let events: Vec<Value> = text
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    let Some(cause) = events
+        .iter()
+        .find(|e| e["message"] == "immich request failed")
+        .and_then(|e| e["error"].as_str())
+    else {
+        panic!("immich failure not logged: {text}");
+    };
+    if cause.starts_with('"') || !cause.to_lowercase().contains("connection refused") {
+        panic!("immich failure lost its cause: {cause}");
+    }
+    if !events.iter().any(|e| {
+        e["message"] == "request failed"
+            && e["status"] == 502
+            && e["code"] == "upstream_unavailable"
+    }) {
+        panic!("access line missing: {text}");
+    }
+}
+
+#[tokio::test]
+async fn an_unreadable_session_is_logged() {
+    let (capture, _guard) = capture_logs(Level::ERROR);
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let user = ImmichUser {
+        id: test_user_id(),
+        email: "admin@test.local".into(),
+        name: "Admin".into(),
+        is_admin: true,
+    };
+    let token =
+        seed_session_with_cred(&server, &state, user, AuthKind::ApiKey, &[0xff, 0xfe]).await;
+
+    let resp = wrap_auth(router(state), token)
+        .oneshot(get("/api/albums"))
+        .await
+        .unwrap();
+
+    if resp.status() != axum::http::StatusCode::UNAUTHORIZED {
+        panic!("status {}", resp.status());
+    }
+    let lines = capture.lines_with("stored immich credential is not valid utf-8");
+    let [line] = lines.as_slice() else {
+        panic!("expected one error line, got {}", capture.text());
+    };
+    if !line.contains("request_id=") || !line.contains("session=") {
+        panic!("error line lacks context: {line}");
     }
 }

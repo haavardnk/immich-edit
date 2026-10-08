@@ -225,7 +225,7 @@ pub async fn auto(
     let edits =
         tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
             .await
-            .map_err(|_| AppError::Internal)?;
+            .map_err(|e| AppError::internal("auto adjust task", &e))?;
     Ok(Json(edits))
 }
 

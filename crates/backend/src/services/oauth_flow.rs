@@ -59,10 +59,16 @@ impl OAuthFlow {
     }
 
     pub fn seal(&self, crypto: &InstanceCrypto) -> Result<String, AppError> {
-        let plain = serde_json::to_vec(self).map_err(|_| AppError::Internal)?;
-        let enc = crypto.encrypt(&plain).map_err(|_| AppError::Internal)?;
+        let plain =
+            serde_json::to_vec(self).map_err(|e| AppError::internal("oauth flow json", &e))?;
+        let enc = crypto
+            .encrypt(&plain)
+            .map_err(|e| AppError::internal("oauth flow seal", &e))?;
         let mut packed = Vec::with_capacity(1 + enc.nonce.len() + enc.ciphertext.len());
-        packed.push(u8::try_from(enc.key_version).map_err(|_| AppError::Internal)?);
+        packed.push(
+            u8::try_from(enc.key_version)
+                .map_err(|e| AppError::internal("oauth flow key version", &e))?,
+        );
         packed.extend_from_slice(&enc.nonce);
         packed.extend_from_slice(&enc.ciphertext);
         Ok(URL_SAFE_NO_PAD.encode(packed))

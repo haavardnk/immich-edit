@@ -63,7 +63,7 @@ async fn solve(
 ) -> Result<WhiteBalance, AppError> {
     let solved = tokio::task::spawn_blocking(solver)
         .await
-        .map_err(|_| AppError::Internal)?;
+        .map_err(|e| AppError::internal("white balance task", &e))?;
     let Some((wb_temp, wb_tint)) = solved else {
         return Err(AppError::Unprocessable(unsolved.to_string()));
     };

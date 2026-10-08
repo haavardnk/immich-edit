@@ -92,7 +92,7 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Res
 
 pub async fn logout_session(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let request_id = REQUEST_ID.try_with(|s| s.clone()).unwrap_or_default();
-    if let Some(ctx) = build_auth_ctx(&state, &headers).await
+    if let Ok(Some(ctx)) = build_auth_ctx(&state, &headers).await
         && ctx.auth_kind.revokes_upstream()
         && let Err(e) = ctx.immich.logout().await
     {

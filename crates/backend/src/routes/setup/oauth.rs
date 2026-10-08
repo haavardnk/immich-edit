@@ -114,7 +114,7 @@ async fn exchange(
         .immich_url
         .as_deref()
         .ok_or_else(|| AppError::BadRequest("oauth flow expired; start again".into()))?;
-    let base = Url::parse(raw_base).map_err(|_| AppError::Internal)?;
+    let base = Url::parse(raw_base).map_err(|e| AppError::internal("oauth immich url", &e))?;
     let login = oauth::exchange_code(&base, &flow, &callback_url).await?;
     let user = oauth::login_user(&login);
     if !user.is_admin {
