@@ -58,7 +58,8 @@ bash dev.sh
 ```
 
 `dev.sh` runs `npm ci` in `web/` whenever `package-lock.json` is newer than the installed modules,
-and stops all three on Ctrl-C. It sets native defaults: the backend listens on
+and stops all three on Ctrl-C. Output lines start with `[api]`, `[wasm]` or `[web]` to name the
+process that wrote them. It sets native defaults: the backend listens on
 `127.0.0.1:8088`, keeps data in `./data`, reads camera profiles from `crates/backend/assets/dcp`,
 and builds into `target/dev-server`. Put overrides in `.env`, which `dev.sh` loads; see
 `.env.example`. Vite proxies `/api` to `BIND_ADDR` unless `IMMICH_EDIT_BACKEND` is set.

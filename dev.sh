@@ -31,13 +31,22 @@ if [[ web/package-lock.json -nt web/node_modules/.package-lock.json ]]; then
   npm --prefix web ci
 fi
 
-bash web/scripts/build-wasm.sh
+export CARGO_TERM_COLOR="${CARGO_TERM_COLOR:-always}"
+export FORCE_COLOR="${FORCE_COLOR:-1}"
+
+tagged() {
+  local tag="$1"
+  shift
+  "$@" 2>&1 | awk -v tag="[${tag}]" '{ print tag, $0; fflush() }'
+}
+
+tagged wasm bash web/scripts/build-wasm.sh
 
 trap 'trap - INT TERM EXIT; kill 0 2>/dev/null || true' INT TERM EXIT
 
-cargo watch -w crates -w Cargo.toml -w Cargo.lock -x "run -p immich-edit-backend" &
-cargo watch --postpone -w crates/raw-pipeline -w crates/web-render \
+tagged api cargo watch -w crates -w Cargo.toml -w Cargo.lock -x "run -p immich-edit-backend" &
+tagged wasm cargo watch --postpone -w crates/raw-pipeline -w crates/web-render \
   -s "bash web/scripts/build-wasm.sh" &
-npm --prefix web run dev &
+tagged web npm --prefix web run dev &
 
 wait
