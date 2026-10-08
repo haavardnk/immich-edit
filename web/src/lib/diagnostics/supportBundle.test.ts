@@ -29,10 +29,13 @@ const health = {
   heif_codecs: { hevc_decode: true, hevc_encode: true, av1_decode: true, av1_encode: true },
   immich_reachable: true,
   immich_status: { ok: true, kind: 'ok', message: 'Connected', status_code: null },
+  immich_version: '3.2.2',
   db_ready: true,
   db_migration_version: 1,
   config: { cache_dir: '/cache' }
 } as HealthInfo;
+
+const browser = { state: 'browser', reason: null, adapter: 'Apple M2' };
 
 function timings(overrides: Partial<DebugTimings>): DebugTimings {
   return {
@@ -86,7 +89,7 @@ describe('buildSupportBundle', () => {
       expected: ['No renders recorded yet.', '- GPU timestamps: off']
     }
   ])('writes the stage breakdown ($name)', ({ t, expected }) => {
-    const lines = buildSupportBundle(health, t, 'test-agent').split('\n');
+    const lines = buildSupportBundle(health, t, browser, 'test-agent').split('\n');
     expect(lines).toEqual(expect.arrayContaining(expected));
     expect(lines).toEqual(
       expect.arrayContaining([
@@ -97,7 +100,23 @@ describe('buildSupportBundle', () => {
   });
 
   it('notes missing timings', () => {
-    expect(buildSupportBundle(health, null, 'ua')).toContain('Render timings: unavailable.');
+    expect(buildSupportBundle(health, null, browser, 'ua')).toContain(
+      'Render timings: unavailable.'
+    );
+  });
+
+  it('folds into a details block with the Immich and browser renderer', () => {
+    const fallback = { state: 'server', reason: 'WebGPU is unavailable', adapter: null };
+    const lines = buildSupportBundle(health, null, fallback, 'ua').split('\n');
+    expect(lines[0]).toBe('<details><summary>immich-edit 0.6.0 support bundle</summary>');
+    expect(lines.at(-1)).toBe('</details>');
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        '- Immich version: 3.2.2',
+        '- Browser previews: server (WebGPU is unavailable)',
+        '- Browser GPU adapter: none'
+      ])
+    );
   });
 });
 

@@ -22,6 +22,7 @@ pub struct Health {
     pub heif_codecs: raw_pipeline::encode::codecs::HeifCodecs,
     pub immich_reachable: bool,
     pub immich_status: ImmichConnectionStatus,
+    pub immich_version: Option<String>,
     pub db_ready: bool,
     pub db_migration_version: Option<i64>,
     pub config: RedactedConfig,
@@ -33,6 +34,11 @@ pub async fn live() -> Json<Value> {
 
 pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health> {
     let immich_status = ImmichConnectionStatus::from_ping(ctx.immich.ping().await);
+    let immich_version = if immich_status.ok {
+        ctx.immich.server_version().await.ok()
+    } else {
+        None
+    };
     let db_ready = state.edits.ready().await.is_ok();
     let db_migration_version = state.edits.migration_version().await.ok().flatten();
     Json(Health {
@@ -46,6 +52,7 @@ pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health>
         heif_codecs: raw_pipeline::encode::codecs::heif_codecs(),
         immich_reachable: immich_status.ok,
         immich_status,
+        immich_version,
         db_ready,
         db_migration_version,
         config: state.config.redacted(),

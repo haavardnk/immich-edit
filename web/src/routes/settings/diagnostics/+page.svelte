@@ -41,7 +41,9 @@
   async function copySupportBundle(): Promise<void> {
     if (!health) return;
     try {
-      await navigator.clipboard.writeText(buildSupportBundle(health, timings, navigator.userAgent));
+      await navigator.clipboard.writeText(
+        buildSupportBundle(health, timings, renderer, navigator.userAgent)
+      );
       copyState = 'ok';
     } catch {
       copyState = 'fail';
@@ -130,6 +132,7 @@
       {/if}
       <dt class="text-dark/65">Immich</dt>
       <dd>
+        {#if health.immich_version}<span class="font-mono">{health.immich_version}</span>{/if}
         <span
           class={health.immich_status.ok
             ? 'text-emerald-400'
