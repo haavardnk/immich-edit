@@ -141,6 +141,19 @@ pub async fn mock_thumb(server: &MockServer, size: &str) {
         .await;
 }
 
+pub async fn mock_server_version(server: &MockServer, major: u64, minor: u64, patch: u64) {
+    Mock::given(method("GET"))
+        .and(path("/api/server/version"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "major": major,
+            "minor": minor,
+            "patch": patch,
+            "prerelease": null
+        })))
+        .mount(server)
+        .await;
+}
+
 pub async fn mock_ping_ok(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/api/server/ping"))

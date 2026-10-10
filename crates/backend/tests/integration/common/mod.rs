@@ -109,6 +109,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         login_limiter,
         client_log_limiter: Arc::default(),
         providers: immich_edit_backend::services::oauth_providers::ProviderCache::new(),
+        capabilities: immich_edit_backend::services::immich_capabilities::CapabilityCache::new(),
         edits,
         jobs,
         render: RenderService::new(

@@ -21,6 +21,7 @@ mod frame_cache_isolation;
 mod frame_single_flight;
 mod frame_warm;
 mod health;
+mod immich_capabilities;
 mod input_validation;
 mod jobs;
 mod jobs_lifecycle;

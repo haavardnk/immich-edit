@@ -14,6 +14,7 @@ pub mod edits_store;
 #[cfg(feature = "ml")]
 pub mod embedding_cache;
 pub mod export;
+pub mod immich_capabilities;
 pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;

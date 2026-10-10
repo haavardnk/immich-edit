@@ -32,10 +32,31 @@ pub async fn live() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
+#[derive(Debug, Serialize)]
+pub struct ImmichCapabilitiesBody {
+    pub immich_version: Option<String>,
+    pub structured_search: bool,
+}
+
+pub async fn immich_capabilities(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+) -> Json<ImmichCapabilitiesBody> {
+    let caps = state.capabilities.get(ctx.server_epoch, &ctx.immich).await;
+    Json(ImmichCapabilitiesBody {
+        immich_version: caps.version.map(|version| version.to_string()),
+        structured_search: caps.structured_search,
+    })
+}
+
 pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health> {
     let immich_status = ImmichConnectionStatus::from_ping(ctx.immich.ping().await);
     let immich_version = if immich_status.ok {
-        ctx.immich.server_version().await.ok()
+        ctx.immich
+            .server_version()
+            .await
+            .ok()
+            .map(|version| version.to_string())
     } else {
         None
     };

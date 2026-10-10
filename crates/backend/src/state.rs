@@ -10,6 +10,7 @@ use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 #[cfg(feature = "ml")]
 use crate::services::embedding_cache::EmbeddingCache;
+use crate::services::immich_capabilities::CapabilityCache;
 use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
@@ -37,6 +38,7 @@ pub struct AppState {
     pub login_limiter: Arc<LoginLimiter>,
     pub client_log_limiter: Arc<ClientLogLimiter>,
     pub providers: ProviderCache,
+    pub capabilities: CapabilityCache,
     pub edits: EditsStore,
     pub jobs: JobStore,
     pub render: RenderService,
@@ -152,6 +154,7 @@ impl AppState {
             login_limiter,
             client_log_limiter: Arc::default(),
             providers: ProviderCache::new(),
+            capabilities: CapabilityCache::new(),
             edits,
             jobs,
             render,

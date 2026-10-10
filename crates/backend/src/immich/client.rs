@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use super::dto::{
     AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
-    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, StackDetail, TagSummary,
-    UploadResponse,
+    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
+    TagSummary, UploadResponse,
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
@@ -92,14 +92,10 @@ impl ImmichClient {
         send(self.authed(self.http.get(url))).await.map(|_| ())
     }
 
-    pub async fn server_version(&self) -> ImmichResult<String> {
+    pub async fn server_version(&self) -> ImmichResult<ServerVersion> {
         let url = self.url("api/server/version")?;
         let bytes = send(self.http.get(url)).await?;
-        let version: ServerVersion = parse_json(&bytes)?;
-        Ok(format!(
-            "{}.{}.{}",
-            version.major, version.minor, version.patch
-        ))
+        parse_json(&bytes)
     }
 
     pub async fn login_password(&self, email: &str, password: &str) -> ImmichResult<ImmichLogin> {
@@ -438,13 +434,6 @@ pub struct ServerFeatures {
     pub oauth: bool,
     pub oauth_auto_launch: bool,
     pub password_login: bool,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-struct ServerVersion {
-    major: u64,
-    minor: u64,
-    patch: u64,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
