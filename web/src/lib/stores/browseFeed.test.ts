@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowseFeed } from './browseFeed.svelte';
-import type { SearchQuery, SearchResult } from '$lib/types/search';
+import type { BrowseFilter, SearchPage } from '$lib/types/search';
 import type { AssetSummary } from '$lib/types/album';
 import { browseControls } from './browseControls.svelte';
 import { selection } from './selection.svelte';
@@ -20,9 +20,8 @@ function asset(id: string): AssetSummary {
   };
 }
 
-function result(nextPage: string | null, ids: string[] = []): SearchResult {
-  const items = ids.map(asset);
-  return { items, count: items.length, total: items.length, nextPage };
+function result(nextCursor: string | null, ids: string[] = []): SearchPage {
+  return { items: ids.map(asset), nextCursor };
 }
 
 function flush(): Promise<void> {
@@ -36,58 +35,66 @@ beforeEach(() => {
 });
 
 describe('BrowseFeed pagination', () => {
-  it('sends the next page token back as a number', async () => {
-    const seen: SearchQuery[] = [];
-    const fetcher = vi.fn(async (body: SearchQuery) => {
-      seen.push(body);
-      return result(seen.length === 1 ? '2' : null);
+  it('sends the returned cursor back and the merged filter along', async () => {
+    const seen: Array<{ filter: BrowseFilter; cursor: string | undefined }> = [];
+    const fetcher = vi.fn(async (filter: BrowseFilter, cursor: string | undefined) => {
+      seen.push({ filter, cursor });
+      return result(seen.length === 1 ? 'c2' : null);
     });
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const feed = new BrowseFeed({
+      baseFilter: () => ({ scope: { album: 'a1' } }),
+      includeStats: false,
+      fetcher
+    });
 
     void feed.fetchPage(true);
-    await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
+    await vi.waitFor(() => expect(feed.nextCursor).toBe('c2'));
     void feed.loadMore();
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 
-    expect(seen[0]?.page).toBeUndefined();
-    expect(seen[1]?.page).toBe(2);
+    expect(seen.map((call) => call.cursor)).toEqual([undefined, 'c2']);
+    expect(seen[0]?.filter).toEqual({
+      scope: { album: 'a1' },
+      visibility: 'timeline',
+      imagesOnly: true
+    });
   });
 
   it('loads every remaining page before completing', async () => {
-    const fetcher = vi.fn(async (body: SearchQuery) => {
-      if (body.page === 2) return result('3', ['b']);
-      if (body.page === 3) return result(null, ['c']);
+    const fetcher = vi.fn(async (_filter: BrowseFilter, cursor: string | undefined) => {
+      if (cursor === '2') return result('3', ['b']);
+      if (cursor === '3') return result(null, ['c']);
       return result('2', ['a']);
     });
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
 
     await feed.fetchPage(true);
     expect(await feed.loadAll()).toBe(true);
 
-    expect(fetcher.mock.calls.map(([body]) => body.page)).toEqual([undefined, 2, 3]);
+    expect(fetcher.mock.calls.map(([, cursor]) => cursor)).toEqual([undefined, '2', '3']);
     expect(feed.assets.map((item) => item.id)).toEqual(['a', 'b', 'c']);
-    expect(feed.nextPage).toBeNull();
+    expect(feed.nextCursor).toBeNull();
     expect(feed.loadingMore).toBe(false);
   });
 
   it('does not report completion when a remaining page fails', async () => {
-    const fetcher = vi.fn(async (body: SearchQuery) => {
-      if (body.page === 2) throw new Error('page failed');
+    const fetcher = vi.fn(async (_filter: BrowseFilter, cursor: string | undefined) => {
+      if (cursor === '2') throw new Error('page failed');
       return result('2', ['a']);
     });
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
 
     await feed.fetchPage(true);
 
     expect(await feed.loadAll()).toBe(false);
     expect(feed.assets.map((item) => item.id)).toEqual(['a']);
-    expect(feed.nextPage).toBe('2');
+    expect(feed.nextCursor).toBe('2');
     expect(feed.loadingMore).toBe(false);
   });
 
   it('clears selection when the active filter changes', () => {
     const fetcher = vi.fn(async () => result(null));
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
     feed.watchFilterChange();
     selection.selectLoaded(['a', 'b']);
 
@@ -99,9 +106,9 @@ describe('BrowseFeed pagination', () => {
   });
 
   it('drops a stale response that resolves after a newer fetch', async () => {
-    const resolvers: Array<(r: SearchResult) => void> = [];
-    const fetcher = vi.fn(() => new Promise<SearchResult>((r) => resolvers.push(r)));
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const resolvers: Array<(r: SearchPage) => void> = [];
+    const fetcher = vi.fn(() => new Promise<SearchPage>((r) => resolvers.push(r)));
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
 
     void feed.fetchPage(true);
     void feed.fetchPage(true);
@@ -114,17 +121,17 @@ describe('BrowseFeed pagination', () => {
     await flush();
 
     expect(feed.assets.map((a) => a.id)).toEqual(['new']);
-    expect(feed.nextPage).toBeNull();
+    expect(feed.nextCursor).toBeNull();
   });
 
   it('does not append a page fetched under the previous filter', async () => {
-    const resolvers: Array<(r: SearchResult) => void> = [];
-    const fetcher = vi.fn(() => new Promise<SearchResult>((r) => resolvers.push(r)));
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const resolvers: Array<(r: SearchPage) => void> = [];
+    const fetcher = vi.fn(() => new Promise<SearchPage>((r) => resolvers.push(r)));
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
 
     void feed.fetchPage(true);
     resolvers[0]?.(result('2', ['a']));
-    await vi.waitFor(() => expect(feed.nextPage).toBe('2'));
+    await vi.waitFor(() => expect(feed.nextCursor).toBe('2'));
 
     void feed.loadMore();
     expect(feed.loadingMore).toBe(true);
@@ -137,17 +144,17 @@ describe('BrowseFeed pagination', () => {
     await flush();
 
     expect(feed.assets.map((a) => a.id)).toEqual(['b']);
-    expect(feed.nextPage).toBeNull();
+    expect(feed.nextCursor).toBeNull();
     expect(feed.loadingMore).toBe(false);
   });
 });
 
 describe('BrowseFeed as the browsing pager', () => {
   function pagedFeed(): { feed: BrowseFeed; fetcher: ReturnType<typeof vi.fn> } {
-    const fetcher = vi.fn(async (body: SearchQuery) =>
-      body.page === 2 ? result(null, ['c', 'd']) : result('2', ['a', 'b'])
+    const fetcher = vi.fn(async (_filter: BrowseFilter, cursor: string | undefined) =>
+      cursor === '2' ? result(null, ['c', 'd']) : result('2', ['a', 'b'])
     );
-    const feed = new BrowseFeed({ baseBody: () => ({}), includeStats: false, fetcher });
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
     return { feed, fetcher };
   }
 

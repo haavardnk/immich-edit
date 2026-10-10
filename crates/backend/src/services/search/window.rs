@@ -1,11 +1,13 @@
 use std::cmp::Ordering;
 
-use chrono::{DateTime, SecondsFormat, Utc};
-use serde_json::{Map, Value};
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::error::AppError;
 use crate::immich::dto::AssetSummary;
-use crate::immich::{ImmichClient, ImmichError};
+use crate::services::search::Searcher;
+use crate::services::search::filter::BrowseFilter;
+use crate::services::search::query::{Direction, PageQuery, Sort};
 
 pub const MAX_RADIUS: u32 = 250;
 
@@ -17,29 +19,23 @@ fn sort_key(asset: &AssetSummary) -> Option<SortKey> {
 }
 
 pub async fn around(
-    immich: &ImmichClient,
-    mut query: Map<String, Value>,
+    searcher: &Searcher,
+    filter: &BrowseFilter,
+    sort: Sort,
     anchor: Uuid,
     radius: u32,
-) -> Result<Vec<AssetSummary>, ImmichError> {
-    query.remove("page");
-    let descending = query.get("order").and_then(Value::as_str) != Some("asc");
-    let mut probe = query.clone();
-    probe.insert("id".into(), anchor.to_string().into());
-    probe.insert("size".into(), 1.into());
-    let found = immich.search_metadata(&Value::Object(probe)).await?;
-    let Some(anchor) = found.items.into_iter().next() else {
+) -> Result<Vec<AssetSummary>, AppError> {
+    let Some(anchor) = searcher.find(filter, anchor).await? else {
         return Ok(Vec::new());
     };
     let Some(key) = sort_key(&anchor) else {
         return Ok(vec![anchor]);
     };
-    query.remove("id");
-    let newer = side(immich, &query, key, Ordering::Greater, radius).await?;
-    let older = side(immich, &query, key, Ordering::Less, radius).await?;
-    let (before, after) = match descending {
-        true => (newer, older),
-        false => (older, newer),
+    let newer = side(searcher, filter, sort, key, Ordering::Greater, radius).await?;
+    let older = side(searcher, filter, sort, key, Ordering::Less, radius).await?;
+    let (before, after) = match sort.direction {
+        Direction::Desc => (newer, older),
+        Direction::Asc => (older, newer),
     };
     Ok(before
         .into_iter()
@@ -50,39 +46,48 @@ pub async fn around(
 }
 
 async fn side(
-    immich: &ImmichClient,
-    query: &Map<String, Value>,
+    searcher: &Searcher,
+    filter: &BrowseFilter,
+    sort: Sort,
     anchor: SortKey,
     toward: Ordering,
     radius: u32,
-) -> Result<Vec<AssetSummary>, ImmichError> {
-    let (bound, order) = match toward {
-        Ordering::Greater => ("takenAfter", "asc"),
-        _ => ("takenBefore", "desc"),
+) -> Result<Vec<AssetSummary>, AppError> {
+    let mut bounded = filter.clone();
+    let direction = match toward {
+        Ordering::Greater => {
+            bounded.taken_after = Some(filter.taken_after.map_or(anchor.0, |at| at.max(anchor.0)));
+            Direction::Asc
+        }
+        _ => {
+            bounded.taken_before =
+                Some(filter.taken_before.map_or(anchor.0, |at| at.min(anchor.0)));
+            Direction::Desc
+        }
     };
-    let mut body = query.clone();
-    body.insert(
-        bound.into(),
-        anchor.0.to_rfc3339_opts(SecondsFormat::Millis, true).into(),
-    );
-    body.insert("order".into(), order.into());
-    body.insert("size".into(), (radius + 1).into());
+    let mut query = PageQuery {
+        filter: bounded,
+        sort: Sort { direction, ..sort },
+        size: radius + 1,
+        cursor: None,
+        with_exif: true,
+    };
     let wanted = radius as usize;
     let mut out: Vec<AssetSummary> = Vec::new();
-    let mut page = 1u32;
     loop {
-        body.insert("page".into(), page.into());
-        let result = immich.search_metadata(&Value::Object(body.clone())).await?;
+        let page = searcher.page(&query).await?;
         out.extend(
-            result
-                .items
+            page.items
                 .into_iter()
                 .filter(|asset| sort_key(asset).is_some_and(|key| key.cmp(&anchor) == toward)),
         );
-        if out.len() >= wanted || result.next_page.is_none() {
+        if out.len() >= wanted {
             break;
         }
-        page += 1;
+        let Some(cursor) = page.next_cursor else {
+            break;
+        };
+        query.cursor = Some(cursor);
     }
     out.truncate(wanted);
     Ok(out)
@@ -92,12 +97,14 @@ async fn side(
 mod tests {
     use std::time::Duration;
 
-    use chrono::TimeZone;
+    use chrono::{SecondsFormat, TimeZone};
+    use serde_json::Value;
     use url::Url;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
     use super::*;
+    use crate::immich::ImmichClient;
     use crate::immich::client::ImmichAuth;
 
     struct FakeSearch {
@@ -169,17 +176,19 @@ mod tests {
             Duration::from_secs(5),
         )
         .unwrap();
+        let searcher = Searcher::new(immich);
+        let filter = BrowseFilter::default();
         let mut sorted = assets.clone();
         sorted.sort();
-        for (order, index) in [
-            ("desc", 0),
-            ("desc", 13),
-            ("desc", 29),
-            ("asc", 5),
-            ("asc", 29),
+        for (direction, index) in [
+            (Direction::Desc, 0),
+            (Direction::Desc, 13),
+            (Direction::Desc, 29),
+            (Direction::Asc, 5),
+            (Direction::Asc, 29),
         ] {
             let mut feed = sorted.clone();
-            if order == "desc" {
+            if direction == Direction::Desc {
                 feed.reverse();
             }
             let radius = 5;
@@ -189,15 +198,19 @@ mod tests {
                 .iter()
                 .map(|(_, id)| *id)
                 .collect();
-            let mut query = Map::new();
-            query.insert("order".into(), order.into());
-            let window = around(&immich, query, anchor, radius as u32).await.unwrap();
+            let sort = Sort {
+                direction,
+                ..Sort::default()
+            };
+            let window = around(&searcher, &filter, sort, anchor, radius as u32)
+                .await
+                .unwrap();
             let ids: Vec<Uuid> = window.iter().map(|asset| asset.id.source()).collect();
             if ids != expected {
-                panic!("{order} window around {index} was {ids:?}, expected {expected:?}");
+                panic!("{direction:?} window around {index} was {ids:?}, expected {expected:?}");
             }
         }
-        let missing = around(&immich, Map::new(), Uuid::new_v4(), 5)
+        let missing = around(&searcher, &filter, Sort::default(), Uuid::new_v4(), 5)
             .await
             .unwrap();
         if !missing.is_empty() {

@@ -41,7 +41,7 @@ pub mod render;
 pub mod render_queue;
 pub mod render_telemetry;
 pub mod reset_edits;
-pub mod search_window;
+pub mod search;
 #[cfg(feature = "ml")]
 pub mod segment;
 pub mod watermark_store;

@@ -1,29 +1,45 @@
 import type { AssetSummary } from './album';
 
 export type SortDir = 'asc' | 'desc';
+export type SortField = 'taken';
 export type Visibility = 'timeline' | 'archive' | 'hidden';
 
-export interface SearchQuery {
-  query?: string;
-  albumIds?: string[];
-  personIds?: string[];
-  tagIds?: string[];
-  originalFileName?: string;
-  isFavorite?: boolean;
-  rating?: number | null;
+export type SearchScope = { album: string } | { person: string } | { tag: string };
+export type RatingMatch = { eq: number } | 'unrated';
+
+export interface BrowseFilter {
+  scope?: SearchScope;
+  favorite?: boolean;
   visibility?: Visibility;
-  order?: SortDir;
-  type?: 'IMAGE';
-  withExif?: boolean;
-  size?: number;
-  page?: number;
+  imagesOnly?: boolean;
+  rating?: RatingMatch;
+  filename?: string;
   takenAfter?: string;
   takenBefore?: string;
 }
 
-export interface SearchResult {
+export interface SearchSort {
+  field: SortField;
+  direction: SortDir;
+}
+
+export interface PageQuery {
+  filter: BrowseFilter;
+  sort?: SearchSort;
+  size: number;
+  cursor?: string;
+  withExif?: boolean;
+}
+
+export interface SmartQuery {
+  text: string;
+  filter: BrowseFilter;
+  size: number;
+  cursor?: string;
+  withExif?: boolean;
+}
+
+export interface SearchPage {
   items: AssetSummary[];
-  count: number;
-  total: number;
-  nextPage: string | null;
+  nextCursor: string | null;
 }

@@ -35,13 +35,13 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   const pathname = url.pathname;
 
   if (pathname === '/photos') {
-    return { context: 'photos', family: 'timeline', feed: { baseBody: () => ({}) } };
+    return { context: 'photos', family: 'timeline', feed: { baseFilter: () => ({}) } };
   }
   if (pathname === '/favorites') {
     return {
       context: 'favorites',
       family: 'timeline',
-      feed: { baseBody: () => ({ isFavorite: true }) }
+      feed: { baseFilter: () => ({ favorite: true }) }
     };
   }
 
@@ -50,7 +50,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     return {
       context: 'album:' + albumId,
       family: 'collection',
-      feed: { baseBody: () => ({ albumIds: [albumId] }) }
+      feed: { baseFilter: () => ({ scope: { album: albumId } }) }
     };
   }
 
@@ -59,7 +59,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     return {
       context: 'person:' + personId,
       family: 'collection',
-      feed: { baseBody: () => ({ personIds: [personId] }) }
+      feed: { baseFilter: () => ({ scope: { person: personId } }) }
     };
   }
 
@@ -68,7 +68,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     return {
       context: 'tag:' + tagId,
       family: 'collection',
-      feed: { baseBody: () => ({ tagIds: [tagId] }) }
+      feed: { baseFilter: () => ({ scope: { tag: tagId } }) }
     };
   }
 
@@ -80,9 +80,8 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
       context: 'search:' + query,
       family: null,
       feed: {
-        baseBody: () => (mode === 'filename' ? {} : { query }),
-        fetcher: (body) => runSearch(query, mode, body),
-        buildBody: (base) => browseControls.smartSearchBody(base),
+        baseFilter: () => ({}),
+        fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
         includeStats: false
       }
     };
@@ -131,9 +130,9 @@ export async function restoreBrowse(from: string | null, assetId: string): Promi
 }
 
 async function restoreWindow(feed: BrowseFeedOptions, assetId: string): Promise<boolean> {
-  const query = browseControls.searchBody(feed.baseBody());
+  const filter = browseControls.filter(feed.baseFilter());
   const [result] = await Promise.all([
-    searchWindow(assetId, query, WINDOW_RADIUS).catch(() => null),
+    searchWindow(assetId, filter, browseControls.sort, WINDOW_RADIUS).catch(() => null),
     loadCullTags().catch(() => undefined)
   ]);
   if (!result?.items.length) return false;

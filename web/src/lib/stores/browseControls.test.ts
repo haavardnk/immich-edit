@@ -22,12 +22,12 @@ describe('browseControls excludeRejected', () => {
 
   it('counts as a filter without changing server query', () => {
     const keyBefore = browseControls.serverFilterKey;
-    const bodyBefore = browseControls.searchBody({});
+    const filterBefore = browseControls.filter({});
     browseControls.excludeRejected = true;
     expect(browseControls.isDefault).toBe(false);
     expect(browseControls.isFiltered).toBe(true);
     expect(browseControls.serverFilterKey).toBe(keyBefore);
-    expect(browseControls.searchBody({})).toEqual(bodyBefore);
+    expect(browseControls.filter({})).toEqual(filterBefore);
   });
 
   it('is cleared by reset', () => {
@@ -104,6 +104,30 @@ describe('browseControls sort families', () => {
     controls.enter('photos', 'timeline');
     controls.enter('search:cat', null);
     expect(controls.sortFamily).toBe('timeline');
-    expect(controls.smartSearchBody({ query: 'cat' })).not.toHaveProperty('order');
+  });
+});
+
+describe('browseControls filter', () => {
+  beforeEach(() => browseControls.reset());
+
+  it('merges the active controls into the route scope', () => {
+    browseControls.favoriteOnly = true;
+    browseControls.rating = 'unrated';
+    browseControls.filename = 'DSC';
+    browseControls.visibility = 'archive';
+    browseControls.takenAfter = '2024-01-01';
+
+    expect(browseControls.filter({ scope: { tag: 't1' } })).toEqual({
+      scope: { tag: 't1' },
+      favorite: true,
+      visibility: 'archive',
+      imagesOnly: true,
+      rating: 'unrated',
+      filename: 'DSC',
+      takenAfter: new Date('2024-01-01').toISOString()
+    });
+
+    browseControls.rating = 3;
+    expect(browseControls.filter({}).rating).toEqual({ eq: 3 });
   });
 });

@@ -3,6 +3,10 @@ import { ASSET_ID, installMocks } from './helpers';
 
 const TILE = `a[href^="/assets/${ASSET_ID}?"]`;
 
+function filename(body: Record<string, unknown> | null): unknown {
+  return (body?.filter as { filename?: string } | undefined)?.filename;
+}
+
 test('global search submits through its compound control', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
@@ -31,7 +35,7 @@ test('filename-like query uses metadata search', async ({ page }) => {
   await expect(page.locator(TILE).first()).toBeVisible();
 
   expect(smartHit).toBe(false);
-  expect(metadataBody?.['originalFileName']).toBe('DSC00195');
+  expect(filename(metadataBody)).toBe('DSC00195');
 });
 
 test('description query uses smart search', async ({ page }) => {
@@ -49,7 +53,7 @@ test('description query uses smart search', async ({ page }) => {
   await page.goto('/search?q=red%20car');
   await expect(page.locator(TILE).first()).toBeVisible();
 
-  expect(smartBody?.['query']).toBe('red car');
+  expect(smartBody?.['text']).toBe('red car');
   expect(metadataHit).toBe(false);
 });
 
@@ -67,7 +71,7 @@ test('toggling to filename reruns as metadata search', async ({ page }) => {
   await page.getByRole('button', { name: 'Filename', exact: true }).click();
   await page.waitForURL(/mode=filename/);
 
-  await expect.poll(() => metadataBody?.['originalFileName']).toBe('red car');
+  await expect.poll(() => filename(metadataBody)).toBe('red car');
 });
 
 test('smart failure falls back to filename search', async ({ page }) => {
@@ -82,7 +86,7 @@ test('smart failure falls back to filename search', async ({ page }) => {
   await page.goto('/search?q=red%20car');
   await expect(page.locator(TILE).first()).toBeVisible();
 
-  expect(metadataBody?.['originalFileName']).toBe('red car');
+  expect(filename(metadataBody)).toBe('red car');
 
   const toast = page.getByText('Smart search unavailable, showing filename matches');
   await expect(toast).toBeVisible();

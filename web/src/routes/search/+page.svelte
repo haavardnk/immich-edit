@@ -15,9 +15,8 @@
   const mode = $derived(resolveSearchMode(query, page.url.searchParams.get('mode')));
 
   const feed = new BrowseFeed({
-    baseBody: () => (mode === 'filename' ? {} : { query }),
-    fetcher: (body) => runSearch(query, mode, body),
-    buildBody: (base) => browseControls.smartSearchBody(base),
+    baseFilter: () => ({}),
+    fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
     includeStats: false
   });
 
@@ -106,7 +105,7 @@
       <AssetGrid
         assets={feed.assets}
         loadingMore={feed.loadingMore}
-        onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+        onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
         onLoadAll={() => feed.loadAll()}
       />
     </div>

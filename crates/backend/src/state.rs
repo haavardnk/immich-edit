@@ -25,6 +25,7 @@ use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
+use crate::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use crate::services::segment::SegmentService;
 use crate::services::watermark_store::WatermarkStore;
@@ -172,8 +173,8 @@ impl AppState {
             installs,
             #[cfg(feature = "ml")]
             segment,
-            tag_counts: AssetCountCache::new("tagIds"),
-            people_counts: AssetCountCache::new("personIds"),
+            tag_counts: AssetCountCache::new(Scope::Tag),
+            people_counts: AssetCountCache::new(Scope::Person),
         })
     }
 }

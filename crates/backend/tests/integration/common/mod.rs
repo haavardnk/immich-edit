@@ -22,6 +22,7 @@ use immich_edit_backend::services::preview_scopes::PreviewScopeStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
+use immich_edit_backend::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::segment::SegmentService;
 use immich_edit_backend::services::watermark_store::WatermarkStore;
@@ -138,8 +139,8 @@ pub async fn test_state(server: &MockServer) -> AppState {
         installs,
         #[cfg(feature = "ml")]
         segment,
-        tag_counts: AssetCountCache::new("tagIds"),
-        people_counts: AssetCountCache::new("personIds"),
+        tag_counts: AssetCountCache::new(Scope::Tag),
+        people_counts: AssetCountCache::new(Scope::Person),
     }
 }
 

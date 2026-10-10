@@ -1,25 +1,34 @@
 import { sendJson } from './client';
 import type { AssetSummary } from '$lib/types/album';
-import type { SearchQuery, SearchResult } from '$lib/types/search';
+import type {
+  BrowseFilter,
+  PageQuery,
+  SearchPage,
+  SearchSort,
+  SmartQuery
+} from '$lib/types/search';
 
-export function searchMetadata(body: SearchQuery): Promise<SearchResult> {
-  return sendJson('POST', '/api/search/metadata', body);
+export const BROWSE_PAGE_SIZE = 500;
+
+export function searchMetadata(query: PageQuery): Promise<SearchPage> {
+  return sendJson('POST', '/api/search/metadata', query);
 }
 
 export function searchWindow(
   assetId: string,
-  query: SearchQuery,
+  filter: BrowseFilter,
+  sort: SearchSort,
   radius: number
 ): Promise<{ items: AssetSummary[] }> {
-  return sendJson('POST', '/api/search/window', { assetId, query, radius }, undefined, {
+  return sendJson('POST', '/api/search/window', { assetId, filter, sort, radius }, undefined, {
     silent: true
   });
 }
 
-export function searchSmart(body: SearchQuery): Promise<SearchResult> {
-  return sendJson('POST', '/api/search/smart', body, undefined, { silent: true });
+export function searchSmart(query: SmartQuery): Promise<SearchPage> {
+  return sendJson('POST', '/api/search/smart', query, undefined, { silent: true });
 }
 
-export function searchStatistics(body: SearchQuery): Promise<{ total: number }> {
-  return sendJson('POST', '/api/search/statistics', body);
+export function searchStatistics(filter: BrowseFilter): Promise<{ total: number }> {
+  return sendJson('POST', '/api/search/statistics', { filter });
 }

@@ -8,7 +8,7 @@
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
-  const feed = new BrowseFeed({ baseBody: () => ({ tagIds: [id] }) });
+  const feed = new BrowseFeed({ baseFilter: () => ({ scope: { tag: id } }) });
   const title = $derived(library.tags.find((t) => t.id === id)?.value || 'Tag');
 
   $effect(() => {
@@ -30,7 +30,7 @@
   loading={feed.loading && !feed.loadedOnce}
   loadingLabel="Loading tag…"
   loadingMore={feed.loadingMore}
-  onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
   onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount}
   emptyTitle="No photos with this tag"

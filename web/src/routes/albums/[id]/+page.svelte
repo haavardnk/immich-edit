@@ -8,7 +8,7 @@
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
-  const feed = new BrowseFeed({ baseBody: () => ({ albumIds: [id] }) });
+  const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: id } }) });
 
   $effect(() => {
     const current = id;
@@ -30,7 +30,7 @@
   loading={(album.loading && !album.current) || (feed.loading && !feed.loadedOnce)}
   loadingLabel="Loading album…"
   loadingMore={feed.loadingMore}
-  onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
   onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}

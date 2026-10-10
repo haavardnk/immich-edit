@@ -7,7 +7,7 @@
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
-  const feed = new BrowseFeed({ baseBody: () => ({ personIds: [id] }) });
+  const feed = new BrowseFeed({ baseFilter: () => ({ scope: { person: id } }) });
   const title = $derived(library.people.find((p) => p.id === id)?.name || 'Person');
 
   $effect(() => {
@@ -28,7 +28,7 @@
   loading={feed.loading && !feed.loadedOnce}
   loadingLabel="Loading photos…"
   loadingMore={feed.loadingMore}
-  onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
   onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount}
   emptyTitle="No photos for this person"

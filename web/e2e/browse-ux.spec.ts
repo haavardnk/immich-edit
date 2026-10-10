@@ -111,6 +111,8 @@ test('grid shows total count without loaded progress', async ({ page }) => {
 
 test('active filters stay visible as removable chips', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
+  const filterAt = (index: number) =>
+    bodies.at(index)?.filter as { filename?: string; favorite?: boolean } | undefined;
   await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
@@ -121,13 +123,13 @@ test('active filters stay visible as removable chips', async ({ page }) => {
 
   const chips = page.getByRole('list', { name: 'Active filters' });
   await expect(chips.getByRole('listitem')).toHaveText(['Favorites', 'Name: portrait']);
-  await expect.poll(() => bodies.at(-1)?.originalFileName).toBe('portrait');
+  await expect.poll(() => filterAt(-1)?.filename).toBe('portrait');
 
   await chips.getByRole('button', { name: 'Remove Favorites' }).click();
 
   await expect(chips.getByRole('listitem')).toHaveText(['Name: portrait']);
-  await expect.poll(() => bodies.at(-1)?.isFavorite).toBeUndefined();
-  expect(bodies.at(-1)?.originalFileName).toBe('portrait');
+  await expect.poll(() => filterAt(-1)?.favorite).toBeUndefined();
+  expect(filterAt(-1)?.filename).toBe('portrait');
 });
 
 test('the count names photos hidden by the reject filter', async ({ page }) => {
@@ -153,7 +155,7 @@ test('select all loads every page and enables local actions', async ({ page }) =
     assets: PAGED_ASSETS,
     searchPages: PAGED_ASSETS.map((asset) => [asset]),
     onMetadata: async (body) => {
-      const pageNumber = typeof body.page === 'number' ? body.page : undefined;
+      const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : undefined;
       pages.push(pageNumber);
       if (pageNumber === undefined) return;
       await new Promise<void>((resolve) => releasePages.set(pageNumber, resolve));

@@ -68,13 +68,13 @@ test('a restored grid keeps the filters that were active when the editor opened'
 
   const names: (string | undefined)[] = [];
   const track = (body: unknown): string | undefined =>
-    (body as { originalFileName?: string }).originalFileName;
+    (body as { filter?: { filename?: string } }).filter?.filename;
   await page.route('**/api/search/metadata', async (route) => {
     names.push(track(route.request().postDataJSON()));
     await route.fallback();
   });
   await page.route('**/api/search/window', async (route) => {
-    names.push(track((route.request().postDataJSON() as { query: unknown }).query));
+    names.push(track(route.request().postDataJSON()));
     await route.fallback();
   });
 

@@ -1,4 +1,4 @@
-import type { SearchQuery, SortDir, Visibility } from '$lib/types/search';
+import type { BrowseFilter, SearchSort, SortDir, Visibility } from '$lib/types/search';
 import type { AssetSummary } from '$lib/types/album';
 import { labelOf, type LabelColor } from '$lib/stores/labels';
 import { isRejected } from '$lib/browse/reject';
@@ -152,67 +152,21 @@ export class BrowseControlsStore {
     this.applyFilters(FILTER_DEFAULTS);
   }
 
-  searchBody(base: SearchQuery): SearchQuery {
-    const body: SearchQuery = {
-      ...base,
-      withExif: true,
-      size: 500,
-      order: this.sortDir,
-      visibility: this.visibility,
-      type: 'IMAGE'
-    };
-    if (this.favoriteOnly && base.isFavorite === undefined) {
-      body.isFavorite = true;
-    }
-    if (typeof this.rating === 'number') {
-      body.rating = this.rating;
-    } else if (this.rating === 'unrated') {
-      body.rating = null;
-    }
-    if (this.filename) {
-      body.originalFileName = this.filename;
-    }
-    if (this.takenAfter) {
-      body.takenAfter = new Date(this.takenAfter).toISOString();
-    }
+  filter(base: BrowseFilter): BrowseFilter {
+    const filter: BrowseFilter = { ...base, visibility: this.visibility, imagesOnly: true };
+    if (this.favoriteOnly) filter.favorite = true;
+    if (typeof this.rating === 'number') filter.rating = { eq: this.rating };
+    else if (this.rating === 'unrated') filter.rating = 'unrated';
+    if (this.filename) filter.filename = this.filename;
+    if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
     if (this.takenBefore) {
-      body.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
+      filter.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
     }
-    return body;
+    return filter;
   }
 
-  statsBody(base: SearchQuery): SearchQuery {
-    const body = this.searchBody(base);
-    delete body.size;
-    delete body.order;
-    delete body.withExif;
-    delete body.page;
-    return body;
-  }
-
-  smartSearchBody(base: SearchQuery): SearchQuery {
-    const body: SearchQuery = {
-      ...base,
-      withExif: true,
-      size: 500,
-      visibility: this.visibility,
-      type: 'IMAGE'
-    };
-    if (this.favoriteOnly && base.isFavorite === undefined) {
-      body.isFavorite = true;
-    }
-    if (typeof this.rating === 'number') {
-      body.rating = this.rating;
-    } else if (this.rating === 'unrated') {
-      body.rating = null;
-    }
-    if (this.takenAfter) {
-      body.takenAfter = new Date(this.takenAfter).toISOString();
-    }
-    if (this.takenBefore) {
-      body.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
-    }
-    return body;
+  get sort(): SearchSort {
+    return { field: 'taken', direction: this.sortDir };
   }
 
   get serverFilterKey(): string {

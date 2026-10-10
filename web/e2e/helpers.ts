@@ -233,18 +233,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         }
       : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
   const searchResult = (body: Record<string, unknown>) => {
-    const pageNumber = typeof body.page === 'number' ? body.page : 1;
+    const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const tagIds = Array.isArray(body.tagIds)
-      ? body.tagIds.filter((id) => tagList.some((t) => t.id === id))
-      : [];
-    const items = expanded(ordered(body.order, pageAssets))
+    const filter = (body.filter ?? {}) as { scope?: { tag?: string } };
+    const scopeTag = filter.scope?.tag;
+    const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
+    const sort = body.sort as { direction?: unknown } | undefined;
+    const items = expanded(ordered(sort?.direction, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)));
-    const total = opts.total ?? opts.searchPages?.flat().length ?? items.length;
-    const nextPage =
+    const nextCursor =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
-    return { items, count: items.length, total, nextPage };
+    return { items, nextCursor };
   };
 
   await page.route('**/api/**', async (route) => {
@@ -274,9 +274,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const body = req.postDataJSON() as {
         assetId: string;
         radius: number;
-        query: Record<string, unknown>;
+        sort?: { direction?: unknown };
       };
-      const feed = ordered(body.query.order);
+      const feed = ordered(body.sort?.direction);
       const at = feed.findIndex((a) => a.id === body.assetId.split('_')[0]);
       const items =
         at < 0 ? [] : expanded(feed.slice(Math.max(0, at - body.radius), at + body.radius + 1));

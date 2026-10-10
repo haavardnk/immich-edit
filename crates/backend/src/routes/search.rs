@@ -1,23 +1,27 @@
 use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
-use crate::immich::dto::{AssetSummary, SearchAssets, SearchStatistics};
+use crate::immich::dto::{AssetSummary, SearchStatistics};
 use crate::routes::auth::AuthCtx;
 use crate::services::copy_expand::expand_assets;
-use crate::services::search_window::{self, MAX_RADIUS};
+use crate::services::search::filter::BrowseFilter;
+use crate::services::search::query::{CountQuery, PageQuery, SmartQuery, Sort};
+use crate::services::search::window::{self, MAX_RADIUS};
+use crate::services::search::{SearchPage, Searcher};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowBody {
     asset_id: AssetKey,
     radius: u32,
     #[serde(default)]
-    query: Map<String, Value>,
+    filter: BrowseFilter,
+    #[serde(default)]
+    sort: Sort,
 }
 
 #[derive(Serialize)]
@@ -28,29 +32,31 @@ pub struct SearchWindow {
 pub async fn metadata(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<SearchAssets>, AppError> {
-    let mut assets = ctx.immich.search_metadata(&body).await?;
-    assets.items = expand_assets(&state.edits, ctx.owner, assets.items).await?;
-    Ok(Json(assets))
+    Json(query): Json<PageQuery>,
+) -> Result<Json<SearchPage>, AppError> {
+    let mut page = Searcher::new(ctx.immich.clone()).page(&query).await?;
+    page.items = expand_assets(&state.edits, ctx.owner, page.items).await?;
+    Ok(Json(page))
 }
 
 pub async fn smart(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<SearchAssets>, AppError> {
-    let mut assets = ctx.immich.search_smart(&body).await?;
-    assets.items = expand_assets(&state.edits, ctx.owner, assets.items).await?;
-    Ok(Json(assets))
+    Json(query): Json<SmartQuery>,
+) -> Result<Json<SearchPage>, AppError> {
+    let mut page = Searcher::new(ctx.immich.clone()).smart(&query).await?;
+    page.items = expand_assets(&state.edits, ctx.owner, page.items).await?;
+    Ok(Json(page))
 }
 
 pub async fn statistics(
     ctx: AuthCtx,
-    Json(body): Json<serde_json::Value>,
+    Json(query): Json<CountQuery>,
 ) -> Result<Json<SearchStatistics>, AppError> {
-    let stats = ctx.immich.search_statistics(&body).await?;
-    Ok(Json(stats))
+    let total = Searcher::new(ctx.immich.clone())
+        .count(&query.filter)
+        .await?;
+    Ok(Json(SearchStatistics { total }))
 }
 
 pub async fn window(
@@ -63,8 +69,9 @@ pub async fn window(
             "radius must be 1 to {MAX_RADIUS}"
         )));
     }
+    let searcher = Searcher::new(ctx.immich.clone());
     let anchor = body.asset_id.source();
-    let items = search_window::around(&ctx.immich, body.query, anchor, body.radius).await?;
+    let items = window::around(&searcher, &body.filter, body.sort, anchor, body.radius).await?;
     let items = expand_assets(&state.edits, ctx.owner, items).await?;
     Ok(Json(SearchWindow { items }))
 }

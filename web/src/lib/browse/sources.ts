@@ -1,25 +1,28 @@
 import { listEditedAssets } from '$lib/api/edits';
 import { folderAssets } from '$lib/api/folders';
-import { searchMetadata, searchSmart } from '$lib/api/search';
+import { BROWSE_PAGE_SIZE, searchMetadata, searchSmart } from '$lib/api/search';
 import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
 import { toasts } from '$lib/stores/toasts.svelte';
 import type { SearchMode } from './searchMode';
 import type { AssetSummary } from '$lib/types/album';
-import type { SearchQuery, SearchResult } from '$lib/types/search';
+import type { BrowseFilter, SearchPage } from '$lib/types/search';
 
 export async function runSearch(
-  query: string,
+  text: string,
   mode: SearchMode,
-  body: SearchQuery
-): Promise<SearchResult> {
-  const byFilename: SearchQuery = { ...body, originalFileName: query };
-  delete byFilename.query;
-  if (mode === 'filename') return searchMetadata(byFilename);
+  filter: BrowseFilter,
+  cursor: string | undefined
+): Promise<SearchPage> {
+  const page = { size: BROWSE_PAGE_SIZE, withExif: true, cursor };
+  const byFilename = (): Promise<SearchPage> =>
+    searchMetadata({ ...page, filter: { ...filter, filename: text } });
+  if (mode === 'filename') return byFilename();
   try {
-    return await searchSmart(body);
-  } catch {
+    return await searchSmart({ ...page, text, filter });
+  } catch (e) {
+    if (cursor) throw e;
     toasts.push('warn', 'Smart search unavailable, showing filename matches');
-    return await searchMetadata(byFilename);
+    return await byFilename();
   }
 }
 

@@ -255,7 +255,10 @@ async fn search_listing_places_copies_after_their_master() {
                 .method("POST")
                 .uri("/api/search/metadata")
                 .header("content-type", "application/json")
-                .body(Body::from(format!(r#"{{"albumIds":["{}"]}}"#, album_id())))
+                .body(Body::from(format!(
+                    r#"{{"filter":{{"scope":{{"album":"{}"}}}},"size":10}}"#,
+                    album_id()
+                )))
                 .unwrap(),
         )
         .await

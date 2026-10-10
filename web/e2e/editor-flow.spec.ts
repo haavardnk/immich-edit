@@ -51,7 +51,7 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
   await installMocks(page, {
     assets,
     searchPages: [assets.slice(0, 40), assets.slice(40)],
-    onMetadata: (body) => void pages.push(body.page)
+    onMetadata: (body) => void pages.push(body.cursor)
   });
 
   await page.goto('/photos');
@@ -68,7 +68,7 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
       toolbar.getByText(`IMG_${String(step + 2).padStart(4, '0')}.ARW`, { exact: true })
     ).toBeVisible();
   }
-  expect(pages).toEqual([undefined, 2]);
+  expect(pages).toEqual([undefined, '2']);
 });
 
 async function expectTileRevealed(page: Page, name: string): Promise<void> {

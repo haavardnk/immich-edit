@@ -53,15 +53,15 @@ test('loupe walks past the last loaded page', async ({ page }) => {
   await openLoupe(page, {
     assets,
     searchPages: [assets.slice(0, 40), assets.slice(40)],
-    onMetadata: (body) => void pages.push(body.page),
-    onSmart: (body) => void pages.push(body.page)
+    onMetadata: (body) => void pages.push(body.cursor),
+    onSmart: (body) => void pages.push(body.cursor)
   });
   expect(pages).toEqual([undefined]);
 
   for (let step = 0; step < 41; step += 1) await page.keyboard.press('ArrowRight');
 
   await expect(page.getByRole('img', { name: 'IMG_0042.ARW' })).toBeVisible();
-  expect(pages).toEqual([undefined, 2]);
+  expect(pages).toEqual([undefined, '2']);
 });
 
 test('a filmstrip scrolled away stays put when the next page loads', async ({ page }) => {
@@ -70,15 +70,15 @@ test('a filmstrip scrolled away stays put when the next page loads', async ({ pa
   await openLoupe(page, {
     assets,
     searchPages: [assets.slice(0, 40), assets.slice(40)],
-    onMetadata: (body) => void pages.push(body.page),
-    onSmart: (body) => void pages.push(body.page)
+    onMetadata: (body) => void pages.push(body.cursor),
+    onSmart: (body) => void pages.push(body.cursor)
   });
   const strip = page.getByTestId('filmstrip-scroll');
   const width = (): Promise<number> => strip.evaluate((el) => el.scrollWidth);
   const loadedWidth = await width();
 
   await strip.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
-  await expect.poll(() => pages).toEqual([undefined, 2]);
+  await expect.poll(() => pages).toEqual([undefined, '2']);
   await expect.poll(width).toBeGreaterThan(loadedWidth);
   await page.waitForTimeout(600);
 

@@ -4,7 +4,7 @@
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
-  const feed = new BrowseFeed({ baseBody: () => ({}) });
+  const feed = new BrowseFeed({ baseFilter: () => ({}) });
 
   onMount(() => {
     browseControls.enter('photos', 'timeline');
@@ -20,7 +20,7 @@
   loading={feed.loading && !feed.loadedOnce}
   loadingLabel="Loading photos…"
   loadingMore={feed.loadingMore}
-  onLoadMore={feed.nextPage ? () => feed.loadMore() : undefined}
+  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
   onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount}
   emptyTitle="No photos"

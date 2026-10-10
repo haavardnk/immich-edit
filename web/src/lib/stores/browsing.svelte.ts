@@ -1,5 +1,4 @@
 import type { AssetSummary } from '$lib/types/album';
-import type { SearchQuery } from '$lib/types/search';
 
 const PREFETCH_WINDOW = 10;
 
@@ -11,7 +10,6 @@ export interface BrowsePager {
 
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
-  query = $state<SearchQuery | null>(null);
   total = $state<number | undefined>(undefined);
   private pager = $state.raw<BrowsePager | null>(null);
 
@@ -28,14 +26,8 @@ class BrowsingStore {
     this.pager = pager;
   }
 
-  setContext(query: SearchQuery | null, total: number | undefined): void {
-    this.query = query;
-    this.total = total;
-  }
-
   clear(): void {
     this.assets = [];
-    this.query = null;
     this.total = undefined;
     this.pager = null;
   }

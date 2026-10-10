@@ -7,7 +7,8 @@ use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use uuid::Uuid;
 
-use crate::immich::ImmichClient;
+use crate::services::search::Searcher;
+use crate::services::search::filter::{BrowseFilter, Scope};
 
 const FETCH_CONCURRENCY: usize = 6;
 const CACHE_CAP: usize = 4096;
@@ -21,14 +22,14 @@ struct CountKey {
 
 #[derive(Clone)]
 pub struct AssetCountCache {
-    field: &'static str,
+    scope: fn(Uuid) -> Scope,
     inner: Arc<Mutex<LruCache<CountKey, u64>>>,
 }
 
 impl AssetCountCache {
-    pub fn new(field: &'static str) -> Self {
+    pub fn new(scope: fn(Uuid) -> Scope) -> Self {
         Self {
-            field,
+            scope,
             inner: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(CACHE_CAP).unwrap(),
             ))),
@@ -63,7 +64,7 @@ impl AssetCountCache {
         &self,
         owner: Uuid,
         server_epoch: i64,
-        immich: &ImmichClient,
+        searcher: &Searcher,
         ids: &[Uuid],
     ) -> HashMap<Uuid, u64> {
         let mut result: HashMap<Uuid, u64> = HashMap::new();
@@ -88,7 +89,7 @@ impl AssetCountCache {
         let mut tasks: JoinSet<(Uuid, Option<u64>)> = JoinSet::new();
         let mut queue = missing.into_iter();
         for id in queue.by_ref().take(FETCH_CONCURRENCY) {
-            spawn_count(&mut tasks, immich.clone(), self.field, id);
+            spawn_count(&mut tasks, searcher.clone(), (self.scope)(id), id);
         }
 
         while let Some(joined) = tasks.join_next().await {
@@ -107,7 +108,7 @@ impl AssetCountCache {
                 );
             }
             if let Some(next) = queue.next() {
-                spawn_count(&mut tasks, immich.clone(), self.field, next);
+                spawn_count(&mut tasks, searcher.clone(), (self.scope)(next), next);
             }
         }
 
@@ -117,16 +118,19 @@ impl AssetCountCache {
 
 fn spawn_count(
     tasks: &mut JoinSet<(Uuid, Option<u64>)>,
-    immich: ImmichClient,
-    field: &'static str,
+    searcher: Searcher,
+    scope: Scope,
     id: Uuid,
 ) {
     tasks.spawn(async move {
-        let body = serde_json::json!({ field: [id] });
-        match immich.search_statistics(&body).await {
-            Ok(stats) => (id, Some(stats.total)),
+        let filter = BrowseFilter {
+            scope: Some(scope),
+            ..BrowseFilter::default()
+        };
+        match searcher.count(&filter).await {
+            Ok(total) => (id, Some(total)),
             Err(e) => {
-                tracing::warn!(%id, field, error = %e, "asset count lookup failed");
+                tracing::warn!(?scope, error = %e, "asset count lookup failed");
                 (id, None)
             }
         }

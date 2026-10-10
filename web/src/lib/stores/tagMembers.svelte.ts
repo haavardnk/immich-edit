@@ -2,7 +2,6 @@ import { searchMetadata } from '$lib/api/search';
 import { findManagedTag, libraryTagsReady, tagHasValue } from '$lib/browse/managedTags';
 import type { AssetSummary } from '$lib/types/album';
 import type { TagRef } from '$lib/types/asset';
-import type { SearchQuery } from '$lib/types/search';
 
 export class TagMembers {
   ids = $state(new Set<string>());
@@ -32,14 +31,12 @@ export class TagMembers {
     }
     this.tag = tag;
     const ids = new Set<string>();
-    let page: string | null = null;
+    let cursor: string | undefined;
     do {
-      const body: SearchQuery = { tagIds: [tag.id], size: 1000 };
-      if (page) body.page = Number(page);
-      const res = await searchMetadata(body);
+      const res = await searchMetadata({ filter: { scope: { tag: tag.id } }, size: 1000, cursor });
       for (const a of res.items) ids.add(a.id);
-      page = res.nextPage;
-    } while (page);
+      cursor = res.nextCursor ?? undefined;
+    } while (cursor);
     this.ids = ids;
   }
 

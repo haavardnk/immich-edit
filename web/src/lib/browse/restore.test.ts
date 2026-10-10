@@ -8,16 +8,16 @@ function route(href: string) {
 describe('matchBrowseRoute', () => {
   it.each([
     ['/photos', 'photos', 'timeline', {}],
-    ['/favorites', 'favorites', 'timeline', { isFavorite: true }],
-    ['/albums/a1', 'album:a1', 'collection', { albumIds: ['a1'] }],
-    ['/people/p1', 'person:p1', 'collection', { personIds: ['p1'] }],
-    ['/tags/t1', 'tag:t1', 'collection', { tagIds: ['t1'] }]
-  ])('resolves %s to a search feed', (href, context, family, body) => {
+    ['/favorites', 'favorites', 'timeline', { favorite: true }],
+    ['/albums/a1', 'album:a1', 'collection', { scope: { album: 'a1' } }],
+    ['/people/p1', 'person:p1', 'collection', { scope: { person: 'p1' } }],
+    ['/tags/t1', 'tag:t1', 'collection', { scope: { tag: 't1' } }]
+  ])('resolves %s to a search feed', (href, context, family, filter) => {
     const match = route(href);
     expect(match).not.toBeNull();
     expect(match?.context).toBe(context);
     expect(match?.family).toBe(family);
-    expect(match && 'feed' in match && match.feed.baseBody()).toEqual(body);
+    expect(match && 'feed' in match && match.feed.baseFilter()).toEqual(filter);
   });
 
   it('decodes an id that was percent encoded in the return path', () => {
@@ -28,7 +28,7 @@ describe('matchBrowseRoute', () => {
   it('carries the query and mode into a search feed', () => {
     const match = route('/search?q=%20sunset%20&mode=filename');
     expect(match?.context).toBe('search:sunset');
-    expect(match && 'feed' in match && match.feed.baseBody()).toEqual({});
+    expect(match && 'feed' in match && match.feed.baseFilter()).toEqual({});
   });
 
   it.each([

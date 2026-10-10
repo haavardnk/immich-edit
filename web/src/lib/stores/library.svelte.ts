@@ -102,7 +102,7 @@ class LibraryStore {
     this.countsLoaded = true;
     const [stats, favStats, albums, people, tags, paths] = await Promise.all([
       searchStatistics({}).catch(() => null),
-      searchStatistics({ isFavorite: true }).catch(() => null),
+      searchStatistics({ favorite: true }).catch(() => null),
       listAlbums().catch(() => [] as AlbumSummary[]),
       listPeople().catch(() => [] as PersonSummary[]),
       listTags().catch(() => [] as TagSummary[]),

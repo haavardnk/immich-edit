@@ -9,6 +9,7 @@ use crate::error::AppError;
 use crate::immich::dto::PersonSummary;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
+use crate::services::search::Searcher;
 use crate::state::AppState;
 
 pub async fn list(
@@ -19,7 +20,12 @@ pub async fn list(
     let ids: Vec<Uuid> = people.iter().map(|p| p.id).collect();
     let counts = state
         .people_counts
-        .counts_for(ctx.owner, ctx.server_epoch, &ctx.immich, &ids)
+        .counts_for(
+            ctx.owner,
+            ctx.server_epoch,
+            &Searcher::new(ctx.immich.clone()),
+            &ids,
+        )
         .await;
     for person in &mut people {
         person.asset_count = counts.get(&person.id).copied();
