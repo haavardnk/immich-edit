@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
 use crate::services::search::flat::timestamp;
-use crate::services::search::query::{PageQuery, SortField};
+use crate::services::search::query::PageQuery;
 use crate::services::search::tags::TagSet;
 
 pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
@@ -54,16 +54,19 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     if !taken.is_empty() {
         body.insert("takenAt".into(), Value::Object(taken));
     }
+    if let Some((after, before)) = filter.added_between {
+        body.insert(
+            "createdAt".into(),
+            json!({ "gte": timestamp(after), "lte": timestamp(before) }),
+        );
+    }
     body
 }
 
 pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
-    let field = match query.sort.field {
-        SortField::Taken => "fileCreatedAt",
-    };
     let mut body = json!({
         "filter": filter(&query.filter, tags),
-        "orderBy": { "field": field, "direction": query.sort.direction },
+        "orderBy": { "field": "fileCreatedAt", "direction": query.sort.direction },
         "size": query.size,
     });
     if let Some(token) = cursor {
@@ -91,7 +94,7 @@ mod tests {
 
     use super::*;
     use crate::services::search::filter::Visibility;
-    use crate::services::search::query::{Direction, Sort};
+    use crate::services::search::query::{Direction, Sort, SortField};
 
     #[test]
     fn a_browse_page_maps_to_a_structured_immich_filter() {
@@ -112,6 +115,7 @@ mod tests {
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
                 rejected: None,
                 label: None,
+                added_between: None,
             },
             sort: Sort {
                 field: SortField::Taken,

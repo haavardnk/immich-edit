@@ -80,7 +80,14 @@ export class BrowseFeed implements BrowsePager {
       }
     }
     const fetcher = this.opts.fetcher ?? fetchMetadata;
-    return Promise.all([fetcher(filter, cursor), loadCullTags().catch(() => undefined)])
+    const fetchFilled = async (): Promise<SearchPage> => {
+      let result = await fetcher(filter, cursor);
+      while (!result.items.length && result.nextCursor && req === this.reqId) {
+        result = await fetcher(filter, result.nextCursor);
+      }
+      return result;
+    };
+    return Promise.all([fetchFilled(), loadCullTags().catch(() => undefined)])
       .then(([result]) => {
         if (req !== this.reqId) return false;
         const items = stampCullTags(result.items);

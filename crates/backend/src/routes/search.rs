@@ -29,8 +29,15 @@ pub struct SearchWindow {
     items: Vec<AssetSummary>,
 }
 
-async fn searcher(state: &AppState, ctx: &AuthCtx) -> Searcher {
-    Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await
+pub async fn searcher(state: &AppState, ctx: &AuthCtx) -> Searcher {
+    Searcher::connect(
+        &state.capabilities,
+        &state.timelines,
+        ctx.owner,
+        ctx.server_epoch,
+        &ctx.immich,
+    )
+    .await
 }
 
 pub async fn metadata(

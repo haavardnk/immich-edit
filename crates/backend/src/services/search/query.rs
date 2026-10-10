@@ -10,6 +10,7 @@ pub const MAX_SIZE: u32 = 1000;
 pub enum SortField {
     #[default]
     Taken,
+    Added,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]

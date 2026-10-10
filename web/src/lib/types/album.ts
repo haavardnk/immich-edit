@@ -22,6 +22,7 @@ export interface AssetSummary {
   ownerId?: string;
   localDateTime?: string | null;
   fileCreatedAt: string | null;
+  createdAt?: string | null;
   updatedAt: string | null;
   checksum: string | null;
   isFavorite: boolean;

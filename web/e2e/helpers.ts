@@ -78,6 +78,7 @@ export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;
   tags?: MockTag[];
   ownerId?: string;
+  createdAt?: string;
 };
 
 export function numberedAssets(
@@ -265,12 +266,13 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const assetTags = new Map<string, MockTag[]>();
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
-  const ordered = (order: unknown, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
-    if (order !== 'asc' && order !== 'desc') return items;
-    const sign = order === 'asc' ? 1 : -1;
-    return items
-      .slice()
-      .sort((a, b) => (Date.parse(a.fileCreatedAt) - Date.parse(b.fileCreatedAt)) * sign);
+  type MockSort = { field?: unknown; direction?: unknown } | undefined;
+  const ordered = (sort: MockSort, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
+    if (sort?.direction !== 'asc' && sort?.direction !== 'desc') return items;
+    const sign = sort.direction === 'asc' ? 1 : -1;
+    const at = (a: MockAssetSummary): number =>
+      Date.parse(sort.field === 'added' ? (a.createdAt ?? a.fileCreatedAt) : a.fileCreatedAt);
+    return items.slice().sort((a, b) => (at(a) - at(b)) * sign);
   };
   const expanded = (list: MockAssetSummary[] = assets) =>
     list.flatMap((a) => [
@@ -294,8 +296,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
-    const sort = body.sort as { direction?: unknown } | undefined;
-    const items = expanded(ordered(sort?.direction, pageAssets))
+    const items = expanded(ordered(body.sort as MockSort, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
       .filter((a) => matchesManagedTags(a.tags, filter));
@@ -355,9 +356,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const body = req.postDataJSON() as {
         assetId: string;
         radius: number;
-        sort?: { direction?: unknown };
+        sort?: MockSort;
       };
-      const feed = ordered(body.sort?.direction);
+      const feed = ordered(body.sort);
       const at = feed.findIndex((a) => a.id === body.assetId.split('_')[0]);
       const items =
         at < 0 ? [] : expanded(feed.slice(Math.max(0, at - body.radius), at + body.radius + 1));

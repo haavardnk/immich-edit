@@ -40,6 +40,8 @@ pub struct AssetSummary {
     pub local_date_time: Option<String>,
     #[serde(rename = "fileCreatedAt", default)]
     pub file_created_at: Option<String>,
+    #[serde(rename = "createdAt", default)]
+    pub created_at: Option<String>,
     #[serde(rename = "updatedAt", default)]
     pub updated_at: Option<String>,
     #[serde(default)]
@@ -71,6 +73,8 @@ pub struct AssetDetail {
     pub local_date_time: Option<String>,
     #[serde(rename = "fileCreatedAt", default)]
     pub file_created_at: Option<String>,
+    #[serde(rename = "createdAt", default)]
+    pub created_at: Option<String>,
     #[serde(rename = "updatedAt", default)]
     pub updated_at: Option<String>,
     #[serde(default)]
@@ -250,6 +254,21 @@ pub struct SearchAssets {
     pub next_page: Option<String>,
     #[serde(rename = "nextCursor", default)]
     pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TimeBucket {
+    #[serde(rename = "timeBucket")]
+    pub time_bucket: String,
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TimeBucketAssets {
+    #[serde(default)]
+    pub id: Vec<Uuid>,
+    #[serde(rename = "createdAt", default)]
+    pub created_at: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

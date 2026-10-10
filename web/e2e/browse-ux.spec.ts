@@ -272,8 +272,11 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   };
 
   const filters = page.getByRole('button', { name: 'Filters' });
+  const sort = page.getByRole('button', { name: /^Sort:/ });
   await expectTooltip(filters, 'Filters');
   await expectTooltip(filters, 'Filters');
+  await expectTooltip(sort, /^Sort: date/);
+  await expectTooltip(sort, /^Sort: date/);
 
   await filters.click();
   const popover = page.locator('[data-popover-content]');

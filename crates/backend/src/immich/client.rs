@@ -9,7 +9,7 @@ use uuid::Uuid;
 use super::dto::{
     AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
-    TagSummary, UploadResponse,
+    TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
@@ -336,6 +336,30 @@ impl ImmichClient {
         body: &serde_json::Value,
     ) -> ImmichResult<SearchStatistics> {
         self.post_json("api/search/statistics", body).await
+    }
+
+    pub async fn timeline_buckets(
+        &self,
+        params: &[(&str, String)],
+    ) -> ImmichResult<Vec<TimeBucket>> {
+        let url = self.url("api/timeline/buckets")?;
+        let bytes = send(self.authed(self.http.get(url).query(params))).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn timeline_bucket(
+        &self,
+        params: &[(&str, String)],
+        bucket: &str,
+    ) -> ImmichResult<TimeBucketAssets> {
+        let url = self.url("api/timeline/bucket")?;
+        let req = self
+            .http
+            .get(url)
+            .query(params)
+            .query(&[("timeBucket", bucket)]);
+        let bytes = send(self.authed(req)).await?;
+        parse_json(&bytes)
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {

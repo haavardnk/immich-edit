@@ -10,19 +10,22 @@ const ASSETS = [
     ...ASSET_SUMMARY,
     id: OLD_ID,
     originalFileName: 'IMG_0001.ARW',
-    fileCreatedAt: '2024-01-01T00:00:00Z'
+    fileCreatedAt: '2024-01-01T00:00:00Z',
+    createdAt: '2024-06-03T00:00:00Z'
   },
   {
     ...ASSET_SUMMARY,
     id: MID_ID,
     originalFileName: 'IMG_0002.ARW',
-    fileCreatedAt: '2024-02-01T00:00:00Z'
+    fileCreatedAt: '2024-02-01T00:00:00Z',
+    createdAt: '2024-06-01T00:00:00Z'
   },
   {
     ...ASSET_SUMMARY,
     id: NEW_ID,
     originalFileName: 'IMG_0003.ARW',
-    fileCreatedAt: '2024-03-01T00:00:00Z'
+    fileCreatedAt: '2024-03-01T00:00:00Z',
+    createdAt: '2024-06-02T00:00:00Z'
   }
 ];
 
@@ -41,6 +44,12 @@ async function expectOrder(page: Page, ids: string[]): Promise<void> {
     .toEqual(ids);
 }
 
+async function pickSort(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: /^Sort:/ }).click();
+  await page.locator('[data-popover-content]').getByRole('radio', { name, exact: true }).click();
+  await page.keyboard.press('Escape');
+}
+
 test('collections open oldest first while the timeline opens newest first', async ({ page }) => {
   await installMocks(page, { assets: ASSETS });
 
@@ -55,12 +64,12 @@ test('each browse family remembers its own sort direction', async ({ page }) => 
   await installMocks(page, { assets: ASSETS });
 
   await page.goto('/tags/tag-1');
-  await page.getByRole('button', { name: 'Oldest first' }).click();
+  await pickSort(page, 'Newest first');
   await expectOrder(page, NEWEST_FIRST);
 
   await page.goto('/photos');
   await expectOrder(page, NEWEST_FIRST);
-  await page.getByRole('button', { name: 'Newest first' }).click();
+  await pickSort(page, 'Oldest first');
   await expectOrder(page, OLDEST_FIRST);
 
   await page.goto('/tags/tag-1');
@@ -92,6 +101,28 @@ test('loupe moves forward in time when culling a collection', async ({ page }) =
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
 });
 
+test('the timeline can sort by date added', async ({ page }) => {
+  const sorts: unknown[] = [];
+  await installMocks(page, { assets: ASSETS, onMetadata: (body) => void sorts.push(body.sort) });
+
+  await page.goto('/photos');
+  await expectOrder(page, NEWEST_FIRST);
+
+  await pickSort(page, 'Date added');
+  await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
+  expect(sorts.at(-1)).toEqual({ field: 'added', direction: 'desc' });
+
+  await pickSort(page, 'Oldest first');
+  await expectOrder(page, [MID_ID, NEW_ID, OLD_ID]);
+
+  await page.reload();
+  await expectOrder(page, [MID_ID, NEW_ID, OLD_ID]);
+  await expect(page.getByRole('button', { name: 'Sort: date added, oldest first' })).toBeVisible();
+
+  await page.goto('/tags/tag-1');
+  await expectOrder(page, OLDEST_FIRST);
+});
+
 test('edited view sorts by edit time', async ({ page }) => {
   await installMocks(page, {
     assets: ASSETS,
@@ -104,6 +135,7 @@ test('edited view sorts by edit time', async ({ page }) => {
 
   await page.goto('/edited');
   await expectOrder(page, [NEW_ID, OLD_ID, MID_ID]);
+  await expect(page.getByRole('button', { name: /^Sort:/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Oldest edit first' }).click();
   await expectOrder(page, [MID_ID, OLD_ID, NEW_ID]);

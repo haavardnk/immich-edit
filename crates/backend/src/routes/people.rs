@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::immich::dto::PersonSummary;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
-use crate::services::search::Searcher;
+use crate::routes::search::searcher;
 use crate::state::AppState;
 
 pub async fn list(
@@ -18,7 +18,7 @@ pub async fn list(
 ) -> Result<Json<Vec<PersonSummary>>, AppError> {
     let mut people = ctx.immich.list_people(true).await?;
     let ids: Vec<Uuid> = people.iter().map(|p| p.id).collect();
-    let searcher = Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await;
+    let searcher = searcher(&state, &ctx).await;
     let counts = state
         .people_counts
         .counts_for(ctx.owner, ctx.server_epoch, &searcher, &ids)

@@ -13,7 +13,13 @@
   let folderPath = $state('');
 
   const queryPath = $derived(page.url.searchParams.get('path') ?? '');
-  const assets = $derived(sortAssets(loaded, (a) => a.fileCreatedAt, browseControls.sortDir));
+  const assets = $derived(
+    sortAssets(
+      loaded,
+      (a) => (browseControls.sortField === 'added' ? (a.createdAt ?? null) : a.fileCreatedAt),
+      browseControls.sortDir
+    )
+  );
 
   async function loadFolder(path: string): Promise<void> {
     if (!path) return;

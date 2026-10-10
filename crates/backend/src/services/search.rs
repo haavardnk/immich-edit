@@ -1,3 +1,4 @@
+mod added;
 pub mod cursor;
 pub mod filter;
 mod flat;
@@ -16,9 +17,10 @@ use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetSummary, SearchAssets, TagSummary};
 use crate::services::immich_capabilities::CapabilityCache;
+pub use added::TimelineCache;
 use cursor::Cursor;
 use filter::BrowseFilter;
-use query::{PageQuery, SmartQuery, check_size};
+use query::{PageQuery, SmartQuery, SortField, check_size};
 use tags::TagSet;
 
 #[derive(Debug, Serialize)]
@@ -48,6 +50,9 @@ pub struct Searcher {
     immich: ImmichClient,
     shape: SearchShape,
     library: Arc<OnceCell<Vec<TagSummary>>>,
+    timelines: TimelineCache,
+    owner: Uuid,
+    server_epoch: i64,
 }
 
 impl Searcher {
@@ -56,11 +61,16 @@ impl Searcher {
             immich,
             shape,
             library: Arc::new(OnceCell::new()),
+            timelines: TimelineCache::default(),
+            owner: Uuid::nil(),
+            server_epoch: 0,
         }
     }
 
     pub async fn connect(
         capabilities: &CapabilityCache,
+        timelines: &TimelineCache,
+        owner: Uuid,
         server_epoch: i64,
         immich: &ImmichClient,
     ) -> Self {
@@ -73,11 +83,23 @@ impl Searcher {
         } else {
             SearchShape::Flat
         };
-        Self::new(immich.clone(), shape)
+        Self {
+            timelines: timelines.clone(),
+            owner,
+            server_epoch,
+            ..Self::new(immich.clone(), shape)
+        }
     }
 
     pub async fn page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {
         check_size(query.size)?;
+        if query.sort.field == SortField::Added {
+            return added::page(self, query).await;
+        }
+        self.metadata_page(query).await
+    }
+
+    async fn metadata_page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {
         let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
         let Some(tags) = self.tags(&query.filter).await? else {
             return Ok(SearchPage::empty());

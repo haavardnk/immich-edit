@@ -25,6 +25,8 @@ pub struct BrowseFilter {
     pub rejected: Option<Rejected>,
     #[serde(default)]
     pub label: Option<Label>,
+    #[serde(skip)]
+    pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

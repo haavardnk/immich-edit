@@ -32,6 +32,7 @@ export interface AssetDetail {
   originalMimeType: string | null;
   localDateTime?: string | null;
   fileCreatedAt: string | null;
+  createdAt?: string | null;
   updatedAt: string | null;
   checksum: string | null;
   isFavorite: boolean;

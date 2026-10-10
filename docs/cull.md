@@ -25,9 +25,9 @@ filenames.
 between **Timeline**, **Archived** and **Hidden**. **Rating** matches one rating, or on Immich 3.2
 and later also a minimum, from **1+ ★** to **4+ ★**. **Rejected** shows rejects, hides them or
 shows only them; **Only** lets you review everything you rejected before deleting it in Immich.
-The sort button next to **Filters** flips
-between newest and oldest first, and each view remembers its own order. **Reset filters and sort**
-clears both.
+The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
+**Newest first** or **Oldest first**. Each view remembers its own order, so **Date added** with
+**Newest first** shows your latest uploads. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich

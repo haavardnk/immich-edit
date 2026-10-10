@@ -95,7 +95,8 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
       context: 'folders',
       family: 'collection',
       load: () => loadFolderAssets(folder),
-      sortAt: (a) => a.fileCreatedAt
+      sortAt: (a) =>
+        browseControls.sortField === 'added' ? (a.createdAt ?? null) : a.fileCreatedAt
     };
   }
 

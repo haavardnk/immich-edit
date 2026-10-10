@@ -39,7 +39,7 @@ describe('BrowseFeed pagination', () => {
     const seen: Array<{ filter: BrowseFilter; cursor: string | undefined }> = [];
     const fetcher = vi.fn(async (filter: BrowseFilter, cursor: string | undefined) => {
       seen.push({ filter, cursor });
-      return result(seen.length === 1 ? 'c2' : null);
+      return result(seen.length === 1 ? 'c2' : null, ['a']);
     });
     const feed = new BrowseFeed({
       baseFilter: () => ({ scope: { album: 'a1' } }),
@@ -75,6 +75,22 @@ describe('BrowseFeed pagination', () => {
     expect(feed.assets.map((item) => item.id)).toEqual(['a', 'b', 'c']);
     expect(feed.nextCursor).toBeNull();
     expect(feed.loadingMore).toBe(false);
+  });
+
+  it('skips empty pages that still carry a cursor', async () => {
+    const fetcher = vi.fn(async (_filter: BrowseFilter, cursor: string | undefined) => {
+      if (cursor === '2') return result('3');
+      if (cursor === '3') return result('4', ['b']);
+      return result('2', ['a']);
+    });
+    const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
+
+    await feed.fetchPage(true);
+    expect(await feed.loadMore()).toBe(true);
+
+    expect(fetcher.mock.calls.map(([, cursor]) => cursor)).toEqual([undefined, '2', '3']);
+    expect(feed.assets.map((item) => item.id)).toEqual(['a', 'b']);
+    expect(feed.nextCursor).toBe('4');
   });
 
   it('does not report completion when a remaining page fails', async () => {

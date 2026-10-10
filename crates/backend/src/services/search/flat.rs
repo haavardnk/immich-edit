@@ -54,6 +54,10 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
     if let Some(before) = filter.taken_before {
         body.insert("takenBefore".into(), timestamp(before));
     }
+    if let Some((after, before)) = filter.added_between {
+        body.insert("createdAfter".into(), timestamp(after));
+        body.insert("createdBefore".into(), timestamp(before));
+    }
     Ok(body)
 }
 
@@ -119,6 +123,7 @@ mod tests {
                 taken_before: None,
                 rejected: None,
                 label: None,
+                added_between: None,
             },
             sort: Sort {
                 field: SortField::Taken,

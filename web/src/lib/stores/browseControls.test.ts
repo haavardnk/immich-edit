@@ -97,12 +97,39 @@ describe('browseControls sort families', () => {
   });
 
   it('falls back to defaults for unusable stored values', () => {
-    localStorage.setItem(SORT_KEY, JSON.stringify({ timeline: 'sideways', collection: 'desc' }));
+    localStorage.setItem(
+      SORT_KEY,
+      JSON.stringify({
+        timeline: 'sideways',
+        collection: 'desc',
+        edited: { field: 'uploaded', direction: 'desc' }
+      })
+    );
     const controls = new BrowseControlsStore();
     controls.enter('photos', 'timeline');
-    expect(controls.sortDir).toBe('desc');
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
     controls.enter('album:1', 'collection');
-    expect(controls.sortDir).toBe('desc');
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+    controls.enter('edited', 'edited');
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+  });
+
+  it('remembers the date field per family and resets it', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('photos', 'timeline');
+    const keyBefore = controls.serverFilterKey();
+    controls.setSortField('added');
+    expect(controls.serverFilterKey()).not.toBe(keyBefore);
+    expect(controls.isDefault).toBe(false);
+    controls.setSortDir('asc');
+    controls.enter('album:1', 'collection');
+    expect(controls.sortField).toBe('taken');
+
+    const reloaded = new BrowseControlsStore();
+    reloaded.enter('photos', 'timeline');
+    expect(reloaded.sort).toEqual({ field: 'added', direction: 'asc' });
+    reloaded.reset();
+    expect(reloaded.sort).toEqual({ field: 'taken', direction: 'desc' });
   });
 
   it('resets only the active family', () => {

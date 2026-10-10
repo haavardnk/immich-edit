@@ -6,7 +6,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::{BulkIdResponse, TagSummary};
 use crate::routes::auth::AuthCtx;
-use crate::services::search::Searcher;
+use crate::routes::search::searcher;
 use crate::state::AppState;
 
 pub async fn list(
@@ -15,7 +15,7 @@ pub async fn list(
 ) -> Result<Json<Vec<TagSummary>>, AppError> {
     let mut tags = ctx.immich.list_tags().await?;
     let ids: Vec<Uuid> = tags.iter().map(|t| t.id).collect();
-    let searcher = Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await;
+    let searcher = searcher(&state, &ctx).await;
     let counts = state
         .tag_counts
         .counts_for(ctx.owner, ctx.server_epoch, &searcher, &ids)

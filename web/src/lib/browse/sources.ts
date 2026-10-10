@@ -54,6 +54,7 @@ export async function loadFolderAssets(path: string): Promise<AssetSummary[]> {
     originalFileName: a.originalFileName,
     type: a.type,
     fileCreatedAt: a.fileCreatedAt,
+    createdAt: a.createdAt,
     updatedAt: a.updatedAt,
     checksum: a.checksum,
     isFavorite: a.isFavorite ?? false,

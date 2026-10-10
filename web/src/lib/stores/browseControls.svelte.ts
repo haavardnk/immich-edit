@@ -1,11 +1,11 @@
-import type { BrowseFilter, SearchSort, SortDir, Visibility } from '$lib/types/search';
+import type { BrowseFilter, SearchSort, SortDir, SortField, Visibility } from '$lib/types/search';
 import type { AssetSummary } from '$lib/types/album';
 import { labelOf, type LabelColor } from '$lib/stores/labels';
 import { isRejected } from '$lib/browse/reject';
 import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 
-export type { SortDir, Visibility };
+export type { SortDir, SortField, Visibility };
 export type MinRating = '1+' | '2+' | '3+' | '4+';
 export const MIN_RATINGS: MinRating[] = ['1+', '2+', '3+', '4+'];
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5 | MinRating;
@@ -27,11 +27,21 @@ export interface BrowseFilters {
 
 const SORT_KEY = 'immich-edit:browseSort';
 
-const SORT_DEFAULTS: Record<SortFamily, SortDir> = {
-  timeline: 'desc',
-  collection: 'asc',
-  edited: 'asc'
+const SORT_DEFAULTS: Record<SortFamily, SearchSort> = {
+  timeline: { field: 'taken', direction: 'desc' },
+  collection: { field: 'taken', direction: 'asc' },
+  edited: { field: 'taken', direction: 'asc' }
 };
+
+function storedSort(value: unknown, fallback: SearchSort): SearchSort {
+  if (value === 'asc' || value === 'desc') return { field: 'taken', direction: value };
+  if (typeof value !== 'object' || value === null) return fallback;
+  const { field, direction } = value as Partial<Record<keyof SearchSort, unknown>>;
+  return {
+    field: field === 'taken' || field === 'added' ? field : fallback.field,
+    direction: direction === 'asc' || direction === 'desc' ? direction : fallback.direction
+  };
+}
 
 export const FILTER_DEFAULTS: BrowseFilters = {
   favoriteOnly: false,
@@ -53,38 +63,50 @@ export class BrowseControlsStore {
   takenBefore = $state('');
   rejected = $state<RejectedFilter>('any');
   label = $state<LabelFilter>('any');
-  private sortByFamily = $state<Record<SortFamily, SortDir>>({ ...SORT_DEFAULTS });
+  private sortByFamily = $state<Record<SortFamily, SearchSort>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
 
   constructor() {
-    const stored = readStored<Record<SortFamily, SortDir>>(SORT_KEY);
+    const stored = readStored<Record<string, unknown>>(SORT_KEY);
     if (!stored) return;
     const merged = { ...SORT_DEFAULTS };
     for (const family of Object.keys(SORT_DEFAULTS) as SortFamily[]) {
-      const dir = stored[family];
-      if (dir === 'asc' || dir === 'desc') merged[family] = dir;
+      merged[family] = storedSort(stored[family], SORT_DEFAULTS[family]);
     }
     this.sortByFamily = merged;
   }
 
   get sortDir(): SortDir {
-    return this.sortByFamily[this.family];
+    return this.sortByFamily[this.family].direction;
+  }
+
+  get sortField(): SortField {
+    return this.sortByFamily[this.family].field;
   }
 
   get sortFamily(): SortFamily {
     return this.family;
   }
 
-  setSortDir(dir: SortDir): void {
+  setSortDir(direction: SortDir): void {
+    this.setSort({ ...this.sort, direction });
+  }
+
+  setSortField(field: SortField): void {
+    this.setSort({ ...this.sort, field });
+  }
+
+  private setSort(sort: SearchSort): void {
     const next = { ...this.sortByFamily };
-    next[this.family] = dir;
+    next[this.family] = sort;
     this.sortByFamily = next;
     writeStored(SORT_KEY, next);
   }
 
   get isDefault(): boolean {
     return (
-      this.sortDir === SORT_DEFAULTS[this.family] &&
+      this.sortDir === SORT_DEFAULTS[this.family].direction &&
+      this.sortField === SORT_DEFAULTS[this.family].field &&
       !this.favoriteOnly &&
       this.rating === 'any' &&
       this.filename === '' &&
@@ -121,7 +143,7 @@ export class BrowseControlsStore {
 
   reset(): void {
     this.resetFilters();
-    this.setSortDir(SORT_DEFAULTS[this.family]);
+    this.setSort(SORT_DEFAULTS[this.family]);
   }
 
   enter(context: string, family: SortFamily | null): void {
@@ -199,11 +221,12 @@ export class BrowseControlsStore {
   }
 
   get sort(): SearchSort {
-    return { field: 'taken', direction: this.sortDir };
+    return { ...this.sortByFamily[this.family] };
   }
 
   serverFilterKey(flatOnly = false): string {
     return [
+      this.sortField,
       this.sortDir,
       this.favoriteOnly,
       this.serverRating(flatOnly),

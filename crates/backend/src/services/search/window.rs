@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::dto::AssetSummary;
-use crate::services::search::Searcher;
 use crate::services::search::filter::BrowseFilter;
-use crate::services::search::query::{Direction, PageQuery, Sort};
+use crate::services::search::query::{Direction, PageQuery, Sort, SortField};
+use crate::services::search::{Searcher, added};
 
 pub const MAX_RADIUS: u32 = 250;
 
@@ -28,6 +28,9 @@ pub async fn around(
     let Some(anchor) = searcher.find(filter, anchor).await? else {
         return Ok(Vec::new());
     };
+    if sort.field == SortField::Added {
+        return added::around(searcher, filter, sort.direction, anchor, radius).await;
+    }
     let Some(key) = sort_key(&anchor) else {
         return Ok(vec![anchor]);
     };

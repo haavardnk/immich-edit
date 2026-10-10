@@ -1,14 +1,25 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::error::AppError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Cursor {
-    Page { page: u32 },
-    Immich { token: String },
+    Page {
+        page: u32,
+    },
+    Immich {
+        token: String,
+    },
+    Added {
+        bucket: String,
+        at: DateTime<Utc>,
+        id: Uuid,
+    },
 }
 
 impl Cursor {

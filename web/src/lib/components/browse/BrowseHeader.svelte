@@ -2,6 +2,7 @@
   import TextInput from '$lib/components/TextInput.svelte';
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import Popover from '$lib/components/Popover.svelte';
+  import SortMenu from '$lib/components/browse/SortMenu.svelte';
   import {
     browseControls,
     MIN_RATINGS,
@@ -58,14 +59,8 @@
     browseControls.applyFilters(withoutFilter(browseControls.filters, key));
   }
 
-  const sortLabel = $derived(
-    browseControls.sortDir === 'asc'
-      ? sortBasis === 'edit'
-        ? 'Oldest edit first'
-        : 'Oldest first'
-      : sortBasis === 'edit'
-        ? 'Newest edit first'
-        : 'Newest first'
+  const editSortLabel = $derived(
+    browseControls.sortDir === 'asc' ? 'Oldest edit first' : 'Newest edit first'
   );
 
   let filterOpen = $state(false);
@@ -196,14 +191,16 @@
       />
     {/if}
 
-    {#if !hideSort}
+    {#if !hideSort && sortBasis === 'capture'}
+      <SortMenu />
+    {:else if !hideSort}
       <IconButton
         size="small"
         variant="ghost"
         color="secondary"
         icon={browseControls.sortDir === 'asc' ? mdiSortAscending : mdiSortDescending}
-        title={sortLabel}
-        aria-label={sortLabel}
+        title={editSortLabel}
+        aria-label={editSortLabel}
         onclick={toggleDir}
       />
     {/if}

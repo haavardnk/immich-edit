@@ -5,7 +5,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
-use wiremock::matchers::{body_partial_json, method, path};
+use wiremock::matchers::{body_partial_json, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn search_response(
@@ -284,6 +284,69 @@ async fn only_rejected_without_a_reject_tag_is_empty() {
         .any(|request| request.url.path().starts_with("/api/search/"));
     if reached {
         panic!("a search that cannot match must not reach Immich");
+    }
+}
+
+#[tokio::test]
+async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
+    let [newer, older, partner] = [Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
+    for (minor, hydrate) in [
+        (
+            1,
+            json!({
+                "visibility": "timeline",
+                "createdAfter": "2024-02-01T08:59:59.999Z",
+                "createdBefore": "2024-02-03T10:00:00.124Z",
+            }),
+        ),
+        (
+            2,
+            json!({ "filter": {
+                "visibility": { "eq": "timeline" },
+                "createdAt": {
+                    "gte": "2024-02-01T08:59:59.999Z",
+                    "lte": "2024-02-03T10:00:00.124Z",
+                },
+            } }),
+        ),
+    ] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, minor, 2).await;
+        Mock::given(method("GET"))
+            .and(path("/api/timeline/buckets"))
+            .and(query_param("orderBy", "createdAt"))
+            .and(query_param("order", "desc"))
+            .and(query_param("visibility", "timeline"))
+            .and(query_param("withPartners", "true"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!([{ "timeBucket": "2024-02-01", "count": 2 }])),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/api/timeline/bucket"))
+            .and(query_param("timeBucket", "2024-02-01"))
+            .and(query_param("orderBy", "createdAt"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": [newer, older],
+                "createdAt": ["2024-02-03T10:00:00.123456", "2024-02-01T09:00:00"],
+            })))
+            .mount(&server)
+            .await;
+        let found = search_response(&[older, partner, newer], None, None);
+        mount_search(&server, "/api/search/metadata", hydrate, found, 5).await;
+
+        let app = test_app(&server).await;
+        let query = json!({
+            "filter": { "visibility": "timeline" },
+            "sort": { "field": "added", "direction": "desc" },
+            "size": 10,
+        });
+        let page = post(&app, "/api/search/metadata", query).await;
+        if ids(&page) != [newer.to_string(), older.to_string()] || !page["nextCursor"].is_null() {
+            panic!("3.{minor} added page {page}");
+        }
     }
 }
 
