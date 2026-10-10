@@ -163,6 +163,37 @@ export function scopePayload(kind: string): Buffer {
   return Buffer.concat([header, body]);
 }
 
+const SEARCH_FILTER_KEYS = new Set([
+  'scope',
+  'favorite',
+  'visibility',
+  'imagesOnly',
+  'rating',
+  'filename',
+  'takenAfter',
+  'takenBefore'
+]);
+
+const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
+  '/api/search/metadata': new Set(['filter', 'sort', 'size', 'cursor', 'withExif']),
+  '/api/search/smart': new Set(['text', 'filter', 'size', 'cursor', 'withExif']),
+  '/api/search/statistics': new Set(['filter']),
+  '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort'])
+};
+
+function searchShapeProblem(path: string, body: Record<string, unknown>): string | null {
+  const allowed = SEARCH_BODY_KEYS[path];
+  if (!allowed) return null;
+  const filter = (body.filter ?? {}) as Record<string, unknown>;
+  const unknown = [
+    ...Object.keys(body).filter((key) => !allowed.has(key)),
+    ...Object.keys(filter)
+      .filter((key) => !SEARCH_FILTER_KEYS.has(key))
+      .map((key) => `filter.${key}`)
+  ];
+  return unknown.length ? `unknown search fields: ${unknown.join(', ')}` : null;
+}
+
 export interface InstallOpts {
   assets?: MockAssetSummary[];
   searchPages?: MockAssetSummary[][];
@@ -255,6 +286,17 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+
+    if (p.startsWith('/api/search/') && method === 'POST') {
+      const problem = searchShapeProblem(p, (req.postDataJSON() as Record<string, unknown>) ?? {});
+      if (problem) {
+        return route.fulfill({
+          status: 422,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: problem })
+        });
+      }
+    }
 
     if (p === '/api/search/smart') {
       const body = (req.postDataJSON() as Record<string, unknown>) ?? {};

@@ -51,6 +51,7 @@ pub fn member_user_id() -> Uuid {
 }
 
 pub async fn test_state(server: &MockServer) -> AppState {
+    guard_search_shapes(server).await;
     let cache_dir = tempfile::tempdir().unwrap().keep();
     let config = Config {
         bind_addr: "127.0.0.1:0".into(),

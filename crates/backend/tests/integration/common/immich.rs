@@ -1,8 +1,49 @@
+use serde_json::Value;
 use uuid::Uuid;
-use wiremock::matchers::{header, method, path, query_param};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::matchers::{header, method, path, path_regex, query_param};
+use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
 
 use super::{MEMBER_API_KEY, TEST_API_KEY};
+
+const STRUCTURED_FIELDS: [&str; 3] = ["filter", "orderBy", "cursor"];
+const SHARED_FIELDS: [&str; 7] = [
+    "size",
+    "withExif",
+    "withPeople",
+    "withStacked",
+    "query",
+    "queryAssetId",
+    "language",
+];
+
+struct MixedSearchShape;
+
+impl Match for MixedSearchShape {
+    fn matches(&self, request: &Request) -> bool {
+        let Ok(Value::Object(body)) = request.body_json::<Value>() else {
+            return false;
+        };
+        let structured = body
+            .keys()
+            .any(|key| STRUCTURED_FIELDS.contains(&key.as_str()));
+        let flat = body.keys().any(|key| {
+            !STRUCTURED_FIELDS.contains(&key.as_str()) && !SHARED_FIELDS.contains(&key.as_str())
+        });
+        structured && flat
+    }
+}
+
+pub async fn guard_search_shapes(server: &MockServer) {
+    Mock::given(method("POST"))
+        .and(path_regex(r"^/api/search/(metadata|smart|statistics)$"))
+        .and(MixedSearchShape)
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "message": "filter, orderBy and cursor cannot be combined with flat search fields"
+        })))
+        .with_priority(1)
+        .mount(server)
+        .await;
+}
 
 pub fn album_id() -> Uuid {
     Uuid::parse_str("11111111-2222-3333-4444-555555555555").unwrap()
