@@ -22,11 +22,14 @@ filenames.
 
 **Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Favorites only**,
 **Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
-between **Timeline**, **Archived** and **Hidden**. The sort button next to it flips between newest
-and oldest first, and each view remembers its own order. **Reset filters and sort** clears both.
+between **Timeline**, **Archived** and **Hidden**. **Rating** matches one rating, or on Immich 3.2
+and later also a minimum, from **1+ ★** to **4+ ★**. The sort button next to **Filters** flips
+between newest and oldest first, and each view remembers its own order. **Reset filters and sort**
+clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
-ones **Label** and **Exclude rejected** are hiding.
+ones **Label** and **Exclude rejected** are hiding. Description search applies a minimum rating to
+the loaded photos.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
@@ -128,7 +131,8 @@ removes a pane in compare and survey.
 1. Press `E` on the first photo. Step through with `→`, pressing `X` on misses and a rating on
    keepers.
 1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.
-1. Set **Rating** to the lowest rating you want to edit. What is left is your edit list.
+1. Set **Rating** to the lowest rating you want to edit, such as **3+ ★** (Immich 3.2 and later).
+   What is left is your edit list.
 
 ## Act on a selection
 

@@ -63,4 +63,15 @@ describe('browseContext', () => {
     expect(filters).not.toBeNull();
     expect(filters?.[field as keyof typeof FILTERS]).toBe(expected);
   });
+
+  it.each([
+    [false, 'any'],
+    [true, '3+']
+  ])('recalls a minimum rating with structured search %s as %s', async (structured, expected) => {
+    const { recallBrowseFilters } = await load();
+    const { immichCapabilities } = await import('./immichCapabilities.svelte');
+    immichCapabilities.structuredSearch = structured;
+    store[KEY] = JSON.stringify({ path: '/photos', filters: { ...FILTERS, rating: '3+' } });
+    expect(recallBrowseFilters('/photos')?.rating).toBe(expected);
+  });
 });

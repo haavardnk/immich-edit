@@ -81,6 +81,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
       family: null,
       feed: {
         baseFilter: () => ({}),
+        flatOnly: () => mode === 'description',
         fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
         includeStats: false
       }

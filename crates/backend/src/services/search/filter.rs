@@ -43,5 +43,6 @@ pub enum Visibility {
 #[serde(rename_all = "camelCase")]
 pub enum RatingMatch {
     Eq(u8),
+    Gte(u8),
     Unrated,
 }

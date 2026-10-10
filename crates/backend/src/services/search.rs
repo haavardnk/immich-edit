@@ -64,7 +64,7 @@ impl Searcher {
             let page = flat_page(cursor)?;
             let assets = self
                 .immich
-                .search_metadata(&flat::page(query, page))
+                .search_metadata(&flat::page(query, page)?)
                 .await?;
             return Ok(flat_result(assets));
         }
@@ -89,13 +89,13 @@ impl Searcher {
         check_size(query.size)?;
         let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
         let page = flat_page(cursor)?;
-        let assets = self.immich.search_smart(&flat::smart(query, page)).await?;
+        let assets = self.immich.search_smart(&flat::smart(query, page)?).await?;
         Ok(flat_result(assets))
     }
 
     pub async fn count(&self, filter: &BrowseFilter) -> Result<u64, AppError> {
         let body = match self.shape {
-            SearchShape::Flat => flat::count(filter),
+            SearchShape::Flat => flat::count(filter)?,
             SearchShape::Structured => structured::count(filter),
         };
         Ok(self.immich.search_statistics(&body).await?.total)
@@ -107,7 +107,7 @@ impl Searcher {
         id: Uuid,
     ) -> Result<Option<AssetSummary>, AppError> {
         let body = match self.shape {
-            SearchShape::Flat => flat::find(filter, id),
+            SearchShape::Flat => flat::find(filter, id)?,
             SearchShape::Structured => structured::find(filter, id),
         };
         let found = self.immich.search_metadata(&body).await?;

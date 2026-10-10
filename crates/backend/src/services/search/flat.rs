@@ -2,6 +2,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
+use crate::error::AppError;
 use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
 use crate::services::search::query::{PageQuery, SmartQuery};
 
@@ -9,7 +10,7 @@ pub fn timestamp(at: DateTime<Utc>) -> Value {
     at.to_rfc3339_opts(SecondsFormat::Millis, true).into()
 }
 
-pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
+pub fn filter(filter: &BrowseFilter) -> Result<Map<String, Value>, AppError> {
     let mut body = Map::new();
     match filter.scope {
         Some(Scope::Album(id)) => body.insert("albumIds".into(), json!([id])),
@@ -29,6 +30,11 @@ pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
     match filter.rating {
         Some(RatingMatch::Eq(stars)) => body.insert("rating".into(), stars.into()),
         Some(RatingMatch::Unrated) => body.insert("rating".into(), Value::Null),
+        Some(RatingMatch::Gte(_)) => {
+            return Err(AppError::BadRequest(
+                "this search cannot filter by a minimum rating".into(),
+            ));
+        }
         None => None,
     };
     if let Some(name) = &filter.filename {
@@ -40,41 +46,41 @@ pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
     if let Some(before) = filter.taken_before {
         body.insert("takenBefore".into(), timestamp(before));
     }
-    body
+    Ok(body)
 }
 
-pub fn page(query: &PageQuery, page: u32) -> Value {
-    let mut body = filter(&query.filter);
+pub fn page(query: &PageQuery, page: u32) -> Result<Value, AppError> {
+    let mut body = filter(&query.filter)?;
     body.insert("order".into(), json!(query.sort.direction));
     body.insert("size".into(), query.size.into());
     body.insert("page".into(), page.into());
     if query.with_exif {
         body.insert("withExif".into(), true.into());
     }
-    Value::Object(body)
+    Ok(Value::Object(body))
 }
 
-pub fn smart(query: &SmartQuery, page: u32) -> Value {
-    let mut body = filter(&query.filter);
+pub fn smart(query: &SmartQuery, page: u32) -> Result<Value, AppError> {
+    let mut body = filter(&query.filter)?;
     body.insert("query".into(), query.text.clone().into());
     body.insert("size".into(), query.size.into());
     body.insert("page".into(), page.into());
     if query.with_exif {
         body.insert("withExif".into(), true.into());
     }
-    Value::Object(body)
+    Ok(Value::Object(body))
 }
 
-pub fn find(filter_by: &BrowseFilter, id: Uuid) -> Value {
-    let mut body = filter(filter_by);
+pub fn find(filter_by: &BrowseFilter, id: Uuid) -> Result<Value, AppError> {
+    let mut body = filter(filter_by)?;
     body.insert("id".into(), id.to_string().into());
     body.insert("size".into(), 1.into());
     body.insert("withExif".into(), true.into());
-    Value::Object(body)
+    Ok(Value::Object(body))
 }
 
-pub fn count(filter_by: &BrowseFilter) -> Value {
-    Value::Object(filter(filter_by))
+pub fn count(filter_by: &BrowseFilter) -> Result<Value, AppError> {
+    Ok(Value::Object(filter(filter_by)?))
 }
 
 #[cfg(test)]
@@ -120,8 +126,19 @@ mod tests {
             "page": 2,
             "withExif": true,
         });
-        if page(&query, 2) != expected {
-            panic!("flat body was {}", page(&query, 2));
+        if page(&query, 2).ok() != Some(expected) {
+            panic!("flat body was {:?}", page(&query, 2));
+        }
+    }
+
+    #[test]
+    fn a_minimum_rating_is_refused_on_flat_servers() {
+        let filter_by = BrowseFilter {
+            rating: Some(RatingMatch::Gte(3)),
+            ..BrowseFilter::default()
+        };
+        if count(&filter_by).is_ok() {
+            panic!("flat search cannot express a minimum rating");
         }
     }
 }

@@ -132,6 +132,31 @@ test('active filters stay visible as removable chips', async ({ page }) => {
   expect(filterAt(-1)?.filename).toBe('portrait');
 });
 
+for (const structuredSearch of [false, true]) {
+  test(`minimum rating options follow structured search (${structuredSearch})`, async ({
+    page
+  }) => {
+    const bodies: Array<Record<string, unknown>> = [];
+    await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
+    await page.goto('/photos');
+
+    await page.getByRole('button', { name: 'Filters' }).click();
+    await page.getByRole('button', { name: 'Rating' }).click();
+    await expect(page.getByRole('option', { name: '3 ★', exact: true })).toBeVisible();
+    const option = page.getByRole('option', { name: '3+ ★', exact: true });
+    if (!structuredSearch) {
+      await expect(option).toHaveCount(0);
+      return;
+    }
+    await option.click();
+    await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { gte: 3 } });
+    await page.getByRole('button', { name: 'Close filters' }).click();
+    await expect(
+      page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
+    ).toHaveText(['3+ stars']);
+  });
+}
+
 test('the count names photos hidden by the reject filter', async ({ page }) => {
   const [kept, dropped] = numberedAssets(2);
   if (!kept || !dropped) throw new Error('missing assets');

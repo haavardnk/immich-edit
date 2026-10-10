@@ -9,6 +9,7 @@ import type { AssetSummary } from '$lib/types/album';
 
 export interface BrowseFeedOptions {
   baseFilter: () => BrowseFilter;
+  flatOnly?: () => boolean;
   includeStats?: boolean;
   fetcher?: (filter: BrowseFilter, cursor: string | undefined) => Promise<SearchPage>;
   onFetchError?: (initial: boolean, error: unknown) => void;
@@ -59,7 +60,7 @@ export class BrowseFeed implements BrowsePager {
 
   fetchPage(initial: boolean): Promise<boolean> {
     const req = (this.reqId += 1);
-    const filter = browseControls.filter(this.opts.baseFilter());
+    const filter = browseControls.filter(this.opts.baseFilter(), this.opts.flatOnly?.());
     const cursor = initial ? undefined : (this.nextCursor ?? undefined);
     if (initial) {
       if (!this.loadedOnce) this.loading = true;
@@ -129,7 +130,7 @@ export class BrowseFeed implements BrowsePager {
   }
 
   watchFilterChange(): void {
-    const key = browseControls.serverFilterKey;
+    const key = browseControls.serverFilterKey(this.opts.flatOnly?.());
     if (this.prevKey && key !== this.prevKey) {
       selection.clear();
       void this.fetchPage(true);

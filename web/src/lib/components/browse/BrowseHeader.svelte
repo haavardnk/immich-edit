@@ -4,9 +4,11 @@
   import Popover from '$lib/components/Popover.svelte';
   import {
     browseControls,
+    MIN_RATINGS,
     type LabelFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
@@ -86,15 +88,18 @@
 
   const hasFilter = $derived(browseControls.isFiltered);
 
-  const ratingOptions: { value: string; label: string }[] = [
+  const ratingOptions: { value: string; label: string }[] = $derived([
     { value: 'any', label: 'Any' },
     { value: 'unrated', label: 'Unrated' },
     { value: '1', label: '1 ★' },
     { value: '2', label: '2 ★' },
     { value: '3', label: '3 ★' },
     { value: '4', label: '4 ★' },
-    { value: '5', label: '5 ★' }
-  ];
+    { value: '5', label: '5 ★' },
+    ...(immichCapabilities.structuredSearch
+      ? MIN_RATINGS.map((value) => ({ value, label: `${value} ★` }))
+      : [])
+  ]);
 
   const visibilityOptions: { value: Visibility; label: string }[] = [
     { value: 'timeline', label: 'Timeline' },
@@ -103,6 +108,11 @@
   ];
 
   function setRating(value: string): void {
+    const min = MIN_RATINGS.find((rating) => rating === value);
+    if (min) {
+      browseControls.rating = min;
+      return;
+    }
     browseControls.rating =
       value === 'any' || value === 'unrated' ? value : (Number(value) as 1 | 2 | 3 | 4 | 5);
   }

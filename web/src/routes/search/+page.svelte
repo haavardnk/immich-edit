@@ -16,6 +16,7 @@
 
   const feed = new BrowseFeed({
     baseFilter: () => ({}),
+    flatOnly: () => mode === 'description',
     fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
     includeStats: false
   });

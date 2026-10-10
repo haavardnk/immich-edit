@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BrowseControlsStore, browseControls, type SortFamily } from './browseControls.svelte';
+import { immichCapabilities } from './immichCapabilities.svelte';
+import { REJECT_TAG_VALUE } from '$lib/browse/reject';
+import type { AssetSummary } from '$lib/types/album';
+import type { ExifInfo } from '$lib/types/asset';
 
 const SORT_KEY = 'immich-edit:browseSort';
 
@@ -11,6 +15,20 @@ vi.stubGlobal('localStorage', {
   clear: () => store.clear()
 });
 
+function asset(rejected: boolean, rating: number | null = null): AssetSummary {
+  return {
+    id: 'a1',
+    originalFileName: 'a.jpg',
+    type: 'IMAGE',
+    fileCreatedAt: null,
+    updatedAt: null,
+    checksum: null,
+    isFavorite: false,
+    exifInfo: rating === null ? null : ({ rating } as ExifInfo),
+    tags: rejected ? [{ id: 'r', name: 'reject', value: REJECT_TAG_VALUE }] : []
+  };
+}
+
 describe('browseControls excludeRejected', () => {
   beforeEach(() => browseControls.reset());
 
@@ -21,13 +39,14 @@ describe('browseControls excludeRejected', () => {
   });
 
   it('counts as a filter without changing server query', () => {
-    const keyBefore = browseControls.serverFilterKey;
+    const keyBefore = browseControls.serverFilterKey();
     const filterBefore = browseControls.filter({});
     browseControls.excludeRejected = true;
     expect(browseControls.isDefault).toBe(false);
     expect(browseControls.isFiltered).toBe(true);
-    expect(browseControls.serverFilterKey).toBe(keyBefore);
+    expect(browseControls.serverFilterKey()).toBe(keyBefore);
     expect(browseControls.filter({})).toEqual(filterBefore);
+    expect(browseControls.hides(asset(true))).toBe(true);
   });
 
   it('is cleared by reset', () => {
@@ -108,7 +127,10 @@ describe('browseControls sort families', () => {
 });
 
 describe('browseControls filter', () => {
-  beforeEach(() => browseControls.reset());
+  beforeEach(() => {
+    immichCapabilities.structuredSearch = false;
+    browseControls.reset();
+  });
 
   it('merges the active controls into the route scope', () => {
     browseControls.favoriteOnly = true;
@@ -129,5 +151,29 @@ describe('browseControls filter', () => {
 
     browseControls.rating = 3;
     expect(browseControls.filter({}).rating).toEqual({ eq: 3 });
+  });
+
+  it.each([
+    [true, false, true],
+    [true, true, false],
+    [false, false, false]
+  ] as const)(
+    'on structured search %s with flat-only %s sends a minimum rating: %s',
+    (structured, flatOnly, sent) => {
+      immichCapabilities.structuredSearch = structured;
+      const keyBefore = browseControls.serverFilterKey(flatOnly);
+      browseControls.rating = '4+';
+      expect(browseControls.filter({}, flatOnly).rating).toEqual(sent ? { gte: 4 } : undefined);
+      expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent);
+    }
+  );
+
+  it.each([
+    [null, true],
+    [3, true],
+    [4, false]
+  ])('hides a photo rated %s below 4+: %s', (rating, hidden) => {
+    browseControls.rating = '4+';
+    expect(browseControls.hides(asset(false, rating))).toBe(hidden);
   });
 });

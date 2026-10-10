@@ -1,10 +1,12 @@
 import { readStored, writeStored } from '$lib/utils/storage';
 import {
   FILTER_DEFAULTS,
+  MIN_RATINGS,
   type BrowseFilters,
   type LabelFilter,
   type RatingFilter
 } from './browseControls.svelte';
+import { immichCapabilities } from './immichCapabilities.svelte';
 import type { Visibility } from '$lib/types/search';
 import { LABEL_COLORS } from '$lib/stores/labels';
 
@@ -20,9 +22,10 @@ const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
 const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
 function sanitize(filters: Partial<BrowseFilters>): BrowseFilters {
+  const ratings = immichCapabilities.structuredSearch ? [...RATINGS, ...MIN_RATINGS] : RATINGS;
   return {
     favoriteOnly: filters.favoriteOnly === true,
-    rating: RATINGS.find((r) => r === filters.rating) ?? FILTER_DEFAULTS.rating,
+    rating: ratings.find((r) => r === filters.rating) ?? FILTER_DEFAULTS.rating,
     filename: typeof filters.filename === 'string' ? filters.filename : '',
     visibility: VISIBILITIES.find((v) => v === filters.visibility) ?? FILTER_DEFAULTS.visibility,
     takenAfter: typeof filters.takenAfter === 'string' ? filters.takenAfter : '',

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, installMocks } from './helpers';
+import { ASSET_ID, installMocks, numberedAssets } from './helpers';
 
 const TILE = `a[href^="/assets/${ASSET_ID}?"]`;
 
@@ -72,6 +72,30 @@ test('toggling to filename reruns as metadata search', async ({ page }) => {
   await page.waitForURL(/mode=filename/);
 
   await expect.poll(() => filename(metadataBody)).toBe('red car');
+});
+
+test('smart search hides low ratings in the browser', async ({ page }) => {
+  const [kept, low] = numberedAssets(2, { exifInfo: { rating: 4 } });
+  if (!kept || !low) throw new Error('missing assets');
+  let smartRequests = 0;
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname === '/api/search/smart') smartRequests += 1;
+  });
+  await installMocks(page, {
+    structuredSearch: true,
+    assets: [kept, { ...low, exifInfo: { rating: 2 } }]
+  });
+  const tile = (id: string) => page.locator(`a[href^="/assets/${id}?"]`);
+
+  await page.goto('/search?q=red%20car');
+  await expect(tile(low.id)).toBeVisible();
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('button', { name: 'Rating' }).click();
+  await page.getByRole('option', { name: '3+ ★', exact: true }).click();
+
+  await expect(tile(low.id)).toBeHidden();
+  await expect(tile(kept.id)).toBeVisible();
+  expect(smartRequests).toBe(1);
 });
 
 test('smart failure falls back to filename search', async ({ page }) => {

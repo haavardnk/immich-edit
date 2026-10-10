@@ -181,7 +181,11 @@ const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
   '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort'])
 };
 
-function searchShapeProblem(path: string, body: Record<string, unknown>): string | null {
+function searchShapeProblem(
+  path: string,
+  body: Record<string, unknown>,
+  structured: boolean
+): string | null {
   const allowed = SEARCH_BODY_KEYS[path];
   if (!allowed) return null;
   const filter = (body.filter ?? {}) as Record<string, unknown>;
@@ -191,7 +195,12 @@ function searchShapeProblem(path: string, body: Record<string, unknown>): string
       .filter((key) => !SEARCH_FILTER_KEYS.has(key))
       .map((key) => `filter.${key}`)
   ];
-  return unknown.length ? `unknown search fields: ${unknown.join(', ')}` : null;
+  if (unknown.length) return `unknown search fields: ${unknown.join(', ')}`;
+  const flat = path === '/api/search/smart' || !structured;
+  const minimum =
+    typeof filter.rating === 'object' && filter.rating !== null && 'gte' in filter.rating;
+  if (flat && minimum) return 'flat search cannot match a minimum rating';
+  return null;
 }
 
 export interface InstallOpts {
@@ -223,6 +232,7 @@ export interface InstallOpts {
   renderer?: 'auto' | 'server';
   tags?: MockTag[];
   onTagAsset?: (change: { tagId: string; assetId: string; added: boolean }) => void;
+  structuredSearch?: boolean;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -286,9 +296,19 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
 
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+    if (p === '/api/immich/capabilities') {
+      const structured = opts.structuredSearch ?? false;
+      return route.fulfill(
+        json({ immich_version: structured ? '3.2.2' : '3.1.0', structured_search: structured })
+      );
+    }
 
     if (p.startsWith('/api/search/') && method === 'POST') {
-      const problem = searchShapeProblem(p, (req.postDataJSON() as Record<string, unknown>) ?? {});
+      const problem = searchShapeProblem(
+        p,
+        (req.postDataJSON() as Record<string, unknown>) ?? {},
+        opts.structuredSearch ?? false
+      );
       if (problem) {
         return route.fulfill({
           status: 422,

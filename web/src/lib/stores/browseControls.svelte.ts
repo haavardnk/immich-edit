@@ -2,10 +2,13 @@ import type { BrowseFilter, SearchSort, SortDir, Visibility } from '$lib/types/s
 import type { AssetSummary } from '$lib/types/album';
 import { labelOf, type LabelColor } from '$lib/stores/labels';
 import { isRejected } from '$lib/browse/reject';
+import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 
 export type { SortDir, Visibility };
-export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5;
+export type MinRating = '1+' | '2+' | '3+' | '4+';
+export const MIN_RATINGS: MinRating[] = ['1+', '2+', '3+', '4+'];
+export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5 | MinRating;
 export type LabelFilter = 'any' | 'none' | LabelColor;
 export type SortFamily = 'timeline' | 'collection' | 'edited';
 
@@ -105,6 +108,8 @@ export class BrowseControlsStore {
   }
 
   hides(asset: AssetSummary): boolean {
+    const min = MIN_RATINGS.find((rating) => rating === this.rating);
+    if (min && (asset.exifInfo?.rating ?? 0) < parseInt(min, 10)) return true;
     if (this.excludeRejected && isRejected(asset)) return true;
     if (this.label === 'any') return false;
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
@@ -152,11 +157,13 @@ export class BrowseControlsStore {
     this.applyFilters(FILTER_DEFAULTS);
   }
 
-  filter(base: BrowseFilter): BrowseFilter {
+  filter(base: BrowseFilter, flatOnly = false): BrowseFilter {
     const filter: BrowseFilter = { ...base, visibility: this.visibility, imagesOnly: true };
+    const rating = this.serverRating(flatOnly);
     if (this.favoriteOnly) filter.favorite = true;
-    if (typeof this.rating === 'number') filter.rating = { eq: this.rating };
-    else if (this.rating === 'unrated') filter.rating = 'unrated';
+    if (typeof rating === 'number') filter.rating = { eq: rating };
+    else if (rating === 'unrated') filter.rating = 'unrated';
+    else if (rating !== 'any') filter.rating = { gte: parseInt(rating, 10) };
     if (this.filename) filter.filename = this.filename;
     if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
     if (this.takenBefore) {
@@ -165,15 +172,25 @@ export class BrowseControlsStore {
     return filter;
   }
 
+  private structured(flatOnly: boolean): boolean {
+    return immichCapabilities.structuredSearch && !flatOnly;
+  }
+
+  private serverRating(flatOnly: boolean): RatingFilter {
+    const min = MIN_RATINGS.some((rating) => rating === this.rating);
+    if (min && !this.structured(flatOnly)) return 'any';
+    return this.rating;
+  }
+
   get sort(): SearchSort {
     return { field: 'taken', direction: this.sortDir };
   }
 
-  get serverFilterKey(): string {
+  serverFilterKey(flatOnly = false): string {
     return [
       this.sortDir,
       this.favoriteOnly,
-      this.rating,
+      this.serverRating(flatOnly),
       this.filename,
       this.visibility,
       this.takenAfter,

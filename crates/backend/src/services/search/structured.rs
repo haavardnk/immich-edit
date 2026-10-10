@@ -25,6 +25,7 @@ pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
     }
     match filter.rating {
         Some(RatingMatch::Eq(stars)) => body.insert("rating".into(), json!({ "eq": stars })),
+        Some(RatingMatch::Gte(stars)) => body.insert("rating".into(), json!({ "gte": stars })),
         Some(RatingMatch::Unrated) => body.insert("rating".into(), json!({ "eq": null })),
         None => None,
     };
