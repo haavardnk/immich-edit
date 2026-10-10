@@ -172,7 +172,9 @@ export class BrowseControlsStore {
       filter.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
     }
     const rejected = this.serverRejected(flatOnly);
+    const label = this.serverLabel(flatOnly);
     if (rejected !== 'any') filter.rejected = rejected;
+    if (label !== 'any') filter.label = label;
     return filter;
   }
 
@@ -184,6 +186,11 @@ export class BrowseControlsStore {
     const min = MIN_RATINGS.some((rating) => rating === this.rating);
     if (min && !this.structured(flatOnly)) return 'any';
     return this.rating;
+  }
+
+  private serverLabel(flatOnly: boolean): LabelFilter {
+    if (this.label === 'none' && !this.structured(flatOnly)) return 'any';
+    return this.label;
   }
 
   private serverRejected(flatOnly: boolean): RejectedFilter {
@@ -204,7 +211,8 @@ export class BrowseControlsStore {
       this.visibility,
       this.takenAfter,
       this.takenBefore,
-      this.serverRejected(flatOnly)
+      this.serverRejected(flatOnly),
+      this.serverLabel(flatOnly)
     ].join('|');
   }
 }

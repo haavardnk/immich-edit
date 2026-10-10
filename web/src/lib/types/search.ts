@@ -1,4 +1,5 @@
 import type { AssetSummary } from './album';
+import type { LabelColor } from '$lib/stores/labels';
 
 export type SortDir = 'asc' | 'desc';
 export type SortField = 'taken';
@@ -17,6 +18,7 @@ export interface BrowseFilter {
   takenAfter?: string;
   takenBefore?: string;
   rejected?: 'hide' | 'only';
+  label?: LabelColor | 'none';
 }
 
 export interface SearchSort {

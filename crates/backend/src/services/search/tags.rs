@@ -1,9 +1,17 @@
 use uuid::Uuid;
 
 use crate::immich::dto::TagSummary;
-use crate::services::search::filter::{BrowseFilter, Rejected, Scope};
+use crate::services::search::filter::{BrowseFilter, Label, Rejected, Scope};
 
 pub const REJECT_TAG: &str = "immich-edit/reject";
+
+const LABEL_COLORS: [Label; 5] = [
+    Label::Red,
+    Label::Yellow,
+    Label::Green,
+    Label::Blue,
+    Label::Purple,
+];
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TagSet {
@@ -12,7 +20,7 @@ pub struct TagSet {
 }
 
 pub fn needs_library(filter: &BrowseFilter) -> bool {
-    filter.rejected.is_some()
+    filter.rejected.is_some() || filter.label.is_some()
 }
 
 pub fn tag_set(filter: &BrowseFilter, library: &[TagSummary]) -> Option<TagSet> {
@@ -27,7 +35,28 @@ pub fn tag_set(filter: &BrowseFilter, library: &[TagSummary]) -> Option<TagSet> 
         (Some(Rejected::Hide), Some(id)) => set.none.push(id),
         (Some(Rejected::Hide), None) | (None, _) => {}
     }
+    match filter.label {
+        Some(Label::None) => set.none.extend(
+            LABEL_COLORS
+                .into_iter()
+                .filter_map(label_tag)
+                .filter_map(|value| find(library, value)),
+        ),
+        Some(label) => set.all.push(find(library, label_tag(label)?)?),
+        None => {}
+    }
     Some(set)
+}
+
+fn label_tag(label: Label) -> Option<&'static str> {
+    match label {
+        Label::None => None,
+        Label::Red => Some("immich-edit/label/red"),
+        Label::Yellow => Some("immich-edit/label/yellow"),
+        Label::Green => Some("immich-edit/label/green"),
+        Label::Blue => Some("immich-edit/label/blue"),
+        Label::Purple => Some("immich-edit/label/purple"),
+    }
 }
 
 fn find(library: &[TagSummary], value: &str) -> Option<Uuid> {
@@ -72,6 +101,39 @@ mod tests {
             };
             if tag_set(&filter_by, &library) != Some(TagSet { all, none }) {
                 panic!("wrong tag set for {rejected:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn label_filters_resolve_label_tags() {
+        let red = tag("immich-edit/label/red");
+        let blue = tag("Immich-Edit/Label/Blue");
+        let library = vec![red.clone(), tag("immich-edit/reject"), blue.clone()];
+        let cases = [
+            (
+                Label::Blue,
+                Some(TagSet {
+                    all: vec![blue.id],
+                    none: vec![],
+                }),
+            ),
+            (
+                Label::None,
+                Some(TagSet {
+                    all: vec![],
+                    none: vec![red.id, blue.id],
+                }),
+            ),
+            (Label::Green, None),
+        ];
+        for (label, expected) in cases {
+            let filter_by = BrowseFilter {
+                label: Some(label),
+                ..BrowseFilter::default()
+            };
+            if tag_set(&filter_by, &library) != expected {
+                panic!("wrong tag set for {label:?}");
             }
         }
     }

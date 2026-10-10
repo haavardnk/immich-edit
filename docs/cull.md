@@ -30,8 +30,10 @@ between newest and oldest first, and each view remembers its own order. **Reset 
 clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
-ones **Label** and **Rejected** are hiding. Description search applies a minimum rating to the
-loaded photos.
+ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
+3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded
+photos instead and the count still includes the ones they hide. Description search works the same
+way on every Immich version, and also applies a minimum rating to the loaded photos.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.

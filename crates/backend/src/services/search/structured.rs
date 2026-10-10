@@ -111,6 +111,7 @@ mod tests {
                 taken_after: None,
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
                 rejected: None,
+                label: None,
             },
             sort: Sort {
                 field: SortField::Taken,

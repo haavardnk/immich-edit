@@ -172,7 +172,8 @@ const SEARCH_FILTER_KEYS = new Set([
   'filename',
   'takenAfter',
   'takenBefore',
-  'rejected'
+  'rejected',
+  'label'
 ]);
 
 const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
@@ -200,10 +201,21 @@ function searchShapeProblem(
   const flat = path === '/api/search/smart' || !structured;
   const minimum =
     typeof filter.rating === 'object' && filter.rating !== null && 'gte' in filter.rating;
-  if (flat && (filter.rejected === 'hide' || minimum)) {
-    return 'flat search cannot exclude rejects or match a minimum rating';
+  if (flat && (filter.rejected === 'hide' || filter.label === 'none' || minimum)) {
+    return 'flat search cannot exclude tags or match a minimum rating';
   }
   return null;
+}
+
+type ManagedFilter = { rejected?: string; label?: string };
+
+function matchesManagedTags(tags: MockTag[], filter: ManagedFilter): boolean {
+  const values = tags.map((t) => t.value.toLowerCase());
+  const rejected = values.includes('immich-edit/reject');
+  if (filter.rejected && rejected !== (filter.rejected === 'only')) return false;
+  if (!filter.label) return true;
+  if (filter.label === 'none') return !values.some((v) => v.startsWith('immich-edit/label/'));
+  return values.includes(`immich-edit/label/${filter.label}`);
 }
 
 export interface InstallOpts {
@@ -279,13 +291,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const searchResult = (body: Record<string, unknown>) => {
     const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const filter = (body.filter ?? {}) as { scope?: { tag?: string } };
+    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
     const sort = body.sort as { direction?: unknown } | undefined;
     const items = expanded(ordered(sort?.direction, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
-      .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)));
+      .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
+      .filter((a) => matchesManagedTags(a.tags, filter));
     const nextCursor =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
@@ -333,8 +346,11 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       if (opts.onMetadata) await opts.onMetadata(body);
       return route.fulfill(json(searchResult(body)));
     }
-    if (p === '/api/search/statistics')
-      return route.fulfill(json({ total: opts.total ?? assets.length }));
+    if (p === '/api/search/statistics') {
+      const filter = ((req.postDataJSON() as { filter?: ManagedFilter }) ?? {}).filter ?? {};
+      const matching = assets.filter((a) => matchesManagedTags(tagsOf(a.id, a.tags), filter));
+      return route.fulfill(json({ total: opts.total ?? matching.length }));
+    }
     if (p === '/api/search/window') {
       const body = req.postDataJSON() as {
         assetId: string;

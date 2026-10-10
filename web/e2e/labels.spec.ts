@@ -44,14 +44,16 @@ test('number keys set, swap and clear a label on the selected photo', async ({ p
     .toEqual(['+mock-tag-1', '-mock-tag-1', '+mock-tag-2', '-mock-tag-2']);
 });
 
-test('the label filter hides other photos and names what it hides', async ({ page }) => {
+test('the label filter asks the server for one color', async ({ page }) => {
+  const filters: Array<Record<string, unknown>> = [];
   await openGrid(page, {
     tags: [{ id: 'green', name: 'green', value: 'immich-edit/label/green' }],
     assets: numberedAssets(2).map((a, i) =>
       i === 0
         ? { ...a, tags: [{ id: 'green', name: 'green', value: 'immich-edit/label/green' }] }
         : a
-    )
+    ),
+    onMetadata: (body) => void filters.push(body.filter as Record<string, unknown>)
   });
   await expect(firstTile(page).getByRole('img', { name: 'Green label' })).toBeVisible();
 
@@ -62,7 +64,8 @@ test('the label filter hides other photos and names what it hides', async ({ pag
   const chips = page.getByRole('list', { name: 'Active filters' });
   await expect(chips).toContainText('Green label');
   await expect(chips.locator('svg.text-green-500')).toHaveCount(1);
-  await expect(page.getByText('2 photos, 1 hidden', { exact: true })).toBeVisible();
+  await expect.poll(() => filters.at(-1)?.label).toBe('green');
+  await expect(page.getByText('1 photo', { exact: true })).toBeVisible();
   await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveCount(0);
 });
 

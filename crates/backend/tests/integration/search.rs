@@ -198,27 +198,41 @@ async fn a_minimum_rating_needs_structured_search() {
 }
 
 #[tokio::test]
-async fn rejected_filters_use_the_reject_tag() {
+async fn managed_tag_filters_follow_the_server_shape() {
     let reject = Uuid::new_v4();
-    for (minor, rejected, body) in [
-        (1, "only", Some(json!({ "tagIds": [reject] }))),
-        (1, "hide", None),
+    let red = Uuid::new_v4();
+    for (minor, filter, body) in [
+        (
+            1,
+            json!({ "rejected": "only" }),
+            Some(json!({ "tagIds": [reject] })),
+        ),
+        (1, json!({ "rejected": "hide" }), None),
+        (
+            1,
+            json!({ "label": "red" }),
+            Some(json!({ "tagIds": [red] })),
+        ),
+        (1, json!({ "label": "none" }), None),
         (
             2,
-            "only",
-            Some(json!({ "filter": { "tagIds": { "all": [reject] } } })),
+            json!({ "rejected": "only", "label": "red" }),
+            Some(json!({ "filter": { "tagIds": { "all": [reject, red] } } })),
         ),
         (
             2,
-            "hide",
-            Some(json!({ "filter": { "tagIds": { "none": [reject] } } })),
+            json!({ "rejected": "hide", "label": "none" }),
+            Some(json!({ "filter": { "tagIds": { "none": [reject, red] } } })),
         ),
     ] {
         let server = MockServer::start().await;
         mock_server_version(&server, 3, minor, 2).await;
         mount_library(
             &server,
-            json!([{ "id": reject, "name": "reject", "value": "immich-edit/reject" }]),
+            json!([
+                { "id": reject, "name": "reject", "value": "immich-edit/reject" },
+                { "id": red, "name": "red", "value": "immich-edit/label/red" }
+            ]),
         )
         .await;
         if let Some(body) = &body {
@@ -226,7 +240,7 @@ async fn rejected_filters_use_the_reject_tag() {
             mount_search(&server, "/api/search/statistics", body.clone(), total, 5).await;
         }
 
-        let query = json!({ "filter": { "rejected": rejected } });
+        let query = json!({ "filter": filter });
         let resp = test_app(&server)
             .await
             .oneshot(json_request("POST", "/api/search/statistics", query))
@@ -238,7 +252,7 @@ async fn rejected_filters_use_the_reject_tag() {
             StatusCode::BAD_REQUEST
         };
         if resp.status() != expected {
-            panic!("3.{minor} rejected {rejected} gave {}", resp.status());
+            panic!("3.{minor} {filter} gave {}", resp.status());
         }
     }
 }

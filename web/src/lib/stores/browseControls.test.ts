@@ -172,9 +172,12 @@ describe('browseControls filter', () => {
       immichCapabilities.structuredSearch = structured;
       const keyBefore = browseControls.serverFilterKey(flatOnly);
       browseControls.rejected = 'hide';
+      browseControls.label = 'none';
       browseControls.rating = '4+';
-      const { rejected, rating } = browseControls.filter({}, flatOnly);
-      expect([rejected, rating]).toEqual(sent ? ['hide', { gte: 4 }] : [undefined, undefined]);
+      const { rejected, label, rating } = browseControls.filter({}, flatOnly);
+      expect([rejected, label, rating]).toEqual(
+        sent ? ['hide', 'none', { gte: 4 }] : [undefined, undefined, undefined]
+      );
       expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent);
     }
   );
@@ -186,5 +189,17 @@ describe('browseControls filter', () => {
   ])('hides a photo rated %s below 4+: %s', (rating, hidden) => {
     browseControls.rating = '4+';
     expect(browseControls.hides(asset(false, rating))).toBe(hidden);
+  });
+
+  it.each([
+    ['red', false, 'red'],
+    ['none', false, undefined],
+    ['none', true, 'none']
+  ] as const)('sends label %s on structured search %s as %s', (label, structured, sent) => {
+    immichCapabilities.structuredSearch = structured;
+    const keyBefore = browseControls.serverFilterKey();
+    browseControls.label = label;
+    expect(browseControls.filter({}).label).toBe(sent);
+    expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
   });
 });
