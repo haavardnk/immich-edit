@@ -47,9 +47,9 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
-    "@immich/ui": "0.89.1",
+    "@immich/ui": "0.90.0",
     "@mdi/js": "^7.4.47",
-    "bits-ui": "2.19.2",
+    "bits-ui": "2.19.4",
     "justified-layout": "^4.1.0",
     "uuid": "^14.0.2"
   },
