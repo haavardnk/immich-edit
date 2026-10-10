@@ -171,7 +171,8 @@ const SEARCH_FILTER_KEYS = new Set([
   'rating',
   'filename',
   'takenAfter',
-  'takenBefore'
+  'takenBefore',
+  'rejected'
 ]);
 
 const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
@@ -199,7 +200,9 @@ function searchShapeProblem(
   const flat = path === '/api/search/smart' || !structured;
   const minimum =
     typeof filter.rating === 'object' && filter.rating !== null && 'gte' in filter.rating;
-  if (flat && minimum) return 'flat search cannot match a minimum rating';
+  if (flat && (filter.rejected === 'hide' || minimum)) {
+    return 'flat search cannot exclude rejects or match a minimum rating';
+  }
   return null;
 }
 

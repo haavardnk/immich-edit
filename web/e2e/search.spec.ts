@@ -74,25 +74,32 @@ test('toggling to filename reruns as metadata search', async ({ page }) => {
   await expect.poll(() => filename(metadataBody)).toBe('red car');
 });
 
-test('smart search hides low ratings in the browser', async ({ page }) => {
-  const [kept, low] = numberedAssets(2, { exifInfo: { rating: 4 } });
-  if (!kept || !low) throw new Error('missing assets');
+test('smart search hides rejects and low ratings in the browser', async ({ page }) => {
+  const [kept, rejected, low] = numberedAssets(3, { exifInfo: { rating: 4 } });
+  if (!kept || !rejected || !low) throw new Error('missing assets');
   let smartRequests = 0;
   page.on('request', (req) => {
     if (new URL(req.url()).pathname === '/api/search/smart') smartRequests += 1;
   });
   await installMocks(page, {
     structuredSearch: true,
-    assets: [kept, { ...low, exifInfo: { rating: 2 } }]
+    assets: [
+      kept,
+      { ...rejected, tags: [{ id: 'r', name: 'reject', value: 'immich-edit/reject' }] },
+      { ...low, exifInfo: { rating: 2 } }
+    ]
   });
   const tile = (id: string) => page.locator(`a[href^="/assets/${id}?"]`);
 
   await page.goto('/search?q=red%20car');
   await expect(tile(low.id)).toBeVisible();
   await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+  await page.getByRole('option', { name: 'Hide', exact: true }).click();
   await page.getByRole('button', { name: 'Rating' }).click();
   await page.getByRole('option', { name: '3+ ★', exact: true }).click();
 
+  await expect(tile(rejected.id)).toBeHidden();
   await expect(tile(low.id)).toBeHidden();
   await expect(tile(kept.id)).toBeVisible();
   expect(smartRequests).toBe(1);

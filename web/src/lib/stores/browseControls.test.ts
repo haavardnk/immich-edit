@@ -29,30 +29,39 @@ function asset(rejected: boolean, rating: number | null = null): AssetSummary {
   };
 }
 
-describe('browseControls excludeRejected', () => {
-  beforeEach(() => browseControls.reset());
-
-  it('is off by default', () => {
-    expect(browseControls.excludeRejected).toBe(false);
-    expect(browseControls.isDefault).toBe(true);
-    expect(browseControls.isFiltered).toBe(false);
+describe('browseControls rejected', () => {
+  beforeEach(() => {
+    immichCapabilities.structuredSearch = false;
+    browseControls.reset();
   });
 
-  it('counts as a filter without changing server query', () => {
+  it('shows rejected photos by default', () => {
+    expect(browseControls.rejected).toBe('any');
+    expect(browseControls.isDefault).toBe(true);
+    expect(browseControls.isFiltered).toBe(false);
+    expect(browseControls.hides(asset(true))).toBe(false);
+  });
+
+  it.each([
+    ['hide', false, undefined],
+    ['hide', true, 'hide'],
+    ['only', false, 'only'],
+    ['only', true, 'only']
+  ] as const)('sends %s on structured search %s as %s', (rejected, structured, sent) => {
+    immichCapabilities.structuredSearch = structured;
     const keyBefore = browseControls.serverFilterKey();
-    const filterBefore = browseControls.filter({});
-    browseControls.excludeRejected = true;
-    expect(browseControls.isDefault).toBe(false);
+    browseControls.rejected = rejected;
     expect(browseControls.isFiltered).toBe(true);
-    expect(browseControls.serverFilterKey()).toBe(keyBefore);
-    expect(browseControls.filter({})).toEqual(filterBefore);
-    expect(browseControls.hides(asset(true))).toBe(true);
+    expect(browseControls.filter({}).rejected).toBe(sent);
+    expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
+    expect(browseControls.hides(asset(true))).toBe(rejected === 'hide');
+    expect(browseControls.hides(asset(false))).toBe(rejected === 'only');
   });
 
   it('is cleared by reset', () => {
-    browseControls.excludeRejected = true;
+    browseControls.rejected = 'only';
     browseControls.reset();
-    expect(browseControls.excludeRejected).toBe(false);
+    expect(browseControls.rejected).toBe('any');
   });
 });
 
@@ -158,12 +167,14 @@ describe('browseControls filter', () => {
     [true, true, false],
     [false, false, false]
   ] as const)(
-    'on structured search %s with flat-only %s sends a minimum rating: %s',
+    'on structured search %s with flat-only %s sends exclusions: %s',
     (structured, flatOnly, sent) => {
       immichCapabilities.structuredSearch = structured;
       const keyBefore = browseControls.serverFilterKey(flatOnly);
+      browseControls.rejected = 'hide';
       browseControls.rating = '4+';
-      expect(browseControls.filter({}, flatOnly).rating).toEqual(sent ? { gte: 4 } : undefined);
+      const { rejected, rating } = browseControls.filter({}, flatOnly);
+      expect([rejected, rating]).toEqual(sent ? ['hide', { gte: 4 }] : [undefined, undefined]);
       expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent);
     }
   );

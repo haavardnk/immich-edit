@@ -20,16 +20,18 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 `red car at night` works. When Immich's machine learning is down, it falls back to searching
 filenames.
 
-**Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Favorites only**,
-**Exclude rejected**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
+**Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Rejected**,
+**Favorites only**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. **Rating** matches one rating, or on Immich 3.2
-and later also a minimum, from **1+ ★** to **4+ ★**. The sort button next to **Filters** flips
+and later also a minimum, from **1+ ★** to **4+ ★**. **Rejected** shows rejects, hides them or
+shows only them; **Only** lets you review everything you rejected before deleting it in Immich.
+The sort button next to **Filters** flips
 between newest and oldest first, and each view remembers its own order. **Reset filters and sort**
 clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
-ones **Label** and **Exclude rejected** are hiding. Description search applies a minimum rating to
-the loaded photos.
+ones **Label** and **Rejected** are hiding. Description search applies a minimum rating to the
+loaded photos.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
@@ -81,8 +83,8 @@ The first time you rate, favorite, tag, reject or label in a browser, immich-edi
 writes to Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in
 Immich, so they show up there too. Reject adds the Immich tag `immich-edit/reject`, and a label
 adds `immich-edit/label/red` and so on, so Immich searches and workflows can use them. immich-edit
-never deletes a photo or moves it to the trash; filter rejects out with **Exclude rejected**, or
-delete them in Immich later.
+never deletes a photo or moves it to the trash; set **Rejected** to **Hide** to filter rejects out,
+or to **Only** to find them and delete them in Immich later.
 
 Photos another Immich user owns, such as a partner's photos in your timeline or another user's
 photos in a shared album, follow Immich's rules: the rating, favorite, reject, label and tag
@@ -127,7 +129,7 @@ removes a pane in compare and survey.
 
 ## A culling pass
 
-1. Open the album, folder or day, and turn on **Exclude rejected**.
+1. Open the album, folder or day, and set **Rejected** to **Hide**.
 1. Press `E` on the first photo. Step through with `→`, pressing `X` on misses and a rating on
    keepers.
 1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.

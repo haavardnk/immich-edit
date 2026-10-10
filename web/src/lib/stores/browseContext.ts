@@ -2,6 +2,7 @@ import { readStored, writeStored } from '$lib/utils/storage';
 import {
   FILTER_DEFAULTS,
   MIN_RATINGS,
+  REJECTED_FILTERS,
   type BrowseFilters,
   type LabelFilter,
   type RatingFilter
@@ -21,7 +22,7 @@ const RATINGS: RatingFilter[] = ['any', 'unrated', 1, 2, 3, 4, 5];
 const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
 const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
-function sanitize(filters: Partial<BrowseFilters>): BrowseFilters {
+function sanitize(filters: Partial<BrowseFilters> & { excludeRejected?: unknown }): BrowseFilters {
   const ratings = immichCapabilities.structuredSearch ? [...RATINGS, ...MIN_RATINGS] : RATINGS;
   return {
     favoriteOnly: filters.favoriteOnly === true,
@@ -30,7 +31,9 @@ function sanitize(filters: Partial<BrowseFilters>): BrowseFilters {
     visibility: VISIBILITIES.find((v) => v === filters.visibility) ?? FILTER_DEFAULTS.visibility,
     takenAfter: typeof filters.takenAfter === 'string' ? filters.takenAfter : '',
     takenBefore: typeof filters.takenBefore === 'string' ? filters.takenBefore : '',
-    excludeRejected: filters.excludeRejected === true,
+    rejected:
+      REJECTED_FILTERS.find((r) => r === filters.rejected) ??
+      (filters.excludeRejected === true ? 'hide' : FILTER_DEFAULTS.rejected),
     label: LABELS.find((l) => l === filters.label) ?? FILTER_DEFAULTS.label
   };
 }

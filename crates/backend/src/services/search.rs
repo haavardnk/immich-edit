@@ -3,24 +3,38 @@ pub mod filter;
 mod flat;
 pub mod query;
 mod structured;
+mod tags;
 pub mod window;
 
+use std::sync::Arc;
+
 use serde::Serialize;
+use tokio::sync::OnceCell;
 use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::ImmichClient;
-use crate::immich::dto::{AssetSummary, SearchAssets};
+use crate::immich::dto::{AssetSummary, SearchAssets, TagSummary};
 use crate::services::immich_capabilities::CapabilityCache;
 use cursor::Cursor;
 use filter::BrowseFilter;
 use query::{PageQuery, SmartQuery, check_size};
+use tags::TagSet;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchPage {
     pub items: Vec<AssetSummary>,
     pub next_cursor: Option<String>,
+}
+
+impl SearchPage {
+    fn empty() -> Self {
+        Self {
+            items: Vec::new(),
+            next_cursor: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,11 +47,16 @@ pub enum SearchShape {
 pub struct Searcher {
     immich: ImmichClient,
     shape: SearchShape,
+    library: Arc<OnceCell<Vec<TagSummary>>>,
 }
 
 impl Searcher {
     pub fn new(immich: ImmichClient, shape: SearchShape) -> Self {
-        Self { immich, shape }
+        Self {
+            immich,
+            shape,
+            library: Arc::new(OnceCell::new()),
+        }
     }
 
     pub async fn connect(
@@ -60,11 +79,14 @@ impl Searcher {
     pub async fn page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {
         check_size(query.size)?;
         let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
+        let Some(tags) = self.tags(&query.filter).await? else {
+            return Ok(SearchPage::empty());
+        };
         if self.shape == SearchShape::Flat {
             let page = flat_page(cursor)?;
             let assets = self
                 .immich
-                .search_metadata(&flat::page(query, page)?)
+                .search_metadata(&flat::page(query, &tags, page)?)
                 .await?;
             return Ok(flat_result(assets));
         }
@@ -75,7 +97,7 @@ impl Searcher {
         };
         let assets = self
             .immich
-            .search_metadata(&structured::page(query, token.as_deref()))
+            .search_metadata(&structured::page(query, &tags, token.as_deref()))
             .await?;
         Ok(SearchPage {
             items: assets.items,
@@ -88,15 +110,24 @@ impl Searcher {
     pub async fn smart(&self, query: &SmartQuery) -> Result<SearchPage, AppError> {
         check_size(query.size)?;
         let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
+        let Some(tags) = self.tags(&query.filter).await? else {
+            return Ok(SearchPage::empty());
+        };
         let page = flat_page(cursor)?;
-        let assets = self.immich.search_smart(&flat::smart(query, page)?).await?;
+        let assets = self
+            .immich
+            .search_smart(&flat::smart(query, &tags, page)?)
+            .await?;
         Ok(flat_result(assets))
     }
 
     pub async fn count(&self, filter: &BrowseFilter) -> Result<u64, AppError> {
+        let Some(tags) = self.tags(filter).await? else {
+            return Ok(0);
+        };
         let body = match self.shape {
-            SearchShape::Flat => flat::count(filter)?,
-            SearchShape::Structured => structured::count(filter),
+            SearchShape::Flat => flat::count(filter, &tags)?,
+            SearchShape::Structured => structured::count(filter, &tags),
         };
         Ok(self.immich.search_statistics(&body).await?.total)
     }
@@ -106,12 +137,26 @@ impl Searcher {
         filter: &BrowseFilter,
         id: Uuid,
     ) -> Result<Option<AssetSummary>, AppError> {
+        let Some(tags) = self.tags(filter).await? else {
+            return Ok(None);
+        };
         let body = match self.shape {
-            SearchShape::Flat => flat::find(filter, id)?,
-            SearchShape::Structured => structured::find(filter, id),
+            SearchShape::Flat => flat::find(filter, &tags, id)?,
+            SearchShape::Structured => structured::find(filter, &tags, id),
         };
         let found = self.immich.search_metadata(&body).await?;
         Ok(found.items.into_iter().next())
+    }
+
+    async fn tags(&self, filter: &BrowseFilter) -> Result<Option<TagSet>, AppError> {
+        if !tags::needs_library(filter) {
+            return Ok(tags::tag_set(filter, &[]));
+        }
+        let library = self
+            .library
+            .get_or_try_init(|| self.immich.list_tags())
+            .await?;
+        Ok(tags::tag_set(filter, library))
     }
 }
 

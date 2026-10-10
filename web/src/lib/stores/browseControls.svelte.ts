@@ -10,6 +10,8 @@ export type MinRating = '1+' | '2+' | '3+' | '4+';
 export const MIN_RATINGS: MinRating[] = ['1+', '2+', '3+', '4+'];
 export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5 | MinRating;
 export type LabelFilter = 'any' | 'none' | LabelColor;
+export type RejectedFilter = 'any' | 'hide' | 'only';
+export const REJECTED_FILTERS: RejectedFilter[] = ['any', 'hide', 'only'];
 export type SortFamily = 'timeline' | 'collection' | 'edited';
 
 export interface BrowseFilters {
@@ -19,7 +21,7 @@ export interface BrowseFilters {
   visibility: Visibility;
   takenAfter: string;
   takenBefore: string;
-  excludeRejected: boolean;
+  rejected: RejectedFilter;
   label: LabelFilter;
 }
 
@@ -38,7 +40,7 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   visibility: 'timeline',
   takenAfter: '',
   takenBefore: '',
-  excludeRejected: false,
+  rejected: 'any',
   label: 'any'
 };
 
@@ -49,7 +51,7 @@ export class BrowseControlsStore {
   visibility = $state<Visibility>('timeline');
   takenAfter = $state('');
   takenBefore = $state('');
-  excludeRejected = $state(false);
+  rejected = $state<RejectedFilter>('any');
   label = $state<LabelFilter>('any');
   private sortByFamily = $state<Record<SortFamily, SortDir>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
@@ -89,7 +91,7 @@ export class BrowseControlsStore {
       this.visibility === 'timeline' &&
       this.takenAfter === '' &&
       this.takenBefore === '' &&
-      !this.excludeRejected &&
+      this.rejected === 'any' &&
       this.label === 'any'
     );
   }
@@ -102,7 +104,7 @@ export class BrowseControlsStore {
       this.visibility !== 'timeline' ||
       this.takenAfter !== '' ||
       this.takenBefore !== '' ||
-      this.excludeRejected ||
+      this.rejected !== 'any' ||
       this.label !== 'any'
     );
   }
@@ -110,7 +112,7 @@ export class BrowseControlsStore {
   hides(asset: AssetSummary): boolean {
     const min = MIN_RATINGS.find((rating) => rating === this.rating);
     if (min && (asset.exifInfo?.rating ?? 0) < parseInt(min, 10)) return true;
-    if (this.excludeRejected && isRejected(asset)) return true;
+    if (this.rejected !== 'any' && isRejected(asset) !== (this.rejected === 'only')) return true;
     if (this.label === 'any') return false;
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
   }
@@ -137,7 +139,7 @@ export class BrowseControlsStore {
       visibility: this.visibility,
       takenAfter: this.takenAfter,
       takenBefore: this.takenBefore,
-      excludeRejected: this.excludeRejected,
+      rejected: this.rejected,
       label: this.label
     };
   }
@@ -149,7 +151,7 @@ export class BrowseControlsStore {
     this.visibility = filters.visibility;
     this.takenAfter = filters.takenAfter;
     this.takenBefore = filters.takenBefore;
-    this.excludeRejected = filters.excludeRejected;
+    this.rejected = filters.rejected;
     this.label = filters.label;
   }
 
@@ -169,6 +171,8 @@ export class BrowseControlsStore {
     if (this.takenBefore) {
       filter.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
     }
+    const rejected = this.serverRejected(flatOnly);
+    if (rejected !== 'any') filter.rejected = rejected;
     return filter;
   }
 
@@ -180,6 +184,11 @@ export class BrowseControlsStore {
     const min = MIN_RATINGS.some((rating) => rating === this.rating);
     if (min && !this.structured(flatOnly)) return 'any';
     return this.rating;
+  }
+
+  private serverRejected(flatOnly: boolean): RejectedFilter {
+    if (this.rejected === 'hide' && !this.structured(flatOnly)) return 'any';
+    return this.rejected;
   }
 
   get sort(): SearchSort {
@@ -194,7 +203,8 @@ export class BrowseControlsStore {
       this.filename,
       this.visibility,
       this.takenAfter,
-      this.takenBefore
+      this.takenBefore,
+      this.serverRejected(flatOnly)
     ].join('|');
   }
 }

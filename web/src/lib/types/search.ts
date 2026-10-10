@@ -16,6 +16,7 @@ export interface BrowseFilter {
   filename?: string;
   takenAfter?: string;
   takenBefore?: string;
+  rejected?: 'hide' | 'only';
 }
 
 export interface SearchSort {

@@ -4,16 +4,26 @@ use uuid::Uuid;
 use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
 use crate::services::search::flat::timestamp;
 use crate::services::search::query::{PageQuery, SortField};
+use crate::services::search::tags::TagSet;
 
-pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
+pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     let mut body = Map::new();
     body.insert("trashedAt".into(), json!({ "eq": null }));
     match filter.scope {
         Some(Scope::Album(id)) => body.insert("albumIds".into(), json!({ "all": [id] })),
         Some(Scope::Person(id)) => body.insert("personIds".into(), json!({ "all": [id] })),
-        Some(Scope::Tag(id)) => body.insert("tagIds".into(), json!({ "all": [id] })),
-        None => None,
+        Some(Scope::Tag(_)) | None => None,
     };
+    let mut tag_ids = Map::new();
+    if !tags.all.is_empty() {
+        tag_ids.insert("all".into(), json!(tags.all));
+    }
+    if !tags.none.is_empty() {
+        tag_ids.insert("none".into(), json!(tags.none));
+    }
+    if !tag_ids.is_empty() {
+        body.insert("tagIds".into(), Value::Object(tag_ids));
+    }
     if filter.favorite {
         body.insert("isFavorite".into(), json!({ "eq": true }));
     }
@@ -47,12 +57,12 @@ pub fn filter(filter: &BrowseFilter) -> Map<String, Value> {
     body
 }
 
-pub fn page(query: &PageQuery, cursor: Option<&str>) -> Value {
+pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
     let field = match query.sort.field {
         SortField::Taken => "fileCreatedAt",
     };
     let mut body = json!({
-        "filter": filter(&query.filter),
+        "filter": filter(&query.filter, tags),
         "orderBy": { "field": field, "direction": query.sort.direction },
         "size": query.size,
     });
@@ -65,14 +75,14 @@ pub fn page(query: &PageQuery, cursor: Option<&str>) -> Value {
     body
 }
 
-pub fn find(filter_by: &BrowseFilter, id: Uuid) -> Value {
-    let mut conditions = filter(filter_by);
+pub fn find(filter_by: &BrowseFilter, tags: &TagSet, id: Uuid) -> Value {
+    let mut conditions = filter(filter_by, tags);
     conditions.insert("id".into(), json!({ "eq": id }));
     json!({ "filter": conditions, "size": 1, "withExif": true })
 }
 
-pub fn count(filter_by: &BrowseFilter) -> Value {
-    json!({ "filter": filter(filter_by) })
+pub fn count(filter_by: &BrowseFilter, tags: &TagSet) -> Value {
+    json!({ "filter": filter(filter_by, tags) })
 }
 
 #[cfg(test)]
@@ -86,6 +96,10 @@ mod tests {
     #[test]
     fn a_browse_page_maps_to_a_structured_immich_filter() {
         let album = Uuid::new_v4();
+        let tags = TagSet {
+            all: vec![Uuid::new_v4()],
+            none: vec![Uuid::new_v4()],
+        };
         let query = PageQuery {
             filter: BrowseFilter {
                 scope: Some(Scope::Album(album)),
@@ -96,6 +110,7 @@ mod tests {
                 filename: Some(" DSC ".into()),
                 taken_after: None,
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
+                rejected: None,
             },
             sort: Sort {
                 field: SortField::Taken,
@@ -109,6 +124,7 @@ mod tests {
             "filter": {
                 "trashedAt": { "eq": null },
                 "albumIds": { "all": [album] },
+                "tagIds": { "all": tags.all, "none": tags.none },
                 "isFavorite": { "eq": true },
                 "visibility": { "eq": "timeline" },
                 "type": { "eq": "IMAGE" },
@@ -121,7 +137,7 @@ mod tests {
             "cursor": "next",
             "withExif": true,
         });
-        let body = page(&query, Some("next"));
+        let body = page(&query, &tags, Some("next"));
         if body != expected {
             panic!("structured body was {body}");
         }
@@ -143,8 +159,9 @@ mod tests {
             "size": 1,
             "withExif": true,
         });
-        if find(&filter_by, id) != expected {
-            panic!("find body was {}", find(&filter_by, id));
+        let body = find(&filter_by, &TagSet::default(), id);
+        if body != expected {
+            panic!("find body was {body}");
         }
     }
 }

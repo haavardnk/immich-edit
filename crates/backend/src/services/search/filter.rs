@@ -21,6 +21,8 @@ pub struct BrowseFilter {
     pub taken_after: Option<DateTime<Utc>>,
     #[serde(default)]
     pub taken_before: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub rejected: Option<Rejected>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -45,4 +47,11 @@ pub enum RatingMatch {
     Eq(u8),
     Gte(u8),
     Unrated,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Rejected {
+    Hide,
+    Only,
 }

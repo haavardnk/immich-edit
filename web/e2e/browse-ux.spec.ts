@@ -168,10 +168,36 @@ test('the count names photos hidden by the reject filter', async ({ page }) => {
   await page.goto('/photos');
 
   await page.getByRole('button', { name: 'Filters' }).click();
-  await page.getByRole('checkbox', { name: 'Exclude rejected' }).click();
+  await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+  await page.getByRole('option', { name: 'Hide', exact: true }).click();
 
   await expect(page.getByText('2 photos, 1 hidden', { exact: true })).toBeVisible();
 });
+
+for (const [structuredSearch, choice, sent] of [
+  [false, 'Hide', undefined],
+  [true, 'Hide', 'hide'],
+  [false, 'Only', 'only']
+] as const) {
+  test(`rejected ${choice} with structured search ${structuredSearch} sends ${sent}`, async ({
+    page
+  }) => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const rejectedAt = (index: number) =>
+      (bodies.at(index)?.filter as { rejected?: string } | undefined)?.rejected;
+    await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
+    await page.goto('/photos');
+
+    await page.getByRole('button', { name: 'Filters' }).click();
+    await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+    await page.getByRole('option', { name: choice, exact: true }).click();
+
+    await expect(
+      page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
+    ).toHaveText([choice === 'Hide' ? 'No rejected' : 'Rejected only']);
+    await expect.poll(() => rejectedAt(-1)).toBe(sent);
+  });
+}
 
 test('select all loads every page and enables local actions', async ({ page }) => {
   const pages: Array<number | undefined> = [];

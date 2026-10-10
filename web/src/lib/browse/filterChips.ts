@@ -27,7 +27,11 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
   if (filters.rating !== FILTER_DEFAULTS.rating)
     chips.push({ key: 'rating', label: ratingLabel(filters.rating) });
   if (filters.favoriteOnly) chips.push({ key: 'favoriteOnly', label: 'Favorites' });
-  if (filters.excludeRejected) chips.push({ key: 'excludeRejected', label: 'No rejected' });
+  if (filters.rejected !== 'any')
+    chips.push({
+      key: 'rejected',
+      label: filters.rejected === 'hide' ? 'No rejected' : 'Rejected only'
+    });
   if (filters.label === 'none') chips.push({ key: 'label', label: 'No label' });
   else if (filters.label !== 'any')
     chips.push({

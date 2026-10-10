@@ -9,7 +9,7 @@ const FILTERS = {
   visibility: 'archive' as const,
   takenAfter: '2024-01-01',
   takenBefore: '2024-02-01',
-  excludeRejected: true,
+  rejected: 'only' as const,
   label: 'purple' as const
 };
 
@@ -55,6 +55,7 @@ describe('browseContext', () => {
     ['visibility', { visibility: 'everywhere' }, 'visibility', 'timeline'],
     ['filename', { filename: 42 }, 'filename', ''],
     ['favoriteOnly', { favoriteOnly: 'yes' }, 'favoriteOnly', false],
+    ['rejected', { rejected: 'never' }, 'rejected', 'any'],
     ['label', { label: 'teal' }, 'label', 'any']
   ])('replaces a corrupt %s with its default', async (_name, patch, field, expected) => {
     const { recallBrowseFilters } = await load();
@@ -73,5 +74,12 @@ describe('browseContext', () => {
     immichCapabilities.structuredSearch = structured;
     store[KEY] = JSON.stringify({ path: '/photos', filters: { ...FILTERS, rating: '3+' } });
     expect(recallBrowseFilters('/photos')?.rating).toBe(expected);
+  });
+
+  it('migrates the old exclude rejected switch', async () => {
+    const { recallBrowseFilters } = await load();
+    const { rejected: _rejected, ...old } = FILTERS;
+    store[KEY] = JSON.stringify({ path: '/photos', filters: { ...old, excludeRejected: true } });
+    expect(recallBrowseFilters('/photos')?.rejected).toBe('hide');
   });
 });

@@ -6,6 +6,7 @@
     browseControls,
     MIN_RATINGS,
     type LabelFilter,
+    type RejectedFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
   import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
@@ -105,6 +106,12 @@
     { value: 'timeline', label: 'Timeline' },
     { value: 'archive', label: 'Archived' },
     { value: 'hidden', label: 'Hidden' }
+  ];
+
+  const rejectedOptions: { value: RejectedFilter; label: string }[] = [
+    { value: 'any', label: 'Show' },
+    { value: 'hide', label: 'Hide' },
+    { value: 'only', label: 'Only' }
   ];
 
   function setRating(value: string): void {
@@ -281,21 +288,22 @@
         </RadioGroup.Root>
       </Field>
 
-      <div class="grid grid-cols-2 gap-2">
-        {#if !favoriteLocked}
-          <CheckboxRow
-            label="Favorites only"
-            checked={browseControls.favoriteOnly}
-            onChange={(checked) => (browseControls.favoriteOnly = checked)}
-          />
-        {/if}
-
-        <CheckboxRow
-          label="Exclude rejected"
-          checked={browseControls.excludeRejected}
-          onChange={(checked) => (browseControls.excludeRejected = checked)}
+      <Field label="Rejected" size="small">
+        <Select
+          size="small"
+          options={rejectedOptions}
+          value={browseControls.rejected}
+          onChange={(v) => (browseControls.rejected = v)}
         />
-      </div>
+      </Field>
+
+      {#if !favoriteLocked}
+        <CheckboxRow
+          label="Favorites only"
+          checked={browseControls.favoriteOnly}
+          onChange={(checked) => (browseControls.favoriteOnly = checked)}
+        />
+      {/if}
 
       {#if !hideFilenameFilter}
         <Field label="Filename" size="small">

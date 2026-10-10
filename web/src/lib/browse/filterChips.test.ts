@@ -15,7 +15,7 @@ describe('browse filter chips', () => {
       visibility: 'archive',
       takenAfter: '2024-01-01',
       takenBefore: '2024-12-31',
-      excludeRejected: true,
+      rejected: 'hide',
       label: 'green'
     });
     expect(chips.map((c) => c.label)).toEqual([
@@ -44,9 +44,16 @@ describe('browse filter chips', () => {
     expect(activeFilterChips({ ...FILTER_DEFAULTS, rating })[0]?.label).toBe(label);
   });
 
+  it.each([
+    ['hide', 'No rejected'],
+    ['only', 'Rejected only']
+  ] as const)('labels rejected %s as %s', (rejected, label) => {
+    expect(activeFilterChips({ ...FILTER_DEFAULTS, rejected })[0]?.label).toBe(label);
+  });
+
   it('removes one filter and keeps the rest', () => {
-    const filters = { ...FILTER_DEFAULTS, rating: 4 as const, excludeRejected: true };
-    expect(withoutFilter(filters, 'rating')).toEqual({ ...FILTER_DEFAULTS, excludeRejected: true });
+    const filters = { ...FILTER_DEFAULTS, rating: 4 as const, rejected: 'only' as const };
+    expect(withoutFilter(filters, 'rating')).toEqual({ ...FILTER_DEFAULTS, rejected: 'only' });
   });
 
   it.each([

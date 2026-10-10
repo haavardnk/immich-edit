@@ -41,6 +41,14 @@ async fn mount_search(
         .await;
 }
 
+async fn mount_library(server: &MockServer, tags: Value) {
+    Mock::given(method("GET"))
+        .and(path("/api/tags"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(tags))
+        .mount(server)
+        .await;
+}
+
 async fn post(app: &axum::Router, uri: &str, body: Value) -> Value {
     let resp = app
         .clone()
@@ -186,6 +194,82 @@ async fn a_minimum_rating_needs_structured_search() {
         if resp.status() != expected {
             panic!("3.{minor} minimum rating gave {}", resp.status());
         }
+    }
+}
+
+#[tokio::test]
+async fn rejected_filters_use_the_reject_tag() {
+    let reject = Uuid::new_v4();
+    for (minor, rejected, body) in [
+        (1, "only", Some(json!({ "tagIds": [reject] }))),
+        (1, "hide", None),
+        (
+            2,
+            "only",
+            Some(json!({ "filter": { "tagIds": { "all": [reject] } } })),
+        ),
+        (
+            2,
+            "hide",
+            Some(json!({ "filter": { "tagIds": { "none": [reject] } } })),
+        ),
+    ] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, minor, 2).await;
+        mount_library(
+            &server,
+            json!([{ "id": reject, "name": "reject", "value": "immich-edit/reject" }]),
+        )
+        .await;
+        if let Some(body) = &body {
+            let total = ResponseTemplate::new(200).set_body_json(json!({ "total": 3 }));
+            mount_search(&server, "/api/search/statistics", body.clone(), total, 5).await;
+        }
+
+        let query = json!({ "filter": { "rejected": rejected } });
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request("POST", "/api/search/statistics", query))
+            .await
+            .unwrap();
+        let expected = if body.is_some() {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_REQUEST
+        };
+        if resp.status() != expected {
+            panic!("3.{minor} rejected {rejected} gave {}", resp.status());
+        }
+    }
+}
+
+#[tokio::test]
+async fn only_rejected_without_a_reject_tag_is_empty() {
+    let server = MockServer::start().await;
+    mock_server_version(&server, 3, 2, 2).await;
+    mount_library(&server, json!([])).await;
+    let app = test_app(&server).await;
+    let filter = json!({ "rejected": "only" });
+
+    let page = post(
+        &app,
+        "/api/search/metadata",
+        json!({ "filter": filter, "size": 10 }),
+    )
+    .await;
+    let stats = post(&app, "/api/search/statistics", json!({ "filter": filter })).await;
+
+    if !ids(&page).is_empty() || !page["nextCursor"].is_null() || stats["total"] != 0 {
+        panic!("only rejected without a reject tag gave {page} and {stats}");
+    }
+    let reached = server
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .iter()
+        .any(|request| request.url.path().starts_with("/api/search/"));
+    if reached {
+        panic!("a search that cannot match must not reach Immich");
     }
 }
 
