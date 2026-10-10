@@ -15,14 +15,10 @@ pub async fn list(
 ) -> Result<Json<Vec<TagSummary>>, AppError> {
     let mut tags = ctx.immich.list_tags().await?;
     let ids: Vec<Uuid> = tags.iter().map(|t| t.id).collect();
+    let searcher = Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await;
     let counts = state
         .tag_counts
-        .counts_for(
-            ctx.owner,
-            ctx.server_epoch,
-            &Searcher::new(ctx.immich.clone()),
-            &ids,
-        )
+        .counts_for(ctx.owner, ctx.server_epoch, &searcher, &ids)
         .await;
     for tag in &mut tags {
         tag.asset_count = counts.get(&tag.id).copied();

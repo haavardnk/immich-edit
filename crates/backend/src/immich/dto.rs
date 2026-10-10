@@ -248,6 +248,8 @@ pub struct SearchAssets {
     pub total: u32,
     #[serde(rename = "nextPage", default)]
     pub next_page: Option<String>,
+    #[serde(rename = "nextCursor", default)]
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

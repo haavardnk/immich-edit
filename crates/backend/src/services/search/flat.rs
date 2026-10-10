@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
 use crate::services::search::query::{PageQuery, SmartQuery};
 
-fn timestamp(at: DateTime<Utc>) -> Value {
+pub fn timestamp(at: DateTime<Utc>) -> Value {
     at.to_rfc3339_opts(SecondsFormat::Millis, true).into()
 }
 

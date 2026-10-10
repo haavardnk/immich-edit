@@ -106,6 +106,7 @@ mod tests {
     use super::*;
     use crate::immich::ImmichClient;
     use crate::immich::client::ImmichAuth;
+    use crate::services::search::SearchShape;
 
     struct FakeSearch {
         assets: Vec<(DateTime<Utc>, Uuid)>,
@@ -176,7 +177,7 @@ mod tests {
             Duration::from_secs(5),
         )
         .unwrap();
-        let searcher = Searcher::new(immich);
+        let searcher = Searcher::new(immich, SearchShape::Flat);
         let filter = BrowseFilter::default();
         let mut sorted = assets.clone();
         sorted.sort();

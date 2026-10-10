@@ -18,14 +18,10 @@ pub async fn list(
 ) -> Result<Json<Vec<PersonSummary>>, AppError> {
     let mut people = ctx.immich.list_people(true).await?;
     let ids: Vec<Uuid> = people.iter().map(|p| p.id).collect();
+    let searcher = Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await;
     let counts = state
         .people_counts
-        .counts_for(
-            ctx.owner,
-            ctx.server_epoch,
-            &Searcher::new(ctx.immich.clone()),
-            &ids,
-        )
+        .counts_for(ctx.owner, ctx.server_epoch, &searcher, &ids)
         .await;
     for person in &mut people {
         person.asset_count = counts.get(&person.id).copied();

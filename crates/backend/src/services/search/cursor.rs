@@ -8,9 +8,14 @@ use crate::error::AppError;
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Cursor {
     Page { page: u32 },
+    Immich { token: String },
 }
 
 impl Cursor {
+    pub fn mismatch() -> AppError {
+        AppError::BadRequest("search cursor does not match this Immich server".into())
+    }
+
     pub fn encode(&self) -> String {
         let json = serde_json::to_vec(self).unwrap_or_default();
         URL_SAFE_NO_PAD.encode(json)

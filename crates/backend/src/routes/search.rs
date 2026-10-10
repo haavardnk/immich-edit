@@ -29,12 +29,16 @@ pub struct SearchWindow {
     items: Vec<AssetSummary>,
 }
 
+async fn searcher(state: &AppState, ctx: &AuthCtx) -> Searcher {
+    Searcher::connect(&state.capabilities, ctx.server_epoch, &ctx.immich).await
+}
+
 pub async fn metadata(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Json(query): Json<PageQuery>,
 ) -> Result<Json<SearchPage>, AppError> {
-    let mut page = Searcher::new(ctx.immich.clone()).page(&query).await?;
+    let mut page = searcher(&state, &ctx).await.page(&query).await?;
     page.items = expand_assets(&state.edits, ctx.owner, page.items).await?;
     Ok(Json(page))
 }
@@ -44,18 +48,17 @@ pub async fn smart(
     ctx: AuthCtx,
     Json(query): Json<SmartQuery>,
 ) -> Result<Json<SearchPage>, AppError> {
-    let mut page = Searcher::new(ctx.immich.clone()).smart(&query).await?;
+    let mut page = searcher(&state, &ctx).await.smart(&query).await?;
     page.items = expand_assets(&state.edits, ctx.owner, page.items).await?;
     Ok(Json(page))
 }
 
 pub async fn statistics(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Json(query): Json<CountQuery>,
 ) -> Result<Json<SearchStatistics>, AppError> {
-    let total = Searcher::new(ctx.immich.clone())
-        .count(&query.filter)
-        .await?;
+    let total = searcher(&state, &ctx).await.count(&query.filter).await?;
     Ok(Json(SearchStatistics { total }))
 }
 
@@ -69,7 +72,7 @@ pub async fn window(
             "radius must be 1 to {MAX_RADIUS}"
         )));
     }
-    let searcher = Searcher::new(ctx.immich.clone());
+    let searcher = searcher(&state, &ctx).await;
     let anchor = body.asset_id.source();
     let items = window::around(&searcher, &body.filter, body.sort, anchor, body.radius).await?;
     let items = expand_assets(&state.edits, ctx.owner, items).await?;
