@@ -61,11 +61,11 @@ impl GpuContext {
             .min(adapter_limits.max_texture_dimension_2d);
         limits.max_storage_buffer_binding_size = limits
             .max_storage_buffer_binding_size
-            .max(256 * 1024 * 1024)
+            .max(1024 * 1024 * 1024)
             .min(adapter_limits.max_storage_buffer_binding_size);
         limits.max_buffer_size = limits
             .max_buffer_size
-            .max(512 * 1024 * 1024)
+            .max(1024 * 1024 * 1024)
             .min(adapter_limits.max_buffer_size);
 
         let timestamps = timestamps && adapter.features().contains(Features::TIMESTAMP_QUERY);
