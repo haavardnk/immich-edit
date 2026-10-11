@@ -168,18 +168,29 @@ export class BrowseControlsStore {
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
   }
 
-  private context: string | null = null;
+  private corrected = false;
 
   reset(): void {
     this.resetFilters();
     this.setSort(SORT_DEFAULTS[this.family]);
   }
 
-  enter(context: string, family: SortFamily | null): void {
+  enter(family: SortFamily | null, filters: BrowseFilters): void {
     if (family) this.family = family;
-    if (this.context === context) return;
-    this.context = context;
-    this.resetFilters();
+    this.applyFilters(filters);
+  }
+
+  prune(key: ExifFilterKey, available: string[]): void {
+    const kept = this[key].filter((value) => available.includes(value));
+    if (kept.length === this[key].length) return;
+    this.corrected = true;
+    this[key] = kept;
+  }
+
+  takeCorrected(): boolean {
+    const corrected = this.corrected;
+    this.corrected = false;
+    return corrected;
   }
 
   get filters(): BrowseFilters {

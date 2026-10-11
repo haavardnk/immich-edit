@@ -7,9 +7,7 @@
   import { isBackendDown } from '$lib/api/client';
   import { session } from '$lib/stores/session.svelte';
   import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { rememberBrowseContext } from '$lib/stores/browseContext';
-  import { matchBrowseRoute } from '$lib/browse/restore';
+  import { syncFilterUrl } from '$lib/browse/filterUrl.svelte';
   import { installFocusPolicy } from '$lib/utils/pointerFocus';
   import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
   import Shell from '$lib/components/shell/Shell.svelte';
@@ -57,11 +55,7 @@
     }
   });
 
-  $effect(() => {
-    const filters = browseControls.filters;
-    if (!matchBrowseRoute(page.url)) return;
-    rememberBrowseContext(`${page.url.pathname}${page.url.search}`, filters);
-  });
+  syncFilterUrl(() => bootState === 'ready');
 </script>
 
 <TooltipProvider>

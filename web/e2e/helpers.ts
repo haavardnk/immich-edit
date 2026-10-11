@@ -633,6 +633,13 @@ export async function gotoAsset(page: Page): Promise<void> {
   await expect(toolbar.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
 }
 
+export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  const panel = page.getByRole('complementary', { name: 'Filters' });
+  for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
+  return panel;
+}
+
 export async function focusRingClipped(target: Locator): Promise<string> {
   await target.focus();
   return target.evaluate((el) => {

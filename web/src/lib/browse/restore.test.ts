@@ -7,27 +7,29 @@ function route(href: string) {
 
 describe('matchBrowseRoute', () => {
   it.each([
-    ['/photos', 'photos', 'timeline', {}],
-    ['/favorites', 'favorites', 'timeline', { favorite: true }],
-    ['/albums/a1', 'album:a1', 'collection', { scope: { album: 'a1' } }],
-    ['/people/p1', 'person:p1', 'collection', { scope: { person: 'p1' } }],
-    ['/tags/t1', 'tag:t1', 'collection', { scope: { tag: 't1' } }]
-  ])('resolves %s to a search feed', (href, context, family, filter) => {
+    ['/photos', 'timeline', {}],
+    ['/favorites', 'timeline', { favorite: true }],
+    ['/albums/a1', 'collection', { scope: { album: 'a1' } }],
+    ['/people/p1', 'collection', { scope: { person: 'p1' } }],
+    ['/tags/t1', 'collection', { scope: { tag: 't1' } }]
+  ])('resolves %s to a search feed', (href, family, filter) => {
     const match = route(href);
     expect(match).not.toBeNull();
-    expect(match?.context).toBe(context);
     expect(match?.family).toBe(family);
     expect(match && 'feed' in match && match.feed.baseFilter()).toEqual(filter);
   });
 
   it('decodes an id that was percent encoded in the return path', () => {
     const match = route('/tags/parent%2Fchild');
-    expect(match?.context).toBe('tag:parent/child');
+    expect(match && 'feed' in match && match.feed.baseFilter()).toEqual({
+      scope: { tag: 'parent/child' }
+    });
   });
 
   it('carries the query and mode into a search feed', () => {
-    const match = route('/search?q=%20sunset%20&mode=filename');
-    expect(match?.context).toBe('search:sunset');
+    const match = route('/search?q=%20sunset%20&mode=description');
+    expect(match?.family).toBeNull();
+    expect(match && 'feed' in match && match.feed.flatOnly?.()).toBe(true);
     expect(match && 'feed' in match && match.feed.baseFilter()).toEqual({});
   });
 
@@ -42,11 +44,10 @@ describe('matchBrowseRoute', () => {
   });
 
   it.each([
-    ['/folders?path=%2Fmedia%2F2024', 'folders', 'collection'],
-    ['/edited', 'edited', 'edited']
-  ])('resolves %s to a direct loader', (href, context, family) => {
+    ['/folders?path=%2Fmedia%2F2024', 'collection'],
+    ['/edited', 'edited']
+  ])('resolves %s to a direct loader', (href, family) => {
     const match = route(href);
-    expect(match?.context).toBe(context);
     expect(match?.family).toBe(family);
     expect(match && 'load' in match).toBe(true);
   });

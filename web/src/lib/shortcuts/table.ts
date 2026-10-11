@@ -137,6 +137,13 @@ export const KEYBINDS = [
     label: 'Cycle thumbnail info: hover only, badges, name and date'
   },
   {
+    id: 'toggleFilters',
+    keys: ['Shift+f'],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Show or hide the filter panel'
+  },
+  {
     id: 'gridSelectAll',
     keys: ['Mod+a'],
     contexts: ['grid'],

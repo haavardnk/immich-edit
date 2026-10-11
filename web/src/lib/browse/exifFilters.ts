@@ -3,12 +3,11 @@ import type { SuggestionField, SuggestionQuery } from '$lib/types/search';
 export type ExifFilterKey = SuggestionField;
 type SuggestionParent = Exclude<keyof SuggestionQuery, 'field'>;
 
-export const EXIF_GROUPS: ExifFilterKey[][] = [
-  ['make', 'model', 'lensModel'],
-  ['country', 'state', 'city']
-];
+export const CAMERA_FILTERS: ExifFilterKey[] = ['make', 'model', 'lensModel'];
 
-export const EXIF_FILTERS: ExifFilterKey[] = EXIF_GROUPS.flat();
+export const PLACE_FILTERS: ExifFilterKey[] = ['country', 'state', 'city'];
+
+export const EXIF_FILTERS: ExifFilterKey[] = [...CAMERA_FILTERS, ...PLACE_FILTERS];
 
 export const UNKNOWN_EXIF = '';
 

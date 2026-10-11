@@ -1,19 +1,7 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import RatingFilter from '$lib/components/browse/RatingFilter.svelte';
-  import ExifFilter from '$lib/components/browse/ExifFilter.svelte';
-  import { EXIF_GROUPS } from '$lib/browse/exifFilters';
   import SortMenu from '$lib/components/browse/SortMenu.svelte';
-  import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '$lib/components/browse/segmented';
-  import {
-    browseControls,
-    type LabelFilter,
-    type RejectedFilter,
-    type Visibility
-  } from '$lib/stores/browseControls.svelte';
-  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
+  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
   import {
@@ -22,15 +10,13 @@
     withoutFilter,
     type FilterKey
   } from '$lib/browse/filterChips';
-  import { Button, DatePicker, Field, Icon, IconButton, Label, Select, Tooltip } from '@immich/ui';
-  import { RadioGroup } from 'bits-ui';
-  import { DateTime } from 'luxon';
+  import { Button, Icon, IconButton } from '@immich/ui';
+  import { tick } from 'svelte';
   import {
     mdiSortAscending,
     mdiSortDescending,
     mdiFilterOutline,
     mdiCircle,
-    mdiCircleOffOutline,
     mdiClose,
     mdiTextBoxOutline
   } from '@mdi/js';
@@ -39,17 +25,13 @@
     title,
     totalCount,
     hiddenCount = 0,
-    favoriteLocked = false,
     hideSort = false,
-    hideFilenameFilter = false,
     sortBasis = 'capture'
   }: {
     title: string;
     totalCount?: number;
     hiddenCount?: number;
-    favoriteLocked?: boolean;
     hideSort?: boolean;
-    hideFilenameFilter?: boolean;
     sortBasis?: 'capture' | 'edit';
   } = $props();
 
@@ -63,41 +45,16 @@
     browseControls.sortDir === 'asc' ? 'Oldest edit first' : 'Newest edit first'
   );
 
-  let filterOpen = $state(false);
-  let filenameLocal = $state(browseControls.filename);
-  let filenameTimer: ReturnType<typeof setTimeout> | null = null;
-
-  $effect(() => {
-    if (browseControls.filename !== filenameLocal && filenameTimer === null) {
-      filenameLocal = browseControls.filename;
-    }
-  });
-
-  function onFilenameInput(e: Event): void {
-    filenameLocal = (e.target as HTMLInputElement).value;
-    if (filenameTimer) clearTimeout(filenameTimer);
-    filenameTimer = setTimeout(() => {
-      browseControls.filename = filenameLocal;
-      filenameTimer = null;
-    }, 350);
-  }
-
   const hasFilter = $derived(browseControls.isFiltered);
-
-  const visibilityOptions: { value: Visibility; label: string }[] = [
-    { value: 'timeline', label: 'Timeline' },
-    { value: 'archive', label: 'Archived' },
-    { value: 'hidden', label: 'Hidden' }
-  ];
-
-  const rejectedOptions: { value: RejectedFilter; label: string }[] = [
-    { value: 'any', label: 'Show' },
-    { value: 'hide', label: 'Hide' },
-    { value: 'only', label: 'Only' }
-  ];
 
   function toggleDir(): void {
     browseControls.setSortDir(browseControls.sortDir === 'asc' ? 'desc' : 'asc');
+  }
+
+  async function openFilters(): Promise<void> {
+    browseView.setFiltersOpen(true);
+    await tick();
+    document.getElementById('browse-filters-close')?.focus();
   }
 
   const sizeOptions: { value: GridSize; label: string }[] = [
@@ -182,160 +139,18 @@
       />
     {/if}
 
-    <Popover
-      open={filterOpen}
-      align="end"
-      onOpenChange={(v) => (filterOpen = v)}
-      contentClass="flex min-w-55 flex-col gap-2.5 p-3"
-      tooltip="Filters"
-    >
-      {#snippet trigger(popoverProps)}
-        <IconButton
-          size="small"
-          variant="ghost"
-          color={hasFilter ? 'primary' : 'secondary'}
-          icon={mdiFilterOutline}
-          title=""
-          aria-label={hasFilter ? 'Filters (active)' : 'Filters'}
-          {...popoverProps}
-        />
-      {/snippet}
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] text-dark/65 font-medium">Filters</span>
-        <IconButton
-          size="small"
-          variant="ghost"
-          color="secondary"
-          icon={mdiClose}
-          aria-label="Close filters"
-          onclick={() => (filterOpen = false)}
-        />
-      </div>
-
-      <Field label="Visibility" size="small">
-        <Select
-          size="small"
-          options={visibilityOptions}
-          value={browseControls.visibility}
-          onChange={(v) => (browseControls.visibility = v)}
-        />
-      </Field>
-
-      <RatingFilter />
-
-      <div class="flex flex-col gap-1">
-        <Label label="Label" size="small" />
-        <RadioGroup.Root
-          bind:value={() => browseControls.label, (v) => (browseControls.label = v as LabelFilter)}
-          orientation="horizontal"
-          aria-label="Label"
-          class="{SEGMENTED_GROUP_CLASS} h-10"
-        >
-          <div class="flex shrink-0 gap-1">
-            <RadioGroup.Item value="any" class="{SEGMENTED_ITEM_CLASS} px-2">Any</RadioGroup.Item>
-            <Tooltip text="No label">
-              {#snippet child({ props })}
-                <RadioGroup.Item
-                  {...props}
-                  value="none"
-                  aria-label="No label"
-                  class="{SEGMENTED_ITEM_CLASS} px-2"
-                >
-                  <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
-                </RadioGroup.Item>
-              {/snippet}
-            </Tooltip>
-          </div>
-          <span class="my-1 w-px shrink-0 bg-gray-300 dark:bg-gray-600" aria-hidden="true"></span>
-          {#each LABEL_COLORS as color (color)}
-            <Tooltip text={`${LABEL_NAMES[color]} label`}>
-              {#snippet child({ props })}
-                <RadioGroup.Item
-                  {...props}
-                  value={color}
-                  aria-label={`${LABEL_NAMES[color]} label`}
-                  class={SEGMENTED_ITEM_CLASS}
-                >
-                  <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
-                </RadioGroup.Item>
-              {/snippet}
-            </Tooltip>
-          {/each}
-        </RadioGroup.Root>
-      </div>
-
-      <Field label="Rejected" size="small">
-        <Select
-          size="small"
-          options={rejectedOptions}
-          value={browseControls.rejected}
-          onChange={(v) => (browseControls.rejected = v)}
-        />
-      </Field>
-
-      {#if !favoriteLocked}
-        <CheckboxRow
-          label="Favorites only"
-          checked={browseControls.favoriteOnly}
-          onChange={(checked) => (browseControls.favoriteOnly = checked)}
-        />
-      {/if}
-
-      {#if !hideFilenameFilter}
-        <Field label="Filename" size="small">
-          <TextInput
-            size="small"
-            type="text"
-            placeholder="Search…"
-            value={filenameLocal}
-            oninput={onFilenameInput}
-          />
-        </Field>
-      {/if}
-
-      <div class="grid grid-cols-2 gap-2">
-        <Field label="Taken after" size="small">
-          <DatePicker
-            bind:value={
-              () =>
-                browseControls.takenAfter ? DateTime.fromISO(browseControls.takenAfter) : undefined,
-              (date) => (browseControls.takenAfter = date?.toISODate() ?? '')
-            }
-          />
-        </Field>
-        <Field label="Taken before" size="small">
-          <DatePicker
-            bind:value={
-              () =>
-                browseControls.takenBefore
-                  ? DateTime.fromISO(browseControls.takenBefore)
-                  : undefined,
-              (date) => (browseControls.takenBefore = date?.toISODate() ?? '')
-            }
-          />
-        </Field>
-      </div>
-
-      {#each EXIF_GROUPS as group, index (index)}
-        <div class="grid grid-cols-2 gap-2">
-          {#each group as key, position (key)}
-            <ExifFilter {key} wide={position === group.length - 1} />
-          {/each}
-        </div>
-      {/each}
-
-      {#if !browseControls.isDefault}
-        <Button
-          size="small"
-          variant="ghost"
-          color="primary"
-          class="self-start"
-          onclick={() => browseControls.reset()}
-        >
-          Reset all
-        </Button>
-      {/if}
-    </Popover>
+    {#if !browseView.filtersOpen}
+      <IconButton
+        id="browse-filters-toggle"
+        size="small"
+        variant="ghost"
+        color={hasFilter ? 'primary' : 'secondary'}
+        icon={mdiFilterOutline}
+        title={hint('Filters', 'toggleFilters')}
+        aria-label={hasFilter ? 'Filters (active)' : 'Filters'}
+        onclick={openFilters}
+      />
+    {/if}
   </div>
 </header>
 {#if chips.length > 0}

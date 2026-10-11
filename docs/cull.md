@@ -20,9 +20,15 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 `red car at night` works. When Immich's machine learning is down, it falls back to searching
 filenames.
 
-**Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Rejected**,
-**Favorites only**, **Filename**, **Taken after**, **Taken before**, **Make**, **Model**, **Lens**,
-**Country**, **State** and **City**. **Visibility** switches
+**Filters**, or `Shift+F`, opens the filter panel on the right of the grid; its close button or
+`Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
+groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**), **Rating &
+label**, **Date** (**Taken after**, **Taken before**), **Camera** (**Make**, **Model**, **Lens**),
+**Place** (**Country**, **State**, **City**) and **File** (**Filename**). Search has no **File**
+section. Sections start folded; click a section title to open or fold it. A section with an active
+filter shows a reset button that clears only that section, and **Reset** at the top of the panel
+clears every filter. The panel remembers whether it was open and which sections you
+left open. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
 default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
@@ -43,6 +49,11 @@ page, not only the loaded ones. Unrated photos come last in both orders, and pho
 rating keep no particular order. Each view remembers its own order, so **Date added** with
 **Newest first** shows your latest uploads. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
+Filters live in the page address, so a reload keeps them, Back and Forward step through your
+filter changes, and a bookmark or shared link opens the same filtered view. Typing a filename or
+changing a date that is already set updates the address without adding a Back step. Each album,
+folder, person or tag starts unfiltered, as does the **Photos** link in the sidebar. The sort order
+is not part of the address; each view remembers its own.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
 3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded

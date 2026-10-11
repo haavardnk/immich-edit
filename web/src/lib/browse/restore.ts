@@ -4,7 +4,7 @@ import { validReturnPath } from '$lib/editor/navigation';
 import { resolveSearchMode } from './searchMode';
 import { fieldKey, sortAssets, timeOf, type SortKey } from './sortAssets';
 import { browseControls, type SortFamily } from '$lib/stores/browseControls.svelte';
-import { recallBrowseFilters } from '$lib/stores/browseContext';
+import { readFilterParams } from './filterParams';
 import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
 import { browsing } from '$lib/stores/browsing.svelte';
 import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
@@ -13,7 +13,6 @@ import type { AssetSummary } from '$lib/types/album';
 const WINDOW_RADIUS = 250;
 
 interface RouteBase {
-  context: string;
   family: SortFamily | null;
 }
 
@@ -35,11 +34,10 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   const pathname = url.pathname;
 
   if (pathname === '/photos') {
-    return { context: 'photos', family: 'timeline', feed: { baseFilter: () => ({}) } };
+    return { family: 'timeline', feed: { baseFilter: () => ({}) } };
   }
   if (pathname === '/favorites') {
     return {
-      context: 'favorites',
       family: 'timeline',
       feed: { baseFilter: () => ({ favorite: true }) }
     };
@@ -48,7 +46,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   const albumId = segment(pathname, '/albums/');
   if (albumId) {
     return {
-      context: 'album:' + albumId,
       family: 'collection',
       feed: { baseFilter: () => ({ scope: { album: albumId } }) }
     };
@@ -57,7 +54,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   const personId = segment(pathname, '/people/');
   if (personId) {
     return {
-      context: 'person:' + personId,
       family: 'collection',
       feed: { baseFilter: () => ({ scope: { person: personId } }) }
     };
@@ -66,7 +62,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   const tagId = segment(pathname, '/tags/');
   if (tagId) {
     return {
-      context: 'tag:' + tagId,
       family: 'collection',
       feed: { baseFilter: () => ({ scope: { tag: tagId } }) }
     };
@@ -77,7 +72,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     if (!query) return null;
     const mode = resolveSearchMode(query, url.searchParams.get('mode'));
     return {
-      context: 'search:' + query,
       family: null,
       feed: {
         baseFilter: () => ({}),
@@ -92,7 +86,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     const folder = url.searchParams.get('path') ?? '';
     if (!folder) return null;
     return {
-      context: 'folders',
       family: 'collection',
       load: () => loadFolderAssets(folder),
       sortKey: () => fieldKey(browseControls.sortField)
@@ -101,7 +94,6 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
 
   if (pathname === '/edited') {
     return {
-      context: 'edited',
       family: 'edited',
       load: loadEditedAssets,
       sortKey: () => (a) => timeOf(a.updatedAt)
@@ -113,12 +105,11 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
 
 export async function restoreBrowse(from: string | null, assetId: string): Promise<void> {
   const returnPath = validReturnPath(from) ? from : null;
-  const route = matchBrowseRoute(new URL(returnPath ?? '/photos', 'http://restore.invalid'));
+  const url = new URL(returnPath ?? '/photos', 'http://restore.invalid');
+  const route = matchBrowseRoute(url);
   if (!route) return;
 
-  browseControls.enter(route.context, route.family);
-  const filters = returnPath ? recallBrowseFilters(returnPath) : null;
-  if (filters) browseControls.applyFilters(filters);
+  browseControls.enter(route.family, readFilterParams(url.searchParams));
 
   if ('feed' in route) {
     if (!route.feed.fetcher && (await restoreWindow(route.feed, assetId))) return;

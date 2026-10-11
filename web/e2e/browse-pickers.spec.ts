@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installMocks, numberedAssets } from './helpers';
+import { installMocks, numberedAssets, openFilters } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
@@ -24,7 +24,7 @@ test('one camera pick narrows the lens list on flat search', async ({ page }) =>
   });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Camera');
   const make = page.getByRole('combobox', { name: 'Make' });
   await make.click();
   await page.getByRole('option', { name: 'SONY' }).click();
@@ -46,7 +46,7 @@ test('several cameras match together and a removed make prunes its models', asyn
   });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Camera');
   const make = page.getByRole('combobox', { name: 'Make' });
   await make.click();
   await page.getByRole('option', { name: 'SONY' }).click();
@@ -81,7 +81,7 @@ test('an unknown lens matches photos without one and excludes named lenses', asy
   });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Camera');
   const lens = page.getByRole('combobox', { name: 'Lens' });
   await lens.click();
   await expect(page.getByRole('option')).toHaveText([
@@ -93,6 +93,7 @@ test('an unknown lens matches photos without one and excludes named lenses', asy
   await page.getByRole('option', { name: 'FE 35mm F1.8' }).click();
   await page.getByRole('option', { name: 'Unknown' }).click();
   await expect.poll(() => filter().lensModel).toEqual([null]);
+  await expect(page).toHaveURL(/[?&]lens=(&|$)/);
   await expect(page.locator(`div[title="${bare.originalFileName}"]`)).toHaveCount(1);
   await expect(page.locator('div[title="IMG_0001.ARW"]')).toHaveCount(0);
   await page.getByRole('option', { name: 'FE 85mm F1.8' }).click();
@@ -117,7 +118,7 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await installMocks(page, { assets, onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Place');
   await page.getByRole('combobox', { name: 'Country' }).click();
   await page.getByRole('option', { name: 'Norway' }).click();
   await expect.poll(() => filter().country).toEqual(['Norway']);
@@ -132,26 +133,13 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await expect(page.getByRole('option')).toHaveText(['Bergen']);
 });
 
-test('filter pickers join the list edge it opens on and keep the popover size', async ({
-  page
-}) => {
+test('filter pickers join the list edge they open on', async ({ page }) => {
   await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
+  await page.setViewportSize({ width: 1280, height: 530 });
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Filters' }).click();
-  const make = page.getByRole('combobox', { name: 'Make' });
-  await make.click();
-  await page.getByRole('option', { name: 'SONY' }).click();
-  await page.keyboard.press('Escape');
-  await expect(make).toHaveAttribute('aria-expanded', 'false');
-
-  await page.evaluate(() => {
-    const popover = document.querySelector('[data-popover-content]') as HTMLElement;
-    const widths: number[] = [];
-    Object.assign(window, { popoverWidths: widths });
-    new ResizeObserver(() => widths.push(popover.offsetWidth)).observe(popover);
-  });
+  await openFilters(page, 'Library', 'Camera');
   const sides: string[] = [];
-  for (const name of ['Make', 'City']) {
+  for (const name of ['Make', 'Lens']) {
     const picker = page.getByRole('combobox', { name });
     await picker.click();
     const side = (await page.locator('[data-combobox-content]').getAttribute('data-side')) ?? '';
@@ -167,9 +155,5 @@ test('filter pickers join the list edge it opens on and keep the popover size', 
     await page.keyboard.press('Escape');
     await expect(picker).toHaveAttribute('aria-expanded', 'false');
   }
-  const widths = await page.evaluate(
-    () => (window as unknown as { popoverWidths: number[] }).popoverWidths
-  );
-  expect(new Set(widths).size).toBe(1);
-  expect(sides).toEqual(['top', 'bottom']);
+  expect(sides).toEqual(['bottom', 'top']);
 });

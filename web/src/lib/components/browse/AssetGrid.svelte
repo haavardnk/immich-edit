@@ -416,6 +416,11 @@
   }
 
   afterNavigate(() => {
+    const path = `${window.location.pathname}${window.location.search}`;
+    if (scrollKey && scrollKey !== path) {
+      scrollKey = path;
+      browseView.setLastGridPath(path);
+    }
     restoreScroll();
   });
 

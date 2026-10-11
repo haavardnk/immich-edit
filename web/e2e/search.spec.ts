@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, installMocks, numberedAssets } from './helpers';
+import { ASSET_ID, installMocks, numberedAssets, openFilters } from './helpers';
 
 const TILE = `a[href^="/assets/${ASSET_ID}?"]`;
 
@@ -93,12 +93,11 @@ test('smart search hides rejects and low ratings in the browser', async ({ page 
 
   await page.goto('/search?q=red%20car');
   await expect(tile(low.id)).toBeVisible();
-  await page.getByRole('button', { name: 'Filters' }).click();
+  const panel = await openFilters(page, 'Library', 'Rating & label');
+  await expect(panel.getByRole('button', { name: 'File', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Hide', exact: true }).click();
-  const rating = page
-    .locator('[data-popover-content]')
-    .getByRole('radiogroup', { name: 'Rating', exact: true });
+  const rating = panel.getByRole('radiogroup', { name: 'Rating', exact: true });
   await rating.getByRole('radio', { name: '3 stars' }).click();
 
   await expect(tile(rejected.id)).toBeHidden();

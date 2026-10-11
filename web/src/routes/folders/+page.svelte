@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { onMount, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { loadFolderAssets } from '$lib/browse/sources';
+  import { readFilterParams } from '$lib/browse/filterParams';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { fieldKey, sortAssets } from '$lib/browse/sortAssets';
@@ -27,15 +28,14 @@
 
   $effect(() => {
     const p = queryPath;
-    void untrack(() => loadFolder(p));
+    untrack(() => {
+      browseControls.enter('collection', readFilterParams(page.url.searchParams));
+      void loadFolder(p);
+    });
   });
 
   $effect(() => {
     browsing.set(assets);
-  });
-
-  onMount(() => {
-    browseControls.enter('folders', 'collection');
   });
 </script>
 

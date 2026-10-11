@@ -1,5 +1,6 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
+import { isFilterSectionId, type FilterSectionId } from '$lib/browse/filterSections';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 export type TileInfo = 'none' | 'badges' | 'full';
@@ -18,6 +19,8 @@ const SIZE_ORDER: GridSize[] = ['sm', 'md', 'lg', 'xl'];
 const STORAGE_KEY = 'immich-edit:browseView';
 
 type Persisted = {
+  filtersOpen: boolean;
+  filterSections: FilterSectionId[];
   gridSize: GridSize;
   loupeAutoAdvance: boolean;
   loupeInfoOpen: boolean;
@@ -32,6 +35,8 @@ class BrowseViewStore {
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
   tileInfo = $state<TileInfo>('badges');
+  filtersOpen = $state(false);
+  filterSections = $state<FilterSectionId[]>([]);
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
   private gridScroll = new Map<string, number>();
@@ -44,10 +49,15 @@ class BrowseViewStore {
     if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
     if (stored?.tileInfo && TILE_INFO_ORDER.includes(stored.tileInfo))
       this.tileInfo = stored.tileInfo;
+    if (typeof stored?.filtersOpen === 'boolean') this.filtersOpen = stored.filtersOpen;
+    if (Array.isArray(stored?.filterSections))
+      this.filterSections = stored.filterSections.filter(isFilterSectionId);
   }
 
   private persist(): void {
     writeStored(STORAGE_KEY, {
+      filtersOpen: this.filtersOpen,
+      filterSections: this.filterSections,
       gridSize: this.gridSize,
       loupeAutoAdvance: this.loupeAutoAdvance,
       loupeInfoOpen: this.loupeInfoOpen,
@@ -85,6 +95,17 @@ class BrowseViewStore {
     const next =
       TILE_INFO_ORDER[(TILE_INFO_ORDER.indexOf(this.tileInfo) + 1) % TILE_INFO_ORDER.length];
     if (next) this.tileInfo = next;
+    this.persist();
+  }
+
+  setFiltersOpen(open: boolean): void {
+    this.filtersOpen = open;
+    this.persist();
+  }
+
+  setFilterSection(id: FilterSectionId, open: boolean): void {
+    const rest = this.filterSections.filter((section) => section !== id);
+    this.filterSections = open ? [...rest, id] : rest;
     this.persist();
   }
 

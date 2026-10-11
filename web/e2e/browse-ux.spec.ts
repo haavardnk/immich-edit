@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, numberedAssets, openFilters } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
@@ -127,10 +127,9 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   await expectTooltip(sort, /^Sort: date/);
   await expectTooltip(sort, /^Sort: date/);
 
-  await filters.click();
-  const popover = page.locator('[data-popover-content]');
-  await expectTooltip(popover.getByRole('radio', { name: 'Green label' }), 'Green label');
-  await expectTooltip(popover.getByRole('radio', { name: '3 stars' }), '3 stars');
+  const panel = await openFilters(page, 'Rating & label');
+  await expectTooltip(panel.getByRole('radio', { name: 'Green label' }), 'Green label');
+  await expectTooltip(panel.getByRole('radio', { name: '3 stars' }), '3 stars');
   await expectTooltip(
     page.getByRole('button', { name: /^Rating match/ }),
     'Match ratings at least the selected stars'
@@ -175,7 +174,7 @@ test('changing a browse filter clears hidden selection', async ({ page }) => {
   await page.getByRole('button', { name: 'Select', exact: true }).click();
   await expect(page.getByText('1 selected')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'File');
   await page.getByLabel('Filename').fill('portrait');
 
   await expect(page.getByText('1 selected')).toBeHidden();

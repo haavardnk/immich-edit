@@ -336,6 +336,47 @@
   padding: 0 10px;
 }
 
+.editor-compact-input-field [data-date-field-input] {
+  height: 28px;
+  background-color: var(--color-neutral-800);
+  transition: background-color 150ms;
+}
+
+#browse-filters .editor-compact-input-field input {
+  padding-inline: 16px;
+}
+
+#browse-filters
+  .editor-compact-input-field
+  :is(div:has(> input), [data-date-field-input]):not(:focus-within) {
+  box-shadow: none;
+}
+
+.editor-compact-input-field [data-date-field-input]:hover {
+  background-color: var(--color-neutral-700);
+}
+
+.editor-compact-input-field [data-date-field-input] > div {
+  padding: 0 0 0 12px;
+  font-weight: 400;
+}
+
+.editor-compact-input-field [data-date-field-input] [aria-valuetext='Empty'],
+.editor-compact-input-field
+  [data-date-field-input]:has([aria-valuetext='Empty'])
+  [data-segment='literal'] {
+  color: color-mix(in oklab, currentcolor 50%, transparent);
+}
+
+.editor-compact-input-field [data-date-field-input] [data-segment]:focus {
+  background-color: var(--immich-ui-primary-400);
+  color: white;
+}
+
+.editor-compact-input-field [data-date-field-input] button {
+  margin-inline-end: 0;
+}
+
 .editor-compact-combobox input {
   height: 28px;
   padding-block: 0;
