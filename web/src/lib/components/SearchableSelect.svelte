@@ -56,6 +56,7 @@
     multiple ? null : (options.find((item) => selectedSet.has(getId(item))) ?? null)
   );
   const selectedLabel = $derived(selectedItem ? getLabel(selectedItem) : '');
+  const inputText = $derived(open ? input : selectedLabel);
   const searchPlaceholder = $derived(placeholder.replace(/^(Add|Choose|Select) /, 'Search '));
   const createValue = $derived(input.trim());
   const suggestions = $derived.by(() => {
@@ -104,7 +105,7 @@
   {disabled}
   bind:value={selected}
   bind:open
-  inputValue={open ? input : selectedLabel}
+  inputValue={inputText}
   onValueChange={change}
 >
   <div class="relative">
@@ -128,6 +129,7 @@
           trailingIcon={!open && !selectedItem ? mdiChevronDown : undefined}
           bind:containerRef={anchor}
           {...props}
+          value={inputText}
         />
       {/snippet}
     </Combobox.Input>
@@ -177,7 +179,7 @@
           {/if}
           <Combobox.Item
             value={getId(item)}
-            label=""
+            label={getLabel(item)}
             class="flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 px-3 py-1 text-xs outline-none select-none {color ===
             'neutral'
               ? 'hover:bg-white/6 data-highlighted:bg-white/6'

@@ -15,6 +15,7 @@ FROM node:26-slim AS frontend
 ARG APP_VERSION=0.0.0
 WORKDIR /build/web
 COPY web/package.json web/package-lock.json ./
+COPY web/patches/ patches/
 RUN npm ci --no-audit --no-fund
 COPY web/ .
 COPY --from=wasm /build/web/src/lib/wasm/ src/lib/wasm/
