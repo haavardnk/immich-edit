@@ -5,6 +5,7 @@ mod flat;
 pub mod query;
 mod rating;
 mod structured;
+pub mod suggestions;
 mod tags;
 pub mod window;
 

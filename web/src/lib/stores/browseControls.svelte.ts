@@ -5,6 +5,7 @@ import { isRejected } from '$lib/browse/reject';
 import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 import { isRange, ratingHides, ratingMatch, type RatingFilter } from '$lib/browse/rating';
+import { EXIF_FILTERS, type ExifFilterKey } from '$lib/browse/exifFilters';
 
 export type { SortDir, SortField, Visibility };
 export type LabelFilter = 'any' | 'none' | LabelColor;
@@ -21,6 +22,9 @@ export interface BrowseFilters {
   takenBefore: string;
   rejected: RejectedFilter;
   label: LabelFilter;
+  make: string[];
+  model: string[];
+  lensModel: string[];
 }
 
 const SORT_KEY = 'immich-edit:browseSort';
@@ -49,7 +53,10 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   takenAfter: '',
   takenBefore: '',
   rejected: 'any',
-  label: 'any'
+  label: 'any',
+  make: [],
+  model: [],
+  lensModel: []
 };
 
 export class BrowseControlsStore {
@@ -61,6 +68,9 @@ export class BrowseControlsStore {
   takenBefore = $state('');
   rejected = $state<RejectedFilter>('any');
   label = $state<LabelFilter>('any');
+  make = $state<string[]>([]);
+  model = $state<string[]>([]);
+  lensModel = $state<string[]>([]);
   private sortByFamily = $state<Record<SortFamily, SearchSort>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
 
@@ -120,7 +130,8 @@ export class BrowseControlsStore {
       this.takenAfter === '' &&
       this.takenBefore === '' &&
       this.rejected === 'any' &&
-      this.label === 'any'
+      this.label === 'any' &&
+      EXIF_FILTERS.every((key) => this[key].length === 0)
     );
   }
 
@@ -133,13 +144,17 @@ export class BrowseControlsStore {
       this.takenAfter !== '' ||
       this.takenBefore !== '' ||
       this.rejected !== 'any' ||
-      this.label !== 'any'
+      this.label !== 'any' ||
+      EXIF_FILTERS.some((key) => this[key].length > 0)
     );
   }
 
   hides(asset: AssetSummary): boolean {
     if (ratingHides(this.rating, asset.exifInfo?.rating)) return true;
     if (this.rejected !== 'any' && isRejected(asset) !== (this.rejected === 'only')) return true;
+    const exif = asset.exifInfo;
+    if (EXIF_FILTERS.some((key) => this[key].length > 0 && !this[key].includes(exif?.[key] ?? '')))
+      return true;
     if (this.label === 'any') return false;
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
   }
@@ -167,7 +182,10 @@ export class BrowseControlsStore {
       takenAfter: this.takenAfter,
       takenBefore: this.takenBefore,
       rejected: this.rejected,
-      label: this.label
+      label: this.label,
+      make: this.make,
+      model: this.model,
+      lensModel: this.lensModel
     };
   }
 
@@ -180,6 +198,9 @@ export class BrowseControlsStore {
     this.takenBefore = filters.takenBefore;
     this.rejected = filters.rejected;
     this.label = filters.label;
+    this.make = filters.make;
+    this.model = filters.model;
+    this.lensModel = filters.lensModel;
   }
 
   private resetFilters(): void {
@@ -200,11 +221,20 @@ export class BrowseControlsStore {
     const label = this.serverLabel(flatOnly);
     if (rejected !== 'any') filter.rejected = rejected;
     if (label !== 'any') filter.label = label;
+    for (const key of EXIF_FILTERS) {
+      const values = this.serverValues(key, flatOnly);
+      if (values.length > 0) filter[key] = [...values];
+    }
     return filter;
   }
 
   private structured(flatOnly: boolean): boolean {
     return immichCapabilities.structuredSearch && !flatOnly;
+  }
+
+  private serverValues(key: ExifFilterKey, flatOnly: boolean): string[] {
+    if (this[key].length > 1 && !this.structured(flatOnly)) return [];
+    return this[key];
   }
 
   private serverRating(flatOnly: boolean): RatingFilter {
@@ -237,7 +267,8 @@ export class BrowseControlsStore {
       this.takenAfter,
       this.takenBefore,
       this.serverRejected(flatOnly),
-      this.serverLabel(flatOnly)
+      this.serverLabel(flatOnly),
+      JSON.stringify(EXIF_FILTERS.map((key) => this.serverValues(key, flatOnly)))
     ].join('|');
   }
 }

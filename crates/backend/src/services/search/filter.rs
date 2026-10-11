@@ -25,8 +25,24 @@ pub struct BrowseFilter {
     pub rejected: Option<Rejected>,
     #[serde(default)]
     pub label: Option<Label>,
+    #[serde(default)]
+    pub make: Vec<String>,
+    #[serde(default)]
+    pub model: Vec<String>,
+    #[serde(default)]
+    pub lens_model: Vec<String>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
+}
+
+impl BrowseFilter {
+    pub fn exif_values(&self) -> [(&'static str, &[String]); 3] {
+        [
+            ("make", &self.make),
+            ("model", &self.model),
+            ("lensModel", &self.lens_model),
+        ]
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

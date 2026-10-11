@@ -193,6 +193,71 @@ for (const structuredSearch of [false, true]) {
   });
 }
 
+const CAMERA_ASSETS = [
+  ['SONY', 'ILCE-7M3', 'FE 35mm F1.8'],
+  ['FUJIFILM', 'X-T5', 'XF35mmF1.4 R'],
+  ['SONY', 'ILCE-7M4', 'FE 85mm F1.8']
+].map(([make, model, lensModel], index) => ({
+  ...PAGED_ASSETS[index],
+  exifInfo: { make, model, lensModel }
+}));
+
+type CameraFilter = { make?: string[]; model?: string[]; lensModel?: string[] };
+
+test('one camera pick narrows the lens list on flat search', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    assets: CAMERA_ASSETS,
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const make = page.getByRole('combobox', { name: 'Make' });
+  await make.click();
+  await page.getByRole('option', { name: 'SONY' }).click();
+
+  await expect(make).toHaveValue('SONY');
+  await expect.poll(() => (bodies.at(-1)?.filter as CameraFilter).make).toEqual(['SONY']);
+  await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Lens' }).click();
+  await expect(page.getByRole('option')).toHaveText(['FE 35mm F1.8', 'FE 85mm F1.8']);
+});
+
+test('several cameras match together and a removed make prunes its models', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const filter = () => bodies.at(-1)?.filter as CameraFilter;
+  await installMocks(page, {
+    structuredSearch: true,
+    assets: CAMERA_ASSETS,
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const make = page.getByRole('combobox', { name: 'Make' });
+  await make.click();
+  await page.getByRole('option', { name: 'SONY' }).click();
+  await page.getByRole('option', { name: 'FUJIFILM' }).click();
+  await expect.poll(() => filter().make).toEqual(['SONY', 'FUJIFILM']);
+  await page.keyboard.press('Escape');
+  await expect(make).toHaveAttribute('aria-expanded', 'false');
+
+  await page.getByRole('combobox', { name: 'Model' }).click();
+  await expect(page.getByRole('option')).toHaveText(['ILCE-7M3', 'ILCE-7M4', 'X-T5']);
+  await page.getByRole('option', { name: 'ILCE-7M3' }).click();
+  await expect.poll(() => filter().model).toEqual(['ILCE-7M3']);
+  await page.keyboard.press('Escape');
+
+  await make.click();
+  await page.getByRole('option', { name: 'SONY' }).click();
+  await expect.poll(() => filter().make).toEqual(['FUJIFILM']);
+  await expect.poll(() => filter().model).toBeUndefined();
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    ['Make: FUJIFILM']
+  );
+});
+
 test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');

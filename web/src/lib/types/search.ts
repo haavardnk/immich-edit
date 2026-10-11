@@ -19,6 +19,17 @@ export interface BrowseFilter {
   takenBefore?: string;
   rejected?: 'hide' | 'only';
   label?: LabelColor | 'none';
+  make?: string[];
+  model?: string[];
+  lensModel?: string[];
+}
+
+export type SuggestionField = 'make' | 'model' | 'lensModel';
+
+export interface SuggestionQuery {
+  field: SuggestionField;
+  make?: string[];
+  model?: string[];
 }
 
 export interface SearchSort {

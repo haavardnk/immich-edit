@@ -172,6 +172,7 @@ pub fn router(state: AppState) -> Router {
         .route("/search/smart", post(routes::search::smart))
         .route("/search/statistics", post(routes::search::statistics))
         .route("/search/window", post(routes::search::window))
+        .route("/search/suggestions", post(routes::search::suggestions))
         .route("/edits", get(routes::edits::list))
         .route(
             "/presets",

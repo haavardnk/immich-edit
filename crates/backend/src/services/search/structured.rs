@@ -58,6 +58,11 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     if !taken.is_empty() {
         body.insert("takenAt".into(), Value::Object(taken));
     }
+    for (field, values) in filter.exif_values() {
+        if !values.is_empty() {
+            body.insert(field.into(), json!({ "in": values }));
+        }
+    }
     if let Some((after, before)) = filter.added_between {
         body.insert(
             "createdAt".into(),
@@ -123,6 +128,9 @@ mod tests {
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
                 rejected: None,
                 label: None,
+                make: vec!["SONY".into(), "FUJIFILM".into()],
+                model: vec![],
+                lens_model: vec!["FE 35mm F1.8".into()],
                 added_between: None,
             },
             sort: Sort {
@@ -144,6 +152,8 @@ mod tests {
                 "rating": { "eq": 3 },
                 "originalFileName": { "like": "DSC" },
                 "takenAt": { "lte": "2024-01-01T00:00:00.000Z" },
+                "make": { "in": ["SONY", "FUJIFILM"] },
+                "lensModel": { "in": ["FE 35mm F1.8"] },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

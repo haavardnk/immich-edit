@@ -254,4 +254,33 @@ describe('browseControls filter', () => {
     expect(browseControls.filter({}).label).toBe(sent);
     expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
   });
+
+  it.each([
+    [false, false, ['SONY'], ['SONY']],
+    [false, false, ['SONY', 'FUJIFILM'], undefined],
+    [true, false, ['SONY', 'FUJIFILM'], ['SONY', 'FUJIFILM']],
+    [true, true, ['SONY', 'FUJIFILM'], undefined]
+  ])(
+    'on structured search %s with flat-only %s sends makes %j as %j',
+    (structured, flatOnly, makes, sent) => {
+      immichCapabilities.structuredSearch = structured;
+      const keyBefore = browseControls.serverFilterKey(flatOnly);
+      browseControls.make = makes;
+      expect(browseControls.isFiltered).toBe(true);
+      expect(browseControls.filter({}, flatOnly).make).toEqual(sent);
+      expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent !== undefined);
+    }
+  );
+
+  it.each([
+    [{ make: 'SONY', lensModel: 'FE 35mm F1.8' }, false],
+    [{ make: 'FUJIFILM', lensModel: 'FE 35mm F1.8' }, false],
+    [{ make: 'SONY', lensModel: 'FE 85mm F1.8' }, true],
+    [null, true]
+  ])('camera filters hide %j: %s', (exif, hidden) => {
+    browseControls.make = ['SONY', 'FUJIFILM'];
+    browseControls.lensModel = ['FE 35mm F1.8'];
+    const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
+    expect(browseControls.hides(photo)).toBe(hidden);
+  });
 });

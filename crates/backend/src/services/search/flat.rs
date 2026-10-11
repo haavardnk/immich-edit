@@ -54,6 +54,19 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
     if let Some(before) = filter.taken_before {
         body.insert("takenBefore".into(), timestamp(before));
     }
+    for (field, values) in filter.exif_values() {
+        match values {
+            [] => {}
+            [value] => {
+                body.insert(field.into(), value.as_str().into());
+            }
+            _ => {
+                return Err(AppError::BadRequest(format!(
+                    "this search cannot match several {field} values"
+                )));
+            }
+        }
+    }
     if let Some((after, before)) = filter.added_between {
         body.insert("createdAfter".into(), timestamp(after));
         body.insert("createdBefore".into(), timestamp(before));
@@ -123,6 +136,9 @@ mod tests {
                 taken_before: None,
                 rejected: None,
                 label: None,
+                make: vec!["SONY".into()],
+                model: vec![],
+                lens_model: vec!["FE 35mm F1.8".into()],
                 added_between: None,
             },
             sort: Sort {
@@ -141,6 +157,8 @@ mod tests {
             "rating": null,
             "originalFileName": "DSC",
             "takenAfter": "2024-01-01T00:00:00.000Z",
+            "make": "SONY",
+            "lensModel": "FE 35mm F1.8",
             "order": "asc",
             "size": 500,
             "page": 2,
@@ -165,10 +183,15 @@ mod tests {
             all: vec![],
             none: vec![Uuid::new_v4()],
         };
+        let cameras = BrowseFilter {
+            model: vec!["ILCE-7M3".into(), "X-T5".into()],
+            ..BrowseFilter::default()
+        };
         let cases = [
             (minimum, TagSet::default()),
             (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),
+            (cameras, TagSet::default()),
         ];
         for (filter_by, tags) in cases {
             if count(&filter_by, &tags).is_ok() {

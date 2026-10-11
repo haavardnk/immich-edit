@@ -174,14 +174,21 @@ const SEARCH_FILTER_KEYS = new Set([
   'takenAfter',
   'takenBefore',
   'rejected',
-  'label'
+  'label',
+  'make',
+  'model',
+  'lensModel'
 ]);
+
+const EXIF_KEYS = ['make', 'model', 'lensModel'] as const;
+type ExifFilter = Partial<Record<(typeof EXIF_KEYS)[number], string[]>>;
 
 const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
   '/api/search/metadata': new Set(['filter', 'sort', 'size', 'cursor', 'withExif']),
   '/api/search/smart': new Set(['text', 'filter', 'size', 'cursor', 'withExif']),
   '/api/search/statistics': new Set(['filter']),
-  '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort'])
+  '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort']),
+  '/api/search/suggestions': new Set(['field', 'make', 'model'])
 };
 
 function searchShapeProblem(
@@ -210,7 +217,33 @@ function searchShapeProblem(
   if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
     return 'flat search cannot sort by rating';
   }
+  if (flat && EXIF_KEYS.some((key) => ((filter as ExifFilter)[key]?.length ?? 0) > 1)) {
+    return 'flat search cannot match several cameras';
+  }
   return null;
+}
+
+function matchesExif(asset: MockAssetSummary, filter: ExifFilter): boolean {
+  return EXIF_KEYS.every(
+    (key) => !filter[key] || filter[key].includes(asset.exifInfo?.[key] ?? '')
+  );
+}
+
+function suggestions(
+  assets: MockAssetSummary[],
+  query: { field: (typeof EXIF_KEYS)[number]; make?: string[]; model?: string[] }
+): string[] {
+  const parent =
+    query.field === 'lensModel' && query.model?.length
+      ? 'model'
+      : query.field !== 'make' && query.make?.length
+        ? 'make'
+        : null;
+  const values = assets
+    .filter((a) => !parent || (query[parent] ?? []).includes(a.exifInfo?.[parent] ?? ''))
+    .map((a) => a.exifInfo?.[query.field])
+    .filter((value): value is string => !!value);
+  return [...new Set(values)].sort();
 }
 
 type ManagedFilter = { rejected?: string; label?: string };
@@ -308,13 +341,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const searchResult = (body: Record<string, unknown>) => {
     const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter;
+    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter & ExifFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
     const items = expanded(ordered(body.sort as MockSort, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
-      .filter((a) => matchesManagedTags(a.tags, filter));
+      .filter((a) => matchesManagedTags(a.tags, filter))
+      .filter((a) => matchesExif(a, filter));
     const nextCursor =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
@@ -363,9 +397,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(searchResult(body)));
     }
     if (p === '/api/search/statistics') {
-      const filter = ((req.postDataJSON() as { filter?: ManagedFilter }) ?? {}).filter ?? {};
-      const matching = assets.filter((a) => matchesManagedTags(tagsOf(a.id, a.tags), filter));
+      const filter =
+        ((req.postDataJSON() as { filter?: ManagedFilter & ExifFilter }) ?? {}).filter ?? {};
+      const matching = assets.filter(
+        (a) => matchesManagedTags(tagsOf(a.id, a.tags), filter) && matchesExif(a, filter)
+      );
       return route.fulfill(json({ total: opts.total ?? matching.length }));
+    }
+    if (p === '/api/search/suggestions') {
+      return route.fulfill(json(suggestions(assets, req.postDataJSON())));
     }
     if (p === '/api/search/window') {
       const body = req.postDataJSON() as {
