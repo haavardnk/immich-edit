@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { readFilterParams } from '$lib/browse/filterParams';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import { runSearch } from '$lib/browse/sources';
@@ -34,7 +35,7 @@
     const _mode = mode;
     untrack(() => {
       selection.clear();
-      browseControls.enter('search:' + query, null);
+      browseControls.enter(null, readFilterParams(page.url.searchParams));
       feed.reset();
       if (query) void feed.fetchPage(true);
     });

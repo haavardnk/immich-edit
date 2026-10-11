@@ -30,8 +30,7 @@
       .then((values) => {
         if (id !== request) return;
         suggestions = values;
-        const kept = browseControls[key].filter((value) => values.includes(value));
-        if (kept.length < browseControls[key].length) browseControls[key] = kept;
+        browseControls.prune(key, values);
       })
       .catch(() => undefined);
   });

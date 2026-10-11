@@ -1,13 +1,15 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { readFilterParams } from '$lib/browse/filterParams';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
 
   const feed = new BrowseFeed({ baseFilter: () => ({}) });
 
   onMount(() => {
-    browseControls.enter('photos', 'timeline');
+    browseControls.enter('timeline', readFilterParams(page.url.searchParams));
     void feed.fetchPage(true);
   });
 

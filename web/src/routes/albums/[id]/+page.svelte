@@ -3,6 +3,7 @@
   import { untrack } from 'svelte';
   import { album } from '$lib/stores/album.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { readFilterParams } from '$lib/browse/filterParams';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
@@ -15,7 +16,7 @@
     untrack(() => {
       selection.clear();
       void album.load(current);
-      browseControls.enter('album:' + current, 'collection');
+      browseControls.enter('collection', readFilterParams(page.url.searchParams));
       feed.reset();
       void feed.fetchPage(true);
     });

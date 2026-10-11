@@ -46,6 +46,11 @@ page, not only the loaded ones. Unrated photos come last in both orders, and pho
 rating keep no particular order. Each view remembers its own order, so **Date added** with
 **Newest first** shows your latest uploads. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
+Filters live in the page address, so a reload keeps them, Back and Forward step through your
+filter changes, and a bookmark or shared link opens the same filtered view. Typing a filename or
+changing a date that is already set updates the address without adding a Back step. Each album,
+folder, person or tag starts unfiltered, as does the **Photos** link in the sidebar. The sort order
+is not part of the address; each view remembers its own.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
 3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded
