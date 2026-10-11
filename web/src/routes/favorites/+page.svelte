@@ -9,7 +9,7 @@
   const feed = new BrowseFeed({ baseFilter: () => ({ favorite: true }) });
 
   onMount(() => {
-    browseControls.enter('timeline', readFilterParams(page.url.searchParams));
+    browseControls.enter('timeline', readFilterParams(page.url));
     void feed.fetchPage(true);
   });
 

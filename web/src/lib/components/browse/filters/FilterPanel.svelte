@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Disclosure from '$lib/components/Disclosure.svelte';
   import DateFilters from '$lib/components/browse/filters/DateFilters.svelte';
   import ExifFilter from '$lib/components/browse/filters/ExifFilter.svelte';
@@ -7,6 +8,7 @@
   import LibraryFilters from '$lib/components/browse/filters/LibraryFilters.svelte';
   import RatingFilter from '$lib/components/browse/filters/RatingFilter.svelte';
   import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
+  import { supportsFilter } from '$lib/browse/browseRoutes';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
@@ -23,6 +25,7 @@
   }: { favoriteLocked?: boolean; hideFilenameFilter?: boolean } = $props();
 
   const filters = $derived(browseControls.filters);
+  const notInAlbum = $derived(supportsFilter(page.url, 'notInAlbum'));
   const openSections = $derived(new Set(browseView.filterSections));
   const sections = $derived(
     FILTER_SECTIONS.filter((section) => !hideFilenameFilter || section.id !== 'file')
@@ -80,7 +83,7 @@
         >
           <div class="flex flex-col gap-1 bg-black/10 px-3 pt-1 pb-2">
             {#if section.id === 'library'}
-              <LibraryFilters {favoriteLocked} />
+              <LibraryFilters {favoriteLocked} {notInAlbum} />
             {:else if section.id === 'rating'}
               <RatingFilter />
               <LabelFilter />

@@ -167,6 +167,7 @@ export function scopePayload(kind: string): Buffer {
 const SEARCH_FILTER_KEYS = new Set([
   'scope',
   'favorite',
+  'notInAlbum',
   'visibility',
   'imagesOnly',
   'rating',
@@ -225,6 +226,9 @@ function searchShapeProblem(
     ('gte' in filter.rating || 'lte' in filter.rating);
   if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
     return 'flat search cannot exclude tags or match a rating range';
+  }
+  if (flat && filter.notInAlbum && (filter.scope as { album?: string } | undefined)?.album) {
+    return 'flat search cannot exclude albums inside an album';
   }
   if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
     return 'flat search cannot sort by rating';

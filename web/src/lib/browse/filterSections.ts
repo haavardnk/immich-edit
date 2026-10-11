@@ -11,7 +11,11 @@ export interface FilterSection {
 }
 
 export const FILTER_SECTIONS: FilterSection[] = [
-  { id: 'library', title: 'Library', keys: ['visibility', 'rejected', 'favoriteOnly'] },
+  {
+    id: 'library',
+    title: 'Library',
+    keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum']
+  },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore'] },
   { id: 'file', title: 'File', keys: ['filename'] },

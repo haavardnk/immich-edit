@@ -14,6 +14,9 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
         Some(Scope::Person(id)) => body.insert("personIds".into(), json!({ "all": [id] })),
         Some(Scope::Tag(_)) | None => None,
     };
+    if filter.not_in_album {
+        body.insert("hasAlbums".into(), json!({ "eq": false }));
+    }
     let mut tag_ids = Map::new();
     if !tags.all.is_empty() {
         tag_ids.insert("all".into(), json!(tags.all));
@@ -120,6 +123,7 @@ mod tests {
             filter: BrowseFilter {
                 scope: Some(Scope::Album(album)),
                 favorite: true,
+                not_in_album: true,
                 visibility: Some(Visibility::Timeline),
                 images_only: true,
                 rating: Some(RatingMatch::Eq(3)),
@@ -148,6 +152,7 @@ mod tests {
             "filter": {
                 "trashedAt": { "eq": null },
                 "albumIds": { "all": [album] },
+                "hasAlbums": { "eq": false },
                 "tagIds": { "all": tags.all, "none": tags.none },
                 "isFavorite": { "eq": true },
                 "visibility": { "eq": "timeline" },

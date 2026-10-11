@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchBrowseRoute } from './restore';
+import { matchBrowseRoute } from './browseRoutes';
 
 function route(href: string) {
   return matchBrowseRoute(new URL(href, 'http://restore.invalid'));

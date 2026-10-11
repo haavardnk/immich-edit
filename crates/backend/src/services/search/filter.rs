@@ -10,6 +10,8 @@ pub struct BrowseFilter {
     #[serde(default)]
     pub favorite: bool,
     #[serde(default)]
+    pub not_in_album: bool,
+    #[serde(default)]
     pub visibility: Option<Visibility>,
     #[serde(default)]
     pub images_only: bool,

@@ -35,7 +35,7 @@
     const _mode = mode;
     untrack(() => {
       selection.clear();
-      browseControls.enter(null, readFilterParams(page.url.searchParams));
+      browseControls.enter(null, readFilterParams(page.url));
       feed.reset();
       if (query) void feed.fetchPage(true);
     });

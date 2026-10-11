@@ -7,7 +7,10 @@
   } from '$lib/stores/browseControls.svelte';
   import { Field, Select } from '@immich/ui';
 
-  let { favoriteLocked = false }: { favoriteLocked?: boolean } = $props();
+  let {
+    favoriteLocked = false,
+    notInAlbum = false
+  }: { favoriteLocked?: boolean; notInAlbum?: boolean } = $props();
 
   const visibilityOptions: { value: Visibility; label: string }[] = [
     { value: 'timeline', label: 'Timeline' },
@@ -47,5 +50,13 @@
     label="Favorites only"
     checked={browseControls.favoriteOnly}
     onChange={(checked) => (browseControls.favoriteOnly = checked)}
+  />
+{/if}
+
+{#if notInAlbum}
+  <CheckboxRow
+    label="Not in any album"
+    checked={browseControls.notInAlbum}
+    onChange={(checked) => (browseControls.notInAlbum = checked)}
   />
 {/if}

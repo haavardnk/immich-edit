@@ -18,7 +18,7 @@
   );
 
   onMount(async () => {
-    browseControls.enter('edited', readFilterParams(page.url.searchParams));
+    browseControls.enter('edited', readFilterParams(page.url));
     const [, entries] = await Promise.all([editedThumbs.loadOnce(), loadEditedAssets()]);
     hydrated = entries;
     loading = false;

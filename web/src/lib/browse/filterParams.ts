@@ -10,6 +10,7 @@ import { LABEL_COLORS } from '$lib/stores/labels';
 import type { Visibility } from '$lib/types/search';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { EXIF_FILTERS, type ExifFilterKey } from './exifFilters';
+import { supportsFilter } from './browseRoutes';
 
 type ScalarKey = Exclude<keyof BrowseFilters, ExifFilterKey>;
 
@@ -18,6 +19,7 @@ const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
 const SCALAR_PARAMS: [string, ScalarKey][] = [
   ['favorite', 'favoriteOnly'],
+  ['noalbum', 'notInAlbum'],
   ['rating', 'rating'],
   ['filename', 'filename'],
   ['visibility', 'visibility'],
@@ -53,12 +55,14 @@ function values(params: URLSearchParams, name: string): string[] {
   return all.length <= 1 || immichCapabilities.structuredSearch ? all : [];
 }
 
-export function readFilterParams(params: URLSearchParams): BrowseFilters {
+export function readFilterParams(url: URL): BrowseFilters {
+  const params = url.searchParams;
   const ratings: RatingFilter[] = immichCapabilities.structuredSearch
     ? [...EXACT_RATINGS, ...RANGE_RATINGS]
     : EXACT_RATINGS;
-  return {
+  const filters: BrowseFilters = {
     favoriteOnly: params.get('favorite') === '1',
+    notInAlbum: params.get('noalbum') === '1',
     rating: ratings.find((r) => String(r) === params.get('rating')) ?? FILTER_DEFAULTS.rating,
     filename: params.get('filename') ?? '',
     visibility:
@@ -75,6 +79,10 @@ export function readFilterParams(params: URLSearchParams): BrowseFilters {
     state: values(params, EXIF_PARAMS.state),
     city: values(params, EXIF_PARAMS.city)
   };
+  const unsupported = (Object.keys(filters) as (keyof BrowseFilters)[])
+    .filter((key) => !supportsFilter(url, key))
+    .map((key) => [key, FILTER_DEFAULTS[key]]);
+  return { ...filters, ...Object.fromEntries(unsupported) };
 }
 
 export function withFilterParams(url: URL, filters: BrowseFilters): URL {

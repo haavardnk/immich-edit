@@ -29,7 +29,7 @@
   $effect(() => {
     const p = queryPath;
     untrack(() => {
-      browseControls.enter('collection', readFilterParams(page.url.searchParams));
+      browseControls.enter('collection', readFilterParams(page.url));
       void loadFolder(p);
     });
   });

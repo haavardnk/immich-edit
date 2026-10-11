@@ -132,6 +132,29 @@ test('active filters stay visible as removable chips', async ({ page }) => {
   expect(filterAt(-1)?.filename).toBe('portrait');
 });
 
+test('the not-in-album filter is offered outside albums only', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const filterAt = (index: number) =>
+    bodies.at(index)?.filter as { notInAlbum?: boolean; scope?: unknown } | undefined;
+  await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
+  await page.goto('/photos');
+
+  const panel = await openFilters(page);
+  await panel.getByRole('checkbox', { name: 'Not in any album' }).click();
+  await expect.poll(() => filterAt(-1)?.notInAlbum).toBe(true);
+  await expect(page).toHaveURL(/[?&]noalbum=1/);
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    ['Not in any album']
+  );
+
+  await page.goto('/albums/album-1?noalbum=1');
+  await expect.poll(() => filterAt(-1)?.scope).toEqual({ album: 'album-1' });
+  expect(filterAt(-1)?.notInAlbum).toBeUndefined();
+  await expect(page).not.toHaveURL(/noalbum/);
+  await expect(panel.getByRole('checkbox', { name: 'Favorites only' })).toBeVisible();
+  await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toHaveCount(0);
+});
+
 test('the filter panel remembers its sections and resets one at a time', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');

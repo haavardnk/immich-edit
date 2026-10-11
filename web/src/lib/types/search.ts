@@ -11,6 +11,7 @@ export type RatingMatch = { eq: number } | { gte: number } | { lte: number } | '
 export interface BrowseFilter {
   scope?: SearchScope;
   favorite?: boolean;
+  notInAlbum?: boolean;
   visibility?: Visibility;
   imagesOnly?: boolean;
   rating?: RatingMatch;

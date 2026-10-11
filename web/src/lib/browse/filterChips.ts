@@ -34,6 +34,7 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
   if (filters.rating !== FILTER_DEFAULTS.rating)
     chips.push({ key: 'rating', label: ratingLabel(filters.rating) });
   if (filters.favoriteOnly) chips.push({ key: 'favoriteOnly', label: 'Favorites' });
+  if (filters.notInAlbum) chips.push({ key: 'notInAlbum', label: 'Not in any album' });
   if (filters.rejected !== 'any')
     chips.push({
       key: 'rejected',

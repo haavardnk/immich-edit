@@ -16,7 +16,7 @@
     untrack(() => {
       selection.clear();
       void album.load(current);
-      browseControls.enter('collection', readFilterParams(page.url.searchParams));
+      browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
       void feed.fetchPage(true);
     });

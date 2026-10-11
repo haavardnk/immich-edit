@@ -202,6 +202,7 @@ describe('browseControls filter', () => {
 
   it('merges the active controls into the route scope', () => {
     browseControls.favoriteOnly = true;
+    browseControls.notInAlbum = true;
     browseControls.rating = 'unrated';
     browseControls.filename = 'DSC';
     browseControls.visibility = 'archive';
@@ -210,6 +211,7 @@ describe('browseControls filter', () => {
     expect(browseControls.filter({ scope: { tag: 't1' } })).toEqual({
       scope: { tag: 't1' },
       favorite: true,
+      notInAlbum: true,
       visibility: 'archive',
       imagesOnly: true,
       rating: 'unrated',

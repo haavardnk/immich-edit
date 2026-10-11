@@ -15,6 +15,7 @@ export type SortFamily = 'timeline' | 'collection' | 'edited';
 
 export interface BrowseFilters {
   favoriteOnly: boolean;
+  notInAlbum: boolean;
   rating: RatingFilter;
   filename: string;
   visibility: Visibility;
@@ -50,6 +51,7 @@ function storedSort(value: unknown, fallback: SearchSort): SearchSort {
 
 export const FILTER_DEFAULTS: BrowseFilters = {
   favoriteOnly: false,
+  notInAlbum: false,
   rating: 'any',
   filename: '',
   visibility: 'timeline',
@@ -67,6 +69,7 @@ export const FILTER_DEFAULTS: BrowseFilters = {
 
 export class BrowseControlsStore {
   favoriteOnly = $state(false);
+  notInAlbum = $state(false);
   rating = $state<RatingFilter>('any');
   filename = $state('');
   visibility = $state<Visibility>('timeline');
@@ -132,30 +135,16 @@ export class BrowseControlsStore {
     return (
       this.sortDir === SORT_DEFAULTS[this.family].direction &&
       this.sortField === SORT_DEFAULTS[this.family].field &&
-      !this.favoriteOnly &&
-      this.rating === 'any' &&
-      this.filename === '' &&
-      this.visibility === 'timeline' &&
-      this.takenAfter === '' &&
-      this.takenBefore === '' &&
-      this.rejected === 'any' &&
-      this.label === 'any' &&
-      EXIF_FILTERS.every((key) => this[key].length === 0)
+      !this.isFiltered
     );
   }
 
   get isFiltered(): boolean {
-    return (
-      this.favoriteOnly ||
-      this.rating !== 'any' ||
-      this.filename !== '' ||
-      this.visibility !== 'timeline' ||
-      this.takenAfter !== '' ||
-      this.takenBefore !== '' ||
-      this.rejected !== 'any' ||
-      this.label !== 'any' ||
-      EXIF_FILTERS.some((key) => this[key].length > 0)
-    );
+    const filters = this.filters;
+    return (Object.keys(FILTER_DEFAULTS) as (keyof BrowseFilters)[]).some((key) => {
+      const value = filters[key];
+      return Array.isArray(value) ? value.length > 0 : value !== FILTER_DEFAULTS[key];
+    });
   }
 
   hides(asset: AssetSummary): boolean {
@@ -196,6 +185,7 @@ export class BrowseControlsStore {
   get filters(): BrowseFilters {
     return {
       favoriteOnly: this.favoriteOnly,
+      notInAlbum: this.notInAlbum,
       rating: this.rating,
       filename: this.filename,
       visibility: this.visibility,
@@ -214,6 +204,7 @@ export class BrowseControlsStore {
 
   applyFilters(filters: BrowseFilters): void {
     this.favoriteOnly = filters.favoriteOnly;
+    this.notInAlbum = filters.notInAlbum;
     this.rating = filters.rating;
     this.filename = filters.filename;
     this.visibility = filters.visibility;
@@ -237,6 +228,7 @@ export class BrowseControlsStore {
     const filter: BrowseFilter = { ...base, visibility: this.visibility, imagesOnly: true };
     const rating = ratingMatch(this.serverRating(flatOnly));
     if (this.favoriteOnly) filter.favorite = true;
+    if (this.notInAlbum) filter.notInAlbum = true;
     if (rating) filter.rating = rating;
     if (this.filename) filter.filename = this.filename;
     if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
@@ -287,6 +279,7 @@ export class BrowseControlsStore {
       this.sortField,
       this.sortDir,
       this.favoriteOnly,
+      this.notInAlbum,
       this.serverRating(flatOnly),
       this.filename,
       this.visibility,

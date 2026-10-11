@@ -5,6 +5,7 @@ import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams'
 
 const FULL: BrowseFilters = {
   favoriteOnly: true,
+  notInAlbum: true,
   rating: '3+',
   filename: 'IMG 0001+',
   visibility: 'archive',
@@ -20,8 +21,8 @@ const FULL: BrowseFilters = {
   city: ['Bergen']
 };
 
-function read(search: string): BrowseFilters {
-  return readFilterParams(new URLSearchParams(search));
+function read(search: string, pathname = '/photos'): BrowseFilters {
+  return readFilterParams(new URL(`http://x.invalid${pathname}?${search}`));
 }
 
 afterEach(() => {
@@ -34,7 +35,7 @@ describe('filter params', () => {
     const url = withFilterParams(new URL('http://x.invalid/search?q=cat&mode=filename'), FULL);
     expect(url.searchParams.get('q')).toBe('cat');
     expect(url.searchParams.get('mode')).toBe('filename');
-    expect(readFilterParams(url.searchParams)).toEqual(FULL);
+    expect(readFilterParams(url)).toEqual(FULL);
   });
 
   it('writes nothing for defaults and replaces stale filter params', () => {
@@ -88,6 +89,20 @@ describe('filter params', () => {
       expect(read(search)[key]).toEqual(expected);
     }
   );
+
+  it.each([
+    ['/photos', true],
+    ['/people/p1', true],
+    ['/search', true],
+    ['/albums/a1', false],
+    ['/folders', false],
+    ['/edited', false]
+  ])('reads noalbum on %s: %s', (pathname, expected) => {
+    expect(read('noalbum=1&favorite=1', pathname)).toMatchObject({
+      notInAlbum: expected,
+      favoriteOnly: true
+    });
+  });
 
   it.each([
     [{ filename: 'IMG' }, { filename: 'IMG_1' }, true],
