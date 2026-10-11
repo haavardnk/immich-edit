@@ -200,10 +200,12 @@ function searchShapeProblem(
   ];
   if (unknown.length) return `unknown search fields: ${unknown.join(', ')}`;
   const flat = path === '/api/search/smart' || !structured;
-  const minimum =
-    typeof filter.rating === 'object' && filter.rating !== null && 'gte' in filter.rating;
-  if (flat && (filter.rejected === 'hide' || filter.label === 'none' || minimum)) {
-    return 'flat search cannot exclude tags or match a minimum rating';
+  const range =
+    typeof filter.rating === 'object' &&
+    filter.rating !== null &&
+    ('gte' in filter.rating || 'lte' in filter.rating);
+  if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
+    return 'flat search cannot exclude tags or match a rating range';
   }
   return null;
 }

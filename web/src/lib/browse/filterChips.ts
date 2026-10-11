@@ -1,5 +1,6 @@
 import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
 import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
+import { ratingOp, ratingStars } from '$lib/browse/rating';
 
 export type FilterKey = keyof BrowseFilters;
 
@@ -17,7 +18,12 @@ const VISIBILITY_LABELS: Record<BrowseFilters['visibility'], string> = {
 
 function ratingLabel(rating: BrowseFilters['rating']): string {
   if (rating === 'unrated') return 'Unrated';
-  return `${rating} star${rating === 1 ? '' : 's'}`;
+  const stars = ratingStars(rating);
+  const name = `${stars} star${stars === 1 ? '' : 's'}`;
+  const op = ratingOp(rating);
+  if (op === 'gte') return `≥ ${name}`;
+  if (op === 'lte') return `≤ ${name}`;
+  return name;
 }
 
 export function activeFilterChips(filters: BrowseFilters): FilterChip[] {

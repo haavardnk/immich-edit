@@ -96,8 +96,10 @@ test('smart search hides rejects and low ratings in the browser', async ({ page 
   await page.getByRole('button', { name: 'Filters' }).click();
   await page.getByRole('button', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Hide', exact: true }).click();
-  await page.getByRole('button', { name: 'Rating' }).click();
-  await page.getByRole('option', { name: '3+ ★', exact: true }).click();
+  const rating = page
+    .locator('[data-popover-content]')
+    .getByRole('radiogroup', { name: 'Rating', exact: true });
+  await rating.getByRole('radio', { name: '3 stars' }).click();
 
   await expect(tile(rejected.id)).toBeHidden();
   await expect(tile(low.id)).toBeHidden();

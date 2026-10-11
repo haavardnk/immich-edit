@@ -4,11 +4,9 @@ import { labelOf, type LabelColor } from '$lib/stores/labels';
 import { isRejected } from '$lib/browse/reject';
 import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
+import { isRange, ratingHides, ratingMatch, type RatingFilter } from '$lib/browse/rating';
 
 export type { SortDir, SortField, Visibility };
-export type MinRating = '1+' | '2+' | '3+' | '4+';
-export const MIN_RATINGS: MinRating[] = ['1+', '2+', '3+', '4+'];
-export type RatingFilter = 'any' | 'unrated' | 1 | 2 | 3 | 4 | 5 | MinRating;
 export type LabelFilter = 'any' | 'none' | LabelColor;
 export type RejectedFilter = 'any' | 'hide' | 'only';
 export const REJECTED_FILTERS: RejectedFilter[] = ['any', 'hide', 'only'];
@@ -132,8 +130,7 @@ export class BrowseControlsStore {
   }
 
   hides(asset: AssetSummary): boolean {
-    const min = MIN_RATINGS.find((rating) => rating === this.rating);
-    if (min && (asset.exifInfo?.rating ?? 0) < parseInt(min, 10)) return true;
+    if (ratingHides(this.rating, asset.exifInfo?.rating)) return true;
     if (this.rejected !== 'any' && isRejected(asset) !== (this.rejected === 'only')) return true;
     if (this.label === 'any') return false;
     return labelOf(asset) !== (this.label === 'none' ? null : this.label);
@@ -183,11 +180,9 @@ export class BrowseControlsStore {
 
   filter(base: BrowseFilter, flatOnly = false): BrowseFilter {
     const filter: BrowseFilter = { ...base, visibility: this.visibility, imagesOnly: true };
-    const rating = this.serverRating(flatOnly);
+    const rating = ratingMatch(this.serverRating(flatOnly));
     if (this.favoriteOnly) filter.favorite = true;
-    if (typeof rating === 'number') filter.rating = { eq: rating };
-    else if (rating === 'unrated') filter.rating = 'unrated';
-    else if (rating !== 'any') filter.rating = { gte: parseInt(rating, 10) };
+    if (rating) filter.rating = rating;
     if (this.filename) filter.filename = this.filename;
     if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
     if (this.takenBefore) {
@@ -205,8 +200,7 @@ export class BrowseControlsStore {
   }
 
   private serverRating(flatOnly: boolean): RatingFilter {
-    const min = MIN_RATINGS.some((rating) => rating === this.rating);
-    if (min && !this.structured(flatOnly)) return 'any';
+    if (isRange(this.rating) && !this.structured(flatOnly)) return 'any';
     return this.rating;
   }
 

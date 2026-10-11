@@ -50,6 +50,7 @@ pub enum Visibility {
 pub enum RatingMatch {
     Eq(u8),
     Gte(u8),
+    Lte(u8),
     Unrated,
 }
 

@@ -38,7 +38,8 @@ describe('browse filter chips', () => {
 
   it.each([
     [1, '1 star'],
-    ['3+', '3+ stars'],
+    ['3+', '≥ 3 stars'],
+    ['1-', '≤ 1 star'],
     ['unrated', 'Unrated']
   ] as const)('labels rating %s as %s', (rating, label) => {
     expect(activeFilterChips({ ...FILTER_DEFAULTS, rating })[0]?.label).toBe(label);

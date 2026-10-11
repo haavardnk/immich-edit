@@ -177,22 +177,41 @@ async fn statistics_count_with_the_server_shape() {
 }
 
 #[tokio::test]
-async fn a_minimum_rating_needs_structured_search() {
-    for (minor, expected) in [(1, StatusCode::BAD_REQUEST), (2, StatusCode::OK)] {
+async fn a_rating_range_needs_structured_search() {
+    let ranges = [
+        (json!({ "gte": 3 }), json!({ "rating": { "gte": 3 } })),
+        (
+            json!({ "lte": 2 }),
+            json!({ "or": [{ "rating": { "lte": 2 } }, { "rating": { "eq": null } }] }),
+        ),
+    ];
+    let cases = ranges.into_iter().flat_map(|(rating, immich)| {
+        [
+            (1, StatusCode::BAD_REQUEST, rating.clone(), immich.clone()),
+            (2, StatusCode::OK, rating, immich),
+        ]
+    });
+    for (minor, expected, rating, immich) in cases {
         let server = MockServer::start().await;
         mock_server_version(&server, 3, minor, 2).await;
         let total = ResponseTemplate::new(200).set_body_json(json!({ "total": 4 }));
-        let body = json!({ "filter": { "rating": { "gte": 3 } } });
-        mount_search(&server, "/api/search/statistics", body, total, 5).await;
+        mount_search(
+            &server,
+            "/api/search/statistics",
+            json!({ "filter": immich }),
+            total,
+            5,
+        )
+        .await;
 
-        let query = json!({ "filter": { "rating": { "gte": 3 } } });
+        let query = json!({ "filter": { "rating": rating } });
         let resp = test_app(&server)
             .await
             .oneshot(json_request("POST", "/api/search/statistics", query))
             .await
             .unwrap();
         if resp.status() != expected {
-            panic!("3.{minor} minimum rating gave {}", resp.status());
+            panic!("3.{minor} rating {rating} gave {}", resp.status());
         }
     }
 }

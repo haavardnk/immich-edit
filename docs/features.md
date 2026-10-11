@@ -19,7 +19,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them from the open album |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search |
 | Filename search | ✓ Yes | Searches Immich metadata |
-| Rating, favorite, date, filename, visibility, label, and reject filters | ✓ Yes | Available in browse and search views; reject can show only rejects; Immich applies label and reject filters (**Hide** rejects and **No label** need Immich 3.2; description search applies them and a minimum rating to the loaded photos); active filters show as removable chips; changing a filter clears the current selection |
+| Rating, favorite, date, filename, visibility, label, and reject filters | ✓ Yes | Available in browse and search views; reject can show only rejects; Immich applies label and reject filters (**Hide** rejects and **No label** need Immich 3.2; description search applies them and an at-least or at-most rating to the loaded photos); ratings match at least, at most (unrated included) or exactly on Immich 3.2, exactly before that; active filters show as removable chips; changing a filter clears the current selection |
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the date (taken or added) and direction you pick |
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |

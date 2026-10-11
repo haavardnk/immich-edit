@@ -133,29 +133,65 @@ test('active filters stay visible as removable chips', async ({ page }) => {
 });
 
 for (const structuredSearch of [false, true]) {
-  test(`minimum rating options follow structured search (${structuredSearch})`, async ({
-    page
-  }) => {
+  test(`rating operator follows structured search (${structuredSearch})`, async ({ page }) => {
     const bodies: Array<Record<string, unknown>> = [];
     await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
     await page.goto('/photos');
 
     await page.getByRole('button', { name: 'Filters' }).click();
-    await page.getByRole('button', { name: 'Rating' }).click();
-    await expect(page.getByRole('option', { name: '3 ★', exact: true })).toBeVisible();
-    const option = page.getByRole('option', { name: '3+ ★', exact: true });
+    const rating = page
+      .locator('[data-popover-content]')
+      .getByRole('radiogroup', { name: 'Rating', exact: true });
+    const operator = page.getByRole('button', { name: /^Rating match/ });
+    await rating.getByRole('radio', { name: '3 stars' }).click();
     if (!structuredSearch) {
-      await expect(option).toHaveCount(0);
+      await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { eq: 3 } });
+      await expect(operator).toHaveCount(0);
       return;
     }
-    await option.click();
     await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { gte: 3 } });
+    await operator.click();
+    await expect(operator).toHaveAccessibleName('Rating match: at most');
+    await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { lte: 3 } });
+    await rating.getByRole('radio', { name: '2 stars' }).click();
+    await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { lte: 2 } });
     await page.getByRole('button', { name: 'Close filters' }).click();
     await expect(
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
-    ).toHaveText(['3+ stars']);
+    ).toHaveText(['≤ 2 stars']);
+    await page.getByRole('button', { name: 'Filters (active)' }).click();
+    await operator.click();
+    await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { eq: 2 } });
   });
 }
+
+test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
+  await installMocks(page, { structuredSearch: true });
+  await page.goto('/photos');
+  const expectTooltip = async (target: Locator, text: string | RegExp) => {
+    const tooltip = page.locator('.tooltip-content', { hasText: text });
+    await target.hover();
+    await expect(tooltip).toBeVisible();
+    await page.mouse.move(1, 1);
+    await expect(tooltip).toBeHidden();
+  };
+
+  const filters = page.getByRole('button', { name: 'Filters' });
+  const sort = page.getByRole('button', { name: /^Sort:/ });
+  await expectTooltip(filters, 'Filters');
+  await expectTooltip(filters, 'Filters');
+  await expectTooltip(sort, /^Sort: date/);
+  await expectTooltip(sort, /^Sort: date/);
+
+  await filters.click();
+  const popover = page.locator('[data-popover-content]');
+  await expectTooltip(popover.getByRole('radio', { name: 'Green label' }), 'Green label');
+  await expectTooltip(popover.getByRole('radio', { name: '3 stars' }), '3 stars');
+  await expectTooltip(
+    page.getByRole('button', { name: /^Rating match/ }),
+    'Match ratings at least the selected stars'
+  );
+});
 
 test('the count names photos hidden by the reject filter', async ({ page }) => {
   const [kept, dropped] = numberedAssets(2);
@@ -258,27 +294,4 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
     'aria-pressed',
     'true'
   );
-});
-
-test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
-  await installMocks(page);
-  await page.goto('/photos');
-  const expectTooltip = async (target: Locator, text: string | RegExp) => {
-    const tooltip = page.locator('.tooltip-content', { hasText: text });
-    await target.hover();
-    await expect(tooltip).toBeVisible();
-    await page.mouse.move(1, 1);
-    await expect(tooltip).toBeHidden();
-  };
-
-  const filters = page.getByRole('button', { name: 'Filters' });
-  const sort = page.getByRole('button', { name: /^Sort:/ });
-  await expectTooltip(filters, 'Filters');
-  await expectTooltip(filters, 'Filters');
-  await expectTooltip(sort, /^Sort: date/);
-  await expectTooltip(sort, /^Sort: date/);
-
-  await filters.click();
-  const popover = page.locator('[data-popover-content]');
-  await expectTooltip(popover.getByRole('radio', { name: 'Green label' }), 'Green label');
 });

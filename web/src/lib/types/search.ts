@@ -6,7 +6,7 @@ export type SortField = 'taken' | 'added';
 export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 export type SearchScope = { album: string } | { person: string } | { tag: string };
-export type RatingMatch = { eq: number } | { gte: number } | 'unrated';
+export type RatingMatch = { eq: number } | { gte: number } | { lte: number } | 'unrated';
 
 export interface BrowseFilter {
   scope?: SearchScope;

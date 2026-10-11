@@ -22,9 +22,12 @@ filenames.
 
 **Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Rejected**,
 **Favorites only**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
-between **Timeline**, **Archived** and **Hidden**. **Rating** matches one rating, or on Immich 3.2
-and later also a minimum, from **1+ ★** to **4+ ★**. **Rejected** shows rejects, hides them or
-shows only them; **Only** lets you review everything you rejected before deleting it in Immich.
+between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
+count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
+default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
+Immich versions match the exact star count. **Rejected** shows
+rejects, hides them or shows only them; **Only** lets you review everything you rejected before
+deleting it in Immich.
 The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
 **Newest first** or **Oldest first**. Each view remembers its own order, so **Date added** with
 **Newest first** shows your latest uploads. **Reset filters and sort** clears both.
@@ -33,7 +36,7 @@ The count beside the title is the number of photos in the view, followed by how 
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
 3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded
 photos instead and the count still includes the ones they hide. Description search works the same
-way on every Immich version, and also applies a minimum rating to the loaded photos.
+way on every Immich version, and also applies an at-least or at-most rating to the loaded photos.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
@@ -135,8 +138,8 @@ removes a pane in compare and survey.
 1. Press `E` on the first photo. Step through with `→`, pressing `X` on misses and a rating on
    keepers.
 1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.
-1. Set **Rating** to the lowest rating you want to edit, such as **3+ ★** (Immich 3.2 and later).
-   What is left is your edit list.
+1. Under **Rating**, keep `≥` and pick the lowest star count you want to edit, such as three
+   stars (Immich 3.2 and later). What is left is your edit list.
 
 ## Act on a selection
 

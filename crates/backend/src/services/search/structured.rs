@@ -36,6 +36,10 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     match filter.rating {
         Some(RatingMatch::Eq(stars)) => body.insert("rating".into(), json!({ "eq": stars })),
         Some(RatingMatch::Gte(stars)) => body.insert("rating".into(), json!({ "gte": stars })),
+        Some(RatingMatch::Lte(stars)) => body.insert(
+            "or".into(),
+            json!([{ "rating": { "lte": stars } }, { "rating": { "eq": null } }]),
+        ),
         Some(RatingMatch::Unrated) => body.insert("rating".into(), json!({ "eq": null })),
         None => None,
     };

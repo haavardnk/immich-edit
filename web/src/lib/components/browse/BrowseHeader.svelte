@@ -2,15 +2,15 @@
   import TextInput from '$lib/components/TextInput.svelte';
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
   import Popover from '$lib/components/Popover.svelte';
+  import RatingFilter from '$lib/components/browse/RatingFilter.svelte';
   import SortMenu from '$lib/components/browse/SortMenu.svelte';
+  import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '$lib/components/browse/segmented';
   import {
     browseControls,
-    MIN_RATINGS,
     type LabelFilter,
     type RejectedFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
@@ -20,7 +20,7 @@
     withoutFilter,
     type FilterKey
   } from '$lib/browse/filterChips';
-  import { Button, Field, Icon, IconButton, Select, Tooltip } from '@immich/ui';
+  import { Button, Field, Icon, IconButton, Label, Select, Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {
     mdiSortAscending,
@@ -52,9 +52,6 @@
 
   const chips = $derived(activeFilterChips(browseControls.filters));
 
-  const labelItemClass =
-    'flex h-full flex-1 items-center justify-center rounded-md text-xs font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark aria-checked:bg-primary aria-checked:text-light';
-
   function removeFilter(key: FilterKey): void {
     browseControls.applyFilters(withoutFilter(browseControls.filters, key));
   }
@@ -84,19 +81,6 @@
 
   const hasFilter = $derived(browseControls.isFiltered);
 
-  const ratingOptions: { value: string; label: string }[] = $derived([
-    { value: 'any', label: 'Any' },
-    { value: 'unrated', label: 'Unrated' },
-    { value: '1', label: '1 ★' },
-    { value: '2', label: '2 ★' },
-    { value: '3', label: '3 ★' },
-    { value: '4', label: '4 ★' },
-    { value: '5', label: '5 ★' },
-    ...(immichCapabilities.structuredSearch
-      ? MIN_RATINGS.map((value) => ({ value, label: `${value} ★` }))
-      : [])
-  ]);
-
   const visibilityOptions: { value: Visibility; label: string }[] = [
     { value: 'timeline', label: 'Timeline' },
     { value: 'archive', label: 'Archived' },
@@ -108,16 +92,6 @@
     { value: 'hide', label: 'Hide' },
     { value: 'only', label: 'Only' }
   ];
-
-  function setRating(value: string): void {
-    const min = MIN_RATINGS.find((rating) => rating === value);
-    if (min) {
-      browseControls.rating = min;
-      return;
-    }
-    browseControls.rating =
-      value === 'any' || value === 'unrated' ? value : (Number(value) as 1 | 2 | 3 | 4 | 5);
-  }
 
   function toggleDir(): void {
     browseControls.setSortDir(browseControls.sortDir === 'asc' ? 'desc' : 'asc');
@@ -244,23 +218,32 @@
         />
       </Field>
 
-      <Field label="Rating" size="small">
-        <Select
-          size="small"
-          options={ratingOptions}
-          value={String(browseControls.rating)}
-          onChange={setRating}
-        />
-      </Field>
+      <RatingFilter />
 
-      <Field label="Label" size="small">
+      <div class="flex flex-col gap-1">
+        <Label label="Label" size="small" />
         <RadioGroup.Root
           bind:value={() => browseControls.label, (v) => (browseControls.label = v as LabelFilter)}
           orientation="horizontal"
           aria-label="Label"
-          class="flex h-10 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800"
+          class="{SEGMENTED_GROUP_CLASS} h-10"
         >
-          <RadioGroup.Item value="any" class={labelItemClass}>Any</RadioGroup.Item>
+          <div class="flex shrink-0 gap-1">
+            <RadioGroup.Item value="any" class="{SEGMENTED_ITEM_CLASS} px-2">Any</RadioGroup.Item>
+            <Tooltip text="No label">
+              {#snippet child({ props })}
+                <RadioGroup.Item
+                  {...props}
+                  value="none"
+                  aria-label="No label"
+                  class="{SEGMENTED_ITEM_CLASS} px-2"
+                >
+                  <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
+                </RadioGroup.Item>
+              {/snippet}
+            </Tooltip>
+          </div>
+          <span class="my-1 w-px shrink-0 bg-gray-300 dark:bg-gray-600" aria-hidden="true"></span>
           {#each LABEL_COLORS as color (color)}
             <Tooltip text={`${LABEL_NAMES[color]} label`}>
               {#snippet child({ props })}
@@ -268,22 +251,15 @@
                   {...props}
                   value={color}
                   aria-label={`${LABEL_NAMES[color]} label`}
-                  class={labelItemClass}
+                  class={SEGMENTED_ITEM_CLASS}
                 >
                   <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
                 </RadioGroup.Item>
               {/snippet}
             </Tooltip>
           {/each}
-          <Tooltip text="No label">
-            {#snippet child({ props })}
-              <RadioGroup.Item {...props} value="none" aria-label="No label" class={labelItemClass}>
-                <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
-              </RadioGroup.Item>
-            {/snippet}
-          </Tooltip>
         </RadioGroup.Root>
-      </Field>
+      </div>
 
       <Field label="Rejected" size="small">
         <Select

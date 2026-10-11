@@ -210,12 +210,22 @@ describe('browseControls filter', () => {
   );
 
   it.each([
-    [null, true],
-    [3, true],
-    [4, false]
-  ])('hides a photo rated %s below 4+: %s', (rating, hidden) => {
-    browseControls.rating = '4+';
+    ['4+', null, true],
+    ['4+', 3, true],
+    ['4+', 4, false],
+    ['2-', null, false],
+    ['2-', 2, false],
+    ['2-', 3, true],
+    [2, 3, false]
+  ] as const)('filter %s hides a photo rated %s: %s', (filter, rating, hidden) => {
+    browseControls.rating = filter;
     expect(browseControls.hides(asset(false, rating))).toBe(hidden);
+  });
+
+  it('sends a maximum rating on structured search', () => {
+    immichCapabilities.structuredSearch = true;
+    browseControls.rating = '2-';
+    expect(browseControls.filter({}).rating).toEqual({ lte: 2 });
   });
 
   it.each([

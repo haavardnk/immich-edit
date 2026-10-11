@@ -38,9 +38,9 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
     match filter.rating {
         Some(RatingMatch::Eq(stars)) => body.insert("rating".into(), stars.into()),
         Some(RatingMatch::Unrated) => body.insert("rating".into(), Value::Null),
-        Some(RatingMatch::Gte(_)) => {
+        Some(RatingMatch::Gte(_) | RatingMatch::Lte(_)) => {
             return Err(AppError::BadRequest(
-                "this search cannot filter by a minimum rating".into(),
+                "this search cannot filter by a rating range".into(),
             ));
         }
         None => None,
@@ -157,12 +157,17 @@ mod tests {
             rating: Some(RatingMatch::Gte(3)),
             ..BrowseFilter::default()
         };
+        let maximum = BrowseFilter {
+            rating: Some(RatingMatch::Lte(2)),
+            ..BrowseFilter::default()
+        };
         let excluded = TagSet {
             all: vec![],
             none: vec![Uuid::new_v4()],
         };
         let cases = [
             (minimum, TagSet::default()),
+            (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),
         ];
         for (filter_by, tags) in cases {
