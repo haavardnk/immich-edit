@@ -48,9 +48,9 @@ pub enum Visibility {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RatingMatch {
-    Eq(u8),
-    Gte(u8),
-    Lte(u8),
+    Eq(i8),
+    Gte(i8),
+    Lte(i8),
     Unrated,
 }
 

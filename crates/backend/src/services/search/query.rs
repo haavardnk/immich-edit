@@ -11,6 +11,7 @@ pub enum SortField {
     #[default]
     Taken,
     Added,
+    Rating,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]

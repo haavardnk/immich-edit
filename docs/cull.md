@@ -29,7 +29,10 @@ Immich versions match the exact star count. **Rejected** shows
 rejects, hides them or shows only them; **Only** lets you review everything you rejected before
 deleting it in Immich.
 The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
-**Newest first** or **Oldest first**. Each view remembers its own order, so **Date added** with
+**Newest first** or **Oldest first**. On Immich 3.2 and later it also offers **Rating**, with
+**Highest first** or **Lowest first**. Immich sorts the whole result, so the best photos lead every
+page, not only the loaded ones. Unrated photos come last in both orders, and photos with the same
+rating keep no particular order. Each view remembers its own order, so **Date added** with
 **Newest first** shows your latest uploads. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 The count beside the title is the number of photos in the view, followed by how many of the loaded

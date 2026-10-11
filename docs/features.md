@@ -21,7 +21,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Filename search | ✓ Yes | Searches Immich metadata |
 | Rating, favorite, date, filename, visibility, label, and reject filters | ✓ Yes | Available in browse and search views; reject can show only rejects; Immich applies label and reject filters (**Hide** rejects and **No label** need Immich 3.2; description search applies them and an at-least or at-most rating to the loaded photos); ratings match at least, at most (unrated included) or exactly on Immich 3.2, exactly before that; active filters show as removable chips; changing a filter clears the current selection |
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
-| Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the date (taken or added) and direction you pick |
+| Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the date (taken or added) and direction you pick; Immich 3.2 adds a rating sort over the whole result, unrated last |
 | Camera, lens, location, OCR, multi-person, or album-membership search filters | ✗ No | Use Immich for advanced metadata search |
 | Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/`. Photos owned by another Immich user are read-only, as in Immich |
 | Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |

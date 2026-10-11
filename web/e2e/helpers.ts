@@ -207,6 +207,9 @@ function searchShapeProblem(
   if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
     return 'flat search cannot exclude tags or match a rating range';
   }
+  if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
+    return 'flat search cannot sort by rating';
+  }
   return null;
 }
 
@@ -272,6 +275,16 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const ordered = (sort: MockSort, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (sort?.direction !== 'asc' && sort?.direction !== 'desc') return items;
     const sign = sort.direction === 'asc' ? 1 : -1;
+    if (sort.field === 'rating') {
+      const stars = (a: MockAssetSummary): number | null => a.exifInfo?.rating ?? null;
+      return items.slice().sort((a, b) => {
+        const x = stars(a);
+        const y = stars(b);
+        if (x === y) return a.id.localeCompare(b.id) * sign;
+        if (x === null || y === null) return x === null ? 1 : -1;
+        return (x - y) * sign;
+      });
+    }
     const at = (a: MockAssetSummary): number =>
       Date.parse(sort.field === 'added' ? (a.createdAt ?? a.fileCreatedAt) : a.fileCreatedAt);
     return items.slice().sort((a, b) => (at(a) - at(b)) * sign);

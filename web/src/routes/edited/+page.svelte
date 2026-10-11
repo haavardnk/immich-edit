@@ -4,7 +4,7 @@
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { loadEditedAssets } from '$lib/browse/sources';
-  import { sortAssets } from '$lib/browse/sortAssets';
+  import { sortAssets, timeOf } from '$lib/browse/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -12,7 +12,7 @@
   let hydrated = $state<AssetSummary[]>([]);
 
   const assets = $derived<AssetSummary[]>(
-    sortAssets(hydrated, (a) => a.updatedAt, browseControls.sortDir)
+    sortAssets(hydrated, (a) => timeOf(a.updatedAt), browseControls.sortDir)
   );
 
   onMount(async () => {

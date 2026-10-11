@@ -123,6 +123,52 @@ test('the timeline can sort by date added', async ({ page }) => {
   await expectOrder(page, OLDEST_FIRST);
 });
 
+const RATED = [
+  { ...ASSETS[0], exifInfo: { rating: 3 } },
+  { ...ASSETS[1], exifInfo: { rating: null } },
+  { ...ASSETS[2], exifInfo: { rating: 5 } }
+];
+
+test('structured servers sort the whole result by rating', async ({ page }) => {
+  const sorts: unknown[] = [];
+  await installMocks(page, {
+    assets: RATED,
+    structuredSearch: true,
+    onMetadata: (body) => void sorts.push(body.sort)
+  });
+
+  await page.goto('/photos');
+  await expectOrder(page, NEWEST_FIRST);
+
+  await pickSort(page, 'Rating');
+  await expectOrder(page, [NEW_ID, OLD_ID, MID_ID]);
+  expect(sorts.at(-1)).toEqual({ field: 'rating', direction: 'desc' });
+  await expect(page.getByRole('button', { name: 'Sort: rating, highest first' })).toBeVisible();
+
+  await pickSort(page, 'Lowest first');
+  await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
+});
+
+test('older servers hide the rating sort and recall the default', async ({ page }) => {
+  const sorts: unknown[] = [];
+  await installMocks(page, { assets: RATED, onMetadata: (body) => void sorts.push(body.sort) });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'immich-edit:browseSort',
+      JSON.stringify({ timeline: { field: 'rating', direction: 'asc' } })
+    )
+  );
+
+  await page.goto('/photos');
+  await expectOrder(page, NEWEST_FIRST);
+  expect(sorts.every((sort) => (sort as { field: string }).field === 'taken')).toBe(true);
+
+  await page.getByRole('button', { name: 'Sort: date taken, newest first' }).click();
+  const menu = page.locator('[data-popover-content]');
+  await expect(menu.getByRole('radio', { name: 'Date added', exact: true })).toBeVisible();
+  await expect(menu.getByRole('radio', { name: 'Rating', exact: true })).toHaveCount(0);
+});
+
 test('edited view sorts by edit time', async ({ page }) => {
   await installMocks(page, {
     assets: ASSETS,

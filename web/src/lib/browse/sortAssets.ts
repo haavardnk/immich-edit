@@ -1,22 +1,26 @@
 import type { AssetSummary } from '$lib/types/album';
-import type { SortDir } from '$lib/types/search';
+import type { SortDir, SortField } from '$lib/types/search';
+
+export type SortKey = (asset: AssetSummary) => number | null;
 
 interface Group {
   items: AssetSummary[];
   at: number | null;
 }
 
-function timeOf(value: string | null): number | null {
+export function timeOf(value: string | null | undefined): number | null {
   if (!value) return null;
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : ms;
 }
 
-export function sortAssets(
-  assets: AssetSummary[],
-  at: (asset: AssetSummary) => string | null,
-  dir: SortDir
-): AssetSummary[] {
+export function fieldKey(field: SortField): SortKey {
+  if (field === 'rating') return (a) => a.exifInfo?.rating ?? null;
+  if (field === 'added') return (a) => timeOf(a.createdAt);
+  return (a) => timeOf(a.fileCreatedAt);
+}
+
+export function sortAssets(assets: AssetSummary[], key: SortKey, dir: SortDir): AssetSummary[] {
   const groups: Group[] = [];
   for (const asset of assets) {
     const last = groups[groups.length - 1];
@@ -24,7 +28,7 @@ export function sortAssets(
       last.items.push(asset);
       continue;
     }
-    groups.push({ items: [asset], at: timeOf(at(asset)) });
+    groups.push({ items: [asset], at: key(asset) });
   }
   const sign = dir === 'asc' ? 1 : -1;
   return groups

@@ -2,24 +2,46 @@
   import Popover from '$lib/components/Popover.svelte';
   import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '$lib/components/browse/segmented';
   import { browseControls, type SortDir, type SortField } from '$lib/stores/browseControls.svelte';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { IconButton, Label } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {
     mdiSortCalendarAscending,
     mdiSortCalendarDescending,
     mdiSortClockAscending,
-    mdiSortClockDescending
+    mdiSortClockDescending,
+    mdiSortNumericAscending,
+    mdiSortNumericDescending
   } from '@mdi/js';
 
   let open = $state(false);
 
   const ICONS: Record<SortField, Record<SortDir, string>> = {
     taken: { asc: mdiSortCalendarAscending, desc: mdiSortCalendarDescending },
-    added: { asc: mdiSortClockAscending, desc: mdiSortClockDescending }
+    added: { asc: mdiSortClockAscending, desc: mdiSortClockDescending },
+    rating: { asc: mdiSortNumericAscending, desc: mdiSortNumericDescending }
   };
 
+  const FIELDS: Record<SortField, string> = {
+    taken: 'Date taken',
+    added: 'Date added',
+    rating: 'Rating'
+  };
+
+  const fields = $derived(
+    (Object.keys(FIELDS) as SortField[]).filter(
+      (field) => field !== 'rating' || immichCapabilities.structuredSearch
+    )
+  );
+
+  const directions = $derived<Record<SortDir, string>>(
+    browseControls.sortField === 'rating'
+      ? { desc: 'Highest first', asc: 'Lowest first' }
+      : { desc: 'Newest first', asc: 'Oldest first' }
+  );
+
   const label = $derived(
-    `Sort: date ${browseControls.sortField}, ${browseControls.sortDir === 'asc' ? 'oldest' : 'newest'} first`
+    `Sort: ${FIELDS[browseControls.sortField].toLowerCase()}, ${directions[browseControls.sortDir].toLowerCase()}`
   );
 </script>
 
@@ -51,8 +73,11 @@
       aria-label="Sort by"
       class="{SEGMENTED_GROUP_CLASS} h-10"
     >
-      <RadioGroup.Item value="taken" class={SEGMENTED_ITEM_CLASS}>Date taken</RadioGroup.Item>
-      <RadioGroup.Item value="added" class={SEGMENTED_ITEM_CLASS}>Date added</RadioGroup.Item>
+      {#each fields as field (field)}
+        <RadioGroup.Item value={field} class={SEGMENTED_ITEM_CLASS}>
+          {FIELDS[field]}
+        </RadioGroup.Item>
+      {/each}
     </RadioGroup.Root>
   </div>
   <div class="flex flex-col gap-1">
@@ -63,8 +88,8 @@
       aria-label="Order"
       class="{SEGMENTED_GROUP_CLASS} h-10"
     >
-      <RadioGroup.Item value="desc" class={SEGMENTED_ITEM_CLASS}>Newest first</RadioGroup.Item>
-      <RadioGroup.Item value="asc" class={SEGMENTED_ITEM_CLASS}>Oldest first</RadioGroup.Item>
+      <RadioGroup.Item value="desc" class={SEGMENTED_ITEM_CLASS}>{directions.desc}</RadioGroup.Item>
+      <RadioGroup.Item value="asc" class={SEGMENTED_ITEM_CLASS}>{directions.asc}</RadioGroup.Item>
     </RadioGroup.Root>
   </div>
 </Popover>

@@ -3,6 +3,7 @@ pub mod cursor;
 pub mod filter;
 mod flat;
 pub mod query;
+mod rating;
 mod structured;
 mod tags;
 pub mod window;
@@ -93,10 +94,13 @@ impl Searcher {
 
     pub async fn page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {
         check_size(query.size)?;
-        if query.sort.field == SortField::Added {
-            return added::page(self, query).await;
+        match query.sort.field {
+            SortField::Added => added::page(self, query).await,
+            SortField::Rating if self.shape == SearchShape::Flat => Err(AppError::BadRequest(
+                "this server cannot sort by rating".into(),
+            )),
+            SortField::Taken | SortField::Rating => self.metadata_page(query).await,
         }
-        self.metadata_page(query).await
     }
 
     async fn metadata_page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {

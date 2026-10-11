@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
 use crate::services::search::flat::timestamp;
-use crate::services::search::query::PageQuery;
+use crate::services::search::query::{PageQuery, SortField};
 use crate::services::search::tags::TagSet;
 
 pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
@@ -68,9 +68,13 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
 }
 
 pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
+    let field = match query.sort.field {
+        SortField::Rating => "rating",
+        SortField::Taken | SortField::Added => "fileCreatedAt",
+    };
     let mut body = json!({
         "filter": filter(&query.filter, tags),
-        "orderBy": { "field": "fileCreatedAt", "direction": query.sort.direction },
+        "orderBy": { "field": field, "direction": query.sort.direction },
         "size": query.size,
     });
     if let Some(token) = cursor {
@@ -149,6 +153,24 @@ mod tests {
         let body = page(&query, &tags, Some("next"));
         if body != expected {
             panic!("structured body was {body}");
+        }
+    }
+
+    #[test]
+    fn a_rating_sort_orders_by_rating() {
+        let query = PageQuery {
+            filter: BrowseFilter::default(),
+            sort: Sort {
+                field: SortField::Rating,
+                direction: Direction::Desc,
+            },
+            size: 10,
+            cursor: None,
+            with_exif: false,
+        };
+        let body = page(&query, &TagSet::default(), None);
+        if body["orderBy"] != json!({ "field": "rating", "direction": "desc" }) {
+            panic!("rating sort body was {body}");
         }
     }
 

@@ -370,6 +370,31 @@ async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
 }
 
 #[tokio::test]
+async fn rating_sort_needs_structured_search() {
+    for (minor, expected) in [(1, StatusCode::BAD_REQUEST), (2, StatusCode::OK)] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, minor, 2).await;
+        let ordered = json!({ "orderBy": { "field": "rating", "direction": "desc" } });
+        let found = search_response(&[asset_id()], None, None);
+        mount_search(&server, "/api/search/metadata", ordered, found, 5).await;
+
+        let query = json!({
+            "filter": {},
+            "sort": { "field": "rating", "direction": "desc" },
+            "size": 10,
+        });
+        let resp = test_app(&server)
+            .await
+            .oneshot(json_request("POST", "/api/search/metadata", query))
+            .await
+            .unwrap();
+        if resp.status() != expected {
+            panic!("3.{minor} rating sort gave {}", resp.status());
+        }
+    }
+}
+
+#[tokio::test]
 async fn malformed_searches_are_rejected_before_immich() {
     let server = MockServer::start().await;
     mock_server_version(&server, 3, 2, 2).await;

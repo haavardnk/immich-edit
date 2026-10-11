@@ -7,7 +7,7 @@ use crate::error::AppError;
 use crate::immich::dto::AssetSummary;
 use crate::services::search::filter::BrowseFilter;
 use crate::services::search::query::{Direction, PageQuery, Sort, SortField};
-use crate::services::search::{Searcher, added};
+use crate::services::search::{Searcher, added, rating};
 
 pub const MAX_RADIUS: u32 = 250;
 
@@ -28,8 +28,14 @@ pub async fn around(
     let Some(anchor) = searcher.find(filter, anchor).await? else {
         return Ok(Vec::new());
     };
-    if sort.field == SortField::Added {
-        return added::around(searcher, filter, sort.direction, anchor, radius).await;
+    match sort.field {
+        SortField::Added => {
+            return added::around(searcher, filter, sort.direction, anchor, radius).await;
+        }
+        SortField::Rating => {
+            return rating::around(searcher, filter, sort.direction, anchor, radius).await;
+        }
+        SortField::Taken => {}
     }
     let Some(key) = sort_key(&anchor) else {
         return Ok(vec![anchor]);

@@ -2,7 +2,7 @@ import type { AssetSummary } from './album';
 import type { LabelColor } from '$lib/stores/labels';
 
 export type SortDir = 'asc' | 'desc';
-export type SortField = 'taken' | 'added';
+export type SortField = 'taken' | 'added' | 'rating';
 export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 export type SearchScope = { album: string } | { person: string } | { tag: string };

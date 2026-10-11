@@ -2,7 +2,7 @@ import { searchWindow } from '$lib/api/search';
 import { loadEditedAssets, loadFolderAssets, runSearch } from './sources';
 import { validReturnPath } from '$lib/editor/navigation';
 import { resolveSearchMode } from './searchMode';
-import { sortAssets } from './sortAssets';
+import { fieldKey, sortAssets, timeOf, type SortKey } from './sortAssets';
 import { browseControls, type SortFamily } from '$lib/stores/browseControls.svelte';
 import { recallBrowseFilters } from '$lib/stores/browseContext';
 import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
@@ -21,7 +21,7 @@ export type BrowseRoute =
   | (RouteBase & { feed: BrowseFeedOptions })
   | (RouteBase & {
       load: () => Promise<AssetSummary[]>;
-      sortAt: (asset: AssetSummary) => string | null;
+      sortKey: () => SortKey;
     });
 
 function segment(pathname: string, prefix: string): string | null {
@@ -95,8 +95,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
       context: 'folders',
       family: 'collection',
       load: () => loadFolderAssets(folder),
-      sortAt: (a) =>
-        browseControls.sortField === 'added' ? (a.createdAt ?? null) : a.fileCreatedAt
+      sortKey: () => fieldKey(browseControls.sortField)
     };
   }
 
@@ -105,7 +104,7 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
       context: 'edited',
       family: 'edited',
       load: loadEditedAssets,
-      sortAt: (a) => a.updatedAt
+      sortKey: () => (a) => timeOf(a.updatedAt)
     };
   }
 
@@ -128,7 +127,7 @@ export async function restoreBrowse(from: string | null, assetId: string): Promi
   }
   await loadCullTags().catch(() => undefined);
   const assets = await route.load();
-  browsing.set(sortAssets(assets, route.sortAt, browseControls.sortDir));
+  browsing.set(sortAssets(assets, route.sortKey(), browseControls.sortDir));
 }
 
 async function restoreWindow(feed: BrowseFeedOptions, assetId: string): Promise<boolean> {

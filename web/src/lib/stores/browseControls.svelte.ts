@@ -36,7 +36,7 @@ function storedSort(value: unknown, fallback: SearchSort): SearchSort {
   if (typeof value !== 'object' || value === null) return fallback;
   const { field, direction } = value as Partial<Record<keyof SearchSort, unknown>>;
   return {
-    field: field === 'taken' || field === 'added' ? field : fallback.field,
+    field: field === 'taken' || field === 'added' || field === 'rating' ? field : fallback.field,
     direction: direction === 'asc' || direction === 'desc' ? direction : fallback.direction
   };
 }
@@ -74,12 +74,20 @@ export class BrowseControlsStore {
     this.sortByFamily = merged;
   }
 
+  private get current(): SearchSort {
+    const sort = this.sortByFamily[this.family];
+    if (sort.field === 'rating' && !immichCapabilities.structuredSearch) {
+      return SORT_DEFAULTS[this.family];
+    }
+    return sort;
+  }
+
   get sortDir(): SortDir {
-    return this.sortByFamily[this.family].direction;
+    return this.current.direction;
   }
 
   get sortField(): SortField {
-    return this.sortByFamily[this.family].field;
+    return this.current.field;
   }
 
   get sortFamily(): SortFamily {
@@ -215,7 +223,7 @@ export class BrowseControlsStore {
   }
 
   get sort(): SearchSort {
-    return { ...this.sortByFamily[this.family] };
+    return { ...this.current };
   }
 
   serverFilterKey(flatOnly = false): string {

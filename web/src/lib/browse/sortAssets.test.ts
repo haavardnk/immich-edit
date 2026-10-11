@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { sortAssets } from './sortAssets';
+import { fieldKey, sortAssets } from './sortAssets';
 import type { AssetSummary } from '$lib/types/album';
+import type { ExifInfo } from '$lib/types/asset';
 
 function asset(id: string, at: string | null, copyOf?: string): AssetSummary {
   return {
@@ -17,7 +18,7 @@ function asset(id: string, at: string | null, copyOf?: string): AssetSummary {
   };
 }
 
-const takenAt = (a: AssetSummary): string | null => a.fileCreatedAt;
+const takenAt = fieldKey('taken');
 const ids = (list: AssetSummary[]): string[] => list.map((a) => a.id);
 
 describe('sortAssets', () => {
@@ -52,6 +53,23 @@ describe('sortAssets', () => {
       asset('a', '2024-01-01T00:00:00Z')
     ];
     expect(ids(sortAssets(mixed, takenAt, dir)).slice(2)).toEqual(['none', 'bad']);
+  });
+
+  it.each([
+    ['desc', ['five', 'three', 'rejected', 'unrated']],
+    ['asc', ['rejected', 'three', 'five', 'unrated']]
+  ] as ['asc' | 'desc', string[]][])('orders rating %s with unrated last', (dir, expected) => {
+    const rated = (id: string, rating: number | null): AssetSummary => ({
+      ...asset(id, null),
+      exifInfo: { rating } as ExifInfo
+    });
+    const list = [
+      rated('three', 3),
+      rated('unrated', null),
+      rated('five', 5),
+      rated('rejected', -1)
+    ];
+    expect(ids(sortAssets(list, fieldKey('rating'), dir))).toEqual(expected);
   });
 
   it('keeps virtual copies attached to their master', () => {

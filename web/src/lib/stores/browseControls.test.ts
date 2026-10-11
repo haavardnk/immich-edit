@@ -132,6 +132,21 @@ describe('browseControls sort families', () => {
     expect(reloaded.sort).toEqual({ field: 'taken', direction: 'desc' });
   });
 
+  it('recalls a stored rating sort only where structured search exists', () => {
+    localStorage.setItem(
+      SORT_KEY,
+      JSON.stringify({ collection: { field: 'rating', direction: 'desc' } })
+    );
+    const controls = new BrowseControlsStore();
+    controls.enter('album:1', 'collection');
+    immichCapabilities.structuredSearch = false;
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'asc' });
+    expect(controls.isDefault).toBe(true);
+    immichCapabilities.structuredSearch = true;
+    expect(controls.sort).toEqual({ field: 'rating', direction: 'desc' });
+    expect(controls.isDefault).toBe(false);
+  });
+
   it('resets only the active family', () => {
     const controls = new BrowseControlsStore();
     controls.enter('photos', 'timeline');

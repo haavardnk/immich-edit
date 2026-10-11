@@ -4,7 +4,7 @@
   import { loadFolderAssets } from '$lib/browse/sources';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { sortAssets } from '$lib/browse/sortAssets';
+  import { fieldKey, sortAssets } from '$lib/browse/sortAssets';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -14,11 +14,7 @@
 
   const queryPath = $derived(page.url.searchParams.get('path') ?? '');
   const assets = $derived(
-    sortAssets(
-      loaded,
-      (a) => (browseControls.sortField === 'added' ? (a.createdAt ?? null) : a.fileCreatedAt),
-      browseControls.sortDir
-    )
+    sortAssets(loaded, fieldKey(browseControls.sortField), browseControls.sortDir)
   );
 
   async function loadFolder(path: string): Promise<void> {
