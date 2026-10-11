@@ -43,6 +43,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `PgUp` / `PgDn`                                                                                          | Jump a page                                                      | Grid         |
 | `-` / `_` / `=` / `+`                                                                                    | Thumbnail size                                                   | Grid         |
 | `Shift+I`                                                                                                | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
+| `Shift+F`                                                                                                | Show or hide the filter panel                                    | Grid         |
 | `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
 | `Esc`                                                                                                    | Clear the selection                                              | Grid         |
 | `Shift+B`                                                                                                | Focus the selection actions                                      | Grid         |

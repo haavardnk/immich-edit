@@ -48,13 +48,27 @@ describe('browse view persistence', () => {
     browseView.stepGridSize(1);
     browseView.toggleLoupeInfo();
     browseView.cycleTileInfo();
+    browseView.setFiltersOpen(true);
+    browseView.setFilterSection('library', false);
+    browseView.setFilterSection('place', true);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
+      filtersOpen: true,
+      filterSections: ['rating', 'place'],
       gridSize: 'lg',
       loupeAutoAdvance: true,
       loupeInfoOpen: true,
       tileInfo: 'full'
     });
+  });
+
+  it('restores the filter panel and drops unknown sections', async () => {
+    stubStorage({ filtersOpen: true, filterSections: ['camera', 'lens', 'date'] });
+
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.filtersOpen).toBe(true);
+    expect(browseView.filterSections).toEqual(['camera', 'date']);
   });
 
   it('cycles the tile info through none, badges and full', async () => {

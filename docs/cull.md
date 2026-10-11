@@ -20,9 +20,14 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 `red car at night` works. When Immich's machine learning is down, it falls back to searching
 filenames.
 
-**Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Rejected**,
-**Favorites only**, **Filename**, **Taken after**, **Taken before**, **Make**, **Model**, **Lens**,
-**Country**, **State** and **City**. **Visibility** switches
+**Filters**, or `Shift+F`, opens the filter panel on the right of the grid; its close button or
+`Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
+groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**), **Rating &
+label**, **Date** (**Taken after**, **Taken before**), **File** (**Filename**), **Camera** (**Make**,
+**Model**, **Lens**) and **Place** (**Country**, **State**, **City**). Search has no **File**
+section. Click a section title to fold it; a section with an active filter shows a reset button
+that clears only that section. The panel remembers whether it was open and which sections you
+left open. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
 default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older

@@ -336,6 +336,21 @@
   padding: 0 10px;
 }
 
+.editor-compact-input-field [data-date-field-input] {
+  height: 28px;
+  background-color: var(--color-neutral-800);
+  transition: background-color 150ms;
+}
+
+.editor-compact-input-field [data-date-field-input]:hover {
+  background-color: var(--color-neutral-700);
+}
+
+.editor-compact-input-field [data-date-field-input] > div {
+  padding: 0 6px;
+  font-weight: 400;
+}
+
 .editor-compact-combobox input {
   height: 28px;
   padding-block: 0;

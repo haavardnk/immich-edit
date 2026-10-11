@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_SUMMARY, installMocks, openFilters } from './helpers';
 
 const A = '00000000-0000-0000-0000-000000000001';
 const B = '00000000-0000-0000-0000-000000000002';
@@ -79,7 +79,7 @@ test('a restored grid keeps the filters that were active when the editor opened'
   });
 
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'File');
   await page.getByLabel('Filename').fill('IMG_0001');
   await expect.poll(() => names).toContain('IMG_0001');
   names.splice(0);

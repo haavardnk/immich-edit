@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, numberedAssets, openFilters } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
@@ -116,10 +116,10 @@ test('active filters stay visible as removable chips', async ({ page }) => {
   await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'File');
   await page.getByRole('checkbox', { name: 'Favorites only' }).click();
   await page.getByLabel('Filename').fill('portrait');
-  await page.getByRole('button', { name: 'Close filters' }).click();
+  await page.getByRole('button', { name: 'Close filter panel' }).click();
 
   const chips = page.getByRole('list', { name: 'Active filters' });
   await expect(chips.getByRole('listitem')).toHaveText(['Favorites', 'Name: portrait']);
@@ -130,6 +130,39 @@ test('active filters stay visible as removable chips', async ({ page }) => {
   await expect(chips.getByRole('listitem')).toHaveText(['Name: portrait']);
   await expect.poll(() => filterAt(-1)?.favorite).toBeUndefined();
   expect(filterAt(-1)?.filename).toBe('portrait');
+});
+
+test('the filter panel remembers its sections and resets one at a time', async ({ page }) => {
+  await installMocks(page, { structuredSearch: true });
+  await page.goto('/photos');
+  const toggle = page.getByRole('button', { name: /^Filters/ });
+
+  const panel = await openFilters(page);
+  await expect(toggle).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close filter panel' })).toBeFocused();
+  await panel.getByRole('button', { name: 'Library', exact: true }).click();
+  await panel.getByRole('button', { name: 'File', exact: true }).click();
+  await panel.getByLabel('Filename').fill('DSC');
+  await panel.getByRole('radio', { name: '3 stars' }).click();
+  const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
+  await expect(chips).toHaveText(['≥ 3 stars', 'Name: DSC']);
+  const reset = panel.getByRole('button', { name: 'Reset Rating & label panel' });
+  await reset.click();
+  await expect(chips).toHaveText(['Name: DSC']);
+  await expect(reset).toHaveCount(0);
+
+  await page.reload();
+  await expect(panel.getByLabel('Filename')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Visibility', exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Close filter panel' }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press('Shift+F');
+  await expect(panel).toBeVisible();
+  await expect(toggle).toHaveCount(0);
+  await page.keyboard.press('Shift+F');
+  await expect(panel).toHaveCount(0);
 });
 
 test('the taken-after calendar sets the date filter', async ({ page }) => {
@@ -146,15 +179,15 @@ test('the taken-after calendar sets the date filter', async ({ page }) => {
     year: 'numeric'
   }).format(day);
 
-  await page.getByRole('button', { name: 'Filters' }).click();
-  await page.getByRole('button', { name: 'Open calendar' }).first().click();
+  const panel = await openFilters(page, 'Date');
+  await panel.getByRole('button', { name: 'Open calendar' }).first().click();
   await page.getByRole('button', { name: dayLabel, exact: true }).click();
 
-  await expect(page.locator('[data-popover-content]')).toBeVisible();
+  await expect(panel.getByRole('group', { name: 'Taken after' })).toBeVisible();
   await expect
     .poll(() => (bodies.at(-1)?.filter as { takenAfter?: string } | undefined)?.takenAfter)
     .toBe(new Date(iso).toISOString());
-  await page.getByRole('button', { name: 'Close filters' }).click();
+  await page.getByRole('button', { name: 'Close filter panel' }).click();
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
     [`After ${iso}`]
   );
@@ -166,10 +199,8 @@ for (const structuredSearch of [false, true]) {
     await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
     await page.goto('/photos');
 
-    await page.getByRole('button', { name: 'Filters' }).click();
-    const rating = page
-      .locator('[data-popover-content]')
-      .getByRole('radiogroup', { name: 'Rating', exact: true });
+    const panel = await openFilters(page);
+    const rating = panel.getByRole('radiogroup', { name: 'Rating', exact: true });
     const operator = page.getByRole('button', { name: /^Rating match/ });
     await rating.getByRole('radio', { name: '3 stars' }).click();
     if (!structuredSearch) {
@@ -183,7 +214,7 @@ for (const structuredSearch of [false, true]) {
     await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { lte: 3 } });
     await rating.getByRole('radio', { name: '2 stars' }).click();
     await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { lte: 2 } });
-    await page.getByRole('button', { name: 'Close filters' }).click();
+    await page.getByRole('button', { name: 'Close filter panel' }).click();
     await expect(
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
     ).toHaveText(['≤ 2 stars']);
@@ -214,7 +245,7 @@ test('one camera pick narrows the lens list on flat search', async ({ page }) =>
   });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Camera');
   const make = page.getByRole('combobox', { name: 'Make' });
   await make.click();
   await page.getByRole('option', { name: 'SONY' }).click();
@@ -236,7 +267,7 @@ test('several cameras match together and a removed make prunes its models', asyn
   });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Camera');
   const make = page.getByRole('combobox', { name: 'Make' });
   await make.click();
   await page.getByRole('option', { name: 'SONY' }).click();
@@ -274,7 +305,7 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await installMocks(page, { assets, onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'Place');
   await page.getByRole('combobox', { name: 'Country' }).click();
   await page.getByRole('option', { name: 'Norway' }).click();
   await expect.poll(() => filter().country).toEqual(['Norway']);
@@ -289,26 +320,13 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await expect(page.getByRole('option')).toHaveText(['Bergen']);
 });
 
-test('filter pickers join the list edge it opens on and keep the popover size', async ({
-  page
-}) => {
+test('filter pickers join the list edge they open on', async ({ page }) => {
   await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
+  await page.setViewportSize({ width: 1280, height: 530 });
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Filters' }).click();
-  const make = page.getByRole('combobox', { name: 'Make' });
-  await make.click();
-  await page.getByRole('option', { name: 'SONY' }).click();
-  await page.keyboard.press('Escape');
-  await expect(make).toHaveAttribute('aria-expanded', 'false');
-
-  await page.evaluate(() => {
-    const popover = document.querySelector('[data-popover-content]') as HTMLElement;
-    const widths: number[] = [];
-    Object.assign(window, { popoverWidths: widths });
-    new ResizeObserver(() => widths.push(popover.offsetWidth)).observe(popover);
-  });
+  await openFilters(page, 'Library', 'Camera');
   const sides: string[] = [];
-  for (const name of ['Make', 'City']) {
+  for (const name of ['Make', 'Lens']) {
     const picker = page.getByRole('combobox', { name });
     await picker.click();
     const side = (await page.locator('[data-combobox-content]').getAttribute('data-side')) ?? '';
@@ -324,11 +342,7 @@ test('filter pickers join the list edge it opens on and keep the popover size', 
     await page.keyboard.press('Escape');
     await expect(picker).toHaveAttribute('aria-expanded', 'false');
   }
-  const widths = await page.evaluate(
-    () => (window as unknown as { popoverWidths: number[] }).popoverWidths
-  );
-  expect(new Set(widths).size).toBe(1);
-  expect(sides).toEqual(['top', 'bottom']);
+  expect(sides).toEqual(['bottom', 'top']);
 });
 
 test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
@@ -349,10 +363,9 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   await expectTooltip(sort, /^Sort: date/);
   await expectTooltip(sort, /^Sort: date/);
 
-  await filters.click();
-  const popover = page.locator('[data-popover-content]');
-  await expectTooltip(popover.getByRole('radio', { name: 'Green label' }), 'Green label');
-  await expectTooltip(popover.getByRole('radio', { name: '3 stars' }), '3 stars');
+  const panel = await openFilters(page);
+  await expectTooltip(panel.getByRole('radio', { name: 'Green label' }), 'Green label');
+  await expectTooltip(panel.getByRole('radio', { name: '3 stars' }), '3 stars');
   await expectTooltip(
     page.getByRole('button', { name: /^Rating match/ }),
     'Match ratings at least the selected stars'
@@ -369,7 +382,7 @@ test('the count names photos hidden by the reject filter', async ({ page }) => {
   await installMocks(page, { assets: [kept, rejectedAsset] });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page);
   await page.getByRole('button', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Hide', exact: true }).click();
 
@@ -390,7 +403,7 @@ for (const [structuredSearch, choice, sent] of [
     await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
     await page.goto('/photos');
 
-    await page.getByRole('button', { name: 'Filters' }).click();
+    await openFilters(page);
     await page.getByRole('button', { name: 'Rejected', exact: true }).click();
     await page.getByRole('option', { name: choice, exact: true }).click();
 
@@ -439,7 +452,7 @@ test('changing a browse filter clears hidden selection', async ({ page }) => {
   await page.getByRole('button', { name: 'Select', exact: true }).click();
   await expect(page.getByText('1 selected')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Filters' }).click();
+  await openFilters(page, 'File');
   await page.getByLabel('Filename').fill('portrait');
 
   await expect(page.getByText('1 selected')).toBeHidden();

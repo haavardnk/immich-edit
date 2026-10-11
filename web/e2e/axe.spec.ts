@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, installMocks, gotoAsset } from './helpers';
+import { ASSET_ID, installMocks, gotoAsset, openFilters } from './helpers';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -29,8 +29,8 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
-  await expect(page.getByRole('button', { name: 'Close filters' })).toBeVisible();
+  await openFilters(page, 'Date', 'File', 'Camera', 'Place');
+  await expect(page.getByRole('combobox', { name: 'City' })).toBeVisible();
   expect(await audit(page)).toEqual([]);
 });
 

@@ -59,7 +59,7 @@ test('the label filter asks the server for one color', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Filters' }).click();
   await page.getByRole('radio', { name: 'Green label' }).click();
-  await page.getByRole('button', { name: 'Close filters' }).click();
+  await page.getByRole('button', { name: 'Close filter panel' }).click();
 
   const chips = page.getByRole('list', { name: 'Active filters' });
   await expect(chips).toContainText('Green label');

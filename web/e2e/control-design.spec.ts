@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, json, numberedAssets } from './helpers';
+import { ASSET_ID, gotoAsset, installMocks, json, numberedAssets, openFilters } from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -864,23 +864,35 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Clipping overlay (J)' })).toBeVisible();
 });
 
-test('browse filter popover uses a neutral dark surface', async ({ page }) => {
+test('browse filter panel controls share the dense inspector row', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Filters' }).click();
-  const popover = page.locator('[data-popover-content]');
-  await expect(popover).toBeVisible();
-  expect((await metricsOf(popover)).background).toBe(
-    await resolvedColor(page, '--color-neutral-900')
-  );
+  const panel = await openFilters(page, 'Date', 'File', 'Camera', 'Place');
+  const visibility = panel.getByRole('button', { name: 'Visibility', exact: true });
+  const takenAfter = panel.getByRole('group', { name: 'Taken after' });
+  const controls = [
+    visibility,
+    panel.getByRole('button', { name: 'Rejected', exact: true }),
+    takenAfter,
+    panel.getByRole('group', { name: 'Taken before' }),
+    panel.getByLabel('Filename'),
+    panel.getByRole('combobox', { name: 'Make' }),
+    panel.getByRole('combobox', { name: 'City' })
+  ];
+  for (const control of controls) {
+    expect((await control.boundingBox())?.height).toBe(28);
+  }
+  const neutral = await resolvedColor(page, '--color-neutral-800');
   expect(
-    await page
-      .getByLabel('Visibility')
+    await visibility
       .locator('div')
       .first()
       .evaluate((element) => getComputedStyle(element).backgroundColor)
-  ).toBe(await resolvedColor(page, '--color-gray-800'));
+  ).toBe(neutral);
+  expect(await takenAfter.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+    neutral
+  );
 });
 
 test('tall mask picker stays inside the viewport', async ({ page }) => {

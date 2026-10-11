@@ -165,7 +165,6 @@
       {side}
       sideOffset={-1}
       collisionPadding={8}
-      avoidCollisions={!compact}
       customAnchor={anchor}
       class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-white/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
       'neutral'
