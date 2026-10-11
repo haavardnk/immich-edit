@@ -8,6 +8,7 @@ mod retouch;
 mod stages;
 #[cfg(test)]
 mod tests;
+mod white_balance;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -29,6 +30,7 @@ pub use masks::{
 pub use retouch::{
     N_MAX_RETOUCH_POINTS, N_MAX_RETOUCH_STROKES, RetouchMode, RetouchStroke, hash_strokes,
 };
+pub use white_balance::WhiteBalance;
 
 use masks::clamp_masks;
 use retouch::clamp_retouch;
@@ -46,9 +48,7 @@ pub struct BasicEdits {
     #[serde(default)]
     pub vibrance: f64,
     #[serde(default)]
-    pub wb_temp: f64,
-    #[serde(default)]
-    pub wb_tint: f64,
+    pub white_balance: WhiteBalance,
     #[serde(default)]
     pub texture: f64,
     #[serde(default)]
@@ -67,8 +67,7 @@ impl BasicEdits {
             contrast: self.contrast.clamp(-100.0, 100.0),
             saturation: self.saturation.clamp(-100.0, 100.0),
             vibrance: self.vibrance.clamp(-100.0, 100.0),
-            wb_temp: self.wb_temp.clamp(-100.0, 100.0),
-            wb_tint: self.wb_tint.clamp(-100.0, 100.0),
+            white_balance: self.white_balance.clamped(),
             texture: self.texture.clamp(-100.0, 100.0),
             clarity: self.clarity.clamp(-100.0, 100.0),
             dehaze: self.dehaze.clamp(-100.0, 100.0),

@@ -9,7 +9,7 @@ function roundTrip(edits: Edits): Edits {
 describe('manifest codec', () => {
   it('serializes neutral edits to an empty op set', () => {
     const manifest = editsToManifest(neutralEdits());
-    expect(manifest.schema_version).toBe(4);
+    expect(manifest.schema_version).toBe(5);
     expect(Object.keys(manifest.ops)).toHaveLength(0);
   });
 
@@ -20,8 +20,7 @@ describe('manifest codec', () => {
     edits.basic.contrast = -15;
     edits.basic.saturation = 8;
     edits.basic.vibrance = -4;
-    edits.basic.wb_temp = 200;
-    edits.basic.wb_tint = -12;
+    edits.basic.white_balance = { mode: 'absolute', kelvin: 3200, tint: -12 };
     edits.basic.texture = 30;
     edits.basic.clarity = 20;
     edits.basic.dehaze = 5;
@@ -145,8 +144,7 @@ describe('manifest codec', () => {
     edits.basic.texture = 15;
     edits.basic.clarity = 16;
     edits.basic.dehaze = 17;
-    edits.basic.wb_temp = 18;
-    edits.basic.wb_tint = 19;
+    edits.basic.white_balance = { mode: 'relative', temp: 18, tint: 19 };
     edits.tone.highlights = 21;
     edits.tone.shadows = 22;
     edits.tone.blacks = 23;
@@ -296,6 +294,21 @@ describe('manifest codec', () => {
   it('migrates pre-v4 manifests to explicitly disabled lens corrections', () => {
     const edits = manifestToEdits({ schema_version: 3, ops: { exposure: { ev: 1 } } });
     expect(edits.lens.profile_enabled).toBe(false);
+  });
+
+  it.each([
+    [4, { mode: 'relative', temp: 20, tint: -7 }, -5],
+    [5, { mode: 'absolute', kelvin: 4800, tint: 7 }, 5]
+  ])('decodes v%i white balance and mask tint', (version, wb, maskTint) => {
+    const edits = manifestToEdits({
+      schema_version: version,
+      ops: {
+        white_balance: version < 5 ? { temp: 20, tint: 7 } : wb,
+        masks: { layers: [{ id: 'm', components: [], edits: { wb_temp: 3, wb_tint: 5 } }] }
+      }
+    });
+    expect(edits.basic.white_balance).toEqual(wb);
+    expect(edits.masks[0]?.edits).toEqual({ wb_temp: 3, wb_tint: maskTint });
   });
 
   it('preserves luma and color range masks', () => {

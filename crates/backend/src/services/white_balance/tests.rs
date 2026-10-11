@@ -57,7 +57,10 @@ async fn a_warm_sample_solves_to_a_cooler_temperature() {
     let solved = sample(uniform_frame([0.6, 0.45, 0.3]), centre(), None)
         .await
         .expect("warm sample solves");
-    assert!(solved.wb_temp < 0.0, "got {solved:?}");
+    let WhiteBalance::Relative { temp, .. } = solved else {
+        panic!("display white solves relative, got {solved:?}");
+    };
+    assert!(temp < 0.0, "got {solved:?}");
 }
 
 #[tokio::test]

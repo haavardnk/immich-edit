@@ -4,6 +4,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
+  import { SCALE_POSITIONS, type SliderScale } from './sliderScale';
 
   let {
     label,
@@ -11,6 +12,7 @@
     min,
     max,
     step = 0.1,
+    scale,
     onLive,
     onCommit,
     onPreviewStart,
@@ -28,6 +30,7 @@
     min: number;
     max: number;
     step?: number;
+    scale?: SliderScale;
     onLive: (value: number) => void;
     onCommit: (action?: string) => void;
     onPreviewStart?: () => void;
@@ -44,6 +47,7 @@
   const isDefault = $derived(value === defaultValue);
   const supportsPreview = $derived(!!onPreviewStart && !!onPreviewEnd);
   const displayValue = $derived(format(Object.is(value, -0) ? 0 : value));
+  const position = $derived(scale ? scale.toPosition(value) : value);
   let dragging = $state(false);
   let altDown = $state(false);
   let previewing = $state(false);
@@ -146,7 +150,8 @@
   }
 
   function onInput(e: Event): void {
-    const v = normalize((e.currentTarget as HTMLInputElement).valueAsNumber);
+    const raw = (e.currentTarget as HTMLInputElement).valueAsNumber;
+    const v = normalize(scale ? scale.fromPosition(raw) : raw);
     value = v;
     if (previewing) {
       onPreviewStart!();
@@ -173,12 +178,13 @@
   </Button>
   <RangeSlider
     {label}
-    {min}
-    {max}
-    {step}
-    {defaultValue}
+    min={scale ? 0 : min}
+    max={scale ? SCALE_POSITIONS : max}
+    step={scale ? 1 : step}
+    defaultValue={scale ? scale.toPosition(defaultValue) : defaultValue}
     {disabled}
-    {value}
+    value={position}
+    valueText={scale ? displayValue : undefined}
     {gradient}
     title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
     onpointerdown={onPointerDown}

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use raw_pipeline::dcp::DcpProfile;
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{Edits, WhiteBalance};
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::white_balance::{auto_white_balance, sample_white_balance};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::error::AppError;
 
@@ -25,12 +25,6 @@ impl SamplePoint {
             "sample point must be inside 0..1".to_string(),
         ))
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
-pub struct WhiteBalance {
-    pub wb_temp: f64,
-    pub wb_tint: f64,
 }
 
 pub async fn sample(
@@ -58,16 +52,13 @@ pub async fn auto(
 }
 
 async fn solve(
-    solver: impl FnOnce() -> Option<(f64, f64)> + Send + 'static,
+    solver: impl FnOnce() -> Option<WhiteBalance> + Send + 'static,
     unsolved: &str,
 ) -> Result<WhiteBalance, AppError> {
     let solved = tokio::task::spawn_blocking(solver)
         .await
         .map_err(|e| AppError::internal("white balance task", &e))?;
-    let Some((wb_temp, wb_tint)) = solved else {
-        return Err(AppError::Unprocessable(unsolved.to_string()));
-    };
-    Ok(WhiteBalance { wb_temp, wb_tint })
+    solved.ok_or_else(|| AppError::Unprocessable(unsolved.to_string()))
 }
 
 #[cfg(test)]

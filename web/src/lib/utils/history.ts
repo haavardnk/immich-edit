@@ -1,12 +1,20 @@
 import type { EditHistoryEntry } from '$lib/api/edits';
-import type { CurveChannel, Edits, GeometryEdits, LensEdits, MaskLayer } from '$lib/types/edits';
+import type {
+  CurveChannel,
+  Edits,
+  GeometryEdits,
+  LensEdits,
+  MaskLayer,
+  WhiteBalance
+} from '$lib/types/edits';
 import {
   BW_CHANNELS,
   CURVE_CHANNELS,
   HSL_BAND_NAMES,
   isFullCrop,
   neutralEdits,
-  neutralSharpenAmount
+  neutralSharpenAmount,
+  whiteBalanceIsAsShot
 } from '$lib/types/edits';
 import { neutralPerspective } from '$lib/utils/perspective';
 
@@ -82,14 +90,6 @@ const FIELDS: FieldDef[] = [
     get: (e) => e.basic.saturation,
     signed: true
   },
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Temperature',
-    get: (e) => e.basic.wb_temp,
-    signed: true
-  },
-  { kind: 'number', section: 'basic', label: 'Tint', get: (e) => e.basic.wb_tint, signed: true },
   { kind: 'number', section: 'basic', label: 'Texture', get: (e) => e.basic.texture, signed: true },
   { kind: 'number', section: 'basic', label: 'Clarity', get: (e) => e.basic.clarity, signed: true },
   { kind: 'number', section: 'basic', label: 'Dehaze', get: (e) => e.basic.dehaze, signed: true },
@@ -520,6 +520,17 @@ function profileChanged(prev: LensEdits, curr: LensEdits): boolean {
   return LENS_PROFILE_KEYS.some((key) => Math.abs(prev[key] - curr[key]) > 1e-4);
 }
 
+function signedInt(value: number): string {
+  const rounded = Math.round(value);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
+}
+
+function whiteBalanceLabel(wb: WhiteBalance): string {
+  if (whiteBalanceIsAsShot(wb)) return 'As Shot';
+  if (wb.mode === 'absolute') return `${Math.round(wb.kelvin)} K, Tint ${signedInt(wb.tint)}`;
+  return `Temp ${signedInt(wb.temp)}, Tint ${signedInt(wb.tint)}`;
+}
+
 function dcpLabel(edits: Edits): string {
   if (edits.color.dcp.mode === 'off') return 'Default Color';
   if (edits.color.dcp.mode === 'flat') return 'Flat';
@@ -553,6 +564,16 @@ export function historyDetails(
     { key: 'masks', label: 'Masks', items: maskItems(prev.masks, curr.masks) },
     { key: 'geometry', label: 'Geometry', items: geometryItems(prev.geometry, curr.geometry) }
   ];
+  const wbBefore = whiteBalanceLabel(prev.basic.white_balance);
+  const wbAfter = whiteBalanceLabel(curr.basic.white_balance);
+  if (wbBefore !== wbAfter) {
+    let group = groups.get('basic');
+    if (!group) {
+      group = { key: 'basic', label: 'Basic', items: [] };
+      groups.set('basic', group);
+    }
+    group.items.push({ kind: 'value', label: 'White Balance', before: wbBefore, after: wbAfter });
+  }
   if (profileChanged(prev.lens, curr.lens)) {
     let group = groups.get('lens');
     if (!group) {

@@ -383,6 +383,34 @@ async fn white_balance_sample_rejects_out_of_range_point() {
 }
 
 #[tokio::test]
+async fn white_balance_as_shot_reads_the_camera_white() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    let app = seed_and_wrap(&server, test_state(&server).await).await;
+    let resp = app
+        .oneshot(json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/white-balance/as-shot"),
+            json!({}),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let white = body_json(resp).await;
+    let kelvin = white["kelvin"].as_f64().unwrap_or_default();
+    let tint = white["tint"].as_f64().unwrap_or(f64::NAN);
+    if white["raw"] != true
+        || !(2500.0..10000.0).contains(&kelvin)
+        || !(-150.0..=150.0).contains(&tint)
+    {
+        panic!("implausible as-shot white: {white}");
+    }
+}
+
+#[tokio::test]
 async fn white_balance_auto_rejects_malformed_body() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;

@@ -1,3 +1,5 @@
+import { asShotWhiteBalance, type WhiteBalance } from './whiteBalance';
+
 export interface CurvePoint {
   x: number;
   y: number;
@@ -62,8 +64,7 @@ export interface BasicEdits {
   contrast: number;
   saturation: number;
   vibrance: number;
-  wb_temp: number;
-  wb_tint: number;
+  white_balance: WhiteBalance;
   texture: number;
   clarity: number;
   dehaze: number;
@@ -77,8 +78,7 @@ export function neutralBasic(): BasicEdits {
     contrast: 0,
     saturation: 0,
     vibrance: 0,
-    wb_temp: 0,
-    wb_tint: 0,
+    white_balance: asShotWhiteBalance(),
     texture: 0,
     clarity: 0,
     dehaze: 0,

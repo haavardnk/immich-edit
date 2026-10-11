@@ -168,7 +168,7 @@ async fn source_etag_ignores_display_edits() {
         .clone()
         .oneshot(post_source(
             id,
-            serde_json::json!({"max_edge": 512, "edits": {"basic": {"exposure_ev": -2.0, "wb_temp": 30.0}}}),
+            serde_json::json!({"max_edge": 512, "edits": {"basic": {"exposure_ev": -2.0, "white_balance": {"mode": "relative", "temp": 30.0}}}}),
             Some(&etag),
         ))
         .await

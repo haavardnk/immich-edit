@@ -11,6 +11,8 @@ pub use dcp::{
     DCP_FALLBACK_TONE_CURVE, DEFAULT_COLOR_TONE_CURVE, apply_dcp_finish, apply_huesat,
     dcp_illuminant_cct, merge_huesat,
 };
+#[cfg(test)]
+pub(crate) use matrix::inverse_3x3;
 pub use matrix::{
     cam_to_srgb_matrix, display_p3_to_srgb_lin, identity_3x3, is_unusable_matrix,
     prophoto_to_srgb_lin_matrix, srgb_lin_to_display_p3, srgb_lin_to_prophoto_matrix,

@@ -2,7 +2,7 @@ use raw_pipeline::{
     CpuRenderer, cpu,
     edits::{
         CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer,
-        MaskSource, MaskedEdits, Vec2f,
+        MaskSource, MaskedEdits, Vec2f, WhiteBalance,
     },
     frame::{OutputFormat, RenderOptions},
 };
@@ -25,8 +25,10 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
     tone.basic.saturation = -20.0;
 
     let mut wb = Edits::default();
-    wb.basic.wb_temp = 30.0;
-    wb.basic.wb_tint = -15.0;
+    wb.basic.white_balance = WhiteBalance::Relative {
+        temp: 30.0,
+        tint: -15.0,
+    };
 
     let mut detail = Edits::default();
     detail.detail.luma_nr_amount = 40.0;
@@ -152,7 +154,10 @@ fn cpu_cache_hits_on_every_display_tick() {
     fn white_balance(step: usize) -> Edits {
         let mut edits = Edits::default();
         edits.detail.luma_nr_amount = 40.0;
-        edits.basic.wb_temp = step as f64 * 3.0;
+        edits.basic.white_balance = WhiteBalance::Relative {
+            temp: step as f64 * 3.0,
+            tint: 0.0,
+        };
         edits
     }
     for (label, tick) in [

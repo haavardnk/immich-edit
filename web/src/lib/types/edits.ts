@@ -10,3 +10,4 @@ export * from './edits/model';
 export * from './edits/neutral';
 export * from './edits/retouch';
 export * from './edits/tone';
+export * from './edits/whiteBalance';

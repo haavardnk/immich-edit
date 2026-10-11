@@ -63,6 +63,11 @@ async fn auto_and_white_balance_reuse_the_preview_frame() {
             &format!("/api/assets/{id}/edits/white-balance/auto"),
             serde_json::json!({}),
         ),
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/white-balance/as-shot"),
+            serde_json::json!({}),
+        ),
     ];
     for request in requests {
         let uri = request.uri().to_string();

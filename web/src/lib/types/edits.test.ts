@@ -124,7 +124,7 @@ function retouchStroke(): Edits['retouch'][number] {
 }
 
 const SECTION_FIELDS: Record<DevelopSection, string[]> = {
-  white_balance: ['basic.wb_temp', 'basic.wb_tint'],
+  white_balance: ['basic.white_balance'],
   tone: [
     'basic.exposure_ev',
     'basic.brightness',
@@ -177,8 +177,7 @@ function read(edits: Edits, path: string): unknown {
 
 function graded(): Edits {
   const edits = neutralEdits();
-  edits.basic.wb_temp = 30;
-  edits.basic.wb_tint = -20;
+  edits.basic.white_balance = { mode: 'absolute', kelvin: 4200, tint: -20 };
   edits.basic.exposure_ev = 1;
   edits.basic.brightness = 10;
   edits.basic.contrast = 20;

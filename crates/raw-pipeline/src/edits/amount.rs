@@ -1,7 +1,7 @@
 use super::{
     BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, CurvePoint,
     CurvePoints, CurvesEdits, DetailEdits, Edits, EffectsEdits, HslBand, HslEdits, Lut3dEdits,
-    ToneEdits,
+    ToneEdits, WhiteBalance,
 };
 
 pub const LOOK_AMOUNT_FULL: f64 = 100.0;
@@ -32,6 +32,19 @@ fn scale_curve(curve: &CurvePoints, t: f64) -> CurvePoints {
     }
 }
 
+fn scale_white_balance(p: WhiteBalance, n: WhiteBalance, t: f64) -> WhiteBalance {
+    match (p, n) {
+        (
+            WhiteBalance::Relative { temp: pt, tint: pn },
+            WhiteBalance::Relative { temp: nt, tint: nn },
+        ) => WhiteBalance::Relative {
+            temp: signed(nt, pt, t),
+            tint: signed(nn, pn, t),
+        },
+        _ => p,
+    }
+}
+
 fn scale_basic(p: &BasicEdits, n: &BasicEdits, t: f64) -> BasicEdits {
     BasicEdits {
         exposure_ev: lerp(n.exposure_ev, p.exposure_ev, t, -5.0, 5.0),
@@ -39,8 +52,7 @@ fn scale_basic(p: &BasicEdits, n: &BasicEdits, t: f64) -> BasicEdits {
         contrast: signed(n.contrast, p.contrast, t),
         saturation: signed(n.saturation, p.saturation, t),
         vibrance: signed(n.vibrance, p.vibrance, t),
-        wb_temp: signed(n.wb_temp, p.wb_temp, t),
-        wb_tint: signed(n.wb_tint, p.wb_tint, t),
+        white_balance: scale_white_balance(p.white_balance, n.white_balance, t),
         texture: signed(n.texture, p.texture, t),
         clarity: signed(n.clarity, p.clarity, t),
         dehaze: signed(n.dehaze, p.dehaze, t),

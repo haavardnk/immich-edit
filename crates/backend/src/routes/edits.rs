@@ -5,7 +5,8 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edit_manifest::EditManifest;
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{Edits, WhiteBalance};
+use raw_pipeline::white_balance::{AsShotWhite, as_shot_white};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 use uuid::Uuid;
@@ -18,7 +19,7 @@ use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
 };
 use crate::services::render::RenderIdentity;
-use crate::services::white_balance::{self, SamplePoint, WhiteBalance};
+use crate::services::white_balance::{self, SamplePoint};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -257,6 +258,25 @@ pub async fn white_balance_auto(
         .await?;
     let profile = state.render.dcp_profile(&context, &frame).await?;
     Ok(Json(white_balance::auto(frame, context, profile).await?))
+}
+
+pub async fn white_balance_as_shot(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(id): Path<AssetKey>,
+    body: axum::body::Bytes,
+) -> Result<Json<AsShotWhite>, AppError> {
+    let context = context_edits(&body)?;
+    let frame = state
+        .render
+        .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
+        .await?;
+    let profile = state.render.dcp_profile(&context, &frame).await?;
+    Ok(Json(as_shot_white(
+        &frame.meta,
+        &context,
+        profile.as_deref(),
+    )))
 }
 
 fn context_edits(body: &[u8]) -> Result<Edits, AppError> {

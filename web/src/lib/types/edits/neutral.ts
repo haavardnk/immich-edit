@@ -64,10 +64,7 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
   const neutral = neutralEdits();
   switch (section) {
     case 'white_balance':
-      return {
-        ...edits,
-        basic: { ...edits.basic, wb_temp: neutral.basic.wb_temp, wb_tint: neutral.basic.wb_tint }
-      };
+      return { ...edits, basic: { ...edits.basic, white_balance: neutral.basic.white_balance } };
     case 'tone':
       return {
         ...edits,

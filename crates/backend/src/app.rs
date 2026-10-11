@@ -235,6 +235,10 @@ pub fn router(state: AppState) -> Router {
             post(routes::edits::white_balance_auto),
         )
         .route(
+            "/assets/{id}/edits/white-balance/as-shot",
+            post(routes::edits::white_balance_as_shot),
+        )
+        .route(
             "/assets/{id}/lens-profile",
             get(routes::lens_profile::get_lens_profile),
         )

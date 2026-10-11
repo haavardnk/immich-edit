@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
+    WhiteBalance,
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
@@ -77,7 +78,10 @@ fn atmosphere_is_reused_across_display_edits() {
         let mut edits = Edits::default();
         edits.basic.dehaze = 0.4;
         edits.basic.exposure_ev = exposure_ev;
-        edits.basic.wb_temp = wb_temp;
+        edits.basic.white_balance = WhiteBalance::Relative {
+            temp: wb_temp,
+            tint: 0.0,
+        };
         edits.detail.luma_nr_amount = luma_nr_amount;
         renderer.render(&frame, &edits, &opts).unwrap()
     };
@@ -131,7 +135,10 @@ fn a_white_balance_change_reuses_the_sensor_stage() {
     let opts = rgb8_opts(96);
     let render = |wb_temp: f64| {
         let mut edits = nr_edits();
-        edits.basic.wb_temp = wb_temp;
+        edits.basic.white_balance = WhiteBalance::Relative {
+            temp: wb_temp,
+            tint: 0.0,
+        };
         renderer.render(&frame, &edits, &opts).unwrap()
     };
 

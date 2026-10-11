@@ -1,16 +1,19 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::edits::Edits;
 use crate::ops::{OpRegistry, default_registry};
 
-pub const EDIT_MANIFEST_VERSION: u32 = 4;
+pub const EDIT_MANIFEST_VERSION: u32 = 5;
 
 type Migration = fn(&mut BTreeMap<String, Value>);
 
-const MIGRATIONS: &[(u32, Migration)] = &[(4, migrate_v4_explicit_lens_profile)];
+const MIGRATIONS: &[(u32, Migration)] = &[
+    (4, migrate_v4_explicit_lens_profile),
+    (5, migrate_v5_tagged_white_balance),
+];
 
 fn migrate_v4_explicit_lens_profile(ops: &mut BTreeMap<String, Value>) {
     let entry = ops
@@ -20,6 +23,29 @@ fn migrate_v4_explicit_lens_profile(ops: &mut BTreeMap<String, Value>) {
         return;
     };
     map.entry("profile_enabled").or_insert(Value::Bool(false));
+}
+
+fn migrate_v5_tagged_white_balance(ops: &mut BTreeMap<String, Value>) {
+    if let Some(wb) = ops.get_mut(crate::ops::user_wb::USER_WB_OP_ID) {
+        let temp = wb.get("temp").and_then(Value::as_f64).unwrap_or(0.0);
+        let tint = wb.get("tint").and_then(Value::as_f64).unwrap_or(0.0);
+        *wb = json!({ "mode": "relative", "temp": temp, "tint": 0.0 - tint });
+    }
+    let Some(layers) = ops
+        .get_mut("masks")
+        .and_then(|m| m.get_mut("layers"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for edits in layers
+        .iter_mut()
+        .filter_map(|layer| layer.get_mut("edits").and_then(Value::as_object_mut))
+    {
+        if let Some(tint) = edits.get("wb_tint").and_then(Value::as_f64) {
+            edits.insert("wb_tint".to_string(), json!(0.0 - tint));
+        }
+    }
 }
 
 fn migrate_in_place(from: u32, ops: &mut BTreeMap<String, Value>) {

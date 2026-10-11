@@ -18,7 +18,7 @@ fn edits() -> serde_json::Value {
         "basic": {
             "exposure_ev": 0.35,
             "contrast": 18.0,
-            "wb_temp": 12.0,
+            "white_balance": {"mode": "relative", "temp": 12.0, "tint": 0.0},
             "texture": 25.0,
             "clarity": 15.0,
             "dehaze": 20.0,

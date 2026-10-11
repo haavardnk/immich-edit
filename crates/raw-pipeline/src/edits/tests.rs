@@ -45,11 +45,11 @@ fn stable_hash_differs_on_change() {
 fn stable_hash_is_pinned() {
     assert_eq!(
         Edits::default().stable_hash(),
-        "a408b0741f72a07fa40dc3abc6a5c9c9"
+        "b838f84ce63f7e1b86de6bb6c578806b"
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "a020a289e917429e73afc1a7383d9816"
+        "31c61d6f85ddfd251eb552baecbe2ba1"
     );
 }
 
@@ -326,8 +326,10 @@ fn populated_edits() -> Edits {
             contrast: -20.0,
             saturation: 30.0,
             vibrance: -40.0,
-            wb_temp: 50.0,
-            wb_tint: -60.0,
+            white_balance: WhiteBalance::Relative {
+                temp: 50.0,
+                tint: -60.0,
+            },
             texture: 70.0,
             clarity: -80.0,
             dehaze: 90.0,

@@ -119,26 +119,6 @@ const FLAT_OPS: FlatOp[] = [
   basicOp('clarity', 'amount', 'clarity'),
   basicOp('dehaze', 'amount', 'dehaze'),
   {
-    id: 'white_balance',
-    nums: [
-      nf(
-        'temp',
-        (e) => e.basic.wb_temp,
-        (e, v) => {
-          e.basic.wb_temp = v;
-        }
-      ),
-      nf(
-        'tint',
-        (e) => e.basic.wb_tint,
-        (e, v) => {
-          e.basic.wb_tint = v;
-        }
-      )
-    ],
-    active: (e) => e.basic.wb_temp !== 0 || e.basic.wb_tint !== 0
-  },
-  {
     id: 'tone_regions',
     legacyId: 'highlights_shadows',
     nums: [toneField('highlights'), toneField('shadows'), toneField('blacks'), toneField('whites')],

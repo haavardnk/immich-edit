@@ -1,7 +1,7 @@
 use raw_pipeline::PipelineError;
 use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
-    Vec2f,
+    Vec2f, WhiteBalance,
 };
 use raw_pipeline::source::LinearKind;
 use raw_pipeline_testkit::frames::haze_frame;
@@ -78,7 +78,10 @@ fn a_linear_source_renders_the_same_bytes_as_its_raw_frame() {
         }
         for wb_temp in [0.0, 35.0] {
             let mut edits = case(label);
-            edits.basic.wb_temp = wb_temp;
+            edits.basic.white_balance = WhiteBalance::Relative {
+                temp: wb_temp,
+                tint: 0.0,
+            };
             let from_raw = renderer.render(&frame, &edits, &opts).unwrap();
             let from_source = renderer.render(&source, &edits, &opts).unwrap();
             if from_raw.bytes != from_source.bytes {

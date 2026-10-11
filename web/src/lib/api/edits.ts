@@ -1,7 +1,7 @@
 import { getJson, sendJson, url, ApiError, ConflictError } from './client';
 import { editsToManifest } from '$lib/edits/manifest';
 import type { AssetDetail } from '$lib/types/asset';
-import type { Edits, EditRecord } from '$lib/types/edits';
+import type { AsShotWhite, Edits, EditRecord, WhiteBalance } from '$lib/types/edits';
 
 export interface EditedAssetEntry {
   id: string;
@@ -83,17 +83,12 @@ export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
   return sendJson('POST', url`/api/assets/${assetId}/edits/auto`, context);
 }
 
-export interface WhiteBalanceResult {
-  wb_temp: number;
-  wb_tint: number;
-}
-
 export function sampleWhiteBalance(
   assetId: string,
   u: number,
   v: number,
   context: Edits
-): Promise<WhiteBalanceResult> {
+): Promise<WhiteBalance> {
   return sendJson('POST', url`/api/assets/${assetId}/edits/white-balance`, {
     u,
     v,
@@ -101,8 +96,12 @@ export function sampleWhiteBalance(
   });
 }
 
-export function autoWhiteBalance(assetId: string, context: Edits): Promise<WhiteBalanceResult> {
+export function autoWhiteBalance(assetId: string, context: Edits): Promise<WhiteBalance> {
   return sendJson('POST', url`/api/assets/${assetId}/edits/white-balance/auto`, context);
+}
+
+export function getAsShotWhite(assetId: string, context: Edits): Promise<AsShotWhite> {
+  return sendJson('POST', url`/api/assets/${assetId}/edits/white-balance/as-shot`, context);
 }
 
 export interface EditHistoryEntry {

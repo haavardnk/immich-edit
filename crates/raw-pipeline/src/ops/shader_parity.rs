@@ -9,7 +9,7 @@ use super::{
 use crate::dcp::{HsvEncoding, HueSatMap};
 use crate::edits::{
     BasicEdits, BwEdits, BwMix, BwTint, ColorEdits, ColorGradeEdits, ColorGradeRegion, Edits,
-    HslBand, HslEdits, ToneEdits,
+    HslBand, HslEdits, ToneEdits, WhiteBalance,
 };
 use crate::gpu::context::GpuContext;
 use crate::gpu::passes::dcp_huesat::{huesat_table_view, upload_huesat_table};
@@ -99,8 +99,10 @@ fn probe_edits() -> Edits {
             contrast: -28.0,
             saturation: 45.0,
             vibrance: -37.0,
-            wb_temp: 1800.0,
-            wb_tint: -22.0,
+            white_balance: WhiteBalance::Absolute {
+                kelvin: 4300.0,
+                tint: -22.0,
+            },
             ..Default::default()
         },
         tone: ToneEdits {

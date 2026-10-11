@@ -6,8 +6,10 @@ use super::matrix::{
 use super::temperature::Temperature;
 use super::{D65_XY, SRGB_TO_XYZ_D65, XYZ_TO_SRGB_D65};
 use crate::dcp::{DcpIlluminant, DcpProfile};
+use crate::edits::WhiteBalance;
 
 const NEUTRAL_PASSES: usize = 30;
+const NEUTRAL_FLOOR: f32 = 0.001;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Calibration {
@@ -38,14 +40,22 @@ impl SceneWhite {
         }
     }
 
-    pub fn user_matrix(&self, temp: f64, tint: f64) -> [[f32; 3]; 3] {
+    pub fn as_shot(&self) -> Temperature {
+        let xy = match self {
+            SceneWhite::Display => [D65_XY.0, D65_XY.1],
+            SceneWhite::Camera(camera) => camera.as_shot,
+        };
+        Temperature::from_xy(xy.map(f64::from))
+    }
+
+    pub fn user_matrix(&self, wb: &WhiteBalance) -> [[f32; 3]; 3] {
         match self {
             SceneWhite::Display => {
-                let [x, y] = shifted([D65_XY.0, D65_XY.1], temp as f32, tint as f32);
+                let [x, y] = target([D65_XY.0, D65_XY.1], wb);
                 let cat = bradford_cat((x, y), D65_XY);
                 mat3_mul(&XYZ_TO_SRGB_D65, &mat3_mul(&cat, &SRGB_TO_XYZ_D65))
             }
-            SceneWhite::Camera(camera) => camera.user_matrix(temp, tint),
+            SceneWhite::Camera(camera) => camera.user_matrix(wb),
         }
     }
 }
@@ -120,12 +130,12 @@ impl CameraWhite {
         self.cam_to_srgb_at(self.weight(self.as_shot))
     }
 
-    pub fn weight_at(&self, temp: f64, tint: f64) -> f32 {
-        self.weight(shifted(self.as_shot, temp as f32, tint as f32))
+    pub fn weight_at(&self, wb: &WhiteBalance) -> f32 {
+        self.weight(target(self.as_shot, wb))
     }
 
-    pub fn user_matrix(&self, temp: f64, tint: f64) -> [[f32; 3]; 3] {
-        let target = shifted(self.as_shot, temp as f32, tint as f32);
+    pub fn user_matrix(&self, wb: &WhiteBalance) -> [[f32; 3]; 3] {
+        let target = target(self.as_shot, wb);
         let n0 = self.neutral(self.as_shot);
         let n1 = self.neutral(target);
         let gains = [
@@ -177,7 +187,9 @@ impl CameraWhite {
 
     fn neutral(&self, xy: [f32; 2]) -> [f32; 3] {
         let n = mat3_vec(&self.xyz_to_cam(self.weight(xy)), xy_to_xyz(xy));
-        n.map(|c| c / n[1])
+        let peak = n[0].max(n[1]).max(n[2]);
+        let pinned = n.map(|c| (c / peak).clamp(NEUTRAL_FLOOR, 1.0));
+        pinned.map(|c| c / pinned[1])
     }
 
     fn neutral_to_xy(&self, neutral: [f32; 3]) -> [f32; 2] {
@@ -210,12 +222,11 @@ fn xy_to_xyz([x, y]: [f32; 2]) -> [f32; 3] {
     [x / y, 1.0, (1.0 - x - y) / y]
 }
 
-fn shifted(xy: [f32; 2], temp: f32, tint: f32) -> [f32; 2] {
-    if temp == 0.0 && tint == 0.0 {
-        return xy;
+fn target(as_shot: [f32; 2], wb: &WhiteBalance) -> [f32; 2] {
+    if wb.is_as_shot() {
+        return as_shot;
     }
-    Temperature::from_xy(xy.map(f64::from))
-        .shifted(temp.into(), (-tint).into())
+    wb.resolve(Temperature::from_xy(as_shot.map(f64::from)))
         .xy()
         .map(|c| c as f32)
 }

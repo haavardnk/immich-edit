@@ -37,7 +37,9 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
 1. **Basic** does most of the work. **Auto**, at the top of **Develop** or `Ctrl+U`, sets tone as a
    starting point. Then:
    - **White Balance**: **Pick white balance** and click something that should be neutral gray, or
-     use **Auto white balance**, then fine-tune **Temperature** and **Tint**.
+     use **Auto white balance**, then fine-tune **Temperature** and **Tint**. On RAW files they show
+     the white in Kelvin, start at the camera's as-shot white, and reset to it; positive **Tint**
+     adds magenta. Other images use relative sliders centered on 0.
    - **Tone**: set **Exposure** first, recover skies with **Highlights**, open up shadows with
      **Shadows**, and set the end points with **Whites** and **Blacks**.
    - **Presence**: **Texture** and **Clarity** add bite, **Dehaze** cuts haze, and **Vibrance**

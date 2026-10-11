@@ -86,7 +86,7 @@
     var(--color-temperature-cool),
     var(--color-temperature-warm)
   );
-  --gradient-tint: linear-gradient(to right, var(--color-tint-magenta), var(--color-tint-green));
+  --gradient-tint: linear-gradient(to right, var(--color-tint-green), var(--color-tint-magenta));
   --gradient-hue-linear: linear-gradient(
     to right,
     hsl(0 100% 50%),

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::dcp::{HsvEncoding, HueSatMap};
-use crate::edits::{BasicEdits, Edits};
+use crate::edits::{BasicEdits, Edits, WhiteBalance};
 use crate::frame::FrameMeta;
 
 const CM_A: [[f32; 3]; 3] = [
@@ -26,6 +26,10 @@ const FM_D65: [[f32; 3]; 3] = [
     [0.0825, 0.2475, 0.4949],
 ];
 const D55: [f32; 2] = [0.3324, 0.3474];
+
+fn rel(temp: f64, tint: f64) -> WhiteBalance {
+    WhiteBalance::Relative { temp, tint }
+}
 
 fn dual_profile(forward: bool) -> DcpProfile {
     let table = |hue: f32| {
@@ -92,24 +96,31 @@ fn user_white_balance_matches_shooting_at_that_white() {
         [0.5, 0.25, 0.15],
         [0.3, 0.3, 0.3],
     ];
-    for (forward, temp, tint) in [
-        (false, -60.0, 0.0),
-        (true, -60.0, 0.0),
-        (false, 35.0, -25.0),
-        (true, 35.0, -25.0),
-        (true, -90.0, 40.0),
+    for (forward, wb) in [
+        (false, rel(-60.0, 0.0)),
+        (true, rel(-60.0, 0.0)),
+        (false, rel(35.0, -25.0)),
+        (true, rel(35.0, -25.0)),
+        (true, rel(-90.0, 40.0)),
+        (
+            true,
+            WhiteBalance::Absolute {
+                kelvin: 3200.0,
+                tint: 12.0,
+            },
+        ),
     ] {
         let profile = dual_profile(forward);
         let (camera, wb0) = shot_at(&profile, D55);
-        let target = shifted(camera.as_shot, temp as f32, tint as f32);
+        let target = target(camera.as_shot, &wb);
         let (reshot, wb1) = shot_at(&profile, target);
-        let case = format!("forward {forward}, temp {temp}, tint {tint}");
+        let case = format!("forward {forward}, {wb:?}");
         assert!(
             (reshot.as_shot[0] - target[0]).abs() + (reshot.as_shot[1] - target[1]).abs() < 1e-4,
             "{case}: {:?} vs {target:?}",
             reshot.as_shot
         );
-        let user = camera.user_matrix(temp, tint);
+        let user = camera.user_matrix(&wb);
         for cam in patches {
             let edited = mat3_vec(&user, develop(&camera, wb0, cam));
             let expected = develop(&reshot, wb1, cam);
@@ -125,10 +136,10 @@ fn user_white_balance_matches_shooting_at_that_white() {
 fn dcp_base_table_follows_user_white() {
     let profile = dual_profile(false);
     let (camera, wb0) = shot_at(&profile, D55);
-    let (_, wb1) = shot_at(&profile, shifted(camera.as_shot, -60.0, 0.0));
+    let (_, wb1) = shot_at(&profile, target(camera.as_shot, &rel(-60.0, 0.0)));
     let warmed = Edits {
         basic: BasicEdits {
-            wb_temp: -60.0,
+            white_balance: rel(-60.0, 0.0),
             ..Default::default()
         },
         ..Default::default()
@@ -155,19 +166,25 @@ fn zero_edit_is_identity_and_slider_signs_hold() {
         SceneWhite::Camera(shot_at(&dual_profile(true), D55).0),
     ];
     for white in whites {
-        let still = white.user_matrix(0.0, 0.0);
+        let still = white.user_matrix(&WhiteBalance::AS_SHOT);
         let off = (0..9)
             .map(|i| (still[i / 3][i % 3] - identity_3x3()[i / 3][i % 3]).abs())
             .fold(0.0, f32::max);
         assert!(off < 1e-4, "{white:?}: {still:?}");
-        let grey = |temp: f64, tint: f64| mat3_vec(&white.user_matrix(temp, tint), [0.5; 3]);
+        let shot = WhiteBalance::from(white.as_shot());
+        let pinned = white.user_matrix(&shot);
+        let off = (0..9)
+            .map(|i| (pinned[i / 3][i % 3] - identity_3x3()[i / 3][i % 3]).abs())
+            .fold(0.0, f32::max);
+        assert!(off < 1e-4, "{white:?} pinned: {pinned:?}");
+        let grey = |temp: f64, tint: f64| mat3_vec(&white.user_matrix(&rel(temp, tint)), [0.5; 3]);
         let [r, _, b] = grey(50.0, 0.0);
         assert!(r > b, "warm {r} {b}");
         let [r, _, b] = grey(-50.0, 0.0);
         assert!(r < b, "cool {r} {b}");
-        let [r, g, b] = grey(0.0, 50.0);
-        assert!(g > (r + b) / 2.0, "green {r} {g} {b}");
         let [r, g, b] = grey(0.0, -50.0);
+        assert!(g > (r + b) / 2.0, "green {r} {g} {b}");
+        let [r, g, b] = grey(0.0, 50.0);
         assert!(g < (r + b) / 2.0, "magenta {r} {g} {b}");
     }
 }
@@ -175,10 +192,31 @@ fn zero_edit_is_identity_and_slider_signs_hold() {
 #[test]
 fn temperature_range_spans_candlelight_to_shade() {
     let kelvin = |xy: [f32; 2]| Temperature::from_xy(xy.map(f64::from)).kelvin;
-    let warmest = kelvin(shifted(D55, -100.0, 0.0));
-    let coolest = kelvin(shifted(D55, 100.0, 0.0));
+    let warmest = kelvin(target(D55, &rel(-100.0, 0.0)));
+    let coolest = kelvin(target(D55, &rel(100.0, 0.0)));
     assert!(warmest < 2100.0, "{warmest}");
     assert!(coolest > 12000.0, "{coolest}");
+}
+
+#[test]
+fn extreme_whites_keep_their_cast_direction() {
+    for (forward, kelvin, tint) in [
+        (false, 2000.0, 150.0),
+        (true, 2000.0, 150.0),
+        (true, 2000.0, -150.0),
+        (true, 50000.0, 150.0),
+        (true, 50000.0, -150.0),
+    ] {
+        let camera = shot_at(&dual_profile(forward), D55).0;
+        let [r, g, b] = mat3_vec(
+            &camera.user_matrix(&WhiteBalance::Absolute { kelvin, tint }),
+            [0.5; 3],
+        );
+        let case = format!("forward {forward}, {kelvin} K {tint}: {r} {g} {b}");
+        assert!([r, g, b].iter().all(|c| c.is_finite()), "{case}");
+        assert_eq!(b > r, kelvin < 5000.0, "{case}");
+        assert_eq!(g < (r + b) / 2.0, tint > 0.0, "{case}");
+    }
 }
 
 #[test]

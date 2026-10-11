@@ -2,11 +2,13 @@ use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 
+pub const USER_WB_OP_ID: &str = "white_balance";
+
 pub struct UserWbOp;
 
 impl Op for UserWbOp {
     fn id(&self) -> &'static str {
-        "white_balance"
+        USER_WB_OP_ID
     }
     fn gpu_route(&self) -> super::GpuRoute {
         super::GpuRoute::Fused
@@ -18,30 +20,21 @@ impl Op for UserWbOp {
         -10
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.basic.wb_temp != 0.0 || edits.basic.wb_tint != 0.0
+        !edits.basic.white_balance.is_as_shot()
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
-        if edits.basic.wb_temp == 0.0 && edits.basic.wb_tint == 0.0 {
+        if edits.basic.white_balance.is_as_shot() {
             return None;
         }
-        Some(serde_json::json!({
-            "temp": edits.basic.wb_temp,
-            "tint": edits.basic.wb_tint,
-        }))
+        serde_json::to_value(edits.basic.white_balance).ok()
     }
     fn apply_doc(&self, value: &serde_json::Value, edits: &mut Edits) {
-        if let Some(v) = value.get("temp").and_then(|v| v.as_f64()) {
-            edits.basic.wb_temp = v;
-        }
-        if let Some(v) = value.get("tint").and_then(|v| v.as_f64()) {
-            edits.basic.wb_tint = v;
+        if let Ok(wb) = serde_json::from_value(value.clone()) {
+            edits.basic.white_balance = wb;
         }
     }
     fn cpu_fused(&self, edits: &Edits, ctx: &OpContext) -> Option<CpuFusedOp> {
-        let m = ctx
-            .render
-            .white
-            .user_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
+        let m = ctx.render.white.user_matrix(&edits.basic.white_balance);
         Some(CpuFusedOp::ColorMatrix { m })
     }
     fn gpu(&self) -> Option<GpuOp> {
@@ -64,10 +57,7 @@ impl Op for UserWbOp {
         })
     }
     fn write_gpu_uniform(&self, edits: &Edits, ctx: &OpContext, dst: &mut [f32]) {
-        let m = ctx
-            .render
-            .white
-            .user_matrix(edits.basic.wb_temp, edits.basic.wb_tint);
+        let m = ctx.render.white.user_matrix(&edits.basic.white_balance);
         for (row_idx, row) in m.iter().enumerate() {
             let off = row_idx * 4;
             dst[off] = row[0];

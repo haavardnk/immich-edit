@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { IconButton } from '@immich/ui';
-  import { mdiAutoFix, mdiEyedropperVariant } from '@mdi/js';
   import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '$lib/stores/editor.svelte';
+  import WhiteBalanceSection from './basic/WhiteBalanceSection.svelte';
 
-  const wbModified = $derived(editor.edits.basic.wb_temp !== 0 || editor.edits.basic.wb_tint !== 0);
   const toneModified = $derived(
     editor.edits.basic.exposure_ev !== 0 ||
       editor.edits.basic.brightness !== 0 ||
@@ -22,12 +20,6 @@
       editor.edits.basic.vibrance !== 0 ||
       editor.edits.basic.saturation !== 0
   );
-
-  function resetWb(): void {
-    editor.edits.basic.wb_temp = 0;
-    editor.edits.basic.wb_tint = 0;
-    void editor.onCommit('Reset White Balance');
-  }
 
   function resetTone(): void {
     editor.edits.basic.exposure_ev = 0;
@@ -52,56 +44,7 @@
 
 <div class="flex flex-col divide-y divide-dark/10">
   <div class="flex flex-col gap-1 pb-1.5">
-    <SectionHeader
-      title="White Balance"
-      section="white_balance"
-      modified={wbModified}
-      onReset={resetWb}
-    >
-      {#snippet actions()}
-        <IconButton
-          size="small"
-          variant="ghost"
-          color={editor.wbPicking ? 'primary' : 'secondary'}
-          class="size-6 rounded p-0 {editor.wbPicking
-            ? 'bg-white/10'
-            : 'text-dark/55 hover:bg-hairline hover:text-dark'}"
-          icon={mdiEyedropperVariant}
-          title="Pick a neutral area in the image"
-          aria-label="Pick white balance"
-          aria-pressed={editor.wbPicking}
-          disabled={editor.wbBusy || !editor.assetId}
-          onclick={editor.toggleWbPicker}
-        />
-        <IconButton
-          size="small"
-          variant="ghost"
-          color="secondary"
-          class="size-6 rounded p-0 text-dark/55 hover:bg-hairline hover:text-dark"
-          icon={mdiAutoFix}
-          title="Auto white balance"
-          aria-label="Auto white balance"
-          disabled={editor.wbBusy || !editor.assetId}
-          onclick={() => void editor.onAutoWhiteBalance()}
-        />
-      {/snippet}
-    </SectionHeader>
-    <EditSlider
-      label="Temperature"
-      commitAction="Temperature"
-      bind:value={editor.edits.basic.wb_temp}
-      min={-100}
-      max={100}
-      gradient="var(--gradient-temperature)"
-    />
-    <EditSlider
-      label="Tint"
-      commitAction="Tint"
-      bind:value={editor.edits.basic.wb_tint}
-      min={-100}
-      max={100}
-      gradient="var(--gradient-tint)"
-    />
+    <WhiteBalanceSection />
   </div>
   <div class="flex flex-col gap-1 py-1.5">
     <SectionHeader title="Tone" section="tone" modified={toneModified} onReset={resetTone} />

@@ -10,7 +10,8 @@ import {
   type DetailEdits,
   type Edits,
   type EffectsEdits,
-  type ToneEdits
+  type ToneEdits,
+  type WhiteBalance
 } from '$lib/types/edits';
 
 export const LOOK_AMOUNT_FULL = 100;
@@ -32,6 +33,11 @@ function scaleCurve(points: CurvePoint[], t: number): CurvePoint[] {
   return points.map((p) => ({ x: p.x, y: Math.min(1, Math.max(0, p.x + (p.y - p.x) * t)) }));
 }
 
+function scaleWhiteBalance(p: WhiteBalance, n: WhiteBalance, t: number): WhiteBalance {
+  if (p.mode !== 'relative' || n.mode !== 'relative') return p;
+  return { mode: 'relative', temp: signed(n.temp, p.temp, t), tint: signed(n.tint, p.tint, t) };
+}
+
 function scaleBasic(p: BasicEdits, n: BasicEdits, t: number): BasicEdits {
   return {
     exposure_ev: lerp(n.exposure_ev, p.exposure_ev, t, -5, 5),
@@ -39,8 +45,7 @@ function scaleBasic(p: BasicEdits, n: BasicEdits, t: number): BasicEdits {
     contrast: signed(n.contrast, p.contrast, t),
     saturation: signed(n.saturation, p.saturation, t),
     vibrance: signed(n.vibrance, p.vibrance, t),
-    wb_temp: signed(n.wb_temp, p.wb_temp, t),
-    wb_tint: signed(n.wb_tint, p.wb_tint, t),
+    white_balance: scaleWhiteBalance(p.white_balance, n.white_balance, t),
     texture: signed(n.texture, p.texture, t),
     clarity: signed(n.clarity, p.clarity, t),
     dehaze: signed(n.dehaze, p.dehaze, t),

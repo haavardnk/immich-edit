@@ -1,5 +1,6 @@
 <script lang="ts">
   import SliderRow from './SliderRow.svelte';
+  import type { SliderScale } from './sliderScale';
   import { editor } from '$lib/stores/editor.svelte';
   import type { PreviewMode } from '$lib/api/preview';
 
@@ -10,6 +11,7 @@
     min,
     max,
     step = 1,
+    scale,
     defaultValue = 0,
     disabled = false,
     format = (v: number): string => v.toFixed(0),
@@ -23,6 +25,7 @@
     min: number;
     max: number;
     step?: number;
+    scale?: SliderScale;
     defaultValue?: number;
     disabled?: boolean;
     format?: (v: number) => string;
@@ -39,6 +42,7 @@
   {min}
   {max}
   {step}
+  {scale}
   {defaultValue}
   {disabled}
   {format}

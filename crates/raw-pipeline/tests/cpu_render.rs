@@ -1,6 +1,6 @@
 use raw_pipeline::{
     cpu, decode,
-    edits::{CurvePoint, CurvePoints, Edits},
+    edits::{CurvePoint, CurvePoints, Edits, WhiteBalance},
     frame::{FrameId, FrameMeta, RawFrame, RenderOptions},
 };
 use raw_pipeline_testkit::color::luma;
@@ -85,7 +85,20 @@ fn auto_tools_agree_on_fast_and_quality_frames() {
             panic!("{name}: auto exposure {fast_ev} on fast frame vs {quality_ev} on quality");
         }
         let wb_close = match (fast_wb, quality_wb) {
-            (Some(a), Some(b)) => (a.0 - b.0).abs() <= 3.0 && (a.1 - b.1).abs() <= 3.0,
+            (
+                Some(WhiteBalance::Absolute {
+                    kelvin: ka,
+                    tint: ta,
+                }),
+                Some(WhiteBalance::Absolute {
+                    kelvin: kb,
+                    tint: tb,
+                }),
+            ) => (ka / kb).ln().abs() <= 0.032 && (ta - tb).abs() <= 3.0,
+            (
+                Some(WhiteBalance::Relative { temp: a, tint: c }),
+                Some(WhiteBalance::Relative { temp: b, tint: d }),
+            ) => (a - b).abs() <= 3.0 && (c - d).abs() <= 3.0,
             (a, b) => a.is_none() && b.is_none(),
         };
         if !wb_close {

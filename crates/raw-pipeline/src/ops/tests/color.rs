@@ -376,7 +376,10 @@ fn white_balance_temp_warms() {
     let mut img = solid_image(1, 1, [0.4, 0.5, 0.6]);
     let edits = Edits {
         basic: BasicEdits {
-            wb_temp: 100.0,
+            white_balance: WhiteBalance::Relative {
+                temp: 100.0,
+                tint: 0.0,
+            },
             ..Default::default()
         },
         ..Default::default()
@@ -392,7 +395,10 @@ fn user_wb_cool_shifts_blue() {
     let mut img = solid_image(1, 1, [0.4, 0.5, 0.6]);
     let edits = Edits {
         basic: BasicEdits {
-            wb_temp: -100.0,
+            white_balance: WhiteBalance::Relative {
+                temp: -100.0,
+                tint: 0.0,
+            },
             ..Default::default()
         },
         ..Default::default()

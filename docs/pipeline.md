@@ -66,9 +66,12 @@ misses and hits with uncached `cpu::render`.
 
 ### White balance order
 
-The as-shot white balance and camera matrix run in the `WhiteBalance` stage. The user temperature
-and tint move the scene white along the Planckian locus: temperature ±100 spans ±1.5 stops of
-color temperature, and tint ±100 spans ±0.03 Duv. Raw images re-render as if the camera had been
+The as-shot white balance and camera matrix run in the `WhiteBalance` stage. Raw edits store the
+scene white as an absolute color temperature and tint, using the DNG SDK temperature model:
+2000 K to 50000 K, and tint ±150, where one tint unit is 1/3000 Duv and positive tint is magenta.
+Images without camera color data, and raw edits saved before this model, store a relative shift
+from the as-shot white instead: temperature ±100 spans ±1.5 stops of color temperature, and tint
+±100 spans ±0.03 Duv. Raw images re-render as if the camera had been
 white balanced at that white, using the camera matrices and DCP forward matrices interpolated
 for the new white, so the DCP base table and camera color follow the edit. Images without camera
 color data use a Bradford adaptation in linear sRGB. The adjustment is pointwise and runs in the

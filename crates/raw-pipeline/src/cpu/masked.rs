@@ -184,11 +184,11 @@ pub fn effective_edits_for_layer(global: &Edits, layer: &MaskLayer) -> Edits {
     if let Some(v) = d.vibrance {
         out.basic.vibrance = (out.basic.vibrance + v).clamp(-100.0, 100.0);
     }
-    if let Some(v) = d.wb_temp {
-        out.basic.wb_temp = (out.basic.wb_temp + v).clamp(-100.0, 100.0);
-    }
-    if let Some(v) = d.wb_tint {
-        out.basic.wb_tint = (out.basic.wb_tint + v).clamp(-100.0, 100.0);
+    if d.wb_temp.is_some() || d.wb_tint.is_some() {
+        out.basic.white_balance = out
+            .basic
+            .white_balance
+            .shifted(d.wb_temp.unwrap_or(0.0), d.wb_tint.unwrap_or(0.0));
     }
     if let Some(v) = d.highlights {
         out.tone.highlights = (out.tone.highlights + v).clamp(-100.0, 100.0);

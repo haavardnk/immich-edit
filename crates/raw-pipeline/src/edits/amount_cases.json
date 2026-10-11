@@ -176,6 +176,18 @@
     }
   },
   {
+    "name": "relative white balance scales from as shot",
+    "amount": 50,
+    "preset": { "basic": { "white_balance": { "mode": "relative", "temp": 40, "tint": -20 } } },
+    "expect": { "/basic/white_balance": { "mode": "relative", "temp": 20, "tint": -10 } }
+  },
+  {
+    "name": "absolute white balance applies verbatim",
+    "amount": 50,
+    "preset": { "basic": { "white_balance": { "mode": "absolute", "kelvin": 3200, "tint": 12 } } },
+    "expect": { "/basic/white_balance": { "mode": "absolute", "kelvin": 3200, "tint": 12 } }
+  },
+  {
     "name": "lut amount without a lut is left alone",
     "amount": 50,
     "preset": { "color": { "lut_3d": { "lut_id": null, "amount": 60 } } },

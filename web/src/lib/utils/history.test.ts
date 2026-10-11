@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { historyDetails, historyLabel } from './history';
 import { neutralEdits } from '$lib/types/edits';
 import type { EditHistoryEntry } from '$lib/api/edits';
-import type { MaskLayer } from '$lib/types/edits';
+import type { MaskLayer, WhiteBalance } from '$lib/types/edits';
 
 function entry(over: Partial<EditHistoryEntry>): EditHistoryEntry {
   return {
@@ -121,6 +121,36 @@ describe('historyDetails', () => {
       label: 'Lens',
       items: [{ kind: 'value', label: 'Profile Corrections', before: 'Auto', after: 'On' }]
     });
+  });
+
+  it.each<[WhiteBalance, WhiteBalance, string, string]>([
+    [
+      { mode: 'relative', temp: 0, tint: 0 },
+      { mode: 'absolute', kelvin: 5200, tint: 8 },
+      'As Shot',
+      '5200 K, Tint +8'
+    ],
+    [
+      { mode: 'relative', temp: 20, tint: -5 },
+      { mode: 'relative', temp: 0, tint: 0 },
+      'Temp +20, Tint -5',
+      'As Shot'
+    ]
+  ])('formats white balance %o to %o', (before, after, beforeText, afterText) => {
+    const prev = neutralEdits();
+    prev.basic.white_balance = before;
+    const curr = neutralEdits();
+    curr.basic.white_balance = after;
+
+    const details = historyDetails(entry({ edits: curr }), entry({ edits: prev }));
+
+    expect(details).toEqual([
+      {
+        key: 'basic',
+        label: 'Basic',
+        items: [{ kind: 'value', label: 'White Balance', before: beforeText, after: afterText }]
+      }
+    ]);
   });
 
   it('shows a deletion returning prior values to neutral', () => {

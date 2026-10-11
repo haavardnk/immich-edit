@@ -2,7 +2,7 @@ use raw_pipeline::CpuRenderer;
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
     CropRect, DetailEdits, Edits, GeometryEdits, MaskComponent, MaskComponentKind,
-    MaskComponentMode, MaskLayer, MaskSource, MaskedEdits, Vec2f,
+    MaskComponentMode, MaskLayer, MaskSource, MaskedEdits, Vec2f, WhiteBalance,
 };
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::source::{self, LinearKind, SourceImage};
@@ -46,8 +46,10 @@ fn display_edits() -> Edits {
     let mut edits = Edits::default();
     edits.basic.exposure_ev = 0.4;
     edits.basic.contrast = 20.0;
-    edits.basic.wb_temp = 15.0;
-    edits.basic.wb_tint = -10.0;
+    edits.basic.white_balance = WhiteBalance::Relative {
+        temp: 15.0,
+        tint: -10.0,
+    };
     edits.basic.dehaze = 25.0;
     edits.basic.texture = 30.0;
     edits.basic.clarity = -20.0;

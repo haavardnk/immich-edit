@@ -3,6 +3,7 @@ import { flatOpsAreIdentity } from './flatOps';
 import { geometryIsIdentity } from './geometry';
 import type { Edits } from './model';
 import { curvesEditsIsIdentity } from './tone';
+import { whiteBalanceIsAsShot } from './whiteBalance';
 
 export function isIdentity(e: Edits): boolean {
   return dcpIsDefault(e.color.dcp) && isNonGeometryIdentity(e) && geometryIsIdentity(e.geometry);
@@ -15,6 +16,7 @@ export function isNonGeometryIdentity(e: Edits): boolean {
 export function isDevelopIdentity(e: Edits): boolean {
   return (
     flatOpsAreIdentity(e) &&
+    whiteBalanceIsAsShot(e.basic.white_balance) &&
     curvesEditsIsIdentity(e.basic.curves) &&
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&

@@ -1,6 +1,6 @@
 use raw_pipeline::cpu::run_pipeline_ops;
 use raw_pipeline::edits::{
-    BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits,
+    BasicEdits, CurvePoint, CurvePoints, CurvesEdits, DetailEdits, Edits, ToneEdits, WhiteBalance,
 };
 use raw_pipeline::ops::capture_sharpen::CaptureSigma;
 use raw_pipeline::ops::{LinearImage, OpContext, OpScratch, RenderContext};
@@ -91,8 +91,10 @@ fn edits_full() -> Edits {
             contrast: 30.0,
             saturation: 15.0,
             vibrance: 25.0,
-            wb_temp: 12.0,
-            wb_tint: -5.0,
+            white_balance: WhiteBalance::Relative {
+                temp: 12.0,
+                tint: -5.0,
+            },
             texture: 20.0,
             clarity: 15.0,
             dehaze: 10.0,

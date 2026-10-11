@@ -54,7 +54,7 @@ pub(super) fn bradford_cat(src_xy: (f32, f32), dst_xy: (f32, f32)) -> [[f32; 3];
     mat3_mul(&BRADFORD_INV, &diag_brad)
 }
 
-pub(super) fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
+pub(crate) fn inverse_3x3(m: [[f32; 3]; 3]) -> Option<[[f32; 3]; 3]> {
     let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);

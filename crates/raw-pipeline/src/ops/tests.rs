@@ -2,7 +2,7 @@ use super::LinearImage;
 use super::*;
 use crate::edits::{
     BasicEdits, ColorEdits, ColorGradeEdits, ColorGradeRegion, DetailEdits, Edits, GeometryEdits,
-    HslBand, HslEdits, RetouchMode, RetouchStroke, ToneEdits, Vec2f,
+    HslBand, HslEdits, RetouchMode, RetouchStroke, ToneEdits, Vec2f, WhiteBalance,
 };
 
 fn solid_image(w: usize, h: usize, rgb: [f32; 3]) -> LinearImage {

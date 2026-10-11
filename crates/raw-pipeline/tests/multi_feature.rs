@@ -1,6 +1,6 @@
 use raw_pipeline::{
     cpu, decode,
-    edits::{BasicEdits, DetailEdits, Edits, ToneEdits},
+    edits::{BasicEdits, DetailEdits, Edits, ToneEdits, WhiteBalance},
     frame::RenderOptions,
 };
 use raw_pipeline_testkit::baseline::{RenderStats, Tolerance};
@@ -26,8 +26,10 @@ fn stack_tone_lift() -> Edits {
             contrast: 12.0,
             saturation: 4.0,
             vibrance: 18.0,
-            wb_temp: 8.0,
-            wb_tint: 3.0,
+            white_balance: WhiteBalance::Relative {
+                temp: 8.0,
+                tint: -3.0,
+            },
             clarity: -8.0,
             texture: -5.0,
             ..Default::default()
@@ -55,7 +57,10 @@ fn stack_clarity_dehaze() -> Edits {
             contrast: 22.0,
             saturation: 8.0,
             vibrance: 30.0,
-            wb_temp: -6.0,
+            white_balance: WhiteBalance::Relative {
+                temp: -6.0,
+                tint: 0.0,
+            },
             clarity: 25.0,
             texture: 15.0,
             dehaze: 12.0,
@@ -85,7 +90,10 @@ fn stack_noise_reduction() -> Edits {
             contrast: 18.0,
             saturation: -10.0,
             vibrance: 15.0,
-            wb_temp: 4.0,
+            white_balance: WhiteBalance::Relative {
+                temp: 4.0,
+                tint: 0.0,
+            },
             clarity: 10.0,
             dehaze: 8.0,
             ..Default::default()

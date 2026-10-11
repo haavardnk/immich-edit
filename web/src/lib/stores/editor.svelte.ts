@@ -4,6 +4,7 @@ import {
   effectiveLens,
   MAX_RETOUCH_STROKES,
   type AspectLock,
+  type AsShotWhite,
   type CropRect,
   type DevelopSection,
   type Edits,
@@ -86,6 +87,9 @@ class EditorStore {
   autoBusy = $state(false);
   wbPicking = $state(false);
   wbBusy = $state(false);
+  asShot = $state<AsShotWhite | null>(null);
+  asShotError = $state<string | null>(null);
+  asShotKey: string | null = null;
   error = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
@@ -258,6 +262,9 @@ class EditorStore {
     scopes.reset();
     this.lensProfile = null;
     this.lensProfileError = null;
+    this.asShot = null;
+    this.asShotError = null;
+    this.asShotKey = null;
     this.assetId = null;
     this.initialised = false;
     this.edits = neutralEdits();
@@ -368,6 +375,8 @@ class EditorStore {
     whiteBalance.pickWhiteBalance(this, u, v);
 
   onAutoWhiteBalance = (): Promise<void> => whiteBalance.autoWb(this);
+
+  loadAsShot = (): void => whiteBalance.loadAsShot(this);
 
   onExport = (opts: ExportOptions): Promise<void> => exportActions.onExport(this, opts);
 

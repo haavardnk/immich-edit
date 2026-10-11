@@ -1,7 +1,7 @@
 use super::*;
 use crate::edits::{
     BasicEdits, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
-    HslEdits, LensEdits, ToneEdits,
+    HslEdits, LensEdits, ToneEdits, WhiteBalance,
 };
 
 #[test]
@@ -51,8 +51,10 @@ fn roundtrip_preserves_fields() {
             contrast: 25.0,
             saturation: 12.5,
             vibrance: 18.0,
-            wb_temp: 8.0,
-            wb_tint: -4.0,
+            white_balance: WhiteBalance::Absolute {
+                kelvin: 4300.0,
+                tint: -4.0,
+            },
             texture: 33.0,
             clarity: 22.0,
             dehaze: -15.0,
@@ -408,6 +410,37 @@ fn v3_manifests_migrate_to_explicit_off() {
         if manifest.to_edits().lens.profile_enabled != Some(expected) {
             panic!("v3 migration expected Some({expected})");
         }
+    }
+}
+
+#[test]
+fn v4_white_balance_becomes_relative_with_magenta_positive_tint() {
+    let manifest = EditManifest {
+        schema_version: 4,
+        ops: BTreeMap::from([
+            (
+                "white_balance".to_string(),
+                serde_json::json!({ "temp": 20.0, "tint": 15.0 }),
+            ),
+            (
+                "masks".to_string(),
+                serde_json::json!({
+                    "layers": [{ "id": "l1", "edits": { "wb_temp": 5.0, "wb_tint": 10.0 } }]
+                }),
+            ),
+        ]),
+    };
+    let edits = manifest.to_edits();
+    let want = WhiteBalance::Relative {
+        temp: 20.0,
+        tint: -15.0,
+    };
+    if edits.basic.white_balance != want {
+        panic!("got {:?}", edits.basic.white_balance);
+    }
+    let layer = &edits.masks[0].edits;
+    if layer.wb_temp != Some(5.0) || layer.wb_tint != Some(-10.0) {
+        panic!("mask got {layer:?}");
     }
 }
 

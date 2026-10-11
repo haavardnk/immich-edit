@@ -277,8 +277,7 @@ fn mosaic_auto_reads_scene_brightness() {
 fn auto_does_not_set_unowned_basic_fields() {
     let f = make_frame_luma(0.18, 32, 32);
     let e = auto_adjust(&f, &Edits::default());
-    if e.basic.wb_temp != 0.0
-        || e.basic.wb_tint != 0.0
+    if !e.basic.white_balance.is_as_shot()
         || e.basic.saturation != 0.0
         || e.basic.texture != 0.0
         || e.basic.dehaze != 0.0

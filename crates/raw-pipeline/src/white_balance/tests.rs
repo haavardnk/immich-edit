@@ -1,4 +1,5 @@
 use super::*;
+use crate::color::{Calibration, CameraWhite, inverse_3x3, mat3_vec};
 use crate::edits::{CropRect, GeometryEdits};
 use crate::frame::{FrameId, FrameMeta};
 
@@ -56,13 +57,12 @@ fn make_mosaic_with<F: Fn(usize, usize) -> [f32; 3]>(
     frame
 }
 
-fn neutralised(rgb: [f32; 3], temp: f64, tint: f64) -> [f32; 3] {
-    let m = SceneWhite::Display.user_matrix(temp, tint);
-    [
-        m[0][0] * rgb[0] + m[0][1] * rgb[1] + m[0][2] * rgb[2],
-        m[1][0] * rgb[0] + m[1][1] * rgb[1] + m[1][2] * rgb[2],
-        m[2][0] * rgb[0] + m[2][1] * rgb[1] + m[2][2] * rgb[2],
-    ]
+fn neutralised(rgb: [f32; 3], wb: WhiteBalance) -> [f32; 3] {
+    neutralised_by(&SceneWhite::Display, rgb, wb)
+}
+
+fn neutralised_by(white: &SceneWhite, rgb: [f32; 3], wb: WhiteBalance) -> [f32; 3] {
+    mat3_vec(&white.user_matrix(&wb), rgb)
 }
 
 fn spread(rgb: [f32; 3]) -> f32 {
@@ -76,11 +76,17 @@ fn noise(x: usize, y: usize, channel: usize) -> f32 {
     (h % 1000) as f32 / 1000.0 - 0.5
 }
 
+fn relative_temp(wb: WhiteBalance) -> f64 {
+    match wb {
+        WhiteBalance::Relative { temp, .. } => temp,
+        WhiteBalance::Absolute { .. } => panic!("display frames solve relative, got {wb:?}"),
+    }
+}
+
 #[test]
 fn neutral_sample_solves_to_no_correction() {
-    let (temp, tint) =
-        solve_neutral(&SceneWhite::Display, [0.4, 0.4, 0.4]).expect("neutral grey solves");
-    assert_eq!((temp, tint), (0.0, 0.0));
+    let wb = solve_neutral(&SceneWhite::Display, [0.4, 0.4, 0.4]).expect("neutral grey solves");
+    assert!(wb.is_as_shot(), "{wb:?}");
 }
 
 #[test]
@@ -91,20 +97,70 @@ fn solved_pair_neutralises_the_sample() {
         [0.35, 0.40, 0.35],
         [0.06, 0.05, 0.04],
     ] {
-        let (temp, tint) = solve_neutral(&SceneWhite::Display, rgb).expect("cast solves");
-        let out = neutralised(rgb, temp, tint);
+        let wb = solve_neutral(&SceneWhite::Display, rgb).expect("cast solves");
+        let out = neutralised(rgb, wb);
         assert!(
             spread(out) < 0.03,
-            "rgb {rgb:?} -> ({temp}, {tint}) left spread {}",
+            "rgb {rgb:?} -> {wb:?} left spread {}",
             spread(out)
         );
     }
 }
 
 #[test]
+fn camera_white_solves_to_kelvin_beyond_the_relative_range() {
+    let camera = SceneWhite::Camera(CameraWhite::new(
+        Calibration {
+            cct: 6504.0,
+            xyz_to_cam: [
+                [0.6722, -0.0635, -0.0963],
+                [-0.4287, 1.2460, 0.2028],
+                [-0.0908, 0.2162, 0.5668],
+            ],
+            forward: None,
+        },
+        None,
+        None,
+        [2.0, 1.0, 1.5, 1.0],
+    ));
+    let as_shot = camera.as_shot();
+    let shade = WhiteBalance::Absolute {
+        kelvin: 20000.0,
+        tint: 6.0,
+    };
+    let undo = inverse_3x3(camera.user_matrix(&shade)).expect("invertible");
+    let cast = mat3_vec(&undo, [0.4; 3]);
+    let wb = solve_neutral(&camera, cast).expect("camera cast solves");
+    let WhiteBalance::Absolute { kelvin, tint } = wb else {
+        panic!("camera frames solve absolute, got {wb:?}");
+    };
+    assert!(
+        kelvin > as_shot.shifted(100.0, 0.0).kelvin,
+        "{as_shot:?} must not reach the target with relative edits"
+    );
+    assert!(
+        kelvin.fract() == 0.0 && (kelvin - 20000.0).abs() <= 200.0 && (tint - 6.0).abs() <= 1.0,
+        "{wb:?}"
+    );
+    let left = spread(neutralised_by(&camera, cast, wb));
+    assert!(left < 0.03, "{wb:?} left spread {left}");
+}
+
+#[test]
+fn display_frames_report_a_rounded_d65_as_shot() {
+    let white = as_shot_white(&make_frame(4, 4, [0.5; 3]).meta, &Edits::default(), None);
+    assert!(
+        !white.raw && (white.kelvin - 6504.0).abs() <= 1.0 && white.tint == 10.0,
+        "{white:?}"
+    );
+}
+
+#[test]
 fn warm_cast_cools_and_blue_cast_warms() {
-    let (warm, _) = solve_neutral(&SceneWhite::Display, [0.6, 0.45, 0.3]).expect("warm solves");
-    let (cool, _) = solve_neutral(&SceneWhite::Display, [0.3, 0.45, 0.6]).expect("cool solves");
+    let warm =
+        relative_temp(solve_neutral(&SceneWhite::Display, [0.6, 0.45, 0.3]).expect("warm solves"));
+    let cool =
+        relative_temp(solve_neutral(&SceneWhite::Display, [0.3, 0.45, 0.6]).expect("cool solves"));
     assert!(
         warm < 0.0,
         "warm sample should lower temperature, got {warm}"
@@ -125,9 +181,9 @@ fn black_and_non_finite_samples_do_not_solve() {
 fn sampling_a_patch_neutralises_that_patch() {
     let cast = [0.55, 0.40, 0.28];
     let frame = make_frame_with(64, 64, |x, _| if x < 32 { cast } else { [0.1, 0.4, 0.1] });
-    let (temp, tint) =
+    let wb =
         sample_white_balance(&frame, &Edits::default(), None, 0.15, 0.5).expect("patch solves");
-    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+    assert!(spread(neutralised(cast, wb)) < 0.03);
 }
 
 #[test]
@@ -154,9 +210,9 @@ fn textured_patch_with_steady_colour_still_solves() {
         let scale = 0.4 + 0.6 * ((x * 3 + y * 5) % 7) as f32 / 7.0;
         cast.map(|c| c * scale)
     });
-    let (temp, tint) =
+    let wb =
         sample_white_balance(&frame, &Edits::default(), None, 0.25, 0.25).expect("texture solves");
-    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+    assert!(spread(neutralised(cast, wb)) < 0.03);
 }
 
 #[test]
@@ -175,9 +231,8 @@ fn sample_uses_display_coordinates_after_crop() {
         },
         ..Default::default()
     };
-    let (temp, tint) =
-        sample_white_balance(&frame, &edits, None, 0.5, 0.5).expect("cropped patch solves");
-    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+    let wb = sample_white_balance(&frame, &edits, None, 0.5, 0.5).expect("cropped patch solves");
+    assert!(spread(neutralised(cast, wb)) < 0.03);
 }
 
 #[test]
@@ -193,9 +248,9 @@ fn sampling_a_mosaic_patch_neutralises_that_patch() {
             },
         );
         for (u, v) in [(0.2, 0.5), (0.0, 1.0), (0.3, 0.0)] {
-            let (temp, tint) = sample_white_balance(&frame, &Edits::default(), None, u, v)
+            let wb = sample_white_balance(&frame, &Edits::default(), None, u, v)
                 .unwrap_or_else(|| panic!("{cfa} patch at ({u}, {v}) solves"));
-            let left = spread(neutralised(cast, temp, tint));
+            let left = spread(neutralised(cast, wb));
             assert!(left < 0.03, "{cfa} at ({u}, {v}) left spread {left}");
         }
     }
@@ -224,9 +279,8 @@ fn auto_white_balance_neutralises_a_grey_world() {
         let scale = 0.4 + 0.6 * ((x + y) % 8) as f32 / 8.0;
         [cast[0] * scale, cast[1] * scale, cast[2] * scale]
     });
-    let (temp, tint) =
-        auto_white_balance(&frame, &Edits::default(), None).expect("grey world solves");
-    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+    let wb = auto_white_balance(&frame, &Edits::default(), None).expect("grey world solves");
+    assert!(spread(neutralised(cast, wb)) < 0.03);
 }
 
 #[test]
@@ -239,9 +293,8 @@ fn auto_white_balance_ignores_a_small_specular_highlight() {
             cast
         }
     });
-    let (temp, tint) =
-        auto_white_balance(&frame, &Edits::default(), None).expect("clipped world solves");
-    assert!(spread(neutralised(cast, temp, tint)) < 0.03);
+    let wb = auto_white_balance(&frame, &Edits::default(), None).expect("clipped world solves");
+    assert!(spread(neutralised(cast, wb)) < 0.03);
 }
 
 #[test]

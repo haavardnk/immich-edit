@@ -9,7 +9,11 @@
       "exposure_ev": 0.35,
       "texture": 25.0,
       "vibrance": 10.0,
-      "wb_temp": 12.0
+      "white_balance": {
+        "mode": "relative",
+        "temp": 12.0,
+        "tint": 0.0
+      }
     },
     "color": {
       "dcp": {

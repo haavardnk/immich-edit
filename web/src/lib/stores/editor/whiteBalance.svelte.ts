@@ -1,7 +1,7 @@
-import { autoWhiteBalance, sampleWhiteBalance } from '$lib/api/edits';
+import { autoWhiteBalance, getAsShotWhite, sampleWhiteBalance } from '$lib/api/edits';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { errorMessage } from '$lib/utils/errors';
-import type { Edits } from '$lib/types/edits';
+import type { AsShotWhite, Edits, WhiteBalance } from '$lib/types/edits';
 
 export interface WhiteBalanceCtx {
   assetId: string | null;
@@ -9,8 +9,30 @@ export interface WhiteBalanceCtx {
   edits: Edits;
   wbPicking: boolean;
   wbBusy: boolean;
+  asShot: AsShotWhite | null;
+  asShotError: string | null;
+  asShotKey: string | null;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
+}
+
+export function loadAsShot(ctx: WhiteBalanceCtx): void {
+  const id = ctx.assetId;
+  if (!id || !ctx.initialised) return;
+  const edits = $state.snapshot(ctx.edits) as Edits;
+  const key = `${id}:${JSON.stringify(edits.color.dcp)}`;
+  if (ctx.asShotKey === key) return;
+  ctx.asShotKey = key;
+  ctx.asShotError = null;
+  getAsShotWhite(id, edits)
+    .then((white) => {
+      if (ctx.asShotKey === key) ctx.asShot = white;
+    })
+    .catch((e: unknown) => {
+      if (ctx.asShotKey !== key) return;
+      ctx.asShot = null;
+      ctx.asShotError = errorMessage(e);
+    });
 }
 
 export function toggleWbPicker(ctx: WhiteBalanceCtx): void {
@@ -27,7 +49,7 @@ export async function pickWhiteBalance(ctx: WhiteBalanceCtx, u: number, v: numbe
   ctx.wbBusy = true;
   try {
     const solved = await sampleWhiteBalance(ctx.assetId, u, v, $state.snapshot(ctx.edits));
-    applySolved(ctx, solved.wb_temp, solved.wb_tint);
+    applySolved(ctx, solved);
     ctx.wbPicking = false;
     await ctx.onCommit('White Balance');
   } catch (e) {
@@ -42,7 +64,7 @@ export async function autoWb(ctx: WhiteBalanceCtx): Promise<void> {
   ctx.wbBusy = true;
   try {
     const solved = await autoWhiteBalance(ctx.assetId, $state.snapshot(ctx.edits));
-    applySolved(ctx, solved.wb_temp, solved.wb_tint);
+    applySolved(ctx, solved);
     await ctx.onCommit('Auto White Balance');
   } catch (e) {
     toasts.push('warn', errorMessage(e));
@@ -51,8 +73,7 @@ export async function autoWb(ctx: WhiteBalanceCtx): Promise<void> {
   }
 }
 
-function applySolved(ctx: WhiteBalanceCtx, temp: number, tint: number): void {
-  ctx.edits.basic.wb_temp = temp;
-  ctx.edits.basic.wb_tint = tint;
+function applySolved(ctx: WhiteBalanceCtx, solved: WhiteBalance): void {
+  ctx.edits.basic.white_balance = solved;
   ctx.onLive();
 }

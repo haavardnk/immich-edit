@@ -565,7 +565,7 @@ test('white balance eyedropper applies the sampled neutral to both sliders', asy
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ wb_temp: -19, wb_tint: 6 })
+        body: JSON.stringify({ mode: 'absolute', kelvin: 4100, tint: 6 })
       });
     }
   });
@@ -581,7 +581,7 @@ test('white balance eyedropper applies the sampled neutral to both sliders', asy
   await page.mouse.up();
 
   await expect(surface).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('-19');
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4100 K');
   await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('6');
   expect(sampled).toHaveLength(1);
   expect(sampled[0]?.u).toBeCloseTo(0.5, 1);
@@ -606,7 +606,7 @@ test('a rejected white balance sample toasts and keeps the picker open', async (
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ wb_temp: -7, wb_tint: 2 })
+        body: JSON.stringify({ mode: 'absolute', kelvin: 4700, tint: 2 })
       });
     }
   });
@@ -624,7 +624,7 @@ test('a rejected white balance sample toasts and keeps the picker open', async (
   await surface.click();
 
   await expect(surface).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('-7');
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4700 K');
 });
 
 test('auto white balance solves without touching exposure', async ({ page }) => {
@@ -633,16 +633,55 @@ test('auto white balance solves without touching exposure', async ({ page }) => 
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ wb_temp: 12, wb_tint: -4 })
+        body: JSON.stringify({ mode: 'absolute', kelvin: 6100, tint: -4 })
       })
   });
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Auto white balance' }).click();
 
-  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('12');
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('6100 K');
   await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('-4');
   await expect(page.getByRole('button', { name: 'Edit Exposure value' })).toHaveText('0.00');
+});
+
+test('raw white balance edits kelvin from the as-shot white', async ({ page }) => {
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body) });
+  await gotoAsset(page);
+
+  const temperature = page.getByRole('button', { name: 'Edit Temperature value' });
+  const slider = page.getByRole('slider', { name: 'Temperature', exact: true });
+  await expect(temperature).toHaveText('5200 K');
+  await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('8');
+  await expect(slider).toHaveAttribute('aria-valuetext', '5200 K');
+
+  await temperature.click();
+  await page.getByRole('spinbutton', { name: 'Temperature value' }).fill('3200');
+  await page.keyboard.press('Enter');
+
+  await expect(temperature).toHaveText('3200 K');
+  await expect
+    .poll(() => (saves.at(-1)?.manifest as { ops?: Record<string, unknown> })?.ops?.white_balance)
+    .toEqual({ mode: 'absolute', kelvin: 3200, tint: 8 });
+
+  await slider.dblclick();
+
+  await expect(temperature).toHaveText('5200 K');
+  await expect
+    .poll(() => (saves.at(-1)?.manifest as { ops?: Record<string, unknown> })?.ops)
+    .not.toHaveProperty('white_balance');
+});
+
+test('non-raw white balance stays relative', async ({ page }) => {
+  await installMocks(page, { asShot: { raw: false, kelvin: 6504, tint: 10 } });
+  await gotoAsset(page);
+
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('0');
+  await expect(page.getByRole('slider', { name: 'Tint', exact: true })).toHaveAttribute(
+    'max',
+    '100'
+  );
 });
 
 test('mask rename commits when its field loses focus', async ({ page }) => {

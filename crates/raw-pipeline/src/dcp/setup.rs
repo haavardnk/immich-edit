@@ -16,7 +16,7 @@ pub fn resolve(meta: &FrameMeta, edits: &Edits, profile: Option<&DcpProfile>) ->
     let dcp_active = meta.is_raw && edits.color.dcp.is_active() && profile.is_some();
     if let Some(profile) = profile.filter(|_| dcp_active) {
         let camera = CameraWhite::from_dcp(profile, edits.color.dcp.illuminant, meta.wb_coeffs);
-        let weight = camera.weight_at(edits.basic.wb_temp, edits.basic.wb_tint);
+        let weight = camera.weight_at(&edits.basic.white_balance);
         let resolved = crate::ops::resolve_dcp(profile, &edits.color.dcp, weight);
         return DcpSetup {
             cam_to_srgb: crate::auto::scale_matrix(camera.cam_to_srgb(), resolved.baseline_gain),

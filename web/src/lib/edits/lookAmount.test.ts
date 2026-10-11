@@ -23,7 +23,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function merged(base: unknown, patch: unknown): unknown {
   if (!isRecord(base) || !isRecord(patch)) return patch;
   const out: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(patch)) out[key] = merged(base[key], value);
+  for (const [key, value] of Object.entries(patch)) {
+    out[key] = key === 'white_balance' ? value : merged(base[key], value);
+  }
   return out;
 }
 

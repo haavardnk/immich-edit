@@ -191,6 +191,7 @@ export interface InstallOpts {
   onHistory?: (route: Route) => Promise<void> | void;
   onRestore?: (route: Route) => Promise<void> | void;
   onWhiteBalance?: (route: Route) => Promise<void> | void;
+  asShot?: { raw: boolean; kelvin: number; tint: number };
   onPreview?: (req: PreviewRequest) => void;
   onSave?: (body: Record<string, unknown>) => void;
   onSmart?: (body: Record<string, unknown>) => void;
@@ -635,9 +636,13 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(null));
     }
 
+    if (p.match(/^\/api\/assets\/[^/]+\/edits\/white-balance\/as-shot$/)) {
+      return route.fulfill(json(opts.asShot ?? { raw: true, kelvin: 5200, tint: 8 }));
+    }
+
     if (p.match(/^\/api\/assets\/[^/]+\/edits\/white-balance(\/auto)?$/)) {
       if (opts.onWhiteBalance) return opts.onWhiteBalance(route);
-      return route.fulfill(json({ wb_temp: -18, wb_tint: 6 }));
+      return route.fulfill(json({ mode: 'absolute', kelvin: 4300, tint: 6 }));
     }
 
     if (p.match(/^\/api\/assets\/[^/]+\/export$/)) {
