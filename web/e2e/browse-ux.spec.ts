@@ -289,6 +289,48 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await expect(page.getByRole('option')).toHaveText(['Bergen']);
 });
 
+test('filter pickers join the list edge it opens on and keep the popover size', async ({
+  page
+}) => {
+  await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
+  await page.goto('/photos');
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const make = page.getByRole('combobox', { name: 'Make' });
+  await make.click();
+  await page.getByRole('option', { name: 'SONY' }).click();
+  await page.keyboard.press('Escape');
+  await expect(make).toHaveAttribute('aria-expanded', 'false');
+
+  await page.evaluate(() => {
+    const popover = document.querySelector('[data-popover-content]') as HTMLElement;
+    const widths: number[] = [];
+    Object.assign(window, { popoverWidths: widths });
+    new ResizeObserver(() => widths.push(popover.offsetWidth)).observe(popover);
+  });
+  const sides: string[] = [];
+  for (const name of ['Make', 'City']) {
+    const picker = page.getByRole('combobox', { name });
+    await picker.click();
+    const side = (await page.locator('[data-combobox-content]').getAttribute('data-side')) ?? '';
+    sides.push(side);
+    const [joined, free] =
+      side === 'top'
+        ? ['border-top-left-radius', 'border-bottom-left-radius']
+        : ['border-bottom-left-radius', 'border-top-left-radius'];
+    const radius = (corner: string) =>
+      picker.evaluate((el, key) => getComputedStyle(el).getPropertyValue(key), corner);
+    await expect.poll(() => radius(joined)).toBe('0px');
+    expect(await radius(free)).not.toBe('0px');
+    await page.keyboard.press('Escape');
+    await expect(picker).toHaveAttribute('aria-expanded', 'false');
+  }
+  const widths = await page.evaluate(
+    () => (window as unknown as { popoverWidths: number[] }).popoverWidths
+  );
+  expect(new Set(widths).size).toBe(1);
+  expect(sides).toEqual(['top', 'bottom']);
+});
+
 test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');

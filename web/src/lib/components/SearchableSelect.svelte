@@ -121,7 +121,7 @@
   inputValue={open ? input : selectedLabel}
   onValueChange={change}
 >
-  <div class="relative">
+  <div class="relative contain-inline-size">
     <Combobox.Input
       placeholder={open ? searchPlaceholder : placeholder}
       aria-label={label}
@@ -136,7 +136,7 @@
           bind:ref={inputElement}
           size={compact ? 'tiny' : 'small'}
           class="editor-compact-combobox {compact ? '' : 'ring-0'} {open
-            ? `editor-compact-combobox-open ring-1 ring-primary ${side === 'top' ? 'rounded-t-none [&_input]:rounded-t-none [clip-path:inset(0_-1px_-1px_-1px)]' : 'rounded-b-none [&_input]:rounded-b-none [clip-path:inset(-1px_-1px_0_-1px)]'}`
+            ? 'editor-compact-combobox-open ring-1 ring-primary'
             : 'editor-compact-combobox-closed ring-0'} {selectedLabel ? '[&_input]:pr-8' : ''}"
           leadingIcon={open || selectedLabel ? searchIcon : undefined}
           trailingIcon={!open && !selectedLabel ? chevronIcon : undefined}
@@ -163,20 +163,19 @@
   <Combobox.Portal>
     <Combobox.Content
       {side}
-      sideOffset={compact ? -1 : 4}
+      sideOffset={-1}
       collisionPadding={8}
       avoidCollisions={!compact}
-      customAnchor={compact ? anchor : null}
-      class="z-50 w-(--bits-floating-anchor-width) text-dark {color === 'neutral'
-        ? 'border-white/10 bg-neutral-800'
-        : 'border-gray-900 bg-gray-800'} {compact
-        ? `editor-compact-combobox-content border py-1 ${side === 'top' ? 'rounded-t-lg rounded-b-none' : 'rounded-t-none rounded-b-lg'}`
-        : 'max-h-64 overflow-y-auto rounded-lg border border-white/10 py-1'}"
+      customAnchor={anchor}
+      class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-white/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
+      'neutral'
+        ? 'bg-neutral-800'
+        : 'bg-gray-800'}"
     >
       <div
-        class={compact
-          ? 'max-h-(--bits-combobox-content-available-height) overflow-y-auto'
-          : 'contents'}
+        class="overflow-y-auto {compact
+          ? 'max-h-(--bits-combobox-content-available-height)'
+          : 'max-h-62'}"
       >
         {#each suggestions as item, index (getId(item))}
           {@const group = getGroup?.(item)}
