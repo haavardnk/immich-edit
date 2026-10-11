@@ -3,13 +3,10 @@ use super::matrix::{
     D50_XY, bradford_cat, cam_to_srgb_matrix, identity_3x3, inverse_3x3, is_unusable_matrix,
     mat3_mul, mat3_vec,
 };
+use super::temperature::Temperature;
 use super::{D65_XY, SRGB_TO_XYZ_D65, XYZ_TO_SRGB_D65};
 use crate::dcp::{DcpIlluminant, DcpProfile};
 
-pub const WB_TEMP_STOPS: f32 = 1.5;
-pub const WB_TINT_DUV: f32 = 0.0003;
-const MIRED_MIN: f32 = 40.0;
-const MIRED_MAX: f32 = 600.0;
 const NEUTRAL_PASSES: usize = 30;
 
 #[derive(Clone, Copy, Debug)]
@@ -152,7 +149,8 @@ impl CameraWhite {
         if (cct1 - cct2).abs() < 1.0 {
             return 1.0;
         }
-        let inv = 1.0 / xy_to_cct(xy).clamp(cct1.min(cct2), cct1.max(cct2));
+        let cct = Temperature::from_xy(xy.map(f64::from)).kelvin as f32;
+        let inv = 1.0 / cct.clamp(cct1.min(cct2), cct1.max(cct2));
         ((inv - 1.0 / cct2) / (1.0 / cct1 - 1.0 / cct2)).clamp(0.0, 1.0)
     }
 
@@ -212,66 +210,14 @@ fn xy_to_xyz([x, y]: [f32; 2]) -> [f32; 3] {
     [x / y, 1.0, (1.0 - x - y) / y]
 }
 
-fn xy_to_cct([x, y]: [f32; 2]) -> f32 {
-    let n = (x - 0.3320) / (0.1858 - y);
-    449.0 * n * n * n + 3525.0 * n * n + 6823.3 * n + 5520.33
-}
-
-fn xy_to_uv([x, y]: [f32; 2]) -> [f32; 2] {
-    let d = -2.0 * x + 12.0 * y + 3.0;
-    [4.0 * x / d, 6.0 * y / d]
-}
-
-fn uv_to_xy([u, v]: [f32; 2]) -> [f32; 2] {
-    let d = 2.0 * u - 8.0 * v + 4.0;
-    [3.0 * u / d, 2.0 * v / d]
-}
-
-fn planck_uv(mired: f32) -> [f32; 2] {
-    let t = 1.0e6 / mired;
-    let t2 = t * t;
-    let t3 = t2 * t;
-    let x = if t <= 4000.0 {
-        -0.266_123_9e9 / t3 - 0.234_358_9e6 / t2 + 0.877_695_6e3 / t + 0.179_910
-    } else {
-        -3.025_846_9e9 / t3 + 2.107_038e6 / t2 + 0.222_634_7e3 / t + 0.240_390
-    };
-    let y = if t <= 2222.0 {
-        -1.106_381_4 * x * x * x - 1.348_110_2 * x * x + 2.185_558_3 * x - 0.202_196_83
-    } else if t <= 4000.0 {
-        -0.954_947_6 * x * x * x - 1.374_185_9 * x * x + 2.091_37 * x - 0.167_488_67
-    } else {
-        3.081_758 * x * x * x - 5.873_387 * x * x + 3.751_13 * x - 0.370_014_83
-    };
-    xy_to_uv([x, y])
-}
-
-fn locus_frame(mired: f32) -> ([f32; 2], [f32; 2], [f32; 2]) {
-    let a = planck_uv(mired - 1.0);
-    let b = planck_uv(mired + 1.0);
-    let len = (b[0] - a[0]).hypot(b[1] - a[1]);
-    let tangent = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
-    let normal = if tangent[0] >= 0.0 {
-        [-tangent[1], tangent[0]]
-    } else {
-        [tangent[1], -tangent[0]]
-    };
-    (planck_uv(mired), tangent, normal)
-}
-
 fn shifted(xy: [f32; 2], temp: f32, tint: f32) -> [f32; 2] {
-    let mired = (1.0e6 / xy_to_cct(xy)).clamp(MIRED_MIN, MIRED_MAX);
-    let target = (mired * (-temp * WB_TEMP_STOPS / 100.0).exp2()).clamp(MIRED_MIN, MIRED_MAX);
-    let (p0, t0, n0) = locus_frame(mired);
-    let (p1, t1, n1) = locus_frame(target);
-    let uv = xy_to_uv(xy);
-    let r = [uv[0] - p0[0], uv[1] - p0[1]];
-    let along = r[0] * t0[0] + r[1] * t0[1];
-    let across = r[0] * n0[0] + r[1] * n0[1] - tint * WB_TINT_DUV;
-    uv_to_xy([
-        p1[0] + along * t1[0] + across * n1[0],
-        p1[1] + along * t1[1] + across * n1[1],
-    ])
+    if temp == 0.0 && tint == 0.0 {
+        return xy;
+    }
+    Temperature::from_xy(xy.map(f64::from))
+        .shifted(temp.into(), (-tint).into())
+        .xy()
+        .map(|c| c as f32)
 }
 
 #[cfg(test)]

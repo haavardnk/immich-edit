@@ -1,6 +1,7 @@
 mod dcp;
 mod hsv;
 mod matrix;
+mod temperature;
 mod white;
 
 #[cfg(test)]
@@ -15,6 +16,7 @@ pub use matrix::{
     prophoto_to_srgb_lin_matrix, srgb_lin_to_display_p3, srgb_lin_to_prophoto_matrix,
 };
 pub(crate) use matrix::{mat3_mul, mat3_vec};
+pub use temperature::{KELVIN_MAX, KELVIN_MIN, TINT_LIMIT, Temperature};
 pub use white::{Calibration, CameraWhite, SceneWhite};
 
 pub const XYZ_TO_SRGB_D65: [[f32; 3]; 3] = [

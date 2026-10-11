@@ -174,8 +174,9 @@ fn zero_edit_is_identity_and_slider_signs_hold() {
 
 #[test]
 fn temperature_range_spans_candlelight_to_shade() {
-    let warmest = xy_to_cct(shifted(D55, -100.0, 0.0));
-    let coolest = xy_to_cct(shifted(D55, 100.0, 0.0));
+    let kelvin = |xy: [f32; 2]| Temperature::from_xy(xy.map(f64::from)).kelvin;
+    let warmest = kelvin(shifted(D55, -100.0, 0.0));
+    let coolest = kelvin(shifted(D55, 100.0, 0.0));
     assert!(warmest < 2100.0, "{warmest}");
     assert!(coolest > 12000.0, "{coolest}");
 }
