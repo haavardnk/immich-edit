@@ -4,7 +4,7 @@
   import Popover from '$lib/components/Popover.svelte';
   import RatingFilter from '$lib/components/browse/RatingFilter.svelte';
   import ExifFilter from '$lib/components/browse/ExifFilter.svelte';
-  import { EXIF_FILTERS } from '$lib/browse/exifFilters';
+  import { EXIF_GROUPS } from '$lib/browse/exifFilters';
   import SortMenu from '$lib/components/browse/SortMenu.svelte';
   import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '$lib/components/browse/segmented';
   import {
@@ -316,8 +316,12 @@
         </Field>
       </div>
 
-      {#each EXIF_FILTERS as key (key)}
-        <ExifFilter {key} />
+      {#each EXIF_GROUPS as group, index (index)}
+        <div class="grid grid-cols-2 gap-2">
+          {#each group as key, position (key)}
+            <ExifFilter {key} wide={position === group.length - 1} />
+          {/each}
+        </div>
       {/each}
 
       {#if !browseControls.isDefault}

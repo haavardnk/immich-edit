@@ -273,13 +273,15 @@ describe('browseControls filter', () => {
   );
 
   it.each([
-    [{ make: 'SONY', lensModel: 'FE 35mm F1.8' }, false],
-    [{ make: 'FUJIFILM', lensModel: 'FE 35mm F1.8' }, false],
-    [{ make: 'SONY', lensModel: 'FE 85mm F1.8' }, true],
+    [{ make: 'SONY', lensModel: 'FE 35mm F1.8', city: 'Bergen' }, false],
+    [{ make: 'FUJIFILM', lensModel: 'FE 35mm F1.8', city: 'Oslo' }, false],
+    [{ make: 'SONY', lensModel: 'FE 85mm F1.8', city: 'Bergen' }, true],
+    [{ make: 'SONY', lensModel: 'FE 35mm F1.8', city: 'Tromsø' }, true],
     [null, true]
-  ])('camera filters hide %j: %s', (exif, hidden) => {
+  ])('camera and place filters hide %j: %s', (exif, hidden) => {
     browseControls.make = ['SONY', 'FUJIFILM'];
     browseControls.lensModel = ['FE 35mm F1.8'];
+    browseControls.city = ['Bergen', 'Oslo'];
     const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
     expect(browseControls.hides(photo)).toBe(hidden);
   });

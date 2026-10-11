@@ -155,6 +155,12 @@ pub struct ExifInfo {
     #[serde(default)]
     pub longitude: Option<f64>,
     #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
     pub rating: Option<i32>,

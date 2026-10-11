@@ -19,7 +19,10 @@ describe('browse filter chips', () => {
       label: 'green',
       make: ['SONY'],
       model: [],
-      lensModel: ['FE 35mm F1.8', 'FE 85mm F1.8', 'XF35mmF1.4 R']
+      lensModel: ['FE 35mm F1.8', 'FE 85mm F1.8', 'XF35mmF1.4 R'],
+      country: ['Norway'],
+      state: [],
+      city: ['Bergen', 'Oslo']
     });
     expect(chips.map((c) => c.label)).toEqual([
       'Archived',
@@ -31,7 +34,9 @@ describe('browse filter chips', () => {
       'After 2024-01-01',
       'Before 2024-12-31',
       'Make: SONY',
-      'Lens: FE 35mm F1.8 +2'
+      'Lens: FE 35mm F1.8 +2',
+      'Country: Norway',
+      'City: Bergen +1'
     ]);
   });
 

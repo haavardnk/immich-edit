@@ -13,7 +13,10 @@ const FILTERS = {
   label: 'purple' as const,
   make: ['SONY'],
   model: ['ILCE-7M3'],
-  lensModel: ['FE 35mm F1.8']
+  lensModel: ['FE 35mm F1.8'],
+  country: ['Norway'],
+  state: ['Vestland'],
+  city: ['Bergen']
 };
 
 let store: Record<string, string>;

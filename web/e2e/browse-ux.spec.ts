@@ -202,7 +202,9 @@ const CAMERA_ASSETS = [
   exifInfo: { make, model, lensModel }
 }));
 
-type CameraFilter = { make?: string[]; model?: string[]; lensModel?: string[] };
+type ExifFilter = Partial<
+  Record<'make' | 'model' | 'lensModel' | 'country' | 'state' | 'city', string[]>
+>;
 
 test('one camera pick narrows the lens list on flat search', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
@@ -218,7 +220,7 @@ test('one camera pick narrows the lens list on flat search', async ({ page }) =>
   await page.getByRole('option', { name: 'SONY' }).click();
 
   await expect(make).toHaveValue('SONY');
-  await expect.poll(() => (bodies.at(-1)?.filter as CameraFilter).make).toEqual(['SONY']);
+  await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).make).toEqual(['SONY']);
   await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Lens' }).click();
   await expect(page.getByRole('option')).toHaveText(['FE 35mm F1.8', 'FE 85mm F1.8']);
@@ -226,7 +228,7 @@ test('one camera pick narrows the lens list on flat search', async ({ page }) =>
 
 test('several cameras match together and a removed make prunes its models', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
-  const filter = () => bodies.at(-1)?.filter as CameraFilter;
+  const filter = () => bodies.at(-1)?.filter as ExifFilter;
   await installMocks(page, {
     structuredSearch: true,
     assets: CAMERA_ASSETS,
@@ -256,6 +258,35 @@ test('several cameras match together and a removed make prunes its models', asyn
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
     ['Make: FUJIFILM']
   );
+});
+
+test('a country narrows states and a state narrows cities', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const filter = () => bodies.at(-1)?.filter as ExifFilter;
+  const assets = [
+    ['Norway', 'Vestland', 'Bergen'],
+    ['Norway', 'Oslo', 'Oslo'],
+    ['Japan', 'Tokyo', 'Tokyo']
+  ].map(([country, state, city], index) => ({
+    ...PAGED_ASSETS[index],
+    exifInfo: { country, state, city }
+  }));
+  await installMocks(page, { assets, onMetadata: (body) => void bodies.push(body) });
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('combobox', { name: 'Country' }).click();
+  await page.getByRole('option', { name: 'Norway' }).click();
+  await expect.poll(() => filter().country).toEqual(['Norway']);
+  await expect(page.locator('div[title="IMG_0003.ARW"]')).toHaveCount(0);
+
+  await page.getByRole('combobox', { name: 'State' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Oslo', 'Vestland']);
+  await page.getByRole('option', { name: 'Vestland' }).click();
+  await expect.poll(() => filter().state).toEqual(['Vestland']);
+
+  await page.getByRole('combobox', { name: 'City' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Bergen']);
 });
 
 test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {

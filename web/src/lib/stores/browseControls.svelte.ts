@@ -25,6 +25,9 @@ export interface BrowseFilters {
   make: string[];
   model: string[];
   lensModel: string[];
+  country: string[];
+  state: string[];
+  city: string[];
 }
 
 const SORT_KEY = 'immich-edit:browseSort';
@@ -56,7 +59,10 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   label: 'any',
   make: [],
   model: [],
-  lensModel: []
+  lensModel: [],
+  country: [],
+  state: [],
+  city: []
 };
 
 export class BrowseControlsStore {
@@ -71,6 +77,9 @@ export class BrowseControlsStore {
   make = $state<string[]>([]);
   model = $state<string[]>([]);
   lensModel = $state<string[]>([]);
+  country = $state<string[]>([]);
+  state = $state<string[]>([]);
+  city = $state<string[]>([]);
   private sortByFamily = $state<Record<SortFamily, SearchSort>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
 
@@ -185,7 +194,10 @@ export class BrowseControlsStore {
       label: this.label,
       make: this.make,
       model: this.model,
-      lensModel: this.lensModel
+      lensModel: this.lensModel,
+      country: this.country,
+      state: this.state,
+      city: this.city
     };
   }
 
@@ -201,6 +213,9 @@ export class BrowseControlsStore {
     this.make = filters.make;
     this.model = filters.model;
     this.lensModel = filters.lensModel;
+    this.country = filters.country;
+    this.state = filters.state;
+    this.city = filters.city;
   }
 
   private resetFilters(): void {

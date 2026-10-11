@@ -131,6 +131,9 @@ mod tests {
                 make: vec!["SONY".into(), "FUJIFILM".into()],
                 model: vec![],
                 lens_model: vec!["FE 35mm F1.8".into()],
+                country: vec![],
+                state: vec!["Vestland".into(), "Oslo".into()],
+                city: vec![],
                 added_between: None,
             },
             sort: Sort {
@@ -154,6 +157,7 @@ mod tests {
                 "takenAt": { "lte": "2024-01-01T00:00:00.000Z" },
                 "make": { "in": ["SONY", "FUJIFILM"] },
                 "lensModel": { "in": ["FE 35mm F1.8"] },
+                "state": { "in": ["Vestland", "Oslo"] },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

@@ -139,6 +139,9 @@ mod tests {
                 make: vec!["SONY".into()],
                 model: vec![],
                 lens_model: vec!["FE 35mm F1.8".into()],
+                country: vec!["Norway".into()],
+                state: vec![],
+                city: vec!["Bergen".into()],
                 added_between: None,
             },
             sort: Sort {
@@ -159,6 +162,8 @@ mod tests {
             "takenAfter": "2024-01-01T00:00:00.000Z",
             "make": "SONY",
             "lensModel": "FE 35mm F1.8",
+            "country": "Norway",
+            "city": "Bergen",
             "order": "asc",
             "size": 500,
             "page": 2,

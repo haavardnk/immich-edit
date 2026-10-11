@@ -22,14 +22,19 @@ export interface BrowseFilter {
   make?: string[];
   model?: string[];
   lensModel?: string[];
+  country?: string[];
+  state?: string[];
+  city?: string[];
 }
 
-export type SuggestionField = 'make' | 'model' | 'lensModel';
+export type SuggestionField = 'make' | 'model' | 'lensModel' | 'country' | 'state' | 'city';
 
 export interface SuggestionQuery {
   field: SuggestionField;
   make?: string[];
   model?: string[];
+  country?: string[];
+  state?: string[];
 }
 
 export interface SearchSort {

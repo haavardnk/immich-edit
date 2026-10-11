@@ -11,7 +11,7 @@
     type ExifFilterKey
   } from '$lib/browse/exifFilters';
 
-  let { key }: { key: ExifFilterKey } = $props();
+  let { key, wide = false }: { key: ExifFilterKey; wide?: boolean } = $props();
 
   let suggestions = $state<string[]>([]);
   let request = 0;
@@ -38,7 +38,7 @@
   });
 </script>
 
-<div class="flex min-w-0 flex-col gap-1">
+<div class="flex min-w-0 flex-col gap-1 {wide ? 'col-span-2' : ''}">
   <Label {label} size="small" />
   <SearchableSelect
     {options}

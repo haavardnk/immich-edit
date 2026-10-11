@@ -457,6 +457,12 @@ async fn suggestions_fan_out_over_the_closest_selected_parent() {
             vec![(None, json!(["SONY", "FUJIFILM"]))],
             json!(["FUJIFILM", "SONY"]),
         ),
+        (
+            json!({ "field": "city", "country": ["Norway"], "state": [] }),
+            "city",
+            vec![(Some(("country", "Norway")), json!(["Oslo", "Bergen"]))],
+            json!(["Bergen", "Oslo"]),
+        ),
     ];
     for (query, kind, upstream, expected) in cases {
         let server = MockServer::start().await;
@@ -468,10 +474,12 @@ async fn suggestions_fan_out_over_the_closest_selected_parent() {
             let mock = match parent {
                 Some((key, value)) => mock
                     .and(query_param(key, value))
-                    .and(query_param_is_missing("make")),
+                    .and(query_param_is_missing("make"))
+                    .and(query_param_is_missing("state")),
                 None => mock
                     .and(query_param_is_missing("make"))
-                    .and(query_param_is_missing("model")),
+                    .and(query_param_is_missing("model"))
+                    .and(query_param_is_missing("country")),
             };
             mock.respond_with(ResponseTemplate::new(200).set_body_json(values))
                 .expect(1)

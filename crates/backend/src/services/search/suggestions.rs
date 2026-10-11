@@ -12,6 +12,9 @@ pub enum Field {
     Make,
     Model,
     LensModel,
+    Country,
+    State,
+    City,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,6 +25,10 @@ pub struct SuggestionQuery {
     pub make: Vec<String>,
     #[serde(default)]
     pub model: Vec<String>,
+    #[serde(default)]
+    pub country: Vec<String>,
+    #[serde(default)]
+    pub state: Vec<String>,
 }
 
 impl SuggestionQuery {
@@ -30,16 +37,24 @@ impl SuggestionQuery {
             Field::Make => "camera-make",
             Field::Model => "camera-model",
             Field::LensModel => "camera-lens-model",
+            Field::Country => "country",
+            Field::State => "state",
+            Field::City => "city",
         }
     }
 
     fn narrowing(&self) -> Option<(&'static str, &[String])> {
         let parents = match self.field {
-            Field::Make => vec![],
+            Field::Make | Field::Country => vec![],
             Field::Model => vec![("make", self.make.as_slice())],
             Field::LensModel => vec![
                 ("model", self.model.as_slice()),
                 ("make", self.make.as_slice()),
+            ],
+            Field::State => vec![("country", self.country.as_slice())],
+            Field::City => vec![
+                ("state", self.state.as_slice()),
+                ("country", self.country.as_slice()),
             ],
         };
         parents.into_iter().find(|(_, values)| !values.is_empty())

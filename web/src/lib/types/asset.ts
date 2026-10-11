@@ -4,6 +4,9 @@ export interface ExifInfo {
   make: string | null;
   model: string | null;
   lensModel: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
   fNumber: number | null;
   focalLength: number | null;
   iso: number | null;

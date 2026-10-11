@@ -31,16 +31,25 @@ pub struct BrowseFilter {
     pub model: Vec<String>,
     #[serde(default)]
     pub lens_model: Vec<String>,
+    #[serde(default)]
+    pub country: Vec<String>,
+    #[serde(default)]
+    pub state: Vec<String>,
+    #[serde(default)]
+    pub city: Vec<String>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }
 
 impl BrowseFilter {
-    pub fn exif_values(&self) -> [(&'static str, &[String]); 3] {
+    pub fn exif_values(&self) -> [(&'static str, &[String]); 6] {
         [
             ("make", &self.make),
             ("model", &self.model),
             ("lensModel", &self.lens_model),
+            ("country", &self.country),
+            ("state", &self.state),
+            ("city", &self.city),
         ]
     }
 }

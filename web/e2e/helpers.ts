@@ -177,18 +177,30 @@ const SEARCH_FILTER_KEYS = new Set([
   'label',
   'make',
   'model',
-  'lensModel'
+  'lensModel',
+  'country',
+  'state',
+  'city'
 ]);
 
-const EXIF_KEYS = ['make', 'model', 'lensModel'] as const;
-type ExifFilter = Partial<Record<(typeof EXIF_KEYS)[number], string[]>>;
+type ExifKey = 'make' | 'model' | 'lensModel' | 'country' | 'state' | 'city';
+const EXIF_PARENTS: Record<ExifKey, ExifKey[]> = {
+  make: [],
+  model: ['make'],
+  lensModel: ['model', 'make'],
+  country: [],
+  state: ['country'],
+  city: ['state', 'country']
+};
+const EXIF_KEYS = Object.keys(EXIF_PARENTS) as ExifKey[];
+type ExifFilter = Partial<Record<ExifKey, string[]>>;
 
 const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
   '/api/search/metadata': new Set(['filter', 'sort', 'size', 'cursor', 'withExif']),
   '/api/search/smart': new Set(['text', 'filter', 'size', 'cursor', 'withExif']),
   '/api/search/statistics': new Set(['filter']),
   '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort']),
-  '/api/search/suggestions': new Set(['field', 'make', 'model'])
+  '/api/search/suggestions': new Set(['field', 'make', 'model', 'country', 'state'])
 };
 
 function searchShapeProblem(
@@ -218,7 +230,7 @@ function searchShapeProblem(
     return 'flat search cannot sort by rating';
   }
   if (flat && EXIF_KEYS.some((key) => ((filter as ExifFilter)[key]?.length ?? 0) > 1)) {
-    return 'flat search cannot match several cameras';
+    return 'flat search cannot match several exif values';
   }
   return null;
 }
@@ -229,16 +241,8 @@ function matchesExif(asset: MockAssetSummary, filter: ExifFilter): boolean {
   );
 }
 
-function suggestions(
-  assets: MockAssetSummary[],
-  query: { field: (typeof EXIF_KEYS)[number]; make?: string[]; model?: string[] }
-): string[] {
-  const parent =
-    query.field === 'lensModel' && query.model?.length
-      ? 'model'
-      : query.field !== 'make' && query.make?.length
-        ? 'make'
-        : null;
+function suggestions(assets: MockAssetSummary[], query: { field: ExifKey } & ExifFilter): string[] {
+  const parent = EXIF_PARENTS[query.field].find((key) => query[key]?.length);
   const values = assets
     .filter((a) => !parent || (query[parent] ?? []).includes(a.exifInfo?.[parent] ?? ''))
     .map((a) => a.exifInfo?.[query.field])

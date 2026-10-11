@@ -43,7 +43,10 @@ function sanitize(filters: Partial<BrowseFilters> & { excludeRejected?: unknown 
     label: LABELS.find((l) => l === filters.label) ?? FILTER_DEFAULTS.label,
     make: storedValues(filters.make),
     model: storedValues(filters.model),
-    lensModel: storedValues(filters.lensModel)
+    lensModel: storedValues(filters.lensModel),
+    country: storedValues(filters.country),
+    state: storedValues(filters.state),
+    city: storedValues(filters.city)
   };
 }
 
