@@ -1,0 +1,12 @@
+diff --git a/node_modules/@immich/ui/dist/components/Tooltip/Tooltip.svelte b/node_modules/@immich/ui/dist/components/Tooltip/Tooltip.svelte
+index b94cf25..708c51f 100644
+--- a/node_modules/@immich/ui/dist/components/Tooltip/Tooltip.svelte
++++ b/node_modules/@immich/ui/dist/components/Tooltip/Tooltip.svelte
+@@ -17,6 +17,7 @@
+     <Tooltip.Portal>
+       <Tooltip.Content
+         sideOffset={8}
++        interactOutsideBehavior="defer-otherwise-close"
+         class="tooltip-content bg-light-800 text-light {zIndex.Tooltip} rounded-lg px-3.5 py-2 text-xs shadow-lg"
+       >
+         {text}
