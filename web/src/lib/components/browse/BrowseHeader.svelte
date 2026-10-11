@@ -20,8 +20,9 @@
     withoutFilter,
     type FilterKey
   } from '$lib/browse/filterChips';
-  import { Button, Field, Icon, IconButton, Label, Select, Tooltip } from '@immich/ui';
+  import { Button, DatePicker, Field, Icon, IconButton, Label, Select, Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
+  import { DateTime } from 'luxon';
   import {
     mdiSortAscending,
     mdiSortDescending,
@@ -292,19 +293,23 @@
 
       <div class="grid grid-cols-2 gap-2">
         <Field label="Taken after" size="small">
-          <TextInput
-            size="small"
-            type="date"
-            value={browseControls.takenAfter}
-            oninput={(e) => (browseControls.takenAfter = e.currentTarget.value)}
+          <DatePicker
+            bind:value={
+              () =>
+                browseControls.takenAfter ? DateTime.fromISO(browseControls.takenAfter) : undefined,
+              (date) => (browseControls.takenAfter = date?.toISODate() ?? '')
+            }
           />
         </Field>
         <Field label="Taken before" size="small">
-          <TextInput
-            size="small"
-            type="date"
-            value={browseControls.takenBefore}
-            oninput={(e) => (browseControls.takenBefore = e.currentTarget.value)}
+          <DatePicker
+            bind:value={
+              () =>
+                browseControls.takenBefore
+                  ? DateTime.fromISO(browseControls.takenBefore)
+                  : undefined,
+              (date) => (browseControls.takenBefore = date?.toISODate() ?? '')
+            }
           />
         </Field>
       </div>

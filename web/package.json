@@ -28,6 +28,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tailwindcss/vite": "^4.3.2",
     "@types/justified-layout": "^4.1.4",
+    "@types/luxon": "^3.7.6",
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^10.11.0",
@@ -51,6 +52,7 @@
     "@mdi/js": "^7.4.47",
     "bits-ui": "2.19.2",
     "justified-layout": "^4.1.0",
+    "luxon": "^3.7.2",
     "uuid": "^14.0.2"
   },
   "overrides": {

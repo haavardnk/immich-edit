@@ -132,6 +132,34 @@ test('active filters stay visible as removable chips', async ({ page }) => {
   expect(filterAt(-1)?.filename).toBe('portrait');
 });
 
+test('the taken-after calendar sets the date filter', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
+  await page.goto('/photos');
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), 15);
+  const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-15`;
+  const dayLabel = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(day);
+
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByRole('button', { name: 'Open calendar' }).first().click();
+  await page.getByRole('button', { name: dayLabel, exact: true }).click();
+
+  await expect(page.locator('[data-popover-content]')).toBeVisible();
+  await expect
+    .poll(() => (bodies.at(-1)?.filter as { takenAfter?: string } | undefined)?.takenAfter)
+    .toBe(new Date(iso).toISOString());
+  await page.getByRole('button', { name: 'Close filters' }).click();
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    [`After ${iso}`]
+  );
+});
+
 for (const structuredSearch of [false, true]) {
   test(`rating operator follows structured search (${structuredSearch})`, async ({ page }) => {
     const bodies: Array<Record<string, unknown>> = [];
