@@ -10,7 +10,13 @@ const FILTERS = {
   takenAfter: '2024-01-01',
   takenBefore: '2024-02-01',
   rejected: 'only' as const,
-  label: 'purple' as const
+  label: 'purple' as const,
+  make: ['SONY'],
+  model: ['ILCE-7M3'],
+  lensModel: ['FE 35mm F1.8'],
+  country: ['Norway'],
+  state: ['Vestland'],
+  city: ['Bergen']
 };
 
 let store: Record<string, string>;
@@ -56,13 +62,29 @@ describe('browseContext', () => {
     ['filename', { filename: 42 }, 'filename', ''],
     ['favoriteOnly', { favoriteOnly: 'yes' }, 'favoriteOnly', false],
     ['rejected', { rejected: 'never' }, 'rejected', 'any'],
-    ['label', { label: 'teal' }, 'label', 'any']
+    ['label', { label: 'teal' }, 'label', 'any'],
+    ['make', { make: 'SONY' }, 'make', []],
+    ['model', { model: [7, '', 'X-T5'] }, 'model', ['X-T5']]
   ])('replaces a corrupt %s with its default', async (_name, patch, field, expected) => {
     const { recallBrowseFilters } = await load();
     store[KEY] = JSON.stringify({ path: '/photos', filters: { ...FILTERS, ...patch } });
     const filters = recallBrowseFilters('/photos');
     expect(filters).not.toBeNull();
-    expect(filters?.[field as keyof typeof FILTERS]).toBe(expected);
+    expect(filters?.[field as keyof typeof FILTERS]).toEqual(expected);
+  });
+
+  it.each([
+    [false, []],
+    [true, ['SONY', 'FUJIFILM']]
+  ])('recalls several makes with structured search %s as %j', async (structured, expected) => {
+    const { recallBrowseFilters } = await load();
+    const { immichCapabilities } = await import('./immichCapabilities.svelte');
+    immichCapabilities.structuredSearch = structured;
+    store[KEY] = JSON.stringify({
+      path: '/photos',
+      filters: { ...FILTERS, make: ['SONY', 'FUJIFILM'] }
+    });
+    expect(recallBrowseFilters('/photos')?.make).toEqual(expected);
   });
 
   it.each([

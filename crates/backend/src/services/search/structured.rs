@@ -1,7 +1,7 @@
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
-use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, Scope};
 use crate::services::search::flat::timestamp;
 use crate::services::search::query::{PageQuery, SortField};
 use crate::services::search::tags::TagSet;
@@ -57,6 +57,17 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     }
     if !taken.is_empty() {
         body.insert("takenAt".into(), Value::Object(taken));
+    }
+    for (field, values) in filter.exif_values() {
+        match values {
+            ExifMatch::Any => {}
+            ExifMatch::Unknown => {
+                body.insert(field.into(), json!({ "eq": null }));
+            }
+            ExifMatch::In(values) => {
+                body.insert(field.into(), json!({ "in": values }));
+            }
+        }
     }
     if let Some((after, before)) = filter.added_between {
         body.insert(
@@ -123,6 +134,12 @@ mod tests {
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
                 rejected: None,
                 label: None,
+                make: ExifMatch::In(vec!["SONY".into(), "FUJIFILM".into()]),
+                model: ExifMatch::Any,
+                lens_model: ExifMatch::Unknown,
+                country: ExifMatch::Any,
+                state: ExifMatch::In(vec!["Vestland".into(), "Oslo".into()]),
+                city: ExifMatch::Any,
                 added_between: None,
             },
             sort: Sort {
@@ -144,6 +161,9 @@ mod tests {
                 "rating": { "eq": 3 },
                 "originalFileName": { "like": "DSC" },
                 "takenAt": { "lte": "2024-01-01T00:00:00.000Z" },
+                "make": { "in": ["SONY", "FUJIFILM"] },
+                "lensModel": { "eq": null },
+                "state": { "in": ["Vestland", "Oslo"] },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

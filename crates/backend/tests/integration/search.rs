@@ -5,7 +5,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
-use wiremock::matchers::{body_partial_json, method, path, query_param};
+use wiremock::matchers::{body_partial_json, method, path, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn search_response(
@@ -423,5 +423,74 @@ async fn malformed_searches_are_rejected_before_immich() {
         .any(|request| request.url.path().starts_with("/api/search/"));
     if reached {
         panic!("a rejected search must not reach Immich");
+    }
+}
+
+#[tokio::test]
+async fn suggestions_fan_out_over_the_closest_selected_parent() {
+    let many_makes: Vec<String> = (0..21).map(|n| format!("make {n}")).collect();
+    let cases = [
+        (
+            json!({ "field": "lensModel", "make": ["SONY"], "model": ["ILCE-7M3", "X-T5"] }),
+            "camera-lens-model",
+            vec![
+                (
+                    Some(("model", "ILCE-7M3")),
+                    json!(["FE 85mm F1.8", "FE 35mm F1.8"]),
+                ),
+                (
+                    Some(("model", "X-T5")),
+                    json!([null, "XF35mmF1.4 R", "FE 35mm F1.8"]),
+                ),
+            ],
+            json!(["FE 35mm F1.8", "FE 85mm F1.8", "XF35mmF1.4 R", null]),
+        ),
+        (
+            json!({ "field": "model", "make": many_makes }),
+            "camera-model",
+            vec![(None, json!(["x-t5", "ILCE-7M3"]))],
+            json!(["ILCE-7M3", "x-t5"]),
+        ),
+        (
+            json!({ "field": "make", "model": ["X-T5"] }),
+            "camera-make",
+            vec![(None, json!(["SONY", "FUJIFILM"]))],
+            json!(["FUJIFILM", "SONY"]),
+        ),
+        (
+            json!({ "field": "city", "country": ["Norway"], "state": [] }),
+            "city",
+            vec![(Some(("country", "Norway")), json!(["Oslo", "Bergen"]))],
+            json!(["Bergen", "Oslo"]),
+        ),
+    ];
+    for (query, kind, upstream, expected) in cases {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, 0, 0).await;
+        for (parent, values) in upstream {
+            let mock = Mock::given(method("GET"))
+                .and(path("/api/search/suggestions"))
+                .and(query_param("type", kind))
+                .and(query_param("includeNull", "true"));
+            let mock = match parent {
+                Some((key, value)) => mock
+                    .and(query_param(key, value))
+                    .and(query_param_is_missing("make"))
+                    .and(query_param_is_missing("state")),
+                None => mock
+                    .and(query_param_is_missing("make"))
+                    .and(query_param_is_missing("model"))
+                    .and(query_param_is_missing("country")),
+            };
+            mock.respond_with(ResponseTemplate::new(200).set_body_json(values))
+                .expect(1)
+                .mount(&server)
+                .await;
+        }
+        let app = test_app(&server).await;
+        let values = post(&app, "/api/search/suggestions", query.clone()).await;
+        if values != expected {
+            panic!("{query} suggested {values}");
+        }
     }
 }

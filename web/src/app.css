@@ -357,6 +357,26 @@
   padding-inline-start: 32px;
 }
 
+body:has([data-combobox-content][data-side='bottom']) .editor-compact-combobox-open {
+  clip-path: inset(-1px -1px 0 -1px);
+}
+
+body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open {
+  clip-path: inset(0 -1px -1px -1px);
+}
+
+body:has([data-combobox-content][data-side='bottom']) .editor-compact-combobox-open,
+body:has([data-combobox-content][data-side='bottom']) .editor-compact-combobox-open input {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open,
+body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open input {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
 .editor-compact-combobox-closed,
 .editor-compact-combobox-closed input {
   cursor: pointer;

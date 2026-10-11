@@ -2,6 +2,14 @@ import { expect, type Locator, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import type { EditRecord } from '../src/lib/types/edits';
 import type { ExifInfo } from '../src/lib/types/asset';
+import {
+  type ExifFilter,
+  searchShapeProblem,
+  matchesExif,
+  suggestions,
+  type ManagedFilter,
+  matchesManagedTags
+} from './searchMocks';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -164,66 +172,6 @@ export function scopePayload(kind: string): Buffer {
   return Buffer.concat([header, body]);
 }
 
-const SEARCH_FILTER_KEYS = new Set([
-  'scope',
-  'favorite',
-  'visibility',
-  'imagesOnly',
-  'rating',
-  'filename',
-  'takenAfter',
-  'takenBefore',
-  'rejected',
-  'label'
-]);
-
-const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
-  '/api/search/metadata': new Set(['filter', 'sort', 'size', 'cursor', 'withExif']),
-  '/api/search/smart': new Set(['text', 'filter', 'size', 'cursor', 'withExif']),
-  '/api/search/statistics': new Set(['filter']),
-  '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort'])
-};
-
-function searchShapeProblem(
-  path: string,
-  body: Record<string, unknown>,
-  structured: boolean
-): string | null {
-  const allowed = SEARCH_BODY_KEYS[path];
-  if (!allowed) return null;
-  const filter = (body.filter ?? {}) as Record<string, unknown>;
-  const unknown = [
-    ...Object.keys(body).filter((key) => !allowed.has(key)),
-    ...Object.keys(filter)
-      .filter((key) => !SEARCH_FILTER_KEYS.has(key))
-      .map((key) => `filter.${key}`)
-  ];
-  if (unknown.length) return `unknown search fields: ${unknown.join(', ')}`;
-  const flat = path === '/api/search/smart' || !structured;
-  const range =
-    typeof filter.rating === 'object' &&
-    filter.rating !== null &&
-    ('gte' in filter.rating || 'lte' in filter.rating);
-  if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
-    return 'flat search cannot exclude tags or match a rating range';
-  }
-  if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
-    return 'flat search cannot sort by rating';
-  }
-  return null;
-}
-
-type ManagedFilter = { rejected?: string; label?: string };
-
-function matchesManagedTags(tags: MockTag[], filter: ManagedFilter): boolean {
-  const values = tags.map((t) => t.value.toLowerCase());
-  const rejected = values.includes('immich-edit/reject');
-  if (filter.rejected && rejected !== (filter.rejected === 'only')) return false;
-  if (!filter.label) return true;
-  if (filter.label === 'none') return !values.some((v) => v.startsWith('immich-edit/label/'));
-  return values.includes(`immich-edit/label/${filter.label}`);
-}
-
 export interface InstallOpts {
   assets?: MockAssetSummary[];
   searchPages?: MockAssetSummary[][];
@@ -308,13 +256,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const searchResult = (body: Record<string, unknown>) => {
     const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter;
+    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter & ExifFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
     const items = expanded(ordered(body.sort as MockSort, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
-      .filter((a) => matchesManagedTags(a.tags, filter));
+      .filter((a) => matchesManagedTags(a.tags, filter))
+      .filter((a) => matchesExif(a, filter));
     const nextCursor =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
@@ -363,9 +312,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(searchResult(body)));
     }
     if (p === '/api/search/statistics') {
-      const filter = ((req.postDataJSON() as { filter?: ManagedFilter }) ?? {}).filter ?? {};
-      const matching = assets.filter((a) => matchesManagedTags(tagsOf(a.id, a.tags), filter));
+      const filter =
+        ((req.postDataJSON() as { filter?: ManagedFilter & ExifFilter }) ?? {}).filter ?? {};
+      const matching = assets.filter(
+        (a) => matchesManagedTags(tagsOf(a.id, a.tags), filter) && matchesExif(a, filter)
+      );
       return route.fulfill(json({ total: opts.total ?? matching.length }));
+    }
+    if (p === '/api/search/suggestions') {
+      return route.fulfill(json(suggestions(assets, req.postDataJSON())));
     }
     if (p === '/api/search/window') {
       const body = req.postDataJSON() as {

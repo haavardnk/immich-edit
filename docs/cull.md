@@ -21,13 +21,21 @@ on opens by itself. The search box at the top uses Immich's smart search, so a d
 filenames.
 
 **Filters** narrows the current view by **Visibility**, **Rating**, **Label**, **Rejected**,
-**Favorites only**, **Filename**, **Taken after** and **Taken before**. **Visibility** switches
+**Favorites only**, **Filename**, **Taken after**, **Taken before**, **Make**, **Model**, **Lens**,
+**Country**, **State** and **City**. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
 default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
 Immich versions match the exact star count. **Rejected** shows
 rejects, hides them or shows only them; **Only** lets you review everything you rejected before
 deleting it in Immich.
+**Make**, **Model**, **Lens**, **Country**, **State** and **City** list the values Immich knows
+from your timeline photos. Picking a make narrows the models and lenses on offer, and picking a
+model narrows the lenses; a country narrows the states and cities the same way, and a state the
+cities. A choice the new list no longer contains is dropped. On Immich 3.2 and later each picker
+takes several values and matches any of them; older versions match one value.
+When some photos lack the value, the list ends with **Unknown**, which finds those photos and
+cannot be combined with other values.
 The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
 **Newest first** or **Oldest first**. On Immich 3.2 and later it also offers **Rating**, with
 **Highest first** or **Lowest first**. Immich sorts the whole result, so the best photos lead every

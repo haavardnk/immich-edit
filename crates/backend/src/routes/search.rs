@@ -9,6 +9,7 @@ use crate::routes::auth::AuthCtx;
 use crate::services::copy_expand::expand_assets;
 use crate::services::search::filter::BrowseFilter;
 use crate::services::search::query::{CountQuery, PageQuery, SmartQuery, Sort};
+use crate::services::search::suggestions::{self, SuggestionQuery};
 use crate::services::search::window::{self, MAX_RADIUS};
 use crate::services::search::{SearchPage, Searcher};
 use crate::state::AppState;
@@ -67,6 +68,13 @@ pub async fn statistics(
 ) -> Result<Json<SearchStatistics>, AppError> {
     let total = searcher(&state, &ctx).await.count(&query.filter).await?;
     Ok(Json(SearchStatistics { total }))
+}
+
+pub async fn suggestions(
+    ctx: AuthCtx,
+    Json(query): Json<SuggestionQuery>,
+) -> Result<Json<Vec<Option<String>>>, AppError> {
+    Ok(Json(suggestions::values(&ctx.immich, &query).await?))
 }
 
 pub async fn window(

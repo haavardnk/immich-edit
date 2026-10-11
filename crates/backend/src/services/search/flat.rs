@@ -3,7 +3,7 @@ use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::search::filter::{BrowseFilter, RatingMatch, Scope};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, Scope};
 use crate::services::search::query::{PageQuery, SmartQuery};
 use crate::services::search::tags::TagSet;
 
@@ -53,6 +53,22 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
     }
     if let Some(before) = filter.taken_before {
         body.insert("takenBefore".into(), timestamp(before));
+    }
+    for (field, values) in filter.exif_values() {
+        match values {
+            ExifMatch::Any => {}
+            ExifMatch::Unknown => {
+                body.insert(field.into(), Value::Null);
+            }
+            ExifMatch::In(values) if values.len() == 1 => {
+                body.insert(field.into(), values[0].as_str().into());
+            }
+            ExifMatch::In(_) => {
+                return Err(AppError::BadRequest(format!(
+                    "this search cannot match several {field} values"
+                )));
+            }
+        }
     }
     if let Some((after, before)) = filter.added_between {
         body.insert("createdAfter".into(), timestamp(after));
@@ -123,6 +139,12 @@ mod tests {
                 taken_before: None,
                 rejected: None,
                 label: None,
+                make: ExifMatch::In(vec!["SONY".into()]),
+                model: ExifMatch::Any,
+                lens_model: ExifMatch::In(vec!["FE 35mm F1.8".into()]),
+                country: ExifMatch::Unknown,
+                state: ExifMatch::Any,
+                city: ExifMatch::In(vec!["Bergen".into()]),
                 added_between: None,
             },
             sort: Sort {
@@ -141,6 +163,10 @@ mod tests {
             "rating": null,
             "originalFileName": "DSC",
             "takenAfter": "2024-01-01T00:00:00.000Z",
+            "make": "SONY",
+            "lensModel": "FE 35mm F1.8",
+            "country": null,
+            "city": "Bergen",
             "order": "asc",
             "size": 500,
             "page": 2,
@@ -165,10 +191,15 @@ mod tests {
             all: vec![],
             none: vec![Uuid::new_v4()],
         };
+        let cameras = BrowseFilter {
+            model: ExifMatch::In(vec!["ILCE-7M3".into(), "X-T5".into()]),
+            ..BrowseFilter::default()
+        };
         let cases = [
             (minimum, TagSet::default()),
             (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),
+            (cameras, TagSet::default()),
         ];
         for (filter_by, tags) in cases {
             if count(&filter_by, &tags).is_ok() {

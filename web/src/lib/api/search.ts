@@ -5,7 +5,8 @@ import type {
   PageQuery,
   SearchPage,
   SearchSort,
-  SmartQuery
+  SmartQuery,
+  SuggestionQuery
 } from '$lib/types/search';
 
 export const BROWSE_PAGE_SIZE = 500;
@@ -31,4 +32,8 @@ export function searchSmart(query: SmartQuery): Promise<SearchPage> {
 
 export function searchStatistics(filter: BrowseFilter): Promise<{ total: number }> {
   return sendJson('POST', '/api/search/statistics', { filter });
+}
+
+export function searchSuggestions(query: SuggestionQuery): Promise<(string | null)[]> {
+  return sendJson('POST', '/api/search/suggestions', query);
 }

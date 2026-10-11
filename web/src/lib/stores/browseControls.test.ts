@@ -254,4 +254,46 @@ describe('browseControls filter', () => {
     expect(browseControls.filter({}).label).toBe(sent);
     expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
   });
+
+  it.each([
+    [false, false, ['SONY'], ['SONY']],
+    [false, false, ['SONY', 'FUJIFILM'], undefined],
+    [true, false, ['SONY', 'FUJIFILM'], ['SONY', 'FUJIFILM']],
+    [true, true, ['SONY', 'FUJIFILM'], undefined],
+    [false, false, [''], [null]]
+  ])(
+    'on structured search %s with flat-only %s sends makes %j as %j',
+    (structured, flatOnly, makes, sent) => {
+      immichCapabilities.structuredSearch = structured;
+      const keyBefore = browseControls.serverFilterKey(flatOnly);
+      browseControls.make = makes;
+      expect(browseControls.isFiltered).toBe(true);
+      expect(browseControls.filter({}, flatOnly).make).toEqual(sent);
+      expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent !== undefined);
+    }
+  );
+
+  it.each([
+    [{ make: 'SONY', lensModel: 'FE 35mm F1.8', city: 'Bergen' }, false],
+    [{ make: 'FUJIFILM', lensModel: 'FE 35mm F1.8', city: 'Oslo' }, false],
+    [{ make: 'SONY', lensModel: 'FE 85mm F1.8', city: 'Bergen' }, true],
+    [{ make: 'SONY', lensModel: 'FE 35mm F1.8', city: 'Tromsø' }, true],
+    [null, true]
+  ])('camera and place filters hide %j: %s', (exif, hidden) => {
+    browseControls.make = ['SONY', 'FUJIFILM'];
+    browseControls.lensModel = ['FE 35mm F1.8'];
+    browseControls.city = ['Bergen', 'Oslo'];
+    const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
+    expect(browseControls.hides(photo)).toBe(hidden);
+  });
+
+  it.each([
+    [{ lensModel: 'FE 35mm F1.8' }, true],
+    [{ lensModel: null }, false],
+    [null, false]
+  ])('an unknown lens filter hides %j: %s', (exif, hidden) => {
+    browseControls.lensModel = [''];
+    const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
+    expect(browseControls.hides(photo)).toBe(hidden);
+  });
 });

@@ -338,6 +338,15 @@ impl ImmichClient {
         self.post_json("api/search/statistics", body).await
     }
 
+    pub async fn search_suggestions(
+        &self,
+        params: &[(&str, &str)],
+    ) -> ImmichResult<Vec<Option<String>>> {
+        let url = self.url("api/search/suggestions")?;
+        let bytes = send(self.authed(self.http.get(url).query(params))).await?;
+        parse_json(&bytes)
+    }
+
     pub async fn timeline_buckets(
         &self,
         params: &[(&str, String)],

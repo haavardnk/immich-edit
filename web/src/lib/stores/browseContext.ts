@@ -20,6 +20,12 @@ interface BrowseContextSnapshot {
 const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
 const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
+function storedValues(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const values = value.filter((v): v is string => typeof v === 'string' && v !== '');
+  return values.length <= 1 || immichCapabilities.structuredSearch ? values : [];
+}
+
 function sanitize(filters: Partial<BrowseFilters> & { excludeRejected?: unknown }): BrowseFilters {
   const ratings: RatingFilter[] = immichCapabilities.structuredSearch
     ? [...EXACT_RATINGS, ...RANGE_RATINGS]
@@ -34,7 +40,13 @@ function sanitize(filters: Partial<BrowseFilters> & { excludeRejected?: unknown 
     rejected:
       REJECTED_FILTERS.find((r) => r === filters.rejected) ??
       (filters.excludeRejected === true ? 'hide' : FILTER_DEFAULTS.rejected),
-    label: LABELS.find((l) => l === filters.label) ?? FILTER_DEFAULTS.label
+    label: LABELS.find((l) => l === filters.label) ?? FILTER_DEFAULTS.label,
+    make: storedValues(filters.make),
+    model: storedValues(filters.model),
+    lensModel: storedValues(filters.lensModel),
+    country: storedValues(filters.country),
+    state: storedValues(filters.state),
+    city: storedValues(filters.city)
   };
 }
 
