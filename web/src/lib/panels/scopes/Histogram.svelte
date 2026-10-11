@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Histogram } from '$lib/types/preview';
+  import { Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
 
   let {
     hist,
@@ -93,16 +95,27 @@
     {/each}
   </div>
   {#if shadowClip > 0.1}
-    <div class="absolute left-1 top-0.5 text-[9px] font-mono text-blue-400" title="Shadow clipping">
-      ▼
-    </div>
+    <Tooltip text="Shadow clipping">
+      {#snippet child({ props })}
+        <div
+          {...mergeProps(props, { tabindex: -1 })}
+          class="absolute left-1 top-0.5 text-[9px] font-mono text-blue-400"
+        >
+          ▼
+        </div>
+      {/snippet}
+    </Tooltip>
   {/if}
   {#if highlightClip > 0.1}
-    <div
-      class="absolute right-1 top-0.5 text-[9px] font-mono text-red-400"
-      title="Highlight clipping"
-    >
-      ▲
-    </div>
+    <Tooltip text="Highlight clipping">
+      {#snippet child({ props })}
+        <div
+          {...mergeProps(props, { tabindex: -1 })}
+          class="absolute right-1 top-0.5 text-[9px] font-mono text-red-400"
+        >
+          ▲
+        </div>
+      {/snippet}
+    </Tooltip>
   {/if}
 </div>

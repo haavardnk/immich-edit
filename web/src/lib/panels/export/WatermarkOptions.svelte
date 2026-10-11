@@ -10,7 +10,8 @@
   } from '$lib/api/watermarks';
   import { session } from '$lib/stores/session.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
-  import { IconButton, Select } from '@immich/ui';
+  import { IconButton, Select, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiUpload } from '@mdi/js';
   import { WATERMARK_ANCHORS, WATERMARK_PERCENT } from './watermark';
   import type { ExportForm } from './settings';
@@ -178,17 +179,23 @@
     <span class="editor-compact-label select-none">Position</span>
     <div role="group" aria-label="Watermark position" class="grid w-fit grid-cols-3 gap-1">
       {#each WATERMARK_ANCHORS as anchor (anchor.value)}
-        <button
-          type="button"
-          class="size-5 rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary {form.watermarkAnchor ===
-          anchor.value
-            ? 'bg-primary'
-            : 'bg-neutral-700 hover:bg-neutral-600'}"
-          aria-label={anchor.label}
-          title={anchor.label}
-          aria-pressed={form.watermarkAnchor === anchor.value}
-          onclick={() => (form.watermarkAnchor = anchor.value)}
-        ></button>
+        <Tooltip text={anchor.label}>
+          {#snippet child({ props })}
+            <button
+              {...mergeProps(props, {
+                type: 'button' as const,
+                class: `size-5 rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                  form.watermarkAnchor === anchor.value
+                    ? 'bg-primary'
+                    : 'bg-neutral-700 hover:bg-neutral-600'
+                }`,
+                'aria-label': anchor.label,
+                'aria-pressed': form.watermarkAnchor === anchor.value,
+                onclick: () => (form.watermarkAnchor = anchor.value)
+              })}
+            ></button>
+          {/snippet}
+        </Tooltip>
       {/each}
     </div>
   </div>

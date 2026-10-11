@@ -1,6 +1,7 @@
 <script lang="ts">
   import Popover from '$lib/components/Popover.svelte';
-  import { Icon } from '@immich/ui';
+  import { Icon, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import { mdiChevronDown, mdiContentSaveOutline, mdiDeleteOutline } from '@mdi/js';
   import { exportPresets } from './exportPresets.svelte';
 
@@ -45,15 +46,20 @@
         >
           {preset.name}
         </button>
-        <button
-          type="button"
-          class="px-2 py-1.5 text-dark/50 hover:text-red-400"
-          aria-label="Delete export preset {preset.name}"
-          title="Delete"
-          onclick={() => void exportPresets.remove(preset)}
-        >
-          <Icon icon={mdiDeleteOutline} size="14" />
-        </button>
+        <Tooltip text="Delete">
+          {#snippet child({ props })}
+            <button
+              {...mergeProps(props, {
+                type: 'button' as const,
+                class: 'px-2 py-1.5 text-dark/50 hover:text-red-400',
+                'aria-label': `Delete export preset ${preset.name}`,
+                onclick: () => void exportPresets.remove(preset)
+              })}
+            >
+              <Icon icon={mdiDeleteOutline} size="14" />
+            </button>
+          {/snippet}
+        </Tooltip>
       </li>
     {:else}
       <li class="px-3 py-1.5 text-xs text-dark/50">
@@ -69,14 +75,18 @@
       aria-label="Export preset name"
       class="min-w-0 flex-1 rounded border border-dark/15 bg-transparent px-2 py-1 text-xs"
     />
-    <button
-      type="submit"
-      class="p-1 text-dark/65 hover:text-dark disabled:opacity-40"
-      aria-label="Save export preset"
-      title="Save (overwrites a preset with the same name)"
-      disabled={!name.trim()}
-    >
-      <Icon icon={mdiContentSaveOutline} size="16" />
-    </button>
+    <Tooltip text="Save (overwrites a preset with the same name)">
+      {#snippet child({ props })}
+        <button
+          {...props}
+          type="submit"
+          class="p-1 text-dark/65 hover:text-dark disabled:opacity-40"
+          aria-label="Save export preset"
+          disabled={!name.trim()}
+        >
+          <Icon icon={mdiContentSaveOutline} size="16" />
+        </button>
+      {/snippet}
+    </Tooltip>
   </form>
 </Popover>

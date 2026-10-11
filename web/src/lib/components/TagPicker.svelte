@@ -8,7 +8,6 @@
   import type { TagRef } from '$lib/types/asset';
   import { isManagedTag } from '$lib/browse/managedTags';
   import { Icon, IconButton } from '@immich/ui';
-  import { mergeProps } from 'bits-ui';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
 
   type Anchor = 'top' | 'bottom';
@@ -122,6 +121,7 @@
     {align}
     onOpenChange={(v) => (v ? onToggle() : onClose())}
     contentClass="w-72 overflow-visible! border-0! bg-transparent! p-0 shadow-none! ring-0!"
+    tooltip={hint('Tags', 'toggleTags')}
   >
     {#snippet trigger(popoverProps)}
       <IconButton
@@ -130,9 +130,9 @@
         color={open ? 'primary' : 'secondary'}
         class="shrink-0"
         icon={mdiPlus}
-        title={hint('Tags', 'toggleTags')}
+        title=""
         aria-label={hint('Tags', 'toggleTags')}
-        {...mergeProps(popoverProps)}
+        {...popoverProps}
         {disabled}
       />
     {/snippet}

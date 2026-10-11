@@ -165,6 +165,7 @@
       align="end"
       onOpenChange={(open) => (moreOpen = open)}
       contentClass="w-60 p-2"
+      tooltip="More editor actions"
     >
       {#snippet trigger(props)}
         <IconButton
@@ -172,7 +173,7 @@
           variant="ghost"
           color={editor.isProofing || ui.clipWarn ? 'primary' : 'secondary'}
           icon={mdiDotsVertical}
-          title="More editor actions"
+          title=""
           aria-label="More editor actions"
           {...props}
         />

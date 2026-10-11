@@ -16,8 +16,8 @@
     withoutFilter,
     type FilterKey
   } from '$lib/browse/filterChips';
-  import { Button, Field, Icon, IconButton, Select } from '@immich/ui';
-  import { mergeProps, RadioGroup } from 'bits-ui';
+  import { Button, Field, Icon, IconButton, Select, Tooltip } from '@immich/ui';
+  import { RadioGroup } from 'bits-ui';
   import {
     mdiSortAscending,
     mdiSortDescending,
@@ -196,6 +196,7 @@
       align="end"
       onOpenChange={(v) => (filterOpen = v)}
       contentClass="flex min-w-55 flex-col gap-2.5 p-3"
+      tooltip="Filters"
     >
       {#snippet trigger(popoverProps)}
         <IconButton
@@ -203,9 +204,9 @@
           variant="ghost"
           color={hasFilter ? 'primary' : 'secondary'}
           icon={mdiFilterOutline}
-          title="Filters"
+          title=""
           aria-label={hasFilter ? 'Filters (active)' : 'Filters'}
-          {...mergeProps(popoverProps)}
+          {...popoverProps}
         />
       {/snippet}
       <div class="flex items-center justify-between">
@@ -247,23 +248,26 @@
         >
           <RadioGroup.Item value="any" class={labelItemClass}>Any</RadioGroup.Item>
           {#each LABEL_COLORS as color (color)}
-            <RadioGroup.Item
-              value={color}
-              aria-label={`${LABEL_NAMES[color]} label`}
-              title={`${LABEL_NAMES[color]} label`}
-              class={labelItemClass}
-            >
-              <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
-            </RadioGroup.Item>
+            <Tooltip text={`${LABEL_NAMES[color]} label`}>
+              {#snippet child({ props })}
+                <RadioGroup.Item
+                  {...props}
+                  value={color}
+                  aria-label={`${LABEL_NAMES[color]} label`}
+                  class={labelItemClass}
+                >
+                  <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
+                </RadioGroup.Item>
+              {/snippet}
+            </Tooltip>
           {/each}
-          <RadioGroup.Item
-            value="none"
-            aria-label="No label"
-            title="No label"
-            class={labelItemClass}
-          >
-            <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
-          </RadioGroup.Item>
+          <Tooltip text="No label">
+            {#snippet child({ props })}
+              <RadioGroup.Item {...props} value="none" aria-label="No label" class={labelItemClass}>
+                <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
+              </RadioGroup.Item>
+            {/snippet}
+          </Tooltip>
         </RadioGroup.Root>
       </Field>
 

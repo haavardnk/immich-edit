@@ -36,7 +36,13 @@
   }
 </script>
 
-<Popover {open} onOpenChange={(v) => (open = v)} appearance="control" anchor="top">
+<Popover
+  {open}
+  onOpenChange={(v) => (open = v)}
+  appearance="control"
+  anchor="top"
+  tooltip={hint(label ? `${LABEL_NAMES[label]} label` : 'Colour label', 'label')}
+>
   {#snippet trigger(popoverProps)}
     <IconButton
       {...popoverProps}
@@ -46,7 +52,7 @@
       color="secondary"
       class={label ? LABEL_TEXT[label] : ''}
       icon={label ? mdiCircle : mdiCircleOutline}
-      title={hint(label ? `${LABEL_NAMES[label]} label` : 'Colour label', 'label')}
+      title=""
       aria-label={label ? `${LABEL_NAMES[label]} label` : 'Colour label'}
       aria-expanded={open}
       {disabled}

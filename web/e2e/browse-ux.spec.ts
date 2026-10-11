@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { ASSET_SUMMARY, installMocks, json, numberedAssets } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
@@ -205,4 +205,24 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
     'aria-pressed',
     'true'
   );
+});
+
+test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  const expectTooltip = async (target: Locator, text: string | RegExp) => {
+    const tooltip = page.locator('.tooltip-content', { hasText: text });
+    await target.hover();
+    await expect(tooltip).toBeVisible();
+    await page.mouse.move(1, 1);
+    await expect(tooltip).toBeHidden();
+  };
+
+  const filters = page.getByRole('button', { name: 'Filters' });
+  await expectTooltip(filters, 'Filters');
+  await expectTooltip(filters, 'Filters');
+
+  await filters.click();
+  const popover = page.locator('[data-popover-content]');
+  await expectTooltip(popover.getByRole('radio', { name: 'Green label' }), 'Green label');
 });

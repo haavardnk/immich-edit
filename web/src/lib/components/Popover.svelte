@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Popover as Bits } from 'bits-ui';
+  import { Tooltip } from '@immich/ui';
+  import { Popover as Bits, mergeProps } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
   type Anchor = 'top' | 'bottom';
@@ -14,7 +15,8 @@
     trigger,
     children,
     appearance = 'menu',
-    contentClass = ''
+    contentClass = '',
+    tooltip
   }: {
     open: boolean;
     anchor?: Anchor;
@@ -24,6 +26,7 @@
     children: Snippet;
     appearance?: Appearance;
     contentClass?: string;
+    tooltip?: string;
   } = $props();
 
   const appearanceClass = $derived(
@@ -36,7 +39,11 @@
 <Bits.Root bind:open={() => open, onOpenChange}>
   <Bits.Trigger>
     {#snippet child({ props })}
-      {@render trigger(props)}
+      <Tooltip text={tooltip}>
+        {#snippet child({ props: tooltipProps })}
+          {@render trigger(mergeProps(tooltipProps, props))}
+        {/snippet}
+      </Tooltip>
     {/snippet}
   </Bits.Trigger>
   <Bits.Portal>

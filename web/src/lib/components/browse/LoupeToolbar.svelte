@@ -79,6 +79,7 @@
       align="end"
       onOpenChange={(open) => (viewModeOpen = open)}
       contentClass="w-44 p-2"
+      tooltip={`View mode: ${compare.mode === 'single' ? 'Single' : compare.mode === 'compare' ? 'Compare' : 'Survey'}`}
     >
       {#snippet trigger(popoverProps)}
         <IconButton
@@ -91,7 +92,7 @@
             : compare.mode === 'survey'
               ? mdiViewGridOutline
               : mdiImageOutline}
-          title={`View mode: ${compare.mode === 'single' ? 'Single' : compare.mode === 'compare' ? 'Compare' : 'Survey'}`}
+          title=""
           aria-label="View mode"
           aria-expanded={viewModeOpen}
         />
@@ -170,6 +171,7 @@
       align="end"
       onOpenChange={(open) => (moreOpen = open)}
       contentClass="w-56 p-2"
+      tooltip="More loupe actions"
     >
       {#snippet trigger(popoverProps)}
         <IconButton
@@ -177,7 +179,7 @@
           variant="ghost"
           color={moreActive ? 'primary' : 'secondary'}
           icon={mdiDotsVertical}
-          title="More loupe actions"
+          title=""
           aria-label="More loupe actions"
           {...popoverProps}
         />

@@ -3,8 +3,7 @@
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import type { DcpMeta } from '$lib/api/dcp';
   import type { DcpMode } from '$lib/types/edits';
-  import { Button, Icon, Tooltip } from '@immich/ui';
-  import { mergeProps } from 'bits-ui';
+  import { Button, Icon } from '@immich/ui';
   import { mdiCheck, mdiChevronDown } from '@mdi/js';
 
   let {
@@ -79,29 +78,26 @@
   {open}
   onOpenChange={toggle}
   contentClass="w-(--bits-floating-anchor-width) max-h-80 overflow-hidden flex flex-col rounded-lg bg-neutral-900 p-1"
+  tooltip={label}
 >
   {#snippet trigger(popoverProps)}
-    <Tooltip text={label}>
-      {#snippet child({ props })}
-        <Button
-          type="button"
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          fullWidth
-          class="h-7 justify-start rounded-lg bg-neutral-800 px-2 text-[11px] hover:bg-neutral-700"
-          {...mergeProps(props, popoverProps)}
-        >
-          <span class="flex-1 truncate text-left">{label}</span>
-          <Icon
-            icon={mdiChevronDown}
-            size="14px"
-            class="shrink-0 opacity-45 transition-transform {open ? 'rotate-180' : ''}"
-            aria-hidden="true"
-          />
-        </Button>
-      {/snippet}
-    </Tooltip>
+    <Button
+      type="button"
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      fullWidth
+      class="h-7 justify-start rounded-lg bg-neutral-800 px-2 text-[11px] hover:bg-neutral-700"
+      {...popoverProps}
+    >
+      <span class="flex-1 truncate text-left">{label}</span>
+      <Icon
+        icon={mdiChevronDown}
+        size="14px"
+        class="shrink-0 opacity-45 transition-transform {open ? 'rotate-180' : ''}"
+        aria-hidden="true"
+      />
+    </Button>
   {/snippet}
 
   <div class="border-b border-hairline pb-1">

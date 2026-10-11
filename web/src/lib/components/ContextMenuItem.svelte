@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Tooltip } from '@immich/ui';
   import { ContextMenu as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
@@ -15,11 +16,15 @@
   } = $props();
 </script>
 
-<Bits.Item
-  {title}
-  {disabled}
-  {onSelect}
-  class="flex cursor-pointer items-center px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 data-highlighted:bg-white/10"
->
-  {@render children()}
-</Bits.Item>
+<Tooltip text={title}>
+  {#snippet child({ props })}
+    <Bits.Item
+      {...props}
+      {disabled}
+      {onSelect}
+      class="flex cursor-pointer items-center px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 data-highlighted:bg-white/10"
+    >
+      {@render children()}
+    </Bits.Item>
+  {/snippet}
+</Tooltip>

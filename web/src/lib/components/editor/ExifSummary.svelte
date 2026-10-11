@@ -17,6 +17,7 @@
     align="end"
     onOpenChange={(v) => (v ? ui.openPopover('exif') : ui.closePopover())}
     contentClass="p-3"
+    tooltip={hint('Info', 'toggleInfo')}
   >
     {#snippet trigger(props)}
       <IconButton
@@ -24,7 +25,7 @@
         variant="ghost"
         color={ui.metaPopover === 'exif' ? 'primary' : 'secondary'}
         icon={mdiInformationOutline}
-        title={hint('Info', 'toggleInfo')}
+        title=""
         aria-label={hint('Info', 'toggleInfo')}
         {...props}
       />

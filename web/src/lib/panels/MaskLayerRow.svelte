@@ -3,7 +3,8 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { maskedEditsIsZero, type MaskLayer } from '$lib/types/edits';
   import type { MaskCapacity } from '$lib/types/masks';
-  import { Button, IconButton } from '@immich/ui';
+  import { Button, IconButton, Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import {
     mdiChevronDown,
     mdiChevronUp,
@@ -49,11 +50,15 @@
     ? 'border-primary/25 bg-primary/10'
     : 'border-transparent hover:border-hairline hover:bg-white/4'}"
 >
-  <div
-    class="h-3 w-1 shrink-0 rounded-full ring-1 ring-white/10"
-    style="background-color: {layer.color}"
-    title="Overlay colour for this mask"
-  ></div>
+  <Tooltip text="Overlay colour for this mask">
+    {#snippet child({ props })}
+      <div
+        {...mergeProps(props, { tabindex: -1 })}
+        class="h-3 w-1 shrink-0 rounded-full ring-1 ring-white/10"
+        style="background-color: {layer.color}"
+      ></div>
+    {/snippet}
+  </Tooltip>
   <IconButton
     size="tiny"
     variant="ghost"
@@ -96,15 +101,27 @@
       <span class="truncate">{layer.name}</span>
     </Button>
   {/if}
-  <span
-    class="shrink-0 text-[10px] tabular-nums text-dark/65"
-    title="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
+  <Tooltip
+    text="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
   >
-    {layer.components.length}
-  </span>
+    {#snippet child({ props })}
+      <span
+        {...mergeProps(props, { tabindex: -1 })}
+        class="shrink-0 text-[10px] tabular-nums text-dark/65"
+      >
+        {layer.components.length}
+      </span>
+    {/snippet}
+  </Tooltip>
   {#if !maskedEditsIsZero(layer.edits)}
-    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" title="This mask has adjustments"
-    ></span>
+    <Tooltip text="This mask has adjustments">
+      {#snippet child({ props })}
+        <span
+          {...mergeProps(props, { tabindex: -1 })}
+          class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70"
+        ></span>
+      {/snippet}
+    </Tooltip>
   {/if}
   <IconButton
     size="tiny"

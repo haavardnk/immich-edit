@@ -40,14 +40,14 @@
   }
 </script>
 
-<Popover {open} anchor="top" align="end" {onOpenChange} appearance="control">
+<Popover {open} anchor="top" align="end" {onOpenChange} appearance="control" tooltip="Zoom">
   {#snippet trigger(props)}
     <Button
       size="tiny"
       variant="ghost"
       color={open ? 'primary' : 'secondary'}
       class="min-w-12 px-1 font-mono tabular-nums text-white/70 hover:text-white"
-      title="Zoom"
+      title=""
       aria-label="Zoom"
       {...props}>{fitMode ? 'Fit' : percent}</Button
     >

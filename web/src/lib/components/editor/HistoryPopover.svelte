@@ -1,7 +1,6 @@
 <script lang="ts">
   import Popover from '$lib/components/Popover.svelte';
-  import { Button, IconButton, Tooltip } from '@immich/ui';
-  import { mergeProps } from 'bits-ui';
+  import { Button, IconButton } from '@immich/ui';
   import { mdiHistory, mdiClose, mdiChevronDown, mdiChevronRight } from '@mdi/js';
   import { editor } from '$lib/stores/editor.svelte';
   import { listEditHistory, type EditHistoryEntry } from '$lib/api/edits';
@@ -66,23 +65,20 @@
   align="end"
   onOpenChange={(v) => void onOpenChange(v)}
   contentClass="w-80 max-h-112 overflow-y-auto"
+  tooltip="Edit history"
 >
   {#snippet trigger(popoverProps)}
-    <Tooltip text="Edit history">
-      {#snippet child({ props })}
-        <IconButton
-          size="small"
-          variant="ghost"
-          color="secondary"
-          class="bg-transparent hover:bg-white/6"
-          icon={mdiHistory}
-          title=""
-          disabled={!editor.assetId}
-          aria-label="Edit history"
-          {...mergeProps(props, popoverProps)}
-        />
-      {/snippet}
-    </Tooltip>
+    <IconButton
+      size="small"
+      variant="ghost"
+      color="secondary"
+      class="bg-transparent hover:bg-white/6"
+      icon={mdiHistory}
+      title=""
+      disabled={!editor.assetId}
+      aria-label="Edit history"
+      {...popoverProps}
+    />
   {/snippet}
   <div class="flex items-center justify-between border-b border-dark/5 px-3 py-2">
     <span class="text-[11px] uppercase tracking-wider text-dark/65">History</span>
