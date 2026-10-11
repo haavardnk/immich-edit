@@ -11,11 +11,22 @@ use crate::services::search::{Searcher, added, rating};
 
 pub const MAX_RADIUS: u32 = 250;
 
-type SortKey = (DateTime<Utc>, Uuid);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Position {
+    Taken(DateTime<Utc>),
+    Size(u64),
+}
 
-fn sort_key(asset: &AssetSummary) -> Option<SortKey> {
-    let taken = DateTime::parse_from_rfc3339(asset.file_created_at.as_deref()?).ok()?;
-    Some((taken.with_timezone(&Utc), asset.id.source()))
+type SortKey = (Position, Uuid);
+
+fn sort_key(field: SortField, asset: &AssetSummary) -> Option<SortKey> {
+    let position = if field == SortField::Size {
+        Position::Size(asset.exif_info.as_ref()?.file_size_in_byte?)
+    } else {
+        let taken = DateTime::parse_from_rfc3339(asset.file_created_at.as_deref()?).ok()?;
+        Position::Taken(taken.with_timezone(&Utc))
+    };
+    Some((position, asset.id.source()))
 }
 
 pub async fn around(
@@ -35,9 +46,9 @@ pub async fn around(
         SortField::Rating => {
             return rating::around(searcher, filter, sort.direction, anchor, radius).await;
         }
-        SortField::Taken => {}
+        SortField::Taken | SortField::Size => {}
     }
-    let Some(key) = sort_key(&anchor) else {
+    let Some(key) = sort_key(sort.field, &anchor) else {
         return Ok(vec![anchor]);
     };
     let newer = side(searcher, filter, sort, key, Ordering::Greater, radius).await?;
@@ -63,16 +74,23 @@ async fn side(
     radius: u32,
 ) -> Result<Vec<AssetSummary>, AppError> {
     let mut bounded = filter.clone();
+    match (anchor.0, toward) {
+        (Position::Taken(at), Ordering::Greater) => {
+            bounded.taken_after = Some(filter.taken_after.map_or(at, |after| after.max(at)));
+        }
+        (Position::Taken(at), _) => {
+            bounded.taken_before = Some(filter.taken_before.map_or(at, |before| before.min(at)));
+        }
+        (Position::Size(bytes), Ordering::Greater) => {
+            bounded.min_size = Some(filter.min_size.map_or(bytes, |min| min.max(bytes)));
+        }
+        (Position::Size(bytes), _) => {
+            bounded.max_size = Some(filter.max_size.map_or(bytes, |max| max.min(bytes)));
+        }
+    }
     let direction = match toward {
-        Ordering::Greater => {
-            bounded.taken_after = Some(filter.taken_after.map_or(anchor.0, |at| at.max(anchor.0)));
-            Direction::Asc
-        }
-        _ => {
-            bounded.taken_before =
-                Some(filter.taken_before.map_or(anchor.0, |at| at.min(anchor.0)));
-            Direction::Desc
-        }
+        Ordering::Greater => Direction::Asc,
+        _ => Direction::Desc,
     };
     let mut query = PageQuery {
         filter: bounded,
@@ -85,11 +103,9 @@ async fn side(
     let mut out: Vec<AssetSummary> = Vec::new();
     loop {
         let page = searcher.page(&query).await?;
-        out.extend(
-            page.items
-                .into_iter()
-                .filter(|asset| sort_key(asset).is_some_and(|key| key.cmp(&anchor) == toward)),
-        );
+        out.extend(page.items.into_iter().filter(|asset| {
+            sort_key(sort.field, asset).is_some_and(|key| key.cmp(&anchor) == toward)
+        }));
         if out.len() >= wanted {
             break;
         }
@@ -107,7 +123,7 @@ mod tests {
     use std::time::Duration;
 
     use chrono::{SecondsFormat, TimeZone};
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use url::Url;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -116,6 +132,29 @@ mod tests {
     use crate::immich::ImmichClient;
     use crate::immich::client::ImmichAuth;
     use crate::services::search::SearchShape;
+
+    async fn searcher(fake: impl Respond + 'static, shape: SearchShape) -> (MockServer, Searcher) {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/search/metadata"))
+            .respond_with(fake)
+            .mount(&server)
+            .await;
+        let immich = ImmichClient::with_auth(
+            Url::parse(&server.uri()).unwrap(),
+            ImmichAuth::ApiKey("key".into()),
+            Duration::from_secs(5),
+        )
+        .unwrap();
+        (server, Searcher::new(immich, shape))
+    }
+
+    fn expected_window<T>(feed: &[(T, Uuid)], index: usize, radius: usize) -> Vec<Uuid> {
+        feed[index.saturating_sub(radius)..(index + radius + 1).min(feed.len())]
+            .iter()
+            .map(|(_, id)| *id)
+            .collect()
+    }
 
     struct FakeSearch {
         assets: Vec<(DateTime<Utc>, Uuid)>,
@@ -152,7 +191,7 @@ mod tests {
                 .skip(start)
                 .take(size)
                 .map(|(taken, asset)| {
-                    serde_json::json!({
+                    json!({
                         "id": asset,
                         "type": "IMAGE",
                         "fileCreatedAt": taken.to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -160,7 +199,7 @@ mod tests {
                 })
                 .collect();
             let next = (start + size < matched.len()).then(|| (page + 1).to_string());
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            ResponseTemplate::new(200).set_body_json(json!({
                 "assets": { "items": items, "count": items.len(), "total": matched.len(), "nextPage": next },
             }))
         }
@@ -172,21 +211,13 @@ mod tests {
         let assets: Vec<(DateTime<Utc>, Uuid)> = (0..30)
             .map(|i| (base + chrono::Duration::seconds(i / 4), Uuid::new_v4()))
             .collect();
-        let server = MockServer::start().await;
-        Mock::given(method("POST"))
-            .and(path("/api/search/metadata"))
-            .respond_with(FakeSearch {
+        let (_server, searcher) = searcher(
+            FakeSearch {
                 assets: assets.clone(),
-            })
-            .mount(&server)
-            .await;
-        let immich = ImmichClient::with_auth(
-            Url::parse(&server.uri()).unwrap(),
-            ImmichAuth::ApiKey("key".into()),
-            Duration::from_secs(5),
+            },
+            SearchShape::Flat,
         )
-        .unwrap();
-        let searcher = Searcher::new(immich, SearchShape::Flat);
+        .await;
         let filter = BrowseFilter::default();
         let mut sorted = assets.clone();
         sorted.sort();
@@ -203,11 +234,7 @@ mod tests {
             }
             let radius = 5;
             let anchor = feed[index].1;
-            let expected: Vec<Uuid> = feed
-                [index.saturating_sub(radius)..(index + radius + 1).min(feed.len())]
-                .iter()
-                .map(|(_, id)| *id)
-                .collect();
+            let expected = expected_window(&feed, index, radius);
             let sort = Sort {
                 direction,
                 ..Sort::default()
@@ -225,6 +252,96 @@ mod tests {
             .unwrap();
         if !missing.is_empty() {
             panic!("an anchor outside the feed should give an empty window");
+        }
+    }
+
+    struct FakeSizeSearch {
+        assets: Vec<(u64, Uuid)>,
+    }
+
+    impl Respond for FakeSizeSearch {
+        fn respond(&self, request: &Request) -> ResponseTemplate {
+            let body: Value = request.body_json().unwrap();
+            let filter = &body["filter"];
+            if body.get("orderBy").is_some() && body["orderBy"]["field"] != "fileSizeInBytes" {
+                panic!("size window ordered by {}", body["orderBy"]);
+            }
+            let id = filter["id"]["eq"].as_str();
+            let min = filter["fileSizeInBytes"]["gte"].as_u64();
+            let max = filter["fileSizeInBytes"]["lte"].as_u64();
+            let mut matched: Vec<(u64, Uuid)> = self
+                .assets
+                .iter()
+                .filter(|(_, asset)| id.is_none_or(|i| asset.to_string() == i))
+                .filter(|(bytes, _)| min.is_none_or(|m| *bytes >= m))
+                .filter(|(bytes, _)| max.is_none_or(|m| *bytes <= m))
+                .copied()
+                .collect();
+            matched.sort();
+            if body["orderBy"]["direction"] != "asc" {
+                matched.reverse();
+            }
+            let size = (body["size"].as_u64().unwrap() as usize).min(7);
+            let start: usize = body["cursor"].as_str().map_or(0, |c| c.parse().unwrap());
+            let items: Vec<Value> = matched
+                .iter()
+                .skip(start)
+                .take(size)
+                .map(|(bytes, asset)| {
+                    json!({ "id": asset, "type": "IMAGE", "exifInfo": { "fileSizeInByte": bytes } })
+                })
+                .collect();
+            let next = (start + size < matched.len()).then(|| (start + size).to_string());
+            ResponseTemplate::new(200).set_body_json(json!({
+                "assets": { "items": items, "count": items.len(), "total": matched.len(), "nextCursor": next },
+            }))
+        }
+    }
+
+    #[tokio::test]
+    async fn size_window_matches_the_full_feed_around_the_anchor() {
+        let assets: Vec<(u64, Uuid)> = (0..40).map(|i| (1_000 * (i / 3), Uuid::new_v4())).collect();
+        let (_server, searcher) = searcher(
+            FakeSizeSearch {
+                assets: assets.clone(),
+            },
+            SearchShape::Structured,
+        )
+        .await;
+        let filter = BrowseFilter {
+            min_size: Some(2_000),
+            ..BrowseFilter::default()
+        };
+        let mut sorted: Vec<(u64, Uuid)> = assets
+            .into_iter()
+            .filter(|(bytes, _)| *bytes >= 2_000)
+            .collect();
+        sorted.sort();
+        for (direction, index) in [
+            (Direction::Desc, 0),
+            (Direction::Desc, 17),
+            (Direction::Asc, 3),
+            (Direction::Asc, 33),
+        ] {
+            let mut feed = sorted.clone();
+            if direction == Direction::Desc {
+                feed.reverse();
+            }
+            let radius = 9;
+            let sort = Sort {
+                field: SortField::Size,
+                direction,
+            };
+            let window = around(&searcher, &filter, sort, feed[index].1, radius as u32)
+                .await
+                .unwrap();
+            let ids: Vec<Uuid> = window.iter().map(|asset| asset.id.source()).collect();
+            let expected = expected_window(&feed, index, radius);
+            if ids != expected {
+                panic!(
+                    "{direction:?} size window around {index} was {ids:?}, expected {expected:?}"
+                );
+            }
         }
     }
 }

@@ -34,6 +34,9 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
   if (filters.rating !== FILTER_DEFAULTS.rating)
     chips.push({ key: 'rating', label: ratingLabel(filters.rating) });
   if (filters.favoriteOnly) chips.push({ key: 'favoriteOnly', label: 'Favorites' });
+  if (filters.notInAlbum) chips.push({ key: 'notInAlbum', label: 'Not in any album' });
+  if (filters.untagged) chips.push({ key: 'untagged', label: 'Untagged' });
+  if (filters.noPeople) chips.push({ key: 'noPeople', label: 'No people' });
   if (filters.rejected !== 'any')
     chips.push({
       key: 'rejected',
@@ -47,6 +50,8 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
       color: filters.label
     });
   if (filters.filename) chips.push({ key: 'filename', label: `Name: ${filters.filename}` });
+  if (filters.minSize !== null) chips.push({ key: 'minSize', label: `≥ ${filters.minSize} MB` });
+  if (filters.maxSize !== null) chips.push({ key: 'maxSize', label: `≤ ${filters.maxSize} MB` });
   if (filters.takenAfter) chips.push({ key: 'takenAfter', label: `After ${filters.takenAfter}` });
   if (filters.takenBefore)
     chips.push({ key: 'takenBefore', label: `Before ${filters.takenBefore}` });

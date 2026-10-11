@@ -6,19 +6,18 @@
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { readFilterParams } from '$lib/browse/filterParams';
   import { loadEditedAssets } from '$lib/browse/sources';
-  import { sortAssets, timeOf } from '$lib/browse/sortAssets';
+  import { timeOf } from '$lib/browse/sortAssets';
+  import { arrangeLoaded } from '$lib/browse/loadedFilter';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
   let loading = $state(true);
   let hydrated = $state<AssetSummary[]>([]);
 
-  const assets = $derived<AssetSummary[]>(
-    sortAssets(hydrated, (a) => timeOf(a.updatedAt), browseControls.sortDir)
-  );
+  const assets = $derived(arrangeLoaded(hydrated, (a) => timeOf(a.updatedAt)));
 
   onMount(async () => {
-    browseControls.enter('edited', readFilterParams(page.url.searchParams));
+    browseControls.enter('edited', readFilterParams(page.url));
     const [, entries] = await Promise.all([editedThumbs.loadOnce(), loadEditedAssets()]);
     hydrated = entries;
     loading = false;
@@ -34,7 +33,7 @@
   {assets}
   {loading}
   loadingLabel="Loading edited photos…"
-  totalCount={assets.length}
+  countLoaded
   sortBasis="edit"
   emptyTitle="No edited photos yet"
   emptyMessage="Open a photo and make edits to see it here."

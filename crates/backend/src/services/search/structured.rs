@@ -14,6 +14,15 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
         Some(Scope::Person(id)) => body.insert("personIds".into(), json!({ "all": [id] })),
         Some(Scope::Tag(_)) | None => None,
     };
+    if filter.not_in_album {
+        body.insert("hasAlbums".into(), json!({ "eq": false }));
+    }
+    if filter.untagged {
+        body.insert("hasTags".into(), json!({ "eq": false }));
+    }
+    if filter.no_people {
+        body.insert("hasPeople".into(), json!({ "eq": false }));
+    }
     let mut tag_ids = Map::new();
     if !tags.all.is_empty() {
         tag_ids.insert("all".into(), json!(tags.all));
@@ -58,6 +67,16 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     if !taken.is_empty() {
         body.insert("takenAt".into(), Value::Object(taken));
     }
+    let mut size = Map::new();
+    if let Some(min) = filter.min_size {
+        size.insert("gte".into(), min.into());
+    }
+    if let Some(max) = filter.max_size {
+        size.insert("lte".into(), max.into());
+    }
+    if !size.is_empty() {
+        body.insert("fileSizeInBytes".into(), Value::Object(size));
+    }
     for (field, values) in filter.exif_values() {
         match values {
             ExifMatch::Any => {}
@@ -81,6 +100,7 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
 pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
     let field = match query.sort.field {
         SortField::Rating => "rating",
+        SortField::Size => "fileSizeInBytes",
         SortField::Taken | SortField::Added => "fileCreatedAt",
     };
     let mut body = json!({
@@ -126,6 +146,9 @@ mod tests {
             filter: BrowseFilter {
                 scope: Some(Scope::Album(album)),
                 favorite: true,
+                not_in_album: true,
+                untagged: true,
+                no_people: true,
                 visibility: Some(Visibility::Timeline),
                 images_only: true,
                 rating: Some(RatingMatch::Eq(3)),
@@ -140,6 +163,8 @@ mod tests {
                 country: ExifMatch::Any,
                 state: ExifMatch::In(vec!["Vestland".into(), "Oslo".into()]),
                 city: ExifMatch::Any,
+                min_size: Some(1_000_000),
+                max_size: None,
                 added_between: None,
             },
             sort: Sort {
@@ -154,6 +179,9 @@ mod tests {
             "filter": {
                 "trashedAt": { "eq": null },
                 "albumIds": { "all": [album] },
+                "hasAlbums": { "eq": false },
+                "hasTags": { "eq": false },
+                "hasPeople": { "eq": false },
                 "tagIds": { "all": tags.all, "none": tags.none },
                 "isFavorite": { "eq": true },
                 "visibility": { "eq": "timeline" },
@@ -164,6 +192,7 @@ mod tests {
                 "make": { "in": ["SONY", "FUJIFILM"] },
                 "lensModel": { "eq": null },
                 "state": { "in": ["Vestland", "Oslo"] },
+                "fileSizeInBytes": { "gte": 1_000_000 },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

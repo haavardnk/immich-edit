@@ -10,6 +10,12 @@ pub struct BrowseFilter {
     #[serde(default)]
     pub favorite: bool,
     #[serde(default)]
+    pub not_in_album: bool,
+    #[serde(default)]
+    pub untagged: bool,
+    #[serde(default)]
+    pub no_people: bool,
+    #[serde(default)]
     pub visibility: Option<Visibility>,
     #[serde(default)]
     pub images_only: bool,
@@ -37,6 +43,10 @@ pub struct BrowseFilter {
     pub state: ExifMatch,
     #[serde(default)]
     pub city: ExifMatch,
+    #[serde(default)]
+    pub min_size: Option<u64>,
+    #[serde(default)]
+    pub max_size: Option<u64>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }

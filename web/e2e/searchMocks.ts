@@ -3,10 +3,15 @@ import type { MockTag, MockAssetSummary } from './helpers';
 const SEARCH_FILTER_KEYS = new Set([
   'scope',
   'favorite',
+  'notInAlbum',
+  'untagged',
+  'noPeople',
   'visibility',
   'imagesOnly',
   'rating',
   'filename',
+  'minSize',
+  'maxSize',
   'takenAfter',
   'takenBefore',
   'rejected',
@@ -62,8 +67,18 @@ export function searchShapeProblem(
   if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
     return 'flat search cannot exclude tags or match a rating range';
   }
-  if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
-    return 'flat search cannot sort by rating';
+  if (flat && filter.notInAlbum && (filter.scope as { album?: string } | undefined)?.album) {
+    return 'flat search cannot exclude albums inside an album';
+  }
+  if (flat && filter.noPeople) {
+    return 'flat search cannot find photos without people';
+  }
+  if (flat && (filter.minSize !== undefined || filter.maxSize !== undefined)) {
+    return 'flat search cannot filter by file size';
+  }
+  const sortField = (body.sort as { field?: unknown } | undefined)?.field;
+  if (flat && (sortField === 'rating' || sortField === 'size')) {
+    return 'flat search cannot sort by rating or size';
   }
   if (flat && EXIF_KEYS.some((key) => ((filter as ExifFilter)[key]?.length ?? 0) > 1)) {
     return 'flat search cannot match several exif values';

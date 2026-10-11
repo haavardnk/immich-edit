@@ -137,20 +137,20 @@ describe('browseControls sort families', () => {
     expect(reloaded.sort).toEqual({ field: 'taken', direction: 'desc' });
   });
 
-  it('recalls a stored rating sort only where structured search exists', () => {
-    localStorage.setItem(
-      SORT_KEY,
-      JSON.stringify({ collection: { field: 'rating', direction: 'desc' } })
-    );
-    const controls = new BrowseControlsStore();
-    controls.enter('collection', FILTER_DEFAULTS);
-    immichCapabilities.structuredSearch = false;
-    expect(controls.sort).toEqual({ field: 'taken', direction: 'asc' });
-    expect(controls.isDefault).toBe(true);
-    immichCapabilities.structuredSearch = true;
-    expect(controls.sort).toEqual({ field: 'rating', direction: 'desc' });
-    expect(controls.isDefault).toBe(false);
-  });
+  it.each(['rating', 'size'] as const)(
+    'recalls a stored %s sort only where structured search exists',
+    (field) => {
+      localStorage.setItem(SORT_KEY, JSON.stringify({ collection: { field, direction: 'desc' } }));
+      const controls = new BrowseControlsStore();
+      controls.enter('collection', FILTER_DEFAULTS);
+      immichCapabilities.structuredSearch = false;
+      expect(controls.sort).toEqual({ field: 'taken', direction: 'asc' });
+      expect(controls.isDefault).toBe(true);
+      immichCapabilities.structuredSearch = true;
+      expect(controls.sort).toEqual({ field, direction: 'desc' });
+      expect(controls.isDefault).toBe(false);
+    }
+  );
 
   it('resets only the active family', () => {
     const controls = new BrowseControlsStore();
@@ -202,6 +202,9 @@ describe('browseControls filter', () => {
 
   it('merges the active controls into the route scope', () => {
     browseControls.favoriteOnly = true;
+    browseControls.notInAlbum = true;
+    browseControls.untagged = true;
+    browseControls.noPeople = true;
     browseControls.rating = 'unrated';
     browseControls.filename = 'DSC';
     browseControls.visibility = 'archive';
@@ -210,6 +213,9 @@ describe('browseControls filter', () => {
     expect(browseControls.filter({ scope: { tag: 't1' } })).toEqual({
       scope: { tag: 't1' },
       favorite: true,
+      notInAlbum: true,
+      untagged: true,
+      noPeople: true,
       visibility: 'archive',
       imagesOnly: true,
       rating: 'unrated',
@@ -312,5 +318,14 @@ describe('browseControls filter', () => {
     browseControls.lensModel = [''];
     const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
     expect(browseControls.hides(photo)).toBe(hidden);
+  });
+
+  it('sends the size range in bytes and refetches on change', () => {
+    const keyBefore = browseControls.serverFilterKey();
+    browseControls.minSize = 2.5;
+    browseControls.maxSize = 100;
+    const { minSize, maxSize } = browseControls.filter({});
+    expect({ minSize, maxSize }).toEqual({ minSize: 2_500_000, maxSize: 100_000_000 });
+    expect(browseControls.serverFilterKey()).not.toBe(keyBefore);
   });
 });

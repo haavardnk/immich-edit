@@ -6,10 +6,12 @@
   import { IconButton, Label } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {
+    mdiSortAscending,
     mdiSortCalendarAscending,
     mdiSortCalendarDescending,
     mdiSortClockAscending,
     mdiSortClockDescending,
+    mdiSortDescending,
     mdiSortNumericAscending,
     mdiSortNumericDescending
   } from '@mdi/js';
@@ -19,26 +21,31 @@
   const ICONS: Record<SortField, Record<SortDir, string>> = {
     taken: { asc: mdiSortCalendarAscending, desc: mdiSortCalendarDescending },
     added: { asc: mdiSortClockAscending, desc: mdiSortClockDescending },
-    rating: { asc: mdiSortNumericAscending, desc: mdiSortNumericDescending }
+    rating: { asc: mdiSortNumericAscending, desc: mdiSortNumericDescending },
+    size: { asc: mdiSortAscending, desc: mdiSortDescending }
   };
 
   const FIELDS: Record<SortField, string> = {
     taken: 'Date taken',
     added: 'Date added',
-    rating: 'Rating'
+    rating: 'Rating',
+    size: 'Size'
+  };
+
+  const DIRECTIONS: Record<SortField, Record<SortDir, string>> = {
+    taken: { desc: 'Newest first', asc: 'Oldest first' },
+    added: { desc: 'Newest first', asc: 'Oldest first' },
+    rating: { desc: 'Highest first', asc: 'Lowest first' },
+    size: { desc: 'Largest first', asc: 'Smallest first' }
   };
 
   const fields = $derived(
     (Object.keys(FIELDS) as SortField[]).filter(
-      (field) => field !== 'rating' || immichCapabilities.structuredSearch
+      (field) => (field !== 'rating' && field !== 'size') || immichCapabilities.structuredSearch
     )
   );
 
-  const directions = $derived<Record<SortDir, string>>(
-    browseControls.sortField === 'rating'
-      ? { desc: 'Highest first', asc: 'Lowest first' }
-      : { desc: 'Newest first', asc: 'Oldest first' }
-  );
+  const directions = $derived(DIRECTIONS[browseControls.sortField]);
 
   const label = $derived(
     `Sort: ${FIELDS[browseControls.sortField].toLowerCase()}, ${directions[browseControls.sortDir].toLowerCase()}`

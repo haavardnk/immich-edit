@@ -16,7 +16,7 @@
     const _ = id;
     untrack(() => {
       selection.clear();
-      browseControls.enter('collection', readFilterParams(page.url.searchParams));
+      browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
       void feed.fetchPage(true);
     });

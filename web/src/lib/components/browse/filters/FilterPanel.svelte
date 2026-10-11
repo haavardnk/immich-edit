@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Disclosure from '$lib/components/Disclosure.svelte';
   import DateFilters from '$lib/components/browse/filters/DateFilters.svelte';
   import ExifFilter from '$lib/components/browse/filters/ExifFilter.svelte';
@@ -6,8 +7,11 @@
   import LabelFilter from '$lib/components/browse/filters/LabelFilter.svelte';
   import LibraryFilters from '$lib/components/browse/filters/LibraryFilters.svelte';
   import RatingFilter from '$lib/components/browse/filters/RatingFilter.svelte';
+  import SizeFilter from '$lib/components/browse/filters/SizeFilter.svelte';
   import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
+  import { supportsFilter } from '$lib/browse/browseRoutes';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
+  import type { FilterKey } from '$lib/browse/filterChips';
   import { browseControls, FILTER_DEFAULTS } from '$lib/stores/browseControls.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
@@ -25,10 +29,16 @@
   const filters = $derived(browseControls.filters);
   const openSections = $derived(new Set(browseView.filterSections));
   const sections = $derived(
-    FILTER_SECTIONS.filter((section) => !hideFilenameFilter || section.id !== 'file')
+    FILTER_SECTIONS.filter(
+      (section) => section.id !== 'file' || !hideFilenameFilter || supports('minSize')
+    )
   );
 
   let panel = $state<HTMLElement | null>(null);
+
+  function supports(key: FilterKey): boolean {
+    return supportsFilter(page.url, key);
+  }
 
   async function close(): Promise<void> {
     const hadFocus = panel?.contains(document.activeElement) ?? false;
@@ -92,14 +102,20 @@
         >
           <div class="flex flex-col gap-1 bg-black/10 px-3 pt-1 pb-2">
             {#if section.id === 'library'}
-              <LibraryFilters {favoriteLocked} />
+              <LibraryFilters {favoriteLocked} {supports} />
             {:else if section.id === 'rating'}
               <RatingFilter />
               <LabelFilter />
             {:else if section.id === 'date'}
               <DateFilters />
             {:else if section.id === 'file'}
-              <FilenameFilter />
+              {#if !hideFilenameFilter}
+                <FilenameFilter />
+              {/if}
+              {#if supports('minSize')}
+                <SizeFilter key="minSize" label="Min size (MB)" />
+                <SizeFilter key="maxSize" label="Max size (MB)" />
+              {/if}
             {:else}
               {#each section.id === 'camera' ? CAMERA_FILTERS : PLACE_FILTERS as key (key)}
                 <ExifFilter {key} />

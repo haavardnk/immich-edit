@@ -8,7 +8,7 @@ export async function backToGrid(
   returnPath?: string | null
 ): Promise<void> {
   const returnToLoupe = browseView.consumeEditorReturnLoupe(assetId);
-  const inList = assetId !== null && browsing.assets.some((a) => a.id === assetId);
+  const inList = assetId !== null && browsing.visible.some((a) => a.id === assetId);
   browseView.setActive(inList ? assetId : null);
   const target = validReturnPath(returnPath) ? returnPath : (browseView.lastGridPath ?? '/photos');
   await goto(target);

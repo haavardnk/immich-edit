@@ -14,7 +14,7 @@
 
   const hasAsset = $derived(editor.asset != null);
   const owned = $derived(editor.asset ? ownsAsset(editor.asset) : false);
-  const hasFilmstrip = $derived(browsing.assets.length > 0);
+  const hasFilmstrip = $derived(browsing.visible.length > 0);
 </script>
 
 <nav

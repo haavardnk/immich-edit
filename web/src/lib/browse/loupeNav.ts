@@ -11,7 +11,7 @@ function isMulti(): boolean {
 }
 
 function loadedIds(): string[] {
-  return browsing.assets.map((asset) => asset.id);
+  return browsing.visible.map((asset) => asset.id);
 }
 
 export function stepLoupe(delta: number): void {
@@ -34,7 +34,7 @@ export async function openLastLoupe(): Promise<void> {
   while (browsing.hasMore && (await browsing.requestMore())) {
     if (browseView.loupeId !== from) return;
   }
-  const last = browsing.assets.at(-1);
+  const last = browsing.visible.at(-1);
   if (last && browseView.loupeId === from) browseView.openLoupe(last.id);
 }
 

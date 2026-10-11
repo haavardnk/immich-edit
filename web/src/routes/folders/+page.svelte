@@ -5,7 +5,8 @@
   import { readFilterParams } from '$lib/browse/filterParams';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { fieldKey, sortAssets } from '$lib/browse/sortAssets';
+  import { fieldKey } from '$lib/browse/sortAssets';
+  import { arrangeLoaded } from '$lib/browse/loadedFilter';
   import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
   import type { AssetSummary } from '$lib/types/album';
 
@@ -14,9 +15,7 @@
   let folderPath = $state('');
 
   const queryPath = $derived(page.url.searchParams.get('path') ?? '');
-  const assets = $derived(
-    sortAssets(loaded, fieldKey(browseControls.sortField), browseControls.sortDir)
-  );
+  const assets = $derived(arrangeLoaded(loaded, fieldKey(browseControls.sortField)));
 
   async function loadFolder(path: string): Promise<void> {
     if (!path) return;
@@ -29,7 +28,7 @@
   $effect(() => {
     const p = queryPath;
     untrack(() => {
-      browseControls.enter('collection', readFilterParams(page.url.searchParams));
+      browseControls.enter('collection', readFilterParams(page.url));
       void loadFolder(p);
     });
   });
@@ -51,5 +50,6 @@
     {loading}
     loadingLabel="Loading folder…"
     emptyTitle="No photos in this folder"
+    countLoaded
   />
 {/if}

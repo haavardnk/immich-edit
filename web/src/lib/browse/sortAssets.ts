@@ -16,6 +16,7 @@ export function timeOf(value: string | null | undefined): number | null {
 
 export function fieldKey(field: SortField): SortKey {
   if (field === 'rating') return (a) => a.exifInfo?.rating ?? null;
+  if (field === 'size') return (a) => a.exifInfo?.fileSizeInByte ?? null;
   if (field === 'added') return (a) => timeOf(a.createdAt);
   return (a) => timeOf(a.fileCreatedAt);
 }

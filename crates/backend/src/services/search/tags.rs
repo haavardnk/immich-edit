@@ -45,6 +45,9 @@ pub fn tag_set(filter: &BrowseFilter, library: &[TagSummary]) -> Option<TagSet> 
         Some(label) => set.all.push(find(library, label_tag(label)?)?),
         None => {}
     }
+    if filter.untagged && !set.all.is_empty() {
+        return None;
+    }
     Some(set)
 }
 

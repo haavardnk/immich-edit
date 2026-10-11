@@ -15,6 +15,7 @@
     emptyTitle,
     emptyMessage,
     totalCount,
+    countLoaded = false,
     favoriteLocked = false,
     loadingMore = false,
     onLoadMore,
@@ -30,6 +31,7 @@
     emptyTitle: string;
     emptyMessage?: string;
     totalCount?: number;
+    countLoaded?: boolean;
     favoriteLocked?: boolean;
     loadingMore?: boolean;
     onLoadMore?: () => void;
@@ -40,6 +42,7 @@
   } = $props();
 
   const hiddenCount = $derived(assets.filter((asset) => browseControls.hides(asset)).length);
+  const headerTotal = $derived(countLoaded ? assets.length - hiddenCount : totalCount);
 </script>
 
 <div class="flex min-h-0 flex-1">
@@ -62,7 +65,12 @@
         </Notice>
       </div>
     {:else}
-      <BrowseHeader {title} {totalCount} {hiddenCount} {sortBasis} />
+      <BrowseHeader
+        {title}
+        totalCount={headerTotal}
+        hiddenCount={countLoaded ? 0 : hiddenCount}
+        {sortBasis}
+      />
       {#if assets.length === 0}
         <div
           class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted"

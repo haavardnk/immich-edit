@@ -77,11 +77,9 @@
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
   const canDrop = $derived(compare.members.length > (compare.mode === 'compare' ? 2 : 1));
   const position = $derived(
-    multi ? compare.focusIndex + 1 : browsing.assets.findIndex((a) => a.id === currentId) + 1
+    multi ? compare.focusIndex + 1 : currentId ? browsing.positionOf(currentId) : 0
   );
-  const count = $derived(
-    multi ? panes.length : Math.max(browsing.total ?? 0, browsing.assets.length)
-  );
+  const count = $derived(multi ? panes.length : browsing.count);
 
   let fitZooms = $state<Record<string, number>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
@@ -312,7 +310,7 @@
       case 'loupeEdge':
         e.preventDefault();
         if (e.key === 'Home') {
-          const first = browsing.assets[0];
+          const first = browsing.visible[0];
           if (first) browseView.openLoupe(first.id);
           return;
         }

@@ -10,6 +10,8 @@ import { LABEL_COLORS } from '$lib/stores/labels';
 import type { Visibility } from '$lib/types/search';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF, type ExifFilterKey } from './exifFilters';
+import { megabytes } from './fileSize';
+import { supportsFilter } from './browseRoutes';
 
 type ScalarKey = Exclude<keyof BrowseFilters, ExifFilterKey>;
 
@@ -18,8 +20,13 @@ const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 
 const SCALAR_PARAMS: [string, ScalarKey][] = [
   ['favorite', 'favoriteOnly'],
+  ['noalbum', 'notInAlbum'],
+  ['untagged', 'untagged'],
+  ['nopeople', 'noPeople'],
   ['rating', 'rating'],
   ['filename', 'filename'],
+  ['minsize', 'minSize'],
+  ['maxsize', 'maxSize'],
   ['visibility', 'visibility'],
   ['after', 'takenAfter'],
   ['before', 'takenBefore'],
@@ -41,7 +48,13 @@ const FILTER_PARAMS = [
   ...EXIF_FILTERS.map((key) => EXIF_PARAMS[key])
 ];
 
-const TYPED_KEYS: (keyof BrowseFilters)[] = ['filename', 'takenAfter', 'takenBefore'];
+const TYPED_KEYS: (keyof BrowseFilters)[] = [
+  'filename',
+  'minSize',
+  'maxSize',
+  'takenAfter',
+  'takenBefore'
+];
 
 function day(value: string | null): string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
@@ -55,14 +68,20 @@ function values(params: URLSearchParams, name: string): string[] {
   return read.length <= 1 || immichCapabilities.structuredSearch ? read : [];
 }
 
-export function readFilterParams(params: URLSearchParams): BrowseFilters {
+export function readFilterParams(url: URL): BrowseFilters {
+  const params = url.searchParams;
   const ratings: RatingFilter[] = immichCapabilities.structuredSearch
     ? [...EXACT_RATINGS, ...RANGE_RATINGS]
     : EXACT_RATINGS;
-  return {
+  const filters: BrowseFilters = {
     favoriteOnly: params.get('favorite') === '1',
+    notInAlbum: params.get('noalbum') === '1',
+    untagged: params.get('untagged') === '1',
+    noPeople: params.get('nopeople') === '1',
     rating: ratings.find((r) => String(r) === params.get('rating')) ?? FILTER_DEFAULTS.rating,
     filename: params.get('filename') ?? '',
+    minSize: megabytes(params.get('minsize')),
+    maxSize: megabytes(params.get('maxsize')),
     visibility:
       VISIBILITIES.find((v) => v === params.get('visibility')) ?? FILTER_DEFAULTS.visibility,
     takenAfter: day(params.get('after')),
@@ -77,6 +96,10 @@ export function readFilterParams(params: URLSearchParams): BrowseFilters {
     state: values(params, EXIF_PARAMS.state),
     city: values(params, EXIF_PARAMS.city)
   };
+  const unsupported = (Object.keys(filters) as (keyof BrowseFilters)[])
+    .filter((key) => !supportsFilter(url, key))
+    .map((key) => [key, FILTER_DEFAULTS[key]]);
+  return { ...filters, ...Object.fromEntries(unsupported) };
 }
 
 export function withFilterParams(url: URL, filters: BrowseFilters): URL {

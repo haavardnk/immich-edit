@@ -5,8 +5,13 @@ import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams'
 
 const FULL: BrowseFilters = {
   favoriteOnly: true,
+  notInAlbum: true,
+  untagged: true,
+  noPeople: true,
   rating: '3+',
   filename: 'IMG 0001+',
+  minSize: 0.5,
+  maxSize: 25,
   visibility: 'archive',
   takenAfter: '2024-01-01',
   takenBefore: '2024-02-29',
@@ -20,8 +25,8 @@ const FULL: BrowseFilters = {
   city: ['Bergen']
 };
 
-function read(search: string): BrowseFilters {
-  return readFilterParams(new URLSearchParams(search));
+function read(search: string, pathname = '/photos'): BrowseFilters {
+  return readFilterParams(new URL(`http://x.invalid${pathname}?${search}`));
 }
 
 afterEach(() => {
@@ -34,7 +39,7 @@ describe('filter params', () => {
     const url = withFilterParams(new URL('http://x.invalid/search?q=cat&mode=filename'), FULL);
     expect(url.searchParams.get('q')).toBe('cat');
     expect(url.searchParams.get('mode')).toBe('filename');
-    expect(readFilterParams(url.searchParams)).toEqual(FULL);
+    expect(readFilterParams(url)).toEqual(FULL);
   });
 
   it('writes nothing for defaults and replaces stale filter params', () => {
@@ -70,7 +75,8 @@ describe('filter params', () => {
     ['before=2024-12-31', 'takenBefore', '2024-12-31'],
     ['make=SONY&make=Canon', 'make', []],
     ['lens=&lens=FE', 'lensModel', ['FE']],
-    ['lens=', 'lensModel', ['']]
+    ['lens=', 'lensModel', ['']],
+    ['minsize=25', 'minSize', null]
   ] as [string, keyof BrowseFilters, unknown][])(
     'reads %s as %s %j without structured search',
     (search, key, expected) => {
@@ -81,7 +87,11 @@ describe('filter params', () => {
   it.each([
     ['rating=3%2B', 'rating', '3+'],
     ['rating=2-', 'rating', '2-'],
-    ['make=SONY&make=Canon&make=SONY', 'make', ['SONY', 'Canon']]
+    ['make=SONY&make=Canon&make=SONY', 'make', ['SONY', 'Canon']],
+    ['minsize=2.5', 'minSize', 2.5],
+    ['maxsize=0', 'maxSize', null],
+    ['maxsize=-3', 'maxSize', null],
+    ['maxsize=big', 'maxSize', null]
   ] as [string, keyof BrowseFilters, unknown][])(
     'reads %s as %s %j with structured search',
     (search, key, expected) => {
@@ -91,8 +101,56 @@ describe('filter params', () => {
   );
 
   it.each([
+    ['/photos', true],
+    ['/people/p1', true],
+    ['/search', true],
+    ['/albums/a1', false],
+    ['/folders', false],
+    ['/edited', false]
+  ])('reads noalbum on %s: %s', (pathname, expected) => {
+    expect(read('noalbum=1&favorite=1', pathname)).toMatchObject({
+      notInAlbum: expected,
+      favoriteOnly: true
+    });
+  });
+
+  it.each([
+    ['/photos', true, true, true, 3],
+    ['/photos', false, true, false, null],
+    ['/tags/t1', true, false, true, 3],
+    ['/people/p1', true, true, false, 3],
+    ['/albums/a1', true, true, true, 3],
+    ['/search?q=cat&mode=filename', true, true, true, 3],
+    ['/search?q=cat&mode=description', true, true, false, null],
+    ['/folders?path=%2Fa', true, false, false, 3],
+    ['/edited', false, false, false, 3]
+  ])(
+    'reads untagged, nopeople and minsize on %s with structured search %s: %s, %s, %s',
+    (route, structured, untagged, noPeople, minSize) => {
+      immichCapabilities.structuredSearch = structured;
+      const url = new URL(`http://x.invalid${route}`);
+      url.searchParams.set('untagged', '1');
+      url.searchParams.set('nopeople', '1');
+      url.searchParams.set('minsize', '3');
+      expect(readFilterParams(url)).toMatchObject({ untagged, noPeople, minSize });
+    }
+  );
+
+  it.each([
+    ['/photos', 'archive'],
+    ['/folders?path=%2Fa', 'timeline'],
+    ['/edited', 'timeline']
+  ])('reads visibility=archive on %s as %s', (route, expected) => {
+    const url = new URL(`http://x.invalid${route}`);
+    url.searchParams.set('visibility', 'archive');
+    expect(readFilterParams(url).visibility).toBe(expected);
+  });
+
+  it.each([
     [{ filename: 'IMG' }, { filename: 'IMG_1' }, true],
     [{ takenAfter: '2024-01-01' }, { takenAfter: '2024-01-02' }, true],
+    [{ minSize: 2 }, { minSize: 25 }, true],
+    [{}, { maxSize: 2 }, false],
     [{}, { filename: 'I' }, false],
     [{ filename: 'I' }, {}, false],
     [{ filename: 'IMG' }, { filename: 'IMG_1', favoriteOnly: true }, false],

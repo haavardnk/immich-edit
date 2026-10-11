@@ -1,3 +1,4 @@
+import { browseControls } from '$lib/stores/browseControls.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
 const PREFETCH_WINDOW = 10;
@@ -11,7 +12,15 @@ export interface BrowsePager {
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
   total = $state<number | undefined>(undefined);
+  readonly visible = $derived(this.assets.filter((asset) => this.shows(asset)));
   private pager = $state.raw<BrowsePager | null>(null);
+
+  get count(): number {
+    return Math.max(
+      (this.total ?? 0) - (this.assets.length - this.visible.length),
+      this.visible.length
+    );
+  }
 
   get hasMore(): boolean {
     return this.pager?.hasMore ?? false;
@@ -70,16 +79,25 @@ class BrowsingStore {
     this.assets.splice(idx, 1);
   }
 
+  positionOf(id: string): number {
+    const idx = this.assets.findIndex((a) => a.id === id);
+    return this.assets.slice(0, idx + 1).filter((asset) => this.shows(asset)).length;
+  }
+
   prevOf(id: string): AssetSummary | null {
     const idx = this.assets.findIndex((a) => a.id === id);
-    if (idx <= 0) return null;
-    return this.assets[idx - 1] ?? null;
+    if (idx < 0) return null;
+    return this.assets.slice(0, idx).findLast((asset) => this.shows(asset)) ?? null;
   }
 
   nextOf(id: string): AssetSummary | null {
     const idx = this.assets.findIndex((a) => a.id === id);
-    if (idx < 0 || idx >= this.assets.length - 1) return null;
-    return this.assets[idx + 1] ?? null;
+    if (idx < 0) return null;
+    return this.assets.slice(idx + 1).find((asset) => this.shows(asset)) ?? null;
+  }
+
+  private shows(asset: AssetSummary): boolean {
+    return !browseControls.hides(asset);
   }
 }
 

@@ -11,12 +11,16 @@ export interface FilterSection {
 }
 
 export const FILTER_SECTIONS: FilterSection[] = [
-  { id: 'library', title: 'Library', keys: ['visibility', 'rejected', 'favoriteOnly'] },
+  {
+    id: 'library',
+    title: 'Library',
+    keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum', 'untagged', 'noPeople']
+  },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore'] },
   { id: 'camera', title: 'Camera', keys: CAMERA_FILTERS },
   { id: 'place', title: 'Place', keys: PLACE_FILTERS },
-  { id: 'file', title: 'File', keys: ['filename'] }
+  { id: 'file', title: 'File', keys: ['filename', 'minSize', 'maxSize'] }
 ];
 
 export function isFilterSectionId(value: unknown): value is FilterSectionId {

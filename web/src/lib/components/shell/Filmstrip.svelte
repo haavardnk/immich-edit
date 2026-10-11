@@ -42,7 +42,7 @@
   const currentId = $derived(onSelect ? currentIdProp : (page.params.id ?? null));
   const thumbnailHeight = $derived(resizable ? ui.filmstripHeight : size);
 
-  const assets = $derived(browsing.assets);
+  const assets = $derived(browsing.visible);
   const currentIndex = $derived(assets.findIndex((a) => a.id === currentId));
   const layout = $derived(createFilmstripLayout(assets, thumbnailHeight, GAP, PAD));
 

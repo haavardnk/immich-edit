@@ -12,6 +12,7 @@ pub enum SortField {
     Taken,
     Added,
     Rating,
+    Size,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]

@@ -865,7 +865,7 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
 });
 
 test('browse filter panel controls share the dense inspector row', async ({ page }) => {
-  await installMocks(page);
+  await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');
 
   const panel = await openFilters(page, 'Library', 'Date', 'Camera', 'Place', 'File');
@@ -877,6 +877,7 @@ test('browse filter panel controls share the dense inspector row', async ({ page
     takenAfter,
     panel.getByRole('group', { name: 'Taken before' }),
     panel.getByLabel('Filename'),
+    panel.getByLabel('Min size (MB)'),
     panel.getByRole('combobox', { name: 'Make' }),
     panel.getByRole('combobox', { name: 'City' })
   ];

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, openFilters } from './helpers';
 
 const OLD_ID = '00000000-0000-0000-0000-000000000001';
 const MID_ID = '00000000-0000-0000-0000-000000000002';
@@ -149,7 +149,29 @@ test('structured servers sort the whole result by rating', async ({ page }) => {
   await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
 });
 
-test('older servers hide the rating sort and recall the default', async ({ page }) => {
+test('structured servers sort the whole result by file size', async ({ page }) => {
+  const sorts: unknown[] = [];
+  await installMocks(page, {
+    assets: [
+      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+    ],
+    structuredSearch: true,
+    onMetadata: (body) => void sorts.push(body.sort)
+  });
+
+  await page.goto('/photos');
+  await pickSort(page, 'Size');
+  await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
+  expect(sorts.at(-1)).toEqual({ field: 'size', direction: 'desc' });
+  await expect(page.getByRole('button', { name: 'Sort: size, largest first' })).toBeVisible();
+
+  await pickSort(page, 'Smallest first');
+  await expectOrder(page, [MID_ID, NEW_ID, OLD_ID]);
+});
+
+test('older servers hide the rating and size sorts and recall the default', async ({ page }) => {
   const sorts: unknown[] = [];
   await installMocks(page, { assets: RATED, onMetadata: (body) => void sorts.push(body.sort) });
   await page.addInitScript(() =>
@@ -167,6 +189,7 @@ test('older servers hide the rating sort and recall the default', async ({ page 
   const menu = page.locator('[data-popover-content]');
   await expect(menu.getByRole('radio', { name: 'Date added', exact: true })).toBeVisible();
   await expect(menu.getByRole('radio', { name: 'Rating', exact: true })).toHaveCount(0);
+  await expect(menu.getByRole('radio', { name: 'Size', exact: true })).toHaveCount(0);
 });
 
 test('edited view sorts by edit time', async ({ page }) => {
@@ -205,4 +228,69 @@ test('edited view names photos from one enriched request', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'IMG_0001.ARW' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'IMG_0002.ARW' })).toBeVisible();
   expect(assetDetailCalls).toBe(0);
+});
+
+test('edited view filters the loaded photos', async ({ page }) => {
+  await installMocks(page, {
+    assets: [
+      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+    ],
+    edits: [
+      { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
+      { id: MID_ID, hash: 'h2', updated_at: '2024-06-01T00:00:00Z' },
+      { id: NEW_ID, hash: 'h3', updated_at: '2024-04-01T00:00:00Z' }
+    ]
+  });
+
+  await page.goto('/edited?minsize=15&visibility=archive');
+  await expectOrder(page, [NEW_ID, OLD_ID]);
+  await expect(page).not.toHaveURL(/visibility/);
+
+  const panel = await openFilters(page, 'Library', 'File');
+  await expect(panel.getByRole('button', { name: 'Rejected', exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Visibility', exact: true })).toHaveCount(0);
+  await expect(panel.getByLabel('Min size (MB)')).toHaveValue('15');
+  await panel.getByLabel('Filename').fill('0003');
+  await expectOrder(page, [NEW_ID]);
+});
+
+test('edited view counts and steps through only the photos a filter keeps', async ({ page }) => {
+  await installMocks(page, {
+    assets: [
+      { ...ASSETS[0], exifInfo: { make: 'FUJIFILM' } },
+      { ...ASSETS[1], exifInfo: { make: 'SONY' } },
+      { ...ASSETS[2], exifInfo: { make: 'SONY' } }
+    ],
+    edits: [
+      { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
+      { id: MID_ID, hash: 'h2', updated_at: '2024-06-01T00:00:00Z' },
+      { id: NEW_ID, hash: 'h3', updated_at: '2024-04-01T00:00:00Z' }
+    ]
+  });
+
+  await page.goto('/edited?make=SONY');
+  await expectOrder(page, [NEW_ID, MID_ID]);
+  await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Quick review').first().click();
+  await expect(page.getByText('1 of 2', { exact: true })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
+  await expect(page.getByText('2 of 2', { exact: true })).toBeVisible();
+});
+
+test('folder view counts only the photos a filter keeps', async ({ page }) => {
+  const assets = [
+    { ...ASSETS[0], exifInfo: { make: 'FUJIFILM' } },
+    { ...ASSETS[1], exifInfo: { make: 'SONY' } },
+    { ...ASSETS[2], exifInfo: { make: 'SONY' } }
+  ];
+  await installMocks(page, { assets });
+  await page.route('**/api/folders/assets?*', (route) => route.fulfill(json(assets)));
+
+  await page.goto('/folders?path=%2Fphotos&make=SONY');
+  await expectOrder(page, [MID_ID, NEW_ID]);
+  await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
 });

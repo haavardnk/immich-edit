@@ -18,6 +18,27 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
         Some(Scope::Person(id)) => body.insert("personIds".into(), json!([id])),
         Some(Scope::Tag(_)) | None => None,
     };
+    if filter.not_in_album {
+        if body.contains_key("albumIds") {
+            return Err(AppError::BadRequest(
+                "an album cannot hold photos that are in no album".into(),
+            ));
+        }
+        body.insert("isNotInAlbum".into(), true.into());
+    }
+    if filter.untagged {
+        body.insert("tagIds".into(), Value::Null);
+    }
+    if filter.no_people {
+        return Err(AppError::BadRequest(
+            "this search cannot find photos without people".into(),
+        ));
+    }
+    if filter.min_size.is_some() || filter.max_size.is_some() {
+        return Err(AppError::BadRequest(
+            "this search cannot filter by file size".into(),
+        ));
+    }
     if !tags.none.is_empty() {
         return Err(AppError::BadRequest(
             "this search cannot exclude tagged photos".into(),
@@ -131,6 +152,9 @@ mod tests {
             filter: BrowseFilter {
                 scope: Some(Scope::Tag(tag)),
                 favorite: true,
+                not_in_album: true,
+                untagged: false,
+                no_people: false,
                 visibility: Some(Visibility::Archive),
                 images_only: true,
                 rating: Some(RatingMatch::Unrated),
@@ -145,6 +169,8 @@ mod tests {
                 country: ExifMatch::Unknown,
                 state: ExifMatch::Any,
                 city: ExifMatch::In(vec!["Bergen".into()]),
+                min_size: None,
+                max_size: None,
                 added_between: None,
             },
             sort: Sort {
@@ -156,6 +182,7 @@ mod tests {
             with_exif: true,
         };
         let expected = json!({
+            "isNotInAlbum": true,
             "tagIds": [tag, reject],
             "isFavorite": true,
             "visibility": "archive",
@@ -178,6 +205,18 @@ mod tests {
     }
 
     #[test]
+    fn untagged_asks_for_a_null_tag_list() {
+        let filter_by = BrowseFilter {
+            untagged: true,
+            ..BrowseFilter::default()
+        };
+        let body = count(&filter_by, &TagSet::default()).ok();
+        if body != Some(json!({ "tagIds": null })) {
+            panic!("untagged flat body was {body:?}");
+        }
+    }
+
+    #[test]
     fn flat_servers_refuse_what_they_cannot_express() {
         let minimum = BrowseFilter {
             rating: Some(RatingMatch::Gte(3)),
@@ -195,7 +234,23 @@ mod tests {
             model: ExifMatch::In(vec!["ILCE-7M3".into(), "X-T5".into()]),
             ..BrowseFilter::default()
         };
+        let unfiled_album = BrowseFilter {
+            scope: Some(Scope::Album(Uuid::new_v4())),
+            not_in_album: true,
+            ..BrowseFilter::default()
+        };
+        let no_people = BrowseFilter {
+            no_people: true,
+            ..BrowseFilter::default()
+        };
+        let sized = BrowseFilter {
+            max_size: Some(5_000_000),
+            ..BrowseFilter::default()
+        };
         let cases = [
+            (unfiled_album, TagSet::default()),
+            (no_people, TagSet::default()),
+            (sized, TagSet::default()),
             (minimum, TagSet::default()),
             (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),
