@@ -11,6 +11,8 @@ describe('browse filter chips', () => {
     const chips = activeFilterChips({
       favoriteOnly: true,
       notInAlbum: true,
+      untagged: true,
+      noPeople: true,
       rating: 3,
       filename: 'DSC',
       visibility: 'archive',
@@ -30,6 +32,8 @@ describe('browse filter chips', () => {
       '3 stars',
       'Favorites',
       'Not in any album',
+      'Untagged',
+      'No people',
       'No rejected',
       'Green label',
       'Name: DSC',

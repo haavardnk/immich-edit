@@ -10,6 +10,7 @@
   import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
   import { supportsFilter } from '$lib/browse/browseRoutes';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
+  import type { FilterKey } from '$lib/browse/filterChips';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
@@ -25,13 +26,16 @@
   }: { favoriteLocked?: boolean; hideFilenameFilter?: boolean } = $props();
 
   const filters = $derived(browseControls.filters);
-  const notInAlbum = $derived(supportsFilter(page.url, 'notInAlbum'));
   const openSections = $derived(new Set(browseView.filterSections));
   const sections = $derived(
     FILTER_SECTIONS.filter((section) => !hideFilenameFilter || section.id !== 'file')
   );
 
   let panel = $state<HTMLElement | null>(null);
+
+  function supports(key: FilterKey): boolean {
+    return supportsFilter(page.url, key);
+  }
 
   async function close(): Promise<void> {
     const hadFocus = panel?.contains(document.activeElement) ?? false;
@@ -83,7 +87,7 @@
         >
           <div class="flex flex-col gap-1 bg-black/10 px-3 pt-1 pb-2">
             {#if section.id === 'library'}
-              <LibraryFilters {favoriteLocked} {notInAlbum} />
+              <LibraryFilters {favoriteLocked} {supports} />
             {:else if section.id === 'rating'}
               <RatingFilter />
               <LabelFilter />

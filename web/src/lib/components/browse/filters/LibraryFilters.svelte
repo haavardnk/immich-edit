@@ -1,5 +1,6 @@
 <script lang="ts">
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import type { FilterKey } from '$lib/browse/filterChips';
   import {
     browseControls,
     type RejectedFilter,
@@ -9,8 +10,14 @@
 
   let {
     favoriteLocked = false,
-    notInAlbum = false
-  }: { favoriteLocked?: boolean; notInAlbum?: boolean } = $props();
+    supports
+  }: { favoriteLocked?: boolean; supports: (key: FilterKey) => boolean } = $props();
+
+  const exclusions: { key: 'notInAlbum' | 'untagged' | 'noPeople'; label: string }[] = [
+    { key: 'notInAlbum', label: 'Not in any album' },
+    { key: 'untagged', label: 'Untagged' },
+    { key: 'noPeople', label: 'No people' }
+  ];
 
   const visibilityOptions: { value: Visibility; label: string }[] = [
     { value: 'timeline', label: 'Timeline' },
@@ -53,10 +60,10 @@
   />
 {/if}
 
-{#if notInAlbum}
+{#each exclusions.filter(({ key }) => supports(key)) as { key, label } (key)}
   <CheckboxRow
-    label="Not in any album"
-    checked={browseControls.notInAlbum}
-    onChange={(checked) => (browseControls.notInAlbum = checked)}
+    {label}
+    checked={browseControls[key]}
+    onChange={(checked) => (browseControls[key] = checked)}
   />
-{/if}
+{/each}

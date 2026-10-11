@@ -14,7 +14,7 @@ export const FILTER_SECTIONS: FilterSection[] = [
   {
     id: 'library',
     title: 'Library',
-    keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum']
+    keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum', 'untagged', 'noPeople']
   },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore'] },

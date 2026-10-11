@@ -26,6 +26,11 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
         }
         body.insert("isNotInAlbum".into(), true.into());
     }
+    if filter.untagged || filter.no_people {
+        return Err(AppError::BadRequest(
+            "this search cannot find photos without tags or people".into(),
+        ));
+    }
     if !tags.none.is_empty() {
         return Err(AppError::BadRequest(
             "this search cannot exclude tagged photos".into(),
@@ -137,6 +142,8 @@ mod tests {
                 scope: Some(Scope::Tag(tag)),
                 favorite: true,
                 not_in_album: true,
+                untagged: false,
+                no_people: false,
                 visibility: Some(Visibility::Archive),
                 images_only: true,
                 rating: Some(RatingMatch::Unrated),
@@ -207,8 +214,18 @@ mod tests {
             not_in_album: true,
             ..BrowseFilter::default()
         };
+        let untagged = BrowseFilter {
+            untagged: true,
+            ..BrowseFilter::default()
+        };
+        let no_people = BrowseFilter {
+            no_people: true,
+            ..BrowseFilter::default()
+        };
         let cases = [
             (unfiled_album, TagSet::default()),
+            (untagged, TagSet::default()),
+            (no_people, TagSet::default()),
             (minimum, TagSet::default()),
             (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),

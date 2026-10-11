@@ -23,9 +23,10 @@ filenames.
 **Filters**, or `Shift+F`, opens the filter panel on the right of the grid; its close button or
 `Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
 groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**, **Not in any
-album**), **Rating & label**, **Date** (**Taken after**, **Taken before**), **File** (**Filename**),
-**Camera** (**Make**, **Model**, **Lens**) and **Place** (**Country**, **State**, **City**). Search
-has no **File** section. Click a section title to fold it; a section with an active filter shows a reset button
+album**, **Untagged**, **No people**), **Rating & label**, **Date** (**Taken after**, **Taken
+before**), **File** (**Filename**), **Camera** (**Make**, **Model**, **Lens**) and **Place**
+(**Country**, **State**, **City**). Search has no **File** section. Click a section title to fold
+it; a section with an active filter shows a reset button
 that clears only that section. The panel remembers whether it was open and which sections you
 left open. **Visibility** switches
 between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
@@ -34,7 +35,11 @@ default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps un
 Immich versions match the exact star count. **Rejected** shows
 rejects, hides them or shows only them; **Only** lets you review everything you rejected before
 deleting it in Immich. **Not in any album** keeps photos that no album holds yet, so you can find
-what still needs filing; albums, folders and **Edited** do not offer it.
+what still needs filing; albums, folders and **Edited** do not offer it. On Immich 3.2 and later,
+**Untagged** keeps photos with no tags at all and **No people** keeps photos where Immich found no
+faces. Color labels and reject marks are tags too, so a labelled or rejected photo is not untagged.
+Tag pages leave out **Untagged**, people pages leave out **No people**, and description search,
+folders and **Edited** offer neither.
 **Make**, **Model**, **Lens**, **Country**, **State** and **City** list the values Immich knows
 from your timeline photos. Picking a make narrows the models and lenses on offer, and picking a
 model narrows the lenses; a country narrows the states and cities the same way, and a state the

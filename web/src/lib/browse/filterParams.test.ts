@@ -6,6 +6,8 @@ import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams'
 const FULL: BrowseFilters = {
   favoriteOnly: true,
   notInAlbum: true,
+  untagged: true,
+  noPeople: true,
   rating: '3+',
   filename: 'IMG 0001+',
   visibility: 'archive',
@@ -103,6 +105,27 @@ describe('filter params', () => {
       favoriteOnly: true
     });
   });
+
+  it.each([
+    ['/photos', true, true, true],
+    ['/photos', false, false, false],
+    ['/tags/t1', true, false, true],
+    ['/people/p1', true, true, false],
+    ['/albums/a1', true, true, true],
+    ['/search?q=cat&mode=filename', true, true, true],
+    ['/search?q=cat&mode=description', true, false, false],
+    ['/folders?path=%2Fa', true, false, false],
+    ['/edited', true, false, false]
+  ])(
+    'reads untagged and nopeople on %s with structured search %s: %s, %s',
+    (route, structured, untagged, noPeople) => {
+      immichCapabilities.structuredSearch = structured;
+      const url = new URL(`http://x.invalid${route}`);
+      url.searchParams.set('untagged', '1');
+      url.searchParams.set('nopeople', '1');
+      expect(readFilterParams(url)).toMatchObject({ untagged, noPeople });
+    }
+  );
 
   it.each([
     [{ filename: 'IMG' }, { filename: 'IMG_1' }, true],

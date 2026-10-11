@@ -7,6 +7,7 @@ import {
   type SortFamily
 } from '$lib/stores/browseControls.svelte';
 import type { BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
+import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
 interface RouteBase {
@@ -100,11 +101,20 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
   return null;
 }
 
+const SCOPE_EXCLUSIONS: Partial<Record<keyof BrowseFilters, string>> = {
+  notInAlbum: 'album',
+  untagged: 'tag',
+  noPeople: 'person'
+};
+
 export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
-  if (key !== 'notInAlbum') return true;
+  const excluded = SCOPE_EXCLUSIONS[key];
+  if (!excluded) return true;
+  const structuredOnly = key !== 'notInAlbum';
+  if (structuredOnly && !immichCapabilities.structuredSearch) return false;
   const route = matchBrowseRoute(url);
   if (!route) return url.pathname === '/search';
-  if (!('feed' in route)) return false;
+  if (!('feed' in route) || (structuredOnly && route.feed.flatOnly?.())) return false;
   const scope = route.feed.baseFilter().scope;
-  return !scope || !('album' in scope);
+  return !scope || !(excluded in scope);
 }

@@ -168,6 +168,8 @@ const SEARCH_FILTER_KEYS = new Set([
   'scope',
   'favorite',
   'notInAlbum',
+  'untagged',
+  'noPeople',
   'visibility',
   'imagesOnly',
   'rating',
@@ -229,6 +231,9 @@ function searchShapeProblem(
   }
   if (flat && filter.notInAlbum && (filter.scope as { album?: string } | undefined)?.album) {
     return 'flat search cannot exclude albums inside an album';
+  }
+  if (flat && (filter.untagged || filter.noPeople)) {
+    return 'flat search cannot find photos without tags or people';
   }
   if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
     return 'flat search cannot sort by rating';

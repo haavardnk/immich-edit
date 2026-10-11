@@ -20,6 +20,8 @@ const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
 const SCALAR_PARAMS: [string, ScalarKey][] = [
   ['favorite', 'favoriteOnly'],
   ['noalbum', 'notInAlbum'],
+  ['untagged', 'untagged'],
+  ['nopeople', 'noPeople'],
   ['rating', 'rating'],
   ['filename', 'filename'],
   ['visibility', 'visibility'],
@@ -63,6 +65,8 @@ export function readFilterParams(url: URL): BrowseFilters {
   const filters: BrowseFilters = {
     favoriteOnly: params.get('favorite') === '1',
     notInAlbum: params.get('noalbum') === '1',
+    untagged: params.get('untagged') === '1',
+    noPeople: params.get('nopeople') === '1',
     rating: ratings.find((r) => String(r) === params.get('rating')) ?? FILTER_DEFAULTS.rating,
     filename: params.get('filename') ?? '',
     visibility:

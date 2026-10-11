@@ -155,6 +155,36 @@ test('the not-in-album filter is offered outside albums only', async ({ page }) 
   await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toHaveCount(0);
 });
 
+for (const structuredSearch of [false, true]) {
+  test(`untagged and no people need structured search (${structuredSearch})`, async ({ page }) => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const filterAt = (index: number) =>
+      bodies.at(index)?.filter as { untagged?: boolean; noPeople?: boolean } | undefined;
+    await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
+    await page.goto('/photos');
+
+    const panel = await openFilters(page);
+    const untagged = panel.getByRole('checkbox', { name: 'Untagged' });
+    const noPeople = panel.getByRole('checkbox', { name: 'No people' });
+    await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toBeVisible();
+    if (!structuredSearch) {
+      await expect(untagged).toHaveCount(0);
+      await expect(noPeople).toHaveCount(0);
+      return;
+    }
+    await untagged.click();
+    await noPeople.click();
+    await expect.poll(() => filterAt(-1)).toMatchObject({ untagged: true, noPeople: true });
+    await expect(page).toHaveURL(/untagged=1&nopeople=1/);
+
+    await page.goto('/tags/tag-1?untagged=1&nopeople=1');
+    await expect(noPeople).toBeChecked();
+    await expect(untagged).toHaveCount(0);
+    await expect(page).not.toHaveURL(/untagged/);
+    expect(filterAt(-1)?.untagged).toBeUndefined();
+  });
+}
+
 test('the filter panel remembers its sections and resets one at a time', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');

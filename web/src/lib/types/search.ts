@@ -12,6 +12,8 @@ export interface BrowseFilter {
   scope?: SearchScope;
   favorite?: boolean;
   notInAlbum?: boolean;
+  untagged?: boolean;
+  noPeople?: boolean;
   visibility?: Visibility;
   imagesOnly?: boolean;
   rating?: RatingMatch;
