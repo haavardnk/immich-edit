@@ -24,8 +24,9 @@ filenames.
 `Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
 groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**, **Not in any
 album**, **Untagged**, **No people**), **Rating & label**, **Date** (**Taken after**, **Taken
-before**), **File** (**Filename**), **Camera** (**Make**, **Model**, **Lens**) and **Place**
-(**Country**, **State**, **City**). Search has no **File** section. Click a section title to fold
+before**), **File** (**Filename**, **Min size (MB)**, **Max size (MB)**), **Camera** (**Make**,
+**Model**, **Lens**) and **Place** (**Country**, **State**, **City**). Search leaves out
+**Filename**. Click a section title to fold
 it; a section with an active filter shows a reset button
 that clears only that section. The panel remembers whether it was open and which sections you
 left open. **Visibility** switches
@@ -40,6 +41,9 @@ what still needs filing; albums, folders and **Edited** do not offer it. On Immi
 faces. Color labels and reject marks are tags too, so a labelled or rejected photo is not untagged.
 Tag pages leave out **Untagged**, people pages leave out **No people**, and description search,
 folders and **Edited** offer neither.
+On Immich 3.2 and later, **Min size (MB)** and **Max size (MB)** keep photos whose original file is
+at least or at most that size, where 1 MB is 1,000,000 bytes. A photo with no recorded size never
+matches a size range. Description search, folders and **Edited** do not offer a size range.
 **Make**, **Model**, **Lens**, **Country**, **State** and **City** list the values Immich knows
 from your timeline photos. Picking a make narrows the models and lenses on offer, and picking a
 model narrows the lenses; a country narrows the states and cities the same way, and a state the
@@ -47,9 +51,10 @@ cities. A choice the new list no longer contains is dropped. On Immich 3.2 and l
 takes several values and matches any of them; older versions match one value.
 The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
 **Newest first** or **Oldest first**. On Immich 3.2 and later it also offers **Rating**, with
-**Highest first** or **Lowest first**. Immich sorts the whole result, so the best photos lead every
-page, not only the loaded ones. Unrated photos come last in both orders, and photos with the same
-rating keep no particular order. Each view remembers its own order, so **Date added** with
+**Highest first** or **Lowest first**, and **Size**, with **Largest first** or **Smallest first**.
+Immich sorts the whole result, so the best or biggest photos lead every page, not only the loaded
+ones. Unrated photos, and photos with no recorded size, come last in both orders, and photos with
+the same rating keep no particular order. Each view remembers its own order, so **Date added** with
 **Newest first** shows your latest uploads. **Reset filters and sort** clears both.
 Each active filter shows as a chip under the header; its **Remove** button clears only that filter.
 Filters live in the page address, so a reload keeps them, Back and Forward step through your

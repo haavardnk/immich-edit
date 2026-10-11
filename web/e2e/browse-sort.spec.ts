@@ -149,7 +149,29 @@ test('structured servers sort the whole result by rating', async ({ page }) => {
   await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
 });
 
-test('older servers hide the rating sort and recall the default', async ({ page }) => {
+test('structured servers sort the whole result by file size', async ({ page }) => {
+  const sorts: unknown[] = [];
+  await installMocks(page, {
+    assets: [
+      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+    ],
+    structuredSearch: true,
+    onMetadata: (body) => void sorts.push(body.sort)
+  });
+
+  await page.goto('/photos');
+  await pickSort(page, 'Size');
+  await expectOrder(page, [OLD_ID, NEW_ID, MID_ID]);
+  expect(sorts.at(-1)).toEqual({ field: 'size', direction: 'desc' });
+  await expect(page.getByRole('button', { name: 'Sort: size, largest first' })).toBeVisible();
+
+  await pickSort(page, 'Smallest first');
+  await expectOrder(page, [MID_ID, NEW_ID, OLD_ID]);
+});
+
+test('older servers hide the rating and size sorts and recall the default', async ({ page }) => {
   const sorts: unknown[] = [];
   await installMocks(page, { assets: RATED, onMetadata: (body) => void sorts.push(body.sort) });
   await page.addInitScript(() =>
@@ -167,6 +189,7 @@ test('older servers hide the rating sort and recall the default', async ({ page 
   const menu = page.locator('[data-popover-content]');
   await expect(menu.getByRole('radio', { name: 'Date added', exact: true })).toBeVisible();
   await expect(menu.getByRole('radio', { name: 'Rating', exact: true })).toHaveCount(0);
+  await expect(menu.getByRole('radio', { name: 'Size', exact: true })).toHaveCount(0);
 });
 
 test('edited view sorts by edit time', async ({ page }) => {

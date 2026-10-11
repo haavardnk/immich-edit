@@ -370,17 +370,25 @@ async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
 }
 
 #[tokio::test]
-async fn rating_sort_needs_structured_search() {
-    for (minor, expected) in [(1, StatusCode::BAD_REQUEST), (2, StatusCode::OK)] {
+async fn rating_and_size_sorts_need_structured_search() {
+    let cases = [("rating", "rating"), ("size", "fileSizeInBytes")]
+        .into_iter()
+        .flat_map(|(field, immich)| {
+            [
+                (1, StatusCode::BAD_REQUEST, field, immich),
+                (2, StatusCode::OK, field, immich),
+            ]
+        });
+    for (minor, expected, field, immich) in cases {
         let server = MockServer::start().await;
         mock_server_version(&server, 3, minor, 2).await;
-        let ordered = json!({ "orderBy": { "field": "rating", "direction": "desc" } });
+        let ordered = json!({ "orderBy": { "field": immich, "direction": "desc" } });
         let found = search_response(&[asset_id()], None, None);
         mount_search(&server, "/api/search/metadata", ordered, found, 5).await;
 
         let query = json!({
             "filter": {},
-            "sort": { "field": "rating", "direction": "desc" },
+            "sort": { "field": field, "direction": "desc" },
             "size": 10,
         });
         let resp = test_app(&server)
@@ -389,7 +397,7 @@ async fn rating_sort_needs_structured_search() {
             .await
             .unwrap();
         if resp.status() != expected {
-            panic!("3.{minor} rating sort gave {}", resp.status());
+            panic!("3.{minor} {field} sort gave {}", resp.status());
         }
     }
 }

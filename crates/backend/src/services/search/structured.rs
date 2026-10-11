@@ -67,6 +67,16 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     if !taken.is_empty() {
         body.insert("takenAt".into(), Value::Object(taken));
     }
+    let mut size = Map::new();
+    if let Some(min) = filter.min_size {
+        size.insert("gte".into(), min.into());
+    }
+    if let Some(max) = filter.max_size {
+        size.insert("lte".into(), max.into());
+    }
+    if !size.is_empty() {
+        body.insert("fileSizeInBytes".into(), Value::Object(size));
+    }
     for (field, values) in filter.exif_values() {
         if !values.is_empty() {
             body.insert(field.into(), json!({ "in": values }));
@@ -84,6 +94,7 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
 pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
     let field = match query.sort.field {
         SortField::Rating => "rating",
+        SortField::Size => "fileSizeInBytes",
         SortField::Taken | SortField::Added => "fileCreatedAt",
     };
     let mut body = json!({
@@ -146,6 +157,8 @@ mod tests {
                 country: vec![],
                 state: vec!["Vestland".into(), "Oslo".into()],
                 city: vec![],
+                min_size: Some(1_000_000),
+                max_size: None,
                 added_between: None,
             },
             sort: Sort {
@@ -173,6 +186,7 @@ mod tests {
                 "make": { "in": ["SONY", "FUJIFILM"] },
                 "lensModel": { "in": ["FE 35mm F1.8"] },
                 "state": { "in": ["Vestland", "Oslo"] },
+                "fileSizeInBytes": { "gte": 1_000_000 },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

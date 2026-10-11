@@ -107,14 +107,17 @@ const SCOPE_EXCLUSIONS: Partial<Record<keyof BrowseFilters, string>> = {
   noPeople: 'person'
 };
 
+const STRUCTURED_ONLY: (keyof BrowseFilters)[] = ['untagged', 'noPeople', 'minSize', 'maxSize'];
+
 export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
   const excluded = SCOPE_EXCLUSIONS[key];
-  if (!excluded) return true;
-  const structuredOnly = key !== 'notInAlbum';
+  const structuredOnly = STRUCTURED_ONLY.includes(key);
+  if (!excluded && !structuredOnly) return true;
   if (structuredOnly && !immichCapabilities.structuredSearch) return false;
   const route = matchBrowseRoute(url);
   if (!route) return url.pathname === '/search';
   if (!('feed' in route) || (structuredOnly && route.feed.flatOnly?.())) return false;
+  if (!excluded) return true;
   const scope = route.feed.baseFilter().scope;
   return !scope || !(excluded in scope);
 }

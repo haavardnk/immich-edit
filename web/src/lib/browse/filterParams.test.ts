@@ -10,6 +10,8 @@ const FULL: BrowseFilters = {
   noPeople: true,
   rating: '3+',
   filename: 'IMG 0001+',
+  minSize: 0.5,
+  maxSize: 25,
   visibility: 'archive',
   takenAfter: '2024-01-01',
   takenBefore: '2024-02-29',
@@ -72,7 +74,8 @@ describe('filter params', () => {
     ['before=2024-1-5', 'takenBefore', ''],
     ['before=2024-12-31', 'takenBefore', '2024-12-31'],
     ['make=SONY&make=Canon', 'make', []],
-    ['lens=&lens=FE', 'lensModel', ['FE']]
+    ['lens=&lens=FE', 'lensModel', ['FE']],
+    ['minsize=25', 'minSize', null]
   ] as [string, keyof BrowseFilters, unknown][])(
     'reads %s as %s %j without structured search',
     (search, key, expected) => {
@@ -83,7 +86,11 @@ describe('filter params', () => {
   it.each([
     ['rating=3%2B', 'rating', '3+'],
     ['rating=2-', 'rating', '2-'],
-    ['make=SONY&make=Canon&make=SONY', 'make', ['SONY', 'Canon']]
+    ['make=SONY&make=Canon&make=SONY', 'make', ['SONY', 'Canon']],
+    ['minsize=2.5', 'minSize', 2.5],
+    ['maxsize=0', 'maxSize', null],
+    ['maxsize=-3', 'maxSize', null],
+    ['maxsize=big', 'maxSize', null]
   ] as [string, keyof BrowseFilters, unknown][])(
     'reads %s as %s %j with structured search',
     (search, key, expected) => {
@@ -107,29 +114,32 @@ describe('filter params', () => {
   });
 
   it.each([
-    ['/photos', true, true, true],
-    ['/photos', false, false, false],
-    ['/tags/t1', true, false, true],
-    ['/people/p1', true, true, false],
-    ['/albums/a1', true, true, true],
-    ['/search?q=cat&mode=filename', true, true, true],
-    ['/search?q=cat&mode=description', true, false, false],
-    ['/folders?path=%2Fa', true, false, false],
-    ['/edited', true, false, false]
+    ['/photos', true, true, true, 3],
+    ['/photos', false, false, false, null],
+    ['/tags/t1', true, false, true, 3],
+    ['/people/p1', true, true, false, 3],
+    ['/albums/a1', true, true, true, 3],
+    ['/search?q=cat&mode=filename', true, true, true, 3],
+    ['/search?q=cat&mode=description', true, false, false, null],
+    ['/folders?path=%2Fa', true, false, false, null],
+    ['/edited', true, false, false, null]
   ])(
-    'reads untagged and nopeople on %s with structured search %s: %s, %s',
-    (route, structured, untagged, noPeople) => {
+    'reads untagged, nopeople and minsize on %s with structured search %s: %s, %s, %s',
+    (route, structured, untagged, noPeople, minSize) => {
       immichCapabilities.structuredSearch = structured;
       const url = new URL(`http://x.invalid${route}`);
       url.searchParams.set('untagged', '1');
       url.searchParams.set('nopeople', '1');
-      expect(readFilterParams(url)).toMatchObject({ untagged, noPeople });
+      url.searchParams.set('minsize', '3');
+      expect(readFilterParams(url)).toMatchObject({ untagged, noPeople, minSize });
     }
   );
 
   it.each([
     [{ filename: 'IMG' }, { filename: 'IMG_1' }, true],
     [{ takenAfter: '2024-01-01' }, { takenAfter: '2024-01-02' }, true],
+    [{ minSize: 2 }, { minSize: 25 }, true],
+    [{}, { maxSize: 2 }, false],
     [{}, { filename: 'I' }, false],
     [{ filename: 'I' }, {}, false],
     [{ filename: 'IMG' }, { filename: 'IMG_1', favoriteOnly: true }, false],

@@ -6,6 +6,7 @@ import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 import { isRange, ratingHides, ratingMatch, type RatingFilter } from '$lib/browse/rating';
 import { EXIF_FILTERS, type ExifFilterKey } from '$lib/browse/exifFilters';
+import { toBytes } from '$lib/browse/fileSize';
 
 export type { SortDir, SortField, Visibility };
 export type LabelFilter = 'any' | 'none' | LabelColor;
@@ -20,6 +21,8 @@ export interface BrowseFilters {
   noPeople: boolean;
   rating: RatingFilter;
   filename: string;
+  minSize: number | null;
+  maxSize: number | null;
   visibility: Visibility;
   takenAfter: string;
   takenBefore: string;
@@ -41,12 +44,15 @@ const SORT_DEFAULTS: Record<SortFamily, SearchSort> = {
   edited: { field: 'taken', direction: 'asc' }
 };
 
+const SORT_FIELDS: SortField[] = ['taken', 'added', 'rating', 'size'];
+const STRUCTURED_SORT_FIELDS: SortField[] = ['rating', 'size'];
+
 function storedSort(value: unknown, fallback: SearchSort): SearchSort {
   if (value === 'asc' || value === 'desc') return { field: 'taken', direction: value };
   if (typeof value !== 'object' || value === null) return fallback;
   const { field, direction } = value as Partial<Record<keyof SearchSort, unknown>>;
   return {
-    field: field === 'taken' || field === 'added' || field === 'rating' ? field : fallback.field,
+    field: SORT_FIELDS.find((f) => f === field) ?? fallback.field,
     direction: direction === 'asc' || direction === 'desc' ? direction : fallback.direction
   };
 }
@@ -58,6 +64,8 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   noPeople: false,
   rating: 'any',
   filename: '',
+  minSize: null,
+  maxSize: null,
   visibility: 'timeline',
   takenAfter: '',
   takenBefore: '',
@@ -78,6 +86,8 @@ export class BrowseControlsStore {
   noPeople = $state(false);
   rating = $state<RatingFilter>('any');
   filename = $state('');
+  minSize = $state<number | null>(null);
+  maxSize = $state<number | null>(null);
   visibility = $state<Visibility>('timeline');
   takenAfter = $state('');
   takenBefore = $state('');
@@ -104,7 +114,7 @@ export class BrowseControlsStore {
 
   private get current(): SearchSort {
     const sort = this.sortByFamily[this.family];
-    if (sort.field === 'rating' && !immichCapabilities.structuredSearch) {
+    if (STRUCTURED_SORT_FIELDS.includes(sort.field) && !immichCapabilities.structuredSearch) {
       return SORT_DEFAULTS[this.family];
     }
     return sort;
@@ -196,6 +206,8 @@ export class BrowseControlsStore {
       noPeople: this.noPeople,
       rating: this.rating,
       filename: this.filename,
+      minSize: this.minSize,
+      maxSize: this.maxSize,
       visibility: this.visibility,
       takenAfter: this.takenAfter,
       takenBefore: this.takenBefore,
@@ -217,6 +229,8 @@ export class BrowseControlsStore {
     this.noPeople = filters.noPeople;
     this.rating = filters.rating;
     this.filename = filters.filename;
+    this.minSize = filters.minSize;
+    this.maxSize = filters.maxSize;
     this.visibility = filters.visibility;
     this.takenAfter = filters.takenAfter;
     this.takenBefore = filters.takenBefore;
@@ -243,6 +257,8 @@ export class BrowseControlsStore {
     if (this.noPeople) filter.noPeople = true;
     if (rating) filter.rating = rating;
     if (this.filename) filter.filename = this.filename;
+    if (this.minSize !== null) filter.minSize = toBytes(this.minSize);
+    if (this.maxSize !== null) filter.maxSize = toBytes(this.maxSize);
     if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
     if (this.takenBefore) {
       filter.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
@@ -296,6 +312,8 @@ export class BrowseControlsStore {
       this.noPeople,
       this.serverRating(flatOnly),
       this.filename,
+      this.minSize,
+      this.maxSize,
       this.visibility,
       this.takenAfter,
       this.takenBefore,

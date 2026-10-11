@@ -97,10 +97,12 @@ impl Searcher {
         check_size(query.size)?;
         match query.sort.field {
             SortField::Added => added::page(self, query).await,
-            SortField::Rating if self.shape == SearchShape::Flat => Err(AppError::BadRequest(
-                "this server cannot sort by rating".into(),
-            )),
-            SortField::Taken | SortField::Rating => self.metadata_page(query).await,
+            SortField::Rating | SortField::Size if self.shape == SearchShape::Flat => Err(
+                AppError::BadRequest("this server cannot sort by rating or size".into()),
+            ),
+            SortField::Taken | SortField::Rating | SortField::Size => {
+                self.metadata_page(query).await
+            }
         }
     }
 

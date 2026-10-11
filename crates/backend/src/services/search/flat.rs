@@ -31,6 +31,11 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
             "this search cannot find photos without tags or people".into(),
         ));
     }
+    if filter.min_size.is_some() || filter.max_size.is_some() {
+        return Err(AppError::BadRequest(
+            "this search cannot filter by file size".into(),
+        ));
+    }
     if !tags.none.is_empty() {
         return Err(AppError::BadRequest(
             "this search cannot exclude tagged photos".into(),
@@ -158,6 +163,8 @@ mod tests {
                 country: vec!["Norway".into()],
                 state: vec![],
                 city: vec!["Bergen".into()],
+                min_size: None,
+                max_size: None,
                 added_between: None,
             },
             sort: Sort {
@@ -222,10 +229,15 @@ mod tests {
             no_people: true,
             ..BrowseFilter::default()
         };
+        let sized = BrowseFilter {
+            max_size: Some(5_000_000),
+            ..BrowseFilter::default()
+        };
         let cases = [
             (unfiled_album, TagSet::default()),
             (untagged, TagSet::default()),
             (no_people, TagSet::default()),
+            (sized, TagSet::default()),
             (minimum, TagSet::default()),
             (maximum, TagSet::default()),
             (BrowseFilter::default(), excluded),

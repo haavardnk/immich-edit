@@ -174,6 +174,8 @@ const SEARCH_FILTER_KEYS = new Set([
   'imagesOnly',
   'rating',
   'filename',
+  'minSize',
+  'maxSize',
   'takenAfter',
   'takenBefore',
   'rejected',
@@ -235,8 +237,12 @@ function searchShapeProblem(
   if (flat && (filter.untagged || filter.noPeople)) {
     return 'flat search cannot find photos without tags or people';
   }
-  if (flat && (body.sort as { field?: unknown } | undefined)?.field === 'rating') {
-    return 'flat search cannot sort by rating';
+  if (flat && (filter.minSize !== undefined || filter.maxSize !== undefined)) {
+    return 'flat search cannot filter by file size';
+  }
+  const sortField = (body.sort as { field?: unknown } | undefined)?.field;
+  if (flat && (sortField === 'rating' || sortField === 'size')) {
+    return 'flat search cannot sort by rating or size';
   }
   if (flat && EXIF_KEYS.some((key) => ((filter as ExifFilter)[key]?.length ?? 0) > 1)) {
     return 'flat search cannot match several exif values';
@@ -321,11 +327,12 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const ordered = (sort: MockSort, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (sort?.direction !== 'asc' && sort?.direction !== 'desc') return items;
     const sign = sort.direction === 'asc' ? 1 : -1;
-    if (sort.field === 'rating') {
-      const stars = (a: MockAssetSummary): number | null => a.exifInfo?.rating ?? null;
+    if (sort.field === 'rating' || sort.field === 'size') {
+      const value = (a: MockAssetSummary): number | null =>
+        (sort.field === 'rating' ? a.exifInfo?.rating : a.exifInfo?.fileSizeInByte) ?? null;
       return items.slice().sort((a, b) => {
-        const x = stars(a);
-        const y = stars(b);
+        const x = value(a);
+        const y = value(b);
         if (x === y) return a.id.localeCompare(b.id) * sign;
         if (x === null || y === null) return x === null ? 1 : -1;
         return (x - y) * sign;

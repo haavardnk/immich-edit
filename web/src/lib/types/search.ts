@@ -2,7 +2,7 @@ import type { AssetSummary } from './album';
 import type { LabelColor } from '$lib/stores/labels';
 
 export type SortDir = 'asc' | 'desc';
-export type SortField = 'taken' | 'added' | 'rating';
+export type SortField = 'taken' | 'added' | 'rating' | 'size';
 export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 export type SearchScope = { album: string } | { person: string } | { tag: string };
@@ -18,6 +18,8 @@ export interface BrowseFilter {
   imagesOnly?: boolean;
   rating?: RatingMatch;
   filename?: string;
+  minSize?: number;
+  maxSize?: number;
   takenAfter?: string;
   takenBefore?: string;
   rejected?: 'hide' | 'only';

@@ -18,7 +18,7 @@ export const FILTER_SECTIONS: FilterSection[] = [
   },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore'] },
-  { id: 'file', title: 'File', keys: ['filename'] },
+  { id: 'file', title: 'File', keys: ['filename', 'minSize', 'maxSize'] },
   { id: 'camera', title: 'Camera', keys: CAMERA_FILTERS },
   { id: 'place', title: 'Place', keys: PLACE_FILTERS }
 ];

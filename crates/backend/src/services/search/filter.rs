@@ -43,6 +43,10 @@ pub struct BrowseFilter {
     pub state: Vec<String>,
     #[serde(default)]
     pub city: Vec<String>,
+    #[serde(default)]
+    pub min_size: Option<u64>,
+    #[serde(default)]
+    pub max_size: Option<u64>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }

@@ -10,6 +10,7 @@ import { LABEL_COLORS } from '$lib/stores/labels';
 import type { Visibility } from '$lib/types/search';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { EXIF_FILTERS, type ExifFilterKey } from './exifFilters';
+import { megabytes } from './fileSize';
 import { supportsFilter } from './browseRoutes';
 
 type ScalarKey = Exclude<keyof BrowseFilters, ExifFilterKey>;
@@ -24,6 +25,8 @@ const SCALAR_PARAMS: [string, ScalarKey][] = [
   ['nopeople', 'noPeople'],
   ['rating', 'rating'],
   ['filename', 'filename'],
+  ['minsize', 'minSize'],
+  ['maxsize', 'maxSize'],
   ['visibility', 'visibility'],
   ['after', 'takenAfter'],
   ['before', 'takenBefore'],
@@ -45,7 +48,13 @@ const FILTER_PARAMS = [
   ...EXIF_FILTERS.map((key) => EXIF_PARAMS[key])
 ];
 
-const TYPED_KEYS: (keyof BrowseFilters)[] = ['filename', 'takenAfter', 'takenBefore'];
+const TYPED_KEYS: (keyof BrowseFilters)[] = [
+  'filename',
+  'minSize',
+  'maxSize',
+  'takenAfter',
+  'takenBefore'
+];
 
 function day(value: string | null): string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
@@ -69,6 +78,8 @@ export function readFilterParams(url: URL): BrowseFilters {
     noPeople: params.get('nopeople') === '1',
     rating: ratings.find((r) => String(r) === params.get('rating')) ?? FILTER_DEFAULTS.rating,
     filename: params.get('filename') ?? '',
+    minSize: megabytes(params.get('minsize')),
+    maxSize: megabytes(params.get('maxsize')),
     visibility:
       VISIBILITIES.find((v) => v === params.get('visibility')) ?? FILTER_DEFAULTS.visibility,
     takenAfter: day(params.get('after')),

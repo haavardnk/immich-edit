@@ -7,6 +7,7 @@
   import LabelFilter from '$lib/components/browse/filters/LabelFilter.svelte';
   import LibraryFilters from '$lib/components/browse/filters/LibraryFilters.svelte';
   import RatingFilter from '$lib/components/browse/filters/RatingFilter.svelte';
+  import SizeFilter from '$lib/components/browse/filters/SizeFilter.svelte';
   import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
   import { supportsFilter } from '$lib/browse/browseRoutes';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
@@ -28,7 +29,9 @@
   const filters = $derived(browseControls.filters);
   const openSections = $derived(new Set(browseView.filterSections));
   const sections = $derived(
-    FILTER_SECTIONS.filter((section) => !hideFilenameFilter || section.id !== 'file')
+    FILTER_SECTIONS.filter(
+      (section) => section.id !== 'file' || !hideFilenameFilter || supports('minSize')
+    )
   );
 
   let panel = $state<HTMLElement | null>(null);
@@ -94,7 +97,13 @@
             {:else if section.id === 'date'}
               <DateFilters />
             {:else if section.id === 'file'}
-              <FilenameFilter />
+              {#if !hideFilenameFilter}
+                <FilenameFilter />
+              {/if}
+              {#if supports('minSize')}
+                <SizeFilter key="minSize" label="Min size (MB)" />
+                <SizeFilter key="maxSize" label="Max size (MB)" />
+              {/if}
             {:else}
               {#each section.id === 'camera' ? CAMERA_FILTERS : PLACE_FILTERS as key (key)}
                 <ExifFilter {key} />

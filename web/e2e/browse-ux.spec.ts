@@ -183,6 +183,36 @@ for (const structuredSearch of [false, true]) {
     await expect(page).not.toHaveURL(/untagged/);
     expect(filterAt(-1)?.untagged).toBeUndefined();
   });
+
+  test(`the file size range needs structured search (${structuredSearch})`, async ({ page }) => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const filterAt = (index: number) =>
+      bodies.at(index)?.filter as { minSize?: number; maxSize?: number } | undefined;
+    await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
+    await page.goto('/photos?minsize=2');
+
+    const panel = await openFilters(page, 'File');
+    await expect(panel.getByLabel('Filename')).toBeVisible();
+    const minSize = panel.getByLabel('Min size (MB)');
+    if (!structuredSearch) {
+      await expect(minSize).toHaveCount(0);
+      await expect(page).not.toHaveURL(/minsize/);
+      expect(filterAt(-1)?.minSize).toBeUndefined();
+      return;
+    }
+    await expect(minSize).toHaveValue('2');
+    await panel.getByLabel('Max size (MB)').fill('25');
+    await expect
+      .poll(() => filterAt(-1))
+      .toMatchObject({ minSize: 2_000_000, maxSize: 25_000_000 });
+    await expect(page).toHaveURL(/minsize=2&maxsize=25/);
+    const chips = page.getByRole('list', { name: 'Active filters' });
+    await expect(chips.getByRole('listitem')).toHaveText(['≥ 2 MB', '≤ 25 MB']);
+
+    await chips.getByRole('button', { name: 'Remove ≥ 2 MB' }).click();
+    await expect(minSize).toHaveValue('');
+    await expect.poll(() => filterAt(-1)?.minSize).toBeUndefined();
+  });
 }
 
 test('the filter panel remembers its sections and resets one at a time', async ({ page }) => {
