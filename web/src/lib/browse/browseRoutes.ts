@@ -108,15 +108,17 @@ const SCOPE_EXCLUSIONS: Partial<Record<keyof BrowseFilters, string>> = {
 };
 
 const STRUCTURED_ONLY: (keyof BrowseFilters)[] = ['untagged', 'noPeople', 'minSize', 'maxSize'];
+const NOT_LOADED: (keyof BrowseFilters)[] = ['visibility', 'notInAlbum', 'untagged', 'noPeople'];
 
 export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
+  const route = matchBrowseRoute(url);
+  if (route && !('feed' in route)) return !NOT_LOADED.includes(key);
   const excluded = SCOPE_EXCLUSIONS[key];
   const structuredOnly = STRUCTURED_ONLY.includes(key);
   if (!excluded && !structuredOnly) return true;
   if (structuredOnly && !immichCapabilities.structuredSearch) return false;
-  const route = matchBrowseRoute(url);
   if (!route) return url.pathname === '/search';
-  if (!('feed' in route) || (structuredOnly && route.feed.flatOnly?.())) return false;
+  if (structuredOnly && route.feed.flatOnly?.()) return false;
   if (!excluded) return true;
   const scope = route.feed.baseFilter().scope;
   return !scope || !(excluded in scope);

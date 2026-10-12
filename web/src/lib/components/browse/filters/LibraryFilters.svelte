@@ -32,15 +32,17 @@
   ];
 </script>
 
-<Field label="Visibility" size="tiny">
-  <Select
-    size="tiny"
-    class="editor-compact-select editor-compact-field"
-    options={visibilityOptions}
-    value={browseControls.visibility}
-    onChange={(v) => (browseControls.visibility = v)}
-  />
-</Field>
+{#if supports('visibility')}
+  <Field label="Visibility" size="tiny">
+    <Select
+      size="tiny"
+      class="editor-compact-select editor-compact-field"
+      options={visibilityOptions}
+      value={browseControls.visibility}
+      onChange={(v) => (browseControls.visibility = v)}
+    />
+  </Field>
+{/if}
 
 <Field label="Rejected" size="tiny">
   <Select

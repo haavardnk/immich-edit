@@ -30,7 +30,8 @@ before**), **File** (**Filename**, **Min size (MB)**, **Max size (MB)**), **Came
 it; a section with an active filter shows a reset button
 that clears only that section. The panel remembers whether it was open and which sections you
 left open. **Visibility** switches
-between **Timeline**, **Archived** and **Hidden**. **Rating** picks **Any**, **Unrated** or a star
+between **Timeline**, **Archived** and **Hidden**; folders and **Edited** show timeline photos and
+do not offer it. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
 default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
 Immich versions match the exact star count. **Rejected** shows
@@ -41,9 +42,10 @@ what still needs filing; albums, folders and **Edited** do not offer it. On Immi
 faces. Color labels and reject marks are tags too, so a labelled or rejected photo is not untagged.
 Tag pages leave out **Untagged**, people pages leave out **No people**, and description search,
 folders and **Edited** offer neither.
-On Immich 3.2 and later, **Min size (MB)** and **Max size (MB)** keep photos whose original file is
-at least or at most that size, where 1 MB is 1,000,000 bytes. A photo with no recorded size never
-matches a size range. Description search, folders and **Edited** do not offer a size range.
+**Min size (MB)** and **Max size (MB)** keep photos whose original file is at least or at most that
+size, where 1 MB is 1,000,000 bytes. A photo with no recorded size never matches a size range.
+Folders and **Edited** offer them on every Immich version, other views need Immich 3.2, and
+description search does not offer them.
 **Make**, **Model**, **Lens**, **Country**, **State** and **City** list the values Immich knows
 from your timeline photos. Picking a make narrows the models and lenses on offer, and picking a
 model narrows the lenses; a country narrows the states and cities the same way, and a state the

@@ -1,6 +1,6 @@
 import { searchWindow } from '$lib/api/search';
 import { validReturnPath } from '$lib/editor/navigation';
-import { sortAssets } from './sortAssets';
+import { arrangeLoaded } from './loadedFilter';
 import { browseControls } from '$lib/stores/browseControls.svelte';
 import { readFilterParams } from './filterParams';
 import { matchBrowseRoute } from './browseRoutes';
@@ -25,7 +25,7 @@ export async function restoreBrowse(from: string | null, assetId: string): Promi
   }
   await loadCullTags().catch(() => undefined);
   const assets = await route.load();
-  browsing.set(sortAssets(assets, route.sortKey(), browseControls.sortDir));
+  browsing.set(arrangeLoaded(assets, route.sortKey()));
 }
 
 async function restoreWindow(feed: BrowseFeedOptions, assetId: string): Promise<boolean> {

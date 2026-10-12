@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_SUMMARY, installMocks, openFilters } from './helpers';
 
 const OLD_ID = '00000000-0000-0000-0000-000000000001';
 const MID_ID = '00000000-0000-0000-0000-000000000002';
@@ -228,4 +228,30 @@ test('edited view names photos from one enriched request', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'IMG_0001.ARW' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'IMG_0002.ARW' })).toBeVisible();
   expect(assetDetailCalls).toBe(0);
+});
+
+test('edited view filters the loaded photos', async ({ page }) => {
+  await installMocks(page, {
+    assets: [
+      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+    ],
+    edits: [
+      { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
+      { id: MID_ID, hash: 'h2', updated_at: '2024-06-01T00:00:00Z' },
+      { id: NEW_ID, hash: 'h3', updated_at: '2024-04-01T00:00:00Z' }
+    ]
+  });
+
+  await page.goto('/edited?minsize=15&visibility=archive');
+  await expectOrder(page, [NEW_ID, OLD_ID]);
+  await expect(page).not.toHaveURL(/visibility/);
+
+  const panel = await openFilters(page, 'File');
+  await expect(panel.getByRole('button', { name: 'Rejected', exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Visibility', exact: true })).toHaveCount(0);
+  await expect(panel.getByLabel('Min size (MB)')).toHaveValue('15');
+  await panel.getByLabel('Filename').fill('0003');
+  await expectOrder(page, [NEW_ID]);
 });

@@ -121,8 +121,8 @@ describe('filter params', () => {
     ['/albums/a1', true, true, true, 3],
     ['/search?q=cat&mode=filename', true, true, true, 3],
     ['/search?q=cat&mode=description', true, false, false, null],
-    ['/folders?path=%2Fa', true, false, false, null],
-    ['/edited', true, false, false, null]
+    ['/folders?path=%2Fa', true, false, false, 3],
+    ['/edited', false, false, false, 3]
   ])(
     'reads untagged, nopeople and minsize on %s with structured search %s: %s, %s, %s',
     (route, structured, untagged, noPeople, minSize) => {
@@ -134,6 +134,16 @@ describe('filter params', () => {
       expect(readFilterParams(url)).toMatchObject({ untagged, noPeople, minSize });
     }
   );
+
+  it.each([
+    ['/photos', 'archive'],
+    ['/folders?path=%2Fa', 'timeline'],
+    ['/edited', 'timeline']
+  ])('reads visibility=archive on %s as %s', (route, expected) => {
+    const url = new URL(`http://x.invalid${route}`);
+    url.searchParams.set('visibility', 'archive');
+    expect(readFilterParams(url).visibility).toBe(expected);
+  });
 
   it.each([
     [{ filename: 'IMG' }, { filename: 'IMG_1' }, true],
