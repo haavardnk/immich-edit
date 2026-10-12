@@ -31,7 +31,7 @@ test('the not-in-album filter is offered outside albums only', async ({ page }) 
   await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Library');
+  const panel = await openFilters(page, 'Library', 'Albums, people & tags');
   await panel.getByRole('checkbox', { name: 'Not in any album' }).click();
   await expect.poll(() => filterAt(-1)?.notInAlbum).toBe(true);
   await expect(page).toHaveURL(/[?&]noalbum=1/);
@@ -57,7 +57,7 @@ for (const structuredSearch of [false, true]) {
     await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
     await page.goto('/photos');
 
-    const panel = await openFilters(page, 'Library');
+    const panel = await openFilters(page, 'Albums, people & tags');
     const untagged = panel.getByRole('checkbox', { name: 'Untagged' });
     const noPeople = panel.getByRole('checkbox', { name: 'No people' });
     await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toBeVisible();

@@ -8,6 +8,10 @@ import {
   matchesExif,
   suggestions,
   type ManagedFilter,
+  type IdSet,
+  type MockPerson,
+  type MockAlbum,
+  matchesIds,
   matchesManagedTags
 } from './searchMocks';
 
@@ -200,6 +204,8 @@ export interface InstallOpts {
   faces?: Array<Record<string, number>>;
   renderer?: 'auto' | 'server';
   tags?: MockTag[];
+  people?: MockPerson[];
+  albums?: MockAlbum[];
   onTagAsset?: (change: { tagId: string; assetId: string; added: boolean }) => void;
   structuredSearch?: boolean;
 }
@@ -219,6 +225,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const assetTags = new Map<string, MockTag[]>();
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
+  const people = opts.people ?? [];
+  const albums = opts.albums ?? [];
+  const matchesPeople = (id: string, set: IdSet | undefined): boolean =>
+    matchesIds(
+      people.filter((person) => person.assetIds.includes(id)).map((person) => person.id),
+      set
+    );
+  const matchesAlbums = (id: string, set: IdSet | undefined): boolean =>
+    matchesIds(
+      albums.filter((album) => album.assetIds.includes(id)).map((album) => album.id),
+      set
+    );
   type MockSort = { field?: unknown; direction?: unknown } | undefined;
   const ordered = (sort: MockSort, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (sort?.direction !== 'asc' && sort?.direction !== 'desc') return items;
@@ -257,14 +275,28 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const searchResult = (body: Record<string, unknown>) => {
     const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
     const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
-    const filter = (body.filter ?? {}) as { scope?: { tag?: string } } & ManagedFilter & ExifFilter;
+    const filter = (body.filter ?? {}) as {
+      scope?: { tag?: string };
+      albums?: IdSet;
+      people?: IdSet;
+      tags?: IdSet;
+    } & ManagedFilter &
+      ExifFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
     const items = expanded(ordered(body.sort as MockSort, pageAssets))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
       .filter((a) => matchesManagedTags(a.tags, filter))
-      .filter((a) => matchesExif(a, filter));
+      .filter((a) =>
+        matchesIds(
+          a.tags.map((t) => t.id),
+          filter.tags
+        )
+      )
+      .filter((a) => matchesExif(a, filter))
+      .filter((a) => matchesPeople(a.id.split('_')[0] ?? a.id, filter.people))
+      .filter((a) => matchesAlbums(a.id.split('_')[0] ?? a.id, filter.albums));
     const nextCursor =
       opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
@@ -314,9 +346,21 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     }
     if (p === '/api/search/statistics') {
       const filter =
-        ((req.postDataJSON() as { filter?: ManagedFilter & ExifFilter }) ?? {}).filter ?? {};
+        (
+          (req.postDataJSON() as {
+            filter?: ManagedFilter & ExifFilter & { albums?: IdSet; people?: IdSet; tags?: IdSet };
+          }) ?? {}
+        ).filter ?? {};
       const matching = assets.filter(
-        (a) => matchesManagedTags(tagsOf(a.id, a.tags), filter) && matchesExif(a, filter)
+        (a) =>
+          matchesManagedTags(tagsOf(a.id, a.tags), filter) &&
+          matchesIds(
+            tagsOf(a.id, a.tags).map((t) => t.id),
+            filter.tags
+          ) &&
+          matchesExif(a, filter) &&
+          matchesPeople(a.id, filter.people) &&
+          matchesAlbums(a.id, filter.albums)
       );
       return route.fulfill(json({ total: opts.total ?? matching.length }));
     }
@@ -343,7 +387,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
-    if (p === '/api/albums') return route.fulfill(json([]));
+    if (p === '/api/albums')
+      return route.fulfill(
+        json(
+          albums.map(({ id, albumName, assetIds }) => ({
+            id,
+            albumName,
+            assetCount: assetIds.length,
+            albumThumbnailAssetId: null,
+            updatedAt: null
+          }))
+        )
+      );
     if (p === '/api/tags') {
       if (method === 'PUT') {
         const values = (req.postDataJSON() as { tags: string[] }).tags;
@@ -377,7 +432,21 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       opts.onTagAsset?.({ tagId, assetId, added });
       return route.fulfill(json({}));
     }
-    if (p === '/api/people') return route.fulfill(json([]));
+    if (p === '/api/people') {
+      return route.fulfill(
+        json(
+          people
+            .filter(({ name, isHidden }) => name !== '' && !isHidden)
+            .map(({ id, name }) => ({
+              id,
+              name,
+              isHidden: false,
+              thumbnailPath: '',
+              updatedAt: null
+            }))
+        )
+      );
+    }
     if (p === '/api/presets') {
       if (method === 'POST') {
         const body = (req.postDataJSON() as Record<string, unknown>) ?? {};

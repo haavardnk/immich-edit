@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::services::search::ids::IdSet;
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct BrowseFilter {
@@ -10,6 +12,9 @@ pub struct BrowseFilter {
     pub not_in_album: bool,
     pub untagged: bool,
     pub no_people: bool,
+    pub albums: IdSet,
+    pub people: IdSet,
+    pub tags: IdSet,
     pub visibility: Option<Visibility>,
     pub images_only: bool,
     pub rating: Option<RatingMatch>,
@@ -126,6 +131,37 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn picked_ids_read_as_id_sets() {
+        let album = Uuid::new_v4();
+        let person = Uuid::new_v4();
+        let tag = Uuid::new_v4();
+        let read = serde_json::from_value::<BrowseFilter>(json!({
+            "albums": { "all": [album] },
+            "people": { "none": [person] },
+            "tags": { "any": [tag] }
+        }))
+        .ok()
+        .map(|filter| (filter.albums, filter.people, filter.tags));
+        let expected = (
+            IdSet {
+                all: vec![album],
+                ..IdSet::default()
+            },
+            IdSet {
+                none: vec![person],
+                ..IdSet::default()
+            },
+            IdSet {
+                any: vec![tag],
+                ..IdSet::default()
+            },
+        );
+        if read != Some(expected) {
+            panic!("ids read as {read:?}");
+        }
+    }
 
     #[test]
     fn exif_values_read_unknown_only_on_its_own() {

@@ -13,12 +13,6 @@
     supports
   }: { favoriteLocked?: boolean; supports: (key: FilterKey) => boolean } = $props();
 
-  const exclusions: { key: 'notInAlbum' | 'untagged' | 'noPeople'; label: string }[] = [
-    { key: 'notInAlbum', label: 'Not in any album' },
-    { key: 'untagged', label: 'Untagged' },
-    { key: 'noPeople', label: 'No people' }
-  ];
-
   const visibilityOptions: { value: Visibility; label: string }[] = [
     { value: 'timeline', label: 'Timeline' },
     { value: 'archive', label: 'Archived' },
@@ -54,20 +48,12 @@
   />
 </Field>
 
-<div class="grid grid-cols-2 gap-x-2 pt-1">
-  {#if !favoriteLocked}
+{#if !favoriteLocked}
+  <div class="pt-1">
     <CheckboxRow
       label="Favorites only"
       checked={browseControls.filters.favoriteOnly}
       onChange={(checked) => (browseControls.filters.favoriteOnly = checked)}
     />
-  {/if}
-
-  {#each exclusions.filter(({ key }) => supports(key)) as { key, label } (key)}
-    <CheckboxRow
-      {label}
-      checked={browseControls.filters[key]}
-      onChange={(checked) => (browseControls.filters[key] = checked)}
-    />
-  {/each}
-</div>
+  </div>
+{/if}

@@ -5,8 +5,10 @@ import {
   type FilterKey
 } from '$lib/stores/browseControls.svelte';
 import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
+import { ID_EXCLUSIONS, ID_FILTERS } from '$lib/browse/idFilters';
 
-export type FilterSectionId = 'library' | 'rating' | 'date' | 'camera' | 'place' | 'file';
+export type FilterSectionId =
+  'library' | 'collections' | 'rating' | 'date' | 'camera' | 'place' | 'file';
 
 export interface FilterSection {
   id: FilterSectionId;
@@ -18,7 +20,12 @@ export const FILTER_SECTIONS: FilterSection[] = [
   {
     id: 'library',
     title: 'Library',
-    keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum', 'untagged', 'noPeople']
+    keys: ['visibility', 'rejected', 'favoriteOnly']
+  },
+  {
+    id: 'collections',
+    title: 'Albums, people & tags',
+    keys: ID_FILTERS.flatMap((key) => [key, ID_EXCLUSIONS[key].key])
   },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore', 'addedAfter', 'addedBefore'] },

@@ -6,6 +6,7 @@ import {
 import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
 import { ratingOp, ratingStars } from '$lib/browse/rating';
 import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '$lib/browse/exifFilters';
+import { ID_FILTERS, idChipLabel, type IdFilterKey } from '$lib/browse/idFilters';
 
 export interface FilterChip {
   key: FilterKey;
@@ -29,7 +30,10 @@ function ratingLabel(rating: BrowseFilters['rating']): string {
   return name;
 }
 
-export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
+export function activeFilterChips(
+  filters: BrowseFilters,
+  nameOf: (key: IdFilterKey, id: string) => string
+): FilterChip[] {
   const chips: FilterChip[] = [];
   if (filters.visibility !== FILTER_DEFAULTS.visibility)
     chips.push({ key: 'visibility', label: VISIBILITY_LABELS[filters.visibility] });
@@ -39,6 +43,10 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
   if (filters.notInAlbum) chips.push({ key: 'notInAlbum', label: 'Not in any album' });
   if (filters.untagged) chips.push({ key: 'untagged', label: 'Untagged' });
   if (filters.noPeople) chips.push({ key: 'noPeople', label: 'No people' });
+  for (const key of ID_FILTERS) {
+    if (filters[key].ids.length > 0)
+      chips.push({ key, label: idChipLabel(key, filters[key], (id) => nameOf(key, id)) });
+  }
   if (filters.rejected !== 'any')
     chips.push({
       key: 'rejected',

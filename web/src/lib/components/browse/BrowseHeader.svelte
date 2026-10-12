@@ -5,6 +5,7 @@
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
   import { activeFilterChips, photoCountLabel, withoutFilter } from '$lib/browse/filterChips';
+  import { idName } from '$lib/browse/idOptions';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { tick } from 'svelte';
   import {
@@ -30,7 +31,7 @@
     sortBasis?: 'capture' | 'edit';
   } = $props();
 
-  const chips = $derived(activeFilterChips(browseControls.filters));
+  const chips = $derived(activeFilterChips(browseControls.filters, idName));
 
   function removeFilter(key: FilterKey): void {
     browseControls.applyFilters(withoutFilter(browseControls.filters, key));

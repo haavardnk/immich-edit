@@ -1,3 +1,4 @@
+import { SvelteSet } from 'svelte/reactivity';
 import { listAlbums } from '$lib/api/albums';
 import { listPeople, type PersonSummary } from '$lib/api/people';
 import { listTags, type TagSummary } from '$lib/api/tags';
@@ -57,8 +58,12 @@ class LibraryStore {
 
   private editedCountLoaded = $state(false);
 
-  private loaded = new Set<LibraryView>();
+  private loaded = new SvelteSet<LibraryView>();
   private countsLoaded = false;
+
+  isLoaded(view: LibraryView): boolean {
+    return this.loaded.has(view);
+  }
 
   async loadView(v: LibraryView): Promise<void> {
     this.view = v;
@@ -103,23 +108,23 @@ class LibraryStore {
     const [stats, favStats, albums, people, tags, paths] = await Promise.all([
       searchStatistics({}).catch(() => null),
       searchStatistics({ favorite: true }).catch(() => null),
-      listAlbums().catch(() => [] as AlbumSummary[]),
-      listPeople().catch(() => [] as PersonSummary[]),
-      listTags().catch(() => [] as TagSummary[]),
+      listAlbums().catch(() => null),
+      listPeople().catch(() => null),
+      listTags().catch(() => null),
       folderPaths().catch(() => [] as string[])
     ]);
     await editedThumbs.loadOnce().catch(() => undefined);
     if (stats) this.photosCount = stats.total;
     if (favStats) this.favoritesCount = favStats.total;
-    if (!this.loaded.has('albums')) {
+    if (albums && !this.loaded.has('albums')) {
       this.albums = albums.sort((x, y) => x.albumName.localeCompare(y.albumName));
       this.loaded.add('albums');
     }
-    if (!this.loaded.has('people')) {
+    if (people && !this.loaded.has('people')) {
       this.people = people;
       this.loaded.add('people');
     }
-    if (!this.loaded.has('tags')) {
+    if (tags && !this.loaded.has('tags')) {
       this.tags = tags;
       this.loaded.add('tags');
     }

@@ -1,4 +1,5 @@
 import type { SuggestionField, SuggestionQuery } from '$lib/types/search';
+import { listSummary } from './listSummary';
 
 export type ExifFilterKey = SuggestionField;
 type SuggestionParent = Exclude<keyof SuggestionQuery, 'field'>;
@@ -46,9 +47,7 @@ export function exifLabel(value: string): string {
 }
 
 export function exifSummary(values: string[]): string {
-  const [first, ...rest] = values;
-  if (first === undefined) return '';
-  return rest.length === 0 ? exifLabel(first) : `${exifLabel(first)} +${rest.length}`;
+  return listSummary(values.map(exifLabel));
 }
 
 export function exclusiveUnknown(values: string[]): string[] {

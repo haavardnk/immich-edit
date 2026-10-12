@@ -8,6 +8,9 @@ const FULL: BrowseFilters = {
   notInAlbum: true,
   untagged: true,
   noPeople: true,
+  albums: { ids: ['a1'], match: 'all' },
+  people: { ids: ['p1', 'p2'], match: 'none' },
+  tags: { ids: ['t1'], match: 'any' },
   rating: '3+',
   filename: 'IMG 0001+',
   minSize: 0.5,
@@ -103,6 +106,27 @@ describe('filter params', () => {
       expect(read(search)[key]).toEqual(expected);
     }
   );
+
+  it.each([
+    [true, 'person=p1&person=p2&person=p1&peoplematch=any', { ids: ['p1', 'p2'], match: 'any' }],
+    [true, 'person=p1&peoplematch=bogus', { ids: ['p1'], match: 'all' }],
+    [true, 'peoplematch=none', { ids: [], match: 'all' }],
+    [false, 'person=p1&person=p2', { ids: ['p1', 'p2'], match: 'all' }],
+    [false, 'person=p1&peoplematch=none', { ids: [], match: 'all' }]
+  ])('reads people with structured search %s from %s', (structured, search, expected) => {
+    immichCapabilities.structuredSearch = structured;
+    expect(read(search).people).toEqual(expected);
+  });
+
+  it('writes the people match only when it is not all', () => {
+    const people = (match: 'all' | 'any') =>
+      withFilterParams(new URL('http://x.invalid/photos'), {
+        ...FILTER_DEFAULTS,
+        people: { ids: ['p1'], match }
+      }).search;
+    expect(people('all')).toBe('?person=p1');
+    expect(people('any')).toBe('?person=p1&peoplematch=any');
+  });
 
   it.each([
     ['/photos', true],

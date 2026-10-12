@@ -104,6 +104,156 @@ test('an unknown lens matches photos without one and excludes named lenses', asy
   );
 });
 
+const PEOPLE = [
+  { id: 'person-ann', name: 'Ann', assetIds: [PAGED_ASSETS[0]!.id, PAGED_ASSETS[1]!.id] },
+  { id: 'person-bo', name: 'Bo', assetIds: [PAGED_ASSETS[1]!.id] },
+  { id: 'person-cy', name: 'Cy', isHidden: true, assetIds: [PAGED_ASSETS[2]!.id] },
+  { id: 'person-unnamed', name: '', assetIds: [] }
+];
+
+test('people match all, any or none of the picked people', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const people = () => (bodies.at(-1)?.filter as { people?: unknown }).people;
+  const tile = (index: number) =>
+    page.locator(`div[title="${PAGED_ASSETS[index]!.originalFileName}"]`);
+  await installMocks(page, {
+    structuredSearch: true,
+    assets: PAGED_ASSETS,
+    people: PEOPLE,
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/photos');
+
+  const panel = await openFilters(page, 'Albums, people & tags');
+  const picker = panel.getByRole('combobox', { name: 'People' });
+  await picker.click();
+  await expect(page.getByRole('option')).toHaveText(['Ann', 'Bo']);
+  await page.getByRole('option', { name: 'Ann' }).click();
+  await page.getByRole('option', { name: 'Bo' }).click();
+  await page.keyboard.press('Escape');
+  await expect.poll(people).toEqual({ all: ['person-ann', 'person-bo'] });
+  await expect(page).toHaveURL(/person=person-ann&person=person-bo$/);
+  await expect(tile(1)).toHaveCount(1);
+  await expect(tile(0)).toHaveCount(0);
+
+  const match = panel.getByRole('radiogroup', { name: 'People match' });
+  await match.getByRole('radio', { name: 'Any of' }).click();
+  await expect.poll(people).toEqual({ any: ['person-ann', 'person-bo'] });
+  await expect(tile(0)).toHaveCount(1);
+  await match.getByRole('radio', { name: 'None of' }).click();
+  await expect.poll(people).toEqual({ none: ['person-ann', 'person-bo'] });
+  await expect(page).toHaveURL(/peoplematch=none/);
+  await expect(tile(2)).toHaveCount(1);
+  await expect(tile(1)).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    ['Without people: Ann +1']
+  );
+
+  await page.reload();
+  await expect(
+    page.getByRole('radiogroup', { name: 'People match' }).getByRole('radio', { name: 'None of' })
+  ).toBeChecked();
+});
+
+test('flat search matches all of the picked people and leaves out the page person', async ({
+  page
+}) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const people = () => (bodies.at(-1)?.filter as { people?: unknown }).people;
+  await installMocks(page, {
+    assets: PAGED_ASSETS,
+    people: PEOPLE,
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/people/person-ann?person=person-bo&peoplematch=any');
+  await expect.poll(() => bodies.length).toBeGreaterThan(0);
+  await expect.poll(people).toBeUndefined();
+
+  const panel = await openFilters(page, 'Albums, people & tags');
+  await panel.getByRole('combobox', { name: 'People' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Bo']);
+  await page.getByRole('option', { name: 'Bo' }).click();
+  await page.keyboard.press('Escape');
+  await expect.poll(people).toEqual({ all: ['person-bo'] });
+  await expect(panel.getByRole('radiogroup', { name: 'People match' })).toHaveCount(0);
+});
+
+test('albums filter leaves out the page album', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const albums = () => (bodies.at(-1)?.filter as { albums?: unknown }).albums;
+  const tile = (index: number) =>
+    page.locator(`div[title="${PAGED_ASSETS[index]!.originalFileName}"]`);
+  await installMocks(page, {
+    structuredSearch: true,
+    assets: PAGED_ASSETS,
+    albums: [
+      { id: 'album-1', albumName: 'Summer', assetIds: [PAGED_ASSETS[0]!.id] },
+      { id: 'album-2', albumName: 'Bergen', assetIds: [PAGED_ASSETS[1]!.id] }
+    ],
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/photos');
+
+  const panel = await openFilters(page, 'Albums, people & tags');
+  await panel.getByRole('combobox', { name: 'Albums' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Bergen', 'Summer']);
+  await page.getByRole('option', { name: 'Summer' }).click();
+  await page.keyboard.press('Escape');
+  await expect.poll(albums).toEqual({ all: ['album-1'] });
+  await expect(page).toHaveURL(/album=album-1$/);
+  await expect(tile(0)).toHaveCount(1);
+  await expect(tile(1)).toHaveCount(0);
+
+  await page.goto('/albums/album-1');
+  await panel.getByRole('combobox', { name: 'Albums' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Bergen']);
+});
+
+test('tags filter offers user tags and leaves out the page tag', async ({ page }) => {
+  const bodies: Array<Record<string, unknown>> = [];
+  const tags = () => (bodies.at(-1)?.filter as { tags?: unknown }).tags;
+  const rome = { id: 'tag-rome', name: 'Rome', value: 'Trips/Rome' };
+  const oslo = { id: 'tag-oslo', name: 'Oslo', value: 'Trips/Oslo' };
+  const reject = { id: 'tag-reject', name: 'reject', value: 'immich-edit/reject' };
+  const assets = PAGED_ASSETS.slice(0, 3).map((asset, index) => ({
+    ...asset,
+    tags: [[rome], [oslo, reject], []][index]
+  }));
+  const tile = (index: number) => page.locator(`div[title="${assets[index]!.originalFileName}"]`);
+  await installMocks(page, {
+    structuredSearch: true,
+    assets,
+    tags: [rome, oslo, reject],
+    onMetadata: (body) => void bodies.push(body)
+  });
+  await page.goto('/photos');
+
+  const panel = await openFilters(page, 'Albums, people & tags');
+  await panel.getByRole('combobox', { name: 'Tags' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Trips/Oslo', 'Trips/Rome']);
+  await page.getByRole('option', { name: 'Trips/Rome' }).click();
+  await page.keyboard.press('Escape');
+  await expect.poll(tags).toEqual({ all: ['tag-rome'] });
+  await expect(tile(0)).toHaveCount(1);
+  await expect(tile(1)).toHaveCount(0);
+
+  await panel
+    .getByRole('radiogroup', { name: 'Tags match' })
+    .getByRole('radio', { name: 'None of' })
+    .click();
+  await expect.poll(tags).toEqual({ none: ['tag-rome'] });
+  await expect(page).toHaveURL(/tag=tag-rome&tagsmatch=none/);
+  await expect(tile(0)).toHaveCount(0);
+  await expect(tile(2)).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
+    ['Without tags: Trips/Rome']
+  );
+
+  await page.goto('/tags/tag-rome');
+  await panel.getByRole('combobox', { name: 'Tags' }).click();
+  await expect(page.getByRole('option')).toHaveText(['Trips/Oslo']);
+});
+
 test('a country narrows states and a state narrows cities', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
   const filter = () => bodies.at(-1)?.filter as ExifFilter;
@@ -135,7 +285,7 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
 
 test('filter pickers join the list edge they open on', async ({ page }) => {
   await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
-  await page.setViewportSize({ width: 1280, height: 530 });
+  await page.setViewportSize({ width: 1280, height: 570 });
   await page.goto('/photos');
   await openFilters(page, 'Library', 'Camera');
   const sides: string[] = [];

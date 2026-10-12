@@ -4,6 +4,7 @@ import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
 import type { RatingFilter } from '$lib/browse/rating';
 import type { ExifFilterKey } from '$lib/browse/exifFilters';
+import { NO_IDS, idFilter, type IdFilter, type IdFilterKey } from '$lib/browse/idFilters';
 import { serverFilter } from '$lib/browse/serverFilter';
 
 export type { SortDir, SortField, Visibility };
@@ -17,6 +18,9 @@ export interface BrowseFilters {
   notInAlbum: boolean;
   untagged: boolean;
   noPeople: boolean;
+  albums: IdFilter;
+  people: IdFilter;
+  tags: IdFilter;
   rating: RatingFilter;
   filename: string;
   minSize: number | null;
@@ -64,6 +68,9 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   notInAlbum: false,
   untagged: false,
   noPeople: false,
+  albums: NO_IDS,
+  people: NO_IDS,
+  tags: NO_IDS,
   rating: 'any',
   filename: '',
   minSize: null,
@@ -168,6 +175,14 @@ export class BrowseControlsStore {
     if (kept.length === this.filters[key].length) return;
     this.corrected = true;
     this.filters[key] = kept;
+  }
+
+  pruneIds(key: IdFilterKey, available: string[]): void {
+    const { ids, match } = this.filters[key];
+    const kept = ids.filter((id) => available.includes(id));
+    if (kept.length === ids.length) return;
+    this.corrected = true;
+    this.filters[key] = idFilter(kept, match);
   }
 
   takeCorrected(): boolean {

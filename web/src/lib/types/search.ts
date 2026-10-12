@@ -7,6 +7,7 @@ export type Visibility = 'timeline' | 'archive' | 'hidden';
 
 export type SearchScope = { album: string } | { person: string } | { tag: string };
 export type RatingMatch = { eq: number } | { gte: number } | { lte: number } | 'unrated';
+export type IdSet = { all?: string[]; any?: string[]; none?: string[] };
 
 export interface BrowseFilter {
   scope?: SearchScope;
@@ -14,6 +15,9 @@ export interface BrowseFilter {
   notInAlbum?: boolean;
   untagged?: boolean;
   noPeople?: boolean;
+  albums?: IdSet;
+  people?: IdSet;
+  tags?: IdSet;
   visibility?: Visibility;
   imagesOnly?: boolean;
   rating?: RatingMatch;

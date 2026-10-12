@@ -10,6 +10,7 @@ import {
 import type { BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
 import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import type { AssetSummary } from '$lib/types/album';
+import type { SearchScope } from '$lib/types/search';
 
 interface RouteBase {
   family: SortFamily | null;
@@ -116,6 +117,11 @@ export function structuredRoute(url: URL): boolean {
   return !route || !('feed' in route) || !route.feed.flatOnly?.();
 }
 
+export function routeScope(url: URL): SearchScope | undefined {
+  const route = matchBrowseRoute(url);
+  return route && 'feed' in route ? route.feed.baseFilter().scope : undefined;
+}
+
 export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
   const route = matchBrowseRoute(url);
   if (route && !('feed' in route)) return LOADED_FILTERS.includes(key);
@@ -125,6 +131,6 @@ export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
   if (structuredOnly && !structuredRoute(url)) return false;
   if (!route) return url.pathname === '/search';
   if (!excluded) return true;
-  const scope = route.feed.baseFilter().scope;
+  const scope = routeScope(url);
   return !scope || !(excluded in scope);
 }

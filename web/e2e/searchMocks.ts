@@ -6,6 +6,9 @@ const SEARCH_FILTER_KEYS = new Set([
   'notInAlbum',
   'untagged',
   'noPeople',
+  'albums',
+  'people',
+  'tags',
   'visibility',
   'imagesOnly',
   'rating',
@@ -72,6 +75,10 @@ export function searchShapeProblem(
   if (flat && filter.noPeople) {
     return 'flat search cannot find photos without people';
   }
+  const picked = ['albums', 'people', 'tags'].map((key) => filter[key] as IdSet | undefined);
+  if (flat && picked.some((set) => set && (set.any || set.none))) {
+    return 'flat search can only match all of the picked ids';
+  }
   if (flat && (filter.minSize !== undefined || filter.maxSize !== undefined)) {
     return 'flat search cannot filter by file size';
   }
@@ -104,6 +111,29 @@ export function suggestions(
 }
 
 export type ManagedFilter = { rejected?: string; label?: string };
+export type IdSet = { all?: string[]; any?: string[]; none?: string[] };
+
+export interface MockPerson {
+  id: string;
+  name: string;
+  isHidden?: boolean;
+  assetIds: string[];
+}
+
+export interface MockAlbum {
+  id: string;
+  albumName: string;
+  assetIds: string[];
+}
+
+export function matchesIds(ids: string[], set: IdSet | undefined): boolean {
+  if (!set) return true;
+  return (
+    (set.all ?? []).every((id) => ids.includes(id)) &&
+    (!set.any || set.any.some((id) => ids.includes(id))) &&
+    !(set.none ?? []).some((id) => ids.includes(id))
+  );
+}
 
 export function matchesManagedTags(tags: MockTag[], filter: ManagedFilter): boolean {
   const values = tags.map((t) => t.value.toLowerCase());

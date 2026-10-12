@@ -22,20 +22,20 @@ filenames.
 
 **Filters**, or `Shift+F`, opens the filter panel on the right of the grid; its close button or
 `Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
-groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**, **Not in any
-album**, **Untagged**, **No people**), **Rating & label**, **Date** (**Taken after**, **Taken
-before**, **Added after**, **Added before**), **Camera** (**Make**, **Model**, **Lens**), **Place**
-(**Country**, **State**, **City**) and **File** (**Filename**, **Min size (MB)**, **Max size
-(MB)**). Search leaves out **Filename**. Sections start folded; click a section title to open or
-fold it. A section with an active filter shows a reset button that clears only that section, and
-**Reset** at the top of the panel clears every filter. The panel remembers whether it was open and
-which sections you left open. **Visibility** switches between **Timeline**, **Archived** and
-**Hidden**; folders and **Edited** show timeline photos and do not offer it. **Rating** picks
-**Any**, **Unrated** or a star
+groups its filters into **Library** (**Visibility**, **Rejected**, **Favorites only**), **Albums,
+people & tags** (**Albums** with **Not in any album**, **People** with **No people**, **Tags** with
+**Untagged**), **Rating & label**, **Date** (**Taken after**, **Taken before**, **Added after**,
+**Added before**), **Camera** (**Make**, **Model**, **Lens**), **Place** (**Country**, **State**,
+**City**) and **File** (**Filename**, **Min size (MB)**, **Max size (MB)**). Search leaves out
+**Filename**. Sections start folded; click a section title to open or fold it. A section with an
+active filter shows a reset button that clears only that section, and **Reset** at the top of the
+panel clears every filter. The panel remembers whether it was open and which sections you left
+open. **Visibility** switches between **Timeline**, **Archived** and **Hidden**; folders and
+**Edited** show timeline photos and do not offer it. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
 default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
-Immich versions match the exact star count. **Rejected** shows
-rejects, hides them or shows only them; **Only** lets you review everything you rejected before
+Immich versions match the exact star count. **Rejected** shows rejects, hides them or shows only
+them; **Only** lets you review everything you rejected before
 deleting it in Immich. **Not in any album** keeps photos that no album holds yet, so you can find
 what still needs filing; albums, folders and **Edited** do not offer it. **Untagged** keeps photos
 with no tags at all, and on Immich 3.2 and later **No people** keeps photos where Immich found no
@@ -53,6 +53,12 @@ cities. A choice the new list no longer contains is dropped. On Immich 3.2 and l
 takes several values and matches any of them; older versions match one value.
 When some photos lack the value, the list ends with **Unknown**, which finds those photos and
 cannot be combined with other values.
+**Albums** lists your albums, **People** the named people Immich shows and **Tags** your tags by
+their full path; immich-edit's own label and reject tags stay out of it. Each takes several values,
+and by default a photo must match every pick. On Immich 3.2 and later, **All of**, **Any of** and
+**None of** under a picker switch to photos with at least one of them or none of them; older
+versions match all of them. An album's, person's or tag's page leaves its own entry out of the
+list, and folders and **Edited** do not offer these filters.
 The sort menu next to **Filters** picks **Date taken** or **Date added** to Immich, and
 **Newest first** or **Oldest first**. On Immich 3.2 and later it also offers **Rating**, with
 **Highest first** or **Lowest first**, and **Size**, with **Largest first** or **Smallest first**.

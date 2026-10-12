@@ -17,6 +17,7 @@ describe('filter panel sections', () => {
 
   it.each<[string, Partial<BrowseFilters>]>([
     ['library', { rejected: 'hide' }],
+    ['collections', { untagged: true }],
     ['rating', { label: 'none' }],
     ['date', { takenBefore: '2024-01-01' }],
     ['file', { filename: 'DSC' }],

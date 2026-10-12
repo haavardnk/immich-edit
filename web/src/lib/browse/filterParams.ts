@@ -12,6 +12,14 @@ import type { Visibility } from '$lib/types/search';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { UNKNOWN_EXIF, type ExifFilterKey } from './exifFilters';
 import { megabytes } from './fileSize';
+import {
+  ID_FILTERS,
+  ID_MATCHES,
+  NO_IDS,
+  idFilter,
+  type IdFilter,
+  type IdFilterKey
+} from './idFilters';
 import { structuredRoute, supportsFilter } from './browseRoutes';
 
 const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
@@ -22,6 +30,9 @@ const PARAMS: Record<keyof BrowseFilters, string> = {
   notInAlbum: 'noalbum',
   untagged: 'untagged',
   noPeople: 'nopeople',
+  albums: 'album',
+  people: 'person',
+  tags: 'tag',
   rating: 'rating',
   filename: 'filename',
   minSize: 'minsize',
@@ -39,6 +50,12 @@ const PARAMS: Record<keyof BrowseFilters, string> = {
   country: 'country',
   state: 'state',
   city: 'city'
+};
+
+const MATCH_PARAMS: Record<IdFilterKey, string> = {
+  albums: 'albumsmatch',
+  people: 'peoplematch',
+  tags: 'tagsmatch'
 };
 
 const TYPED_KEYS: (keyof BrowseFilters)[] = [
@@ -63,17 +80,25 @@ function values(params: URLSearchParams, key: ExifFilterKey): string[] {
   return read.length <= 1 || immichCapabilities.structuredSearch ? read : [];
 }
 
+function ids(params: URLSearchParams, key: IdFilterKey, structured: boolean): IdFilter {
+  const read = [...new Set(params.getAll(PARAMS[key]).filter(Boolean))];
+  const match = ID_MATCHES.find((m) => m === params.get(MATCH_PARAMS[key])) ?? 'all';
+  return structured || match === 'all' ? idFilter(read, match) : NO_IDS;
+}
+
 export function readFilterParams(url: URL): BrowseFilters {
   const params = url.searchParams;
   const get = (key: keyof BrowseFilters): string | null => params.get(PARAMS[key]);
-  const ratings: RatingFilter[] = structuredRoute(url)
-    ? [...EXACT_RATINGS, ...RANGE_RATINGS]
-    : EXACT_RATINGS;
+  const structured = structuredRoute(url);
+  const ratings: RatingFilter[] = structured ? [...EXACT_RATINGS, ...RANGE_RATINGS] : EXACT_RATINGS;
   const filters: BrowseFilters = {
     favoriteOnly: get('favoriteOnly') === '1',
     notInAlbum: get('notInAlbum') === '1',
     untagged: get('untagged') === '1',
     noPeople: get('noPeople') === '1',
+    albums: ids(params, 'albums', structured),
+    people: ids(params, 'people', structured),
+    tags: ids(params, 'tags', structured),
     rating: ratings.find((r) => String(r) === get('rating')) ?? FILTER_DEFAULTS.rating,
     filename: get('filename') ?? '',
     minSize: megabytes(get('minSize')),
@@ -100,12 +125,22 @@ export function readFilterParams(url: URL): BrowseFilters {
 
 export function withFilterParams(url: URL, filters: BrowseFilters): URL {
   const next = new URL(url);
-  for (const name of Object.values(PARAMS)) next.searchParams.delete(name);
+  for (const name of [...Object.values(PARAMS), ...Object.values(MATCH_PARAMS)]) {
+    next.searchParams.delete(name);
+  }
   for (const key of Object.keys(PARAMS) as (keyof BrowseFilters)[]) {
     if (isDefaultFilter(filters, key)) continue;
     const value = filters[key];
-    const written = Array.isArray(value) ? value : [value === true ? '1' : String(value)];
+    const written = Array.isArray(value)
+      ? value
+      : typeof value === 'object' && value !== null
+        ? value.ids
+        : [value === true ? '1' : String(value)];
     for (const item of written) next.searchParams.append(PARAMS[key], item);
+  }
+  for (const key of ID_FILTERS) {
+    const { ids, match } = filters[key];
+    if (ids.length > 0 && match !== 'all') next.searchParams.set(MATCH_PARAMS[key], match);
   }
   return next;
 }

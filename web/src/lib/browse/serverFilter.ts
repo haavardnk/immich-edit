@@ -3,6 +3,7 @@ import type { BrowseFilter } from '$lib/types/search';
 import { isRange, ratingMatch } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF } from './exifFilters';
 import { toBytes } from './fileSize';
+import { ID_FILTERS, idSet } from './idFilters';
 
 function dayStart(date: string): string {
   return new Date(`${date}T00:00:00`).toISOString();
@@ -23,6 +24,10 @@ export function serverFilter(
   if (filters.notInAlbum) filter.notInAlbum = true;
   if (filters.untagged) filter.untagged = true;
   if (filters.noPeople) filter.noPeople = true;
+  for (const key of ID_FILTERS) {
+    const set = idSet(filters[key], structured);
+    if (set) filter[key] = set;
+  }
   if (rating) filter.rating = rating;
   if (filters.filename) filter.filename = filters.filename;
   if (filters.minSize !== null) filter.minSize = toBytes(filters.minSize);
