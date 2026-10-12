@@ -19,7 +19,7 @@ Before changing code, read:
   [Development](https://haavardnk.github.io/immich-edit/development/#test-changes), and run the
   Playwright specifications covering any user flow you changed.
 - Include local GPU evidence for shader, GPU pass, device, or CPU/GPU parity changes.
-- Use a conventional commit title under 50 characters.
+- Use a conventional commit title of at most 50 characters. CI rejects longer ones.
 
 Use [GitHub Issues](https://github.com/haavardnk/immich-edit/issues) for bugs and feature requests.
 Ask contributor questions in

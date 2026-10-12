@@ -16,4 +16,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/checkout@v7
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
       - uses: wagoid/commitlint-github-action@v6
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
