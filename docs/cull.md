@@ -16,9 +16,20 @@ here as soon as Immich has it.
 The sidebar has **Photos**, **People**, **Favorites**, **Albums**, **Tags**, **Folders** and
 **Edited**. **Edited** lists the photos you have changed in immich-edit. **People**, **Albums**,
 **Tags** and **Folders** remember whether you left them open, and the one holding the page you are
-on opens by itself. The search box at the top uses Immich's smart search, so a description such as
-`red car at night` works. When Immich's machine learning is down, it falls back to searching
-filenames.
+on opens by itself. The search box at the top searches your library, and the **Search by** buttons
+above the results pick what it matches, as in Immich:
+
+- **Context** uses Immich's smart search, so a description such as `red car at night` works. When
+  Immich's machine learning is down, it falls back to searching filenames.
+- **File name** matches part of the original filename.
+- **Description** matches part of the description set in Immich.
+- **Full path or folder** matches part of the original file path, such as a folder name.
+- **OCR** finds text Immich read in the photo.
+
+A query that looks like a filename, such as `DSC00195` or `IMG_1234.jpg`, starts in **File name**;
+anything else starts in **Context**. **Context** and **OCR** appear only when the Immich server has
+smart search and OCR turned on; without smart search every query starts in **File name**. With no
+results, **Context** offers **Search filenames instead**.
 
 **Filters**, or `Shift+F`, opens the filter panel on the right of the grid; its close button or
 `Shift+F` again hides it, and the **Filters** button stays hidden while the panel is open. The panel
@@ -40,12 +51,12 @@ deleting it in Immich. **Not in any album** keeps photos that no album holds yet
 what still needs filing; albums, folders and **Edited** do not offer it. **Untagged** keeps photos
 with no tags at all, and on Immich 3.2 and later **No people** keeps photos where Immich found no
 faces. Color labels and reject marks are tags too, so a labelled or rejected photo is not untagged.
-Tag pages leave out **Untagged**, people pages leave out **No people**, description search leaves
+Tag pages leave out **Untagged**, people pages leave out **No people**, context search leaves
 out **No people**, and folders and **Edited** offer neither.
 **Min size (MB)** and **Max size (MB)** keep photos whose original file is at least or at most that
 size, where 1 MB is 1,000,000 bytes. A photo with no recorded size never matches a size range.
 Folders and **Edited** offer them on every Immich version, other views need Immich 3.2, and
-description search does not offer them.
+context search does not offer them.
 **Make**, **Model**, **Lens**, **Country**, **State** and **City** list the values Immich knows
 from your timeline photos. Picking a make narrows the models and lenses on offer, and picking a
 model narrows the lenses; a country narrows the states and cities the same way, and a state the
@@ -75,7 +86,7 @@ is not part of the address; each view remembers its own.
 The count beside the title is the number of photos in the view, followed by how many of the loaded
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
 3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded
-photos instead and the count still includes the ones they hide. Description search works the same
+photos instead and the count still includes the ones they hide. Context search works the same
 way on every Immich version, and matches only exact star counts.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the

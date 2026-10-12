@@ -467,6 +467,8 @@ pub struct ServerFeatures {
     pub oauth: bool,
     pub oauth_auto_launch: bool,
     pub password_login: bool,
+    pub smart_search: bool,
+    pub ocr: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

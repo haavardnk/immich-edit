@@ -6,8 +6,13 @@
   import { readFilterParams } from '$lib/browse/filterParams';
   import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
   import { selection } from '$lib/stores/selection.svelte';
-  import { runSearch } from '$lib/browse/sources';
-  import { resolveSearchMode, type SearchMode } from '$lib/browse/searchMode';
+  import { searchFeed } from '$lib/browse/sources';
+  import {
+    resolveSearchMode,
+    SEARCH_MODES,
+    searchModeAvailable,
+    type SearchMode
+  } from '$lib/browse/searchMode';
   import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
   import FilterPanel from '$lib/components/browse/filters/FilterPanel.svelte';
@@ -15,13 +20,14 @@
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
   const mode = $derived(resolveSearchMode(query, page.url.searchParams.get('mode')));
+  const modes = $derived(SEARCH_MODES.filter((option) => searchModeAvailable(option.mode)));
 
-  const feed = new BrowseFeed({
-    baseFilter: () => ({}),
-    flatOnly: () => mode === 'description',
-    fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
-    includeStats: false
-  });
+  const feed = new BrowseFeed(
+    searchFeed(
+      () => query,
+      () => mode
+    )
+  );
 
   function setMode(next: SearchMode): void {
     if (next === mode) return;
@@ -50,43 +56,35 @@
       <BrowseHeader title="Search" hideSort />
       <div class="flex flex-col items-center justify-center px-6 py-16 text-center text-dark/65">
         <h3 class="text-sm font-medium text-dark/70">Search your library</h3>
-        <p class="mt-1 max-w-xs text-xs">Type a description in the search bar to find photos.</p>
-      </div>
-    {:else if feed.loading && !feed.loadedOnce}
-      <div class="flex flex-1 items-center justify-center">
-        <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
-          <LoadingSpinner size="small" />
-          <span class="text-xs">Searching…</span>
-        </div>
+        <p class="mt-1 max-w-xs text-xs">Type in the search bar to find photos.</p>
       </div>
     {:else}
       <BrowseHeader title={`Search: ${query}`} hideSort />
       <div class="flex flex-none items-center gap-2 border-b border-dark/10 px-3 py-1.5">
-        <span class="text-[11px] text-dark/65">Search by</span>
-        <div class="inline-flex rounded-full bg-light-100 p-0.5 text-[11px]">
-          <Button
-            type="button"
-            size="tiny"
-            variant={mode === 'description' ? 'filled' : 'ghost'}
-            color={mode === 'description' ? 'primary' : 'secondary'}
-            aria-pressed={mode === 'description'}
-            onclick={() => setMode('description')}
-          >
-            Description
-          </Button>
-          <Button
-            type="button"
-            size="tiny"
-            variant={mode === 'filename' ? 'filled' : 'ghost'}
-            color={mode === 'filename' ? 'primary' : 'secondary'}
-            aria-pressed={mode === 'filename'}
-            onclick={() => setMode('filename')}
-          >
-            Filename
-          </Button>
+        <span class="shrink-0 text-[11px] text-dark/65">Search by</span>
+        <div class="flex min-w-0 flex-wrap gap-0.5 rounded-2xl bg-light-100 p-0.5 text-[11px]">
+          {#each modes as option (option.mode)}
+            <Button
+              type="button"
+              size="tiny"
+              variant={mode === option.mode ? 'filled' : 'ghost'}
+              color={mode === option.mode ? 'primary' : 'secondary'}
+              aria-pressed={mode === option.mode}
+              onclick={() => setMode(option.mode)}
+            >
+              {option.label}
+            </Button>
+          {/each}
         </div>
       </div>
-      {#if feed.assets.length === 0}
+      {#if feed.loading && !feed.loadedOnce}
+        <div class="flex flex-1 items-center justify-center">
+          <div class="inline-flex items-center gap-2 text-dark/65" aria-live="polite">
+            <LoadingSpinner size="small" />
+            <span class="text-xs">Searching…</span>
+          </div>
+        </div>
+      {:else if feed.assets.length === 0}
         <div class="flex flex-1 flex-col items-center justify-center">
           <div
             class="flex flex-col items-center justify-center px-6 py-16 text-center text-dark/65"
@@ -94,7 +92,7 @@
             <h3 class="text-sm font-medium text-dark/70">No results</h3>
             <p class="mt-1 max-w-xs text-xs">Nothing matched “{query}”.</p>
           </div>
-          {#if mode === 'description'}
+          {#if mode === 'context'}
             <Button
               type="button"
               size="tiny"
@@ -119,5 +117,5 @@
       {/if}
     {/if}
   </div>
-  <FilterPanel hideFilenameFilter />
+  <FilterPanel />
 </div>

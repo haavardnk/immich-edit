@@ -13,6 +13,9 @@ const SEARCH_FILTER_KEYS = new Set([
   'imagesOnly',
   'rating',
   'filename',
+  'description',
+  'path',
+  'ocr',
   'minSize',
   'maxSize',
   'takenAfter',
@@ -64,6 +67,12 @@ export function searchShapeProblem(
       .map((key) => `filter.${key}`)
   ];
   if (unknown.length) return `unknown search fields: ${unknown.join(', ')}`;
+  if (
+    path === '/api/search/smart' &&
+    ['filename', 'description', 'path'].some((k) => k in filter)
+  ) {
+    return 'smart search cannot filter by text fields';
+  }
   const flat = path === '/api/search/smart' || !structured;
   const range =
     typeof filter.rating === 'object' &&

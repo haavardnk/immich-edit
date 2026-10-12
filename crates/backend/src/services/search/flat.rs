@@ -3,7 +3,7 @@ use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, TextField};
 use crate::services::search::ids::Ids;
 use crate::services::search::query::{PageQuery, SmartQuery};
 
@@ -59,8 +59,8 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Result<Map<String, Value>, Ap
         }
         None => None,
     };
-    if let Some(name) = &filter.filename {
-        body.insert("originalFileName".into(), name.clone().into());
+    for (field, text) in filter.text_matches() {
+        body.insert(field.immich_field().into(), text.into());
     }
     if let Some(after) = filter.taken_after {
         body.insert("takenAfter".into(), timestamp(after));
@@ -106,6 +106,16 @@ pub fn page(query: &PageQuery, ids: &Ids, page: u32) -> Result<Value, AppError> 
 }
 
 pub fn smart(query: &SmartQuery, ids: &Ids, page: u32) -> Result<Value, AppError> {
+    if let Some((field, _)) = query
+        .filter
+        .text_matches()
+        .find(|(field, _)| *field != TextField::Ocr)
+    {
+        return Err(AppError::BadRequest(format!(
+            "smart search cannot filter by {}",
+            field.immich_field()
+        )));
+    }
     let mut body = filter(&query.filter, ids)?;
     body.insert("query".into(), query.text.clone().into());
     body.insert("size".into(), query.size.into());
@@ -211,6 +221,49 @@ mod tests {
         let body = count(&filter_by, &Ids::default()).ok();
         if body != Some(json!({ "tagIds": null })) {
             panic!("untagged flat body was {body:?}");
+        }
+    }
+
+    #[test]
+    fn text_fields_map_to_their_flat_immich_fields() {
+        let filter_by = BrowseFilter {
+            description: Some(" fjord ".into()),
+            path: Some("/2024/".into()),
+            ocr: Some("exit".into()),
+            filename: Some("  ".into()),
+            ..BrowseFilter::default()
+        };
+        let expected = json!({ "description": "fjord", "originalPath": "/2024/", "ocr": "exit" });
+        let body = count(&filter_by, &Ids::default()).ok();
+        if body != Some(expected) {
+            panic!("text flat body was {body:?}");
+        }
+    }
+
+    #[test]
+    fn smart_search_refuses_text_fields_immich_would_drop() {
+        let text = |field: fn(&mut BrowseFilter) -> &mut Option<String>| {
+            let mut filter_by = BrowseFilter::default();
+            *field(&mut filter_by) = Some("x".into());
+            filter_by
+        };
+        let cases = [
+            (text(|f| &mut f.filename), false),
+            (text(|f| &mut f.description), false),
+            (text(|f| &mut f.path), false),
+            (text(|f| &mut f.ocr), true),
+        ];
+        for (filter_by, accepted) in cases {
+            let query = SmartQuery {
+                text: "red car".into(),
+                filter: filter_by,
+                size: 10,
+                cursor: None,
+                with_exif: false,
+            };
+            if smart(&query, &Ids::default(), 1).is_ok() != accepted {
+                panic!("smart search with {:?}", query.filter);
+            }
         }
     }
 

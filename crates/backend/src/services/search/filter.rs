@@ -19,6 +19,9 @@ pub struct BrowseFilter {
     pub images_only: bool,
     pub rating: Option<RatingMatch>,
     pub filename: Option<String>,
+    pub description: Option<String>,
+    pub path: Option<String>,
+    pub ocr: Option<String>,
     pub taken_after: Option<DateTime<Utc>>,
     pub taken_before: Option<DateTime<Utc>>,
     pub rejected: Option<Rejected>,
@@ -49,12 +52,43 @@ impl BrowseFilter {
         ]
     }
 
+    pub fn text_matches(&self) -> impl Iterator<Item = (TextField, &str)> {
+        [
+            (TextField::FileName, &self.filename),
+            (TextField::Description, &self.description),
+            (TextField::Path, &self.path),
+            (TextField::Ocr, &self.ocr),
+        ]
+        .into_iter()
+        .filter_map(|(field, text)| Some((field, text.as_deref()?.trim())))
+        .filter(|(_, text)| !text.is_empty())
+    }
+
     pub fn added_bounds(&self) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
         let (low, high) = self.added_between.unzip();
         (
             [self.added_after, low].into_iter().flatten().max(),
             [self.added_before, high].into_iter().flatten().min(),
         )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextField {
+    FileName,
+    Description,
+    Path,
+    Ocr,
+}
+
+impl TextField {
+    pub fn immich_field(self) -> &'static str {
+        match self {
+            Self::FileName => "originalFileName",
+            Self::Description => "description",
+            Self::Path => "originalPath",
+            Self::Ocr => "ocr",
+        }
     }
 }
 

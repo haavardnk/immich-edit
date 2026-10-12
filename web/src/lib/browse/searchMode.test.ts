@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { looksLikeFilename, resolveSearchMode } from './searchMode';
 
 describe('looksLikeFilename', () => {
@@ -24,13 +25,28 @@ describe('looksLikeFilename', () => {
 });
 
 describe('resolveSearchMode', () => {
-  it('honors an explicit mode', () => {
-    expect(resolveSearchMode('red car', 'filename')).toBe('filename');
-    expect(resolveSearchMode('DSC00195', 'description')).toBe('description');
+  afterEach(() => {
+    immichCapabilities.smartSearch = true;
+    immichCapabilities.ocr = true;
   });
 
-  it('ignores an invalid explicit mode and auto-detects', () => {
-    expect(resolveSearchMode('DSC00195', 'bogus')).toBe('filename');
-    expect(resolveSearchMode('red car', null)).toBe('description');
+  it.each([
+    ['red car', 'filename', 'filename'],
+    ['DSC00195', 'context', 'context'],
+    ['red car', 'description', 'description'],
+    ['/photos/2024', 'path', 'path'],
+    ['open', 'ocr', 'ocr'],
+    ['DSC00195', 'bogus', 'filename'],
+    ['red car', null, 'context']
+  ])('resolves %s with mode %s to %s', (query, explicit, expected) => {
+    expect(resolveSearchMode(query, explicit)).toBe(expected);
+  });
+
+  it('falls back from modes the Immich server lacks', () => {
+    immichCapabilities.smartSearch = false;
+    immichCapabilities.ocr = false;
+    expect(resolveSearchMode('red car', 'context')).toBe('filename');
+    expect(resolveSearchMode('red car', 'ocr')).toBe('filename');
+    expect(resolveSearchMode('red car', null)).toBe('filename');
   });
 });

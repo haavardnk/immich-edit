@@ -3,6 +3,8 @@ import { getJson } from './client';
 export interface ImmichCapabilities {
   immich_version: string | null;
   structured_search: boolean;
+  smart_search: boolean;
+  ocr: boolean;
 }
 
 export async function getImmichCapabilities(): Promise<ImmichCapabilities> {

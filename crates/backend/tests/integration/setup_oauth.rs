@@ -17,6 +17,8 @@ async fn mock_oauth(server: &MockServer, admin: bool) {
             "oauth": true,
             "oauthAutoLaunch": false,
             "passwordLogin": true,
+            "smartSearch": true,
+            "ocr": true,
         })))
         .mount(server)
         .await;

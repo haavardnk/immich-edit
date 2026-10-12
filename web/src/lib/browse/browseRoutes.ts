@@ -1,4 +1,4 @@
-import { loadEditedAssets, loadFolderAssets, runSearch } from './sources';
+import { loadEditedAssets, loadFolderAssets, searchFeed } from './sources';
 import { resolveSearchMode } from './searchMode';
 import { fieldKey, timeOf, type SortKey } from './sortAssets';
 import { LOADED_FILTERS } from './loadedFilter';
@@ -73,12 +73,10 @@ export function matchBrowseRoute(url: URL): BrowseRoute | null {
     const mode = resolveSearchMode(query, url.searchParams.get('mode'));
     return {
       family: null,
-      feed: {
-        baseFilter: () => ({}),
-        flatOnly: () => mode === 'description',
-        fetcher: (filter, cursor) => runSearch(query, mode, filter, cursor),
-        includeStats: false
-      }
+      feed: searchFeed(
+        () => query,
+        () => mode
+      )
     };
   }
 
@@ -123,6 +121,7 @@ export function routeScope(url: URL): SearchScope | undefined {
 }
 
 export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
+  if (key === 'filename' && url.pathname === '/search') return false;
   const route = matchBrowseRoute(url);
   if (route && !('feed' in route)) return LOADED_FILTERS.includes(key);
   const excluded = SCOPE_EXCLUSIONS[key];

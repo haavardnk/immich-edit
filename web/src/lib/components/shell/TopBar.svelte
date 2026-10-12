@@ -34,16 +34,16 @@
 
   $effect(() => {
     const q = routeQuery;
-    if (q !== null) untrack(() => (ui.searchQuery = q));
+    untrack(() => (ui.searchQuery = q ?? ''));
   });
 
   function submitSearch(value: string): void {
     const q = value.trim();
     if (q) {
-      void goto('/search?q=' + encodeURIComponent(q), {
-        replaceState: page.url.pathname === '/search',
-        keepFocus: true
-      });
+      const onSearch = page.url.pathname === '/search';
+      const url = onSearch ? new URL(page.url) : new URL('/search', page.url);
+      url.searchParams.set('q', q);
+      void goto(`${url.pathname}${url.search}`, { replaceState: onSearch, keepFocus: true });
     } else if (page.url.pathname === '/search') {
       void goto('/photos', { keepFocus: true });
     }

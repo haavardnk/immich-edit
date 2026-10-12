@@ -36,6 +36,8 @@ pub async fn live() -> Json<Value> {
 pub struct ImmichCapabilitiesBody {
     pub immich_version: Option<String>,
     pub structured_search: bool,
+    pub smart_search: bool,
+    pub ocr: bool,
 }
 
 pub async fn immich_capabilities(
@@ -46,6 +48,8 @@ pub async fn immich_capabilities(
     Json(ImmichCapabilitiesBody {
         immich_version: caps.version.map(|version| version.to_string()),
         structured_search: caps.structured_search,
+        smart_search: caps.smart_search,
+        ocr: caps.ocr,
     })
 }
 

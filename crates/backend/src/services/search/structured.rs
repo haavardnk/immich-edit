@@ -1,7 +1,7 @@
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
-use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, TextField};
 use crate::services::search::flat::timestamp;
 use crate::services::search::ids::Ids;
 use crate::services::search::query::{PageQuery, SortField};
@@ -48,10 +48,14 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
         Some(RatingMatch::Unrated) => body.insert("rating".into(), json!({ "eq": null })),
         None => None,
     };
-    if let Some(name) = filter.filename.as_deref().map(str::trim)
-        && !name.is_empty()
-    {
-        body.insert("originalFileName".into(), json!({ "like": name }));
+    for (field, text) in filter.text_matches() {
+        let matched = match field {
+            TextField::Ocr => json!({ "matches": text }),
+            TextField::FileName | TextField::Description | TextField::Path => {
+                json!({ "like": text })
+            }
+        };
+        body.insert(field.immich_field().into(), matched);
     }
     range(
         &mut body,
@@ -210,6 +214,29 @@ mod tests {
         let body = page(&query, &ids, Some("next"));
         if body != expected {
             panic!("structured body was {body}");
+        }
+    }
+
+    #[test]
+    fn text_fields_match_substrings_and_ocr_by_similarity() {
+        let filter_by = BrowseFilter {
+            description: Some(" fjord ".into()),
+            path: Some("/2024/".into()),
+            ocr: Some("exit".into()),
+            filename: Some("  ".into()),
+            ..BrowseFilter::default()
+        };
+        let expected = json!({
+            "filter": {
+                "trashedAt": { "eq": null },
+                "description": { "like": "fjord" },
+                "originalPath": { "like": "/2024/" },
+                "ocr": { "matches": "exit" },
+            }
+        });
+        let body = count(&filter_by, &Ids::default());
+        if body != expected {
+            panic!("text body was {body}");
         }
     }
 

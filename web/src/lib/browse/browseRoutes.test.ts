@@ -26,10 +26,13 @@ describe('matchBrowseRoute', () => {
     });
   });
 
-  it('carries the query and mode into a search feed', () => {
-    const match = route('/search?q=%20sunset%20&mode=description');
+  it.each([
+    ['context', true],
+    ['description', false]
+  ])('carries the query and %s mode into a search feed', (mode, flatOnly) => {
+    const match = route(`/search?q=%20sunset%20&mode=${mode}`);
     expect(match?.family).toBeNull();
-    expect(match && 'feed' in match && match.feed.flatOnly?.()).toBe(true);
+    expect(match && 'feed' in match && match.feed.flatOnly?.()).toBe(flatOnly);
     expect(match && 'feed' in match && match.feed.baseFilter()).toEqual({});
   });
 

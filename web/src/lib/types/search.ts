@@ -22,6 +22,9 @@ export interface BrowseFilter {
   imagesOnly?: boolean;
   rating?: RatingMatch;
   filename?: string;
+  description?: string;
+  path?: string;
+  ocr?: string;
   minSize?: number;
   maxSize?: number;
   takenAfter?: string;

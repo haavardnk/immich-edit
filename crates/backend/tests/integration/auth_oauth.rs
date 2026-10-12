@@ -29,6 +29,8 @@ async fn mock_features(server: &MockServer, oauth: bool, auto_launch: bool, pass
             "oauth": oauth,
             "oauthAutoLaunch": auto_launch,
             "passwordLogin": password,
+            "smartSearch": true,
+            "ocr": true,
         })))
         .mount(server)
         .await;

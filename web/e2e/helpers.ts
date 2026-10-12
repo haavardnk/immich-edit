@@ -208,6 +208,8 @@ export interface InstallOpts {
   albums?: MockAlbum[];
   onTagAsset?: (change: { tagId: string; assetId: string; added: boolean }) => void;
   structuredSearch?: boolean;
+  smartSearch?: boolean;
+  ocr?: boolean;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -313,7 +315,12 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p === '/api/immich/capabilities') {
       const structured = opts.structuredSearch ?? false;
       return route.fulfill(
-        json({ immich_version: structured ? '3.2.2' : '3.1.0', structured_search: structured })
+        json({
+          immich_version: structured ? '3.2.2' : '3.1.0',
+          structured_search: structured,
+          smart_search: opts.smartSearch ?? true,
+          ocr: opts.ocr ?? true
+        })
       );
     }
 

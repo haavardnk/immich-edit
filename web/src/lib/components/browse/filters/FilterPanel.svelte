@@ -26,17 +26,12 @@
   import { mdiClose, mdiRestore } from '@mdi/js';
   import { tick } from 'svelte';
 
-  let {
-    favoriteLocked = false,
-    hideFilenameFilter = false
-  }: { favoriteLocked?: boolean; hideFilenameFilter?: boolean } = $props();
+  let { favoriteLocked = false }: { favoriteLocked?: boolean } = $props();
 
   const filters = $derived(browseControls.filters);
   const openSections = $derived(new Set(browseView.filterSections));
   const sections = $derived(
-    FILTER_SECTIONS.filter((section) =>
-      section.keys.some((key) => supports(key) && (key !== 'filename' || !hideFilenameFilter))
-    )
+    FILTER_SECTIONS.filter((section) => section.keys.some((key) => supports(key)))
   );
 
   let panel = $state<HTMLElement | null>(null);
@@ -118,7 +113,7 @@
             {:else if section.id === 'date'}
               <DateFilters />
             {:else if section.id === 'file'}
-              {#if !hideFilenameFilter}
+              {#if supports('filename')}
                 <FilenameFilter />
               {/if}
               {#if supports('minSize')}

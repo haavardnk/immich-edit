@@ -41,10 +41,17 @@ afterEach(() => {
 describe('filter params', () => {
   it('round-trips every filter and keeps unrelated params', () => {
     immichCapabilities.structuredSearch = true;
-    const url = withFilterParams(new URL('http://x.invalid/search?q=cat&mode=filename'), FULL);
+    const url = withFilterParams(new URL('http://x.invalid/photos?q=cat&mode=filename'), FULL);
     expect(url.searchParams.get('q')).toBe('cat');
     expect(url.searchParams.get('mode')).toBe('filename');
     expect(readFilterParams(url)).toEqual(FULL);
+  });
+
+  it.each([
+    ['/photos', 'IMG'],
+    ['/search', '']
+  ])('reads filename on %s as %j because the search query owns the text', (pathname, expected) => {
+    expect(read('filename=IMG', pathname).filename).toBe(expected);
   });
 
   it('writes nothing for defaults and replaces stale filter params', () => {
@@ -149,7 +156,7 @@ describe('filter params', () => {
     ['/people/p1', true, true, false, 3],
     ['/albums/a1', true, true, true, 3],
     ['/search?q=cat&mode=filename', true, true, true, 3],
-    ['/search?q=cat&mode=description', true, true, false, null],
+    ['/search?q=cat&mode=context', true, true, false, null],
     ['/folders?path=%2Fa', true, false, false, 3],
     ['/edited', false, false, false, 3]
   ])(
@@ -168,7 +175,7 @@ describe('filter params', () => {
     ['/photos', '3+'],
     ['/folders?path=%2Fa', '3+'],
     ['/search?q=cat&mode=filename', '3+'],
-    ['/search?q=cat&mode=description', 'any']
+    ['/search?q=cat&mode=context', 'any']
   ])('reads rating=3+ on %s with structured search as %s', (route, expected) => {
     immichCapabilities.structuredSearch = true;
     const url = new URL(`http://x.invalid${route}`);
